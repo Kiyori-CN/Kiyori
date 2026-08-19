@@ -220,6 +220,70 @@ class BrowserInteractionContractTest {
         assertTrue(appBuild.contains("implementation(libs.coil.svg)"))
     }
 
+    @Test
+    fun `site settings are consumed by every scoped browser capability owner`() {
+        val displaySource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/BrowserDisplaySettingsSupport.kt",
+            ).readText()
+        val credentialSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/BrowserCredentialSupport.kt",
+            ).readText()
+        val pageExecutionSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/BrowserPageExecutionSupport.kt",
+            ).readText()
+        val webViewSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/BrowserWebViewSupport.kt",
+            ).readText()
+        val userscriptSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/userscript/runtime/WebSessionUserscriptManager.kt",
+            ).readText()
+        val browserHostSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/WebSessionBrowserHost.kt",
+            ).readText()
+
+        assertTrue(displaySource.contains("WebSessionSiteFeature.RETURN_WITHOUT_RELOAD"))
+        assertTrue(displaySource.contains("WebSessionSiteFeature.FORCE_PAGE_ZOOM"))
+        assertTrue(displaySource.contains("domainOrUrl = backTargetUrl"))
+        assertTrue(
+            credentialSource.contains("WebSessionSiteFeature.WEBSITE_PASSWORD_SAVING"),
+        )
+        assertTrue(credentialSource.contains("browserCredentialAutofillDisableScript()"))
+        assertTrue(
+            credentialSource.contains(
+                "session.currentUrl == pageUrl &&\n" +
+                    "                        isWebsitePasswordSavingEnabledForPage(session.currentUrl)",
+            ),
+        )
+        assertTrue(
+            pageExecutionSource.contains(
+                "WebSessionSiteFeature.WEB_ELEMENT_LONG_PRESS_MENU",
+            ),
+        )
+        assertTrue(webViewSource.contains("WebSessionSiteFeature.WEB_PAGE_OPEN_APP"))
+        assertTrue(webViewSource.contains("WebSessionSiteFeature.WEB_PAGE_GEOLOCATION"))
+        assertTrue(userscriptSource.contains("isSiteExecutionAllowed"))
+        assertTrue(userscriptSource.contains("revokeActiveNetworkCalls(sessionId)"))
+        assertTrue(userscriptSource.contains("activeCalls.remove(requestKey, call)"))
+        assertTrue(userscriptSource.contains("call.cancel()"))
+        assertTrue(browserHostSource.contains("WebSessionSiteFeature.MEDIA_CANDIDATE_BADGE"))
+        assertTrue(
+            browserHostSource.contains(
+                "WebSessionSiteFeature.SWIPE_HISTORY_NAVIGATION",
+            ),
+        )
+        assertTrue(
+            browserHostSource.contains(
+                "WebSessionSiteFeature.AUTOMATIC_FLOATING_PLAYBACK",
+            ),
+        )
+    }
+
     private fun repositoryFile(relativePath: String): File {
         var current: File? =
             File(requireNotNull(System.getProperty("user.dir"))).absoluteFile

@@ -171,6 +171,10 @@ GeckoView 提供正式的 WebExtension 接入能力。将浏览器引擎整体�
   `context-menu` 仍明确标记为未支持
 - 内置油猴插件增加持久化的“允许用户脚本”总授权；关闭后现有 WebView 生命周期注册保持惰性且不返回
   脚本 payload，同时撤销 capability token、reply proxy、页面菜单、webRequest 与活动 GM 网络请求
+- 浏览器当前域名“网站配置”可以在全局授权仍开启时为精确 host 进一步禁用用户脚本。该规则不复制
+  userscript registry 的总授权：runtime 同时要求全局允许且当前 host 未禁用；站点禁用会撤销该
+  session 的 capability token、reply proxy、页面菜单、webRequest 与活动 GM 网络请求。已经执行
+  的纯页面 DOM 修改没有可逆 owner，界面明确要求刷新当前页后再验证页面影响
 - `unsafeWindow` 与特权 grant 在 `auto` 或 `content` 模式下继续运行于 WebView 的共享隔离运行时，通过不含
   native bridge 和 capability token 的同步页面对象桥访问主世界
 - 页面对象桥支持属性读写、方法调用、构造、回调、Promise、普通对象、数组和 DOM 节点参数；单次
@@ -249,8 +253,8 @@ GM XHR 重定向权限、窄屏按钮和长脚本行为仍需要目标 Android W
   12 个 grant 已进入 parser、matcher、capability registry 和 bootstrap 回归测试
 - `BrowserPresentationCoordinator` 只投影现有 `WebSessionUserscriptManager.uiStore.state`，并把
   总授权、打开插件中心和打开 userscript 管理器委托回同一 owner
-- 网页浏览器设置第一组改为“网页插件与脚本”，包含总授权、管理、权限与网站范围、当前页诊断；
-  原会话占位项移入主页/标签组
+- 网页浏览器设置中的“网页插件与脚本”组包含总授权、管理、权限与网站范围、当前页诊断；页面另有
+  “内容过滤”组和全局作用域说明，当前域名网站配置只投影负向限制，不复制插件状态
 - 权限子页显示 runtime 支持状态、安装/启用数量和逐脚本执行世界、grant、connect、页面规则、
   未知权限与阻塞原因；这些 metadata 声明不是单项可撤销授权，不显示伪开关
 

@@ -10,7 +10,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -115,13 +114,6 @@ private fun WebSessionBrowserPlaceholderPage.placeholderModel(): PlaceholderMode
                 description = stringResource(R.string.web_session_placeholder_reader_mode),
                 icon = Icons.AutoMirrored.Filled.MenuBook,
                 tone = WebSessionBrowserMenuTone.READER_MODE,
-            )
-        WebSessionBrowserPlaceholderPage.SITE_CONFIG ->
-            PlaceholderModel(
-                title = stringResource(R.string.web_session_site_config),
-                description = stringResource(R.string.web_session_placeholder_site_config),
-                icon = Icons.Filled.Security,
-                tone = WebSessionBrowserMenuTone.SITE_CONFIG,
             )
     }
 

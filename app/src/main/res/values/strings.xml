@@ -7783,7 +7783,6 @@
     <string name="web_session_placeholder_runtime_unchanged">此页面不会改变当前网页、标签页、Cookie 或 AI 操控状态。</string>
     <string name="web_session_placeholder_toolbox">浏览器菜单已经是唯一菜单入口，独立第二工具箱尚未定义。</string>
     <string name="web_session_placeholder_reader_mode">阅读模式需要正文提取、转换和阅读状态管线，目前尚未接入。</string>
-    <string name="web_session_placeholder_site_config">网站配置需要按站点匹配的配置存储和设置继承合同，目前尚未接入。</string>
     <string name="web_session_browser_menu_button">浏览器菜单按钮</string>
     <string name="web_session_browser_menu_title">浏览器下拉抽屉菜单</string>
     <string name="web_session_user_agent">UA标识</string>

@@ -27,6 +27,7 @@ internal data class WebSessionBrowserSettings(
     val userAgentMode: WebSessionUserAgentMode = WebSessionUserAgentMode.ANDROID,
     val customGlobalUserAgent: String = "",
     val siteUserAgentRules: List<WebSessionSiteUserAgentRule> = emptyList(),
+    val siteSettingsRules: List<WebSessionSiteSettingsRule> = emptyList(),
 )
 
 internal val FRESH_INSTALL_BROWSER_SETTINGS =
@@ -180,6 +181,33 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
         writeSiteUserAgentRules(updated)
     }
 
+    fun setSiteFeatureDisabled(
+        domain: String,
+        feature: WebSessionSiteFeature,
+        disabled: Boolean,
+    ) {
+        writeSiteSettingsRules(
+            updateWebSessionSiteSettingsRules(
+                rules = _state.value.siteSettingsRules,
+                domainOrUrl = domain,
+                feature = feature,
+                disabled = disabled,
+            ),
+        )
+    }
+
+    fun clearSiteSettings(domain: String) {
+        val normalizedDomain =
+            requireNotNull(normalizeWebSessionSiteSettingsDomain(domain)) {
+                "Browser site settings domain is invalid: $domain"
+            }
+        writeSiteSettingsRules(
+            _state.value.siteSettingsRules.filterNot { rule ->
+                rule.domain == normalizedDomain
+            },
+        )
+    }
+
     private fun readSettings(): WebSessionBrowserSettings {
         val userAgentMode =
             WebSessionUserAgentMode.fromPersistedId(
@@ -260,6 +288,10 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
             userAgentMode = userAgentMode,
             customGlobalUserAgent = customGlobalUserAgent,
             siteUserAgentRules = decodeSiteUserAgentRules(preferences.getString(KEY_SITE_USER_AGENTS, "")),
+            siteSettingsRules =
+                decodeWebSessionSiteSettingsRules(
+                    preferences.getString(KEY_SITE_SETTINGS, ""),
+                ),
         )
     }
 
@@ -268,6 +300,13 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
         rules.forEach { rule -> encoded.put(rule.domain, rule.userAgent) }
         preferences.edit { putString(KEY_SITE_USER_AGENTS, encoded.toString()) }
         _state.value = _state.value.copy(siteUserAgentRules = rules)
+    }
+
+    private fun writeSiteSettingsRules(rules: List<WebSessionSiteSettingsRule>) {
+        preferences.edit {
+            putString(KEY_SITE_SETTINGS, encodeWebSessionSiteSettingsRules(rules))
+        }
+        _state.value = _state.value.copy(siteSettingsRules = rules)
     }
 
     private fun decodeSiteUserAgentRules(raw: String?): List<WebSessionSiteUserAgentRule> {
@@ -319,6 +358,7 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
         private const val KEY_USER_AGENT_MODE = "user_agent_mode"
         private const val KEY_CUSTOM_GLOBAL_USER_AGENT = "custom_global_user_agent"
         private const val KEY_SITE_USER_AGENTS = "site_user_agents"
+        private const val KEY_SITE_SETTINGS = "site_settings"
 
         @Volatile private var instance: WebSessionBrowserSettingsStore? = null
 

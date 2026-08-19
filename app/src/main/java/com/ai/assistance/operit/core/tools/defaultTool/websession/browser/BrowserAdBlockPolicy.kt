@@ -1914,6 +1914,15 @@ private fun browserAdBlockDomainSuffixes(host: String): Sequence<String> = seque
     }
 }
 
+internal fun resolveBrowserAdBlockAllowlistedDomain(
+    host: String,
+    domains: Collection<String>,
+): String? {
+    val normalizedHost = normalizeBrowserAdBlockDomainInput(host) ?: return null
+    val normalizedDomains = domains.mapNotNull(::normalizeBrowserAdBlockDomainInput).toSet()
+    return browserAdBlockDomainSuffixes(normalizedHost).firstOrNull(normalizedDomains::contains)
+}
+
 private fun isBrowserAdBlockDomainCovered(
     host: String,
     domains: Set<String>,

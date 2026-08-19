@@ -8086,7 +8086,6 @@
     <string name="web_session_placeholder_runtime_unchanged">This page does not change the current webpage, tabs, cookies, or AI control state.</string>
     <string name="web_session_placeholder_toolbox">The browser menu is the single menu entry point. A separate second toolbox has not been defined.</string>
     <string name="web_session_placeholder_reader_mode">Reader mode requires content extraction, conversion, and reading-state pipelines, which are not connected yet.</string>
-    <string name="web_session_placeholder_site_config">Site settings require per-site matching, configuration storage, and inheritance contracts, which are not connected yet.</string>
     <string name="web_session_browser_menu_button">Browser menu button</string>
     <string name="web_session_browser_menu_title">Browser drawer menu</string>
     <string name="web_session_network_log">Network log</string>

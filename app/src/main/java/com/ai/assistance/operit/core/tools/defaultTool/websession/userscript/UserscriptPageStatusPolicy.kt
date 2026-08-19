@@ -4,6 +4,7 @@ internal object UserscriptPageStatusPolicy {
     fun resolve(
         script: UserscriptListItem,
         userScriptsAllowed: Boolean,
+        siteScriptsAllowed: Boolean = true,
         pageUrl: String?,
         runtimeSupported: Boolean = true,
         runtimeUnsupportedReason: String? = null,
@@ -18,6 +19,11 @@ internal object UserscriptPageStatusPolicy {
                 UserscriptPageRuntimeStatus(UserscriptPageRuntimeState.DISABLED)
             !userScriptsAllowed ->
                 UserscriptPageRuntimeStatus(UserscriptPageRuntimeState.PERMISSION_REQUIRED)
+            !siteScriptsAllowed ->
+                UserscriptPageRuntimeStatus(
+                    state = UserscriptPageRuntimeState.PERMISSION_REQUIRED,
+                    detail = "当前网站配置已禁用用户脚本",
+                )
             script.blockedReasons.isNotEmpty() ->
                 UserscriptPageRuntimeStatus(
                     state = UserscriptPageRuntimeState.UNSUPPORTED,

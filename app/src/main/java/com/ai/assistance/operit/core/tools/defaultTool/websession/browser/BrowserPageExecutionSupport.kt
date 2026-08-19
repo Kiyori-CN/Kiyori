@@ -266,8 +266,7 @@ internal fun StandardBrowserSessionTools.createDownloadListener(
 internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(
     webView: WebView,
     navigationPolicy: BrowserAdMarkingNavigationPolicy = BrowserAdMarkingNavigationPolicy.DEFAULT,
-    elementActionsEnabled: Boolean =
-        browserSettingsStore.current.webElementLongPressMenuEnabled,
+    elementActionsEnabled: Boolean,
 ) {
     val navigationPolicyValue = navigationPolicy.toJavascriptValue()
     val elementActionsEnabledValue = elementActionsEnabled.toString()
@@ -1191,9 +1190,11 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(
 }
 
 internal fun StandardBrowserSessionTools.applyBrowserWebElementLongPressMenuSettingOnMain() {
-    val enabled = browserSettingsStore.current.webElementLongPressMenuEnabled
-    browserHost?.applyWebElementLongPressMenuSetting(enabled)
+    val activeSession = getActiveSessionOnMain()
+    val activeEnabled = isBrowserWebElementLongPressMenuEnabledForPage(activeSession?.currentUrl.orEmpty())
+    browserHost?.applyWebElementLongPressMenuSetting(activeEnabled)
     StandardBrowserSessionTools.sessions.values.forEach { session ->
+        val enabled = isBrowserWebElementLongPressMenuEnabledForPage(session.currentUrl)
         session.webView.evaluateJavascript(
             """
             (function() {
@@ -1208,6 +1209,18 @@ internal fun StandardBrowserSessionTools.applyBrowserWebElementLongPressMenuSett
             null,
         )
     }
+}
+
+internal fun StandardBrowserSessionTools.isBrowserWebElementLongPressMenuEnabledForPage(
+    pageUrl: String,
+): Boolean {
+    val settings = browserSettingsStore.current
+    return resolveWebSessionSiteFeatureEnabled(
+        settings = settings,
+        domainOrUrl = pageUrl,
+        feature = WebSessionSiteFeature.WEB_ELEMENT_LONG_PRESS_MENU,
+        globalEnabled = settings.webElementLongPressMenuEnabled,
+    )
 }
 
 internal fun StandardBrowserSessionTools.injectTextSelectionHelper(webView: WebView) {

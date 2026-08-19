@@ -6998,7 +6998,6 @@
     <string name="web_session_placeholder_runtime_unchanged">이 페이지는 현재 웹페이지, 탭, 쿠키 또는 AI 제어 상태를 변경하지 않습니다.</string>
     <string name="web_session_placeholder_toolbox">브라우저 메뉴가 유일한 메뉴 진입점이며 별도의 두 번째 도구 상자는 아직 정의되지 않았습니다.</string>
     <string name="web_session_placeholder_reader_mode">읽기 모드에 필요한 본문 추출, 변환 및 읽기 상태 처리 흐름이 아직 연결되지 않았습니다.</string>
-    <string name="web_session_placeholder_site_config">사이트별 일치, 설정 저장 및 상속 규칙이 아직 연결되지 않았습니다.</string>
     <string name="web_session_browser_menu_button">브라우저 메뉴 버튼</string>
     <string name="web_session_browser_menu_title">브라우저 서랍 메뉴</string>
     <string name="web_session_network_log">네트워크 로그</string>

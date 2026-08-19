@@ -80,7 +80,8 @@ internal class WebSessionUserscriptManager(
     private val onCloseSession: (sessionId: String) -> Boolean,
     private val onDownload: (sessionId: String, url: String, fileName: String?) -> Unit,
     private val onMenuCommandsChanged: (sessionId: String?) -> Unit,
-    private val onToast: (message: String) -> Unit
+    private val isSiteExecutionAllowed: (pageUrl: String) -> Boolean,
+    private val onToast: (message: String) -> Unit,
 ) {
     private enum class BridgeScope {
         PAGE,
@@ -451,6 +452,18 @@ internal class WebSessionUserscriptManager(
         }
     }
 
+    private fun revokeActiveNetworkCalls(sessionId: String) {
+        val requestKeyPrefix = "$sessionId:"
+        activeCalls.entries
+            .filter { entry -> entry.key.startsWith(requestKeyPrefix) }
+            .forEach { entry ->
+                abortedRequestKeys.add(entry.key)
+                if (activeCalls.remove(entry.key, entry.value)) {
+                    runCatching { entry.value.cancel() }
+                }
+            }
+    }
+
     private fun clearActiveRuntimeAuthorizations() {
         val clearNow = {
             sessionBindings.values.forEach { binding ->
@@ -464,6 +477,28 @@ internal class WebSessionUserscriptManager(
                     onMenuCommandsChanged(binding.sessionId)
                 }
             }
+        }
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            clearNow()
+        } else {
+            mainHandler.post(clearNow)
+        }
+    }
+
+    private fun clearActiveRuntimeAuthorizations(sessionId: String) {
+        val clearNow = {
+            sessionBindings[sessionId]?.let { binding ->
+                binding.pageBootstrapReplyProxies.clear()
+                binding.isolatedRuntime?.scriptAuthorizations?.clear()
+                binding.isolatedRuntime?.scriptGrants?.clear()
+                binding.isolatedRuntime?.replyProxies?.clear()
+                webRequestEngine.clearSession(binding.sessionId)
+                if (binding.menuCommands.isNotEmpty()) {
+                    binding.menuCommands.clear()
+                    onMenuCommandsChanged(binding.sessionId)
+                }
+            }
+            Unit
         }
         if (Looper.myLooper() == Looper.getMainLooper()) {
             clearNow()
@@ -567,7 +602,11 @@ internal class WebSessionUserscriptManager(
     }
 
     fun getMenuCommands(sessionId: String?): List<UserscriptPageMenuCommand> {
-        if (!uiStore.state.value.userScriptsAllowed || sessionId.isNullOrBlank()) {
+        if (sessionId.isNullOrBlank()) {
+            return emptyList()
+        }
+        val pageUrl = sessionPageStates[sessionId]?.pageUrl.orEmpty()
+        if (!isUserscriptExecutionAllowed(pageUrl)) {
             return emptyList()
         }
         return sessionBindings[sessionId]?.menuCommands?.values?.toList().orEmpty()
@@ -578,6 +617,10 @@ internal class WebSessionUserscriptManager(
         commandId: String
     ) {
         if (sessionId.isNullOrBlank() || commandId.isBlank()) {
+            return
+        }
+        val pageUrl = sessionPageStates[sessionId]?.pageUrl.orEmpty()
+        if (!isUserscriptExecutionAllowed(pageUrl)) {
             return
         }
         val command = sessionBindings[sessionId]?.menuCommands?.get(commandId) ?: return
@@ -1321,7 +1364,8 @@ internal class WebSessionUserscriptManager(
         sessionId: String,
         request: WebResourceRequest
     ): WebResourceResponse? {
-        if (!uiStore.state.value.userScriptsAllowed) {
+        val pageUrl = sessionPageStates[sessionId]?.pageUrl.orEmpty()
+        if (!isUserscriptExecutionAllowed(pageUrl)) {
             return null
         }
         val url = request.url?.toString().orEmpty()
@@ -1479,9 +1523,13 @@ internal class WebSessionUserscriptManager(
         val type = message.optString("type", "")
         val requestId = message.optString("requestId", "")
         val payload = message.optJSONObject("payload") ?: JSONObject()
+        val pageUrlForPolicy =
+            sessionPageStates[sessionId]?.pageUrl
+                ?.takeIf(String::isNotBlank)
+                ?: sourceOrigin
         when (
             UserscriptBridgeAuthorizationPolicy.permissionDecision(
-                userScriptsAllowed = uiStore.state.value.userScriptsAllowed,
+                userScriptsAllowed = isUserscriptExecutionAllowed(pageUrlForPolicy),
                 messageType = type,
             )
         ) {
@@ -2364,15 +2412,24 @@ internal class WebSessionUserscriptManager(
                     }
                 val mediaType = headers.entries.firstOrNull { it.key.equals("Content-Type", ignoreCase = true) }?.value?.toMediaTypeOrNull()
                 bodyText.toRequestBody(mediaType)
-            }
+        }
         requestBuilder.method(method, requestBody)
 
+        if (!isUserscriptExecutionAllowed(pageUrl)) {
+            throw IllegalStateException("userscript_bridge_not_authorized")
+        }
         val call = requestClient.newCall(requestBuilder.build())
         if (timeoutMs > 0L) {
             call.timeout().timeout(timeoutMs, TimeUnit.MILLISECONDS)
         }
         val requestKey = "$sessionId:$scriptId:$gmRequestId"
         activeCalls[requestKey] = call
+        if (!isUserscriptExecutionAllowed(pageUrl)) {
+            activeCalls.remove(requestKey, call)
+            abortedRequestKeys.remove(requestKey)
+            call.cancel()
+            throw IllegalStateException("userscript_bridge_not_authorized")
+        }
         postXhrEvent(
             replyProxy = replyProxy,
             requestId = gmRequestId,
@@ -2591,10 +2648,24 @@ internal class WebSessionUserscriptManager(
         UserscriptPageStatusPolicy.resolve(
             script = script,
             userScriptsAllowed = uiStore.state.value.userScriptsAllowed,
+            siteScriptsAllowed = isSiteExecutionAllowed(pageUrl),
             pageUrl = pageUrl,
             runtimeSupported = supportState.isSupported,
             runtimeUnsupportedReason = supportState.reason,
         )
+
+    fun refreshSiteSettings() {
+        sessionPageStates.forEach { (sessionId, pageState) ->
+            if (!isSiteExecutionAllowed(pageState.pageUrl)) {
+                revokeActiveNetworkCalls(sessionId)
+                clearActiveRuntimeAuthorizations(sessionId)
+            }
+        }
+        rebuildAllSessionBaselines()
+    }
+
+    private fun isUserscriptExecutionAllowed(pageUrl: String): Boolean =
+        uiStore.state.value.userScriptsAllowed && isSiteExecutionAllowed(pageUrl)
 
     private fun upsertRuntimeStatus(
         sessionId: String,

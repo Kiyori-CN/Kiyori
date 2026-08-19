@@ -3,6 +3,7 @@ package com.ai.assistance.operit.ui.main.shell
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadNetworkPolicy
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettings
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserAdBlockState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.FRESH_INSTALL_BROWSER_SETTINGS
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSettings
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.formatAutomaticFloatingMinimumDuration
@@ -653,11 +654,13 @@ class KiyoriSettingsPagesTest {
     @Test
     fun `browser settings expose only verified capabilities`() {
         assertEquals(
-            listOf(4, 3, 3, 2, 1, 4, 3),
+            listOf(2, 4, 3, 3, 2, 1, 5, 3),
             kiyoriBrowserSettingsGroups.map { group -> group.entries.size },
         )
         assertEquals(
             listOf(
+                "广告拦截",
+                "广告拦截器管理",
                 "允许用户脚本",
                 "插件中心",
                 "插件权限与网站范围",
@@ -673,6 +676,7 @@ class KiyoriSettingsPagesTest {
                 "长按网页元素菜单",
                 "允许网页打开应用",
                 "允许网页获取位置",
+                "自动保存和填充网站密码",
                 "网站密码管理",
                 "清除网站 Cookie",
                 "搜索栏嗅探入口",
@@ -685,6 +689,10 @@ class KiyoriSettingsPagesTest {
         )
         assertEquals(
             mapOf(
+                "广告拦截" to
+                    KiyoriBrowserSettingsAction.TOGGLE_AD_BLOCKING,
+                "广告拦截器管理" to
+                    KiyoriBrowserSettingsAction.OPEN_AD_BLOCKER_SETTINGS,
                 "允许用户脚本" to
                     KiyoriBrowserSettingsAction.TOGGLE_USER_SCRIPTS_ALLOWED,
                 "插件中心" to
@@ -715,6 +723,8 @@ class KiyoriSettingsPagesTest {
                     KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_OPEN_APP,
                 "允许网页获取位置" to
                     KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_GEOLOCATION,
+                "自动保存和填充网站密码" to
+                    KiyoriBrowserSettingsAction.TOGGLE_WEBSITE_PASSWORD_SAVING,
                 "网站密码管理" to
                     KiyoriBrowserSettingsAction.OPEN_PASSWORD_MANAGER,
                 "清除网站 Cookie" to
@@ -733,6 +743,7 @@ class KiyoriSettingsPagesTest {
         )
         assertEquals(
             listOf(
+                "内容过滤",
                 "网页插件与脚本",
                 "主页与导航",
                 "启动与窗口",
@@ -759,18 +770,37 @@ class KiyoriSettingsPagesTest {
         assertFalse(initialBrowserSettings.restoreLastSearchResultEnabled)
         assertFalse(initialBrowserSettings.askBeforeRestoringPagesEnabled)
         assertFalse(initialBrowserSettings.retainMultipleWindowsEnabled)
+        assertTrue(initialBrowserSettings.siteSettingsRules.isEmpty())
         val browserSettings = WebSessionBrowserSettings(homeUrl = "https://example.com/home")
         val entries =
             kiyoriBrowserSettingsGroups.flatMap(KiyoriBrowserSettingsGroupSpec::entries)
-        assertEquals(20, entries.size)
+        assertEquals(23, entries.size)
         assertEquals(
-            listOf(4, 3, 3, 2, 1, 4, 3),
+            listOf(2, 4, 3, 3, 2, 1, 5, 3),
             kiyoriBrowserSettingsGroups.map { group -> group.entries.size },
+        )
+        assertTrue(
+            browserSettingToggleValue(
+                entry = entries.single { entry -> entry.title == "广告拦截" },
+                settings = browserSettings,
+                userscriptState = WebSessionUserscriptUiState(),
+                adBlockState = BrowserAdBlockState(enabled = true),
+            ),
         )
         assertTrue(
             browserSettingToggleValue(
                 entry = entries.single { entry -> entry.title == "长按网页元素菜单" },
                 settings = browserSettings,
+                userscriptState = WebSessionUserscriptUiState(),
+            ),
+        )
+        assertFalse(
+            browserSettingToggleValue(
+                entry =
+                    entries.single {
+                        entry -> entry.title == "自动保存和填充网站密码"
+                    },
+                settings = browserSettings.copy(websitePasswordSavingEnabled = false),
                 userscriptState = WebSessionUserscriptUiState(),
             ),
         )
@@ -800,6 +830,17 @@ class KiyoriSettingsPagesTest {
             browserSettingValue(
                 entries.single { entry -> entry.title == "插件中心" },
                 browserSettings,
+            ),
+        )
+        assertEquals(
+            "全局已关闭",
+            browserSettingValue(
+                entry =
+                    entries.single {
+                        entry -> entry.title == "广告拦截器管理"
+                    },
+                settings = browserSettings,
+                adBlockState = BrowserAdBlockState(enabled = false),
             ),
         )
         assertEquals(

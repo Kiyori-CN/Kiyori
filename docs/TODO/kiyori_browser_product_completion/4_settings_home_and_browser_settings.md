@@ -3,8 +3,33 @@
 > 2026-08-17 当前合同：底部设置、Browser Menu 和 AI 左抽屉共用
 > `KiyoriSettingsNavigationState` 与 capability-level `KiyoriSettingsRoute`。设置详情逐级返回到
 > 设置首页，Browser/AI 来源再恢复原 Browser Home/WebSession 或原 AI 页面/路由栈。网页浏览器
-> 设置当前为 `4/3/3/2/1/4/3` 七组 20 行；下方早期章节中的 `KiyoriShellChild`、旧分组数量和
+> 设置当前为 `2/4/3/3/2/1/5/3` 八组 23 行；下方早期章节中的 `KiyoriShellChild`、旧分组数量和
 > “当前”字样均是对应日期的历史观察，不再代表现行导航与设置合同。
+
+## 2026-08-19 当前域名网站配置与全局上限
+
+[LOCAL IMPLEMENTED / FINAL VALIDATION IN PROGRESS]
+
+- 网页浏览器设置新增顶部作用域说明，明确本页是全局能力上限；浏览器菜单“网站配置”只能为
+  单独域名继续关闭能力，不能重新开启全局已关闭的功能
+- 当前八组为 `2/4/3/3/2/1/5/3`：内容过滤、网页插件与脚本、主页与导航、启动与窗口、网页显示、
+  网页交互、网站权限与数据、音视频嗅探，共 23 项
+- 内容过滤直接投影唯一 `BrowserAdBlockStore` 的总开关与广告拦截器管理入口；网站权限与数据把
+  “自动保存和填充网站密码”总开关与“网站密码管理”详情入口分开，凭据仍由唯一
+  `BrowserCredentialVault` 持有
+- `WebSessionBrowserSettingsStore` 新增精确 host 的十项负向规则；广告拦截站点禁用继续使用
+  `BrowserAdBlockStore.allowlistedDomains`。所有站点有效值统一为
+  `globalEnabled && !siteDisabled`，空规则从持久化集合删除
+- 网站配置覆盖用户脚本、返回不重载、左右滑动前进后退、强制页面缩放、网页元素长按、网页打开
+  应用、网页定位、网站密码保存与填充、搜索栏嗅探入口和自动悬浮播放；主页、恢复、多窗口、文字
+  比例、UA 与下载策略保留在各自全局或专用 owner
+- 域名规则变化会重应用活动 WebSession 的缩放、元素长按和凭据脚本；返回按真实历史目标域名，
+  滑屏导航、外部应用、定位与媒体行为在实际决策点读取当前域名。用户脚本禁用会撤销 native
+  bridge、页面菜单、webRequest 与活动 GM 网络请求，但已执行的纯页面 DOM 影响只能由用户刷新
+  当前页清理
+- 主源码 Kotlin 编译与当前域名、路由、settings、userscript、display 和交互定向 JVM 测试已通过；
+  最终正式门禁、Debug APK、提交与远端对账仍以本轮最终证据为准。真机上的布局、拖拽、系统 Back、
+  真实网页行为和重启持久化保持 `verification_pending`
 
 ## 2026-08-17 设置路由、窗口、滑屏与普通窗口恢复
 

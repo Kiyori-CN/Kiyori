@@ -196,6 +196,15 @@ class StandardBrowserSessionTools private constructor(
                     refreshSessionUiOnMain(sessionId)
                 }
             },
+            isSiteExecutionAllowed = { pageUrl ->
+                val settings = browserSettingsStore.current
+                resolveWebSessionSiteFeatureEnabled(
+                    settings = settings,
+                    domainOrUrl = pageUrl,
+                    feature = WebSessionSiteFeature.USER_SCRIPTS,
+                    globalEnabled = true,
+                )
+            },
             onToast = { message -> showToast(message) }
         )
     }

@@ -69,6 +69,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.Browse
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserImageViewerItem
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserAdMarkingMove
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserAdMarkingNavigationPolicy
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserAdBlockState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.DEFAULT_BROWSER_HOME_URL
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmark
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmarkDraft
@@ -79,7 +80,9 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserNetworkEntry
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserPlaceholderPage
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserPluginRoute
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSettings
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSheetRoute
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSiteFeature
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionUserscriptWorkbenchTab
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.currentPluginRoute
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.popBrowserPluginRoute
@@ -101,6 +104,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolv
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveSelectedProfileAfterRemoval
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveWebSessionProfileToggleTarget
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.normalizeWebSessionBookmarkUrl
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.normalizeWebSessionSiteSettingsDomain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.selectAutomaticFloatingMediaCandidate
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.shouldAttemptAutomaticFloatingPlayback
@@ -133,6 +137,8 @@ internal fun shouldOpenConfiguredHomeAfterClearingWindows(homeUrl: String): Bool
 @Composable
 internal fun WebSessionBrowserScreen(
     hostState: WebSessionBrowserHostState,
+    browserSettings: WebSessionBrowserSettings,
+    adBlockState: BrowserAdBlockState,
     bookmarks: List<WebSessionBookmark>,
     bookmarkFolders: List<WebSessionBookmarkFolder>,
     globalHistory: List<WebSessionHistoryEntry>,
@@ -169,6 +175,9 @@ internal fun WebSessionBrowserScreen(
     onSelectUserAgentMode: (WebSessionUserAgentMode) -> Unit,
     onSaveCustomGlobalUserAgent: (String) -> Unit,
     onSaveSiteUserAgentRule: (String, String) -> Unit,
+    onSetSiteFeatureDisabled: (String, WebSessionSiteFeature, Boolean) -> Unit,
+    onClearSiteSettings: (String) -> Unit,
+    onSetSiteAdBlockingDisabled: (String, Boolean) -> Unit,
     onSetSearchEngine: (WebSessionSearchEngine) -> Unit,
     onSetDefaultSessionProfile: (WebSessionProfile) -> Boolean,
     onSubmitSearch: (String, WebSessionSearchEngine, WebSessionProfile) -> Unit,
@@ -365,6 +374,7 @@ internal fun WebSessionBrowserScreen(
                 sheetRoute = WebSessionBrowserSheetRoute.NONE,
                 pluginRouteStack = listOf(WebSessionBrowserPluginRoute.Overview),
                 placeholderPage = null,
+                siteConfigDomain = null,
             )
         }
     }
@@ -1011,7 +1021,17 @@ internal fun WebSessionBrowserScreen(
                         dismissSheet()
                         onStartAdMarking()
                     },
-                    onOpenSiteConfig = { openPlaceholder(WebSessionBrowserPlaceholderPage.SITE_CONFIG) },
+                    onOpenSiteConfig = {
+                        val siteConfigDomain =
+                            normalizeWebSessionSiteSettingsDomain(browserState.currentUrl)
+                        onHostStateChange { current ->
+                            current.copy(
+                                sheetRoute = WebSessionBrowserSheetRoute.SITE_CONFIG,
+                                placeholderPage = null,
+                                siteConfigDomain = siteConfigDomain,
+                            )
+                        }
+                    },
                     onOpenSettingsHome = {
                         dismissSheet()
                         onOpenSettingsHome()
@@ -1061,6 +1081,8 @@ internal fun WebSessionBrowserScreen(
                             bookmarkFolders = bookmarkFolders,
                             globalHistory = globalHistory,
                             userscriptUiState = userscriptUiState,
+                            browserSettings = browserSettings,
+                            adBlockState = adBlockState,
                             onDismiss = dismissSheet,
                             onBookmarkMutation = onBookmarkMutation,
                             onOpenBookmarkInTab = onOpenBookmarkInTab,
@@ -1114,6 +1136,9 @@ internal fun WebSessionBrowserScreen(
                                 dismissSheet()
                                 onOpenDownloadSettings()
                             },
+                            onSetSiteFeatureDisabled = onSetSiteFeatureDisabled,
+                            onClearSiteSettings = onClearSiteSettings,
+                            onSetSiteAdBlockingDisabled = onSetSiteAdBlockingDisabled,
                         )
                     }
                 }
@@ -1506,6 +1531,8 @@ private fun WebSessionBrowserDrawerContent(
     bookmarkFolders: List<WebSessionBookmarkFolder>,
     globalHistory: List<WebSessionHistoryEntry>,
     userscriptUiState: WebSessionUserscriptUiState,
+    browserSettings: WebSessionBrowserSettings,
+    adBlockState: BrowserAdBlockState,
     onDismiss: () -> Unit,
     onBookmarkMutation: (WebSessionBookmarkMutation) -> Unit,
     onOpenBookmarkInTab: (String, Boolean) -> Unit,
@@ -1556,6 +1583,9 @@ private fun WebSessionBrowserDrawerContent(
     onTransferDownload: (String) -> Unit,
     onMergeDownloadToMp4: (String) -> Unit,
     onOpenDownloadSettings: () -> Unit,
+    onSetSiteFeatureDisabled: (String, WebSessionSiteFeature, Boolean) -> Unit,
+    onClearSiteSettings: (String) -> Unit,
+    onSetSiteAdBlockingDisabled: (String, Boolean) -> Unit,
 ) {
     when (sheetRoute) {
         WebSessionBrowserSheetRoute.DOWNLOADS ->
@@ -1704,6 +1734,19 @@ private fun WebSessionBrowserDrawerContent(
                     }
                 },
                 onDismiss = onDismiss,
+            )
+
+        WebSessionBrowserSheetRoute.SITE_CONFIG ->
+            WebSessionBrowserSiteSettingsSheet(
+                domain = hostState.siteConfigDomain,
+                browserSettings = browserSettings,
+                adBlockState = adBlockState,
+                userScriptsAllowed = userscriptUiState.userScriptsAllowed,
+                onSetFeatureDisabled = onSetSiteFeatureDisabled,
+                onSetAdBlockingDisabled = onSetSiteAdBlockingDisabled,
+                onClearSiteSettings = onClearSiteSettings,
+                onDismiss = onDismiss,
+                modifier = Modifier.fillMaxSize(),
             )
 
         WebSessionBrowserSheetRoute.PLACEHOLDER ->

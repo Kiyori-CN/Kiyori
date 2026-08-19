@@ -10,6 +10,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -36,6 +37,7 @@ import com.ai.assistance.operit.core.browser.presentation.BrowserPresentationCoo
 import com.ai.assistance.operit.core.tools.defaultTool.standard.CookiePrivacyManager
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.DEFAULT_BROWSER_HOME_URL
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.AUTOMATIC_FLOATING_MINIMUM_DURATION_OPTIONS_MILLIS
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserAdBlockState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserCredentialVaultSnapshot
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSettings
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryStore
@@ -55,6 +57,8 @@ import com.kiyori.capability.settings.navigation.KiyoriSettingsRoute
 import kotlinx.coroutines.launch
 
 internal enum class KiyoriBrowserSettingsAction {
+    TOGGLE_AD_BLOCKING,
+    OPEN_AD_BLOCKER_SETTINGS,
     TOGGLE_USER_SCRIPTS_ALLOWED,
     OPEN_PLUGIN_CENTER,
     OPEN_PLUGIN_PERMISSIONS,
@@ -73,6 +77,7 @@ internal enum class KiyoriBrowserSettingsAction {
     SELECT_AUTOMATIC_FLOATING_MINIMUM_DURATION,
     TOGGLE_WEB_PAGE_OPEN_APP,
     TOGGLE_WEB_PAGE_GEOLOCATION,
+    TOGGLE_WEBSITE_PASSWORD_SAVING,
     OPEN_PASSWORD_MANAGER,
     CLEAR_COOKIES,
 }
@@ -94,6 +99,23 @@ internal data class KiyoriBrowserSettingsGroupSpec(
 
 internal val kiyoriBrowserSettingsGroups =
     listOf(
+        KiyoriBrowserSettingsGroupSpec(
+            title = "内容过滤",
+            description = "控制广告过滤总开关并进入唯一的广告拦截规则管理器",
+            entries =
+                listOf(
+                    browserToggle(
+                        title = "广告拦截",
+                        description = "启用网页请求过滤、元素隐藏和已订阅规则",
+                        action = KiyoriBrowserSettingsAction.TOGGLE_AD_BLOCKING,
+                    ),
+                    browserNavigation(
+                        title = "广告拦截器管理",
+                        description = "管理网址规则、元素规则、网站白名单和订阅源",
+                        action = KiyoriBrowserSettingsAction.OPEN_AD_BLOCKER_SETTINGS,
+                    ),
+                ),
+        ),
         KiyoriBrowserSettingsGroupSpec(
             title = "网页插件与脚本",
             description = "管理网页插件、用户脚本授权、声明权限和运行诊断",
@@ -215,6 +237,13 @@ internal val kiyoriBrowserSettingsGroups =
                         description = "允许网页在系统授权后请求设备位置",
                         action = KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_GEOLOCATION,
                     ),
+                    browserToggle(
+                        title = "自动保存和填充网站密码",
+                        description = "允许普通窗口安全保存并自动填充当前网站的账号密码",
+                        action =
+                            KiyoriBrowserSettingsAction
+                                .TOGGLE_WEBSITE_PASSWORD_SAVING,
+                    ),
                     browserNavigation(
                         title = "网站密码管理",
                         description = "管理普通窗口中安全保存并自动填充的网站账号密码",
@@ -295,6 +324,7 @@ internal fun KiyoriBrowserSettingsPage(
     val historyStore = remember(context) { WebSessionHistoryStore.getInstance(context) }
     val scope = rememberCoroutineScope()
     val settings by coordinator.browserSettings.collectAsState()
+    val adBlockState by coordinator.adBlockState.collectAsState()
     val credentialVaultState by coordinator.browserCredentialVaultState.collectAsState()
     val userscriptState by coordinator.userscriptState.collectAsState()
     val searchEngine by
@@ -321,8 +351,13 @@ internal fun KiyoriBrowserSettingsPage(
         KiyoriSettingsRoute.BROWSER ->
             KiyoriBrowserSettingsDetailPage(
                 settings = settings,
+                adBlockState = adBlockState,
                 userscriptState = userscriptState,
                 onBack = ::requestBack,
+                onSetAdBlockEnabled = coordinator::setAdBlockEnabled,
+                onOpenAdBlockerSettings = {
+                    onNavigate(KiyoriSettingsRoute.AD_BLOCK_OVERVIEW)
+                },
                 onSetUserScriptsAllowed = coordinator::setUserScriptsAllowed,
                 onOpenPluginCenter = {
                     openBrowserPluginRoute(KiyoriBrowserWorkspaceRoute.Overview)
@@ -370,6 +405,8 @@ internal fun KiyoriBrowserSettingsPage(
                 },
                 onSetAllowWebPageOpenApp = coordinator::setAllowWebPageOpenApp,
                 onSetAllowWebPageGeolocation = coordinator::setAllowWebPageGeolocation,
+                onSetWebsitePasswordSavingEnabled =
+                    coordinator::setWebsitePasswordSavingEnabled,
                 onOpenPasswordManager = {
                     onNavigate(KiyoriSettingsRoute.BROWSER_PASSWORD_MANAGER)
                 },
@@ -555,8 +592,11 @@ internal fun KiyoriBrowserSettingsPage(
 @Composable
 private fun KiyoriBrowserSettingsDetailPage(
     settings: WebSessionBrowserSettings,
+    adBlockState: BrowserAdBlockState,
     userscriptState: WebSessionUserscriptUiState,
     onBack: () -> Unit,
+    onSetAdBlockEnabled: (Boolean) -> Unit,
+    onOpenAdBlockerSettings: () -> Unit,
     onSetUserScriptsAllowed: (Boolean) -> Unit,
     onOpenPluginCenter: () -> Unit,
     onOpenPluginPermissions: () -> Unit,
@@ -575,6 +615,7 @@ private fun KiyoriBrowserSettingsDetailPage(
     onSelectAutomaticFloatingMinimumDuration: () -> Unit,
     onSetAllowWebPageOpenApp: (Boolean) -> Unit,
     onSetAllowWebPageGeolocation: (Boolean) -> Unit,
+    onSetWebsitePasswordSavingEnabled: (Boolean) -> Unit,
     onOpenPasswordManager: () -> Unit,
     onClearCookies: () -> Unit,
     credentialVaultState: BrowserCredentialVaultSnapshot,
@@ -585,6 +626,9 @@ private fun KiyoriBrowserSettingsDetailPage(
         onBack = onBack,
         modifier = modifier,
     ) {
+        item(key = "browser-settings-scope") {
+            KiyoriBrowserSettingsScopeNotice()
+        }
         items(kiyoriBrowserSettingsGroups, key = KiyoriBrowserSettingsGroupSpec::title) { group ->
             KiyoriSettingsGroupSection(
                 title = group.title,
@@ -598,6 +642,7 @@ private fun KiyoriBrowserSettingsDetailPage(
                             entry = entry,
                             settings = settings,
                             userscriptState = userscriptState,
+                            adBlockState = adBlockState,
                         )
                     KiyoriSettingsRow(
                         title = entry.title,
@@ -608,6 +653,7 @@ private fun KiyoriBrowserSettingsDetailPage(
                                 entry = entry,
                                 settings = settings,
                                 userscriptState = userscriptState,
+                                adBlockState = adBlockState,
                                 savedCredentialCount =
                                     credentialVaultState.credentials.size,
                                 credentialVaultLoading =
@@ -619,6 +665,10 @@ private fun KiyoriBrowserSettingsDetailPage(
                         enabled = enabled,
                         onClick = {
                             when (entry.action) {
+                                KiyoriBrowserSettingsAction.TOGGLE_AD_BLOCKING ->
+                                    onSetAdBlockEnabled(!checked)
+                                KiyoriBrowserSettingsAction.OPEN_AD_BLOCKER_SETTINGS ->
+                                    onOpenAdBlockerSettings()
                                 KiyoriBrowserSettingsAction.TOGGLE_USER_SCRIPTS_ALLOWED ->
                                     onSetUserScriptsAllowed(!checked)
                                 KiyoriBrowserSettingsAction.OPEN_PLUGIN_CENTER ->
@@ -657,6 +707,9 @@ private fun KiyoriBrowserSettingsDetailPage(
                                     onSetAllowWebPageOpenApp(!checked)
                                 KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_GEOLOCATION ->
                                     onSetAllowWebPageGeolocation(!checked)
+                                KiyoriBrowserSettingsAction
+                                    .TOGGLE_WEBSITE_PASSWORD_SAVING ->
+                                    onSetWebsitePasswordSavingEnabled(!checked)
                                 KiyoriBrowserSettingsAction.OPEN_PASSWORD_MANAGER ->
                                     onOpenPasswordManager()
                                 KiyoriBrowserSettingsAction.CLEAR_COOKIES ->
@@ -670,6 +723,30 @@ private fun KiyoriBrowserSettingsDetailPage(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun KiyoriBrowserSettingsScopeNotice() {
+    Surface(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 15.dp, top = 10.dp, end = 15.dp, bottom = 2.dp),
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+    ) {
+        Text(
+            text =
+                "本页决定浏览器能力的全局上限。浏览器菜单中的“网站配置”" +
+                    "只能对单独域名进一步关闭，不能重新开启全局已关闭的能力。",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 12.sp,
+            lineHeight = 18.sp,
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+        )
     }
 }
 
@@ -693,6 +770,7 @@ internal fun browserSettingValue(
     entry: KiyoriBrowserSettingsEntrySpec,
     settings: WebSessionBrowserSettings,
     userscriptState: WebSessionUserscriptUiState = WebSessionUserscriptUiState(),
+    adBlockState: BrowserAdBlockState = BrowserAdBlockState(),
     savedCredentialCount: Int = 0,
     credentialVaultLoading: Boolean = false,
     credentialVaultAvailable: Boolean = true,
@@ -701,6 +779,12 @@ internal fun browserSettingValue(
         null
     } else {
         when (entry.action) {
+            KiyoriBrowserSettingsAction.OPEN_AD_BLOCKER_SETTINGS ->
+                if (adBlockState.enabled) {
+                    "${adBlockState.activeNetworkRuleCount + adBlockState.activeElementRuleCount} 条启用规则"
+                } else {
+                    "全局已关闭"
+                }
             KiyoriBrowserSettingsAction.OPEN_PLUGIN_CENTER ->
                 browserPluginCenterSummary(userscriptState)
             KiyoriBrowserSettingsAction.OPEN_PLUGIN_PERMISSIONS ->
@@ -722,6 +806,7 @@ internal fun browserSettingValue(
                     else -> "不可用"
                 }
             KiyoriBrowserSettingsAction.CLEAR_COOKIES -> null
+            KiyoriBrowserSettingsAction.TOGGLE_AD_BLOCKING,
             KiyoriBrowserSettingsAction.TOGGLE_USER_SCRIPTS_ALLOWED,
             KiyoriBrowserSettingsAction.TOGGLE_RETURN_WITHOUT_RELOAD,
             KiyoriBrowserSettingsAction.TOGGLE_SWIPE_HISTORY_NAVIGATION,
@@ -733,7 +818,8 @@ internal fun browserSettingValue(
             KiyoriBrowserSettingsAction.TOGGLE_SEARCH_BAR_SNIFFER_ENTRY,
             KiyoriBrowserSettingsAction.TOGGLE_AUTOMATIC_FLOATING_PLAYBACK,
             KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_OPEN_APP,
-            KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_GEOLOCATION -> null
+            KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_GEOLOCATION,
+            KiyoriBrowserSettingsAction.TOGGLE_WEBSITE_PASSWORD_SAVING -> null
         }
     }
 
@@ -741,8 +827,11 @@ internal fun browserSettingToggleValue(
     entry: KiyoriBrowserSettingsEntrySpec,
     settings: WebSessionBrowserSettings,
     userscriptState: WebSessionUserscriptUiState,
+    adBlockState: BrowserAdBlockState = BrowserAdBlockState(),
 ): Boolean =
     when (entry.action) {
+        KiyoriBrowserSettingsAction.TOGGLE_AD_BLOCKING ->
+            adBlockState.enabled
         KiyoriBrowserSettingsAction.TOGGLE_USER_SCRIPTS_ALLOWED ->
             userscriptState.userScriptsAllowed
         KiyoriBrowserSettingsAction.TOGGLE_RETURN_WITHOUT_RELOAD ->
@@ -767,6 +856,9 @@ internal fun browserSettingToggleValue(
             settings.allowWebPageOpenApp
         KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_GEOLOCATION ->
             settings.allowWebPageGeolocation
+        KiyoriBrowserSettingsAction.TOGGLE_WEBSITE_PASSWORD_SAVING ->
+            settings.websitePasswordSavingEnabled
+        KiyoriBrowserSettingsAction.OPEN_AD_BLOCKER_SETTINGS,
         KiyoriBrowserSettingsAction.OPEN_PLUGIN_CENTER,
         KiyoriBrowserSettingsAction.OPEN_PLUGIN_PERMISSIONS,
         KiyoriBrowserSettingsAction.OPEN_PLUGIN_DIAGNOSTICS,

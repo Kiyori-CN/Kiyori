@@ -7147,7 +7147,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="web_session_placeholder_runtime_unchanged">Halaman ini tidak mengubah halaman web, tab, kuki atau keadaan kawalan AI semasa.</string>
     <string name="web_session_placeholder_toolbox">Menu pelayar ialah satu-satunya titik masuk menu. Kotak alat kedua yang berasingan belum ditakrifkan.</string>
     <string name="web_session_placeholder_reader_mode">Mod membaca memerlukan aliran pengekstrakan, penukaran dan keadaan bacaan yang belum disambungkan.</string>
-    <string name="web_session_placeholder_site_config">Tetapan laman memerlukan padanan setiap laman, storan konfigurasi dan kontrak pewarisan yang belum disambungkan.</string>
     <string name="web_session_browser_menu_button">Butang menu pelayar</string>
     <string name="web_session_browser_menu_title">Menu laci pelayar</string>
     <string name="web_session_network_log">Log rangkaian</string>

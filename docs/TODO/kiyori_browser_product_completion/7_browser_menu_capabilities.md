@@ -72,9 +72,29 @@ Activity、LitePal 或 native ABP 架构。
   `com.kiyori / 45 / 0.1.0 / 26 / 34 / 37 / arm64-v8a`，Android Debug V2 单 signer、
   16 KB ZIP 对齐及 `52/52` 个 ELF64/AArch64 的 `PT_LOAD >= 0x4000` 审计通过
 
+### 当前域名网站配置
+
+- 第三行第五个“网站配置”已从 `PLACEHOLDER` 升级为共享可拖动 `SITE_CONFIG` 子抽屉；点击时冻结
+  当前 HTTP(S) 完整 host，抽屉显示期间不会因后台导航静默切换目标
+- 新域名十一个负向开关默认全关，未保存规则时完全遵从全局；唯一优先级为
+  `globalEnabled && !siteDisabled`，站点规则只能继续禁用
+- 四组十一项为：内容与脚本的广告拦截、用户脚本；页面与交互的返回不重载、左右滑动前进后退、
+  强制页面缩放、网页元素长按菜单；权限与隐私的网页打开应用、网页定位、网站密码保存与填充；
+  音视频的搜索栏嗅探入口和自动悬浮播放
+- 广告拦截站点禁用继续写入唯一 `BrowserAdBlockStore.allowlistedDomains`。父域白名单覆盖子域时，
+  抽屉显示真实父域来源且不提供虚假的反向启用；清除当前域名只删除精确 host 条目
+- 其余十项由 `WebSessionBrowserSettingsStore.siteSettingsRules` 持久化精确 host 的 disabled
+  feature set；关闭最后一个站点开关会删除空规则，不保留第二个“已配置”标记
+- `about:blank`、`file:` 和非 HTTP(S) 页面打开明确空态且不创建规则。用户脚本开关不会自动刷新
+  网页；禁用会立即阻断新的脚本注入、桥接、页面菜单和网络能力，已经执行的 DOM 影响明确要求用户
+  刷新当前页清理
+- 当前源码与定向测试已经通过；最终 Debug APK 与门禁证据见 `docs/TODO/README.md`。真机上的浅深
+  主题、窄屏滚动、抽屉拖动、系统 Back、十一项真实行为和应用重启持久化保持
+  `verification_pending`
+
 ### 仍保持空占位的其他能力
 
-- 阅读模式、网站配置和工具箱继续保持空占位
+- 阅读模式和工具箱继续保持空占位
 - 无痕模式复用全屏搜索右上角的真实默认 Profile 切换与短时提示；当前标签 Profile 保持不可变，
   菜单保持显示，不复制旧版共享 Cookie 模式
 - 网页插件入口已经升级为 Browser Plugin Center；顶层统一投影插件，本轮仍只注册内置 userscript

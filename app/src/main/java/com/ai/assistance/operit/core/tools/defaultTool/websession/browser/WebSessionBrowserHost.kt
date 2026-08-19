@@ -95,6 +95,13 @@ internal class WebSessionBrowserHost(
         fun onSelectUserAgentMode(mode: WebSessionUserAgentMode)
         fun onSaveCustomGlobalUserAgent(userAgent: String)
         fun onSaveSiteUserAgentRule(domain: String, userAgent: String)
+        fun onSetSiteFeatureDisabled(
+            domain: String,
+            feature: WebSessionSiteFeature,
+            disabled: Boolean,
+        )
+        fun onClearSiteSettings(domain: String)
+        fun onSetSiteAdBlockingDisabled(domain: String, disabled: Boolean)
         fun onSetSearchEngine(engine: WebSessionSearchEngine)
         fun onSetDefaultSessionProfile(profile: WebSessionProfile): Boolean
         fun onSubmitSearch(
@@ -175,6 +182,7 @@ internal class WebSessionBrowserHost(
     private val windowManager = appContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val backgroundAnchor = BrowserBackgroundAnchor(appContext)
     private val browserSettingsStore = WebSessionBrowserSettingsStore.getInstance(appContext)
+    private val adBlockStore = BrowserAdBlockStore.getInstance(appContext)
     private val imageQrCodeRecognizer = BrowserImageQrCodeRecognizer(appContext)
     private val browserOperationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var appWebViewHost: WebSessionWebViewHost? = null
@@ -239,16 +247,50 @@ internal class WebSessionBrowserHost(
         val searchHistory by store.searchHistoryFlow.collectAsState(initial = emptyList())
         val userscriptUiState by userscriptStore.state.collectAsState()
         val browserSettings by browserSettingsStore.state.collectAsState()
+        val adBlockState by adBlockStore.state.collectAsState()
         val playerSession = PlayerSession.getInstance(appContext)
         val playerState by playerSession.state.collectAsState()
-        LaunchedEffect(browserSettings.webElementLongPressMenuEnabled) {
-            applyWebElementLongPressMenuSetting(
-                browserSettings.webElementLongPressMenuEnabled,
+        val currentPageUrl = hostState.browserState.currentUrl
+        val webElementLongPressMenuEnabled =
+            resolveWebSessionSiteFeatureEnabled(
+                settings = browserSettings,
+                domainOrUrl = currentPageUrl,
+                feature = WebSessionSiteFeature.WEB_ELEMENT_LONG_PRESS_MENU,
+                globalEnabled = browserSettings.webElementLongPressMenuEnabled,
             )
+        val showMediaCandidateBadge =
+            resolveWebSessionSiteFeatureEnabled(
+                settings = browserSettings,
+                domainOrUrl = currentPageUrl,
+                feature = WebSessionSiteFeature.MEDIA_CANDIDATE_BADGE,
+                globalEnabled = browserSettings.showMediaCandidateBadge,
+            )
+        val automaticFloatingPlaybackEnabled =
+            resolveWebSessionSiteFeatureEnabled(
+                settings = browserSettings,
+                domainOrUrl = currentPageUrl,
+                feature = WebSessionSiteFeature.AUTOMATIC_FLOATING_PLAYBACK,
+                globalEnabled = browserSettings.automaticFloatingPlaybackEnabled,
+            )
+        val swipeHistoryNavigationEnabled =
+            resolveWebSessionSiteFeatureEnabled(
+                settings = browserSettings,
+                domainOrUrl = currentPageUrl,
+                feature = WebSessionSiteFeature.SWIPE_HISTORY_NAVIGATION,
+                globalEnabled = browserSettings.swipeHistoryNavigationEnabled,
+            )
+        LaunchedEffect(
+            webElementLongPressMenuEnabled,
+            browserSettings.siteSettingsRules,
+            currentPageUrl,
+        ) {
+            applyWebElementLongPressMenuSetting(webElementLongPressMenuEnabled)
         }
 
         WebSessionBrowserScreen(
             hostState = hostState,
+            browserSettings = browserSettings,
+            adBlockState = adBlockState,
             bookmarks = bookmarks,
             bookmarkFolders = bookmarkFolders,
             globalHistory = history,
@@ -285,6 +327,9 @@ internal class WebSessionBrowserHost(
              onSelectUserAgentMode = callbacks::onSelectUserAgentMode,
             onSaveCustomGlobalUserAgent = callbacks::onSaveCustomGlobalUserAgent,
             onSaveSiteUserAgentRule = callbacks::onSaveSiteUserAgentRule,
+            onSetSiteFeatureDisabled = callbacks::onSetSiteFeatureDisabled,
+            onClearSiteSettings = callbacks::onClearSiteSettings,
+            onSetSiteAdBlockingDisabled = callbacks::onSetSiteAdBlockingDisabled,
             onSetSearchEngine = callbacks::onSetSearchEngine,
             onSetDefaultSessionProfile = callbacks::onSetDefaultSessionProfile,
             onSubmitSearch = callbacks::onSubmitSearch,
@@ -360,13 +405,11 @@ internal class WebSessionBrowserHost(
             onConfirmBrowserDownload = callbacks::onConfirmBrowserDownload,
             onCancelBrowserDownload = callbacks::onCancelBrowserDownload,
             onHandlePendingDialog = callbacks::onHandlePendingDialog,
-            showMediaCandidateBadge = browserSettings.showMediaCandidateBadge,
-            automaticFloatingPlaybackEnabled =
-                browserSettings.automaticFloatingPlaybackEnabled,
+            showMediaCandidateBadge = showMediaCandidateBadge,
+            automaticFloatingPlaybackEnabled = automaticFloatingPlaybackEnabled,
             automaticFloatingMinimumDurationMillis =
                 browserSettings.automaticFloatingMinimumDurationMillis,
-            swipeHistoryNavigationEnabled =
-                browserSettings.swipeHistoryNavigationEnabled,
+            swipeHistoryNavigationEnabled = swipeHistoryNavigationEnabled,
             onCopyTextSelection = ::copyActiveWebViewSelection,
             onSelectAllTextSelection = ::selectAllActiveWebViewText,
             onDismissTextSelection = ::dismissTextSelectionActions,
@@ -744,6 +787,8 @@ internal class WebSessionBrowserHost(
                         sheetRoute = WebSessionBrowserSheetRoute.NONE,
                         pluginRouteStack =
                             listOf(WebSessionBrowserPluginRoute.Overview),
+                        placeholderPage = null,
+                        siteConfigDomain = null,
                     )
                 }
                 true
@@ -814,7 +859,7 @@ internal class WebSessionBrowserHost(
     ) {
         if (
             hostState.adMarking.active ||
-                !browserSettingsStore.current.webElementLongPressMenuEnabled
+                !isWebElementLongPressMenuEnabled(hostState.browserState.currentUrl)
         ) {
             return
         }
@@ -857,7 +902,7 @@ internal class WebSessionBrowserHost(
     ) {
         if (
             hostState.browserState.activeSessionId != sessionId ||
-                !browserSettingsStore.current.webElementLongPressMenuEnabled
+                !isWebElementLongPressMenuEnabled(hostState.browserState.currentUrl)
         ) {
             return
         }
@@ -1747,6 +1792,15 @@ internal class WebSessionBrowserHost(
     fun currentBrowserAreaSize(): Pair<Int, Int> =
         hostState.browserAreaWidthPx.coerceAtLeast(0) to hostState.browserAreaHeightPx.coerceAtLeast(0)
 
+    private fun isWebElementLongPressMenuEnabled(pageUrl: String): Boolean {
+        val settings = browserSettingsStore.current
+        return resolveWebSessionSiteFeatureEnabled(
+            settings = settings,
+            domainOrUrl = pageUrl,
+            feature = WebSessionSiteFeature.WEB_ELEMENT_LONG_PRESS_MENU,
+            globalEnabled = settings.webElementLongPressMenuEnabled,
+        )
+    }
 
     fun showSheet(route: WebSessionBrowserSheetRoute) {
         updateHostState { it.copy(sheetRoute = route) }

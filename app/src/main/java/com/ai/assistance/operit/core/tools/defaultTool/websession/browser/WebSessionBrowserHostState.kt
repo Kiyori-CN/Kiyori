@@ -19,6 +19,7 @@ internal enum class WebSessionBrowserSheetRoute {
     USER_AGENT,
     NETWORK_LOG,
     MEDIA_CANDIDATES,
+    SITE_CONFIG,
     PAGE_SOURCE,
     PLACEHOLDER,
 }
@@ -59,7 +60,6 @@ internal sealed interface WebSessionBrowserPluginRoute {
 internal enum class WebSessionBrowserPlaceholderPage {
     TOOLBOX,
     READER_MODE,
-    SITE_CONFIG,
 }
 
 @Immutable
@@ -434,6 +434,7 @@ internal data class WebSessionBrowserHostState(
     val pluginEditorExitPromptDraftId: String? = null,
     val selectedProfile: WebSessionProfile = WebSessionProfile.NORMAL,
     val placeholderPage: WebSessionBrowserPlaceholderPage? = null,
+    val siteConfigDomain: String? = null,
     val isSearchVisible: Boolean = false,
     val isSearchEnginePanelVisible: Boolean = false,
     val searchDraft: String = "",

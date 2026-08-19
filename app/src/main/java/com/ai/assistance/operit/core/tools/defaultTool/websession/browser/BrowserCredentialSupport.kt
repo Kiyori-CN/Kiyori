@@ -19,7 +19,7 @@ internal class BrowserCredentialBridge(
         }
         if (
             session.profile != WebSessionProfile.NORMAL ||
-                !tools.browserSettingsStore.current.websitePasswordSavingEnabled
+                !tools.isWebsitePasswordSavingEnabledForPage(session.currentUrl)
         ) {
             return
         }
@@ -67,7 +67,7 @@ internal fun StandardBrowserSessionTools.injectBrowserCredentialSupport(
 ) {
     val captureEnabled =
         session.profile == WebSessionProfile.NORMAL &&
-            browserSettingsStore.current.websitePasswordSavingEnabled
+            isWebsitePasswordSavingEnabledForPage(session.currentUrl)
     session.webView.evaluateJavascript(
         browserCredentialCaptureScript(
             documentToken = session.credentialDocumentToken,
@@ -76,6 +76,10 @@ internal fun StandardBrowserSessionTools.injectBrowserCredentialSupport(
         null,
     )
     if (session.profile != WebSessionProfile.NORMAL) {
+        return
+    }
+    if (!captureEnabled) {
+        session.webView.evaluateJavascript(browserCredentialAutofillDisableScript(), null)
         return
     }
     val documentToken = session.credentialDocumentToken
@@ -98,7 +102,8 @@ internal fun StandardBrowserSessionTools.injectBrowserCredentialSupport(
                     session.profile == WebSessionProfile.NORMAL &&
                         session.pageLoaded &&
                         session.credentialDocumentToken == documentToken &&
-                        session.currentUrl == pageUrl
+                        session.currentUrl == pageUrl &&
+                        isWebsitePasswordSavingEnabledForPage(session.currentUrl)
                 ) {
                     session.webView.evaluateJavascript(
                         browserCredentialAutofillScript(credential),
@@ -113,17 +118,21 @@ internal fun StandardBrowserSessionTools.injectBrowserCredentialSupport(
 internal fun StandardBrowserSessionTools.applyWebsitePasswordSavingSettingOnMain() {
     StandardBrowserSessionTools.sessions.values.forEach { session ->
         if (session.pageLoaded) {
-            session.webView.evaluateJavascript(
-                browserCredentialCaptureScript(
-                    documentToken = session.credentialDocumentToken,
-                    enabled =
-                        session.profile == WebSessionProfile.NORMAL &&
-                            browserSettingsStore.current.websitePasswordSavingEnabled,
-                ),
-                null,
-            )
+            injectBrowserCredentialSupport(session)
         }
     }
+}
+
+internal fun StandardBrowserSessionTools.isWebsitePasswordSavingEnabledForPage(
+    pageUrl: String,
+): Boolean {
+    val settings = browserSettingsStore.current
+    return resolveWebSessionSiteFeatureEnabled(
+        settings = settings,
+        domainOrUrl = pageUrl,
+        feature = WebSessionSiteFeature.WEBSITE_PASSWORD_SAVING,
+        globalEnabled = settings.websitePasswordSavingEnabled,
+    )
 }
 
 internal fun browserCredentialCaptureScript(
@@ -146,6 +155,19 @@ internal fun browserCredentialAutofillScript(credential: BrowserSavedCredential)
         )
         .replace("__KIYORI_USERNAME__", quoteBrowserJavascriptString(credential.username))
         .replace("__KIYORI_PASSWORD__", quoteBrowserJavascriptString(credential.password))
+
+internal fun browserCredentialAutofillDisableScript(): String =
+    """
+    (() => {
+      const stateKey = "__kiyoriCredentialAutofillV1";
+      const previous = window[stateKey];
+      if (previous && typeof previous.dispose === "function") {
+        previous.dispose();
+      }
+      delete window[stateKey];
+      return true;
+    })();
+    """.trimIndent()
 
 internal fun quoteBrowserJavascriptString(value: String): String =
     buildString(value.length + 2) {

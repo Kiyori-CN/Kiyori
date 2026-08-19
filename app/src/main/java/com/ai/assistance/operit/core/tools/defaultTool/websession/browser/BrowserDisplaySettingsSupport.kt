@@ -8,8 +8,15 @@ internal fun StandardBrowserSessionTools.applyBrowserDisplaySettingsOnMain() {
     StandardBrowserSessionTools.sessions.values.forEach { session ->
         session.webView.settings.textZoom = settings.webTextZoomPercent
         if (session.pageLoaded) {
+            val forcePageZoomEnabled =
+                resolveWebSessionSiteFeatureEnabled(
+                    settings = settings,
+                    domainOrUrl = session.currentUrl,
+                    feature = WebSessionSiteFeature.FORCE_PAGE_ZOOM,
+                    globalEnabled = settings.forcePageZoomEnabled,
+                )
             session.webView.evaluateJavascript(
-                browserForcePageZoomScript(settings.forcePageZoomEnabled),
+                browserForcePageZoomScript(forcePageZoomEnabled),
                 null,
             )
         }
@@ -22,8 +29,15 @@ internal fun StandardBrowserSessionTools.applyBrowserDisplaySettingsOnPage(
 ) {
     val settings = browserSettingsStore.current
     session.webView.settings.textZoom = settings.webTextZoomPercent
+    val forcePageZoomEnabled =
+        resolveWebSessionSiteFeatureEnabled(
+            settings = settings,
+            domainOrUrl = session.currentUrl,
+            feature = WebSessionSiteFeature.FORCE_PAGE_ZOOM,
+            globalEnabled = settings.forcePageZoomEnabled,
+        )
     session.webView.evaluateJavascript(
-        browserForcePageZoomScript(settings.forcePageZoomEnabled),
+        browserForcePageZoomScript(forcePageZoomEnabled),
         null,
     )
 }
@@ -34,12 +48,25 @@ internal fun StandardBrowserSessionTools.prepareReturnWithoutReloadOnMain(
     if (session.returnWithoutReloadOriginalCacheMode != null) {
         return
     }
-    if (!browserSettingsStore.current.returnWithoutReloadEnabled) {
-        return
-    }
     val history = session.webView.copyBackForwardList()
-    requireNotNull(history.getItemAtIndex(history.currentIndex - 1)) {
-        "WebView Back target is unavailable for ${session.id}"
+    val backTarget =
+        requireNotNull(history.getItemAtIndex(history.currentIndex - 1)) {
+            "WebView Back target is unavailable for ${session.id}"
+        }
+    val backTargetUrl =
+        requireNotNull(backTarget.url) {
+            "WebView Back target URL is unavailable for ${session.id}"
+        }
+    val settings = browserSettingsStore.current
+    val returnWithoutReloadEnabled =
+        resolveWebSessionSiteFeatureEnabled(
+            settings = settings,
+            domainOrUrl = backTargetUrl,
+            feature = WebSessionSiteFeature.RETURN_WITHOUT_RELOAD,
+            globalEnabled = settings.returnWithoutReloadEnabled,
+        )
+    if (!returnWithoutReloadEnabled) {
+        return
     }
     val originalCacheMode = session.webView.settings.cacheMode
     session.returnWithoutReloadOriginalCacheMode = originalCacheMode

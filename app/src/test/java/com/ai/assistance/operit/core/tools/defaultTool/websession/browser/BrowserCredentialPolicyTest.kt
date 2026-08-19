@@ -80,6 +80,7 @@ class BrowserCredentialPolicyTest {
                     updatedAtEpochMillis = 1L,
                 ),
             )
+        val autofillDisabled = browserCredentialAutofillDisableScript()
 
         assertTrue(capture.contains("KiyoriCredentialBridge.capture"))
         assertTrue(capture.contains("passwords.length !== 1"))
@@ -91,8 +92,11 @@ class BrowserCredentialPolicyTest {
         assertTrue(autofill.contains("MutationObserver"))
         assertTrue(autofill.contains("dispatchEvent(new Event(\"input\""))
         assertTrue(autofill.contains("user@example.com"))
+        assertTrue(autofillDisabled.contains("previous.dispose()"))
+        assertTrue(autofillDisabled.contains("delete window[stateKey]"))
         assertFalse(capture.contains(".submit()"))
         assertFalse(autofill.contains(".submit()"))
+        assertFalse(autofillDisabled.contains(".submit()"))
     }
 
     @Test

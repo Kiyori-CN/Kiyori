@@ -44,6 +44,20 @@ class UserscriptPageStatusPolicyTest {
         assertTrue(excluded.detail.orEmpty().contains("@exclude-match"))
     }
 
+    @Test
+    fun `site settings denial is reported separately from global authorization`() {
+        val status =
+            UserscriptPageStatusPolicy.resolve(
+                script = userscript(),
+                userScriptsAllowed = true,
+                siteScriptsAllowed = false,
+                pageUrl = "https://example.com/page",
+            )
+
+        assertEquals(UserscriptPageRuntimeState.PERMISSION_REQUIRED, status.state)
+        assertEquals("当前网站配置已禁用用户脚本", status.detail)
+    }
+
     private fun userscript(): UserscriptListItem =
         UserscriptListItem(
             id = 1L,

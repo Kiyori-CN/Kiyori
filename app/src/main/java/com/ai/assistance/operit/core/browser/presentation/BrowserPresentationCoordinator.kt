@@ -7,6 +7,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.ToolGetter
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserHost
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSettings
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserAdBlockState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserCredentialVaultSnapshot
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserSavedCredential
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionIncognitoAvailability
@@ -94,6 +95,7 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
     private val tools = ToolGetter.getBrowserSessionTools(appContext)
     val browserWindowCount: StateFlow<Int> = tools.browserWindowCount
     val browserSettings: StateFlow<WebSessionBrowserSettings> = tools.browserSettingsStore.state
+    val adBlockState: StateFlow<BrowserAdBlockState> = tools.adBlockStore.state
     val browserCredentialVaultState: StateFlow<BrowserCredentialVaultSnapshot> =
         tools.browserCredentialVault.state
     val userscriptState: StateFlow<WebSessionUserscriptUiState> = tools.userscriptManager.uiStore.state
@@ -228,6 +230,10 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
 
     fun setBrowserHomeUrl(url: String) {
         tools.browserSettingsStore.setHomeUrl(url)
+    }
+
+    fun setAdBlockEnabled(enabled: Boolean) {
+        tools.adBlockStore.setEnabled(enabled)
     }
 
     fun setReturnWithoutReloadEnabled(enabled: Boolean) {

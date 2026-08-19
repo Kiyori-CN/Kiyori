@@ -7018,7 +7018,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="web_session_placeholder_runtime_unchanged">Esta página não altera a página atual, as abas, os cookies nem o estado de controle da IA.</string>
     <string name="web_session_placeholder_toolbox">O menu do navegador é o único ponto de entrada. Uma segunda caixa de ferramentas separada ainda não foi definida.</string>
     <string name="web_session_placeholder_reader_mode">O modo de leitura precisa de fluxos de extração, conversão e estado de leitura que ainda não estão conectados.</string>
-    <string name="web_session_placeholder_site_config">As configurações do site precisam de correspondência por site, armazenamento e regras de herança que ainda não estão conectados.</string>
     <string name="web_session_browser_menu_button">Botão do menu do navegador</string>
     <string name="web_session_browser_menu_title">Menu da gaveta do navegador</string>
     <string name="web_session_network_log">Log de rede</string>

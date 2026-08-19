@@ -506,7 +506,12 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 clearEventLogs(session)
                 clearMediaCandidates(session)
                 session.pendingDialog = null
-                injectBrowserElementInteractionHelper(view, session.externalNavigationPolicy)
+                injectBrowserElementInteractionHelper(
+                    webView = view,
+                    navigationPolicy = session.externalNavigationPolicy,
+                    elementActionsEnabled =
+                        isBrowserWebElementLongPressMenuEnabledForPage(url),
+                )
                 notifySessionStateChanged(session)
                 userscriptManager.onPageChanged(session.id, url, forceReset = true)
                 syncNavigationStateUi(session)
@@ -542,7 +547,12 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 applyBrowserDisplaySettingsOnPage(session)
                 refreshNavigationStateFromWebView(view, session)
                 injectDownloadHelper(view)
-                injectBrowserElementInteractionHelper(view, session.externalNavigationPolicy)
+                injectBrowserElementInteractionHelper(
+                    webView = view,
+                    navigationPolicy = session.externalNavigationPolicy,
+                    elementActionsEnabled =
+                        isBrowserWebElementLongPressMenuEnabledForPage(session.currentUrl),
+                )
                 injectTextSelectionHelper(view)
                 injectBrowserAdBlockElementRules(session)
                 injectBrowserCredentialSupport(session)
@@ -1066,6 +1076,67 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             applyBrowserUserAgentSettingsOnMain()
         }
 
+        override fun onSetSiteFeatureDisabled(
+            domain: String,
+            feature: WebSessionSiteFeature,
+            disabled: Boolean,
+        ) {
+            runOnMainSync<Unit> {
+                browserSettingsStore.setSiteFeatureDisabled(
+                    domain = domain,
+                    feature = feature,
+                    disabled = disabled,
+                )
+                when (feature) {
+                    WebSessionSiteFeature.USER_SCRIPTS ->
+                        userscriptManager.refreshSiteSettings()
+                    WebSessionSiteFeature.FORCE_PAGE_ZOOM ->
+                        applyBrowserDisplaySettingsOnMain()
+                    WebSessionSiteFeature.WEB_ELEMENT_LONG_PRESS_MENU ->
+                        applyBrowserWebElementLongPressMenuSettingOnMain()
+                    WebSessionSiteFeature.WEBSITE_PASSWORD_SAVING ->
+                        applyWebsitePasswordSavingSettingOnMain()
+                    WebSessionSiteFeature.RETURN_WITHOUT_RELOAD,
+                    WebSessionSiteFeature.SWIPE_HISTORY_NAVIGATION,
+                    WebSessionSiteFeature.WEB_PAGE_OPEN_APP,
+                    WebSessionSiteFeature.WEB_PAGE_GEOLOCATION,
+                    WebSessionSiteFeature.MEDIA_CANDIDATE_BADGE,
+                    WebSessionSiteFeature.AUTOMATIC_FLOATING_PLAYBACK,
+                    -> Unit
+                }
+                refreshSessionUiOnMain()
+            }
+        }
+
+        override fun onClearSiteSettings(domain: String) {
+            runOnMainSync<Unit> {
+                browserSettingsStore.clearSiteSettings(domain)
+                applyBrowserDisplaySettingsOnMain()
+                applyBrowserWebElementLongPressMenuSettingOnMain()
+                applyWebsitePasswordSavingSettingOnMain()
+                userscriptManager.refreshSiteSettings()
+                refreshSessionUiOnMain()
+            }
+        }
+
+        override fun onSetSiteAdBlockingDisabled(
+            domain: String,
+            disabled: Boolean,
+        ) {
+            val normalizedDomain =
+                requireNotNull(normalizeBrowserAdBlockDomainInput(domain)) {
+                    "Invalid browser site ad-block domain: $domain"
+                }
+            val isExactlyAllowlisted =
+                normalizedDomain in adBlockStore.current.allowlistedDomains
+            when {
+                disabled && !isExactlyAllowlisted ->
+                    adBlockStore.addAllowlistedDomain(normalizedDomain)
+                !disabled && isExactlyAllowlisted ->
+                    adBlockStore.removeAllowlistedDomain(normalizedDomain)
+            }
+        }
+
         override fun onSetSearchEngine(engine: WebSessionSearchEngine) {
             ioScope.launch {
                 runCatching {
@@ -1253,8 +1324,10 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                 refreshNavigationStateFromWebView(session.webView, session)
                 injectDownloadHelper(session.webView)
                 injectBrowserElementInteractionHelper(
-                    session.webView,
-                    session.externalNavigationPolicy,
+                    webView = session.webView,
+                    navigationPolicy = session.externalNavigationPolicy,
+                    elementActionsEnabled =
+                        isBrowserWebElementLongPressMenuEnabledForPage(session.currentUrl),
                 )
                 injectTextSelectionHelper(session.webView)
                 injectBrowserAdBlockElementRules(session)
@@ -2851,7 +2924,12 @@ internal fun StandardBrowserSessionTools.handleNavigationOverrideOnMain(
         scheme != "http" &&
             scheme != "https" &&
             scheme != "about" &&
-            !browserSettingsStore.current.allowWebPageOpenApp
+            !resolveWebSessionSiteFeatureEnabled(
+                settings = browserSettingsStore.current,
+                domainOrUrl = session.currentUrl,
+                feature = WebSessionSiteFeature.WEB_PAGE_OPEN_APP,
+                globalEnabled = browserSettingsStore.current.allowWebPageOpenApp,
+            )
     ) {
         // Disabling this setting is an explicit deny policy. Consuming the navigation here keeps
         // WebView from attempting an unsupported external scheme or creating an external prompt.
@@ -3005,7 +3083,15 @@ internal fun StandardBrowserSessionTools.handleGeolocationPermissionRequest(
     origin: String,
     callback: GeolocationPermissions.Callback
 ) {
-    if (!browserSettingsStore.current.allowWebPageGeolocation) {
+    val settings = browserSettingsStore.current
+    if (
+        !resolveWebSessionSiteFeatureEnabled(
+            settings = settings,
+            domainOrUrl = origin,
+            feature = WebSessionSiteFeature.WEB_PAGE_GEOLOCATION,
+            globalEnabled = settings.allowWebPageGeolocation,
+        )
+    ) {
         callback.invoke(origin, false, false)
         return
     }
