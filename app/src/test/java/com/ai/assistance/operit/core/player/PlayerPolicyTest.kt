@@ -3,6 +3,7 @@ package com.ai.assistance.operit.core.player
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -473,6 +474,74 @@ class PlayerPolicyTest {
     }
 
     @Test
+    fun seekPreviewAllowsLocalMediaAndOnlyCompletedFullCacheNetworkMedia() {
+        val localState =
+            PlayerSessionState(
+                request =
+                    PlayerMediaRequest(
+                        requestId = "local",
+                        uri = "content://media/external/video/1",
+                        title = "Local",
+                        source = PlayerMediaSource.EXTERNAL_INTENT,
+                    ),
+                durationSeconds = 120.0,
+                runtimeState = PlayerRuntimeState.ACTIVE,
+            )
+        val networkState =
+            PlayerSessionState(
+                request =
+                    PlayerMediaRequest(
+                        requestId = "network",
+                        uri = "https://media.example/video.mp4",
+                        title = "Network",
+                        source = PlayerMediaSource.BROWSER_CANDIDATE,
+                        sourceSessionId = "web-session",
+                    ),
+                durationSeconds = 120.0,
+                runtimeState = PlayerRuntimeState.ACTIVE,
+            )
+
+        assertTrue(canRequestPlayerSeekPreview(settingsEnabled = true, state = localState))
+        assertFalse(canRequestPlayerSeekPreview(settingsEnabled = true, state = networkState))
+        assertTrue(
+            canRequestPlayerSeekPreview(
+                settingsEnabled = true,
+                state = networkState.copy(fullVideoCacheComplete = true),
+            ),
+        )
+        assertFalse(
+            canRequestPlayerSeekPreview(
+                settingsEnabled = false,
+                state = networkState.copy(fullVideoCacheComplete = true),
+            ),
+        )
+    }
+
+    @Test
+    fun latestSeekTargetIsSubmittedAfterTheActiveSeekCompletes() {
+        assertEquals(
+            PlayerSeekCompletionPlan(
+                pendingTargetSeconds = null,
+                followUpTargetSeconds = null,
+            ),
+            resolvePlayerSeekCompletionPlan(
+                completedCommandTargetSeconds = 120.0,
+                latestRequestedTargetSeconds = 120.0,
+            ),
+        )
+        assertEquals(
+            PlayerSeekCompletionPlan(
+                pendingTargetSeconds = 180.0,
+                followUpTargetSeconds = 180.0,
+            ),
+            resolvePlayerSeekCompletionPlan(
+                completedCommandTargetSeconds = 120.0,
+                latestRequestedTargetSeconds = 180.0,
+            ),
+        )
+    }
+
+    @Test
     fun sameRequestChangesOnlyPresentationWithoutReload() {
         val request = externalRequest("request-1")
         val current =
@@ -512,6 +581,7 @@ class PlayerPolicyTest {
                 title = "Video",
                 source = PlayerMediaSource.BROWSER_CANDIDATE,
                 sourceSessionId = "web-session-1",
+                sourcePageUrl = "https://page.example/watch",
             )
         val preparedLease =
             preparePlayerSurfaceLease(
@@ -542,8 +612,67 @@ class PlayerPolicyTest {
                 presentation = PlayerPresentation.FLOATING_PLAYER,
                 surfaceLease = surfaceLease,
                 positionSeconds = 31.0,
+                durationSeconds = 420.0,
                 paused = false,
+                speed = 1.75,
+                buffering = true,
+                seeking = true,
+                pendingSeekTargetSeconds = 84.25,
+                audioTracks =
+                    listOf(
+                        PlayerTrack(
+                            id = 1,
+                            title = "Main",
+                            language = "zh",
+                            selected = true,
+                        ),
+                    ),
+                subtitleTracks =
+                    listOf(
+                        PlayerTrack(
+                            id = 2,
+                            title = "中文",
+                            language = "zh",
+                            selected = true,
+                        ),
+                    ),
+                selectedAudioTrackId = 1,
+                selectedSubtitleTrackId = 2,
+                chapters = listOf(PlayerChapter(title = "Chapter", startSeconds = 12.0)),
+                seekPreview =
+                    PlayerSeekPreview(
+                        positionSeconds = 84.25,
+                        bitmap = null,
+                        loading = true,
+                    ),
+                mediaContainer = "mp4",
+                videoCodec = "h264",
+                audioCodec = "aac",
+                videoTrackCount = 1,
+                fullVideoCacheActive = true,
+                fullVideoCacheComplete = true,
+                fullVideoCacheStartSeconds = 0.0,
+                fullVideoCacheEndSeconds = 420.0,
+                fullVideoCachePhase = "COMPLETE",
+                fullVideoCacheReason = "complete",
+                fullVideoCacheStateEvidence = "AVAILABLE",
+                fullVideoCacheFileBytes = 440_401_920L,
+                fullVideoCacheExpectedBytes = 440_401_920L,
+                queueIndex = 1,
+                queueSize = 3,
+                decoderBackend = PlayerDecoderBackend.MEDIACODEC_COPY,
+                renderingProfile = PlayerRenderingProfile.HIGH_QUALITY,
+                activeHardwareDecoder = "mediacodec-copy",
+                videoPixelFormat = "nv12",
+                videoCodecProfile = "High",
+                anime4KMode = Anime4KMode.B_PLUS,
+                activeShaderFiles = listOf("/private/anime4k.glsl"),
+                networkSpeedBytesPerSecond = 8_388_608L,
+                videoFitMode = PlayerVideoFitMode.CROP,
                 loadGeneration = 7L,
+                runtimeGeneration = 5L,
+                runtimeState = PlayerRuntimeState.ACTIVE,
+                runtimeProcessId = 4242,
             )
 
         val fullscreen =
@@ -563,10 +692,13 @@ class PlayerPolicyTest {
 
         assertFalse(fullscreen.shouldLoad)
         assertFalse(returnedFloating.shouldLoad)
-        assertEquals(7L, returnedFloating.state.loadGeneration)
-        assertEquals(31.0, returnedFloating.state.positionSeconds, 0.0)
-        assertEquals(PlayerPresentation.FLOATING_PLAYER, returnedFloating.state.presentation)
-        assertEquals(surfaceLease, returnedFloating.state.surfaceLease)
+        assertSame(request, fullscreen.state.request)
+        assertSame(request, returnedFloating.state.request)
+        assertEquals(
+            floating.copy(presentation = PlayerPresentation.FULLSCREEN_PLAYER),
+            fullscreen.state,
+        )
+        assertEquals(floating, returnedFloating.state)
     }
 
     @Test
@@ -603,6 +735,7 @@ class PlayerPolicyTest {
         assertEquals(0.0, transition.state.positionSeconds, 0.0)
         assertEquals(1.25, transition.state.speed, 0.0)
         assertFalse(transition.state.seeking)
+        assertNull(transition.state.pendingSeekTargetSeconds)
         assertEquals(5L, transition.state.loadGeneration)
         assertEquals(PlayerDecoderBackend.MEDIACODEC_COPY, transition.state.decoderBackend)
         assertEquals(PlayerRenderingProfile.HIGH_QUALITY, transition.state.renderingProfile)

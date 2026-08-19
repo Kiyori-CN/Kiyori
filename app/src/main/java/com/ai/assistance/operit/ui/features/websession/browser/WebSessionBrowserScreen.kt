@@ -96,11 +96,13 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.Browse
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.areBrowserHomeUrlsEquivalent
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.buildWebSessionBookmarkFolderTree
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.automaticFloatingCandidateStabilityDelayMillis
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveConsumedAutomaticFloatingPageKey
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveSelectedProfileAfterRemoval
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveWebSessionProfileToggleTarget
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.normalizeWebSessionBookmarkUrl
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.selectAutomaticFloatingMediaCandidate
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.shouldAttemptAutomaticFloatingPlayback
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserBottomBar
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserBottomDrawer
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserMenuDrawer
@@ -282,10 +284,27 @@ internal fun WebSessionBrowserScreen(
             )
         }
     val latestMediaCandidates by rememberUpdatedState(browserState.mediaCandidates)
-    var dismissedAutomaticFloatingPageKey by remember { mutableStateOf<String?>(null) }
+    // 页面候选一旦成功进入唯一 PlayerSession，就消费该页面的自动悬浮机会。否则全屏
+    // CLOSE 清空会话后，这个 effect 会再次打开同一候选，表现为从 0 播放并重新缓存。
+    var consumedAutomaticFloatingPageKey by remember { mutableStateOf<String?>(null) }
     var totalHeightPx by remember { mutableIntStateOf(0) }
     var browserAreaHeightPx by remember { mutableIntStateOf(0) }
     var floatingOffsetYPx by remember(playerState.request?.requestId) { mutableFloatStateOf(0f) }
+    val consumeCurrentAutomaticFloatingPage: () -> Unit = {
+        consumedAutomaticFloatingPageKey =
+            resolveConsumedAutomaticFloatingPageKey(
+                currentPageKey = automaticFloatingPageKey,
+                consumedPageKey = consumedAutomaticFloatingPageKey,
+                request = playerSession.state.value.request,
+            )
+    }
+    val playMediaCandidateAndConsumeAutomaticPage: (String) -> Boolean = { candidateId ->
+        onPlayMediaCandidate(candidateId).also { accepted ->
+            if (accepted) {
+                consumeCurrentAutomaticFloatingPage()
+            }
+        }
+    }
     LaunchedEffect(totalHeightPx, browserAreaHeightPx) {
         val chromeHeightPx = (totalHeightPx - browserAreaHeightPx).coerceAtLeast(0)
         if (
@@ -306,6 +325,14 @@ internal fun WebSessionBrowserScreen(
                 }
             }
         }
+    }
+    LaunchedEffect(automaticFloatingPageKey, playerState.request) {
+        consumedAutomaticFloatingPageKey =
+            resolveConsumedAutomaticFloatingPageKey(
+                currentPageKey = automaticFloatingPageKey,
+                consumedPageKey = consumedAutomaticFloatingPageKey,
+                request = playerState.request,
+            )
     }
     val currentBookmarkUrl =
         remember(browserState.currentUrl) { normalizeWebSessionBookmarkUrl(browserState.currentUrl) }
@@ -339,18 +366,37 @@ internal fun WebSessionBrowserScreen(
         playerState.presentation,
     ) {
         if (!automaticFloatingPlaybackEnabled) return@LaunchedEffect
-        if (dismissedAutomaticFloatingPageKey == automaticFloatingPageKey) return@LaunchedEffect
-        if (playerState.hasMedia || playerState.presentation != PlayerPresentation.BROWSER_ONLY) return@LaunchedEffect
+        if (
+            !shouldAttemptAutomaticFloatingPlayback(
+                currentPageKey = automaticFloatingPageKey,
+                consumedPageKey = consumedAutomaticFloatingPageKey,
+                hasMedia = playerState.hasMedia,
+                presentation = playerState.presentation,
+            )
+        ) {
+            return@LaunchedEffect
+        }
         val selected = automaticFloatingCandidate ?: return@LaunchedEffect
         delay(automaticFloatingCandidateStabilityDelayMillis(selected))
-        if (dismissedAutomaticFloatingPageKey == automaticFloatingPageKey) return@LaunchedEffect
+        if (
+            !shouldAttemptAutomaticFloatingPlayback(
+                currentPageKey = automaticFloatingPageKey,
+                consumedPageKey = consumedAutomaticFloatingPageKey,
+                hasMedia = playerState.hasMedia,
+                presentation = playerState.presentation,
+            )
+        ) {
+            return@LaunchedEffect
+        }
         val stableSelection =
             selectAutomaticFloatingMediaCandidate(
                 candidates = latestMediaCandidates,
                 minimumDurationMillis = automaticFloatingMinimumDurationMillis,
             )
         if (stableSelection?.id == selected.id) {
-            onPlayMediaCandidateFloating(selected.id)
+            if (onPlayMediaCandidateFloating(selected.id)) {
+                consumeCurrentAutomaticFloatingPage()
+            }
         }
     }
     val fullscreenLaunchRequestId = playerState.surfaceLease.fullscreenLaunchRequestId
@@ -624,7 +670,7 @@ internal fun WebSessionBrowserScreen(
                         onFullscreen = onOpenPlayerFullscreen,
                         onDownload = onDownloadMediaCandidate,
                         onClose = {
-                            dismissedAutomaticFloatingPageKey = automaticFloatingPageKey
+                            consumeCurrentAutomaticFloatingPage()
                             onClosePlayer()
                         },
                         modifier =
@@ -1034,7 +1080,7 @@ internal fun WebSessionBrowserScreen(
                             onOpenUserscriptDraftEditor = onOpenUserscriptDraftEditor,
                             onRequestPluginBack = onRequestPluginBack,
                             onInvokeUserscriptMenu = onInvokeUserscriptMenu,
-                            onPlayMediaCandidate = onPlayMediaCandidate,
+                            onPlayMediaCandidate = playMediaCandidateAndConsumeAutomaticPage,
                             onDownloadMediaCandidate = onDownloadMediaCandidate,
                             onOpenPageSource = onOpenPageSource,
                             onPauseDownload = onPauseDownload,

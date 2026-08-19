@@ -185,6 +185,96 @@ class PlayerSurfaceLeasePolicyTest {
     }
 
     @Test
+    fun floatingFullscreenFloatingRoundTripSerializesBothNativeSurfaceTransfers() {
+        val initialFloating = activeLease(PlayerSurfaceRole.FLOATING, "floating-1")
+        val floatingOwner = requireNotNull(initialFloating.currentOwner)
+        val floatingToFullscreen = beginFloatingToFullscreenTransfer(initialFloating)
+
+        assertEquals(
+            PlayerSurfaceTransferPhase.FLOATING_TO_FULLSCREEN_WAITING_FLOATING_DESTROY,
+            floatingToFullscreen.phase,
+        )
+        val waitingFullscreen =
+            completePlayerSurfaceDetach(
+                beginPlayerSurfaceDetach(
+                    floatingToFullscreen,
+                    floatingOwner.role,
+                    floatingOwner.ownerToken,
+                    floatingOwner.generation,
+                ),
+            )
+        assertEquals(
+            PlayerSurfaceTransferPhase.WAITING_FULLSCREEN_SURFACE,
+            waitingFullscreen.phase,
+        )
+        val fullscreenRegistration =
+            registerPlayerSurfaceOwner(
+                waitingFullscreen,
+                PlayerSurfaceRole.FULLSCREEN,
+                "fullscreen-1",
+            )
+        val fullscreenGeneration = requireNotNull(fullscreenRegistration.generation)
+        val fullscreen =
+            activatePendingPlayerSurface(
+                beginPendingPlayerSurfaceAttach(
+                    fullscreenRegistration.state,
+                    PlayerSurfaceRole.FULLSCREEN,
+                    "fullscreen-1",
+                    fullscreenGeneration,
+                ),
+                PlayerSurfaceRole.FULLSCREEN,
+                "fullscreen-1",
+                fullscreenGeneration,
+            )
+        assertEquals(PlayerSurfaceTransferPhase.FULLSCREEN_ACTIVE, fullscreen.phase)
+        assertTrue(fullscreenGeneration > floatingOwner.generation)
+
+        val fullscreenToFloating = beginFullscreenToFloatingTransfer(fullscreen)
+        assertEquals(
+            PlayerSurfaceTransferPhase.FULLSCREEN_TO_FLOATING_WAITING_FULLSCREEN_DESTROY,
+            fullscreenToFloating.phase,
+        )
+        val fullscreenOwner = requireNotNull(fullscreenToFloating.currentOwner)
+        val waitingFloating =
+            completePlayerSurfaceDetach(
+                beginPlayerSurfaceDetach(
+                    fullscreenToFloating,
+                    fullscreenOwner.role,
+                    fullscreenOwner.ownerToken,
+                    fullscreenOwner.generation,
+                ),
+            )
+        assertEquals(
+            PlayerSurfaceTransferPhase.WAITING_FLOATING_SURFACE,
+            waitingFloating.phase,
+        )
+        val floatingRegistration =
+            registerPlayerSurfaceOwner(
+                waitingFloating,
+                PlayerSurfaceRole.FLOATING,
+                "floating-2",
+            )
+        val returnedFloatingGeneration = requireNotNull(floatingRegistration.generation)
+        val returnedFloating =
+            activatePendingPlayerSurface(
+                beginPendingPlayerSurfaceAttach(
+                    floatingRegistration.state,
+                    PlayerSurfaceRole.FLOATING,
+                    "floating-2",
+                    returnedFloatingGeneration,
+                ),
+                PlayerSurfaceRole.FLOATING,
+                "floating-2",
+                returnedFloatingGeneration,
+            )
+
+        assertEquals(PlayerSurfaceTransferPhase.FLOATING_ACTIVE, returnedFloating.phase)
+        assertEquals(PlayerSurfaceRole.FLOATING, returnedFloating.currentOwner?.role)
+        assertTrue(returnedFloating.nativeSurfaceAttached)
+        assertTrue(returnedFloatingGeneration > fullscreenGeneration)
+    }
+
+    @Test
     fun staleRoleTokenAndGenerationCannotClaimOrReleaseLease() {
         val floating = activeLease(PlayerSurfaceRole.FLOATING, "floating-1")
         val generation = requireNotNull(floating.currentOwner).generation

@@ -101,6 +101,7 @@ internal fun PlayerScreen(
     var gestureInteractionActive by remember { mutableStateOf(false) }
     var controlsInteractionRevision by remember { mutableLongStateOf(0L) }
     var showPlaybackLog by remember { mutableStateOf(false) }
+    var preparationVisible by remember(state.request?.requestId) { mutableStateOf(false) }
     var batteryAndTime by remember { mutableStateOf(readBatteryAndTime(context)) }
     var networkSpeedBytesPerSecond by remember { mutableLongStateOf(0L) }
 
@@ -115,6 +116,14 @@ internal fun PlayerScreen(
     val fullscreenFinishRequestId = state.surfaceLease.fullscreenFinishRequestId
     LaunchedEffect(fullscreenFinishRequestId) {
         fullscreenFinishRequestId?.let(onFinishRequested)
+    }
+    LaunchedEffect(state.request?.requestId, state.loading) {
+        if (state.loading) {
+            delay(PLAYER_PREPARATION_INDICATOR_DELAY_MILLIS)
+            preparationVisible = true
+        } else {
+            preparationVisible = false
+        }
     }
     LaunchedEffect(
         controlsVisible,
@@ -212,7 +221,7 @@ internal fun PlayerScreen(
             },
             modifier = Modifier.fillMaxSize(),
         )
-        if (state.loading) {
+        if (preparationVisible) {
             Column(
                 modifier =
                     Modifier
@@ -761,3 +770,5 @@ private fun readBatteryAndTime(context: Context): Pair<String, String> {
 
 private fun readTotalTrafficBytes(): Long =
     (TrafficStats.getTotalRxBytes() + TrafficStats.getTotalTxBytes()).coerceAtLeast(0L)
+
+private const val PLAYER_PREPARATION_INDICATOR_DELAY_MILLIS = 160L

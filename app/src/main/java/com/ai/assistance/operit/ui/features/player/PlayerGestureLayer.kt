@@ -193,7 +193,9 @@ internal fun PlayerGestureLayer(
                                                         "播放器暂时无法加速"
                                                     },
                                             )
-                                        feedbackPersistent = true
+                                        // 加速状态由 PlayerSession 持有；提示只短暂说明状态变化，
+                                        // 不能在整个长按期间遮挡画面。
+                                        feedbackPersistent = false
                                         feedbackRevision += 1L
                                         latestOnInteraction()
                                     }
@@ -490,7 +492,7 @@ internal fun PlayerGestureLayer(
 private const val PLAYER_DOUBLE_TAP_TIMEOUT_MILLIS = 250L
 private const val PLAYER_DOUBLE_TAP_MAX_DISTANCE_PX = 100f
 private const val PLAYER_LONG_PRESS_SPEED_THRESHOLD_MILLIS = 480L
-private const val PLAYER_GESTURE_FEEDBACK_HIDE_MILLIS = 900L
+private const val PLAYER_GESTURE_FEEDBACK_HIDE_MILLIS = 1_000L
 
 @Composable
 private fun PlayerCenterGestureFeedback(

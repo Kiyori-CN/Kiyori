@@ -312,6 +312,15 @@ class PlayerAssetsTest(unittest.TestCase):
         self.assertNotIn('"stream-start"', engine_source)
         self.assertNotIn('"stream-end"', engine_source)
         self.assertIn('MPVLib.getPropertyNode("demuxer-cache-state")', engine_source)
+        self.assertIn('MPVLib.command(\n                "dump-cache"', engine_source)
+        self.assertIn("prepareThumbnailSource(source, bucketPosition)", service_source)
+        self.assertIn("activeThumbnailRequest", service_source)
+        self.assertIn("state.fullVideoCacheComplete", models_source)
+        self.assertIn("canRequestPlayerSeekPreview(", session_source)
+        self.assertNotIn(
+            "requestUri.startsWith(\"http://\"",
+            session_source,
+        )
         self.assertNotIn(
             'runCatching { MPVLib.getPropertyNode("demuxer-cache-state") }',
             engine_source,

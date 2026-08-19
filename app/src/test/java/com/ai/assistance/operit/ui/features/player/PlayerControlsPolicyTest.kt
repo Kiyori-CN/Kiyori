@@ -71,4 +71,38 @@ class PlayerControlsPolicyTest {
         assertFalse(shouldAutoHidePlayerControls(idlePlaying.copy(seekActive = true)))
         assertFalse(shouldAutoHidePlayerControls(idlePlaying.copy(gestureActive = true)))
     }
+
+    @Test
+    fun `horizontal seek uses the current press position and the shared bounded span`() {
+        assertEquals(
+            310.0,
+            resolvePlayerHorizontalGestureSeekTarget(
+                basePositionSeconds = 10.0,
+                durationSeconds = 1_000.0,
+                horizontalDeltaPx = 1_000f,
+                gestureWidthPx = 1_000,
+            ),
+            0.0,
+        )
+        assertEquals(
+            0.0,
+            resolvePlayerHorizontalGestureSeekTarget(
+                basePositionSeconds = 10.0,
+                durationSeconds = 1_000.0,
+                horizontalDeltaPx = -1_000f,
+                gestureWidthPx = 1_000,
+            ),
+            0.0,
+        )
+        assertEquals(
+            60.0,
+            resolvePlayerHorizontalGestureSeekTarget(
+                basePositionSeconds = 30.0,
+                durationSeconds = 120.0,
+                horizontalDeltaPx = 250f,
+                gestureWidthPx = 1_000,
+            ),
+            0.0,
+        )
+    }
 }

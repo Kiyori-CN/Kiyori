@@ -15,6 +15,7 @@ import com.ai.assistance.operit.core.player.describePlayerMediaUriForDiagnostics
 import com.ai.assistance.operit.core.player.isSupportedPlayerSpeed
 import com.ai.assistance.operit.core.player.sanitizePlayerDiagnosticMessage
 import com.ai.assistance.operit.core.player.shortPlayerDiagnosticId
+import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.math.roundToInt
@@ -39,6 +40,7 @@ internal class PlayerRuntimeService : Service() {
     private var progressRunning = false
     private var thumbnailWorkerRunning = false
     private var pendingThumbnailRequest: PendingThumbnailRequest? = null
+    private var activeThumbnailRequest: PendingThumbnailRequest? = null
     private val thumbnailCache =
         object : LruCache<String, Bitmap>(THUMBNAIL_CACHE_MAX_KB) {
             override fun sizeOf(key: String, value: Bitmap): Int =
@@ -335,6 +337,8 @@ internal class PlayerRuntimeService : Service() {
                     currentLoadCommandId = commandId
                     currentMediaSource = target
                     lastMediaIdentitySnapshot = null
+                    pendingThumbnailRequest?.temporaryFile?.delete()
+                    activeThumbnailRequest?.temporaryFile?.delete()
                     pendingThumbnailRequest = null
                     thumbnailCache.evictAll()
                     PlayerRuntimeProcessState.update(
@@ -604,21 +608,37 @@ internal class PlayerRuntimeService : Service() {
                         return@post
                     }
                     pendingThumbnailRequest?.let { superseded ->
+                        superseded.temporaryFile?.delete()
                         emitThumbnailReady(
                             superseded.commandId,
-                            superseded.positionSeconds,
+                            superseded.responsePositionSeconds,
                             null,
                         )
                     }
+                    val preparedSource =
+                        try {
+                            requireNotNull(engine) { "播放器运行时尚未初始化" }
+                                .prepareThumbnailSource(source, bucketPosition)
+                        } catch (error: Exception) {
+                            emitCommandFailure(
+                                commandId = commandId,
+                                operation = "提取进度缩略图",
+                                message = error.message ?: error.javaClass.simpleName,
+                            )
+                            return@post
+                        }
                     pendingThumbnailRequest =
                         PendingThumbnailRequest(
                             runtimeGeneration = runtimeGeneration,
                             commandId = commandId,
                             loadCommandId = loadCommandId,
-                            source = source,
-                            positionSeconds = bucketPosition,
+                            originalSource = source,
+                            extractionSource = preparedSource.source,
+                            extractionPositionSeconds = preparedSource.positionSeconds,
+                            responsePositionSeconds = bucketPosition,
                             maxSize = maxSize,
                             cacheKey = cacheKey,
+                            temporaryFile = preparedSource.temporaryFile,
                         )
                     startNextThumbnailRequest()
                 }
@@ -841,7 +861,10 @@ internal class PlayerRuntimeService : Service() {
 
     private fun closeRuntimeResources() {
         stopProgressEmitter()
+        pendingThumbnailRequest?.temporaryFile?.delete()
+        activeThumbnailRequest?.temporaryFile?.delete()
         pendingThumbnailRequest = null
+        activeThumbnailRequest = null
         thumbnailCache.evictAll()
         networkSnapshotObserver?.stop()
         networkSnapshotObserver = null
@@ -878,12 +901,13 @@ internal class PlayerRuntimeService : Service() {
                     return
                 }
         thumbnailWorkerRunning = true
+        activeThumbnailRequest = request
         thumbnailExecutor.execute {
             val result =
                 runCatching {
                     activeEngine.grabThumbnail(
-                        source = request.source,
-                        positionSeconds = request.positionSeconds,
+                        source = request.extractionSource,
+                        positionSeconds = request.extractionPositionSeconds,
                         maxSize = request.maxSize,
                     )
                 }
@@ -891,14 +915,14 @@ internal class PlayerRuntimeService : Service() {
                 val stillCurrent =
                     request.runtimeGeneration == runtimeGeneration &&
                         request.loadCommandId == currentLoadCommandId &&
-                        request.source == currentMediaSource
+                        request.originalSource == currentMediaSource
                 if (stillCurrent) {
                     result
                         .onSuccess { bitmap ->
                             bitmap?.let { thumbnailCache.put(request.cacheKey, it) }
                             emitThumbnailReady(
                                 request.commandId,
-                                request.positionSeconds,
+                                request.responsePositionSeconds,
                                 bitmap,
                             )
                         }
@@ -913,9 +937,13 @@ internal class PlayerRuntimeService : Service() {
                 } else {
                     emitThumbnailReady(
                         request.commandId,
-                        request.positionSeconds,
+                        request.responsePositionSeconds,
                         null,
                     )
+                }
+                request.temporaryFile?.delete()
+                if (activeThumbnailRequest === request) {
+                    activeThumbnailRequest = null
                 }
                 thumbnailWorkerRunning = false
                 startNextThumbnailRequest()
@@ -987,8 +1015,11 @@ private data class PendingThumbnailRequest(
     val runtimeGeneration: Long,
     val commandId: Long,
     val loadCommandId: Long,
-    val source: String,
-    val positionSeconds: Double,
+    val originalSource: String,
+    val extractionSource: String,
+    val extractionPositionSeconds: Double,
+    val responsePositionSeconds: Double,
     val maxSize: Int,
     val cacheKey: String,
+    val temporaryFile: File?,
 )

@@ -157,7 +157,7 @@ internal val kiyoriPlayerSettingsGroups =
                     ),
                     playerToggleSpec(
                         "长按加速",
-                        "按住画面后临时提升到下一档倍速，松手恢复按下前速度",
+                        "按当前速度分段临时提升到 1x、2x 或 3x，松手恢复按下前速度",
                         KiyoriPlayerSettingsAction.TOGGLE_LONG_PRESS_SPEED_BOOST,
                     ),
                     playerNavigationSpec(
@@ -177,7 +177,7 @@ internal val kiyoriPlayerSettingsGroups =
                     ),
                     playerToggleSpec(
                         "进度条缩略图预览",
-                        "拖动进度条时由 MPV 提取目标位置的视频画面",
+                        "本地视频直接提取；完整缓存完成的在线直链从同一 MPV 缓存快速提取",
                         KiyoriPlayerSettingsAction.TOGGLE_SEEKBAR_THUMBNAIL,
                     ),
                 ),

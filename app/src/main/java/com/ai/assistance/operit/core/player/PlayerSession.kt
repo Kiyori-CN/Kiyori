@@ -56,7 +56,9 @@ internal class PlayerSession private constructor(context: Context) {
     private var activeSurfaceLease: SurfaceParcel? = null
     private var pendingMediaLoad: PendingMediaLoad? = null
     private var lastLoadCommandId: Long? = null
+    private var pendingUserSeekCommandId: Long? = null
     private var pendingUserSeekLoadCommandId: Long? = null
+    private var pendingUserSeekCommandTargetSeconds: Double? = null
     private var closeCommandId: Long? = null
     private var closeRequested = false
     private var failedSession: FailedPlayerSession? = null
@@ -154,6 +156,18 @@ internal class PlayerSession private constructor(context: Context) {
                             "进度缩略图提取失败：$message",
                         )
                         return
+                    }
+                    PlayerRuntimeCommandType.SEEK -> {
+                        if (pendingUserSeekCommandId == commandId) {
+                            pendingUserSeekCommandId = null
+                            pendingUserSeekLoadCommandId = null
+                            pendingUserSeekCommandTargetSeconds = null
+                            _state.value =
+                                _state.value.copy(
+                                    seeking = false,
+                                    pendingSeekTargetSeconds = null,
+                                )
+                        }
                     }
                     PlayerRuntimeCommandType.CLOSE -> {
                         runtimeConnection.disconnect()
@@ -267,9 +281,13 @@ internal class PlayerSession private constructor(context: Context) {
                 _state.value =
                     current.copy(
                         positionSeconds =
-                            snapshot.positionSeconds
-                                ?.takeIf(Double::isFinite)
-                                ?: current.positionSeconds,
+                            if (current.pendingSeekTargetSeconds != null) {
+                                current.positionSeconds
+                            } else {
+                                snapshot.positionSeconds
+                                    ?.takeIf(Double::isFinite)
+                                    ?: current.positionSeconds
+                            },
                         durationSeconds =
                             snapshot.durationSeconds
                                 ?.takeIf(Double::isFinite)
@@ -435,8 +453,24 @@ internal class PlayerSession private constructor(context: Context) {
                             pendingUserSeekLoadCommandId = pendingUserSeekLoadCommandId,
                             eventLoadCommandId = loadCommandId,
                         )
+                val completionPlan =
+                    if (completedSeek) {
+                        resolvePlayerSeekCompletionPlan(
+                            completedCommandTargetSeconds =
+                                pendingUserSeekCommandTargetSeconds,
+                            latestRequestedTargetSeconds =
+                                current.pendingSeekTargetSeconds,
+                        )
+                    } else {
+                        PlayerSeekCompletionPlan(
+                            pendingTargetSeconds = current.pendingSeekTargetSeconds,
+                            followUpTargetSeconds = null,
+                        )
+                    }
                 if (completedSeek) {
+                    pendingUserSeekCommandId = null
                     pendingUserSeekLoadCommandId = null
+                    pendingUserSeekCommandTargetSeconds = null
                 }
                 _state.value =
                     current.copy(
@@ -447,8 +481,17 @@ internal class PlayerSession private constructor(context: Context) {
                                 currentSeeking = current.seeking,
                                 event = PlayerSeekLifecycleEvent.MPV_PLAYBACK_RESTART,
                             ),
+                        pendingSeekTargetSeconds = completionPlan.pendingTargetSeconds,
                         error = null,
                     )
+                completionPlan.followUpTargetSeconds?.let { target ->
+                    if (!sendUserSeekCommand(target)) {
+                        _state.value =
+                            _state.value.copy(
+                                pendingSeekTargetSeconds = null,
+                            )
+                    }
+                }
                 PlayerDebugLogBuffer.append(
                     TAG,
                     if (completedSeek) {
@@ -675,7 +718,9 @@ internal class PlayerSession private constructor(context: Context) {
         }
         prepareSurfaceLeaseForPresentation(presentation)
         pendingMediaLoad = null
+        pendingUserSeekCommandId = null
         pendingUserSeekLoadCommandId = null
+        pendingUserSeekCommandTargetSeconds = null
         pendingThumbnailCommandId = null
         try {
             val shaderFiles = shaderManager.resolveShaderFiles(transition.state.anime4KMode)
@@ -969,14 +1014,46 @@ internal class PlayerSession private constructor(context: Context) {
             } else {
                 positionSeconds.coerceAtLeast(0.0)
         }
-        if (runtimeConnection.seekTo(target, settingsStore.current.preciseSeeking) != null) {
-            pendingUserSeekLoadCommandId = lastLoadCommandId
+        if (
+            pendingUserSeekCommandId != null &&
+                pendingUserSeekLoadCommandId == lastLoadCommandId
+        ) {
+            // mpv 的 SEEK/PLAYBACK_RESTART 事件不携带命令 ID。同一媒体只保留一个运行时
+            // seek 在途，后续交互合并为最新目标，避免旧重启事件提前确认并拉回新目标。
+            _state.value =
+                _state.value.copy(
+                    positionSeconds = target,
+                    pendingSeekTargetSeconds = target,
+                )
             PlayerDebugLogBuffer.append(
                 PlayerDebugLogLevel.DEBUG,
                 TAG,
-                "发送跳转命令 position=$target precise=${settingsStore.current.preciseSeeking}",
+                "合并跳转目标 position=$target activeCommand=$pendingUserSeekCommandId",
             )
+            return
         }
+        sendUserSeekCommand(target)
+    }
+
+    private fun sendUserSeekCommand(target: Double): Boolean {
+        val commandId =
+            runtimeConnection.seekTo(target, settingsStore.current.preciseSeeking)
+            ?: return false
+        pendingUserSeekCommandId = commandId
+        pendingUserSeekLoadCommandId = lastLoadCommandId
+        pendingUserSeekCommandTargetSeconds = target
+        _state.value =
+            _state.value.copy(
+                positionSeconds = target,
+                pendingSeekTargetSeconds = target,
+            )
+        PlayerDebugLogBuffer.append(
+            PlayerDebugLogLevel.DEBUG,
+            TAG,
+            "发送跳转命令 command=$commandId position=$target " +
+                "precise=${settingsStore.current.preciseSeeking}",
+        )
+        return true
     }
 
     fun seekBackward() {
@@ -1240,14 +1317,11 @@ internal class PlayerSession private constructor(context: Context) {
         requireMainThread()
         val snapshot = _state.value
         val loadCommandId = lastLoadCommandId ?: return
-        val requestUri = snapshot.request?.uri.orEmpty()
         if (
-            !settingsStore.current.seekbarThumbnailEnabled ||
-                !snapshot.hasMedia ||
-                !snapshot.runtimeState.acceptsCommands() ||
-                snapshot.durationSeconds <= 0.0 ||
-                requestUri.startsWith("http://", ignoreCase = true) ||
-                requestUri.startsWith("https://", ignoreCase = true)
+            !canRequestPlayerSeekPreview(
+                settingsEnabled = settingsStore.current.seekbarThumbnailEnabled,
+                state = snapshot,
+            )
         ) {
             return
         }
@@ -1337,7 +1411,9 @@ internal class PlayerSession private constructor(context: Context) {
         closeCommandId = null
         pendingMediaLoad = null
         lastLoadCommandId = null
+        pendingUserSeekCommandId = null
         pendingUserSeekLoadCommandId = null
+        pendingUserSeekCommandTargetSeconds = null
         pendingThumbnailCommandId = null
         failAllScreenshots(IllegalStateException("播放器已关闭"))
         val previousRuntimeState = snapshot.runtimeState
@@ -1353,11 +1429,13 @@ internal class PlayerSession private constructor(context: Context) {
         val closingLease = beginClosingPlayerSurfaceLease(snapshot.surfaceLease)
         _state.value =
             snapshot.copy(
+                presentation = PlayerPresentation.BROWSER_ONLY,
                 surfaceLease = closingLease,
                 runtimeState = PlayerRuntimeState.CLOSING,
                 loading = false,
                 buffering = false,
                 seeking = false,
+                pendingSeekTargetSeconds = null,
             )
         if (
             previousRuntimeState == PlayerRuntimeState.STOPPED ||
@@ -1640,7 +1718,9 @@ internal class PlayerSession private constructor(context: Context) {
         activeSurfaceLease = null
         pendingMediaLoad = null
         lastLoadCommandId = null
+        pendingUserSeekCommandId = null
         pendingUserSeekLoadCommandId = null
+        pendingUserSeekCommandTargetSeconds = null
         pendingThumbnailCommandId = null
         activeLongPressSpeedBoost = null
         closeCommandId = null
@@ -1686,6 +1766,8 @@ internal class PlayerSession private constructor(context: Context) {
         failAllScreenshots(IllegalStateException(message))
         pendingMediaLoad = null
         pendingThumbnailCommandId = null
+        pendingUserSeekCommandId = null
+        pendingUserSeekCommandTargetSeconds = null
         activeLongPressSpeedBoost = null
         pendingSurfaceLease = null
         activeSurfaceLease = null
@@ -1703,6 +1785,7 @@ internal class PlayerSession private constructor(context: Context) {
                 loading = false,
                 buffering = false,
                 seeking = false,
+                pendingSeekTargetSeconds = null,
                 paused = true,
                 error = message,
             )
@@ -1908,9 +1991,12 @@ internal class PlayerSession private constructor(context: Context) {
                 loading = false,
                 buffering = false,
                 seeking = false,
+                pendingSeekTargetSeconds = null,
                 error = message,
             )
+        pendingUserSeekCommandId = null
         pendingUserSeekLoadCommandId = null
+        pendingUserSeekCommandTargetSeconds = null
     }
 
     private fun handleNaturalEndOfFile() {

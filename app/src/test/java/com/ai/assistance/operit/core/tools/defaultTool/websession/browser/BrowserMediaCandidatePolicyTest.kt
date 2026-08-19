@@ -1,6 +1,8 @@
 package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 
+import com.ai.assistance.operit.core.player.PlayerMediaRequest
 import com.ai.assistance.operit.core.player.PlayerMediaSource
+import com.ai.assistance.operit.core.player.PlayerPresentation
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -296,6 +298,84 @@ class BrowserMediaCandidatePolicyTest {
                 "Private episode",
                 candidate.copy(sourceProfile = WebSessionProfile.INCOGNITO.wireName),
             ).persistPlaybackHistory,
+        )
+    }
+
+    @Test
+    fun browserPlaybackConsumesOnlyThePageThatOpenedThatCandidate() {
+        val request =
+            PlayerMediaRequest(
+                requestId = "candidate",
+                uri = "https://media.example/video.mp4",
+                title = "Episode",
+                source = PlayerMediaSource.BROWSER_CANDIDATE,
+                sourceSessionId = "web-session",
+                sourcePageUrl = "https://page.example/watch",
+            )
+
+        assertTrue(
+            browserPlayerRequestBelongsToPage(
+                currentPageKey = "web-session|https://page.example/watch",
+                request = request,
+            ),
+        )
+        assertFalse(
+            browserPlayerRequestBelongsToPage(
+                currentPageKey = "web-session|https://page.example/next",
+                request = request,
+            ),
+        )
+        assertFalse(
+            browserPlayerRequestBelongsToPage(
+                currentPageKey = "web-session|https://page.example/watch",
+                request = request.copy(source = PlayerMediaSource.HISTORY_REPLAY),
+            ),
+        )
+        assertEquals(
+            "web-session|https://page.example/watch",
+            resolveConsumedAutomaticFloatingPageKey(
+                currentPageKey = "web-session|https://page.example/watch",
+                consumedPageKey = null,
+                request = request,
+            ),
+        )
+        assertEquals(
+            "web-session|https://page.example/watch",
+            resolveConsumedAutomaticFloatingPageKey(
+                currentPageKey = "web-session|https://page.example/next",
+                consumedPageKey = "web-session|https://page.example/watch",
+                request = request,
+            ),
+        )
+    }
+
+    @Test
+    fun consumedPageSuppressesOnlyItsAutomaticFloatingRestart() {
+        val consumedPage = "web-session|https://page.example/watch"
+
+        assertFalse(
+            shouldAttemptAutomaticFloatingPlayback(
+                currentPageKey = consumedPage,
+                consumedPageKey = consumedPage,
+                hasMedia = false,
+                presentation = PlayerPresentation.BROWSER_ONLY,
+            ),
+        )
+        assertTrue(
+            shouldAttemptAutomaticFloatingPlayback(
+                currentPageKey = "web-session|https://page.example/next",
+                consumedPageKey = consumedPage,
+                hasMedia = false,
+                presentation = PlayerPresentation.BROWSER_ONLY,
+            ),
+        )
+        assertFalse(
+            shouldAttemptAutomaticFloatingPlayback(
+                currentPageKey = "web-session|https://page.example/next",
+                consumedPageKey = consumedPage,
+                hasMedia = true,
+                presentation = PlayerPresentation.FULLSCREEN_PLAYER,
+            ),
         )
     }
 

@@ -433,6 +433,7 @@ internal data class PlayerSessionState(
     val loading: Boolean = false,
     val buffering: Boolean = false,
     val seeking: Boolean = false,
+    val pendingSeekTargetSeconds: Double? = null,
     val error: String? = null,
     val audioTracks: List<PlayerTrack> = emptyList(),
     val subtitleTracks: List<PlayerTrack> = emptyList(),
@@ -504,6 +505,45 @@ internal data class PlayerOpenTransition(
 internal fun isPlayerMediaLoadReady(hasPendingLoad: Boolean, hasAttachedSurface: Boolean): Boolean =
     hasPendingLoad && hasAttachedSurface
 
+internal fun isPlayerNetworkMediaUri(uri: String): Boolean =
+    uri.startsWith("http://", ignoreCase = true) ||
+        uri.startsWith("https://", ignoreCase = true)
+
+internal fun canRequestPlayerSeekPreview(
+    settingsEnabled: Boolean,
+    state: PlayerSessionState,
+): Boolean {
+    val request = state.request ?: return false
+    if (
+        !settingsEnabled ||
+            state.runtimeState !in
+                setOf(PlayerRuntimeState.READY, PlayerRuntimeState.ACTIVE) ||
+            state.durationSeconds <= 0.0
+    ) {
+        return false
+    }
+    return !isPlayerNetworkMediaUri(request.uri) || state.fullVideoCacheComplete
+}
+
+@Immutable
+internal data class PlayerSeekCompletionPlan(
+    val pendingTargetSeconds: Double?,
+    val followUpTargetSeconds: Double?,
+)
+
+internal fun resolvePlayerSeekCompletionPlan(
+    completedCommandTargetSeconds: Double?,
+    latestRequestedTargetSeconds: Double?,
+): PlayerSeekCompletionPlan {
+    val latest = latestRequestedTargetSeconds ?: return PlayerSeekCompletionPlan(null, null)
+    val completed = completedCommandTargetSeconds ?: return PlayerSeekCompletionPlan(latest, latest)
+    return if (kotlin.math.abs(latest - completed) < PLAYER_SEEK_TARGET_EPSILON_SECONDS) {
+        PlayerSeekCompletionPlan(null, null)
+    } else {
+        PlayerSeekCompletionPlan(latest, latest)
+    }
+}
+
 internal fun resolvePlayerOpenTransition(
     current: PlayerSessionState,
     request: PlayerMediaRequest,
@@ -542,6 +582,8 @@ internal fun resolvePlayerOpenTransition(
         shouldLoad = true,
     )
 }
+
+private const val PLAYER_SEEK_TARGET_EPSILON_SECONDS = 0.001
 
 internal fun resolveInitialPlayerSpeed(settings: PlayerSettings): Double =
     if (settings.rememberPlaybackSpeed) settings.lastPlaybackSpeed else settings.defaultSpeed

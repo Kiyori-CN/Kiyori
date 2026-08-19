@@ -4,6 +4,7 @@ import android.content.pm.ActivityInfo
 
 internal const val PLAYER_CONTROLS_AUTO_HIDE_MILLIS = 3_000L
 internal const val PLAYER_UNLOCK_BUTTONS_AUTO_HIDE_MILLIS = 3_000L
+internal const val PLAYER_HORIZONTAL_GESTURE_MAX_SPAN_SECONDS = 300.0
 
 internal enum class PlayerControlsTapAction {
     SHOW_CONTROLS,
@@ -41,6 +42,20 @@ internal fun shouldAutoHidePlayerControls(inputs: PlayerControlsAutoHideInputs):
         !inputs.logVisible &&
         !inputs.seekActive &&
         !inputs.gestureActive
+
+internal fun resolvePlayerHorizontalGestureSeekTarget(
+    basePositionSeconds: Double,
+    durationSeconds: Double,
+    horizontalDeltaPx: Float,
+    gestureWidthPx: Int,
+): Double {
+    if (durationSeconds <= 0.0 || gestureWidthPx <= 0) {
+        return basePositionSeconds.coerceAtLeast(0.0)
+    }
+    val spanSeconds = durationSeconds.coerceAtMost(PLAYER_HORIZONTAL_GESTURE_MAX_SPAN_SECONDS)
+    val deltaSeconds = horizontalDeltaPx / gestureWidthPx.toDouble() * spanSeconds
+    return (basePositionSeconds + deltaSeconds).coerceIn(0.0, durationSeconds)
+}
 
 internal fun resolvePlayerGravityOrientationRequest(
     previousEnabled: Boolean?,

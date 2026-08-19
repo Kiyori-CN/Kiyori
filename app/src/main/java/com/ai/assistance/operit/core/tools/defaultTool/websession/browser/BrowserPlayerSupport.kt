@@ -25,6 +25,37 @@ internal fun StandardBrowserSessionTools.playMediaCandidate(candidateId: String)
 internal fun StandardBrowserSessionTools.playMediaCandidateFloating(candidateId: String): Boolean =
     openMediaCandidate(candidateId, PlayerPresentation.FLOATING_PLAYER)
 
+internal fun browserPlayerRequestBelongsToPage(
+    currentPageKey: String,
+    request: PlayerMediaRequest?,
+): Boolean {
+    if (request?.source != PlayerMediaSource.BROWSER_CANDIDATE) return false
+    val sourceSessionId = request.sourceSessionId?.takeIf(String::isNotBlank) ?: return false
+    val sourcePageUrl = request.sourcePageUrl?.takeIf(String::isNotBlank) ?: return false
+    return "$sourceSessionId|$sourcePageUrl" == currentPageKey
+}
+
+internal fun resolveConsumedAutomaticFloatingPageKey(
+    currentPageKey: String,
+    consumedPageKey: String?,
+    request: PlayerMediaRequest?,
+): String? =
+    if (browserPlayerRequestBelongsToPage(currentPageKey, request)) {
+        currentPageKey
+    } else {
+        consumedPageKey
+    }
+
+internal fun shouldAttemptAutomaticFloatingPlayback(
+    currentPageKey: String,
+    consumedPageKey: String?,
+    hasMedia: Boolean,
+    presentation: PlayerPresentation,
+): Boolean =
+    consumedPageKey != currentPageKey &&
+        !hasMedia &&
+        presentation == PlayerPresentation.BROWSER_ONLY
+
 private fun StandardBrowserSessionTools.openMediaCandidate(
     candidateId: String,
     presentation: PlayerPresentation,

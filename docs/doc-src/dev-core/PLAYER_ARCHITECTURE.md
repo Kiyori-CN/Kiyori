@@ -34,20 +34,26 @@ constructs mpv or opens the media descriptor.
 
 The non-exported `:player` `PlayerRuntimeService` owns one `HandlerThread`, one `MpvPlayerEngine`, one
 `PlayerMediaResolver`, one content descriptor and one remote Surface wrapper. A separate single thumbnail executor may
-call the packaged binding's `grabThumbnailFast` only for non-network media; HTTP/HTTPS seek preview is rejected before
-the thumbnail command so it cannot open an independent headerless connection. It keeps at most one active and one
-newest pending local extraction, buckets requests at two positions per second and returns a maximum `320px` Bitmap
-through AIDL. `MpvPlayerEngine` is the only source file allowed to import `is.xyz.mpv.MPVLib` or `MPVNode`. One-way AIDL
-messages carry runtime generation, command ID and monotonic event sequence. `FILE_LOADED` publishes track/container
-metadata but does not clear the loading state; `PLAYBACK_RESTART` is the first runtime event allowed to mark playback
-output ready.
+call the packaged binding's `grabThumbnailFast` directly for non-network media. A network request becomes eligible only
+after the same mpv demuxer establishes authoritative `FULL_VIDEO / COMPLETE`; the runtime then uses `dump-cache` to
+export a small target-time excerpt to `cacheDir/player-seek-preview` and gives only that private local file to the
+thumbnail executor. Ordinary HTTP/HTTPS requests are rejected before extraction and never open an independent
+headerless connection. The runtime keeps at most one active and one newest pending extraction, buckets requests at two
+positions per second, returns a maximum `320px` Bitmap through AIDL, deletes superseded/active/closed excerpts and
+cleans abnormal-exit remnants on the next engine initialization. `MpvPlayerEngine` is the only source file allowed to
+import `is.xyz.mpv.MPVLib` or `MPVNode`. One-way AIDL messages carry runtime generation, command ID and monotonic event
+sequence. `FILE_LOADED` publishes track/container metadata but does not clear the loading state;
+`PLAYBACK_RESTART` is the first runtime event allowed to mark playback output ready.
 
 `PlayerSettingsStore` owns persisted player preferences. Decoder backend owns `hwdec`; rendering profile owns the mpv
 profile. Initialization and media load apply the broad profile before explicit backend and seek properties so each
-dedicated Kiyori setting remains the final owner of its property. Network cache is one request-scoped four-value policy:
-`COMPACT`, `BALANCED`, `LARGE`, or `FULL_VIDEO`; there is no independent full-cache boolean. A live settings update may
-change rendering, decoder, seek, subtitles, volume, and shaders, but it cannot change the current request's cache
-owner. The next media request snapshots the current policy. The settings page never writes mpv properties.
+dedicated Kiyori setting remains the final owner of its property. Initialization records those already-applied values,
+so the first load does not repeat identical profile, decoder, seek, subtitle, or volume writes. Changing the broad
+profile invalidates every explicit-property cache, including shaders, before the live settings command reapplies the
+dedicated values. Network cache is one request-scoped four-value policy: `COMPACT`, `BALANCED`, `LARGE`, or
+`FULL_VIDEO`; there is no independent full-cache boolean. A live settings update may change rendering, decoder, seek,
+subtitles, volume, and shaders, but it cannot change the current request's cache owner. The next media request snapshots
+the current policy. The settings page never writes mpv properties.
 
 The player settings page is ordered as playback/queue, gestures/progress, picture/Anime4K, audio/subtitles,
 save/download, and window/online. Screenshot and video directories are optional SAF document trees. Blank values mean
@@ -85,12 +91,21 @@ The presentation state is exactly:
 - `FLOATING_PLAYER`
 - `FULLSCREEN_PLAYER`
 
-A new request ID may execute one mpv `loadfile`. Presentation changes only detach the old Surface and attach the new
-Surface. Owner-token checks prevent a late destroyed Surface from detaching its successor.
+A new request ID may execute one mpv `loadfile`. `FLOATING_PLAYER <-> FULLSCREEN_PLAYER` keeps the same
+`PlayerMediaRequest`, playback position, duration, pending seek target, pause/speed state, complete-cache state,
+`loadGeneration`, `runtimeGeneration`, runtime PID, mpv core and demuxer cache. Presentation transfer only detaches the
+old Surface and attaches the new generation. Owner-token checks prevent a late destroyed Surface from detaching its
+successor.
 
 Browser floating to fullscreen to floating to close never calls WebView `loadUrl`, `reload`, page reconstruction,
 candidate rescan or JavaScript media control. A page may continue its own media independently; Kiyori does not mutate
-that page state.
+that page state. Closing projects `BROWSER_ONLY` immediately so the floating composition disappears before native
+detach and runtime close finish. A browser page's automatic-floating opportunity is consumed as soon as one of its
+candidates is accepted by the single `PlayerSession`, whether the entry was automatic or manual. Consumption gates
+only automatic startup, so closing, natural completion, or fullscreen `CLOSE` cannot turn the same candidate into a
+new request, second `loadfile`, fresh runtime or fresh cache. Manual playback remains available. If the user has already
+navigated, closing the old page's player does not consume the new page; after the old runtime closes, the stable
+current-page candidate may open.
 
 The fixed `mpvlibAndroid@168e0a5e` lifecycle remains the native Surface authority: detach sets `vo=null`,
 `force-window=no`, and releases the native window; attach restores the configured VO and `force-window=yes`. Kiyori
@@ -101,12 +116,19 @@ landscape, portrait, floating, freeform, foldable, and inset-adjusted layouts fo
 display metrics.
 
 Fullscreen and floating progress bars keep drag movement in a local draft and submit one seek only on release.
-Cancellation submits no seek. `PlayerSession` records a pending user seek only after the current runtime/load accepts
-the explicit command. The runtime emits every `MPV_EVENT_SEEK` with the current load command, but the main process sets
-`seeking=true` only when that load also owns a pending user seek. Events caused by the packaged binding's Surface/VO
-reconfiguration are logged as internal seeks and do not enter UI seeking. The matching
-`MPV_EVENT_PLAYBACK_RESTART` completes the user seek; an unrelated restart marks output ready without consuming a
-future pending seek. New media, close, runtime death and explicit errors clear both pending and visible seek state.
+Cancellation submits no seek. `PlayerSession` records and immediately projects the target only after the current
+runtime/load accepts the explicit command; ordinary progress snapshots cannot overwrite that projection. mpv events
+carry the load command but no seek command ID, so one load keeps at most one runtime seek in flight. Additional rapid
+button, gesture, or progress actions update the latest projected target without issuing a second overlapping command.
+The matching `MPV_EVENT_SEEK -> MPV_EVENT_PLAYBACK_RESTART` completes the active command; if the latest target differs,
+`PlayerSession` then submits that target as the next command. Events caused by the packaged binding's Surface/VO
+reconfiguration are logged as internal seeks and do not enter UI seeking or consume a future target. New media, close,
+runtime death, command failure and explicit errors clear both pending and visible seek state.
+
+Long-press acceleration feedback is presentation-only. The start message hides after one second while the temporary
+speed remains active; release or cancellation restores the exact pre-press speed and shows the restoration message for
+one second. Fullscreen and floating preparation indicators also wait 160 ms before appearing, which avoids flashing a
+blocking overlay when a fast request reaches first output inside that interval.
 
 ## Media requests
 
@@ -208,7 +230,9 @@ limit. Free-space checks run at most every five seconds, and 512 MiB is a hard s
 establishes `COMPLETE`, a transient unavailable, malformed, or incomplete node cannot revoke the same media session's
 completion fact. Replacement, close, engine destruction, and the next runtime initialization clean only the canonical
 `noBackupFilesDir/player/mpv-session-cache` scope after rejecting symlink or boundary violations. This is not a
-download or offline-library path.
+download or offline-library path. A completed request may export only a small cached excerpt for seek preview; the
+remote URL is never passed to `grabThumbnailFast`, and active, pending, superseded, closed, or next-runtime cleanup is
+bounded to the canonical private `cacheDir/player-seek-preview` scope.
 
 ## Native and class loading
 

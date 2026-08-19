@@ -14,6 +14,7 @@ import com.ai.assistance.operit.core.player.PlayerRenderingProfile
 import com.ai.assistance.operit.core.player.PlayerSettings
 import com.ai.assistance.operit.core.player.PlayerTrack
 import com.ai.assistance.operit.core.player.PlayerVideoFitMode
+import com.ai.assistance.operit.core.player.isPlayerNetworkMediaUri
 import com.ai.assistance.operit.core.player.sanitizePlayerDiagnosticMessage
 import com.ai.assistance.operit.core.player.shortPlayerDiagnosticId
 import `is`.xyz.mpv.MPVLib
@@ -142,6 +143,12 @@ internal data class MpvPlayerMediaIdentitySnapshot(
     val videoCodecProfile: String?,
 )
 
+internal data class MpvThumbnailSource(
+    val source: String,
+    val positionSeconds: Double,
+    val temporaryFile: File? = null,
+)
+
 internal interface MpvPlayerEngineListener {
     fun onBooleanProperty(name: String, value: Boolean)
 
@@ -206,6 +213,12 @@ internal class MpvPlayerEngine(
         PlayerFullVideoCacheStateEvidence.NOT_APPLICABLE
     private var firstPlaybackFailure: PlayerPlaybackFailureEvidence? = null
     private var fullCacheCompletionLogged = false
+    private var appliedDecoderBackend: PlayerDecoderBackend? = null
+    private var appliedRenderingProfile: PlayerRenderingProfile? = null
+    private var appliedPreciseSeeking: Boolean? = null
+    private var appliedSubtitleScale: Double? = null
+    private var appliedVolumeBoost: Boolean? = null
+    private var appliedShaderFiles: List<String>? = null
 
     fun initialize(settings: PlayerSettings): Unit = callMpv("初始化") {
         if (initialized) return
@@ -226,6 +239,7 @@ internal class MpvPlayerEngine(
             "mpv TLS CA bundle is missing"
         }
         clearStaleFullVideoCacheDirectories()
+        clearSeekPreviewExcerptDirectory()
         MPVLib.create(appContext)
         setRequiredOption("config", "no")
         setRequiredOption("msg-level", "all=warn,ffmpeg=info,demux=info")
@@ -290,6 +304,11 @@ internal class MpvPlayerEngine(
         MPVLib.observeProperty("paused-for-cache", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
         MPVLib.observeProperty("eof-reached", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
         val capabilitySnapshot = readRuntimeCapabilitySnapshot()
+        appliedRenderingProfile = settings.renderingProfile
+        appliedDecoderBackend = settings.decoderBackend
+        appliedPreciseSeeking = settings.preciseSeeking
+        appliedSubtitleScale = settings.subtitleScale
+        appliedVolumeBoost = settings.volumeBoostEnabled
         diagnostic(
             PlayerDebugLogLevel.INFO,
             TAG,
@@ -410,19 +429,31 @@ internal class MpvPlayerEngine(
     }
 
     fun applyDecoderBackend(backend: PlayerDecoderBackend) = callMpv("应用解码方式") {
+        if (appliedDecoderBackend == backend) return@callMpv
         MPVLib.setPropertyString("hwdec", backend.mpvValue)
         if (backend.hardwareAccelerated) {
             MPVLib.setPropertyString("hwdec-codecs", "all")
         }
+        appliedDecoderBackend = backend
     }
 
     fun applyRenderingProfile(profile: PlayerRenderingProfile) = callMpv("应用渲染预设") {
+        if (appliedRenderingProfile == profile) return@callMpv
         MPVLib.command("apply-profile", profile.persistedId)
+        appliedRenderingProfile = profile
+        // mpv profile 可以同时重写多个属性；后续显式设置必须重新成为最终 owner。
+        appliedDecoderBackend = null
+        appliedPreciseSeeking = null
+        appliedSubtitleScale = null
+        appliedVolumeBoost = null
+        appliedShaderFiles = null
     }
 
     fun applyPreciseSeeking(enabled: Boolean) = callMpv("应用精确跳转设置") {
+        if (appliedPreciseSeeking == enabled) return@callMpv
         MPVLib.setPropertyString("hr-seek", if (enabled) "yes" else "no")
         MPVLib.setPropertyString("hr-seek-framedrop", "yes")
+        appliedPreciseSeeking = enabled
     }
 
     private fun applyNetworkCache(policy: PlayerNetworkCachePolicy) = callMpv("应用网络缓存设置") {
@@ -432,16 +463,21 @@ internal class MpvPlayerEngine(
     }
 
     fun applySubtitleScale(scale: Double) = callMpv("应用字幕缩放") {
+        if (appliedSubtitleScale == scale) return@callMpv
         MPVLib.setPropertyDouble("sub-scale", scale)
+        appliedSubtitleScale = scale
     }
 
     fun applyVolumeBoost(enabled: Boolean) = callMpv("应用音量增强设置") {
+        if (appliedVolumeBoost == enabled) return@callMpv
         val targetVolume = if (enabled) BOOSTED_VOLUME_PERCENT else NORMAL_VOLUME_PERCENT
         MPVLib.setPropertyDouble("volume-max", if (enabled) MAX_BOOSTED_VOLUME_PERCENT else NORMAL_VOLUME_PERCENT)
         MPVLib.setPropertyDouble("volume", targetVolume)
+        appliedVolumeBoost = enabled
     }
 
     fun applyShaders(shaderFiles: List<String>) = callMpv("应用 Anime4K 着色器") {
+        if (appliedShaderFiles == shaderFiles) return@callMpv
         val shaderPayloads =
             shaderFiles.map { path ->
                 File(path).also { file ->
@@ -468,6 +504,7 @@ internal class MpvPlayerEngine(
             "Anime4K 属性已核验 shaderCount=${shaderPayloads.size} " +
                 "files=${shaderPayloads.joinToString("|") { file -> file.name }.ifEmpty { "none" }}",
         )
+        appliedShaderFiles = shaderFiles.toList()
     }
 
     fun applyVideoFitMode(mode: PlayerVideoFitMode) = callMpv("切换画面比例") {
@@ -516,6 +553,64 @@ internal class MpvPlayerEngine(
         }
         require(maxSize in 64..512) { "Player thumbnail size is invalid" }
         MPVLib.grabThumbnailFast(source, positionSeconds, maxSize)
+    }
+
+    fun prepareThumbnailSource(
+        source: String,
+        positionSeconds: Double,
+    ): MpvThumbnailSource = callMpv("准备进度缩略图来源") {
+        check(source.isNotBlank()) { "Player thumbnail source is blank" }
+        require(positionSeconds.isFinite() && positionSeconds >= 0.0) {
+            "Player thumbnail position is invalid"
+        }
+        if (!isPlayerNetworkMediaUri(source)) {
+            return@callMpv MpvThumbnailSource(source, positionSeconds)
+        }
+        check(fullVideoCachePhase == PlayerFullVideoCachePhase.COMPLETE) {
+            "在线媒体尚未完成完整缓存"
+        }
+        val duration = MPVLib.getPropertyDouble("duration")
+            ?.takeIf { value -> value.isFinite() && value > 0.0 }
+            ?: error("完整缓存媒体缺少有效时长")
+        val excerptStart =
+            (positionSeconds - THUMBNAIL_CACHE_EXCERPT_LEAD_SECONDS).coerceAtLeast(0.0)
+        val excerptEnd =
+            (positionSeconds + THUMBNAIL_CACHE_EXCERPT_TAIL_SECONDS)
+                .coerceAtMost(duration)
+                .coerceAtLeast(excerptStart + 0.25)
+        val excerptDirectory =
+            appContext.cacheDir.resolve(THUMBNAIL_CACHE_EXCERPT_DIRECTORY).also { directory ->
+                check(directory.exists() || directory.mkdirs()) {
+                    "无法创建完整缓存缩略图目录"
+                }
+            }
+        val excerptFile =
+            File.createTempFile(
+                "seek-preview-",
+                ".mkv",
+                excerptDirectory,
+            )
+        try {
+            // 只从唯一 mpv demuxer 的已完成缓存导出目标附近的小片段。直接把远程 URL 交给
+            // grabThumbnailFast 会建立缺少浏览器请求头的第二连接，并且无法利用当前完整缓存。
+            MPVLib.command(
+                "dump-cache",
+                excerptStart.toString(),
+                excerptEnd.toString(),
+                excerptFile.absolutePath,
+            )
+            check(excerptFile.isFile && excerptFile.length() > 0L) {
+                "完整缓存没有导出可用的缩略图片段"
+            }
+            MpvThumbnailSource(
+                source = excerptFile.absolutePath,
+                positionSeconds = positionSeconds - excerptStart,
+                temporaryFile = excerptFile,
+            )
+        } catch (error: Exception) {
+            excerptFile.delete()
+            throw error
+        }
     }
 
     fun readProgress(): MpvPlayerProgress = callMpv("读取播放状态") {
@@ -914,6 +1009,36 @@ internal class MpvPlayerEngine(
                 PlayerDebugLogLevel.WARN,
                 TAG,
                 "播放器完整缓存残留清理失败：${error.message ?: error.javaClass.simpleName}",
+            )
+        }
+    }
+
+    private fun clearSeekPreviewExcerptDirectory() {
+        val directory = appContext.cacheDir.resolve(THUMBNAIL_CACHE_EXCERPT_DIRECTORY)
+        if (!directory.exists()) return
+        try {
+            check(!Files.isSymbolicLink(directory.toPath())) {
+                "播放器缩略图片段目录不能是符号链接"
+            }
+            val canonicalRoot = appContext.cacheDir.canonicalFile
+            val canonicalDirectory = directory.canonicalFile
+            check(canonicalDirectory.parentFile == canonicalRoot) {
+                "播放器缩略图片段目录越界"
+            }
+            check(canonicalDirectory.deleteRecursively()) {
+                "播放器缩略图片段残留清理失败"
+            }
+            diagnostic(
+                PlayerDebugLogLevel.INFO,
+                TAG,
+                "已清理播放器缩略图片段残留",
+            )
+        } catch (error: Exception) {
+            diagnostic(
+                PlayerDebugLogLevel.WARN,
+                TAG,
+                "播放器缩略图片段残留清理失败：" +
+                    (error.message ?: error.javaClass.simpleName),
             )
         }
     }
@@ -1329,6 +1454,9 @@ internal class MpvPlayerEngine(
 
     private companion object {
         const val TAG = "MpvPlayerEngine"
+        const val THUMBNAIL_CACHE_EXCERPT_DIRECTORY = "player-seek-preview"
+        const val THUMBNAIL_CACHE_EXCERPT_LEAD_SECONDS = 4.0
+        const val THUMBNAIL_CACHE_EXCERPT_TAIL_SECONDS = 1.5
         const val VIDEO_OUTPUT_GPU = "gpu"
         const val VIDEO_OUTPUT_GPU_NEXT = "gpu-next"
         const val GPU_CONTEXT_OPENGL = "android"

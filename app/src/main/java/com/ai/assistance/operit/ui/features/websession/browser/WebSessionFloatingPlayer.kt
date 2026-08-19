@@ -38,6 +38,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,6 +65,7 @@ import com.ai.assistance.operit.ui.features.player.PlayerAccentSecondary
 import com.ai.assistance.operit.ui.features.player.PlayerSpeedMenu
 import com.ai.assistance.operit.ui.features.player.createPlayerSurfaceView
 import com.ai.assistance.operit.ui.features.player.formatPlayerNetworkSpeed
+import com.ai.assistance.operit.ui.features.player.resolvePlayerHorizontalGestureSeekTarget
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -71,6 +73,7 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 
 private const val FLOATING_UNLOCK_AUTO_HIDE_MS = 3_000L
+private const val FLOATING_PREPARATION_INDICATOR_DELAY_MS = 160L
 
 @Composable
 internal fun WebSessionFloatingPlayer(
@@ -93,6 +96,7 @@ internal fun WebSessionFloatingPlayer(
     var horizontalSeekStartSeconds by remember(requestId) { mutableFloatStateOf(0f) }
     var horizontalSeekDeltaPx by remember(requestId) { mutableFloatStateOf(0f) }
     var horizontalSeekPreviewSeconds by remember(requestId) { mutableStateOf<Double?>(null) }
+    var preparationVisible by remember(requestId) { mutableStateOf(false) }
     var batteryText by remember { mutableStateOf(readFloatingPlayerBatteryText(context)) }
     var clockText by remember { mutableStateOf(formatFloatingPlayerClock()) }
     LaunchedEffect(context) {
@@ -111,12 +115,20 @@ internal fun WebSessionFloatingPlayer(
 
     val durationSeconds = state.durationSeconds.coerceAtLeast(0.0)
     val positionSeconds = state.positionSeconds.coerceIn(0.0, durationSeconds.coerceAtLeast(0.0))
+    val latestPositionSeconds by rememberUpdatedState(positionSeconds)
     val seekStepSeconds = playerSettings.seekStepSeconds
-    val featureAction = onFullscreen
     val networkSpeed =
         remember(state.networkSpeedBytesPerSecond) {
             formatPlayerNetworkSpeed(state.networkSpeedBytesPerSecond)
         }
+    LaunchedEffect(requestId, state.loading, state.buffering) {
+        if (state.loading || state.buffering) {
+            delay(FLOATING_PREPARATION_INDICATOR_DELAY_MS)
+            preparationVisible = true
+        } else {
+            preparationVisible = false
+        }
+    }
 
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -153,7 +165,9 @@ internal fun WebSessionFloatingPlayer(
                             detectHorizontalDragGestures(
                                 onDragStart = {
                                     horizontalSeekStartSeconds =
-                                        state.positionSeconds.coerceIn(0.0, durationSeconds).toFloat()
+                                        latestPositionSeconds
+                                            .coerceIn(0.0, durationSeconds)
+                                            .toFloat()
                                     horizontalSeekDeltaPx = 0f
                                     horizontalSeekPreviewSeconds = horizontalSeekStartSeconds.toDouble()
                                     controlsVisible = true
@@ -161,11 +175,14 @@ internal fun WebSessionFloatingPlayer(
                                 onHorizontalDrag = { change, dragAmount ->
                                     change.consume()
                                     horizontalSeekDeltaPx += dragAmount
-                                    val deltaSeconds =
-                                        durationSeconds * (horizontalSeekDeltaPx / playerWidthPx.toFloat())
                                     horizontalSeekPreviewSeconds =
-                                        (horizontalSeekStartSeconds + deltaSeconds)
-                                            .coerceIn(0.0, durationSeconds)
+                                        resolvePlayerHorizontalGestureSeekTarget(
+                                            basePositionSeconds =
+                                                horizontalSeekStartSeconds.toDouble(),
+                                            durationSeconds = durationSeconds,
+                                            horizontalDeltaPx = horizontalSeekDeltaPx,
+                                            gestureWidthPx = playerWidthPx,
+                                        )
                                 },
                                 onDragCancel = {
                                     horizontalSeekPreviewSeconds = null
@@ -201,11 +218,12 @@ internal fun WebSessionFloatingPlayer(
                         batteryText = batteryText,
                         clockText = clockText,
                         onClose = onClose,
-                        onSubtitle = featureAction,
-                        onDanmaku = featureAction,
-                        onAudio = featureAction,
-                        onAspectRatio = featureAction,
-                        onMore = featureAction,
+                        subtitleEnabled = state.subtitleTracks.isNotEmpty(),
+                        onSubtitle = session::cycleSubtitleTrack,
+                        audioEnabled = state.audioTracks.size > 1,
+                        onAudio = session::cycleAudioTrack,
+                        onAspectRatio = session::cycleVideoFitMode,
+                        onMore = onFullscreen,
                         modifier = Modifier.align(Alignment.TopCenter),
                     )
                     FloatingPlayerSideActions(
@@ -240,10 +258,13 @@ internal fun WebSessionFloatingPlayer(
                         isPlaying = !state.paused,
                         seekSeconds = seekStepSeconds,
                         onSeekTo = session::seekTo,
-                        onDanmaku = featureAction,
+                        previousEnabled = state.hasPreviousQueueItem,
+                        onPrevious = session::playPrevious,
                         onRewind = session::seekBackward,
                         onPlayPause = onTogglePause,
                         onForward = session::seekForward,
+                        nextEnabled = state.hasNextQueueItem,
+                        onNext = session::playNext,
                         speed = state.speed,
                         session = session,
                         onInteraction = { controlsVisible = true },
@@ -282,7 +303,7 @@ internal fun WebSessionFloatingPlayer(
                     modifier = Modifier.align(Alignment.Center),
                 )
             }
-            if (state.loading || state.buffering) {
+            if (preparationVisible) {
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.Center).size(32.dp),
                     color = Color.White,
@@ -307,8 +328,9 @@ private fun FloatingPlayerTopControls(
     batteryText: String,
     clockText: String,
     onClose: () -> Unit,
+    subtitleEnabled: Boolean,
     onSubtitle: () -> Unit,
-    onDanmaku: () -> Unit,
+    audioEnabled: Boolean,
     onAudio: () -> Unit,
     onAspectRatio: () -> Unit,
     onMore: () -> Unit,
@@ -369,20 +391,22 @@ private fun FloatingPlayerTopControls(
                 FloatingPlayerResourceButton(
                     description = "字幕",
                     resId = R.drawable.ic_kiyori_player_subtitle_outline,
+                    enabled = subtitleEnabled,
                     size = 24.dp,
                     iconSize = 14.dp,
                     onClick = onSubtitle,
                 )
                 FloatingPlayerResourceButton(
-                    description = "弹幕",
+                    description = "弹幕（当前资源不支持）",
                     resId = R.drawable.ic_kiyori_player_danmaku_outline,
+                    enabled = false,
                     size = 24.dp,
                     iconSize = 14.dp,
-                    onClick = onDanmaku,
                 )
                 FloatingPlayerResourceButton(
                     description = "音轨",
                     resId = R.drawable.ic_kiyori_player_audio_outline,
+                    enabled = audioEnabled,
                     size = 24.dp,
                     iconSize = 14.dp,
                     onClick = onAudio,
@@ -496,10 +520,13 @@ private fun FloatingPlayerBottomControls(
     isPlaying: Boolean,
     seekSeconds: Int,
     onSeekTo: (Double) -> Unit,
-    onDanmaku: () -> Unit,
+    previousEnabled: Boolean,
+    onPrevious: () -> Boolean,
     onRewind: () -> Unit,
     onPlayPause: () -> Unit,
     onForward: () -> Unit,
+    nextEnabled: Boolean,
+    onNext: () -> Boolean,
     speed: Double,
     session: PlayerSession,
     onInteraction: () -> Unit,
@@ -557,19 +584,20 @@ private fun FloatingPlayerBottomControls(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     FloatingPlayerResourceButton(
-                        description = "弹幕",
+                        description = "弹幕（当前资源不支持）",
                         resId = R.drawable.ic_danmaku_visible,
+                        enabled = false,
                         size = 26.dp,
                         iconSize = 16.dp,
-                        onClick = onDanmaku,
                     )
                     Spacer(modifier = Modifier.width(2.dp))
                     FloatingPlayerResourceButton(
                         description = "上一集",
                         resId = R.drawable.previous_square,
-                        enabled = false,
+                        enabled = previousEnabled,
                         size = 26.dp,
                         iconSize = 16.dp,
+                        onClick = { onPrevious() },
                     )
                     Spacer(modifier = Modifier.width(2.dp))
                     FloatingPlayerResourceButton(
@@ -599,9 +627,10 @@ private fun FloatingPlayerBottomControls(
                     FloatingPlayerResourceButton(
                         description = "下一集",
                         resId = R.drawable.next_square,
-                        enabled = false,
+                        enabled = nextEnabled,
                         size = 26.dp,
                         iconSize = 16.dp,
+                        onClick = { onNext() },
                     )
                     Spacer(modifier = Modifier.width(2.dp))
                     PlayerSpeedMenu(
