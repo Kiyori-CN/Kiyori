@@ -9,8 +9,8 @@ APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观
 
 ## 浏览器网页元素长按菜单与设置开关优化
 
-状态：本地实现、定向自动验证、正式门禁与 Debug APK 静态核验已完成；目标设备交互仍为
-`verification_pending`，Git 提交与远端推送在本轮收尾阶段执行。本轮复用
+状态：本地实现、定向自动验证、正式门禁、Debug APK 静态核验与 `main/origin/main` 实现交付
+已完成；目标设备交互仍为 `verification_pending`。本轮复用
 [`kiyori_browser_product_completion`](kiyori_browser_product_completion/index.md)
 及其
 [`浏览器四行菜单真实能力`](kiyori_browser_product_completion/7_browser_menu_capabilities.md)
@@ -50,10 +50,11 @@ APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观
 9. [DONE] 增加策略、设置、JavaScript bridge、Back、图片快照与二维码解码合同测试，更新
    `CONTEXT.md`、README 和正式架构文档
 10. [DONE] 运行定向 JVM 测试、Kotlin 编译、formal readiness、architecture boundaries、
-    `git diff --check` 和规定的串行 Debug APK 构建/静态核验；Markdown links 在形成候选提交后
-    按 `base/candidate` 合同执行
-11. [PENDING] 审计全部目标改动、敏感内容、构建产物和子模块，提交现有 `main`、推送
-    `origin/main` 并核对本地/tracking/远端 ref
+    `git diff --check`、规定的串行 Debug APK 构建/静态核验，以及候选提交 Markdown links
+    `errors=0 / warnings=0`
+11. [DONE] 审计全部目标改动、敏感内容、构建产物和子模块；实现提交
+    `d803c8bb8cb4c638fd66748994959894573990ef` 已推送到 `origin/main`，首次对账时本地、
+    tracking 与远端 ref 一致且分歧为 `0/0`
 12. [PENDING] 在目标设备复测浅深主题、窄屏滚动、输入框原生选区、开关即时生效、每类元素动作、
     登录态图片、页面看图、二维码结果、下载确认、系统 Back 与手势冲突
 
@@ -69,6 +70,9 @@ APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观
 
 - 五个定向 JVM 测试类合计 `39/39`，零失败、零错误、零跳过；`:app:compileDebugKotlin` 通过
 - formal readiness 与 architecture boundaries `phase=m03` 通过，`git diff --check` 无错误
+- Markdown 候选树检查以 `64016a31d7334267864f7dd2ea507f87ae4bb662` 为 base、以
+  `d803c8bb8cb4c638fd66748994959894573990ef` 为 candidate，结果为
+  `errors=0 / warnings=0`
 - 串行 `:app:assembleDebug` 为 `BUILD SUCCESSFUL in 1m 35s`，`232` 个任务中
   `23 executed / 209 up-to-date`
 - `app/build/outputs/apk/debug/app-debug.apk` 为 `472553854` bytes，写入于

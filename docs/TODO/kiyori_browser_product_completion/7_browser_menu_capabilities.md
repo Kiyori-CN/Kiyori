@@ -251,6 +251,9 @@ resourceKind / selector / client point`。Host 只接受活动 session、当前�
   V2 单 signer 与 `zipalign -c -P 16 -v 4` 通过
 - APK 含 `51` 个 `.so` 与 `1` 个 shell launcher，共 `52/52` 个 ELF64/AArch64；
   `153` 个 `PT_LOAD` 为 `0x4000 × 151 / 0x10000 × 2`，无低于 16 KB 的对齐
+- Markdown 候选树检查为 `errors=0 / warnings=0`；实现提交
+  `d803c8bb8cb4c638fd66748994959894573990ef` 已推送到 `origin/main`，首次对账时本地、
+  tracking 与远端 ref 一致且分歧为 `0/0`
 - 未安装 APK、未调用 ADB/模拟器/真实设备；输入框系统原生选区、设置开关即时触控、每类元素菜单、
   登录态图片、页面看图、二维码识别、保存确认和系统栏视觉仍为 `verification_pending`
 
