@@ -59,6 +59,108 @@ class BrowserNetworkLogPolicyTest {
     }
 
     @Test
+    fun `known resource extensions outrank mixed browser accept ranges`() {
+        val navigationAccept =
+            "text/html,application/xhtml+xml,application/xml;q=0.9," +
+                "image/avif,image/webp,image/apng,*/*;q=0.8"
+        val imageAccept = "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
+
+        assertEquals(
+            BrowserNetworkRequestCategory.WEB,
+            classifyBrowserNetworkRequest(
+                url = "https://example.com/frame.html?embedded=1",
+                acceptHeader = imageAccept,
+                isMainFrame = false,
+            ),
+        )
+        assertEquals(
+            BrowserNetworkRequestCategory.SCRIPT,
+            classifyBrowserNetworkRequest(
+                url = "https://cdn.example.com/runtime.js?v=1",
+                acceptHeader = navigationAccept,
+                isMainFrame = false,
+            ),
+        )
+        assertEquals(
+            BrowserNetworkRequestCategory.STYLE,
+            classifyBrowserNetworkRequest(
+                url = "https://cdn.example.com/theme.css",
+                acceptHeader = imageAccept,
+                isMainFrame = false,
+            ),
+        )
+        assertEquals(
+            BrowserNetworkRequestCategory.DATA,
+            classifyBrowserNetworkRequest(
+                url = "https://api.example.com/config.json",
+                acceptHeader = imageAccept,
+                isMainFrame = false,
+            ),
+        )
+        assertEquals(
+            BrowserNetworkRequestCategory.IMAGE,
+            classifyBrowserNetworkRequest(
+                url = "https://cdn.example.com/logo.SVG?theme=dark",
+                acceptHeader = navigationAccept,
+                isMainFrame = false,
+            ),
+        )
+        assertEquals(
+            BrowserNetworkRequestCategory.FONT,
+            classifyBrowserNetworkRequest(
+                url = "https://cdn.example.com/site.woff2",
+                acceptHeader = imageAccept,
+                isMainFrame = false,
+            ),
+        )
+        assertEquals(
+            BrowserNetworkRequestCategory.DATA,
+            classifyBrowserNetworkRequest(
+                url = "https://cdn.example.com/app.webmanifest",
+                acceptHeader = imageAccept,
+                isMainFrame = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `extensionless requests use preferred concrete accept media range`() {
+        assertEquals(
+            BrowserNetworkRequestCategory.WEB,
+            classifyBrowserNetworkRequest(
+                url = "https://example.com/render",
+                acceptHeader =
+                    "application/json;q=0.4,text/html;q=0.9,image/avif;q=0.8,*/*;q=0.1",
+                isMainFrame = false,
+            ),
+        )
+        assertEquals(
+            BrowserNetworkRequestCategory.IMAGE,
+            classifyBrowserNetworkRequest(
+                url = "https://cdn.example.com/asset",
+                acceptHeader = "image/avif,image/webp,image/svg+xml,image/*,*/*;q=0.8",
+                isMainFrame = false,
+            ),
+        )
+        assertEquals(
+            BrowserNetworkRequestCategory.SCRIPT,
+            classifyBrowserNetworkRequest(
+                url = "https://cdn.example.com/runtime",
+                acceptHeader = "application/javascript,*/*;q=0.1",
+                isMainFrame = false,
+            ),
+        )
+        assertEquals(
+            BrowserNetworkRequestCategory.OTHER,
+            classifyBrowserNetworkRequest(
+                url = "https://api.example.com/opaque",
+                acceptHeader = "image/png;q=0,*/*",
+                isMainFrame = false,
+            ),
+        )
+    }
+
+    @Test
     fun `filter groups the static resource directory and searches URL or method`() {
         val entries =
             listOf(

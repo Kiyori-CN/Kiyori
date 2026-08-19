@@ -1836,6 +1836,7 @@ dependencies {
     implementation(libs.coil)
     implementation(libs.coil.compose)
     implementation(libs.coil.gif)
+    implementation(libs.coil.svg)
     
     // LaTeX rendering libraries
     implementation(libs.jlatexmath)

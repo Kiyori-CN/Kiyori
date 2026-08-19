@@ -40,7 +40,7 @@ The project retains Operit's chat, model configuration, tool calling, workflows,
 - **Operit AI subsystem** with provider configuration, conversations, character cards, memory, tools, workflows, attachments, voice, and resumable execution.
 - **Extension ecosystem** for script packages, ToolPkg plugins, Skills, MCP servers, markets, environment variables, and permissions.
 - **Local workspace** with file management, an Ubuntu terminal, SSH, development tools, workspaces, and automation.
-- **Media stack** with browser media discovery, downloads, an mpv-based player, queues, subtitles, Anime4K, and floating/full-screen presentation.
+- **Media stack** with a current-page resource directory classified by known extensions and preferred request media ranges, SVG-capable image thumbnails and full-screen viewing, browser media discovery, downloads, an mpv-based player, queues, subtitles, Anime4K, and floating/full-screen presentation.
 - **Local inference** through MNN, llama.cpp, and related runtimes after the required model files are prepared.
 - **Android integration** for assistant entry points, accessibility, overlays, notifications, file providers, Shizuku, and system permissions.
 

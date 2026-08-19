@@ -14,6 +14,7 @@ import androidx.work.Configuration as WorkConfiguration
 import androidx.work.WorkManager
 import coil.decode.GifDecoder
 import coil.decode.ImageDecoderDecoder
+import coil.decode.SvgDecoder
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
@@ -407,6 +408,9 @@ class KiyoriApplication :
         return ImageLoader.Builder(this)
             .okHttpClient(imageOkHttpClient)
             .components {
+                // 所有 Coil 消费者共用这一进程级 loader；缺少 SVG decoder 会让网络日志缩略图、
+                // 全屏查看和二维码识别同时失败，因此必须在唯一组件表中一次注册。
+                add(SvgDecoder.Factory())
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                     add(ImageDecoderDecoder.Factory())
                 } else {

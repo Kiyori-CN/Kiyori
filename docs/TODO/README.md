@@ -7,6 +7,68 @@ For_Agent: 对项目大规模动工前按本规范协作
 本文件顶部记录当前跨领域长期任务，后续段落保留专项实施与历史证据。历史段落中的分支、提交、
 APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观察点，不能替代当前 Git、构建或设备状态。
 
+## 网络日志图片分类与 SVG 显示修复
+
+状态：本地实现、定向自动验证、正式门禁、Debug APK 构建与静态产物核验已完成；目标设备上的
+真实 WebView 请求分类、SVG 缩略图和共享全屏查看仍为 `verification_pending`。用户现场确认
+网络日志“图片”筛选中 SVG 缩略图和共享全屏查看均进入加载失败，同时 HTML、JavaScript 等
+非图片资源会误入图片分类。本轮继续复用
+[`kiyori_browser_product_completion`](kiyori_browser_product_completion/index.md)
+及其
+[`浏览器四行菜单真实能力`](kiyori_browser_product_completion/7_browser_menu_capabilities.md)
+作为唯一浏览器专项载体，不创建平行网络日志或图片查看器。
+
+细化计划：
+
+1. [DONE] 核对当前 `main`、干净工作树、正式开发门禁、网络请求采集、资源聚合、分类策略、
+   缩略图、共享图片查看器、二维码识别和全局 Coil `ImageLoader`
+2. [DONE] 确认误分类根因：现有策略先用 `Accept.contains("image/")` 判为图片，之后才检查
+   HTML、JavaScript、CSS、JSON 等扩展名；浏览器导航请求的混合 `Accept` 因包含图片媒体范围而
+   抢占真实格式
+3. [DONE] 确认 SVG 根因：网络日志缩略图、共享图片查看器和二维码识别都使用进程级唯一 Coil
+   `ImageLoader`，但该 loader 只注册 GIF/平台位图解码器，没有注册 Coil `SvgDecoder`
+4. [DONE] 把资源分类改为：主框架固定为网页；已知 URL 扩展名优先；无已知扩展名时解析
+   `Accept` 的媒体范围、质量值和顺序；通配或无法确认的资源保持“其他”
+5. [DONE] 补齐常见网页、脚本、样式、数据、字体、图片、音视频扩展名，并增加混合导航
+   `Accept`、SVG、HTML、JavaScript、CSS、JSON、字体和未知资源的回归测试
+6. [DONE] 引入与现有 Coil `2.5.0` 对齐的 `coil-svg` 模块，并在
+   `KiyoriApplication` 的唯一全局 `ImageLoader` 注册 `SvgDecoder.Factory()`；不建立第二
+   ImageLoader 或第二图片缓存
+7. [DONE] 同步 `CONTEXT.md`、README、正式浏览器架构和阶段 7 合同
+8. [DONE] 运行定向 JVM、Kotlin 编译、formal readiness、architecture boundaries、
+   `git diff --check` 和规定的串行 Debug APK 构建与静态产物核验
+9. [PENDING] 在目标设备复测真实 SVG、带查询参数 SVG、登录态 SVG、HTML/JS/CSS/JSON 分类和
+   网络日志缩略图/查看器；完成前保持 `verification_pending`
+
+实现边界：
+
+- Android WebView 没有提供响应 MIME 或响应体时，不把不透明 URL 猜成具体格式；无法由主框架、
+  已知扩展名或明确 `Accept` 证据确认的资源归入“其他”
+- 图片请求继续使用活动 WebSession 的 User-Agent、Profile Cookie 和 HTTP(S) Referer；
+  不改变 Browser Runtime、资源目录、下载 owner 或共享图片查看器手势
+- 本轮不提交、不推送、不安装 APK、不调用 ADB、模拟器或真实设备
+
+本地验证：
+
+- `BrowserNetworkLogPolicyTest` `15/15` 与 `BrowserInteractionContractTest` `5/5`，合计
+  `20/20`，零失败、零错误、零跳过；覆盖混合导航 `Accept`、扩展名优先级、SVG、HTML、
+  JavaScript、CSS、JSON、字体、质量值、通配和全局 `SvgDecoder` 接线
+- formal readiness、architecture boundaries `phase=m03`、工作树 Markdown links
+  `errors=0` 与 `git diff --check` 通过；M-03 受控 Application 快照已更新为
+  `FE81FB2D78D46E2EB86E3BF21D71B5B50A5B173B0C9BF5F3662272CE546B3C44`
+- 串行 `:app:assembleDebug --no-daemon --console=plain` 为
+  `BUILD SUCCESSFUL in 2m 46s`，`232` 个任务中 `80 executed / 152 up-to-date`；
+  唯一 Debug Launcher 与 Player Runtime packaging 门禁通过
+- 最终 Debug APK 位于 `app/build/outputs/apk/debug/app-debug.apk`；宿主文件时间观测为
+  `2026-08-20 01:44:18 +08:00`，大小 `464647701` bytes，SHA-256
+  `C11B566D56912C327F26F7A32F3ECF95918AAF46E0FE60A934229B216366CB12`
+- APK 为 `com.kiyori / 45 / 0.1.0 / minSdk 26 / targetSdk 34 / compileSdk 37 /
+  arm64-v8a`，唯一 Launcher 为 `com.ai.assistance.operit.ui.main.MainActivity`；Android Debug
+  V2 单 signer 与 `zipalign -c -P 16 -v 4` 通过，DEX 中存在
+  `coil.decode.SvgDecoder` 和 `coil.decode.SvgDecoder.Factory`
+- 未提交、未推送、未安装 APK、未调用 ADB/模拟器/真实设备；普通 SVG、带查询参数 SVG、
+  登录态/防盗链 SVG 及真实网页分类仍需目标设备复测
+
 ## 浏览器网页元素长按菜单与设置开关优化
 
 状态：本地实现、定向自动验证、正式门禁、Debug APK 静态核验与 `main/origin/main` 实现交付

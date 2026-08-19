@@ -47,32 +47,113 @@ internal fun classifyBrowserNetworkRequest(
     if (isMainFrame) {
         return BrowserNetworkRequestCategory.WEB
     }
-    val accept = acceptHeader.orEmpty().lowercase(Locale.ROOT)
-    val extension = browserNetworkUrlExtension(url)
-    return when {
-        accept.contains("video/") || extension in BrowserNetworkVideoExtensions ->
-            BrowserNetworkRequestCategory.VIDEO
-        accept.contains("audio/") || extension in BrowserNetworkAudioExtensions ->
-            BrowserNetworkRequestCategory.AUDIO
-        accept.contains("image/") || extension in BrowserNetworkImageExtensions ->
-            BrowserNetworkRequestCategory.IMAGE
-        accept.contains("javascript") || extension in BrowserNetworkScriptExtensions ->
-            BrowserNetworkRequestCategory.SCRIPT
-        accept.contains("text/css") || extension in BrowserNetworkStyleExtensions ->
-            BrowserNetworkRequestCategory.STYLE
-        accept.contains("font/") || extension in BrowserNetworkFontExtensions ->
-            BrowserNetworkRequestCategory.FONT
-        accept.contains("application/json") ||
-            accept.contains("application/xml") ||
-            accept.contains("text/xml") ||
-            accept.contains("text/plain") ||
-            extension in BrowserNetworkDataExtensions -> BrowserNetworkRequestCategory.DATA
-        accept.contains("text/html") ||
-            accept.contains("application/xhtml") ||
-            extension in BrowserNetworkDocumentExtensions -> BrowserNetworkRequestCategory.WEB
-        else -> BrowserNetworkRequestCategory.OTHER
+    // Chromium 的导航 Accept 同时列出 HTML、XML、图片和通配类型。若仅搜索是否包含
+    // "image/"，iframe、脚本和数据文件会被错误提升为图片并触发无意义的 Coil 请求。
+    browserNetworkCategoryForExtension(browserNetworkUrlExtension(url))?.let { category ->
+        return category
     }
+    return browserNetworkCategoryForAcceptHeader(acceptHeader)
+        ?: BrowserNetworkRequestCategory.OTHER
 }
+
+private data class BrowserNetworkAcceptMediaRange(
+    val mediaType: String,
+    val quality: Double,
+    val index: Int,
+)
+
+private fun browserNetworkCategoryForAcceptHeader(
+    acceptHeader: String?,
+): BrowserNetworkRequestCategory? =
+    acceptHeader
+        .orEmpty()
+        .split(',')
+        .mapIndexedNotNull { index, rawRange ->
+            val segments = rawRange.split(';')
+            val mediaType =
+                segments
+                    .firstOrNull()
+                    .orEmpty()
+                    .trim()
+                    .lowercase(Locale.ROOT)
+            if (mediaType.isBlank() || mediaType == "*/*") {
+                return@mapIndexedNotNull null
+            }
+            val qualityParameter =
+                segments
+                    .drop(1)
+                    .firstOrNull { parameter ->
+                        parameter
+                            .substringBefore('=')
+                            .trim()
+                            .equals("q", ignoreCase = true)
+                    }
+            val quality =
+                if (qualityParameter == null) {
+                    1.0
+                } else {
+                    qualityParameter
+                        .substringAfter('=', "")
+                        .trim()
+                        .toDoubleOrNull()
+                        ?.takeIf { value -> value.isFinite() && value in 0.0..1.0 }
+                        ?: 0.0
+                }
+            if (quality <= 0.0) {
+                return@mapIndexedNotNull null
+            }
+            BrowserNetworkAcceptMediaRange(
+                mediaType = mediaType,
+                quality = quality,
+                index = index,
+            )
+        }
+        .sortedWith(
+            compareByDescending<BrowserNetworkAcceptMediaRange> { range -> range.quality }
+                .thenBy { range -> range.index },
+        )
+        .firstNotNullOfOrNull { range ->
+            browserNetworkCategoryForMediaType(range.mediaType)
+        }
+
+private fun browserNetworkCategoryForMediaType(
+    mediaType: String,
+): BrowserNetworkRequestCategory? =
+    when {
+        mediaType == "text/html" || mediaType == "application/xhtml+xml" ->
+            BrowserNetworkRequestCategory.WEB
+        mediaType in BrowserNetworkScriptMimeTypes || mediaType.endsWith("+javascript") ->
+            BrowserNetworkRequestCategory.SCRIPT
+        mediaType == "text/css" ->
+            BrowserNetworkRequestCategory.STYLE
+        mediaType.startsWith("video/") || mediaType in BrowserNetworkVideoMimeTypes ->
+            BrowserNetworkRequestCategory.VIDEO
+        mediaType.startsWith("audio/") ->
+            BrowserNetworkRequestCategory.AUDIO
+        mediaType.startsWith("image/") ->
+            BrowserNetworkRequestCategory.IMAGE
+        mediaType.startsWith("font/") || mediaType in BrowserNetworkFontMimeTypes ->
+            BrowserNetworkRequestCategory.FONT
+        mediaType in BrowserNetworkDataMimeTypes ||
+            mediaType.endsWith("+json") ||
+            mediaType.endsWith("+xml") -> BrowserNetworkRequestCategory.DATA
+        else -> null
+    }
+
+private fun browserNetworkCategoryForExtension(
+    extension: String,
+): BrowserNetworkRequestCategory? =
+    when (extension) {
+        in BrowserNetworkVideoExtensions -> BrowserNetworkRequestCategory.VIDEO
+        in BrowserNetworkAudioExtensions -> BrowserNetworkRequestCategory.AUDIO
+        in BrowserNetworkImageExtensions -> BrowserNetworkRequestCategory.IMAGE
+        in BrowserNetworkDocumentExtensions -> BrowserNetworkRequestCategory.WEB
+        in BrowserNetworkScriptExtensions -> BrowserNetworkRequestCategory.SCRIPT
+        in BrowserNetworkStyleExtensions -> BrowserNetworkRequestCategory.STYLE
+        in BrowserNetworkDataExtensions -> BrowserNetworkRequestCategory.DATA
+        in BrowserNetworkFontExtensions -> BrowserNetworkRequestCategory.FONT
+        else -> null
+    }
 
 internal fun filterBrowserNetworkLogEntries(
     entries: List<WebSessionBrowserNetworkEntry>,
@@ -221,7 +302,7 @@ internal fun browserNetworkUrlExtension(url: String): String =
         .substringAfterLast('/')
         .substringAfterLast('.', "")
         .lowercase(Locale.ROOT)
-        .takeIf { extension -> extension.length in 1..8 && extension.all(Char::isLetterOrDigit) }
+        .takeIf { extension -> extension.length in 1..16 && extension.all(Char::isLetterOrDigit) }
         .orEmpty()
 
 internal fun browserNetworkHost(url: String): String =
@@ -292,25 +373,124 @@ internal fun mergeBrowserNetworkRequestCategory(
     }
 
 private val BrowserNetworkVideoExtensions =
-    setOf("m3u8", "mpd", "mp4", "m4v", "mkv", "webm", "flv", "mov", "avi", "ts")
+    setOf(
+        "m3u8",
+        "mpd",
+        "mp4",
+        "m4v",
+        "mkv",
+        "webm",
+        "flv",
+        "mov",
+        "avi",
+        "ts",
+        "m2ts",
+        "3gp",
+        "3g2",
+        "ogv",
+    )
 
 private val BrowserNetworkAudioExtensions =
-    setOf("mp3", "aac", "m4a", "flac", "wav", "ogg", "opus", "amr")
+    setOf(
+        "mp3",
+        "aac",
+        "m4a",
+        "m4b",
+        "flac",
+        "wav",
+        "ogg",
+        "oga",
+        "opus",
+        "amr",
+        "aiff",
+        "mid",
+        "midi",
+    )
 
 private val BrowserNetworkImageExtensions =
-    setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "ico", "avif", "heic")
+    setOf(
+        "jpg",
+        "jpeg",
+        "jfif",
+        "pjpeg",
+        "pjp",
+        "png",
+        "apng",
+        "gif",
+        "webp",
+        "bmp",
+        "svg",
+        "ico",
+        "cur",
+        "avif",
+        "heic",
+        "heif",
+        "tif",
+        "tiff",
+        "jxl",
+    )
 
 private val BrowserNetworkDocumentExtensions =
-    setOf("html", "htm", "xhtml")
+    setOf("html", "htm", "xhtml", "shtml")
 
 private val BrowserNetworkScriptExtensions =
-    setOf("js", "mjs", "jsx", "ts", "tsx")
+    setOf("js", "mjs", "cjs", "jsx", "tsx")
 
 private val BrowserNetworkStyleExtensions =
-    setOf("css", "scss", "less")
+    setOf("css", "scss", "sass", "less")
 
 private val BrowserNetworkDataExtensions =
-    setOf("json", "xml", "txt", "csv", "yaml", "yml")
+    setOf(
+        "json",
+        "jsonld",
+        "xml",
+        "txt",
+        "csv",
+        "yaml",
+        "yml",
+        "map",
+        "webmanifest",
+        "wasm",
+        "rss",
+        "atom",
+    )
 
 private val BrowserNetworkFontExtensions =
-    setOf("woff", "woff2", "ttf", "otf")
+    setOf("woff", "woff2", "ttf", "otf", "ttc", "otc", "eot")
+
+private val BrowserNetworkVideoMimeTypes =
+    setOf(
+        "application/vnd.apple.mpegurl",
+        "application/x-mpegurl",
+        "application/dash+xml",
+    )
+
+private val BrowserNetworkScriptMimeTypes =
+    setOf(
+        "application/javascript",
+        "application/x-javascript",
+        "application/ecmascript",
+        "text/javascript",
+        "text/ecmascript",
+    )
+
+private val BrowserNetworkDataMimeTypes =
+    setOf(
+        "application/json",
+        "application/xml",
+        "application/wasm",
+        "text/csv",
+        "text/event-stream",
+        "text/json",
+        "text/plain",
+        "text/xml",
+    )
+
+private val BrowserNetworkFontMimeTypes =
+    setOf(
+        "application/font-woff",
+        "application/vnd.ms-fontobject",
+        "application/x-font-opentype",
+        "application/x-font-ttf",
+        "application/x-font-woff",
+    )

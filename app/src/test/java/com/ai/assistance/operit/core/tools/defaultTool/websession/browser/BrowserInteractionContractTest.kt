@@ -199,6 +199,27 @@ class BrowserInteractionContractTest {
         assertFalse(source.contains("session.webView.settings"))
     }
 
+    @Test
+    fun `global Coil image loader registers the SVG decoder used by browser images`() {
+        val applicationSource =
+            repositoryFile(
+                "app/src/main/java/com/kiyori/app/KiyoriApplication.kt",
+            ).readText()
+        val versionCatalog =
+            repositoryFile("gradle/libs.versions.toml").readText()
+        val appBuild =
+            repositoryFile("app/build.gradle.kts").readText()
+
+        assertTrue(applicationSource.contains("import coil.decode.SvgDecoder"))
+        assertTrue(applicationSource.contains("add(SvgDecoder.Factory())"))
+        assertTrue(
+            versionCatalog.contains(
+                "coil-svg = { group = \"io.coil-kt\", name = \"coil-svg\", version.ref = \"coil\" }",
+            ),
+        )
+        assertTrue(appBuild.contains("implementation(libs.coil.svg)"))
+    }
+
     private fun repositoryFile(relativePath: String): File {
         var current: File? =
             File(requireNotNull(System.getProperty("user.dir"))).absoluteFile

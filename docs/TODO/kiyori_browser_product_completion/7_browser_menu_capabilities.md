@@ -107,7 +107,12 @@ Activity、LitePal 或 native ABP 架构。
 - `BrowserNetworkRequestEntry` 继续由当前活动 WebSession 的 `shouldInterceptRequest` 采集并保存在该 session 的当前文档资源目录中；Browser Home、悬浮浏览器和 AI 浏览器工具读取同一份按 document token 与规范化 URL 聚合的最多 2,000 个资源 identity，不新增持久化日志库或第二个浏览器状态
 - 页面开始导航时清空该 session 的控制台和网络事件；抽屉中的“清空”只清当前 session 的网络请求，不改网页、历史、下载、其他窗口或控制台记录
 - 抽屉复用书签与下载相同的 Hidden/Partial/Expanded 宿主、`52dp` 标题栏、中性浏览器配色、空态和居中模态弹窗。标题栏提供真实条目数与清空动作，内容依次为 URL 搜索、`全部 / 视频 / 音乐 / 图片 / 网页 / 其他` 横向分类和请求列表
-- 分类只依据 Android WebView 当前能够确认的主框架标记、请求 URL、扩展名和 `Accept` 请求头。第三方域名使用明确的“第三方”提示；不把异域请求直接宣称为广告，不凭空补 HTTP status、响应 MIME、失败或响应体。`拦截` 只表示 Kiyori 客户端在请求进入系统加载前作出的本地规则决定
+- 分类只依据 Android WebView 当前能够确认的主框架标记、请求 URL、扩展名和 `Accept` 请求头。
+  主框架固定为网页；已知 URL 扩展名优先确定资源组；无已知扩展名时按 `Accept` 媒体范围的
+  `q` 值与原始顺序选择首个可识别类型。混合导航头中附带的 `image/*` 不能覆盖
+  HTML、JavaScript、CSS、JSON 或字体扩展名，通配或证据不足的请求保持“其他”。第三方域名使用
+  明确的“第三方”提示；不把异域请求直接宣称为广告，不凭空补 HTTP status、响应 MIME、失败或
+  响应体。`拦截` 只表示 Kiyori 客户端在请求进入系统加载前作出的本地规则决定
 - 请求行显示资源类型、method、host、紧凑 URL 和时间；图片条目使用 Coil 展示有界缩略图。缩略图和
   查看器只消费原请求 URL 与活动 WebSession 已捕获的 User-Agent、Cookie、Referer 等请求身份，
   不写回网络日志、不创建新条目，也不建立第二资源目录
@@ -116,9 +121,10 @@ Activity、LitePal 或 native ABP 架构。
   当前筛选结果中的图片条目及初始索引；左右滑动切换，左下角显示“当前编号 / 总数”，右下角显示
   保存。图片支持双指缩放，切换到新图片后恢复 `1x`；单击图片退出，长按显示“保存原图”，
   上下拖动按位移降低黑色背景透明度并在松手后退出，使下层网页和网络日志内容直接显现
-- 图片显示使用受实际窗口尺寸约束的 Coil 内容节点，`ContentScale.Fit` 保证完整图像可见；
-  失败状态必须明确结束加载状态。保存继续调用唯一浏览器下载 owner，并在需要确认时先退出查看器，
-  避免确认层被全屏窗口遮挡
+- 图片显示使用受实际窗口尺寸约束的 Coil 内容节点，`ContentScale.Fit` 保证完整图像可见。
+  进程级唯一 Coil `ImageLoader` 注册 `SvgDecoder`，SVG 与位图共用缩略图、共享查看器、
+  网页元素看图、二维码识别、请求身份及缓存；失败状态必须明确结束加载状态。保存继续调用唯一
+  浏览器下载 owner，并在需要确认时先退出查看器，避免确认层被全屏窗口遮挡
 - “拦截过滤网址”写入同一个 `BrowserAdBlockStore`，使用真实网络日志 URL 生成建议规则；不复制 legacy X5 响应头或 hikerView 的旧状态 owner
 
 ## 网页长按所有权修复合同
@@ -218,6 +224,26 @@ resourceKind / selector / client point`。Host 只接受活动 session、当前�
 - AI 操作当前 session 时 UI 状态不分叉
 - 广告规则管理、网络日志 blocked 记录、元素高亮和 DOM 注入均不创建第二 Browser Runtime 或第二规则 owner
 - Debug APK 与本地门禁通过；提交和推送仅在用户另行授权时执行
+
+### 网络日志图片分类与 SVG 修复本地证据
+
+- `BrowserNetworkLogPolicyTest` `15/15` 与 `BrowserInteractionContractTest` `5/5`，
+  合计 `20/20`，零失败、零错误、零跳过；HTML、JavaScript、CSS、JSON 和字体扩展名不会再被
+  混合导航 `Accept` 中的 `image/*` 抢占，SVG 扩展名与明确图片媒体范围继续归入图片
+- formal readiness、architecture boundaries `phase=m03`、工作树 Markdown links
+  `errors=0` 与 `git diff --check` 通过；唯一 `KiyoriApplication` 的受控源码快照已同步
+- 串行 `:app:assembleDebug --no-daemon --console=plain` 为
+  `BUILD SUCCESSFUL in 2m 46s`，`232` 个任务中 `80 executed / 152 up-to-date`；
+  唯一 Debug Launcher 与 Player Runtime packaging 门禁通过
+- 最终 Debug APK 位于 `app/build/outputs/apk/debug/app-debug.apk`；宿主文件时间观测为
+  `2026-08-20 01:44:18 +08:00`，大小 `464647701` bytes，SHA-256
+  `C11B566D56912C327F26F7A32F3ECF95918AAF46E0FE60A934229B216366CB12`
+- APK 为 `com.kiyori / 45 / 0.1.0 / minSdk 26 / targetSdk 34 / compileSdk 37 /
+  arm64-v8a`，唯一 Launcher、Android Debug V2 单 signer 与 16 KB ZIP 对齐通过；
+  `apkanalyzer` 已确认 DEX 内存在 `coil.decode.SvgDecoder` 和
+  `coil.decode.SvgDecoder.Factory`
+- 未安装 APK、未运行设备；真实 WebView 的普通 SVG、带查询参数 SVG、登录态/防盗链 SVG、
+  缩略图、共享全屏查看和 HTML/JS/CSS/JSON 分类仍为 `verification_pending`
 
 2026-08-19 原生选区与图片缩放纠正证据：
 

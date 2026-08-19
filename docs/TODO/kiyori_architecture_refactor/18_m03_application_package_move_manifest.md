@@ -86,12 +86,24 @@ M-03 开始前，Application 有 42 个显式 `com.ai.assistance.operit` import�
 | 修改 package | `com.ai.assistance.operit.core.application` -> `com.kiyori.app` |
 | 修改 Manifest | `.core.application.KiyoriApplication` -> `com.kiyori.app.KiyoriApplication` |
 
-除 package declaration 和将原同包 `ActivityLifecycleManager` 依赖改成显式 import 外，
-Application 方法体与声明必须与 M-02 完成状态逐字节一致：
+M-03 封板时，除 package declaration 和将原同包 `ActivityLifecycleManager` 依赖改成显式
+import 外，Application 方法体与声明与 M-02 完成状态逐字节一致：
 
 ```text
 35E9A93906503936E19CE703491E0ACF59719DBBA2E9919327F9F5704844FE95
 ```
+
+2026-08-19 网络日志 SVG 显示修复在唯一 `KiyoriApplication` 图片 owner 内增加了受控功能变更：
+全局 Coil `ImageLoader` 的既有 `components` 注册表新增 `SvgDecoder.Factory()`，并增加对应
+`coil.decode.SvgDecoder` import。该变更不创建第二 ImageLoader、缓存、网络客户端或浏览器状态，
+而是让缩略图、共享全屏查看、网页元素看图和二维码识别继续消费同一个进程级 loader。更新后的
+package 归一化 Application SHA-256 为：
+
+```text
+FE81FB2D78D46E2EB86E3BF21D71B5B50A5B173B0C9BF5F3662272CE546B3C44
+```
+
+ARCH018 同步锁定该值；上面的 M-03 纯移动哈希继续作为历史封板证据。
 
 ### Lint baseline
 

@@ -511,6 +511,13 @@ Browser Home 是沉浸式根页面。其浏览器专属底栏、全屏标签总�
 
 网络日志也属于单个 WebSession，而不是跨窗口持久化诊断库。现有 Android WebView `shouldInterceptRequest` 只记录当前请求能够确认的 method、URL、主框架标记、请求头与时间，并按当前 document token 和规范化 URL 聚合最多 2,000 个资源 identity，投影给 App Shell Browser Home 与 AI 共用的 host；1×1 background anchor 不组合日志 UI。页面导航与用户清空只清该 session；搜索、`全部 / 视频 / 音频 / 图片 / 网页 / 脚本 / 样式 / 数据 / 字体 / 其他 / 拦截` 筛选、第三方 host 提示和操作弹窗属于 presentation 状态。被广告规则命中的请求追加客户端 `blocked`、命中规则和来源字段，并返回明确的 204 空响应；这不是服务端 HTTP 状态推断。图片条目使用原请求 URL、已观察请求头及活动 WebSession 补齐的 User-Agent、Profile Cookie 和 HTTP(S) Referer 显示有界缩略图；查看时冻结当前筛选图片集合，在不带平台 dim 的 edge-to-edge Dialog 中按原比例完整显示，支持左右分页、编号、保存、长按保存、单击退出、上下拖动透明退出和 `1x..5x` 双指缩放。该 viewer 同时服务网页元素单图全屏与看图模式：单图只冻结当前资源，看图模式最多扫描当前 document 的 2,000 个元素、去重并保留 200 张 HTTP(S) 图片，从当前图片开始。查看和保存不写回资源目录，保存仍进入唯一 `BrowserDownloadManager`。复制和外部打开使用已记录 HTTP/HTTPS URL。Android WebView 没有提供的响应状态、响应 MIME 和播放器状态不得从 URL 猜测或从旧版 X5/hikerView 复制。
 
+网络日志分类先固定主框架为网页，再让已知 URL 扩展名决定资源组；只有 URL 没有已知扩展名时，
+才按 `Accept` 媒体范围的质量值与原始顺序选择第一个可识别类型。混合导航头中的后续
+`image/*` 不再把 HTML、JavaScript、CSS、JSON 或字体抢成图片；`*/*`、`q=0` 和无明确证据的
+不透明请求保持“其他”。进程级唯一 `KiyoriApplication` Coil `ImageLoader` 注册
+`SvgDecoder`，网络日志缩略图、共享全屏查看、网页元素看图和二维码识别因此共用同一套
+SVG 解码、请求身份与缓存，不建立第二图片加载 owner。
+
 网页长按按目标类型明确分流：编辑型 `input`、`textarea` 和有效 `contenteditable` 交给 Android WebView 原生长按、系统 `ActionMode` 和原生选区手柄，系统负责剪切、复制、粘贴与选区范围调整；Kiyori 不绘制输入框选区，也不显示输入框专用的复制、全选、取消按钮。普通元素继续进入 `__kiyoriElementActions`，一次 payload 提供页面、标签、文本、链接、资源类型、资源 URL、selector 与触点，Host 再解析为图片链接、图片、链接、媒体链接、媒体、文本或普通元素。Material 3 底部弹层只显示目标具备的真实动作：前台/后台新窗口、精确复制、外部打开、单图全屏、保存、看图模式、二维码识别、快速元素拦截、精细标记和真实 URL 拦截；图片链接分别保留跳转链接与图片资源语义。二维码只读取图片，使用活动 WebSession 的 User-Agent、Profile Cookie 和 Referer 加载有界软件 Bitmap，并由现有 ZXing reader 解析；加载失败与未识别是不同终态。WebView 只对普通元素消费原生长按，编辑控件由 `EDIT_TEXT_TYPE` 返回未消费以进入系统选区，不新增第二套原生选区 owner、WebView、规则库或下载器。
 
 AI 操作采用四级风险模型：R0 只读、R1 低影响、R2 高影响、R3 关键操作。风险由具体命令、目标、范围、可逆性、数据敏感度和外部影响共同决定，不能按工具名称固定。`ALLOW` 只能免除 R0 与 R1 的逐次操作确认；R2 默认单次确认，只允许目标与范围固定的显式会话期授权；R3 每次确认，不允许会话期或持久免确认。
