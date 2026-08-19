@@ -7,6 +7,47 @@ For_Agent: 对项目大规模动工前按本规范协作
 本文件顶部记录当前跨领域长期任务，后续段落保留专项实施与历史证据。历史段落中的分支、提交、
 APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观察点，不能替代当前 Git、构建或设备状态。
 
+## 2026-08-19 负一屏书签与历史入口 Back owner 崩溃修复
+
+状态：本地修复完成，设备复测待验证。用户提供的 `APP_FATAL f5fe7a19-c9a1-415f-8836-e97bcc234fa4`
+已经确认：负一屏共享历史抽屉在 `KiyoriBrowserHome` 之外组合
+`WebSessionHistorySheet`，但 Sheet 直接读取只由 Browser Home 提供的 strict
+`LocalWebSessionBrowserSystemBackEnabled`，因此首次点击即抛出
+`IllegalStateException`。共享书签抽屉复用同一模式，存在相同崩溃条件。
+
+细化计划：
+
+1. [DONE] 核对崩溃栈、两个负一屏宿主、Browser 内调用点、关闭动画挂载周期和系统 Back
+   状态机；确认不关闭 strict Local、不创建第二 Browser Runtime
+2. [DONE] 将书签与历史 Sheet 的 `systemBackEnabled` 改为必填宿主参数；Browser 内
+   传共享 owner，负一屏宿主只在抽屉真实可见时传 `true`
+3. [DONE] 增加 JVM 源码结构合同和无 Browser provider 的 Compose Android smoke test，
+   覆盖书签与历史两条入口
+4. [DONE] 运行定向测试、AndroidTest 编译、formal readiness、架构门禁、差异检查和规定 Debug APK
+   构建与产物核验
+5. [PENDING] 目标设备复测负一屏书签/历史首次打开、内部 Back、关闭动画和重复打开；设备执行
+   不在本轮授权内，完成前保持 `verification_pending`
+
+本轮本地证据：
+
+- `WebSessionHistorySheet` 与 `WebSessionBookmarkSheet` 现在都要求宿主显式传入
+  `systemBackEnabled`，不再直接访问 strict CompositionLocal；Browser Screen 传共享 owner，
+  负一屏两个宿主传 `isVisible`。关闭动画期间 Sheet 继续组合，但内部 BackHandler 已禁用。
+- `KiyoriSoftwareHomeSearchTest`：`10/10`；`:app:compileDebugAndroidTestKotlin`
+  与 `:app:compileDebugAndroidTestJavaWithJavac`：通过；新增
+  `KiyoriBrowserBackOwnershipAndroidTest` 覆盖无 Browser provider 的书签/历史组合路径。
+- `check_formal_readiness.py --repository . --require-main`：PASS；
+  `check_architecture_boundaries.py --repository . --require-main`：PASS (`phase=m03`)；
+  `git diff --check`：PASS。
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain`：
+  `BUILD SUCCESSFUL in 2m 28s`，`232 actionable tasks`，`22 executed / 210 up-to-date`。
+  Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，`467107608` bytes，SHA-256
+  `4D758AC8581EBEED6DB15828D2BA9BF9EF7A67DE4B829EA8184B68DB78AE400E`；
+  `com.kiyori / 45 / 0.1.0 / minSdk 26 / targetSdk 34 / compileSdk 37`，仅
+  `arm64-v8a`，Android Debug V2 单 signer 和 `zipalign -c -P 16 -v 4` 均通过。
+- 本轮未安装 APK、未连接设备、未执行真实点击或系统 Back 验收；上述本地证据不能替代目标设备
+  对负一屏书签/历史打开、内部状态返回、关闭动画和重复点击的现场复测。
+
 ## 2026-08-18 三页首页横向手势、全屏搜索与 AI 内容横向交互修复
 
 状态：根因修复已经本地实现，保持 `verification_pending`。负一屏与软件首页继续由原生

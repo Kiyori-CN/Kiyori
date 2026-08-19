@@ -62,6 +62,9 @@ internal fun KiyoriBookmarkDrawerHost(
             WebSessionBookmarkSheet(
                 folders = folders,
                 bookmarks = bookmarks,
+                // 关闭动画会继续挂载 Sheet；此时必须撤销内部 BackHandler，
+                // 避免隐藏的文件夹、搜索或拖拽状态继续消费系统 Back。
+                systemBackEnabled = isVisible,
                 onMutation = { mutation ->
                     scope.launch { store.applyBookmarkMutation(mutation) }
                 },

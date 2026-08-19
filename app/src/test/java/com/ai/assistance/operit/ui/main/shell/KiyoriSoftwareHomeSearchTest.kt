@@ -217,6 +217,54 @@ class KiyoriSoftwareHomeSearchTest {
         )
     }
 
+    @Test
+    fun `every shared bookmark and history host declares system Back ownership explicitly`() {
+        val browserScreenSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/features/websession/" +
+                    "browser/WebSessionBrowserScreen.kt",
+            ).readText()
+        val historyHostSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/main/shell/" +
+                    "KiyoriHistoryDrawerHost.kt",
+            ).readText()
+        val bookmarkHostSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/main/shell/" +
+                    "KiyoriBookmarkDrawerHost.kt",
+            ).readText()
+        val historySheetSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/features/websession/" +
+                    "browser/WebSessionHistorySheet.kt",
+            ).readText()
+        val bookmarkSheetSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/features/websession/" +
+                    "browser/WebSessionBookmarkSheet.kt",
+            ).readText()
+        val browserOwnerArgument =
+            "systemBackEnabled = LocalWebSessionBrowserSystemBackEnabled.current"
+
+        assertEquals(
+            3,
+            Regex(Regex.escape(browserOwnerArgument)).findAll(browserScreenSource).count(),
+        )
+        assertTrue(historyHostSource.contains("systemBackEnabled = isVisible"))
+        assertTrue(bookmarkHostSource.contains("systemBackEnabled = isVisible"))
+        assertTrue(historySheetSource.contains("systemBackEnabled: Boolean"))
+        assertTrue(bookmarkSheetSource.contains("systemBackEnabled: Boolean"))
+        assertTrue(historySheetSource.contains("enabled = systemBackEnabled && batchMode"))
+        assertTrue(bookmarkSheetSource.contains("systemBackEnabled &&"))
+        assertFalse(
+            historySheetSource.contains("LocalWebSessionBrowserSystemBackEnabled.current"),
+        )
+        assertFalse(
+            bookmarkSheetSource.contains("LocalWebSessionBrowserSystemBackEnabled.current"),
+        )
+    }
+
     private fun repositoryFile(relativePath: String): File {
         var current: File? =
             File(requireNotNull(System.getProperty("user.dir"))).absoluteFile

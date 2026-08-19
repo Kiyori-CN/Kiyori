@@ -99,6 +99,7 @@ private data class HistoryDeleteRequest(
 internal fun WebSessionHistorySheet(
     entries: List<WebSessionHistoryEntry>,
     bookmarkFolders: List<WebSessionBookmarkFolder>,
+    systemBackEnabled: Boolean,
     onOpenEntry: (WebSessionHistoryEntry) -> Boolean,
     onOpenWebUrl: (String) -> Unit,
     onBookmarkMutation: (WebSessionBookmarkMutation) -> Unit,
@@ -158,7 +159,7 @@ internal fun WebSessionHistorySheet(
         selectedEntryKeys = setOf(entry.entryKey())
     }
 
-    BackHandler(enabled = LocalWebSessionBrowserSystemBackEnabled.current && batchMode) {
+    BackHandler(enabled = systemBackEnabled && batchMode) {
         leaveBatchMode()
     }
 

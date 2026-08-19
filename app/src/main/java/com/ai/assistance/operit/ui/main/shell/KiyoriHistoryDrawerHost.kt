@@ -70,6 +70,9 @@ internal fun KiyoriHistoryDrawerHost(
             WebSessionHistorySheet(
                 entries = entries,
                 bookmarkFolders = bookmarkFolders,
+                // 关闭动画会继续挂载 Sheet；此时必须撤销内部 BackHandler，
+                // 否则不可见的批量模式仍可能抢走下一次系统 Back。
+                systemBackEnabled = isVisible,
                 onOpenEntry = { entry ->
                     val accepted =
                         when (entry.category) {

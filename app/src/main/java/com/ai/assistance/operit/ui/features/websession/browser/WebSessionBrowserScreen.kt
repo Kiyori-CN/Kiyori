@@ -1508,6 +1508,7 @@ private fun WebSessionBrowserDrawerContent(
             WebSessionHistorySheet(
                 entries = globalHistory,
                 bookmarkFolders = bookmarkFolders,
+                systemBackEnabled = LocalWebSessionBrowserSystemBackEnabled.current,
                 onOpenEntry = { entry ->
                     onOpenHistoryEntry(entry).also { accepted ->
                         if (accepted) onDismiss()
@@ -1527,6 +1528,7 @@ private fun WebSessionBrowserDrawerContent(
             WebSessionBookmarkSheet(
                 folders = bookmarkFolders,
                 bookmarks = bookmarks,
+                systemBackEnabled = LocalWebSessionBrowserSystemBackEnabled.current,
                 onMutation = onBookmarkMutation,
                 onOpenBookmark = { url ->
                     onOpenUrl(url)

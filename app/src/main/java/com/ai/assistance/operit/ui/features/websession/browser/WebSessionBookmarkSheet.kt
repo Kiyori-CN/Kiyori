@@ -115,6 +115,7 @@ private val BookmarkArchiveJson = Json {
 internal fun WebSessionBookmarkSheet(
     folders: List<WebSessionBookmarkFolder>,
     bookmarks: List<WebSessionBookmark>,
+    systemBackEnabled: Boolean,
     onMutation: (WebSessionBookmarkMutation) -> Unit,
     onOpenBookmark: (String) -> Unit,
     onOpenBookmarkInTab: (String, Boolean) -> Unit,
@@ -213,7 +214,7 @@ internal fun WebSessionBookmarkSheet(
 
     BackHandler(
         enabled =
-            LocalWebSessionBrowserSystemBackEnabled.current &&
+            systemBackEnabled &&
                 (normalizedQuery.isNotBlank() || currentFolderId != null || dragSortMode),
     ) {
         when {
