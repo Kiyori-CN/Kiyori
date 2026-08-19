@@ -9,11 +9,12 @@ APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观
 
 ## 浏览器当前域名网站配置与全局设置匹配
 
-状态：本地实现与定向验证已完成，正在执行最终门禁、Debug APK 和提交推送收口。当前 `main` 基线、
-浏览器四行菜单、`WebSessionBrowserSettingsStore`、`BrowserAdBlockStore`、userscript runtime、
-WebView 权限/导航/凭据、嗅探与自动悬浮播放调用链均已核对。参考图只用于确认“按当前域名进一步
-禁用”的产品方向；UI 与状态继续复用 Kiyori 的共享 Browser Runtime、可拖动浏览器子抽屉和中性
-浏览器配色，不复制 hikerView 的 Activity、X5/TBS、LitePal 或并行设置架构。
+状态：本地实现、定向验证、最终门禁、Debug APK、候选审计与 `main` 提交推送均已完成；目标设备
+现场验收保持 `verification_pending`。浏览器四行菜单、`WebSessionBrowserSettingsStore`、
+`BrowserAdBlockStore`、userscript runtime、WebView 权限/导航/凭据、嗅探与自动悬浮播放调用链
+均已核对。参考图只用于确认“按当前域名进一步禁用”的产品方向；UI 与状态继续复用 Kiyori 的共享
+Browser Runtime、可拖动浏览器子抽屉和中性浏览器配色，不复制 hikerView 的 Activity、X5/TBS、
+LitePal 或并行设置架构。
 
 目标合同：
 
@@ -55,7 +56,8 @@ WebView 权限/导航/凭据、嗅探与自动悬浮播放调用链均已核对�
 9. [DONE] 运行定向 JVM、Kotlin 编译、formal readiness、architecture boundaries、
    资源 XML、`git diff --check` 和规定的串行 Debug APK 构建与静态产物核验；候选提交形成后再以
    base/candidate 模式执行 Markdown、本地化和仓库卫生门禁
-10. [PENDING] 审计目标差异、敏感内容、构建产物、子模块和远端竞争状态，提交并推送唯一 `main`
+10. [DONE] 审计 38 文件精确候选树、敏感内容、构建产物、文件模式、子模块和远端竞争状态；
+    实现提交 `81cd5e987edd3a6effe54ea4f4e03210d481cbf8` 已正常推送唯一 `main`
 11. [PENDING] 在目标设备验收浅深主题、窄屏滚动、抽屉拖动、系统 Back、十一项真实站点行为、
     重启持久化、普通/无痕窗口和 AI 并发导航；完成前保持 `verification_pending`
 
@@ -79,6 +81,10 @@ WebView 权限/导航/凭据、嗅探与自动悬浮播放调用链均已核对�
 - APK 仅包含 `arm64-v8a`，51 个 `.so` basename 全部唯一；连同
   `assets/operit_shell_exec` 共 `52/52` 个 `ELF64/AArch64`，153 个 `PT_LOAD` 分布为
   `0x4000 × 151` 与 `0x10000 × 2`，最小 alignment 为 `0x4000`
+- 38 文件候选树无高置信敏感形状、无构建产物、无异常大文件或 reparse point；`terminal` 子模块
+  干净且 gitlink 未变。推送实现提交后，本地 `HEAD`、tracking `origin/main` 与
+  `git ls-remote origin refs/heads/main` 均为
+  `81cd5e987edd3a6effe54ea4f4e03210d481cbf8`，ahead/behind 为 `0/0`
 - 本轮未安装 APK，未操作 ADB、MuMu、模拟器或真机；视觉、手势、真实网页逐功能和应用重启后的
   持久化现场验收均不由上述自动证据替代
 
