@@ -19,6 +19,7 @@ import com.ai.assistance.operit.ui.main.screens.ScreenRouteRegistry
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.KiyoriSettingsHomeIconPalette
 import com.kiyori.integration.operit.navigation.AppRouteCatalog
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -144,6 +145,15 @@ class KiyoriSettingsPagesTest {
                 .map(KiyoriSettingsHomeEntry::title),
         )
         assertEquals(
+            listOf("文件管理器"),
+            kiyoriSettingsHomeGroups
+                .flatten()
+                .filter { entry ->
+                    entry.action == KiyoriSettingsHomeAction.OPEN_FILE_MANAGER
+                }
+                .map(KiyoriSettingsHomeEntry::title),
+        )
+        assertEquals(
             listOf("视频播放器"),
             kiyoriSettingsHomeGroups
                 .flatten()
@@ -189,22 +199,36 @@ class KiyoriSettingsPagesTest {
     }
 
     @Test
-    fun `more features exposes the original device permission owner as navigation`() {
+    fun `more features exposes legal documents and the original permission owner`() {
         assertEquals(
-            listOf("系统能力"),
+            listOf("应用与隐私", "系统能力"),
             kiyoriMoreFeaturesSettingsGroups.map(KiyoriMoreFeaturesSettingsGroupSpec::title),
         )
-        val permissionEntry =
+        val entries =
             kiyoriMoreFeaturesSettingsGroups
                 .flatMap(KiyoriMoreFeaturesSettingsGroupSpec::entries)
-                .single()
+        assertEquals(
+            listOf("用户协议与隐私政策", "权限"),
+            entries.map(KiyoriMoreFeaturesSettingsEntrySpec::title),
+        )
+        val agreementEntry =
+            entries.single { entry ->
+                entry.action == KiyoriMoreFeaturesSettingsAction.OPEN_AGREEMENT
+            }
+        assertTrue(agreementEntry.description.contains("用户协议"))
+        assertTrue(agreementEntry.description.contains("隐私政策"))
+
+        val permissionEntry =
+            entries.single { entry ->
+                entry.action == KiyoriMoreFeaturesSettingsAction.OPEN_PERMISSIONS
+            }
         assertEquals("权限", permissionEntry.title)
         assertTrue(permissionEntry.description.contains("Shizuku"))
         assertTrue(permissionEntry.description.contains("无障碍"))
         assertTrue(permissionEntry.description.contains("Root"))
         assertEquals(
-            KiyoriMoreFeaturesSettingsAction.OPEN_PERMISSIONS,
-            permissionEntry.action,
+            KiyoriMoreFeaturesSettingsAction.entries.toSet(),
+            entries.map { entry -> entry.action }.toSet(),
         )
     }
 
@@ -1023,5 +1047,61 @@ class KiyoriSettingsPagesTest {
         assertTrue(
             (kiyoriFileCategoryItems + kiyoriFileQuickAccessItems).all { item -> item.count == "0项" },
         )
+    }
+
+    @Test
+    fun `legal documents and file manager own opaque safe drawing roots`() {
+        val legalDocumentsSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/features/agreement/screens/" +
+                    "KiyoriAgreementScreen.kt",
+            ).readText()
+        val legalDocumentsBlock =
+            legalDocumentsSource
+                .substringAfter("internal fun KiyoriLegalDocumentsScreen(")
+                .substringBefore("internal fun KiyoriAgreementDocumentScreen(")
+        assertTrue(
+            legalDocumentsBlock.contains(
+                ".background(MaterialTheme.colorScheme.background)",
+            ),
+        )
+        assertTrue(
+            legalDocumentsBlock.contains(
+                ".windowInsetsPadding(WindowInsets.safeDrawing)",
+            ),
+        )
+
+        val fileManagerSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/" +
+                    "filemanager/FileManagerScreen.kt",
+            ).readText()
+        val fileManagerRoot =
+            fileManagerSource
+                .substringAfter("fun FileManagerScreen(")
+                .substringBefore("// 标签栏")
+        assertTrue(
+            fileManagerRoot.contains(
+                ".background(MaterialTheme.colorScheme.background)",
+            ),
+        )
+        assertTrue(
+            fileManagerRoot.contains(
+                ".windowInsetsPadding(WindowInsets.safeDrawing)",
+            ),
+        )
+    }
+
+    private fun repositoryFile(relativePath: String): File {
+        var current: File? =
+            File(requireNotNull(System.getProperty("user.dir"))).absoluteFile
+        repeat(4) {
+            val candidate = current?.let { directory -> File(directory, relativePath) }
+            if (candidate?.isFile == true) {
+                return candidate
+            }
+            current = current?.parentFile
+        }
+        throw AssertionError("Repository file not found: $relativePath")
     }
 }

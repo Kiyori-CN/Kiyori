@@ -7,6 +7,125 @@ For_Agent: 对项目大规模动工前按本规范协作
 本文件顶部记录当前跨领域长期任务，后续段落保留专项实施与历史证据。历史段落中的分支、提交、
 APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观察点，不能替代当前 Git、构建或设备状态。
 
+## 2026-08-20 协议入口迁移与文件管理器首页接入
+
+状态：`LOCAL DELIVERY VALIDATED / DEVICE REVERIFY PENDING`。
+Kiyori 尚未发布，本轮删除 Toolbox 中的文件管理器与协议可见 host entry，不保留并行旧入口；
+复用现有 `KiyoriSettingsNavigationState`、`KiyoriShellState`、`KiyoriLegalDocumentsScreen`、
+`FileManagerScreen` 和 `FileManagerViewModel` 作为唯一导航、法律文档和文件操作 owner。
+
+目标合同：
+
+- “设置 → 更多功能 → 用户协议与隐私政策”只读展示当前协议版本、用户协议和隐私政策，Back
+  先回更多功能再回设置首页，不改变首次启动同意状态或协议正文版本
+- 文件管理首页“手机存储”和设置首页“文件管理器”打开同一个 `FILE_MANAGER` Shell child；
+  Settings 来源保留原会话，关闭 child 后恢复原 route
+- 文件管理器页面返回关闭 child，目录向上只改变当前目录；继续复用原文件操作、SAF、AITool
+  与 ViewModel 链路
+- `toolbox.file_manager` 与 `toolbox.agreement` 不再显示，动态 ToolPkg Toolbox 条目保持不变
+
+细化计划：
+
+1. [DONE] 核对未发布边界、Git/门禁、协议与文件管理 owner、Settings/Back 和 Toolbox 注册表
+2. [DONE] 清理 Toolbox 两个 host entry，增加 Agreement route 与共享 File Manager child
+3. [REGRESSION] 自动检查覆盖了 Settings overlay 与 child 的状态互斥，但真机证明协议页和
+   File Manager child 自身仍缺少不透明根背景与系统安全区边界
+4. [REGRESSION] 既有 Settings 转场策略测试只验证了“禁止 crossfade”的策略值，没有覆盖
+   `AppContent` 对保活非当前屏幕的实际透明度投影；权限页首帧仍会暴露 AI 对话及内部抽屉
+5. [DONE] 同步架构快照、权威文档并通过定向 JVM、architecture、formal readiness、
+   Markdown 和 `git diff --check`
+6. [DONE] 串行执行 `:app:assembleDebug --no-daemon --console=plain` 并核验 Debug APK
+7. [REGRESSION] 目标设备已复现法律文档透底/状态栏越界、文件管理器状态栏越界和权限页
+   AI 对话抽屉残影；上一轮 APK 与自动验证不能作为当前完成证据
+
+### 现场回归修订方案
+
+已确认根因：
+
+- `AppContent` 在 `allowCrossfadeForActiveTransition == false` 时，对所有缓存屏幕统一给出
+  `alpha = 1f`。AI Home 为长期保活屏幕，其内部对话历史抽屉状态也随组合保留，因此进入
+  `Screen.ShizukuCommands` 的首帧会把目标权限页和旧 AI 屏幕同时绘制
+- `KiyoriLegalDocumentsScreen` 的根 `Column` 没有不透明背景，也没有
+  `WindowInsets.safeDrawing` 内容边界；Settings overlay 本身只负责层级，不会替子页补齐
+  页面背景与状态栏布局
+- `FileManagerScreen` 直接作为全屏 `KiyoriShellChild.FILE_MANAGER` 组合，根 `Box/Column`
+  同样未消费安全区，工具栏因此从物理顶边开始布局
+
+修订实施与验收：
+
+1. [DONE] 读取真机截图、历史残影修复、当前 Shell/AppContent/File Manager/法律文档实现，
+   重新核对单一 owner、Back 与保活边界
+2. [DONE] 修正 `AppContent` 的无 crossfade 合成规则：当前屏幕立即不透明，所有非当前缓存
+   屏幕立即透明；该策略保持到下一次真实 route 变化，最终透明度绕过 tween，且不销毁 AI Home
+3. [DONE] 为法律文档设置入口增加全尺寸不透明根背景和 `safeDrawing` 内容边界；两份正文、
+   版本与首次启动协议 owner 不变
+4. [DONE] 为共享文件管理器增加全尺寸不透明根背景和 `safeDrawing` 内容边界；页面 Back、
+   目录向上、SAF、AITool 与 `FileManagerViewModel` 不变
+5. [DONE] 增加无 crossfade 策略锁定、当前/缓存屏幕最终透明度、页面根与入口合同回归，
+   更新受影响架构快照与正式文档，并通过定向 JVM、architecture、formal readiness、
+   Markdown parser 和差异检查
+6. [DONE] 串行重新构建并核验 Debug APK；旧 APK 哈希与旧测试数量仅保留为历史证据
+7. [DONE] 审计精确交付树、敏感内容、构建产物、子模块和远端状态，形成唯一 `main` 提交候选；
+   最终 commit/push 结果以收尾 Git 与远端 ref 证据为准
+8. [PENDING DEVICE] 使用新 APK 复测三个入口、系统栏、透底、权限首帧、Back、浅深主题和字体缩放
+
+现场修订后的本地证据：
+
+- `KiyoriSettingsTransitionPolicyTest` `8/8`、`KiyoriSettingsPagesTest` `15/15`、
+  `KiyoriShellStateTest` `74/74`、`CharacterSelectorVisualContractTest` `4/4`、
+  `KiyoriDesignThemeTest` `13/13`，合计 `114/114`，零失败、零错误、零跳过
+- architecture 单元测试 `109/109`、architecture boundary `PASS (phase=m03)`、
+  `check_formal_readiness.py --require-main`、Markdown parser `7/7` 与 `git diff --check` 通过
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain`：
+  `BUILD SUCCESSFUL in 47s`，`232` 个任务中 `22 executed / 210 up-to-date`；
+  `verifySingleDebugLauncher` 与 `verifyDebugPlayerRuntimePackaging` 通过
+- 最终 Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，写入时间
+  `2026-08-21 02:11:54 +08:00`，大小 `472649202` bytes，SHA-256
+  `3CDD831C5471E9755D67D759EDAE6D3FBA431CF5A4696C1DDCC2E772FC6C34D4`
+- APK 为 `com.kiyori / 45 / 0.1.0 / min 26 / target 34 / compile 37`，唯一 Launcher
+  `com.ai.assistance.operit.ui.main.MainActivity`，仅 `arm64-v8a`；`51` 个 `.so`、
+  `5504` 个 ZIP entry 且无重复，包含 `liboperit_ripgrep.so` 与
+  `assets/operit_shell_exec`，Android Debug V2 单 signer 和
+  `zipalign -c -P 16 -v 4` 均通过
+- 32 个允许文件精确暂存，未暂存/未跟踪、敏感形状、大 blob、文件模式和 gitlink 异常均为零；
+  候选 Markdown 为 `errors=0 / warnings=0`
+- 未安装 APK、未操作设备；新 APK 真机复测继续保持 `verification_pending`
+
+受保护架构快照按本轮真实 owner 变化同步：
+
+- ARCH021 `m04b-shell-state-sha256.txt`：
+  `412F5C0F9C5FA00BF0F031B87E2FFFCE69129670E101867FB5922B471B0DB712` →
+  `09F37ED34C7B7FFFBDAF0AC37314F4C74F9EBEF5B9AE65B2E09202B5E76D5A91`，原因是增加唯一
+  `FILE_MANAGER` child、Settings 会话保留和 save/restore 合同
+- ARCH024 `m04b-app-shell-normalized-sha256.txt`：
+  `82FB551F21437183E68850D84B8F7CD99894DF10E35CC6B0B63DFD58448139ED` →
+  `3681ACF33E0673CE554446B50ADE3BF326DD6818013EC1FDDD95EE26F6BF5347`，并在
+  `m04b-app-shell-operit-imports.txt` 中登记现有法律文档与文件管理 owner，原因是 Shell
+  组合新的 Settings route 与共享文件管理 child
+- ARCH026 `m04b-primary-navigation-sha256.txt`：
+  `20371E7D8BB106BC326ADFE0F92D7D1D57A7CCCD37152029AA862C0479A35883` →
+  `3C27FE9A909A506AF810B54E9762BC6463C3BEBB0983C668C5D4DCD89DF20192`，原因是文件管理首页与
+  设置首页共同向 Shell 传递同一个文件管理打开动作
+
+本轮本地自动验证：
+
+- `CharacterSelectorVisualContractTest` `4/4`、`KiyoriSettingsPagesTest` `14/14`、
+  `KiyoriShellStateTest` `74/74`、`KiyoriDesignThemeTest` `13/13`，合计 `105/105`，
+  零失败、零错误、零跳过
+- architecture `PASS (phase=m03)`、architecture 单元测试 `109/109`、
+  `check_formal_readiness.py --require-main`、315 份工作树 Markdown 本地链接和
+  `git diff --check` 通过
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain`：
+  `BUILD SUCCESSFUL in 1m 48s`，`232` 个任务中 `22 executed / 210 up-to-date`；
+  `verifySingleDebugLauncher` 与 `verifyDebugPlayerRuntimePackaging` 通过
+- Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，写入时间
+  `2026-08-21 01:20:27 +08:00`，`472649202` bytes，SHA-256
+  `CCBBE04F74981189BF47BFEEBA158E4411BC983972D1E072BC088487D604E237`；
+  `com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`，唯一 launcher、仅 `arm64-v8a`、
+  Android Debug V2 单 signer 与 `zipalign -c -P 16 -v 4` 通过
+- 本轮未安装 APK、未操作设备；法律文档逐级 Back、文件管理器页面返回/目录上移、Settings
+  来源恢复、真实文件操作、浅深主题和系统字体缩放继续保持 `verification_pending`
+
 ## 2026-08-20 AI助手设置入口迁移与 Settings 页面残影修复
 
 状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEVICE VERIFICATION PENDING`。

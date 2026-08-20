@@ -6,6 +6,91 @@ baseline: c036a03e
 
 # 设置页信息架构与统一视觉
 
+## 2026-08-20 文件管理器与法律文档入口收口
+
+状态：`LOCAL DELIVERY VALIDATED / DEVICE REVERIFY PENDING`。
+本增量取代下方“文件管理器为空动作”和“更多功能只有权限”的较早基线，其余四组三项设置矩阵、
+Settings Surface、来源会话与唯一状态 owner 合同继续有效。
+
+### 入口与 owner
+
+- 设置首页“文件管理器”和文件管理首页“手机存储”都打开
+  `KiyoriShellChild.FILE_MANAGER`，直接复用现有 `FileManagerScreen`、
+  `FileManagerViewModel` 与 AITool 文件操作链，不创建文件设置镜像页。
+- Settings 来源打开文件管理器时，`KiyoriSettingsNavigationState` 继续保存在同一个
+  `KiyoriShellState`；child 前景期间不组合 Settings surface，关闭后恢复原 route、来源与 Back 链。
+- `FileManagerScreen` 自身绘制全尺寸不透明页面背景，内容统一消费
+  `WindowInsets.safeDrawing`；Shell child 仍保持 edge-to-edge 背景，但工具栏和文件内容不会进入
+  状态栏、显示 cutout 或导航栏区域。
+- “更多功能”新增“应用与隐私 / 用户协议与隐私政策”，通过
+  `KiyoriSettingsRoute.AGREEMENT` 只读复用当前协议版本、用户协议与隐私政策；首次启动同意状态
+  和协议版本不在本增量中修改。
+- `KiyoriLegalDocumentsScreen` 自身拥有全尺寸不透明背景与 `safeDrawing` 内容边界，概览页和
+  两份正文共享同一安全区；Settings Home 不再从法律文档页面的透明区域透出。
+- `toolbox.file_manager` 与 `toolbox.agreement` 不再属于可见 `NavigationSurface.TOOLBOX`；
+  动态 ToolPkg 工具条目继续由唯一导航注册表投影。
+- Settings-owned Operit route 使用直接替换时，`AppContent` 将该无 crossfade 策略保持到下一次
+  真实 route 变化，并绕过 alpha tween：当前目标屏幕直接绘制为 `1f`，所有保活非当前屏幕直接
+  绘制为 `0f`；AI Home 的对话与内部抽屉状态继续保活，但不能成为权限页首帧。
+
+### 验收
+
+1. [DONE] 核对未发布边界、现有协议/文件 owner、Settings session、Shell child 与 Toolbox 注册表。
+2. [DONE] 清理两个 Toolbox host entry，接入 `AGREEMENT` route 和共享 `FILE_MANAGER` child。
+3. [DONE] 修正 Settings overlay 与 child 同层遮挡、Back 抢占和文件管理顶栏重复返回动作。
+4. [DONE] 根据设备截图修正第二层根因：法律文档/File Manager 根页面安全区与不透明背景，
+   以及 `AppContent` 无 crossfade 时保活非当前屏幕错误变为不透明的问题。
+5. [DONE] 增加设置矩阵、页面根源码合同、缓存屏幕透明度、Toolbox 零引用、route round-trip、
+   save/restore 和来源恢复回归。
+6. [DONE] 同步正式架构/TODO，复跑 architecture、formal readiness、Markdown parser 与差异检查。
+7. [DONE] 串行构建并核验新的最终 Debug APK。
+8. [DONE] 审计 32 文件候选树、敏感内容、构建产物、子模块与远端分歧；最终 commit/push
+   结果以收尾 Git 和远端 ref 证据为准。
+9. [PENDING DEVICE] 目标设备使用新 APK 验证法律文档逐级 Back、文件管理器页面返回/目录上移、
+   Settings 来源恢复、权限页首帧和真实文件操作。
+
+### 首轮本地验证证据（已被设备回归取代）
+
+- `CharacterSelectorVisualContractTest` `4/4`、`KiyoriSettingsPagesTest` `14/14`、
+  `KiyoriShellStateTest` `74/74`、`KiyoriDesignThemeTest` `13/13`，合计 `105/105`，
+  零失败、零错误、零跳过。
+- architecture `PASS (phase=m03)`、architecture 单元测试 `109/109`、
+  `check_formal_readiness.py --require-main`、315 份工作树 Markdown 本地链接和
+  `git diff --check` 通过。
+- 最终 `:app:assembleDebug --no-daemon --console=plain` 在 `1m 48s` 内通过，
+  `232` 个任务中 `22 executed / 210 up-to-date`；`verifySingleDebugLauncher` 与
+  `verifyDebugPlayerRuntimePackaging` 通过。
+- `app/build/outputs/apk/debug/app-debug.apk` 写入于
+  `2026-08-21 01:20:27 +08:00`，大小 `472649202` bytes，SHA-256
+  `CCBBE04F74981189BF47BFEEBA158E4411BC983972D1E072BC088487D604E237`；
+  `com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`，唯一 launcher、仅 `arm64-v8a`、
+  Android Debug V2 单 signer 与 `zipalign -c -P 16 -v 4` 通过。
+- 未安装 APK、未操作设备；本增量终态保持 `verification_pending`。
+
+### 2026-08-20 设备回归修订后的最终本地证据
+
+- 设备截图证明原协议页同时暴露 Settings Home，且顶栏进入状态栏；权限页首帧同时暴露保活的
+  AI 对话历史抽屉。原自动测试只证明 route/presentation 状态互斥，没有覆盖页面根绘制与缓存
+  屏幕实际透明度。
+- 修订后定向 JVM 已通过：`KiyoriSettingsTransitionPolicyTest` `8/8`、
+  `KiyoriSettingsPagesTest` `15/15`、`KiyoriShellStateTest` `74/74`、
+  `CharacterSelectorVisualContractTest` `4/4`、`KiyoriDesignThemeTest` `13/13`，
+  合计 `114/114`，零失败、零错误、零跳过。
+- architecture 单元测试 `109/109`、architecture boundary `PASS (phase=m03)`、formal
+  readiness、Markdown parser `7/7` 与 `git diff --check` 已通过。
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 为
+  `BUILD SUCCESSFUL in 47s`，`232` 个任务中 `22 executed / 210 up-to-date`；
+  `verifySingleDebugLauncher` 与 `verifyDebugPlayerRuntimePackaging` 通过。
+- 最终 `app/build/outputs/apk/debug/app-debug.apk` 写入于
+  `2026-08-21 02:11:54 +08:00`，大小 `472649202` bytes，SHA-256
+  `3CDD831C5471E9755D67D759EDAE6D3FBA431CF5A4696C1DDCC2E772FC6C34D4`；
+  `com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`，唯一 Launcher、仅 `arm64-v8a`、
+  `51` 个 `.so`、`5504` 个无重复 ZIP entry、Android Debug V2 单 signer 和
+  `zipalign -c -P 16 -v 4` 均通过。
+- 32 个允许文件精确暂存，未暂存/未跟踪、敏感形状、大 blob、文件模式和 gitlink 异常均为零；
+  候选 Markdown 为 `errors=0 / warnings=0`。
+- 未安装 APK、未操作设备；设备复测继续保持 `verification_pending`。
+
 ## 2026-08-20 设置首页四组三项重排与子页面统一优化
 
 状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEVICE VERIFICATION PENDING`。
@@ -26,7 +111,8 @@ Kiyori Settings Surface 的折叠标题、分组说明、圆角卡片、双行�
 3. `视频播放器 / 音乐播放器 / 文档阅读器`
 4. `界面定制 / 数据备份 / 更多功能`
 
-本轮保留 `小程序 / 文件管理器 / 音乐播放器 / 文档阅读器` 的当前诚实空入口语义，不凭空创建
+本节记录本日较早基线；其中“文件管理器为空动作”已由上方增量取代。本轮原先保留
+`小程序 / 文件管理器 / 音乐播放器 / 文档阅读器` 的诚实空入口语义，不凭空创建
 没有 owner 的业务页面；“设置子页面 UI 优化”覆盖已有真实详情页以及本轮新增的 TTS/STT 详情页，
 不把空入口伪装成已实现功能。
 
@@ -43,13 +129,13 @@ Kiyori Settings Surface 的折叠标题、分组说明、圆角卡片、双行�
 | 小程序 | 空动作 | 底部小程序产品域尚无设置 owner，不接入 AI 包管理或市场 |
 | 网页浏览器 | `KiyoriSettingsRoute.BROWSER` | 现有 Browser 设置；广告拦截保留在“内容过滤”组 |
 | 文件下载器 | `KiyoriSettingsRoute.DOWNLOAD` | `BrowserDownloadSettingsStore` 与现有下载页 |
-| 文件管理器 | 空动作 | 当前文件管理首页 owner；本轮不虚构文件设置子页 |
+| 文件管理器 | `KiyoriShellChild.FILE_MANAGER` | 与文件管理首页手机存储共用现有 `FileManagerScreen` / `FileManagerViewModel` owner |
 | 视频播放器 | `KiyoriSettingsRoute.PLAYER` | `PlayerSettingsStore` 与现有播放器设置页 |
 | 音乐播放器 | 空动作 | 音乐播放产品域尚无独立设置 owner |
 | 文档阅读器 | 空动作 | 文档阅读产品域尚无独立设置 owner |
 | 界面定制 | `RouteEntrySource.KIYORI_SETTINGS` 进入界面根 | 现有语言、主题、全局显示和布局设置 |
 | 数据备份 | `RouteEntrySource.KIYORI_SETTINGS` 进入数据根 | 现有备份与聊天历史 owner |
-| 更多功能 | `KiyoriSettingsRoute.MORE_FEATURES` | 现有系统能力/权限 owner |
+| 更多功能 | `KiyoriSettingsRoute.MORE_FEATURES` | 只读法律文档 route 与现有系统能力/权限 owner |
 
 “广告拦截器”不再是首页入口，也不从 `KiyoriSettingsRoute` 中删除其内部规则子路由：
 `AD_BLOCK_OVERVIEW` 及其子页只能由 `网页浏览器 → 内容过滤 → 广告拦截器管理` 打开。

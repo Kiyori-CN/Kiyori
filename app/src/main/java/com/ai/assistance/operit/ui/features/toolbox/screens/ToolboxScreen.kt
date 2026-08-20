@@ -190,7 +190,9 @@ fun ToolCard(tool: Tool) {
 fun FileManagerToolScreen(navController: NavController) {
         CustomScaffold() { paddingValues ->
                 Box(modifier = Modifier.padding(paddingValues)) {
-                        FileManagerScreen(navController = navController)
+                        FileManagerScreen(
+                                onBack = { navController.popBackStack() }
+                        )
                 }
         }
 }

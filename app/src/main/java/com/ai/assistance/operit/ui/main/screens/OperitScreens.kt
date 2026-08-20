@@ -1321,7 +1321,11 @@ sealed class Screen(
     // Toolbox secondary screens
 
     data object FileManager :
-            Screen(navItem = NavItem.Toolbox, titleRes = R.string.screen_title_file_manager) {
+            Screen(
+                navItem = NavItem.Toolbox,
+                titleRes = R.string.screen_title_file_manager,
+                usesEmbeddedSettingsTopBar = true,
+            ) {
         @Composable
         override fun Content(
                 navController: NavController,

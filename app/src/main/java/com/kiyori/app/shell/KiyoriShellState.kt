@@ -35,6 +35,7 @@ enum class SoftwareHomePage(val pagerIndex: Int) {
 
 enum class KiyoriShellChild {
     FULL_SCREEN_WEB_SEARCH,
+    FILE_MANAGER,
 }
 
 enum class KiyoriShellExternalDestination {
@@ -176,6 +177,20 @@ data class KiyoriShellState(
         copy(
             child = destination,
             settingsNavigation = null,
+            isAiDrawerOpen = false,
+            isBookmarkDrawerOpen = false,
+            isHistoryDrawerOpen = false,
+            isDownloadDrawerOpen = false,
+        )
+
+    /**
+     * File management is a Shell child reached from multiple product surfaces. Keep the active
+     * Settings session intact when Settings opens it, so closing the child returns to that exact
+     * Settings route instead of silently moving the user to another primary destination.
+     */
+    fun openFileManager(): KiyoriShellState =
+        copy(
+            child = KiyoriShellChild.FILE_MANAGER,
             isAiDrawerOpen = false,
             isBookmarkDrawerOpen = false,
             isHistoryDrawerOpen = false,
@@ -470,6 +485,7 @@ internal fun KiyoriShellState.openExternalChild(
     val owner =
         when (destination) {
             KiyoriShellChild.FULL_SCREEN_WEB_SEARCH -> PrimaryDestination.SOFTWARE_HOME
+            KiyoriShellChild.FILE_MANAGER -> PrimaryDestination.FILE_MANAGEMENT_HOME
         }
     return selectPrimary(owner).openChild(destination)
 }

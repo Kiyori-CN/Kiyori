@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.StatFs
 import android.text.format.Formatter
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -116,7 +117,10 @@ internal val kiyoriFileStorageItems =
     )
 
 @Composable
-internal fun KiyoriFileManagementPage(modifier: Modifier = Modifier) {
+internal fun KiyoriFileManagementPage(
+    onOpenPhoneStorage: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val deviceStorageCapacity = rememberDeviceStorageCapacityLabel()
     Column(
         modifier =
@@ -140,6 +144,7 @@ internal fun KiyoriFileManagementPage(modifier: Modifier = Modifier) {
             KiyoriFileStorageRow(
                 item = item,
                 value = if (item.usesDeviceCapacity) deviceStorageCapacity else item.value,
+                onClick = if (item.usesDeviceCapacity) onOpenPhoneStorage else null,
             )
             if (index != kiyoriFileStorageItems.lastIndex) {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -275,12 +280,14 @@ private fun KiyoriFileEntryTile(item: KiyoriFileEntryItem, modifier: Modifier = 
 private fun KiyoriFileStorageRow(
     item: KiyoriFileStorageItem,
     value: String?,
+    onClick: (() -> Unit)?,
 ) {
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
+                .clickable(enabled = onClick != null) { onClick?.invoke() }
                 .padding(horizontal = 4.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

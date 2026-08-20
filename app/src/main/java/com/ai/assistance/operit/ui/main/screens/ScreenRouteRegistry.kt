@@ -181,15 +181,6 @@ object ScreenRouteRegistry {
                 order = 10
             ),
             hostEntryDefinition(
-                entryId = "toolbox.file_manager",
-                screen = Screen.FileManager,
-                surface = NavigationSurface.TOOLBOX,
-                titleResId = R.string.tool_file_manager,
-                descriptionResId = R.string.tool_file_manager_desc,
-                icon = Icons.Default.Folder,
-                order = 20
-            ),
-            hostEntryDefinition(
                 entryId = "toolbox.text_to_speech",
                 screen = Screen.TextToSpeech,
                 surface = NavigationSurface.TOOLBOX,
@@ -215,16 +206,6 @@ object ScreenRouteRegistry {
                 descriptionResId = R.string.tool_permission_manager_desc,
                 icon = Icons.Default.Security,
                 order = 50
-            ),
-            hostEntryDefinition(
-                entryId = "toolbox.agreement",
-                screen = Screen.Agreement,
-                surface = NavigationSurface.TOOLBOX,
-                launchNavItem = NavItem.Agreement,
-                titleResId = R.string.tool_user_agreement,
-                descriptionResId = R.string.tool_user_agreement_desc,
-                icon = Icons.Default.Policy,
-                order = 60
             ),
             hostEntryDefinition(
                 entryId = "toolbox.default_assistant_guide",

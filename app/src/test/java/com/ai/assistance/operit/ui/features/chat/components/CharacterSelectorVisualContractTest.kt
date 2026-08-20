@@ -91,6 +91,8 @@ class CharacterSelectorVisualContractTest {
         assertTrue(drawer.contains("\"main.toolbox\" -> toolboxEntryCount.toString()"))
         assertTrue(drawer.contains("entry.surface == NavigationSurface.TOOLBOX"))
         assertFalse(drawer.contains("\"main.shizuku_commands\""))
+        assertFalse(registry.contains("entryId = \"toolbox.file_manager\""))
+        assertFalse(registry.contains("entryId = \"toolbox.agreement\""))
     }
 
     private fun repositoryFile(relativePath: String): File {

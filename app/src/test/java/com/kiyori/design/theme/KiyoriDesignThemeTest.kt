@@ -208,7 +208,6 @@ class KiyoriDesignThemeTest {
         val entryIds =
             listOf(
                 "toolbox.tool_tester",
-                "toolbox.file_manager",
                 "toolbox.text_to_speech",
                 "toolbox.speech_to_text",
                 "toolbox.app_permissions",

@@ -22,6 +22,9 @@ baseline: e42bd44f
 | 固定入口 | AI 设置 | 现有 Settings 页面和持久状态 |
 
 帮助、关于、使用手册和 Terminal 不进入抽屉。Terminal 继续只位于 AI 首页右上角；工具箱不迁入小程序首页。权限授予不再显示在抽屉；“设置 - 更多功能 - 权限”通过当前 settings session 进入原 `Screen.ShizukuCommands`，不新建第二份权限页面或状态。
+文件管理器和用户协议也不再作为 Toolbox host entry 投影。文件管理首页“手机存储”与设置首页
+“文件管理器”共同进入唯一 `KiyoriShellChild.FILE_MANAGER`，协议入口迁入“设置 - 更多功能 -
+用户协议与隐私政策”并复用现行只读法律文档。
 
 ## 模态容器合同
 
@@ -48,6 +51,9 @@ baseline: e42bd44f
 - 点击当前入口只关闭抽屉，不创建新路由实例
 - AI 一级页面各自保留滚动、筛选、表单和子页面栈
 - 原生 AI 一级根使用稳定宿主实例并保留状态；ToolPkg 根每次进入创建新路由实例，只有其 `RouteSpec.keepAlive=true` 时才保留组合状态和已保存子栈
+- `AppContent` 禁止 crossfade 的直接替换会把策略保持到下一次真实 route 变化，并绕过 alpha
+  tween：当前屏幕直接绘制为不透明，所有保活非当前屏幕直接绘制为透明；AI Home 与内部对话
+  历史抽屉继续保留组合状态，但不能在 Settings 权限页首帧参与绘制
 - AI 一级页面 Back 返回 AI Home；深层页面 Back 返回所属一级页面
 - AI 设置从抽屉进入时作为 AI 一级页面，Back 返回 AI Home；从 Kiyori 设置首页进入时显示返回语义并返回设置首页
 - AI 设置只有一份页面、表单与持久状态；同来源族可恢复自己的子页面栈，跨来源族始终从 AI 设置根页开始
@@ -56,6 +62,8 @@ baseline: e42bd44f
 
 - Kiyori Shell 对软件首页、负一屏、底部五入口根页面和 AI 页面统一使用 edge-to-edge 状态栏
 - 页面背景与抽屉全屏遮罩绘制到手机物理顶边；抽屉面板是明确例外，从状态栏底部开始
+- 全屏文件管理 child 与法律文档设置页自行绘制不透明全尺寸背景，并让内容消费
+  `WindowInsets.safeDrawing`；页面背景保持 edge-to-edge，工具栏和正文不得进入系统栏
 - 状态栏显示时保持透明，并在系统支持时禁用对比度遮罩；图标明暗由当前前景表面决定
 - 删除继承的“透明状态栏”“自定义状态栏颜色”设置及持久化，只保留“隐藏状态栏”
 
@@ -83,6 +91,10 @@ AI Home 保持单一稳定宿主。打开或关闭抽屉、切换 AI 一级页�
 16. [已完成] 将高频入口调整为“扩展 / 工具箱 / 工作流”，删除抽屉权限状态查询和短标签资源；工具箱徽标直接统计唯一导航模型中的宿主与 ToolPkg 工具条目
 17. [已完成] 将原权限入口接入“设置 - 更多功能 - 权限”，复用 `Screen.ShizukuCommands` 和
     `RouteEntrySource.KIYORI_SETTINGS` 返回链
+18. [已完成] 从 Toolbox 导航目录删除文件管理器与协议 host entry；将手机存储和设置首页
+    文件管理器接入同一个 Shell child，将只读法律文档接入 More Features 的 Settings route
+19. [本地完成，待真机复测] 修复法律文档/File Manager 的不透明安全区页面根，并修正无
+    crossfade 时保活 AI 屏幕错误变为不透明及退场插值重新显现的合成规则
 
 ## 自动验收
 
@@ -99,7 +111,19 @@ AI Home 保持单一稳定宿主。打开或关闭抽屉、切换 AI 一级页�
 - 抽屉快捷行只包含 `main.packages / main.toolbox / main.workflow`；`main.shizuku_commands` 不再属于可见抽屉 surface，工具箱徽标数量覆盖宿主与 ToolPkg 的 `TOOLBOX` 条目
 - 设置首页最后一项进入 `KiyoriSettingsRoute.MORE_FEATURES`；权限项打开原
   `Screen.ShizukuCommands`，离开该根页时恢复同一 More Features route
-- 先前授权的 Python、JVM、Kotlin、lint 和 Debug APK 验证已通过；本轮告警清理后重新通过 Debug Kotlin 编译和 lint，未重复运行与告警修复无直接关系的 JVM 测试或 `assembleDebug`
+- Toolbox 导航目录不存在 `toolbox.file_manager` 与 `toolbox.agreement`；ToolPkg 动态条目不变
+- 文件管理首页手机存储和设置首页文件管理器复用唯一 `FILE_MANAGER` child；Settings 来源关闭
+  child 后恢复原 settings route，child 前景期间 Settings surface 不组合也不抢占 Back
+- More Features 的法律文档项进入 `KiyoriSettingsRoute.AGREEMENT`，只读复用现行协议版本和
+  `KiyoriLegalDocumentsScreen`；页面根保持不透明并消费 `safeDrawing`，Back 逐级返回
+  More Features 与 Settings Home
+- File Manager child 的页面根保持不透明并消费 `safeDrawing`；手机存储与设置入口继续复用
+  同一 ViewModel、页面 Back 与目录向上语义
+- Settings-owned 权限 route 禁止 crossfade 时，策略不会在 route key 稳定后提前恢复；当前屏幕
+  最终绘制透明度直接为 `1f`，所有保活非当前屏幕直接为 `0f`，不经过 tween；测试覆盖 AI
+  抽屉保持打开状态的旧屏幕不能出现在目标页首帧
+- 本次入口收口通过定向 JVM、architecture、formal readiness、Markdown、差异检查与最终
+  Debug APK 验证；未运行与本任务无关的额外 lint、Release 或设备检查
 
 ## 自动验证记录
 
@@ -128,6 +152,28 @@ AI Home 保持单一稳定宿主。打开或关闭抽屉、切换 AI 一级页�
   Debug V2 单 signer 与 16 KB ZIP 对齐通过
 - 未安装 APK、未操作设备；抽屉三卡、默认角色头像、排序菜单四角与描边、更多功能权限返回链、
   浅深主题和窄屏布局保持 `verification_pending`
+
+## 2026-08-20 协议入口与文件管理首页收口证据
+
+- Toolbox 导航目录中的 `toolbox.file_manager` 与 `toolbox.agreement` 已删除；动态 ToolPkg
+  Toolbox 条目仍由唯一 `ScreenRouteRegistry` 与 `AppNavigationModel` 投影
+- “设置 → 更多功能 → 用户协议与隐私政策”复用现行
+  `KiyoriLegalDocumentsScreen`、协议版本与正文 owner；文件管理首页“手机存储”和设置首页
+  “文件管理器”复用唯一 `FILE_MANAGER` child 与原 `FileManagerViewModel`
+- `CharacterSelectorVisualContractTest` `4/4`、`KiyoriSettingsPagesTest` `14/14`、
+  `KiyoriShellStateTest` `74/74`、`KiyoriDesignThemeTest` `13/13`，合计 `105/105`
+- architecture `PASS (phase=m03)`、architecture 单元测试 `109/109`、formal readiness、
+  315 份工作树 Markdown 本地链接与 `git diff --check` 通过
+- 最终 `assembleDebug` 在 `1m 48s` 内通过，`232` 个任务中
+  `22 executed / 210 up-to-date`；`verifySingleDebugLauncher` 与
+  `verifyDebugPlayerRuntimePackaging` 通过
+- Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，写入时间
+  `2026-08-21 01:20:27 +08:00`，`472649202` bytes，SHA-256
+  `CCBBE04F74981189BF47BFEEBA158E4411BC983972D1E072BC088487D604E237`；
+  `com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`，唯一 launcher、仅 `arm64-v8a`、
+  Android Debug V2 单 signer 与 16 KB ZIP 对齐通过
+- 本轮未安装 APK、未操作设备；法律文档、文件管理器、真实文件操作与返回链继续保持
+  `verification_pending`
 
 ## 真机验收
 

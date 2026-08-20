@@ -3,6 +3,7 @@ package com.ai.assistance.operit.ui.main.components
 import com.ai.assistance.operit.ui.main.navigation.RouteEntry
 import com.ai.assistance.operit.ui.main.navigation.RouteEntrySource
 import com.ai.assistance.operit.ui.main.screens.Screen
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -81,6 +82,66 @@ class KiyoriSettingsTransitionPolicyTest {
                 previousScreen = Screen.AiChat,
                 currentScreen = Screen.AvatarSettings,
             ),
+        )
+    }
+
+    @Test
+    fun `direct replacement policy remains locked after the route key settles`() {
+        assertFalse(
+            resolveKiyoriActiveTransitionCrossfade(
+                pendingRouteChangeAllowsCrossfade = null,
+                lastTransitionAllowsCrossfade = false,
+            ),
+        )
+        assertTrue(
+            resolveKiyoriActiveTransitionCrossfade(
+                pendingRouteChangeAllowsCrossfade = true,
+                lastTransitionAllowsCrossfade = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `direct replacement bypasses tween alpha for every retained screen`() {
+        assertEquals(
+            1f,
+            resolveKiyoriCachedScreenAlpha(
+                isCurrentScreen = true,
+                crossfadeAlpha = 0f,
+                allowCrossfade = false,
+            ),
+            0f,
+        )
+        assertEquals(
+            0f,
+            resolveKiyoriCachedScreenAlpha(
+                isCurrentScreen = false,
+                crossfadeAlpha = 1f,
+                allowCrossfade = false,
+            ),
+            0f,
+        )
+    }
+
+    @Test
+    fun `crossfade keeps following each screen visibility state`() {
+        assertEquals(
+            0.35f,
+            resolveKiyoriCachedScreenAlpha(
+                isCurrentScreen = true,
+                crossfadeAlpha = 0.35f,
+                allowCrossfade = true,
+            ),
+            0f,
+        )
+        assertEquals(
+            0.65f,
+            resolveKiyoriCachedScreenAlpha(
+                isCurrentScreen = false,
+                crossfadeAlpha = 0.65f,
+                allowCrossfade = true,
+            ),
+            0f,
         )
     }
 }

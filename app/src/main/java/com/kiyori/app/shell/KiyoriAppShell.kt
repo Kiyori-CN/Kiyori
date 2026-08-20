@@ -40,6 +40,8 @@ import androidx.compose.ui.zIndex
 import com.ai.assistance.operit.ui.main.AiHomeQuickAction
 import com.ai.assistance.operit.ui.common.gestures.AiContentHorizontalGestureOwnership
 import com.ai.assistance.operit.ui.common.gestures.LocalAiContentHorizontalGestureOwnership
+import com.ai.assistance.operit.ui.features.agreement.screens.KiyoriLegalDocumentsScreen
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.FileManagerScreen
 import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 import com.ai.assistance.operit.ui.main.shell.KiyoriBookmarkDrawerHost
 import com.ai.assistance.operit.ui.main.shell.KiyoriBrowserSettingsPage
@@ -312,6 +314,9 @@ internal fun KiyoriAppShell(
                     onOpenAccountConnections = onOpenAccountConnectionsFromKiyoriSettings,
                     onOpenAiAssistant = onOpenAiAssistantFromKiyoriSettings,
                     onOpenBrowserSettings = onOpenBrowserSettingsFromKiyoriSettings,
+                    onOpenFileManager = {
+                        onStateChange(state.openFileManager())
+                    },
                     onOpenDownloadSettings = {
                         onStateChange(
                             state.openSettings(
@@ -396,9 +401,10 @@ internal fun KiyoriAppShell(
         // 都能压住底层宿主，页面内弹窗和未保存确认仍可在随后注册并取得最高优先级。
         BackHandler(
             enabled =
-                shouldEnableKiyoriSettingsHostBackHandler(
-                    settingsNavigation = state.settingsNavigation,
-                ),
+                state.child == null &&
+                    shouldEnableKiyoriSettingsHostBackHandler(
+                        settingsNavigation = state.settingsNavigation,
+                    ),
             onBack = dispatchShellBack,
         )
 
@@ -417,6 +423,10 @@ internal fun KiyoriAppShell(
                             onBack = { onStateChange(state.closeChild()) },
                             onSubmitSearch = onSubmitWebSearch,
                             modifier = Modifier.fillMaxSize(),
+                        )
+                    KiyoriShellChild.FILE_MANAGER ->
+                        FileManagerScreen(
+                            onBack = { onStateChange(state.closeChild()) },
                         )
                     null -> Unit
                 }
@@ -443,6 +453,9 @@ internal fun KiyoriAppShell(
                                     onStateChange(
                                         state.openSettingsRoute(KiyoriSettingsRoute.BROWSER),
                                     )
+                                },
+                                onOpenFileManager = {
+                                    onStateChange(state.openFileManager())
                                 },
                                 onOpenDownloadSettings = {
                                     onStateChange(
@@ -471,6 +484,16 @@ internal fun KiyoriAppShell(
                             KiyoriMoreFeaturesSettingsPage(
                                 onBack = { onStateChange(state.closeSettingsRoute()) },
                                 onOpenPermissions = onOpenPermissionsFromKiyoriSettings,
+                                onOpenAgreement = {
+                                    onStateChange(
+                                        state.openSettingsRoute(KiyoriSettingsRoute.AGREEMENT),
+                                    )
+                                },
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        KiyoriSettingsRoute.AGREEMENT ->
+                            KiyoriLegalDocumentsScreen(
+                                onBack = { onStateChange(state.closeSettingsRoute()) },
                                 modifier = Modifier.fillMaxSize(),
                             )
                         KiyoriSettingsRoute.BROWSER ->
@@ -701,6 +724,11 @@ internal fun shouldProvideKiyoriSettingsTheme(route: KiyoriSettingsRoute?): Bool
     route != null && route != KiyoriSettingsRoute.HOME
 
 internal fun shouldPresentKiyoriSettingsOverlay(state: KiyoriShellState): Boolean {
+    // Settings 会话在文件管理 child 打开期间仍需保留，但不能继续组合在同一层级抢占绘制和 Back。
+    // child 关闭后，原 route 与来源会话会从同一个 KiyoriShellState 直接恢复。
+    if (state.child != null) {
+        return false
+    }
     val navigation = state.settingsNavigation ?: return false
     if (
         navigation.presentation == KiyoriSettingsPresentation.OPERIT_ROUTE_DETAIL ||

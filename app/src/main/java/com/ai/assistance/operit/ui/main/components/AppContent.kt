@@ -446,18 +446,23 @@ fun AppContent(
                         var isTransitioning by remember { mutableStateOf(false) }
                         var transitionAllowsCrossfade by remember { mutableStateOf(true) }
 
-                        val allowCrossfadeForActiveTransition =
-                            when {
-                                currentScreenKey != lastObservedCurrentKey ->
-                                    shouldCrossfadeKiyoriRouteTransition(
+                        val pendingRouteChangeAllowsCrossfade =
+                            if (currentScreenKey != lastObservedCurrentKey) {
+                                shouldCrossfadeKiyoriRouteTransition(
                                         previousRouteEntry = lastObservedRouteEntry,
                                         currentRouteEntry = currentRouteEntry,
                                         previousScreen = lastObservedScreen,
                                         currentScreen = currentScreen,
                                     )
-                                isTransitioning -> transitionAllowsCrossfade
-                                else -> true
+                            } else {
+                                null
                             }
+                        val allowCrossfadeForActiveTransition =
+                            resolveKiyoriActiveTransitionCrossfade(
+                                pendingRouteChangeAllowsCrossfade =
+                                    pendingRouteChangeAllowsCrossfade,
+                                lastTransitionAllowsCrossfade = transitionAllowsCrossfade,
+                            )
 
                         val effectivePreviousKey =
                             when {
@@ -545,7 +550,7 @@ fun AppContent(
                                     label = "ScreenVisibilityTransition"
                                 )
 
-                                val alpha by transition.animateFloat(
+                                val crossfadeAlpha by transition.animateFloat(
                                     transitionSpec = {
                                         tween(
                                             durationMillis = pageTransitionDurationMillis,
@@ -563,14 +568,14 @@ fun AppContent(
                                     },
                                     label = "ScreenAlphaAnimation"
                                 ) { currentVisibility ->
-                                    if (!allowCrossfadeForActiveTransition) {
-                                        1f
-                                    } else if (currentVisibility == ScreenVisibility.VISIBLE) {
-                                        1f
-                                    } else {
-                                        0f
-                                    }
+                                    if (currentVisibility == ScreenVisibility.VISIBLE) 1f else 0f
                                 }
+                                val alpha =
+                                    resolveKiyoriCachedScreenAlpha(
+                                        isCurrentScreen = isCurrentScreen,
+                                        crossfadeAlpha = crossfadeAlpha,
+                                        allowCrossfade = allowCrossfadeForActiveTransition,
+                                    )
 
                                 val translationX by transition.animateFloat(
                                     transitionSpec = {

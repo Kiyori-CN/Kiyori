@@ -2,6 +2,7 @@ package com.ai.assistance.operit.ui.features.toolbox.screens.filemanager
 
 import NewFolderDialog
 import android.os.Environment
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -24,7 +25,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.data.model.AITool
@@ -41,6 +41,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.provider.DocumentsContract
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import kotlinx.coroutines.launch
 import com.ai.assistance.operit.util.AppLogger
 import kotlinx.coroutines.withTimeoutOrNull
@@ -49,12 +50,17 @@ private const val FILE_MANAGER_TAG = "ToolboxFileManager"
 
 /** 文件管理器屏幕 */
 @Composable
-fun FileManagerScreen(navController: NavController) {
+fun FileManagerScreen(
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val context = LocalContext.current
     val viewModel = remember { FileManagerViewModel(context) }
     val toolHandler = AIToolHandler.getInstance(context)
 
     val scope = rememberCoroutineScope()
+
+    BackHandler(onBack = onBack)
 
     var pendingRepoBookmarkUri by remember { mutableStateOf<Uri?>(null) }
     var repoBookmarkNameInput by remember { mutableStateOf("") }
@@ -250,7 +256,13 @@ fun FileManagerScreen(navController: NavController) {
     }
 
     // 主界面
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .windowInsetsPadding(WindowInsets.safeDrawing),
+    ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // 顶部工具栏
             FileManagerToolbar(
@@ -303,7 +315,8 @@ fun FileManagerScreen(navController: NavController) {
                         viewModel.newFolderName = ""
                         viewModel.showNewFolderDialog = true
                     },
-                    isMultiSelectMode = viewModel.isMultiSelectMode
+                    isMultiSelectMode = viewModel.isMultiSelectMode,
+                    onNavigateBack = onBack,
             )
 
             // 标签栏

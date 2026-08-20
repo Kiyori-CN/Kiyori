@@ -48,7 +48,8 @@ fun FileManagerToolbar(
     isSearching: Boolean,
     onExitSearch: () -> Unit,
     onNewFolder: () -> Unit,
-    isMultiSelectMode: Boolean
+    isMultiSelectMode: Boolean,
+    onNavigateBack: () -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -65,15 +66,16 @@ fun FileManagerToolbar(
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // 返回按钮
+                    // 页面返回与目录向上必须是两个独立动作，否则 Shell child 会在目录层级间
+                    // 移动而无法回到文件管理首页或原设置会话。
                     IconButton(
-                        onClick = onNavigateUp,
+                        onClick = onNavigateBack,
                         modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            contentDescription = stringResource(R.string.back),
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
 

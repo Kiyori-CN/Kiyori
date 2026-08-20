@@ -5,17 +5,21 @@ import android.util.TypedValue
 import android.widget.TextView
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -266,59 +270,66 @@ internal fun KiyoriLegalDocumentsScreen(
     }
 
     val document = selectedDocument
-    if (document != null) {
-        KiyoriAgreementDocumentScreen(
-            document = document,
-            onBack = { selectedDocument = null },
-        )
-        return
-    }
-
-    Column(
+    Box(
         modifier =
             modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp),
+                .background(MaterialTheme.colorScheme.background)
+                .windowInsetsPadding(WindowInsets.safeDrawing),
     ) {
-        AgreementDocumentTopBar(
-            title = stringResource(R.string.kiyori_onboarding_legal_documents_title),
-            onBack = onBack,
-        )
-        HorizontalDivider()
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 4.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.kiyori_onboarding_legal_documents_desc),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        if (document != null) {
+            KiyoriAgreementDocumentScreen(
+                document = document,
+                onBack = { selectedDocument = null },
             )
-            Text(
-                text =
-                    stringResource(
-                        R.string.kiyori_onboarding_agreement_version,
-                        AgreementPreferences.CURRENT_AGREEMENT_VERSION,
-                    ),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            LegalDocumentEntry(
-                document = KiyoriLegalDocument.USER_AGREEMENT,
-                onClick = {
-                    selectedDocument = KiyoriLegalDocument.USER_AGREEMENT
-                },
-            )
-            LegalDocumentEntry(
-                document = KiyoriLegalDocument.PRIVACY_POLICY,
-                onClick = {
-                    selectedDocument = KiyoriLegalDocument.PRIVACY_POLICY
-                },
-            )
+        } else {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+            ) {
+                AgreementDocumentTopBar(
+                    title = stringResource(R.string.kiyori_onboarding_legal_documents_title),
+                    onBack = onBack,
+                )
+                HorizontalDivider()
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 4.dp, vertical = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.kiyori_onboarding_legal_documents_desc),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text =
+                            stringResource(
+                                R.string.kiyori_onboarding_agreement_version,
+                                AgreementPreferences.CURRENT_AGREEMENT_VERSION,
+                            ),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    LegalDocumentEntry(
+                        document = KiyoriLegalDocument.USER_AGREEMENT,
+                        onClick = {
+                            selectedDocument = KiyoriLegalDocument.USER_AGREEMENT
+                        },
+                    )
+                    LegalDocumentEntry(
+                        document = KiyoriLegalDocument.PRIVACY_POLICY,
+                        onClick = {
+                            selectedDocument = KiyoriLegalDocument.PRIVACY_POLICY
+                        },
+                    )
+                }
+            }
         }
     }
 }

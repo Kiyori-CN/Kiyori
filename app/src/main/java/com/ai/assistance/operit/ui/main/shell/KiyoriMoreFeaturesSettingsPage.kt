@@ -2,6 +2,7 @@ package com.ai.assistance.operit.ui.main.shell
 
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -11,6 +12,7 @@ internal const val KIYORI_MORE_FEATURES_SETTINGS_PAGE_TITLE = "更多功能"
 
 internal enum class KiyoriMoreFeaturesSettingsAction {
     OPEN_PERMISSIONS,
+    OPEN_AGREEMENT,
 }
 
 internal data class KiyoriMoreFeaturesSettingsEntrySpec(
@@ -28,6 +30,19 @@ internal data class KiyoriMoreFeaturesSettingsGroupSpec(
 
 internal val kiyoriMoreFeaturesSettingsGroups =
     listOf(
+        KiyoriMoreFeaturesSettingsGroupSpec(
+            title = "应用与隐私",
+            description = "查看 Kiyori 的用户协议、隐私政策与应用使用边界",
+            entries =
+                listOf(
+                    KiyoriMoreFeaturesSettingsEntrySpec(
+                        title = "用户协议与隐私政策",
+                        description = "查看用户协议、隐私政策和当前协议版本",
+                        icon = Icons.Default.Policy,
+                        action = KiyoriMoreFeaturesSettingsAction.OPEN_AGREEMENT,
+                    ),
+                ),
+        ),
         KiyoriMoreFeaturesSettingsGroupSpec(
             title = "系统能力",
             description = "集中管理需要系统授权的设备能力与执行入口",
@@ -47,6 +62,7 @@ internal val kiyoriMoreFeaturesSettingsGroups =
 internal fun KiyoriMoreFeaturesSettingsPage(
     onBack: () -> Unit,
     onOpenPermissions: () -> Unit,
+    onOpenAgreement: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     KiyoriCollapsingSettingsPage(
@@ -72,6 +88,8 @@ internal fun KiyoriMoreFeaturesSettingsPage(
                             when (entry.action) {
                                 KiyoriMoreFeaturesSettingsAction.OPEN_PERMISSIONS ->
                                     onOpenPermissions()
+                                KiyoriMoreFeaturesSettingsAction.OPEN_AGREEMENT ->
+                                    onOpenAgreement()
                             }
                         },
                     )

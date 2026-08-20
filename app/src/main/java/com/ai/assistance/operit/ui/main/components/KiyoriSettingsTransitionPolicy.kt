@@ -22,3 +22,34 @@ internal fun shouldCrossfadeKiyoriRouteTransition(
         currentRouteEntry.source != RouteEntrySource.KIYORI_SETTINGS &&
         previousScreen.participatesInCrossfadeTransition &&
         currentScreen.participatesInCrossfadeTransition
+
+/**
+ * Keep the most recently applied route policy until another route change is observed.
+ *
+ * A direct replacement updates the route key before retained screens finish publishing their
+ * hidden visibility state. Restoring crossfade merely because the keys now match would let those
+ * screens animate from their previous opaque value and reappear behind the destination.
+ */
+internal fun resolveKiyoriActiveTransitionCrossfade(
+    pendingRouteChangeAllowsCrossfade: Boolean?,
+    lastTransitionAllowsCrossfade: Boolean,
+): Boolean =
+    pendingRouteChangeAllowsCrossfade ?: lastTransitionAllowsCrossfade
+
+/**
+ * Direct replacement owns the final rendered alpha instead of an animation target.
+ *
+ * Passing 0f or 1f into a tween still interpolates from the previous value. Bypassing that
+ * interpolation is required so a retained AI screen and its internal drawer cannot survive for
+ * another frame after a Settings-owned destination takes foreground ownership.
+ */
+internal fun resolveKiyoriCachedScreenAlpha(
+    isCurrentScreen: Boolean,
+    crossfadeAlpha: Float,
+    allowCrossfade: Boolean,
+): Float =
+    when {
+        !allowCrossfade && isCurrentScreen -> 1f
+        !allowCrossfade -> 0f
+        else -> crossfadeAlpha
+    }

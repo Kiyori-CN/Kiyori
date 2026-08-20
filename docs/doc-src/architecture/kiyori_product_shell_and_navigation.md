@@ -408,16 +408,23 @@ Kiyori App Shell 统一拥有状态栏策略。软件首页、负一屏、五个
 
 ## 文件管理与设置首页合同
 
-文件管理首页按固定旧版提交保留搜索顶栏、八个文件分类、七个快捷访问和四个存储位置。分类计数固定为 `0项`；手机存储使用应用实际所在数据卷的 `StatFs.availableBytes` 与 `totalBytes`，在首次组合和宿主恢复前台时刷新，其余按钮为空动作。分类图标到标题为 `5dp`，标题与计数使用明确行高且不再加入额外间隔，网格行距为 `10dp`。
+文件管理首页按固定旧版提交保留搜索顶栏、八个文件分类、七个快捷访问和四个存储位置。分类计数固定为 `0项`；手机存储使用应用实际所在数据卷的 `StatFs.availableBytes` 与 `totalBytes`，在首次组合和宿主恢复前台时刷新，并进入唯一 `KiyoriShellChild.FILE_MANAGER`。该 child 直接复用现有 `FileManagerScreen`、`FileManagerViewModel` 与 AITool 文件操作链；页面返回关闭 child，目录向上继续只改变当前目录。`FileManagerScreen` 自身绘制全尺寸不透明背景并让内容消费 `WindowInsets.safeDrawing`，因此 Shell 仍保持 edge-to-edge 背景，工具栏和文件内容不会进入状态栏、显示 cutout 或导航栏。关闭后恢复文件管理首页，其他按钮保持空动作。分类图标到标题为 `5dp`，标题与计数使用明确行高且不再加入额外间隔，网格行距为 `10dp`。
 
-设置首页使用四张 `16dp` 圆角卡片，每张固定三行，入口从上到下为“我的账号 / AI助手 / 小程序”、“网页浏览器 / 文件下载器 / 文件管理器”、“视频播放器 / 音乐播放器 / 文档阅读器”和“界面定制 / 数据备份 / 更多功能”。页面、卡片、文字、分隔线、开关、禁用态和底部选择面板由 `KiyoriSettingsTheme` 统一适配浅色与深色；首页 12 个入口由设计层 `KiyoriSettingsHomeIconPalette` 提供独立的图标前景与低饱和容器色，不使用随机颜色或大面积高饱和背景。小程序、文件管理器、音乐播放器和文档阅读器在真实 owner 建立前保持诚实空动作，禁止连接 AI 包管理、脚本包、ToolPkg 或插件市场。网页浏览器、视频播放器、文件下载器、界面定制、数据备份和更多功能进入各自唯一 owner；广告拦截器只在“网页浏览器 → 内容过滤”内部呈现，继续消费唯一 `BrowserAdBlockStore`。AI助手根页增加“文本转语音”和“语音转文本”两个设置 route，分别呈现 TTS/STT 配置但共同复用 `SpeechServicesPreferences`。更多功能使用现有折叠设置页视觉，系统能力分组中的“权限”进入原 `Screen.ShizukuCommands`，不复制权限状态。主题快捷菜单固定为 `156dp`。`KiyoriSettingsNavigationState` 是唯一设置会话 owner，保存 `sessionId`、来源、完整 capability-level `KiyoriSettingsRoute` 栈和 `PRIMARY_ROOT / SOURCE_OVERLAY / OPERIT_ROUTE_DETAIL / SUSPENDED_FOR_BROWSER_WORKSPACE` 展示状态。主目的地设置首页显示底部五入口；浏览器菜单和 AI 抽屉启动来源保持会话并隐藏底栏。权限 owner 根页耗尽时恢复同一 More Features route；标题返回与系统 Back 再逐级回设置首页，Browser/AI 来源最终恢复原 Browser Home/WebSession 或原 AI route stack。
+设置首页使用四张 `16dp` 圆角卡片，每张固定三行，入口从上到下为“我的账号 / AI助手 / 小程序”、“网页浏览器 / 文件下载器 / 文件管理器”、“视频播放器 / 音乐播放器 / 文档阅读器”和“界面定制 / 数据备份 / 更多功能”。页面、卡片、文字、分隔线、开关、禁用态和底部选择面板由 `KiyoriSettingsTheme` 统一适配浅色与深色；首页 12 个入口由设计层 `KiyoriSettingsHomeIconPalette` 提供独立的图标前景与低饱和容器色，不使用随机颜色或大面积高饱和背景。小程序、音乐播放器和文档阅读器在真实 owner 建立前保持诚实空动作，禁止连接 AI 包管理、脚本包、ToolPkg 或插件市场。文件管理器进入与文件管理首页相同的 `FILE_MANAGER` Shell child；Settings 会话在 child 前景期间保留但停止组合，关闭 child 后原 route、来源和 Back 链原样恢复。网页浏览器、视频播放器、文件下载器、界面定制、数据备份和更多功能进入各自唯一 owner；广告拦截器只在“网页浏览器 → 内容过滤”内部呈现，继续消费唯一 `BrowserAdBlockStore`。AI助手根页增加“文本转语音”和“语音转文本”两个设置 route，分别呈现 TTS/STT 配置但共同复用 `SpeechServicesPreferences`。更多功能使用现有折叠设置页视觉：“应用与隐私”分组中的“用户协议与隐私政策”进入 `KiyoriSettingsRoute.AGREEMENT`，只读复用现行协议版本、用户协议和隐私政策内容；该法律文档页面自行绘制全尺寸不透明背景，并让概览与正文共同消费 `WindowInsets.safeDrawing`，Settings Home 不得从任何区域透出。“系统能力”分组中的“权限”进入原 `Screen.ShizukuCommands`，不复制权限状态。主题快捷菜单固定为 `156dp`。`KiyoriSettingsNavigationState` 是唯一设置会话 owner，保存 `sessionId`、来源、完整 capability-level `KiyoriSettingsRoute` 栈和 `PRIMARY_ROOT / SOURCE_OVERLAY / OPERIT_ROUTE_DETAIL / SUSPENDED_FOR_BROWSER_WORKSPACE` 展示状态。主目的地设置首页显示底部五入口；浏览器菜单和 AI 抽屉启动来源保持会话并隐藏底栏。Agreement 标题返回与系统 Back 先回 More Features；权限 owner 根页耗尽时也恢复同一 More Features route；随后再逐级回设置首页，Browser/AI 来源最终恢复原 Browser Home/WebSession 或原 AI route stack。
 
 Settings surface 不参与 Shell child 的 enter/exit 动画。Shell child 动画宿主只承载
-Full-Screen Search；底部 `PRIMARY_ROOT + HOME` 的设置首页只由 Primary Root 绘制，
+Full-Screen Search 与共享文件管理器；底部 `PRIMARY_ROOT + HOME` 的设置首页只由 Primary Root 绘制，
 `SOURCE_OVERLAY + HOME` 与 Shell 设置详情只由直接、不透明的 Settings surface 绘制，
 `OPERIT_ROUTE_DETAIL` 只由 App Router 绘制。该分层防止 route/presentation 同事务变化时，
 退出层读取新的 `HOME` 并重复绘制，或来源恢复后的设置首页再次执行进入动画；它不改变设置主题、
-Back owner、Router、Browser Runtime、WebSession 或 AI Host 所有权。
+Back owner、Router、Browser Runtime、WebSession 或 AI Host 所有权。Settings 来源打开文件管理器时，
+活动 Settings 会话继续保存在同一个 `KiyoriShellState` 中，但 Settings surface 与自身 BackHandler
+都在 child 前景期间停用；文件管理器页面 Back 或系统 Back 关闭 child 后再恢复原 Settings surface。
+App Router 禁止 crossfade 的直接替换仍保留 AI Home 等 keep-alive 组合，但该策略必须保持到
+下一次真实 route 变化，不能在 route key 稳定后提前恢复。最终透明度投影必须绕过 tween 并区分
+前景所有权：当前目标屏幕直接为 `alpha = 1f`，每个非当前缓存屏幕直接为 `alpha = 0f`。禁止把
+“无 crossfade”解释成所有缓存屏幕都不透明或只修改动画目标，否则 AI 对话及其内部对话历史抽屉
+仍会在权限页首帧或退场插值期间重新出现。
 
 ## 设置所有权
 

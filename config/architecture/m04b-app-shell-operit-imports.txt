@@ -1,5 +1,7 @@
 com.ai.assistance.operit.ui.common.gestures.AiContentHorizontalGestureOwnership
 com.ai.assistance.operit.ui.common.gestures.LocalAiContentHorizontalGestureOwnership
+com.ai.assistance.operit.ui.features.agreement.screens.KiyoriLegalDocumentsScreen
+com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.FileManagerScreen
 com.ai.assistance.operit.ui.main.AiHomeQuickAction
 com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 com.ai.assistance.operit.ui.main.shell.KiyoriAdBlockSettingsPage

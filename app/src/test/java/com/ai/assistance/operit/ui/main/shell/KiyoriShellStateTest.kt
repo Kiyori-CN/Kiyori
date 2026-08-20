@@ -627,6 +627,11 @@ class KiyoriShellStateTest {
                     primaryDestination = PrimaryDestination.BROWSER_HOME,
                     browserReturnTarget = KiyoriBrowserReturnTarget.SETTINGS_HOME,
                 ),
+                KiyoriShellState()
+                    .openSettings(KiyoriSettingsOrigin.AI_HOST)
+                    .openSettingsRoute(KiyoriSettingsRoute.MORE_FEATURES)
+                    .openSettingsRoute(KiyoriSettingsRoute.AGREEMENT)
+                    .openFileManager(),
             )
 
         states.forEach { state ->
@@ -937,6 +942,42 @@ class KiyoriShellStateTest {
     }
 
     @Test
+    fun `file manager child preserves its settings session and exclusively owns the foreground`() {
+        val settingsOwner =
+            KiyoriShellState(
+                softwareHomePage = SoftwareHomePage.AI_HOME,
+            ).openSettings(KiyoriSettingsOrigin.AI_HOST)
+                .openSettingsRoute(KiyoriSettingsRoute.MORE_FEATURES)
+        val fileManager = settingsOwner.openFileManager()
+
+        assertEquals(KiyoriShellChild.FILE_MANAGER, fileManager.child)
+        assertEquals(settingsOwner.settingsNavigation, fileManager.settingsNavigation)
+        assertTrue(shouldAnimateKiyoriShellChildOverlay(fileManager))
+        assertFalse(shouldPresentKiyoriSettingsOverlay(fileManager))
+        assertEquals(settingsOwner, fileManager.closeChild())
+        assertEquals(
+            KiyoriShellBackTransition(
+                state = settingsOwner,
+                result = KiyoriShellBackResult.CONSUMED,
+            ),
+            fileManager.handleBack(),
+        )
+    }
+
+    @Test
+    fun `file management home opens the shared file manager child and returns to the same root`() {
+        val owner =
+            KiyoriShellState(
+                primaryDestination = PrimaryDestination.FILE_MANAGEMENT_HOME,
+            )
+        val fileManager = owner.openFileManager()
+
+        assertEquals(KiyoriShellChild.FILE_MANAGER, fileManager.child)
+        assertFalse(fileManager.showsBottomBar)
+        assertEquals(owner, fileManager.closeChild())
+    }
+
+    @Test
     fun `settings surfaces never enter the animated Shell child host`() {
         val bottomHome =
             KiyoriShellState().selectPrimary(PrimaryDestination.SETTINGS_HOME)
@@ -969,6 +1010,7 @@ class KiyoriShellStateTest {
         assertTrue(shouldPresentKiyoriSettingsOverlay(sourceHome))
         assertTrue(shouldPresentKiyoriSettingsOverlay(sourceShellDetail))
         assertFalse(shouldPresentKiyoriSettingsOverlay(sourceOperitDetail))
+        assertFalse(shouldPresentKiyoriSettingsOverlay(sourceShellDetail.openFileManager()))
     }
 
     @Test
@@ -1043,6 +1085,7 @@ class KiyoriShellStateTest {
         )
         listOf(
             KiyoriSettingsRoute.MORE_FEATURES,
+            KiyoriSettingsRoute.AGREEMENT,
             KiyoriSettingsRoute.BROWSER,
             KiyoriSettingsRoute.DOWNLOAD,
             KiyoriSettingsRoute.PLAYER,
@@ -1167,6 +1210,10 @@ class KiyoriShellStateTest {
         val routePaths =
             listOf(
                 listOf(KiyoriSettingsRoute.MORE_FEATURES),
+                listOf(
+                    KiyoriSettingsRoute.MORE_FEATURES,
+                    KiyoriSettingsRoute.AGREEMENT,
+                ),
                 listOf(KiyoriSettingsRoute.BROWSER),
                 listOf(
                     KiyoriSettingsRoute.BROWSER,

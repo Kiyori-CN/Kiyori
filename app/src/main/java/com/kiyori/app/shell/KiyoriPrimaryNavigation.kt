@@ -140,6 +140,7 @@ internal fun KiyoriPrimaryRootPage(
     onOpenAiAssistant: () -> Unit,
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
+    onOpenFileManager: () -> Unit,
     onOpenPlayerSettings: () -> Unit,
     onOpenAppearanceSettings: () -> Unit,
     onOpenDataSettings: () -> Unit,
@@ -148,7 +149,10 @@ internal fun KiyoriPrimaryRootPage(
 ) {
     when (destination) {
         PrimaryDestination.FILE_MANAGEMENT_HOME -> {
-            KiyoriFileManagementPage(modifier = modifier)
+            KiyoriFileManagementPage(
+                onOpenPhoneStorage = onOpenFileManager,
+                modifier = modifier,
+            )
             return
         }
         PrimaryDestination.SETTINGS_HOME -> {
@@ -157,6 +161,7 @@ internal fun KiyoriPrimaryRootPage(
                 onOpenAiAssistant = onOpenAiAssistant,
                 onOpenBrowserSettings = onOpenBrowserSettings,
                 onOpenDownloadSettings = onOpenDownloadSettings,
+                onOpenFileManager = onOpenFileManager,
                 onOpenPlayerSettings = onOpenPlayerSettings,
                 onOpenAppearanceSettings = onOpenAppearanceSettings,
                 onOpenDataSettings = onOpenDataSettings,
