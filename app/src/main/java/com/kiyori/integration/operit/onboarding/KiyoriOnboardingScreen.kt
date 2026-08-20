@@ -1734,16 +1734,8 @@ private fun PermissionItemCard(
     onClick: () -> Unit,
 ) {
     val context = LocalContext.current
-    val metadata = permissionMetadata(permissionId)
-    val statusColors =
-        when (status) {
-            KiyoriPermissionStatus.GRANTED -> KiyoriSemanticTone.GREEN.resolveColors()
-            KiyoriPermissionStatus.PARTIAL -> KiyoriSemanticTone.ORANGE.resolveColors()
-            KiyoriPermissionStatus.NOT_GRANTED -> KiyoriSemanticTone.RED.resolveColors()
-            KiyoriPermissionStatus.REQUIRES_SETUP -> KiyoriSemanticTone.PURPLE.resolveColors()
-            KiyoriPermissionStatus.NOT_APPLICABLE -> KiyoriSemanticTone.BLUE.resolveColors()
-            KiyoriPermissionStatus.ON_DEMAND -> KiyoriSemanticTone.CYAN.resolveColors()
-        }
+    val metadata = kiyoriPermissionMetadata(permissionId)
+    val statusColors = kiyoriPermissionStatusTone(status).resolveColors()
     Surface(
         modifier =
             Modifier
@@ -1805,7 +1797,7 @@ private fun PermissionItemCard(
                         fontWeight = FontWeight.Medium,
                     )
                     Text(
-                        text = permissionStatusLabel(status),
+                        text = kiyoriPermissionStatusLabel(status),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.SemiBold,
                         color = statusColors.icon,
@@ -1822,210 +1814,6 @@ private fun PermissionItemCard(
     }
 }
 
-@Composable
-private fun permissionStatusLabel(status: KiyoriPermissionStatus): String =
-    when (status) {
-        KiyoriPermissionStatus.GRANTED ->
-            stringResource(R.string.kiyori_onboarding_permission_status_granted)
-
-        KiyoriPermissionStatus.PARTIAL ->
-            stringResource(R.string.kiyori_onboarding_permission_status_partial)
-
-        KiyoriPermissionStatus.NOT_GRANTED ->
-            stringResource(R.string.kiyori_onboarding_permission_status_not_granted)
-
-        KiyoriPermissionStatus.REQUIRES_SETUP ->
-            stringResource(R.string.kiyori_onboarding_permission_status_setup)
-
-        KiyoriPermissionStatus.NOT_APPLICABLE ->
-            stringResource(R.string.kiyori_onboarding_permission_status_not_applicable)
-
-        KiyoriPermissionStatus.ON_DEMAND ->
-            stringResource(R.string.kiyori_onboarding_permission_status_on_demand)
-    }
-
-private data class PermissionMetadata(
-    val icon: ImageVector,
-    val tone: KiyoriSemanticTone,
-    val titleResource: Int,
-    val descriptionResource: Int,
-) {
-    fun title(context: Context): String = context.getString(titleResource)
-
-    fun description(context: Context): String = context.getString(descriptionResource)
-}
-
-private fun permissionMetadata(permissionId: KiyoriPermissionId): PermissionMetadata =
-    when (permissionId) {
-        KiyoriPermissionId.NOTIFICATIONS ->
-            PermissionMetadata(
-                Icons.Default.Notifications,
-                KiyoriSemanticTone.BLUE,
-                R.string.kiyori_onboarding_permission_notifications_title,
-                R.string.kiyori_onboarding_permission_notifications_desc,
-            )
-
-        KiyoriPermissionId.MEDIA ->
-            PermissionMetadata(
-                Icons.Default.PhotoLibrary,
-                KiyoriSemanticTone.PURPLE,
-                R.string.kiyori_onboarding_permission_media_title,
-                R.string.kiyori_onboarding_permission_media_desc,
-            )
-
-        KiyoriPermissionId.CAMERA ->
-            PermissionMetadata(
-                Icons.Default.CameraAlt,
-                KiyoriSemanticTone.ORANGE,
-                R.string.kiyori_onboarding_permission_camera_title,
-                R.string.kiyori_onboarding_permission_camera_desc,
-            )
-
-        KiyoriPermissionId.MICROPHONE ->
-            PermissionMetadata(
-                Icons.Default.Mic,
-                KiyoriSemanticTone.BLUE,
-                R.string.kiyori_onboarding_permission_microphone_title,
-                R.string.kiyori_onboarding_permission_microphone_desc,
-            )
-
-        KiyoriPermissionId.LOCATION ->
-            PermissionMetadata(
-                Icons.Default.LocationOn,
-                KiyoriSemanticTone.CYAN,
-                R.string.kiyori_onboarding_permission_location_title,
-                R.string.kiyori_onboarding_permission_location_desc,
-            )
-
-        KiyoriPermissionId.BLUETOOTH ->
-            PermissionMetadata(
-                Icons.Default.Bluetooth,
-                KiyoriSemanticTone.BLUE,
-                R.string.kiyori_onboarding_permission_bluetooth_title,
-                R.string.kiyori_onboarding_permission_bluetooth_desc,
-            )
-
-        KiyoriPermissionId.PHONE ->
-            PermissionMetadata(
-                Icons.Default.Phone,
-                KiyoriSemanticTone.GREEN,
-                R.string.kiyori_onboarding_permission_phone_title,
-                R.string.kiyori_onboarding_permission_phone_desc,
-            )
-
-        KiyoriPermissionId.SMS ->
-            PermissionMetadata(
-                Icons.Default.PermPhoneMsg,
-                KiyoriSemanticTone.GREEN,
-                R.string.kiyori_onboarding_permission_sms_title,
-                R.string.kiyori_onboarding_permission_sms_desc,
-            )
-
-        KiyoriPermissionId.LEGACY_STORAGE ->
-            PermissionMetadata(
-                Icons.Default.Folder,
-                KiyoriSemanticTone.ORANGE,
-                R.string.kiyori_onboarding_permission_legacy_storage_title,
-                R.string.kiyori_onboarding_permission_legacy_storage_desc,
-            )
-
-        KiyoriPermissionId.ALL_FILES ->
-            PermissionMetadata(
-                Icons.Default.FolderSpecial,
-                KiyoriSemanticTone.ORANGE,
-                R.string.kiyori_onboarding_permission_all_files_title,
-                R.string.kiyori_onboarding_permission_all_files_desc,
-            )
-
-        KiyoriPermissionId.OVERLAY ->
-            PermissionMetadata(
-                Icons.Default.Layers,
-                KiyoriSemanticTone.PURPLE,
-                R.string.kiyori_onboarding_permission_overlay_title,
-                R.string.kiyori_onboarding_permission_overlay_desc,
-            )
-
-        KiyoriPermissionId.WRITE_SETTINGS ->
-            PermissionMetadata(
-                Icons.Default.SettingsApplications,
-                KiyoriSemanticTone.RED,
-                R.string.kiyori_onboarding_permission_write_settings_title,
-                R.string.kiyori_onboarding_permission_write_settings_desc,
-            )
-
-        KiyoriPermissionId.USAGE_ACCESS ->
-            PermissionMetadata(
-                Icons.Default.Visibility,
-                KiyoriSemanticTone.CYAN,
-                R.string.kiyori_onboarding_permission_usage_title,
-                R.string.kiyori_onboarding_permission_usage_desc,
-            )
-
-        KiyoriPermissionId.INSTALL_PACKAGES ->
-            PermissionMetadata(
-                Icons.Default.InstallMobile,
-                KiyoriSemanticTone.ORANGE,
-                R.string.kiyori_onboarding_permission_install_title,
-                R.string.kiyori_onboarding_permission_install_desc,
-            )
-
-        KiyoriPermissionId.BATTERY_OPTIMIZATION ->
-            PermissionMetadata(
-                Icons.Default.BatteryChargingFull,
-                KiyoriSemanticTone.GREEN,
-                R.string.kiyori_onboarding_permission_battery_title,
-                R.string.kiyori_onboarding_permission_battery_desc,
-            )
-
-        KiyoriPermissionId.NOTIFICATION_LISTENER ->
-            PermissionMetadata(
-                Icons.Default.NotificationsActive,
-                KiyoriSemanticTone.RED,
-                R.string.kiyori_onboarding_permission_notification_listener_title,
-                R.string.kiyori_onboarding_permission_notification_listener_desc,
-            )
-
-        KiyoriPermissionId.DEFAULT_ASSISTANT ->
-            PermissionMetadata(
-                Icons.Default.SmartToy,
-                KiyoriSemanticTone.PURPLE,
-                R.string.kiyori_onboarding_permission_assistant_title,
-                R.string.kiyori_onboarding_permission_assistant_desc,
-            )
-
-        KiyoriPermissionId.ACCESSIBILITY ->
-            PermissionMetadata(
-                Icons.Default.AccessibilityNew,
-                KiyoriSemanticTone.GREEN,
-                R.string.kiyori_onboarding_permission_accessibility_title,
-                R.string.kiyori_onboarding_permission_accessibility_desc,
-            )
-
-        KiyoriPermissionId.SHIZUKU ->
-            PermissionMetadata(
-                Icons.Default.Android,
-                KiyoriSemanticTone.BLUE,
-                R.string.kiyori_onboarding_permission_shizuku_title,
-                R.string.kiyori_onboarding_permission_shizuku_desc,
-            )
-
-        KiyoriPermissionId.ROOT ->
-            PermissionMetadata(
-                Icons.Default.Shield,
-                KiyoriSemanticTone.RED,
-                R.string.kiyori_onboarding_permission_root_title,
-                R.string.kiyori_onboarding_permission_root_desc,
-            )
-
-        KiyoriPermissionId.SCREEN_CAPTURE ->
-            PermissionMetadata(
-                Icons.Default.Widgets,
-                KiyoriSemanticTone.CYAN,
-                R.string.kiyori_onboarding_permission_screen_capture_title,
-                R.string.kiyori_onboarding_permission_screen_capture_desc,
-            )
-    }
-
 private tailrec fun Context.findActivity(): Activity =
     when (this) {
         is Activity -> this
@@ -2033,14 +1821,14 @@ private tailrec fun Context.findActivity(): Activity =
         else -> error("Kiyori onboarding requires an Activity context")
     }
 
-private fun showKiyoriPermissionActionFailure(
+internal fun showKiyoriPermissionActionFailure(
     context: Context,
     permissionId: KiyoriPermissionId,
 ) {
     val message =
         context.getString(
             R.string.kiyori_onboarding_permission_action_failed,
-            permissionMetadata(permissionId).title(context),
+            kiyoriPermissionMetadata(permissionId).title(context),
         )
     Toast.makeText(context, message, Toast.LENGTH_LONG).show()
 }

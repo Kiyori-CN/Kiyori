@@ -222,6 +222,106 @@ class KiyoriOnboardingContractTest {
         )
     }
 
+    @Test
+    fun `first run and Settings share one complete permission catalog`() {
+        val permissionIds =
+            kiyoriPermissionGroups.flatMap(KiyoriPermissionGroupSpec::permissionIds)
+
+        assertEquals(
+            listOf(
+                KiyoriPermissionGroupId.APPLICATION,
+                KiyoriPermissionGroupId.SYSTEM_ACCESS,
+                KiyoriPermissionGroupId.ADVANCED_CAPABILITIES,
+            ),
+            kiyoriPermissionGroups.map(KiyoriPermissionGroupSpec::id),
+        )
+        assertEquals(KiyoriPermissionId.entries, permissionIds)
+        assertEquals(KiyoriPermissionId.entries.size, permissionIds.toSet().size)
+        assertTrue(
+            kiyoriPermissionGroups.all { group ->
+                group.title.isNotBlank() &&
+                    group.description.isNotBlank() &&
+                    group.permissionIds.isNotEmpty()
+            },
+        )
+    }
+
+    @Test
+    fun `permission actions keep runtime system and advanced capabilities explicit`() {
+        assertEquals(
+            KiyoriPermissionActionKind.REQUEST_RUNTIME,
+            resolveKiyoriPermissionAction(
+                permissionId = KiyoriPermissionId.CAMERA,
+                status = KiyoriPermissionStatus.NOT_GRANTED,
+            ),
+        )
+        assertEquals(
+            KiyoriPermissionActionKind.OPEN_APPLICATION_SETTINGS,
+            resolveKiyoriPermissionAction(
+                permissionId = KiyoriPermissionId.CAMERA,
+                status = KiyoriPermissionStatus.GRANTED,
+            ),
+        )
+        assertEquals(
+            KiyoriPermissionActionKind.OPEN_SYSTEM_SETTINGS,
+            resolveKiyoriPermissionAction(
+                permissionId = KiyoriPermissionId.OVERLAY,
+                status = KiyoriPermissionStatus.NOT_GRANTED,
+            ),
+        )
+        assertEquals(
+            KiyoriPermissionActionKind.CONFIGURE_ACCESSIBILITY,
+            resolveKiyoriPermissionAction(
+                permissionId = KiyoriPermissionId.ACCESSIBILITY,
+                status = KiyoriPermissionStatus.REQUIRES_SETUP,
+            ),
+        )
+        assertEquals(
+            KiyoriPermissionActionKind.CONFIGURE_SHIZUKU,
+            resolveKiyoriPermissionAction(
+                permissionId = KiyoriPermissionId.SHIZUKU,
+                status = KiyoriPermissionStatus.NOT_GRANTED,
+            ),
+        )
+        assertEquals(
+            KiyoriPermissionActionKind.REQUEST_ROOT,
+            resolveKiyoriPermissionAction(
+                permissionId = KiyoriPermissionId.ROOT,
+                status = KiyoriPermissionStatus.NOT_GRANTED,
+            ),
+        )
+        assertEquals(
+            KiyoriPermissionActionKind.NONE,
+            resolveKiyoriPermissionAction(
+                permissionId = KiyoriPermissionId.SCREEN_CAPTURE,
+                status = KiyoriPermissionStatus.ON_DEMAND,
+            ),
+        )
+    }
+
+    @Test
+    fun `permission summary separates ready pending and on demand states`() {
+        val statuses =
+            KiyoriPermissionId.entries.associateWith {
+                KiyoriPermissionStatus.GRANTED
+            }.toMutableMap()
+        statuses[KiyoriPermissionId.CAMERA] = KiyoriPermissionStatus.NOT_GRANTED
+        statuses[KiyoriPermissionId.LEGACY_STORAGE] =
+            KiyoriPermissionStatus.NOT_APPLICABLE
+        statuses[KiyoriPermissionId.SCREEN_CAPTURE] =
+            KiyoriPermissionStatus.ON_DEMAND
+
+        val summary =
+            summarizeKiyoriPermissions(
+                KiyoriPermissionSnapshot(statuses),
+            )
+
+        assertEquals(19, summary.readyCount)
+        assertEquals(1, summary.actionRequiredCount)
+        assertEquals(1, summary.onDemandCount)
+        assertEquals(KiyoriPermissionId.entries.size, summary.totalCount)
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun `permission snapshot rejects a missing status`() {
         val statuses =

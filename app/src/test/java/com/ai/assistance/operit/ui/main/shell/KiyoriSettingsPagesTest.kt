@@ -19,6 +19,7 @@ import com.ai.assistance.operit.ui.main.screens.ScreenRouteRegistry
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.KiyoriSettingsHomeIconPalette
 import com.kiyori.integration.operit.navigation.AppRouteCatalog
+import com.kiyori.integration.operit.onboarding.KIYORI_PERMISSION_SETTINGS_PAGE_TITLE
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -33,6 +34,7 @@ class KiyoriSettingsPagesTest {
         assertEquals("视频播放器", KIYORI_PLAYER_SETTINGS_PAGE_TITLE)
         assertEquals("广告拦截器", KIYORI_AD_BLOCK_SETTINGS_PAGE_TITLE)
         assertEquals("更多功能", KIYORI_MORE_FEATURES_SETTINGS_PAGE_TITLE)
+        assertEquals("权限与设备能力", KIYORI_PERMISSION_SETTINGS_PAGE_TITLE)
         assertEquals(156, KIYORI_SETTINGS_THEME_MENU_WIDTH_DP)
         assertEquals(
             0f,
@@ -199,7 +201,7 @@ class KiyoriSettingsPagesTest {
     }
 
     @Test
-    fun `more features exposes legal documents and the original permission owner`() {
+    fun `more features exposes legal documents and the native permission center`() {
         assertEquals(
             listOf("应用与隐私", "系统能力"),
             kiyoriMoreFeaturesSettingsGroups.map(KiyoriMoreFeaturesSettingsGroupSpec::title),
@@ -223,13 +225,31 @@ class KiyoriSettingsPagesTest {
                 entry.action == KiyoriMoreFeaturesSettingsAction.OPEN_PERMISSIONS
             }
         assertEquals("权限", permissionEntry.title)
-        assertTrue(permissionEntry.description.contains("Shizuku"))
-        assertTrue(permissionEntry.description.contains("无障碍"))
-        assertTrue(permissionEntry.description.contains("Root"))
+        assertTrue(permissionEntry.description.contains("应用权限"))
+        assertTrue(permissionEntry.description.contains("系统访问"))
+        assertTrue(permissionEntry.description.contains("高级设备能力"))
         assertEquals(
             KiyoriMoreFeaturesSettingsAction.entries.toSet(),
             entries.map { entry -> entry.action }.toSet(),
         )
+    }
+
+    @Test
+    fun `permission center stays independent from the legacy demo loading chain`() {
+        val source =
+            repositoryFile(
+                "app/src/main/java/com/kiyori/integration/operit/onboarding/" +
+                    "KiyoriPermissionsSettingsPage.kt",
+            ).readText()
+
+        assertTrue(source.contains("readKiyoriPermissionSnapshot"))
+        assertTrue(source.contains("kiyoriPermissionGroups"))
+        assertTrue(source.contains("ActivityResultContracts.RequestMultiplePermissions"))
+        assertFalse(source.contains("ShizukuDemoScreen"))
+        assertFalse(source.contains("DemoStateManager"))
+        assertFalse(source.contains("MCPSharedSession"))
+        assertFalse(source.contains("refreshNodejsPythonEnvironment"))
+        assertFalse(source.contains("正在加载应用状态"))
     }
 
     @Test

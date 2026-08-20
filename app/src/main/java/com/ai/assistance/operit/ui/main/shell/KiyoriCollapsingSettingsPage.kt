@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalDensity
@@ -90,6 +91,7 @@ internal fun KiyoriCollapsingSettingsPage(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     navigationIcon: KiyoriSettingsNavigationIcon = KiyoriSettingsNavigationIcon.BACK,
+    headerAction: (@Composable () -> Unit)? = null,
     content: LazyListScope.() -> Unit,
 ) {
     KiyoriSettingsTheme {
@@ -97,6 +99,7 @@ internal fun KiyoriCollapsingSettingsPage(
             title = title,
             onBack = onBack,
             navigationIcon = navigationIcon,
+            headerAction = headerAction,
             modifier = modifier,
             content = content,
         )
@@ -108,6 +111,7 @@ private fun KiyoriCollapsingSettingsPageContent(
     title: String,
     onBack: () -> Unit,
     navigationIcon: KiyoriSettingsNavigationIcon,
+    headerAction: (@Composable () -> Unit)?,
     modifier: Modifier,
     content: LazyListScope.() -> Unit,
 ) {
@@ -158,6 +162,7 @@ private fun KiyoriCollapsingSettingsPageContent(
             title = title,
             onBack = onBack,
             navigationIcon = navigationIcon,
+            headerAction = headerAction,
             statusBarHeight = statusBarHeight,
             frame = headerFrame,
             modifier = Modifier.zIndex(1f),
@@ -188,6 +193,7 @@ private fun KiyoriCollapsingSettingsHeader(
     title: String,
     onBack: () -> Unit,
     navigationIcon: KiyoriSettingsNavigationIcon,
+    headerAction: (@Composable () -> Unit)?,
     statusBarHeight: androidx.compose.ui.unit.Dp,
     frame: KiyoriCollapsingSettingsHeaderFrame,
     modifier: Modifier = Modifier,
@@ -235,10 +241,25 @@ private fun KiyoriCollapsingSettingsHeader(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(start = frame.titleStartDp.dp, end = 16.dp)
+                    .padding(
+                        start = frame.titleStartDp.dp,
+                        end = if (headerAction == null) 16.dp else 64.dp,
+                    )
                     .offset(y = statusBarHeight + frame.titleTopDp.dp)
                     .semantics { heading() },
         )
+        if (headerAction != null) {
+            Box(
+                modifier =
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = (-8).dp, y = statusBarHeight + 4.dp)
+                        .size(48.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                headerAction()
+            }
+        }
     }
 }
 

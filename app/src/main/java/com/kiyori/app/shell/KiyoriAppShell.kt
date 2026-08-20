@@ -57,6 +57,7 @@ import com.kiyori.capability.browser.presentation.KiyoriBrowserWorkspaceRoute
 import com.kiyori.capability.settings.navigation.KiyoriSettingsRoute
 import com.kiyori.design.theme.KiyoriBrowserTheme
 import com.kiyori.design.theme.KiyoriSettingsTheme
+import com.kiyori.integration.operit.onboarding.KiyoriPermissionsSettingsPage
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.dropWhile
@@ -103,7 +104,6 @@ internal fun KiyoriAppShell(
     onOpenBrowserSettingsFromKiyoriSettings: () -> Unit,
     onOpenAppearanceSettingsFromKiyoriSettings: () -> Unit,
     onOpenDataSettingsFromKiyoriSettings: () -> Unit,
-    onOpenPermissionsFromKiyoriSettings: () -> Unit,
     onOpenBrowserWorkspace: (KiyoriBrowserWorkspaceRoute) -> Unit,
     onSubmitWebSearch: (KiyoriWebSearchRequest) -> Unit,
     onRequestExit: () -> Unit,
@@ -483,12 +483,23 @@ internal fun KiyoriAppShell(
                         KiyoriSettingsRoute.MORE_FEATURES ->
                             KiyoriMoreFeaturesSettingsPage(
                                 onBack = { onStateChange(state.closeSettingsRoute()) },
-                                onOpenPermissions = onOpenPermissionsFromKiyoriSettings,
+                                onOpenPermissions = {
+                                    onStateChange(
+                                        state.openSettingsRoute(
+                                            KiyoriSettingsRoute.PERMISSIONS,
+                                        ),
+                                    )
+                                },
                                 onOpenAgreement = {
                                     onStateChange(
                                         state.openSettingsRoute(KiyoriSettingsRoute.AGREEMENT),
                                     )
                                 },
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        KiyoriSettingsRoute.PERMISSIONS ->
+                            KiyoriPermissionsSettingsPage(
+                                onBack = { onStateChange(state.closeSettingsRoute()) },
                                 modifier = Modifier.fillMaxSize(),
                             )
                         KiyoriSettingsRoute.AGREEMENT ->

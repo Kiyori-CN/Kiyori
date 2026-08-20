@@ -34,14 +34,11 @@ import com.ai.assistance.operit.ui.main.navigation.AppRouterState
 import com.ai.assistance.operit.ui.main.navigation.LocalAppNavigationModel
 import com.ai.assistance.operit.ui.main.navigation.LocalOpenBrowser
 import com.ai.assistance.operit.ui.main.navigation.LocalRouteBackGuardRegistry
-import com.ai.assistance.operit.ui.main.navigation.LocalTopBarActions
-import com.ai.assistance.operit.ui.main.navigation.LocalTopBarTitleContent
 import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 import com.ai.assistance.operit.ui.main.navigation.NavigationSurface
 import com.ai.assistance.operit.ui.main.navigation.RouteEntry
 import com.ai.assistance.operit.ui.main.navigation.RouteEntrySource
 import com.ai.assistance.operit.ui.main.navigation.RouteBackGuardRegistry
-import com.ai.assistance.operit.ui.main.navigation.TopBarTitleContent
 import com.ai.assistance.operit.ui.main.screens.Screen
 import com.ai.assistance.operit.ui.features.browser.appshell.KiyoriBrowserHome
 import com.ai.assistance.operit.ui.features.startup.screens.LocalPluginLoadingState
@@ -81,7 +78,6 @@ import com.kiyori.integration.operit.navigation.resolveAiTopBarMode
 import com.kiyori.integration.operit.navigation.shouldDeferPendingOperitRoute
 import com.kiyori.integration.operit.navigation.toOperitExternalRouteEntry
 import com.kiyori.integration.operit.navigation.toAiPrimaryRouteEntry
-import androidx.compose.foundation.layout.RowScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -314,9 +310,6 @@ fun KiyoriApp(
     // 跟踪是否是返回操作
     var isNavigatingBack by remember { mutableStateOf(false) }
 
-    // 用于存储由子屏幕提供的TopAppBar Actions
-    var topBarActions by remember { mutableStateOf<@Composable RowScope.() -> Unit>({}) }
-    var topBarTitleContent by remember { mutableStateOf<TopBarTitleContent?>(null) }
     var lastHandledShortcutRequestId by remember { mutableLongStateOf(0L) }
     var lastHandledRouteRequestId by remember { mutableLongStateOf(0L) }
     var lastHandledBrowserOpenRequestId by remember { mutableLongStateOf(0L) }
@@ -431,15 +424,6 @@ fun KiyoriApp(
         updateShellState(shellState.openExternalDestination(destination))
         lastHandledKiyoriShellRequestId = kiyoriShellRequestId
         onKiyoriShellRequestHandled(kiyoriShellRequestId)
-    }
-
-    // 当currentScreen改变时，检查是否需要清空TopBarActions
-    // 这是为了解决从有action的屏幕导航到无action的屏幕时，action残留的问题
-    LaunchedEffect(currentScreen) {
-        if (currentScreen !is Screen.AiChat && currentScreen !is Screen.TokenConfig) {
-            topBarActions = {}
-        }
-        topBarTitleContent = null
     }
 
     // Navigation functions
@@ -824,12 +808,6 @@ fun KiyoriApp(
         CompositionLocalProvider(
             LocalAppNavigationModel provides navigationModel,
             LocalRouteBackGuardRegistry provides routeBackGuardRegistry,
-            LocalTopBarActions provides { actions: @Composable RowScope.() -> Unit ->
-                topBarActions = actions
-            },
-            LocalTopBarTitleContent provides { titleContent ->
-                topBarTitleContent = titleContent
-            },
             LocalOpenBrowser provides {
                 updateShellState(
                     shellState.openBrowser(
@@ -931,12 +909,6 @@ fun KiyoriApp(
                         rootId = "data_management",
                     )
                 },
-                onOpenPermissionsFromKiyoriSettings = {
-                    openKiyoriSettingsRoot(
-                        screen = Screen.ShizukuCommands,
-                        rootId = "permissions",
-                    )
-                },
                 onOpenBrowserWorkspace = ::openBrowserWorkspaceFromSettings,
                 onSubmitWebSearch = ::submitWebSearch,
                 onRequestExit = {
@@ -1028,8 +1000,6 @@ fun KiyoriApp(
                         showNavigationMenu = showNavigationMenu,
                         onGoBack = ::requestGoBack,
                         isNavigatingBack = isNavigatingBack,
-                        actions = { topBarActions() },
-                        titleContent = topBarTitleContent,
                     )
                 },
             )

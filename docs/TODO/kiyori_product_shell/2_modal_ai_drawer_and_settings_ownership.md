@@ -21,7 +21,7 @@ baseline: e42bd44f
 | 插件 | ToolPkg 动态入口 | 保持 route ID、注册协议和注册顺序；动作入口只执行一次 |
 | 固定入口 | AI 设置 | 现有 Settings 页面和持久状态 |
 
-帮助、关于、使用手册和 Terminal 不进入抽屉。Terminal 继续只位于 AI 首页右上角；工具箱不迁入小程序首页。权限授予不再显示在抽屉；“设置 - 更多功能 - 权限”通过当前 settings session 进入原 `Screen.ShizukuCommands`，不新建第二份权限页面或状态。
+帮助、关于、使用手册和 Terminal 不进入抽屉。Terminal 继续只位于 AI 首页右上角；工具箱不迁入小程序首页。权限授予不再显示在抽屉；“设置 - 更多功能 - 权限”通过当前 settings session 进入 `KiyoriSettingsRoute.PERMISSIONS`，与首次启动共享设备权限事实和动作，不新建第二份授权状态。
 文件管理器和用户协议也不再作为 Toolbox host entry 投影。文件管理首页“手机存储”与设置首页
 “文件管理器”共同进入唯一 `KiyoriShellChild.FILE_MANAGER`，协议入口迁入“设置 - 更多功能 -
 用户协议与隐私政策”并复用现行只读法律文档。
@@ -89,12 +89,14 @@ AI Home 保持单一稳定宿主。打开或关闭抽屉、切换 AI 一级页�
 14. [已完成] 抽屉面板移到状态栏下方，保留全屏遮罩、动态网络状态与原动画参数
 15. [已完成] ToolPkg 一级根服从自身 `keepAlive`，并清理运行时已移除插件的保存栈
 16. [已完成] 将高频入口调整为“扩展 / 工具箱 / 工作流”，删除抽屉权限状态查询和短标签资源；工具箱徽标直接统计唯一导航模型中的宿主与 ToolPkg 工具条目
-17. [已完成] 将原权限入口接入“设置 - 更多功能 - 权限”，复用 `Screen.ShizukuCommands` 和
-    `RouteEntrySource.KIYORI_SETTINGS` 返回链
+17. [已完成] 将原权限入口接入“设置 - 更多功能 - 权限”；初版复用
+    `Screen.ShizukuCommands` 和 `RouteEntrySource.KIYORI_SETTINGS` 返回链
 18. [已完成] 从 Toolbox 导航目录删除文件管理器与协议 host entry；将手机存储和设置首页
     文件管理器接入同一个 Shell child，将只读法律文档接入 More Features 的 Settings route
 19. [本地完成，待真机复测] 修复法律文档/File Manager 的不透明安全区页面根，并修正无
     crossfade 时保活 AI 屏幕错误变为不透明及退场插值重新显现的合成规则
+20. [本地实现与自动验证完成，待真机复测] 将权限入口改为 Settings 自有 `PERMISSIONS` route，复用首次启动 21 项权限
+    事实和动作；顶栏 actions/title 按缓存 screen key 隔离，权限首屏移除 Demo/Terminal/MCP 加载链
 
 ## 自动验收
 
@@ -109,8 +111,8 @@ AI Home 保持单一稳定宿主。打开或关闭抽屉、切换 AI 一级页�
 - 无模型配置或 API Key 时 AI Home 仍显示聊天内容区和输入框；源码不存在强制替换 AI Home 的配置整页、`shouldShowConfigDialog` 或 `CHAT_ONBOARDING` 路由
 - 普通模型与参数配置页的 Back 不经过 API Key readiness guard，缺少凭据不会阻塞离开页面
 - 抽屉快捷行只包含 `main.packages / main.toolbox / main.workflow`；`main.shizuku_commands` 不再属于可见抽屉 surface，工具箱徽标数量覆盖宿主与 ToolPkg 的 `TOOLBOX` 条目
-- 设置首页最后一项进入 `KiyoriSettingsRoute.MORE_FEATURES`；权限项打开原
-  `Screen.ShizukuCommands`，离开该根页时恢复同一 More Features route
+- 设置首页最后一项进入 `KiyoriSettingsRoute.MORE_FEATURES`；权限项压入
+  `KiyoriSettingsRoute.PERMISSIONS`，Back 恢复同一 More Features route
 - Toolbox 导航目录不存在 `toolbox.file_manager` 与 `toolbox.agreement`；ToolPkg 动态条目不变
 - 文件管理首页手机存储和设置首页文件管理器复用唯一 `FILE_MANAGER` child；Settings 来源关闭
   child 后恢复原 settings route，child 前景期间 Settings surface 不组合也不抢占 Back
@@ -121,6 +123,8 @@ AI Home 保持单一稳定宿主。打开或关闭抽屉、切换 AI 一级页�
   同一 ViewModel、页面 Back 与目录向上语义
 - Settings-owned 权限 route 禁止 crossfade 时，策略不会在 route key 稳定后提前恢复；当前屏幕
   最终绘制透明度直接为 `1f`，所有保活非当前屏幕直接为 `0f`，不经过 tween；测试覆盖 AI
+  内容层。顶栏 actions/title 另按缓存 screen key 独立登记，只读取当前 key，旧 AI 四个 actions
+  不能投影到新 route
   抽屉保持打开状态的旧屏幕不能出现在目标页首帧
 - 本次入口收口通过定向 JVM、architecture、formal readiness、Markdown、差异检查与最终
   Debug APK 验证；未运行与本任务无关的额外 lint、Release 或设备检查

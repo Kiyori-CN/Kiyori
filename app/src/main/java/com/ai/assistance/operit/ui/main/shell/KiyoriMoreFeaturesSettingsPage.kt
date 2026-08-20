@@ -50,7 +50,7 @@ internal val kiyoriMoreFeaturesSettingsGroups =
                 listOf(
                     KiyoriMoreFeaturesSettingsEntrySpec(
                         title = "权限",
-                        description = "配置 Shizuku、无障碍、Root 与设备执行权限",
+                        description = "管理应用权限、系统访问与高级设备能力",
                         icon = Icons.Default.Security,
                         action = KiyoriMoreFeaturesSettingsAction.OPEN_PERMISSIONS,
                     ),

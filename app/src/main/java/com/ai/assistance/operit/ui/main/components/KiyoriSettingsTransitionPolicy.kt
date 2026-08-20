@@ -9,8 +9,8 @@ import com.ai.assistance.operit.ui.main.screens.Screen
  *
  * Keeping either side of that boundary in AppContent's crossfade would briefly expose the
  * retained conversation page while the new Settings route is being composed. The route source is
- * the authoritative boundary because it survives the Shell/Router handoff and covers both the
- * Settings root and its native children, including the real permission owner.
+ * the authoritative boundary because it survives the Shell/Router handoff and covers the
+ * remaining Operit-owned Settings roots and their native children.
  */
 internal fun shouldCrossfadeKiyoriRouteTransition(
     previousRouteEntry: RouteEntry,
@@ -53,3 +53,14 @@ internal fun resolveKiyoriCachedScreenAlpha(
         !allowCrossfade -> 0f
         else -> crossfadeAlpha
     }
+
+/**
+ * Top-bar content belongs to the cached screen that published it.
+ *
+ * Retained screens can continue composing after navigation. Looking up only the active screen key
+ * prevents a late publication from the retained AI Home from appearing on a newly selected route.
+ */
+internal fun <T> resolveKiyoriRouteScopedTopBarValue(
+    currentScreenKey: String,
+    valuesByScreenKey: Map<String, T>,
+): T? = valuesByScreenKey[currentScreenKey]

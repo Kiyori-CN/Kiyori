@@ -448,6 +448,8 @@ M05A1_EXPECTED_IMPORT_CONSUMERS = {
         "screens/theme/ThemeSettingsContentEditor.kt",
         "app/src/main/java/com/ai/assistance/operit/ui/features/settings/"
         "screens/theme/ThemeSettingsTabs.kt",
+        "app/src/main/java/com/kiyori/integration/operit/onboarding/"
+        "KiyoriPermissionsSettingsPage.kt",
     },
     "KiyoriLightColorScheme": {
         "app/src/main/java/com/ai/assistance/operit/ui/floating/"
@@ -495,9 +497,9 @@ M05A2_CONSUMER_IMPORT_SNAPSHOT = (
     "m05a2-semantic-consumer-imports.txt"
 )
 M05A2_DESIGN_PACKAGE = "com.kiyori.design.theme"
-M05A2_PRODUCTION_CONSUMER_COUNT = 52
+M05A2_PRODUCTION_CONSUMER_COUNT = 53
 M05A2_EXTERNAL_TEST_CONSUMER_COUNT = 4
-M05A2_CONSUMER_IMPORT_COUNT = 99
+M05A2_CONSUMER_IMPORT_COUNT = 100
 M05A2_MOVED_IMPORT_SYMBOLS = {
     "KiyoriSemanticTone",
     "kiyoriSemanticToneForStableId",
@@ -717,7 +719,7 @@ M05B_NEW_FORMATTER_IMPORT = (
 M05B_OLD_FORMATTER_IMPORT = (
     "com.ai.assistance.operit.util.ThrowableTextFormatter"
 )
-M05B_KIYORI_CONSUMER_COUNT = 8
+M05B_KIYORI_CONSUMER_COUNT = 9
 M05B_HASHED_PATHS = (
     M05B_LOGGER_PATH,
     M05B_FORMATTER_PATH,

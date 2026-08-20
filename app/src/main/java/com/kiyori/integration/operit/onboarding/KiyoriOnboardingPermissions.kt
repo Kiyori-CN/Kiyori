@@ -375,6 +375,17 @@ internal fun launchKiyoriPermissionSettings(
     context.startActivity(intent)
 }
 
+internal fun launchKiyoriApplicationPermissionSettings(
+    context: Context,
+) {
+    context.startActivity(
+        Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            "package:${context.packageName}".toUri(),
+        ),
+    )
+}
+
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 private fun notificationPermissionsApi33(): List<String> =
     listOf(Manifest.permission.POST_NOTIFICATIONS)

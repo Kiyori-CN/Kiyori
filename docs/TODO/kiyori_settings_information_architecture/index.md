@@ -261,7 +261,7 @@ Kiyori Settings Surface 的折叠标题、分组说明、圆角卡片、双行�
 | 界面定制 | 语言、主题与外观、全局显示、布局调整 | 原有显示与主题 preference |
 | 数据备份 | 进入现有数据根页；聊天及记忆数据备份、聊天历史管理 | 原有备份与聊天 repository |
 | 开发手册 | 保留开发文档产品入口，不建立第二套终端、工具箱或开发模式状态 | 尚未建立 |
-| 更多功能 | 统一设置风格的系统能力子页；“权限”进入原设备能力页面 | `Screen.ShizukuCommands` 及其现有权限 owner |
+| 更多功能 | 统一设置风格的系统能力子页；“权限”进入原生权限与设备能力页 | 首次启动与 Settings 共享的 `KiyoriPermissionSnapshot` 和授权动作 |
 | 网页浏览器 | 普通网站 Cookie 清理 | `CookiePrivacyManager` |
 
 移动入口只改变信息架构和导航，不复制、迁移或改写任何持久化状态。“小程序”严禁连接
@@ -280,8 +280,8 @@ AI 包管理、脚本包、ToolPkg、插件市场或 AI 抽屉路由；小程序
   `navigationContextId/sessionId`；根页面 Back 恢复同一 Settings Home，内部子页 Back 先返回
   对应设置根，来源保持会话最后再返回原浏览器或 AI 页面
 - 小程序和开发手册保持空动作；更多功能进入 `KiyoriSettingsRoute.MORE_FEATURES`，其中“权限”
-  使用当前 settings `sessionId` 和 `RouteEntrySource.KIYORI_SETTINGS` 打开原
-  `Screen.ShizukuCommands`，不建立第二权限页面或状态
+  在当前 settings `sessionId` 内压入 `KiyoriSettingsRoute.PERMISSIONS`，与首次启动共享 21 项
+  权限目录、真实 snapshot、metadata 和授权动作，不建立第二份权限结果
 - 首页 16 个入口分别使用 16 个不同图标和 16 组固定浅深色图标容器；详情页继续使用全应用
   `KiyoriSemanticTone` 身份，但通过 Settings Surface 专用低饱和浅深色对渲染，不把首页专用
   色板扩散到业务状态语义，也不改变文件管理、工具箱等非设置界面
@@ -341,15 +341,22 @@ AI 包管理、脚本包、ToolPkg、插件市场或 AI 抽屉路由；小程序
 - APK 身份为 `com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`，Android Debug V2 单 signer，
   16 KB ZIP 对齐通过；目标设备视觉与交互仍保持 `verification_pending`
 
-### 2026-08-19 更多功能与权限入口增量
+### 2026-08-20 权限与设备能力中心增量
 
 - 设置首页“更多功能”已从空动作改为 `KiyoriSettingsRoute.MORE_FEATURES`，使用与其他设置详情
   一致的折叠标题、系统能力分组卡和双行导航项
-- “权限”通过当前 settings `sessionId` 与 `RouteEntrySource.KIYORI_SETTINGS` 打开原
-  `Screen.ShizukuCommands`；权限根页 Back 恢复更多功能，再 Back 返回设置首页
-- `KiyoriSettingsPagesTest` `14/14`、`KiyoriShellStateTest` `71/71`，architecture
-  `PASS (phase=m03)`、architecture 单元测试 `109/109`、formal readiness 和
-  `git diff --check` 通过
+- “权限”通过当前 settings `sessionId` 打开 `KiyoriSettingsRoute.PERMISSIONS`；权限页 Back
+  恢复更多功能，再 Back 返回设置首页，不进入 App Router
+- 权限页与首次启动共享 21 项真实设备权限，按应用权限、系统访问和高级设备能力分组；提供总览、
+  原位刷新、逐项动作和依次处理待授权项，不启动 Terminal、Node、Python 或 MCP 环境检查
+- `Screen.ShizukuCommands / ShizukuDemoScreen` 保留为独立执行通道与开发诊断页面，不再承担
+  Settings 权限首页职责
+- 本轮定向 JVM 五套测试 `119/119`：`KiyoriSettingsTransitionPolicyTest` `9/9`、
+  `KiyoriSettingsPagesTest` `16/16`、`KiyoriShellStateTest` `74/74`、
+  `KiyoriOnboardingContractTest` `15/15`、`KiyoriOnboardingPermissionsTest` `5/5`
+- architecture `PASS (phase=m03)`、architecture 单元测试 `109/109`、
+  `check_formal_readiness.py --require-main`、最终 package 状态的 Kotlin 编译和
+  `git diff --check` 通过；设备首帧、授权动作和系统页返回仍保持 `verification_pending`
 - 规定 Debug 构建为 `BUILD SUCCESSFUL in 2m 2s`；最终 APK 为
   `app/build/outputs/apk/debug/app-debug.apk`，`472553854` bytes，SHA-256
   `8C08C8D7150BBDB56EE1018BFE1C24FDB07C70F453A3F0AB9ABA74DF267A87E1`，

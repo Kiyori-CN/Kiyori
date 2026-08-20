@@ -51,6 +51,8 @@ import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import com.ai.assistance.operit.data.repository.ChatHistoryManager
 import com.ai.assistance.operit.ui.common.NavItem
 import com.ai.assistance.operit.ui.common.displays.FpsCounter
+import com.ai.assistance.operit.ui.main.navigation.LocalTopBarActions
+import com.ai.assistance.operit.ui.main.navigation.LocalTopBarTitleContent
 import com.ai.assistance.operit.ui.main.navigation.RouteEntry
 import com.ai.assistance.operit.ui.main.navigation.LocalRouteInstanceId
 import com.ai.assistance.operit.ui.main.navigation.TopBarTitleContent
@@ -168,8 +170,6 @@ fun AppContent(
         showNavigationMenu: Boolean,
         onGoBack: () -> Unit,
         isNavigatingBack: Boolean = false,
-        actions: @Composable RowScope.() -> Unit = {},
-        titleContent: TopBarTitleContent? = null
 ) {
     // Get background image state
     val context = LocalContext.current
@@ -202,6 +202,10 @@ fun AppContent(
     // 屏幕缓存 Map - 保存已访问过的屏幕，使其状态得以保留
     val screenCache = remember { mutableStateMapOf<String, @Composable () -> Unit>() }
     val screenKeepAliveCache = remember { mutableStateMapOf<String, Boolean>() }
+    val topBarActionsByScreen =
+        remember { mutableStateMapOf<String, @Composable RowScope.() -> Unit>() }
+    val topBarTitleContentByScreen =
+        remember { mutableStateMapOf<String, TopBarTitleContent>() }
     val screenStateHolder = rememberSaveableStateHolder()
     // AI Home keeps one composition key so drawer navigation cannot recreate its runtime state.
     val currentScreenKey =
@@ -239,6 +243,16 @@ fun AppContent(
         CompositionLocalProvider(
             LocalAppBarContentColor provides appBarContentColor,
         ) {
+        val currentTopBarActions =
+            resolveKiyoriRouteScopedTopBarValue(
+                currentScreenKey = currentScreenKey,
+                valuesByScreenKey = topBarActionsByScreen,
+            )
+        val currentTopBarTitleContent =
+            resolveKiyoriRouteScopedTopBarValue(
+                currentScreenKey = currentScreenKey,
+                valuesByScreenKey = topBarTitleContentByScreen,
+            )
         // 使用Scaffold来正确处理顶部栏和内容的布局
         // contentWindowInsets = WindowInsets(0) 让内容可以延伸到系统栏下方，使背景能够完全填充
         Scaffold(
@@ -253,8 +267,8 @@ fun AppContent(
                     TopAppBar(
                     windowInsets = WindowInsets.statusBars,
                     title = {
-                        if (titleContent != null) {
-                            titleContent.content()
+                        if (currentTopBarTitleContent != null) {
+                            currentTopBarTitleContent.content()
                         } else {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 // 使用Screen的标题或导航项的标题
@@ -315,7 +329,7 @@ fun AppContent(
                             )
                         }
                     },
-                    actions = actions,
+                    actions = currentTopBarActions ?: {},
                     colors =
                     TopAppBarDefaults.topAppBarColors(
                         containerColor = appBarContainerColor,
@@ -497,6 +511,8 @@ fun AppContent(
                                 if (removalKey != null && removalKey != currentScreenKey) {
                                     screenCache.remove(removalKey)
                                     screenKeepAliveCache.remove(removalKey)
+                                    topBarActionsByScreen.remove(removalKey)
+                                    topBarTitleContentByScreen.remove(removalKey)
                                     screenStateHolder.removeState(removalKey)
                                 }
                                 pendingRemovalKey = null
@@ -513,6 +529,8 @@ fun AppContent(
                                 if (keyToRemove != currentScreenKey) {
                                     screenCache.remove(keyToRemove)
                                     screenKeepAliveCache.remove(keyToRemove)
+                                    topBarActionsByScreen.remove(keyToRemove)
+                                    topBarTitleContentByScreen.remove(keyToRemove)
                                     screenStateHolder.removeState(keyToRemove)
                                 }
                             }
@@ -649,6 +667,17 @@ fun AppContent(
                                             CompositionLocalProvider(
                                                 LocalIsCurrentScreen provides isCurrentScreen,
                                                 LocalRouteInstanceId provides screenKey,
+                                                LocalTopBarActions provides { actions ->
+                                                    topBarActionsByScreen[screenKey] = actions
+                                                },
+                                                LocalTopBarTitleContent provides { titleContent ->
+                                                    if (titleContent == null) {
+                                                        topBarTitleContentByScreen.remove(screenKey)
+                                                    } else {
+                                                        topBarTitleContentByScreen[screenKey] =
+                                                            titleContent
+                                                    }
+                                                },
                                                 LocalSetScreenSoftInputMode provides { mode ->
                                                     if (isCurrentScreen && currentScreenSoftInputMode != mode) {
                                                         currentScreenSoftInputMode = mode

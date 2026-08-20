@@ -18,3 +18,4 @@ com.kiyori.capability.browser.presentation.KiyoriBrowserWorkspaceRoute
 com.kiyori.capability.settings.navigation.KiyoriSettingsRoute
 com.kiyori.design.theme.KiyoriBrowserTheme
 com.kiyori.design.theme.KiyoriSettingsTheme
+com.kiyori.integration.operit.onboarding.KiyoriPermissionsSettingsPage

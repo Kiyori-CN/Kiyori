@@ -29,7 +29,7 @@ supersedes: 0002_product_shell_and_ai_center_navigation.md
 - 抽屉底部“设置”启动 `KiyoriSettingsOrigin.AI_HOST` 的来源保持型设置会话，不替换当前 AI 一级路由或子栈；设置首页隐藏软件首页底部五入口，设置详情按 capability-level `KiyoriSettingsRoute` 栈逐级返回，关闭设置首页后回到原 AI 页面。
 - AI 助手设置保持单一页面、表单与持久状态，由设置首页进入。Operit 设置 route 携带活动设置 `sessionId`，返回时恢复同一设置 route stack；底部设置、Browser Menu 和 AI 左抽屉不再用 `KiyoriShellChild` 表达设置层级。
 - 包管理、ToolPkg、脚本包和插件市场继续属于 AI 抽屉及其独立目的地，不得经由设置首页为底部小程序产品域保留的“小程序管理”空入口打开。
-- `Screen.ShizukuCommands`、Kiyori 权限总览和 `ToolPermissionSystem` 继续是三个不同的页面与状态 owner，不互相复制。
+- `KiyoriSettingsRoute.PERMISSIONS` 与首次启动共同消费唯一设备权限事实；`Screen.ShizukuCommands` 只保留独立执行通道/开发诊断职责；`ToolPermissionSystem` 继续只拥有 AI 工具授权，三者不互相复制。
 - AI Home 保持单一、稳定的组合宿主。打开或关闭抽屉、切换 AI 一级页面都不能暂停、取消、销毁或重建其流式回答、思考、工具调用、附件、草稿、会话和滚动状态。
 - 三页首页共享一个 `PagerState` 和同一产品吸附合同。负一屏与软件首页保留原生
   `HorizontalPager` fling；永久 AI Home 使用公开 API bridge 记录当前手势，并以严格半页、

@@ -1753,22 +1753,23 @@ class KiyoriShellStateTest {
     }
 
     @Test
-    fun `permission owner returns to more features in the same settings session`() {
+    fun `native permission center returns to more features in the same settings session`() {
         val moreFeatures =
             KiyoriShellState()
                 .openSettings(KiyoriSettingsOrigin.BOTTOM_NAVIGATION)
                 .openSettingsRoute(KiyoriSettingsRoute.MORE_FEATURES)
-        val permissionOwner = moreFeatures.showSettingsOperitRoute()
+        val permissionCenter =
+            moreFeatures.openSettingsRoute(KiyoriSettingsRoute.PERMISSIONS)
 
         assertEquals(
-            KiyoriSettingsPresentation.OPERIT_ROUTE_DETAIL,
-            permissionOwner.settingsNavigation?.presentation,
+            KiyoriSettingsPresentation.PRIMARY_ROOT,
+            permissionCenter.settingsNavigation?.presentation,
         )
-        val restored = permissionOwner.restoreSettingsAfterOperitRoute()
         assertEquals(
-            KiyoriSettingsRoute.MORE_FEATURES,
-            restored.settingsNavigation?.currentRoute,
+            KiyoriSettingsRoute.PERMISSIONS,
+            permissionCenter.settingsNavigation?.currentRoute,
         )
+        val restored = permissionCenter.closeSettingsRoute()
         assertEquals(moreFeatures, restored)
         assertEquals(
             KiyoriSettingsRoute.HOME,

@@ -36,11 +36,11 @@ class KiyoriSettingsTransitionPolicyTest {
                     ),
                 currentRouteEntry =
                     RouteEntry(
-                        routeId = "native.shizuku_commands",
+                        routeId = "native.data_management_settings",
                         source = RouteEntrySource.KIYORI_SETTINGS,
                     ),
                 previousScreen = Screen.Settings,
-                currentScreen = Screen.ShizukuCommands,
+                currentScreen = Screen.DataManagementSettings,
             ),
         )
     }
@@ -51,11 +51,11 @@ class KiyoriSettingsTransitionPolicyTest {
             shouldCrossfadeKiyoriRouteTransition(
                 previousRouteEntry =
                     RouteEntry(
-                        routeId = "native.shizuku_commands",
+                        routeId = "native.data_management_settings",
                         source = RouteEntrySource.KIYORI_SETTINGS,
                     ),
                 currentRouteEntry = RouteEntry(routeId = "native.ai_chat"),
-                previousScreen = Screen.ShizukuCommands,
+                previousScreen = Screen.DataManagementSettings,
                 currentScreen = Screen.AiChat,
             ),
         )
@@ -142,6 +142,37 @@ class KiyoriSettingsTransitionPolicyTest {
                 allowCrossfade = true,
             ),
             0f,
+        )
+    }
+
+    @Test
+    fun `top bar content is resolved only from the active cached screen`() {
+        val values =
+            mapOf(
+                "kiyori.ai_home" to "ai-actions",
+                "permissions-route" to "permission-actions",
+            )
+
+        assertEquals(
+            "permission-actions",
+            resolveKiyoriRouteScopedTopBarValue(
+                currentScreenKey = "permissions-route",
+                valuesByScreenKey = values,
+            ),
+        )
+        assertEquals(
+            "ai-actions",
+            resolveKiyoriRouteScopedTopBarValue(
+                currentScreenKey = "kiyori.ai_home",
+                valuesByScreenKey = values,
+            ),
+        )
+        assertEquals(
+            null,
+            resolveKiyoriRouteScopedTopBarValue(
+                currentScreenKey = "new-route-without-actions",
+                valuesByScreenKey = values,
+            ),
         )
     }
 }

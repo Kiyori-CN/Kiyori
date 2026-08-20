@@ -7,6 +7,112 @@ For_Agent: 对项目大规模动工前按本规范协作
 本文件顶部记录当前跨领域长期任务，后续段落保留专项实施与历史证据。历史段落中的分支、提交、
 APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观察点，不能替代当前 Git、构建或设备状态。
 
+## 2026-08-20 权限中心重构与 App Router 顶栏残影根治
+
+状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEVICE VERIFICATION PENDING`。
+Kiyori 尚未发布，本轮允许彻底替换 Settings 权限入口的旧页面方案，不保留并行权限首页。
+首次启动和 Settings 共同消费
+`KiyoriPermissionId / KiyoriPermissionSnapshot / KiyoriOnboardingPermissions`
+作为唯一设备权限目录、真实状态与授权动作来源；`ToolPermissionSystem` 继续只负责 AI 工具授权。
+
+### 已确认根因
+
+- `AppContent` 的缓存内容已经按 `currentScreenKey` 隔离，但 `KiyoriApp` 仍用一个全局
+  `topBarActions` 和 `topBarTitleContent` 槽位接收所有保活页面的顶栏注册。route 更新后，
+  新页面首帧会先读到旧 AI Home 的四个 actions，随后 `LaunchedEffect(currentScreen)` 才尝试
+  清空；AI Home 和 TokenConfig 的特殊保留条件还会进一步扩大旧值生命周期
+- `LocalIsCurrentScreen` 只能约束各页面何时注册，不能证明全局槽位属于当前 route。保活页面、
+  `LaunchedEffect` 调度和同帧导航组合后，旧页面的晚到注册仍可能覆盖新页面
+- Settings 的“权限”当前通过 `RouteEntrySource.KIYORI_SETTINGS` 打开
+  `Screen.ShizukuCommands`。这会离开 Settings route surface，进入独立 App Router 顶栏和缓存层，
+  因而直接暴露上述跨 route 顶栏竞态
+- `ShizukuDemoScreen` 的全页“正在加载应用状态...”同时等待 Root、Shizuku、无障碍和
+  `DemoStateManager` 初始化；后者还重复创建/取得 MCP Terminal 会话并探测 Node、Python、pip
+  环境，包含重复刷新和固定 `300ms` 延迟。设备权限首屏不应依赖这些开发执行环境检查
+- 首次启动第六页已经覆盖 21 项真实设备权限、批量 Android runtime permission、特殊系统访问、
+  无障碍 provider、Shizuku、Root 和使用时屏幕捕获；当前问题不是缺少能力，而是这些能力被封装
+  在 onboarding 私有 UI 中，Settings 仍指向旧 Demo 页面
+
+### 目标合同
+
+- `AppContent` 内每个缓存 screen key 独立持有 actions/title；TopAppBar 只读取当前 key。
+  旧 AI Home 即使继续组合、保活或晚到更新，也不能向任何新 route 投影顶栏内容
+- 删除基于 `currentScreen` 的延迟清空策略，不增加遮罩、延迟、预清空点击回调或其他时序补丁
+- 新增 `KiyoriSettingsRoute.PERMISSIONS`。路径固定为
+  `Settings Home → More Features → Permissions`，Back 逐级原路返回；不进入 Operit Router，
+  不改变 AI route stack、Browser WebSession 或 Settings session
+- 权限中心首帧立即显示标题、总览、全部权限分组和已有 snapshot，不显示全页加载占位。
+  手动刷新和从系统页面恢复时只原位更新状态
+- 权限中心分为“应用权限”“系统访问”“高级设备能力”三组，覆盖 onboarding 的全部 21 项；
+  每项显示唯一 metadata、真实状态、作用说明和与状态匹配的动作
+- `GRANTED / PARTIAL / NOT_GRANTED / REQUIRES_SETUP / NOT_APPLICABLE / ON_DEMAND`
+  保持同一语义；不把无需授权或使用时确认伪装成可授予
+- Android runtime permissions 通过唯一 `RequestMultiplePermissions` launcher 请求；特殊访问进入
+  对应系统页；无障碍、Shizuku、Root 复用既有真实动作；屏幕捕获明确说明由 Android 在使用时确认
+- 权限状态不持久化为第二份结果，不复制 `ShizukuDemoViewModel` 或 `DemoStateManager`；
+  Settings 和 onboarding 每次都从同一真实系统事实重新生成 snapshot
+- `Screen.ShizukuCommands / ShizukuDemoScreen` 暂保留为独立的执行通道、命令和开发诊断页面，
+  但不再充当 Settings 权限首页，也不再影响该入口的首屏性能
+
+### UI 与交互方案
+
+- 折叠标题使用“权限与设备能力”，右侧提供非阻塞“重新检查”
+- 顶部总览卡展示已就绪、待处理、使用时确认三类数量和真实进度；刷新时保留当前内容，只显示
+  小型刷新状态
+- 分组卡沿用 `KiyoriSettingsTheme` 的背景、文字、分隔线和语义图标色；权限状态使用紧凑标签，
+  不使用旧 Demo 的横向权限级别选择器或命令执行网格
+- 未授权/部分授权的 runtime permission 显示“授权”；特殊访问显示“前往设置”；
+  无障碍、Shizuku、Root 显示与当前安装/运行/授权阶段相符的动作；已授权项仍允许进入系统管理页
+  的，仅显示“管理”，不能管理的显示稳定状态
+- 页面生命周期恢复前台时刷新真实状态；一次动作执行期间只锁定对应交互，Back 与其他条目保持
+  可预测，不以全页 loading 阻塞
+
+### 实施与验收计划
+
+1. [DONE] 复核 `main`、工作树、正式开发门禁、补充截图、顶栏注册和旧权限页初始化调用链
+2. [DONE] 冻结顶栏 route owner、Settings route、共享权限 owner、旧 Demo 边界与性能方案
+3. [DONE] 将 App Router 顶栏状态移入 `AppContent`，按缓存 screen key 登记和读取，
+   删除 `KiyoriApp` 的全局顶栏槽位与延迟清理 Effect
+4. [DONE] 抽取 onboarding 的权限 metadata、状态标签与分组目录为共享 presentation
+5. [DONE] 新增 `KiyoriSettingsRoute.PERMISSIONS` 和 Settings 权限中心，接入 runtime、
+   系统设置、无障碍、Shizuku、Root 与生命周期刷新
+6. [DONE] 将 More Features 的权限入口改为 Shell route；删除该入口的
+   `openKiyoriSettingsRoot(Screen.ShizukuCommands)` 桥接
+7. [DONE] 增加顶栏旧 owner 隔离、Permissions route push/pop/save-restore、21 项共享目录、
+   分组/计数/动作策略和 Settings 首屏不依赖 Demo/Terminal/MCP 的回归测试
+8. [DONE] 同步 Settings、onboarding、产品 Shell 架构文档与所有受保护架构快照
+9. [DONE] 运行定向 Kotlin/JVM、architecture、formal readiness、Markdown、
+   XML 和 `git diff --check`
+10. [DONE] 串行执行 `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain`，
+    核验 Debug APK 身份、签名、对齐、ABI、关键 runtime 与哈希
+11. [DONE] 精确审计候选树与 staged allowlist、敏感内容、构建产物、文件模式、gitlink 和
+    远端竞争，形成唯一 `main` 提交候选；最终 commit/push 结果以本轮 Git 证据为准
+12. [PENDING DEVICE] 使用新 APK 真机复测无四图标残影、首屏速度、21 项状态/动作、
+    系统页返回刷新、Back、浅深主题、系统栏和字体缩放
+
+### 本地验证证据
+
+- 最终 package 状态的 `:app:compileDebugKotlin` 在 `1m48s` 内通过
+- 定向 JVM 五套测试合计 `119/119`，零失败、零错误、零跳过：
+  `KiyoriSettingsTransitionPolicyTest` `9/9`、`KiyoriSettingsPagesTest` `16/16`、
+  `KiyoriShellStateTest` `74/74`、`KiyoriOnboardingContractTest` `15/15`、
+  `KiyoriOnboardingPermissionsTest` `5/5`
+- architecture `PASS (phase=m03)`、architecture 单元测试 `109/109`、
+  `check_formal_readiness.py --require-main` 和 `git diff --check` 通过
+- 最终 `:app:assembleDebug --no-daemon --console=plain` 在 `2m14s` 内通过，
+  `232` 个任务中 `23 executed / 209 up-to-date`；唯一 Launcher 与播放器 runtime packaging
+  Gradle 门禁通过
+- `app/build/outputs/apk/debug/app-debug.apk` 写入于 `2026-08-21 03:38:23 +08:00`，
+  大小 `472649202` bytes，SHA-256
+  `751D1C770BE9357E35A471CD89C0216238F6B86780E671FAF512E408104542FA`
+- APK 为 `com.kiyori / 45 / 0.1.0 / min 26 / target 34 / compile 37`，唯一 Launcher 为
+  `com.ai.assistance.operit.ui.main.MainActivity`，仅含 `arm64-v8a`
+- Android Debug V2 单 signer 与 `zipalign -c -P 16 -v 4` 通过；51 个 `.so` 无重复路径或
+  basename，加上 `assets/operit_shell_exec` 共 52 个 AArch64 ELF，153 个 `PT_LOAD`
+  为 `0x4000 × 151 / 0x10000 × 2`
+- APK 包含 `lib/arm64-v8a/liboperit_ripgrep.so`、`assets/operit_shell_exec` 和 43 个生产
+  ToolPkg 资产，不包含 `libsudo.so`
+
 ## 2026-08-20 协议入口迁移与文件管理器首页接入
 
 状态：`LOCAL DELIVERY VALIDATED / DEVICE REVERIFY PENDING`。

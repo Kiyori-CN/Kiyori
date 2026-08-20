@@ -2242,6 +2242,8 @@ class ArchitectureBoundaryTest(unittest.TestCase):
                 "screens/theme/ThemeSettingsContentEditor.kt",
                 "app/src/main/java/com/ai/assistance/operit/ui/features/settings/"
                 "screens/theme/ThemeSettingsTabs.kt",
+                "app/src/main/java/com/kiyori/integration/operit/onboarding/"
+                "KiyoriPermissionsSettingsPage.kt",
             },
             "KiyoriLightColorScheme": {
                 "app/src/main/java/com/ai/assistance/operit/ui/floating/"
@@ -2498,16 +2500,20 @@ class ArchitectureBoundaryTest(unittest.TestCase):
         player_path = next(
             iter(M05A2_EXPECTED_QUALIFIED_REFERENCES["KiyoriSemanticColors"])
         )
-        legacy_production_consumer_count = M05A2_PRODUCTION_CONSUMER_COUNT - 1
+        legacy_production_consumer_count = M05A2_PRODUCTION_CONSUMER_COUNT - 2
         assistant_experience_path = (
             "app/src/main/java/com/ai/assistance/operit/ui/features/"
             "semantic/AssistantExperienceSettingsPages.kt"
+        )
+        permission_presentation_path = (
+            "app/src/main/java/com/kiyori/integration/operit/onboarding/"
+            "KiyoriPermissionPresentation.kt"
         )
         production_paths = [player_path] + [
             "app/src/main/java/com/ai/assistance/operit/ui/features/"
             f"semantic/Consumer{index:02d}.kt"
             for index in range(legacy_production_consumer_count - 1)
-        ] + [assistant_experience_path]
+        ] + [assistant_experience_path, permission_presentation_path]
         test_paths = [
             "app/src/test/java/com/ai/assistance/operit/ui/semantic/"
             f"SemanticConsumer{index}.kt"
@@ -2525,9 +2531,12 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             # The final synthetic consumer models WebSessionPageSourceEditor, which uses both
             # the stable semantic tone and its Compose color resolver.
             # The current tree adds WebSessionHistoryDialogs as a two-import consumer and
-            # KiyoriAdBlockSettingsPage and the assistant-experience Settings page as
-            # tone-only consumers.
-            if relative_path == assistant_experience_path:
+            # KiyoriAdBlockSettingsPage, the assistant-experience Settings page, and the
+            # shared onboarding/Settings permission presentation as tone-only consumers.
+            if relative_path in {
+                assistant_experience_path,
+                permission_presentation_path,
+            }:
                 imports_by_path[relative_path] = ["KiyoriSemanticTone"]
                 continue
             if index < stable_id_consumer_indices[0] or index == page_source_consumer_index:
@@ -3421,6 +3430,8 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             M04D_MAIN_ORIENTATION_COORDINATOR_PATH,
             M04C_NAVIGATION_INTEGRATION_PATH,
             KIYORI_FIRST_RUN_SCREEN_PATH,
+            "app/src/main/java/com/kiyori/integration/operit/onboarding/"
+            "KiyoriPermissionsSettingsPage.kt",
         )
         for relative_path in consumer_paths:
             extra_import = (
@@ -3440,7 +3451,13 @@ class ArchitectureBoundaryTest(unittest.TestCase):
                 (
                     "package com.kiyori.integration.operit.navigation\n\n"
                     if relative_path == M04C_NAVIGATION_INTEGRATION_PATH
-                    else "package com.kiyori.app\n\n"
+                    else (
+                        "package com.kiyori.integration.operit.onboarding\n\n"
+                        if relative_path.startswith(
+                            "app/src/main/java/com/kiyori/integration/operit/onboarding/"
+                        )
+                        else "package com.kiyori.app\n\n"
+                    )
                 )
                 + f"import {M05B_NEW_LOGGER_IMPORT}\n"
                 f"{extra_import}\n"
