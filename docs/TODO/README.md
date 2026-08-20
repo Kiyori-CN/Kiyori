@@ -9,7 +9,7 @@ APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观
 
 ## 2026-08-20 AI助手设置全面重构
 
-状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEVICE VERIFICATION PENDING`。
+状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND MAIN DELIVERY COMPLETE / DEVICE VERIFICATION PENDING`。
 本长期任务在 `main@5a63f2b59074dbc711c715e3f7a294827c035bb9` 的干净工作树开始，
 `origin/main` 与本地分歧为 `0/0`，正式开发准备门禁通过。Kiyori 尚未公开发行，因此允许彻底
 清理 AI助手设置仍保留的 Operit 旧页面方案；模型、角色、语音、上下文、工具授权、统计与外部
@@ -78,7 +78,7 @@ AI助手根页按用户决策频率固定为五组十三项：
    localization 和 `git diff --check`。
 8. [DONE] 串行执行 `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain`，核验 APK
    身份、时间、大小、SHA-256、签名、16 KB 对齐、ABI 与关键 runtime。
-9. [IN PROGRESS] 审计精确候选树、敏感内容、构建产物、文件模式、子模块和远端竞争，提交并正常推送
+9. [DONE] 审计精确候选树、敏感内容、构建产物、文件模式、子模块和远端竞争，提交并正常推送
    `main`，随后独立核对 local、tracking、远端 ref 与分歧。
 10. [PENDING DEVICE] 目标设备逐页验证浅深主题、字体缩放、IME、滚动、弹层、Back、表单保存、
     连接测试、权限、语音、角色编辑和外部接口；本任务不安装或操作设备。
@@ -127,6 +127,8 @@ AI助手根页按用户决策频率固定为五组十三项：
 - 独立 native 审计确认共 `52` 个 ELF64/AArch64，`153` 个 `PT_LOAD` 为
   `0x4000 × 151 / 0x10000 × 2`，无低于 `0x4000` 的段；生产 ToolPkg 白名单为 43 条源条目，
   APK 生成 12 个 `.toolpkg` 档案、嵌套 143 个文件，另含复制型白名单脚本，内容同步门禁通过。
+- 实现提交 `9da03846749305cadeb6860ee6f8043a5d57a2d2` 已正常推送到 `origin/main`；推送后
+  local、tracking 与远端 `refs/heads/main` 三者一致，分歧为 `0/0`。
 
 ### 风险、回滚点与完成标准
 

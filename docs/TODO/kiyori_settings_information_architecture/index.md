@@ -8,7 +8,7 @@ baseline: c036a03e
 
 ## 2026-08-20 AI助手设置全面重构
 
-状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEVICE VERIFICATION PENDING`。
+状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND MAIN DELIVERY COMPLETE / DEVICE VERIFICATION PENDING`。
 本增量只重构“设置首页 → AI助手”及其所有可达子页、弹层、字段和操作，不修改设置首页另外十一项
 的入口矩阵。Kiyori 尚未公开发行，旧 Operit 设置 UI 可以彻底清理；兼容标识、持久化格式、
 业务 repository/preferences/service 和现有 `Screen` route 必须保留唯一。
@@ -105,7 +105,7 @@ baseline: c036a03e
 6. [DONE] `CONTEXT.md`、资源、测试和反向零引用检查。
 7. [DONE] 定向 JVM/Kotlin、architecture、formal readiness、Markdown/XML/localization、
    `git diff --check` 与串行 Debug APK。
-8. [IN PROGRESS] 精确审计、提交、推送和 local/tracking/remote `0/0` 对账。
+8. [DONE] 精确审计、提交、推送和 local/tracking/remote `0/0` 对账。
 9. [PENDING DEVICE] 目标设备逐页验证；本任务不安装或操作设备。
 
 第一实现回滚点为本任务基线 `main@5a63f2b59074dbc711c715e3f7a294827c035bb9`。后续每个里程碑
@@ -129,6 +129,8 @@ baseline: c036a03e
   个 DEX、arm64-only、`51` 个无重复 native basename、关键 runtime、`libsudo.so` 缺失均通过。
   独立 native 审计为 `52` 个 ELF64/AArch64、`153` 个 `PT_LOAD`，分布
   `0x4000 × 151 / 0x10000 × 2`。
+- 实现提交 `9da03846749305cadeb6860ee6f8043a5d57a2d2` 已正常推送到 `origin/main`；推送后
+  local、tracking 与远端 `refs/heads/main` 三者一致，分歧为 `0/0`。
 
 ## 2026-08-20 文件管理器与法律文档入口收口
 
