@@ -14,7 +14,6 @@
     <string name="common_collapse">접기</string>
     <string name="nav_ai_extensions">확장</string>
     <string name="nav_memory_base">메모리</string>
-    <string name="nav_assistant_config">어시스턴트 설정</string>
     <string name="nav_terminal">터미널</string>
     <string name="nav_toolbox">도구 상자</string>
     <string name="nav_item_agreement">사용자 계약</string>
@@ -301,7 +300,6 @@
     <string name="requested_operation">요청된 작업</string>
     <string name="used_tool">사용한 도구</string>
     <string name="tool_category">도구 카테고리</string>
-    <string name="assistant_config_title">어시스턴트 설정</string>
     <string name="import_model">모델 가져오기</string>
     <string name="scan_user_models">사용자 모델 스캔</string>
     <string name="operation_success">작업 성공</string>

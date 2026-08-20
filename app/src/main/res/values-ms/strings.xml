@@ -14,7 +14,6 @@
     <string name="common_collapse">Tutup</string>
     <string name="nav_ai_extensions">Sambungan</string>
     <string name="nav_memory_base">Pangkalan Ingatan</string>
-    <string name="nav_assistant_config">Konfigurasi Pembantu</string>
     <string name="nav_terminal">Terminal</string>
     <string name="nav_toolbox">Kotak Alat</string>
     <string name="nav_item_agreement">Perjanjian Pengguna</string>
@@ -300,7 +299,6 @@
     <string name="requested_operation">Operasi yang Diminta</string>
     <string name="used_tool">Alat yang Digunakan</string>
     <string name="tool_category">Kategori Alat</string>
-    <string name="assistant_config_title">Konfigurasi Pembantu</string>
     <string name="import_model">Import Model</string>
     <string name="scan_user_models">Imbas Model Pengguna</string>
     <string name="operation_success">Operasi Berjaya</string>

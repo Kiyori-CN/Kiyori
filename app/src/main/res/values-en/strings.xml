@@ -15,7 +15,6 @@
     <string name="nav_tool_permissions">Tool Permissions</string>
     <string name="nav_about">About</string>
     <string name="nav_ai_extensions">Extensions</string>
-    <string name="nav_assistant_config">Assistant Config</string>
     <string name="nav_terminal">Terminal</string>
     <string name="nav_toolbox">Toolbox</string>
     <string name="nav_item_agreement">User Agreement</string>
@@ -349,8 +348,7 @@
     <string name="used_tool">Used Tool</string>
     <string name="tool_category">Tool Category</string>
 
-    <!-- Assistant Config Screen -->
-    <string name="assistant_config_title">Assistant Config</string>
+    <!-- Avatar and Voice Wake Settings -->
     <string name="import_model">Import Model</string>
     <string name="scan_user_models">Scan User Models</string>
     <string name="operation_success">Operation Successful</string>

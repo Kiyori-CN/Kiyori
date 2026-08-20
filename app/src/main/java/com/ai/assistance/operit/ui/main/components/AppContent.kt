@@ -440,6 +440,7 @@ fun AppContent(
                         // 使用稳定的状态机，避免同一 key 被重复触发转场
                         var lastObservedCurrentKey by remember { mutableStateOf(currentScreenKey) }
                         var lastObservedScreen by remember { mutableStateOf(currentScreen) }
+                        var lastObservedRouteEntry by remember { mutableStateOf(currentRouteEntry) }
                         var transitionFromKey by remember { mutableStateOf<String?>(null) }
                         var pendingRemovalKey by remember { mutableStateOf<String?>(null) }
                         var isTransitioning by remember { mutableStateOf(false) }
@@ -448,8 +449,12 @@ fun AppContent(
                         val allowCrossfadeForActiveTransition =
                             when {
                                 currentScreenKey != lastObservedCurrentKey ->
-                                    lastObservedScreen.participatesInCrossfadeTransition &&
-                                        currentScreen.participatesInCrossfadeTransition
+                                    shouldCrossfadeKiyoriRouteTransition(
+                                        previousRouteEntry = lastObservedRouteEntry,
+                                        currentRouteEntry = currentRouteEntry,
+                                        previousScreen = lastObservedScreen,
+                                        currentScreen = currentScreen,
+                                    )
                                 isTransitioning -> transitionAllowsCrossfade
                                 else -> true
                             }
@@ -467,8 +472,12 @@ fun AppContent(
                             if (currentScreenKey == fromKey) return@LaunchedEffect
 
                             val canCrossfade =
-                                lastObservedScreen.participatesInCrossfadeTransition &&
-                                    currentScreen.participatesInCrossfadeTransition
+                                shouldCrossfadeKiyoriRouteTransition(
+                                    previousRouteEntry = lastObservedRouteEntry,
+                                    currentRouteEntry = currentRouteEntry,
+                                    previousScreen = lastObservedScreen,
+                                    currentScreen = currentScreen,
+                                )
                             val removalKey = if (isNavigatingBack) fromKey else null
 
                             transitionAllowsCrossfade = canCrossfade
@@ -477,6 +486,7 @@ fun AppContent(
                             isTransitioning = canCrossfade
                             lastObservedCurrentKey = currentScreenKey
                             lastObservedScreen = currentScreen
+                            lastObservedRouteEntry = currentRouteEntry
 
                             if (!canCrossfade) {
                                 if (removalKey != null && removalKey != currentScreenKey) {

@@ -2498,11 +2498,16 @@ class ArchitectureBoundaryTest(unittest.TestCase):
         player_path = next(
             iter(M05A2_EXPECTED_QUALIFIED_REFERENCES["KiyoriSemanticColors"])
         )
+        legacy_production_consumer_count = M05A2_PRODUCTION_CONSUMER_COUNT - 1
+        assistant_experience_path = (
+            "app/src/main/java/com/ai/assistance/operit/ui/features/"
+            "semantic/AssistantExperienceSettingsPages.kt"
+        )
         production_paths = [player_path] + [
             "app/src/main/java/com/ai/assistance/operit/ui/features/"
             f"semantic/Consumer{index:02d}.kt"
-            for index in range(M05A2_PRODUCTION_CONSUMER_COUNT - 1)
-        ]
+            for index in range(legacy_production_consumer_count - 1)
+        ] + [assistant_experience_path]
         test_paths = [
             "app/src/test/java/com/ai/assistance/operit/ui/semantic/"
             f"SemanticConsumer{index}.kt"
@@ -2511,16 +2516,20 @@ class ArchitectureBoundaryTest(unittest.TestCase):
         imports_by_path: dict[str, list[str]] = {}
         for index, relative_path in enumerate(production_paths):
             symbols: list[str] = []
-            page_source_consumer_index = M05A2_PRODUCTION_CONSUMER_COUNT - 1
+            page_source_consumer_index = legacy_production_consumer_count - 1
             stable_id_consumer_indices = (
-                M05A2_PRODUCTION_CONSUMER_COUNT - 4,
-                M05A2_PRODUCTION_CONSUMER_COUNT - 3,
+                legacy_production_consumer_count - 4,
+                legacy_production_consumer_count - 3,
             )
-            navigation_consumer_index = M05A2_PRODUCTION_CONSUMER_COUNT - 2
+            navigation_consumer_index = legacy_production_consumer_count - 2
             # The final synthetic consumer models WebSessionPageSourceEditor, which uses both
             # the stable semantic tone and its Compose color resolver.
             # The current tree adds WebSessionHistoryDialogs as a two-import consumer and
-            # KiyoriAdBlockSettingsPage as a tone-only consumer.
+            # KiyoriAdBlockSettingsPage and the assistant-experience Settings page as
+            # tone-only consumers.
+            if relative_path == assistant_experience_path:
+                imports_by_path[relative_path] = ["KiyoriSemanticTone"]
+                continue
             if index < stable_id_consumer_indices[0] or index == page_source_consumer_index:
                 symbols.append("KiyoriSemanticTone")
             if index < stable_id_consumer_indices[0] - 6 or index == page_source_consumer_index:

@@ -9,9 +9,11 @@ import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Security
@@ -38,6 +40,8 @@ import com.kiyori.design.theme.KiyoriSemanticTone
 import kotlinx.coroutines.launch
 
 internal enum class KiyoriAiAssistantSettingsAction {
+    OPEN_AVATAR_SETTINGS,
+    OPEN_VOICE_WAKEUP_SETTINGS,
     OPEN_USER_PREFERENCES,
     OPEN_MODEL_CONFIG,
     OPEN_FUNCTIONAL_CONFIG,
@@ -66,6 +70,27 @@ internal data class KiyoriNavigationSettingsGroupSpec<T>(
 
 internal val kiyoriAiAssistantSettingsGroups =
     listOf(
+        KiyoriNavigationSettingsGroupSpec(
+            title = "助手体验",
+            description = "配置虚拟形象和语音唤醒，让助手更贴近你的使用方式",
+            entries =
+                listOf(
+                    KiyoriNavigationSettingsEntrySpec(
+                        title = "虚拟形象配置",
+                        description = "管理模型、预览、动作映射和语音通话中的形象显示",
+                        icon = Icons.Default.Face,
+                        iconTone = KiyoriSemanticTone.BLUE,
+                        action = KiyoriAiAssistantSettingsAction.OPEN_AVATAR_SETTINGS,
+                    ),
+                    KiyoriNavigationSettingsEntrySpec(
+                        title = "语音唤醒",
+                        description = "设置唤醒词、后台监听、语音响应和自动附加内容",
+                        icon = Icons.Default.Mic,
+                        iconTone = KiyoriSemanticTone.CYAN,
+                        action = KiyoriAiAssistantSettingsAction.OPEN_VOICE_WAKEUP_SETTINGS,
+                    ),
+                ),
+        ),
         KiyoriNavigationSettingsGroupSpec(
             title = "模型与服务",
             description = "配置对话模型、API 连接和各项 AI 功能使用的专属模型",

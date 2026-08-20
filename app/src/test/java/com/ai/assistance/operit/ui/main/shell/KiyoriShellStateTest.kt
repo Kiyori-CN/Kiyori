@@ -465,7 +465,7 @@ class KiyoriShellStateTest {
         val retainedAiDetail =
             RouteEntry(
                 instanceId = "retained-ai-detail",
-                routeId = "native.assistant_config",
+                routeId = "native.memory_base",
                 source = RouteEntrySource.DEFAULT,
             )
         val categoryScreens =
@@ -1533,7 +1533,6 @@ class KiyoriShellStateTest {
         val expected =
             mapOf(
                 "main.ai_chat" to KiyoriSemanticTone.BLUE,
-                "main.assistant_config" to KiyoriSemanticTone.PINK,
                 "main.memory_base" to KiyoriSemanticTone.GREEN,
                 "main.packages" to KiyoriSemanticTone.PURPLE,
                 "main.workflow" to KiyoriSemanticTone.ORANGE,

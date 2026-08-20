@@ -305,8 +305,7 @@
     <string name="model_selector_toggle_desc">Mostrar el selector de configuración de modelo en la parte superior de la interfaz de chat para cambiar rápidamente entre diferentes configuraciones</string>
     <string name="model">Modelo</string>
 
-    <!-- Assistant Config Screen -->
-    <string name="assistant_config_title">Configuración del asistente</string>
+    <!-- Avatar and Voice Wake Settings -->
     <string name="import_model">Importar modelo</string>
     <string name="scan_user_models">Escanear modelos de usuario</string>
     <string name="operation_success">Operación exitosa</string>
@@ -1446,7 +1445,6 @@
     <string name="workflow_cron_preset_every_15_minutes">Cada 15 minutos</string>
 
     <string name="common_collapse">Contraer</string>
-    <string name="nav_assistant_config">Configuración del asistente</string>
     <string name="sidebar_status_normal">Normal</string>
     <string name="chat_fullscreen_input">Entrada a pantalla completa</string>
     <string name="chat_display_mode">Modo de visualización</string>

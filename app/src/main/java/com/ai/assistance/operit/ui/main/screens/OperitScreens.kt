@@ -27,7 +27,6 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.common.NavItem
 import com.ai.assistance.operit.ui.features.about.screens.AboutScreen
 import com.ai.assistance.operit.ui.features.agreement.screens.KiyoriLegalDocumentsScreen
-import com.ai.assistance.operit.ui.features.assistant.screens.AssistantConfigScreen
 import com.ai.assistance.operit.ui.features.chat.screens.AIChatScreen
 import com.ai.assistance.operit.ui.features.demo.screens.ShizukuDemoScreen
 import com.ai.assistance.operit.ui.features.help.screens.HelpScreen
@@ -94,10 +93,12 @@ import com.ai.assistance.operit.ui.main.navigation.AppRouterGateway
 import com.ai.assistance.operit.ui.main.shell.KiyoriAccountConnectionsSettingsPage
 import com.ai.assistance.operit.ui.main.shell.KiyoriAiAssistantSettingsAction
 import com.ai.assistance.operit.ui.main.shell.KiyoriAiAssistantSettingsPage
+import com.ai.assistance.operit.ui.main.shell.KiyoriAvatarSettingsPage
 import com.ai.assistance.operit.ui.main.shell.KiyoriAppearanceSettingsAction
 import com.ai.assistance.operit.ui.main.shell.KiyoriAppearanceSettingsPage
 import com.ai.assistance.operit.ui.main.shell.KiyoriDataSettingsAction
 import com.ai.assistance.operit.ui.main.shell.KiyoriDataSettingsPage
+import com.ai.assistance.operit.ui.main.shell.KiyoriVoiceWakeupSettingsPage
 
 // 路由配置类
 typealias ScreenNavigationHandler = (Screen) -> Unit
@@ -607,6 +608,10 @@ sealed class Screen(
                 onAction = { action ->
                     navigateTo(
                         when (action) {
+                            KiyoriAiAssistantSettingsAction.OPEN_AVATAR_SETTINGS ->
+                                AvatarSettings
+                            KiyoriAiAssistantSettingsAction.OPEN_VOICE_WAKEUP_SETTINGS ->
+                                VoiceWakeupSettings
                             KiyoriAiAssistantSettingsAction.OPEN_USER_PREFERENCES ->
                                 UserPreferencesSettings
                             KiyoriAiAssistantSettingsAction.OPEN_MODEL_CONFIG -> ModelConfig
@@ -774,10 +779,11 @@ sealed class Screen(
         }
     }
 
-    data object AssistantConfig :
+    data object AvatarSettings :
             Screen(
-                    navItem = NavItem.AssistantConfig,
-                    participatesInCrossfadeTransition = false
+                    navItem = NavItem.Settings,
+                    participatesInCrossfadeTransition = false,
+                    usesEmbeddedSettingsTopBar = true,
             ) {
         @Composable
         override fun Content(
@@ -789,7 +795,27 @@ sealed class Screen(
                 onError: (String) -> Unit,
                 onGestureConsumed: (Boolean) -> Unit
         ) {
-            AssistantConfigScreen()
+            KiyoriAvatarSettingsPage()
+        }
+    }
+
+    data object VoiceWakeupSettings :
+            Screen(
+                    navItem = NavItem.Settings,
+                    participatesInCrossfadeTransition = false,
+                    usesEmbeddedSettingsTopBar = true,
+            ) {
+        @Composable
+        override fun Content(
+                navController: NavController,
+                navigateTo: ScreenNavigationHandler,
+                onGoBack: () -> Unit,
+                hasBackgroundImage: Boolean,
+                onLoading: (Boolean) -> Unit,
+                onError: (String) -> Unit,
+                onGestureConsumed: (Boolean) -> Unit
+        ) {
+            KiyoriVoiceWakeupSettingsPage()
         }
     }
 

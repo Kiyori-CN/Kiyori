@@ -18398,17 +18398,6 @@
 
     <issue
         id="UnusedResources"
-        message="The resource `R.string.assistant_config_title` appears to be unused"
-        errorLine1="    &lt;string name=&quot;assistant_config_title&quot;>助手配置&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="347"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
         message="The resource `R.string.scan_user_models` appears to be unused"
         errorLine1="    &lt;string name=&quot;scan_user_models&quot;>扫描用户模型&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">

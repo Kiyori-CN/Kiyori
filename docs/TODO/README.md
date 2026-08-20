@@ -7,6 +7,66 @@ For_Agent: 对项目大规模动工前按本规范协作
 本文件顶部记录当前跨领域长期任务，后续段落保留专项实施与历史证据。历史段落中的分支、提交、
 APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观察点，不能替代当前 Git、构建或设备状态。
 
+## 2026-08-20 AI助手设置入口迁移与 Settings 页面残影修复
+
+状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEVICE VERIFICATION PENDING`。
+本轮复用现有
+`KiyoriSettingsNavigationState`、`KiyoriApplicationSettingsPages`、`AppContent` 和
+`KiyoriShellState` 作为唯一导航与状态所有者；Kiyori 尚未发布，旧的抽屉“助手配置”入口按未发布
+方案清理，不保留并行旧入口或兼容性 UI。
+
+目标合同：
+
+- AI 对话页左抽屉删除“助手配置”，该入口不再属于 AI drawer 的可见导航目录
+- 设置首页“AI助手”增加“助手体验”分组，提供“虚拟形象配置”和“语音唤醒”两个独立子选项
+- 虚拟形象继续复用 `AssistantConfigViewModel`、`AvatarRepository`、现有模型导入/预览/动作映射
+  与虚拟形象偏好；语音唤醒继续复用 `WakeWordPreferences`、麦克风权限和个人化唤醒录入能力
+- 两个子页采用 Settings Detail Surface 的折叠标题、分组、卡片、文案、Back 与来源会话，不复制
+  第二份配置状态或第二个页面 owner
+- 软件首页 → 更多功能 → 权限继续打开唯一 `Screen.ShizukuCommands` owner；从 Settings-owned
+  页面进入 Operit route 时不把缓存的 AI 对话页作为上一页参与跨页动画，点击后直接呈现不透明最终页
+- 从 AI drawer Settings、底部 Settings、Browser 来源 Settings 进入上述页面时，Back 都按现有
+  Settings session / Operit Router owner 逐级返回；不改变 AI 对话、浏览器 WebSession 或权限
+ 业务逻辑
+
+细化计划：
+
+1. [DONE] 核对未发布边界、当前 `main`、Settings session、AI drawer 目录、AssistantConfig
+   功能 owner、权限 route owner 与 AppContent 转场缓存时序
+2. [DONE] 确认残影根因是 Settings-owned Operit route 仍参与 AppContent 的上一页保留/动画，
+   而不是复制了 AI 对话页或权限页自身创建了第二个 AI host
+3. [DONE] 冻结 AI助手分组、两个子路由、唯一状态 owner、来源/Back 链和无残影转场合同
+4. [DONE] 同步页面/路由/抽屉清理，拆分虚拟形象与语音唤醒 UI，并接入 source-aware
+   无动画切换
+5. [DONE] 增加设置页结构、路由 round-trip、残影转场策略和旧入口零引用回归
+6. [DONE] 执行 Kotlin 编译、定向 JVM、formal readiness、`git diff --check` 与串行
+   `:app:assembleDebug --no-daemon --console=plain`，核验 Debug APK
+7. [DONE] 审计候选树、敏感内容、构建产物、子模块与远端竞争，确认唯一 `main` 可按当前授权发布
+8. [PENDING DEVICE] 真机视觉、点击时序、系统 Back、设置来源恢复、麦克风权限和个人化唤醒
+   录入保持 `verification_pending`
+
+本地证据（截至 2026-08-20，Asia/Shanghai）：
+
+- `:app:compileDebugKotlin --no-daemon --console=plain`：`BUILD SUCCESSFUL`。
+- 定向 `:app:testDebugUnitTest`：`KiyoriSettingsPagesTest 14/14`、
+  `KiyoriShellStateTest 72/72`、`KiyoriSettingsTransitionPolicyTest 5/5`，合计
+  `91/91`，零 failure/error/skip。
+- `ci.test.test_architecture_boundaries`：`109/109`，`check_architecture_boundaries.py
+  --require-main`：`PASS (phase=m03)`。
+- `check_formal_readiness.py --require-main`、七份 `strings.xml` XML 解析、旧入口零引用
+  检查和 `git diff --check` 已通过。
+- 受保护架构快照已按真实代码同步：`m04b-ai-drawer-normalized-sha256.txt` 与
+  `m05a2-semantic-consumer-imports.txt`；M-05A2 架构测试夹具同步反映新增 Settings consumer。
+- `:app:assembleDebug --no-daemon --console=plain`：`BUILD SUCCESSFUL in 3m 30s`，
+  `232` 个任务中 `23` 个执行、`209` 个为最新状态；唯一 launcher 与 player runtime packaging
+  通过。
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，生成于
+  `2026-08-20 20:55:12 +08:00`，`472651494` bytes，SHA-256
+  `992A71C2FA3B9D0F02AEB55805F1D3F2C8792EFC549280459FE836E25B500DBF`；
+  `com.kiyori`，版本 `45 / 0.1.0`，min/target/compile SDK `26/34/37`，唯一 launcher
+  `com.ai.assistance.operit.ui.main.MainActivity`，`arm64-v8a`，Android Debug V2 单签名，
+  `zipalign -c -P 16 -v 4` 通过。
+
 ## 2026-08-20 全屏搜索页网址行与历史操作尺寸微调
 
 状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEVICE VERIFICATION PENDING`。本轮继续复用

@@ -13,7 +13,6 @@
     <string name="common_collapse">fechar</string>
     <string name="nav_ai_extensions">Extensões</string>
     <string name="nav_memory_base">banco de memória</string>
-    <string name="nav_assistant_config">Configuração do assistente</string>
     <string name="nav_terminal">terminal</string>
     <string name="nav_toolbox">caixa de ferramentas</string>
     <string name="nav_item_agreement">Contrato do usuário</string>
@@ -293,7 +292,6 @@
     <string name="requested_operation">operação solicitada</string>
     <string name="used_tool">Ferramentas usadas</string>
     <string name="tool_category">Categoria de ferramenta</string>
-    <string name="assistant_config_title">Configuração do assistente</string>
     <string name="import_model">Modelo de importação</string>
     <string name="scan_user_models">Digitalizar modelo de usuário</string>
     <string name="operation_success">Operação bem-sucedida</string>

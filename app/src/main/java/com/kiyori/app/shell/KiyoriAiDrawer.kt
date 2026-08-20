@@ -536,7 +536,6 @@ private fun KiyoriAiDrawerNavigationRow(
 internal fun resolveKiyoriAiDrawerTone(entry: NavigationEntrySpec): KiyoriSemanticTone =
     when (entry.entryId) {
         "main.ai_chat" -> KiyoriSemanticTone.BLUE
-        "main.assistant_config" -> KiyoriSemanticTone.PINK
         "main.memory_base" -> KiyoriSemanticTone.GREEN
         "main.packages" -> KiyoriSemanticTone.PURPLE
         "main.workflow" -> KiyoriSemanticTone.ORANGE

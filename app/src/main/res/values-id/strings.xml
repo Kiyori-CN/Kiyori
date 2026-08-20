@@ -66,7 +66,6 @@
     <string name="requested_operation">Operasi yang diminta</string>
     <string name="used_tool">Alat yang digunakan</string>
     <string name="tool_category">Kategori alat</string>
-    <string name="assistant_config_title">Konfigurasi asisten</string>
     <string name="import_model">Impor model</string>
     <string name="scan_user_models">Pindai model pengguna</string>
     <string name="operation_success">Operasi berhasil</string>
@@ -216,7 +215,6 @@
     <string name="common_collapse">Tutup</string>
     <string name="nav_ai_extensions">Ekstensi</string>
     <string name="nav_memory_base">Basis Memori</string>
-    <string name="nav_assistant_config">Konfigurasi Asisten</string>
     <string name="nav_terminal">Terminal</string>
     <string name="nav_toolbox">Kotak Alat</string>
     <string name="nav_item_agreement">Perjanjian Pengguna</string>

@@ -225,16 +225,20 @@ class KiyoriSettingsPagesTest {
     fun `application settings roots keep AI application and data ownership separated`() {
         assertEquals("我的账号", KIYORI_ACCOUNT_SETTINGS_PAGE_TITLE)
         assertEquals("数据备份", KIYORI_DATA_SETTINGS_PAGE_TITLE)
+        assertEquals("虚拟形象配置", KIYORI_AVATAR_SETTINGS_PAGE_TITLE)
+        assertEquals("语音唤醒", KIYORI_VOICE_WAKEUP_SETTINGS_PAGE_TITLE)
         assertEquals(
-            listOf(2, 4, 2, 2),
+            listOf(2, 2, 4, 2, 2),
             kiyoriAiAssistantSettingsGroups.map { group -> group.entries.size },
         )
         assertEquals(
-            listOf("模型与服务", "对话与角色", "上下文与安全", "使用与连接"),
+            listOf("助手体验", "模型与服务", "对话与角色", "上下文与安全", "使用与连接"),
             kiyoriAiAssistantSettingsGroups.map { group -> group.title },
         )
         assertEquals(
             listOf(
+                "虚拟形象配置",
+                "语音唤醒",
                 "模型与 API",
                 "功能模型",
                 "用户偏好",
@@ -367,6 +371,8 @@ class KiyoriSettingsPagesTest {
         listOf(
             Screen.AccountConnectionsSettings,
             Screen.Settings,
+            Screen.AvatarSettings,
+            Screen.VoiceWakeupSettings,
             Screen.SpeechServicesSettings,
             Screen.AppearanceSettings,
             Screen.DataManagementSettings,

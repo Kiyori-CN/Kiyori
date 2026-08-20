@@ -17,7 +17,6 @@
     <string name="common_collapse">收起</string>
     <string name="nav_ai_extensions">扩展</string>
     <string name="nav_memory_base">记忆库</string>
-    <string name="nav_assistant_config">助手配置</string>
     <string name="nav_terminal">终端</string>
     <string name="nav_toolbox">工具箱</string>
     <string name="nav_item_agreement">用户协议</string>
@@ -331,8 +330,7 @@
     <string name="used_tool">使用的工具</string>
     <string name="tool_category">工具类别</string>
 
-    <!-- 助手配置界面 -->
-    <string name="assistant_config_title">助手配置</string>
+    <!-- 虚拟形象与语音唤醒设置 -->
     <string name="import_model">导入模型</string>
     <string name="scan_user_models">扫描用户模型</string>
     <string name="operation_success">操作成功</string>
