@@ -66,9 +66,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.map
@@ -132,8 +129,6 @@ class StandardBrowserSessionTools private constructor(
         BrowserSessionRecoveryStore.getInstance(context.applicationContext)
     }
     internal val profileManager = WebSessionProfileManager()
-    private val _browserWindowCount = MutableStateFlow(0)
-    internal val browserWindowCount: StateFlow<Int> = _browserWindowCount.asStateFlow()
     @Volatile internal var defaultSessionProfile: WebSessionProfile = WebSessionProfile.NORMAL
     internal val browserRecoveryRevision = AtomicLong(0L)
     internal val browserRecoveryWriterRunning = AtomicBoolean(false)
@@ -225,7 +220,7 @@ class StandardBrowserSessionTools private constructor(
     }
 
     internal fun publishBrowserWindowCount(count: Int) {
-        _browserWindowCount.value = count
+        BrowserWindowCountState.publish(count)
     }
 
     internal data class WebSession(

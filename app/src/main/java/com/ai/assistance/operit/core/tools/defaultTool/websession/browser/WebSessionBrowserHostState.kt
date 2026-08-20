@@ -426,6 +426,15 @@ internal data class BrowserDownloadPromptState(
 )
 
 @Immutable
+internal data class BrowserSearchRecoveryProjectionKey(
+    val query: String,
+    val engineId: String,
+    val source: KiyoriBrowserSearchSource,
+    val requestedUrl: String,
+    val submittedAt: Long,
+)
+
+@Immutable
 internal data class WebSessionBrowserHostState(
     val browserState: WebSessionBrowserState = WebSessionBrowserState(),
     val sheetRoute: WebSessionBrowserSheetRoute = WebSessionBrowserSheetRoute.NONE,
@@ -441,6 +450,9 @@ internal data class WebSessionBrowserHostState(
     val searchProfile: WebSessionProfile = WebSessionProfile.NORMAL,
     val lastSearchQuery: String = "",
     val isSearchEngineQuickSwitchBarVisible: Boolean = false,
+    val projectedSearchRecoverySessionId: String? = null,
+    val projectedSearchRecoveryKey: BrowserSearchRecoveryProjectionKey? = null,
+    val projectedSearchRecoveryPageIsResult: Boolean = false,
     val pageSource: WebSessionPageSourceState = WebSessionPageSourceState(),
     val textSelectionActions: WebSessionTextSelectionActionsState? = null,
     val webElementAction: WebSessionWebElementActionState? = null,

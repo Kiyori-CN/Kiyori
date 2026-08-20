@@ -7,6 +7,64 @@ For_Agent: 对项目大规模动工前按本规范协作
 本文件顶部记录当前跨领域长期任务，后续段落保留专项实施与历史证据。历史段落中的分支、提交、
 APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观察点，不能替代当前 Git、构建或设备状态。
 
+## 2026-08-20 启动、天气、MCP 提示与首次搜索深度优化
+
+状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEVICE VERIFICATION PENDING`。本轮复用
+[`kiyori_startup_performance`](kiyori_startup_performance/index.md)、
+[`kiyori_home_ui_refresh`](kiyori_home_ui_refresh/index.md) 和
+[`kiyori_browser_product_completion`](kiyori_browser_product_completion/index.md)
+三个既有权威载体；跨模块冻结方案见
+[`启动调度、首页天气、MCP 提示与首次搜索联合优化`](kiyori_startup_performance/4_runtime_staging_weather_mcp_and_search.md)。
+
+目标合同：
+
+- 软件首页首帧不构造完整 Browser Runtime，不启动 ToolPkg 动态包扫描或重复 MCP 安装状态扫描
+- ToolPkg 动态 route 在首帧后完成唯一初始化，初始化前的外部动态 route 请求不丢失
+- 首页天气使用已验证持久快照快速首显，短时 last-known 定位与城市/天气并行请求缩短实时刷新
+- 当前已有有效天气时，刷新失败不把首页覆盖为失败状态
+- MCP 折叠加载提示只在当前可见 AI 页面和 AI drawer 显示
+- 软件启动后的第一次关键词搜索在真实搜索结果 URL 可见后显示搜索引擎横向切换条；自定义主页、
+  未稳定重定向、普通子页面和直接 URL 导航不显示
+- 广告订阅快照缺失或内容变化时使用单遍低峰值解析编译，消除完整 UTF-8 文本、完整 parsed spec
+  列表和重复规则编译造成的堆峰值
+
+细化计划：
+
+1. [DONE] 核对 `main@cc398f61`、干净工作树、正式开发门禁、历史合同和当前状态 owner
+2. [DONE] 定位 Browser Runtime 首帧构造、ToolPkg/MCP 相邻扫描、天气串行链路和首次搜索投影缺口
+3. [DONE] 冻结单 owner、调度顺序、天气状态机、AI 可见性和 session hydration 方案
+4. [DONE] 分小批次实现并增加定向回归测试、架构/持久化快照和相称文档
+5. [DONE] Kotlin 编译、正式门禁、architecture、Markdown、差异检查、定向 JVM 和 Debug APK 审计
+6. [DONE] 精确候选树、敏感内容、构建产物、文件模式和子模块审计
+7. [DONE] 根据现场反馈补充搜索结果 URL 页面门禁，删除全屏搜索提交时直接显示横向条的路径
+8. [DONE] 根据 `f462782c-9749-4a17-b694-e39004004aba` 的 512 MiB 堆 OOM 栈，将广告订阅刷新和
+   缓存缺失改为逐行直接编译与计数
+9. [DONE] 重跑架构、正式门禁、完整定向 JVM、Debug APK 和本地产物封板
+10. [PENDING DEVICE] 冷启动、天气首显、MCP 页面范围、搜索条页面范围和广告订阅刷新内存保持
+   `verification_pending`
+
+本地验证证据：
+
+- architecture boundary `PASS (phase=m03)`，对应 Python fixture `109/109`
+- 本轮启动、天气、MCP、搜索/恢复/导航和广告规则 14 组定向 JVM 共 `158/158`，
+  零 failure/error/skip，并实际重新执行
+  `:app:compileDebugKotlin`
+- `check_formal_readiness.py --require-main` 与 `git diff --check` 通过
+- `:app:assembleDebug --no-daemon --console=plain` 通过，`232` 个任务中 `22` 个执行、
+  `210` 个为最新状态；唯一 Debug launcher 和 player runtime packaging 校验通过
+- Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，生成于
+  `2026-08-20 17:58:16 +08:00`，大小 `472652738` bytes，SHA-256
+  `D6F038C09FDCD041E037A6862AB7C1BB15B3AB87C42D676CDB0BFB57AA529FD4`
+- APK 为 `com.kiyori 45 / 0.1.0`、min `26`、target `34`、compile `37`，
+  Application 为 `com.kiyori.app.KiyoriApplication`，唯一 launcher 为
+  `com.ai.assistance.operit.ui.main.MainActivity`
+- Android Debug V2 单 signer、`zipalign -c -P 16 -v 4`、arm64-only、`51` 个 `.so`
+  零重复 basename、`52` 个 APK ELF 全部 ELF64/AArch64 且 `PT_LOAD >= 0x4000`
+- APK 共 `5504` 个 ZIP entry，无重复项；`153` 个 `PT_LOAD` 为
+  `0x4000 × 151 / 0x10000 × 2`，包含 `liboperit_ripgrep.so` 且不含 `libsudo.so`
+- mpv 与 FFmpegKit 两份受控 M9 AAR 审计通过；其 `19` 个 native 成员与 APK 逐字节一致，
+  且无 `RPATH/RUNPATH`
+
 ## 2026-08-20 浏览器源码查看器交互与长源码性能优化
 
 状态：`LOCAL IMPLEMENTATION AND AUTOMATED VERIFICATION COMPLETE / TARGET DEVICE VERIFICATION PENDING`。本轮复用

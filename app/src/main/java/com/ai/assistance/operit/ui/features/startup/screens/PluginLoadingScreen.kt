@@ -481,6 +481,10 @@ class PluginLoadingState {
     private val _isVisible = MutableStateFlow(false)
     val isVisible: StateFlow<Boolean> = _isVisible
 
+    // 当前可见页面是否允许呈现加载进度；不影响后台 MCP 启动生命周期。
+    private val _presentationAllowed = MutableStateFlow(false)
+    val presentationAllowed: StateFlow<Boolean> = _presentationAllowed
+
     // 是否展开
     private val _isExpanded = MutableStateFlow(false)
     val isExpanded: StateFlow<Boolean> = _isExpanded
@@ -518,6 +522,10 @@ class PluginLoadingState {
 
     fun toggleExpansion() {
         _isExpanded.value = !_isExpanded.value
+    }
+
+    fun setPresentationAllowed(allowed: Boolean) {
+        _presentationAllowed.value = allowed
     }
 
     private fun forceExpanded() {
@@ -986,6 +994,12 @@ class PluginLoadingState {
 @Composable
 fun PluginLoadingScreenWithState(loadingState: PluginLoadingState, modifier: Modifier = Modifier) {
     val isVisible by loadingState.isVisible.collectAsState()
+    val presentationAllowed by loadingState.presentationAllowed.collectAsState()
+    if (!isVisible || !presentationAllowed) {
+        return
+    }
+
+    // 非 AI 页面不订阅 MCP 进度、日志与插件列表，避免后台加载更新让根叠层无效重组。
     val progress by loadingState.progress.collectAsState()
     val message by loadingState.message.collectAsState()
     val pluginsStarted by loadingState.pluginsStarted.collectAsState()
@@ -1022,7 +1036,7 @@ fun PluginLoadingScreenWithState(loadingState: PluginLoadingState, modifier: Mod
     }
 
     PluginLoadingScreen(
-            isVisible = isVisible,
+            isVisible = true,
             progress = progress,
             message = message,
             pluginsStarted = pluginsStarted,

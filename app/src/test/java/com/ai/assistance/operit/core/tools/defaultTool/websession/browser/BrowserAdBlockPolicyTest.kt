@@ -175,6 +175,121 @@ class BrowserAdBlockPolicyTest {
     }
 
     @Test
+    fun `single pass subscription compilation matches parse then compile semantics`() {
+        val text =
+            """
+            [Adblock Plus 2.0]
+            ! comment
+            ||ads.example.com^
+            @@||ads.example.com/allowed^
+            /tracker-[0-9]+\.gif/
+            ||metrics.example.com^${'$'}badfilter
+            example.org##.advert
+            example.org#@#.sponsored
+            example.org#?#div:has-text(Sponsored)
+            malformed_domain##.broken
+            """.trimIndent()
+        val parsed =
+            parseBrowserAdBlockSubscription(
+                text = text,
+                subscriptionId = "sub",
+                subscriptionName = "Test list",
+            )
+        val legacyRuleSet =
+            BrowserAdBlockCompiledRuleSet.compile(
+                id = "sub",
+                networkRules = parsed.networkRules,
+                elementRules = parsed.elementRules,
+            )
+        val compiled =
+            text
+                .reader()
+                .buffered()
+                .use { reader ->
+                    compileBrowserAdBlockSubscription(
+                        reader = reader,
+                        subscriptionId = "sub",
+                        subscriptionName = "Test list",
+                    )
+                }
+
+        assertEquals(parsed.toRuleCounts(), compiled.counts)
+        assertEquals(
+            legacyRuleSet.networkRules.map(CompiledBrowserAdBlockNetworkRule::spec),
+            compiled.ruleSet.networkRules.map(CompiledBrowserAdBlockNetworkRule::spec),
+        )
+        assertEquals(
+            legacyRuleSet.elementRules.map(CompiledBrowserAdBlockElementRule::spec),
+            compiled.ruleSet.elementRules.map(CompiledBrowserAdBlockElementRule::spec),
+        )
+        assertEquals(legacyRuleSet.badFilters, compiled.ruleSet.badFilters)
+
+        val legacyMatcher =
+            BrowserAdBlockMatcher.fromCompiled(
+                enabled = true,
+                allowlistedDomains = emptyList(),
+                ruleSets = listOf(legacyRuleSet),
+            )
+        val compiledMatcher =
+            BrowserAdBlockMatcher.fromCompiled(
+                enabled = true,
+                allowlistedDomains = emptyList(),
+                ruleSets = listOf(compiled.ruleSet),
+            )
+        val requests =
+            listOf(
+                "https://ads.example.com/banner.js",
+                "https://ads.example.com/allowed/banner.js",
+                "https://cdn.example.com/tracker-42.gif",
+                "https://metrics.example.com/pixel.gif",
+                "https://cdn.example.com/content.js",
+            )
+        requests.forEach { requestUrl ->
+            assertEquals(
+                legacyMatcher.decide("https://example.org/article", requestUrl),
+                compiledMatcher.decide("https://example.org/article", requestUrl),
+            )
+        }
+        assertEquals(
+            legacyMatcher.elementDecisionsForPage("https://example.org/article"),
+            compiledMatcher.elementDecisionsForPage("https://example.org/article"),
+        )
+    }
+
+    @Test
+    fun `single pass compilation handles large mixed subscriptions without parsed spec lists`() {
+        val ruleCount = 5_000
+        val text =
+            buildString {
+                repeat(ruleCount) { index ->
+                    append("||ads-")
+                    append(index)
+                    append(".example^")
+                    append('\n')
+                    append("##.sponsored-")
+                    append(index)
+                    append('\n')
+                }
+            }
+        val compiled =
+            text
+                .reader()
+                .buffered()
+                .use { reader ->
+                    compileBrowserAdBlockSubscription(
+                        reader = reader,
+                        subscriptionId = "large",
+                        subscriptionName = "Large list",
+                    )
+                }
+
+        assertEquals(ruleCount, compiled.counts.networkBlockingRuleCount)
+        assertEquals(ruleCount, compiled.counts.elementBlockingRuleCount)
+        assertEquals(ruleCount, compiled.ruleSet.networkRules.size)
+        assertEquals(ruleCount, compiled.ruleSet.elementRules.size)
+    }
+
+    @Test
     fun `resource and third party options constrain request blocking`() {
         val matcher =
             matcher(

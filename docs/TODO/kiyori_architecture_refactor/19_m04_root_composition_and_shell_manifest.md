@@ -1844,3 +1844,43 @@ Player system-bar、namespace、数据、协议、Manifest 稳定组件或 termi
 - 需要第二 router、第二 PackageManager listener、第二 Browser/Player/download owner；
 - 需要 namespace、Manifest 组件、Intent/URI、AIDL/JNI/native、数据或 terminal 变化；
 - compile、定向测试、architecture 或 Debug APK 失败。
+
+## 2026-08-20 启动分段、AI 加载提示与动态导航合同增量
+
+本增量不改变 M-04 的 owner 数量。`KiyoriApp` 继续是唯一根组合，
+`KiyoriAppShell` 继续是唯一 Shell host，`AppRouteCatalog` 与
+`OperitNavigationIntegration` 继续由唯一 Kiyori integration 持有。
+
+- 根组合不再为了软件首页窗口数字构造 Browser Runtime；它观察轻量窗口投影，并把 coordinator
+  与 history store 保持为真实 Browser 操作时取得的 lazy 引用。
+- 根组合删除重复 `MCPRepository.syncInstalledStatus()`，改为消费同一个
+  `LocalPluginLoadingState` 并写入纯展示权限。
+- App Shell 新增唯一纯函数 `shouldPresentKiyoriPluginLoading`，按当前前景 owner 区分 AI 与
+  非 AI 表面；它不持有 MCP 运行状态。
+- navigation integration 首帧发布静态 host model，两帧后等待唯一 `PackageManager`
+  初始化，再发布动态 ToolPkg model 和安装唯一 listener。初始化前的未知外部 route 保持待处理。
+- catalog 保留 `build(context, packageManager)` 的唯一动态入口，并增加不读取 PackageManager 的
+  `buildStatic(context)` 首帧入口。
+- ToolPkg 初始化失败使用 `KiyoriLogger` 记录，因此 ARCH043 的当前 Kiyori 直接消费者从 7 个
+  增至 8 个；Operit-owned 源码仍使用旧 facade。
+
+同步后的机器合同：
+
+```text
+ARCH020 KiyoriApp LF SHA-256:
+493B62FB8F409B55B81C555CE6A3C2D97E2C9E99628A6EEF13AE23E37A796635
+
+ARCH024 KiyoriAppShell normalized SHA-256:
+6E2C93C54C73CFB295C368A44B38C03A6C0DD24304BBC95C8C97DC16C8EC9DD8
+
+ARCH029 AppRouteCatalog LF SHA-256:
+CCF2DD86B0D74AD105912E865B41DCAE2FF379D265F796D35E4FAF012C464890
+
+ARCH029 OperitNavigationIntegration LF SHA-256:
+1976DF2FBD36CFC736A0C01595DA6D99C21EACDDB06C6AE6E3199D786FBEDA1E
+```
+
+ARCH020 的 Operit import snapshot 删除 `MCPRepository`、增加
+`LocalPluginLoadingState`；ARCH023 锁定根组合新增 Shell helper import；ARCH024 锁定 helper
+唯一 owner 与测试接线；ARCH029 的 import snapshot允许并锁定项目内 `KiyoriLogger` 边界。
+完整 architecture gate 已通过，最终 Python/Gradle/APK 证据记录在联合启动优化方案。

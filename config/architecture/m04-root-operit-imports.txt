@@ -1,6 +1,5 @@
 com.ai.assistance.operit.core.browser.presentation.BrowserPresentationCoordinator
 com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryStore
-com.ai.assistance.operit.data.mcp.MCPRepository
 com.ai.assistance.operit.data.preferences.DisplayPreferencesManager
 com.ai.assistance.operit.ui.common.NavItem
 com.ai.assistance.operit.ui.main.components.AppContent
@@ -18,6 +17,7 @@ com.ai.assistance.operit.ui.main.navigation.RouteBackGuardRegistry
 com.ai.assistance.operit.ui.main.navigation.TopBarTitleContent
 com.ai.assistance.operit.ui.main.screens.Screen
 com.ai.assistance.operit.ui.features.browser.appshell.KiyoriBrowserHome
+com.ai.assistance.operit.ui.features.startup.screens.LocalPluginLoadingState
 com.ai.assistance.operit.R
 com.ai.assistance.operit.ui.main.AiHomeQuickAction
 com.ai.assistance.operit.ui.main.PendingAiHomeActionHandler

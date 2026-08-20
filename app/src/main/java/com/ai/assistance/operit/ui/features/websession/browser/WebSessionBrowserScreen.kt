@@ -58,7 +58,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.ai.assistance.operit.R
-import com.ai.assistance.operit.core.browser.navigation.BrowserAddressResolver
 import com.ai.assistance.operit.core.player.PlayerMediaSource
 import com.ai.assistance.operit.core.player.PlayerPresentation
 import com.ai.assistance.operit.core.player.PlayerSession
@@ -86,6 +85,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionUserscriptWorkbenchTab
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.currentPluginRoute
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.popBrowserPluginRoute
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.prepareForFullScreenSearchNavigation
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.pushBrowserPluginRoute
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryCategory
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryEntry
@@ -837,34 +837,22 @@ internal fun WebSessionBrowserScreen(
                 onSubmit = {
                     val query = hostState.searchDraft.trim()
                     if (query.isNotBlank()) {
-                        val isTextSearch = BrowserAddressResolver.isSearchQuery(query)
-                        onSubmitSearch(query, searchEngine, hostState.searchProfile)
                         profileFeedback = null
-                        onHostStateChange { current ->
-                            current.copy(
-                                isSearchVisible = false,
-                                isSearchEnginePanelVisible = false,
-                                searchDraft = "",
-                                lastSearchQuery = if (isTextSearch) query else "",
-                                isSearchEngineQuickSwitchBarVisible = isTextSearch,
-                            )
-                        }
+                        onHostStateChange(
+                            WebSessionBrowserHostState::prepareForFullScreenSearchNavigation,
+                        )
+                        // 先撤下旧页面的搜索 chrome，再发起导航。若顺序相反，极快的结果页投影
+                        // 可能先显示横向条，随后被本回调误判为手动关闭并在同一结果页保持隐藏。
+                        onSubmitSearch(query, searchEngine, hostState.searchProfile)
                     }
                 },
                 onSelectEngine = onSetSearchEngine,
                 onOpenSearchRecord = { record ->
-                    onOpenSearchRecord(record, hostState.searchProfile)
                     profileFeedback = null
-                    val isTextSearch = BrowserAddressResolver.isSearchQuery(record.query)
-                    onHostStateChange { current ->
-                        current.copy(
-                            isSearchVisible = false,
-                            isSearchEnginePanelVisible = false,
-                            searchDraft = "",
-                            lastSearchQuery = if (isTextSearch) record.query else "",
-                            isSearchEngineQuickSwitchBarVisible = isTextSearch,
-                        )
-                    }
+                    onHostStateChange(
+                        WebSessionBrowserHostState::prepareForFullScreenSearchNavigation,
+                    )
+                    onOpenSearchRecord(record, hostState.searchProfile)
                 },
                 onDeleteSearchRecord = onDeleteSearchHistory,
                 onClearSearchHistory = onClearSearchHistory,

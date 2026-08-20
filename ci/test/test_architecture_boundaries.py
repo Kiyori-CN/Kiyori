@@ -486,6 +486,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
                 "import com.kiyori.app.shell.PrimaryDestination\n"
                 "import com.kiyori.app.shell.SoftwareHomePage\n"
                 "import com.kiyori.app.shell.openExternalDestination\n"
+                "import com.kiyori.app.shell.shouldPresentKiyoriPluginLoading\n"
                 "import com.kiyori.capability.browser.presentation.KiyoriBrowserExitPresentation\n"
             ),
             (
@@ -566,6 +567,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             + "fun KiyoriAppShell() = Unit\n"
             + "fun kiyoriStartupBeyondViewportPageCount() = Unit\n"
             + "fun shouldComposeKiyoriAiHost() = Unit\n"
+            + "fun shouldPresentKiyoriPluginLoading() = Unit\n"
             + "fun shouldNotifyKiyoriAiHomeSettledForInitialPage() = Unit\n"
             + "fun shouldProvideKiyoriSettingsTheme() = Unit\n"
             + "fun calculateKiyoriAiHostTranslation() = Unit\n"
@@ -607,6 +609,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             "shouldComposeKiyoriAiHost",
             "shouldEnableKiyoriShellBackHandler",
             "shouldNotifyKiyoriAiHomeSettledForInitialPage",
+            "shouldPresentKiyoriPluginLoading",
             "shouldPresentKiyoriBookmarkDrawer",
             "shouldPresentKiyoriDownloadDrawer",
             "shouldPresentKiyoriHistoryDrawer",
@@ -3407,6 +3410,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             M04D_MAIN_SHARED_CONTENT_COORDINATOR_PATH,
             M04D_MAIN_TASK_VISIBILITY_COORDINATOR_PATH,
             M04D_MAIN_ORIENTATION_COORDINATOR_PATH,
+            M04C_NAVIGATION_INTEGRATION_PATH,
             KIYORI_FIRST_RUN_SCREEN_PATH,
         )
         for relative_path in consumer_paths:
@@ -3424,8 +3428,12 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             )
             write(
                 relative_path,
-                "package com.kiyori.app\n\n"
-                f"import {M05B_NEW_LOGGER_IMPORT}\n"
+                (
+                    "package com.kiyori.integration.operit.navigation\n\n"
+                    if relative_path == M04C_NAVIGATION_INTEGRATION_PATH
+                    else "package com.kiyori.app\n\n"
+                )
+                + f"import {M05B_NEW_LOGGER_IMPORT}\n"
                 f"{extra_import}\n"
                 f"{body}",
             )

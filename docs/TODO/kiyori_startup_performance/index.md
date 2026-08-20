@@ -23,6 +23,21 @@ Android 12 及以上会为 Launcher Activity 强制创建系统启动窗口。�
 - 插件加载、权限检查和其他依赖完整运行时的工作必须等待后台初始化完成
 - 不增加自定义启动页、加载页、旧流程兼容分支或回退逻辑
 
+## 2026-08-20 深度优化增量
+
+当前第二阶段继续处理首帧后的资源争用和跨模块状态投影：
+
+- 软件首页不再为了窗口数量提前构造 Browser Runtime
+- ToolPkg 动态导航等待首帧后完成唯一初始化
+- 全局 Coil `ImageLoader` 移入串行低优先级预热
+- 删除根 Compose 与插件启动链之间的重复 MCP 状态扫描
+- MCP 加载提示只在当前可见 AI 表面呈现
+- 首页天气使用已验证持久快照首显，并行完成城市与天气刷新
+- 软件首页第一次关键词搜索从 session recovery 初始化搜索引擎切换条
+
+详细方案与验收见
+[`4_runtime_staging_weather_mcp_and_search.md`](4_runtime_staging_weather_mcp_and_search.md)。
+
 ## 作用域
 
 ```text
@@ -31,6 +46,7 @@ kiyori_startup_performance/
 	1_starting_window_and_first_frame.md
 	2_runtime_initialization.md
 	3_validation.md
+	4_runtime_staging_weather_mcp_and_search.md
 ```
 
 实现范围限定在启动主题、`MainActivity` 启动顺序、`KiyoriApplication` 初始化阶段和相称的验证文档。现有下载、终端、浏览器与构建脚本改动不属于本任务。
@@ -46,3 +62,10 @@ kiyori_startup_performance/
 ## 当前状态
 
 实现与本地自动验证已经完成。Debug APK 已确认包含透明 Splash 资源和零动画时长，启动链路也已把完整运行时初始化移到首帧之后。由于本轮未操作设备，浅色/深色冷启动的视觉结果和真实首帧耗时仍为 `verification_pending`。
+
+2026-08-20 深度优化增量的源码、七组定向 JVM `104/104`、实际 Kotlin 编译、architecture
+boundary、formal readiness、差异检查、规定 Debug APK 与 native/player 静态审计均已通过。
+最终 APK 为 `472652738` bytes，SHA-256
+`DE159B8AF817EDDD327C577CC121ADDCBE807245A8E1AE09B81D8A17C513910E`。Markdown 候选检查、
+结果为 `errors=0 warnings=0`，候选树和敏感内容审计通过。设备上的冷启动资源争用、天气首显
+时延、MCP 页面范围与首次真实搜索继续为 `verification_pending`。

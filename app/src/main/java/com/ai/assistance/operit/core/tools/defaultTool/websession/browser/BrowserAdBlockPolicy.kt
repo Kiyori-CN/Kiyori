@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 
+import java.io.BufferedReader
 import java.net.URI
 import java.util.LinkedHashMap
 import java.util.LinkedHashSet
@@ -55,6 +56,26 @@ internal data class BrowserAdBlockSubscriptionParseResult(
     val networkRules: List<BrowserAdBlockNetworkRuleSpec>,
     val elementRules: List<BrowserAdBlockElementRuleSpec>,
     val ignoredLineCount: Int,
+)
+
+internal data class BrowserAdBlockSubscriptionRuleCounts(
+    val ignoredLineCount: Int,
+    val networkBlockingRuleCount: Int,
+    val networkExceptionRuleCount: Int,
+    val elementBlockingRuleCount: Int,
+    val elementExceptionRuleCount: Int,
+) {
+    val effectiveRuleCount: Int
+        get() =
+            networkBlockingRuleCount +
+                networkExceptionRuleCount +
+                elementBlockingRuleCount +
+                elementExceptionRuleCount
+}
+
+internal data class BrowserAdBlockSubscriptionCompilationResult(
+    val ruleSet: BrowserAdBlockCompiledRuleSet,
+    val counts: BrowserAdBlockSubscriptionRuleCounts,
 )
 
 internal data class BrowserAdBlockDecision(
@@ -574,69 +595,21 @@ internal fun parseBrowserAdBlockSubscription(
     var ignoredLineCount = 0
 
     text.lineSequence().forEachIndexed { index, rawLine ->
-        val line = rawLine.trim().removePrefix("\uFEFF")
-        if (
-            line.isBlank() ||
-                line.startsWith("!") ||
-                line.startsWith("[")
-        ) {
-            return@forEachIndexed
-        }
-
-        if (line.length > BROWSER_AD_BLOCK_MAX_NETWORK_RULE_LENGTH) {
-            ignoredLineCount += 1
-            return@forEachIndexed
-        }
-
-        if (containsUnsupportedBrowserAdBlockCosmeticSyntax(line)) {
-            ignoredLineCount += 1
-            return@forEachIndexed
-        }
-
-        val cosmeticSeparator =
-            when {
-                line.contains("#@#") -> "#@#"
-                line.contains("##") -> "##"
-                else -> null
-            }
-        if (cosmeticSeparator != null) {
-            val domainExpression = line.substringBefore(cosmeticSeparator).trim()
-            val selector = line.substringAfter(cosmeticSeparator).trim()
-            val spec =
-                BrowserAdBlockElementRuleSpec(
-                    id = "$subscriptionId:element:$index",
-                    domainExpression = domainExpression,
-                    selector = selector,
-                    source = BrowserAdBlockRuleSource.SUBSCRIPTION,
-                    sourceName = subscriptionName,
-                    exception = cosmeticSeparator == "#@#",
+        when (
+            val compiledLine =
+                compileBrowserAdBlockSubscriptionLine(
+                    rawLine = rawLine,
+                    lineIndex = index,
+                    subscriptionId = subscriptionId,
+                    subscriptionName = subscriptionName,
                 )
-            if (
-                isValidBrowserAdBlockSubscriptionSelector(selector) &&
-                    compileBrowserAdBlockElementRule(spec) != null
-            ) {
-                elementRules += spec
-            } else {
-                ignoredLineCount += 1
-            }
-            return@forEachIndexed
-        }
-
-        if (line.startsWith("#")) {
-            return@forEachIndexed
-        }
-
-        val spec =
-            BrowserAdBlockNetworkRuleSpec(
-                id = "$subscriptionId:network:$index",
-                rule = line,
-                source = BrowserAdBlockRuleSource.SUBSCRIPTION,
-                sourceName = subscriptionName,
-            )
-        if (compileBrowserAdBlockNetworkRule(spec) == null) {
-            ignoredLineCount += 1
-        } else {
-            networkRules += spec
+        ) {
+            BrowserAdBlockSubscriptionCompiledLine.Ignored -> ignoredLineCount += 1
+            is BrowserAdBlockSubscriptionCompiledLine.Element ->
+                elementRules += compiledLine.spec
+            is BrowserAdBlockSubscriptionCompiledLine.Network ->
+                networkRules += compiledLine.spec
+            BrowserAdBlockSubscriptionCompiledLine.Skipped -> Unit
         }
     }
 
@@ -644,6 +617,195 @@ internal fun parseBrowserAdBlockSubscription(
         networkRules = networkRules,
         elementRules = elementRules,
         ignoredLineCount = ignoredLineCount,
+    )
+}
+
+internal fun compileBrowserAdBlockSubscription(
+    reader: BufferedReader,
+    subscriptionId: String,
+    subscriptionName: String,
+): BrowserAdBlockSubscriptionCompilationResult {
+    val networkRules = mutableListOf<CompiledBrowserAdBlockNetworkRule>()
+    val elementRules = mutableListOf<CompiledBrowserAdBlockElementRule>()
+    val badFilters = linkedSetOf<BrowserAdBlockBadFilter>()
+    var ignoredLineCount = 0
+    var networkBlockingRuleCount = 0
+    var networkExceptionRuleCount = 0
+    var elementBlockingRuleCount = 0
+    var elementExceptionRuleCount = 0
+    var lineIndex = 0
+
+    while (true) {
+        val rawLine = reader.readLine() ?: break
+        when (
+            val compiledLine =
+                compileBrowserAdBlockSubscriptionLine(
+                    rawLine = rawLine,
+                    lineIndex = lineIndex,
+                    subscriptionId = subscriptionId,
+                    subscriptionName = subscriptionName,
+                )
+        ) {
+            BrowserAdBlockSubscriptionCompiledLine.Ignored -> ignoredLineCount += 1
+            is BrowserAdBlockSubscriptionCompiledLine.Element -> {
+                elementRules += compiledLine.compiled
+                if (compiledLine.spec.exception) {
+                    elementExceptionRuleCount += 1
+                } else {
+                    elementBlockingRuleCount += 1
+                }
+            }
+            is BrowserAdBlockSubscriptionCompiledLine.Network -> {
+                if (compiledLine.spec.rule.trim().startsWith("@@")) {
+                    networkExceptionRuleCount += 1
+                } else {
+                    networkBlockingRuleCount += 1
+                }
+                if (compiledLine.badFilterRule) {
+                    compiledLine.badFilter?.let(badFilters::add)
+                } else {
+                    networkRules += compiledLine.compiled
+                }
+            }
+            BrowserAdBlockSubscriptionCompiledLine.Skipped -> Unit
+        }
+        lineIndex += 1
+    }
+
+    return BrowserAdBlockSubscriptionCompilationResult(
+        ruleSet =
+            BrowserAdBlockCompiledRuleSet.fromCompiled(
+                id = subscriptionId,
+                networkRules = networkRules,
+                elementRules = elementRules,
+                badFilters = badFilters,
+            ),
+        counts =
+            BrowserAdBlockSubscriptionRuleCounts(
+                ignoredLineCount = ignoredLineCount,
+                networkBlockingRuleCount = networkBlockingRuleCount,
+                networkExceptionRuleCount = networkExceptionRuleCount,
+                elementBlockingRuleCount = elementBlockingRuleCount,
+                elementExceptionRuleCount = elementExceptionRuleCount,
+            ),
+    )
+}
+
+internal fun BrowserAdBlockSubscriptionParseResult.toRuleCounts():
+    BrowserAdBlockSubscriptionRuleCounts =
+    BrowserAdBlockSubscriptionRuleCounts(
+        ignoredLineCount = ignoredLineCount,
+        networkBlockingRuleCount =
+            networkRules.count { rule -> !rule.rule.trim().startsWith("@@") },
+        networkExceptionRuleCount =
+            networkRules.count { rule -> rule.rule.trim().startsWith("@@") },
+        elementBlockingRuleCount = elementRules.count { rule -> !rule.exception },
+        elementExceptionRuleCount =
+            elementRules.count(BrowserAdBlockElementRuleSpec::exception),
+    )
+
+private sealed interface BrowserAdBlockSubscriptionCompiledLine {
+    data object Skipped : BrowserAdBlockSubscriptionCompiledLine
+
+    data object Ignored : BrowserAdBlockSubscriptionCompiledLine
+
+    data class Network(
+        val spec: BrowserAdBlockNetworkRuleSpec,
+        val compiled: CompiledBrowserAdBlockNetworkRule,
+        val badFilterRule: Boolean,
+        val badFilter: BrowserAdBlockBadFilter?,
+    ) : BrowserAdBlockSubscriptionCompiledLine
+
+    data class Element(
+        val spec: BrowserAdBlockElementRuleSpec,
+        val compiled: CompiledBrowserAdBlockElementRule,
+    ) : BrowserAdBlockSubscriptionCompiledLine
+}
+
+private fun compileBrowserAdBlockSubscriptionLine(
+    rawLine: String,
+    lineIndex: Int,
+    subscriptionId: String,
+    subscriptionName: String,
+): BrowserAdBlockSubscriptionCompiledLine {
+    val line = rawLine.trim().removePrefix("\uFEFF")
+    if (
+        line.isBlank() ||
+            line.startsWith("!") ||
+            line.startsWith("[")
+    ) {
+        return BrowserAdBlockSubscriptionCompiledLine.Skipped
+    }
+    if (
+        line.length > BROWSER_AD_BLOCK_MAX_NETWORK_RULE_LENGTH ||
+            containsUnsupportedBrowserAdBlockCosmeticSyntax(line)
+    ) {
+        return BrowserAdBlockSubscriptionCompiledLine.Ignored
+    }
+
+    val cosmeticSeparator =
+        when {
+            line.contains("#@#") -> "#@#"
+            line.contains("##") -> "##"
+            else -> null
+        }
+    if (cosmeticSeparator != null) {
+        val spec =
+            BrowserAdBlockElementRuleSpec(
+                id = "$subscriptionId:element:$lineIndex",
+                domainExpression = line.substringBefore(cosmeticSeparator).trim(),
+                selector = line.substringAfter(cosmeticSeparator).trim(),
+                source = BrowserAdBlockRuleSource.SUBSCRIPTION,
+                sourceName = subscriptionName,
+                exception = cosmeticSeparator == "#@#",
+            )
+        if (!isValidBrowserAdBlockSubscriptionSelector(spec.selector)) {
+            return BrowserAdBlockSubscriptionCompiledLine.Ignored
+        }
+        val compiled =
+            compileBrowserAdBlockElementRule(
+                spec = spec,
+                ruleSetId = subscriptionId,
+            ) ?: return BrowserAdBlockSubscriptionCompiledLine.Ignored
+        return BrowserAdBlockSubscriptionCompiledLine.Element(
+            spec = spec,
+            compiled = compiled,
+        )
+    }
+    if (line.startsWith("#")) {
+        return BrowserAdBlockSubscriptionCompiledLine.Skipped
+    }
+
+    val spec =
+        BrowserAdBlockNetworkRuleSpec(
+            id = "$subscriptionId:network:$lineIndex",
+            rule = line,
+            source = BrowserAdBlockRuleSource.SUBSCRIPTION,
+            sourceName = subscriptionName,
+        )
+    val compiled =
+        compileBrowserAdBlockNetworkRule(
+            spec = spec,
+            ruleSetId = subscriptionId,
+        ) ?: return BrowserAdBlockSubscriptionCompiledLine.Ignored
+    val badFilterRule = browserAdBlockRuleHasOption(spec.rule, "badfilter")
+    val badFilter =
+        if (badFilterRule) {
+            browserAdBlockRuleWithoutOption(spec.rule, "badfilter")?.let { rule ->
+                BrowserAdBlockBadFilter(
+                    ruleSetId = subscriptionId,
+                    source = spec.source,
+                    canonicalRuleKey = browserAdBlockCanonicalRuleKey(rule),
+                )
+            }
+        } else {
+            null
+        }
+    return BrowserAdBlockSubscriptionCompiledLine.Network(
+        spec = spec,
+        compiled = compiled,
+        badFilterRule = badFilterRule,
+        badFilter = badFilter,
     )
 }
 

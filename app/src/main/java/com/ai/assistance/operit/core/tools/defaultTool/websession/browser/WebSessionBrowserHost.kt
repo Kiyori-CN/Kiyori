@@ -454,6 +454,7 @@ internal class WebSessionBrowserHost(
         browserState: WebSessionBrowserState,
         downloadUiState: BrowserDownloadUiState,
         downloadPrompt: BrowserDownloadPromptState?,
+        searchRecovery: BrowserSessionSearchRecovery?,
     ) {
         if (
             hostState.browserState.activeSessionId != browserState.activeSessionId ||
@@ -465,7 +466,13 @@ internal class WebSessionBrowserHost(
             applyIndicatorCloseEvent(BrowserMinimizedIndicatorCloseEvent.RESET)
         }
         hostState =
-            hostState.copy(
+            hostState
+                .hydrateProjectedSearchRecovery(
+                    activeSessionId = browserState.activeSessionId,
+                    currentPageUrl = browserState.currentUrl,
+                    searchRecovery = searchRecovery,
+                )
+                .copy(
                 browserState = browserState,
                 downloadUiState = downloadUiState,
                 downloadPrompt = downloadPrompt,

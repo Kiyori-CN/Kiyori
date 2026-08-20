@@ -19,6 +19,7 @@
 1	"free_usage_preferences"
 1	"functional_configs"
 1	"github_auth_preferences"
+1	"kiyori_home_weather"
 1	"kiyori_player_settings"
 1	"market_agreement_preferences"
 1	"mcp_local_server_prefs"

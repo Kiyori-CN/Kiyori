@@ -717,7 +717,7 @@ M05B_NEW_FORMATTER_IMPORT = (
 M05B_OLD_FORMATTER_IMPORT = (
     "com.ai.assistance.operit.util.ThrowableTextFormatter"
 )
-M05B_KIYORI_CONSUMER_COUNT = 7
+M05B_KIYORI_CONSUMER_COUNT = 8
 M05B_HASHED_PATHS = (
     M05B_LOGGER_PATH,
     M05B_FORMATTER_PATH,
@@ -2860,6 +2860,7 @@ def check_m04b_shell_state_owner(root: Path, errors: list[str]) -> None:
             "com.kiyori.app.shell.PrimaryDestination",
             "com.kiyori.app.shell.SoftwareHomePage",
             "com.kiyori.app.shell.openExternalDestination",
+            "com.kiyori.app.shell.shouldPresentKiyoriPluginLoading",
         }
         if (root / M04B_APP_SHELL_PATH).is_file():
             expected_root_imports.add(
@@ -3005,6 +3006,9 @@ def check_m04b_app_shell_owner(root: Path, errors: list[str]) -> None:
         ),
         "shouldComposeKiyoriAiHost": (
             r"\bfun\s+shouldComposeKiyoriAiHost\s*\("
+        ),
+        "shouldPresentKiyoriPluginLoading": (
+            r"\bfun\s+shouldPresentKiyoriPluginLoading\s*\("
         ),
         "shouldNotifyKiyoriAiHomeSettledForInitialPage": (
             r"\bfun\s+shouldNotifyKiyoriAiHomeSettledForInitialPage\s*\("
@@ -3865,10 +3869,10 @@ def check_m04c_navigation_integration(root: Path, errors: list[str]) -> None:
         if len(expected_import_entries) != len(set(expected_import_entries)):
             raise ValueError(f"duplicate M-04C {label} import snapshot entry")
         if any(
-            not import_matches_root(imported, "com.ai.assistance.operit")
+            not is_project_import(imported)
             for imported in expected_import_entries
         ):
-            raise ValueError(f"invalid non-Operit M-04C {label} import snapshot entry")
+            raise ValueError(f"invalid non-project M-04C {label} import snapshot entry")
         expected_project_imports = Counter(expected_import_entries)
         actual_project_imports = Counter(
             imported
@@ -8969,7 +8973,7 @@ def check_m05b_platform_logging(
                     "app/src/main/java/com/kiyori/app/"
                 )
                 and not relative_path.startswith(
-                    "app/src/main/java/com/kiyori/integration/operit/onboarding/"
+                    "app/src/main/java/com/kiyori/integration/operit/"
                 )
                 and relative_path != M03_APPLICATION_PATH
                 for relative_path in consumer_entries

@@ -2073,6 +2073,7 @@ internal fun StandardBrowserSessionTools.syncProjectedBrowserStateOnMain() {
         downloadUiState = buildBrowserDownloadUiState(),
         downloadPrompt =
             StandardBrowserSessionTools.browserDownloadConfirmationQueue.peek()?.toUiState(),
+        searchRecovery = activeSession?.lastSearchRecovery,
     )
 }
 

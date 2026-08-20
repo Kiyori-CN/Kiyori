@@ -118,6 +118,7 @@ free_usage_preferences
 env_preferences
 com.ai.assistance.operit.core.tools.PackageManager
 mcp_local_server_prefs
+kiyori_home_weather
 kiyori_player_settings
 floating_chat_prefs
 browser_download_settings

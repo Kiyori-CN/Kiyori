@@ -17,6 +17,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserWindowCreationReason
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserSessionSearchRecovery
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserLaunchRestorationPrompt
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserWindowCountState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.prepareBrowserHumanLaunch
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveBrowserHumanLaunch
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.scheduleBrowserRecoverySnapshotWrite
@@ -93,7 +94,6 @@ internal class BrowserAppPresentationLease(
 internal class BrowserPresentationCoordinator private constructor(context: Context) {
     private val appContext = context.applicationContext
     private val tools = ToolGetter.getBrowserSessionTools(appContext)
-    val browserWindowCount: StateFlow<Int> = tools.browserWindowCount
     val browserSettings: StateFlow<WebSessionBrowserSettings> = tools.browserSettingsStore.state
     val adBlockState: StateFlow<BrowserAdBlockState> = tools.adBlockStore.state
     val browserCredentialVaultState: StateFlow<BrowserCredentialVaultSnapshot> =
@@ -447,6 +447,8 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
 
     companion object {
         @Volatile private var instance: BrowserPresentationCoordinator? = null
+
+        val browserWindowCount: StateFlow<Int> = BrowserWindowCountState.windowCount
 
         fun getInstance(context: Context): BrowserPresentationCoordinator =
             instance ?: synchronized(this) {

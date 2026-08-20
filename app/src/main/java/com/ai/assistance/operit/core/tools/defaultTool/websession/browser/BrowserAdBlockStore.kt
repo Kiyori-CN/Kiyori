@@ -804,13 +804,12 @@ internal class BrowserAdBlockStore private constructor(
                         ),
                     )
                 }
-                val parsed =
-                    parseBrowserAdBlockSubscription(
-                        text = bytes.toString(StandardCharsets.UTF_8),
-                        subscriptionId = subscription.id,
-                        subscriptionName = subscription.name,
+                val compilation =
+                    compileSubscriptionPayload(
+                        bytes = bytes,
+                        subscription = subscription,
                     )
-                check(parsed.networkRules.isNotEmpty() || parsed.elementRules.isNotEmpty()) {
+                check(compilation.counts.effectiveRuleCount > 0) {
                     "订阅中没有可用规则"
                 }
                 val refreshedSubscription =
@@ -818,15 +817,14 @@ internal class BrowserAdBlockStore private constructor(
                         current = subscription,
                         expectedUrl = subscription.url,
                         expectedName = subscription.name,
-                        parsed = parsed,
+                        counts = compilation.counts,
                         updatedAt = updatedAt,
                         payloadSha256 = payloadSha256,
                         payloadByteCount = bytes.size.toLong(),
                     )
                 val partition =
                     compileSubscriptionPartition(
-                        subscription = refreshedSubscription,
-                        parsed = parsed,
+                        compilation = compilation,
                     )
                 // 内容寻址载荷和编译快照先完整落盘，状态最后提交。进程在此前终止时，
                 // 旧状态仍引用旧内容；新文件只会成为后续可安全清理的未引用派生物。
@@ -1021,29 +1019,23 @@ internal class BrowserAdBlockStore private constructor(
                                             checkNotNull(readSubscriptionPayload(subscription)) {
                                                 "本地订阅规则缺失，等待重新同步"
                                             }
-                                        val parsed =
-                                            parseBrowserAdBlockSubscription(
-                                                text =
-                                                    payload.toString(StandardCharsets.UTF_8),
-                                                subscriptionId = subscription.id,
-                                                subscriptionName = subscription.name,
+                                        val compilation =
+                                            compileSubscriptionPayload(
+                                                bytes = payload,
+                                                subscription = subscription,
                                             )
-                                        check(
-                                            parsed.networkRules.isNotEmpty() ||
-                                                parsed.elementRules.isNotEmpty(),
-                                        ) {
+                                        check(compilation.counts.effectiveRuleCount > 0) {
                                             "订阅中没有可用规则"
                                         }
                                         subscription =
-                                            subscription.withParsedRuleCounts(
-                                                parsed = parsed,
+                                            subscription.withRuleCounts(
+                                                counts = compilation.counts,
                                                 updatedAt = subscription.lastUpdatedAt,
                                                 clearError = false,
                                             )
                                         val partition =
                                             compileSubscriptionPartition(
-                                                subscription = subscription,
-                                                parsed = parsed,
+                                                compilation = compilation,
                                             )
                                         try {
                                             BrowserAdBlockCompiledCacheCodec.write(
@@ -1318,16 +1310,26 @@ internal class BrowserAdBlockStore private constructor(
         )
     }
 
-    private fun compileSubscriptionPartition(
+    private fun compileSubscriptionPayload(
+        bytes: ByteArray,
         subscription: BrowserAdBlockSubscription,
-        parsed: BrowserAdBlockSubscriptionParseResult,
+    ): BrowserAdBlockSubscriptionCompilationResult =
+        bytes
+            .inputStream()
+            .bufferedReader(StandardCharsets.UTF_8)
+            .use { reader ->
+                compileBrowserAdBlockSubscription(
+                    reader = reader,
+                    subscriptionId = subscription.id,
+                    subscriptionName = subscription.name,
+                )
+            }
+
+    private fun compileSubscriptionPartition(
+        compilation: BrowserAdBlockSubscriptionCompilationResult,
     ): BrowserAdBlockCompiledPartition =
         compileBrowserAdBlockCompiledPartition(
-            BrowserAdBlockCompiledRuleSet.compile(
-                id = subscription.id,
-                networkRules = parsed.networkRules,
-                elementRules = parsed.elementRules,
-            ),
+            compilation.ruleSet,
         )
 
     private fun compileCustomRuntimeEngine(
@@ -2338,7 +2340,7 @@ internal fun mergeBrowserAdBlockRefreshedSubscription(
     current: BrowserAdBlockSubscription,
     expectedUrl: String,
     expectedName: String,
-    parsed: BrowserAdBlockSubscriptionParseResult,
+    counts: BrowserAdBlockSubscriptionRuleCounts,
     updatedAt: Long,
     payloadSha256: String,
     payloadByteCount: Long,
@@ -2349,8 +2351,8 @@ internal fun mergeBrowserAdBlockRefreshedSubscription(
     require(current.name == expectedName) {
         "广告拦截订阅名称在更新期间发生变化，请重新刷新"
     }
-    return current.withParsedRuleCounts(
-        parsed = parsed,
+    return current.withRuleCounts(
+        counts = counts,
         updatedAt = updatedAt,
     ).copy(
         payloadSha256 = payloadSha256,
@@ -2485,22 +2487,19 @@ private fun formatByteCount(bytes: Long): String =
         "${bytes / 1024L} KB"
     }
 
-private fun BrowserAdBlockSubscription.withParsedRuleCounts(
-    parsed: BrowserAdBlockSubscriptionParseResult,
+private fun BrowserAdBlockSubscription.withRuleCounts(
+    counts: BrowserAdBlockSubscriptionRuleCounts,
     updatedAt: Long?,
     clearError: Boolean = true,
 ): BrowserAdBlockSubscription =
     copy(
         lastUpdatedAt = updatedAt,
         lastError = if (clearError) null else lastError,
-        ignoredLineCount = parsed.ignoredLineCount,
-        networkBlockingRuleCount =
-            parsed.networkRules.count { rule -> !rule.rule.trim().startsWith("@@") },
-        networkExceptionRuleCount =
-            parsed.networkRules.count { rule -> rule.rule.trim().startsWith("@@") },
-        elementBlockingRuleCount = parsed.elementRules.count { rule -> !rule.exception },
-        elementExceptionRuleCount =
-            parsed.elementRules.count(BrowserAdBlockElementRuleSpec::exception),
+        ignoredLineCount = counts.ignoredLineCount,
+        networkBlockingRuleCount = counts.networkBlockingRuleCount,
+        networkExceptionRuleCount = counts.networkExceptionRuleCount,
+        elementBlockingRuleCount = counts.elementBlockingRuleCount,
+        elementExceptionRuleCount = counts.elementExceptionRuleCount,
     )
 
 private fun BrowserAdBlockSubscription.withoutCommittedPayload(

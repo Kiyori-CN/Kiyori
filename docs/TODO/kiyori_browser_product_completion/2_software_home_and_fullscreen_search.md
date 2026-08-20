@@ -2,6 +2,26 @@
 
 > 状态：本地实现、定向 JVM 测试、正式开发门禁与 Debug APK 已验证；本轮不提交、不推送，真机视觉、输入法和转场保持待验收。
 
+## 2026-08-20 第一次关键词搜索切换条修复计划
+
+状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEVICE VERIFICATION PENDING`。
+
+- 软件首页搜索已经把 query、engine、source 和目标 URL 写入新 session 的
+  `BrowserSessionSearchRecovery`；缺陷只存在于首次 `WebSessionBrowserHost` 投影。
+- Host 以活动 session ID、稳定 recovery key 和当前 URL 读取该 session 的 recovery；新 session
+  首次投影早于 recovery 写入时，同一 session 的新 key仍能在结果 URL 到达后初始化
+  `lastSearchQuery` 与横向引擎切换条。
+- 横向条只在当前 URL 与该 recovery 的 `resolvedResultUrl` 精确规范化等价时显示；自定义主页、
+  同搜索域名下的其他 path/query、普通子页面、直接 URL 和尚未稳定的重定向都隐藏。
+- 全屏搜索提交和搜索记录打开不再直接显示横向条；它们先关闭搜索层并保持条隐藏，等待真实结果 URL
+  投影。这样不会把新搜索的 UI 提前画到旧页面或自定义主页上。
+- 同一结果 URL 的后续页面投影不覆盖用户关闭操作；切换到没有 recovery 的窗口时隐藏，切回仍在
+  对应结果 URL 的搜索窗口时恢复 query。
+- 不新增搜索 Store，不改变软件首页创建新窗口、Browser 顶栏导航当前窗口或搜索历史写入语义。
+- 回归测试覆盖 recovery 晚到、手动关闭、自定义主页、同域子页面、重定向稳定、全屏提交等待结果
+  投影、普通窗口和 session 切换。最终扩展矩阵为 `14` 个 suite、`158/158`，architecture
+  `109/109`、formal readiness、规定 Debug 构建和 APK 静态审计通过；目标设备仍待验收。
+
 ## 2026-07-28 全屏搜索页现代化完善计划
 
 本轮沿用现有 `WebSessionBrowserSearchScreen`、`WebSessionHistoryStore`、Browser Runtime 和
@@ -234,9 +254,11 @@ Multi-Profile owner，不创建第二套搜索页、搜索记录或无痕状态�
 
 ## 2026-07-28 搜索后的引擎快速切换条
 
-- 仅 `BrowserAddressResolver` 判定为文本搜索的提交会保存 `lastSearchQuery` 并显示顶栏下方切换条
+- 仅具有明确 `BrowserSessionSearchRecovery` 的文本搜索会保存候选 query；顶栏下方切换条必须等待
+  当前 WebSession 进入该次搜索的 resolved result URL 后才显示
 - 切换条复用九个 `WebSessionSearchEngine` 图标和既有 `WebSessionHistoryStore` 引擎 owner，不创建新 store
-- 点击其他引擎以当前活动 Profile 和同一 query 重新提交；网址提交、空输入和右侧关闭按钮隐藏该栏
+- 点击其他引擎以当前活动 Profile 和同一 query 重新提交；网址提交、空输入、结果子页面、自定义
+  主页和右侧关闭按钮隐藏该栏
 - 视觉严格参考 legacy Kiyori：`28dp` chip、`12dp` 图标、右侧 `22dp` 关闭目标与水平滚动列表
 - `BrowserAddressResolverTest` 与 `WebSessionSearchUiPolicyTest` 覆盖文本/地址判定和几何常量；真机滑动、
   长文本、旋转、触控反馈与实际搜索站点仍待验收

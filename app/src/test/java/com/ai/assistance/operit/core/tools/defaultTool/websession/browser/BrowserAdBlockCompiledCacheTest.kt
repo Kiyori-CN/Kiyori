@@ -228,33 +228,28 @@ class BrowserAdBlockCompiledCacheTest {
             """.trimIndent().toByteArray()
         val subscriptionId = "fixture-subscription"
         val subscriptionName = "Fixture subscription"
-        val parsed =
-            parseBrowserAdBlockSubscription(
-                text = payload.toString(Charsets.UTF_8),
-                subscriptionId = subscriptionId,
-                subscriptionName = subscriptionName,
-            )
-        val ruleSet =
-            BrowserAdBlockCompiledRuleSet.compile(
-                id = subscriptionId,
-                networkRules = parsed.networkRules,
-                elementRules = parsed.elementRules,
-            )
-        val partition = compileBrowserAdBlockCompiledPartition(ruleSet)
+        val compilation =
+            payload
+                .inputStream()
+                .bufferedReader(Charsets.UTF_8)
+                .use { reader ->
+                    compileBrowserAdBlockSubscription(
+                        reader = reader,
+                        subscriptionId = subscriptionId,
+                        subscriptionName = subscriptionName,
+                    )
+                }
+        val partition = compileBrowserAdBlockCompiledPartition(compilation.ruleSet)
         val identity =
             BrowserAdBlockCompiledCacheIdentity(
                 subscriptionId = subscriptionId,
                 subscriptionName = subscriptionName,
                 payloadSha256 = browserAdBlockSha256(payload),
                 payloadByteCount = payload.size.toLong(),
-                networkBlockingRuleCount =
-                    parsed.networkRules.count { rule -> !rule.rule.startsWith("@@") },
-                networkExceptionRuleCount =
-                    parsed.networkRules.count { rule -> rule.rule.startsWith("@@") },
-                elementBlockingRuleCount =
-                    parsed.elementRules.count { rule -> !rule.exception },
-                elementExceptionRuleCount =
-                    parsed.elementRules.count(BrowserAdBlockElementRuleSpec::exception),
+                networkBlockingRuleCount = compilation.counts.networkBlockingRuleCount,
+                networkExceptionRuleCount = compilation.counts.networkExceptionRuleCount,
+                elementBlockingRuleCount = compilation.counts.elementBlockingRuleCount,
+                elementExceptionRuleCount = compilation.counts.elementExceptionRuleCount,
             )
         return CacheFixture(
             identity = identity,

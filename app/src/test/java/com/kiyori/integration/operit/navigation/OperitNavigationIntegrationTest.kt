@@ -12,6 +12,31 @@ import org.junit.Test
 
 class OperitNavigationIntegrationTest {
     @Test
+    fun `unknown route waits until ToolPkg discovery is complete`() {
+        assertEquals(
+            true,
+            shouldDeferPendingOperitRoute(
+                routeKnown = false,
+                toolPkgRuntimeInitializationComplete = false,
+            ),
+        )
+        assertEquals(
+            false,
+            shouldDeferPendingOperitRoute(
+                routeKnown = true,
+                toolPkgRuntimeInitializationComplete = false,
+            ),
+        )
+        assertEquals(
+            false,
+            shouldDeferPendingOperitRoute(
+                routeKnown = false,
+                toolPkgRuntimeInitializationComplete = true,
+            ),
+        )
+    }
+
+    @Test
     fun `host navigation root owns any args for its route`() {
         val entries =
             listOf(

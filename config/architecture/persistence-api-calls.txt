@@ -62,6 +62,7 @@ app/src/main/java/com/ai/assistance/operit/ui/features/token/preferences/UrlConf
 app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/shellexecutor/ShellCommandManager.kt	getSharedPreferences	PREFS_NAME
 app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionFloatingTheme.kt	getSharedPreferences	FLOATING_PREFS_NAME
 app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionFloatingTheme.kt	getSharedPreferences	FLOATING_PREFS_NAME
+app/src/main/java/com/ai/assistance/operit/ui/main/weather/KiyoriWeatherRepository.kt	getSharedPreferences	PREFERENCES_NAME
 app/src/main/java/com/ai/assistance/operit/ui/permissions/ToolPermissionSystem.kt	preferencesDataStore	"tool_permissions"
 app/src/main/java/com/ai/assistance/operit/widget/ToolPkgDesktopWidgetHost.kt	getSharedPreferences	PREFS_NAME
 app/src/main/java/com/ai/assistance/operit/widget/ToolPkgDesktopWidgetHost.kt	getSharedPreferences	PREFS_NAME

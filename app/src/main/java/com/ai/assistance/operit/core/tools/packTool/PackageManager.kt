@@ -46,9 +46,11 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.hjson.JsonValue
@@ -599,6 +601,31 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
         } catch (e: Exception) {
             val threadName = Thread.currentThread().name
             logToolPkgError("ensureInitialized failed on background thread, thread=$threadName, reason=${e.message ?: e.javaClass.simpleName}", e)
+            throw IllegalStateException("PackageManager initialization failed", e)
+        }
+    }
+
+    /**
+     * Waits for the process-wide ToolPkg scan that backs navigation and package APIs.
+     *
+     * The caller can start this after the first UI frames without creating another manager or
+     * polling partially populated maps. Blocking is confined to an IO dispatcher while the
+     * existing initialization coroutine remains the only writer.
+     */
+    internal suspend fun awaitInitialization() {
+        if (isInitialized) return
+        val future = ensureInitializationStarted()
+        try {
+            withContext(Dispatchers.IO) {
+                future.get()
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (e: Exception) {
+            logToolPkgError(
+                "awaitInitialization failed, reason=${e.message ?: e.javaClass.simpleName}",
+                e,
+            )
             throw IllegalStateException("PackageManager initialization failed", e)
         }
     }

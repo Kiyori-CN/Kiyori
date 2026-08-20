@@ -919,3 +919,49 @@ git diff --check
 - 真实网页、订阅自动更新、进程终止点和长时间浏览现场验收。
 
 本轮交付状态为：`LOCAL_IMPLEMENTATION_COMPLETE / VERIFICATION_PENDING`。
+
+## 22. 2026-08-20 广告订阅编译 OOM 根因修复
+
+### 22.1 现场证据
+
+Crash Report `f462782c-9749-4a17-b694-e39004004aba` 显示应用在
+`refreshDueBuiltInSubscriptions()` 自动刷新期间达到 512 MiB Java heap 上限。调用链为：
+
+```text
+refreshDueBuiltInSubscriptions
+-> refreshSubscriptionLocked
+-> compileSubscriptionPartition
+-> BrowserAdBlockCompiledRuleSet.compile
+-> compileBrowserAdBlockElementRule
+-> normalizeBrowserAdBlockDomainInput
+```
+
+崩溃点只是最后一次 16-byte 分配失败的位置。真实峰值来自刷新路径同时保留下载 `ByteArray`、
+完整 UTF-8 `String`、完整 network/element spec 列表、parser 有效性编译、第二轮正式编译以及旧
+subscription partition。缓存缺失启动路径具有同样的完整文本、spec 列表和重复编译问题。
+
+### 22.2 实现
+
+- 新增 `compileBrowserAdBlockSubscription(BufferedReader, ...)`，逐行读取并直接产生最终 compiled
+  network/element rules、`badfilter` 和五类元数据计数。
+- 每条有效规则只调用一次现有 compiler；运行时不再保留完整 parsed spec 列表，也不再先构造完整
+  subscription `String`。
+- 内容变化刷新与 compiled-cache miss 使用同一单遍入口；现有小型
+  `parseBrowserAdBlockSubscription()` API 保留，其分类与忽略语义共用同一行级解析函数。
+- `badfilter` 继续计入网络规则统计，但只进入 `badFilters` 集合；普通阻断、例外、元素阻断、
+  元素例外、domain/party/resource/page policy 和索引构造仍使用现有 compiled 模型与 partition。
+- 没有捕获 `OutOfMemoryError`，没有减少有效规则数量，没有关闭自动更新、内置订阅或广告拦截，
+  也没有增加第二个 Store、Engine 或 matcher owner。
+
+### 22.3 自动回归
+
+- 单遍结果与旧 parse + compile 的规则数量、ignored 计数、compiled network/element 记录、
+  显式正则、`badfilter` 和请求/元素决策保持一致。
+- 大批量混合 fixture 直接返回 compiled rule-set 与 counts，不返回完整 spec 列表。
+- `BrowserAdBlockStartupContractTest` 锁定 Store 的刷新和 cache-miss 源码不再调用完整文本转换或
+  `parseBrowserAdBlockSubscription()`，且不存在 OOM 捕获。
+- 广告策略、compiled cache、启动合同和订阅目录 4 个 suite 为 `41/41`；完整联合矩阵为
+  `14` 个 suite、`158/158`。Architecture fixture `109/109`、boundary `phase=m03`、formal
+  readiness、Debug APK 和 native 静态审计通过。
+- 目标设备上的真实自动刷新、512 MiB 堆压力与长期内存证据仍待复测；完成前继续保持
+  `verification_pending`。

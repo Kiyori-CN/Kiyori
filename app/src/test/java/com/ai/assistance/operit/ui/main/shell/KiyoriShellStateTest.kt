@@ -53,6 +53,7 @@ import com.kiyori.app.shell.shouldNotifyKiyoriAiHomeSettledForInitialPage
 import com.kiyori.app.shell.shouldPresentKiyoriBookmarkDrawer
 import com.kiyori.app.shell.shouldPresentKiyoriDownloadDrawer
 import com.kiyori.app.shell.shouldPresentKiyoriHistoryDrawer
+import com.kiyori.app.shell.shouldPresentKiyoriPluginLoading
 import com.kiyori.app.shell.shouldPresentKiyoriSettingsOverlay
 import com.kiyori.app.shell.shouldProvideKiyoriSettingsTheme
 import com.kiyori.app.shell.shouldReverseKiyoriPagerDrag
@@ -328,6 +329,70 @@ class KiyoriShellStateTest {
                 ),
             )
         }
+    }
+
+    @Test
+    fun `plugin loading progress is limited to visible AI surfaces`() {
+        val aiHome =
+            KiyoriShellState(
+                softwareHomePage = SoftwareHomePage.AI_HOME,
+            )
+        assertTrue(
+            shouldPresentKiyoriPluginLoading(
+                state = aiHome,
+                currentScreenIsAiChat = true,
+            ),
+        )
+        assertTrue(
+            shouldPresentKiyoriPluginLoading(
+                state = aiHome.openAiDrawer(),
+                currentScreenIsAiChat = true,
+            ),
+        )
+        assertTrue(
+            shouldPresentKiyoriPluginLoading(
+                state = aiHome,
+                currentScreenIsAiChat = false,
+            ),
+        )
+
+        val settingsDetail =
+            aiHome
+                .openSettings(KiyoriSettingsOrigin.AI_HOST)
+                .showSettingsOperitRoute()
+        assertTrue(
+            shouldPresentKiyoriPluginLoading(
+                state = settingsDetail,
+                currentScreenIsAiChat = false,
+            ),
+        )
+
+        listOf(
+            KiyoriShellState(),
+            KiyoriShellState(softwareHomePage = SoftwareHomePage.MINUS_ONE),
+            aiHome.openChild(KiyoriShellChild.FULL_SCREEN_WEB_SEARCH),
+            KiyoriShellState().selectPrimary(PrimaryDestination.BROWSER_HOME),
+            KiyoriShellState().selectPrimary(PrimaryDestination.MINI_APP_HOME),
+            KiyoriShellState().selectPrimary(PrimaryDestination.FILE_MANAGEMENT_HOME),
+            KiyoriShellState().selectPrimary(PrimaryDestination.SETTINGS_HOME),
+            aiHome.openBookmarkDrawer(),
+            aiHome.openHistoryDrawer(),
+            aiHome.openDownloadDrawer(),
+        ).forEach { state ->
+            assertFalse(
+                shouldPresentKiyoriPluginLoading(
+                    state = state,
+                    currentScreenIsAiChat = true,
+                ),
+            )
+        }
+
+        assertFalse(
+            shouldPresentKiyoriPluginLoading(
+                state = settingsDetail.suspendSettingsForBrowserWorkspace(),
+                currentScreenIsAiChat = false,
+            ),
+        )
     }
 
     @Test

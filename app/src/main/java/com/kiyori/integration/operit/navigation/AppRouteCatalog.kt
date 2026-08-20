@@ -21,6 +21,13 @@ import com.ai.assistance.operit.ui.main.screens.Screen
 import com.ai.assistance.operit.ui.main.screens.ScreenRouteRegistry
 
 object AppRouteCatalog {
+    fun buildStatic(context: Context): AppNavigationModel =
+        buildModel(
+            context = context,
+            toolPkgRoutes = emptyList(),
+            toolPkgNavigationEntries = emptyList(),
+        )
+
     fun build(
         context: Context,
         packageManager: PackageManager,
@@ -66,6 +73,18 @@ object AppRouteCatalog {
                 )
             }
 
+        return buildModel(
+            context = context,
+            toolPkgRoutes = toolPkgRoutes,
+            toolPkgNavigationEntries = toolPkgNavigationEntries,
+        )
+    }
+
+    private fun buildModel(
+        context: Context,
+        toolPkgRoutes: List<RouteSpec>,
+        toolPkgNavigationEntries: List<NavigationEntrySpec>,
+    ): AppNavigationModel {
         return AppNavigationModel(
             routes = ScreenRouteRegistry.hostRouteSpecs(context) + toolPkgRoutes,
             navigationEntries =

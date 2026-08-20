@@ -28,6 +28,12 @@ class BrowserAdBlockStartupContractTest {
         assertTrue(source.contains("private var customRuntimeEngine"))
         assertTrue(source.contains("private var subscriptionRuntimeEngine"))
         assertTrue(source.contains("combineRuntimeEngines("))
+        assertTrue(source.contains("compileBrowserAdBlockSubscription("))
+        assertTrue(source.contains(".bufferedReader(StandardCharsets.UTF_8)"))
+        assertFalse(source.contains("parseBrowserAdBlockSubscription("))
+        assertFalse(source.contains("bytes.toString(StandardCharsets.UTF_8)"))
+        assertFalse(source.contains("payload.toString(StandardCharsets.UTF_8)"))
+        assertFalse(source.contains("OutOfMemoryError"))
     }
 
     @Test

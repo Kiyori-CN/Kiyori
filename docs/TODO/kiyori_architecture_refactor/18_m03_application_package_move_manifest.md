@@ -105,6 +105,17 @@ FE81FB2D78D46E2EB86E3BF21D71B5B50A5B173B0C9BF5F3662272CE546B3C44
 
 ARCH018 同步锁定该值；上面的 M-03 纯移动哈希继续作为历史封板证据。
 
+2026-08-20 启动资源分段优化把唯一全局 Coil `ImageLoader` 的显式预热从完整初始化同步段移入
+既有 `800ms` 后串行后台队列。`ImageLoaderFactory.newImageLoader()` 仍按需返回同一个 lazy
+实例，组件、缓存、OkHttp 配置和全部消费者不变，不创建第二图片 owner。更新后的 package
+归一化 Application SHA-256 为：
+
+```text
+06E70550B5CB01683C70ED103CF5A27E90FEA16556B0CF73E71CC83CA9FB0891
+```
+
+ARCH018 同步锁定该值；M-03 纯移动与 2026-08-19 SVG 注册哈希继续作为历史证据。
+
 ### Lint baseline
 
 `app/lint-baseline.xml` 只有 6 个 location file 路径改变：

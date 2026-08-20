@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -15,7 +16,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.rememberNavController
 import com.ai.assistance.operit.core.browser.presentation.BrowserPresentationCoordinator
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryStore
-import com.ai.assistance.operit.data.mcp.MCPRepository
 import com.ai.assistance.operit.data.preferences.DisplayPreferencesManager
 import com.ai.assistance.operit.ui.common.NavItem
 import com.ai.assistance.operit.ui.main.components.AppContent
@@ -45,6 +44,7 @@ import com.ai.assistance.operit.ui.main.navigation.RouteBackGuardRegistry
 import com.ai.assistance.operit.ui.main.navigation.TopBarTitleContent
 import com.ai.assistance.operit.ui.main.screens.Screen
 import com.ai.assistance.operit.ui.features.browser.appshell.KiyoriBrowserHome
+import com.ai.assistance.operit.ui.features.startup.screens.LocalPluginLoadingState
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.main.AiHomeQuickAction
 import com.ai.assistance.operit.ui.main.PendingAiHomeActionHandler
@@ -64,6 +64,7 @@ import com.kiyori.app.shell.PrimaryDestination
 import com.kiyori.app.shell.SoftwareHomePage
 import com.kiyori.app.shell.openExternalDestination
 import com.kiyori.app.shell.resolveKiyoriWebSearchRequest
+import com.kiyori.app.shell.shouldPresentKiyoriPluginLoading
 import com.kiyori.capability.browser.presentation.KiyoriBrowserExitPresentation
 import com.kiyori.capability.browser.presentation.KiyoriBrowserSearchSource
 import com.kiyori.capability.browser.presentation.KiyoriBrowserWorkspaceRoute
@@ -77,6 +78,7 @@ import com.kiyori.integration.operit.navigation.preservesAiPrimaryStack
 import com.kiyori.integration.operit.navigation.rememberOperitNavigationIntegration
 import com.kiyori.integration.operit.navigation.resolveAiDrawerSelection
 import com.kiyori.integration.operit.navigation.resolveAiTopBarMode
+import com.kiyori.integration.operit.navigation.shouldDeferPendingOperitRoute
 import com.kiyori.integration.operit.navigation.toOperitExternalRouteEntry
 import com.kiyori.integration.operit.navigation.toAiPrimaryRouteEntry
 import androidx.compose.foundation.layout.RowScope
@@ -216,11 +218,21 @@ fun KiyoriApp(
     val navController = rememberNavController()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val appContext = context.applicationContext
     val resources = LocalResources.current
-    val browserHistoryStore = remember(context) { WebSessionHistoryStore.getInstance(context) }
+    val browserHistoryStore =
+        remember(appContext) {
+            lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+                WebSessionHistoryStore.getInstance(appContext)
+            }
+        }
     val browserCoordinator =
-        remember(context) { BrowserPresentationCoordinator.getInstance(context.applicationContext) }
-    val browserWindowCount by browserCoordinator.browserWindowCount.collectAsState()
+        remember(appContext) {
+            lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+                BrowserPresentationCoordinator.getInstance(appContext)
+            }
+        }
+    val browserWindowCount by BrowserPresentationCoordinator.browserWindowCount.collectAsState()
     val activity = remember(context) {
         context as? Activity ?: error("KiyoriApp must be hosted by an Activity")
     }
@@ -278,6 +290,22 @@ fun KiyoriApp(
     val currentScreen = operitNavigation.resolveScreen(currentRouteEntry) ?: Screen.AiChat
     val selectedItem = currentScreen.navItem
     val currentAiPrimaryEntryId = routerState.backStack.first().navigationRootEntryId
+    val pluginLoadingState = LocalPluginLoadingState.current
+    val pluginLoadingPresentationAllowed =
+        shouldPresentKiyoriPluginLoading(
+            state = shellState,
+            currentScreenIsAiChat = currentScreen is Screen.AiChat,
+        )
+    SideEffect {
+        pluginLoadingState.setPresentationAllowed(pluginLoadingPresentationAllowed)
+    }
+    LaunchedEffect(pluginLoadingState) {
+        try {
+            kotlinx.coroutines.awaitCancellation()
+        } finally {
+            pluginLoadingState.setPresentationAllowed(false)
+        }
+    }
 
     LaunchedEffect(aiDrawerEntries) {
         savedAiPrimaryStacks.keys.retainAll(aiDrawerEntries.mapTo(mutableSetOf()) { it.entryId })
@@ -329,7 +357,13 @@ fun KiyoriApp(
         onShortcutNavHandled(shortcutNavRequestId)
     }
 
-    LaunchedEffect(routeNavRequestId, routeNavRequest, routeNavArgs, navigationModel) {
+    LaunchedEffect(
+        routeNavRequestId,
+        routeNavRequest,
+        routeNavArgs,
+        navigationModel,
+        operitNavigation.toolPkgRuntimeInitializationComplete,
+    ) {
         val requestRouteId = routeNavRequest?.trim().orEmpty()
         if (requestRouteId.isBlank() || routeNavRequestId == 0L) {
             return@LaunchedEffect
@@ -337,7 +371,17 @@ fun KiyoriApp(
         if (routeNavRequestId == lastHandledRouteRequestId) {
             return@LaunchedEffect
         }
-        if (navigationModel.routesById[requestRouteId] == null) {
+        val routeKnown = navigationModel.routesById[requestRouteId] != null
+        if (
+            shouldDeferPendingOperitRoute(
+                routeKnown = routeKnown,
+                toolPkgRuntimeInitializationComplete =
+                    operitNavigation.toolPkgRuntimeInitializationComplete,
+            )
+        ) {
+            return@LaunchedEffect
+        }
+        if (!routeKnown) {
             KiyoriLogger.w(TAG, "Ignored pending route navigation for unknown routeId=$requestRouteId")
             lastHandledRouteRequestId = routeNavRequestId
             onRouteNavHandled(routeNavRequestId)
@@ -644,7 +688,7 @@ fun KiyoriApp(
 
     fun submitWebSearch(request: KiyoriWebSearchRequest) {
         val createdSessionId =
-            browserCoordinator.openSearchResultInNewSession(
+            browserCoordinator.value.openSearchResultInNewSession(
                 url = request.targetUrl,
                 profile = request.profile,
                 query = request.query,
@@ -654,7 +698,7 @@ fun KiyoriApp(
         if (createdSessionId != null) {
             if (request.profile.shouldPersistBrowserHistory) {
                 scope.launch {
-                    browserHistoryStore.addSearchHistory(
+                    browserHistoryStore.value.addSearchHistory(
                         query = request.query,
                         targetUrl = request.targetUrl,
                         engineId = request.engineId,
@@ -675,12 +719,12 @@ fun KiyoriApp(
             BrowserWorkspaceReturnToken(
                 settingsSessionId = settingsNavigation.sessionId,
                 settingsRoutes = settingsNavigation.routes,
-                sourceBrowserSessionId = browserCoordinator.activeSessionId(),
+                sourceBrowserSessionId = browserCoordinator.value.activeSessionId(),
                 initialPluginRouteId = pluginRouteId,
             )
         browserWorkspaceReturnToken = token
         updateShellState(shellState.suspendSettingsForBrowserWorkspace())
-        browserCoordinator.openBrowserWorkspace(route) {
+        browserCoordinator.value.openBrowserWorkspace(route) {
             val currentToken = browserWorkspaceReturnToken
             if (
                 currentToken != null &&
@@ -702,7 +746,7 @@ fun KiyoriApp(
                 check(currentToken.initialPluginRouteId == pluginRouteId) {
                     "Browser workspace closed with a mismatched route token."
                 }
-                browserCoordinator.restoreBrowserWorkspaceSourceSession(
+                browserCoordinator.value.restoreBrowserWorkspaceSourceSession(
                     currentToken.sourceBrowserSessionId,
                 )
                 browserWorkspaceReturnToken = null
@@ -767,16 +811,6 @@ fun KiyoriApp(
             .collectAsState(initial = true)
             .value
 
-    LaunchedEffect(context.applicationContext) {
-        // LaunchedEffect 会在首帧绘制前启动；等待两个帧信号，确保首页已经独立画出一帧，
-        // 再开始 MCP 配置读取与安装目录扫描，避免磁盘工作与首帧争用资源。
-        withFrameNanos { }
-        withFrameNanos { }
-        withContext(Dispatchers.IO) {
-            MCPRepository(context.applicationContext).syncInstalledStatus()
-        }
-    }
-
     // Main app container
     Box(modifier = Modifier.fillMaxSize()) {
         OperitNavigationIntegrationEffects(
@@ -825,15 +859,18 @@ fun KiyoriApp(
                         val request =
                             resolveKiyoriWebSearchRequest(
                                 rawQuery = resources.getString(R.string.kiyori_home_weather_query, city),
-                                searchEngine = browserHistoryStore.searchEngineFlow.first(),
-                                profile = browserCoordinator.newSessionProfileState().defaultProfile,
+                                searchEngine = browserHistoryStore.value.searchEngineFlow.first(),
+                                profile =
+                                    browserCoordinator.value
+                                        .newSessionProfileState()
+                                        .defaultProfile,
                                 source = KiyoriBrowserSearchSource.SOFTWARE_HOME,
                             )
                         request?.let(::submitWebSearch)
                     }
                 },
                 onOpenBrowserWindows = {
-                    browserCoordinator.openWindowOverview()
+                    browserCoordinator.value.openWindowOverview()
                     updateShellState(
                         shellState.openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME),
                     )
@@ -841,7 +878,9 @@ fun KiyoriApp(
                 onQueueForegroundBrowserUrl = { url ->
                     pendingForegroundBrowserUrl = url
                 },
-                onOpenBookmarkInTab = browserCoordinator::openUrlInSiblingSession,
+                onOpenBookmarkInTab = { url, active ->
+                    browserCoordinator.value.openUrlInSiblingSession(url, active)
+                },
                 onOpenAccountConnectionsFromKiyoriSettings = {
                     openKiyoriSettingsRoot(
                         screen = Screen.AccountConnectionsSettings,

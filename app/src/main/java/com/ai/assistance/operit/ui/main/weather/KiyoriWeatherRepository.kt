@@ -21,12 +21,16 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -35,13 +39,26 @@ internal class KiyoriWeatherRepository private constructor(context: Context) {
     private val appContext = context.applicationContext
     private val locationManager =
         appContext.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-    private val geocoder = Geocoder(appContext, Locale.getDefault())
-    private val client =
+    private val geocoder by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        Geocoder(appContext, Locale.getDefault())
+    }
+    private val client by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         OkHttpClient.Builder()
             .callTimeout(WEATHER_REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .build()
+    }
+    private val preferences by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        appContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+    }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val _state = MutableStateFlow<KiyoriWeatherState>(KiyoriWeatherState.PermissionRequired)
+    private val _state =
+        MutableStateFlow<KiyoriWeatherState>(
+            if (hasLocationPermission()) {
+                KiyoriWeatherState.Loading
+            } else {
+                KiyoriWeatherState.PermissionRequired
+            },
+        )
     val state: StateFlow<KiyoriWeatherState> = _state.asStateFlow()
 
     private var refreshJob: Job? = null
@@ -66,29 +83,44 @@ internal class KiyoriWeatherRepository private constructor(context: Context) {
 
         refreshJob =
             scope.launch {
-                _state.value = KiyoriWeatherState.Loading
+                _state.value = _state.value.beginRefresh()
+                if (_state.value !is KiyoriWeatherState.Available) {
+                    readSnapshot()?.let { snapshot ->
+                        _state.value = snapshot.toAvailableState(isRefreshing = true)
+                    }
+                }
                 try {
-                    val location = readCurrentLocation()
-                    val city = resolveCity(location)
-                    val currentWeather = requestCurrentWeather(location)
-                    lastSuccessfulRefreshAt = SystemClock.elapsedRealtime()
-                    _state.value =
-                        KiyoriWeatherState.Available(
+                    val coordinates = readCoordinates()
+                    val (city, currentWeather) =
+                        coroutineScope {
+                            val cityDeferred = async { resolveCity(coordinates) }
+                            val weatherDeferred = async { requestCurrentWeather(coordinates) }
+                            cityDeferred.await() to weatherDeferred.await()
+                        }
+                    val observedAtEpochMillis = System.currentTimeMillis()
+                    val snapshot =
+                        KiyoriWeatherSnapshot(
                             city = city,
                             temperatureCelsius = currentWeather.temperatureCelsius,
                             visual = currentWeather.visual,
+                            observedAtEpochMillis = observedAtEpochMillis,
                         )
+                    lastSuccessfulRefreshAt = SystemClock.elapsedRealtime()
+                    _state.value = snapshot.toAvailableState(isRefreshing = false)
+                    persistSnapshot(snapshot)
                 } catch (error: CancellationException) {
                     throw error
                 } catch (error: KiyoriWeatherException) {
                     AppLogger.e(TAG, "Unable to refresh Kiyori Home weather", error)
-                    _state.value = KiyoriWeatherState.Unavailable(error.reason)
+                    _state.value = _state.value.finishRefreshFailure(error.reason)
                 } catch (error: KiyoriWeatherResponseException) {
                     AppLogger.e(TAG, "Invalid Open-Meteo current-weather response", error)
-                    _state.value = KiyoriWeatherState.Unavailable(KiyoriWeatherFailure.INVALID_RESPONSE)
+                    _state.value =
+                        _state.value.finishRefreshFailure(KiyoriWeatherFailure.INVALID_RESPONSE)
                 } catch (error: Exception) {
                     AppLogger.e(TAG, "Unexpected Kiyori Home weather failure", error)
-                    _state.value = KiyoriWeatherState.Unavailable(KiyoriWeatherFailure.NETWORK_UNAVAILABLE)
+                    _state.value =
+                        _state.value.finishRefreshFailure(KiyoriWeatherFailure.NETWORK_UNAVAILABLE)
                 }
             }
     }
@@ -108,59 +140,102 @@ internal class KiyoriWeatherRepository private constructor(context: Context) {
             PackageManager.PERMISSION_GRANTED
 
     @SuppressLint("MissingPermission")
-    @Suppress("DEPRECATION")
-    private suspend fun readCurrentLocation(): Location =
-        suspendCancellableCoroutine { continuation ->
-            if (!LocationManagerCompat.isLocationEnabled(locationManager)) {
-                continuation.resumeWithException(
-                    KiyoriWeatherException(KiyoriWeatherFailure.LOCATION_DISABLED),
-                )
-                return@suspendCancellableCoroutine
-            }
-            val provider =
-                locationManager.getBestProvider(
-                    android.location.Criteria().apply {
-                        accuracy = android.location.Criteria.ACCURACY_COARSE
-                    },
-                    true,
-                )
-            if (provider == null) {
-                continuation.resumeWithException(
-                    KiyoriWeatherException(KiyoriWeatherFailure.LOCATION_UNAVAILABLE),
-                )
-                return@suspendCancellableCoroutine
-            }
-
-            val cancellationSignal = CancellationSignal()
-            continuation.invokeOnCancellation { cancellationSignal.cancel() }
-            LocationManagerCompat.getCurrentLocation(
-                locationManager,
-                provider,
-                cancellationSignal,
-                ContextCompat.getMainExecutor(appContext),
-            ) { location ->
-                if (!continuation.isActive) {
-                    return@getCurrentLocation
-                }
-                if (location == null) {
-                    continuation.resumeWithException(
-                        KiyoriWeatherException(KiyoriWeatherFailure.LOCATION_UNAVAILABLE),
-                    )
-                } else {
-                    continuation.resumeWith(Result.success(location))
-                }
-            }
+    private suspend fun readCoordinates(): KiyoriWeatherCoordinates {
+        if (!LocationManagerCompat.isLocationEnabled(locationManager)) {
+            throw KiyoriWeatherException(KiyoriWeatherFailure.LOCATION_DISABLED)
         }
+        val nowEpochMillis = System.currentTimeMillis()
+        val recentLocation =
+            withContext(Dispatchers.IO) {
+                val candidates =
+                    try {
+                        locationManager.getProviders(true).mapNotNull { provider ->
+                            locationManager.getLastKnownLocation(provider)?.toCandidate(provider)
+                        }
+                    } catch (error: SecurityException) {
+                        throw KiyoriWeatherException(
+                            KiyoriWeatherFailure.LOCATION_UNAVAILABLE,
+                            error,
+                        )
+                    }
+                selectRecentKiyoriWeatherLocation(
+                    candidates = candidates,
+                    nowEpochMillis = nowEpochMillis,
+                )
+            }
+        if (recentLocation != null) {
+            return recentLocation.coordinates
+        }
+        return readCurrentLocation()
+    }
+
+    @SuppressLint("MissingPermission")
+    @Suppress("DEPRECATION")
+    private suspend fun readCurrentLocation(): KiyoriWeatherCoordinates {
+        val provider =
+            locationManager.getBestProvider(
+                android.location.Criteria().apply {
+                    accuracy = android.location.Criteria.ACCURACY_COARSE
+                },
+                true,
+            )
+                ?: throw KiyoriWeatherException(KiyoriWeatherFailure.LOCATION_UNAVAILABLE)
+
+        val location =
+            try {
+                withTimeout(CURRENT_LOCATION_TIMEOUT_MILLIS) {
+                    suspendCancellableCoroutine<Location> { continuation ->
+                        val cancellationSignal = CancellationSignal()
+                        continuation.invokeOnCancellation { cancellationSignal.cancel() }
+                        LocationManagerCompat.getCurrentLocation(
+                            locationManager,
+                            provider,
+                            cancellationSignal,
+                            ContextCompat.getMainExecutor(appContext),
+                        ) { currentLocation ->
+                            if (!continuation.isActive) {
+                                return@getCurrentLocation
+                            }
+                            if (currentLocation == null) {
+                                continuation.resumeWithException(
+                                    KiyoriWeatherException(
+                                        KiyoriWeatherFailure.LOCATION_UNAVAILABLE,
+                                    ),
+                                )
+                            } else {
+                                continuation.resumeWith(Result.success(currentLocation))
+                            }
+                        }
+                    }
+                }
+            } catch (error: TimeoutCancellationException) {
+                throw KiyoriWeatherException(
+                    KiyoriWeatherFailure.LOCATION_UNAVAILABLE,
+                    error,
+                )
+            }
+        val coordinates = location.toCoordinates()
+        if (!isValidKiyoriWeatherCoordinates(coordinates)) {
+            throw KiyoriWeatherException(KiyoriWeatherFailure.LOCATION_UNAVAILABLE)
+        }
+        return coordinates
+    }
 
     @Suppress("DEPRECATION")
-    private suspend fun resolveCity(location: Location): String =
+    private suspend fun resolveCity(coordinates: KiyoriWeatherCoordinates): String =
         withContext(Dispatchers.IO) {
             if (!Geocoder.isPresent()) {
                 throw KiyoriWeatherException(KiyoriWeatherFailure.CITY_UNAVAILABLE)
             }
             val address =
                 try {
-                    geocoder.getFromLocation(location.latitude, location.longitude, 1)?.singleOrNull()
+                    geocoder
+                        .getFromLocation(
+                            coordinates.latitude,
+                            coordinates.longitude,
+                            1,
+                        )
+                        ?.singleOrNull()
                 } catch (error: IOException) {
                     throw KiyoriWeatherException(KiyoriWeatherFailure.CITY_UNAVAILABLE, error)
                 }
@@ -171,13 +246,15 @@ internal class KiyoriWeatherRepository private constructor(context: Context) {
             city
         }
 
-    private suspend fun requestCurrentWeather(location: Location): KiyoriCurrentWeather =
+    private suspend fun requestCurrentWeather(
+        coordinates: KiyoriWeatherCoordinates,
+    ): KiyoriCurrentWeather =
         withContext(Dispatchers.IO) {
             val url =
                 OPEN_METEO_FORECAST_URL.toHttpUrl()
                     .newBuilder()
-                    .addQueryParameter("latitude", location.latitude.toString())
-                    .addQueryParameter("longitude", location.longitude.toString())
+                    .addQueryParameter("latitude", coordinates.latitude.toString())
+                    .addQueryParameter("longitude", coordinates.longitude.toString())
                     .addQueryParameter("current", "temperature_2m,weather_code")
                     .addQueryParameter("timezone", "auto")
                     .build()
@@ -198,6 +275,55 @@ internal class KiyoriWeatherRepository private constructor(context: Context) {
             }
         }
 
+    private suspend fun readSnapshot(): KiyoriWeatherSnapshot? =
+        withContext(Dispatchers.IO) {
+            try {
+                val json = preferences.getString(SNAPSHOT_KEY, null) ?: return@withContext null
+                val snapshot =
+                    decodeKiyoriWeatherSnapshot(
+                        json = json,
+                        nowEpochMillis = System.currentTimeMillis(),
+                    )
+                if (snapshot == null) {
+                    AppLogger.w(TAG, "Discarding invalid Kiyori Home weather snapshot")
+                    preferences.edit().remove(SNAPSHOT_KEY).apply()
+                }
+                snapshot
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: RuntimeException) {
+                AppLogger.e(TAG, "Unable to read Kiyori Home weather snapshot", error)
+                null
+            }
+        }
+
+    private suspend fun persistSnapshot(snapshot: KiyoriWeatherSnapshot) {
+        withContext(Dispatchers.IO) {
+            try {
+                preferences.edit()
+                    .putString(SNAPSHOT_KEY, encodeKiyoriWeatherSnapshot(snapshot))
+                    .apply()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: RuntimeException) {
+                AppLogger.e(TAG, "Unable to persist Kiyori Home weather snapshot", error)
+            }
+        }
+    }
+
+    private fun Location.toCoordinates(): KiyoriWeatherCoordinates =
+        KiyoriWeatherCoordinates(
+            latitude = latitude,
+            longitude = longitude,
+        )
+
+    private fun Location.toCandidate(providerName: String): KiyoriWeatherLocationCandidate =
+        KiyoriWeatherLocationCandidate(
+            provider = providerName,
+            coordinates = toCoordinates(),
+            observedAtEpochMillis = time,
+        )
+
     private class KiyoriWeatherException(
         val reason: KiyoriWeatherFailure,
         cause: Throwable? = null,
@@ -206,7 +332,10 @@ internal class KiyoriWeatherRepository private constructor(context: Context) {
     companion object {
         private const val TAG = "KiyoriHomeWeather"
         private const val OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+        private const val PREFERENCES_NAME = "kiyori_home_weather"
+        private const val SNAPSHOT_KEY = "latest_success"
         private const val WEATHER_REQUEST_TIMEOUT_SECONDS = 15L
+        private const val CURRENT_LOCATION_TIMEOUT_MILLIS = 8_000L
         internal const val REFRESH_INTERVAL_MILLIS = 30L * 60L * 1_000L
 
         @Volatile private var instance: KiyoriWeatherRepository? = null

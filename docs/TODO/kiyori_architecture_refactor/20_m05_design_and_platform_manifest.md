@@ -1288,3 +1288,15 @@ direct/legacy consumer 集合漂移、旧 backup consumer 回流和合同测试�
 目录读写、Browser/Player 导出、备份/恢复、raw snapshot、旧布局扫描和权限交互继续为
 `verification_pending`，不能由 JVM、lint 或 APK 静态检查替代。M-05E 已完成本地封板，
 M-05 design/theme/platform 阶段完成；后续 Browser 产品域必须另立里程碑和设备验收。
+
+## 2026-08-20 M-05B 日志消费者增量
+
+ToolPkg 动态导航现在由 Kiyori-owned
+`com.kiyori.integration.operit.navigation.OperitNavigationIntegration` 在首帧后等待唯一
+`PackageManager` 初始化。初始化失败必须可观察，因此该 integration 直接使用
+`KiyoriLogger`，不回到 Operit `AppLogger` facade。
+
+当前 `m05b-kiyori-logger-consumers.txt` 锁定 8 个实际消费者：现存 app/startup owners、
+onboarding，以及 navigation integration。ARCH043 的路径门禁扩展到
+`com/kiyori/integration/operit/`，但 logger 的 executor、文件、Context、formatter 和写入 owner
+仍只有原 `KiyoriLogger`；本增量没有新增日志状态或第二写入实现。

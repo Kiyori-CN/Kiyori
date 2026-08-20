@@ -329,9 +329,6 @@ class KiyoriApplication :
             KiyoriLogger.d(TAG, "【启动计时】数据库预加载完成（异步） - ${System.currentTimeMillis() - dbStartTime}ms")
         }
 
-        imageLoader
-        KiyoriLogger.d(TAG, "【启动计时】全局图片加载器初始化完成（超时配置：连接30s/读取60s） - ${System.currentTimeMillis() - startTime}ms")
-        
         // 初始化图片池管理器，支持本地持久化缓存
         ImagePoolManager.initialize(filesDir, preloadNow = false)
         KiyoriLogger.d(TAG, "【启动计时】图片池管理器初始化完成 - ${System.currentTimeMillis() - startTime}ms")
@@ -346,6 +343,13 @@ class KiyoriApplication :
         applicationScope.launch(Dispatchers.Default) {
             // 给 UI 一个缓冲时间先完成首屏渲染
             kotlinx.coroutines.delay(800)
+
+            val imageLoaderStartTime = System.currentTimeMillis()
+            withContext(Dispatchers.IO) { imageLoader }
+            KiyoriLogger.d(
+                TAG,
+                "【启动计时】全局图片加载器初始化完成（异步/串行） - ${System.currentTimeMillis() - imageLoaderStartTime}ms",
+            )
 
             val imagePreloadStartTime = System.currentTimeMillis()
             withContext(Dispatchers.IO) { ImagePoolManager.preloadFromDisk() }

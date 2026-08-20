@@ -685,6 +685,29 @@ internal fun shouldElevateKiyoriAiHost(
     }
 }
 
+internal fun shouldPresentKiyoriPluginLoading(
+    state: KiyoriShellState,
+    currentScreenIsAiChat: Boolean,
+): Boolean {
+    if (
+        state.child != null ||
+            state.isBookmarkDrawerOpen ||
+            state.isHistoryDrawerOpen ||
+            state.isDownloadDrawerOpen
+    ) {
+        return false
+    }
+    if (!currentScreenIsAiChat) {
+        return shouldElevateKiyoriAiHost(
+            aiHostIsRoot = false,
+            settingsPresentation = state.settingsNavigation?.presentation,
+        )
+    }
+    return state.primaryDestination == PrimaryDestination.SOFTWARE_HOME &&
+        state.softwareHomePage == SoftwareHomePage.AI_HOME &&
+        state.settingsNavigation == null
+}
+
 internal fun shouldNotifyKiyoriAiHomeSettledForInitialPage(
     initialSettledPage: SoftwareHomePage,
     requestedPage: SoftwareHomePage,
