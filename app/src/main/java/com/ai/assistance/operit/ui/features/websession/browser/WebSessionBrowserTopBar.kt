@@ -108,16 +108,17 @@ internal const val WEB_SESSION_SEARCH_SCREEN_ENGINE_ICON_SIZE_DP = 18
 internal const val WEB_SESSION_SEARCH_SCREEN_ENGINE_CARD_HEIGHT_DP = 42
 internal const val WEB_SESSION_SEARCH_SCREEN_ENGINE_CARD_ICON_SIZE_DP = 19
 internal const val WEB_SESSION_SEARCH_SCREEN_CURRENT_ACTION_WIDTH_DP = 46
-internal const val WEB_SESSION_SEARCH_SCREEN_CURRENT_ACTION_ICON_SIZE_DP = 16
+internal const val WEB_SESSION_SEARCH_SCREEN_CURRENT_ACTION_ICON_SIZE_DP = 14
+internal const val WEB_SESSION_SEARCH_SCREEN_CURRENT_ACTION_LABEL_SIZE_SP = 10
 internal const val WEB_SESSION_SEARCH_SCREEN_CURRENT_OUTER_VERTICAL_PADDING_DP = 4
 internal const val WEB_SESSION_SEARCH_SCREEN_CURRENT_INFO_VERTICAL_PADDING_DP = 4
 internal const val WEB_SESSION_SEARCH_SCREEN_CURRENT_TITLE_SIZE_SP = 12
 internal const val WEB_SESSION_SEARCH_SCREEN_CURRENT_URL_SIZE_SP = 10
 internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_TITLE_SIZE_SP = 18
 internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_EMPTY_SIZE_SP = 14
-internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_ACTION_SIZE_SP = 15
+internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_ACTION_SIZE_SP = 14
 internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_HEADER_HEIGHT_DP = 34
-internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_DELETE_ICON_SIZE_DP = 26
+internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_DELETE_ICON_SIZE_DP = 24
 internal const val WEB_SESSION_SEARCH_SCREEN_TAG_MAX_WIDTH_DP = 250
 internal const val WEB_SESSION_SEARCH_ENGINE_SWITCH_BAR_CHIP_HEIGHT_DP = 28
 internal const val WEB_SESSION_SEARCH_ENGINE_SWITCH_BAR_ICON_SIZE_DP = 12
@@ -986,74 +987,62 @@ private fun CurrentUrlActions(
     onOpen: () -> Unit,
     onEdit: () -> Unit,
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                // 网址信息与动作直接使用页面背景，避免独立灰色卡片割裂全屏搜索页。
+                .padding(
+                    horizontal = 8.dp,
+                    vertical =
+                        WEB_SESSION_SEARCH_SCREEN_CURRENT_OUTER_VERTICAL_PADDING_DP.dp,
+                ),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Row(
+        Column(
             modifier =
                 Modifier
-                    .fillMaxWidth()
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable(role = Role.Button, onClick = onOpen)
                     .padding(
-                        horizontal = 8.dp,
+                        horizontal = 10.dp,
                         vertical =
-                            WEB_SESSION_SEARCH_SCREEN_CURRENT_OUTER_VERTICAL_PADDING_DP.dp,
+                            WEB_SESSION_SEARCH_SCREEN_CURRENT_INFO_VERTICAL_PADDING_DP.dp,
                     ),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(1.dp),
         ) {
-            Surface(
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .clickable(role = Role.Button, onClick = onOpen),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surface,
-            ) {
-                Column(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                horizontal = 10.dp,
-                                vertical =
-                                    WEB_SESSION_SEARCH_SCREEN_CURRENT_INFO_VERTICAL_PADDING_DP.dp,
-                            ),
-                    verticalArrangement = Arrangement.spacedBy(1.dp),
-                ) {
-                    if (title.isNotBlank()) {
-                        Text(
-                            text = title,
-                            fontSize = WEB_SESSION_SEARCH_SCREEN_CURRENT_TITLE_SIZE_SP.sp,
-                            lineHeight = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    Text(
-                        text = url,
-                        fontSize = WEB_SESSION_SEARCH_SCREEN_CURRENT_URL_SIZE_SP.sp,
-                        lineHeight = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+            if (title.isNotBlank()) {
+                Text(
+                    text = title,
+                    fontSize = WEB_SESSION_SEARCH_SCREEN_CURRENT_TITLE_SIZE_SP.sp,
+                    lineHeight = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
-            UrlActionButton(
-                icon = Icons.Filled.ContentCopy,
-                title = stringResource(R.string.web_session_copy_current_url),
-                onClick = onCopy,
-            )
-            UrlActionButton(
-                icon = Icons.Filled.Edit,
-                title = stringResource(R.string.web_session_edit_current_url),
-                onClick = onEdit,
+            Text(
+                text = url,
+                fontSize = WEB_SESSION_SEARCH_SCREEN_CURRENT_URL_SIZE_SP.sp,
+                lineHeight = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
+        UrlActionButton(
+            icon = Icons.Filled.ContentCopy,
+            title = stringResource(R.string.web_session_copy_current_url),
+            onClick = onCopy,
+        )
+        UrlActionButton(
+            icon = Icons.Filled.Edit,
+            title = stringResource(R.string.web_session_edit_current_url),
+            onClick = onEdit,
+        )
     }
 }
 
@@ -1088,7 +1077,7 @@ private fun UrlActionButton(
         )
         Text(
             text = title,
-            fontSize = WEB_SESSION_BROWSER_MENU_LABEL_SIZE_SP.sp,
+            fontSize = WEB_SESSION_SEARCH_SCREEN_CURRENT_ACTION_LABEL_SIZE_SP.sp,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

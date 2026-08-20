@@ -7,6 +7,35 @@ For_Agent: 对项目大规模动工前按本规范协作
 本文件顶部记录当前跨领域长期任务，后续段落保留专项实施与历史证据。历史段落中的分支、提交、
 APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观察点，不能替代当前 Git、构建或设备状态。
 
+## 2026-08-20 全屏搜索页网址行与历史操作尺寸微调
+
+状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEVICE VERIFICATION PENDING`。本轮继续复用
+[`kiyori_browser_product_completion`](kiyori_browser_product_completion/index.md) 和
+[`软件首页与全屏网页搜索`](kiyori_browser_product_completion/2_software_home_and_fullscreen_search.md)
+作为唯一状态载体，不改变搜索、网址打开、复制、编辑或历史删除语义。
+
+细化计划：
+
+1. [DONE] 核对 `main`、干净工作树、正式开发门禁、截图和全屏搜索页唯一 Compose 实现
+2. [DONE] 冻结视觉范围：网址信息、复制链接和编辑链接不再绘制独立灰色背景，直接使用整页背景
+3. [DONE] 小幅缩小复制/编辑图标与文字、历史垃圾桶和编辑态“清空 / 完成”，保留原点击区域
+4. [DONE] 更新定向几何回归，执行 Kotlin 编译、formal readiness、`git diff --check`
+5. [DONE] 串行构建并核验 Debug APK
+6. [PENDING DEVICE] 真机视觉、触控和系统字体缩放保持 `verification_pending`
+
+本地证据：
+
+- `WebSessionSearchUiPolicyTest` 为 `4/4`，零 failure/error/skip；`:app:compileDebugKotlin` 通过
+- formal readiness、`git diff --check`、新增 Markdown 链接目标和网址行独立底色反向检查通过
+- `:app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL in 1m 36s`，
+  `232` 个任务中 `22` 个执行、`210` 个为最新状态；唯一 launcher 与 player runtime packaging 通过
+- APK 为 `app/build/outputs/apk/debug/app-debug.apk`，生成于 `2026-08-20 19:19:50 +08:00`，
+  `472652738` bytes，SHA-256
+  `74EC3A7B0B72076F7A19149D35FEFC45A78DE60DB10053A723D3145351560F5C`
+- 包身份为 `com.kiyori / 45 / 0.1.0 / minSdk 26 / targetSdk 34 / compileSdk 37`，唯一 launcher、
+  Android Debug V2 单 signer 和 16 KiB ZIP 对齐通过；APK 仅含 `arm64-v8a`，`51` 个 `.so`
+  与 `5504` 个 ZIP entry 均无重复，包含 `liboperit_ripgrep.so` 和 `assets/operit_shell_exec`
+
 ## 2026-08-20 启动、天气、MCP 提示与首次搜索深度优化
 
 状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEVICE VERIFICATION PENDING`。本轮复用

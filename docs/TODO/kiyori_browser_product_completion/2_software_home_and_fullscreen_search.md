@@ -2,6 +2,27 @@
 
 > 状态：本地实现、定向 JVM 测试、正式开发门禁与 Debug APK 已验证；本轮不提交、不推送，真机视觉、输入法和转场保持待验收。
 
+## 2026-08-20 全屏搜索页网址行去底色与操作尺寸微调
+
+状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEVICE VERIFICATION PENDING`。
+
+- 当前网址区域不再绘制外层 `surfaceContainerLow` 或左侧信息区独立 `surface`，网址信息、
+  “复制链接”和“编辑链接”直接融入全屏搜索页的 `background`；点击网址返回当前页、复制和编辑
+  回填行为保持不变。
+- 复制/编辑的视觉图标由 `16dp` 缩为 `14dp`，文字由共享菜单 `11sp` 改为页面专用 `10sp`；
+  每项 `46dp` 点击宽度保持不变。
+- 搜索历史标题行继续固定为 `34dp`；垃圾桶由 `26dp` 缩为 `24dp`，点击目标仍为 `34dp`。
+- 编辑态“清空 / 完成”由 `15sp` 缩为 `14sp`；清空确认弹窗、暂存删除与“完成”提交状态机不变。
+- `WebSessionSearchUiPolicyTest` 为 `4/4`，`:app:compileDebugKotlin`、formal readiness、
+  `git diff --check`、新增 Markdown 链接目标和网址行独立底色反向检查通过。
+- 规定的 `:app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL in 1m 36s`，
+  `232` 个任务中 `22` 个执行；APK 为 `472652738` bytes，SHA-256
+  `74EC3A7B0B72076F7A19149D35FEFC45A78DE60DB10053A723D3145351560F5C`。包身份、唯一 launcher、
+  Android Debug V2 单 signer、16 KiB ZIP 对齐、arm64-only、`51` 个 `.so` 与 `5504` 个无重复
+  ZIP entry 均已核验。
+- 真机视觉、触控和系统字体缩放继续保持 `verification_pending`；本轮未安装 APK、未操作设备，
+  未提交、未推送。
+
 ## 2026-08-20 第一次关键词搜索切换条修复计划
 
 状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEVICE VERIFICATION PENDING`。
