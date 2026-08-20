@@ -53,6 +53,8 @@ import com.ai.assistance.operit.core.avatar.common.state.AvatarEmotion
 import com.ai.assistance.operit.core.avatar.common.state.AvatarMoodTypeDefinition
 import com.ai.assistance.operit.core.avatar.common.state.AvatarMoodTypes
 import com.ai.assistance.operit.ui.features.assistant.viewmodel.AssistantConfigViewModel
+import com.ai.assistance.operit.ui.main.shell.KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP
+import com.ai.assistance.operit.ui.main.shell.kiyoriSettingsOutlinedTextFieldColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -66,27 +68,15 @@ fun AvatarConfigSection(
 ) {
     val currentLocale = LocalConfiguration.current.locales[0]
 
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        Text(
-            text = stringResource(R.string.avatar_config),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(vertical = 6.dp, horizontal = 2.dp)
-        )
-
-        Column(
-            modifier = Modifier
+    Column(
+        modifier =
+            Modifier
                 .fillMaxWidth()
-                .background(
-                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                    RoundedCornerShape(10.dp)
-                )
-                .padding(12.dp)
-        ) {
-            val currentAvatarConfig = uiState.currentAvatarConfig
-            val currentAvatarModel = uiState.currentAvatarModel
-            val currentSettings = uiState.config
+                .padding(horizontal = 18.dp, vertical = 14.dp),
+    ) {
+        val currentAvatarConfig = uiState.currentAvatarConfig
+        val currentAvatarModel = uiState.currentAvatarModel
+        val currentSettings = uiState.config
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -509,7 +499,6 @@ fun AvatarConfigSection(
             HowToImportSection()
             Spacer(modifier = Modifier.height(8.dp))
             AllAvatarImportGuideSection()
-        }
     }
 }
 
@@ -528,6 +517,7 @@ private fun MoodTriggerMappingSection(
     val coroutineScope = rememberCoroutineScope()
     var showCreateDialog by remember { mutableStateOf(false) }
     var editingCustomMood by remember { mutableStateOf<AvatarCustomMoodDefinition?>(null) }
+    var deletingCustomMood by remember { mutableStateOf<AvatarCustomMoodDefinition?>(null) }
     var expanded by remember(sectionStateKey) { mutableStateOf(false) }
 
     if (showCreateDialog) {
@@ -549,6 +539,39 @@ private fun MoodTriggerMappingSection(
                 onUpsertCustomMoodDefinition(definition.key, key, promptHint)
                 editingCustomMood = null
             }
+        )
+    }
+
+    deletingCustomMood?.let { definition ->
+        AlertDialog(
+            onDismissRequest = { deletingCustomMood = null },
+            title = { Text(stringResource(R.string.avatar_delete_custom_mood_type)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.avatar_delete_custom_mood_type_confirm,
+                        definition.key,
+                    ),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteCustomMoodDefinition(definition.key)
+                        deletingCustomMood = null
+                    },
+                ) {
+                    Text(
+                        text = stringResource(R.string.delete),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deletingCustomMood = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
         )
     }
 
@@ -658,7 +681,7 @@ private fun MoodTriggerMappingSection(
                     )
                 },
                 onEdit = { editingCustomMood = definition },
-                onDelete = { onDeleteCustomMoodDefinition(definition.key) }
+                onDelete = { deletingCustomMood = definition }
             )
             if (index < customMoodDefinitions.lastIndex) {
                 Spacer(modifier = Modifier.height(6.dp))
@@ -829,7 +852,9 @@ private fun AnimationSelectionField(
                 ExposedDropdownMenuDefaults.TrailingIcon(
                     expanded = expanded
                 )
-            }
+            },
+            shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
+            colors = kiyoriSettingsOutlinedTextFieldColors(),
         )
 
         ExposedDropdownMenu(
@@ -884,7 +909,12 @@ private fun MoodTypeEditorDialog(
                     value = keyInput,
                     onValueChange = { keyInput = it },
                     singleLine = true,
-                    label = { Text(stringResource(R.string.avatar_custom_type_key)) }
+                    label = { Text(stringResource(R.string.avatar_custom_type_key)) },
+                    shape =
+                        RoundedCornerShape(
+                            KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
+                        ),
+                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                 )
                 Text(
                     text =
@@ -900,7 +930,12 @@ private fun MoodTypeEditorDialog(
                 OutlinedTextField(
                     value = promptHintInput,
                     onValueChange = { promptHintInput = it },
-                    label = { Text(stringResource(R.string.avatar_custom_type_prompt_hint_label)) }
+                    label = { Text(stringResource(R.string.avatar_custom_type_prompt_hint_label)) },
+                    shape =
+                        RoundedCornerShape(
+                            KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
+                        ),
+                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                 )
                 Text(
                     text = stringResource(R.string.avatar_custom_type_prompt_hint_help),
@@ -985,7 +1020,7 @@ fun ModelSelector(
     var showRenameDialog by remember { mutableStateOf<String?>(null) }
     var renameInput by remember { mutableStateOf("") }
 
-    if (showDeleteDialog != null) {
+    showDeleteDialog?.let { modelId ->
         AlertDialog(
             onDismissRequest = { showDeleteDialog = null },
             title = { Text(stringResource(R.string.confirm_delete_model_title)) },
@@ -993,10 +1028,15 @@ fun ModelSelector(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        onModelDelete(showDeleteDialog!!)
+                        onModelDelete(modelId)
                         showDeleteDialog = null
                     }
-                ) { Text(stringResource(R.string.delete)) }
+                ) {
+                    Text(
+                        text = stringResource(R.string.delete),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = null }) {
@@ -1018,7 +1058,12 @@ fun ModelSelector(
                         value = renameInput,
                         onValueChange = { renameInput = it },
                         singleLine = true,
-                        label = { Text(stringResource(R.string.avatar_model_name_label)) }
+                        label = { Text(stringResource(R.string.avatar_model_name_label)) },
+                        shape =
+                            RoundedCornerShape(
+                                KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
+                            ),
+                        colors = kiyoriSettingsOutlinedTextFieldColors(),
                     )
                 }
             },
@@ -1056,7 +1101,9 @@ fun ModelSelector(
                 Modifier
                     .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                     .fillMaxWidth(),
-            shape = RoundedCornerShape(10.dp)
+            enabled = models.isNotEmpty(),
+            shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
+            colors = kiyoriSettingsOutlinedTextFieldColors(),
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             for (model in models) {

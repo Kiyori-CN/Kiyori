@@ -3,10 +3,10 @@ package com.ai.assistance.operit.ui.features.settings.screens
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -25,19 +26,26 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Router
 import androidx.compose.material.icons.filled.SettingsEthernet
 import androidx.compose.material.icons.filled.ToggleOn
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -51,18 +59,26 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.api.chat.AIForegroundService
 import com.ai.assistance.operit.data.preferences.ExternalHttpApiPreferences
 import com.ai.assistance.operit.integrations.http.ExternalChatHttpNetworkInfo
-import com.ai.assistance.operit.ui.components.CustomScaffold
+import com.ai.assistance.operit.ui.main.shell.KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsWorkspacePage
+import com.ai.assistance.operit.ui.main.shell.kiyoriSettingsOutlinedTextFieldColors
+import com.kiyori.design.theme.LocalKiyoriSettingsColors
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ExternalHttpChatSettingsScreen(onBackPressed: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val settingsColors = LocalKiyoriSettingsColors.current
     val preferences = remember { ExternalHttpApiPreferences.getInstance(context) }
 
     val enabled by preferences.enabledFlow.collectAsState(initial = false)
@@ -76,6 +92,8 @@ fun ExternalHttpChatSettingsScreen(onBackPressed: () -> Unit) {
     }
 
     var bearerTokenText by remember { mutableStateOf(bearerToken) }
+    var isTokenVisible by remember { mutableStateOf(false) }
+    var showResetTokenDialog by remember { mutableStateOf(false) }
     LaunchedEffect(bearerToken) {
         if (bearerTokenText != bearerToken) {
             bearerTokenText = bearerToken
@@ -87,11 +105,8 @@ fun ExternalHttpChatSettingsScreen(onBackPressed: () -> Unit) {
             "http://$ip:$savedPort"
         }
     }
-    val displayToken = bearerToken.ifBlank {
-        context.getString(R.string.external_http_chat_token_not_generated)
-    }
     val curlToken = bearerToken.ifBlank { "<bearer-token>" }
-    val sampleBaseUrl = accessUrls.firstOrNull() ?: "http://127.0.0.1:$savedPort"
+    val sampleBaseUrl = "http://127.0.0.1:$savedPort"
     val webEntryUrl = "$sampleBaseUrl/"
     val webApiBaseUrl = "$sampleBaseUrl/api/"
     val syncCurl = remember(sampleBaseUrl, curlToken) {
@@ -132,47 +147,61 @@ adb shell am broadcast \
   --es reply_package "YOUR.APP.PACKAGE"
         """.trimIndent()
     }
-    val sectionContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)
+    val sectionContainerColor = settingsColors.cardBackground
     val exampleContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-    val cardBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+    val cardBorderColor = settingsColors.divider
 
-    fun showToast(message: String) {
-        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+    fun showMessage(message: String) {
+        scope.launch {
+            snackbarHostState.showSnackbar(message)
+        }
     }
 
     fun copyText(text: String, label: String, successMessage: String) {
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
-        showToast(successMessage)
+        showMessage(successMessage)
     }
 
     fun savePort() {
         scope.launch {
             val parsedPort = portText.toIntOrNull()
             if (parsedPort == null || !ExternalHttpApiPreferences.isValidPort(parsedPort)) {
-                showToast(context.getString(R.string.external_http_chat_invalid_port))
+                snackbarHostState.showSnackbar(
+                    context.getString(R.string.external_http_chat_invalid_port)
+                )
                 return@launch
             }
             preferences.setPort(parsedPort)
             if (enabled) {
                 AIForegroundService.ensureRunningForExternalHttp(context)
             }
-            showToast(context.getString(R.string.external_http_chat_port_saved))
+            snackbarHostState.showSnackbar(
+                context.getString(R.string.external_http_chat_port_saved)
+            )
         }
     }
 
     fun saveToken() {
         scope.launch {
             if (bearerTokenText.length < 6) {
-                showToast(context.getString(R.string.external_http_chat_token_length_error))
+                snackbarHostState.showSnackbar(
+                    context.getString(R.string.external_http_chat_token_length_error)
+                )
                 return@launch
             }
             preferences.setBearerToken(bearerTokenText)
-            showToast(context.getString(R.string.external_http_chat_token_saved))
+            snackbarHostState.showSnackbar(
+                context.getString(R.string.external_http_chat_token_saved)
+            )
         }
     }
 
-    CustomScaffold { paddingValues ->
+    KiyoriSettingsWorkspacePage(
+        title = stringResource(R.string.kiyori_ai_settings_lan_automation),
+        onBack = onBackPressed,
+        snackbarHostState = snackbarHostState,
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -211,11 +240,15 @@ adb shell am broadcast \
                                     preferences.ensureBearerToken()
                                     preferences.setEnabled(true)
                                     AIForegroundService.ensureRunningForExternalHttp(context)
-                                    showToast(context.getString(R.string.external_http_chat_service_enabled))
+                                    snackbarHostState.showSnackbar(
+                                        context.getString(R.string.external_http_chat_service_enabled)
+                                    )
                                 } else {
                                     preferences.setEnabled(false)
                                     AIForegroundService.stopExternalHttp(context)
-                                    showToast(context.getString(R.string.external_http_chat_service_disabled))
+                                    snackbarHostState.showSnackbar(
+                                        context.getString(R.string.external_http_chat_service_disabled)
+                                    )
                                 }
                             }
                         }
@@ -240,10 +273,15 @@ adb shell am broadcast \
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text(stringResource(R.string.external_http_chat_port)) },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
+                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Button(onClick = ::savePort) {
                         Text(stringResource(R.string.external_http_chat_save_port))
                     }
@@ -269,17 +307,53 @@ adb shell am broadcast \
                     value = bearerTokenText,
                     onValueChange = { bearerTokenText = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.external_http_chat_token)) }
+                    label = { Text(stringResource(R.string.external_http_chat_token)) },
+                    singleLine = true,
+                    visualTransformation =
+                        if (isTokenVisible) {
+                            VisualTransformation.None
+                        } else {
+                            PasswordVisualTransformation()
+                        },
+                    trailingIcon = {
+                        IconButton(onClick = { isTokenVisible = !isTokenVisible }) {
+                            Icon(
+                                imageVector =
+                                    if (isTokenVisible) {
+                                        Icons.Default.VisibilityOff
+                                    } else {
+                                        Icons.Default.Visibility
+                                    },
+                                contentDescription =
+                                    stringResource(
+                                        if (isTokenVisible) {
+                                            R.string.external_http_chat_hide_token
+                                        } else {
+                                            R.string.external_http_chat_show_token
+                                        }
+                                    ),
+                            )
+                        }
+                    },
+                    shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
+                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Button(onClick = ::saveToken) {
                         Text(stringResource(R.string.external_http_chat_save_token))
                     }
                     TextButton(
                         onClick = {
                             if (bearerToken.isBlank()) {
-                                showToast(context.getString(R.string.external_http_chat_token_not_generated))
+                                showMessage(
+                                    context.getString(
+                                        R.string.external_http_chat_token_not_generated
+                                    )
+                                )
                             } else {
                                 copyText(
                                     text = bearerToken,
@@ -293,16 +367,7 @@ adb shell am broadcast \
                         Text(stringResource(R.string.external_http_chat_copy_token))
                     }
                     TextButton(
-                        onClick = {
-                            scope.launch {
-                                val newToken = preferences.resetBearerToken()
-                                copyText(
-                                    text = newToken,
-                                    label = "external-http-bearer-token",
-                                    successMessage = context.getString(R.string.external_http_chat_token_reset)
-                                )
-                            }
-                        }
+                        onClick = { showResetTokenDialog = true }
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = null)
                         Text(stringResource(R.string.external_http_chat_reset_token))
@@ -319,14 +384,19 @@ adb shell am broadcast \
                     Icon(Icons.Default.SettingsEthernet, contentDescription = null)
                 }
             ) {
+                val activePort = serviceState.port
+                val lastError = serviceState.lastError
                 val statusText = when {
-                    serviceState.isRunning -> stringResource(
+                    serviceState.isRunning && activePort != null -> stringResource(
                         R.string.external_http_chat_status_running,
-                        serviceState.port ?: savedPort
+                        activePort
                     )
-                    !serviceState.lastError.isNullOrBlank() -> stringResource(
+                    serviceState.isRunning -> stringResource(
+                        R.string.external_http_chat_status_inconsistent
+                    )
+                    !lastError.isNullOrBlank() -> stringResource(
                         R.string.external_http_chat_status_error,
-                        serviceState.lastError ?: ""
+                        lastError
                     )
                     else -> stringResource(R.string.external_http_chat_status_stopped)
                 }
@@ -379,7 +449,7 @@ adb shell am broadcast \
                 Text(
                     text = stringResource(
                         R.string.external_http_chat_bind_hint,
-                        serviceState.port ?: savedPort
+                        savedPort
                     ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -478,6 +548,42 @@ adb shell am broadcast \
             }
         }
     }
+
+    if (showResetTokenDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetTokenDialog = false },
+            title = { Text(stringResource(R.string.external_http_chat_reset_token_title)) },
+            text = { Text(stringResource(R.string.external_http_chat_reset_token_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showResetTokenDialog = false
+                        scope.launch {
+                            val newToken = preferences.resetBearerToken()
+                            bearerTokenText = newToken
+                            copyText(
+                                text = newToken,
+                                label = "external-http-bearer-token",
+                                successMessage =
+                                    context.getString(R.string.external_http_chat_token_reset),
+                            )
+                        }
+                    },
+                    colors =
+                        ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                ) {
+                    Text(stringResource(R.string.external_http_chat_reset_token))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetTokenDialog = false }) {
+                    Text(stringResource(R.string.cancel_action))
+                }
+            },
+        )
+    }
 }
 
 private const val EXTERNAL_CHAT_INTENT_ACTION = "com.ai.assistance.operit.EXTERNAL_CHAT"
@@ -494,8 +600,10 @@ private fun SettingsCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor),
-        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
+        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -534,7 +642,9 @@ private fun ExampleBlock(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = containerColor)
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         SelectionContainer {
             Text(

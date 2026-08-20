@@ -430,8 +430,36 @@ M05A1_EXPECTED_IMPORT_CONSUMERS = {
         "KiyoriCollapsingSettingsPage.kt",
         "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
         "KiyoriSettingsHomePage.kt",
+        "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
+        "KiyoriSettingsWorkspacePage.kt",
     },
     "LocalKiyoriSettingsColors": {
+        "app/src/main/java/com/ai/assistance/operit/ui/features/assistant/"
+        "components/AvatarPreviewSection.kt",
+        "app/src/main/java/com/ai/assistance/operit/ui/features/assistant/"
+        "components/VoiceAutoAttachComponents.kt",
+        "app/src/main/java/com/ai/assistance/operit/ui/features/settings/"
+        "screens/ContextSummarySettingsScreen.kt",
+        "app/src/main/java/com/ai/assistance/operit/ui/features/settings/"
+        "screens/CustomEmojiManagementScreen.kt",
+        "app/src/main/java/com/ai/assistance/operit/ui/features/settings/"
+        "screens/ExternalHttpChatSettingsScreen.kt",
+        "app/src/main/java/com/ai/assistance/operit/ui/features/settings/"
+        "screens/FunctionalConfigScreen.kt",
+        "app/src/main/java/com/ai/assistance/operit/ui/features/settings/"
+        "screens/MnnModelDownloadScreen.kt",
+        "app/src/main/java/com/ai/assistance/operit/ui/features/settings/"
+        "screens/ModelConfigScreen.kt",
+        "app/src/main/java/com/ai/assistance/operit/ui/features/settings/"
+        "screens/TagMarketScreen.kt",
+        "app/src/main/java/com/ai/assistance/operit/ui/features/settings/"
+        "screens/TokenUsageStatisticsComponents.kt",
+        "app/src/main/java/com/ai/assistance/operit/ui/features/settings/"
+        "screens/TokenUsageStatisticsScreen.kt",
+        "app/src/main/java/com/ai/assistance/operit/ui/features/settings/"
+        "screens/ToolPermissionSettingsScreen.kt",
+        "app/src/main/java/com/ai/assistance/operit/ui/features/settings/"
+        "screens/UserPreferencesSettingsScreen.kt",
         "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
         "KiyoriAdBlockSettingsPage.kt",
         "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
@@ -444,6 +472,8 @@ M05A1_EXPECTED_IMPORT_CONSUMERS = {
         "KiyoriSettingsHomePage.kt",
         "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
         "KiyoriSettingsUi.kt",
+        "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
+        "KiyoriSettingsWorkspacePage.kt",
         "app/src/main/java/com/ai/assistance/operit/ui/features/settings/"
         "screens/theme/ThemeSettingsContentEditor.kt",
         "app/src/main/java/com/ai/assistance/operit/ui/features/settings/"

@@ -880,13 +880,13 @@
     <string name="user_md_description">唯一的用户资料文件。这里的 Markdown 会在启用时作为用户上下文发送给 AI。</string>
     <string name="user_md_edit_tab">编辑</string>
     <string name="user_md_preview_tab">预览</string>
-    <string name="user_md_reset">清空文档</string>
+    <string name="user_md_reset">恢复默认模板</string>
     <string name="user_md_legacy_archive">旧档案</string>
     <string name="user_md_unsaved_title">放弃未保存的修改？</string>
     <string name="user_md_unsaved_message">返回后，本次对 user.md 的修改将丢失。</string>
     <string name="user_md_discard">放弃修改</string>
-    <string name="user_md_reset_title">清空 user.md？</string>
-    <string name="user_md_reset_message">当前草稿会被替换为空白文档，保存后生效。</string>
+    <string name="user_md_reset_title">恢复默认模板？</string>
+    <string name="user_md_reset_message">当前草稿会被默认 user.md 模板替换；请检查内容并保存后再生效。</string>
     <string name="user_md_editor_placeholder">介绍你的背景、习惯，以及希望 AI 如何与你交流…</string>
     <string name="user_md_preview_empty">user.md 目前为空，填写内容后可在这里预览。</string>
     <string name="custom_description">自定义介绍</string>
@@ -3143,7 +3143,7 @@
     <string name="settings_custom_headers">自定义请求头</string>
     <string name="settings_custom_headers_subtitle">API请求头字段配置</string>
     <string name="headers_configured_count">已配置 %1$d 条</string>
-    <string name="screen_title_external_http_chat_settings">外部 HTTP 调用</string>
+    <string name="screen_title_external_http_chat_settings">局域网与自动化</string>
     <string name="settings_functional_prompts_subtitle">功能专用提示词模板</string>
     <string name="settings_context_length">上下文长度</string>
     <string name="settings_context_length_subtitle">模型记忆对话长度(k tokens)</string>
@@ -3193,11 +3193,12 @@
     <string name="clear_cookies_success">Cookie 已清除</string>
     <string name="clear_cookies_failed">Cookie 清除失败</string>
     <string name="settings_data_backup_subtitle">聊天记录备份管理</string>
-    <string name="settings_token_usage_stats">Token使用统计</string>
+    <string name="settings_token_usage_stats">AI 用量与费用</string>
     <string name="settings_function_label">功能</string>
     <string name="settings_model_label">模型</string>
     <string name="settings_no_token_records">暂无功能模块的Token使用记录。</string>
     <string name="settings_reset_all_counts">重置所有计数</string>
+    <string name="settings_usage_history_load_failed">聊天数量读取失败，模型用量数据仍可继续查看。</string>
     <string name="settings_usage_summary">使用统计</string>
     <string name="settings_total_chats">对话</string>
     <string name="settings_total_messages">消息</string>
@@ -3766,15 +3767,16 @@
 
     <!-- Screen Titles -->
     <string name="screen_title_memory_base">记忆库</string>
-    <string name="screen_title_tool_permissions">工具权限</string>
+    <string name="screen_title_tool_permissions">AI 工具授权</string>
     <string name="screen_title_user_preferences_guide">用户偏好引导</string>
-    <string name="screen_title_user_preferences_settings">用户资料（user.md）</string>
-    <string name="screen_title_model_config">模型与参数配置</string>
-    <string name="screen_title_persona_card_generation">人设卡生成</string>
-    <string name="screen_title_waifu_mode_settings">Waifu模式设置</string>
-    <string name="screen_title_tag_market">标签市场</string>
-    <string name="screen_title_model_prompts_settings">角色卡编辑</string>
-    <string name="screen_title_functional_config">功能模型配置</string>
+    <string name="screen_title_user_preferences_settings">用户资料</string>
+    <string name="screen_title_model_config">模型与 API</string>
+    <string name="screen_title_persona_card_generation">人设生成</string>
+    <string name="screen_title_waifu_mode_settings">回复与表情</string>
+    <string name="screen_title_tag_market">标签模板</string>
+    <string name="screen_title_model_prompts_settings">提示词与角色</string>
+    <string name="persona_generation_intro">告诉我你想创建的角色方向，例如姓名与身份、性格、外观、能力和关系。我会逐步提问，并把确认后的信息写入当前角色卡。</string>
+    <string name="screen_title_functional_config">功能模型分配</string>
     <string name="screen_title_theme_settings">主题设置</string>
     <string name="screen_title_global_display_settings">显示与行为</string>
     <string name="screen_title_layout_adjustment">布局调整</string>
@@ -4687,7 +4689,7 @@
     <string name="manual_conversation_summary_desc">立即触发一次对话总结，帮助压缩上下文并保留双方重点内容，适用于长对话或发送前清理历史。</string>
 
     <!-- Context and Summary Settings Screen -->
-    <string name="screen_title_context_summary_settings">上下文和总结设置</string>
+    <string name="screen_title_context_summary_settings">上下文与总结</string>
     <string name="settings_context_title">上下文设置</string>
     <string name="settings_summary_title">总结设置</string>
     <string name="external_http_chat_enable">启用外部 HTTP 服务</string>
@@ -4702,12 +4704,17 @@
     <string name="external_http_chat_token_not_generated">尚未生成，请先启用服务</string>
     <string name="external_http_chat_copy_token">复制 Token</string>
     <string name="external_http_chat_reset_token">重置 Token</string>
+    <string name="external_http_chat_show_token">显示 Token</string>
+    <string name="external_http_chat_hide_token">隐藏 Token</string>
+    <string name="external_http_chat_reset_token_title">重置访问 Token？</string>
+    <string name="external_http_chat_reset_token_message">重置后，所有仍在使用旧 Token 的客户端会立即失效。新 Token 将复制到剪贴板。</string>
     <string name="external_http_chat_token_copied">Token 已复制</string>
     <string name="external_http_chat_token_reset">Token 已重置并复制</string>
     <string name="external_http_chat_status">当前状态</string>
     <string name="external_http_chat_status_running">服务运行中，监听 0.0.0.0:%1$d</string>
     <string name="external_http_chat_status_stopped">服务未运行</string>
     <string name="external_http_chat_status_error">服务异常：%1$s</string>
+    <string name="external_http_chat_status_inconsistent">服务报告正在运行，但未提供监听端口；请重启服务并检查日志。</string>
     <string name="external_http_chat_web_title">网页聊天入口</string>
     <string name="external_http_chat_web_desc">同一端口同时提供网页聊天界面和 HTTP API。浏览器直接打开下方地址，首次进入时输入上面的 Bearer Token 即可。</string>
     <string name="external_http_chat_web_note">网页入口使用根路径 /；HTTP API 仍然走 %1$s</string>
@@ -4732,7 +4739,7 @@
     <string name="external_http_chat_token_length_error">Token长度需大于6!</string>
 
     <!-- Custom Emoji Management -->
-    <string name="manage_custom_emoji">管理自定义表情</string>
+    <string name="manage_custom_emoji">自定义表情</string>
     <string name="custom_emoji_bound_to_target">绑定到当前角色目标</string>
     <string name="add_emoji">添加表情</string>
     <string name="delete_emoji">删除表情</string>
@@ -4779,8 +4786,8 @@
     <string name="toolpkg_widget_picker_selecting">正在配置…</string>
 
     <!-- MNN Model Download -->
-    <string name="screen_title_mnn_model_download">MNN模型下载</string>
-    <string name="mnn_model_download">下载MNN模型</string>
+    <string name="screen_title_mnn_model_download">本地模型下载</string>
+    <string name="mnn_model_download">本地模型下载</string>
     <string name="mnn_model_management">模型管理</string>
     <string name="mnn_download_from_modelscope">从ModelScope下载</string>
     <string name="mnn_model_size">模型大小: %1$.2f GB</string>
@@ -4788,13 +4795,16 @@
     <string name="mnn_download_speed">速度: %1$s</string>
     <string name="mnn_download_complete">下载完成</string>
     <string name="mnn_download_failed">下载失败: %1$s</string>
-    <string name="mnn_no_models_downloaded">暂无已下载的模型</string>
+    <string name="mnn_no_models_downloaded">暂无可用的本地模型</string>
     <string name="mnn_model_name_only">模型名称</string>
     <string name="mnn_download_progress">进度: %1$d%%</string>
     <string name="mnn_pause_download">暂停下载</string>
     <string name="mnn_resume_download">继续下载</string>
     <string name="mnn_delete_model">删除模型</string>
     <string name="mnn_confirm_delete">确认删除此模型吗？</string>
+    <string name="mnn_refresh_models">刷新模型列表</string>
+    <string name="mnn_delete_model_done">本地模型已删除</string>
+    <string name="mnn_delete_model_failed">本地模型删除失败，请检查日志。</string>
     <string name="mnn_loading_models">加载模型列表中...</string>
     <string name="mnn_connecting">正在连接...</string>
     <string name="mnn_load_failed">加载失败</string>
@@ -4957,7 +4967,7 @@
     <string name="voice_interaction_service_summary">智能语音助手服务</string>
 
     <!-- Tool Permission Settings -->
-    <string name="tool_permissions_title">工具权限</string>
+    <string name="tool_permissions_title">AI 工具授权</string>
     <string name="tool_permissions_description">默认情况下，所有工具都需要您"询问"。您可以在下面添加例外。</string>
     <string name="global_permission_switch">全局权限开关</string>
     <string name="global_permission_switch_description">此设置作为主控制，可以覆盖单个工具权限。</string>
@@ -4972,6 +4982,7 @@
     <string name="remove_tool">移除</string>
     <string name="select_tools">选择工具</string>
     <string name="search_tools">搜索</string>
+    <string name="tool_permission_search_empty">没有找到匹配的工具。请尝试工具名称或功能关键词。</string>
     <string name="done">完成</string>
     <string name="forbid">禁止</string>
 
@@ -6863,7 +6874,10 @@
     <string name="context_field_max_media_history_turns">历史音视频保留回合数</string>
     <string name="context_unit_lines">行</string>
     <string name="context_unit_times">次</string>
-    <string name="context_reset_all_settings">重置所有设置</string>
+    <string name="context_reset_all_settings">恢复历史媒体默认值</string>
+    <string name="context_reset_history_title">恢复历史媒体默认值？</string>
+    <string name="context_reset_history_message">仅恢复历史图片、音频和视频的保留回合数；上下文窗口、总结开关和自定义规则不会改变。</string>
+    <string name="context_reset_history_done">历史媒体保留设置已恢复默认值</string>
 
     <!-- MCP Deploy -->
     <string name="mcp_deploy_error_cannot_get_path">无法获取插件路径: %1$s</string>
@@ -6876,6 +6890,7 @@
     <string name="model_config_error_valid_context_length">请输入有效的上下文长度</string>
     <string name="model_config_error_valid_max_context_length">请输入有效的最大上下文长度</string>
     <string name="model_config_error_save_failed">保存失败</string>
+    <string name="model_config_custom_headers_invalid">已保存的自定义请求头不是有效 JSON。为保护原配置，当前已停止编辑和自动保存；请重新导入或修复此模型配置。</string>
     <string name="model_config_error_summary_threshold_range">请输入0-1之间的总结触发阈值</string>
     <string name="model_config_error_valid_message_count">请输入有效的消息数量阈值</string>
     <string name="model_config_collapse">收起</string>
@@ -7572,6 +7587,12 @@
     <string name="model_config_default_name">默认配置</string>
     <string name="model_config_config_id">配置 %1$s</string>
     <string name="model_config_import_failed">导入失败：%1$s</string>
+    <string name="model_config_delete_title">删除模型配置？</string>
+    <string name="model_config_delete_message">“%1$s”将被永久删除。使用此配置的功能需要重新分配模型。</string>
+    <string name="functional_config_load_failed">功能模型配置加载失败</string>
+    <string name="functional_config_reset_title">恢复全部功能模型分配？</string>
+    <string name="functional_config_reset_message">所有功能将重新绑定到默认模型配置；当前各功能的自定义分配会被清除。</string>
+    <string name="functional_config_reset_done">全部功能模型分配已恢复默认值</string>
     <string name="default_character_card">默认角色卡</string>
 
     <!-- PromptTagManager -->
@@ -8369,4 +8390,67 @@
     <string name="openai_web_search_invalid_field">无效字段</string>
     <string name="openai_web_search_not_present">未提供</string>
     <string name="openai_web_search_configuration_unavailable">OpenAI Web Search 配置当前不可用</string>
+    <!-- Kiyori AI assistant settings information architecture -->
+    <string name="kiyori_ai_settings_title">AI助手</string>
+    <string name="kiyori_ai_settings_group_model_generation">模型与生成</string>
+    <string name="kiyori_ai_settings_group_model_generation_desc">先配置可用模型，再为不同任务和角色选择合适的生成方式</string>
+    <string name="kiyori_ai_settings_model_api">模型与 API</string>
+    <string name="kiyori_ai_settings_model_api_desc">管理提供方、密钥、端点、模型列表、请求参数和连接测试</string>
+    <string name="kiyori_ai_settings_function_models">功能模型分配</string>
+    <string name="kiyori_ai_settings_function_models_desc">为对话、总结、记忆和多媒体识别分别指定模型</string>
+    <string name="kiyori_ai_settings_prompts_roles">提示词与角色</string>
+    <string name="kiyori_ai_settings_prompts_roles_desc">管理角色卡、群组、标签、提示词以及人设卡生成</string>
+    <string name="kiyori_ai_settings_group_personalization">个性化与交互</string>
+    <string name="kiyori_ai_settings_group_personalization_desc">定义助手如何理解你、呈现形象并组织回复</string>
+    <string name="kiyori_ai_settings_user_profile">用户资料</string>
+    <string name="kiyori_ai_settings_user_profile_desc">编辑会作为用户上下文发送给 AI 的 user.md</string>
+    <string name="kiyori_ai_settings_avatar">虚拟形象</string>
+    <string name="kiyori_ai_settings_avatar_desc">管理形象模型、预览、动作与情绪映射</string>
+    <string name="kiyori_ai_settings_reply_expression">回复与表情</string>
+    <string name="kiyori_ai_settings_reply_expression_desc">配置分句节奏、标点、表情、自定义回复和自拍</string>
+    <string name="kiyori_ai_settings_group_voice">语音</string>
+    <string name="kiyori_ai_settings_group_voice_desc">管理朗读、识别和后台唤醒链路</string>
+    <string name="kiyori_ai_settings_tts">文本转语音</string>
+    <string name="kiyori_ai_settings_tts_desc">选择朗读引擎、音色、语速、音调和文本清洗规则</string>
+    <string name="kiyori_ai_settings_stt">语音转文本</string>
+    <string name="kiyori_ai_settings_stt_desc">选择本地或远程识别引擎，并配置服务连接</string>
+    <string name="kiyori_ai_settings_voice_wakeup">语音唤醒</string>
+    <string name="kiyori_ai_settings_voice_wakeup_desc">设置唤醒词、后台监听、语音响应和自动附加内容</string>
+    <string name="kiyori_ai_settings_group_context_tools">上下文与工具</string>
+    <string name="kiyori_ai_settings_group_context_tools_desc">控制对话保留、自动总结和工具调用边界</string>
+    <string name="kiyori_ai_settings_context_summary">上下文与总结</string>
+    <string name="kiyori_ai_settings_context_summary_desc">管理上下文窗口、自动总结、自定义规则和历史媒体保留</string>
+    <string name="kiyori_ai_settings_tool_permissions">AI 工具授权</string>
+    <string name="kiyori_ai_settings_tool_permissions_desc">为工具设置默认规则和允许、询问或禁止例外</string>
+    <string name="kiyori_ai_settings_group_service_usage">服务与用量</string>
+    <string name="kiyori_ai_settings_group_service_usage_desc">查看资源消耗，并配置受控的局域网与自动化入口</string>
+    <string name="kiyori_ai_settings_usage_cost">AI 用量与费用</string>
+    <string name="kiyori_ai_settings_usage_cost_desc">查看模型请求、Token、费用、汇率和自定义定价</string>
+    <string name="kiyori_ai_settings_lan_automation">局域网与自动化</string>
+    <string name="kiyori_ai_settings_lan_automation_desc">管理本地 HTTP/Web 对话服务、端口、令牌和调用示例</string>
+    <string name="kiyori_avatar_settings_title">虚拟形象</string>
+    <string name="kiyori_avatar_configuration_desc">选择形象模型，调整显示位置，并管理动作与情绪映射</string>
+    <string name="kiyori_voice_wakeup_settings_title">语音唤醒</string>
+    <string name="kiyori_voice_wakeup_recognition_title">唤醒识别</string>
+    <string name="kiyori_voice_wakeup_recognition_desc">选择识别方式，配置唤醒词，并管理后台监听权限</string>
+    <string name="kiyori_voice_wakeup_response_title">唤醒响应</string>
+    <string name="kiyori_voice_wakeup_response_desc">设置唤醒后的语音反馈、超时和新对话行为</string>
+    <string name="kiyori_voice_wakeup_attachments_title">自动附加内容</string>
+    <string name="kiyori_voice_wakeup_attachments_desc">进入语音模式时，按关键词附加当前设备上下文</string>
+    <string name="voice_wakeup_update_failed">语音设置保存失败，请稍后重试</string>
+    <string name="voice_wakeup_personal_clear_confirm_title">清除个人唤醒模板</string>
+    <string name="voice_wakeup_personal_clear_confirm_message">清除后需要重新录入三次唤醒词才能使用个人模板识别。</string>
+    <string name="voice_wakeup_personal_record_failed">录音失败，请检查麦克风权限后重试。</string>
+    <string name="voice_keyword_attachments_delete_confirm_title">删除自动附加项</string>
+    <string name="voice_keyword_attachments_delete_confirm_message">确定删除“%1$s”自动附加项吗？</string>
+    <string name="avatar_delete_custom_mood_type_confirm">确定删除自定义情绪“%1$s”吗？对应的动作映射也会被移除。</string>
+    <string name="avatar_preview_failed">形象预览加载失败，请检查模型文件后重试。</string>
+    <string name="show_api_key">显示密钥</string>
+    <string name="hide_api_key">隐藏密钥</string>
+    <string name="speech_services_information_title">能力说明</string>
+    <string name="speech_services_information_desc">了解当前语音能力的配置范围与运行方式</string>
+    <string name="speech_services_tools_title">语音工具</string>
+    <string name="speech_services_tools_desc">使用当前语音配置进行文本朗读测试</string>
+    <string name="speech_services_test_tts_desc">打开文本朗读工具并验证当前语音合成配置</string>
+    <string name="speech_services_simple_tts_voice_load_failed">无法读取系统 TTS 音色，请检查系统语音引擎。</string>
 </resources>

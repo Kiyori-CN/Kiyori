@@ -948,13 +948,13 @@
     <string name="user_md_description">The single user profile file. When enabled, this Markdown is sent to the AI as user context.</string>
     <string name="user_md_edit_tab">Edit</string>
     <string name="user_md_preview_tab">Preview</string>
-    <string name="user_md_reset">Clear document</string>
+    <string name="user_md_reset">Restore default template</string>
     <string name="user_md_legacy_archive">Legacy profiles</string>
     <string name="user_md_unsaved_title">Discard unsaved changes?</string>
     <string name="user_md_unsaved_message">Your changes to user.md will be lost.</string>
     <string name="user_md_discard">Discard</string>
-    <string name="user_md_reset_title">Clear user.md?</string>
-    <string name="user_md_reset_message">The current draft will be replaced with an empty document and takes effect after saving.</string>
+    <string name="user_md_reset_title">Restore the default template?</string>
+    <string name="user_md_reset_message">The current draft will be replaced with the default user.md template. Review and save it before it takes effect.</string>
     <string name="user_md_editor_placeholder">Describe your background, habits, and how you want the AI to communicate…</string>
     <string name="user_md_preview_empty">user.md is empty. Add some content to preview it here.</string>
     <string name="custom_description">Custom Introduction</string>
@@ -1621,7 +1621,7 @@
     <string name="or_select_builtin_config">Or select built-in configuration package</string>
     <string name="builtin_config">Built-in Configuration</string>
     <string name="external_config">External Configuration</string>
-    <string name="screen_title_external_http_chat_settings">External HTTP Calls</string>
+    <string name="screen_title_external_http_chat_settings">LAN &amp; Automation</string>
     <string name="external_http_chat_enable">Enable External HTTP Service</string>
     <string name="external_http_chat_enable_desc">Starts the external HTTP service and binds it to 0.0.0.0. The same port serves both the HTTP API and the browser-accessible web chat UI</string>
     <string name="external_http_chat_port">Listen Port</string>
@@ -1634,12 +1634,17 @@
     <string name="external_http_chat_token_not_generated">Not generated yet. Enable the service first</string>
     <string name="external_http_chat_copy_token">Copy Token</string>
     <string name="external_http_chat_reset_token">Reset Token</string>
+    <string name="external_http_chat_show_token">Show Token</string>
+    <string name="external_http_chat_hide_token">Hide Token</string>
+    <string name="external_http_chat_reset_token_title">Reset the access token?</string>
+    <string name="external_http_chat_reset_token_message">All clients still using the old token will stop working immediately. The new token will be copied to the clipboard.</string>
     <string name="external_http_chat_token_copied">Token copied</string>
     <string name="external_http_chat_token_reset">Token reset and copied</string>
     <string name="external_http_chat_status">Status</string>
     <string name="external_http_chat_status_running">Running and listening on 0.0.0.0:%1$d</string>
     <string name="external_http_chat_status_stopped">Service is not running</string>
     <string name="external_http_chat_status_error">Service error: %1$s</string>
+    <string name="external_http_chat_status_inconsistent">The service reports that it is running but did not provide a listening port. Restart the service and check the logs.</string>
     <string name="external_http_chat_web_title">Web Chat Entry</string>
     <string name="external_http_chat_web_desc">The same port serves both the web chat UI and the HTTP API. Open the address below in a browser, then enter the Bearer Token above on first access.</string>
     <string name="external_http_chat_web_note">The web UI uses the root path /. The HTTP API still lives under %1$s</string>
@@ -1748,7 +1753,7 @@
     <string name="manual_conversation_summary_desc">Immediately trigger a conversation summary to compress context and keep key points from both sides. Useful for long chats or before sending new messages.</string>
 
     <!-- Context and Summary Settings Screen -->
-    <string name="screen_title_context_summary_settings">Context and Summary Settings</string>
+    <string name="screen_title_context_summary_settings">Context &amp; Summaries</string>
     <string name="settings_context_title">Context Settings</string>
     <string name="settings_summary_title">Summary Settings</string>
 
@@ -3328,11 +3333,12 @@
     <string name="clear_cookies_success">Cookies cleared</string>
     <string name="clear_cookies_failed">Failed to clear cookies</string>
     <string name="settings_data_backup_subtitle">Chat history backup management</string>
-    <string name="settings_token_usage_stats">Token Usage Statistics</string>
+    <string name="settings_token_usage_stats">AI Usage &amp; Cost</string>
     <string name="settings_function_label">Function</string>
     <string name="settings_model_label">Model</string>
     <string name="settings_no_token_records">No token usage records for functional modules yet.</string>
     <string name="settings_reset_all_counts">Reset All Counts</string>
+    <string name="settings_usage_history_load_failed">Chat totals could not be loaded. Model usage data is still available.</string>
     <string name="settings_usage_summary">Usage Summary</string>
     <string name="settings_total_chats">Chats</string>
     <string name="settings_total_messages">Messages</string>
@@ -3886,15 +3892,16 @@
 
     <!-- Screen Titles -->
     <string name="screen_title_memory_base">Memory Base</string>
-    <string name="screen_title_tool_permissions">Tool Permissions</string>
+    <string name="screen_title_tool_permissions">AI Tool Permissions</string>
     <string name="screen_title_user_preferences_guide">User Preferences Guide</string>
-    <string name="screen_title_user_preferences_settings">User Profile (user.md)</string>
-    <string name="screen_title_model_config">Model &amp; Parameters Configuration</string>
-    <string name="screen_title_persona_card_generation">Persona Card Generation</string>
-    <string name="screen_title_waifu_mode_settings">Waifu Mode Settings</string>
-    <string name="screen_title_tag_market">Tag Market</string>
-    <string name="screen_title_model_prompts_settings">Character Card Editor</string>
-    <string name="screen_title_functional_config">Functional Model Configuration</string>
+    <string name="screen_title_user_preferences_settings">User Profile</string>
+    <string name="screen_title_model_config">Models &amp; API</string>
+    <string name="screen_title_persona_card_generation">Persona Builder</string>
+    <string name="screen_title_waifu_mode_settings">Replies &amp; Emojis</string>
+    <string name="screen_title_tag_market">Tag Templates</string>
+    <string name="screen_title_model_prompts_settings">Prompts &amp; Characters</string>
+    <string name="persona_generation_intro">Describe the character you want to create, including their name and role, personality, appearance, abilities, and relationships. I will ask focused questions and write confirmed details to the current character card.</string>
+    <string name="screen_title_functional_config">Functional Model Assignment</string>
     <string name="screen_title_theme_settings">Theme Settings</string>
     <string name="screen_title_global_display_settings">Display &amp; Behavior</string>
     <string name="screen_title_layout_adjustment">Layout Adjustment</string>
@@ -4433,7 +4440,7 @@
     <string name="api_key_pool_test_failed">Test failed: %1$s</string>
 
     <!-- Custom Emoji Management -->
-    <string name="manage_custom_emoji">Manage Custom Emojis</string>
+    <string name="manage_custom_emoji">Custom Emojis</string>
     <string name="custom_emoji_bound_to_target">Bound to current character target</string>
     <string name="add_emoji">Add Emoji</string>
     <string name="delete_emoji">Delete Emoji</string>
@@ -4516,8 +4523,8 @@
     <string name="go_clear">Clear Now</string>
 
     <!-- MNN Local Inference -->
-    <string name="screen_title_mnn_model_download">MNN Model Download</string>
-    <string name="mnn_model_download">Download MNN Model</string>
+    <string name="screen_title_mnn_model_download">Local Model Downloads</string>
+    <string name="mnn_model_download">Local Model Downloads</string>
     <string name="mnn_model_management">Model Management</string>
     <string name="mnn_download_from_modelscope">Download from ModelScope</string>
     <string name="mnn_model_size">Model Size: %1$.2f GB</string>
@@ -4525,13 +4532,16 @@
     <string name="mnn_download_speed">Speed: %1$s</string>
     <string name="mnn_download_complete">Download Complete</string>
     <string name="mnn_download_failed">Download Failed: %1$s</string>
-    <string name="mnn_no_models_downloaded">No models downloaded yet</string>
+    <string name="mnn_no_models_downloaded">No local models are currently available</string>
     <string name="mnn_model_name_only">Model Name</string>
     <string name="mnn_download_progress">Progress: %1$d%%</string>
     <string name="mnn_pause_download">Pause Download</string>
     <string name="mnn_resume_download">Resume Download</string>
     <string name="mnn_delete_model">Delete Model</string>
     <string name="mnn_confirm_delete">Confirm to delete this model?</string>
+    <string name="mnn_refresh_models">Refresh model list</string>
+    <string name="mnn_delete_model_done">Local model deleted</string>
+    <string name="mnn_delete_model_failed">Could not delete the local model. Check the logs.</string>
     <string name="mnn_loading_models">Loading model list...</string>
     <string name="mnn_connecting">Connecting...</string>
     <string name="mnn_load_failed">Load Failed</string>
@@ -4593,7 +4603,7 @@
     <string name="voice_interaction_service_summary">Intelligent voice assistant service</string>
 
     <!-- Tool Permission Settings -->
-    <string name="tool_permissions_title">Tool Permissions</string>
+    <string name="tool_permissions_title">AI Tool Permissions</string>
     <string name="tool_permissions_description">By default, all tools require you to \'Ask\'. You can add exceptions below.</string>
     <string name="global_permission_switch">Global Permission Switch</string>
     <string name="global_permission_switch_description">This setting acts as a master control and can override individual tool permissions.</string>
@@ -4608,6 +4618,7 @@
     <string name="remove_tool">Remove</string>
     <string name="select_tools">Select Tools</string>
     <string name="search_tools">Search</string>
+    <string name="tool_permission_search_empty">No matching tools found. Try a tool name or capability keyword.</string>
     <string name="done">Done</string>
     <string name="forbid">Forbid</string>
 
@@ -6405,7 +6416,10 @@
     <string name="context_field_max_media_history_turns">Media History Turns</string>
     <string name="context_unit_lines">lines</string>
     <string name="context_unit_times">times</string>
-    <string name="context_reset_all_settings">Reset All Settings</string>
+    <string name="context_reset_all_settings">Restore Media History Defaults</string>
+    <string name="context_reset_history_title">Restore media history defaults?</string>
+    <string name="context_reset_history_message">Only the retained turns for historical images, audio, and video will be restored. The context window, summary controls, and custom rules will not change.</string>
+    <string name="context_reset_history_done">Media history retention restored to defaults</string>
 
     <!-- MCP Deploy -->
     <string name="mcp_deploy_error_cannot_get_path">Cannot get plugin path: %1$s</string>
@@ -6418,6 +6432,7 @@
     <string name="model_config_error_valid_context_length">Please enter a valid context length</string>
     <string name="model_config_error_valid_max_context_length">Please enter a valid max context length</string>
     <string name="model_config_error_save_failed">Save failed</string>
+    <string name="model_config_custom_headers_invalid">The saved custom headers are not valid JSON. Editing and auto-save are disabled to preserve the original configuration; re-import or repair this model configuration.</string>
     <string name="model_config_error_summary_threshold_range">Please enter a summary trigger threshold between 0-1</string>
     <string name="model_config_error_valid_message_count">Please enter a valid message count threshold</string>
     <string name="model_config_collapse">Collapse</string>
@@ -7064,6 +7079,12 @@
     <string name="model_config_default_name">Default Config</string>
     <string name="model_config_config_id">Config %1$s</string>
     <string name="model_config_import_failed">Import failed: %1$s</string>
+    <string name="model_config_delete_title">Delete model configuration?</string>
+    <string name="model_config_delete_message">“%1$s” will be permanently deleted. Features using this configuration must be assigned again.</string>
+    <string name="functional_config_load_failed">Could not load functional model assignments</string>
+    <string name="functional_config_reset_title">Restore all functional model assignments?</string>
+    <string name="functional_config_reset_message">Every feature will be assigned to the default model configuration, and its current custom assignment will be cleared.</string>
+    <string name="functional_config_reset_done">All functional model assignments restored to defaults</string>
     <string name="default_character_card">Default Character Card</string>
 
     <!-- PromptTagManager -->
@@ -8284,4 +8305,67 @@
     <string name="openai_web_search_invalid_field">Invalid field</string>
     <string name="openai_web_search_not_present">Not present</string>
     <string name="openai_web_search_configuration_unavailable">OpenAI Web Search configuration is unavailable.</string>
+    <!-- Kiyori AI assistant settings information architecture -->
+    <string name="kiyori_ai_settings_title">AI Assistant</string>
+    <string name="kiyori_ai_settings_group_model_generation">Models &amp; Generation</string>
+    <string name="kiyori_ai_settings_group_model_generation_desc">Configure working models first, then choose how each task and persona generates responses</string>
+    <string name="kiyori_ai_settings_model_api">Models &amp; API</string>
+    <string name="kiyori_ai_settings_model_api_desc">Manage providers, keys, endpoints, model lists, request parameters, and connection tests</string>
+    <string name="kiyori_ai_settings_function_models">Feature Model Assignment</string>
+    <string name="kiyori_ai_settings_function_models_desc">Assign separate models to chat, summaries, memory, and media recognition</string>
+    <string name="kiyori_ai_settings_prompts_roles">Prompts &amp; Personas</string>
+    <string name="kiyori_ai_settings_prompts_roles_desc">Manage persona cards, groups, tags, prompts, and persona-card generation</string>
+    <string name="kiyori_ai_settings_group_personalization">Personalization &amp; Interaction</string>
+    <string name="kiyori_ai_settings_group_personalization_desc">Define how the assistant understands you, appears, and structures replies</string>
+    <string name="kiyori_ai_settings_user_profile">User Profile</string>
+    <string name="kiyori_ai_settings_user_profile_desc">Edit the user.md file sent to the AI as user context</string>
+    <string name="kiyori_ai_settings_avatar">Virtual Avatar</string>
+    <string name="kiyori_ai_settings_avatar_desc">Manage avatar models, previews, actions, and emotion mappings</string>
+    <string name="kiyori_ai_settings_reply_expression">Replies &amp; Emotes</string>
+    <string name="kiyori_ai_settings_reply_expression_desc">Configure reply pacing, punctuation, emotes, custom instructions, and selfies</string>
+    <string name="kiyori_ai_settings_group_voice">Voice</string>
+    <string name="kiyori_ai_settings_group_voice_desc">Manage speech output, recognition, and background wake-up</string>
+    <string name="kiyori_ai_settings_tts">Text to Speech</string>
+    <string name="kiyori_ai_settings_tts_desc">Choose the speech engine, voice, speed, pitch, and text-cleaning rules</string>
+    <string name="kiyori_ai_settings_stt">Speech to Text</string>
+    <string name="kiyori_ai_settings_stt_desc">Choose a local or remote recognition engine and configure its connection</string>
+    <string name="kiyori_ai_settings_voice_wakeup">Voice Wake-up</string>
+    <string name="kiyori_ai_settings_voice_wakeup_desc">Set the wake phrase, background listening, spoken response, and automatic attachments</string>
+    <string name="kiyori_ai_settings_group_context_tools">Context &amp; Tools</string>
+    <string name="kiyori_ai_settings_group_context_tools_desc">Control conversation retention, automatic summaries, and tool-call boundaries</string>
+    <string name="kiyori_ai_settings_context_summary">Context &amp; Summaries</string>
+    <string name="kiyori_ai_settings_context_summary_desc">Manage context windows, automatic summaries, custom rules, and media-history retention</string>
+    <string name="kiyori_ai_settings_tool_permissions">AI Tool Permissions</string>
+    <string name="kiyori_ai_settings_tool_permissions_desc">Set the default tool policy and allow, ask, or deny exceptions</string>
+    <string name="kiyori_ai_settings_group_service_usage">Services &amp; Usage</string>
+    <string name="kiyori_ai_settings_group_service_usage_desc">Review resource usage and configure controlled LAN and automation entry points</string>
+    <string name="kiyori_ai_settings_usage_cost">AI Usage &amp; Cost</string>
+    <string name="kiyori_ai_settings_usage_cost_desc">Review model requests, tokens, cost, exchange rates, and custom pricing</string>
+    <string name="kiyori_ai_settings_lan_automation">LAN &amp; Automation</string>
+    <string name="kiyori_ai_settings_lan_automation_desc">Manage the local HTTP/Web chat service, port, token, and request examples</string>
+    <string name="kiyori_avatar_settings_title">Virtual Avatar</string>
+    <string name="kiyori_avatar_configuration_desc">Choose the avatar model, adjust its placement, and manage actions and emotion mappings</string>
+    <string name="kiyori_voice_wakeup_settings_title">Voice Wake-up</string>
+    <string name="kiyori_voice_wakeup_recognition_title">Wake Recognition</string>
+    <string name="kiyori_voice_wakeup_recognition_desc">Choose the recognition method, configure the wake phrase, and manage background listening permission</string>
+    <string name="kiyori_voice_wakeup_response_title">Wake Response</string>
+    <string name="kiyori_voice_wakeup_response_desc">Configure spoken feedback, timeout, and new-conversation behavior after wake-up</string>
+    <string name="kiyori_voice_wakeup_attachments_title">Automatic Attachments</string>
+    <string name="kiyori_voice_wakeup_attachments_desc">Attach current device context by keyword when voice mode starts</string>
+    <string name="voice_wakeup_update_failed">Voice settings could not be saved. Try again later.</string>
+    <string name="voice_wakeup_personal_clear_confirm_title">Clear personal wake templates</string>
+    <string name="voice_wakeup_personal_clear_confirm_message">After clearing them, record the wake phrase three times again before using personal-template recognition.</string>
+    <string name="voice_wakeup_personal_record_failed">Recording failed. Check microphone permission and try again.</string>
+    <string name="voice_keyword_attachments_delete_confirm_title">Delete automatic attachment</string>
+    <string name="voice_keyword_attachments_delete_confirm_message">Delete the “%1$s” automatic attachment?</string>
+    <string name="avatar_delete_custom_mood_type_confirm">Delete the custom emotion “%1$s”? Its action mapping will also be removed.</string>
+    <string name="avatar_preview_failed">Avatar preview could not be loaded. Check the model files and try again.</string>
+    <string name="show_api_key">Show key</string>
+    <string name="hide_api_key">Hide key</string>
+    <string name="speech_services_information_title">About these capabilities</string>
+    <string name="speech_services_information_desc">Learn what the current speech configuration controls and how it runs</string>
+    <string name="speech_services_tools_title">Speech tools</string>
+    <string name="speech_services_tools_desc">Test text playback with the current speech configuration</string>
+    <string name="speech_services_test_tts_desc">Open the text playback tool and verify the current speech synthesis configuration</string>
+    <string name="speech_services_simple_tts_voice_load_failed">System TTS voices could not be loaded. Check the device speech engine.</string>
 </resources>

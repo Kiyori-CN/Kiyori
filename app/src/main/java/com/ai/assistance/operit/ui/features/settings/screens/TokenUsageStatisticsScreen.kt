@@ -3,6 +3,7 @@ package com.ai.assistance.operit.ui.features.settings.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
@@ -31,7 +32,11 @@ import com.ai.assistance.operit.data.collects.PricingCurrency
 import com.ai.assistance.operit.data.model.BillingMode
 import com.ai.assistance.operit.data.preferences.ApiPreferences
 import com.ai.assistance.operit.data.repository.ChatHistoryManager
-import com.ai.assistance.operit.ui.components.CustomScaffold
+import com.ai.assistance.operit.ui.main.shell.KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsWorkspacePage
+import com.ai.assistance.operit.ui.main.shell.kiyoriSettingsOutlinedTextFieldColors
+import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.design.theme.LocalKiyoriSettingsColors
 import java.util.Locale
 import kotlinx.coroutines.launch
 
@@ -41,6 +46,7 @@ private data class ModelCost(
 )
 
 private const val DEFAULT_USD_TO_CNY_RATE = 7.2
+private const val TOKEN_USAGE_LOG_TAG = "TokenUsageStatistics"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,7 +54,9 @@ fun TokenUsageStatisticsScreen(
     onBackPressed: () -> Unit
 ) {
     val context = LocalContext.current
+    val settingsColors = LocalKiyoriSettingsColors.current
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     val apiPreferences = remember { ApiPreferences.getInstance(context) }
     val chatHistoryManager = remember { ChatHistoryManager.getInstance(context) }
 
@@ -134,9 +142,14 @@ fun TokenUsageStatisticsScreen(
     }
 
     LaunchedEffect(Unit) {
-        runCatching {
+        try {
             totalChats = chatHistoryManager.getTotalChatCount()
             totalMessages = chatHistoryManager.getTotalMessageCount()
+        } catch (error: Exception) {
+            AppLogger.e(TOKEN_USAGE_LOG_TAG, "Failed to load chat usage totals", error)
+            snackbarHostState.showSnackbar(
+                context.getString(R.string.settings_usage_history_load_failed)
+            )
         }
     }
 
@@ -201,19 +214,21 @@ fun TokenUsageStatisticsScreen(
         }
     }
 
-    CustomScaffold(
-        floatingActionButton = {
-            FloatingActionButton(
+    KiyoriSettingsWorkspacePage(
+        title = stringResource(R.string.kiyori_ai_settings_usage_cost),
+        onBack = onBackPressed,
+        snackbarHostState = snackbarHostState,
+        headerAction = {
+            IconButton(
                 onClick = { showResetDialog = true },
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-                contentColor = MaterialTheme.colorScheme.onErrorContainer
             ) {
                 Icon(
                     imageVector = Icons.Default.RestartAlt,
-                    contentDescription = stringResource(id = R.string.settings_reset_all_counts)
+                    contentDescription = stringResource(id = R.string.settings_reset_all_counts),
+                    tint = MaterialTheme.colorScheme.error,
                 )
             }
-        }
+        },
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
@@ -222,22 +237,6 @@ fun TokenUsageStatisticsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item {
-                ExchangeRateSettingsCard(
-                    rateInput = usdToCnyRateInput,
-                    onRateInputChange = { usdToCnyRateInput = it },
-                    onSave = {
-                        val parsedRate = usdToCnyRateInput.toDoubleOrNull()
-                        if (parsedRate != null && parsedRate > 0.0) {
-                            usdToCnyRate = parsedRate
-                            scope.launch {
-                                apiPreferences.setUsdToCnyExchangeRate(parsedRate)
-                            }
-                        }
-                    }
-                )
-            }
-
             item {
                 TokenUsageSummarySection(
                     totalChats = totalChats,
@@ -288,7 +287,15 @@ fun TokenUsageStatisticsScreen(
 
             if (sortedProviderModels.isEmpty()) {
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = settingsColors.cardBackground
+                            ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -351,7 +358,23 @@ fun TokenUsageStatisticsScreen(
             }
 
             item {
-                Spacer(modifier = Modifier.height(96.dp))
+                ExchangeRateSettingsCard(
+                    rateInput = usdToCnyRateInput,
+                    onRateInputChange = { usdToCnyRateInput = it },
+                    onSave = {
+                        val parsedRate = usdToCnyRateInput.toDoubleOrNull()
+                        if (parsedRate != null && parsedRate > 0.0) {
+                            usdToCnyRate = parsedRate
+                            scope.launch {
+                                apiPreferences.setUsdToCnyExchangeRate(parsedRate)
+                            }
+                        }
+                    },
+                )
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }
@@ -451,7 +474,9 @@ fun TokenUsageStatisticsScreen(
                                 )
                             },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
+                            colors = kiyoriSettingsOutlinedTextFieldColors(),
                         )
 
                         OutlinedTextField(
@@ -463,7 +488,9 @@ fun TokenUsageStatisticsScreen(
                                 )
                             },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
+                            colors = kiyoriSettingsOutlinedTextFieldColors(),
                         )
 
                         OutlinedTextField(
@@ -475,7 +502,9 @@ fun TokenUsageStatisticsScreen(
                                 )
                             },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
+                            colors = kiyoriSettingsOutlinedTextFieldColors(),
                         )
                     } else {
                         Text(
@@ -499,7 +528,9 @@ fun TokenUsageStatisticsScreen(
                                 )
                             },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
+                            colors = kiyoriSettingsOutlinedTextFieldColors(),
                         )
                     }
                 }
@@ -655,7 +686,13 @@ private fun ExchangeRateSettingsCard(
     onRateInputChange: (String) -> Unit,
     onSave: () -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    val settingsColors = LocalKiyoriSettingsColors.current
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = settingsColors.cardBackground),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -677,7 +714,9 @@ private fun ExchangeRateSettingsCard(
                 onValueChange = { onRateInputChange(it) },
                 label = { Text(stringResource(id = R.string.settings_usd_to_cny_rate_label)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
+                colors = kiyoriSettingsOutlinedTextFieldColors(),
             )
 
             Row(
@@ -708,9 +747,13 @@ private fun TokenUsageModelCard(
     onClick: () -> Unit,
     onResetClick: () -> Unit
 ) {
+    val settingsColors = LocalKiyoriSettingsColors.current
     Card(
         modifier = Modifier.fillMaxWidth(),
-        onClick = onClick
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = settingsColors.cardBackground),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(

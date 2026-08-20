@@ -2,6 +2,7 @@ package com.ai.assistance.operit.ui.features.settings.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -23,7 +24,10 @@ import com.ai.assistance.operit.data.preferences.ActivePromptManager
 import com.ai.assistance.operit.data.preferences.WaifuPreferences
 import com.ai.assistance.operit.data.model.ActivePrompt
 import kotlinx.coroutines.launch
-import com.ai.assistance.operit.ui.components.CustomScaffold
+import com.ai.assistance.operit.ui.main.shell.KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsWorkspacePage
+import com.ai.assistance.operit.ui.main.shell.kiyoriSettingsOutlinedTextFieldColors
+import androidx.compose.material3.SnackbarHostState
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
 import kotlinx.coroutines.flow.flowOf
@@ -35,6 +39,7 @@ fun WaifuModeSettingsScreen(
     onNavigateToCustomEmoji: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
     val apiPreferences = remember { ApiPreferences.getInstance(context) }
     val waifuPreferences = remember { WaifuPreferences.getInstance(context) }
     val characterCardManager = remember { CharacterCardManager.getInstance(context) }
@@ -99,8 +104,10 @@ fun WaifuModeSettingsScreen(
         }
     }
 
-    CustomScaffold(
-
+    KiyoriSettingsWorkspacePage(
+        title = stringResource(R.string.kiyori_ai_settings_reply_expression),
+        onBack = onNavigateBack,
+        snackbarHostState = snackbarHostState,
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -442,10 +449,11 @@ fun WaifuModeSettingsScreen(
                             placeholder = { Text(stringResource(R.string.waifu_custom_prompt_placeholder)) },
                             minLines = 4,
                             maxLines = 8,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                            )
+                            shape =
+                                RoundedCornerShape(
+                                    KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp
+                                ),
+                            colors = kiyoriSettingsOutlinedTextFieldColors(),
                         )
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -611,10 +619,11 @@ fun WaifuModeSettingsScreen(
                                 placeholder = { Text(stringResource(R.string.appearance_prompt_placeholder)) },
                                 minLines = 3,
                                 maxLines = 6,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                                )
+                                shape =
+                                    RoundedCornerShape(
+                                        KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp
+                                    ),
+                                colors = kiyoriSettingsOutlinedTextFieldColors(),
                             )
                             
                             Spacer(modifier = Modifier.height(8.dp))

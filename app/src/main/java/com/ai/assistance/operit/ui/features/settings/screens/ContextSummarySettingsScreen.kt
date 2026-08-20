@@ -5,7 +5,6 @@ package com.ai.assistance.operit.ui.features.settings.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -31,7 +30,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Snackbar
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -68,8 +68,9 @@ import com.ai.assistance.operit.data.preferences.ApiPreferences
 import com.ai.assistance.operit.data.preferences.FunctionConfigMapping
 import com.ai.assistance.operit.data.preferences.FunctionalConfigManager
 import com.ai.assistance.operit.data.preferences.ModelConfigManager
-import com.ai.assistance.operit.data.preferences.UserPreferencesManager
-import com.ai.assistance.operit.ui.components.CustomScaffold
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsWorkspacePage
+import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.design.theme.LocalKiyoriSettingsColors
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
@@ -78,14 +79,17 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+private const val CONTEXT_SUMMARY_LOG_TAG = "ContextSummarySettings"
+
 @Composable
 fun ContextSummarySettingsScreen(onBackPressed: () -> Unit) {
     val context = LocalContext.current
+    val settingsColors = LocalKiyoriSettingsColors.current
     val apiPreferences = remember { ApiPreferences.getInstance(context) }
-    val userPreferences = remember { UserPreferencesManager.getInstance(context) }
     val functionalConfigManager = remember { FunctionalConfigManager(context) }
     val modelConfigManager = remember { ModelConfigManager(context) }
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     val scrollState = rememberScrollState()
 
     var maxImageHistoryUserTurnsInput by remember { mutableStateOf("") }
@@ -99,13 +103,7 @@ fun ContextSummarySettingsScreen(onBackPressed: () -> Unit) {
             initial = ApiPreferences.DEFAULT_MAX_MEDIA_HISTORY_USER_TURNS
         )
 
-    val hasBackgroundImage by userPreferences.useBackgroundImage.collectAsState(initial = false)
-    val componentBackgroundColor =
-        if (hasBackgroundImage) {
-            MaterialTheme.colorScheme.surface
-        } else {
-            MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
-        }
+    val componentBackgroundColor = settingsColors.cardBackground
 
     LaunchedEffect(Unit) {
         modelConfigManager.initializeIfNeeded()
@@ -184,7 +182,7 @@ fun ContextSummarySettingsScreen(onBackPressed: () -> Unit) {
         stringResource(id = R.string.model_config_error_summary_threshold_range)
     val errorValidMessageCount = stringResource(id = R.string.model_config_error_valid_message_count)
 
-    var showSaveSuccessMessage by remember { mutableStateOf(false) }
+    var showResetHistoryDialog by remember { mutableStateOf(false) }
     var historyError by remember { mutableStateOf<String?>(null) }
 
     val currentConfigDisplayName = remember(currentConfig, currentChatConfigId) {
@@ -223,7 +221,11 @@ fun ContextSummarySettingsScreen(onBackPressed: () -> Unit) {
         onHistoryErrorChange = { historyError = it }
     )
 
-    CustomScaffold() { paddingValues ->
+    KiyoriSettingsWorkspacePage(
+        title = stringResource(R.string.kiyori_ai_settings_context_summary),
+        onBack = onBackPressed,
+        snackbarHostState = snackbarHostState,
+    ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             Column(
                 modifier =
@@ -297,28 +299,60 @@ fun ContextSummarySettingsScreen(onBackPressed: () -> Unit) {
                     onMaxImageHistoryUserTurnsInputChange = { maxImageHistoryUserTurnsInput = it },
                     maxMediaHistoryUserTurnsInput = maxMediaHistoryUserTurnsInput,
                     onMaxMediaHistoryUserTurnsInputChange = { maxMediaHistoryUserTurnsInput = it },
-                    onReset = {
-                        scope.launch {
-                            historyError = null
-                            apiPreferences.resetHistoryRetentionSettings()
-                            maxImageHistoryUserTurnsInput =
-                                apiPreferences.maxImageHistoryUserTurnsFlow.first().toString()
-                            maxMediaHistoryUserTurnsInput =
-                                apiPreferences.maxMediaHistoryUserTurnsFlow.first().toString()
-                            showSaveSuccessMessage = true
-                        }
-                    },
+                    onReset = { showResetHistoryDialog = true },
                     historyError = historyError
                 )
 
                 Spacer(modifier = Modifier.size(16.dp))
             }
 
-            RenderContextSummaryDialogs(
-                showSaveSuccessMessage = showSaveSuccessMessage,
-                onDismissSaveSuccess = { showSaveSuccessMessage = false }
-            )
         }
+    }
+
+    if (showResetHistoryDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetHistoryDialog = false },
+            title = { Text(stringResource(R.string.context_reset_history_title)) },
+            text = { Text(stringResource(R.string.context_reset_history_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showResetHistoryDialog = false
+                        scope.launch {
+                            try {
+                                historyError = null
+                                apiPreferences.resetHistoryRetentionSettings()
+                                maxImageHistoryUserTurnsInput =
+                                    apiPreferences.maxImageHistoryUserTurnsFlow.first().toString()
+                                maxMediaHistoryUserTurnsInput =
+                                    apiPreferences.maxMediaHistoryUserTurnsFlow.first().toString()
+                                snackbarHostState.showSnackbar(
+                                    context.getString(R.string.context_reset_history_done)
+                                )
+                            } catch (error: Exception) {
+                                AppLogger.e(
+                                    CONTEXT_SUMMARY_LOG_TAG,
+                                    "Failed to reset history retention settings",
+                                    error,
+                                )
+                                historyError = errorSaveFailed
+                            }
+                        }
+                    },
+                    colors =
+                        ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                ) {
+                    Text(stringResource(R.string.reset_to_default))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetHistoryDialog = false }) {
+                    Text(stringResource(R.string.cancel_action))
+                }
+            },
+        )
     }
 }
 
@@ -368,7 +402,12 @@ private fun ContextSummaryAutoSaveEffects(
                             )
                             onContextErrorChange(null)
                         } catch (e: Exception) {
-                            onContextErrorChange(e.message ?: errorSaveFailed)
+                            AppLogger.e(
+                                CONTEXT_SUMMARY_LOG_TAG,
+                                "Failed to save context window settings",
+                                e,
+                            )
+                            onContextErrorChange(errorSaveFailed)
                         }
                     }
                 }
@@ -402,7 +441,12 @@ private fun ContextSummaryAutoSaveEffects(
                             )
                             onSummaryErrorChange(null)
                         } catch (e: Exception) {
-                            onSummaryErrorChange(e.message ?: errorSaveFailed)
+                            AppLogger.e(
+                                CONTEXT_SUMMARY_LOG_TAG,
+                                "Failed to disable automatic summary",
+                                e,
+                            )
+                            onSummaryErrorChange(errorSaveFailed)
                         }
                     }
                     return@collectLatest
@@ -441,7 +485,12 @@ private fun ContextSummaryAutoSaveEffects(
                             )
                             onSummaryErrorChange(null)
                         } catch (e: Exception) {
-                            onSummaryErrorChange(e.message ?: errorSaveFailed)
+                            AppLogger.e(
+                                CONTEXT_SUMMARY_LOG_TAG,
+                                "Failed to save automatic summary settings",
+                                e,
+                            )
+                            onSummaryErrorChange(errorSaveFailed)
                         }
                     }
                 }
@@ -482,7 +531,12 @@ private fun HistoryRetentionAutoSaveEffects(
                     apiPreferences.saveMaxMediaHistoryUserTurns(mediaTurns)
                     onHistoryErrorChange(null)
                 } catch (e: Exception) {
-                    onHistoryErrorChange(e.message ?: errorSaveFailed)
+                    AppLogger.e(
+                        CONTEXT_SUMMARY_LOG_TAG,
+                        "Failed to save history retention settings",
+                        e,
+                    )
+                    onHistoryErrorChange(errorSaveFailed)
                 }
             }
     }
@@ -519,7 +573,12 @@ private fun ContextSummaryCustomRulesAutoSaveEffect(
                     )
                     onSummaryErrorChange(null)
                 } catch (e: Exception) {
-                    onSummaryErrorChange(e.message ?: errorSaveFailed)
+                    AppLogger.e(
+                        CONTEXT_SUMMARY_LOG_TAG,
+                        "Failed to save custom summary rules",
+                        e,
+                    )
+                    onSummaryErrorChange(errorSaveFailed)
                 }
             }
     }
@@ -697,29 +756,6 @@ private fun RenderHistoryRetentionSection(
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
         )
-    }
-}
-
-@Composable
-private fun BoxScope.RenderContextSummaryDialogs(
-    showSaveSuccessMessage: Boolean,
-    onDismissSaveSuccess: () -> Unit
-) {
-    if (showSaveSuccessMessage) {
-        LaunchedEffect(Unit) {
-            kotlinx.coroutines.delay(1500)
-            onDismissSaveSuccess()
-        }
-        Snackbar(
-            modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
-            action = {
-                TextButton(onClick = onDismissSaveSuccess) {
-                    Text(stringResource(id = android.R.string.ok))
-                }
-            }
-        ) {
-            Text(stringResource(id = R.string.settings_saved))
-        }
     }
 }
 

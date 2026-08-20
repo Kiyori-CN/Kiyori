@@ -70,11 +70,14 @@ import com.ai.assistance.operit.ui.features.assistant.components.AvatarPreviewSe
 import com.ai.assistance.operit.ui.features.assistant.components.VoiceAutoAttachGrid
 import com.ai.assistance.operit.ui.features.assistant.viewmodel.AssistantConfigViewModel
 import com.ai.assistance.operit.ui.main.components.LocalKiyoriEmbeddedSettingsNavigation
+import com.ai.assistance.operit.util.AppLogger
 import com.kiyori.design.theme.KiyoriSemanticTone
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
-internal const val KIYORI_AVATAR_SETTINGS_PAGE_TITLE = "虚拟形象配置"
-internal const val KIYORI_VOICE_WAKEUP_SETTINGS_PAGE_TITLE = "语音唤醒"
+internal val KIYORI_AVATAR_SETTINGS_PAGE_TITLE_RES = R.string.kiyori_avatar_settings_title
+internal val KIYORI_VOICE_WAKEUP_SETTINGS_PAGE_TITLE_RES =
+    R.string.kiyori_voice_wakeup_settings_title
 
 @Composable
 internal fun KiyoriAvatarSettingsPage(
@@ -142,7 +145,7 @@ internal fun KiyoriAvatarSettingsPage(
 
     Box(modifier = modifier) {
         KiyoriCollapsingSettingsPage(
-            title = KIYORI_AVATAR_SETTINGS_PAGE_TITLE,
+            title = stringResource(KIYORI_AVATAR_SETTINGS_PAGE_TITLE_RES),
             onBack = navigation.onClick,
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -156,6 +159,7 @@ internal fun KiyoriAvatarSettingsPage(
                                 .padding(horizontal = 15.dp),
                         uiState = uiState,
                         avatarController = avatarController,
+                        onPreviewError = viewModel::updateErrorMessage,
                     )
                 }
                 Row(
@@ -185,12 +189,17 @@ internal fun KiyoriAvatarSettingsPage(
                 }
             }
             item(key = "avatar_configuration") {
-                AvatarConfigSection(
-                    viewModel = viewModel,
-                    uiState = uiState,
-                    avatarController = avatarController,
-                    onImportClick = openAvatarPicker,
-                )
+                KiyoriSettingsGroupSection(
+                    title = stringResource(R.string.avatar_config),
+                    description = stringResource(R.string.kiyori_avatar_configuration_desc),
+                ) {
+                    AvatarConfigSection(
+                        viewModel = viewModel,
+                        uiState = uiState,
+                        avatarController = avatarController,
+                        onImportClick = openAvatarPicker,
+                    )
+                }
             }
         }
 
@@ -237,6 +246,7 @@ internal fun KiyoriVoiceWakeupSettingsPage(
     val navigation = LocalKiyoriEmbeddedSettingsNavigation.current
     val wakePrefs = remember { WakeWordPreferences(context.applicationContext) }
     val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     val wakeListeningEnabled by
         wakePrefs.alwaysListeningEnabledFlow.collectAsState(
             initial = WakeWordPreferences.DEFAULT_ALWAYS_LISTENING_ENABLED,
@@ -284,16 +294,54 @@ internal fun KiyoriVoiceWakeupSettingsPage(
             initial = WakeWordPreferences.getDefaultVoiceAutoAttachItems(context),
         )
 
-    LaunchedEffect(wakePrefs) {
-        wakePrefs.migrateVoiceAutoAttachItemsIfNeeded()
-    }
-
     var wakePhraseInput by rememberSaveable { mutableStateOf("") }
     var inactivityTimeoutInput by rememberSaveable { mutableStateOf("") }
     var wakeGreetingTextInput by rememberSaveable { mutableStateOf("") }
     var autoNewChatGroupInput by rememberSaveable { mutableStateOf("") }
     var modeExpanded by rememberSaveable { mutableStateOf(false) }
     var personalWakeConfigDialogVisible by rememberSaveable { mutableStateOf(false) }
+    var clearPersonalWakeConfirmVisible by rememberSaveable { mutableStateOf(false) }
+
+    fun updateWakeSetting(
+        operationName: String,
+        onSuccess: () -> Unit = {},
+        action: suspend () -> Unit,
+    ) {
+        coroutineScope.launch {
+            try {
+                action()
+                onSuccess()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                AppLogger.e(
+                    "KiyoriVoiceWakeupSettings",
+                    "$operationName failed",
+                    error,
+                )
+                snackbarHostState.showSnackbar(
+                    context.getString(R.string.voice_wakeup_update_failed),
+                )
+            }
+        }
+    }
+
+    LaunchedEffect(wakePrefs) {
+        try {
+            wakePrefs.migrateVoiceAutoAttachItemsIfNeeded()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            AppLogger.e(
+                "KiyoriVoiceWakeupSettings",
+                "Voice auto-attachment migration failed",
+                error,
+            )
+            snackbarHostState.showSnackbar(
+                context.getString(R.string.voice_wakeup_update_failed),
+            )
+        }
+    }
 
     LaunchedEffect(wakePhrase) {
         if (wakePhraseInput.isBlank()) {
@@ -321,27 +369,29 @@ internal fun KiyoriVoiceWakeupSettingsPage(
             contract = ActivityResultContracts.RequestPermission(),
         ) { isGranted ->
             if (isGranted) {
-                coroutineScope.launch { wakePrefs.saveAlwaysListeningEnabled(true) }
+                updateWakeSetting("Enable background wake listening") {
+                    wakePrefs.saveAlwaysListeningEnabled(true)
+                }
             } else {
-                android.widget.Toast.makeText(
-                        context,
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(
                         context.getString(R.string.microphone_permission_denied_toast),
-                        android.widget.Toast.LENGTH_SHORT,
                     )
-                    .show()
+                }
             }
         }
 
     Box(modifier = modifier) {
         KiyoriCollapsingSettingsPage(
-            title = KIYORI_VOICE_WAKEUP_SETTINGS_PAGE_TITLE,
+            title = stringResource(KIYORI_VOICE_WAKEUP_SETTINGS_PAGE_TITLE_RES),
             onBack = navigation.onClick,
             modifier = Modifier.fillMaxWidth(),
         ) {
             item(key = "wake_recognition") {
                 KiyoriSettingsGroupSection(
-                    title = "唤醒识别",
-                    description = "选择唤醒方式，并配置唤醒词与后台监听权限",
+                    title = stringResource(R.string.kiyori_voice_wakeup_recognition_title),
+                    description =
+                        stringResource(R.string.kiyori_voice_wakeup_recognition_desc),
                 ) {
                     ExposedDropdownMenuBox(
                         expanded = modeExpanded,
@@ -384,7 +434,7 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                                 text = { Text(stringResource(R.string.voice_wakeup_mode_stt)) },
                                 onClick = {
                                     modeExpanded = false
-                                    coroutineScope.launch {
+                                    updateWakeSetting("Select STT wake recognition") {
                                         wakePrefs.saveWakeRecognitionMode(
                                             WakeWordPreferences.WakeRecognitionMode.STT,
                                         )
@@ -395,7 +445,7 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                                 text = { Text(stringResource(R.string.voice_wakeup_mode_personal)) },
                                 onClick = {
                                     modeExpanded = false
-                                    coroutineScope.launch {
+                                    updateWakeSetting("Select personal wake recognition") {
                                         wakePrefs.saveWakeRecognitionMode(
                                             WakeWordPreferences.WakeRecognitionMode.PERSONAL_TEMPLATE,
                                         )
@@ -406,7 +456,7 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                     }
 
                     KiyoriSettingsRow(
-                        title = "始终监听",
+                        title = stringResource(R.string.voice_wakeup_always_listen_title),
                         description = stringResource(R.string.voice_wakeup_always_listen_desc),
                         kind = KiyoriSettingsRowKind.TOGGLE,
                         icon = Icons.Default.Mic,
@@ -420,14 +470,14 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                                         Manifest.permission.RECORD_AUDIO,
                                     ) == PackageManager.PERMISSION_GRANTED
                                 if (granted) {
-                                    coroutineScope.launch {
+                                    updateWakeSetting("Enable background wake listening") {
                                         wakePrefs.saveAlwaysListeningEnabled(true)
                                     }
                                 } else {
                                     requestMicPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                                 }
                             } else {
-                                coroutineScope.launch {
+                                updateWakeSetting("Disable background wake listening") {
                                     wakePrefs.saveAlwaysListeningEnabled(false)
                                 }
                             }
@@ -446,7 +496,7 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                             value = wakePhraseInput,
                             onValueChange = { newValue ->
                                 wakePhraseInput = newValue
-                                coroutineScope.launch {
+                                updateWakeSetting("Update wake phrase") {
                                     wakePrefs.saveWakePhrase(
                                         newValue.ifBlank {
                                             WakeWordPreferences.DEFAULT_WAKE_PHRASE
@@ -471,7 +521,7 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                             iconTone = KiyoriSemanticTone.GREEN,
                             checked = wakePhraseRegexEnabled,
                             onClick = {
-                                coroutineScope.launch {
+                                updateWakeSetting("Update wake phrase regex mode") {
                                     wakePrefs.saveWakePhraseRegexEnabled(!wakePhraseRegexEnabled)
                                 }
                             },
@@ -497,11 +547,7 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                             OutlinedButton(
                                 modifier = Modifier.weight(1f),
                                 enabled = personalWakeTemplates.isNotEmpty(),
-                                onClick = {
-                                    coroutineScope.launch {
-                                        wakePrefs.savePersonalWakeTemplates(emptyList())
-                                    }
-                                },
+                                onClick = { clearPersonalWakeConfirmVisible = true },
                             ) {
                                 Text(stringResource(R.string.voice_wakeup_personal_clear))
                             }
@@ -525,8 +571,8 @@ internal fun KiyoriVoiceWakeupSettingsPage(
 
             item(key = "wake_response") {
                 KiyoriSettingsGroupSection(
-                    title = "语音响应",
-                    description = "设置唤醒后的反馈、超时和新对话行为",
+                    title = stringResource(R.string.kiyori_voice_wakeup_response_title),
+                    description = stringResource(R.string.kiyori_voice_wakeup_response_desc),
                 ) {
                     OutlinedTextField(
                         modifier =
@@ -539,11 +585,15 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                         value = inactivityTimeoutInput,
                         onValueChange = { newValue ->
                             val filtered = newValue.filter(Char::isDigit)
-                            inactivityTimeoutInput = filtered
-                            filtered.toIntOrNull()?.let { parsed ->
-                                coroutineScope.launch {
+                            val parsed = filtered.toIntOrNull()
+                            if (parsed == null) {
+                                inactivityTimeoutInput = filtered
+                            } else {
+                                val bounded = parsed.coerceIn(1, 600)
+                                inactivityTimeoutInput = bounded.toString()
+                                updateWakeSetting("Update voice inactivity timeout") {
                                     wakePrefs.saveVoiceCallInactivityTimeoutSeconds(
-                                        parsed.coerceIn(1, 600),
+                                        bounded,
                                     )
                                 }
                             }
@@ -568,7 +618,7 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                         iconTone = KiyoriSemanticTone.CYAN,
                         checked = wakeGreetingEnabled,
                         onClick = {
-                            coroutineScope.launch {
+                            updateWakeSetting("Update wake greeting") {
                                 wakePrefs.saveWakeGreetingEnabled(!wakeGreetingEnabled)
                             }
                         },
@@ -584,7 +634,7 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                         value = wakeGreetingTextInput,
                         onValueChange = { newValue ->
                             wakeGreetingTextInput = newValue
-                            coroutineScope.launch {
+                            updateWakeSetting("Update wake greeting text") {
                                 wakePrefs.saveWakeGreetingText(
                                     newValue.ifBlank {
                                         WakeWordPreferences.DEFAULT_WAKE_GREETING_TEXT
@@ -610,7 +660,7 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                         iconTone = KiyoriSemanticTone.ORANGE,
                         checked = wakeCreateNewChatOnWakeEnabled,
                         onClick = {
-                            coroutineScope.launch {
+                            updateWakeSetting("Update wake chat creation") {
                                 wakePrefs.saveWakeCreateNewChatOnWakeEnabled(
                                     !wakeCreateNewChatOnWakeEnabled,
                                 )
@@ -628,7 +678,7 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                         value = autoNewChatGroupInput,
                         onValueChange = { newValue ->
                             autoNewChatGroupInput = newValue
-                            coroutineScope.launch {
+                            updateWakeSetting("Update wake chat group") {
                                 wakePrefs.saveAutoNewChatGroup(
                                     newValue.ifBlank {
                                         WakeWordPreferences.DEFAULT_AUTO_NEW_CHAT_GROUP
@@ -636,6 +686,7 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                                 )
                             }
                         },
+                        enabled = wakeCreateNewChatOnWakeEnabled,
                         singleLine = true,
                         label = {
                             Text(stringResource(R.string.voice_wakeup_auto_new_chat_group_label))
@@ -657,8 +708,9 @@ internal fun KiyoriVoiceWakeupSettingsPage(
 
             item(key = "wake_attachments") {
                 KiyoriSettingsGroupSection(
-                    title = "语音附件",
-                    description = "唤醒进入语音模式时，可自动附加当前设备上下文",
+                    title = stringResource(R.string.kiyori_voice_wakeup_attachments_title),
+                    description =
+                        stringResource(R.string.kiyori_voice_wakeup_attachments_desc),
                 ) {
                     KiyoriSettingsRow(
                         title = stringResource(R.string.voice_keyword_attachments_enabled_title),
@@ -668,7 +720,7 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                         iconTone = KiyoriSemanticTone.PURPLE,
                         checked = voiceAutoAttachEnabled,
                         onClick = {
-                            coroutineScope.launch {
+                            updateWakeSetting("Update voice auto-attachments") {
                                 wakePrefs.saveVoiceAutoAttachEnabled(!voiceAutoAttachEnabled)
                             }
                         },
@@ -677,7 +729,7 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                         VoiceAutoAttachGrid(
                             items = voiceAutoAttachItems,
                             onItemsChange = { newItems ->
-                                coroutineScope.launch {
+                                updateWakeSetting("Update voice auto-attachment items") {
                                     wakePrefs.saveVoiceAutoAttachItems(newItems)
                                 }
                             },
@@ -693,11 +745,54 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                 coroutineScope = coroutineScope,
                 onDismiss = { personalWakeConfigDialogVisible = false },
                 onSave = { templates ->
-                    coroutineScope.launch { wakePrefs.savePersonalWakeTemplates(templates) }
-                    personalWakeConfigDialogVisible = false
+                    updateWakeSetting(
+                        operationName = "Save personal wake templates",
+                        onSuccess = { personalWakeConfigDialogVisible = false },
+                    ) {
+                        wakePrefs.savePersonalWakeTemplates(templates)
+                    }
                 },
             )
         }
+
+        if (clearPersonalWakeConfirmVisible) {
+            AlertDialog(
+                onDismissRequest = { clearPersonalWakeConfirmVisible = false },
+                title = {
+                    Text(stringResource(R.string.voice_wakeup_personal_clear_confirm_title))
+                },
+                text = {
+                    Text(stringResource(R.string.voice_wakeup_personal_clear_confirm_message))
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            updateWakeSetting(
+                                operationName = "Clear personal wake templates",
+                                onSuccess = { clearPersonalWakeConfirmVisible = false },
+                            ) {
+                                wakePrefs.savePersonalWakeTemplates(emptyList())
+                            }
+                        },
+                    ) {
+                        Text(stringResource(R.string.voice_wakeup_personal_clear))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { clearPersonalWakeConfirmVisible = false }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                },
+            )
+        }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 24.dp),
+        )
     }
 }
 
@@ -712,6 +807,7 @@ private fun PersonalWakeConfigDialog(
     var step2 by remember { mutableStateOf<FloatArray?>(null) }
     var step3 by remember { mutableStateOf<FloatArray?>(null) }
     var recordingStep by remember { mutableIntStateOf(0) }
+    var recordingError by remember { mutableStateOf<String?>(null) }
     val canSave = step1 != null && step2 != null && step3 != null && recordingStep == 0
 
     AlertDialog(
@@ -724,6 +820,13 @@ private fun PersonalWakeConfigDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                recordingError?.let { errorMessage ->
+                    Text(
+                        text = errorMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
                 listOf(
                     1 to step1,
                     2 to step2,
@@ -747,14 +850,31 @@ private fun PersonalWakeConfigDialog(
                         Button(
                             onClick = {
                                 recordingStep = index
+                                recordingError = null
                                 coroutineScope.launch {
-                                    val feature = PersonalWakeEnrollment.recordOneTemplate(context)
-                                    when (index) {
-                                        1 -> step1 = feature
-                                        2 -> step2 = feature
-                                        3 -> step3 = feature
+                                    try {
+                                        val feature =
+                                            PersonalWakeEnrollment.recordOneTemplate(context)
+                                        when (index) {
+                                            1 -> step1 = feature
+                                            2 -> step2 = feature
+                                            3 -> step3 = feature
+                                        }
+                                    } catch (error: CancellationException) {
+                                        throw error
+                                    } catch (error: Exception) {
+                                        AppLogger.e(
+                                            "PersonalWakeConfigDialog",
+                                            "Personal wake template recording failed",
+                                            error,
+                                        )
+                                        recordingError =
+                                            context.getString(
+                                                R.string.voice_wakeup_personal_record_failed,
+                                            )
+                                    } finally {
+                                        recordingStep = 0
                                     }
-                                    recordingStep = 0
                                 }
                             },
                             enabled = recordingStep == 0,

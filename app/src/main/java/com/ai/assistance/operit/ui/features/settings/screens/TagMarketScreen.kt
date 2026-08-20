@@ -20,7 +20,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.ai.assistance.operit.ui.components.CustomScaffold
+import com.ai.assistance.operit.ui.main.shell.KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsWorkspacePage
+import com.ai.assistance.operit.ui.main.shell.kiyoriSettingsOutlinedTextFieldColors
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.ai.assistance.operit.R
@@ -30,8 +32,8 @@ import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.data.model.PromptTag
 import com.ai.assistance.operit.data.model.TagType
 import com.ai.assistance.operit.data.preferences.PromptTagManager
+import com.kiyori.design.theme.LocalKiyoriSettingsColors
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 
 // Import bilingual preset tags
 // Note: presetTags list has been moved to TagMarketBilingualData.kt for better bilingual support
@@ -41,14 +43,19 @@ import kotlinx.coroutines.delay
 @Composable
 fun TagMarketScreen(onBackPressed: () -> Unit) {
     val context = LocalContext.current
+    val settingsColors = LocalKiyoriSettingsColors.current
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     val promptTagManager = remember { PromptTagManager.getInstance(context) }
-    var showSaveSuccessHighlight by remember { mutableStateOf(false) }
     var showCreateDialog by remember { mutableStateOf(false) }
     var selectedPreset by remember { mutableStateOf<PresetTagBilingual?>(null) }
     var newTagName by remember { mutableStateOf("") }
 
-    CustomScaffold() { paddingValues ->
+    KiyoriSettingsWorkspacePage(
+        title = stringResource(R.string.screen_title_tag_market),
+        onBack = onBackPressed,
+        snackbarHostState = snackbarHostState,
+    ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -96,7 +103,9 @@ fun TagMarketScreen(onBackPressed: () -> Unit) {
                         onValueChange = { newTagName = it },
                         label = { Text(stringResource(R.string.tag_name)) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
+                        colors = kiyoriSettingsOutlinedTextFieldColors(),
                     )
                 }
             },
@@ -112,8 +121,9 @@ fun TagMarketScreen(onBackPressed: () -> Unit) {
                                     tagType = selectedPreset!!.tagType
                                 )
                                 showCreateDialog = false
-                                showSaveSuccessHighlight = true
-                                // 保留在标签市场页面，用户可继续添加或编辑标签
+                                snackbarHostState.showSnackbar(
+                                    context.getString(R.string.save_successful)
+                                )
                             }
                         }
                     }
@@ -125,42 +135,17 @@ fun TagMarketScreen(onBackPressed: () -> Unit) {
         )
     }
 
-    // 保存成功的底部高亮提示（1.5s 自动消失）
-    if (showSaveSuccessHighlight) {
-        LaunchedEffect(Unit) {
-            delay(1500)
-            showSaveSuccessHighlight = false
-        }
-        Box(modifier = Modifier.fillMaxSize()) {
-            Surface(
-                modifier = Modifier
-                    .padding(bottom = 16.dp)
-                    .align(Alignment.BottomCenter),
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                tonalElevation = 6.dp,
-                shadowElevation = 6.dp
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = context.getString(com.ai.assistance.operit.R.string.save_successful), style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-        }
-    }
 }
 
 @Composable
 private fun PresetTagCard(preset: PresetTagBilingual, context: android.content.Context, onUseClick: (PresetTagBilingual) -> Unit) {
+    val settingsColors = LocalKiyoriSettingsColors.current
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = settingsColors.cardBackground),
+        border = BorderStroke(1.dp, settingsColors.divider),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(

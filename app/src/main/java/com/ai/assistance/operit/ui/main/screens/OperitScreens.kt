@@ -624,8 +624,6 @@ sealed class Screen(
                                 FunctionalConfig
                             KiyoriAiAssistantSettingsAction.OPEN_MODEL_PROMPTS ->
                                 ModelPromptsSettings
-                            KiyoriAiAssistantSettingsAction.OPEN_PERSONA_GENERATION ->
-                                PersonaCardGeneration
                             KiyoriAiAssistantSettingsAction.OPEN_WAIFU_MODE ->
                                 WaifuModeSettings
                             KiyoriAiAssistantSettingsAction.OPEN_CONTEXT_SUMMARY ->
@@ -787,6 +785,7 @@ sealed class Screen(
     data object AvatarSettings :
             Screen(
                     navItem = NavItem.Settings,
+                    titleRes = R.string.kiyori_avatar_settings_title,
                     participatesInCrossfadeTransition = false,
                     usesEmbeddedSettingsTopBar = true,
             ) {
@@ -807,6 +806,7 @@ sealed class Screen(
     data object VoiceWakeupSettings :
             Screen(
                     navItem = NavItem.Settings,
+                    titleRes = R.string.kiyori_voice_wakeup_settings_title,
                     participatesInCrossfadeTransition = false,
                     usesEmbeddedSettingsTopBar = true,
             ) {
@@ -878,7 +878,12 @@ sealed class Screen(
 
     // Secondary screens - Settings
     data object ToolPermission :
-            Screen(navItem = NavItem.Settings, titleRes = R.string.screen_title_tool_permissions) {
+            Screen(
+                navItem = NavItem.Settings,
+                titleRes = R.string.screen_title_tool_permissions,
+                participatesInCrossfadeTransition = false,
+                usesEmbeddedSettingsTopBar = true,
+            ) {
         @Composable
         override fun Content(
                 navController: NavController,
@@ -894,7 +899,12 @@ sealed class Screen(
     }
 
     data object UserPreferencesSettings :
-            Screen(navItem = NavItem.Settings, titleRes = R.string.screen_title_user_preferences_settings) {
+            Screen(
+                navItem = NavItem.Settings,
+                titleRes = R.string.screen_title_user_preferences_settings,
+                participatesInCrossfadeTransition = false,
+                usesEmbeddedSettingsTopBar = true,
+            ) {
         @Composable
         override fun Content(
                 navController: NavController,
@@ -910,7 +920,12 @@ sealed class Screen(
     }
 
     data object ModelConfig :
-            Screen(navItem = NavItem.Settings, titleRes = R.string.screen_title_model_config) {
+            Screen(
+                navItem = NavItem.Settings,
+                titleRes = R.string.screen_title_model_config,
+                participatesInCrossfadeTransition = false,
+                usesEmbeddedSettingsTopBar = true,
+            ) {
         @Composable
         override fun Content(
                 navController: NavController,
@@ -922,6 +937,7 @@ sealed class Screen(
                 onGestureConsumed: (Boolean) -> Unit
         ) {
             ModelConfigScreen(
+                onBackPressed = onGoBack,
                 navigateToMnnModelDownload = { navigateTo(MnnModelDownload) }
             )
         }
@@ -977,7 +993,12 @@ sealed class Screen(
     }
     
     data object ExternalHttpChatSettings :
-        Screen(navItem = NavItem.Settings, titleRes = R.string.screen_title_external_http_chat_settings) {
+        Screen(
+            navItem = NavItem.Settings,
+            titleRes = R.string.screen_title_external_http_chat_settings,
+            participatesInCrossfadeTransition = false,
+            usesEmbeddedSettingsTopBar = true,
+        ) {
         @Composable
         override fun Content(
             navController: NavController,
@@ -994,7 +1015,12 @@ sealed class Screen(
     
     // MNN模型下载屏幕
     data object MnnModelDownload :
-        Screen(navItem = NavItem.Settings, titleRes = R.string.screen_title_mnn_model_download) {
+        Screen(
+            navItem = NavItem.Settings,
+            titleRes = R.string.screen_title_mnn_model_download,
+            participatesInCrossfadeTransition = false,
+            usesEmbeddedSettingsTopBar = true,
+        ) {
         @Composable
         override fun Content(
             navController: NavController,
@@ -1011,7 +1037,12 @@ sealed class Screen(
     
     // 新增：人设卡生成页面
     data object PersonaCardGeneration :
-        Screen(navItem = NavItem.Settings, titleRes = R.string.screen_title_persona_card_generation) {
+        Screen(
+            navItem = NavItem.Settings,
+            titleRes = R.string.screen_title_persona_card_generation,
+            participatesInCrossfadeTransition = false,
+            usesEmbeddedSettingsTopBar = true,
+        ) {
         @Composable
         override fun Content(
             navController: NavController,
@@ -1023,6 +1054,7 @@ sealed class Screen(
             onGestureConsumed: (Boolean) -> Unit
         ) {
             com.ai.assistance.operit.ui.features.settings.screens.PersonaCardGenerationScreen(
+                onBackPressed = onGoBack,
                 onNavigateToSettings = { navigateTo(Settings) },
                 onNavigateToUserPreferences = { navigateTo(UserPreferencesSettings) },
                 onNavigateToModelConfig = { navigateTo(ModelConfig) },
@@ -1033,7 +1065,12 @@ sealed class Screen(
 
     // 新增：Waifu模式设置页面
     data object WaifuModeSettings :
-        Screen(navItem = NavItem.Settings, titleRes = R.string.screen_title_waifu_mode_settings) {
+        Screen(
+            navItem = NavItem.Settings,
+            titleRes = R.string.screen_title_waifu_mode_settings,
+            participatesInCrossfadeTransition = false,
+            usesEmbeddedSettingsTopBar = true,
+        ) {
         @Composable
         override fun Content(
             navController: NavController,
@@ -1053,7 +1090,12 @@ sealed class Screen(
     
     // 自定义表情管理页面
     data object CustomEmojiManagement :
-        Screen(navItem = NavItem.Settings, titleRes = R.string.manage_custom_emoji) {
+        Screen(
+            navItem = NavItem.Settings,
+            titleRes = R.string.manage_custom_emoji,
+            participatesInCrossfadeTransition = false,
+            usesEmbeddedSettingsTopBar = true,
+        ) {
         @Composable
         override fun Content(
             navController: NavController,
@@ -1071,7 +1113,12 @@ sealed class Screen(
     }
     
     data object TagMarket :
-        Screen(navItem = NavItem.Settings, titleRes = R.string.screen_title_tag_market) {
+        Screen(
+            navItem = NavItem.Settings,
+            titleRes = R.string.screen_title_tag_market,
+            participatesInCrossfadeTransition = false,
+            usesEmbeddedSettingsTopBar = true,
+        ) {
         @Composable
         override fun Content(
                 navController: NavController,
@@ -1087,7 +1134,12 @@ sealed class Screen(
     }
 
     data object ModelPromptsSettings :
-            Screen(navItem = NavItem.Settings, titleRes = R.string.screen_title_model_prompts_settings) {
+            Screen(
+                navItem = NavItem.Settings,
+                titleRes = R.string.screen_title_model_prompts_settings,
+                participatesInCrossfadeTransition = false,
+                usesEmbeddedSettingsTopBar = true,
+            ) {
         @Composable
         override fun Content(
                 navController: NavController,
@@ -1108,7 +1160,12 @@ sealed class Screen(
     }
 
     data object FunctionalConfig :
-            Screen(navItem = NavItem.Settings, titleRes = R.string.screen_title_functional_config) {
+            Screen(
+                navItem = NavItem.Settings,
+                titleRes = R.string.screen_title_functional_config,
+                participatesInCrossfadeTransition = false,
+                usesEmbeddedSettingsTopBar = true,
+            ) {
         @Composable
         override fun Content(
                 navController: NavController,
@@ -1223,7 +1280,12 @@ sealed class Screen(
     }
 
     data object TokenUsageStatistics :
-            Screen(navItem = NavItem.Settings, titleRes = R.string.settings_token_usage_stats) {
+            Screen(
+                navItem = NavItem.Settings,
+                titleRes = R.string.settings_token_usage_stats,
+                participatesInCrossfadeTransition = false,
+                usesEmbeddedSettingsTopBar = true,
+            ) {
         @Composable
         override fun Content(
                 navController: NavController,
@@ -1239,7 +1301,12 @@ sealed class Screen(
     }
 
     data object ContextSummarySettings :
-            Screen(navItem = NavItem.Settings, titleRes = R.string.screen_title_context_summary_settings) {
+            Screen(
+                navItem = NavItem.Settings,
+                titleRes = R.string.screen_title_context_summary_settings,
+                participatesInCrossfadeTransition = false,
+                usesEmbeddedSettingsTopBar = true,
+            ) {
         @Composable
         override fun Content(
                 navController: NavController,

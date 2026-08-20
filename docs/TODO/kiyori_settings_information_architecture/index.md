@@ -6,6 +6,130 @@ baseline: c036a03e
 
 # 设置页信息架构与统一视觉
 
+## 2026-08-20 AI助手设置全面重构
+
+状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEVICE VERIFICATION PENDING`。
+本增量只重构“设置首页 → AI助手”及其所有可达子页、弹层、字段和操作，不修改设置首页另外十一项
+的入口矩阵。Kiyori 尚未公开发行，旧 Operit 设置 UI 可以彻底清理；兼容标识、持久化格式、
+业务 repository/preferences/service 和现有 `Screen` route 必须保留唯一。
+
+### 当前页面矩阵
+
+| 新根分组 | 根入口 | 当前页面/子页 | 唯一 owner | 本轮 UI 与逻辑重点 |
+| --- | --- | --- | --- | --- |
+| 模型与生成 | 模型与 API | `ModelConfigScreen`、`MnnModelDownloadScreen`、Provider/模型/请求头/参数/上下文面板 | `ModelConfigManager`、`ModelConfigSaveCoordinator` | 配置选择、创建/重命名/删除、敏感字段、连接测试、折叠参数与错误反馈 |
+| 模型与生成 | 功能模型分配 | `FunctionalConfigScreen` | `FunctionalConfigManager` | 按功能分配、模型能力提示、连接测试、批量重置确认 |
+| 模型与生成 | 提示词与角色 | `ModelPromptsSettingsScreen`、`TagMarketScreen`、角色/群组/标签编辑弹窗 | `CharacterCardManager`、`CharacterGroupCardManager`、`PromptTagManager`、`ActivePromptManager` | 三标签工作台、排序、导入导出、市场、角色生成入口、确认与反馈 |
+| 个性化与交互 | 用户资料 | `UserPreferencesSettingsScreen`、旧档案底部面板 | `UserProfileDocumentRepository` | 编辑/预览、字符限制、保存、未保存 Back、重置与旧档案 |
+| 个性化与交互 | 虚拟形象 | `KiyoriAvatarSettingsPage`、Avatar 导入、动作/情绪映射弹窗 | `AssistantConfigViewModel`、`AvatarRepository` | 预览、导入、模型类型、动作映射、字段和弹窗一致性 |
+| 个性化与交互 | 回复与表情 | `WaifuModeSettingsScreen`、`CustomEmojiManagementScreen` | `WaifuPreferences`、自定义表情 repository | 去除用户可见旧 Waifu 标题，按回复节奏/文本/表情/自拍分类，统一自动保存反馈 |
+| 语音 | 文本转语音 | `SpeechServicesSettingsScreen(TEXT_TO_SPEECH)` | `SpeechServicesPreferences` 与 TTS runtime | 引擎、音色、速率、清洗、HTTP/WebSocket 配置、测试与选择面板 |
+| 语音 | 语音转文本 | `SpeechServicesSettingsScreen(SPEECH_TO_TEXT)` | `SpeechServicesPreferences` 与 STT runtime | 本地/远程引擎、端点、鉴权、模型、测试和依赖禁用态 |
+| 语音 | 语音唤醒 | `KiyoriVoiceWakeupSettingsPage`、个人模板、自动附加弹窗 | `WakeWordPreferences`、`PersonalWakeEnrollment` | 权限、监听、模式、唤醒词、模板录入、问候、新对话和附件规则 |
+| 上下文与工具 | 上下文与总结 | `ContextSummarySettingsScreen` | 当前聊天绑定的 `ModelConfigManager` 配置与历史保留 preferences | 绑定配置说明、自动保存、数值校验、自定义规则和历史媒体保留 |
+| 上下文与工具 | AI 工具授权 | `ToolPermissionSettingsScreen`、工具选择弹窗 | `ToolPermissionSystem`、`AIToolHandler` | 全局默认、允许/禁止例外、搜索、空状态、工具说明和移除语义 |
+| 服务与用量 | AI 用量与费用 | `TokenUsageStatisticsScreen`、定价/重置弹窗 | `ApiPreferences`、`ChatHistoryManager` | 总览优先、模型明细、计费模式、汇率、定价、单项/全部重置 |
+| 服务与用量 | 局域网与自动化 | `ExternalHttpChatSettingsScreen` | `ExternalHttpApiPreferences`、`AIForegroundService` | 服务状态、端口、令牌遮蔽/复制/重置、Web/API 地址、示例和风险提示 |
+
+“人设卡生成”作为 `PersonaCardGenerationScreen` 继续存在，但不再是根页重复入口；它由
+“提示词与角色”的主操作进入，并继续使用 `PersonaCardChatHistoryManager` 和现有模型调用链。
+
+### 新根页排序与文案
+
+从上到下固定为：
+
+1. `模型与生成`：`模型与 API / 功能模型分配 / 提示词与角色`
+2. `个性化与交互`：`用户资料 / 虚拟形象 / 回复与表情`
+3. `语音`：`文本转语音 / 语音转文本 / 语音唤醒`
+4. `上下文与工具`：`上下文与总结 / AI 工具授权`
+5. `服务与用量`：`AI 用量与费用 / 局域网与自动化`
+
+排序原则是首次可用性和决策依赖优先：先配置可用模型，再分配功能模型与角色提示；随后处理个人
+表达和语音；最后放置高级上下文、工具安全、统计和外部集成。根页不再使用硬编码中文，七份当前
+语言资源使用同一 string key 集合。
+
+### 双层 Settings Surface
+
+普通列表型设置继续使用 `KiyoriCollapsingSettingsPage`。长表单、编辑器、统计和多标签页面使用
+新的 Kiyori 紧凑设置工作台：
+
+- 顶栏自身消费状态栏安全区，背景不透明，Back 使用
+  `LocalKiyoriEmbeddedSettingsNavigation` / 页面真实未保存状态；
+- 页面背景、卡片、字段、分隔线、开关、按钮、Snackbar、弹窗和底部面板全部位于
+  `KiyoriSettingsTheme`；
+- 顶栏高度、水平边距、`16dp` 卡片圆角、无阴影层级、`14dp` 字段圆角和底部安全区统一；
+- 编辑器、对话、图表和多标签工作台可以保留自己的内部滚动与状态，不强行嵌套到第二个
+  `LazyColumn`；
+- `OperitScreens` 对这些页面设置 `usesEmbeddedSettingsTopBar = true`，删除外层 Operit
+  设置 TopAppBar 的视觉所有权，但不改变 route ID、route stack 或保活语义。
+
+### 控件、弹层与反馈
+
+- 导航行、开关行和单选项分别使用共享设置行、Material Switch 与统一底部选择面板。
+- 表单字段必须显示真实单位、范围、错误和生效时机；自动保存项不再同时显示“保存”按钮。
+- 默认动作使用 Filled/Tonal，次操作使用 Outlined/Text；破坏性动作只使用错误色并经过确认。
+- API Key 与 Bearer Token 默认遮蔽；“显示”“复制”“保存”“连接测试”“重启服务”是独立动作。
+- 成功、失败和异步状态统一进入 Snackbar 或页面内状态块；不再新增 Toast/临时底部卡片混用。
+- 对话框标题说明当前对象，确认按钮使用明确动词；删除/重置后关闭弹层并更新唯一 owner 的投影。
+- 工具搜索、无 Token 记录、无角色、无标签、无网络地址等情况必须有明确空状态与下一动作。
+
+### 已确认的功能修复
+
+1. 功能模型“重置全部”增加确认，避免一次误触改写所有功能映射。
+2. Token 统计读取聊天数量失败时记录日志并显示非阻塞错误，不再静默吞掉异常。
+3. 外部接口令牌默认遮蔽；重置令牌前确认会使既有客户端失效。
+4. 工具选择搜索无结果时显示明确空状态；工具列表使用稳定排序。
+5. 用户资料、角色编辑器和其他有草稿的页面只在真实未保存时拦截 Back；退出动画中的旧页面不能
+   抢占下一次 Back。
+6. 角色生成的引导文案迁入资源，不再按进程 Locale 手写中英分支。
+7. 上下文页“重置所有设置”改为与真实操作一致的“恢复历史媒体默认值”，不会改写上下文窗口、
+   总结开关或自定义规则。
+8. 本地模型列表的初始加载、刷新与重试共用一个刷新入口；删除结果进入可见反馈。
+9. 自定义表情内置分类不可删除；分类、表情和默认集合的破坏性动作继续使用确认对话框。
+10. 语音 API Key 默认遮蔽；个人唤醒录音异常会记录日志、显示错误并释放录音状态；清除模板和
+    删除自动附件必须确认，自动新对话分组在对应开关关闭时不可编辑。
+11. Avatar 预览改用零阴影 Settings 卡片；预览加载失败同时写日志和页面反馈；删除模型和自定义
+    情绪均在确认后执行。
+12. 语音自动附件按类型稳定排序，网格高度覆盖窄屏多行内容；系统 TTS 语言筛选不再混入其他语言
+    音色，音色读取失败显示稳定错误文案。
+13. 模型自定义请求头的持久化 JSON 损坏时保留原始配置，进入显式不可编辑状态并停止注册保存与
+    自动保存；页面显示稳定错误说明，不再把解析失败伪装为空请求头。
+
+### 里程碑与验证
+
+1. [DONE] 根页本地化、五组十三项、共享紧凑工作台、路由标题与静态测试。
+2. [DONE] 用户资料、工具授权、用量统计、局域网与自动化。
+3. [DONE] 模型/API、功能模型、上下文、MNN。
+4. [DONE] 提示词与角色、角色生成、回复与表情、自定义表情、标签模板。
+5. [DONE] 虚拟形象、语音唤醒、TTS、STT 的最小弹层复核。
+6. [DONE] `CONTEXT.md`、资源、测试和反向零引用检查。
+7. [DONE] 定向 JVM/Kotlin、architecture、formal readiness、Markdown/XML/localization、
+   `git diff --check` 与串行 Debug APK。
+8. [IN PROGRESS] 精确审计、提交、推送和 local/tracking/remote `0/0` 对账。
+9. [PENDING DEVICE] 目标设备逐页验证；本任务不安装或操作设备。
+
+第一实现回滚点为本任务基线 `main@5a63f2b59074dbc711c715e3f7a294827c035bb9`。后续每个里程碑
+以可编译、可测试的当前树作为新回滚点，不保留隐藏旧页面、并行状态或运行时回退逻辑。
+
+### 当前自动化验证证据
+
+- architecture boundary `PASS (phase=m03)`；ARCH040 M-05A1 的 Settings theme consumer snapshot
+  已同步本轮实际新增消费者，未扩大设计 owner 或 import root。
+- CI Python `220/220`、formal readiness `PASS`、ToolPkg sync `7/7`；七份语言资源 XML 可解析，
+  本轮新增 83 个资源键均在七种语言中各出现一次。
+- 定向 `KiyoriSettingsPagesTest` `18/18` 与 `compileDebugKotlin` 同一命令在 `1m 13s` 内成功；AI 设置变更
+  Kotlin 文件无 `Toast` / `CustomScaffold`，根级 `OPEN_PERSONA_GENERATION` 无引用。
+- Debug 构建 `BUILD SUCCESSFUL in 2m 45s`，`232` 个任务中 `22` 个 executed、`210` 个
+  up-to-date；APK 为 `app/build/outputs/apk/debug/app-debug.apk`，`472726918` bytes；
+  构建主机记录的产物时间为 `2026-08-21 07:05:48 +08:00`，仅用于产物识别，不用于判定当前
+  会话日期；SHA-256 为
+  `E8908268C207EF71FF397947DB2C7C8DF9D2531B55E1EF6FE90B70681E4F27FA`。
+- APK 身份 `com.kiyori / 0.1.0 (45) / min 26 / target 34 / compile 37`，唯一 launcher、
+  Android Debug V2 单 signer、`zipalign -c -P 16 -v 4`、`5504` 个无重复 ZIP entry、`44`
+  个 DEX、arm64-only、`51` 个无重复 native basename、关键 runtime、`libsudo.so` 缺失均通过。
+  独立 native 审计为 `52` 个 ELF64/AArch64、`153` 个 `PT_LOAD`，分布
+  `0x4000 × 151 / 0x10000 × 2`。
+
 ## 2026-08-20 文件管理器与法律文档入口收口
 
 状态：`LOCAL DELIVERY VALIDATED / DEVICE REVERIFY PENDING`。

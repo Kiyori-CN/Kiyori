@@ -7,6 +7,143 @@ For_Agent: 对项目大规模动工前按本规范协作
 本文件顶部记录当前跨领域长期任务，后续段落保留专项实施与历史证据。历史段落中的分支、提交、
 APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观察点，不能替代当前 Git、构建或设备状态。
 
+## 2026-08-20 AI助手设置全面重构
+
+状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEVICE VERIFICATION PENDING`。
+本长期任务在 `main@5a63f2b59074dbc711c715e3f7a294827c035bb9` 的干净工作树开始，
+`origin/main` 与本地分歧为 `0/0`，正式开发准备门禁通过。Kiyori 尚未公开发行，因此允许彻底
+清理 AI助手设置仍保留的 Operit 旧页面方案；模型、角色、语音、上下文、工具授权、统计与外部
+接口的既有 repository、preferences、service 和 `Screen` route 继续作为唯一状态与功能 owner。
+
+### 已确认问题
+
+- `KiyoriApplicationSettingsPages.kt` 的 AI助手根页使用硬编码中文，非中文环境仍显示中文；
+  页面标题、根入口标题与 `Screen.titleRes` 还存在多份文案来源。
+- 根页当前为六组十四项，模型基础配置位于第三组；“人设卡生成”同时作为根级入口和
+  “角色卡编辑”内部动作出现，层级重复；“Waifu模式设置”“外部 HTTP 调用”“Token使用统计”等
+  Operit 术语没有表达用户真正要配置的行为、风险或使用频率。
+- 虚拟形象、语音唤醒、TTS 与 STT 已接入 Kiyori Settings Surface；模型/API、功能模型、用户资料、
+  提示词与角色、角色生成、分句回复、上下文、工具授权、用量统计、外部接口以及 MNN、表情和标签
+  子页仍混用 `CustomScaffold`、独立标题、旧卡片、Toast、浮动重置按钮和页面内重复标题。
+- 多个页面声明 `onBackPressed` / `navigateBack` 却不在页面自身消费；复杂设置依赖外层 Operit
+  TopAppBar，与已经迁入设置内部标题的页面形成两套视觉和导航结构。
+- 功能模型“重置全部”没有确认；外部接口令牌明文常驻且重置令牌没有确认；Token 统计读取聊天数量
+  时静默吞错；工具授权搜索无结果没有明确状态；角色生成首屏文案按进程 Locale 手写中英分支。
+- 角色、标签、群组、导入导出、市场、生成和编辑全部堆叠在一个超长页面；成功/失败反馈同时混用
+  Toast、临时底部卡片和 Snackbar，按钮层级与破坏性动作表达不一致。
+
+### 冻结后的信息架构
+
+AI助手根页按用户决策频率固定为五组十三项：
+
+1. `模型与生成`：`模型与 API / 功能模型分配 / 提示词与角色`
+2. `个性化与交互`：`用户资料 / 虚拟形象 / 回复与表情`
+3. `语音`：`文本转语音 / 语音转文本 / 语音唤醒`
+4. `上下文与工具`：`上下文与总结 / AI 工具授权`
+5. `服务与用量`：`AI 用量与费用 / 局域网与自动化`
+
+“人设卡生成”不再占用根级重复入口，继续通过“提示词与角色”页面的明确主操作进入；其
+`PersonaCardChatHistoryManager`、角色卡写入和模型调用链不变。所有根页分组、标题、说明和条目文案
+改为 Android string resource，七份当前语言资源保持键集合一致。
+
+### 页面与弹层合同
+
+- 简单设置页继续使用 `KiyoriCollapsingSettingsPage`。
+- 模型管理、角色编辑、统计、外部接口和其他长表单/工作台页面使用新的 Kiyori 紧凑设置工作台：
+  页面自己持有不透明安全区顶栏、统一 Settings 背景、`16dp` 卡片、无阴影层级、底部安全区、
+  Snackbar 与可选页面操作；不再显示外层 Operit 设置 TopAppBar。
+- 普通导航、开关、选择和值展示继续复用 `KiyoriSettingsRow`、`KiyoriSettingsSelectionSheet`
+  和 `KiyoriSettingsTheme`；复杂表单复用同一字段、信息提示、空状态、按钮和对话框 token。
+- 普通主操作使用 Filled/Tonal 层级，次操作使用 Outlined/Text；删除、重置、清空历史、重置令牌等
+  破坏性动作必须有明确确认且只在确认后执行。
+- API Key、Bearer Token 等敏感字段默认遮蔽，提供显式可见性按钮；复制、保存、连接测试和重启服务
+  分开表达，未保存输入不能伪装为运行中配置。
+- 失败必须通过日志和可见 Snackbar/错误状态表达；不静默吞错，不新增回退、兜底、平行路由或
+  第二状态 owner。
+
+### 分里程碑实施
+
+1. [DONE] 增加 AI助手本地化资源、五组十三项根页、共享紧凑设置工作台和静态合同测试。
+2. [DONE] 迁移用户资料、AI 工具授权、AI 用量与费用、局域网与自动化及其弹窗/按钮；
+   修复确认、敏感字段、错误反馈和空状态问题。
+3. [DONE] 迁移模型与 API、功能模型分配、上下文与总结、MNN 模型下载；统一配置选择、
+   连接测试、自动保存、批量重置和模型能力提示。
+4. [DONE] 迁移提示词与角色、角色生成、回复与表情、自定义表情、标签模板；收敛顶栏、标签页、
+   排序菜单、编辑器、导入导出、确认弹窗和成功/失败反馈。
+5. [DONE] 复核虚拟形象、语音唤醒、TTS、STT 及其最小弹层，统一字段、按钮、状态文案和
+   依赖禁用态，不改变语音和 Avatar runtime。
+6. [DONE] 同步 `CONTEXT.md`、设置专项、string resource、路由标题和测试；反向检查旧根入口、
+   用户可见 `Waifu` 标题、硬编码 AI助手中文和独立 Operit 设置顶栏。
+7. [DONE] 按风险执行定向 JVM/Kotlin、architecture、formal readiness、Markdown/XML/
+   localization 和 `git diff --check`。
+8. [DONE] 串行执行 `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain`，核验 APK
+   身份、时间、大小、SHA-256、签名、16 KB 对齐、ABI 与关键 runtime。
+9. [IN PROGRESS] 审计精确候选树、敏感内容、构建产物、文件模式、子模块和远端竞争，提交并正常推送
+   `main`，随后独立核对 local、tracking、远端 ref 与分歧。
+10. [PENDING DEVICE] 目标设备逐页验证浅深主题、字体缩放、IME、滚动、弹层、Back、表单保存、
+    连接测试、权限、语音、角色编辑和外部接口；本任务不安装或操作设备。
+
+### 当前本地实现
+
+- 根页已固定为五组十三项；根入口、分组、说明和页面标题全部使用 Android 资源，七个语言目录
+  保持同一键集合；“人设生成”只保留在“提示词与角色”内部。
+- 新增 `KiyoriSettingsWorkspacePage`，统一长表单/编辑器/统计页的不透明安全区顶栏、页面背景、
+  Snackbar、底部安全区和可选页面操作；相关 Operit route 继续使用原 route ID 和唯一状态 owner。
+- 用户资料、模型/API、功能模型、上下文、工具授权、用量、局域网服务、提示词/角色、人设生成、
+  回复/表情、自定义表情、标签模板和本地模型下载已迁入统一 Settings Surface。
+- 模型配置删除、功能模型全部重置、历史媒体重置、令牌重置、个人唤醒模板清除、自动附件删除、
+  Avatar 模型/自定义情绪删除及统计重置均使用明确确认；用户资料“清空”文案已与实际默认模板行为一致。
+- 外部服务令牌和语音 API Key 默认遮蔽；工具与自动附件稳定排序；工具搜索和本地模型提供明确空态；
+  自动新对话分组按真实开关禁用，语音附件窄屏布局不再受旧固定高度截断。
+- 聊天数量、自动保存、模型列表/音色、Avatar 预览、个人唤醒录音和语音设置写入异常均记录日志并
+  进入 Snackbar 或页面错误状态；个人唤醒录音异常会释放录音状态，不会卡在“录音中”。
+- 模型自定义请求头的持久化 JSON 损坏时进入显式不可编辑状态，保留原始配置并停止注册保存与
+  自动保存；页面显示稳定修复说明，不再把解析失败伪装成空请求头并覆盖原数据。
+- 自定义表情只允许删除非内置分类；角色、群组、标签、ActivePrompt、Avatar、语音和服务状态仍由
+  原 repository/preferences/runtime 持有，本轮没有新增平行状态、协议或数据源。
+
+### 当前自动化验证证据
+
+- `check_architecture_boundaries.py --require-main --phase auto`：`PASS (phase=m03)`；ARCH040
+  M-05A1 的 Settings theme consumer snapshot 已同步本轮真实新增消费者，未扩大 ownership 或
+  design declaration owner。
+- CI Python：`220/220`；`check_formal_readiness.py --require-main`：`PASS`；`test_toolpkg_sync`：
+  `7/7`；新增 83 个资源键在七份 `strings.xml` 中均为 XML 可解析且各出现一次。
+- AI 设置范围的变更 Kotlin 文件无 `Toast` / `CustomScaffold`，根级 `OPEN_PERSONA_GENERATION`
+  无引用；`git diff --check` 通过；定向 `KiyoriSettingsPagesTest` 与 `compileDebugKotlin`
+  同一 Gradle 命令 `BUILD SUCCESSFUL in 1m 13s`，测试 `18/18`。
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain`：
+  `BUILD SUCCESSFUL in 2m 45s`，`232` 个任务中 `22` 个 executed、`210` 个 up-to-date；
+  `verifySingleDebugLauncher` 与 `verifyDebugPlayerRuntimePackaging` 通过。
+- 当前 Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，文件大小 `472726918` bytes；
+  构建主机记录的产物时间为 `2026-08-21 07:05:48 +08:00`，仅用于产物识别，不用于判定当前
+  会话日期；SHA-256 为
+  `E8908268C207EF71FF397947DB2C7C8DF9D2531B55E1EF6FE90B70681E4F27FA`；身份为
+  `com.kiyori / 0.1.0 (45) / min 26 / target 34 / compile 37`。
+- APK 只有一个 Launcher `com.ai.assistance.operit.ui.main.MainActivity`；Android Debug V2
+  单 signer、`zipalign -c -P 16 -v 4` 通过；`5504` 个 ZIP entry 无重复，`44` 个 DEX，只有
+  `arm64-v8a`，`51` 个 `.so` 的 basename 无重复，并包含 `liboperit_ripgrep.so` 与
+  `assets/operit_shell_exec`，不含 `libsudo.so`。
+- 独立 native 审计确认共 `52` 个 ELF64/AArch64，`153` 个 `PT_LOAD` 为
+  `0x4000 × 151 / 0x10000 × 2`，无低于 `0x4000` 的段；生产 ToolPkg 白名单为 43 条源条目，
+  APK 生成 12 个 `.toolpkg` 档案、嵌套 143 个文件，另含复制型白名单脚本，内容同步门禁通过。
+
+### 风险、回滚点与完成标准
+
+- 路由风险：所有 `Screen` 与 `RouteEntrySource.KIYORI_SETTINGS` round-trip 必须保持；每个里程碑
+  以当前 `main` 提交或干净基线作为回滚点，不以隐藏旧页面作为回滚方案。
+- 状态风险：不得复制 `ModelConfigManager`、`FunctionalConfigManager`、`UserProfileDocumentRepository`、
+  `CharacterCardManager`、`WakeWordPreferences`、`ToolPermissionSystem`、`ApiPreferences` 或
+  `ExternalHttpApiPreferences`。
+- 编辑器风险：用户资料、角色卡、提示词和外部接口存在未保存输入、IME 与滚动状态；Back 必须先处理
+  当前页面真实未保存状态，再交还现有 Router/Settings session。
+- 安全风险：令牌、API Key、导出配置和局域网监听必须清晰提示暴露范围；UI 不记录或提交真实值。
+- 完成标准：五组十三项顺序、所有可达最小页面和弹层、功能逻辑缺陷、文档与自动验证全部闭环；
+  最终 Debug APK 和远端提交对账完成。没有目标设备实测时终态保持 `verification_pending`。
+
+详细页面矩阵与视觉/状态所有权见
+[`kiyori_settings_information_architecture`](kiyori_settings_information_architecture/index.md)。
+
 ## 2026-08-20 权限中心重构与 App Router 顶栏残影根治
 
 状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEVICE VERIFICATION PENDING`。

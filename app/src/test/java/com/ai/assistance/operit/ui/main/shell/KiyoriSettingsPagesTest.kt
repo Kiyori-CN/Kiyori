@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.ui.main.shell
 
+import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadNetworkPolicy
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettings
@@ -256,36 +257,47 @@ class KiyoriSettingsPagesTest {
     fun `application settings roots keep AI application and data ownership separated`() {
         assertEquals("我的账号", KIYORI_ACCOUNT_SETTINGS_PAGE_TITLE)
         assertEquals("数据备份", KIYORI_DATA_SETTINGS_PAGE_TITLE)
-        assertEquals("虚拟形象配置", KIYORI_AVATAR_SETTINGS_PAGE_TITLE)
-        assertEquals("语音唤醒", KIYORI_VOICE_WAKEUP_SETTINGS_PAGE_TITLE)
         assertEquals(
-            listOf(2, 2, 2, 4, 2, 2),
+            R.string.kiyori_avatar_settings_title,
+            KIYORI_AVATAR_SETTINGS_PAGE_TITLE_RES,
+        )
+        assertEquals(
+            R.string.kiyori_voice_wakeup_settings_title,
+            KIYORI_VOICE_WAKEUP_SETTINGS_PAGE_TITLE_RES,
+        )
+        assertEquals(
+            listOf(3, 3, 3, 2, 2),
             kiyoriAiAssistantSettingsGroups.map { group -> group.entries.size },
         )
         assertEquals(
-            listOf("助手体验", "语音与交互", "模型与服务", "对话与角色", "上下文与安全", "使用与连接"),
-            kiyoriAiAssistantSettingsGroups.map { group -> group.title },
+            listOf(
+                R.string.kiyori_ai_settings_group_model_generation,
+                R.string.kiyori_ai_settings_group_personalization,
+                R.string.kiyori_ai_settings_group_voice,
+                R.string.kiyori_ai_settings_group_context_tools,
+                R.string.kiyori_ai_settings_group_service_usage,
+            ),
+            kiyoriAiAssistantSettingsGroups.map { group -> group.titleRes },
         )
         assertEquals(
             listOf(
-                "虚拟形象配置",
-                "语音唤醒",
-                "文本转语音",
-                "语音转文本",
-                "模型与 API",
-                "功能模型",
-                "用户偏好",
-                "提示词",
-                "人设卡生成",
-                "分句回复",
-                "上下文与总结",
-                "AI 工具授权",
-                "Token 使用统计",
-                "外部 HTTP 对话",
+                R.string.kiyori_ai_settings_model_api,
+                R.string.kiyori_ai_settings_function_models,
+                R.string.kiyori_ai_settings_prompts_roles,
+                R.string.kiyori_ai_settings_user_profile,
+                R.string.kiyori_ai_settings_avatar,
+                R.string.kiyori_ai_settings_reply_expression,
+                R.string.kiyori_ai_settings_tts,
+                R.string.kiyori_ai_settings_stt,
+                R.string.kiyori_ai_settings_voice_wakeup,
+                R.string.kiyori_ai_settings_context_summary,
+                R.string.kiyori_ai_settings_tool_permissions,
+                R.string.kiyori_ai_settings_usage_cost,
+                R.string.kiyori_ai_settings_lan_automation,
             ),
             kiyoriAiAssistantSettingsGroups
                 .flatMap { group -> group.entries }
-                .map { entry -> entry.title },
+                .map { entry -> entry.titleRes },
         )
         assertEquals(
             KiyoriAiAssistantSettingsAction.entries.toSet(),
@@ -321,9 +333,18 @@ class KiyoriSettingsPagesTest {
                 .toSet(),
         )
         assertTrue(
-            (kiyoriAiAssistantSettingsGroups +
-                kiyoriAppearanceSettingsGroups +
-                kiyoriDataSettingsGroups).all { group ->
+            kiyoriAiAssistantSettingsGroups.all { group ->
+                group.titleRes != 0 &&
+                    group.descriptionRes != 0 &&
+                    group.entries.all { entry ->
+                        entry.titleRes != 0 && entry.descriptionRes != 0
+                    } &&
+                    group.entries.map { entry -> entry.iconTone }.toSet().size ==
+                    group.entries.size
+            },
+        )
+        assertTrue(
+            (kiyoriAppearanceSettingsGroups + kiyoriDataSettingsGroups).all { group ->
                 group.description.isNotBlank() &&
                     group.entries.all { entry -> entry.description.isNotBlank() } &&
                     group.entries.map { entry -> entry.iconTone }.toSet().size ==
@@ -332,12 +353,14 @@ class KiyoriSettingsPagesTest {
         )
         assertEquals(
             KiyoriSemanticTone.entries.toSet(),
-            (kiyoriAiAssistantSettingsGroups +
-                kiyoriAppearanceSettingsGroups +
-                kiyoriDataSettingsGroups)
-                .flatMap { group -> group.entries }
-                .map { entry -> entry.iconTone }
-                .toSet(),
+            (
+                kiyoriAiAssistantSettingsGroups
+                    .flatMap { group -> group.entries }
+                    .map { entry -> entry.iconTone } +
+                    (kiyoriAppearanceSettingsGroups + kiyoriDataSettingsGroups)
+                        .flatMap { group -> group.entries }
+                        .map { entry -> entry.iconTone }
+            ).toSet(),
         )
         assertFalse(
             kiyoriAppearanceSettingsGroups
@@ -460,6 +483,81 @@ class KiyoriSettingsPagesTest {
             assertEquals(screen, ScreenRouteRegistry.screenFromEntry(entry))
             assertEquals(screen, ScreenRouteRegistry.buildScreen(entry.routeId, emptyMap()))
         }
+    }
+
+    @Test
+    fun `AI settings workspaces own their top bar and skip route crossfade`() {
+        listOf(
+            Screen.UserPreferencesSettings,
+            Screen.ToolPermission,
+            Screen.TokenUsageStatistics,
+            Screen.ExternalHttpChatSettings,
+            Screen.ModelConfig,
+            Screen.FunctionalConfig,
+            Screen.ContextSummarySettings,
+            Screen.MnnModelDownload,
+            Screen.ModelPromptsSettings,
+            Screen.PersonaCardGeneration,
+            Screen.WaifuModeSettings,
+            Screen.CustomEmojiManagement,
+            Screen.TagMarket,
+        ).forEach { screen ->
+            assertTrue(screen.usesEmbeddedSettingsTopBar)
+            assertFalse(screen.participatesInCrossfadeTransition)
+        }
+    }
+
+    @Test
+    fun `invalid persisted custom headers stay explicit and cannot be auto saved`() {
+        val source =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/features/settings/screens/" +
+                    "ModelConfigScreen.kt",
+            ).readText()
+        val parser =
+            source
+                .substringAfter("private fun parseHeaderEntries(")
+                .substringBefore("private fun serializeHeaderEntries(")
+        val parseFailure =
+            parser
+                .substringAfter("catch (error: Exception) {")
+                .substringBeforeLast("}")
+
+        assertTrue(source.contains("HeaderEntriesState.InvalidPersistedJson"))
+        assertTrue(source.contains("R.string.model_config_custom_headers_invalid"))
+        assertTrue(parseFailure.contains("AppLogger.e("))
+        assertTrue(parseFailure.contains("HeaderEntriesState.InvalidPersistedJson"))
+        assertFalse(parseFailure.contains("emptyList()"))
+
+        val customHeadersSection =
+            source
+                .substringAfter("private fun CustomHeadersSettingsSection(")
+                .substringBefore("@Composable\nprivate fun ContextSummarySettingsSection(")
+        val registeredSaveAction =
+            customHeadersSection
+                .substringAfter("RegisterModelConfigSaveAction(")
+                .substringBefore("if (readyHeadersState != null) {")
+        assertTrue(
+            registeredSaveAction.contains(
+                "if (current is HeaderEntriesState.Ready)",
+            ),
+        )
+        assertTrue(
+            registeredSaveAction.contains(
+                "persistHeaders(serializeHeaderEntries(current.entries))",
+            ),
+        )
+
+        val autoSaveBlock =
+            customHeadersSection
+                .substringAfter("if (readyHeadersState != null) {")
+                .substringBefore("val configuredHeadersCount")
+        assertTrue(autoSaveBlock.contains("DebouncedModelConfigAutoSaveEffect("))
+        assertTrue(
+            autoSaveBlock.contains(
+                "check(current is HeaderEntriesState.Ready)",
+            ),
+        )
     }
 
     @Test

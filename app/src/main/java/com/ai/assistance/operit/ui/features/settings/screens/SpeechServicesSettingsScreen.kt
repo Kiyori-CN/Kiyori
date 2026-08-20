@@ -27,6 +27,8 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.Button
@@ -54,6 +56,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +64,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.api.speech.SpeechServiceFactory
@@ -136,6 +141,7 @@ internal fun SpeechServicesSettingsScreen(
     var vitsOptionsInput by remember(vitsConfig) { mutableStateOf(Json.encodeToString(vitsConfig.options)) }
     var ttsSpeechRateInput by remember(ttsSpeechRate) { mutableStateOf(ttsSpeechRate) }
     var ttsPitchInput by remember(ttsPitch) { mutableStateOf(ttsPitch) }
+    var ttsApiKeyVisible by rememberSaveable { mutableStateOf(false) }
     var ttsHeadersJsonError by remember { mutableStateOf<String?>(null) }
     var ttsResponsePipelineJsonError by remember { mutableStateOf<String?>(null) }
     var vitsOptionsJsonError by remember { mutableStateOf<String?>(null) }
@@ -158,6 +164,7 @@ internal fun SpeechServicesSettingsScreen(
     var sttEndpointUrlInput by remember(sttHttpConfig) { mutableStateOf(sttHttpConfig.endpointUrl) }
     var sttApiKeyInput by remember(sttHttpConfig) { mutableStateOf(sttHttpConfig.apiKey) }
     var sttModelNameInput by remember(sttHttpConfig) { mutableStateOf(sttHttpConfig.modelName) }
+    var sttApiKeyVisible by rememberSaveable { mutableStateOf(false) }
 
     // 同步 DataStore 的数据到 State
     LaunchedEffect(ttsCleanerRegexs) {
@@ -229,7 +236,12 @@ internal fun SpeechServicesSettingsScreen(
             } else {
                 try {
                     Json.decodeFromString<Map<String, String>>(ttsHeadersInput)
-                } catch (_: Exception) {
+                } catch (error: Exception) {
+                    AppLogger.e(
+                        "SpeechServicesSettings",
+                        "Failed to parse HTTP TTS headers during auto-save",
+                        error,
+                    )
                     return@LaunchedEffect
                 }
             }
@@ -241,7 +253,12 @@ internal fun SpeechServicesSettingsScreen(
             if (ttsServiceTypeInput == VoiceServiceFactory.VoiceServiceType.HTTP_TTS) {
                 try {
                     HttpTtsResponsePipelineStep.parseList(ttsResponsePipelineInput)
-                } catch (_: Exception) {
+                } catch (error: Exception) {
+                    AppLogger.e(
+                        "SpeechServicesSettings",
+                        "Failed to parse HTTP TTS response pipeline during auto-save",
+                        error,
+                    )
                     return@LaunchedEffect
                 }
             } else {
@@ -255,7 +272,12 @@ internal fun SpeechServicesSettingsScreen(
                 } else {
                     try {
                         Json.decodeFromString<Map<String, String>>(vitsOptionsInput)
-                    } catch (_: Exception) {
+                    } catch (error: Exception) {
+                        AppLogger.e(
+                            "SpeechServicesSettings",
+                            "Failed to parse VITS options during auto-save",
+                            error,
+                        )
                         return@LaunchedEffect
                     }
                 }
@@ -328,7 +350,13 @@ internal fun SpeechServicesSettingsScreen(
             simpleTtsVoices = provider.getAvailableVoices()
         } catch (e: Exception) {
             simpleTtsVoices = emptyList()
-            simpleTtsVoicesError = e.message
+            simpleTtsVoicesError =
+                context.getString(R.string.speech_services_simple_tts_voice_load_failed)
+            AppLogger.e(
+                "SpeechServicesSettings",
+                "Failed to load system TTS voices",
+                e,
+            )
         } finally {
             provider?.shutdown()
             simpleTtsVoicesLoading = false
@@ -349,8 +377,9 @@ internal fun SpeechServicesSettingsScreen(
         if (ttsLocaleTagInput.isBlank()) {
             simpleTtsVoices
         } else {
-            simpleTtsVoices.filter { it.locale.equals(ttsLocaleTagInput, ignoreCase = true) }
-                .ifEmpty { simpleTtsVoices }
+            simpleTtsVoices.filter {
+                it.locale.equals(ttsLocaleTagInput, ignoreCase = true)
+            }
         }
     }
 
@@ -358,8 +387,10 @@ internal fun SpeechServicesSettingsScreen(
     KiyoriCollapsingSettingsPage(
         title =
             when (section) {
-                SpeechSettingsSection.TEXT_TO_SPEECH -> "文本转语音"
-                SpeechSettingsSection.SPEECH_TO_TEXT -> "语音转文本"
+                SpeechSettingsSection.TEXT_TO_SPEECH ->
+                    stringResource(R.string.screen_title_text_to_speech)
+                SpeechSettingsSection.SPEECH_TO_TEXT ->
+                    stringResource(R.string.screen_title_speech_to_text)
             },
         onBack = onBackPressed,
     ) {
@@ -783,7 +814,38 @@ internal fun SpeechServicesSettingsScreen(
                                     label = { Text(stringResource(R.string.speech_services_http_api_key)) },
                                     placeholder = { Text(stringResource(R.string.speech_services_http_api_key_placeholder)) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true
+                                    singleLine = true,
+                                    visualTransformation =
+                                        if (ttsApiKeyVisible) {
+                                            VisualTransformation.None
+                                        } else {
+                                            PasswordVisualTransformation()
+                                        },
+                                    trailingIcon = {
+                                        IconButton(onClick = { ttsApiKeyVisible = !ttsApiKeyVisible }) {
+                                            Icon(
+                                                imageVector =
+                                                    if (ttsApiKeyVisible) {
+                                                        Icons.Default.VisibilityOff
+                                                    } else {
+                                                        Icons.Default.Visibility
+                                                    },
+                                                contentDescription =
+                                                    stringResource(
+                                                        if (ttsApiKeyVisible) {
+                                                            R.string.hide_api_key
+                                                        } else {
+                                                            R.string.show_api_key
+                                                        },
+                                                    ),
+                                            )
+                                        }
+                                    },
+                                    shape =
+                                        RoundedCornerShape(
+                                            KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
+                                        ),
+                                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                                 )
 
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -796,6 +858,11 @@ internal fun SpeechServicesSettingsScreen(
                                             Json.decodeFromString<Map<String, String>>(it)
                                             ttsHeadersJsonError = null
                                         } catch (e: Exception) {
+                                            AppLogger.e(
+                                                "SpeechServicesSettings",
+                                                "Failed to parse HTTP TTS headers input",
+                                                e,
+                                            )
                                             if (it.isNotBlank() && it != "{}") {
                                                 ttsHeadersJsonError = context.getString(R.string.speech_services_http_headers_error)
                                             } else {
@@ -884,6 +951,11 @@ internal fun SpeechServicesSettingsScreen(
                                             HttpTtsResponsePipelineStep.parseList(it)
                                             ttsResponsePipelineJsonError = null
                                         } catch (e: Exception) {
+                                            AppLogger.e(
+                                                "SpeechServicesSettings",
+                                                "Failed to parse HTTP TTS response pipeline input",
+                                                e,
+                                            )
                                             ttsResponsePipelineJsonError =
                                                 if (it.isBlank() || it.trim() == "[]") {
                                                     null
@@ -974,7 +1046,12 @@ internal fun SpeechServicesSettingsScreen(
                                                 Json.decodeFromString<Map<String, String>>(it)
                                                 vitsOptionsJsonError = null
                                             }
-                                        } catch (_: Exception) {
+                                        } catch (error: Exception) {
+                                            AppLogger.e(
+                                                "SpeechServicesSettings",
+                                                "Failed to parse VITS options input",
+                                                error,
+                                            )
                                             vitsOptionsJsonError = context.getString(R.string.speech_services_vits_options_error)
                                         }
                                     },
@@ -1019,7 +1096,38 @@ internal fun SpeechServicesSettingsScreen(
                                     label = { Text(stringResource(R.string.speech_services_siliconflow_api_key)) },
                                     placeholder = { Text(stringResource(R.string.speech_services_siliconflow_api_key_placeholder)) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true
+                                    singleLine = true,
+                                    visualTransformation =
+                                        if (ttsApiKeyVisible) {
+                                            VisualTransformation.None
+                                        } else {
+                                            PasswordVisualTransformation()
+                                        },
+                                    trailingIcon = {
+                                        IconButton(onClick = { ttsApiKeyVisible = !ttsApiKeyVisible }) {
+                                            Icon(
+                                                imageVector =
+                                                    if (ttsApiKeyVisible) {
+                                                        Icons.Default.VisibilityOff
+                                                    } else {
+                                                        Icons.Default.Visibility
+                                                    },
+                                                contentDescription =
+                                                    stringResource(
+                                                        if (ttsApiKeyVisible) {
+                                                            R.string.hide_api_key
+                                                        } else {
+                                                            R.string.show_api_key
+                                                        },
+                                                    ),
+                                            )
+                                        }
+                                    },
+                                    shape =
+                                        RoundedCornerShape(
+                                            KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
+                                        ),
+                                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                                 )
 
                                 Spacer(modifier = Modifier.height(16.dp))
@@ -1155,7 +1263,38 @@ internal fun SpeechServicesSettingsScreen(
                                     label = { Text(stringResource(R.string.speech_services_minimax_api_key)) },
                                     placeholder = { Text(stringResource(R.string.speech_services_minimax_api_key_placeholder)) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true
+                                    singleLine = true,
+                                    visualTransformation =
+                                        if (ttsApiKeyVisible) {
+                                            VisualTransformation.None
+                                        } else {
+                                            PasswordVisualTransformation()
+                                        },
+                                    trailingIcon = {
+                                        IconButton(onClick = { ttsApiKeyVisible = !ttsApiKeyVisible }) {
+                                            Icon(
+                                                imageVector =
+                                                    if (ttsApiKeyVisible) {
+                                                        Icons.Default.VisibilityOff
+                                                    } else {
+                                                        Icons.Default.Visibility
+                                                    },
+                                                contentDescription =
+                                                    stringResource(
+                                                        if (ttsApiKeyVisible) {
+                                                            R.string.hide_api_key
+                                                        } else {
+                                                            R.string.show_api_key
+                                                        },
+                                                    ),
+                                            )
+                                        }
+                                    },
+                                    shape =
+                                        RoundedCornerShape(
+                                            KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
+                                        ),
+                                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                                 )
 
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -1230,7 +1369,38 @@ internal fun SpeechServicesSettingsScreen(
                                     label = { Text(stringResource(R.string.speech_services_mimo_api_key)) },
                                     placeholder = { Text(stringResource(R.string.speech_services_mimo_api_key_placeholder)) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true
+                                    singleLine = true,
+                                    visualTransformation =
+                                        if (ttsApiKeyVisible) {
+                                            VisualTransformation.None
+                                        } else {
+                                            PasswordVisualTransformation()
+                                        },
+                                    trailingIcon = {
+                                        IconButton(onClick = { ttsApiKeyVisible = !ttsApiKeyVisible }) {
+                                            Icon(
+                                                imageVector =
+                                                    if (ttsApiKeyVisible) {
+                                                        Icons.Default.VisibilityOff
+                                                    } else {
+                                                        Icons.Default.Visibility
+                                                    },
+                                                contentDescription =
+                                                    stringResource(
+                                                        if (ttsApiKeyVisible) {
+                                                            R.string.hide_api_key
+                                                        } else {
+                                                            R.string.show_api_key
+                                                        },
+                                                    ),
+                                            )
+                                        }
+                                    },
+                                    shape =
+                                        RoundedCornerShape(
+                                            KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
+                                        ),
+                                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                                 )
 
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -1359,7 +1529,38 @@ internal fun SpeechServicesSettingsScreen(
                                     label = { Text(stringResource(R.string.speech_services_doubao_token)) },
                                     placeholder = { Text(stringResource(R.string.speech_services_doubao_token_placeholder)) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true
+                                    singleLine = true,
+                                    visualTransformation =
+                                        if (ttsApiKeyVisible) {
+                                            VisualTransformation.None
+                                        } else {
+                                            PasswordVisualTransformation()
+                                        },
+                                    trailingIcon = {
+                                        IconButton(onClick = { ttsApiKeyVisible = !ttsApiKeyVisible }) {
+                                            Icon(
+                                                imageVector =
+                                                    if (ttsApiKeyVisible) {
+                                                        Icons.Default.VisibilityOff
+                                                    } else {
+                                                        Icons.Default.Visibility
+                                                    },
+                                                contentDescription =
+                                                    stringResource(
+                                                        if (ttsApiKeyVisible) {
+                                                            R.string.hide_api_key
+                                                        } else {
+                                                            R.string.show_api_key
+                                                        },
+                                                    ),
+                                            )
+                                        }
+                                    },
+                                    shape =
+                                        RoundedCornerShape(
+                                            KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
+                                        ),
+                                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                                 )
 
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -1458,7 +1659,38 @@ internal fun SpeechServicesSettingsScreen(
                                     label = { Text(stringResource(R.string.speech_services_openai_api_key)) },
                                     placeholder = { Text(stringResource(R.string.speech_services_openai_api_key_placeholder)) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true
+                                    singleLine = true,
+                                    visualTransformation =
+                                        if (ttsApiKeyVisible) {
+                                            VisualTransformation.None
+                                        } else {
+                                            PasswordVisualTransformation()
+                                        },
+                                    trailingIcon = {
+                                        IconButton(onClick = { ttsApiKeyVisible = !ttsApiKeyVisible }) {
+                                            Icon(
+                                                imageVector =
+                                                    if (ttsApiKeyVisible) {
+                                                        Icons.Default.VisibilityOff
+                                                    } else {
+                                                        Icons.Default.Visibility
+                                                    },
+                                                contentDescription =
+                                                    stringResource(
+                                                        if (ttsApiKeyVisible) {
+                                                            R.string.hide_api_key
+                                                        } else {
+                                                            R.string.show_api_key
+                                                        },
+                                                    ),
+                                            )
+                                        }
+                                    },
+                                    shape =
+                                        RoundedCornerShape(
+                                            KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
+                                        ),
+                                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                                 )
 
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -1640,7 +1872,38 @@ internal fun SpeechServicesSettingsScreen(
                                     label = { Text(stringResource(R.string.speech_services_openai_api_key)) },
                                     placeholder = { Text(stringResource(R.string.speech_services_openai_api_key_placeholder)) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true
+                                    singleLine = true,
+                                    visualTransformation =
+                                        if (ttsApiKeyVisible) {
+                                            VisualTransformation.None
+                                        } else {
+                                            PasswordVisualTransformation()
+                                        },
+                                    trailingIcon = {
+                                        IconButton(onClick = { ttsApiKeyVisible = !ttsApiKeyVisible }) {
+                                            Icon(
+                                                imageVector =
+                                                    if (ttsApiKeyVisible) {
+                                                        Icons.Default.VisibilityOff
+                                                    } else {
+                                                        Icons.Default.Visibility
+                                                    },
+                                                contentDescription =
+                                                    stringResource(
+                                                        if (ttsApiKeyVisible) {
+                                                            R.string.hide_api_key
+                                                        } else {
+                                                            R.string.show_api_key
+                                                        },
+                                                    ),
+                                            )
+                                        }
+                                    },
+                                    shape =
+                                        RoundedCornerShape(
+                                            KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
+                                        ),
+                                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                                 )
 
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -2136,7 +2399,33 @@ internal fun SpeechServicesSettingsScreen(
                                         RoundedCornerShape(
                                             KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
                                         ),
-                                    colors = kiyoriSettingsOutlinedTextFieldColors()
+                                    colors = kiyoriSettingsOutlinedTextFieldColors(),
+                                    visualTransformation =
+                                        if (sttApiKeyVisible) {
+                                            VisualTransformation.None
+                                        } else {
+                                            PasswordVisualTransformation()
+                                        },
+                                    trailingIcon = {
+                                        IconButton(onClick = { sttApiKeyVisible = !sttApiKeyVisible }) {
+                                            Icon(
+                                                imageVector =
+                                                    if (sttApiKeyVisible) {
+                                                        Icons.Default.VisibilityOff
+                                                    } else {
+                                                        Icons.Default.Visibility
+                                                    },
+                                                contentDescription =
+                                                    stringResource(
+                                                        if (sttApiKeyVisible) {
+                                                            R.string.hide_api_key
+                                                        } else {
+                                                            R.string.show_api_key
+                                                        },
+                                                    ),
+                                            )
+                                        }
+                                    },
                                 )
 
                                 Spacer(modifier = Modifier.height(12.dp))
@@ -2201,7 +2490,33 @@ internal fun SpeechServicesSettingsScreen(
                                         RoundedCornerShape(
                                             KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
                                         ),
-                                    colors = kiyoriSettingsOutlinedTextFieldColors()
+                                    colors = kiyoriSettingsOutlinedTextFieldColors(),
+                                    visualTransformation =
+                                        if (sttApiKeyVisible) {
+                                            VisualTransformation.None
+                                        } else {
+                                            PasswordVisualTransformation()
+                                        },
+                                    trailingIcon = {
+                                        IconButton(onClick = { sttApiKeyVisible = !sttApiKeyVisible }) {
+                                            Icon(
+                                                imageVector =
+                                                    if (sttApiKeyVisible) {
+                                                        Icons.Default.VisibilityOff
+                                                    } else {
+                                                        Icons.Default.Visibility
+                                                    },
+                                                contentDescription =
+                                                    stringResource(
+                                                        if (sttApiKeyVisible) {
+                                                            R.string.hide_api_key
+                                                        } else {
+                                                            R.string.show_api_key
+                                                        },
+                                                    ),
+                                            )
+                                        }
+                                    },
                                 )
 
                                 Spacer(modifier = Modifier.height(12.dp))
@@ -2250,8 +2565,8 @@ internal fun SpeechServicesSettingsScreen(
 
         item(key = "speech_information") {
             KiyoriSettingsGroupSection(
-                title = "能力说明",
-                description = "了解当前语音能力的配置范围与运行方式",
+                title = stringResource(R.string.speech_services_information_title),
+                description = stringResource(R.string.speech_services_information_desc),
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     SettingsInfoRow(
@@ -2281,12 +2596,12 @@ internal fun SpeechServicesSettingsScreen(
         if (section == SpeechSettingsSection.TEXT_TO_SPEECH) {
             item(key = "speech_tools") {
                 KiyoriSettingsGroupSection(
-                    title = "语音工具",
-                    description = "使用当前语音配置进行文本朗读测试",
+                    title = stringResource(R.string.speech_services_tools_title),
+                    description = stringResource(R.string.speech_services_tools_desc),
                 ) {
                     KiyoriSettingsRow(
                         title = stringResource(R.string.speech_services_test_tts),
-                        description = "打开文本朗读工具并验证当前语音合成配置",
+                        description = stringResource(R.string.speech_services_test_tts_desc),
                         kind = KiyoriSettingsRowKind.NAVIGATION,
                         onClick = onNavigateToTextToSpeech,
                     )

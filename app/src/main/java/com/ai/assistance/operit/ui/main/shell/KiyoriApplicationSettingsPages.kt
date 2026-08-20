@@ -1,11 +1,11 @@
 package com.ai.assistance.operit.ui.main.shell
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Dashboard
@@ -34,6 +34,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.preferences.GitHubAuthPreferences
 import com.ai.assistance.operit.ui.features.github.GitHubLoginWebViewDialog
 import com.ai.assistance.operit.ui.main.components.LocalKiyoriEmbeddedSettingsNavigation
@@ -41,21 +43,34 @@ import com.kiyori.design.theme.KiyoriSemanticTone
 import kotlinx.coroutines.launch
 
 internal enum class KiyoriAiAssistantSettingsAction {
-    OPEN_AVATAR_SETTINGS,
-    OPEN_VOICE_WAKEUP_SETTINGS,
-    OPEN_TEXT_TO_SPEECH_SETTINGS,
-    OPEN_SPEECH_TO_TEXT_SETTINGS,
-    OPEN_USER_PREFERENCES,
     OPEN_MODEL_CONFIG,
     OPEN_FUNCTIONAL_CONFIG,
     OPEN_MODEL_PROMPTS,
-    OPEN_PERSONA_GENERATION,
+    OPEN_USER_PREFERENCES,
+    OPEN_AVATAR_SETTINGS,
     OPEN_WAIFU_MODE,
+    OPEN_TEXT_TO_SPEECH_SETTINGS,
+    OPEN_SPEECH_TO_TEXT_SETTINGS,
+    OPEN_VOICE_WAKEUP_SETTINGS,
     OPEN_CONTEXT_SUMMARY,
     OPEN_TOOL_PERMISSIONS,
     OPEN_TOKEN_USAGE,
     OPEN_EXTERNAL_HTTP_CHAT,
 }
+
+internal data class KiyoriAiAssistantSettingsEntrySpec(
+    @StringRes val titleRes: Int,
+    @StringRes val descriptionRes: Int,
+    val icon: ImageVector,
+    val iconTone: KiyoriSemanticTone,
+    val action: KiyoriAiAssistantSettingsAction,
+)
+
+internal data class KiyoriAiAssistantSettingsGroupSpec(
+    @StringRes val titleRes: Int,
+    @StringRes val descriptionRes: Int,
+    val entries: List<KiyoriAiAssistantSettingsEntrySpec>,
+)
 
 internal data class KiyoriNavigationSettingsEntrySpec<T>(
     val title: String,
@@ -73,140 +88,126 @@ internal data class KiyoriNavigationSettingsGroupSpec<T>(
 
 internal val kiyoriAiAssistantSettingsGroups =
     listOf(
-        KiyoriNavigationSettingsGroupSpec(
-            title = "助手体验",
-            description = "配置虚拟形象和语音唤醒，让助手更贴近你的使用方式",
+        KiyoriAiAssistantSettingsGroupSpec(
+            titleRes = R.string.kiyori_ai_settings_group_model_generation,
+            descriptionRes = R.string.kiyori_ai_settings_group_model_generation_desc,
             entries =
                 listOf(
-                    KiyoriNavigationSettingsEntrySpec(
-                        title = "虚拟形象配置",
-                        description = "管理模型、预览、动作映射和语音通话中的形象显示",
-                        icon = Icons.Default.Face,
-                        iconTone = KiyoriSemanticTone.BLUE,
-                        action = KiyoriAiAssistantSettingsAction.OPEN_AVATAR_SETTINGS,
-                    ),
-                    KiyoriNavigationSettingsEntrySpec(
-                        title = "语音唤醒",
-                        description = "设置唤醒词、后台监听、语音响应和自动附加内容",
-                        icon = Icons.Default.Mic,
-                        iconTone = KiyoriSemanticTone.CYAN,
-                        action = KiyoriAiAssistantSettingsAction.OPEN_VOICE_WAKEUP_SETTINGS,
-                    ),
-                ),
-        ),
-        KiyoriNavigationSettingsGroupSpec(
-            title = "语音与交互",
-            description = "配置 AI 的朗读和语音识别能力，所有设置会即时应用到现有语音运行时",
-            entries =
-                listOf(
-                    KiyoriNavigationSettingsEntrySpec(
-                        title = "文本转语音",
-                        description = "选择 TTS 引擎、音色、语速、音调和朗读前的文本清洗规则",
-                        icon = Icons.Default.RecordVoiceOver,
-                        iconTone = KiyoriSemanticTone.ORANGE,
-                        action = KiyoriAiAssistantSettingsAction.OPEN_TEXT_TO_SPEECH_SETTINGS,
-                    ),
-                    KiyoriNavigationSettingsEntrySpec(
-                        title = "语音转文本",
-                        description = "选择本地或远程 STT 引擎，并配置语音识别服务",
-                        icon = Icons.Default.Mic,
-                        iconTone = KiyoriSemanticTone.CYAN,
-                        action = KiyoriAiAssistantSettingsAction.OPEN_SPEECH_TO_TEXT_SETTINGS,
-                    ),
-                ),
-        ),
-        KiyoriNavigationSettingsGroupSpec(
-            title = "模型与服务",
-            description = "配置对话模型、API 连接和各项 AI 功能使用的专属模型",
-            entries =
-                listOf(
-                    KiyoriNavigationSettingsEntrySpec(
-                        title = "模型与 API",
-                        description = "管理模型提供方、API、模型列表和生成参数",
+                    KiyoriAiAssistantSettingsEntrySpec(
+                        titleRes = R.string.kiyori_ai_settings_model_api,
+                        descriptionRes = R.string.kiyori_ai_settings_model_api_desc,
                         icon = Icons.Default.Settings,
                         iconTone = KiyoriSemanticTone.BLUE,
                         action = KiyoriAiAssistantSettingsAction.OPEN_MODEL_CONFIG,
                     ),
-                    KiyoriNavigationSettingsEntrySpec(
-                        title = "功能模型",
-                        description = "为对话、总结、记忆库等功能指定独立模型",
+                    KiyoriAiAssistantSettingsEntrySpec(
+                        titleRes = R.string.kiyori_ai_settings_function_models,
+                        descriptionRes = R.string.kiyori_ai_settings_function_models_desc,
                         icon = Icons.Default.Tune,
                         iconTone = KiyoriSemanticTone.CYAN,
                         action = KiyoriAiAssistantSettingsAction.OPEN_FUNCTIONAL_CONFIG,
                     ),
-                ),
-        ),
-        KiyoriNavigationSettingsGroupSpec(
-            title = "对话与角色",
-            description = "管理发送给 AI 的用户信息、系统提示词和角色表达方式",
-            entries =
-                listOf(
-                    KiyoriNavigationSettingsEntrySpec(
-                        title = "用户偏好",
-                        description = "编辑会作为用户上下文发送给 AI 的 user.md",
-                        icon = Icons.Default.Person,
-                        iconTone = KiyoriSemanticTone.GREEN,
-                        action = KiyoriAiAssistantSettingsAction.OPEN_USER_PREFERENCES,
-                    ),
-                    KiyoriNavigationSettingsEntrySpec(
-                        title = "提示词",
-                        description = "配置系统提示词、模型提示词和功能提示词模板",
+                    KiyoriAiAssistantSettingsEntrySpec(
+                        titleRes = R.string.kiyori_ai_settings_prompts_roles,
+                        descriptionRes = R.string.kiyori_ai_settings_prompts_roles_desc,
                         icon = Icons.AutoMirrored.Filled.Chat,
                         iconTone = KiyoriSemanticTone.PURPLE,
                         action = KiyoriAiAssistantSettingsAction.OPEN_MODEL_PROMPTS,
                     ),
-                    KiyoriNavigationSettingsEntrySpec(
-                        title = "人设卡生成",
-                        description = "使用现有模型和提示词生成可复用的人设卡",
-                        icon = Icons.Default.Badge,
-                        iconTone = KiyoriSemanticTone.PINK,
-                        action = KiyoriAiAssistantSettingsAction.OPEN_PERSONA_GENERATION,
+                ),
+        ),
+        KiyoriAiAssistantSettingsGroupSpec(
+            titleRes = R.string.kiyori_ai_settings_group_personalization,
+            descriptionRes = R.string.kiyori_ai_settings_group_personalization_desc,
+            entries =
+                listOf(
+                    KiyoriAiAssistantSettingsEntrySpec(
+                        titleRes = R.string.kiyori_ai_settings_user_profile,
+                        descriptionRes = R.string.kiyori_ai_settings_user_profile_desc,
+                        icon = Icons.Default.Person,
+                        iconTone = KiyoriSemanticTone.GREEN,
+                        action = KiyoriAiAssistantSettingsAction.OPEN_USER_PREFERENCES,
                     ),
-                    KiyoriNavigationSettingsEntrySpec(
-                        title = "分句回复",
-                        description = "配置 AI 回复分句发送和角色化表达模式",
+                    KiyoriAiAssistantSettingsEntrySpec(
+                        titleRes = R.string.kiyori_ai_settings_avatar,
+                        descriptionRes = R.string.kiyori_ai_settings_avatar_desc,
+                        icon = Icons.Default.Face,
+                        iconTone = KiyoriSemanticTone.PINK,
+                        action = KiyoriAiAssistantSettingsAction.OPEN_AVATAR_SETTINGS,
+                    ),
+                    KiyoriAiAssistantSettingsEntrySpec(
+                        titleRes = R.string.kiyori_ai_settings_reply_expression,
+                        descriptionRes = R.string.kiyori_ai_settings_reply_expression_desc,
                         icon = Icons.Default.Forum,
                         iconTone = KiyoriSemanticTone.CYAN,
                         action = KiyoriAiAssistantSettingsAction.OPEN_WAIFU_MODE,
                     ),
                 ),
         ),
-        KiyoriNavigationSettingsGroupSpec(
-            title = "上下文与安全",
-            description = "控制上下文总结策略和 AI 调用工具时的授权规则",
+        KiyoriAiAssistantSettingsGroupSpec(
+            titleRes = R.string.kiyori_ai_settings_group_voice,
+            descriptionRes = R.string.kiyori_ai_settings_group_voice_desc,
             entries =
                 listOf(
-                    KiyoriNavigationSettingsEntrySpec(
-                        title = "上下文与总结",
-                        description = "管理上下文长度、自动总结和历史媒体保留策略",
+                    KiyoriAiAssistantSettingsEntrySpec(
+                        titleRes = R.string.kiyori_ai_settings_tts,
+                        descriptionRes = R.string.kiyori_ai_settings_tts_desc,
+                        icon = Icons.Default.RecordVoiceOver,
+                        iconTone = KiyoriSemanticTone.ORANGE,
+                        action = KiyoriAiAssistantSettingsAction.OPEN_TEXT_TO_SPEECH_SETTINGS,
+                    ),
+                    KiyoriAiAssistantSettingsEntrySpec(
+                        titleRes = R.string.kiyori_ai_settings_stt,
+                        descriptionRes = R.string.kiyori_ai_settings_stt_desc,
+                        icon = Icons.Default.Mic,
+                        iconTone = KiyoriSemanticTone.CYAN,
+                        action = KiyoriAiAssistantSettingsAction.OPEN_SPEECH_TO_TEXT_SETTINGS,
+                    ),
+                    KiyoriAiAssistantSettingsEntrySpec(
+                        titleRes = R.string.kiyori_ai_settings_voice_wakeup,
+                        descriptionRes = R.string.kiyori_ai_settings_voice_wakeup_desc,
+                        icon = Icons.Default.Mic,
+                        iconTone = KiyoriSemanticTone.PURPLE,
+                        action = KiyoriAiAssistantSettingsAction.OPEN_VOICE_WAKEUP_SETTINGS,
+                    ),
+                ),
+        ),
+        KiyoriAiAssistantSettingsGroupSpec(
+            titleRes = R.string.kiyori_ai_settings_group_context_tools,
+            descriptionRes = R.string.kiyori_ai_settings_group_context_tools_desc,
+            entries =
+                listOf(
+                    KiyoriAiAssistantSettingsEntrySpec(
+                        titleRes = R.string.kiyori_ai_settings_context_summary,
+                        descriptionRes = R.string.kiyori_ai_settings_context_summary_desc,
                         icon = Icons.Default.History,
                         iconTone = KiyoriSemanticTone.ORANGE,
                         action = KiyoriAiAssistantSettingsAction.OPEN_CONTEXT_SUMMARY,
                     ),
-                    KiyoriNavigationSettingsEntrySpec(
-                        title = "AI 工具授权",
-                        description = "设置工具调用为允许、询问或禁止",
+                    KiyoriAiAssistantSettingsEntrySpec(
+                        titleRes = R.string.kiyori_ai_settings_tool_permissions,
+                        descriptionRes = R.string.kiyori_ai_settings_tool_permissions_desc,
                         icon = Icons.Default.Security,
                         iconTone = KiyoriSemanticTone.RED,
                         action = KiyoriAiAssistantSettingsAction.OPEN_TOOL_PERMISSIONS,
                     ),
                 ),
         ),
-        KiyoriNavigationSettingsGroupSpec(
-            title = "使用与连接",
-            description = "查看 AI 使用成本并管理面向外部应用的对话接口",
+        KiyoriAiAssistantSettingsGroupSpec(
+            titleRes = R.string.kiyori_ai_settings_group_service_usage,
+            descriptionRes = R.string.kiyori_ai_settings_group_service_usage_desc,
             entries =
                 listOf(
-                    KiyoriNavigationSettingsEntrySpec(
-                        title = "Token 使用统计",
-                        description = "查看模型 Token 消耗、费用和自定义定价",
+                    KiyoriAiAssistantSettingsEntrySpec(
+                        titleRes = R.string.kiyori_ai_settings_usage_cost,
+                        descriptionRes = R.string.kiyori_ai_settings_usage_cost_desc,
                         icon = Icons.Default.BarChart,
                         iconTone = KiyoriSemanticTone.BLUE,
                         action = KiyoriAiAssistantSettingsAction.OPEN_TOKEN_USAGE,
                     ),
-                    KiyoriNavigationSettingsEntrySpec(
-                        title = "外部 HTTP 对话",
-                        description = "管理本地 HTTP 对话接口、端口和访问令牌",
+                    KiyoriAiAssistantSettingsEntrySpec(
+                        titleRes = R.string.kiyori_ai_settings_lan_automation,
+                        descriptionRes = R.string.kiyori_ai_settings_lan_automation_desc,
                         icon = Icons.Default.Cloud,
                         iconTone = KiyoriSemanticTone.CYAN,
                         action = KiyoriAiAssistantSettingsAction.OPEN_EXTERNAL_HTTP_CHAT,
@@ -299,12 +300,37 @@ internal fun KiyoriAiAssistantSettingsPage(
     onAction: (KiyoriAiAssistantSettingsAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    KiyoriNavigationSettingsPage(
-        title = "AI助手",
-        groups = kiyoriAiAssistantSettingsGroups,
-        onAction = onAction,
+    val navigation = LocalKiyoriEmbeddedSettingsNavigation.current
+    KiyoriCollapsingSettingsPage(
+        title = stringResource(R.string.kiyori_ai_settings_title),
+        onBack = navigation.onClick,
+        navigationIcon = navigation.icon,
         modifier = modifier,
-    )
+    ) {
+        items(
+            items = kiyoriAiAssistantSettingsGroups,
+            key = KiyoriAiAssistantSettingsGroupSpec::titleRes,
+        ) { group ->
+            KiyoriSettingsGroupSection(
+                title = stringResource(group.titleRes),
+                description = stringResource(group.descriptionRes),
+            ) {
+                group.entries.forEachIndexed { index, entry ->
+                    KiyoriSettingsRow(
+                        title = stringResource(entry.titleRes),
+                        description = stringResource(entry.descriptionRes),
+                        kind = KiyoriSettingsRowKind.NAVIGATION,
+                        icon = entry.icon,
+                        iconTone = entry.iconTone,
+                        onClick = { onAction(entry.action) },
+                    )
+                    if (index != group.entries.lastIndex) {
+                        KiyoriSettingsDivider()
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable

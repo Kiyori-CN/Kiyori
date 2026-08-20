@@ -23,7 +23,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.ai.assistance.operit.ui.components.CustomScaffold
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -63,6 +62,11 @@ import com.ai.assistance.operit.ui.features.settings.components.ModelSettingsAct
 import com.ai.assistance.operit.ui.features.settings.components.ModelSettingsActionHorizontalPadding
 import com.ai.assistance.operit.ui.features.settings.components.ModelSettingsActionIconSize
 import com.ai.assistance.operit.ui.features.settings.components.ModelSettingsActionShape
+import com.ai.assistance.operit.ui.main.shell.KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsWorkspacePage
+import com.ai.assistance.operit.ui.main.shell.kiyoriSettingsOutlinedTextFieldColors
+import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.design.theme.LocalKiyoriSettingsColors
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -79,6 +83,14 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 private data class HeaderPreset(val nameResId: Int, val headers: Map<String, String>)
+private data class PendingModelConfigDeletion(val id: String, val name: String)
+
+private sealed interface HeaderEntriesState {
+    data class Ready(val entries: List<Pair<String, String>>) : HeaderEntriesState
+    data object InvalidPersistedJson : HeaderEntriesState
+}
+
+private const val MODEL_CONFIG_LOG_TAG = "ModelConfigScreen"
 
 private val headerPresets =
     listOf(
@@ -120,19 +132,24 @@ private val headerPresets =
         )
     )
 
-private fun parseHeaderEntries(headersJson: String): List<Pair<String, String>> {
-    return runCatching {
-        if (headersJson.isBlank() || headersJson == "{}") {
-            emptyList()
-        } else {
-            val jsonObject = JSONObject(headersJson)
-            buildList {
-                for (key in jsonObject.keys()) {
-                    add(key to jsonObject.getString(key))
+private fun parseHeaderEntries(headersJson: String): HeaderEntriesState {
+    return try {
+        HeaderEntriesState.Ready(
+            if (headersJson.isBlank() || headersJson == "{}") {
+                emptyList()
+            } else {
+                val jsonObject = JSONObject(headersJson)
+                buildList {
+                    for (key in jsonObject.keys()) {
+                        add(key to jsonObject.getString(key))
+                    }
                 }
-            }
-        }
-    }.getOrElse { emptyList() }
+            },
+        )
+    } catch (error: Exception) {
+        AppLogger.e(MODEL_CONFIG_LOG_TAG, "Failed to parse custom headers", error)
+        HeaderEntriesState.InvalidPersistedJson
+    }
 }
 
 private fun serializeHeaderEntries(headers: List<Pair<String, String>>): String {
@@ -153,9 +170,11 @@ private fun serializeHeaderEntries(headers: List<Pair<String, String>>): String 
 )
 @Composable
 fun ModelConfigScreen(
+    onBackPressed: () -> Unit,
     navigateToMnnModelDownload: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
+    val settingsColors = LocalKiyoriSettingsColors.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val configManager = remember { ModelConfigManager(context) }
     val functionalConfigManager = remember { FunctionalConfigManager(context) }
@@ -180,11 +199,10 @@ fun ModelConfigScreen(
     // UI状态
     var showAddConfigDialog by remember { mutableStateOf(false) }
     var showRenameConfigDialog by remember { mutableStateOf(false) }
-    var showSaveSuccessMessage by remember { mutableStateOf(false) }
     var isDropdownExpanded by remember { mutableStateOf(false) }
     var newConfigName by remember { mutableStateOf("") }
     var renameConfigName by remember { mutableStateOf("") }
-    var confirmMessage by remember { mutableStateOf("") }
+    var pendingDeletion by remember { mutableStateOf<PendingModelConfigDeletion?>(null) }
 
     // 连接测试状态
     var isTestingConnection by remember { mutableStateOf(false) }
@@ -230,11 +248,9 @@ fun ModelConfigScreen(
 
     // 显示通知消息
     fun showNotification(message: String) {
-        confirmMessage = message
-        showSaveSuccessMessage = true
         scope.launch {
-            kotlinx.coroutines.delay(3000)
-            showSaveSuccessMessage = false
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(message)
         }
     }
 
@@ -254,8 +270,10 @@ fun ModelConfigScreen(
     }
 
     // 主界面内容
-    CustomScaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+    KiyoriSettingsWorkspacePage(
+        title = stringResource(R.string.kiyori_ai_settings_model_api),
+        onBack = onBackPressed,
+        snackbarHostState = snackbarHostState,
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -271,14 +289,14 @@ fun ModelConfigScreen(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = settingsColors.cardBackground),
                     border =
                         BorderStroke(
                             0.7.dp,
                             MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                         Row(
@@ -408,10 +426,13 @@ fun ModelConfigScreen(
 
                                 OutlinedButton(
                                     onClick = {
-                                        scope.launch {
-                                            configManager.deleteConfig(selectedConfigId)
-                                            selectedConfigId = configList.firstOrNull() ?: "default"
-                                            showNotification(context.getString(R.string.config_deleted))
+                                        val currentConfig = selectedConfig.value
+                                        if (currentConfig != null) {
+                                            pendingDeletion =
+                                                PendingModelConfigDeletion(
+                                                    id = currentConfig.id,
+                                                    name = currentConfig.name,
+                                                )
                                         }
                                     },
                                     contentPadding =
@@ -789,39 +810,6 @@ fun ModelConfigScreen(
                 }
             }
 
-            if (showSaveSuccessMessage) {
-                item {
-                    AnimatedVisibility(
-                        visible = showSaveSuccessMessage,
-                        enter = fadeIn() + expandVertically(),
-                        exit = fadeOut() + shrinkVertically()
-                    ) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors =
-                                CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                                )
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = confirmMessage,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                        }
-                    }
-                }
-            }
         }
 
         // 新建配置对话框
@@ -862,8 +850,12 @@ fun ModelConfigScreen(
                                 )
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            singleLine = true
+                            shape =
+                                RoundedCornerShape(
+                                    KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp
+                                ),
+                            colors = kiyoriSettingsOutlinedTextFieldColors(),
+                            singleLine = true,
                         )
                     }
                 },
@@ -927,8 +919,12 @@ fun ModelConfigScreen(
                                 )
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            singleLine = true
+                            shape =
+                                RoundedCornerShape(
+                                    KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp
+                                ),
+                            colors = kiyoriSettingsOutlinedTextFieldColors(),
+                            singleLine = true,
                         )
                     }
                 },
@@ -963,6 +959,44 @@ fun ModelConfigScreen(
             )
         }
 
+        pendingDeletion?.let { deletion ->
+            AlertDialog(
+                onDismissRequest = { pendingDeletion = null },
+                title = { Text(stringResource(R.string.model_config_delete_title)) },
+                text = {
+                    Text(
+                        stringResource(
+                            R.string.model_config_delete_message,
+                            deletion.name,
+                        )
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            pendingDeletion = null
+                            scope.launch {
+                                configManager.deleteConfig(deletion.id)
+                                selectedConfigId = ModelConfigManager.DEFAULT_CONFIG_ID
+                                showNotification(context.getString(R.string.config_deleted))
+                            }
+                        },
+                        colors =
+                            ButtonDefaults.textButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            ),
+                    ) {
+                        Text(stringResource(R.string.delete_action))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingDeletion = null }) {
+                        Text(stringResource(R.string.cancel_action))
+                    }
+                },
+            )
+        }
+
         }
     }
 }
@@ -976,14 +1010,16 @@ private fun CustomHeadersSettingsSection(
     showNotification: (String) -> Unit
 ) {
     val latestConfig by rememberUpdatedState(config)
-    var headers by remember(config.id) { mutableStateOf(parseHeaderEntries(config.customHeaders)) }
+    var headersState by remember(config.id) {
+        mutableStateOf(parseHeaderEntries(config.customHeaders))
+    }
     var headersExpanded by rememberSaveable(config.id) { mutableStateOf(false) }
     var showHeaderPresetsMenu by remember { mutableStateOf(false) }
     val saveFailedText = stringResource(R.string.save_failed)
     val saveMutex = remember(config.id) { Mutex() }
 
     LaunchedEffect(config.id, config.customHeaders) {
-        headers = parseHeaderEntries(config.customHeaders)
+        headersState = parseHeaderEntries(config.customHeaders)
     }
 
     suspend fun persistHeaders(serializedHeaders: String) {
@@ -995,24 +1031,38 @@ private fun CustomHeadersSettingsSection(
         }
     }
 
+    val readyHeadersState = headersState as? HeaderEntriesState.Ready
+    val latestHeadersState by rememberUpdatedState(headersState)
     RegisterModelConfigSaveAction(
         coordinator = saveCoordinator,
         key = "headers:${config.id}",
-        action = { _ ->
-            persistHeaders(serializeHeaderEntries(headers))
+        action = {
+            val current = latestHeadersState
+            if (current is HeaderEntriesState.Ready) {
+                persistHeaders(serializeHeaderEntries(current.entries))
+            }
         }
     )
 
-    DebouncedModelConfigAutoSaveEffect(
-        effectKey = config.id,
-        valueProvider = { serializeHeaderEntries(headers) },
-        persist = { serializedHeaders -> persistHeaders(serializedHeaders) },
-        onError = { e ->
-            showNotification(e.message ?: saveFailedText)
-        }
-    )
+    if (readyHeadersState != null) {
+        DebouncedModelConfigAutoSaveEffect(
+            effectKey = config.id to (headersState is HeaderEntriesState.Ready),
+            valueProvider = {
+                val current = headersState
+                check(current is HeaderEntriesState.Ready) {
+                    "Custom header auto-save requires a valid persisted JSON state"
+                }
+                serializeHeaderEntries(current.entries)
+            },
+            persist = { serializedHeaders -> persistHeaders(serializedHeaders) },
+            onError = {
+                showNotification(saveFailedText)
+            }
+        )
+    }
 
-    val configuredHeadersCount = headers.count { it.first.trim().isNotEmpty() }
+    val configuredHeadersCount =
+        readyHeadersState?.entries?.count { it.first.trim().isNotEmpty() }
 
     Card(
         modifier = Modifier
@@ -1029,7 +1079,9 @@ private fun CustomHeadersSettingsSection(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { headersExpanded = !headersExpanded },
+                    .clickable(enabled = readyHeadersState != null) {
+                        headersExpanded = !headersExpanded
+                    },
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
@@ -1051,7 +1103,7 @@ private fun CustomHeadersSettingsSection(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                if (configuredHeadersCount > 0) {
+                if (configuredHeadersCount != null && configuredHeadersCount > 0) {
                     Text(
                         text =
                             stringResource(
@@ -1072,7 +1124,7 @@ private fun CustomHeadersSettingsSection(
             }
 
             AnimatedVisibility(
-                visible = headersExpanded,
+                visible = headersExpanded && readyHeadersState != null,
                 enter = expandVertically() + fadeIn(),
                 exit = shrinkVertically() + fadeOut()
             ) {
@@ -1092,7 +1144,13 @@ private fun CustomHeadersSettingsSection(
                                 Text(stringResource(R.string.headers_load_preset))
                             }
 
-                            OutlinedButton(onClick = { headers = headers + ("" to "") }) {
+                            OutlinedButton(
+                                onClick = {
+                                    val current = headersState as HeaderEntriesState.Ready
+                                    headersState =
+                                        HeaderEntriesState.Ready(current.entries + ("" to ""))
+                                }
+                            ) {
                                 Icon(
                                     imageVector = Icons.Default.Add,
                                     contentDescription = null,
@@ -1111,10 +1169,14 @@ private fun CustomHeadersSettingsSection(
                                 DropdownMenuItem(
                                     text = { Text(stringResource(preset.nameResId)) },
                                     onClick = {
+                                        val current = headersState as HeaderEntriesState.Ready
                                         val mergedHeaders =
-                                            headers.associate { it.first to it.second }.toMutableMap()
+                                            current.entries
+                                                .associate { it.first to it.second }
+                                                .toMutableMap()
                                         mergedHeaders.putAll(preset.headers)
-                                        headers = mergedHeaders.toList()
+                                        headersState =
+                                            HeaderEntriesState.Ready(mergedHeaders.toList())
                                         showHeaderPresetsMenu = false
                                     }
                                 )
@@ -1122,7 +1184,7 @@ private fun CustomHeadersSettingsSection(
                         }
                     }
 
-                    headers.forEachIndexed { index, header ->
+                    readyHeadersState?.entries?.forEachIndexed { index, header ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -1131,10 +1193,12 @@ private fun CustomHeadersSettingsSection(
                             OutlinedTextField(
                                 value = header.first,
                                 onValueChange = { newValue ->
-                                    headers =
-                                        headers.toMutableList().also {
+                                    headersState =
+                                        HeaderEntriesState.Ready(
+                                            readyHeadersState.entries.toMutableList().also {
                                             it[index] = newValue to header.second
-                                        }
+                                            }
+                                        )
                                 },
                                 modifier = Modifier.weight(1f),
                                 label = { Text(stringResource(R.string.headers_key_label)) },
@@ -1143,10 +1207,12 @@ private fun CustomHeadersSettingsSection(
                             OutlinedTextField(
                                 value = header.second,
                                 onValueChange = { newValue ->
-                                    headers =
-                                        headers.toMutableList().also {
+                                    headersState =
+                                        HeaderEntriesState.Ready(
+                                            readyHeadersState.entries.toMutableList().also {
                                             it[index] = header.first to newValue
-                                        }
+                                            }
+                                        )
                                 },
                                 modifier = Modifier.weight(1f),
                                 label = { Text(stringResource(R.string.headers_value_label)) },
@@ -1154,7 +1220,12 @@ private fun CustomHeadersSettingsSection(
                             )
                             IconButton(
                                 onClick = {
-                                    headers = headers.toMutableList().apply { removeAt(index) }
+                                    headersState =
+                                        HeaderEntriesState.Ready(
+                                            readyHeadersState.entries
+                                                .toMutableList()
+                                                .apply { removeAt(index) }
+                                        )
                                 }
                             ) {
                                 Icon(
@@ -1166,6 +1237,14 @@ private fun CustomHeadersSettingsSection(
                         }
                     }
                 }
+            }
+
+            if (headersState == HeaderEntriesState.InvalidPersistedJson) {
+                Text(
+                    text = stringResource(R.string.model_config_custom_headers_invalid),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
         }
     }
@@ -1254,7 +1333,12 @@ private fun ContextSummarySettingsSection(
                             )
                             contextError = null
                         } catch (e: Exception) {
-                            contextError = e.message ?: errorSaveFailed
+                            AppLogger.e(
+                                MODEL_CONFIG_LOG_TAG,
+                                "Failed to save context settings",
+                                e,
+                            )
+                            contextError = errorSaveFailed
                         }
                     }
                 }
@@ -1287,7 +1371,12 @@ private fun ContextSummarySettingsSection(
                             )
                             summaryError = null
                         } catch (e: Exception) {
-                            summaryError = e.message ?: errorSaveFailed
+                            AppLogger.e(
+                                MODEL_CONFIG_LOG_TAG,
+                                "Failed to disable automatic summary",
+                                e,
+                            )
+                            summaryError = errorSaveFailed
                         }
                     }
                     return@collectLatest
@@ -1331,7 +1420,12 @@ private fun ContextSummarySettingsSection(
                             )
                             summaryError = null
                         } catch (e: Exception) {
-                            summaryError = e.message ?: errorSaveFailed
+                            AppLogger.e(
+                                MODEL_CONFIG_LOG_TAG,
+                                "Failed to save automatic summary settings",
+                                e,
+                            )
+                            summaryError = errorSaveFailed
                         }
                     }
                 }

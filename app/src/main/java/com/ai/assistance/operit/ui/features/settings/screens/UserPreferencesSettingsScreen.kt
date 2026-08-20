@@ -1,6 +1,5 @@
 package com.ai.assistance.operit.ui.features.settings.screens
 
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,7 +38,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -65,9 +63,10 @@ import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.preferences.UserProfileDocumentRepository
 import com.ai.assistance.operit.ui.common.displays.MarkdownTextComposable
-import com.ai.assistance.operit.ui.components.CustomScaffold
 import com.ai.assistance.operit.ui.features.settings.components.rememberMarkdownSyntaxOutputTransformation
 import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsWorkspacePage
+import com.kiyori.design.theme.LocalKiyoriSettingsColors
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,6 +74,7 @@ import kotlinx.coroutines.launch
 fun UserPreferencesSettingsScreen(onNavigateBack: () -> Unit) {
     val context = LocalContext.current
     val isCurrentScreen = LocalIsCurrentScreen.current
+    val settingsColors = LocalKiyoriSettingsColors.current
     val repository = remember(context) { UserProfileDocumentRepository.getInstance(context) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -125,8 +125,10 @@ fun UserPreferencesSettingsScreen(onNavigateBack: () -> Unit) {
         onBack = ::navigateBackSafely,
     )
 
-    CustomScaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+    KiyoriSettingsWorkspacePage(
+        title = stringResource(R.string.kiyori_ai_settings_user_profile),
+        onBack = ::navigateBackSafely,
+        snackbarHostState = snackbarHostState,
     ) { paddingValues ->
         Box(
             modifier =
@@ -352,7 +354,12 @@ fun UserPreferencesSettingsScreen(onNavigateBack: () -> Unit) {
             title = { Text(stringResource(R.string.user_md_unsaved_title)) },
             text = { Text(stringResource(R.string.user_md_unsaved_message)) },
             confirmButton = {
-                TextButton(onClick = onNavigateBack) {
+                TextButton(
+                    onClick = {
+                        showDiscardDialog = false
+                        onNavigateBack()
+                    }
+                ) {
                     Text(stringResource(R.string.user_md_discard))
                 }
             },
@@ -393,7 +400,12 @@ fun UserPreferencesSettingsScreen(onNavigateBack: () -> Unit) {
 
     archiveSheetMarkdown?.let { archive ->
         val archiveScrollState = rememberScrollState()
-        ModalBottomSheet(onDismissRequest = { archiveSheetMarkdown = null }) {
+        ModalBottomSheet(
+            onDismissRequest = { archiveSheetMarkdown = null },
+            containerColor = settingsColors.cardBackground,
+            scrimColor = settingsColors.scrim,
+            tonalElevation = 0.dp,
+        ) {
             Column(
                 modifier =
                     Modifier.fillMaxWidth()
@@ -429,11 +441,12 @@ fun UserPreferencesSettingsScreen(onNavigateBack: () -> Unit) {
                     TextButton(
                         onClick = {
                             context.copyPlainTextToClipboard("Kiyori preferences", archive)
-                            Toast.makeText(
-                                context,
-                                context.getString(R.string.copied_to_clipboard),
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            archiveSheetMarkdown = null
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    context.getString(R.string.copied_to_clipboard)
+                                )
+                            }
                         }
                     ) {
                         Icon(Icons.Default.ContentCopy, contentDescription = null)

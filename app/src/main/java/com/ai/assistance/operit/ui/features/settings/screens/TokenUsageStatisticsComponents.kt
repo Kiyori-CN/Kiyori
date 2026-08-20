@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
+import com.kiyori.design.theme.LocalKiyoriSettingsColors
 
 @Composable
 internal fun TokenUsageSummarySection(
@@ -39,16 +41,19 @@ internal fun TokenUsageSummarySection(
     totalCostText: String,
     exchangeRateHint: String?
 ) {
+    val settingsColors = LocalKiyoriSettingsColors.current
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = settingsColors.cardBackground),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = stringResource(id = R.string.settings_usage_summary),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                color = settingsColors.primaryText
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -61,13 +66,13 @@ internal fun TokenUsageSummarySection(
                     Text(
                         text = stringResource(id = R.string.settings_total_tokens),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        color = settingsColors.secondaryText
                     )
                     Text(
                         text = totalTokens.toString(),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        color = settingsColors.accent
                     )
                 }
 
@@ -75,13 +80,13 @@ internal fun TokenUsageSummarySection(
                     Text(
                         text = stringResource(id = R.string.settings_total_requests),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        color = settingsColors.secondaryText
                     )
                     Text(
                         text = totalRequests.toString(),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        color = settingsColors.accent
                     )
                 }
 
@@ -89,13 +94,13 @@ internal fun TokenUsageSummarySection(
                     Text(
                         text = stringResource(id = R.string.settings_total_cost),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        color = settingsColors.secondaryText
                     )
                     Text(
                         text = totalCostText,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        color = settingsColors.accent
                     )
                 }
             }
@@ -105,7 +110,7 @@ internal fun TokenUsageSummarySection(
                 Text(
                     text = it,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                    color = settingsColors.secondaryText
                 )
             }
 
@@ -118,13 +123,13 @@ internal fun TokenUsageSummarySection(
                 Text(
                     text = stringResource(id = R.string.settings_total_chats),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = settingsColors.secondaryText
                 )
                 Text(
                     text = totalChats.toString(),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = settingsColors.primaryText
                 )
             }
 
@@ -135,13 +140,13 @@ internal fun TokenUsageSummarySection(
                 Text(
                     text = stringResource(id = R.string.settings_total_messages),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = settingsColors.secondaryText
                 )
                 Text(
                     text = totalMessages.toString(),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = settingsColors.primaryText
                 )
             }
 
@@ -151,14 +156,14 @@ internal fun TokenUsageSummarySection(
                 SummaryLine(
                     label = stringResource(id = R.string.settings_input_tokens),
                     value = totalInputTokens.toString(),
-                    valueColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    labelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    valueColor = settingsColors.primaryText,
+                    labelColor = settingsColors.secondaryText
                 )
                 SummaryLine(
                     label = stringResource(id = R.string.settings_output_tokens),
                     value = totalOutputTokens.toString(),
-                    valueColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    labelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    valueColor = settingsColors.primaryText,
+                    labelColor = settingsColors.secondaryText
                 )
                 if (totalCachedInputTokens > 0L) {
                     SummaryLine(
@@ -220,6 +225,7 @@ private fun ModelUsagePieChart(
     modifier: Modifier = Modifier,
     items: List<Pair<String, Long>>
 ) {
+    val settingsColors = LocalKiyoriSettingsColors.current
     val currentLocale = LocalConfiguration.current.locales[0]
     val total = remember(items) { items.sumOf { it.second }.toDouble().coerceAtLeast(1.0) }
     val colors = listOf(
@@ -232,7 +238,12 @@ private fun ModelUsagePieChart(
         MaterialTheme.colorScheme.tertiaryContainer
     )
 
-    Card(modifier = modifier) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = settingsColors.cardBackground),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()

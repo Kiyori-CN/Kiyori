@@ -1,6 +1,5 @@
 package com.ai.assistance.operit.ui.features.settings.screens
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,10 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,22 +24,29 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.AIToolHandler
+import com.ai.assistance.operit.ui.main.shell.KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsWorkspacePage
+import com.ai.assistance.operit.ui.main.shell.kiyoriSettingsOutlinedTextFieldColors
 import com.ai.assistance.operit.ui.permissions.PermissionLevel
 import com.ai.assistance.operit.ui.permissions.ToolPermissionSystem
+import com.kiyori.design.theme.LocalKiyoriSettingsColors
+import java.util.Locale
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ToolPermissionSettingsScreen(navigateBack: () -> Unit) {
     val context = LocalContext.current
+    val settingsColors = LocalKiyoriSettingsColors.current
     val toolHandler = remember { AIToolHandler.getInstance(context) }
     val toolPermissionSystem = remember { ToolPermissionSystem.getInstance(context) }
     val scope = rememberCoroutineScope()
 
     val allTools = remember {
-        toolHandler.getAllToolNames().filterNot {
-            it == "package_proxy" || it == "proxy" || it == "search"
-        }
+        toolHandler
+            .getAllToolNames()
+            .filterNot { it == "package_proxy" || it == "proxy" || it == "search" }
+            .sortedWith(compareBy<String> { it.lowercase(Locale.ROOT) }.thenBy { it })
     }
     val toolPermissions = remember { mutableStateMapOf<String, PermissionLevel>() }
     val masterSwitch = toolPermissionSystem.masterSwitchFlow.collectAsState(initial = PermissionLevel.ASK).value
@@ -79,45 +82,45 @@ fun ToolPermissionSettingsScreen(navigateBack: () -> Unit) {
         }
     }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+    KiyoriSettingsWorkspacePage(
+        title = stringResource(R.string.kiyori_ai_settings_tool_permissions),
+        onBack = navigateBack,
+    ) { paddingValues ->
+        LazyColumn(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
         item {
-            Text(
-                stringResource(R.string.tool_permissions_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 stringResource(R.string.tool_permissions_description),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = settingsColors.cardBackground),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         stringResource(R.string.global_permission_switch),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         stringResource(R.string.global_permission_switch_description),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     CompactPermissionLevelSelector(
@@ -135,7 +138,9 @@ fun ToolPermissionSettingsScreen(navigateBack: () -> Unit) {
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = settingsColors.cardBackground),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
@@ -172,6 +177,7 @@ fun ToolPermissionSettingsScreen(navigateBack: () -> Unit) {
                 onToolToggled = { toolName -> handlePermissionChange(toolName, PermissionLevel.FORBID) }
             )
         }
+        }
     }
 }
 
@@ -183,6 +189,7 @@ private fun PermissionGroup(
     toolHandler: AIToolHandler,
     onToolToggled: (String) -> Unit
 ) {
+    val settingsColors = LocalKiyoriSettingsColors.current
     var showToolSelector by remember { mutableStateOf(false) }
 
     val (title, description, color) = when (level) {
@@ -205,8 +212,8 @@ private fun PermissionGroup(
 
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(containerColor = settingsColors.cardBackground),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -228,9 +235,11 @@ private fun PermissionGroup(
             Spacer(modifier = Modifier.height(12.dp))
 
             if (toolsInLevel.isNotEmpty()) {
-                toolsInLevel.forEach { toolName ->
-                    ToolChip(toolName = toolName, onRemove = { onToolToggled(toolName) })
-                }
+                toolsInLevel
+                    .sortedWith(compareBy<String> { it.lowercase(Locale.ROOT) }.thenBy { it })
+                    .forEach { toolName ->
+                        ToolChip(toolName = toolName, onRemove = { onToolToggled(toolName) })
+                    }
             } else {
                 Text(
                     stringResource(R.string.no_tools_in_group),
@@ -288,11 +297,27 @@ private fun ToolSelectorDialog(
     onDismiss: () -> Unit,
     onToolToggled: (String) -> Unit
 ) {
+    val settingsColors = LocalKiyoriSettingsColors.current
     var searchQuery by remember { mutableStateOf("") }
     val descriptions = remember(allTools) {
         allTools.associateWith { toolHandler.getToolDescription(it) }
     }
-    val filteredTools = allTools.filter { it.contains(searchQuery, ignoreCase = true) }
+    val filteredTools =
+        remember(searchQuery, allTools, descriptions) {
+            val normalizedQuery = searchQuery.trim()
+            if (normalizedQuery.isEmpty()) {
+                allTools
+            } else {
+                allTools.filter { toolName ->
+                    val description = descriptions[toolName]
+                    toolName.contains(normalizedQuery, ignoreCase = true) ||
+                        (
+                            description != null &&
+                                description.contains(normalizedQuery, ignoreCase = true)
+                        )
+                }
+            }
+        }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -300,7 +325,8 @@ private fun ToolSelectorDialog(
                 .fillMaxWidth()
                 .heightIn(max = 500.dp),
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            colors = CardDefaults.cardColors(containerColor = settingsColors.cardBackground),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         ) {
             Column(modifier = Modifier.padding(vertical = 16.dp)) {
                 Text(
@@ -317,36 +343,55 @@ private fun ToolSelectorDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp),
-                    shape = RoundedCornerShape(16.dp)
+                    shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
+                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 LazyColumn(modifier = Modifier.weight(1f)) {
-                    items(filteredTools) { toolName ->
-                        val isSelected = toolsInLevel.contains(toolName)
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onToolToggled(toolName) }
-                                .padding(horizontal = 24.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Checkbox(
-                                checked = isSelected,
-                                onCheckedChange = { onToolToggled(toolName) }
+                    if (filteredTools.isEmpty()) {
+                        item {
+                            Text(
+                                text = stringResource(R.string.tool_permission_search_empty),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 24.dp, vertical = 32.dp),
                             )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = toolName,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurface
+                        }
+                    } else {
+                        items(filteredTools, key = { toolName -> toolName }) { toolName ->
+                            val isSelected = toolsInLevel.contains(toolName)
+                            Row(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clickable { onToolToggled(toolName) }
+                                        .padding(horizontal = 24.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Checkbox(
+                                    checked = isSelected,
+                                    onCheckedChange = { onToolToggled(toolName) },
                                 )
-                                Text(
-                                    text = descriptions[toolName] ?: toolName,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 2
-                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = toolName,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                    val description = descriptions[toolName]
+                                    if (!description.isNullOrBlank()) {
+                                        Text(
+                                            text = description,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 2,
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

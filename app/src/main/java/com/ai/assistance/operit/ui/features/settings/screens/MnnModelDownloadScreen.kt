@@ -26,8 +26,14 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.mnn.DownloadState
 import com.ai.assistance.operit.data.mnn.MnnModel
 import com.ai.assistance.operit.data.mnn.MnnModelDownloadManager
-import com.ai.assistance.operit.ui.components.CustomScaffold
+import com.ai.assistance.operit.ui.main.shell.KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsWorkspacePage
+import com.ai.assistance.operit.ui.main.shell.kiyoriSettingsOutlinedTextFieldColors
+import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.design.theme.LocalKiyoriSettingsColors
 import kotlinx.coroutines.launch
+
+private const val MNN_MODEL_DOWNLOAD_LOG_TAG = "MnnModelDownloadScreen"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,7 +41,9 @@ fun MnnModelDownloadScreen(
     onBackPressed: () -> Unit
 ) {
     val context = LocalContext.current
+    val settingsColors = LocalKiyoriSettingsColors.current
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     val downloadManager = remember { MnnModelDownloadManager.getInstance(context) }
     val keyboardController = LocalSoftwareKeyboardController.current
     
@@ -60,19 +68,43 @@ fun MnnModelDownloadScreen(
 
     // 加载模型列表
     val loadFailedMessage = stringResource(R.string.mnn_load_failed)
-    LaunchedEffect(Unit) {
+    suspend fun refreshModels() {
         isLoading = true
         errorMessage = null
-        val result = downloadManager.fetchModelList()
-        if (result.isSuccess) {
-            modelList = result.getOrNull() ?: emptyList()
-        } else {
-            errorMessage = result.exceptionOrNull()?.message ?: loadFailedMessage
-        }
+        downloadManager.fetchModelList().fold(
+            onSuccess = { models -> modelList = models },
+            onFailure = { error ->
+                AppLogger.e(MNN_MODEL_DOWNLOAD_LOG_TAG, "Failed to load MNN model list", error)
+                errorMessage = loadFailedMessage
+            },
+        )
         isLoading = false
     }
+
+    LaunchedEffect(Unit) {
+        refreshModels()
+    }
     
-    CustomScaffold() { paddingValues ->
+    KiyoriSettingsWorkspacePage(
+        title = stringResource(R.string.mnn_model_download),
+        onBack = onBackPressed,
+        snackbarHostState = snackbarHostState,
+        headerAction = {
+            IconButton(
+                onClick = {
+                    if (!isLoading) {
+                        scope.launch { refreshModels() }
+                    }
+                },
+                enabled = !isLoading,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = stringResource(R.string.mnn_refresh_models),
+                )
+            }
+        },
+    ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -110,24 +142,14 @@ fun MnnModelDownloadScreen(
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
-                            text = errorMessage ?: "",
+                            text = loadFailedMessage,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
                             onClick = {
-                                scope.launch {
-                                    isLoading = true
-                                    errorMessage = null
-                                    val result = downloadManager.fetchModelList()
-                                    if (result.isSuccess) {
-                                        modelList = result.getOrNull() ?: emptyList()
-                                    } else {
-                                        errorMessage = result.exceptionOrNull()?.message ?: loadFailedMessage
-                                    }
-                                    isLoading = false
-                                }
+                                scope.launch { refreshModels() }
                             }
                         ) {
                             Icon(Icons.Default.Refresh, contentDescription = null)
@@ -154,8 +176,8 @@ fun MnnModelDownloadScreen(
                         // 搜索栏
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            color = MaterialTheme.colorScheme.surface,
-                            shadowElevation = 2.dp
+                            color = settingsColors.pageBackground,
+                            shadowElevation = 0.dp,
                         ) {
                             OutlinedTextField(
                                 value = searchQuery,
@@ -179,7 +201,11 @@ fun MnnModelDownloadScreen(
                                 keyboardActions = KeyboardActions(
                                     onSearch = { keyboardController?.hide() }
                                 ),
-                                shape = RoundedCornerShape(12.dp)
+                                shape =
+                                    RoundedCornerShape(
+                                        KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp
+                                    ),
+                                colors = kiyoriSettingsOutlinedTextFieldColors(),
                             )
                         }
                         
@@ -237,8 +263,17 @@ fun MnnModelDownloadScreen(
                 TextButton(
                     onClick = {
                         scope.launch {
-                            downloadManager.deleteModel(modelName)
+                            val deleted = downloadManager.deleteModel(modelName)
                             showDeleteDialog = null
+                            snackbarHostState.showSnackbar(
+                                context.getString(
+                                    if (deleted) {
+                                        R.string.mnn_delete_model_done
+                                    } else {
+                                        R.string.mnn_delete_model_failed
+                                    }
+                                )
+                            )
                         }
                     }
                 ) {
@@ -260,6 +295,7 @@ private fun ModelCard(
     downloadManager: MnnModelDownloadManager,
     onDelete: (String) -> Unit
 ) {
+    val settingsColors = LocalKiyoriSettingsColors.current
     val scope = rememberCoroutineScope()
     val downloadState by downloadManager.getDownloadState(model.modelName).collectAsState()
 
@@ -278,9 +314,9 @@ private fun ModelCard(
     
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        tonalElevation = 1.dp
+        shape = RoundedCornerShape(16.dp),
+        color = settingsColors.cardBackground,
+        tonalElevation = 0.dp,
     ) {
         Column(
             modifier = Modifier

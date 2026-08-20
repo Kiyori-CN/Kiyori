@@ -15,13 +15,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import com.ai.assistance.operit.ui.components.CustomScaffold
 import androidx.compose.ui.platform.LocalContext
 import com.ai.assistance.operit.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import android.widget.Toast
 import com.ai.assistance.operit.util.AssetCopyUtils
 import com.ai.assistance.operit.api.chat.llmprovider.AIServiceFactory
 import com.ai.assistance.operit.api.chat.llmprovider.MediaLinkBuilder
@@ -42,8 +40,13 @@ import com.ai.assistance.operit.core.config.FunctionalPrompts
 import com.ai.assistance.operit.util.ImagePoolManager
 import com.ai.assistance.operit.util.MediaPoolManager
 import com.ai.assistance.operit.util.LocaleUtils
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsWorkspacePage
+import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.design.theme.LocalKiyoriSettingsColors
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
+
+private const val FUNCTIONAL_CONFIG_LOG_TAG = "FunctionalConfigScreen"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,15 +55,15 @@ fun FunctionalConfigScreen(
         onNavigateToModelConfig: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val settingsColors = LocalKiyoriSettingsColors.current
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // 配置管理器
     val functionalConfigManager = remember { FunctionalConfigManager(context) }
     val modelConfigManager = remember { ModelConfigManager(context) }
 
     // 配置映射状态
-    val configMapping =
-            functionalConfigManager.functionConfigMappingFlow.collectAsState(initial = emptyMap())
     val configMappingWithIndex =
             functionalConfigManager.functionConfigMappingWithIndexFlow.collectAsState(initial = emptyMap())
 
@@ -69,21 +72,61 @@ fun FunctionalConfigScreen(
 
     // UI状态
     var isLoading by remember { mutableStateOf(true) }
-    var showSaveSuccess by remember { mutableStateOf(false) }
+    var hasLoadError by remember { mutableStateOf(false) }
+    var showResetDialog by remember { mutableStateOf(false) }
+
+    fun showMessage(message: String) {
+        scope.launch {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(message)
+        }
+    }
 
     // 加载配置摘要
     LaunchedEffect(Unit) {
         isLoading = true
-        configSummaries = modelConfigManager.getAllConfigSummaries()
-        isLoading = false
+        hasLoadError = false
+        try {
+            configSummaries = modelConfigManager.getAllConfigSummaries()
+        } catch (error: Exception) {
+            AppLogger.e(FUNCTIONAL_CONFIG_LOG_TAG, "Failed to load model summaries", error)
+            hasLoadError = true
+            snackbarHostState.showSnackbar(
+                context.getString(R.string.functional_config_load_failed)
+            )
+        } finally {
+            isLoading = false
+        }
     }
 
-    CustomScaffold() { paddingValues ->
+    KiyoriSettingsWorkspacePage(
+        title = stringResource(R.string.kiyori_ai_settings_function_models),
+        onBack = onBackPressed,
+        snackbarHostState = snackbarHostState,
+    ) { paddingValues ->
         if (isLoading) {
             Box(
                     modifier = Modifier.fillMaxSize().padding(paddingValues),
                     contentAlignment = Alignment.Center
             ) { CircularProgressIndicator() }
+        } else if (hasLoadError) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(paddingValues).padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ErrorOutline,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(48.dp),
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = stringResource(R.string.functional_config_load_failed),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
         } else {
             LazyColumn(
                     modifier =
@@ -97,11 +140,9 @@ fun FunctionalConfigScreen(
                             shape = RoundedCornerShape(12.dp),
                             colors =
                                     CardDefaults.cardColors(
-                                            containerColor =
-                                                    MaterialTheme.colorScheme.surfaceVariant.copy(
-                                                            alpha = 0.7f
-                                                    )
-                                    )
+                                            containerColor = settingsColors.cardBackground
+                                    ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(
@@ -182,9 +223,10 @@ fun FunctionalConfigScreen(
                                             context,
                                             functionType
                                     )
-                                    showSaveSuccess = true
+                                    showMessage(context.getString(R.string.config_saved))
                                 }
-                            }
+                            },
+                            onMessage = ::showMessage,
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -194,12 +236,7 @@ fun FunctionalConfigScreen(
                     // 重置按钮
                     OutlinedButton(
                             onClick = {
-                                scope.launch {
-                                    functionalConfigManager.resetAllFunctionConfigs()
-                                    // 刷新所有服务实例
-                                    EnhancedAIService.refreshAllServices(context)
-                                    showSaveSuccess = true
-                                }
+                                showResetDialog = true
                             },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),
@@ -214,47 +251,42 @@ fun FunctionalConfigScreen(
                         Text(stringResource(id = R.string.reset_all_functions_to_default))
                     }
 
-                    // 成功提示
-                    androidx.compose.animation.AnimatedVisibility(
-                            visible = showSaveSuccess,
-                            enter = fadeIn() + expandVertically(),
-                            exit = fadeOut() + shrinkVertically()
-                    ) {
-                        Card(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                colors =
-                                        CardDefaults.cardColors(
-                                                containerColor =
-                                                        MaterialTheme.colorScheme.primaryContainer
-                                        )
-                        ) {
-                            Row(
-                                    modifier = Modifier.padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                        text = stringResource(id = R.string.config_saved),
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-
-                        LaunchedEffect(showSaveSuccess) {
-                            kotlinx.coroutines.delay(2000)
-                            showSaveSuccess = false
-                        }
-                    }
                 }
             }
         }
+    }
+
+    if (showResetDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetDialog = false },
+            title = { Text(stringResource(R.string.functional_config_reset_title)) },
+            text = { Text(stringResource(R.string.functional_config_reset_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showResetDialog = false
+                        scope.launch {
+                            functionalConfigManager.resetAllFunctionConfigs()
+                            EnhancedAIService.refreshAllServices(context)
+                            snackbarHostState.showSnackbar(
+                                context.getString(R.string.functional_config_reset_done)
+                            )
+                        }
+                    },
+                    colors =
+                        ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                ) {
+                    Text(stringResource(R.string.reset_to_default))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetDialog = false }) {
+                    Text(stringResource(R.string.cancel_action))
+                }
+            },
+        )
     }
 }
 
@@ -264,8 +296,10 @@ fun FunctionConfigCard(
         currentConfig: ModelConfigSummary?,
         currentModelIndex: Int,
         availableConfigs: List<ModelConfigSummary>,
-        onConfigSelected: (String, Int) -> Unit
+        onConfigSelected: (String, Int) -> Unit,
+        onMessage: (String) -> Unit,
 ) {
+    val settingsColors = LocalKiyoriSettingsColors.current
     var expanded by remember { mutableStateOf(false) }
     var expandedConfigId by remember { mutableStateOf<String?>(null) } // 记录当前展开的配置的模型列表
     val context = LocalContext.current
@@ -290,6 +324,11 @@ fun FunctionConfigCard(
         val fullConfig: ModelConfigData = try {
             modelConfigManager.getModelConfigFlow(configId).first()
         } catch (e: Exception) {
+            AppLogger.e(
+                FUNCTIONAL_CONFIG_LOG_TAG,
+                "Failed to inspect media support for ${functionType.name}",
+                e,
+            )
             return@LaunchedEffect
         }
 
@@ -310,11 +349,7 @@ fun FunctionConfigCard(
 
     val showAutoGlmError: () -> Unit = {
         if (functionType == FunctionType.CHAT) {
-            Toast.makeText(
-                context,
-                context.getString(R.string.chat_autoglm_warning),
-                Toast.LENGTH_LONG
-            ).show()
+            onMessage(context.getString(R.string.chat_autoglm_warning))
         }
     }
 
@@ -327,13 +362,14 @@ fun FunctionConfigCard(
 
     Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = settingsColors.cardBackground),
             border =
                     BorderStroke(
                             0.5.dp,
                             MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    )
+                    ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             // 功能标题和描述
@@ -507,7 +543,12 @@ fun FunctionConfigCard(
                                                     }
                                                     cleanupTasks.add {
                                                         ImagePoolManager.removeImage(imageId)
-                                                        runCatching { imageFile.delete() }
+                                                        if (!imageFile.delete() && imageFile.exists()) {
+                                                            AppLogger.w(
+                                                                FUNCTIONAL_CONFIG_LOG_TAG,
+                                                                "Failed to delete temporary image test asset",
+                                                            )
+                                                        }
                                                     }
                                                     val prompt =
                                                         buildString {
@@ -536,7 +577,12 @@ fun FunctionConfigCard(
                                                     }
                                                     cleanupTasks.add {
                                                         MediaPoolManager.removeMedia(audioId)
-                                                        runCatching { audioFile.delete() }
+                                                        if (!audioFile.delete() && audioFile.exists()) {
+                                                            AppLogger.w(
+                                                                FUNCTIONAL_CONFIG_LOG_TAG,
+                                                                "Failed to delete temporary audio test asset",
+                                                            )
+                                                        }
                                                     }
                                                     val prompt =
                                                         buildString {
@@ -565,7 +611,12 @@ fun FunctionConfigCard(
                                                     }
                                                     cleanupTasks.add {
                                                         MediaPoolManager.removeMedia(videoId)
-                                                        runCatching { videoFile.delete() }
+                                                        if (!videoFile.delete() && videoFile.exists()) {
+                                                            AppLogger.w(
+                                                                FUNCTIONAL_CONFIG_LOG_TAG,
+                                                                "Failed to delete temporary video test asset",
+                                                            )
+                                                        }
                                                     }
                                                     val prompt =
                                                         buildString {
@@ -690,9 +741,24 @@ fun FunctionConfigCard(
                                             }
                                             testResult = Result.success(result)
                                         } catch (e: Exception) {
+                                            AppLogger.e(
+                                                FUNCTIONAL_CONFIG_LOG_TAG,
+                                                "Functional model connection test failed for ${functionType.name}",
+                                                e,
+                                            )
                                             testResult = Result.failure(e)
                                         } finally {
-                                            cleanupTasks.forEach { task -> runCatching { task() } }
+                                            cleanupTasks.forEach { task ->
+                                                try {
+                                                    task()
+                                                } catch (cleanupError: Exception) {
+                                                    AppLogger.w(
+                                                        FUNCTIONAL_CONFIG_LOG_TAG,
+                                                        "Functional model test cleanup failed",
+                                                        cleanupError,
+                                                    )
+                                                }
+                                            }
                                         }
                                         isTestingConnection = false
                                     }

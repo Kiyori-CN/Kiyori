@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.ui.features.assistant.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,18 +20,15 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.ScreenshotMonitor
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Switch
@@ -41,13 +39,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.preferences.WakeWordPreferences
+import com.ai.assistance.operit.ui.main.shell.KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP
+import com.ai.assistance.operit.ui.main.shell.kiyoriSettingsOutlinedTextFieldColors
+import com.kiyori.design.theme.LocalKiyoriSettingsColors
 
 @Composable
 fun CompactSwitchRow(
@@ -92,17 +92,18 @@ fun VoiceAutoAttachGrid(
     val missingTypes = remember(usedTypes) {
         WakeWordPreferences.VoiceAutoAttachType.entries.filterNot { usedTypes.contains(it) }
     }
+    val orderedItems = remember(items) { items.sortedBy { item -> item.type.ordinal } }
 
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 96.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(max = 200.dp),
+            .heightIn(max = 320.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         userScrollEnabled = false
     ) {
-        items(items, key = { it.id }) { item ->
+        items(orderedItems, key = { it.id }) { item ->
             VoiceAutoAttachTile(
                 icon = voiceAutoAttachTypeIcon(item.type),
                 title = voiceAutoAttachTypeTitle(item.type),
@@ -160,13 +161,16 @@ private fun VoiceAutoAttachTile(
     keywordPreview: String,
     onClick: () -> Unit
 ) {
-    ElevatedCard(
+    val colors = LocalKiyoriSettingsColors.current
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+        shape = RoundedCornerShape(14.dp),
+        color = colors.cardBackground,
+        border = BorderStroke(0.8.dp, colors.divider),
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
     ) {
         Column(
             modifier = Modifier
@@ -210,13 +214,16 @@ private fun VoiceAutoAttachTile(
 
 @Composable
 private fun VoiceAutoAttachAddTile(onClick: () -> Unit) {
-    OutlinedCard(
+    val colors = LocalKiyoriSettingsColors.current
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        colors = CardDefaults.outlinedCardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+        shape = RoundedCornerShape(14.dp),
+        color = colors.cardBackground,
+        border = BorderStroke(0.8.dp, colors.divider),
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
     ) {
         Column(
             modifier = Modifier
@@ -250,6 +257,7 @@ private fun VoiceAutoAttachItemDialog(
 ) {
     var enabled by remember(item.id) { mutableStateOf(item.enabled) }
     var keywords by remember(item.id) { mutableStateOf(item.keywords) }
+    var deleteConfirmVisible by remember(item.id) { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -269,11 +277,11 @@ private fun VoiceAutoAttachItemDialog(
                     singleLine = true,
                     label = { Text(text = voiceAutoAttachKeywordLabel(item.type)) },
                     supportingText = { Text(text = stringResource(R.string.voice_keyword_attachments_keyword_supporting)) },
-                    shape = RoundedCornerShape(10.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent
-                    )
+                    shape =
+                        RoundedCornerShape(
+                            KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
+                        ),
+                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                 )
             }
         },
@@ -288,7 +296,7 @@ private fun VoiceAutoAttachItemDialog(
         },
         dismissButton = {
             Row {
-                TextButton(onClick = onDelete) {
+                TextButton(onClick = { deleteConfirmVisible = true }) {
                     Text(text = stringResource(R.string.delete))
                 }
                 TextButton(onClick = onDismiss) {
@@ -297,6 +305,41 @@ private fun VoiceAutoAttachItemDialog(
             }
         }
     )
+
+    if (deleteConfirmVisible) {
+        AlertDialog(
+            onDismissRequest = { deleteConfirmVisible = false },
+            title = {
+                Text(stringResource(R.string.voice_keyword_attachments_delete_confirm_title))
+            },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.voice_keyword_attachments_delete_confirm_message,
+                        voiceAutoAttachTypeTitle(item.type),
+                    ),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        deleteConfirmVisible = false
+                        onDelete()
+                    },
+                ) {
+                    Text(
+                        text = stringResource(R.string.delete),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteConfirmVisible = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -328,10 +371,11 @@ private fun VoiceAutoAttachCreateDialog(
                         singleLine = true,
                         label = { Text(text = stringResource(R.string.voice_keyword_attachments_type_label)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent
-                        )
+                        shape =
+                            RoundedCornerShape(
+                                KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
+                            ),
+                        colors = kiyoriSettingsOutlinedTextFieldColors(),
                     )
 
                     ExposedDropdownMenu(

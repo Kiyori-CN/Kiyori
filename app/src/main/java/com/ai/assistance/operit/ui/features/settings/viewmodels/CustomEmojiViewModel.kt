@@ -216,8 +216,8 @@ class CustomEmojiViewModel(context: Context) : ViewModel() {
         return repository.getEmojiUri(activePrompt.value, emoji)
     }
 
-    fun isCustomCategory(_category: String): Boolean {
-        return true
+    fun isCustomCategory(category: String): Boolean {
+        return category !in CustomEmojiPreferences.BUILTIN_EMOTIONS
     }
 
     fun clearErrorMessage() {

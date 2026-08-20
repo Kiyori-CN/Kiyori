@@ -2,6 +2,9 @@ package com.ai.assistance.operit.ui.features.settings.screens
 
 import android.annotation.SuppressLint
 import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsWorkspacePage
+import com.ai.assistance.operit.ui.main.shell.kiyoriSettingsOutlinedTextFieldColors
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.*
@@ -131,6 +134,7 @@ private data class CharacterChatMessage(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PersonaCardGenerationScreen(
+    onBackPressed: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     onNavigateToUserPreferences: () -> Unit = {},
     onNavigateToModelConfig: () -> Unit = {},
@@ -138,38 +142,11 @@ fun PersonaCardGenerationScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val TAG = "CharacterCardGeneration"
 
-    // 引导文案（顶部说明）
-    val characterAssistantIntro = remember {
-        val locale = Locale.getDefault().language
-        if (locale == "zh" || locale == "zh-CN" || locale == "zh-TW") {
-            """
-            嗨嗨～这里是你的角色卡小助手(｡･ω･｡)ﾉ♡ 我会陪你一起把专属角色慢慢捏出来～
-            我们按部就班来哦：先告诉我你的称呼，再说说你想要的角色大方向，比方说：
-            - 角色名字和身份大概是怎样的？
-            - 有哪些可爱的性格关键词？
-            - 长相/发型/瞳色/穿搭想要什么感觉？
-            - 有没有特别的小设定或能力？
-            - 跟其他角色的关系要不要安排一点点？
-
-            接下来我会一步步问你关键问题，帮你把细节补齐～
-            """.trimIndent()
-        } else {
-            """
-            Hi there~ This is your character card assistant (｡･ω･｡)ﾉ♡ I\'ll help you create your unique character step by step~
-            Let\'s take it step by step: first tell me your name, then tell me what kind of character you want, for example:
-            - What should the character\'s name and identity be?
-            - What are some cute personality keywords?
-            - What kind of look/hairstyle/eye color/outfit do you want?
-            - Any special settings or abilities?
-            - Should we arrange some relationships with other characters?
-
-            Next, I\'ll ask you some key questions step by step to help you fill in the details~
-            """.trimIndent()
-        }
-    }
+    val characterAssistantIntro = stringResource(R.string.persona_generation_intro)
 
     val listState = rememberLazyListState()
     val chatMessages = remember { mutableStateListOf<CharacterChatMessage>() }
@@ -538,9 +515,15 @@ fun PersonaCardGenerationScreen(
         }
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
+    KiyoriSettingsWorkspacePage(
+        title = stringResource(R.string.screen_title_persona_card_generation),
+        onBack = onBackPressed,
+        snackbarHostState = snackbarHostState,
+    ) { paddingValues ->
+        ModalNavigationDrawer(
+            modifier = Modifier.padding(paddingValues),
+            drawerState = drawerState,
+            drawerContent = {
             ModalDrawerSheet(windowInsets = WindowInsets(0, 0, 0, 0)) {
                 Column(
                     modifier = Modifier
@@ -578,7 +561,8 @@ fun PersonaCardGenerationScreen(
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                            colors = kiyoriSettingsOutlinedTextFieldColors(),
                         )
                         DropdownMenu(
                             expanded = expanded,
@@ -630,7 +614,8 @@ fun PersonaCardGenerationScreen(
                                         onValueChange = { newCardName = it },
                                         singleLine = true,
                                         label = { Text(context.getString(R.string.character_card_name)) },
-                                        placeholder = { Text(context.getString(R.string.character_card_name_example)) }
+                                        placeholder = { Text(context.getString(R.string.character_card_name_example)) },
+                                        colors = kiyoriSettingsOutlinedTextFieldColors(),
                                     )
                                 }
                             },
@@ -710,7 +695,8 @@ fun PersonaCardGenerationScreen(
                         },
                         label = { Text(context.getString(R.string.character_name)) },
                         modifier = Modifier.fillMaxWidth(),
-                        maxLines = 1
+                        maxLines = 1,
+                        colors = kiyoriSettingsOutlinedTextFieldColors(),
                     )
                     
                     Spacer(Modifier.height(8.dp))
@@ -730,7 +716,8 @@ fun PersonaCardGenerationScreen(
                         },
                         label = { Text(context.getString(R.string.character_description)) },
                         modifier = Modifier.fillMaxWidth(),
-                        maxLines = 3
+                        maxLines = 3,
+                        colors = kiyoriSettingsOutlinedTextFieldColors(),
                     )
                     
                     Spacer(Modifier.height(8.dp))
@@ -750,7 +737,8 @@ fun PersonaCardGenerationScreen(
                         },
                         label = { Text(context.getString(R.string.character_setting)) },
                         modifier = Modifier.fillMaxWidth(),
-                        maxLines = 6
+                        maxLines = 6,
+                        colors = kiyoriSettingsOutlinedTextFieldColors(),
                     )
                     
                     Spacer(Modifier.height(8.dp))
@@ -770,7 +758,8 @@ fun PersonaCardGenerationScreen(
                         },
                         label = { Text(context.getString(R.string.opening_statement)) },
                         modifier = Modifier.fillMaxWidth(),
-                        maxLines = 4
+                        maxLines = 4,
+                        colors = kiyoriSettingsOutlinedTextFieldColors(),
                     )
                     
                     Spacer(Modifier.height(8.dp))
@@ -790,7 +779,8 @@ fun PersonaCardGenerationScreen(
                         },
                         label = { Text(context.getString(R.string.other_content_chat)) },
                         modifier = Modifier.fillMaxWidth(),
-                        maxLines = 6
+                        maxLines = 6,
+                        colors = kiyoriSettingsOutlinedTextFieldColors(),
                     )
 
                     Spacer(Modifier.height(8.dp))
@@ -810,7 +800,8 @@ fun PersonaCardGenerationScreen(
                         },
                         label = { Text(context.getString(R.string.other_content_voice)) },
                         modifier = Modifier.fillMaxWidth(),
-                        maxLines = 6
+                        maxLines = 6,
+                        colors = kiyoriSettingsOutlinedTextFieldColors(),
                     )
                     
                     Spacer(Modifier.height(8.dp))
@@ -830,7 +821,8 @@ fun PersonaCardGenerationScreen(
                         },
                         label = { Text(context.getString(R.string.advanced_custom_prompt)) },
                         modifier = Modifier.fillMaxWidth(),
-                        maxLines = 6
+                        maxLines = 6,
+                        colors = kiyoriSettingsOutlinedTextFieldColors(),
                     )
                     
                     Spacer(Modifier.height(8.dp))
@@ -850,7 +842,8 @@ fun PersonaCardGenerationScreen(
                         },
                         label = { Text(context.getString(R.string.character_marks)) },
                         modifier = Modifier.fillMaxWidth(),
-                        maxLines = 4
+                        maxLines = 4,
+                        colors = kiyoriSettingsOutlinedTextFieldColors(),
                     )
                 }
             }
@@ -862,11 +855,6 @@ fun PersonaCardGenerationScreen(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), 
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = context.getString(R.string.persona_card_generation_title), 
-                    style = MaterialTheme.typography.titleMedium, 
-                    fontWeight = FontWeight.Bold
-                )
                 IconButton(onClick = { showClearHistoryConfirm = true }) {
                     Icon(
                         imageVector = Icons.Filled.DeleteSweep,
@@ -892,7 +880,7 @@ fun PersonaCardGenerationScreen(
                     .weight(1f)
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp),
-            ) {
+        ) {
                 items(chatMessages) { msg ->
                     val isUser = msg.role == "user"
                     val bubbleContainer = if (isUser) {
@@ -964,12 +952,7 @@ fun PersonaCardGenerationScreen(
                             placeholder = { Text(if (isGenerating) context.getString(R.string.currently_generating) else context.getString(R.string.describe_character_hint)) },
                             enabled = !isGenerating && chatMessages.size < MESSAGE_LIMIT,
                             maxLines = 4,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                disabledContainerColor = Color.Transparent,
-                                errorContainerColor = Color.Transparent
-                            )
+                            colors = kiyoriSettingsOutlinedTextFieldColors(),
                         )
                         // 对话计数器 - 右上角小标签
                         Text(
@@ -996,6 +979,7 @@ fun PersonaCardGenerationScreen(
                     }
                 }
             }
+        }
         }
     }
     

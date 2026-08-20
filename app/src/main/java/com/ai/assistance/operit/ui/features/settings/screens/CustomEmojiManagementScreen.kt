@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -28,6 +29,10 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.model.CustomEmoji
 import com.ai.assistance.operit.data.preferences.CustomEmojiPreferences
 import com.ai.assistance.operit.ui.features.settings.viewmodels.CustomEmojiViewModel
+import com.ai.assistance.operit.ui.main.shell.KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsWorkspacePage
+import com.ai.assistance.operit.ui.main.shell.kiyoriSettingsOutlinedTextFieldColors
+import com.kiyori.design.theme.LocalKiyoriSettingsColors
 import kotlinx.coroutines.launch
 
 /**
@@ -39,8 +44,10 @@ fun CustomEmojiManagementScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val settingsColors = LocalKiyoriSettingsColors.current
     val viewModel = remember { CustomEmojiViewModel(context) }
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val categories by viewModel.categories.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
@@ -55,6 +62,7 @@ fun CustomEmojiManagementScreen(
     var showDeleteEmojiDialog by remember { mutableStateOf<CustomEmoji?>(null) }
     var showImagePreview by remember { mutableStateOf<Uri?>(null) }
     var showResetDialog by remember { mutableStateOf(false) }
+    val canDeleteSelectedCategory = viewModel.isCustomCategory(selectedCategory)
 
     // 图片选择器
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -65,15 +73,24 @@ fun CustomEmojiManagementScreen(
         }
     }
 
-    // 显示消息
     LaunchedEffect(successMessage) {
-        successMessage?.let {
-            // 显示成功提示
+        successMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
             viewModel.clearSuccessMessage()
         }
     }
 
-    Scaffold(
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearErrorMessage()
+        }
+    }
+
+    KiyoriSettingsWorkspacePage(
+        title = stringResource(R.string.manage_custom_emoji),
+        onBack = onNavigateBack,
+        snackbarHostState = snackbarHostState,
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { imagePickerLauncher.launch("image/*") }
@@ -93,9 +110,10 @@ fun CustomEmojiManagementScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                    containerColor = settingsColors.cardBackground
                 ),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                border = BorderStroke(1.dp, settingsColors.divider),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             ) {
                 Row(
                     modifier = Modifier
@@ -114,13 +132,13 @@ fun CustomEmojiManagementScreen(
                         Text(
                             text = stringResource(R.string.custom_emoji_bound_to_target),
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                            color = settingsColors.secondaryText
                         )
                         Text(
                             text = activeTargetName,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            color = settingsColors.primaryText
                         )
                     }
                 }
@@ -162,6 +180,7 @@ fun CustomEmojiManagementScreen(
                     // 删除分组按钮
                     OutlinedButton(
                         onClick = { showDeleteCategoryDialog = true },
+                        enabled = canDeleteSelectedCategory,
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = MaterialTheme.colorScheme.error
                         ),
@@ -256,9 +275,12 @@ fun CustomEmojiManagementScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.deleteCategory(selectedCategory)
-                        showDeleteCategoryDialog = false
-                    }
+                        if (canDeleteSelectedCategory) {
+                            viewModel.deleteCategory(selectedCategory)
+                            showDeleteCategoryDialog = false
+                        }
+                    },
+                    enabled = canDeleteSelectedCategory,
                 ) {
                     Text(stringResource(R.string.delete))
                 }
@@ -340,32 +362,6 @@ fun CustomEmojiManagementScreen(
         }
     }
 
-    // 显示错误和成功消息
-    errorMessage?.let {
-        Snackbar(
-            modifier = Modifier.padding(16.dp),
-            action = {
-                TextButton(onClick = { viewModel.clearErrorMessage() }) {
-                    Text(stringResource(R.string.close))
-                }
-            }
-        ) {
-            Text(it)
-        }
-    }
-
-    successMessage?.let {
-        Snackbar(
-            modifier = Modifier.padding(16.dp),
-            action = {
-                TextButton(onClick = { viewModel.clearSuccessMessage() }) {
-                    Text(stringResource(R.string.close))
-                }
-            }
-        ) {
-            Text(it)
-        }
-    }
 }
 
 /**
@@ -392,7 +388,8 @@ private fun CategorySelector(
             readOnly = true,
             label = { Text(stringResource(R.string.select_category)) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+            colors = kiyoriSettingsOutlinedTextFieldColors(),
+            shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
             modifier = Modifier
                 .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                 .fillMaxWidth()
@@ -534,7 +531,9 @@ private fun CreateCategoryDialog(
                             Text(stringResource(R.string.invalid_category_name))
                         }
                     },
-                    singleLine = true
+                    singleLine = true,
+                    colors = kiyoriSettingsOutlinedTextFieldColors(),
+                    shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
                 )
             }
         },

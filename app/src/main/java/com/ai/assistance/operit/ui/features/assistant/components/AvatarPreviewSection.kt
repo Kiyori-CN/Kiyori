@@ -13,7 +13,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -25,33 +24,27 @@ import com.ai.assistance.operit.core.avatar.common.state.AvatarEmotion
 import com.ai.assistance.operit.core.avatar.common.view.AvatarView
 import com.ai.assistance.operit.core.avatar.impl.factory.AvatarRendererFactoryImpl
 import com.ai.assistance.operit.ui.features.assistant.viewmodel.AssistantConfigViewModel
+import com.kiyori.design.theme.LocalKiyoriSettingsColors
 
 @Composable
 fun AvatarPreviewSection(
     modifier: Modifier = Modifier,
     uiState: AssistantConfigViewModel.UiState,
     avatarController: AvatarController?,
-    showPreviewContent: Boolean = true
+    showPreviewContent: Boolean = true,
+    onPreviewError: (String) -> Unit,
 ) {
     val context = LocalContext.current
     val rendererFactory = remember { AvatarRendererFactoryImpl() }
+    val colors = LocalKiyoriSettingsColors.current
 
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        border =
-            BorderStroke(
-                width = 1.dp,
-                brush =
-                    Brush.verticalGradient(
-                        colors =
-                            listOf(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                            )
-                    )
-            )
+        shape = RoundedCornerShape(16.dp),
+        color = colors.cardBackground,
+        border = BorderStroke(width = 0.8.dp, color = colors.divider),
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
     ) {
         if (showPreviewContent) {
             Box(modifier = Modifier.fillMaxSize()) {
@@ -125,6 +118,9 @@ fun AvatarPreviewSection(
                                 AppLogger.e(
                                     "AvatarPreviewSection",
                                     context.getString(R.string.avatar_preview_error_log, error)
+                                )
+                                onPreviewError(
+                                    context.getString(R.string.avatar_preview_failed),
                                 )
                             }
                         )

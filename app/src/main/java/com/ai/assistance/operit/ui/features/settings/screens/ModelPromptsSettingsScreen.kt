@@ -30,7 +30,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material.icons.outlined.MoreVert
-import com.ai.assistance.operit.ui.components.CustomScaffold
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsWorkspacePage
+import com.ai.assistance.operit.ui.main.shell.KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP
+import com.ai.assistance.operit.ui.main.shell.kiyoriSettingsOutlinedTextFieldColors
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -42,7 +45,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.content.Context
-import android.widget.Toast
 import android.content.ClipData
 import android.content.ClipboardManager
 import com.ai.assistance.operit.R
@@ -107,6 +109,7 @@ fun ModelPromptsSettingsScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     var showTagSavedHighlight by remember { mutableStateOf(false) }
     var showSaveSuccessMessage by remember { mutableStateOf(false) }
     var showDuplicateSuccessMessage by remember { mutableStateOf(false) }
@@ -117,6 +120,13 @@ fun ModelPromptsSettingsScreen(
     val activePromptManager = remember { ActivePromptManager.getInstance(context) }
     val promptTagManager = remember { PromptTagManager.getInstance(context) }
     val userPreferencesManager = remember { UserPreferencesManager.getInstance(context) }
+
+    fun showMessage(message: String) {
+        scope.launch {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(message)
+        }
+    }
 
     // 获取当前活跃目标（角色卡或群组）
     val activePrompt by activePromptManager.activePromptFlow.collectAsState(
@@ -179,16 +189,25 @@ fun ModelPromptsSettingsScreen(
                         val internalUri = FileUtils.copyFileToInternalStorage(context, croppedUri, "avatar_${card.id}")
                         if (internalUri != null) {
                             userPreferencesManager.saveAiAvatarForCharacterCard(card.id, internalUri.toString())
-                            Toast.makeText(context, context.getString(R.string.avatar_updated), Toast.LENGTH_SHORT).show()
+                            showMessage(context.getString(R.string.avatar_updated))
                             refreshTrigger++
                         } else {
-                            Toast.makeText(context, context.getString(R.string.theme_copy_failed), Toast.LENGTH_LONG).show()
+                            showMessage(context.getString(R.string.theme_copy_failed))
                         }
                     }
                 }
             }
-        } else if (result.error != null) {
-            Toast.makeText(context, context.getString(R.string.avatar_crop_failed, result.error!!.message), Toast.LENGTH_LONG).show()
+        } else {
+            val cropError = result.error
+            if (cropError != null) {
+                AppLogger.e("ModelPromptsSettings", "Failed to crop character avatar", cropError)
+                showMessage(
+                    context.getString(
+                        R.string.avatar_crop_failed,
+                        context.getString(R.string.unknown_error),
+                    )
+                )
+            }
         }
     }
 
@@ -201,16 +220,25 @@ fun ModelPromptsSettingsScreen(
                         val internalUri = FileUtils.copyFileToInternalStorage(context, croppedUri, "group_avatar_${group.id}")
                         if (internalUri != null) {
                             userPreferencesManager.saveAiAvatarForCharacterGroup(group.id, internalUri.toString())
-                            Toast.makeText(context, context.getString(R.string.avatar_updated), Toast.LENGTH_SHORT).show()
+                            showMessage(context.getString(R.string.avatar_updated))
                             refreshTrigger++
                         } else {
-                            Toast.makeText(context, context.getString(R.string.theme_copy_failed), Toast.LENGTH_LONG).show()
+                            showMessage(context.getString(R.string.theme_copy_failed))
                         }
                     }
                 }
             }
-        } else if (result.error != null) {
-            Toast.makeText(context, context.getString(R.string.avatar_crop_failed, result.error!!.message), Toast.LENGTH_LONG).show()
+        } else {
+            val cropError = result.error
+            if (cropError != null) {
+                AppLogger.e("ModelPromptsSettings", "Failed to crop group avatar", cropError)
+                showMessage(
+                    context.getString(
+                        R.string.avatar_crop_failed,
+                        context.getString(R.string.unknown_error),
+                    )
+                )
+            }
         }
     }
 
@@ -282,7 +310,7 @@ fun ModelPromptsSettingsScreen(
         }.onFailure { error ->
             AppLogger.w(
                 "ModelPromptsSettingsScreen",
-                "导入酒馆角色卡 PNG 后自动设置头像失败: characterCardId=$characterCardId, uri=$fileUri, error=${error.message}",
+                "导入酒馆角色卡 PNG 后自动设置头像失败: characterCardId=$characterCardId",
                 error
             )
         }
@@ -331,11 +359,17 @@ fun ModelPromptsSettingsScreen(
                         showImportSuccessMessage = true
                         refreshTrigger++
                     }.onFailure { exception ->
-                        importErrorMessage = exception.message ?: context.getString(R.string.unknown_error)
+                        AppLogger.e("ModelPromptsSettings", "Failed to import character card", exception)
+                        importErrorMessage = context.getString(R.string.unknown_error)
                         showImportErrorMessage = true
                     }
                 } catch (e: Exception) {
-                    importErrorMessage = context.getString(R.string.file_read_error, e.message ?: "")
+                    AppLogger.e("ModelPromptsSettings", "Failed to read character card file", e)
+                    importErrorMessage =
+                        context.getString(
+                            R.string.file_read_error,
+                            context.getString(R.string.unknown_error),
+                        )
                     showImportErrorMessage = true
                 }
             }
@@ -422,16 +456,15 @@ fun ModelPromptsSettingsScreen(
                 showImportSuccessMessage = true
                 refreshTrigger++
             }.onFailure { exception ->
-                importErrorMessage = exception.message ?: context.getString(R.string.unknown_error)
+                AppLogger.e("ColorQrImport", "Failed to import character card JSON", exception)
+                importErrorMessage = context.getString(R.string.unknown_error)
                 showImportErrorMessage = true
             }
         } catch (e: Exception) {
             AppLogger.e("ColorQrImport", "Import failed", e)
-            val msg = e.message ?: e::class.java.simpleName
-            val causeMsg = e.cause?.message
             importErrorMessage = context.getString(
                 R.string.file_read_error,
-                if (causeMsg.isNullOrBlank() || causeMsg == msg) msg else "$msg (cause: $causeMsg)"
+                context.getString(R.string.unknown_error),
             )
             showImportErrorMessage = true
         }
@@ -492,26 +525,21 @@ fun ModelPromptsSettingsScreen(
                         jsonContent = jsonContent,
                         promptTagManager = promptTagManager
                     )
-                    Toast.makeText(
-                        context,
+                    showMessage(
                         context.getString(
                             R.string.tag_import_summary,
                             result.createdCount,
                             result.updatedCount,
                             result.skippedCount
-                        ),
-                        Toast.LENGTH_LONG
-                    ).show()
+                        )
+                    )
                 } catch (e: Exception) {
+                    AppLogger.e("ModelPromptsSettings", "Failed to import prompt tags", e)
                     val errorMessage = when (e.message) {
                         "invalid format", "missing tags array" -> context.getString(R.string.tag_import_invalid_format)
-                        else -> e.message ?: context.getString(R.string.unknown_error)
+                        else -> context.getString(R.string.unknown_error)
                     }
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.import_failed, errorMessage),
-                        Toast.LENGTH_LONG
-                    ).show()
+                    showMessage(context.getString(R.string.import_failed, errorMessage))
                 } finally {
                     isTagImporting = false
                 }
@@ -526,13 +554,13 @@ fun ModelPromptsSettingsScreen(
             try {
                 val tags = promptTagManager.getAllTags()
                 if (tags.isEmpty()) {
-                    Toast.makeText(context, context.getString(R.string.tag_export_no_custom_tags), Toast.LENGTH_SHORT).show()
+                    showMessage(context.getString(R.string.tag_export_no_custom_tags))
                     return@launch
                 }
 
                 val selectedTags = tags.filter { it.id in selectedIds }
                 if (selectedTags.isEmpty()) {
-                    Toast.makeText(context, context.getString(R.string.tag_export_select_at_least_one), Toast.LENGTH_SHORT).show()
+                    showMessage(context.getString(R.string.tag_export_select_at_least_one))
                     return@launch
                 }
 
@@ -548,14 +576,16 @@ fun ModelPromptsSettingsScreen(
                     exportSavedPath = savedPath
                     showExportSavedDialog = true
                 } else {
-                    Toast.makeText(context, context.getString(R.string.save_failed), Toast.LENGTH_SHORT).show()
+                    showMessage(context.getString(R.string.save_failed))
                 }
             } catch (e: Exception) {
-                Toast.makeText(
-                    context,
-                    context.getString(R.string.export_failed_with_reason, e.message ?: context.getString(R.string.unknown_error)),
-                    Toast.LENGTH_LONG
-                ).show()
+                AppLogger.e("ModelPromptsSettings", "Failed to export prompt tags", e)
+                showMessage(
+                    context.getString(
+                        R.string.export_failed_with_reason,
+                        context.getString(R.string.unknown_error),
+                    )
+                )
             } finally {
                 isTagExporting = false
             }
@@ -688,7 +718,7 @@ fun ModelPromptsSettingsScreen(
             characterCardManager.resetDefaultCharacterCard()
             showResetDefaultConfirm = false
             refreshTrigger++
-            Toast.makeText(context, context.getString(R.string.reset_successful), Toast.LENGTH_SHORT).show()
+            showMessage(context.getString(R.string.reset_successful))
         }
     }
 
@@ -790,7 +820,11 @@ fun ModelPromptsSettingsScreen(
         }
     }
 
-    CustomScaffold() { paddingValues ->
+    KiyoriSettingsWorkspacePage(
+        title = stringResource(R.string.kiyori_ai_settings_prompts_roles),
+        onBack = onBackPressed,
+        snackbarHostState = snackbarHostState,
+    ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -933,7 +967,7 @@ fun ModelPromptsSettingsScreen(
                         onImportTags = { tagImportFilePickerLauncher.launch("*/*") },
                         onExportTags = {
                             if (customTagsForExport.isEmpty()) {
-                                Toast.makeText(context, context.getString(R.string.tag_export_no_custom_tags), Toast.LENGTH_SHORT).show()
+                                showMessage(context.getString(R.string.tag_export_no_custom_tags))
                             } else {
                                 selectedTagExportIds = customTagsForExport.map { it.id }.toSet()
                                 showTagExportSelectionDialog = true
@@ -1276,7 +1310,7 @@ fun ModelPromptsSettingsScreen(
                 scope.launch {
                     editingGroupCard?.let { group ->
                         userPreferencesManager.saveAiAvatarForCharacterGroup(group.id, null)
-                        Toast.makeText(context, context.getString(R.string.avatar_reset), Toast.LENGTH_SHORT).show()
+                        showMessage(context.getString(R.string.avatar_reset))
                         refreshTrigger++
                     }
                 }
@@ -1304,7 +1338,7 @@ fun ModelPromptsSettingsScreen(
                 scope.launch {
                     editingGroupCard?.let { group ->
                         userPreferencesManager.saveAiAvatarForCharacterGroup(group.id, null)
-                        Toast.makeText(context, context.getString(R.string.avatar_reset), Toast.LENGTH_SHORT).show()
+                        showMessage(context.getString(R.string.avatar_reset))
                         refreshTrigger++
                     }
                 }
@@ -1596,10 +1630,15 @@ fun ModelPromptsSettingsScreen(
                                             exportSavedPath = savedPath
                                             showExportSavedDialog = true
                                         } else {
-                                            Toast.makeText(context, context.getString(R.string.save_failed), Toast.LENGTH_SHORT).show()
+                                            showMessage(context.getString(R.string.save_failed))
                                         }
                                     } catch (e: Exception) {
-                                        Toast.makeText(context, (e.message ?: context.getString(R.string.save_failed)), Toast.LENGTH_SHORT).show()
+                                        AppLogger.e(
+                                            "ModelPromptsSettings",
+                                            "Failed to export Tavern JSON",
+                                            e,
+                                        )
+                                        showMessage(context.getString(R.string.save_failed))
                                     } finally {
                                         isExportGenerating = false
                                     }
@@ -1668,10 +1707,15 @@ fun ModelPromptsSettingsScreen(
                                             exportSavedPath = savedPath
                                             showExportSavedDialog = true
                                         } else {
-                                            Toast.makeText(context, context.getString(R.string.save_failed), Toast.LENGTH_SHORT).show()
+                                            showMessage(context.getString(R.string.save_failed))
                                         }
                                     } catch (e: Exception) {
-                                        Toast.makeText(context, (e.message ?: context.getString(R.string.save_failed)), Toast.LENGTH_SHORT).show()
+                                        AppLogger.e(
+                                            "ModelPromptsSettings",
+                                            "Failed to export Tavern PNG",
+                                            e,
+                                        )
+                                        showMessage(context.getString(R.string.save_failed))
                                     } finally {
                                         isExportGenerating = false
                                     }
@@ -1736,7 +1780,7 @@ fun ModelPromptsSettingsScreen(
                     onClick = {
                         val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         cm.setPrimaryClip(ClipData.newPlainText("export_path", exportSavedPath))
-                        Toast.makeText(context, context.getString(R.string.copy), Toast.LENGTH_SHORT).show()
+                        showMessage(context.getString(R.string.copy))
                     }
                 ) {
                     Text(stringResource(R.string.copy))
@@ -1763,7 +1807,8 @@ fun ModelPromptsSettingsScreen(
             jsonResult.onSuccess { json ->
                 exportTavernJson = json
             }.onFailure { e ->
-                exportErrorMessage = e.message ?: context.getString(R.string.unknown_error)
+                AppLogger.e("ModelPromptsSettings", "Failed to prepare Tavern export", e)
+                exportErrorMessage = context.getString(R.string.unknown_error)
             }
             isExportGenerating = false
         }
@@ -1783,7 +1828,8 @@ fun ModelPromptsSettingsScreen(
                     )
                 }
             } catch (e: Exception) {
-                exportErrorMessage = e.message ?: context.getString(R.string.unknown_error)
+                AppLogger.e("ColorQrExport", "Failed to generate color QR export", e)
+                exportErrorMessage = context.getString(R.string.unknown_error)
             }
             isExportGenerating = false
         }
@@ -1872,17 +1918,15 @@ fun ModelPromptsSettingsScreen(
                     onClick = {
                         val bmp = exportQrBitmap
                         if (bmp == null) {
-                            Toast.makeText(context, context.getString(R.string.image_load_failed), Toast.LENGTH_SHORT).show()
+                            showMessage(context.getString(R.string.image_load_failed))
                             return@Button
                         }
                         scope.launch {
                             val fileName = "character_card_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.png"
                             val ok = saveBitmapToGallery(context, bmp, fileName)
-                            Toast.makeText(
-                                context,
+                            showMessage(
                                 if (ok) context.getString(R.string.image_saved) else context.getString(R.string.save_failed),
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            )
                         }
                     },
                     enabled = exportQrBitmap != null && !isExportGenerating
@@ -2985,7 +3029,11 @@ private fun GroupCardDialog(
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 textStyle = LocalTextStyle.current.copy(fontSize = 12.sp),
-                                shape = RoundedCornerShape(6.dp)
+                                shape =
+                                    RoundedCornerShape(
+                                        KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp
+                                    ),
+                                colors = kiyoriSettingsOutlinedTextFieldColors(),
                             )
                             Box(
                                 modifier = Modifier
@@ -3231,14 +3279,18 @@ fun TagDialog(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text(stringResource(R.string.tag_name)) },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
+                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                 )
 
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
                     label = { Text(stringResource(R.string.description_optional)) },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
+                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                 )
 
                 OutlinedTextField(
@@ -3249,7 +3301,9 @@ fun TagDialog(
                         .fillMaxWidth()
                         .heightIn(min = 120.dp, max = 280.dp),
                     minLines = 4,
-                    maxLines = 12
+                    maxLines = 12,
+                    shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
+                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                 )
                 }
             },
