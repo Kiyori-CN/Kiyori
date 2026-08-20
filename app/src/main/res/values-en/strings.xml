@@ -1982,8 +1982,6 @@
     <string name="author">Author</string>
 
     <!-- Speech Services Settings -->
-    <string name="speech_services_settings">Speech Services Settings</string>
-    <string name="speech_services_settings_desc">Configure text-to-speech and speech recognition settings</string>
     <string name="configure_speech_services">Configure Speech Services</string>
 
 
@@ -3892,7 +3890,6 @@
     <string name="screen_title_user_preferences_guide">User Preferences Guide</string>
     <string name="screen_title_user_preferences_settings">User Profile (user.md)</string>
     <string name="screen_title_model_config">Model &amp; Parameters Configuration</string>
-    <string name="screen_title_speech_services_settings">Speech Services Settings</string>
     <string name="screen_title_persona_card_generation">Persona Card Generation</string>
     <string name="screen_title_waifu_mode_settings">Waifu Mode Settings</string>
     <string name="screen_title_tag_market">Tag Market</string>

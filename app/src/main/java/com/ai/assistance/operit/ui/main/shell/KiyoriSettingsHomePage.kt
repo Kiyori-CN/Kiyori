@@ -27,11 +27,8 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.BrightnessAuto
-import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Folder
@@ -39,7 +36,6 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material3.DropdownMenu
@@ -86,11 +82,9 @@ internal enum class KiyoriSettingsHomeAction {
     NONE,
     OPEN_ACCOUNT_CONNECTIONS,
     OPEN_AI_ASSISTANT,
-    OPEN_SPEECH_SERVICES,
     OPEN_BROWSER_SETTINGS,
     OPEN_DOWNLOAD_SETTINGS,
     OPEN_PLAYER_SETTINGS,
-    OPEN_AD_BLOCKER_SETTINGS,
     OPEN_APPEARANCE_SETTINGS,
     OPEN_DATA_SETTINGS,
     OPEN_MORE_FEATURES,
@@ -149,12 +143,6 @@ internal val kiyoriSettingsHomeGroups =
                 KiyoriSettingsHomeAction.OPEN_AI_ASSISTANT,
             ),
             KiyoriSettingsHomeEntry(
-                "语音服务",
-                Icons.Default.RecordVoiceOver,
-                KiyoriSettingsHomeIconPalette.SPEECH_SERVICES,
-                KiyoriSettingsHomeAction.OPEN_SPEECH_SERVICES,
-            ),
-            KiyoriSettingsHomeEntry(
                 "小程序",
                 Icons.Default.Apps,
                 KiyoriSettingsHomeIconPalette.MINI_APP,
@@ -167,6 +155,19 @@ internal val kiyoriSettingsHomeGroups =
                 KiyoriSettingsHomeIconPalette.BROWSER,
                 KiyoriSettingsHomeAction.OPEN_BROWSER_SETTINGS,
             ),
+            KiyoriSettingsHomeEntry(
+                KIYORI_DOWNLOAD_SETTINGS_PAGE_TITLE,
+                Icons.Default.Download,
+                KiyoriSettingsHomeIconPalette.DOWNLOADS,
+                KiyoriSettingsHomeAction.OPEN_DOWNLOAD_SETTINGS,
+            ),
+            KiyoriSettingsHomeEntry(
+                "文件管理器",
+                Icons.Default.Folder,
+                KiyoriSettingsHomeIconPalette.FILE_MANAGER,
+            ),
+        ),
+        listOf(
             KiyoriSettingsHomeEntry(
                 KIYORI_PLAYER_SETTINGS_PAGE_TITLE,
                 Icons.Default.PlayCircle,
@@ -186,30 +187,6 @@ internal val kiyoriSettingsHomeGroups =
         ),
         listOf(
             KiyoriSettingsHomeEntry(
-                KIYORI_DOWNLOAD_SETTINGS_PAGE_TITLE,
-                Icons.Default.Download,
-                KiyoriSettingsHomeIconPalette.DOWNLOADS,
-                KiyoriSettingsHomeAction.OPEN_DOWNLOAD_SETTINGS,
-            ),
-            KiyoriSettingsHomeEntry(
-                "文件管理器",
-                Icons.Default.Folder,
-                KiyoriSettingsHomeIconPalette.FILE_MANAGER,
-            ),
-            KiyoriSettingsHomeEntry(
-                "广告拦截器",
-                Icons.Default.Block,
-                KiyoriSettingsHomeIconPalette.AD_BLOCKER,
-                KiyoriSettingsHomeAction.OPEN_AD_BLOCKER_SETTINGS,
-            ),
-            KiyoriSettingsHomeEntry(
-                "日志记录器",
-                Icons.Default.BugReport,
-                KiyoriSettingsHomeIconPalette.LOGS,
-            ),
-        ),
-        listOf(
-            KiyoriSettingsHomeEntry(
                 "界面定制",
                 Icons.Default.Palette,
                 KiyoriSettingsHomeIconPalette.APPEARANCE,
@@ -220,11 +197,6 @@ internal val kiyoriSettingsHomeGroups =
                 Icons.Default.Backup,
                 KiyoriSettingsHomeIconPalette.DATA_BACKUP,
                 KiyoriSettingsHomeAction.OPEN_DATA_SETTINGS,
-            ),
-            KiyoriSettingsHomeEntry(
-                "开发手册",
-                Icons.Default.Code,
-                KiyoriSettingsHomeIconPalette.DEVELOPER_GUIDE,
             ),
             KiyoriSettingsHomeEntry(
                 "更多功能",
@@ -239,11 +211,9 @@ internal val kiyoriSettingsHomeGroups =
 internal fun KiyoriSettingsHomePage(
     onOpenAccountConnections: () -> Unit,
     onOpenAiAssistant: () -> Unit,
-    onOpenSpeechServices: () -> Unit,
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
     onOpenPlayerSettings: () -> Unit,
-    onOpenAdBlockSettings: () -> Unit,
     onOpenAppearanceSettings: () -> Unit,
     onOpenDataSettings: () -> Unit,
     onOpenMoreFeatures: () -> Unit,
@@ -310,11 +280,9 @@ internal fun KiyoriSettingsHomePage(
                     entries = group,
                     onOpenAccountConnections = onOpenAccountConnections,
                     onOpenAiAssistant = onOpenAiAssistant,
-                    onOpenSpeechServices = onOpenSpeechServices,
                     onOpenBrowserSettings = onOpenBrowserSettings,
                     onOpenDownloadSettings = onOpenDownloadSettings,
                     onOpenPlayerSettings = onOpenPlayerSettings,
-                    onOpenAdBlockSettings = onOpenAdBlockSettings,
                     onOpenAppearanceSettings = onOpenAppearanceSettings,
                     onOpenDataSettings = onOpenDataSettings,
                     onOpenMoreFeatures = onOpenMoreFeatures,
@@ -511,11 +479,9 @@ private fun KiyoriSettingsHomeGroupCard(
     entries: List<KiyoriSettingsHomeEntry>,
     onOpenAccountConnections: () -> Unit,
     onOpenAiAssistant: () -> Unit,
-    onOpenSpeechServices: () -> Unit,
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
     onOpenPlayerSettings: () -> Unit,
-    onOpenAdBlockSettings: () -> Unit,
     onOpenAppearanceSettings: () -> Unit,
     onOpenDataSettings: () -> Unit,
     onOpenMoreFeatures: () -> Unit,
@@ -528,11 +494,9 @@ private fun KiyoriSettingsHomeGroupCard(
                 entry = entry,
                 onOpenAccountConnections = onOpenAccountConnections,
                 onOpenAiAssistant = onOpenAiAssistant,
-                onOpenSpeechServices = onOpenSpeechServices,
                 onOpenBrowserSettings = onOpenBrowserSettings,
                 onOpenDownloadSettings = onOpenDownloadSettings,
                 onOpenPlayerSettings = onOpenPlayerSettings,
-                onOpenAdBlockSettings = onOpenAdBlockSettings,
                 onOpenAppearanceSettings = onOpenAppearanceSettings,
                 onOpenDataSettings = onOpenDataSettings,
                 onOpenMoreFeatures = onOpenMoreFeatures,
@@ -555,11 +519,9 @@ private fun KiyoriSettingsHomeRow(
     entry: KiyoriSettingsHomeEntry,
     onOpenAccountConnections: () -> Unit,
     onOpenAiAssistant: () -> Unit,
-    onOpenSpeechServices: () -> Unit,
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
     onOpenPlayerSettings: () -> Unit,
-    onOpenAdBlockSettings: () -> Unit,
     onOpenAppearanceSettings: () -> Unit,
     onOpenDataSettings: () -> Unit,
     onOpenMoreFeatures: () -> Unit,
@@ -576,13 +538,9 @@ private fun KiyoriSettingsHomeRow(
                         KiyoriSettingsHomeAction.OPEN_ACCOUNT_CONNECTIONS ->
                             onOpenAccountConnections()
                         KiyoriSettingsHomeAction.OPEN_AI_ASSISTANT -> onOpenAiAssistant()
-                        KiyoriSettingsHomeAction.OPEN_SPEECH_SERVICES ->
-                            onOpenSpeechServices()
                         KiyoriSettingsHomeAction.OPEN_BROWSER_SETTINGS -> onOpenBrowserSettings()
                         KiyoriSettingsHomeAction.OPEN_DOWNLOAD_SETTINGS -> onOpenDownloadSettings()
                         KiyoriSettingsHomeAction.OPEN_PLAYER_SETTINGS -> onOpenPlayerSettings()
-                        KiyoriSettingsHomeAction.OPEN_AD_BLOCKER_SETTINGS ->
-                            onOpenAdBlockSettings()
                         KiyoriSettingsHomeAction.OPEN_APPEARANCE_SETTINGS ->
                             onOpenAppearanceSettings()
                         KiyoriSettingsHomeAction.OPEN_DATA_SETTINGS -> onOpenDataSettings()

@@ -1943,8 +1943,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
 
     <string name="configure_speech_services">Konfigurasi Layanan Suara</string>
     <string name="microphone_permission_required_title">Izin Mikrofon Diperlukan</string>
-    <string name="speech_services_settings">Pengaturan Layanan Suara</string>
-    <string name="speech_services_settings_desc">Konfigurasi pengaturan teks-ke-suara dan pengenalan suara</string>
     <string name="wifi">WiFi</string>
     <string name="confirmation_code_copied">Kode konfirmasi telah disalin!</string>
     <string name="message_copied">Pesan telah disalin ke papan klip</string>
@@ -3102,7 +3100,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="screen_title_user_preferences_guide">Panduan Preferensi Pengguna</string>
     <string name="screen_title_user_preferences_settings">Profil Pengguna (user.md)</string>
     <string name="screen_title_model_config">Konfigurasi Model &amp; Parameter</string>
-    <string name="screen_title_speech_services_settings">Pengaturan Layanan Ucapan</string>
     <string name="screen_title_persona_card_generation">Pembuatan Kartu Persona</string>
     <string name="screen_title_waifu_mode_settings">Pengaturan Mode Waifu</string>
     <string name="screen_title_tag_market">Pasar Tag</string>

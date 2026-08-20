@@ -21,6 +21,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -46,6 +47,8 @@ internal const val KIYORI_SETTINGS_SELECTION_OPTION_MIN_HEIGHT_DP = 56
 internal const val KIYORI_SETTINGS_SELECTION_OPTION_VERTICAL_PADDING_DP = 13
 internal const val KIYORI_SETTINGS_SELECTION_CHECK_ICON_SIZE_DP = 21
 internal const val KIYORI_SETTINGS_SELECTION_CANCEL_VERTICAL_PADDING_DP = 17
+internal const val KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP = 14
+internal const val KIYORI_SETTINGS_FIELD_HORIZONTAL_PADDING_DP = 18
 
 internal enum class KiyoriSettingsRowKind {
     NAVIGATION,
@@ -64,6 +67,18 @@ internal data class KiyoriSettingsSelection(
     val currentValue: String,
     val options: List<KiyoriSettingsSelectionOption>,
 )
+
+@Composable
+internal fun kiyoriSettingsOutlinedTextFieldColors() =
+    OutlinedTextFieldDefaults.colors(
+        focusedContainerColor = LocalKiyoriSettingsColors.current.pageBackground,
+        unfocusedContainerColor = LocalKiyoriSettingsColors.current.pageBackground,
+        focusedBorderColor = LocalKiyoriSettingsColors.current.accent,
+        unfocusedBorderColor = LocalKiyoriSettingsColors.current.divider,
+        focusedLabelColor = LocalKiyoriSettingsColors.current.accent,
+        unfocusedLabelColor = LocalKiyoriSettingsColors.current.secondaryText,
+        cursorColor = LocalKiyoriSettingsColors.current.accent,
+    )
 
 @Composable
 internal fun KiyoriSettingsGroupSection(
@@ -220,7 +235,18 @@ internal fun KiyoriSettingsSelectionSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        dragHandle = null,
+        dragHandle = {
+            Box(
+                modifier =
+                    Modifier
+                        .padding(top = 10.dp, bottom = 6.dp)
+                        .size(width = 36.dp, height = 4.dp)
+                        .background(
+                            color = colors.mutedIcon.copy(alpha = 0.55f),
+                            shape = RoundedCornerShape(50),
+                        ),
+            )
+        },
         shape =
             RoundedCornerShape(
                 topStart = KIYORI_SETTINGS_SELECTION_CORNER_RADIUS_DP.dp,

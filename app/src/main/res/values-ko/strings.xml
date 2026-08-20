@@ -1811,8 +1811,6 @@
     <string name="author">저자</string>
     <string name="configure_speech_services">음성 서비스 구성</string>
     <string name="microphone_permission_required_title">마이크 권한 필요</string>
-    <string name="speech_services_settings">음성 서비스 설정</string>
-    <string name="speech_services_settings_desc">텍스트 음성 변환 및 음성 인식 설정 구성</string>
     <string name="wifi">Wi-Fi</string>
     <string name="confirmation_code_copied">확인코드가 복사되었습니다!</string>
     <string name="message_copied">메시지가 클립보드에 복사되었습니다.</string>
@@ -3316,7 +3314,6 @@
     <string name="screen_title_user_preferences_guide">사용자 기본 설정 가이드</string>
     <string name="screen_title_user_preferences_settings">사용자 프로필 (user.md)</string>
     <string name="screen_title_model_config">모델 및 매개변수 구성</string>
-    <string name="screen_title_speech_services_settings">음성 서비스 설정</string>
     <string name="screen_title_persona_card_generation">페르소나 카드 생성</string>
     <string name="screen_title_waifu_mode_settings">Waifu 모드 설정</string>
     <string name="screen_title_tag_market">태그 마켓</string>

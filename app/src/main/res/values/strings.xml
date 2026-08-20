@@ -2042,8 +2042,6 @@
     <!-- 缺失的字符串 -->
     <string name="configure_speech_services">配置语音服务</string>
     <string name="microphone_permission_required_title">需要麦克风权限</string>
-    <string name="speech_services_settings">语音服务设置</string>
-    <string name="speech_services_settings_desc">配置文本转语音和语音识别设置</string>
     <string name="wifi">WiFi</string>
 
     <!-- Toast 消息 -->
@@ -3772,7 +3770,6 @@
     <string name="screen_title_user_preferences_guide">用户偏好引导</string>
     <string name="screen_title_user_preferences_settings">用户资料（user.md）</string>
     <string name="screen_title_model_config">模型与参数配置</string>
-    <string name="screen_title_speech_services_settings">语音服务设置</string>
     <string name="screen_title_persona_card_generation">人设卡生成</string>
     <string name="screen_title_waifu_mode_settings">Waifu模式设置</string>
     <string name="screen_title_tag_market">标签市场</string>
@@ -3795,7 +3792,7 @@
     <string name="screen_title_markdown_demo">流式Markdown演示</string>
     <string name="screen_title_tool_tester">工具测试中心</string>
     <string name="screen_title_text_to_speech">文本转语音</string>
-    <string name="screen_title_speech_to_text">语音识别</string>
+    <string name="screen_title_speech_to_text">语音转文本</string>
     <string name="screen_title_process_limit_remover">解除幻象进程限制</string>
     <string name="screen_title_autoglm_one_click">AutoGLM 一键配置</string>
     <string name="screen_title_autoglm_tool">autoglm执行</string>

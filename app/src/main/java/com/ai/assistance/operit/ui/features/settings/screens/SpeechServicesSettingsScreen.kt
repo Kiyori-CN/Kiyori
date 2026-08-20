@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -31,7 +32,6 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -77,6 +77,9 @@ import com.ai.assistance.operit.ui.main.shell.KiyoriCollapsingSettingsPage
 import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsGroupSection
 import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsRow
 import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsRowKind
+import com.ai.assistance.operit.ui.main.shell.KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP
+import com.ai.assistance.operit.ui.main.shell.KIYORI_SETTINGS_FIELD_HORIZONTAL_PADDING_DP
+import com.ai.assistance.operit.ui.main.shell.kiyoriSettingsOutlinedTextFieldColors
 import com.ai.assistance.operit.api.voice.SiliconFlowVoiceProvider
 import com.ai.assistance.operit.api.voice.MimoVoiceProvider
 import com.ai.assistance.operit.api.voice.DoubaoVoiceProvider
@@ -90,10 +93,16 @@ import androidx.compose.runtime.LaunchedEffect
 import com.ai.assistance.operit.util.AppLogger
 import kotlinx.coroutines.CancellationException
 
+internal enum class SpeechSettingsSection {
+    TEXT_TO_SPEECH,
+    SPEECH_TO_TEXT,
+}
+
 @SuppressLint("LocalContextGetResourceValueCall")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SpeechServicesSettingsScreen(
+internal fun SpeechServicesSettingsScreen(
+    section: SpeechSettingsSection,
     onBackPressed: () -> Unit,
     onNavigateToTextToSpeech: () -> Unit = {}
 ) {
@@ -347,7 +356,11 @@ fun SpeechServicesSettingsScreen(
 
 
     KiyoriCollapsingSettingsPage(
-        title = "语音服务",
+        title =
+            when (section) {
+                SpeechSettingsSection.TEXT_TO_SPEECH -> "文本转语音"
+                SpeechSettingsSection.SPEECH_TO_TEXT -> "语音转文本"
+            },
         onBack = onBackPressed,
     ) {
         if (autoSaveFailed) {
@@ -377,12 +390,19 @@ fun SpeechServicesSettingsScreen(
                 }
             }
         }
-        item(key = "speech_tts") {
+        if (section == SpeechSettingsSection.TEXT_TO_SPEECH) {
+            item(key = "speech_tts") {
             KiyoriSettingsGroupSection(
                 title = stringResource(R.string.speech_services_tts_title),
                 description = stringResource(R.string.speech_services_tts_desc),
             ) {
-                Column(modifier = Modifier.padding(18.dp)) {
+                Column(
+                    modifier =
+                        Modifier.padding(
+                            horizontal = KIYORI_SETTINGS_FIELD_HORIZONTAL_PADDING_DP.dp,
+                            vertical = 12.dp,
+                        ),
+                ) {
 
                         Text(
                             text = stringResource(R.string.speech_services_service_type),
@@ -418,7 +438,12 @@ fun SpeechServicesSettingsScreen(
                                 modifier =
                                     Modifier
                                         .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                                        .fillMaxWidth()
+                                        .fillMaxWidth(),
+                                shape =
+                                    RoundedCornerShape(
+                                        KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
+                                    ),
+                                colors = kiyoriSettingsOutlinedTextFieldColors(),
                             )
                             ExposedDropdownMenu(
                                 expanded = ttsDropdownExpanded,
@@ -530,7 +555,12 @@ fun SpeechServicesSettingsScreen(
                                         modifier =
                                             Modifier
                                                 .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                                                .fillMaxWidth()
+                                                .fillMaxWidth(),
+                                        shape =
+                                            RoundedCornerShape(
+                                                KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
+                                            ),
+                                        colors = kiyoriSettingsOutlinedTextFieldColors(),
                                     )
                                     ExposedDropdownMenu(
                                         expanded = simpleTtsLocaleExpanded,
@@ -567,6 +597,11 @@ fun SpeechServicesSettingsScreen(
                                     readOnly = true,
                                     label = { Text(stringResource(R.string.speech_services_simple_tts_voice)) },
                                     modifier = Modifier.fillMaxWidth(),
+                                    shape =
+                                        RoundedCornerShape(
+                                            KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
+                                        ),
+                                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                                     trailingIcon = {
                                         Row {
                                             if (ttsVoiceIdInput.isNotBlank()) {
@@ -641,6 +676,11 @@ fun SpeechServicesSettingsScreen(
                                         placeholder = { Text(stringResource(R.string.speech_services_tts_cleaner_placeholder)) },
                                         modifier = Modifier.weight(1f),
                                         singleLine = true,
+                                        shape =
+                                            RoundedCornerShape(
+                                                KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
+                                            ),
+                                        colors = kiyoriSettingsOutlinedTextFieldColors(),
                                     )
                                     IconButton(onClick = { ttsCleanerRegexsState.removeAt(index) }) {
                                         Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.speech_services_tts_cleaner_delete))
@@ -1974,14 +2014,22 @@ fun SpeechServicesSettingsScreen(
                         }
                 }
             }
+            }
         }
 
-        item(key = "speech_stt") {
+        if (section == SpeechSettingsSection.SPEECH_TO_TEXT) {
+            item(key = "speech_stt") {
             KiyoriSettingsGroupSection(
                 title = stringResource(R.string.speech_services_stt_title),
                 description = stringResource(R.string.speech_services_stt_desc),
             ) {
-                Column(modifier = Modifier.padding(18.dp)) {
+                Column(
+                    modifier =
+                        Modifier.padding(
+                            horizontal = KIYORI_SETTINGS_FIELD_HORIZONTAL_PADDING_DP.dp,
+                            vertical = 12.dp,
+                        ),
+                ) {
 
                         Text(
                             text = stringResource(R.string.speech_services_service_type),
@@ -2011,7 +2059,12 @@ fun SpeechServicesSettingsScreen(
                                 modifier =
                                     Modifier
                                         .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                                        .fillMaxWidth()
+                                        .fillMaxWidth(),
+                                shape =
+                                    RoundedCornerShape(
+                                        KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
+                                    ),
+                                colors = kiyoriSettingsOutlinedTextFieldColors(),
                             )
                             ExposedDropdownMenu(
                                 expanded = sttDropdownExpanded,
@@ -2056,6 +2109,11 @@ fun SpeechServicesSettingsScreen(
                                     placeholder = { Text(stringResource(R.string.speech_services_openai_stt_url_placeholder)) },
                                     modifier = Modifier.fillMaxWidth(),
                                     singleLine = true,
+                                    shape =
+                                        RoundedCornerShape(
+                                            KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
+                                        ),
+                                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                                     supportingText = {
                                         Text(
                                             text = stringResource(R.string.speech_services_openai_stt_url_hint),
@@ -2073,7 +2131,12 @@ fun SpeechServicesSettingsScreen(
                                     label = { Text(stringResource(R.string.speech_services_openai_stt_api_key)) },
                                     placeholder = { Text(stringResource(R.string.speech_services_openai_stt_api_key_placeholder)) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true
+                                    singleLine = true,
+                                    shape =
+                                        RoundedCornerShape(
+                                            KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
+                                        ),
+                                    colors = kiyoriSettingsOutlinedTextFieldColors()
                                 )
 
                                 Spacer(modifier = Modifier.height(12.dp))
@@ -2084,7 +2147,12 @@ fun SpeechServicesSettingsScreen(
                                     label = { Text(stringResource(R.string.speech_services_openai_stt_model)) },
                                     placeholder = { Text(stringResource(R.string.speech_services_openai_stt_model_placeholder)) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true
+                                    singleLine = true,
+                                    shape =
+                                        RoundedCornerShape(
+                                            KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
+                                        ),
+                                    colors = kiyoriSettingsOutlinedTextFieldColors()
                                 )
                             }
                         }
@@ -2106,6 +2174,11 @@ fun SpeechServicesSettingsScreen(
                                     placeholder = { Text(stringResource(R.string.speech_services_deepgram_stt_url_placeholder)) },
                                     modifier = Modifier.fillMaxWidth(),
                                     singleLine = true,
+                                    shape =
+                                        RoundedCornerShape(
+                                            KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
+                                        ),
+                                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                                     supportingText = {
                                         Text(
                                             text = stringResource(R.string.speech_services_deepgram_stt_url_hint),
@@ -2123,7 +2196,12 @@ fun SpeechServicesSettingsScreen(
                                     label = { Text(stringResource(R.string.speech_services_deepgram_stt_api_key)) },
                                     placeholder = { Text(stringResource(R.string.speech_services_deepgram_stt_api_key_placeholder)) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true
+                                    singleLine = true,
+                                    shape =
+                                        RoundedCornerShape(
+                                            KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
+                                        ),
+                                    colors = kiyoriSettingsOutlinedTextFieldColors()
                                 )
 
                                 Spacer(modifier = Modifier.height(12.dp))
@@ -2134,7 +2212,12 @@ fun SpeechServicesSettingsScreen(
                                     label = { Text(stringResource(R.string.speech_services_deepgram_stt_model)) },
                                     placeholder = { Text(stringResource(R.string.speech_services_deepgram_stt_model_placeholder)) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true
+                                    singleLine = true,
+                                    shape =
+                                        RoundedCornerShape(
+                                            KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp,
+                                        ),
+                                    colors = kiyoriSettingsOutlinedTextFieldColors()
                                 )
                             }
                         }
@@ -2162,43 +2245,52 @@ fun SpeechServicesSettingsScreen(
                         }
                 }
             }
+            }
         }
 
         item(key = "speech_information") {
             KiyoriSettingsGroupSection(
-                title = stringResource(R.string.speech_services_info_title),
-                description = stringResource(R.string.speech_services_settings_desc),
+                title = "能力说明",
+                description = "了解当前语音能力的配置范围与运行方式",
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
-                            SettingsInfoRow(
-                                title = stringResource(R.string.speech_services_info_tts_title),
-                                description = stringResource(R.string.speech_services_info_tts_desc)
-                            )
-                            
-                            HorizontalDivider(
-                                modifier = Modifier.padding(vertical = 8.dp),
-                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
-                            )
-                            
-                            SettingsInfoRow(
-                                title = stringResource(R.string.speech_services_info_stt_title),
-                                description = stringResource(R.string.speech_services_info_stt_desc)
-                            )
+                    SettingsInfoRow(
+                        title =
+                            stringResource(
+                                when (section) {
+                                    SpeechSettingsSection.TEXT_TO_SPEECH ->
+                                        R.string.speech_services_info_tts_title
+                                    SpeechSettingsSection.SPEECH_TO_TEXT ->
+                                        R.string.speech_services_info_stt_title
+                                },
+                            ),
+                        description =
+                            stringResource(
+                                when (section) {
+                                    SpeechSettingsSection.TEXT_TO_SPEECH ->
+                                        R.string.speech_services_info_tts_desc
+                                    SpeechSettingsSection.SPEECH_TO_TEXT ->
+                                        R.string.speech_services_info_stt_desc
+                                },
+                            ),
+                    )
                 }
             }
         }
 
-        item(key = "speech_tools") {
-            KiyoriSettingsGroupSection(
-                title = "语音工具",
-                description = "使用当前语音配置进行文本朗读测试",
-            ) {
-                KiyoriSettingsRow(
-                    title = stringResource(R.string.speech_services_test_tts),
-                    description = "打开文本朗读工具并验证当前语音合成配置",
-                    kind = KiyoriSettingsRowKind.NAVIGATION,
-                    onClick = onNavigateToTextToSpeech,
-                )
+        if (section == SpeechSettingsSection.TEXT_TO_SPEECH) {
+            item(key = "speech_tools") {
+                KiyoriSettingsGroupSection(
+                    title = "语音工具",
+                    description = "使用当前语音配置进行文本朗读测试",
+                ) {
+                    KiyoriSettingsRow(
+                        title = stringResource(R.string.speech_services_test_tts),
+                        description = "打开文本朗读工具并验证当前语音合成配置",
+                        kind = KiyoriSettingsRowKind.NAVIGATION,
+                        onClick = onNavigateToTextToSpeech,
+                    )
+                }
             }
         }
     }

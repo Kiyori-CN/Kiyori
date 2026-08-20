@@ -72,31 +72,29 @@ class KiyoriSettingsPagesTest {
         assertEquals(13, KIYORI_SETTINGS_SELECTION_OPTION_VERTICAL_PADDING_DP)
         assertEquals(21, KIYORI_SETTINGS_SELECTION_CHECK_ICON_SIZE_DP)
         assertEquals(17, KIYORI_SETTINGS_SELECTION_CANCEL_VERTICAL_PADDING_DP)
+        assertEquals(14, KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP)
+        assertEquals(18, KIYORI_SETTINGS_FIELD_HORIZONTAL_PADDING_DP)
     }
 
     @Test
-    fun `settings home keeps four balanced groups and exposes real settings actions`() {
+    fun `settings home keeps four three-item groups and exposes real settings actions`() {
         assertEquals(
-            listOf(4, 4, 4, 4),
+            listOf(3, 3, 3, 3),
             kiyoriSettingsHomeGroups.map { group -> group.size },
         )
         assertEquals(
             listOf(
                 "我的账号",
                 "AI助手",
-                "语音服务",
                 "小程序",
                 "网页浏览器",
+                "文件下载器",
+                "文件管理器",
                 "视频播放器",
                 "音乐播放器",
                 "文档阅读器",
-                "文件下载器",
-                "文件管理器",
-                "广告拦截器",
-                "日志记录器",
                 "界面定制",
                 "数据备份",
-                "开发手册",
                 "更多功能",
             ),
             kiyoriSettingsHomeGroups.flatten().map(KiyoriSettingsHomeEntry::title),
@@ -116,15 +114,6 @@ class KiyoriSettingsPagesTest {
                 .flatten()
                 .filter { entry ->
                     entry.action == KiyoriSettingsHomeAction.OPEN_AI_ASSISTANT
-                }
-                .map(KiyoriSettingsHomeEntry::title),
-        )
-        assertEquals(
-            listOf("语音服务"),
-            kiyoriSettingsHomeGroups
-                .flatten()
-                .filter { entry ->
-                    entry.action == KiyoriSettingsHomeAction.OPEN_SPEECH_SERVICES
                 }
                 .map(KiyoriSettingsHomeEntry::title),
         )
@@ -163,14 +152,12 @@ class KiyoriSettingsPagesTest {
                 }
                 .map(KiyoriSettingsHomeEntry::title),
         )
-        assertEquals(
-            listOf("广告拦截器"),
+        assertTrue(
             kiyoriSettingsHomeGroups
                 .flatten()
-                .filter { entry ->
-                    entry.action == KiyoriSettingsHomeAction.OPEN_AD_BLOCKER_SETTINGS
-                }
-                .map(KiyoriSettingsHomeEntry::title),
+                .none { entry ->
+                    entry.title in setOf("语音服务", "广告拦截器", "日志记录器", "开发手册")
+                },
         )
         assertEquals(
             listOf("界面定制"),
@@ -228,17 +215,19 @@ class KiyoriSettingsPagesTest {
         assertEquals("虚拟形象配置", KIYORI_AVATAR_SETTINGS_PAGE_TITLE)
         assertEquals("语音唤醒", KIYORI_VOICE_WAKEUP_SETTINGS_PAGE_TITLE)
         assertEquals(
-            listOf(2, 2, 4, 2, 2),
+            listOf(2, 2, 2, 4, 2, 2),
             kiyoriAiAssistantSettingsGroups.map { group -> group.entries.size },
         )
         assertEquals(
-            listOf("助手体验", "模型与服务", "对话与角色", "上下文与安全", "使用与连接"),
+            listOf("助手体验", "语音与交互", "模型与服务", "对话与角色", "上下文与安全", "使用与连接"),
             kiyoriAiAssistantSettingsGroups.map { group -> group.title },
         )
         assertEquals(
             listOf(
                 "虚拟形象配置",
                 "语音唤醒",
+                "文本转语音",
+                "语音转文本",
                 "模型与 API",
                 "功能模型",
                 "用户偏好",
@@ -355,11 +344,11 @@ class KiyoriSettingsPagesTest {
     }
 
     @Test
-    fun `settings home uses sixteen unique icons and semantic palettes`() {
+    fun `settings home uses twelve unique icons and semantic palettes`() {
         val entries = kiyoriSettingsHomeGroups.flatten()
 
-        assertEquals(16, entries.size)
-        assertEquals(16, entries.map { entry -> entry.icon.name }.toSet().size)
+        assertEquals(12, entries.size)
+        assertEquals(12, entries.map { entry -> entry.icon.name }.toSet().size)
         assertEquals(
             KiyoriSettingsHomeIconPalette.entries.toList(),
             entries.map { entry -> entry.iconPalette },
@@ -373,7 +362,8 @@ class KiyoriSettingsPagesTest {
             Screen.Settings,
             Screen.AvatarSettings,
             Screen.VoiceWakeupSettings,
-            Screen.SpeechServicesSettings,
+            Screen.TextToSpeechSettings,
+            Screen.SpeechToTextSettings,
             Screen.AppearanceSettings,
             Screen.DataManagementSettings,
         ).forEach { screen ->
@@ -412,6 +402,8 @@ class KiyoriSettingsPagesTest {
             Screen.ChatHistorySettings,
             Screen.ChatBackupSettings,
             Screen.LanguageSettings,
+            Screen.TextToSpeechSettings,
+            Screen.SpeechToTextSettings,
             Screen.TextToSpeech,
         ).forEach { screen ->
             val entry =

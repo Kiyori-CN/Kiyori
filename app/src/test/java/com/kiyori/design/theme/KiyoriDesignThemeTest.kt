@@ -139,7 +139,7 @@ class KiyoriDesignThemeTest {
     }
 
     @Test
-    fun `settings home keeps all sixteen icon palettes distinct and readable`() {
+    fun `settings home keeps all twelve icon palettes distinct and readable`() {
         val lightPairs =
             KiyoriSettingsHomeIconPalette.entries.map { palette ->
                 resolveKiyoriSettingsHomeIconColors(palette, isDark = false)
@@ -149,11 +149,11 @@ class KiyoriDesignThemeTest {
                 resolveKiyoriSettingsHomeIconColors(palette, isDark = true)
             }
 
-        assertEquals(16, KiyoriSettingsHomeIconPalette.entries.size)
-        assertEquals(16, lightPairs.map { colors -> colors.icon }.toSet().size)
-        assertEquals(16, lightPairs.map { colors -> colors.container }.toSet().size)
-        assertEquals(16, darkPairs.map { colors -> colors.icon }.toSet().size)
-        assertEquals(16, darkPairs.map { colors -> colors.container }.toSet().size)
+        assertEquals(12, KiyoriSettingsHomeIconPalette.entries.size)
+        assertEquals(12, lightPairs.map { colors -> colors.icon }.toSet().size)
+        assertEquals(12, lightPairs.map { colors -> colors.container }.toSet().size)
+        assertEquals(12, darkPairs.map { colors -> colors.icon }.toSet().size)
+        assertEquals(12, darkPairs.map { colors -> colors.container }.toSet().size)
         assertTrue(lightPairs.zip(darkPairs).all { (light, dark) -> light != dark })
         assertTrue(
             (lightPairs + darkPairs).all { colors ->

@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
@@ -42,6 +43,8 @@ import kotlinx.coroutines.launch
 internal enum class KiyoriAiAssistantSettingsAction {
     OPEN_AVATAR_SETTINGS,
     OPEN_VOICE_WAKEUP_SETTINGS,
+    OPEN_TEXT_TO_SPEECH_SETTINGS,
+    OPEN_SPEECH_TO_TEXT_SETTINGS,
     OPEN_USER_PREFERENCES,
     OPEN_MODEL_CONFIG,
     OPEN_FUNCTIONAL_CONFIG,
@@ -88,6 +91,27 @@ internal val kiyoriAiAssistantSettingsGroups =
                         icon = Icons.Default.Mic,
                         iconTone = KiyoriSemanticTone.CYAN,
                         action = KiyoriAiAssistantSettingsAction.OPEN_VOICE_WAKEUP_SETTINGS,
+                    ),
+                ),
+        ),
+        KiyoriNavigationSettingsGroupSpec(
+            title = "语音与交互",
+            description = "配置 AI 的朗读和语音识别能力，所有设置会即时应用到现有语音运行时",
+            entries =
+                listOf(
+                    KiyoriNavigationSettingsEntrySpec(
+                        title = "文本转语音",
+                        description = "选择 TTS 引擎、音色、语速、音调和朗读前的文本清洗规则",
+                        icon = Icons.Default.RecordVoiceOver,
+                        iconTone = KiyoriSemanticTone.ORANGE,
+                        action = KiyoriAiAssistantSettingsAction.OPEN_TEXT_TO_SPEECH_SETTINGS,
+                    ),
+                    KiyoriNavigationSettingsEntrySpec(
+                        title = "语音转文本",
+                        description = "选择本地或远程 STT 引擎，并配置语音识别服务",
+                        icon = Icons.Default.Mic,
+                        iconTone = KiyoriSemanticTone.CYAN,
+                        action = KiyoriAiAssistantSettingsAction.OPEN_SPEECH_TO_TEXT_SETTINGS,
                     ),
                 ),
         ),
@@ -276,7 +300,7 @@ internal fun KiyoriAiAssistantSettingsPage(
     modifier: Modifier = Modifier,
 ) {
     KiyoriNavigationSettingsPage(
-        title = "AI 助手",
+        title = "AI助手",
         groups = kiyoriAiAssistantSettingsGroups,
         onAction = onAction,
         modifier = modifier,

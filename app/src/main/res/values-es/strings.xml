@@ -633,8 +633,6 @@
     <string name="author">Autor</string>
     
     <!-- Speech Services Settings -->
-    <string name="speech_services_settings">Configuración de Servicios de Voz</string>
-    <string name="speech_services_settings_desc">Configurar texto a voz y reconocimiento de voz</string>
     <string name="configure_speech_services">Configurar Servicios de Voz</string>
     
     <!-- Settings Screen Sections -->
@@ -3215,7 +3213,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="screen_title_user_preferences_guide">Guía de preferencias de usuario</string>
     <string name="screen_title_user_preferences_settings">Perfil de usuario (user.md)</string>
     <string name="screen_title_model_config">Configuración del modelo y parámetros</string>
-    <string name="screen_title_speech_services_settings">Ajustes de servicios de voz</string>
     <string name="screen_title_persona_card_generation">Generación de tarjeta de personaje</string>
     <string name="screen_title_waifu_mode_settings">Ajustes del modo Waifu</string>
     <string name="screen_title_tag_market">Mercado de etiquetas</string>

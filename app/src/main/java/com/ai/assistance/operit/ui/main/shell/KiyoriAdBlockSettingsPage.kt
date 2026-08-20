@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Block
@@ -1669,6 +1670,8 @@ private fun KiyoriAdBlockEditorDialog(
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,
                     maxLines = 5,
+                    shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
+                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                 )
             }
         }
@@ -1693,6 +1696,8 @@ private fun KiyoriAdBlockEditorDialog(
                     label = { Text("站点域名") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
+                    shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
+                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                 )
                 OutlinedTextField(
                     value = selector,
@@ -1701,6 +1706,8 @@ private fun KiyoriAdBlockEditorDialog(
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,
                     maxLines = 5,
+                    shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
+                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                 )
             }
         }
@@ -1720,6 +1727,8 @@ private fun KiyoriAdBlockEditorDialog(
                     label = { Text("站点域名") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
+                    shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
+                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                 )
             }
         }
@@ -1751,6 +1760,8 @@ private fun KiyoriAdBlockEditorDialog(
                     label = { Text("订阅名称") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
+                    shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
+                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                 )
                 OutlinedTextField(
                     value = url,
@@ -1759,6 +1770,8 @@ private fun KiyoriAdBlockEditorDialog(
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,
                     maxLines = 4,
+                    shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
+                    colors = kiyoriSettingsOutlinedTextFieldColors(),
                 )
             }
         }

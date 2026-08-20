@@ -907,12 +907,6 @@ fun KiyoriApp(
                         )
                     }
                 },
-                onOpenSpeechServicesFromKiyoriSettings = {
-                    openKiyoriSettingsRoot(
-                        screen = Screen.SpeechServicesSettings,
-                        rootId = "speech_services",
-                    )
-                },
                 onOpenBrowserSettingsFromKiyoriSettings = {
                     updateShellState(
                         if (shellState.settingsNavigation != null) {

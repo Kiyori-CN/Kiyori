@@ -37,7 +37,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -347,7 +346,11 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                     ExposedDropdownMenuBox(
                         expanded = modeExpanded,
                         onExpandedChange = { modeExpanded = it },
-                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
+                        modifier =
+                            Modifier.padding(
+                                horizontal = KIYORI_SETTINGS_FIELD_HORIZONTAL_PADDING_DP.dp,
+                                vertical = 8.dp,
+                            ),
                     ) {
                         val modeLabel =
                             when (wakeRecognitionMode) {
@@ -370,11 +373,8 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                                 ExposedDropdownMenuDefaults.TrailingIcon(expanded = modeExpanded)
                             },
                             colors =
-                                OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = Color.Transparent,
-                                    unfocusedContainerColor = Color.Transparent,
-                                ),
-                            shape = RoundedCornerShape(12.dp),
+                                kiyoriSettingsOutlinedTextFieldColors(),
+                            shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
                         )
                         ExposedDropdownMenu(
                             expanded = modeExpanded,
@@ -439,7 +439,10 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 18.dp, vertical = 8.dp),
+                                    .padding(
+                                        horizontal = KIYORI_SETTINGS_FIELD_HORIZONTAL_PADDING_DP.dp,
+                                        vertical = 8.dp,
+                                    ),
                             value = wakePhraseInput,
                             onValueChange = { newValue ->
                                 wakePhraseInput = newValue
@@ -457,11 +460,8 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                                 Text(stringResource(R.string.voice_wakeup_phrase_supporting))
                             },
                             colors =
-                                OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = Color.Transparent,
-                                    unfocusedContainerColor = Color.Transparent,
-                                ),
-                            shape = RoundedCornerShape(12.dp),
+                                kiyoriSettingsOutlinedTextFieldColors(),
+                            shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
                         )
                         KiyoriSettingsRow(
                             title = stringResource(R.string.voice_wakeup_regex_title),
@@ -478,7 +478,14 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                         )
                     } else {
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(
+                                        horizontal =
+                                            KIYORI_SETTINGS_FIELD_HORIZONTAL_PADDING_DP.dp,
+                                        vertical = 8.dp,
+                                    ),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             FilledTonalButton(
@@ -525,7 +532,10 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 18.dp, vertical = 8.dp),
+                                .padding(
+                                    horizontal = KIYORI_SETTINGS_FIELD_HORIZONTAL_PADDING_DP.dp,
+                                    vertical = 8.dp,
+                                ),
                         value = inactivityTimeoutInput,
                         onValueChange = { newValue ->
                             val filtered = newValue.filter(Char::isDigit)
@@ -547,11 +557,8 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                         },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         colors =
-                            OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                            ),
-                        shape = RoundedCornerShape(12.dp),
+                            kiyoriSettingsOutlinedTextFieldColors(),
+                        shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
                     )
                     KiyoriSettingsRow(
                         title = stringResource(R.string.voice_wakeup_greeting_title),
@@ -570,7 +577,10 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 18.dp, vertical = 8.dp),
+                                .padding(
+                                    horizontal = KIYORI_SETTINGS_FIELD_HORIZONTAL_PADDING_DP.dp,
+                                    vertical = 8.dp,
+                                ),
                         value = wakeGreetingTextInput,
                         onValueChange = { newValue ->
                             wakeGreetingTextInput = newValue
@@ -589,11 +599,8 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                             Text(stringResource(R.string.voice_wakeup_greeting_text_supporting))
                         },
                         colors =
-                            OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                            ),
-                        shape = RoundedCornerShape(12.dp),
+                            kiyoriSettingsOutlinedTextFieldColors(),
+                        shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
                     )
                     KiyoriSettingsRow(
                         title = stringResource(R.string.voice_wakeup_create_new_chat_title),
@@ -614,7 +621,10 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 18.dp, vertical = 8.dp),
+                                .padding(
+                                    horizontal = KIYORI_SETTINGS_FIELD_HORIZONTAL_PADDING_DP.dp,
+                                    vertical = 8.dp,
+                                ),
                         value = autoNewChatGroupInput,
                         onValueChange = { newValue ->
                             autoNewChatGroupInput = newValue
@@ -639,11 +649,8 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                             )
                         },
                         colors =
-                            OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                            ),
-                        shape = RoundedCornerShape(12.dp),
+                            kiyoriSettingsOutlinedTextFieldColors(),
+                        shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
                     )
                 }
             }

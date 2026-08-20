@@ -98,7 +98,6 @@ internal fun KiyoriAppShell(
     onOpenBookmarkInTab: (String, Boolean) -> Unit,
     onOpenAccountConnectionsFromKiyoriSettings: () -> Unit,
     onOpenAiAssistantFromKiyoriSettings: () -> Unit,
-    onOpenSpeechServicesFromKiyoriSettings: () -> Unit,
     onOpenBrowserSettingsFromKiyoriSettings: () -> Unit,
     onOpenAppearanceSettingsFromKiyoriSettings: () -> Unit,
     onOpenDataSettingsFromKiyoriSettings: () -> Unit,
@@ -312,7 +311,6 @@ internal fun KiyoriAppShell(
                     destination = state.primaryDestination,
                     onOpenAccountConnections = onOpenAccountConnectionsFromKiyoriSettings,
                     onOpenAiAssistant = onOpenAiAssistantFromKiyoriSettings,
-                    onOpenSpeechServices = onOpenSpeechServicesFromKiyoriSettings,
                     onOpenBrowserSettings = onOpenBrowserSettingsFromKiyoriSettings,
                     onOpenDownloadSettings = {
                         onStateChange(
@@ -327,14 +325,6 @@ internal fun KiyoriAppShell(
                             state.openSettings(
                                 origin = KiyoriSettingsOrigin.BOTTOM_NAVIGATION,
                                 initialRoute = KiyoriSettingsRoute.PLAYER,
-                            ),
-                        )
-                    },
-                    onOpenAdBlockSettings = {
-                        onStateChange(
-                            state.openSettings(
-                                origin = KiyoriSettingsOrigin.BOTTOM_NAVIGATION,
-                                initialRoute = KiyoriSettingsRoute.AD_BLOCK_OVERVIEW,
                             ),
                         )
                     },
@@ -449,7 +439,6 @@ internal fun KiyoriAppShell(
                                 onOpenAccountConnections =
                                     onOpenAccountConnectionsFromKiyoriSettings,
                                 onOpenAiAssistant = onOpenAiAssistantFromKiyoriSettings,
-                                onOpenSpeechServices = onOpenSpeechServicesFromKiyoriSettings,
                                 onOpenBrowserSettings = {
                                     onStateChange(
                                         state.openSettingsRoute(KiyoriSettingsRoute.BROWSER),
@@ -463,13 +452,6 @@ internal fun KiyoriAppShell(
                                 onOpenPlayerSettings = {
                                     onStateChange(
                                         state.openSettingsRoute(KiyoriSettingsRoute.PLAYER),
-                                    )
-                                },
-                                onOpenAdBlockSettings = {
-                                    onStateChange(
-                                        state.openSettingsRoute(
-                                            KiyoriSettingsRoute.AD_BLOCK_OVERVIEW,
-                                        ),
                                     )
                                 },
                                 onOpenAppearanceSettings =

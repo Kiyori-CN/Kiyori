@@ -472,7 +472,8 @@ class KiyoriShellStateTest {
             listOf(
                 Screen.AccountConnectionsSettings,
                 Screen.Settings,
-                Screen.SpeechServicesSettings,
+                Screen.TextToSpeechSettings,
+                Screen.SpeechToTextSettings,
                 Screen.AppearanceSettings,
                 Screen.DataManagementSettings,
             )

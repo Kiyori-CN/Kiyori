@@ -1813,8 +1813,6 @@
     <string name="author">Pengarang</string>
     <string name="configure_speech_services">Konfigurasi Perkhidmatan Pertuturan</string>
     <string name="microphone_permission_required_title">Kebenaran Mikrofon Diperlukan</string>
-    <string name="speech_services_settings">Tetapan Perkhidmatan Pertuturan</string>
-    <string name="speech_services_settings_desc">Konfigurasi tetapan teks-ke-pertuturan dan pengecaman pertuturan</string>
     <string name="wifi">WiFi</string>
     <string name="confirmation_code_copied">Kod pengesahan telah disalin!</string>
     <string name="message_copied">Mesej telah disalin ke papan keratan</string>
@@ -3339,7 +3337,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="screen_title_user_preferences_guide">Panduan Keutamaan Pengguna</string>
     <string name="screen_title_user_preferences_settings">Profil Pengguna (user.md)</string>
     <string name="screen_title_model_config">Konfigurasi Model &amp; Parameter</string>
-    <string name="screen_title_speech_services_settings">Tetapan Perkhidmatan Pertuturan</string>
     <string name="screen_title_persona_card_generation">Penjanaan Kad Persona</string>
     <string name="screen_title_waifu_mode_settings">Tetapan Mod Waifu</string>
     <string name="screen_title_tag_market">Pasaran Tag</string>

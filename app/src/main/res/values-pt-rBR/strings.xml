@@ -1769,8 +1769,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="author">autor</string>
     <string name="configure_speech_services">Configurar serviços de voz</string>
     <string name="microphone_permission_required_title">Permissão de microfone necessária</string>
-    <string name="speech_services_settings">Configurações do serviço de voz</string>
-    <string name="speech_services_settings_desc">Definir configurações de conversão de texto em fala e reconhecimento de fala</string>
     <string name="wifi">Wi-fi</string>
     <string name="confirmation_code_copied">Código de retorno copiado!</string>
     <string name="message_copied">Mensagem copiada para a área de transferência</string>
@@ -3180,7 +3178,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="screen_title_user_preferences_guide">Orientação de preferência do usuário</string>
     <string name="screen_title_user_preferences_settings">Perfil do usuário (user.md)</string>
     <string name="screen_title_model_config">Configuração de modelo e parâmetros</string>
-    <string name="screen_title_speech_services_settings">Configurações do serviço de voz</string>
     <string name="screen_title_persona_card_generation">Geração de cartão de personalidade</string>
     <string name="screen_title_waifu_mode_settings">Configurações do modo Waifu</string>
     <string name="screen_title_tag_market">mercado de tags</string>

@@ -60,6 +60,7 @@ import com.ai.assistance.operit.ui.features.settings.screens.ModelConfigScreen
 import com.ai.assistance.operit.ui.features.settings.screens.ModelPromptsSettingsScreen
 import com.ai.assistance.operit.ui.features.settings.screens.TagMarketScreen
 import com.ai.assistance.operit.ui.features.settings.screens.SpeechServicesSettingsScreen
+import com.ai.assistance.operit.ui.features.settings.screens.SpeechSettingsSection
 import com.ai.assistance.operit.ui.features.settings.screens.ThemeSettingsScreen
 import com.ai.assistance.operit.ui.features.settings.screens.ToolPermissionSettingsScreen
 import com.ai.assistance.operit.ui.features.settings.screens.UserPreferencesSettingsScreen
@@ -612,6 +613,10 @@ sealed class Screen(
                                 AvatarSettings
                             KiyoriAiAssistantSettingsAction.OPEN_VOICE_WAKEUP_SETTINGS ->
                                 VoiceWakeupSettings
+                            KiyoriAiAssistantSettingsAction.OPEN_TEXT_TO_SPEECH_SETTINGS ->
+                                TextToSpeechSettings
+                            KiyoriAiAssistantSettingsAction.OPEN_SPEECH_TO_TEXT_SETTINGS ->
+                                SpeechToTextSettings
                             KiyoriAiAssistantSettingsAction.OPEN_USER_PREFERENCES ->
                                 UserPreferencesSettings
                             KiyoriAiAssistantSettingsAction.OPEN_MODEL_CONFIG -> ModelConfig
@@ -922,11 +927,11 @@ sealed class Screen(
         }
     }
 
-    // 添加SpeechServicesSettings屏幕定义
-    data object SpeechServicesSettings :
+    data object TextToSpeechSettings :
             Screen(
                 navItem = NavItem.Settings,
-                titleRes = R.string.screen_title_speech_services_settings,
+                titleRes = R.string.screen_title_text_to_speech,
+                participatesInCrossfadeTransition = false,
                 usesEmbeddedSettingsTopBar = true,
             ) {
         @Composable
@@ -940,8 +945,33 @@ sealed class Screen(
                 onGestureConsumed: (Boolean) -> Unit
         ) {
             SpeechServicesSettingsScreen(
+                section = SpeechSettingsSection.TEXT_TO_SPEECH,
                 onBackPressed = onGoBack,
                 onNavigateToTextToSpeech = { navigateTo(TextToSpeech) }
+            )
+        }
+    }
+
+    data object SpeechToTextSettings :
+            Screen(
+                navItem = NavItem.Settings,
+                titleRes = R.string.screen_title_speech_to_text,
+                participatesInCrossfadeTransition = false,
+                usesEmbeddedSettingsTopBar = true,
+            ) {
+        @Composable
+        override fun Content(
+                navController: NavController,
+                navigateTo: ScreenNavigationHandler,
+                onGoBack: () -> Unit,
+                hasBackgroundImage: Boolean,
+                onLoading: (Boolean) -> Unit,
+                onError: (String) -> Unit,
+                onGestureConsumed: (Boolean) -> Unit
+        ) {
+            SpeechServicesSettingsScreen(
+                section = SpeechSettingsSection.SPEECH_TO_TEXT,
+                onBackPressed = onGoBack,
             )
         }
     }

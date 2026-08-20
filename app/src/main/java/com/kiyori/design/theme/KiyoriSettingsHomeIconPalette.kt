@@ -6,7 +6,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 
 /**
- * 设置首页固定十六入口的产品语义色。
+ * 设置首页固定十二入口的产品语义色。
  *
  * 这里不复用七色通用语义枚举，因为设置首页需要让每个入口在同一屏内保持可区分性；
  * 浅色和深色分别定义，避免仅靠透明度或同色深浅制造难以识别的重复入口。
@@ -14,19 +14,15 @@ import androidx.compose.ui.graphics.luminance
 internal enum class KiyoriSettingsHomeIconPalette {
     ACCOUNT_CONNECTION,
     AI_ASSISTANT,
-    SPEECH_SERVICES,
     MINI_APP,
     BROWSER,
+    DOWNLOADS,
+    FILE_MANAGER,
     VIDEO_PLAYER,
     MUSIC_PLAYER,
     DOCUMENT_READER,
-    DOWNLOADS,
-    FILE_MANAGER,
-    AD_BLOCKER,
-    LOGS,
     APPEARANCE,
     DATA_BACKUP,
-    DEVELOPER_GUIDE,
     MORE_FEATURES,
 }
 
@@ -40,8 +36,6 @@ internal fun resolveKiyoriSettingsHomeIconColors(
                 KiyoriSemanticColors(Color(0xFF67D7A5), Color(0xFF17382D))
             KiyoriSettingsHomeIconPalette.AI_ASSISTANT ->
                 KiyoriSemanticColors(Color(0xFFB7A7FF), Color(0xFF2D254A))
-            KiyoriSettingsHomeIconPalette.SPEECH_SERVICES ->
-                KiyoriSemanticColors(Color(0xFF65D3E8), Color(0xFF173942))
             KiyoriSettingsHomeIconPalette.MINI_APP ->
                 KiyoriSemanticColors(Color(0xFF66D9C8), Color(0xFF153B36))
             KiyoriSettingsHomeIconPalette.BROWSER ->
@@ -56,16 +50,10 @@ internal fun resolveKiyoriSettingsHomeIconColors(
                 KiyoriSemanticColors(Color(0xFFFFB76A), Color(0xFF432B16))
             KiyoriSettingsHomeIconPalette.FILE_MANAGER ->
                 KiyoriSemanticColors(Color(0xFFB5CC75), Color(0xFF323A1C))
-            KiyoriSettingsHomeIconPalette.AD_BLOCKER ->
-                KiyoriSemanticColors(Color(0xFFFF8FAF), Color(0xFF4A2634))
-            KiyoriSettingsHomeIconPalette.LOGS ->
-                KiyoriSemanticColors(Color(0xFFAEBBC8), Color(0xFF27313A))
             KiyoriSettingsHomeIconPalette.APPEARANCE ->
                 KiyoriSemanticColors(Color(0xFFF49AC0), Color(0xFF452336))
             KiyoriSettingsHomeIconPalette.DATA_BACKUP ->
                 KiyoriSemanticColors(Color(0xFF9FA8FF), Color(0xFF252D4A))
-            KiyoriSettingsHomeIconPalette.DEVELOPER_GUIDE ->
-                KiyoriSemanticColors(Color(0xFFC59BEA), Color(0xFF382848))
             KiyoriSettingsHomeIconPalette.MORE_FEATURES ->
                 KiyoriSemanticColors(Color(0xFF62DDE4), Color(0xFF17373B))
         }
@@ -75,8 +63,6 @@ internal fun resolveKiyoriSettingsHomeIconColors(
                 KiyoriSemanticColors(Color(0xFF1B8D5F), Color(0xFFE6F5EE))
             KiyoriSettingsHomeIconPalette.AI_ASSISTANT ->
                 KiyoriSemanticColors(Color(0xFF7056D9), Color(0xFFF0ECFF))
-            KiyoriSettingsHomeIconPalette.SPEECH_SERVICES ->
-                KiyoriSemanticColors(Color(0xFF168CA7), Color(0xFFE4F5F8))
             KiyoriSettingsHomeIconPalette.MINI_APP ->
                 KiyoriSemanticColors(Color(0xFF00897B), Color(0xFFE2F5F2))
             KiyoriSettingsHomeIconPalette.BROWSER ->
@@ -91,16 +77,10 @@ internal fun resolveKiyoriSettingsHomeIconColors(
                 KiyoriSemanticColors(Color(0xFFC66A13), Color(0xFFFFF0DF))
             KiyoriSettingsHomeIconPalette.FILE_MANAGER ->
                 KiyoriSemanticColors(Color(0xFF708238), Color(0xFFF0F4DF))
-            KiyoriSettingsHomeIconPalette.AD_BLOCKER ->
-                KiyoriSemanticColors(Color(0xFFC43D64), Color(0xFFFCE9EF))
-            KiyoriSettingsHomeIconPalette.LOGS ->
-                KiyoriSemanticColors(Color(0xFF5D6B7A), Color(0xFFE9EEF3))
             KiyoriSettingsHomeIconPalette.APPEARANCE ->
                 KiyoriSemanticColors(Color(0xFFC8467D), Color(0xFFFCEAF2))
             KiyoriSettingsHomeIconPalette.DATA_BACKUP ->
                 KiyoriSemanticColors(Color(0xFF4055B5), Color(0xFFE9ECFF))
-            KiyoriSettingsHomeIconPalette.DEVELOPER_GUIDE ->
-                KiyoriSemanticColors(Color(0xFF7B4FA3), Color(0xFFF1E9F8))
             KiyoriSettingsHomeIconPalette.MORE_FEATURES ->
                 KiyoriSemanticColors(Color(0xFF00838F), Color(0xFFE2F5F6))
         }
