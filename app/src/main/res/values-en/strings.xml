@@ -7441,6 +7441,7 @@
     <string name="web_session_userscript_editor_find">Find</string>
     <string name="web_session_userscript_editor_replace">Replace</string>
     <string name="web_session_userscript_editor_next">Next</string>
+    <string name="web_session_userscript_editor_previous">Previous</string>
     <string name="web_session_userscript_editor_replace_next">Replace current</string>
     <string name="web_session_userscript_editor_replace_all">Replace all</string>
     <string name="web_session_userscript_editor_undo">Undo</string>

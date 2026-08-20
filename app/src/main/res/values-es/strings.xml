@@ -5889,6 +5889,7 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="web_session_userscript_editor_find">Buscar</string>
     <string name="web_session_userscript_editor_replace">Reemplazar</string>
     <string name="web_session_userscript_editor_next">Siguiente</string>
+    <string name="web_session_userscript_editor_previous">Anterior</string>
     <string name="web_session_userscript_editor_replace_next">Reemplazar actual</string>
     <string name="web_session_userscript_editor_replace_all">Reemplazar todo</string>
     <string name="web_session_userscript_editor_undo">Deshacer</string>

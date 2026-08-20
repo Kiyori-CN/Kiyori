@@ -6720,6 +6720,7 @@
     <string name="web_session_userscript_editor_find">찾기</string>
     <string name="web_session_userscript_editor_replace">바꾸기</string>
     <string name="web_session_userscript_editor_next">다음</string>
+    <string name="web_session_userscript_editor_previous">이전</string>
     <string name="web_session_userscript_editor_replace_next">현재 항목 바꾸기</string>
     <string name="web_session_userscript_editor_replace_all">모두 바꾸기</string>
     <string name="web_session_userscript_editor_undo">실행 취소</string>

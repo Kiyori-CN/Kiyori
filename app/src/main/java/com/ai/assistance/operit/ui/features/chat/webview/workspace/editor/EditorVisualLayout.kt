@@ -2,6 +2,8 @@ package com.ai.assistance.operit.ui.features.chat.webview.workspace.editor
 
 import kotlin.math.max
 
+private const val EDITOR_CELL_CHECKPOINT_INTERVAL = 128
+
 internal data class EditorVisualRow(
     val logicalLine: Int,
     val lineStartOffset: Int,
@@ -10,6 +12,11 @@ internal data class EditorVisualRow(
     val endOffset: Int,
     val startCell: Int,
     val endCell: Int,
+    /**
+     * Alternating absolute cell and source-offset pairs. Long horizontal rows use these
+     * checkpoints to enter the visible range without rescanning the entire logical line.
+     */
+    val cellCheckpoints: IntArray = intArrayOf(),
 ) {
     val isContinuation: Boolean
         get() = startOffset > lineStartOffset
@@ -21,31 +28,17 @@ internal data class EditorVisualRow(
 internal data class EditorWrapModeViewportTransition(
     val scrollX: Float,
     val scrollY: Float,
-    val ensureCursorVisible: Boolean,
 )
 
 /**
- * Entering horizontal browsing is a deliberate overview action, so the viewport starts from the
- * document origin instead of following a stale caret that may sit at the end of a minified line.
- * Returning to soft wrap keeps the vertical reading context and resumes normal caret following.
+ * Both source browsing modes start from the document origin. This keeps a mode switch predictable
+ * for minified pages and prevents a stale caret from moving the viewport to a distant line.
  */
-internal fun resolveEditorWrapModeViewportTransition(
-    softWrap: Boolean,
-    currentScrollY: Float,
-): EditorWrapModeViewportTransition =
-    if (softWrap) {
-        EditorWrapModeViewportTransition(
-            scrollX = 0f,
-            scrollY = currentScrollY.coerceAtLeast(0f),
-            ensureCursorVisible = true,
-        )
-    } else {
-        EditorWrapModeViewportTransition(
-            scrollX = 0f,
-            scrollY = 0f,
-            ensureCursorVisible = false,
-        )
-    }
+internal fun resolveEditorWrapModeViewportTransition(): EditorWrapModeViewportTransition =
+    EditorWrapModeViewportTransition(
+        scrollX = 0f,
+        scrollY = 0f,
+    )
 
 /**
  * Maps immutable document offsets to visual rows without inserting line breaks into the document.
@@ -83,6 +76,69 @@ internal class EditorVisualLayout private constructor(
         }
 
         return candidate
+    }
+
+    fun offsetForCell(
+        text: CharSequence,
+        row: EditorVisualRow,
+        targetCell: Int,
+    ): Int {
+        val safeTargetCell = targetCell.coerceIn(row.startCell, row.endCell)
+        val checkpointIndex = checkpointIndexForCell(row, safeTargetCell)
+        var cell =
+            if (checkpointIndex >= 0) {
+                row.cellCheckpoints[checkpointIndex * 2]
+            } else {
+                row.startCell
+            }
+        var offset =
+            if (checkpointIndex >= 0) {
+                row.cellCheckpoints[checkpointIndex * 2 + 1]
+            } else {
+                row.startOffset
+            }
+
+        while (offset < row.endOffset && cell < safeTargetCell) {
+            val nextOffset = editorNextSymbolOffset(text, offset, row.endOffset)
+            val nextCell = cell + editorCellWidth(text, offset, row.endOffset)
+            if (nextCell > safeTargetCell) {
+                break
+            }
+            cell = nextCell
+            offset = nextOffset
+        }
+        return offset
+    }
+
+    fun cellForOffset(
+        text: CharSequence,
+        row: EditorVisualRow,
+        targetOffset: Int,
+    ): Int {
+        val safeTargetOffset = targetOffset.coerceIn(row.startOffset, row.endOffset)
+        val checkpointIndex = checkpointIndexForOffset(row, safeTargetOffset)
+        var cell =
+            if (checkpointIndex >= 0) {
+                row.cellCheckpoints[checkpointIndex * 2]
+            } else {
+                row.startCell
+            }
+        var offset =
+            if (checkpointIndex >= 0) {
+                row.cellCheckpoints[checkpointIndex * 2 + 1]
+            } else {
+                row.startOffset
+            }
+
+        while (offset < row.endOffset && offset < safeTargetOffset) {
+            val nextOffset = editorNextSymbolOffset(text, offset, row.endOffset)
+            if (nextOffset > safeTargetOffset) {
+                break
+            }
+            cell += editorCellWidth(text, offset, row.endOffset)
+            offset = nextOffset
+        }
+        return cell
     }
 
     companion object {
@@ -169,8 +225,26 @@ internal class EditorVisualLayout private constructor(
             var lineCell = 0
             var preferredBreakOffset = -1
             var preferredBreakCell = -1
+            val checkpointValues =
+                if (maxCellsPerRow == Int.MAX_VALUE) {
+                    ArrayList<Int>().apply {
+                        add(0)
+                        add(lineStart)
+                    }
+                } else {
+                    null
+                }
+            var nextCheckpointCell = EDITOR_CELL_CHECKPOINT_INTERVAL
 
             while (offset < lineEnd) {
+                if (
+                    checkpointValues != null &&
+                        lineCell - rowStartCell >= nextCheckpointCell
+                ) {
+                    checkpointValues.add(lineCell)
+                    checkpointValues.add(offset)
+                    nextCheckpointCell += EDITOR_CELL_CHECKPOINT_INTERVAL
+                }
                 val nextOffset = editorNextSymbolOffset(text, offset, lineEnd)
                 val symbolCells = editorCellWidth(text, offset, lineEnd)
                 val currentRowCells = lineCell - rowStartCell
@@ -233,7 +307,50 @@ internal class EditorVisualLayout private constructor(
                     endOffset = lineEnd,
                     startCell = rowStartCell,
                     endCell = lineCell,
+                    cellCheckpoints = checkpointValues?.toIntArray() ?: intArrayOf(),
                 )
+        }
+
+        private fun checkpointIndexForCell(
+            row: EditorVisualRow,
+            targetCell: Int,
+        ): Int {
+            val checkpointCount = row.cellCheckpoints.size / 2
+            var low = 0
+            var high = checkpointCount - 1
+            var candidate = -1
+            while (low <= high) {
+                val middle = (low + high) ushr 1
+                val checkpointCell = row.cellCheckpoints[middle * 2]
+                if (checkpointCell <= targetCell) {
+                    candidate = middle
+                    low = middle + 1
+                } else {
+                    high = middle - 1
+                }
+            }
+            return candidate
+        }
+
+        private fun checkpointIndexForOffset(
+            row: EditorVisualRow,
+            targetOffset: Int,
+        ): Int {
+            val checkpointCount = row.cellCheckpoints.size / 2
+            var low = 0
+            var high = checkpointCount - 1
+            var candidate = -1
+            while (low <= high) {
+                val middle = (low + high) ushr 1
+                val checkpointOffset = row.cellCheckpoints[middle * 2 + 1]
+                if (checkpointOffset <= targetOffset) {
+                    candidate = middle
+                    low = middle + 1
+                } else {
+                    high = middle - 1
+                }
+            }
+            return candidate
         }
 
         private fun isEditorWrapOpportunity(

@@ -8083,6 +8083,7 @@
     <string name="web_session_userscript_editor_find">查找</string>
     <string name="web_session_userscript_editor_replace">替换</string>
     <string name="web_session_userscript_editor_next">下一个</string>
+    <string name="web_session_userscript_editor_previous">上一个</string>
     <string name="web_session_userscript_editor_replace_next">替换当前</string>
     <string name="web_session_userscript_editor_replace_all">全部替换</string>
     <string name="web_session_userscript_editor_undo">撤销</string>

@@ -25,6 +25,33 @@ Kiyori 从未发布。本轮被替代且无继续用途的旧 UI、占位状态�
 
 当前 Goal 只复刻 `kiyori-android@24a2dfa9` 已有的 UI 和真实运行时能力。旧项目没有消费者的入口保留空页面或不可交互状态，不在 Kiyori 另行发明实现；旧项目已有消费者的状态接入当前唯一 Browser Runtime、Download Manager 或后续唯一 PlayerSession。
 
+### 2026-08-20 页面源码工作台交互与长源码性能优化
+
+状态：`LOCAL DONE / TARGET DEVICE VERIFICATION PENDING`。本增量继续复用唯一
+`WebSessionPageSourceEditor`、`NativeCodeEditor`、`CanvasCodeEditorView` 和 Browser Runtime。
+Kiyori 尚未发布，因此默认模式与工作台按钮属于现有方案迭代；不保留旧默认模式的并行实现。
+
+冻结的实现合同：
+
+- “查看源码”进入时默认 `horizontal browse`，而不是 `soft wrap`
+- 两种模式的初始视口均为源码左上角；模式切换也回到 `(0,0)`，不会自动跟随旧光标
+- 查找栏保留循环查找，新增 `previous`；查找状态同时记录匹配起点和终点，替换后使用实际
+  替换长度推进下一次查找
+- 横向长行的绘制从可见 cell 附近开始，使用行内 checkpoint 映射源码 offset，避免每一帧从行首
+  扫描到横向视口
+- 双指缩放不在每个 scale event 中清空并重建自动换行布局；软换行布局在缩放结束时统一失效，
+  视口边界由渲染线程在新布局可用后校正
+
+执行门禁：
+
+1. [DONE] 读取项目规则、formal readiness、源码工作台、编辑器渲染链路和历史合同
+2. [DONE] 完成行为与性能方案，跑通现有源码工作台定向基线
+3. [DONE] 修改工作台、Canvas 编辑器、查找测试、语言资源和相关文档
+4. [DONE] 定向测试、编译、formal readiness、architecture boundaries、Debug APK
+   与产物审计
+5. [PENDING DEVICE] 候选树按本轮授权精确提交推送 `main`；设备现场验收保持
+   `verification_pending`
+
 ### 2026-08-16 阶段 14：播放器原生依赖升级
 
 状态：`R6 LOCAL DONE / TARGET DEVICE VERIFICATION PENDING`。阶段 13 的播放器行为、Surface、缓存、网络诊断和现有 native packaging
@@ -396,7 +423,8 @@ Android Debug v2 和 16 KB ZIP 对齐通过。原 vivo Android 16 复测前仍�
 宿主内全屏原生源码工作台替换。工作台读取活动 WebSession 的实时 DOM，保留 doctype、过滤 Kiyori
 文本选择临时节点，并把基线、编辑缓冲区、session 与 Document token 绑定。现有
 `NativeCodeEditor` 提供 HTML 高亮、行号、补全、查找替换、撤销重做、格式化和输入法符号栏；
-页面源码默认启用不修改源码字符的视觉软换行，并可切换横向浏览。紧凑工具条提供准确历史状态、
+页面源码默认使用横向浏览，并可切换不修改源码字符的视觉软换行；两种模式
+和模式切换均从源码左上角开始。紧凑工具条提供准确历史状态、
 复制、跳转行与行列/选区信息，超长行提示显示数量和最长字符数；顶栏及底部动作区分别遵守状态栏
 和导航栏 Insets。
 
@@ -413,6 +441,21 @@ Android Debug v2 和 16 KB ZIP 对齐通过。原 vivo Android 16 复测前仍�
 `F2D7683FE6EE114B7171F635B58A0FB24EECF32DB1B0E445C6C2D4B5547FA97E`。完整架构门禁仍受
 当前 HEAD 既有 ARCH046 userscript 导出路径消费者快照漂移影响。状态栏、输入法、复杂页面脚本重建、
 刷新恢复、跨标签保护和 AI 协作仍需目标设备验收。
+
+## 2026-08-20 页面源码工作台交互与长源码性能增量
+
+状态：`LOCAL DONE / TARGET DEVICE VERIFICATION PENDING`。
+
+本增量保持上述唯一源码工作台和编辑器 owner，完成默认横向浏览、两种模式左上角初始化、
+查找栏“上一个”、替换游标修复，以及横向长行 checkpoint 和缩放期间布局延迟重建方案。
+定向回归 `25/25` 覆盖查找循环/替换长度、模式起点、长行 checkpoint、Tab 和宽字符映射；
+完整 Debug JVM 为 `247 suites / 1458 tests` 且零失败，Kotlin 编译、formal readiness、
+architecture `phase=m03`、七语种 XML 和 `git diff --check` 通过。规定的 Debug 构建为
+`232` tasks，APK 为 `472652738` bytes，SHA-256
+`563E98259762B2C6F152EF02C075FEDBACB58018168289FCABD98FBB61F517CE`；包身份、唯一
+launcher、Android Debug v2 单 signer、16 KB ZIP 对齐和 `52` 个 ELF64/AArch64 的
+`PT_LOAD >= 0x4000` 审计通过。真机视觉、双指缩放帧率、超长网页实际触摸/输入法和应用源码
+后的复杂脚本行为不由本地自动证据替代。
 
 ## 完成定义
 

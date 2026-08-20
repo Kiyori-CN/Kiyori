@@ -6456,6 +6456,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="web_session_userscript_editor_find">Cari</string>
     <string name="web_session_userscript_editor_replace">Ganti</string>
     <string name="web_session_userscript_editor_next">Berikutnya</string>
+    <string name="web_session_userscript_editor_previous">Sebelumnya</string>
     <string name="web_session_userscript_editor_replace_next">Ganti saat ini</string>
     <string name="web_session_userscript_editor_replace_all">Ganti semua</string>
     <string name="web_session_userscript_editor_undo">Urungkan</string>

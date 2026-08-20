@@ -222,6 +222,13 @@ class CanvasCodeEditorView @JvmOverloads constructor(
 
                 override fun onScaleEnd(detector: ScaleGestureDetector) {
                     isScaling = false
+                    if (softWrap) {
+                        // Keep the old row partition during the pinch and rebuild it once after
+                        // the final text size is known; rebuilding on every scale event stalls
+                        // large source documents and makes the gesture lose frames.
+                        invalidateVisualLayout()
+                    }
+                    requestRender()
                 }
             }
         )
@@ -362,11 +369,7 @@ class CanvasCodeEditorView @JvmOverloads constructor(
         if (this.softWrap == softWrap) {
             return
         }
-        val viewportTransition =
-            resolveEditorWrapModeViewportTransition(
-                softWrap = softWrap,
-                currentScrollY = scrollOffsetY,
-            )
+        val viewportTransition = resolveEditorWrapModeViewportTransition()
         this.softWrap = softWrap
         if (!scroller.isFinished) {
             scroller.forceFinished(true)
@@ -376,10 +379,6 @@ class CanvasCodeEditorView @JvmOverloads constructor(
         preferredColumnCells = null
         hideCompletions()
         invalidateVisualLayout()
-        clampScrollOffsets()
-        if (viewportTransition.ensureCursorVisible) {
-            ensureCursorVisible()
-        }
         requestRender()
     }
 
@@ -892,11 +891,13 @@ class CanvasCodeEditorView @JvmOverloads constructor(
             }
 
         currentScale = newScale
-        refreshPaints()
+        refreshPaints(invalidateLayout = false)
 
         val newScrollX = logicalX * metrics.charWidth - (focusX - textRegionLeft())
         val newScrollY = logicalY * metrics.lineHeight - (focusY - verticalPaddingPx)
-        setScrollOffsets(newScrollX, newScrollY)
+        // The renderer owns the newly scaled layout. Avoid rebuilding a large wrapped document
+        // synchronously on the UI thread for every pinch event; the next frame clamps the origin.
+        setScrollOffsets(newScrollX, newScrollY, clamp = false)
     }
 
     private fun applyScroll(distanceX: Float, distanceY: Float) {
@@ -923,9 +924,14 @@ class CanvasCodeEditorView @JvmOverloads constructor(
         requestRender()
     }
 
-    private fun setScrollOffsets(x: Float, y: Float, request: Boolean = true) {
-        val clampedX = x.coerceIn(0f, maxScrollX())
-        val clampedY = y.coerceIn(0f, maxScrollY())
+    private fun setScrollOffsets(
+        x: Float,
+        y: Float,
+        request: Boolean = true,
+        clamp: Boolean = true,
+    ) {
+        val clampedX = if (clamp) x.coerceIn(0f, maxScrollX()) else x.coerceAtLeast(0f)
+        val clampedY = if (clamp) y.coerceIn(0f, maxScrollY()) else y.coerceAtLeast(0f)
         if (abs(clampedX - scrollOffsetX) < 0.5f && abs(clampedY - scrollOffsetY) < 0.5f) {
             if (request) {
                 requestRender()
@@ -1049,7 +1055,7 @@ class CanvasCodeEditorView @JvmOverloads constructor(
         completionCallback?.hideCompletions()
     }
 
-    private fun refreshPaints() {
+    private fun refreshPaints(invalidateLayout: Boolean = true) {
         val textSizePx =
             TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_SP,
@@ -1120,7 +1126,9 @@ class CanvasCodeEditorView @JvmOverloads constructor(
         cachedGutterDigits = -1
         cachedGutterTextSize = -1f
         cachedGutterWidth = 0f
-        invalidateVisualLayout()
+        if (invalidateLayout) {
+            invalidateVisualLayout()
+        }
     }
 
     private fun blendColors(baseColor: Int, overlayColor: Int, overlayRatio: Float): Int {
@@ -1147,6 +1155,10 @@ class CanvasCodeEditorView @JvmOverloads constructor(
         if (visualLayout.rowCount <= 0) {
             return
         }
+        // Scale gestures intentionally keep the previous wrapped row partition until the final
+        // scale event. Clamp against the layout actually used by this frame before drawing.
+        scrollOffsetX = scrollOffsetX.coerceIn(0f, maxScrollX())
+        scrollOffsetY = scrollOffsetY.coerceIn(0f, maxScrollY())
 
         val gutterWidth = gutterWidth()
         val textRegionLeft = if (showLineNumbers) gutterWidth else horizontalPaddingPx
@@ -1373,12 +1385,36 @@ class CanvasCodeEditorView @JvmOverloads constructor(
         val rowStart = row.startOffset
         val rowEnd = row.endOffset
         val text = document.text()
-        var x = textRegionLeft - scrollOffsetX
+        val startCell =
+            row.startCell +
+                max(
+                    0,
+                    (scrollOffsetX / metrics.charWidth).toInt() - 4,
+                )
+        val drawStartOffset =
+            visualLayout().offsetForCell(
+                text = text,
+                row = row,
+                targetCell = startCell,
+            )
+        val drawStartCell =
+            visualLayout().cellForOffset(
+                text = text,
+                row = row,
+                targetOffset = drawStartOffset,
+            )
+        var x =
+            textRegionLeft +
+                (drawStartCell - row.startCell) * metrics.charWidth -
+                scrollOffsetX
         val baseline = rowTop + metrics.baseline
         val leftClip = textRegionLeft - metrics.charWidth * TAB_SPACES
         val rightClip = width.toFloat() + metrics.charWidth * TAB_SPACES
 
         var offset = rowStart
+        if (drawStartOffset > rowStart) {
+            offset = drawStartOffset
+        }
         var runStart = -1
         var runEnd = -1
         var runX = 0f
@@ -1598,7 +1634,12 @@ class CanvasCodeEditorView @JvmOverloads constructor(
         offset: Int,
         row: EditorVisualRow,
     ): Float {
-        val logicalCell = document.getCellColumnForOffset(offset)
+        val logicalCell =
+            visualLayout().cellForOffset(
+                text = document.text(),
+                row = row,
+                targetOffset = offset,
+            )
         return (logicalCell - row.startCell).coerceAtLeast(0) * metrics.charWidth
     }
 
@@ -1610,9 +1651,25 @@ class CanvasCodeEditorView @JvmOverloads constructor(
         val row = layout.row(rowIndex)
         val targetX = scrollOffsetX + (x - textRegionLeft()).coerceAtLeast(0f)
         val text = document.text()
-        var currentX = 0f
+        val targetCell =
+            row.startCell +
+                (targetX / metrics.charWidth).toInt().coerceAtLeast(0)
+        val probeOffset =
+            layout.offsetForCell(
+                text = text,
+                row = row,
+                targetCell = targetCell - 2,
+            )
+        var currentX =
+            (
+                layout.cellForOffset(
+                    text = text,
+                    row = row,
+                    targetOffset = probeOffset,
+                ) - row.startCell
+            ) * metrics.charWidth
 
-        var offset = row.startOffset
+        var offset = probeOffset
         while (offset < row.endOffset) {
             val nextOffset = editorNextSymbolOffset(text, offset, row.endOffset)
             val advance = editorCellWidth(text, offset, row.endOffset) * metrics.charWidth
@@ -1677,8 +1734,21 @@ class CanvasCodeEditorView @JvmOverloads constructor(
     }
 
     private fun visualLayout(): EditorVisualLayout {
-        val maxCells = visualRowCellCapacity()
         val cached = cachedVisualLayout
+        if (
+            isScaling &&
+                softWrap &&
+                cached != null &&
+                cachedVisualLayoutVersion == document.version &&
+                cachedVisualLayoutSoftWrap == softWrap
+        ) {
+            // Pinch frames deliberately keep the existing row partition. Computing the new cell
+            // capacity before this check would make the cache miss on every font-size update and
+            // rebuild a large wrapped document repeatedly during the gesture.
+            return cached
+        }
+
+        val maxCells = visualRowCellCapacity()
         if (
             cached != null &&
                 cachedVisualLayoutVersion == document.version &&

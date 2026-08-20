@@ -7,29 +7,11 @@ import org.junit.Test
 
 class EditorVisualLayoutTest {
     @Test
-    fun `entering horizontal browse resets to document origin without following stale caret`() {
-        val transition =
-            resolveEditorWrapModeViewportTransition(
-                softWrap = false,
-                currentScrollY = 9_600f,
-            )
+    fun `all wrap mode transitions reset to document origin`() {
+        val transition = resolveEditorWrapModeViewportTransition()
 
         assertEquals(0f, transition.scrollX)
         assertEquals(0f, transition.scrollY)
-        assertFalse(transition.ensureCursorVisible)
-    }
-
-    @Test
-    fun `returning to soft wrap keeps vertical context and resumes caret following`() {
-        val transition =
-            resolveEditorWrapModeViewportTransition(
-                softWrap = true,
-                currentScrollY = 480f,
-            )
-
-        assertEquals(0f, transition.scrollX)
-        assertEquals(480f, transition.scrollY)
-        assertTrue(transition.ensureCursorVisible)
     }
 
     @Test
@@ -151,5 +133,47 @@ class EditorVisualLayoutTest {
             assertEquals(current.endCell, next.startCell)
         }
         assertEquals(source.length, layout.rows.last().endOffset)
+    }
+
+    @Test
+    fun `horizontal rows keep checkpoints for long-line viewport mapping`() {
+        val source = "x".repeat(512) + "\t界z"
+        val layout =
+            EditorVisualLayout.build(
+                text = source,
+                softWrap = false,
+                maxCellsPerRow = 40,
+            )
+        val row = layout.rows.single()
+
+        assertTrue(row.cellCheckpoints.size >= 4)
+        assertEquals(512, layout.offsetForCell(source, row, 512))
+        assertEquals(512, layout.cellForOffset(source, row, 512))
+        assertEquals(512, layout.offsetForCell(source, row, 513))
+        assertEquals(513, layout.offsetForCell(source, row, 516))
+        assertEquals(513, layout.offsetForCell(source, row, 517))
+        assertEquals(514, layout.offsetForCell(source, row, 518))
+        assertEquals(516, layout.cellForOffset(source, row, 513))
+        assertEquals(518, layout.cellForOffset(source, row, 514))
+    }
+
+    @Test
+    fun `checkpoint mapping preserves emoji cluster boundaries`() {
+        val familyEmoji = "👨‍👩‍👧‍👦"
+        val emojiOffset = 512
+        val emojiEnd = emojiOffset + familyEmoji.length
+        val source = "x".repeat(emojiOffset) + familyEmoji + "z"
+        val layout =
+            EditorVisualLayout.build(
+                text = source,
+                softWrap = false,
+                maxCellsPerRow = 40,
+            )
+        val row = layout.rows.single()
+
+        assertEquals(emojiOffset, layout.offsetForCell(source, row, 513))
+        assertEquals(emojiEnd, layout.offsetForCell(source, row, 514))
+        assertEquals(512, layout.cellForOffset(source, row, emojiOffset + 1))
+        assertEquals(514, layout.cellForOffset(source, row, emojiEnd))
     }
 }

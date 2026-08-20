@@ -386,6 +386,25 @@ resourceKind / selector / client point`。Host 只接受活动 session、当前�
   普通/超大源码差异和 Back；AI 工具注册、双语提示与 JavaScript 包装由编译和静态接线检查覆盖
 - Debug 构建不替代真机状态栏、输入法、复杂站点脚本重建、刷新恢复和 AI 协作验收
 
+## 2026-08-20 页面源码工作台交互与性能增量
+
+- “查看源码”进入工作台后的默认模式改为“横向浏览”；“横向浏览”和“自动换行”均从源码左上角
+  开始，模式切换也统一回到 `(0,0)`，不保留旧光标位置造成的跳转
+- 工具条使用两个明确的模式按钮，搜索栏在“下一个”旁增加带方向图标的“上一个”；循环查找、
+  替换后的实际文本长度和选区状态由同一匹配游标维护
+- 横向长行布局为每 128 个 cell 建立源码 offset checkpoint；绘制、触摸定位和光标横坐标映射
+  从可见区附近开始，避免源码较多时每帧从行首重复扫描
+- 双指缩放期间只更新字体几何和视口，自动换行布局在缩放结束后重建一次；渲染线程按当前布局
+  校正滚动范围，不在缩放事件的 UI 调用链中同步构建大布局
+- 本地定向回归新增源码查找 `4/4` 与长行/模式 `10/10` 覆盖；真机双指帧率、超长页面实际
+  触摸、输入法、状态栏和复杂 DOM 应用仍为 `verification_pending`
+- 2026-08-20 自动证据为源码相关定向测试 `25/25`、完整 Debug JVM
+  `247 suites / 1458 tests`、Kotlin 编译、formal readiness、architecture `phase=m03`、
+  七语种 XML 和 `git diff --check` 全部通过；规定的 Debug APK 构建为 `232` tasks，
+  APK SHA-256 为 `563E98259762B2C6F152EF02C075FEDBACB58018168289FCABD98FBB61F517CE`
+- 最终 APK 的包身份、唯一 launcher、Android Debug v2 单 signer 和 16 KB ZIP 对齐通过；
+  `51` 个 `.so` 加 `operit_shell_exec` 共 `52` 个 ELF64/AArch64，全部 `PT_LOAD >= 0x4000`
+
 本地实现状态为 `[DONE]`，设备验收为 `[PENDING]`。页面源码、软换行与 Back 定向测试 `22/22`、
 完整 Debug JVM `853/853`、Kotlin 编译、formal readiness、七语种资源与 `git diff --check` 均通过。
 ARCH041 语义色快照和对应两项架构测试已同步；完整架构门禁只剩当前 HEAD 已有的 ARCH046

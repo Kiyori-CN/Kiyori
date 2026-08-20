@@ -26,6 +26,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
@@ -98,13 +100,16 @@ internal fun WebSessionPageSourceEditor(
     var searchQuery by remember { mutableStateOf("") }
     var replacement by remember { mutableStateOf("") }
     var lastMatchStart by remember { mutableIntStateOf(-1) }
+    var lastMatchEnd by remember { mutableIntStateOf(-1) }
     var overflowExpanded by remember { mutableStateOf(false) }
     var reviewVisible by remember { mutableStateOf(false) }
     var applyConfirmationVisible by remember { mutableStateOf(false) }
     var reloadConfirmationVisible by remember { mutableStateOf(false) }
     var jumpToLineVisible by remember { mutableStateOf(false) }
     var jumpToLineInput by remember { mutableStateOf("") }
-    var softWrap by rememberSaveable { mutableStateOf(true) }
+    var softWrap by rememberSaveable(state.sessionId, state.documentToken) {
+        mutableStateOf(false)
+    }
     // The warning is informational and dismissible for the current captured document; keeping
     // it local avoids writing UI-only state into the page-source or Browser Runtime owner.
     var longLineWarningVisible by
@@ -128,6 +133,7 @@ internal fun WebSessionPageSourceEditor(
         searchQuery = ""
         replacement = ""
         lastMatchStart = -1
+        lastMatchEnd = -1
         reviewVisible = false
         applyConfirmationVisible = false
         reloadConfirmationVisible = false
@@ -215,36 +221,52 @@ internal fun WebSessionPageSourceEditor(
                     onQueryChanged = {
                         searchQuery = it
                         lastMatchStart = -1
+                        lastMatchEnd = -1
                     },
                     onReplacementChanged = { replacement = it },
                     onClose = {
                         searchVisible = false
                         lastMatchStart = -1
+                        lastMatchEnd = -1
                     },
                     onFindNext = {
-                        lastMatchStart =
+                        val match =
                             selectNextPageSourceMatch(
                                 editor = nativeEditor,
                                 source = content,
                                 query = searchQuery,
-                                previousStart = lastMatchStart,
+                                previousEnd = lastMatchEnd,
                             )
+                        lastMatchStart = match?.start ?: -1
+                        lastMatchEnd = match?.end ?: -1
+                    },
+                    onFindPrevious = {
+                        val match =
+                            selectPreviousPageSourceMatch(
+                                editor = nativeEditor,
+                                source = content,
+                                query = searchQuery,
+                                currentStart = lastMatchStart,
+                            )
+                        lastMatchStart = match?.start ?: -1
+                        lastMatchEnd = match?.end ?: -1
                     },
                     onReplaceNext = {
-                        val start =
+                        val match =
                             findNextPageSourceMatch(
                                 source = content,
                                 query = searchQuery,
-                                previousStart = lastMatchStart,
+                                previousEnd = lastMatchEnd,
                             )
-                        if (start >= 0) {
+                        if (match != null) {
                             nativeEditor?.replaceRange(
-                                start = start,
-                                end = start + searchQuery.length,
+                                start = match.start,
+                                end = match.end,
                                 replacement = replacement,
                             )
-                            nativeEditor?.selectRange(start, start + replacement.length)
-                            lastMatchStart = start
+                            nativeEditor?.selectRange(match.start, match.start + replacement.length)
+                            lastMatchStart = match.start
+                            lastMatchEnd = match.start + replacement.length
                         }
                     },
                     onReplaceAll = {
@@ -254,6 +276,7 @@ internal fun WebSessionPageSourceEditor(
                                 nativeEditor?.replaceAllText(replaced)
                             }
                             lastMatchStart = -1
+                            lastMatchEnd = -1
                         }
                     },
                     replacementEnabled = !state.isApplying,
@@ -302,7 +325,13 @@ internal fun WebSessionPageSourceEditor(
                     CodeEditor(
                         code = content,
                         language = "html",
-                        onCodeChange = onBufferChanged,
+                        onCodeChange = { updated ->
+                            // Manual edits invalidate the previous match range; replacement actions
+                            // restore their new range immediately after the editor mutation.
+                            lastMatchStart = -1
+                            lastMatchEnd = -1
+                            onBufferChanged(updated)
+                        },
                         readOnly = state.isApplying,
                         showLineNumbers = true,
                         softWrap = softWrap,
@@ -700,17 +729,16 @@ private fun PageSourceEditorCommandBar(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             PageSourceCommandChip(
-                label =
-                    stringResource(
-                        if (softWrap) {
-                            R.string.web_session_source_soft_wrap
-                        } else {
-                            R.string.web_session_source_horizontal_browse
-                        },
-                    ),
-                selected = true,
+                label = stringResource(R.string.web_session_source_horizontal_browse),
+                selected = !softWrap,
                 enabled = true,
-                onClick = { onSoftWrapChanged(!softWrap) },
+                onClick = { onSoftWrapChanged(false) },
+            )
+            PageSourceCommandChip(
+                label = stringResource(R.string.web_session_source_soft_wrap),
+                selected = softWrap,
+                enabled = true,
+                onClick = { onSoftWrapChanged(true) },
             )
             PageSourceCommandChip(
                 label = stringResource(R.string.web_session_userscript_editor_undo),
@@ -911,6 +939,7 @@ private fun PageSourceEditorSearchBar(
     onQueryChanged: (String) -> Unit,
     onReplacementChanged: (String) -> Unit,
     onClose: () -> Unit,
+    onFindPrevious: () -> Unit,
     onFindNext: () -> Unit,
     onReplaceNext: () -> Unit,
     onReplaceAll: () -> Unit,
@@ -936,7 +965,14 @@ private fun PageSourceEditorSearchBar(
                 modifier = Modifier.weight(1f),
             )
             PageSourceSearchAction(
+                label = stringResource(R.string.web_session_userscript_editor_previous),
+                icon = Icons.Filled.KeyboardArrowUp,
+                onClick = onFindPrevious,
+                enabled = query.isNotEmpty(),
+            )
+            PageSourceSearchAction(
                 label = stringResource(R.string.web_session_userscript_editor_next),
+                icon = Icons.Filled.KeyboardArrowDown,
                 onClick = onFindNext,
                 enabled = query.isNotEmpty(),
             )
@@ -1014,6 +1050,7 @@ private fun PageSourceCompactField(
 @Composable
 private fun PageSourceSearchAction(
     label: String,
+    icon: ImageVector? = null,
     onClick: () -> Unit,
     enabled: Boolean,
 ) {
@@ -1027,12 +1064,24 @@ private fun PageSourceSearchAction(
                 .padding(horizontal = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            icon?.let { imageVector ->
+                Icon(
+                    imageVector = imageVector,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -1104,28 +1153,66 @@ private fun PageSourceDiffDialog(
     )
 }
 
+internal data class PageSourceMatch(
+    val start: Int,
+    val end: Int,
+)
+
 private fun selectNextPageSourceMatch(
     editor: NativeCodeEditor?,
     source: String,
     query: String,
-    previousStart: Int,
-): Int {
-    val start = findNextPageSourceMatch(source, query, previousStart)
-    if (start >= 0) {
-        editor?.selectRange(start, start + query.length)
+    previousEnd: Int,
+): PageSourceMatch? {
+    val match = findNextPageSourceMatch(source, query, previousEnd)
+    if (match != null) {
+        editor?.selectRange(match.start, match.end)
     }
-    return start
+    return match
 }
 
-private fun findNextPageSourceMatch(
+private fun selectPreviousPageSourceMatch(
+    editor: NativeCodeEditor?,
     source: String,
     query: String,
-    previousStart: Int,
-): Int {
-    if (query.isEmpty()) {
-        return -1
+    currentStart: Int,
+): PageSourceMatch? {
+    val match = findPreviousPageSourceMatch(source, query, currentStart)
+    if (match != null) {
+        editor?.selectRange(match.start, match.end)
     }
-    val searchFrom = (previousStart + query.length).coerceAtLeast(0)
+    return match
+}
+
+internal fun findNextPageSourceMatch(
+    source: String,
+    query: String,
+    previousEnd: Int,
+): PageSourceMatch? {
+    if (query.isEmpty()) {
+        return null
+    }
+    val searchFrom = previousEnd.coerceAtLeast(0)
     val next = source.indexOf(query, startIndex = searchFrom)
-    return if (next >= 0) next else source.indexOf(query)
+    val start = if (next >= 0) next else source.indexOf(query)
+    return if (start >= 0) PageSourceMatch(start, start + query.length) else null
+}
+
+internal fun findPreviousPageSourceMatch(
+    source: String,
+    query: String,
+    currentStart: Int,
+): PageSourceMatch? {
+    if (query.isEmpty()) {
+        return null
+    }
+    val searchBefore =
+        if (currentStart >= 0) {
+            currentStart - 1
+        } else {
+            source.length
+        }
+    val previous = source.lastIndexOf(query, startIndex = searchBefore)
+    val start = if (previous >= 0) previous else source.lastIndexOf(query)
+    return if (start >= 0) PageSourceMatch(start, start + query.length) else null
 }
