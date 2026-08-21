@@ -18,7 +18,9 @@ import com.ai.assistance.operit.data.model.ParameterCategory
 import com.ai.assistance.operit.data.model.ParameterValueType
 import com.ai.assistance.operit.data.model.StandardModelParameters
 import com.ai.assistance.operit.data.model.ApiProviderType
+import com.ai.assistance.operit.data.model.ApiProtocol
 import com.ai.assistance.operit.data.model.ApiKeyInfo
+import com.ai.assistance.operit.data.model.decodeModelConfigDataWithLegacyProtocol
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -133,7 +135,7 @@ class ModelConfigManager(private val context: Context) {
             val configJson = preferences[configKey]
             if (configJson != null) {
                 try {
-                    json.decodeFromString<ModelConfigData>(configJson)
+                    json.decodeModelConfigDataWithLegacyProtocol(configJson)
                 } catch (e: Exception) {
                     // 如果解析失败，回退到创建一个新配置
                     if (configId == DEFAULT_CONFIG_ID) {
@@ -172,7 +174,7 @@ class ModelConfigManager(private val context: Context) {
                         val configJson = preferences[configKey]
                         if (configJson != null) {
                             try {
-                                json.decodeFromString<ModelConfigData>(configJson)
+                                json.decodeModelConfigDataWithLegacyProtocol(configJson)
                             } catch (e: Exception) {
                                 if (configId == DEFAULT_CONFIG_ID) {
                                     createFreshDefaultConfig()
@@ -233,7 +235,8 @@ class ModelConfigManager(private val context: Context) {
                             name = config.name,
                             modelName = config.modelName,
                             apiEndpoint = config.apiEndpoint,
-                            apiProviderType = config.apiProviderType
+                            apiProviderType = config.apiProviderType,
+                            apiProtocol = config.apiProtocol,
                     )
             )
         }
@@ -354,6 +357,7 @@ class ModelConfigManager(private val context: Context) {
             modelName: String,
             apiProviderType: ApiProviderType,
             apiProviderTypeId: String = apiProviderType.name,
+            apiProtocol: ApiProtocol = ApiProtocol.fromProviderType(apiProviderType),
             mnnForwardType: Int,
             mnnThreadCount: Int,
             llamaThreadCount: Int,
@@ -373,6 +377,7 @@ class ModelConfigManager(private val context: Context) {
                     modelName = modelName,
                     apiProviderType = apiProviderType,
                     apiProviderTypeId = apiProviderTypeId,
+                    apiProtocol = apiProtocol,
                     mnnForwardType = mnnForwardType,
                     mnnThreadCount = mnnThreadCount,
                     llamaThreadCount = llamaThreadCount.coerceAtLeast(1),

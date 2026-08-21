@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.api.chat.llmprovider
 
 import com.ai.assistance.operit.data.model.ApiProviderType
+import com.ai.assistance.operit.data.model.ApiProtocol
 import java.net.URL
 
 /**
@@ -73,7 +74,7 @@ object EndpointCompleter {
         return endpoint
     }
 
-    fun completeEndpoint(endpoint: String, providerType: ApiProviderType): String {
+    private fun completeAnthropicEndpoint(endpoint: String): String {
         val trimmedEndpoint = endpoint.trim()
         if (trimmedEndpoint.endsWith("#")) {
             return trimmedEndpoint.removeSuffix("#")
@@ -81,45 +82,52 @@ object EndpointCompleter {
 
         val endpointWithoutSlash = trimmedEndpoint.removeSuffix("/")
 
-        when (providerType) {
-            ApiProviderType.OPENAI_RESPONSES,
-            ApiProviderType.OPENAI_RESPONSES_GENERIC -> {
-                return completeResponsesEndpoint(endpoint)
+        try {
+            val url = URL(trimmedEndpoint)
+            val path = url.path.removeSuffix("/")
+
+            if (path.isEmpty()) {
+                return "$endpointWithoutSlash/v1/messages"
             }
 
-            ApiProviderType.ANTHROPIC,
-            ApiProviderType.ANTHROPIC_GENERIC -> {
-                try {
-                    val url = URL(trimmedEndpoint)
-                    val path = url.path.removeSuffix("/")
-
-                    if (path.isEmpty()) {
-                        return "$endpointWithoutSlash/v1/messages"
-                    }
-
-                    if (path.endsWith("/anthropic", ignoreCase = true)) {
-                        return "$endpointWithoutSlash/v1/messages"
-                    }
-
-                    if (path.endsWith("/v1", ignoreCase = true)) {
-                        return "$endpointWithoutSlash/messages"
-                    }
-                } catch (e: Exception) {
-                    // 如果不是一个有效的URL，则不进行任何操作
-                }
-
-                return endpoint
+            if (path.endsWith("/anthropic", ignoreCase = true)) {
+                return "$endpointWithoutSlash/v1/messages"
             }
 
+            if (path.endsWith("/v1", ignoreCase = true)) {
+                return "$endpointWithoutSlash/messages"
+            }
+        } catch (_: Exception) {
+            // 保留原始端点；调用方仍会通过连接测试暴露无效 URL。
+        }
+
+        return endpoint
+    }
+
+    fun completeEndpoint(endpoint: String, protocol: ApiProtocol): String {
+        return when (protocol) {
+            ApiProtocol.OPENAI_CHAT_COMPLETIONS -> completeEndpoint(endpoint)
+            ApiProtocol.OPENAI_RESPONSES -> completeResponsesEndpoint(endpoint)
+            ApiProtocol.ANTHROPIC_MESSAGES -> completeAnthropicEndpoint(endpoint)
+            ApiProtocol.PROVIDER_NATIVE -> endpoint.trim().removeSuffix("#")
+        }
+    }
+
+    fun completeEndpoint(endpoint: String, providerType: ApiProviderType): String {
+        return when (providerType) {
             ApiProviderType.GOOGLE,
             ApiProviderType.GEMINI_GENERIC,
-            ApiProviderType.MNN -> {
-                return endpoint
-            }
+            ApiProviderType.MNN -> endpoint.trim().removeSuffix("#")
 
-            else -> {
-                return completeEndpoint(endpoint)
-            }
+            ApiProviderType.OPENAI_RESPONSES,
+            ApiProviderType.OPENAI_RESPONSES_GENERIC ->
+                completeEndpoint(endpoint, ApiProtocol.OPENAI_RESPONSES)
+
+            ApiProviderType.ANTHROPIC,
+            ApiProviderType.ANTHROPIC_GENERIC ->
+                completeEndpoint(endpoint, ApiProtocol.ANTHROPIC_MESSAGES)
+
+            else -> completeEndpoint(endpoint, ApiProtocol.OPENAI_CHAT_COMPLETIONS)
         }
     }
 }

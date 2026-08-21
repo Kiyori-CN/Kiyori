@@ -3,6 +3,7 @@ package com.ai.assistance.operit.api.chat.llmprovider
 import com.ai.assistance.operit.data.model.ApiKeyAvailabilityStatus
 import com.ai.assistance.operit.data.model.ApiKeyInfo
 import com.ai.assistance.operit.data.model.ApiProviderType
+import com.ai.assistance.operit.data.model.ApiProtocol
 import com.ai.assistance.operit.data.model.ModelConfigData
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -85,6 +86,16 @@ class ChatConfigReadinessTest {
         assertIssue(
             ChatConfigReadinessIssue.ENDPOINT_INVALID,
             remoteConfig(ApiProviderType.DEEPSEEK, endpoint = "not a url")
+        )
+    }
+
+    @Test
+    fun unsupportedProviderProtocolCombination_isRejectedBeforeTransport() {
+        assertIssue(
+            ChatConfigReadinessIssue.PROTOCOL_UNAVAILABLE,
+            remoteConfig(ApiProviderType.DEEPSEEK).copy(
+                apiProtocol = ApiProtocol.PROVIDER_NATIVE,
+            )
         )
     }
 

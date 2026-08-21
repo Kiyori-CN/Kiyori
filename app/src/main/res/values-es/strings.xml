@@ -1100,30 +1100,25 @@
     
     <!-- API Provider names -->
     <string name="provider_openai">OpenAI (Serie GPT)</string>
-    <string name="provider_openai_responses">OpenAI (API Responses)</string>
-    <string name="provider_openai_responses_generic">OpenAI Responses (Genérico)</string>
-    <string name="provider_openai_generic">OpenAI genérico</string>
     <string name="provider_anthropic">Anthropic (Serie Claude)</string>
-    <string name="provider_anthropic_generic">Anthropic genérico</string>
     <string name="provider_google">Google (Serie Gemini)</string>
-    <string name="provider_gemini_generic">Gemini genérico</string>
-    <string name="provider_baidu">Baidu (Serie ERNIE)</string>
-    <string name="provider_aliyun">Alibaba Cloud (Serie Qwen)</string>
-    <string name="provider_xunfei">iFLYTEK (Serie Spark)</string>
-    <string name="provider_zhipu">Zhipu AI (Serie ChatGLM)</string>
-    <string name="provider_baichuan">Modelos Baichuan</string>
-    <string name="provider_moonshot">Moonshot AI</string>
-    <string name="provider_deepseek">Modelos Deepseek</string>
-    <string name="provider_mistral">Mistral AI (Codestral)</string>
-    <string name="provider_siliconflow">SiliconFlow</string>
-    <string name="provider_iflow">iFlow</string>
-    <string name="provider_openrouter">OpenRouter (Hub Multi-modelo)</string>
-    <string name="provider_infiniai">InfiniAI</string>
-    <string name="provider_lmstudio">LM Studio (modelo local)</string>
-    <string name="provider_ollama">Ollama (modelo local)</string>
-    <string name="provider_openai_local">OpenAI compatible (modelo local)</string>
-    <string name="provider_novita">Novita AI</string>
-    <string name="provider_other">Otros proveedores</string>
+    <string name="provider_baidu">Baidu AI Cloud (ERNIE Series)</string>
+    <string name="provider_aliyun">Alibaba Cloud Model Studio (Qwen Series)</string>
+    <string name="provider_xunfei">iFLYTEK Spark (Spark Series)</string>
+    <string name="provider_zhipu">Zhipu AI (GLM Series)</string>
+    <string name="provider_baichuan">Baichuan Intelligence (Baichuan Series)</string>
+    <string name="provider_moonshot">Moonshot AI (Kimi / Moonshot Series)</string>
+    <string name="provider_deepseek">DeepSeek (DeepSeek Series)</string>
+    <string name="provider_mistral">Mistral AI (Mistral / Codestral Series)</string>
+    <string name="provider_siliconflow">SiliconFlow (Multi-model)</string>
+    <string name="provider_iflow">iFlow (Multi-model)</string>
+    <string name="provider_openrouter">OpenRouter (Multi-model Routing)</string>
+    <string name="provider_infiniai">InfiniAI (Infini-AI Series)</string>
+    <string name="provider_lmstudio">LM Studio (Local Model Server)</string>
+    <string name="provider_ollama">Ollama (Local Model Server)</string>
+    <string name="provider_openai_local">OpenAI-Compatible Local Server</string>
+    <string name="provider_novita">Novita AI (Multi-model)</string>
+    <string name="provider_other">Custom API</string>
     <string name="select_api_provider_title">Seleccionar Proveedor API</string>
     <string name="search_providers">Buscar proveedores</string>
     <!-- ModelParametersSection strings -->
@@ -1252,8 +1247,8 @@
     <string name="thinking_quality">Intensidad de pensamiento</string>
     <string name="thinking_quality_desc">Solo funciona en el modo de pensamiento. Los modelos GPT-5.6 usan cinco niveles; los demás conservan los cuatro niveles originales. Un valor mayor implica un razonamiento más profundo.</string>
     
-    <string name="provider_doubao">Doubao (Modelo Volcano)</string>
-    <string name="provider_nvidia">NVIDIA (API Catalog)</string>
+    <string name="provider_doubao">Volcengine Ark (Doubao Series)</string>
+    <string name="provider_nvidia">NVIDIA NIM (Nemotron / Multi-model)</string>
 
     <string name="speech_services_stt_type_openai">OpenAI STT (Remoto)</string>
     <string name="speech_services_stt_type_deepgram">Deepgram STT (Remoto)</string>
@@ -3470,11 +3465,11 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="search_sources">Fuentes de búsqueda</string>
     <string name="clear">Limpiar</string>
     <string name="auto_save_failed">Error al guardar automáticamente</string>
-    <string name="provider_nous_portal">Nous Portal</string>
-    <string name="provider_alipay_bailing">Modelo Bailing de Alipay</string>
-    <string name="provider_mnn">Inferencia local MNN</string>
-    <string name="provider_llama_cpp">Inferencia local llama.cpp</string>
-    <string name="provider_ppinfra">Paiyun</string>
+    <string name="provider_nous_portal">Nous Research (Hermes Series)</string>
+    <string name="provider_alipay_bailing">Alipay Bailing (Ling Series)</string>
+    <string name="provider_mnn">MNN (On-device Inference)</string>
+    <string name="provider_llama_cpp">llama.cpp (On-device Inference)</string>
+    <string name="provider_ppinfra">PPIO (Multi-model)</string>
     <string name="reset">Restablecer</string>
     <string name="collapsed">Contraído</string>
     <string name="expanded">Expandido</string>
@@ -6878,7 +6873,7 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="speech_services_vits_options_hint">Opcional: sample_rate, threads, noise_scale, length_scale, noise_w, frontend, text_mode, speaker_count, nombres de entrada, tokens blank/bos/eos, model_path, config_path, lexicon_path, etc.</string>
     <string name="speech_services_vits_options_error">JSON de parámetros VITS/Piper no válido</string>
     <string name="memory_auto_update_runtime_status">Memorias pendientes de extraer: %1$d, próximo guardado en %2$d minutos</string>
-    <string name="provider_4router">4Router</string>
+    <string name="provider_4router">4Router (Multi-model Routing)</string>
     <string name="character_card_memory_profile_binding">Vinculación de configuración de memoria</string>
     <string name="character_card_memory_profile_follow_global">Seguir global</string>
     <string name="character_card_memory_profile_fixed_profile">Configuración fija</string>
@@ -7032,7 +7027,7 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="chat_delete_message_confirm_message">¿Está seguro de que desea eliminar este mensaje? Esta acción no se puede deshacer.</string>
     <string name="pin_chat">Fijar chat</string>
     <string name="unpin_chat">Desfijar chat</string>
-    <string name="provider_mimo">Xiaomi MiMo</string>
+    <string name="provider_mimo">Xiaomi MiMo (MiMo Series)</string>
     <string name="waifu_merge_send">Combinar y enviar</string>
     <string name="waifu_merge_send_desc">Al enviar varios mensajes cortos consecutivos, se combinan en uno después de una pausa y se envían a la IA</string>
     <string name="waifu_merge_send_delay">Intervalo de combinación</string>
@@ -7581,15 +7576,7 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="kiyori_onboarding_permission_screen_capture_desc">Android confirma cada uso para capturas, grabaciones y análisis visual.</string>
 
     <!-- Provider selection summaries -->
-    <string name="provider_summary_chat_official">Chat Completions API · Endpoint oficial</string>
-    <string name="provider_summary_chat_compatible">Chat Completions API · Endpoint personalizado</string>
-    <string name="provider_summary_responses_official">Responses API · Endpoint oficial</string>
-    <string name="provider_summary_responses_compatible">Responses API · Endpoint personalizado</string>
-    <string name="provider_summary_built_in">Proveedor integrado</string>
     <string name="provider_summary_toolpkg">Proveedor ToolPkg · %1$s</string>
-    <string name="provider_section_openai_chat_completions">OpenAI Chat Completions</string>
-    <string name="provider_section_openai_responses">OpenAI Responses</string>
-    <string name="provider_section_other_built_in">Otros proveedores</string>
     <string name="provider_section_toolpkg">Proveedores ToolPkg</string>
 
     <!-- Package environment variable security -->
@@ -7758,4 +7745,25 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="speech_services_tools_desc">Prueba la reproducción de texto con la configuración de voz actual</string>
     <string name="speech_services_test_tts_desc">Abre la herramienta de reproducción de texto y verifica la configuración de síntesis actual</string>
     <string name="speech_services_simple_tts_voice_load_failed">No se pudieron cargar las voces TTS del sistema. Comprueba el motor de voz del dispositivo.</string>
+    <string name="api_protocol">Protocolo API</string>
+    <string name="select_api_protocol">Selecciona el protocolo de solicitudes para este proveedor</string>
+    <string name="select_api_protocol_title">Seleccionar protocolo API</string>
+    <string name="api_protocol_openai_chat">OpenAI Chat Completions</string>
+    <string name="api_protocol_openai_responses">OpenAI Responses API</string>
+    <string name="api_protocol_anthropic_messages">Anthropic Messages API</string>
+    <string name="api_protocol_provider_native">Protocolo nativo del proveedor</string>
+    <string name="api_protocol_gemini_native">API nativa de Gemini</string>
+    <string name="api_protocol_mnn_native">Inferencia local MNN</string>
+    <string name="api_protocol_llama_cpp_native">Inferencia local llama.cpp</string>
+    <string name="api_protocol_auto_detect">Detección automática</string>
+    <string name="api_protocol_auto_detect_summary">Determina el protocolo según el proveedor y el endpoint; si el resultado no es único, debes elegirlo manualmente</string>
+    <string name="api_protocol_auto_detected">Detectado: %1$s</string>
+    <string name="api_protocol_auto_detect_unresolved">No se puede determinar un único protocolo API desde este endpoint. Selecciónalo manualmente.</string>
+    <string name="api_protocol_openai_chat_summary">Solicitudes compatibles con Chat Completions</string>
+    <string name="api_protocol_openai_responses_summary">Solicitudes compatibles con Responses API</string>
+    <string name="api_protocol_anthropic_messages_summary">Solicitudes compatibles con Anthropic Messages</string>
+    <string name="api_protocol_provider_native_summary">Gestionado por el adaptador específico del proveedor</string>
+    <string name="provider_section_international">Proveedores internacionales</string>
+    <string name="provider_section_domestic">Proveedores de China</string>
+    <string name="provider_section_local_and_custom">Local y personalizado</string>
 </resources>

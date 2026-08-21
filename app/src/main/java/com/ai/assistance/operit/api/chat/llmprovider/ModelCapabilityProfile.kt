@@ -61,6 +61,7 @@ data class ModelCapabilityProfile(
     val providerContractAuthority: ProviderContractAuthority,
     val reasoningWireFormat: ReasoningWireFormat,
     val supportedReasoningEfforts: Set<ReasoningEffortValue>,
+    val qualityLevelToReasoningEffort: List<ReasoningEffortValue> = emptyList(),
     val reasoningSummary: ReasoningSummaryCapability,
     val reasoningReplay: ReasoningReplayCapability,
     val executionPersistence: ExecutionPersistenceCapability,
@@ -79,6 +80,15 @@ data class ModelCapabilityProfile(
             "A model without a reasoning wire format cannot declare reasoning efforts"
         }
         require(
+            supportedReasoningEfforts.isEmpty() ||
+                qualityLevelToReasoningEffort.size == UserExecutionIntent.MAX_QUALITY_LEVEL
+        ) {
+            "Reasoning profiles must define one wire mapping for every user quality level"
+        }
+        require(qualityLevelToReasoningEffort.all(supportedReasoningEfforts::contains)) {
+            "Reasoning quality mapping contains an unsupported wire value"
+        }
+        require(
             reasoningSummary == ReasoningSummaryCapability.NONE ||
                 reasoningWireFormat == ReasoningWireFormat.RESPONSES
         ) {
@@ -95,6 +105,15 @@ data class ModelCapabilityProfile(
                 !promptCacheNamespace.isNullOrBlank()
         ) {
             "Prompt-cache profiles must declare a namespace"
+        }
+    }
+
+    fun reasoningEffortForQualityLevel(level: Int): ReasoningEffortValue {
+        require(level in UserExecutionIntent.MIN_QUALITY_LEVEL..UserExecutionIntent.MAX_QUALITY_LEVEL) {
+            "thinkingQualityLevel must be in ${UserExecutionIntent.MIN_QUALITY_LEVEL}..${UserExecutionIntent.MAX_QUALITY_LEVEL}"
+        }
+        return requireNotNull(qualityLevelToReasoningEffort.getOrNull(level - 1)) {
+            "Profile $profileId does not declare reasoning mapping for quality level $level"
         }
     }
 }
@@ -156,11 +175,7 @@ object ModelCapabilityResolver {
             providerContractAuthority == ProviderContractAuthority.OPENAI_OFFICIAL
         val isResponses = reasoningWireFormat == ReasoningWireFormat.RESPONSES
         val isOfficialResponses = isOfficialOpenAi && isResponses
-        val isGpt56Family =
-            normalizedModel == "gpt-5.6" ||
-                normalizedModel == "gpt-5.6-sol" ||
-                normalizedModel == "gpt-5.6-terra" ||
-                normalizedModel == "gpt-5.6-luna"
+        val isGpt56Family = normalizedModel.startsWith("gpt-5.6")
 
         if (isGpt56Family && reasoningWireFormat != ReasoningWireFormat.NONE) {
             val tier =
@@ -181,7 +196,8 @@ object ModelCapabilityResolver {
                 modelFamily = "gpt-5.6",
                 providerContractAuthority = providerContractAuthority,
                 reasoningWireFormat = reasoningWireFormat,
-                supportedReasoningEfforts = FIVE_LEVEL_REASONING,
+                supportedReasoningEfforts = FIVE_LEVEL_REASONING.toSet(),
+                qualityLevelToReasoningEffort = FIVE_LEVEL_REASONING,
                 reasoningSummary =
                     if (isOfficialResponses) {
                         ReasoningSummaryCapability.OPENAI_AUTO
@@ -243,9 +259,8 @@ object ModelCapabilityResolver {
                 modelFamily = normalizedModel.ifBlank { "openai-compatible" },
                 providerContractAuthority = providerContractAuthority,
                 reasoningWireFormat = reasoningWireFormat,
-                // 未登记的模型只保留调用方已提供的 wire 参数。不能因为 endpoint 长得像
-                // OpenAI 就假定它接受 GPT-5.6 的 xhigh/max 五档合同。
-                supportedReasoningEfforts = emptySet(),
+                supportedReasoningEfforts = STANDARD_REASONING_EFFORTS,
+                qualityLevelToReasoningEffort = STANDARD_REASONING_QUALITY_MAPPING,
                 reasoningSummary = ReasoningSummaryCapability.NONE,
                 reasoningReplay = ReasoningReplayCapability.NONE,
                 executionPersistence =
@@ -288,13 +303,29 @@ object ModelCapabilityResolver {
     }
 
     private val FIVE_LEVEL_REASONING =
-        setOf(
+        listOf(
             ReasoningEffortValue.LOW,
             ReasoningEffortValue.MEDIUM,
             ReasoningEffortValue.HIGH,
             ReasoningEffortValue.XHIGH,
             ReasoningEffortValue.MAX,
-    )
+        )
+
+    private val STANDARD_REASONING_EFFORTS =
+        setOf(
+            ReasoningEffortValue.LOW,
+            ReasoningEffortValue.MEDIUM,
+            ReasoningEffortValue.HIGH,
+        )
+
+    private val STANDARD_REASONING_QUALITY_MAPPING =
+        listOf(
+            ReasoningEffortValue.LOW,
+            ReasoningEffortValue.LOW,
+            ReasoningEffortValue.MEDIUM,
+            ReasoningEffortValue.HIGH,
+            ReasoningEffortValue.HIGH,
+        )
 }
 
 internal object OpenAiEndpointContract {
@@ -366,11 +397,7 @@ object ModelRequestCompiler {
                 profile.supportedReasoningEfforts.isEmpty() -> null
                 !intent.enableThinking -> ReasoningEffortValue.NONE
                 else -> {
-                    val requested = QUALITY_TO_EFFORT.getValue(intent.thinkingQualityLevel)
-                    require(requested in profile.supportedReasoningEfforts) {
-                        "Profile ${profile.profileId} does not support ${requested.wireValue}"
-                    }
-                    requested
+                    profile.reasoningEffortForQualityLevel(intent.thinkingQualityLevel)
                 }
             }
         val resumableBackground =
@@ -403,12 +430,4 @@ object ModelRequestCompiler {
         )
     }
 
-    private val QUALITY_TO_EFFORT =
-        mapOf(
-            1 to ReasoningEffortValue.LOW,
-            2 to ReasoningEffortValue.MEDIUM,
-            3 to ReasoningEffortValue.HIGH,
-            4 to ReasoningEffortValue.XHIGH,
-            5 to ReasoningEffortValue.MAX,
-        )
 }

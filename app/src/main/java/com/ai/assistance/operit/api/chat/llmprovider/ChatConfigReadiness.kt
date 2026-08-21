@@ -3,6 +3,7 @@ package com.ai.assistance.operit.api.chat.llmprovider
 import com.ai.assistance.operit.data.collects.ApiProviderConfigs
 import com.ai.assistance.operit.data.model.ApiKeyFormatValidator
 import com.ai.assistance.operit.data.model.ApiProviderType
+import com.ai.assistance.operit.data.model.ApiProtocol
 import com.ai.assistance.operit.data.model.ModelConfigData
 import com.ai.assistance.operit.data.model.getModelByIndex
 import com.ai.assistance.operit.data.model.getValidModelIndex
@@ -11,6 +12,7 @@ import java.net.URI
 enum class ChatConfigReadinessIssue {
     PROVIDER_MISSING,
     PROVIDER_UNAVAILABLE,
+    PROTOCOL_UNAVAILABLE,
     ENDPOINT_INVALID,
     MODEL_MISSING,
     API_KEY_MISSING,
@@ -51,6 +53,9 @@ object ChatConfigReadiness {
 
         val providerType = ApiProviderType.fromProviderTypeId(providerTypeId)
             ?: return ChatConfigReadinessResult(ChatConfigReadinessIssue.PROVIDER_UNAVAILABLE)
+        if (config.apiProtocol !in ApiProviderConfigs.getSupportedProtocols(providerType)) {
+            return ChatConfigReadinessResult(ChatConfigReadinessIssue.PROTOCOL_UNAVAILABLE)
+        }
         val validModelIndex = getValidModelIndex(config.modelName, modelIndex)
         if (getModelByIndex(config.modelName, validModelIndex).isBlank()) {
             return ChatConfigReadinessResult(ChatConfigReadinessIssue.MODEL_MISSING)
@@ -60,7 +65,12 @@ object ChatConfigReadiness {
             return ChatConfigReadinessResult()
         }
 
-        val completedEndpoint = EndpointCompleter.completeEndpoint(config.apiEndpoint, providerType)
+        val completedEndpoint =
+            if (config.apiProtocol == ApiProtocol.PROVIDER_NATIVE) {
+                EndpointCompleter.completeEndpoint(config.apiEndpoint, providerType)
+            } else {
+                EndpointCompleter.completeEndpoint(config.apiEndpoint, config.apiProtocol)
+            }
         if (!isHttpEndpoint(completedEndpoint)) {
             return ChatConfigReadinessResult(ChatConfigReadinessIssue.ENDPOINT_INVALID)
         }

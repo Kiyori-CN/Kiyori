@@ -1,12 +1,14 @@
 package com.ai.assistance.operit.ui.features.settings.sections
 
+import com.ai.assistance.operit.data.collects.ApiProviderConfigs
 import com.ai.assistance.operit.data.model.ApiProviderType
+import com.ai.assistance.operit.data.model.ApiProtocol
 import java.util.Locale
 
 internal enum class ProviderSelectionSection {
-    OPENAI_CHAT_COMPLETIONS,
-    OPENAI_RESPONSES,
-    OTHER_BUILT_IN,
+    INTERNATIONAL,
+    DOMESTIC,
+    LOCAL_AND_CUSTOM,
     TOOLPKG,
 }
 
@@ -24,6 +26,10 @@ internal data class ProviderSelectionOption(
     val endpointKind: ProviderEndpointKind,
 )
 
+internal data class ProviderProtocolOption(
+    val protocol: ApiProtocol,
+)
+
 internal sealed interface ProviderSelectionRow {
     data class Header(
         val section: ProviderSelectionSection,
@@ -35,39 +41,100 @@ internal sealed interface ProviderSelectionRow {
 }
 
 internal object ModelApiProviderPresentationPolicy {
-    private val openAIProviderOrder =
+    private val hiddenCompatibilityProviders =
         listOf(
-            ApiProviderType.OPENAI,
-            ApiProviderType.OPENAI_GENERIC,
             ApiProviderType.OPENAI_RESPONSES,
+            ApiProviderType.OPENAI_GENERIC,
             ApiProviderType.OPENAI_RESPONSES_GENERIC,
+            ApiProviderType.ANTHROPIC_GENERIC,
+            ApiProviderType.GEMINI_GENERIC,
         )
 
-    fun section(provider: ApiProviderType): ProviderSelectionSection =
-        when (provider) {
+    private val internationalProviderOrder =
+        listOf(
             ApiProviderType.OPENAI,
-            ApiProviderType.OPENAI_GENERIC ->
-                ProviderSelectionSection.OPENAI_CHAT_COMPLETIONS
+            ApiProviderType.ANTHROPIC,
+            ApiProviderType.GOOGLE,
+            ApiProviderType.MISTRAL,
+            ApiProviderType.OPENROUTER,
+            ApiProviderType.FOUR_ROUTER,
+            ApiProviderType.NOUS_PORTAL,
+            ApiProviderType.NVIDIA,
+            ApiProviderType.NOVITA,
+        )
 
+    private val domesticProviderOrder =
+        listOf(
+            ApiProviderType.DEEPSEEK,
+            ApiProviderType.ALIYUN,
+            ApiProviderType.BAIDU,
+            ApiProviderType.XUNFEI,
+            ApiProviderType.ZHIPU,
+            ApiProviderType.BAICHUAN,
+            ApiProviderType.MOONSHOT,
+            ApiProviderType.MIMO,
+            ApiProviderType.SILICONFLOW,
+            ApiProviderType.IFLOW,
+            ApiProviderType.INFINIAI,
+            ApiProviderType.ALIPAY_BAILING,
+            ApiProviderType.DOUBAO,
+            ApiProviderType.PPINFRA,
+        )
+
+    private val localAndCustomProviderOrder =
+        listOf(
+            ApiProviderType.LMSTUDIO,
+            ApiProviderType.OLLAMA,
+            ApiProviderType.OPENAI_LOCAL,
+            ApiProviderType.MNN,
+            ApiProviderType.LLAMA_CPP,
+            ApiProviderType.OTHER,
+        )
+
+    fun canonicalProvider(provider: ApiProviderType): ApiProviderType =
+        when (provider) {
             ApiProviderType.OPENAI_RESPONSES,
-            ApiProviderType.OPENAI_RESPONSES_GENERIC ->
-                ProviderSelectionSection.OPENAI_RESPONSES
+            ApiProviderType.OPENAI_RESPONSES_GENERIC,
+            ApiProviderType.OPENAI_GENERIC -> ApiProviderType.OPENAI
+            ApiProviderType.ANTHROPIC_GENERIC -> ApiProviderType.ANTHROPIC
+            ApiProviderType.GEMINI_GENERIC -> ApiProviderType.GOOGLE
+            else -> provider
+        }
 
-            else -> ProviderSelectionSection.OTHER_BUILT_IN
+    fun isVisibleProvider(provider: ApiProviderType): Boolean =
+        provider !in hiddenCompatibilityProviders
+
+    fun section(provider: ApiProviderType): ProviderSelectionSection =
+        when (canonicalProvider(provider)) {
+            in internationalProviderOrder -> ProviderSelectionSection.INTERNATIONAL
+            in domesticProviderOrder -> ProviderSelectionSection.DOMESTIC
+            else -> ProviderSelectionSection.LOCAL_AND_CUSTOM
         }
 
     fun endpointKind(provider: ApiProviderType): ProviderEndpointKind =
         when (provider) {
             ApiProviderType.OPENAI,
-            ApiProviderType.OPENAI_RESPONSES ->
+            ApiProviderType.ANTHROPIC,
+            ApiProviderType.GOOGLE ->
                 ProviderEndpointKind.OFFICIAL
 
             ApiProviderType.OPENAI_GENERIC,
-            ApiProviderType.OPENAI_RESPONSES_GENERIC ->
+            ApiProviderType.OPENAI_RESPONSES_GENERIC,
+            ApiProviderType.ANTHROPIC_GENERIC,
+            ApiProviderType.GEMINI_GENERIC ->
                 ProviderEndpointKind.COMPATIBLE
 
             else -> ProviderEndpointKind.OTHER
         }
+
+    fun defaultProtocol(provider: ApiProviderType): ApiProtocol =
+        ApiProviderConfigs.getDefaultProtocol(canonicalProvider(provider))
+
+    fun protocolOptions(provider: ApiProviderType): List<ProviderProtocolOption> {
+        return ApiProviderConfigs
+            .getSupportedProtocols(canonicalProvider(provider))
+            .map(::ProviderProtocolOption)
+    }
 
     fun formatSettingsSaveLog(
         provider: ApiProviderType,
@@ -85,9 +152,17 @@ internal object ModelApiProviderPresentationPolicy {
     fun orderBuiltInProviders(
         providers: List<ApiProviderType>,
     ): List<ApiProviderType> {
-        val openAIProviders = openAIProviderOrder.filter(providers::contains)
-        val otherProviders = providers.filterNot(openAIProviderOrder::contains)
-        return openAIProviders + otherProviders
+        val visibleProviders =
+            providers
+                .filter(::isVisibleProvider)
+                .map(::canonicalProvider)
+                .distinct()
+        val preferredOrder =
+            internationalProviderOrder +
+                domesticProviderOrder +
+                localAndCustomProviderOrder
+        return preferredOrder.filter(visibleProviders::contains) +
+            visibleProviders.filterNot(preferredOrder::contains)
     }
 
     fun buildRows(

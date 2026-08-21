@@ -6,6 +6,7 @@ import com.ai.assistance.operit.data.collects.ApiProviderConfigs
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.OperitPaths
 import com.ai.assistance.operit.data.model.ApiProviderType
+import com.ai.assistance.operit.data.model.ApiProtocol
 import com.ai.assistance.operit.data.model.ModelOption
 import java.io.File
 import java.io.IOException
@@ -21,6 +22,63 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONException
 import org.json.JSONObject
+
+internal data class ModelListProtocolRoute(
+    val requestProviderType: ApiProviderType,
+    val configuredModelListEndpoint: String?,
+)
+
+internal object ModelListProtocolRoutingPolicy {
+    fun resolve(
+        providerType: ApiProviderType,
+        apiProtocol: ApiProtocol,
+        apiEndpoint: String,
+    ): ModelListProtocolRoute {
+        ApiProviderConfigs.getProtocolConfig(providerType, apiProtocol)
+        val requestProviderType =
+            when {
+                apiProtocol == ApiProtocol.ANTHROPIC_MESSAGES &&
+                    providerType in
+                        setOf(
+                            ApiProviderType.ANTHROPIC,
+                            ApiProviderType.ANTHROPIC_GENERIC,
+                        ) -> ApiProviderType.ANTHROPIC
+
+                apiProtocol == ApiProtocol.OPENAI_CHAT_COMPLETIONS &&
+                    providerType in
+                        setOf(
+                            ApiProviderType.ANTHROPIC,
+                            ApiProviderType.GOOGLE,
+                        ) -> ApiProviderType.OPENAI_GENERIC
+
+                else -> providerType
+            }
+        return ModelListProtocolRoute(
+            requestProviderType = requestProviderType,
+            configuredModelListEndpoint =
+                ApiProviderConfigs.getModelListEndpoint(
+                    providerType = providerType,
+                    protocol = apiProtocol,
+                    apiEndpoint = apiEndpoint,
+                ),
+        )
+    }
+
+    fun requestProviderType(
+        providerType: ApiProviderType,
+        apiProtocol: ApiProtocol,
+    ): ApiProviderType {
+        return resolve(
+            providerType = providerType,
+            apiProtocol = apiProtocol,
+            apiEndpoint =
+                ApiProviderConfigs.getDefaultApiEndpoint(
+                    providerType = providerType,
+                    protocol = apiProtocol,
+                ),
+        ).requestProviderType
+    }
+}
 
 /** 模型列表获取工具，用于从不同API提供商获取可用模型列表 */
 object ModelListFetcher {
@@ -192,7 +250,51 @@ object ModelListFetcher {
             context: Context,
             apiKey: String,
             apiEndpoint: String,
-            apiProviderType: ApiProviderType = ApiProviderType.OPENAI
+            apiProviderType: ApiProviderType = ApiProviderType.OPENAI,
+    ): Result<List<ModelOption>> {
+        return getModelsListInternal(
+            context = context,
+            apiKey = apiKey,
+            apiEndpoint = apiEndpoint,
+            apiProviderType = apiProviderType,
+            requestProviderType = apiProviderType,
+            endpointResolution = ModelListEndpointResolution.Provider(apiProviderType),
+            configuredModelListEndpoint = null,
+        )
+    }
+
+    suspend fun getModelsList(
+            context: Context,
+            apiKey: String,
+            apiEndpoint: String,
+            apiProviderType: ApiProviderType,
+            apiProtocol: ApiProtocol,
+    ): Result<List<ModelOption>> {
+        val route =
+            ModelListProtocolRoutingPolicy.resolve(
+                providerType = apiProviderType,
+                apiProtocol = apiProtocol,
+                apiEndpoint = apiEndpoint,
+            )
+        return getModelsListInternal(
+            context = context,
+            apiKey = apiKey,
+            apiEndpoint = apiEndpoint,
+            apiProviderType = apiProviderType,
+            requestProviderType = route.requestProviderType,
+            endpointResolution = ModelListEndpointResolution.Protocol(apiProtocol),
+            configuredModelListEndpoint = route.configuredModelListEndpoint,
+        )
+    }
+
+    private suspend fun getModelsListInternal(
+            context: Context,
+            apiKey: String,
+            apiEndpoint: String,
+            apiProviderType: ApiProviderType,
+            requestProviderType: ApiProviderType,
+            endpointResolution: ModelListEndpointResolution,
+            configuredModelListEndpoint: String?,
     ): Result<List<ModelOption>> {
         AppLogger.d(TAG, "开始获取模型列表: 端点=${sanitizeUrlForLog(apiEndpoint, apiKey)}, 提供商=${apiProviderType.name}")
 
@@ -204,7 +306,19 @@ object ModelListFetcher {
             while (retryCount <= maxRetries) {
                 try {
                     val completedEndpoint =
-                            EndpointCompleter.completeEndpoint(apiEndpoint, apiProviderType)
+                            when (endpointResolution) {
+                                is ModelListEndpointResolution.Provider ->
+                                    EndpointCompleter.completeEndpoint(
+                                        apiEndpoint,
+                                        endpointResolution.providerType,
+                                    )
+
+                                is ModelListEndpointResolution.Protocol ->
+                                    EndpointCompleter.completeEndpoint(
+                                        apiEndpoint,
+                                        endpointResolution.apiProtocol,
+                                    )
+                            }
 
                     if (
                             apiProviderType == ApiProviderType.MOONSHOT &&
@@ -215,7 +329,9 @@ object ModelListFetcher {
                     }
 
                     // 根据提供商类型获取模型列表URL
-                    val modelsUrl = getModelsListUrl(completedEndpoint, apiProviderType)
+                    val modelsUrl =
+                        configuredModelListEndpoint
+                            ?: getModelsListUrl(completedEndpoint, requestProviderType)
                     val providerRequiresApiKey =
                             ApiProviderConfigs.requiresApiKey(apiProviderType, completedEndpoint)
                     AppLogger.d(TAG, "准备发送请求到: ${sanitizeUrlForLog(modelsUrl, apiKey)}, 尝试次数: ${retryCount + 1}/${maxRetries + 1}")
@@ -226,7 +342,7 @@ object ModelListFetcher {
                                     .addHeader("Content-Type", "application/json")
 
                     // 根据不同供应商添加不同的认证头
-                    when (apiProviderType) {
+                    when (requestProviderType) {
                         ApiProviderType.GOOGLE,
                         ApiProviderType.GEMINI_GENERIC -> {
                             // Google Gemini API 使用 API 密钥作为查询参数
@@ -323,7 +439,7 @@ object ModelListFetcher {
                     // 根据提供商类型解析响应
                     val modelOptions =
                             try {
-                                when (apiProviderType) {
+                                when (requestProviderType) {
                                     ApiProviderType.OPENAI,
                                     ApiProviderType.OPENAI_RESPONSES,
                                     ApiProviderType.OPENAI_RESPONSES_GENERIC,
@@ -405,6 +521,16 @@ object ModelListFetcher {
             AppLogger.e(TAG, "超过最大重试次数，获取模型列表失败")
             Result.failure(lastException ?: IOException(context.getString(R.string.modellist_error_fetch_failed)))
         }
+    }
+
+    private sealed interface ModelListEndpointResolution {
+        data class Provider(
+            val providerType: ApiProviderType,
+        ) : ModelListEndpointResolution
+
+        data class Protocol(
+            val apiProtocol: ApiProtocol,
+        ) : ModelListEndpointResolution
     }
 
     /** 解析OpenAI格式的模型响应 格式: {"data": [{"id": "model-id", "object": "model", ...}, ...]} */

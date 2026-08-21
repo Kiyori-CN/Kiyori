@@ -2991,28 +2991,24 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="models_displayed_filtered"> (telah ditapis)</string>
     <string name="auto_save_failed">Simpanan automatik gagal</string>
     <string name="provider_openai">OpenAI (siri GPT)</string>
-    <string name="provider_openai_responses">OpenAI (Responses API)</string>
-    <string name="provider_openai_responses_generic">OpenAI Responses generik</string>
     <string name="provider_anthropic">Anthropic (siri Claude)</string>
-    <string name="provider_anthropic_generic">Anthropic generik</string>
     <string name="provider_google">Google (siri Gemini)</string>
-    <string name="provider_gemini_generic">Gemini generik</string>
-    <string name="provider_baidu">Baidu (siri ERNIE)</string>
-    <string name="provider_aliyun">Alibaba Cloud (siri Tongyi Qianwen)</string>
-    <string name="provider_xunfei">iFLYTEK (siri Spark)</string>
-    <string name="provider_zhipu">Zhipu AI (siri ChatGLM)</string>
-    <string name="provider_baichuan">Model Baichuan</string>
-    <string name="provider_moonshot">Model Moonshot AI</string>
-    <string name="provider_deepseek">Model DeepSeek</string>
-    <string name="provider_mistral">Mistral AI (Codestral)</string>
-    <string name="provider_siliconflow">SiliconFlow</string>
-    <string name="provider_iflow">iFlow</string>
-    <string name="provider_openrouter">OpenRouter (agregasi pelbagai model)</string>
-    <string name="provider_infiniai">Infinigence-AI</string>
-    <string name="provider_alipay_bailing">Model Bailing Alipay</string>
-    <string name="provider_lmstudio">LM Studio (model tempatan)</string>
-    <string name="provider_ollama">Ollama (model tempatan)</string>
-    <string name="provider_openai_local">Serasi OpenAI (model tempatan)</string>
+    <string name="provider_baidu">Baidu AI Cloud (ERNIE Series)</string>
+    <string name="provider_aliyun">Alibaba Cloud Model Studio (Qwen Series)</string>
+    <string name="provider_xunfei">iFLYTEK Spark (Spark Series)</string>
+    <string name="provider_zhipu">Zhipu AI (GLM Series)</string>
+    <string name="provider_baichuan">Baichuan Intelligence (Baichuan Series)</string>
+    <string name="provider_moonshot">Moonshot AI (Kimi / Moonshot Series)</string>
+    <string name="provider_deepseek">DeepSeek (DeepSeek Series)</string>
+    <string name="provider_mistral">Mistral AI (Mistral / Codestral Series)</string>
+    <string name="provider_siliconflow">SiliconFlow (Multi-model)</string>
+    <string name="provider_iflow">iFlow (Multi-model)</string>
+    <string name="provider_openrouter">OpenRouter (Multi-model Routing)</string>
+    <string name="provider_infiniai">InfiniAI (Infini-AI Series)</string>
+    <string name="provider_alipay_bailing">Alipay Bailing (Ling Series)</string>
+    <string name="provider_lmstudio">LM Studio (Local Model Server)</string>
+    <string name="provider_ollama">Ollama (Local Model Server)</string>
+    <string name="provider_openai_local">OpenAI-Compatible Local Server</string>
 
     <string name="settings_custom_headers">Penghantar permintaan tersuai</string>
     <string name="settings_custom_headers_subtitle">Konfigurasi medan penghantar permintaan API</string>
@@ -3243,12 +3239,11 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="parameter_type">Jenis parameter</string>
     <string name="settings_title">Tetapan</string>
 
-    <string name="provider_mnn">Inferens Tempatan MNN</string>
-    <string name="provider_llama_cpp">Inferens Tempatan llama.cpp</string>
-    <string name="provider_ppinfra">Pai Ou Yun</string>
-    <string name="provider_novita">Novita AI</string>
-    <string name="provider_openai_generic">OpenAI Generik</string>
-    <string name="provider_other">Pembekal Lain</string>
+    <string name="provider_mnn">MNN (On-device Inference)</string>
+    <string name="provider_llama_cpp">llama.cpp (On-device Inference)</string>
+    <string name="provider_ppinfra">PPIO (Multi-model)</string>
+    <string name="provider_novita">Novita AI (Multi-model)</string>
+    <string name="provider_other">Custom API</string>
     <string name="select_api_provider_title">Pilih Pembekal API</string>
     <string name="search_providers">Cari Pembekal</string>
     <string name="max_tokens_name">Bilangan Token Maksimum Dijana</string>
@@ -4718,8 +4713,8 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="backup_memory_import_strategy_create_new_desc">Cipta ingatan baharu walaupun UUID sama (mungkin menyebabkan pengulangan)</string>
     <string name="backup_confirm">Sahkan</string>
     <string name="backup_cancel">Batal</string>
-    <string name="provider_doubao">Doubao (Model Volcano)</string>
-    <string name="provider_nvidia">NVIDIA (API Catalog)</string>
+    <string name="provider_doubao">Volcengine Ark (Doubao Series)</string>
+    <string name="provider_nvidia">NVIDIA NIM (Nemotron / Multi-model)</string>
     <string name="help_loading_message">Sedang memuatkan manual penggunaan...</string>
     <string name="vd_overlay_a11y_minimize">Minimakan</string>
     <string name="vd_overlay_a11y_exit_fullscreen">Keluar skrin penuh</string>
@@ -6682,7 +6677,7 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="chat_message_variant_counter">%1$d/%2$d</string>
     <string name="chat_previous_variant">Jawapan sebelumnya</string>
     <string name="chat_next_variant">Jawapan seterusnya</string>
-    <string name="provider_nous_portal">Nous Portal</string>
+    <string name="provider_nous_portal">Nous Research (Hermes Series)</string>
     <string name="market_tab_artifact">Pakej Kotak Pasir</string>
     <string name="market_tab_mcp">MCP</string>
     <string name="market_tab_skill">Skill</string>
@@ -6784,7 +6779,7 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="speech_services_vits_options_hint">Pilihan: sample_rate, threads, noise_scale, length_scale, noise_w, frontend, text_mode, speaker_count, nama input, token blank/bos/eos, model_path, config_path, lexicon_path, dsb.</string>
     <string name="speech_services_vits_options_error">Parameter VITS/Piper JSON tidak sah</string>
     <string name="memory_auto_update_runtime_status">%1$d item ingatan untuk diekstrak, %2$d minit lagi sebelum simpan seterusnya</string>
-    <string name="provider_4router">4Router</string>
+    <string name="provider_4router">4Router (Multi-model Routing)</string>
     <string name="character_card_memory_profile_binding">Ikatan Konfigurasi Ingatan</string>
     <string name="character_card_memory_profile_follow_global">Ikut Global</string>
     <string name="character_card_memory_profile_fixed_profile">Konfigurasi Tetap</string>
@@ -6938,7 +6933,7 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="chat_delete_message_confirm_message">Adakah anda pasti mahu memadamkan mesej ini? Tindakan ini tidak boleh dibatalkan.</string>
     <string name="pin_chat">Semat Sembang</string>
     <string name="unpin_chat">Nyahsemat Sembang</string>
-    <string name="provider_mimo">Xiaomi MiMo</string>
+    <string name="provider_mimo">Xiaomi MiMo (MiMo Series)</string>
     <string name="waifu_merge_send">Hantar Bergabung</string>
     <string name="waifu_merge_send_desc">Apabila menghantar beberapa mesej pendek berturut-turut, gabungkan selepas jeda dan serahkan kepada AI untuk diproses</string>
     <string name="waifu_merge_send_delay">Selang Hantar Bergabung</string>
@@ -7473,15 +7468,7 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="kiyori_onboarding_permission_screen_capture_desc">Android mengesahkan setiap penggunaan untuk tangkapan skrin, rakaman dan analisis visual.</string>
 
     <!-- Provider selection summaries -->
-    <string name="provider_summary_chat_official">Chat Completions API · Endpoint rasmi</string>
-    <string name="provider_summary_chat_compatible">Chat Completions API · Endpoint tersuai</string>
-    <string name="provider_summary_responses_official">Responses API · Endpoint rasmi</string>
-    <string name="provider_summary_responses_compatible">Responses API · Endpoint tersuai</string>
-    <string name="provider_summary_built_in">Pembekal terbina dalam</string>
     <string name="provider_summary_toolpkg">Pembekal ToolPkg · %1$s</string>
-    <string name="provider_section_openai_chat_completions">OpenAI Chat Completions</string>
-    <string name="provider_section_openai_responses">OpenAI Responses</string>
-    <string name="provider_section_other_built_in">Pembekal terbina dalam lain</string>
     <string name="provider_section_toolpkg">Pembekal ToolPkg</string>
 
     <!-- Package environment variable security -->
@@ -7648,4 +7635,25 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="speech_services_tools_desc">Uji main balik teks dengan konfigurasi suara semasa</string>
     <string name="speech_services_test_tts_desc">Buka alat main balik teks dan sahkan konfigurasi sintesis suara semasa</string>
     <string name="speech_services_simple_tts_voice_load_failed">Suara TTS sistem tidak dapat dimuatkan. Semak enjin suara peranti.</string>
+    <string name="api_protocol">Protokol API</string>
+    <string name="select_api_protocol">Pilih protokol permintaan untuk pembekal ini</string>
+    <string name="select_api_protocol_title">Pilih protokol API</string>
+    <string name="api_protocol_openai_chat">OpenAI Chat Completions</string>
+    <string name="api_protocol_openai_responses">OpenAI Responses API</string>
+    <string name="api_protocol_anthropic_messages">Anthropic Messages API</string>
+    <string name="api_protocol_provider_native">Protokol asli pembekal</string>
+    <string name="api_protocol_gemini_native">API asli Gemini</string>
+    <string name="api_protocol_mnn_native">Inferens pada peranti MNN</string>
+    <string name="api_protocol_llama_cpp_native">Inferens pada peranti llama.cpp</string>
+    <string name="api_protocol_auto_detect">Kesan automatik</string>
+    <string name="api_protocol_auto_detect_summary">Tentukan protokol daripada pembekal dan endpoint; pilihan manual diperlukan jika hasil tidak unik</string>
+    <string name="api_protocol_auto_detected">Dikesan: %1$s</string>
+    <string name="api_protocol_auto_detect_unresolved">Protokol API tidak dapat ditentukan secara unik daripada endpoint ini. Pilih secara manual.</string>
+    <string name="api_protocol_openai_chat_summary">Permintaan serasi Chat Completions</string>
+    <string name="api_protocol_openai_responses_summary">Permintaan serasi Responses API</string>
+    <string name="api_protocol_anthropic_messages_summary">Permintaan serasi Anthropic Messages</string>
+    <string name="api_protocol_provider_native_summary">Dikendalikan oleh penyesuai khusus pembekal</string>
+    <string name="provider_section_international">Pembekal antarabangsa</string>
+    <string name="provider_section_domestic">Pembekal dari China</string>
+    <string name="provider_section_local_and_custom">Tempatan dan tersuai</string>
 </resources>

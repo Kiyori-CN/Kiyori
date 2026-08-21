@@ -1,6 +1,9 @@
 package com.ai.assistance.operit.data.model
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 
 /** API提供商类型枚举 */
 @Serializable
@@ -53,6 +56,36 @@ enum class ApiProviderType {
         }
 }
 
+/**
+ * API 线协议类型。
+ *
+ * 供应商身份仍由 [ApiProviderType] 和 [ModelConfigData.apiProviderTypeId] 保留，
+ * 协议不再依赖用户可见的重复供应商枚举项。
+ */
+@Serializable
+enum class ApiProtocol {
+        OPENAI_CHAT_COMPLETIONS,
+        OPENAI_RESPONSES,
+        ANTHROPIC_MESSAGES,
+        PROVIDER_NATIVE;
+
+        companion object {
+                fun fromProviderType(providerType: ApiProviderType): ApiProtocol {
+                        return when (providerType) {
+                                ApiProviderType.OPENAI_RESPONSES,
+                                ApiProviderType.OPENAI_RESPONSES_GENERIC -> OPENAI_RESPONSES
+                                ApiProviderType.ANTHROPIC,
+                                ApiProviderType.ANTHROPIC_GENERIC -> ANTHROPIC_MESSAGES
+                                ApiProviderType.GOOGLE,
+                                ApiProviderType.GEMINI_GENERIC,
+                                ApiProviderType.MNN,
+                                ApiProviderType.LLAMA_CPP -> PROVIDER_NATIVE
+                                else -> OPENAI_CHAT_COMPLETIONS
+                        }
+                }
+        }
+}
+
 object ModelConfigDefaults {
         const val DEFAULT_CONTEXT_LENGTH = 64.0f
         const val DEFAULT_MAX_CONTEXT_LENGTH = 200.0f
@@ -76,6 +109,7 @@ data class ModelConfigData(
         val modelName: String = "",
         val apiProviderType: ApiProviderType = ApiProviderType.DEEPSEEK,
         val apiProviderTypeId: String = apiProviderType.name,
+        val apiProtocol: ApiProtocol = ApiProtocol.fromProviderType(apiProviderType),
 
         // 多API Key支持
         val useMultipleApiKeys: Boolean = false, // 是否启用多API Key模式
@@ -168,8 +202,31 @@ data class ModelConfigSummary(
         val modelName: String = "",
         val apiEndpoint: String = "",
         val apiProviderType: ApiProviderType = ApiProviderType.DEEPSEEK,
+        val apiProtocol: ApiProtocol = ApiProtocol.fromProviderType(apiProviderType),
         val modelIndex: Int = 0 // 当modelName包含多个模型（逗号分隔）时，选择第几个模型（从0开始）
 )
+
+/**
+ * 解析旧配置中没有独立协议字段时仍可确定的协议信息。
+ *
+ * 只有原始 JSON 缺失 apiProtocol 时才执行推导；已经持久化的显式协议必须原样保留。
+ * Novita 的旧配置只有一个 provider ID，但端点已经明确表达了 Anthropic 路径。
+ */
+fun Json.decodeModelConfigDataWithLegacyProtocol(rawConfig: String): ModelConfigData {
+    val persistedFields = parseToJsonElement(rawConfig).jsonObject
+    val decoded = decodeFromString<ModelConfigData>(rawConfig)
+    if ("apiProtocol" in persistedFields) {
+        return decoded
+    }
+
+    if (
+        decoded.apiProviderType == ApiProviderType.NOVITA &&
+            decoded.apiEndpoint.contains("/anthropic/", ignoreCase = true)
+    ) {
+        return decoded.copy(apiProtocol = ApiProtocol.ANTHROPIC_MESSAGES)
+    }
+    return decoded
+}
 
 private val MODEL_NAME_INPUT_SEPARATOR = Regex("[,，\\r\\n]+")
 

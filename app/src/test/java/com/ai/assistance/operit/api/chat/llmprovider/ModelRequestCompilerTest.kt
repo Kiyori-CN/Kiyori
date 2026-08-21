@@ -177,7 +177,7 @@ class ModelRequestCompilerTest {
     }
 
     @Test
-    fun unregisteredOpenAiModel_doesNotGuessGpt56ReasoningContract() {
+    fun ordinaryOpenAiModels_useOnlyTheDeclaredThreeWireReasoningLevels() {
         val profile =
             ModelCapabilityResolver.resolve(
                 providerType = ApiProviderType.OPENAI_RESPONSES,
@@ -190,7 +190,7 @@ class ModelRequestCompilerTest {
                 intent = UserExecutionIntent(enableThinking = true, thinkingQualityLevel = 5),
             )
 
-        assertNull(compiled.reasoningEffort)
+        assertEquals(ReasoningEffortValue.HIGH, compiled.reasoningEffort)
         assertFalse(compiled.reasoningSummaryEnabled)
         assertFalse(compiled.encryptedReasoningContentEnabled)
         assertFalse(compiled.background)
@@ -200,5 +200,69 @@ class ModelRequestCompilerTest {
         )
         assertTrue(compiled.promptCacheEnabled)
         assertFalse(compiled.toolSearchEnabled)
+    }
+
+    @Test
+    fun ordinaryOpenAiChatCompletions_mapFiveUserLevelsToThreeWireValues() {
+        val profile =
+            ModelCapabilityResolver.resolve(
+                providerType = ApiProviderType.OPENAI,
+                modelName = "gpt-5.4-mini",
+                apiEndpoint = "https://api.openai.com/v1/chat/completions",
+            )
+
+        assertEquals(
+            listOf(
+                ReasoningEffortValue.LOW,
+                ReasoningEffortValue.LOW,
+                ReasoningEffortValue.MEDIUM,
+                ReasoningEffortValue.HIGH,
+                ReasoningEffortValue.HIGH,
+            ),
+            (1..5).map { level ->
+                ModelRequestCompiler
+                    .compile(
+                        profile = profile,
+                        intent =
+                            UserExecutionIntent(
+                                enableThinking = true,
+                                thinkingQualityLevel = level,
+                            ),
+                    )
+                    .reasoningEffort
+            },
+        )
+    }
+
+    @Test
+    fun gpt56FamilyRecognition_acceptsSuffixedModelNames() {
+        val profile =
+            ModelCapabilityResolver.resolve(
+                providerType = ApiProviderType.OPENAI,
+                modelName = "gpt-5.6-preview-2026-08",
+                apiEndpoint = "https://api.openai.com/v1/chat/completions",
+            )
+
+        assertEquals(
+            listOf(
+                ReasoningEffortValue.LOW,
+                ReasoningEffortValue.MEDIUM,
+                ReasoningEffortValue.HIGH,
+                ReasoningEffortValue.XHIGH,
+                ReasoningEffortValue.MAX,
+            ),
+            (1..5).map { level ->
+                ModelRequestCompiler
+                    .compile(
+                        profile = profile,
+                        intent =
+                            UserExecutionIntent(
+                                enableThinking = true,
+                                thinkingQualityLevel = level,
+                            ),
+                    )
+                    .reasoningEffort
+            },
+        )
     }
 }

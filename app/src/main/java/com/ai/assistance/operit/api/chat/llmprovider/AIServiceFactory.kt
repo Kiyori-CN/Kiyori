@@ -2,7 +2,9 @@ package com.ai.assistance.operit.api.chat.llmprovider
 
 import android.content.Context
 import com.ai.assistance.llama.LlamaSession
+import com.ai.assistance.operit.data.collects.ApiProviderConfigs
 import com.ai.assistance.operit.data.model.ApiProviderType
+import com.ai.assistance.operit.data.model.ApiProtocol
 import com.ai.assistance.operit.data.model.ModelConfigData
 import com.ai.assistance.operit.data.preferences.ModelConfigManager
 import com.ai.assistance.operit.plugins.toolpkg.ToolPkgAiProviderRegistry
@@ -352,7 +354,61 @@ object AIServiceFactory {
         val supportsVideo = config.enableDirectVideoProcessing
         // Tool Call支持标志
         val enableToolCall = config.enableToolCall
-        
+
+        val protocolRoute =
+            ProtocolServiceRoutingPolicy.resolve(
+                providerType = providerType,
+                apiProtocol = config.apiProtocol,
+            )
+
+        if (protocolRoute.serviceKind == ProtocolServiceKind.OPENAI_RESPONSES) {
+            return OpenAIResponsesProvider(
+                responsesApiEndpoint = config.apiEndpoint,
+                apiKeyProvider = apiKeyProvider,
+                modelName = config.modelName,
+                client = httpClient,
+                customHeaders = customHeaders,
+                responsesProviderType = protocolRoute.identityProviderType,
+                capabilityProviderType = protocolRoute.capabilityProviderType,
+                supportsVision = supportsVision,
+                supportsAudio = supportsAudio,
+                supportsVideo = supportsVideo,
+                enableToolCall = enableToolCall
+            )
+        }
+
+        if (protocolRoute.serviceKind == ProtocolServiceKind.ANTHROPIC_MESSAGES) {
+            return ClaudeProvider(
+                apiEndpoint = config.apiEndpoint,
+                apiKeyProvider = apiKeyProvider,
+                modelName = config.modelName,
+                client = httpClient,
+                customHeaders = customHeaders,
+                providerType = protocolRoute.identityProviderType,
+                enableToolCall = enableToolCall,
+                enableClaude1hPromptCache = config.enableClaude1hPromptCache,
+                endpointProviderType = protocolRoute.endpointProviderType,
+            )
+        }
+
+        if (protocolRoute.serviceKind == ProtocolServiceKind.OPENAI_CHAT_GENERIC) {
+            return OpenAIProvider(
+                apiEndpoint = config.apiEndpoint,
+                apiKeyProvider = apiKeyProvider,
+                modelName = config.modelName,
+                client = httpClient,
+                customHeaders = customHeaders,
+                providerType = protocolRoute.identityProviderType,
+                capabilityProviderType = protocolRoute.capabilityProviderType,
+                endpointProtocol = ApiProtocol.OPENAI_CHAT_COMPLETIONS,
+                modelListProtocol = ApiProtocol.OPENAI_CHAT_COMPLETIONS,
+                supportsVision = supportsVision,
+                supportsAudio = supportsAudio,
+                supportsVideo = supportsVideo,
+                enableToolCall = enableToolCall,
+            )
+        }
+
         return when (providerType) {
             // OpenAI格式，支持原生和兼容OpenAI API的服务
             ApiProviderType.OPENAI,
@@ -380,6 +436,7 @@ object AIServiceFactory {
                     client = httpClient,
                     customHeaders = customHeaders,
                     responsesProviderType = providerType,
+                    capabilityProviderType = providerType,
                     supportsVision = supportsVision,
                     supportsAudio = supportsAudio,
                     supportsVideo = supportsVideo,
@@ -636,6 +693,88 @@ object AIServiceFactory {
                     supportsAudio = supportsAudio,
                     supportsVideo = supportsVideo,
                     enableToolCall = enableToolCall
+                )
+        }
+    }
+}
+
+internal enum class ProtocolServiceKind {
+    PROVIDER_ROUTED,
+    OPENAI_CHAT_GENERIC,
+    OPENAI_RESPONSES,
+    ANTHROPIC_MESSAGES,
+}
+
+internal data class ProtocolServiceRoute(
+    val serviceKind: ProtocolServiceKind,
+    val identityProviderType: ApiProviderType,
+    val capabilityProviderType: ApiProviderType,
+    val endpointProviderType: ApiProviderType,
+)
+
+internal object ProtocolServiceRoutingPolicy {
+    fun resolve(
+        providerType: ApiProviderType,
+        apiProtocol: ApiProtocol,
+    ): ProtocolServiceRoute {
+        ApiProviderConfigs.getProtocolConfig(providerType, apiProtocol)
+        return when (apiProtocol) {
+            ApiProtocol.OPENAI_RESPONSES ->
+                ProtocolServiceRoute(
+                    serviceKind = ProtocolServiceKind.OPENAI_RESPONSES,
+                    identityProviderType = providerType,
+                    capabilityProviderType =
+                        when (providerType) {
+                            ApiProviderType.OPENAI,
+                            ApiProviderType.OPENAI_RESPONSES,
+                            -> ApiProviderType.OPENAI_RESPONSES
+
+                            else -> ApiProviderType.OPENAI_RESPONSES_GENERIC
+                        },
+                    endpointProviderType = ApiProviderType.OPENAI_RESPONSES,
+                )
+
+            ApiProtocol.ANTHROPIC_MESSAGES ->
+                ProtocolServiceRoute(
+                    serviceKind = ProtocolServiceKind.ANTHROPIC_MESSAGES,
+                    identityProviderType = providerType,
+                    capabilityProviderType = ApiProviderType.ANTHROPIC,
+                    endpointProviderType = ApiProviderType.ANTHROPIC,
+                )
+
+            ApiProtocol.OPENAI_CHAT_COMPLETIONS -> {
+                val usesGenericOpenAiChat =
+                    providerType == ApiProviderType.ANTHROPIC ||
+                        providerType == ApiProviderType.GOOGLE
+                ProtocolServiceRoute(
+                    serviceKind =
+                        if (usesGenericOpenAiChat) {
+                            ProtocolServiceKind.OPENAI_CHAT_GENERIC
+                        } else {
+                            ProtocolServiceKind.PROVIDER_ROUTED
+                        },
+                    identityProviderType = providerType,
+                    capabilityProviderType =
+                        if (usesGenericOpenAiChat) {
+                            ApiProviderType.OPENAI_GENERIC
+                        } else {
+                            providerType
+                        },
+                    endpointProviderType =
+                        if (usesGenericOpenAiChat) {
+                            ApiProviderType.OPENAI_GENERIC
+                        } else {
+                            providerType
+                        },
+                )
+            }
+
+            ApiProtocol.PROVIDER_NATIVE ->
+                ProtocolServiceRoute(
+                    serviceKind = ProtocolServiceKind.PROVIDER_ROUTED,
+                    identityProviderType = providerType,
+                    capabilityProviderType = providerType,
+                    endpointProviderType = providerType,
                 )
         }
     }

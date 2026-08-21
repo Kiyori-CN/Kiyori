@@ -7,6 +7,22 @@ For_Agent: 对项目大规模动工前按本规范协作
 本文件顶部记录当前跨领域长期任务，后续段落保留专项实施与历史证据。历史段落中的分支、提交、
 APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观察点，不能替代当前 Git、构建或设备状态。
 
+## 2026-08-21 模型与 API 供应商及协议重构
+
+状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND MAIN DELIVERY COMPLETE / DEVICE VERIFICATION PENDING`。
+本轮承接 `main@d802052b` 的干净基线，已把模型配置中的供应商身份、协议、端点和模型能力
+收敛为一套可验证的选择模型。Kiyori 尚未公开发行，因此允许清理重复的用户可见供应商入口；
+`ApiProviderType` 旧值、`apiProviderTypeId`、审计键和既有备份字段在确认无运行时用途前继续保留。
+
+用户复核后要求删除“主流供应商”分类，将 OpenAI、Anthropic 放在国际供应商顶部、DeepSeek
+放在国内供应商顶部，并逐一研究所有供应商可选协议和统一命名；“自动识别”只在配置阶段
+解析并保存具体协议，不会在运行时失败后隐藏切换协议。当前完整 JVM 回归为 `258` 份 JUnit
+XML、`1534` tests、零失败/错误/跳过，formal readiness、fresh clone 和 `git diff --check`
+均通过；Debug APK、APK/ELF 静态审计、main 精确审计、提交推送和远端 ref 对账已完成。
+
+详细方案与阶段状态见
+[`api_provider_configuration_redesign/`](api_provider_configuration_redesign/index.md)。
+
 ## 2026-08-20 AI助手设置全面重构
 
 状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND MAIN DELIVERY COMPLETE / DEVICE VERIFICATION PENDING`。

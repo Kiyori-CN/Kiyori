@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.ui.features.settings.sections
 
 import com.ai.assistance.operit.data.model.ApiProviderType
+import com.ai.assistance.operit.data.model.ApiProtocol
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -8,18 +9,46 @@ import org.junit.Test
 
 class ModelApiProviderPresentationPolicyTest {
     @Test
-    fun `four persisted OpenAI providers map to protocol and endpoint semantics`() {
+    fun `compatibility provider ids collapse to canonical visible suppliers`() {
         assertEquals(
-            ProviderSelectionSection.OPENAI_CHAT_COMPLETIONS,
-            ModelApiProviderPresentationPolicy.section(ApiProviderType.OPENAI),
+            ApiProviderType.OPENAI,
+            ModelApiProviderPresentationPolicy.canonicalProvider(ApiProviderType.OPENAI),
         )
         assertEquals(
             ProviderEndpointKind.OFFICIAL,
             ModelApiProviderPresentationPolicy.endpointKind(ApiProviderType.OPENAI),
         )
         assertEquals(
-            ProviderSelectionSection.OPENAI_CHAT_COMPLETIONS,
+            ApiProviderType.OPENAI,
+            ModelApiProviderPresentationPolicy.canonicalProvider(
+                ApiProviderType.OPENAI_GENERIC
+            ),
+        )
+        assertEquals(
+            ProviderSelectionSection.INTERNATIONAL,
             ModelApiProviderPresentationPolicy.section(ApiProviderType.OPENAI_GENERIC),
+        )
+        assertEquals(
+            ApiProviderType.ANTHROPIC,
+            ModelApiProviderPresentationPolicy.canonicalProvider(
+                ApiProviderType.ANTHROPIC_GENERIC
+            ),
+        )
+        assertEquals(
+            ApiProviderType.GOOGLE,
+            ModelApiProviderPresentationPolicy.canonicalProvider(
+                ApiProviderType.GEMINI_GENERIC
+            ),
+        )
+        assertFalse(
+            ModelApiProviderPresentationPolicy.isVisibleProvider(
+                ApiProviderType.OPENAI_RESPONSES
+            )
+        )
+        assertFalse(
+            ModelApiProviderPresentationPolicy.isVisibleProvider(
+                ApiProviderType.ANTHROPIC_GENERIC
+            )
         )
         assertEquals(
             ProviderEndpointKind.COMPATIBLE,
@@ -27,54 +56,151 @@ class ModelApiProviderPresentationPolicyTest {
                 ApiProviderType.OPENAI_GENERIC
             ),
         )
-        assertEquals(
-            ProviderSelectionSection.OPENAI_RESPONSES,
-            ModelApiProviderPresentationPolicy.section(
-                ApiProviderType.OPENAI_RESPONSES
-            ),
-        )
-        assertEquals(
-            ProviderEndpointKind.OFFICIAL,
-            ModelApiProviderPresentationPolicy.endpointKind(
-                ApiProviderType.OPENAI_RESPONSES
-            ),
-        )
-        assertEquals(
-            ProviderSelectionSection.OPENAI_RESPONSES,
-            ModelApiProviderPresentationPolicy.section(
-                ApiProviderType.OPENAI_RESPONSES_GENERIC
-            ),
-        )
-        assertEquals(
-            ProviderEndpointKind.COMPATIBLE,
-            ModelApiProviderPresentationPolicy.endpointKind(
-                ApiProviderType.OPENAI_RESPONSES_GENERIC
-            ),
-        )
     }
 
     @Test
-    fun `OpenAI protocols use the fixed user facing order without dropping others`() {
+    fun `visible providers are grouped in the fixed international domestic local order`() {
         val input =
             listOf(
-                ApiProviderType.ANTHROPIC,
+                ApiProviderType.OTHER,
                 ApiProviderType.OPENAI_RESPONSES_GENERIC,
+                ApiProviderType.OLLAMA,
+                ApiProviderType.NOVITA,
+                ApiProviderType.BAIDU,
+                ApiProviderType.ANTHROPIC,
                 ApiProviderType.OPENAI,
-                ApiProviderType.OPENAI_RESPONSES,
                 ApiProviderType.DEEPSEEK,
+                ApiProviderType.MISTRAL,
                 ApiProviderType.OPENAI_GENERIC,
             )
 
         assertEquals(
             listOf(
                 ApiProviderType.OPENAI,
-                ApiProviderType.OPENAI_GENERIC,
-                ApiProviderType.OPENAI_RESPONSES,
-                ApiProviderType.OPENAI_RESPONSES_GENERIC,
                 ApiProviderType.ANTHROPIC,
+                ApiProviderType.MISTRAL,
+                ApiProviderType.NOVITA,
                 ApiProviderType.DEEPSEEK,
+                ApiProviderType.BAIDU,
+                ApiProviderType.OLLAMA,
+                ApiProviderType.OTHER,
             ),
             ModelApiProviderPresentationPolicy.orderBuiltInProviders(input),
+        )
+    }
+
+    @Test
+    fun `full visible provider order keeps international and domestic leaders fixed`() {
+        assertEquals(
+            listOf(
+                ApiProviderType.OPENAI,
+                ApiProviderType.ANTHROPIC,
+                ApiProviderType.GOOGLE,
+                ApiProviderType.MISTRAL,
+                ApiProviderType.OPENROUTER,
+                ApiProviderType.FOUR_ROUTER,
+                ApiProviderType.NOUS_PORTAL,
+                ApiProviderType.NVIDIA,
+                ApiProviderType.NOVITA,
+                ApiProviderType.DEEPSEEK,
+                ApiProviderType.ALIYUN,
+                ApiProviderType.BAIDU,
+                ApiProviderType.XUNFEI,
+                ApiProviderType.ZHIPU,
+                ApiProviderType.BAICHUAN,
+                ApiProviderType.MOONSHOT,
+                ApiProviderType.MIMO,
+                ApiProviderType.SILICONFLOW,
+                ApiProviderType.IFLOW,
+                ApiProviderType.INFINIAI,
+                ApiProviderType.ALIPAY_BAILING,
+                ApiProviderType.DOUBAO,
+                ApiProviderType.PPINFRA,
+                ApiProviderType.LMSTUDIO,
+                ApiProviderType.OLLAMA,
+                ApiProviderType.OPENAI_LOCAL,
+                ApiProviderType.MNN,
+                ApiProviderType.LLAMA_CPP,
+                ApiProviderType.OTHER,
+            ),
+            ModelApiProviderPresentationPolicy.orderBuiltInProviders(ApiProviderType.entries),
+        )
+    }
+
+    @Test
+    fun `protocol options keep supplier identity separate from wire protocol`() {
+        assertEquals(
+            listOf(
+                ApiProtocol.OPENAI_CHAT_COMPLETIONS,
+                ApiProtocol.OPENAI_RESPONSES,
+            ),
+            ModelApiProviderPresentationPolicy.protocolOptions(ApiProviderType.OPENAI)
+                .map(ProviderProtocolOption::protocol),
+        )
+        assertEquals(
+            listOf(
+                ApiProtocol.ANTHROPIC_MESSAGES,
+                ApiProtocol.OPENAI_CHAT_COMPLETIONS,
+            ),
+            ModelApiProviderPresentationPolicy.protocolOptions(ApiProviderType.ANTHROPIC)
+                .map(ProviderProtocolOption::protocol),
+        )
+        assertEquals(
+            listOf(
+                ApiProtocol.OPENAI_CHAT_COMPLETIONS,
+                ApiProtocol.OPENAI_RESPONSES,
+                ApiProtocol.ANTHROPIC_MESSAGES,
+            ),
+            ModelApiProviderPresentationPolicy.protocolOptions(ApiProviderType.DEEPSEEK)
+                .map(ProviderProtocolOption::protocol),
+        )
+        assertEquals(
+            listOf(
+                ApiProtocol.PROVIDER_NATIVE,
+                ApiProtocol.OPENAI_CHAT_COMPLETIONS,
+            ),
+            ModelApiProviderPresentationPolicy.protocolOptions(ApiProviderType.GOOGLE)
+                .map(ProviderProtocolOption::protocol),
+        )
+        assertEquals(
+            listOf(
+                ApiProtocol.OPENAI_CHAT_COMPLETIONS,
+                ApiProtocol.ANTHROPIC_MESSAGES,
+            ),
+            ModelApiProviderPresentationPolicy.protocolOptions(ApiProviderType.NOVITA)
+                .map(ProviderProtocolOption::protocol),
+        )
+        assertEquals(
+            listOf(
+                ApiProtocol.OPENAI_CHAT_COMPLETIONS,
+                ApiProtocol.OPENAI_RESPONSES,
+                ApiProtocol.ANTHROPIC_MESSAGES,
+            ),
+            ModelApiProviderPresentationPolicy.protocolOptions(ApiProviderType.OTHER)
+                .map(ProviderProtocolOption::protocol),
+        )
+        assertEquals(
+            listOf(ApiProtocol.OPENAI_CHAT_COMPLETIONS),
+            ModelApiProviderPresentationPolicy.protocolOptions(ApiProviderType.MISTRAL)
+                .map(ProviderProtocolOption::protocol),
+        )
+    }
+
+    @Test
+    fun `endpoint kind remains official only for canonical first party suppliers`() {
+        assertEquals(
+            ProviderEndpointKind.OFFICIAL,
+            ModelApiProviderPresentationPolicy.endpointKind(ApiProviderType.ANTHROPIC),
+        )
+        assertEquals(
+            ProviderEndpointKind.OFFICIAL,
+            ModelApiProviderPresentationPolicy.endpointKind(ApiProviderType.GOOGLE),
+        )
+        assertEquals(
+            ProviderEndpointKind.COMPATIBLE,
+            ModelApiProviderPresentationPolicy.endpointKind(
+                ApiProviderType.OPENAI_GENERIC
+            ),
         )
     }
 
@@ -84,7 +210,7 @@ class ModelApiProviderPresentationPolicyTest {
             listOf(
                 option(
                     id = ApiProviderType.OPENAI.name,
-                    section = ProviderSelectionSection.OPENAI_CHAT_COMPLETIONS,
+                    section = ProviderSelectionSection.INTERNATIONAL,
                 ),
                 option(
                     id = "toolpkg.custom",
@@ -92,15 +218,16 @@ class ModelApiProviderPresentationPolicyTest {
                 ),
             )
 
-        assertEquals(
+        val input =
             listOf(
-                ProviderSelectionRow.Header(
-                    ProviderSelectionSection.OPENAI_CHAT_COMPLETIONS
-                ),
+                ProviderSelectionRow.Header(ProviderSelectionSection.INTERNATIONAL),
                 ProviderSelectionRow.Option(options[0]),
                 ProviderSelectionRow.Header(ProviderSelectionSection.TOOLPKG),
                 ProviderSelectionRow.Option(options[1]),
-            ),
+            )
+
+        assertEquals(
+            input,
             ModelApiProviderPresentationPolicy.buildRows(options),
         )
     }
@@ -109,21 +236,20 @@ class ModelApiProviderPresentationPolicyTest {
     fun `provider search includes display name summary and stable id`() {
         val option =
             ProviderSelectionOption(
-                id = ApiProviderType.OPENAI_RESPONSES_GENERIC.name,
-                displayName = "OpenAI Responses (Compatible endpoint)",
-                summary = "Responses API · Custom endpoint",
-                section = ProviderSelectionSection.OPENAI_RESPONSES,
-                endpointKind = ProviderEndpointKind.COMPATIBLE,
+                id = ApiProviderType.OPENAI.name,
+                displayName = "OpenAI",
+                summary = "Chat Completions and Responses",
+                section = ProviderSelectionSection.INTERNATIONAL,
+                endpointKind = ProviderEndpointKind.OFFICIAL,
             )
 
-        assertTrue(ModelApiProviderPresentationPolicy.matchesSearch(option, "Responses"))
-        assertTrue(ModelApiProviderPresentationPolicy.matchesSearch(option, "custom"))
-        assertTrue(
-            ModelApiProviderPresentationPolicy.matchesSearch(
-                option,
-                "OPENAI_RESPONSES_GENERIC",
-            )
+        assertEquals(
+            ProviderSelectionSection.INTERNATIONAL,
+            ModelApiProviderPresentationPolicy.section(ApiProviderType.OPENAI),
         )
+
+        assertTrue(ModelApiProviderPresentationPolicy.matchesSearch(option, "Responses"))
+        assertTrue(ModelApiProviderPresentationPolicy.matchesSearch(option, "OPENAI"))
         assertFalse(ModelApiProviderPresentationPolicy.matchesSearch(option, "Claude"))
     }
 

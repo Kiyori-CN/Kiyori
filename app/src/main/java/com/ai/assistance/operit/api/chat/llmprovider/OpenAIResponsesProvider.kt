@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Base64
 import com.ai.assistance.operit.core.chat.hooks.PromptTurn
 import com.ai.assistance.operit.data.model.ApiProviderType
+import com.ai.assistance.operit.data.model.ApiProtocol
 import com.ai.assistance.operit.data.model.ModelParameter
 import com.ai.assistance.operit.data.model.ToolPrompt
 import com.ai.assistance.operit.util.AppLogger
@@ -22,6 +23,7 @@ class OpenAIResponsesProvider(
     client: OkHttpClient,
     customHeaders: Map<String, String> = emptyMap(),
     private val responsesProviderType: ApiProviderType = ApiProviderType.OPENAI_RESPONSES,
+    private val capabilityProviderType: ApiProviderType = ApiProviderType.OPENAI_RESPONSES,
     supportsVision: Boolean = false,
     supportsAudio: Boolean = false,
     supportsVideo: Boolean = false,
@@ -33,6 +35,9 @@ class OpenAIResponsesProvider(
     client = client,
     customHeaders = customHeaders,
     providerType = responsesProviderType,
+    capabilityProviderType = capabilityProviderType,
+    endpointProtocol = ApiProtocol.OPENAI_RESPONSES,
+    modelListProtocol = ApiProtocol.OPENAI_RESPONSES,
     supportsVision = supportsVision,
     supportsAudio = supportsAudio,
     supportsVideo = supportsVideo,

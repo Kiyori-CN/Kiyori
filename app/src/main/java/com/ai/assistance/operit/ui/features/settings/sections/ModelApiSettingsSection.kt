@@ -51,7 +51,9 @@ import com.ai.assistance.operit.api.chat.llmprovider.AIServiceFactory
 import com.ai.assistance.operit.api.chat.llmprovider.LlamaProvider
 import com.ai.assistance.operit.api.chat.llmprovider.ModelListFetcher
 import com.ai.assistance.operit.data.collects.ApiProviderConfigs
+import com.ai.assistance.operit.data.collects.ProviderProtocolDetectionResult
 import com.ai.assistance.operit.data.model.ApiProviderType
+import com.ai.assistance.operit.data.model.ApiProtocol
 import com.ai.assistance.operit.data.model.ModelConfigData
 import com.ai.assistance.operit.data.model.ModelOption
 import com.ai.assistance.operit.data.model.getModelList
@@ -123,14 +125,26 @@ fun ModelApiSettingsSection(
     // 区域告警可见性
     var showRegionWarning by remember { mutableStateOf(false) }
 
-    fun getDefaultModelName(providerTypeId: String): String {
+    fun getDefaultModelName(
+        providerTypeId: String,
+        protocol: ApiProtocol = ApiProtocol.PROVIDER_NATIVE,
+    ): String {
         val providerType = ApiProviderType.fromProviderTypeId(providerTypeId) ?: return ""
-        return ApiProviderConfigs.getDefaultModelName(providerType)
+        val resolvedProtocol =
+            if (protocol == ApiProtocol.PROVIDER_NATIVE) {
+                ApiProtocol.fromProviderType(providerType)
+            } else {
+                protocol
+            }
+        return ApiProviderConfigs.getDefaultModelName(providerType, resolvedProtocol)
     }
 
-    fun getEndpointOptions(providerTypeId: String): List<Pair<String, String>>? {
+    fun getEndpointOptions(
+        providerTypeId: String,
+        protocol: ApiProtocol,
+    ): List<Pair<String, String>>? {
         val providerType = ApiProviderType.fromProviderTypeId(providerTypeId) ?: return null
-        return ApiProviderConfigs.getEndpointOptions(providerType)
+        return ApiProviderConfigs.getEndpointOptions(providerType, protocol)
             ?.map { it.endpoint to it.label }
     }
 
@@ -154,9 +168,13 @@ fun ModelApiSettingsSection(
         mutableStateOf<ModelClearDialogState?>(null)
     }
     var selectedProviderTypeId by remember(config.id) { mutableStateOf(config.apiProviderTypeId) }
+    var selectedApiProtocol by remember(config.id) { mutableStateOf(config.apiProtocol) }
     var hasInitializedProviderEndpointSync by remember(config.id) { mutableStateOf(false) }
     var previousProviderTypeId by remember(config.id) { mutableStateOf(config.apiProviderTypeId) }
-    val selectedApiProvider = ApiProviderType.fromProviderTypeId(selectedProviderTypeId)
+    var previousApiProtocol by remember(config.id) { mutableStateOf(config.apiProtocol) }
+    val selectedApiProviderRoute = ApiProviderType.fromProviderTypeId(selectedProviderTypeId)
+    val selectedApiProvider =
+        selectedApiProviderRoute?.let(ModelApiProviderPresentationPolicy::canonicalProvider)
 
     // MNN特定配置状态
     var mnnForwardTypeInput by remember(config.id) { mutableStateOf(config.mnnForwardType) }
@@ -191,6 +209,7 @@ fun ModelApiSettingsSection(
         val modelName: String,
         val providerTypeId: String,
         val provider: ApiProviderType,
+        val protocol: ApiProtocol,
         val mnnForwardType: Int,
         val mnnThreadCount: Int,
         val llamaThreadCount: Int,
@@ -222,6 +241,7 @@ fun ModelApiSettingsSection(
                             modelName = state.modelName,
                             apiProviderType = state.provider,
                             apiProviderTypeId = state.providerTypeId,
+                            apiProtocol = state.protocol,
                             mnnForwardType = state.mnnForwardType,
                             mnnThreadCount = state.mnnThreadCount,
                             llamaThreadCount = state.llamaThreadCount,
@@ -248,7 +268,8 @@ fun ModelApiSettingsSection(
             apiKey = apiKeyInput,
             modelName = serializeModelNames(modelNamesInput),
             providerTypeId = selectedProviderTypeId,
-            provider = selectedApiProvider ?: ApiProviderType.OTHER,
+            provider = selectedApiProviderRoute ?: ApiProviderType.OTHER,
+            protocol = selectedApiProtocol,
             mnnForwardType = mnnForwardTypeInput,
             mnnThreadCount = mnnThreadCountInput.toIntOrNull() ?: 4,
             llamaThreadCount = llamaThreadCountInput.toIntOrNull()?.coerceAtLeast(1) ?: 4,
@@ -307,8 +328,11 @@ fun ModelApiSettingsSection(
     )
 
     // 根据API提供商获取默认的API端点URL
-    fun getDefaultApiEndpoint(providerType: ApiProviderType): String {
-        return ApiProviderConfigs.getDefaultApiEndpoint(providerType)
+    fun getDefaultApiEndpoint(
+        providerType: ApiProviderType,
+        protocol: ApiProtocol = ApiProtocol.fromProviderType(providerType),
+    ): String {
+        return ApiProviderConfigs.getDefaultApiEndpoint(providerType, protocol)
     }
 
     // 添加一个函数检查当前API端点是否为某个提供商的默认端点
@@ -337,17 +361,12 @@ fun ModelApiSettingsSection(
     }
 
     // 当API提供商改变时更新端点
-    LaunchedEffect(selectedProviderTypeId) {
+    LaunchedEffect(selectedProviderTypeId, selectedApiProtocol) {
         AppLogger.d("ModelApiSettingsSection", "API提供商改变")
         if (
             selectedApiProvider == ApiProviderType.OPENAI ||
-                selectedApiProvider == ApiProviderType.OPENAI_RESPONSES ||
-                selectedApiProvider == ApiProviderType.OPENAI_RESPONSES_GENERIC ||
-                selectedApiProvider == ApiProviderType.OPENAI_GENERIC ||
                 selectedApiProvider == ApiProviderType.GOOGLE ||
-                selectedApiProvider == ApiProviderType.GEMINI_GENERIC ||
                 selectedApiProvider == ApiProviderType.ANTHROPIC ||
-                selectedApiProvider == ApiProviderType.ANTHROPIC_GENERIC ||
                 selectedApiProvider == ApiProviderType.MISTRAL ||
                 selectedApiProvider == ApiProviderType.NVIDIA ||
                 selectedApiProvider == ApiProviderType.NOUS_PORTAL
@@ -373,21 +392,25 @@ fun ModelApiSettingsSection(
 
         if (selectedApiProvider == null) {
             previousProviderTypeId = selectedProviderTypeId
+            previousApiProtocol = selectedApiProtocol
             return@LaunchedEffect
         }
 
         val previousProvider = ApiProviderType.fromProviderTypeId(previousProviderTypeId)
         val previousDefaultEndpoint =
-            previousProvider?.let { getDefaultApiEndpoint(it) }.orEmpty()
+            previousProvider
+                ?.let { getDefaultApiEndpoint(it, previousApiProtocol) }
+                .orEmpty()
         val shouldApplyNewProviderDefault =
             apiEndpointInput.isEmpty() ||
                 isDefaultApiEndpoint(apiEndpointInput) ||
                 (previousDefaultEndpoint.isNotEmpty() && apiEndpointInput == previousDefaultEndpoint)
 
         if (shouldApplyNewProviderDefault) {
-            apiEndpointInput = getDefaultApiEndpoint(selectedApiProvider)
+            apiEndpointInput = getDefaultApiEndpoint(selectedApiProvider, selectedApiProtocol)
         }
         previousProviderTypeId = selectedProviderTypeId
+        previousApiProtocol = selectedApiProtocol
     }
 
     // 模型列表状态
@@ -412,12 +435,12 @@ fun ModelApiSettingsSection(
                 apiEndpointInput.isNotBlank() &&
                     (!providerRequiresApiKey || (!isUsingDefaultApiKey && apiKeyInput.isNotBlank()))
             )
-    val endpointOptions = getEndpointOptions(selectedProviderTypeId)
+    val endpointOptions = getEndpointOptions(selectedProviderTypeId, selectedApiProtocol)
     val selectableEndpointOptions =
         when {
             endpointOptions != null -> endpointOptions
             selectedApiProvider != null -> {
-                val defaultEndpoint = getDefaultApiEndpoint(selectedApiProvider)
+                val defaultEndpoint = getDefaultApiEndpoint(selectedApiProvider, selectedApiProtocol)
                 if (defaultEndpoint.isNotBlank()) {
                     listOf(defaultEndpoint to defaultEndpoint)
                 } else {
@@ -441,6 +464,7 @@ fun ModelApiSettingsSection(
                                 modelName = serializeModelNames(modelNamesInput),
                                 apiProviderType = ApiProviderType.OTHER,
                                 apiProviderTypeId = selectedProviderTypeId,
+                                apiProtocol = selectedApiProtocol,
                                 enableDirectImageProcessing = enableDirectImageProcessingInput,
                                 enableDirectAudioProcessing = enableDirectAudioProcessingInput,
                                 enableDirectVideoProcessing = enableDirectVideoProcessingInput,
@@ -463,7 +487,8 @@ fun ModelApiSettingsSection(
                     context,
                     apiKeyInput,
                     apiEndpointInput,
-                    selectedApiProvider
+                    selectedApiProviderRoute,
+                    selectedApiProtocol,
                 )
         }
     }
@@ -817,6 +842,11 @@ fun ModelApiSettingsSection(
             )
 
             var showApiProviderDialog by remember { mutableStateOf(false) }
+            var showApiProtocolDialog by remember { mutableStateOf(false) }
+            val protocolOptions =
+                selectedApiProviderRoute
+                    ?.let(ModelApiProviderPresentationPolicy::protocolOptions)
+                    .orEmpty()
 
             SettingsSelectorRow(
                     title = stringResource(R.string.api_provider),
@@ -827,16 +857,40 @@ fun ModelApiSettingsSection(
                             providerTypeId = selectedProviderTypeId,
                             resources = resources,
                         ),
-                    onClick = { showApiProviderDialog = true }
+                     onClick = { showApiProviderDialog = true }
             )
+
+            if (protocolOptions.size > 1) {
+                val selectedProtocolOption =
+                    protocolOptions.firstOrNull { it.protocol == selectedApiProtocol }
+                        ?: protocolOptions.first()
+                SettingsSelectorRow(
+                    title = stringResource(R.string.api_protocol),
+                    subtitle = stringResource(R.string.select_api_protocol),
+                    value =
+                        getProtocolDisplayName(
+                            protocol = selectedProtocolOption.protocol,
+                            provider = selectedApiProvider,
+                            resources = resources,
+                        ),
+                    valueSummary = getProtocolSummary(selectedProtocolOption.protocol, resources),
+                    onClick = { showApiProtocolDialog = true },
+                )
+            }
 
             if (showApiProviderDialog) {
                 ApiProviderDialog(
                         onDismissRequest = { showApiProviderDialog = false },
                         onProviderSelected = { provider ->
                             selectedProviderTypeId = provider.id
+                            selectedApiProtocol =
+                                ModelApiProviderPresentationPolicy.defaultProtocol(
+                                    ApiProviderType.fromProviderTypeId(provider.id)
+                                        ?: ApiProviderType.OTHER
+                                )
 
-                            val providerDefaultModel = getDefaultModelName(provider.id)
+                            val providerDefaultModel =
+                                getDefaultModelName(provider.id, selectedApiProtocol)
                             val currentSingleModel = modelNamesInput.singleOrNull()
                             val shouldUseProviderDefault =
                                 providerDefaultModel.isNotEmpty() &&
@@ -854,6 +908,55 @@ fun ModelApiSettingsSection(
 
                             showApiProviderDialog = false
                         }
+                )
+            }
+
+            if (showApiProtocolDialog) {
+                ApiProtocolDialog(
+                    options = protocolOptions,
+                    selectedProtocol = selectedApiProtocol,
+                    provider = selectedApiProvider ?: ApiProviderType.OTHER,
+                    resources = resources,
+                    onDismissRequest = { showApiProtocolDialog = false },
+                    onAutoDetect = {
+                        val provider = selectedApiProvider ?: ApiProviderType.OTHER
+                        when (
+                            val result =
+                                ApiProviderConfigs.detectProtocol(
+                                    providerType = provider,
+                                    apiEndpoint = apiEndpointInput,
+                                )
+                        ) {
+                            is ProviderProtocolDetectionResult.Resolved -> {
+                                selectedApiProtocol = result.protocol
+                                selectedProviderTypeId = provider.name
+                                showApiProtocolDialog = false
+                                showNotification(
+                                    resources.getString(
+                                        R.string.api_protocol_auto_detected,
+                                        getProtocolDisplayName(
+                                            protocol = result.protocol,
+                                            provider = provider,
+                                            resources = resources,
+                                        ),
+                                    )
+                                )
+                            }
+
+                            ProviderProtocolDetectionResult.RequiresManualSelection ->
+                                showNotification(
+                                    resources.getString(
+                                        R.string.api_protocol_auto_detect_unresolved
+                                    )
+                                )
+                        }
+                    },
+                    onProtocolSelected = { protocol ->
+                        selectedApiProtocol = protocol
+                        selectedProviderTypeId =
+                            selectedApiProvider?.name ?: selectedProviderTypeId
+                        showApiProtocolDialog = false
+                    },
                 )
             }
 
@@ -980,8 +1083,8 @@ fun ModelApiSettingsSection(
                 }
 
             val completedEndpoint =
-                selectedApiProvider?.let {
-                    EndpointCompleter.completeEndpoint(apiEndpointInput, it)
+                selectedApiProviderRoute?.let {
+                    EndpointCompleter.completeEndpoint(apiEndpointInput, selectedApiProtocol)
                 } ?: apiEndpointInput
             if (completedEndpoint != apiEndpointInput) {
                 Text(
@@ -1274,15 +1377,10 @@ fun ModelApiSettingsSection(
 }
 
 private fun getBuiltInProviderDisplayName(provider: ApiProviderType, resources: Resources): String {
-    return when (provider) {
+    return when (ModelApiProviderPresentationPolicy.canonicalProvider(provider)) {
         ApiProviderType.OPENAI -> resources.getString(R.string.provider_openai)
-        ApiProviderType.OPENAI_RESPONSES -> resources.getString(R.string.provider_openai_responses)
-        ApiProviderType.OPENAI_RESPONSES_GENERIC -> resources.getString(R.string.provider_openai_responses_generic)
-        ApiProviderType.OPENAI_GENERIC -> resources.getString(R.string.provider_openai_generic)
         ApiProviderType.ANTHROPIC -> resources.getString(R.string.provider_anthropic)
-        ApiProviderType.ANTHROPIC_GENERIC -> resources.getString(R.string.provider_anthropic_generic)
         ApiProviderType.GOOGLE -> resources.getString(R.string.provider_google)
-        ApiProviderType.GEMINI_GENERIC -> resources.getString(R.string.provider_gemini_generic)
         ApiProviderType.BAIDU -> resources.getString(R.string.provider_baidu)
         ApiProviderType.ALIYUN -> resources.getString(R.string.provider_aliyun)
         ApiProviderType.XUNFEI -> resources.getString(R.string.provider_xunfei)
@@ -1309,6 +1407,7 @@ private fun getBuiltInProviderDisplayName(provider: ApiProviderType, resources: 
         ApiProviderType.PPINFRA -> resources.getString(R.string.provider_ppinfra)
         ApiProviderType.NOVITA -> resources.getString(R.string.provider_novita)
         ApiProviderType.OTHER -> resources.getString(R.string.provider_other)
+        else -> resources.getString(R.string.provider_other)
     }
 }
 
@@ -1323,7 +1422,10 @@ private fun getProviderDisplayName(providerTypeId: String, resources: Resources)
 private fun getProviderSummary(providerTypeId: String, resources: Resources): String {
     val builtInProvider = ApiProviderType.fromProviderTypeId(providerTypeId)
     if (builtInProvider != null) {
-        return getBuiltInProviderSummary(builtInProvider, resources)
+        return getBuiltInProviderSummary(
+            ModelApiProviderPresentationPolicy.canonicalProvider(builtInProvider),
+            resources,
+        )
     }
     val toolPkgProvider = ToolPkgAiProviderRegistry.get(providerTypeId)
     return toolPkgProvider?.description?.trim()?.takeIf(String::isNotEmpty)
@@ -1369,36 +1471,32 @@ private fun getProviderSelectionOptions(resources: Resources): List<ProviderSele
 private fun getBuiltInProviderSummary(
     provider: ApiProviderType,
     resources: Resources,
-): String =
-    when (provider) {
-        ApiProviderType.OPENAI ->
-            resources.getString(R.string.provider_summary_chat_official)
-
-        ApiProviderType.OPENAI_GENERIC ->
-            resources.getString(R.string.provider_summary_chat_compatible)
-
-        ApiProviderType.OPENAI_RESPONSES ->
-            resources.getString(R.string.provider_summary_responses_official)
-
-        ApiProviderType.OPENAI_RESPONSES_GENERIC ->
-            resources.getString(R.string.provider_summary_responses_compatible)
-
-        else -> resources.getString(R.string.provider_summary_built_in)
-    }
+): String {
+    val canonicalProvider = ModelApiProviderPresentationPolicy.canonicalProvider(provider)
+    return ModelApiProviderPresentationPolicy
+        .protocolOptions(canonicalProvider)
+        .joinToString(separator = " · ") { option ->
+            getProtocolDisplayName(
+                protocol = option.protocol,
+                provider = canonicalProvider,
+                resources = resources,
+            )
+        }
+}
 
 private fun getProviderSectionDisplayName(
     section: ProviderSelectionSection,
     resources: Resources,
 ): String =
     when (section) {
-        ProviderSelectionSection.OPENAI_CHAT_COMPLETIONS ->
-            resources.getString(R.string.provider_section_openai_chat_completions)
+        ProviderSelectionSection.INTERNATIONAL ->
+            resources.getString(R.string.provider_section_international)
 
-        ProviderSelectionSection.OPENAI_RESPONSES ->
-            resources.getString(R.string.provider_section_openai_responses)
+        ProviderSelectionSection.DOMESTIC ->
+            resources.getString(R.string.provider_section_domestic)
 
-        ProviderSelectionSection.OTHER_BUILT_IN ->
-            resources.getString(R.string.provider_section_other_built_in)
+        ProviderSelectionSection.LOCAL_AND_CUSTOM ->
+            resources.getString(R.string.provider_section_local_and_custom)
 
         ProviderSelectionSection.TOOLPKG ->
             resources.getString(R.string.provider_section_toolpkg)
@@ -1888,6 +1986,160 @@ private fun forwardTypeName(type: Int): String {
     }
 }
 
+private fun getProtocolDisplayName(
+    protocol: ApiProtocol,
+    provider: ApiProviderType?,
+    resources: Resources,
+): String {
+    return when (protocol) {
+        ApiProtocol.OPENAI_CHAT_COMPLETIONS ->
+            resources.getString(R.string.api_protocol_openai_chat)
+        ApiProtocol.OPENAI_RESPONSES ->
+            resources.getString(R.string.api_protocol_openai_responses)
+        ApiProtocol.ANTHROPIC_MESSAGES ->
+            resources.getString(R.string.api_protocol_anthropic_messages)
+        ApiProtocol.PROVIDER_NATIVE -> {
+            when (provider) {
+                ApiProviderType.GOOGLE ->
+                    resources.getString(R.string.api_protocol_gemini_native)
+                ApiProviderType.MNN ->
+                    resources.getString(R.string.api_protocol_mnn_native)
+                ApiProviderType.LLAMA_CPP ->
+                    resources.getString(R.string.api_protocol_llama_cpp_native)
+                else -> resources.getString(R.string.api_protocol_provider_native)
+            }
+        }
+    }
+}
+
+private fun getProtocolSummary(protocol: ApiProtocol, resources: Resources): String {
+    return when (protocol) {
+        ApiProtocol.OPENAI_CHAT_COMPLETIONS ->
+            resources.getString(R.string.api_protocol_openai_chat_summary)
+        ApiProtocol.OPENAI_RESPONSES ->
+            resources.getString(R.string.api_protocol_openai_responses_summary)
+        ApiProtocol.ANTHROPIC_MESSAGES ->
+            resources.getString(R.string.api_protocol_anthropic_messages_summary)
+        ApiProtocol.PROVIDER_NATIVE ->
+            resources.getString(R.string.api_protocol_provider_native_summary)
+    }
+}
+
+@Composable
+private fun ApiProtocolDialog(
+    options: List<ProviderProtocolOption>,
+    selectedProtocol: ApiProtocol,
+    provider: ApiProviderType,
+    resources: Resources,
+    onDismissRequest: () -> Unit,
+    onAutoDetect: () -> Unit,
+    onProtocolSelected: (ApiProtocol) -> Unit,
+) {
+    Dialog(onDismissRequest = onDismissRequest) {
+        Surface(
+            modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp),
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 6.dp,
+            shadowElevation = 8.dp,
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = resources.getString(R.string.select_api_protocol_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+                androidx.compose.foundation.lazy.LazyColumn(
+                    modifier = Modifier.weight(1f, fill = false),
+                ) {
+                    item {
+                        Surface(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                                    .clickable(onClick = onAutoDetect),
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                        ) {
+                            Column(
+                                modifier =
+                                    Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                Text(
+                                    text =
+                                        resources.getString(
+                                            R.string.api_protocol_auto_detect
+                                        ),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                                Text(
+                                    text =
+                                        resources.getString(
+                                            R.string.api_protocol_auto_detect_summary
+                                        ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color =
+                                        MaterialTheme.colorScheme.onSecondaryContainer,
+                                )
+                            }
+                        }
+                    }
+                    items(options.size) { index ->
+                        val option = options[index]
+                        val isSelected = option.protocol == selectedProtocol
+                        Surface(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                                    .clickable { onProtocolSelected(option.protocol) },
+                            shape = RoundedCornerShape(8.dp),
+                            color =
+                                if (isSelected) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                },
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                Text(
+                                    text =
+                                        getProtocolDisplayName(
+                                            protocol = option.protocol,
+                                            provider = provider,
+                                            resources = resources,
+                                        ),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                                Text(
+                                    text = getProtocolSummary(option.protocol, resources),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = onDismissRequest) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun ApiProviderDialog(
         onDismissRequest: () -> Unit,
@@ -2070,15 +2322,10 @@ private fun getProviderColor(providerTypeId: String): androidx.compose.ui.graphi
         val paletteIndex = kotlin.math.abs(providerTypeId.lowercase().hashCode()) % palette.size
         return palette[paletteIndex]
     }
-    return when (provider) {
+    return when (ModelApiProviderPresentationPolicy.canonicalProvider(provider)) {
         ApiProviderType.OPENAI -> MaterialTheme.colorScheme.primary
-        ApiProviderType.OPENAI_RESPONSES -> MaterialTheme.colorScheme.primary.copy(alpha = 0.92f)
-        ApiProviderType.OPENAI_RESPONSES_GENERIC -> MaterialTheme.colorScheme.primary.copy(alpha = 0.88f)
-        ApiProviderType.OPENAI_GENERIC -> MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
         ApiProviderType.ANTHROPIC -> MaterialTheme.colorScheme.tertiary
-        ApiProviderType.ANTHROPIC_GENERIC -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.85f)
         ApiProviderType.GOOGLE -> MaterialTheme.colorScheme.secondary
-        ApiProviderType.GEMINI_GENERIC -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f)
         ApiProviderType.BAIDU -> MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
         ApiProviderType.ALIYUN -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.8f)
         ApiProviderType.XUNFEI -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.8f)
@@ -2105,5 +2352,6 @@ private fun getProviderColor(providerTypeId: String): androidx.compose.ui.graphi
         ApiProviderType.PPINFRA -> MaterialTheme.colorScheme.primaryContainer
         ApiProviderType.NOVITA -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.75f)
         ApiProviderType.OTHER -> MaterialTheme.colorScheme.surfaceVariant
+        else -> MaterialTheme.colorScheme.surfaceVariant
     }
 }

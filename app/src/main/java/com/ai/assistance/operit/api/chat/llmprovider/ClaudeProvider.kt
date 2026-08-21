@@ -7,6 +7,7 @@ import com.ai.assistance.operit.core.chat.hooks.PromptTurn
 import com.ai.assistance.operit.core.chat.hooks.PromptTurnKind
 import com.ai.assistance.operit.core.chat.hooks.toPromptTurns
 import com.ai.assistance.operit.data.model.ApiProviderType
+import com.ai.assistance.operit.data.model.ApiProtocol
 import com.ai.assistance.operit.data.model.ModelOption
 import com.ai.assistance.operit.data.model.ModelParameter
 import com.ai.assistance.operit.data.model.ToolPrompt
@@ -28,6 +29,7 @@ import com.ai.assistance.operit.util.stream.withEventChannel
 import com.ai.assistance.operit.util.stream.stream
 import com.ai.assistance.operit.api.chat.llmprovider.MediaLinkParser
 import java.io.IOException
+import java.net.URI
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.UUID
@@ -47,7 +49,10 @@ class ClaudeProvider(
     private val customHeaders: Map<String, String> = emptyMap(),
     private val providerType: ApiProviderType = ApiProviderType.ANTHROPIC,
     private val enableToolCall: Boolean = false, // 是否启用Tool Call接口（预留，Claude有原生tool支持）
-    private val enableClaude1hPromptCache: Boolean = false
+    private val enableClaude1hPromptCache: Boolean = false,
+    private val endpointProviderType: ApiProviderType = ApiProviderType.ANTHROPIC,
+    private val authenticationMode: AnthropicAuthenticationMode =
+        AnthropicAuthenticationPolicy.resolve(providerType),
 ) : AIService {
     // private val client: OkHttpClient = HttpClientFactory.instance
 
@@ -1035,7 +1040,10 @@ class ClaudeProvider(
     }
 
     private fun resolveOfficialAnthropicMaxTokens(): Int? {
-        if (providerType != ApiProviderType.ANTHROPIC) {
+        if (
+            providerType != ApiProviderType.ANTHROPIC ||
+                !AnthropicEndpointContract.isOfficial(apiEndpoint)
+        ) {
             return null
         }
 
@@ -1250,14 +1258,19 @@ class ClaudeProvider(
     // 创建请求
     private suspend fun createRequest(requestBody: RequestBody): Request {
         val currentApiKey = apiKeyProvider.getApiKey()
-        val completedEndpoint = EndpointCompleter.completeEndpoint(apiEndpoint, providerType)
+        val completedEndpoint = EndpointCompleter.completeEndpoint(apiEndpoint, endpointProviderType)
         val builder =
                 Request.Builder()
                         .url(completedEndpoint)
                         .post(requestBody)
-                        .addHeader("x-api-key", currentApiKey)
                         .addHeader("anthropic-version", ANTHROPIC_VERSION)
                         .addHeader("Content-Type", "application/json")
+
+        AnthropicAuthenticationPolicy.apply(
+            builder = builder,
+            apiKey = currentApiKey,
+            mode = authenticationMode,
+        )
 
         // 添加自定义请求头
         customHeaders.forEach { (key, value) ->
@@ -1938,7 +1951,8 @@ class ClaudeProvider(
             context = context,
             apiKey = apiKeyProvider.getApiKey(),
             apiEndpoint = apiEndpoint,
-            apiProviderType = providerType
+            apiProviderType = providerType,
+            apiProtocol = ApiProtocol.ANTHROPIC_MESSAGES,
         )
     }
 
@@ -1967,5 +1981,65 @@ class ClaudeProvider(
             AppLogger.e("AIService", "连接测试失败", e)
             Result.failure(IOException(context.getString(R.string.openai_connection_test_failed, e.message ?: ""), e))
         }
+    }
+}
+
+enum class AnthropicAuthenticationMode {
+    X_API_KEY,
+    BEARER,
+}
+
+internal object AnthropicAuthenticationPolicy {
+    fun resolve(providerType: ApiProviderType): AnthropicAuthenticationMode {
+        return when (providerType) {
+            ApiProviderType.ZHIPU,
+            ApiProviderType.MIMO,
+            ApiProviderType.INFINIAI,
+            ApiProviderType.LMSTUDIO,
+            ApiProviderType.OLLAMA -> AnthropicAuthenticationMode.BEARER
+
+            else -> AnthropicAuthenticationMode.X_API_KEY
+        }
+    }
+
+    fun apply(
+        builder: Request.Builder,
+        apiKey: String,
+        mode: AnthropicAuthenticationMode,
+    ) {
+        if (apiKey.isBlank()) {
+            return
+        }
+        when (mode) {
+            AnthropicAuthenticationMode.X_API_KEY ->
+                builder.addHeader("x-api-key", apiKey)
+            AnthropicAuthenticationMode.BEARER ->
+                builder.addHeader("Authorization", "Bearer $apiKey")
+        }
+    }
+}
+
+internal object AnthropicEndpointContract {
+    fun isOfficial(apiEndpoint: String): Boolean {
+        val completedEndpoint =
+            runCatching {
+                EndpointCompleter.completeEndpoint(
+                    apiEndpoint,
+                    ApiProtocol.ANTHROPIC_MESSAGES,
+                )
+            }.getOrNull()
+                ?: return false
+        val uri = runCatching { URI(completedEndpoint) }.getOrNull() ?: return false
+        val port = if (uri.port == -1) 443 else uri.port
+        return uri.scheme.equals("https", ignoreCase = true) &&
+            uri.host.equals("api.anthropic.com", ignoreCase = true) &&
+            port == 443 &&
+            uri.userInfo == null &&
+            uri.rawQuery == null &&
+            uri.rawFragment == null &&
+            uri.path.orEmpty().removeSuffix("/").equals(
+                "/v1/messages",
+                ignoreCase = true,
+            )
     }
 }

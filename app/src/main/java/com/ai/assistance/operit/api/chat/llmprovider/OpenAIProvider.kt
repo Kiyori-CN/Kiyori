@@ -7,6 +7,7 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.chat.hooks.PromptTurn
 import com.ai.assistance.operit.core.chat.hooks.PromptTurnKind
 import com.ai.assistance.operit.data.model.ApiProviderType
+import com.ai.assistance.operit.data.model.ApiProtocol
 import com.ai.assistance.operit.data.model.ModelOption
 import com.ai.assistance.operit.data.model.ModelParameter
 import com.ai.assistance.operit.data.model.ProviderExecutionEntity
@@ -57,6 +58,16 @@ import org.json.JSONArray
 import org.json.JSONObject
 import com.ai.assistance.operit.api.chat.llmprovider.MediaLinkParser
 
+internal object OpenAIChatRequestFeatureCompiler {
+    fun apply(
+        requestJson: JSONObject,
+        compiledRequest: CompiledModelRequest,
+    ) {
+        val effort = compiledRequest.reasoningEffort ?: return
+        requestJson.put("reasoning_effort", effort.wireValue)
+    }
+}
+
 /**
  * OpenAI API格式的实现，支持标准OpenAI接口和兼容此格式的其他提供商
  *
@@ -103,6 +114,9 @@ open class OpenAIProvider(
     private val client: OkHttpClient,
     private val customHeaders: Map<String, String> = emptyMap(),
     private val providerType: ApiProviderType = ApiProviderType.OPENAI,
+    private val capabilityProviderType: ApiProviderType = providerType,
+    private val endpointProtocol: ApiProtocol = ApiProtocol.fromProviderType(providerType),
+    private val modelListProtocol: ApiProtocol = ApiProtocol.PROVIDER_NATIVE,
     protected val supportsVision: Boolean = false, // 是否支持图片处理
     protected val supportsAudio: Boolean = false, // 是否支持音频输入
     protected val supportsVideo: Boolean = false, // 是否支持视频输入
@@ -142,7 +156,7 @@ open class OpenAIProvider(
     protected open val supportsResponsesStreamResumption: Boolean = false
     protected val modelCapabilityProfile: ModelCapabilityProfile by lazy {
         ModelCapabilityResolver.resolve(
-            providerType = providerType,
+            providerType = capabilityProviderType,
             modelName = modelName,
             apiEndpoint = apiEndpoint,
         )
@@ -267,12 +281,23 @@ open class OpenAIProvider(
      }
 
      override suspend fun getModelsList(context: Context): Result<List<ModelOption>> {
-         return ModelListFetcher.getModelsList(
-             context = context,
-             apiKey = apiKeyProvider.getApiKey(),
-             apiEndpoint = apiEndpoint,
-             apiProviderType = providerType
-         )
+         val apiKey = apiKeyProvider.getApiKey()
+         return if (modelListProtocol == ApiProtocol.PROVIDER_NATIVE) {
+             ModelListFetcher.getModelsList(
+                 context = context,
+                 apiKey = apiKey,
+                 apiEndpoint = apiEndpoint,
+                 apiProviderType = providerType,
+             )
+         } else {
+             ModelListFetcher.getModelsList(
+                 context = context,
+                 apiKey = apiKey,
+                 apiEndpoint = apiEndpoint,
+                 apiProviderType = providerType,
+                 apiProtocol = modelListProtocol,
+             )
+         }
      }
 
      override suspend fun testConnection(context: Context): Result<String> {
@@ -541,7 +566,10 @@ open class OpenAIProvider(
 
         val compiledRequest = compileModelRequest(context, enableThinking)
         val effort = compiledRequest.reasoningEffort ?: return
-        requestJson.put("reasoning_effort", effort.wireValue)
+        OpenAIChatRequestFeatureCompiler.apply(
+            requestJson = requestJson,
+            compiledRequest = compiledRequest,
+        )
         AppLogger.d(
             "OpenAIProvider",
             "OpenAI Chat Completions reasoning_effort=${effort.wireValue}, " +
@@ -1805,7 +1833,7 @@ open class OpenAIProvider(
         localExecutionId: String? = null,
     ): Request {
         val currentApiKey = apiKeyProvider.getApiKey().trim()
-        val endpointUrl = EndpointCompleter.completeEndpoint(apiEndpoint, providerType)
+        val endpointUrl = EndpointCompleter.completeEndpoint(apiEndpoint, endpointProtocol)
         val requestSummary = LlmLogPrivacy.summarizeRequestBody(requestBody)
         val traceContext =
             LlmRequestTraceContext(
@@ -1850,7 +1878,7 @@ open class OpenAIProvider(
         require(responseId.isNotBlank()) { "responseId must not be blank" }
         require(startingAfter >= 0L) { "startingAfter must not be negative" }
         val currentApiKey = apiKeyProvider.getApiKey().trim()
-        val endpointUrl = EndpointCompleter.completeEndpoint(apiEndpoint, providerType)
+        val endpointUrl = EndpointCompleter.completeEndpoint(apiEndpoint, endpointProtocol)
         val resumeUrl =
             OpenAIResponsesResumeUrl.build(
                 responsesEndpoint = endpointUrl,
@@ -1890,7 +1918,7 @@ open class OpenAIProvider(
     private suspend fun cancelResponsesExecution(responseId: String) {
         require(responseId.isNotBlank()) { "responseId must not be blank" }
         val currentApiKey = apiKeyProvider.getApiKey().trim()
-        val endpointUrl = EndpointCompleter.completeEndpoint(apiEndpoint, providerType)
+        val endpointUrl = EndpointCompleter.completeEndpoint(apiEndpoint, endpointProtocol)
         val cancelUrl =
             endpointUrl
                 .toHttpUrl()

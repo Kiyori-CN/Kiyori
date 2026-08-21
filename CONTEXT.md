@@ -404,19 +404,45 @@ Current work status and implementation notes belong in `docs/TODO/`.
 - A complete `.kiyori-audit` ZIP contains manifest, chat/audit JSON, timeline, event/revision/projection JSONL, integrity/redaction reports, and independent payload files. Import validates paths, bounds, IDs, hashes, event/revision/projection relations, payload sets, seals, and ECDSA signatures, re-encrypts payloads with the target device key, then appends a local `IMPORTED_CONTINUATION`. External signatures are mathematically verified but have no local trust anchor, so imported chains are `SOURCE_UNVERIFIED`.
 - `OperitChatArchive` format 3 can carry the full portable audit; v1/v2 remain importable and enter honest historical reconstruction. The separate AI-review Markdown additionally pseudonymizes identity fields and private paths. Detailed implementation and validation boundaries are in `docs/doc-src/dev-core/AI_CONVERSATION_AUDIT.md`.
 
+## AI provider and protocol contract
+
+- `ApiProviderType` and `apiProviderTypeId` identify the supplier; serialized `ApiProtocol`
+  identifies the wire protocol. Compatibility enum values remain readable for persistence,
+  audit keys, ToolPkg/runtime references, and Responses execution state, but the provider picker
+  exposes one canonical row per supplier.
+- The provider picker has only `International`, `China-based`, `Local and custom`, and `ToolPkg`
+  sections. OpenAI and Anthropic are the first international suppliers; DeepSeek is the first
+  China-based supplier. There is no separate featured-provider section.
+- `ApiProviderConfigs` is the protocol catalog and declares every built-in supplier's default
+  protocol, supported protocols, protocol-specific endpoint, endpoint choices, model-list
+  endpoint, and API-key requirement. Unsupported supplier/protocol pairs are rejected rather
+  than translated into another protocol.
+- Protocol auto-detection is a configuration action, not a runtime transport mode. It resolves
+  a concrete protocol from the supplier catalog, an exact known endpoint, or an explicit
+  `/chat/completions`, `/responses`, or `/messages` path. Ambiguous endpoints require manual
+  selection. Runtime requests never switch protocol after a failed request.
+- OpenAI-compatible Chat normally preserves the supplier-specific adapter. Anthropic and Google
+  OpenAI-compatible Chat use the generic `OpenAIProvider`; Responses use
+  `OpenAIResponsesProvider`; Anthropic Messages use `ClaudeProvider`; Google, MNN, and the
+  embedded llama.cpp engine retain their declared native owners. Model-list authentication,
+  endpoint, and parser are selected from supplier identity plus protocol, not protocol alone.
+
 ## AI model execution contract
 
-- “思考模式”与现有 `thinking_quality_level: 1..5` 是唯一用户 reasoning 接口。GPT-5.6
-  family 固定编译为 `low / medium / high / xhigh / max`；关闭思考固定编译为 `none`。
-  Pro、Fast、Ultra、传输和执行持久性不是第六档，也不能改写用户选择的五档。
+- “思考模式”与现有 `thinking_quality_level: 1..5` 是唯一用户 reasoning 接口。普通 OpenAI
+  Chat Completions / Responses profile 的五档显式映射为 `low / low / medium / high / high`；
+  关闭思考固定编译为 `none`。`gpt-5.6*` 前缀模型使用 Codex 五档
+  `low / medium / high / xhigh / max`。Pro、Fast、Ultra、传输和执行持久性不是第六档，
+  也不能改写用户选择的五档。
 - `ModelCapabilityResolver` 与 `ModelRequestCompiler` 是模型能力和 wire 参数的语义所有者。
-  `gpt-5.6-sol`、`gpt-5.6-terra`、`gpt-5.6-luna` 有独立 profile。官方能力同时要求
-  provider 类型为官方 OpenAI，并且补全后的请求地址精确属于
+  所有 `gpt-5.6*` 前缀模型进入同一 Codex reasoning profile；普通 OpenAI/兼容模型仍可在
+  已声明 reasoning 能力的情况下使用思考模式，但不会使用 `xhigh` 或 `max`。官方能力同时
+  要求 provider 类型为官方 OpenAI，并且补全后的请求地址精确属于
   `https://api.openai.com/v1/responses`；仅保存为 `OPENAI_RESPONSES` 不能把 Pipio、Pixel、
   Sekiro 或其他自定义地址提升为官方合同。兼容 Responses 保留五档 `reasoning.effort`，但不
   自动添加 Background、sequence resume、Prompt Cache、Tool Search、`summary=auto`、
-  `reasoning.encrypted_content` 或 strict schema。未登记的 OpenAI/兼容模型保留调用方已有
-  wire 参数，不猜测其支持 GPT-5.6 的 `xhigh/max` 合同。
+  `reasoning.encrypted_content` 或 strict schema；普通 OpenAI Chat 请求使用
+  `reasoning_effort`，Responses 请求使用 `reasoning.effort`。
 - 官方 GPT-5.6 Responses 使用 `background=true`、`store=false`。`ProviderRequestContext`
   在模型请求前固定 chat、message timestamp、variant 与 hop；`ProviderExecutionRepository`
   持久化 response ID、事件和单调 sequence cursor。未应用事件使用 `-1` 哨兵，官方
