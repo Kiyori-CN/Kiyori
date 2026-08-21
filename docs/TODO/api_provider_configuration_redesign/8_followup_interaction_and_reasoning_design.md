@@ -2,7 +2,7 @@
 
 ## 目标、范围与状态
 
-状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND DEBUG APK COMPLETE / DEVICE AND REAL-SERVICE VERIFICATION PENDING`。
+状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION, DEBUG APK AND MAIN DELIVERY COMPLETE / DEVICE AND REAL-SERVICE VERIFICATION PENDING`。
 
 本文件是 2026-08-21 供应商/协议基础重构之后的延伸专项设计，承接上一轮已经提交到
 `main` 的协议 catalog、运行时路由、模型列表路由和 Responses 执行持久化。它只描述本轮
@@ -257,7 +257,7 @@ reasoning event 的状态提示，不能替代摘要内容。
    - 完善 Responses reasoning summary 事件覆盖、去重和状态投影；
    - 增加 request compiler、stream event、摘要投影和 metadata replay 测试。
 
-5. **M9 回归与交付（LOCAL GATES DONE / GIT DELIVERY IN PROGRESS）**
+5. **M9 回归与交付（DONE）**
    - 执行改动相关的 JVM 测试与 Kotlin 编译；
    - 执行 `git diff --check`、formal readiness 和 fresh clone；
    - 按项目规则串行执行 Debug APK 构建并核验身份、签名、对齐、ABI、native/runtime

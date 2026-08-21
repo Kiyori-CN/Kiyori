@@ -2,8 +2,8 @@
 
 当前状态：M1-M4 的上一轮实现、完整验证和 main 交付已经完成；本轮 M5-M8 后续实现和 M9
 本地门禁均已完成。最新 Kotlin 编译、`60` 项定向 JVM、完整 JVM、资源/文档/架构门禁、
-Debug APK 与 APK/ELF 审计均通过；精确提交推送和远端对账正在执行。设备与真实供应商请求
-不在本轮操作范围内，保持 `verification_pending`。
+Debug APK 与 APK/ELF 审计均通过；精确提交推送和远端对账已完成。设备与真实供应商请求不在
+本轮操作范围内，保持 `verification_pending`。
 
 ## 里程碑
 
@@ -120,6 +120,12 @@ Debug APK 与 APK/ELF 审计均通过；精确提交推送和远端对账正在�
 - arm64-only；`51` 个 `.so` 无同名冲突；`52` 个 ELF64 AArch64 的 `153` 个
   `PT_LOAD` 全部不低于 `0x4000`
 - 设备、真实 xAI/gpt-5.6 服务和断线续接现场验证仍为 `verification_pending`
+
+### M9：Git 交付（已完成）
+
+- 功能提交已正常推送 `origin/main`，未使用强推
+- 推送后本地 `main`、`origin/main` 与远端 `refs/heads/main` 已完成一致性对账
+- 工作树在文档交付收尾前保持无未暂存或未跟踪文件；最终状态以 Git 历史和远端 ref 为准
 
 ## 必要命令
 
