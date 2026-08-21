@@ -111,6 +111,8 @@ class ModelNameTagEditorContractTest {
         assertFalse(picker.contains("enabled = !isExisting"))
         assertTrue(picker.contains(".heightIn(min = 56.dp)"))
         assertTrue(picker.contains(".imePadding()"))
+        assertTrue(picker.contains(".heightIn(min = 360.dp, max = 720.dp)"))
+        assertFalse(picker.contains(".fillMaxHeight("))
         assertFalse(picker.contains(".height(48.dp)"))
     }
 

@@ -199,7 +199,7 @@ object ModelCapabilityResolver {
                 supportedReasoningEfforts = FIVE_LEVEL_REASONING.toSet(),
                 qualityLevelToReasoningEffort = FIVE_LEVEL_REASONING,
                 reasoningSummary =
-                    if (isOfficialResponses) {
+                    if (isResponses) {
                         ReasoningSummaryCapability.OPENAI_AUTO
                     } else {
                         ReasoningSummaryCapability.NONE

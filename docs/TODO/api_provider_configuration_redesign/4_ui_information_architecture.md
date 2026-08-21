@@ -2,12 +2,13 @@
 
 ## 供应商弹层
 
-供应商弹层保留当前已有的搜索、可访问性语义和圆角 Surface，但改为以下顺序：
+供应商选择器改为 `ModalBottomSheet`，保留搜索、可访问性语义、圆角 Surface 和当前选中态，
+并使用以下顺序：
 
-1. 国际供应商：OpenAI、Anthropic、Google、Mistral AI、OpenRouter、4Router、
-   Nous Research、NVIDIA NIM、Novita AI
-2. 国内供应商：DeepSeek、阿里云百炼、百度智能云、讯飞星火、智谱 AI、百川智能、
+1. 国内供应商：DeepSeek、阿里云百炼、百度智能云、讯飞星火、智谱 AI、百川智能、
    月之暗面、小米 MiMo、硅基流动、iFlow、无问芯穹、支付宝百灵、火山方舟、派欧云 PPIO
+2. 国际供应商：OpenAI、Anthropic、Google、xAI、Mistral AI、OpenRouter、4Router、
+   Nous Research、NVIDIA NIM、Novita AI
 3. 本地与自定义：LM Studio、Ollama、OpenAI 兼容本地服务、MNN、llama.cpp、自定义 API
 4. ToolPkg：动态注册 provider
 
@@ -47,10 +48,11 @@ API 设置卡顺序固定为：
 协议选项统一来自 `ApiProviderConfigs` 的显式 protocol catalog。多协议供应商显示选择器，
 单协议供应商不显示无意义的选择器，但供应商摘要仍显示其协议能力。
 
-多协议选择器第一项为“自动识别”。它是一次配置动作：
+多协议选择器也使用单一 `ModalBottomSheetState`；有限高度内只有协议列表可滚动。第一项为
+“自动识别”，它是一次配置动作：
 
 - 识别成功时提示“已识别：协议名称”，关闭弹层并把当前协议改为识别结果。
-- 识别失败时保持弹层和当前协议不变，提示用户手动选择。
+- 识别失败时保持抽屉和当前协议不变，在抽屉内提示用户手动选择。
 - 不发送网络探测请求，不在连接测试或正式聊天请求中尝试其他协议。
 
 原生协议采用供应商专名：
@@ -67,6 +69,10 @@ API 设置卡顺序固定为：
 
 只有一个协议的供应商不显示选择器，而在端点摘要中显示当前协议。协议不可用、端点不合法、
 API Key 缺失和连接测试失败都必须保留现有的可见错误状态和日志，不以静默改写配置解决。
+
+国际供应商的位置提示只保留 API 卡片内的 `SettingsInfoBanner`，不再在切换供应商时触发
+底部通知。提示说明官方端点可能不可直连、中转站通常不需要额外代理配置，以及 Kiyori 不检测
+代理状态也不改写协议；可见性统一读取供应商展示分组，不维护另一份国际供应商名单。
 
 ## 资源与文档
 

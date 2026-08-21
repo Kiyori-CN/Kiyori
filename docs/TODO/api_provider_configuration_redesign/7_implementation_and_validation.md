@@ -1,9 +1,9 @@
 # 实现、验证与交付
 
-当前状态：按用户纠正后的分组、命名、逐供应商协议范围和“自动识别”配置动作完成本地实现；
-当前完整 JVM 回归、formal readiness、fresh clone、`git diff --check`、Debug APK 和
-APK/ELF 产物审计已通过。main 精确审计、提交推送和远端对账已完成。设备不在本轮操作范围
-内，保持 `verification_pending`。
+当前状态：M1-M4 的上一轮实现、完整验证和 main 交付已经完成；本轮 M5-M8 后续实现和 M9
+本地门禁均已完成。最新 Kotlin 编译、`60` 项定向 JVM、完整 JVM、资源/文档/架构门禁、
+Debug APK 与 APK/ELF 审计均通过；精确提交推送和远端对账正在执行。设备与真实供应商请求
+不在本轮操作范围内，保持 `verification_pending`。
 
 ## 里程碑
 
@@ -85,6 +85,41 @@ APK/ELF 产物审计已通过。main 精确审计、提交推送和远端对账�
 - 串行 Debug APK 构建与 APK 核验
 - 精确 Git allowlist、敏感内容、构建产物、子模块和远端 ref 审计
 - 提交并推送 `main`
+
+### M5-M8：后续交互与推理摘要（实现完成）
+
+交付：
+
+- 配置阶段自动识别增加唯一已知 base endpoint 与尾部 `#` 控制符识别，继续拒绝共享 base
+  的歧义结果
+- 新增 xAI/Grok canonical provider、Chat/Responses/model list catalog 和运行时路由
+- 国内供应商分组前移；Provider/Protocol 选择器改为单一 `ModalBottomSheetState`
+- 国际供应商只显示页面内网络提示，不再触发底部通知
+- 上游模型抽屉使用稳定高度和唯一列表滚动 owner
+- Classic/Agent 共用“低、中、高、极高、最高”五档展示
+- `gpt-5.6* + Responses` 在官方和兼容 endpoint 请求服务端摘要；projection 对 delta、
+  part、item 和 completed 快照单调去重，官方专属执行能力不扩散到兼容 endpoint
+
+当前验证：
+
+- Kotlin 编译通过
+- catalog、排序、路由、模型列表、请求 JSON、摘要 projection、两套输入栏、两个选择器和
+  上游模型抽屉合同共 `60` 项定向 JVM 测试通过
+- 完整 JVM、资源/Markdown/架构门禁、Debug APK 和 Git 交付仍属于 M9
+
+### M9：本轮本地回归与 Debug APK（已完成）
+
+- `:app:testDebugUnitTest`：`261` 份 JUnit XML、`1551` tests，零失败/错误/跳过
+- 七语言 XML、新增键和占位符一致；architecture boundaries、formal readiness、
+  fresh clone、`git diff --check` 均通过
+- `:app:assembleDebug`：`BUILD SUCCESSFUL in 1m 15s`，`232` 个任务中 `23` 个 executed
+- `app-debug.apk`：`472745050` bytes，SHA-256
+  `ECE56F04F306553E0EB42551FBF37C54068AB2E6898D4A68D1F938114097897E`
+- `com.kiyori / 45 / 0.1.0 / min 26 / target 34 / compile 37`，debuggable，唯一 launcher
+- Android Debug V2 单 signer，16 KB ZIP alignment 通过
+- arm64-only；`51` 个 `.so` 无同名冲突；`52` 个 ELF64 AArch64 的 `153` 个
+  `PT_LOAD` 全部不低于 `0x4000`
+- 设备、真实 xAI/gpt-5.6 服务和断线续接现场验证仍为 `verification_pending`
 
 ## 必要命令
 

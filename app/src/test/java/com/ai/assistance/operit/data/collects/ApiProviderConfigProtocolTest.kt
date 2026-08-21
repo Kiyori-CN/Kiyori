@@ -139,6 +139,11 @@ class ApiProviderConfigProtocolTest {
                         ApiProtocol.PROVIDER_NATIVE,
                         ApiProtocol.OPENAI_CHAT_COMPLETIONS,
                     ),
+                ApiProviderType.XAI to
+                    listOf(
+                        ApiProtocol.OPENAI_CHAT_COMPLETIONS,
+                        ApiProtocol.OPENAI_RESPONSES,
+                    ),
                 ApiProviderType.OPENROUTER to
                     listOf(
                         ApiProtocol.OPENAI_CHAT_COMPLETIONS,
@@ -259,6 +264,77 @@ class ApiProviderConfigProtocolTest {
             ApiProviderConfigs.detectProtocol(
                 providerType = ApiProviderType.GOOGLE,
                 apiEndpoint = "",
+            ),
+        )
+    }
+
+    @Test
+    fun automaticDetection_rejectsSharedBaseEndpointsAndAcceptsUniqueBaseEvidence() {
+        assertEquals(
+            ProviderProtocolDetectionResult.RequiresManualSelection,
+            ApiProviderConfigs.detectProtocol(
+                providerType = ApiProviderType.OPENAI,
+                apiEndpoint = "https://api.openai.com/v1",
+            ),
+        )
+        assertEquals(
+            ProviderProtocolDetectionResult.RequiresManualSelection,
+            ApiProviderConfigs.detectProtocol(
+                providerType = ApiProviderType.XAI,
+                apiEndpoint = "https://api.x.ai/v1/",
+            ),
+        )
+        assertEquals(
+            ProviderProtocolDetectionResult.Resolved(
+                protocol = ApiProtocol.ANTHROPIC_MESSAGES,
+                source = ProviderProtocolDetectionSource.KNOWN_BASE_ENDPOINT,
+            ),
+            ApiProviderConfigs.detectProtocol(
+                providerType = ApiProviderType.DEEPSEEK,
+                apiEndpoint = "https://api.deepseek.com/anthropic/v1",
+            ),
+        )
+        assertEquals(
+            ProviderProtocolDetectionResult.Resolved(
+                protocol = ApiProtocol.ANTHROPIC_MESSAGES,
+                source = ProviderProtocolDetectionSource.KNOWN_BASE_ENDPOINT,
+            ),
+            ApiProviderConfigs.detectProtocol(
+                providerType = ApiProviderType.DEEPSEEK,
+                apiEndpoint = "https://api.deepseek.com/anthropic/v1/#",
+            ),
+        )
+        assertEquals(
+            ProviderProtocolDetectionResult.RequiresManualSelection,
+            ApiProviderConfigs.detectProtocol(
+                providerType = ApiProviderType.OTHER,
+                apiEndpoint = "https://gateway.example.com/v1",
+            ),
+        )
+    }
+
+    @Test
+    fun xAi_declaresChatResponsesAndModelListEndpoints() {
+        assertEquals(
+            "https://api.x.ai/v1/chat/completions",
+            ApiProviderConfigs.getDefaultApiEndpoint(
+                providerType = ApiProviderType.XAI,
+                protocol = ApiProtocol.OPENAI_CHAT_COMPLETIONS,
+            ),
+        )
+        assertEquals(
+            "https://api.x.ai/v1/responses",
+            ApiProviderConfigs.getDefaultApiEndpoint(
+                providerType = ApiProviderType.XAI,
+                protocol = ApiProtocol.OPENAI_RESPONSES,
+            ),
+        )
+        assertEquals(
+            "https://api.x.ai/v1/models",
+            ApiProviderConfigs.getModelListEndpoint(
+                providerType = ApiProviderType.XAI,
+                protocol = ApiProtocol.OPENAI_RESPONSES,
+                apiEndpoint = "https://api.x.ai/v1/responses",
             ),
         )
     }

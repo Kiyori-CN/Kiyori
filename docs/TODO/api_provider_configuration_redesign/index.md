@@ -2,7 +2,7 @@
 
 ## 目标、范围与状态
 
-状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND MAIN DELIVERY COMPLETE / DEVICE VERIFICATION PENDING`。
+状态：`FOLLOW-UP LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND DEBUG APK COMPLETE / DEVICE AND REAL-SERVICE VERIFICATION PENDING`。
 
 2026-08-21 用户复核后纠正了分组和协议范围：不设置“主流供应商”独立分类；OpenAI、
 Anthropic 应位于国际供应商顶部，DeepSeek 应位于国内供应商顶部；供应商名称需要统一重命名，
@@ -81,6 +81,47 @@ Anthropic 应位于国际供应商顶部，DeepSeek 应位于国内供应商顶�
    滚动和真实服务请求验收。
 
 各阶段的文件范围和验收命令见下列分项文档。
+
+本轮后续需求、根因、方案取舍、里程碑和验收矩阵见
+[`8_followup_interaction_and_reasoning_design.md`](8_followup_interaction_and_reasoning_design.md)。
+
+本轮新增范围：
+
+- 修复配置阶段自动识别的 endpoint/base endpoint 证据边界，继续拒绝真正歧义的协议；
+- 国际供应商新增 xAI（Grok 系列），国内分组移动到国际分组前；
+- 删除海外供应商切换时的底部通知，保留并优化 API 协议下方说明；
+- 供应商与协议选择器改为稳定底部抽屉；
+- 修复上游模型选择抽屉的测量/滚动抖动；
+- 五档思考程度改为低/中/高/极高/最高，并完善帮助文案；
+- 为官方与兼容 endpoint 下的 gpt-5.6 Responses 补齐可见的服务端推理摘要请求、事件投影
+  和去重；encrypted replay、background 与 sequence resume 仍限精确官方合同。
+
+后续阶段编号从 M5 开始，M1-M4 的上一轮实现和交付证据仍保留在本专项历史中。
+
+当前后续实现已通过最新 Kotlin 编译、`60` 项定向 JVM 测试、完整 JVM、资源/文档/架构门禁
+和 Debug APK 审计；精确 Git 提交推送和远端对账仍在执行中，不能复用下方上一轮交付数字
+作为本轮完成证据。
+
+## 本轮后续本地验证证据
+
+- 定向 JVM：`60` tests，零失败。
+- 完整 JVM：`261` 份 JUnit XML、`1551` tests、`0` failures、`0` errors、`0` skipped。
+- 七份目标语言 XML 可解析，`12` 个新增键各出现一次且占位符一致；architecture boundaries
+  `m03`、formal readiness、fresh clone 和 `git diff --check` 均通过。
+- Debug 构建：`.\gradlew.bat :app:assembleDebug --no-daemon --console=plain`，
+  `BUILD SUCCESSFUL in 1m 15s`；`232` 个任务中 `23` 个 executed、`209` 个 up-to-date。
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，
+  `2026-08-21T20:56:19.5383320+08:00`，`472745050` bytes，SHA-256
+  `ECE56F04F306553E0EB42551FBF37C54068AB2E6898D4A68D1F938114097897E`。
+- APK 身份：`com.kiyori / 45 / 0.1.0 / min 26 / target 34 / compile 37`，debuggable，
+  唯一 launcher 为 `com.ai.assistance.operit.ui.main.MainActivity`。
+- 签名与对齐：Android Debug V2 单 signer；`zipalign -c -P 16 -v 4` 为
+  `Verification successful`。
+- 内容与 native：arm64-only；`51` 个 `.so` basename 零重复，`44` 个 DEX、`43` 个生产
+  ToolPkg 文件、一份共享 AAPT2；包含 `liboperit_ripgrep.so` 与
+  `assets/operit_shell_exec`，不包含 `libsudo.so`、本专项文档或测试包。
+- `51` 个 `.so` 加 shell 共 `52` 个 ELF 均为 ELF64 AArch64；`153` 个 `PT_LOAD` 为
+  `0x4000 × 151` 与 `0x10000 × 2`。
 
 ## 当前实现的本地验证证据
 

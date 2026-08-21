@@ -6,8 +6,8 @@ import com.ai.assistance.operit.data.model.ApiProtocol
 import java.util.Locale
 
 internal enum class ProviderSelectionSection {
-    INTERNATIONAL,
     DOMESTIC,
+    INTERNATIONAL,
     LOCAL_AND_CUSTOM,
     TOOLPKG,
 }
@@ -55,6 +55,7 @@ internal object ModelApiProviderPresentationPolicy {
             ApiProviderType.OPENAI,
             ApiProviderType.ANTHROPIC,
             ApiProviderType.GOOGLE,
+            ApiProviderType.XAI,
             ApiProviderType.MISTRAL,
             ApiProviderType.OPENROUTER,
             ApiProviderType.FOUR_ROUTER,
@@ -158,8 +159,8 @@ internal object ModelApiProviderPresentationPolicy {
                 .map(::canonicalProvider)
                 .distinct()
         val preferredOrder =
-            internationalProviderOrder +
-                domesticProviderOrder +
+            domesticProviderOrder +
+                internationalProviderOrder +
                 localAndCustomProviderOrder
         return preferredOrder.filter(visibleProviders::contains) +
             visibleProviders.filterNot(preferredOrder::contains)

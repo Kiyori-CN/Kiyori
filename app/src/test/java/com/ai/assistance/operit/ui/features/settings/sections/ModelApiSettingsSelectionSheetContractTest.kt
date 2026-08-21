@@ -1,0 +1,88 @@
+package com.ai.assistance.operit.ui.features.settings.sections
+
+import java.io.File
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class ModelApiSettingsSelectionSheetContractTest {
+    @Test
+    fun providerAndProtocolSelectorsUseSingleOwnerBottomSheets() {
+        val source = settingsSource()
+        val providerSheet =
+            source
+                .substringAfter("private fun ApiProviderSelectionSheet(")
+                .substringBefore("private fun getProviderColor(")
+        val protocolSheet =
+            source
+                .substringAfter("private fun ApiProtocolSelectionSheet(")
+                .substringBefore("private fun ApiProviderSelectionSheet(")
+
+        assertTrue(providerSheet.contains("ModalBottomSheet("))
+        assertTrue(providerSheet.contains("rememberModalBottomSheetState(skipPartiallyExpanded = true)"))
+        assertTrue(providerSheet.contains("var searchQuery by remember"))
+        assertTrue(providerSheet.contains("ModelApiProviderPresentationPolicy.buildRows("))
+        assertTrue(providerSheet.contains("val isSelected = provider.id == selectedProviderTypeId"))
+        assertTrue(providerSheet.contains("Icons.Default.Check"))
+        assertFalse(providerSheet.contains("Dialog("))
+
+        assertTrue(protocolSheet.contains("ModalBottomSheet("))
+        assertTrue(protocolSheet.contains("rememberModalBottomSheetState(skipPartiallyExpanded = true)"))
+        assertTrue(protocolSheet.contains("detectionMessage?.let"))
+        assertTrue(protocolSheet.contains(".clickable(onClick = onAutoDetect)"))
+        assertTrue(protocolSheet.contains(".heightIn(min = 280.dp, max = 620.dp)"))
+        assertTrue(protocolSheet.contains(".weight(1f, fill = false)"))
+        assertFalse(protocolSheet.contains("Dialog("))
+    }
+
+    @Test
+    fun unresolvedDetectionKeepsTheSheetOpenAndTheCurrentProtocolUntouched() {
+        val source = settingsSource()
+        val unresolvedBlock =
+            source
+                .substringAfter("ProviderProtocolDetectionResult.RequiresManualSelection")
+                .substringBefore("onProtocolSelected =")
+
+        assertTrue(unresolvedBlock.contains("protocolDetectionMessage ="))
+        assertFalse(unresolvedBlock.contains("selectedApiProtocol ="))
+        assertFalse(unresolvedBlock.contains("showApiProtocolSheet = false"))
+    }
+
+    @Test
+    fun internationalProviderWarningIsInlineOnlyAndUsesPresentationGrouping() {
+        val source = settingsSource()
+        val warningEffect =
+            source
+                .substringAfter("LaunchedEffect(selectedApiProvider)")
+                .substringBefore("// 当API提供商或协议改变时更新端点。")
+
+        assertTrue(warningEffect.contains("ModelApiProviderPresentationPolicy::section"))
+        assertTrue(warningEffect.contains("ProviderSelectionSection.INTERNATIONAL"))
+        assertTrue(warningEffect.contains("LocationUtils.isDeviceInMainlandChina(context)"))
+        assertFalse(warningEffect.contains("showNotification("))
+        assertFalse(
+            source.contains(
+                "showNotification(resources.getString(R.string.overseas_provider_warning))"
+            )
+        )
+    }
+
+    private fun settingsSource(): String {
+        return repositoryFile(
+            "app/src/main/java/com/ai/assistance/operit/ui/features/settings/sections/ModelApiSettingsSection.kt"
+        ).readText()
+    }
+
+    private fun repositoryFile(relativePath: String): File {
+        var current: File? =
+            File(requireNotNull(System.getProperty("user.dir"))).absoluteFile
+        repeat(4) {
+            val candidate = current?.let { directory -> File(directory, relativePath) }
+            if (candidate?.isFile == true) {
+                return candidate
+            }
+            current = current?.parentFile
+        }
+        throw AssertionError("Repository file not found: $relativePath")
+    }
+}

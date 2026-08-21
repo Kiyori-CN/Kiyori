@@ -22,6 +22,30 @@ class ProtocolServiceRoutingPolicyTest {
     }
 
     @Test
+    fun xAiRoutes_keepSupplierIdentityForChatAndResponses() {
+        val chatRoute =
+            ProtocolServiceRoutingPolicy.resolve(
+                providerType = ApiProviderType.XAI,
+                apiProtocol = ApiProtocol.OPENAI_CHAT_COMPLETIONS,
+            )
+        assertEquals(ProtocolServiceKind.OPENAI_CHAT_GENERIC, chatRoute.serviceKind)
+        assertEquals(ApiProviderType.XAI, chatRoute.identityProviderType)
+        assertEquals(ApiProviderType.OPENAI_GENERIC, chatRoute.capabilityProviderType)
+
+        val responsesRoute =
+            ProtocolServiceRoutingPolicy.resolve(
+                providerType = ApiProviderType.XAI,
+                apiProtocol = ApiProtocol.OPENAI_RESPONSES,
+            )
+        assertEquals(ProtocolServiceKind.OPENAI_RESPONSES, responsesRoute.serviceKind)
+        assertEquals(ApiProviderType.XAI, responsesRoute.identityProviderType)
+        assertEquals(
+            ApiProviderType.OPENAI_RESPONSES_GENERIC,
+            responsesRoute.capabilityProviderType,
+        )
+    }
+
+    @Test
     fun novitaAnthropic_keepsSupplierIdentityAndUsesAnthropicEndpointRules() {
         val route =
             ProtocolServiceRoutingPolicy.resolve(

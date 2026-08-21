@@ -125,6 +125,7 @@ object ModelListFetcher {
                     ApiProviderType.OPENAI_RESPONSES,
                     ApiProviderType.OPENAI_RESPONSES_GENERIC,
                     ApiProviderType.OPENAI_GENERIC,
+                    ApiProviderType.XAI,
                     ApiProviderType.OPENAI_LOCAL -> "${extractBaseUrl(apiEndpoint)}/v1/models"
                     ApiProviderType.ANTHROPIC,
                     ApiProviderType.ANTHROPIC_GENERIC -> "${extractBaseUrl(apiEndpoint)}/v1/models"
@@ -444,6 +445,7 @@ object ModelListFetcher {
                                     ApiProviderType.OPENAI_RESPONSES,
                                     ApiProviderType.OPENAI_RESPONSES_GENERIC,
                                     ApiProviderType.OPENAI_GENERIC,
+                                    ApiProviderType.XAI,
                                     ApiProviderType.OPENAI_LOCAL,
                                     ApiProviderType.DEEPSEEK,
                                     ApiProviderType.MOONSHOT,

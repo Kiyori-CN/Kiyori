@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.api.chat.llmprovider
 
 import com.ai.assistance.operit.data.model.ApiProviderType
+import com.ai.assistance.operit.data.model.ApiProtocol
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -90,7 +91,7 @@ class ModelRequestCompilerTest {
             ExecutionPersistenceCapability.RESPONSES_AT_MOST_ONCE,
             profile.executionPersistence,
         )
-        assertFalse(compiled.reasoningSummaryEnabled)
+        assertTrue(compiled.reasoningSummaryEnabled)
         assertFalse(compiled.encryptedReasoningContentEnabled)
         assertFalse(compiled.background)
         assertNull(compiled.store)
@@ -122,7 +123,7 @@ class ModelRequestCompilerTest {
             ExecutionPersistenceCapability.RESPONSES_AT_MOST_ONCE,
             profile.executionPersistence,
         )
-        assertFalse(compiled.reasoningSummaryEnabled)
+        assertTrue(compiled.reasoningSummaryEnabled)
         assertFalse(compiled.encryptedReasoningContentEnabled)
         assertFalse(compiled.background)
         assertNull(compiled.store)
@@ -209,6 +210,43 @@ class ModelRequestCompilerTest {
                 providerType = ApiProviderType.OPENAI,
                 modelName = "gpt-5.4-mini",
                 apiEndpoint = "https://api.openai.com/v1/chat/completions",
+            )
+
+        assertEquals(
+            listOf(
+                ReasoningEffortValue.LOW,
+                ReasoningEffortValue.LOW,
+                ReasoningEffortValue.MEDIUM,
+                ReasoningEffortValue.HIGH,
+                ReasoningEffortValue.HIGH,
+            ),
+            (1..5).map { level ->
+                ModelRequestCompiler
+                    .compile(
+                        profile = profile,
+                        intent =
+                            UserExecutionIntent(
+                                enableThinking = true,
+                                thinkingQualityLevel = level,
+                            ),
+                    )
+                    .reasoningEffort
+            },
+        )
+    }
+
+    @Test
+    fun xAiChatUsesTheStandardNonGpt56ReasoningMapping() {
+        val route =
+            ProtocolServiceRoutingPolicy.resolve(
+                providerType = ApiProviderType.XAI,
+                apiProtocol = ApiProtocol.OPENAI_CHAT_COMPLETIONS,
+            )
+        val profile =
+            ModelCapabilityResolver.resolve(
+                providerType = route.capabilityProviderType,
+                modelName = "grok-4.6",
+                apiEndpoint = "https://api.x.ai/v1/chat/completions",
             )
 
         assertEquals(

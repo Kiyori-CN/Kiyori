@@ -413,6 +413,7 @@ object AIServiceFactory {
             // OpenAI格式，支持原生和兼容OpenAI API的服务
             ApiProviderType.OPENAI,
             ApiProviderType.OPENAI_GENERIC,
+            ApiProviderType.XAI,
             ApiProviderType.OPENAI_LOCAL ->
                 OpenAIProvider(
                     apiEndpoint = config.apiEndpoint,
@@ -745,7 +746,8 @@ internal object ProtocolServiceRoutingPolicy {
             ApiProtocol.OPENAI_CHAT_COMPLETIONS -> {
                 val usesGenericOpenAiChat =
                     providerType == ApiProviderType.ANTHROPIC ||
-                        providerType == ApiProviderType.GOOGLE
+                        providerType == ApiProviderType.GOOGLE ||
+                        providerType == ApiProviderType.XAI
                 ProtocolServiceRoute(
                     serviceKind =
                         if (usesGenericOpenAiChat) {

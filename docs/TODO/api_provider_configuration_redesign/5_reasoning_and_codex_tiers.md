@@ -44,8 +44,19 @@
 ```
 
 Responses 请求写入 `reasoning.effort`；Chat Completions 请求写入
-`reasoning_effort`。官方 Responses 能力、后台执行、加密 reasoning replay、prompt cache
+`reasoning_effort`。`gpt-5.6* + Responses` 在官方和兼容 endpoint 上都请求
+`reasoning.summary=auto`；后台执行、加密 reasoning replay、sequence resume、prompt cache
 等额外能力仍只在现有精确官方 endpoint contract 成立时开启。
+
+服务端返回的 `response.reasoning_summary_*`、reasoning output item 和终态 response 快照
+进入一个单调 reasoning projection。相同 part 的 delta、text done、part done、item done
+和 completed 快照只补齐尚未显示的尾部；多 part 使用稳定分隔，内容分叉直接报告协议错误。
+真实 reasoning lifecycle event 在尚无文本时可以开启现有 `<think>` 状态，但 Kiyori 不生成、
+推测或显示隐藏的完整思维链。
+
+两套聊天输入栏统一显示“低、中、高、极高、最高”。普通模型仍按既有
+`low/low/medium/high/high` 映射，因此只是展示文案变化；xAI Chat 使用同一普通
+OpenAI-compatible 能力 owner。帮助文案必须区分 UI 档位、模型声明能力和服务端实际摘要。
 
 ## 编译不变量
 

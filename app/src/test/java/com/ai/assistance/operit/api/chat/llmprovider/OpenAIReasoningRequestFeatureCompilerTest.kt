@@ -52,6 +52,31 @@ class OpenAIReasoningRequestFeatureCompilerTest {
     }
 
     @Test
+    fun compatibleGpt56Responses_requestsSummaryWithoutOfficialExecutionFeatures() {
+        val requestJson = JSONObject()
+
+        OpenAIResponsesRequestFeatureCompiler.apply(
+            requestJson = requestJson,
+            compiledRequest =
+                compile(
+                    providerType = ApiProviderType.OPENAI_RESPONSES_GENERIC,
+                    modelName = "gpt-5.6-relay",
+                    apiEndpoint = "https://relay.example/v1/responses",
+                    enableThinking = true,
+                    qualityLevel = 4,
+                ),
+            stream = true,
+        )
+
+        val reasoning = requestJson.getJSONObject("reasoning")
+        assertEquals("xhigh", reasoning.getString("effort"))
+        assertEquals("auto", reasoning.getString("summary"))
+        assertFalse(requestJson.has("include"))
+        assertFalse(requestJson.has("background"))
+        assertFalse(requestJson.has("store"))
+    }
+
+    @Test
     fun disabledOrdinaryResponses_writesNoneWithoutOfficialReasoningExtras() {
         val requestJson = JSONObject()
 

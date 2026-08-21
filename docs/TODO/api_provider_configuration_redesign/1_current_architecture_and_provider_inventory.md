@@ -70,13 +70,14 @@ ModelApiSettingsSection
 
 | 展示区 | 顺序 |
 | --- | --- |
-| 国际供应商 | OpenAI、Anthropic、Google、Mistral AI、OpenRouter、4Router、Nous Research、NVIDIA NIM、Novita AI |
+| 国际供应商 | OpenAI、Anthropic、Google、xAI、Mistral AI、OpenRouter、4Router、Nous Research、NVIDIA NIM、Novita AI |
 | 国内供应商 | 深度求索、阿里云百炼、百度智能云、讯飞星火、智谱 AI、百川智能、月之暗面、小米 MiMo、硅基流动、iFlow、无问芯穹、支付宝百灵、火山方舟、派欧云 PPIO |
 | 本地与自定义 | LM Studio、Ollama、OpenAI 兼容本地服务、MNN、llama.cpp、自定义 API |
 | ToolPkg | 动态注册的 ToolPkg AI provider |
 
-不存在“主流供应商”独立分组。国际供应商区必须以 OpenAI、Anthropic 开头，国内供应商区
-必须以 DeepSeek 开头；Google 仍属于国际供应商，不因知名度另建分组。
+不存在“主流供应商”独立分组。界面顺序为国内供应商、国际供应商、本地与自定义、ToolPkg；
+国内供应商区必须以 DeepSeek 开头，国际供应商区必须以 OpenAI、Anthropic 开头。Google 与
+xAI 都属于国际供应商，不因知名度另建分组。
 
 隐藏的 UI 兼容别名为 `OPENAI_RESPONSES`、`OPENAI_GENERIC`、
 `OPENAI_RESPONSES_GENERIC`、`ANTHROPIC_GENERIC` 和 `GEMINI_GENERIC`；它们仍参与读取、

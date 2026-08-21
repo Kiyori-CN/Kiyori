@@ -1118,6 +1118,7 @@
     <string name="provider_ollama">Ollama (Local Model Server)</string>
     <string name="provider_openai_local">OpenAI-Compatible Local Server</string>
     <string name="provider_novita">Novita AI (Multi-model)</string>
+    <string name="provider_xai">xAI (familia Grok)</string>
     <string name="provider_other">Custom API</string>
     <string name="select_api_provider_title">Seleccionar Proveedor API</string>
     <string name="search_providers">Buscar proveedores</string>
@@ -1240,12 +1241,17 @@
     <string name="mood_tag_block">Etiqueta de Ánimo</string>
 
     <string name="thinking_settings">Pensamiento</string>
-    <string name="thinking_settings_desc">Gestionar modo de pensamiento y guía de pensamiento</string>
+    <string name="thinking_settings_desc">Gestiona el interruptor de razonamiento y el nivel de esfuerzo. La compatibilidad depende del proveedor, el protocolo API y el modelo; Kiyori solo envía los parámetros permitidos por ese contrato.</string>
     <string name="thinking_settings_active_count">%1$d activados</string>
     <string name="thinking_type_off">off</string>
     <string name="thinking_type_mode">mode</string>
     <string name="thinking_quality">Intensidad de pensamiento</string>
-    <string name="thinking_quality_desc">Solo funciona en el modo de pensamiento. Los modelos GPT-5.6 usan cinco niveles; los demás conservan los cuatro niveles originales. Un valor mayor implica un razonamiento más profundo.</string>
+    <string name="thinking_quality_desc">Solo funciona en el modo de pensamiento. Los cinco niveles son Bajo, Medio, Alto, Muy alto y Máximo. GPT-5.6 los asigna a low, medium, high, xhigh y max; otros modelos conservan su propia asignación, por lo que varios niveles pueden enviar el mismo esfuerzo.</string>
+    <string name="thinking_quality_low">Bajo</string>
+    <string name="thinking_quality_medium">Medio</string>
+    <string name="thinking_quality_high">Alto</string>
+    <string name="thinking_quality_xhigh">Muy alto</string>
+    <string name="thinking_quality_max">Máximo</string>
     
     <string name="provider_doubao">Volcengine Ark (Doubao Series)</string>
     <string name="provider_nvidia">NVIDIA NIM (Nemotron / Multi-model)</string>
@@ -3268,7 +3274,7 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="chat_start_ai_computer_failed">Error al iniciar la computadora AI: %1$s</string>
     <string name="chat_ai_computer_closed_due_to_workspace">Computadora AI cerrada (debido a la apertura del espacio de trabajo)</string>
     <string name="thinking_mode">Modo de pensamiento</string>
-    <string name="thinking_mode_desc">Actualmente compatible con Gemini, Qwen3, Claude, Doubao, NVIDIA, SiliconFlow y modelos locales MNN, que pueden habilitar el pensamiento integrado.</string>
+    <string name="thinking_mode_desc">Activa la capacidad de razonamiento declarada por el modelo actual. La compatibilidad depende del proveedor, el protocolo API y el modelo exacto. OpenAI Responses puede mostrar resúmenes proporcionados por el servidor, pero Kiyori no expone ni fabrica una cadena de pensamiento completa oculta.</string>
     <string name="details">Detalles</string>
     <string name="model_selection">Selección de modelo</string>
     <string name="prompt_selection">Selección de prompt</string>
@@ -3476,7 +3482,7 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="must_be_valid_json">Debe ser un JSON válido</string>
     <string name="parameter_value">Valor del parámetro</string>
     <string name="parameter_range_format">Rango: %1$s - %2$s</string>
-    <string name="overseas_provider_warning">Detectamos que se encuentra en China continental, pero ha seleccionado un proveedor extranjero. Confirme si ha activado la herramienta proxy</string>
+    <string name="overseas_provider_warning">La ubicación del dispositivo parece estar en China continental. Es posible que los endpoints oficiales de proveedores internacionales no sean accesibles directamente; los endpoints intermediarios u otra ruta de red disponible normalmente no requieren una configuración de proxy adicional. Kiyori no detecta el estado del proxy ni cambia automáticamente el protocolo API.</string>
     <string name="custom_parameter_added">Parámetro personalizado agregado</string>
     <string name="parameter_name">Nombre del parámetro</string>
     <string name="parameter_name_placeholder">Por ejemplo: Mi parámetro</string>
@@ -7758,7 +7764,13 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="api_protocol_auto_detect">Detección automática</string>
     <string name="api_protocol_auto_detect_summary">Determina el protocolo según el proveedor y el endpoint; si el resultado no es único, debes elegirlo manualmente</string>
     <string name="api_protocol_auto_detected">Detectado: %1$s</string>
+    <string name="api_protocol_auto_detected_detail">Detectado: %1$s (evidencia: %2$s)</string>
     <string name="api_protocol_auto_detect_unresolved">No se puede determinar un único protocolo API desde este endpoint. Selecciónalo manualmente.</string>
+    <string name="api_protocol_detection_source_single">El proveedor solo admite este protocolo</string>
+    <string name="api_protocol_detection_source_provider_default">Protocolo predeterminado del catálogo del proveedor</string>
+    <string name="api_protocol_detection_source_known_endpoint">Endpoint completo conocido del catálogo del proveedor</string>
+    <string name="api_protocol_detection_source_known_base_endpoint">Endpoint base conocido del catálogo del proveedor</string>
+    <string name="api_protocol_detection_source_explicit_path">Ruta de protocolo explícita en el endpoint</string>
     <string name="api_protocol_openai_chat_summary">Solicitudes compatibles con Chat Completions</string>
     <string name="api_protocol_openai_responses_summary">Solicitudes compatibles con Responses API</string>
     <string name="api_protocol_anthropic_messages_summary">Solicitudes compatibles con Anthropic Messages</string>

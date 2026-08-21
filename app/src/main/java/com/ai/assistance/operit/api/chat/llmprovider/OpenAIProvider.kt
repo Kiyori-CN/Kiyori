@@ -1980,7 +1980,8 @@ open class OpenAIProvider(
         var hasEmittedThinkStart: Boolean = false,
         var hasEmittedRegularContent: Boolean = false,
         val streamedRegularContent: StringBuilder = StringBuilder(),
-        var streamedReasoningContentLength: Int = 0,
+        val reasoningProjection: OpenAIResponsesReasoningProjection =
+            OpenAIResponsesReasoningProjection(),
         var reasoningObserved: Boolean = false,
         var isFirstResponse: Boolean = true,
         val accumulatedToolCalls: MutableMap<Int, JSONObject> = mutableMapOf(),
@@ -2394,11 +2395,23 @@ open class OpenAIProvider(
             }
         }
 
+        if (
+            OpenAIResponsesReasoningEventPolicy.isReasoningLifecycleEvent(
+                eventType = eventType,
+                payload = jsonResponse,
+            )
+        ) {
+            state.reasoningObserved = true
+            ensureResponsesReasoningProjectionStarted(state, emitter)
+        }
+
         when (eventType) {
             "response.created",
             "response.queued",
             "response.in_progress",
             -> Unit
+
+            "response.reasoning_summary_part.added" -> Unit
 
             "response.output_text.delta" -> {
                 val delta = jsonResponse.optString("delta", "")
@@ -2408,27 +2421,54 @@ open class OpenAIProvider(
             }
 
             "response.reasoning_text.delta", "response.reasoning_summary_text.delta" -> {
-                state.reasoningObserved = true
                 val delta = jsonResponse.optString("delta", "")
-                if (delta.isNotEmpty()) {
-                    processContentDelta(delta, "", state, emitter)
+                val projectedText =
+                    state.reasoningProjection.acceptDelta(
+                        partKey =
+                            OpenAIResponsesReasoningEventPolicy.partKey(
+                                eventType = eventType,
+                                payload = jsonResponse,
+                            ),
+                        outputIndex = jsonResponse.optInt("output_index", -1),
+                        delta = delta,
+                    )
+                if (projectedText.isNotEmpty()) {
+                    processContentDelta(projectedText, "", state, emitter)
                 }
             }
 
             "response.reasoning_text.done", "response.reasoning_summary_text.done" -> {
-                state.reasoningObserved = true
                 val text = jsonResponse.optString("text", "")
-                if (text.isNotEmpty() && state.streamedReasoningContentLength == 0) {
-                    emitCompletedResponsesReasoningText(text, state, emitter)
+                val projectedText =
+                    state.reasoningProjection.acceptCompletedPart(
+                        partKey =
+                            OpenAIResponsesReasoningEventPolicy.partKey(
+                                eventType = eventType,
+                                payload = jsonResponse,
+                            ),
+                        outputIndex = jsonResponse.optInt("output_index", -1),
+                        completedText = text,
+                    )
+                if (projectedText.isNotEmpty()) {
+                    emitCompletedResponsesReasoningText(projectedText, state, emitter)
                 }
             }
 
             "response.reasoning_summary_part.done" -> {
-                state.reasoningObserved = true
                 val part = jsonResponse.optJSONObject("part")
                 val text = part?.optString("text", "") ?: ""
-                if (text.isNotEmpty() && state.streamedReasoningContentLength == 0) {
-                    emitCompletedResponsesReasoningText(text, state, emitter)
+                val projectedText =
+                    state.reasoningProjection.acceptCompletedPart(
+                        partKey =
+                            OpenAIResponsesReasoningEventPolicy.partKey(
+                                eventType = eventType,
+                                payload = jsonResponse,
+                            ),
+                        outputIndex = jsonResponse.optInt("output_index", -1),
+                        completedText = text,
+                    )
+                if (projectedText.isNotEmpty()) {
+                    emitCompletedResponsesReasoningText(projectedText, state, emitter)
                 }
             }
 
@@ -2440,15 +2480,23 @@ open class OpenAIProvider(
                 }
 
                 if (item.optString("type", "") == "reasoning") {
-                    state.reasoningObserved = true
                     val itemReasoningText =
                         if (eventType == "response.output_item.done") {
                             extractResponsesReasoningTextFromItem(item)
                         } else {
                             ""
                         }
-                    if (itemReasoningText.isNotEmpty() && state.streamedReasoningContentLength == 0) {
-                        emitCompletedResponsesReasoningText(itemReasoningText, state, emitter)
+                    val projectedText =
+                        if (eventType == "response.output_item.done") {
+                            state.reasoningProjection.acceptCompletedOutputItem(
+                                outputIndex = outputIndex,
+                                completedText = itemReasoningText,
+                            )
+                        } else {
+                            ""
+                        }
+                    if (projectedText.isNotEmpty()) {
+                        emitCompletedResponsesReasoningText(projectedText, state, emitter)
                     }
                     if (eventType == "response.output_item.done") {
                         OpenAIResponsesPayloadAdapter.createReasoningMetadataTag(item)?.let { metadataTag ->
@@ -2593,15 +2641,21 @@ open class OpenAIProvider(
                     state.reasoningObserved = true
                 }
 
+                val lateReasoningText = extractResponsesReasoningText(responseObj)
+                val projectedReasoningText =
+                    state.reasoningProjection.acceptTerminalSnapshot(lateReasoningText)
+                if (projectedReasoningText.isNotEmpty()) {
+                    emitCompletedResponsesReasoningText(
+                        projectedReasoningText,
+                        state,
+                        emitter,
+                    )
+                }
+
                 if (state.isInReasoningMode) {
                     state.isInReasoningMode = false
                     emitter.emitTag("</think>")
                     state.hasEmittedThinkStart = false
-                } else {
-                    val lateReasoningText = extractResponsesReasoningText(responseObj)
-                    if (lateReasoningText.isNotEmpty() && state.streamedReasoningContentLength == 0) {
-                        emitCompletedResponsesReasoningText(lateReasoningText, state, emitter)
-                    }
                 }
 
                 // completed 携带完整 response 快照。部分兼容网关会省略中间文本或 function_call
@@ -2747,7 +2801,6 @@ open class OpenAIProvider(
 
         // 处理思考内容
         if (hasReasoning && !state.hasEmittedRegularContent) {
-            state.streamedReasoningContentLength += reasoningContent.length
             if (!state.isInReasoningMode) {
                 state.isInReasoningMode = true
                 if (!state.hasEmittedThinkStart) {
@@ -2787,9 +2840,22 @@ open class OpenAIProvider(
     ) {
         if (state.hasEmittedRegularContent) {
             emitter.emitThinkContent(reasoningText)
-            state.streamedReasoningContentLength += reasoningText.length
         } else {
             processContentDelta(reasoningText, "", state, emitter)
+        }
+    }
+
+    private suspend fun ensureResponsesReasoningProjectionStarted(
+        state: StreamingState,
+        emitter: StreamEmitter,
+    ) {
+        if (state.hasEmittedRegularContent || state.isInReasoningMode) {
+            return
+        }
+        state.isInReasoningMode = true
+        if (!state.hasEmittedThinkStart) {
+            emitter.emitTag("<think>")
+            state.hasEmittedThinkStart = true
         }
     }
 

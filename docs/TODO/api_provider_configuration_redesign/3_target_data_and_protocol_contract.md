@@ -53,6 +53,8 @@ data class ProviderProtocolConfig(
     val defaultModelName: String,
     val defaultApiEndpoint: String,
     val endpointOptions: List<ProviderEndpointOption>,
+    val defaultModelListEndpoint: String,
+    val knownBaseEndpoints: List<String>,
 )
 
 data class ProviderApiConfig(
@@ -78,6 +80,7 @@ data class ProviderApiConfig(
 | 国际 | OpenAI（GPT 系列） | OpenAI Chat | OpenAI Chat、OpenAI Responses | `OpenAIProvider`、`OpenAIResponsesProvider` |
 | 国际 | Anthropic（Claude 系列） | Anthropic Messages | Anthropic Messages、OpenAI Chat | `ClaudeProvider`、通用 `OpenAIProvider` |
 | 国际 | Google（Gemini 系列） | Gemini 原生 API | Gemini 原生 API、OpenAI Chat | `GeminiProvider`、通用 `OpenAIProvider` |
+| 国际 | xAI（Grok 系列） | OpenAI Chat | OpenAI Chat、OpenAI Responses | 通用 `OpenAIProvider`、`OpenAIResponsesProvider` |
 | 国际 | Mistral AI（Mistral / Codestral 系列） | OpenAI Chat | OpenAI Chat | `MistralProvider` |
 | 国际 | OpenRouter（多模型聚合） | OpenAI Chat | OpenAI Chat、OpenAI Responses | `OpenRouterProvider`、`OpenAIResponsesProvider` |
 | 国际 | 4Router（多模型聚合） | OpenAI Chat | OpenAI Chat | `FourRouterProvider` |
@@ -107,6 +110,8 @@ data class ProviderApiConfig(
 
 讯飞 MaaS Coding、智谱 Coding、Kimi Code 等具有独立产品、凭据或端点合同的协议，不与当前
 通用供应商入口混为一谈；只有当前 catalog 中明确登记的 endpoint 才能显示为协议选项。
+阿里云 Anthropic Messages 当前要求带 WorkspaceId 的独立地址，智谱 Responses 当前属于
+独立 Coding Plan 地址合同，因此二者不作为现有通用供应商 row 的一键默认协议。
 
 ## 端点契约
 
@@ -128,8 +133,11 @@ data class ProviderApiConfig(
 1. 单协议供应商直接得到唯一协议。
 2. 端点为空时使用该供应商 catalog 中的 `defaultProtocol`。
 3. 精确匹配 catalog 默认端点或 endpoint option 时使用该端点登记的协议。
-4. 自定义端点仅在路径明确以 `/chat/completions`、`/responses` 或 `/messages` 结束时识别。
-5. 无法唯一确定时返回“需要手动选择”，不发送探测请求，也不修改当前协议。
+4. 端点精确匹配 catalog 中只属于一个协议的已知 base endpoint 时使用该协议；多个协议共享
+   同一个 base endpoint 时仍视为歧义。
+5. 自定义端点仅在路径明确以 `/chat/completions`、`/responses` 或 `/messages` 结束时识别。
+6. 识别时只移除尾部 `/` 与明确的尾部 `#` 补全控制符，不根据 host、模型名或错误响应猜测。
+7. 无法唯一确定时返回“需要手动选择”，不发送探测请求，也不修改当前协议。
 
 运行时不执行“先请求一个协议，失败后再请求另一个协议”的策略，避免重复计费、重复工具调用、
 Responses 后台状态丢失和不可复现的协议切换。
@@ -141,7 +149,8 @@ Responses 后台状态丢失和不可复现的协议切换。
 1. `OPENAI_RESPONSES` 创建 `OpenAIResponsesProvider`，保留供应商 identity。
 2. `ANTHROPIC_MESSAGES` 创建 `ClaudeProvider`，认证方式按供应商显式决定。
 3. `OPENAI_CHAT_COMPLETIONS` 默认进入当前供应商的专用 Chat adapter。
-4. Anthropic 和 Google 的 OpenAI-compatible Chat 例外地进入通用 `OpenAIProvider`。
+4. Anthropic、Google 和 xAI 的 OpenAI-compatible Chat 进入通用 `OpenAIProvider`，同时
+   保留原供应商 identity；xAI 因此使用普通非 gpt-5.6 的 reasoning 映射。
 5. `PROVIDER_NATIVE` 只允许 Google、MNN、llama.cpp 等 catalog 明确声明的原生 owner。
 
 模型列表不能只根据 `ApiProtocol` 选择认证和 parser：官方 Anthropic 使用 Anthropic

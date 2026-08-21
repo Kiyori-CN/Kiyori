@@ -410,19 +410,23 @@ Current work status and implementation notes belong in `docs/TODO/`.
   identifies the wire protocol. Compatibility enum values remain readable for persistence,
   audit keys, ToolPkg/runtime references, and Responses execution state, but the provider picker
   exposes one canonical row per supplier.
-- The provider picker has only `International`, `China-based`, `Local and custom`, and `ToolPkg`
-  sections. OpenAI and Anthropic are the first international suppliers; DeepSeek is the first
-  China-based supplier. There is no separate featured-provider section.
+- The provider picker has only `China-based`, `International`, `Local and custom`, and `ToolPkg`
+  sections, in that order. DeepSeek is the first China-based supplier; OpenAI and Anthropic are
+  the first international suppliers, and xAI is a canonical international supplier. There is no
+  separate featured-provider section.
 - `ApiProviderConfigs` is the protocol catalog and declares every built-in supplier's default
   protocol, supported protocols, protocol-specific endpoint, endpoint choices, model-list
   endpoint, and API-key requirement. Unsupported supplier/protocol pairs are rejected rather
   than translated into another protocol.
 - Protocol auto-detection is a configuration action, not a runtime transport mode. It resolves
-  a concrete protocol from the supplier catalog, an exact known endpoint, or an explicit
-  `/chat/completions`, `/responses`, or `/messages` path. Ambiguous endpoints require manual
-  selection. Runtime requests never switch protocol after a failed request.
+  a concrete protocol from the supplier catalog, an exact known endpoint, a base endpoint that
+  belongs to exactly one supported protocol, or an explicit `/chat/completions`, `/responses`,
+  or `/messages` path. A trailing `#` endpoint-completion control marker is ignored for detection.
+  Shared or otherwise ambiguous base endpoints require manual selection. Runtime requests never
+  switch protocol after a failed request.
 - OpenAI-compatible Chat normally preserves the supplier-specific adapter. Anthropic and Google
-  OpenAI-compatible Chat use the generic `OpenAIProvider`; Responses use
+  OpenAI-compatible Chat use the generic `OpenAIProvider`; xAI Chat also uses that generic
+  capability owner while retaining xAI identity. Responses use
   `OpenAIResponsesProvider`; Anthropic Messages use `ClaudeProvider`; Google, MNN, and the
   embedded llama.cpp engine retain their declared native owners. Model-list authentication,
   endpoint, and parser are selected from supplier identity plus protocol, not protocol alone.
@@ -439,10 +443,13 @@ Current work status and implementation notes belong in `docs/TODO/`.
   已声明 reasoning 能力的情况下使用思考模式，但不会使用 `xhigh` 或 `max`。官方能力同时
   要求 provider 类型为官方 OpenAI，并且补全后的请求地址精确属于
   `https://api.openai.com/v1/responses`；仅保存为 `OPENAI_RESPONSES` 不能把 Pipio、Pixel、
-  Sekiro 或其他自定义地址提升为官方合同。兼容 Responses 保留五档 `reasoning.effort`，但不
-  自动添加 Background、sequence resume、Prompt Cache、Tool Search、`summary=auto`、
-  `reasoning.encrypted_content` 或 strict schema；普通 OpenAI Chat 请求使用
-  `reasoning_effort`，Responses 请求使用 `reasoning.effort`。
+  Sekiro 或其他自定义地址提升为官方合同。`gpt-5.6* + Responses` 在官方和兼容 endpoint
+  上都请求 `summary=auto`，使服务端真实返回的 reasoning summary 可以进入现有
+  `<think>` 可见消息；兼容 Responses 仍不得自动获得 Background、sequence resume、
+  Prompt Cache、Tool Search、`reasoning.encrypted_content` 或 strict schema。摘要增量、
+  part 完成、output item 完成和终态快照由一个单调 projection 去重；内容分叉必须报协议
+  错误，不能拼接损坏文本。普通 OpenAI Chat 请求使用 `reasoning_effort`，Responses 请求
+  使用 `reasoning.effort`。
 - 官方 GPT-5.6 Responses 使用 `background=true`、`store=false`。`ProviderRequestContext`
   在模型请求前固定 chat、message timestamp、variant 与 hop；`ProviderExecutionRepository`
   持久化 response ID、事件和单调 sequence cursor。未应用事件使用 `-1` 哨兵，官方

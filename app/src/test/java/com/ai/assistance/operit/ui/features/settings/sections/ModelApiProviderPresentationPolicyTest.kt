@@ -59,7 +59,7 @@ class ModelApiProviderPresentationPolicyTest {
     }
 
     @Test
-    fun `visible providers are grouped in the fixed international domestic local order`() {
+    fun `visible providers are grouped in the fixed domestic international local order`() {
         val input =
             listOf(
                 ApiProviderType.OTHER,
@@ -76,12 +76,12 @@ class ModelApiProviderPresentationPolicyTest {
 
         assertEquals(
             listOf(
+                ApiProviderType.DEEPSEEK,
+                ApiProviderType.BAIDU,
                 ApiProviderType.OPENAI,
                 ApiProviderType.ANTHROPIC,
                 ApiProviderType.MISTRAL,
                 ApiProviderType.NOVITA,
-                ApiProviderType.DEEPSEEK,
-                ApiProviderType.BAIDU,
                 ApiProviderType.OLLAMA,
                 ApiProviderType.OTHER,
             ),
@@ -93,15 +93,6 @@ class ModelApiProviderPresentationPolicyTest {
     fun `full visible provider order keeps international and domestic leaders fixed`() {
         assertEquals(
             listOf(
-                ApiProviderType.OPENAI,
-                ApiProviderType.ANTHROPIC,
-                ApiProviderType.GOOGLE,
-                ApiProviderType.MISTRAL,
-                ApiProviderType.OPENROUTER,
-                ApiProviderType.FOUR_ROUTER,
-                ApiProviderType.NOUS_PORTAL,
-                ApiProviderType.NVIDIA,
-                ApiProviderType.NOVITA,
                 ApiProviderType.DEEPSEEK,
                 ApiProviderType.ALIYUN,
                 ApiProviderType.BAIDU,
@@ -116,6 +107,16 @@ class ModelApiProviderPresentationPolicyTest {
                 ApiProviderType.ALIPAY_BAILING,
                 ApiProviderType.DOUBAO,
                 ApiProviderType.PPINFRA,
+                ApiProviderType.OPENAI,
+                ApiProviderType.ANTHROPIC,
+                ApiProviderType.GOOGLE,
+                ApiProviderType.XAI,
+                ApiProviderType.MISTRAL,
+                ApiProviderType.OPENROUTER,
+                ApiProviderType.FOUR_ROUTER,
+                ApiProviderType.NOUS_PORTAL,
+                ApiProviderType.NVIDIA,
+                ApiProviderType.NOVITA,
                 ApiProviderType.LMSTUDIO,
                 ApiProviderType.OLLAMA,
                 ApiProviderType.OPENAI_LOCAL,
@@ -135,6 +136,14 @@ class ModelApiProviderPresentationPolicyTest {
                 ApiProtocol.OPENAI_RESPONSES,
             ),
             ModelApiProviderPresentationPolicy.protocolOptions(ApiProviderType.OPENAI)
+                .map(ProviderProtocolOption::protocol),
+        )
+        assertEquals(
+            listOf(
+                ApiProtocol.OPENAI_CHAT_COMPLETIONS,
+                ApiProtocol.OPENAI_RESPONSES,
+            ),
+            ModelApiProviderPresentationPolicy.protocolOptions(ApiProviderType.XAI)
                 .map(ProviderProtocolOption::protocol),
         )
         assertEquals(

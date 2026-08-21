@@ -83,8 +83,10 @@ import com.ai.assistance.operit.ui.features.chat.components.style.input.common.I
 import com.ai.assistance.operit.ui.features.chat.components.style.input.common.CharacterCardMemoryBindingSwitchConfirmDialog
 import com.ai.assistance.operit.ui.features.chat.components.style.input.common.CharacterCardModelBindingSwitchConfirmDialog
 import com.ai.assistance.operit.ui.features.chat.components.style.input.common.ToolPromptManagerDialog
+import com.ai.assistance.operit.ui.features.chat.components.style.input.common.thinkingQualityLabelRes
 import com.ai.assistance.operit.ui.permissions.PermissionLevel
 import java.text.DecimalFormat
+import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import com.ai.assistance.operit.R
@@ -896,7 +898,8 @@ private fun SettingSliderItem(
     valueRange: ClosedFloatingPointRange<Float>,
     steps: Int,
     decimalFormatPattern: String,
-    unitText: String? = null
+    unitText: String? = null,
+    valueLabel: ((Float) -> String)? = null,
 ) {
     var sliderValue by remember { mutableStateOf(value) }
     val df = remember(decimalFormatPattern) { DecimalFormat(decimalFormatPattern) }
@@ -934,41 +937,59 @@ private fun SettingSliderItem(
                 modifier = Modifier.padding(horizontal = 8.dp)
             )
             Spacer(modifier = Modifier.weight(1f))
-            BasicTextField(
-                value = textValue,
-                onValueChange = { newText ->
-                    textValue = newText
-                    newText.toFloatOrNull()?.let {
-                        sliderValue = it.coerceIn(valueRange)
-                    }
-                },
-                modifier = Modifier
-                    .width(50.dp)
-                    .background(
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        RoundedCornerShape(4.dp)
-                    )
-                    .padding(horizontal = 4.dp, vertical = 2.dp),
-                textStyle = TextStyle(
+            if (valueLabel != null) {
+                Text(
+                    text = valueLabel(sliderValue),
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp,
-                    textAlign = TextAlign.Center
-                ),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
-                    imeAction = ImeAction.Done
-                ),
-                keyboardActions = KeyboardActions(
-                    onDone = {
-                        val finalValue = textValue.toFloatOrNull()?.coerceIn(valueRange) ?: sliderValue
-                        onValueChange(finalValue)
-                        textValue = df.format(finalValue)
-                        focusManager.clearFocus()
-                    }
-                ),
-                singleLine = true
-            )
+                    textAlign = TextAlign.Center,
+                    modifier =
+                        Modifier
+                            .width(50.dp)
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                RoundedCornerShape(4.dp),
+                            )
+                            .padding(horizontal = 4.dp, vertical = 2.dp),
+                )
+            } else {
+                BasicTextField(
+                    value = textValue,
+                    onValueChange = { newText ->
+                        textValue = newText
+                        newText.toFloatOrNull()?.let {
+                            sliderValue = it.coerceIn(valueRange)
+                        }
+                    },
+                    modifier = Modifier
+                        .width(50.dp)
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            RoundedCornerShape(4.dp)
+                        )
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    textStyle = TextStyle(
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center
+                    ),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            val finalValue = textValue.toFloatOrNull()?.coerceIn(valueRange) ?: sliderValue
+                            onValueChange(finalValue)
+                            textValue = df.format(finalValue)
+                            focusManager.clearFocus()
+                        }
+                    ),
+                    singleLine = true
+                )
+            }
 
             // Here is the fix for alignment
             Box(modifier = Modifier.width(24.dp), contentAlignment = Alignment.CenterStart) {
@@ -1389,6 +1410,11 @@ private fun ThinkingSettingsItem(
                 )
 
                 if (enableThinkingMode) {
+                    val thinkingQualityLabels =
+                        (ApiPreferences.MIN_THINKING_QUALITY_LEVEL..
+                            maxThinkingQualityLevel).associateWith { level ->
+                            stringResource(thinkingQualityLabelRes(level))
+                        }
                     Box(modifier = Modifier.padding(start = 28.dp)) {
                         SettingSliderItem(
                             label = stringResource(R.string.thinking_quality),
@@ -1410,7 +1436,17 @@ private fun ThinkingSettingsItem(
                                     maxThinkingQualityLevel.toFloat(),
                             steps = (maxThinkingQualityLevel -
                                 ApiPreferences.MIN_THINKING_QUALITY_LEVEL - 1).coerceAtLeast(0),
-                            decimalFormatPattern = "0"
+                            decimalFormatPattern = "0",
+                            valueLabel = { value ->
+                                thinkingQualityLabels[
+                                    value
+                                        .roundToInt()
+                                        .coerceIn(
+                                            ApiPreferences.MIN_THINKING_QUALITY_LEVEL,
+                                            maxThinkingQualityLevel,
+                                        )
+                                ].orEmpty()
+                            },
                         )
                     }
                 }

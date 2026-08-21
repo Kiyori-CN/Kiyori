@@ -7,6 +7,25 @@ For_Agent: 对项目大规模动工前按本规范协作
 本文件顶部记录当前跨领域长期任务，后续段落保留专项实施与历史证据。历史段落中的分支、提交、
 APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观察点，不能替代当前 Git、构建或设备状态。
 
+## 2026-08-21 协议识别、供应商抽屉与 Codex 推理摘要后续修复
+
+状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND DEBUG APK COMPLETE / DEVICE AND REAL-SERVICE VERIFICATION PENDING`。
+
+本轮承接已推送的供应商/协议基础重构，目标是修复配置阶段“自动识别”在常见 endpoint/base
+endpoint 下失效的问题，新增 xAI/Grok，收敛海外提示与两个 API 选择器的底部抽屉交互，
+修复上游模型抽屉上拉抖动，更新五档思考文案与帮助说明，并让官方与兼容 endpoint 下
+gpt-5.6 Responses 的服务端推理摘要在聊天中可见且可重放去重；encrypted replay、
+background 和 sequence resume 仍只属于精确官方合同。
+
+详细设计与唯一后续验收矩阵见
+[`api_provider_configuration_redesign/8_followup_interaction_and_reasoning_design.md`](api_provider_configuration_redesign/8_followup_interaction_and_reasoning_design.md)；
+专项总状态见
+[`api_provider_configuration_redesign/index.md`](api_provider_configuration_redesign/index.md)。
+
+当前实现基线：`main@384eaef322d63a885fc40682d00cfd849ba3a9d4`，本轮工作树包含待提交
+实现；最新 Kotlin 编译、`60` 项定向 JVM、`1551` 项完整 JVM、资源/文档/架构门禁和
+Debug APK/ELF 审计已通过。精确提交推送与远端对账正在执行；设备与真实供应商验证保持待验。
+
 ## 2026-08-21 模型与 API 供应商及协议重构
 
 状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND MAIN DELIVERY COMPLETE / DEVICE VERIFICATION PENDING`。

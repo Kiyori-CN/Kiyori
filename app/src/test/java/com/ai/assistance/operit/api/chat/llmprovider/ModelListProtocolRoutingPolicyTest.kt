@@ -69,6 +69,13 @@ class ModelListProtocolRoutingPolicyTest {
                 apiProtocol = ApiProtocol.OPENAI_CHAT_COMPLETIONS,
             ),
         )
+        assertEquals(
+            ApiProviderType.XAI,
+            ModelListProtocolRoutingPolicy.requestProviderType(
+                providerType = ApiProviderType.XAI,
+                apiProtocol = ApiProtocol.OPENAI_RESPONSES,
+            ),
+        )
     }
 
     @Test
