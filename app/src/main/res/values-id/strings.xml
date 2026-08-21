@@ -7655,16 +7655,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="api_protocol_gemini_native">API asli Gemini</string>
     <string name="api_protocol_mnn_native">Inferensi lokal MNN</string>
     <string name="api_protocol_llama_cpp_native">Inferensi lokal llama.cpp</string>
-    <string name="api_protocol_auto_detect">Deteksi otomatis</string>
-    <string name="api_protocol_auto_detect_summary">Tentukan protokol dari penyedia dan endpoint; pilih secara manual bila hasilnya tidak tunggal</string>
-    <string name="api_protocol_auto_detected">Terdeteksi: %1$s</string>
-    <string name="api_protocol_auto_detected_detail">Terdeteksi: %1$s (bukti: %2$s)</string>
-    <string name="api_protocol_auto_detect_unresolved">Protokol API tidak dapat ditentukan secara unik dari endpoint ini. Pilih secara manual.</string>
-    <string name="api_protocol_detection_source_single">Penyedia hanya mendukung protokol ini</string>
-    <string name="api_protocol_detection_source_provider_default">Protokol default pada katalog penyedia</string>
-    <string name="api_protocol_detection_source_known_endpoint">Endpoint lengkap yang dikenal pada katalog penyedia</string>
-    <string name="api_protocol_detection_source_known_base_endpoint">Endpoint dasar yang dikenal pada katalog penyedia</string>
-    <string name="api_protocol_detection_source_explicit_path">Jalur protokol eksplisit pada endpoint</string>
     <string name="api_protocol_openai_chat_summary">Permintaan yang kompatibel dengan Chat Completions</string>
     <string name="api_protocol_openai_responses_summary">Permintaan yang kompatibel dengan Responses API</string>
     <string name="api_protocol_anthropic_messages_summary">Permintaan yang kompatibel dengan Anthropic Messages</string>

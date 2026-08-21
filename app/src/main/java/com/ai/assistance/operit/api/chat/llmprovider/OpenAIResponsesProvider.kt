@@ -520,6 +520,42 @@ object OpenAIResponsesPayloadAdapter {
         val functionCallsByIdentity =
             linkedMapOf<ProviderToolCallKey, ProviderToolCallSignature>()
         val functionOutputsByCallId = linkedMapOf<String, String>()
+        val knownFunctionCallIds = linkedSetOf<String>()
+        val emittedFunctionOutputs = mutableSetOf<String>()
+
+        // 先收集完整历史中的调用身份和工具输出。Responses 兼容端点会严格校验
+        // function_call 后面紧跟同 call_id 的 function_call_output；若边遍历边输出，
+        // assistant 普通文本或其他历史项会把二者拆开并导致服务端误判输出缺失。
+        for (i in 0 until messages.length()) {
+            val message = messages.optJSONObject(i) ?: continue
+            val role = message.optString("role", "")
+            when (role) {
+                "assistant" -> {
+                    val toolCalls = message.optJSONArray("tool_calls") ?: continue
+                    for (j in 0 until toolCalls.length()) {
+                        val callId = toolCalls.optJSONObject(j)?.optString("id", "").orEmpty()
+                        if (callId.isNotEmpty()) {
+                            knownFunctionCallIds.add(callId)
+                        }
+                    }
+                }
+
+                "tool" -> {
+                    val callId = message.optString("tool_call_id", "")
+                    if (callId.isEmpty()) {
+                        continue
+                    }
+                    val outputText = extractToolOutputText(message.opt("content"))
+                    val previousOutput = functionOutputsByCallId[callId]
+                    if (previousOutput != null && previousOutput != outputText) {
+                        throw OpenAIResponsesProtocolException(
+                            "Responses history contains conflicting outputs for tool call $callId"
+                        )
+                    }
+                    functionOutputsByCallId.putIfAbsent(callId, outputText)
+                }
+            }
+        }
 
         for (i in 0 until messages.length()) {
             val message = messages.optJSONObject(i) ?: continue
@@ -529,30 +565,23 @@ object OpenAIResponsesPayloadAdapter {
             if (role == "tool") {
                 val callId = message.optString("tool_call_id", "")
                 if (callId.isNotEmpty()) {
-                    val outputText = extractToolOutputText(message.opt("content"))
-                    val previousOutput = functionOutputsByCallId[callId]
-                    if (previousOutput != null) {
-                        if (previousOutput != outputText) {
-                            throw OpenAIResponsesProtocolException(
-                                "Responses history contains conflicting outputs for tool call $callId"
-                            )
-                        }
+                    if (callId in knownFunctionCallIds) {
                         continue
                     }
-                    functionOutputsByCallId[callId] = outputText
-                    input.put(
-                        JSONObject().apply {
-                            put("type", "function_call_output")
-                            put("call_id", callId)
-                            put("output", outputText)
-                        }
-                    )
+                    if (emittedFunctionOutputs.add(callId)) {
+                        appendFunctionCallOutput(
+                            input = input,
+                            callId = callId,
+                            outputText = functionOutputsByCallId.getValue(callId),
+                        )
+                    }
                     continue
                 }
             }
 
             if (role == "assistant") {
                 appendReasoningItemsFromAssistantMessage(message, input)
+                appendMessageItem(message = message, role = role, input = input)
                 val toolCalls = message.optJSONArray("tool_calls")
                 if (toolCalls != null && toolCalls.length() > 0) {
                     for (j in 0 until toolCalls.length()) {
@@ -595,36 +624,71 @@ object OpenAIResponsesPayloadAdapter {
                         }
 
                         input.put(callItem)
+                        if (callId.isNotEmpty()) {
+                            functionOutputsByCallId[callId]?.let { outputText ->
+                                if (!emittedFunctionOutputs.add(callId)) {
+                                    return@let
+                                }
+                                appendFunctionCallOutput(
+                                    input = input,
+                                    callId = callId,
+                                    outputText = outputText,
+                                )
+                            }
+                        }
                     }
                 }
+                continue
             }
 
-            val convertedContent = convertMessageContentForResponses(message.opt("content"))
-            val hasContent =
-                when (convertedContent) {
-                    is String -> convertedContent.isNotBlank()
-                    is JSONArray -> convertedContent.length() > 0
-                    else -> false
-                }
-
-            if (hasContent) {
-                val mappedRole =
-                    when (role) {
-                        "system" -> "developer"
-                        else -> role
-                    }
-
-                input.put(
-                    JSONObject().apply {
-                        put("type", "message")
-                        put("role", mappedRole)
-                        put("content", convertedContent)
-                    }
-                )
-            }
+            appendMessageItem(message = message, role = role, input = input)
         }
 
         return input
+    }
+
+    private fun appendFunctionCallOutput(
+        input: JSONArray,
+        callId: String,
+        outputText: String,
+    ) {
+        input.put(
+            JSONObject().apply {
+                put("type", "function_call_output")
+                put("call_id", callId)
+                put("output", outputText)
+            }
+        )
+    }
+
+    private fun appendMessageItem(
+        message: JSONObject,
+        role: String,
+        input: JSONArray,
+    ) {
+        val convertedContent = convertMessageContentForResponses(message.opt("content"))
+        val hasContent =
+            when (convertedContent) {
+                is String -> convertedContent.isNotBlank()
+                is JSONArray -> convertedContent.length() > 0
+                else -> false
+            }
+        if (!hasContent) {
+            return
+        }
+
+        val mappedRole =
+            when (role) {
+                "system" -> "developer"
+                else -> role
+            }
+        input.put(
+            JSONObject().apply {
+                put("type", "message")
+                put("role", mappedRole)
+                put("content", convertedContent)
+            }
+        )
     }
 
     private fun convertMessageContentForResponses(content: Any?): Any {

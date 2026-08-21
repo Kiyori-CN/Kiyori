@@ -9,22 +9,21 @@ APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观
 
 ## 2026-08-21 协议识别、供应商抽屉与 Codex 推理摘要后续修复
 
-状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION, DEBUG APK AND MAIN DELIVERY COMPLETE / DEVICE AND REAL-SERVICE VERIFICATION PENDING`。
+状态：`IMPLEMENTATION AND AUTOMATED VALIDATION IN PROGRESS / DEBUG APK AND MAIN DELIVERY PENDING`。
 
-本轮承接已推送的供应商/协议基础重构，目标是修复配置阶段“自动识别”在常见 endpoint/base
-endpoint 下失效的问题，新增 xAI/Grok，收敛海外提示与两个 API 选择器的底部抽屉交互，
-修复上游模型抽屉上拉抖动，更新五档思考文案与帮助说明，并让官方与兼容 endpoint 下
-gpt-5.6 Responses 的服务端推理摘要在聊天中可见且可重放去重；encrypted replay、
-background 和 sequence resume 仍只属于精确官方合同。
+本轮在已推送的供应商/协议基础重构之上继续推进：用户已明确要求彻底删除“API 协议自动
+识别”，把当前仓库全部底部 `ModalBottomSheet` 统一为浏览器书签、历史和下载共用的三态
+抽屉，并修复 DeepSeek 及其他 Responses 供应商工具调用中
+`function_call` / `function_call_output` 被普通消息拆开的共享协议错误。
 
 详细设计与唯一后续验收矩阵见
-[`api_provider_configuration_redesign/8_followup_interaction_and_reasoning_design.md`](api_provider_configuration_redesign/8_followup_interaction_and_reasoning_design.md)；
+[`api_provider_configuration_redesign/9_auto_detection_removal_drawer_unification_and_responses_tools.md`](api_provider_configuration_redesign/9_auto_detection_removal_drawer_unification_and_responses_tools.md)；
 专项总状态见
 [`api_provider_configuration_redesign/index.md`](api_provider_configuration_redesign/index.md)。
 
-当前实现基线：`main@384eaef322d63a885fc40682d00cfd849ba3a9d4`。最新 Kotlin 编译、
-`60` 项定向 JVM、`1551` 项完整 JVM、资源/文档/架构门禁和 Debug APK/ELF 审计已通过；
-功能提交已推送并完成本地、tracking 与远端 ref 对账。设备与真实供应商验证保持待验。
+当前任务基线：`main@a94d7e8a363202f5ec4a1dbc00417343d8d403ea`，本地与
+`origin/main` 分歧为 `0/0`，工作树在首次写入前干净。当前状态为方案完成、实现进行中；
+上一轮 Kotlin/JVM/APK/Git 数字是历史交付证据，不能作为本轮完成证据复用。
 
 ## 2026-08-21 模型与 API 供应商及协议重构
 

@@ -52,8 +52,6 @@ import com.ai.assistance.operit.api.chat.llmprovider.AIServiceFactory
 import com.ai.assistance.operit.api.chat.llmprovider.LlamaProvider
 import com.ai.assistance.operit.api.chat.llmprovider.ModelListFetcher
 import com.ai.assistance.operit.data.collects.ApiProviderConfigs
-import com.ai.assistance.operit.data.collects.ProviderProtocolDetectionResult
-import com.ai.assistance.operit.data.collects.ProviderProtocolDetectionSource
 import com.ai.assistance.operit.data.model.ApiProviderType
 import com.ai.assistance.operit.data.model.ApiProtocol
 import com.ai.assistance.operit.data.model.ModelConfigData
@@ -68,6 +66,7 @@ import com.ai.assistance.operit.data.preferences.ModelConfigManager
 import com.ai.assistance.operit.data.preferences.ModelConfigModelBindingCoordinator
 import com.ai.assistance.operit.plugins.toolpkg.ToolPkgAiProviderRegistry
 import com.ai.assistance.operit.ui.common.input.bringIntoViewOnImeFocus
+import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 import com.ai.assistance.operit.ui.features.settings.DebouncedModelConfigAutoSaveEffect
 import com.ai.assistance.operit.ui.features.settings.ModelConfigSaveCoordinator
 import com.ai.assistance.operit.ui.features.settings.RegisterModelConfigSaveAction
@@ -174,7 +173,6 @@ fun ModelApiSettingsSection(
     var hasInitializedProviderEndpointSync by remember(config.id) { mutableStateOf(false) }
     var previousProviderTypeId by remember(config.id) { mutableStateOf(config.apiProviderTypeId) }
     var previousApiProtocol by remember(config.id) { mutableStateOf(config.apiProtocol) }
-    var protocolDetectionMessage by remember(config.id) { mutableStateOf<String?>(null) }
     val selectedApiProviderRoute = ApiProviderType.fromProviderTypeId(selectedProviderTypeId)
     val selectedApiProvider =
         selectedApiProviderRoute?.let(ModelApiProviderPresentationPolicy::canonicalProvider)
@@ -866,7 +864,6 @@ fun ModelApiSettingsSection(
                         ),
                     valueSummary = getProtocolSummary(selectedProtocolOption.protocol, resources),
                     onClick = {
-                        protocolDetectionMessage = null
                         showApiProtocolSheet = true
                     },
                 )
@@ -879,7 +876,6 @@ fun ModelApiSettingsSection(
                         onDismissRequest = { showApiProviderSheet = false },
                         onProviderSelected = { provider ->
                             selectedProviderTypeId = provider.id
-                            protocolDetectionMessage = null
                             selectedApiProtocol =
                                 ModelApiProviderPresentationPolicy.defaultProtocol(
                                     ApiProviderType.fromProviderTypeId(provider.id)
@@ -902,8 +898,6 @@ fun ModelApiSettingsSection(
                                 modelNamesInput = listOf(providerDefaultModel)
                                 modelBindingReplacementName = providerDefaultModel
                             }
-
-                            showApiProviderSheet = false
                         }
                 )
             }
@@ -914,53 +908,11 @@ fun ModelApiSettingsSection(
                     selectedProtocol = selectedApiProtocol,
                     provider = selectedApiProvider ?: ApiProviderType.OTHER,
                     resources = resources,
-                    detectionMessage = protocolDetectionMessage,
                     onDismissRequest = { showApiProtocolSheet = false },
-                    onAutoDetect = {
-                        val provider = selectedApiProvider ?: ApiProviderType.OTHER
-                        when (
-                            val result =
-                                ApiProviderConfigs.detectProtocol(
-                                    providerType = provider,
-                                    apiEndpoint = apiEndpointInput,
-                                )
-                        ) {
-                            is ProviderProtocolDetectionResult.Resolved -> {
-                                selectedApiProtocol = result.protocol
-                                selectedProviderTypeId = provider.name
-                                protocolDetectionMessage = null
-                                showApiProtocolSheet = false
-                                showNotification(
-                                    resources.getString(
-                                        R.string.api_protocol_auto_detected_detail,
-                                        getProtocolDisplayName(
-                                            protocol = result.protocol,
-                                            provider = provider,
-                                            resources = resources,
-                                        ),
-                                        getProtocolDetectionSourceDisplayName(
-                                            source = result.source,
-                                            resources = resources,
-                                        ),
-                                    )
-                                )
-                            }
-
-                            ProviderProtocolDetectionResult.RequiresManualSelection ->
-                                run {
-                                    protocolDetectionMessage =
-                                        resources.getString(
-                                            R.string.api_protocol_auto_detect_unresolved
-                                        )
-                                }
-                        }
-                    },
                     onProtocolSelected = { protocol ->
                         selectedApiProtocol = protocol
                         selectedProviderTypeId =
                             selectedApiProvider?.name ?: selectedProviderTypeId
-                        protocolDetectionMessage = null
-                        showApiProtocolSheet = false
                     },
                 )
             }
@@ -1204,7 +1156,6 @@ fun ModelApiSettingsSection(
             loadError = modelLoadError,
             onRefresh = ::refreshAvailableModels,
             onApplySelection = { selectedModels ->
-                showModelsDialog = false
                 requestUpstreamModelSelection(selectedModels)
             },
             onDismissRequest = { showModelsDialog = false }
@@ -2031,50 +1982,21 @@ private fun getProtocolSummary(protocol: ApiProtocol, resources: Resources): Str
     }
 }
 
-private fun getProtocolDetectionSourceDisplayName(
-    source: ProviderProtocolDetectionSource,
-    resources: Resources,
-): String {
-    return when (source) {
-        ProviderProtocolDetectionSource.SINGLE_SUPPORTED_PROTOCOL ->
-            resources.getString(R.string.api_protocol_detection_source_single)
-        ProviderProtocolDetectionSource.PROVIDER_DEFAULT ->
-            resources.getString(R.string.api_protocol_detection_source_provider_default)
-        ProviderProtocolDetectionSource.KNOWN_ENDPOINT ->
-            resources.getString(R.string.api_protocol_detection_source_known_endpoint)
-        ProviderProtocolDetectionSource.KNOWN_BASE_ENDPOINT ->
-            resources.getString(R.string.api_protocol_detection_source_known_base_endpoint)
-        ProviderProtocolDetectionSource.EXPLICIT_ENDPOINT_PATH ->
-            resources.getString(R.string.api_protocol_detection_source_explicit_path)
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ApiProtocolSelectionSheet(
     options: List<ProviderProtocolOption>,
     selectedProtocol: ApiProtocol,
     provider: ApiProviderType,
     resources: Resources,
-    detectionMessage: String?,
     onDismissRequest: () -> Unit,
-    onAutoDetect: () -> Unit,
     onProtocolSelected: (ApiProtocol) -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(
-        onDismissRequest = onDismissRequest,
-        sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 0.dp,
-    ) {
+    KiyoriModalBottomDrawer(onDismissRequest = onDismissRequest) { dismissDrawer ->
         Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .heightIn(min = 280.dp, max = 620.dp)
-                    .navigationBarsPadding()
                     .padding(horizontal = 16.dp),
         ) {
             Text(
@@ -2087,45 +2009,6 @@ private fun ApiProtocolSelectionSheet(
                 modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
                 contentPadding = PaddingValues(bottom = 12.dp),
             ) {
-                item {
-                    Surface(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                                .clickable(onClick = onAutoDetect),
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer,
-                    ) {
-                        Column(
-                            modifier =
-                                Modifier.padding(vertical = 14.dp, horizontal = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            Text(
-                                text = resources.getString(R.string.api_protocol_auto_detect),
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Text(
-                                text =
-                                    resources.getString(
-                                        R.string.api_protocol_auto_detect_summary
-                                    ),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            )
-                            detectionMessage?.let { message ->
-                                Text(
-                                    text = message,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.padding(top = 4.dp),
-                                )
-                            }
-                        }
-                    }
-                }
                 items(options.size) { index ->
                     val option = options[index]
                     val isSelected = option.protocol == selectedProtocol
@@ -2134,7 +2017,10 @@ private fun ApiProtocolSelectionSheet(
                             Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp)
-                                .clickable { onProtocolSelected(option.protocol) },
+                                .clickable {
+                                    onProtocolSelected(option.protocol)
+                                    dismissDrawer()
+                                },
                         shape = RoundedCornerShape(16.dp),
                         color =
                             if (isSelected) {
@@ -2188,7 +2074,6 @@ private fun ApiProtocolSelectionSheet(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ApiProviderSelectionSheet(
         selectedProviderTypeId: String,
@@ -2209,22 +2094,12 @@ private fun ApiProviderSelectionSheet(
             }
         )
     }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    ModalBottomSheet(
-        onDismissRequest = onDismissRequest,
-        sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 0.dp,
-    ) {
+    KiyoriModalBottomDrawer(onDismissRequest = onDismissRequest) { dismissDrawer ->
             Column(
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .heightIn(min = 360.dp, max = 720.dp)
-                        .imePadding()
-                        .navigationBarsPadding()
                         .padding(horizontal = 16.dp)
             ) {
                 // 标题和搜索框
@@ -2304,7 +2179,10 @@ private fun ApiProviderSelectionSheet(
                                                     contentDescription =
                                                         "${provider.displayName}. ${provider.summary}"
                                                 }
-                                                .clickable { onProviderSelected(provider) },
+                                                .clickable {
+                                                    onProviderSelected(provider)
+                                                    dismissDrawer()
+                                                },
                                         shape = RoundedCornerShape(8.dp),
                                         color =
                                             if (isSelected) {

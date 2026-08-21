@@ -38,15 +38,12 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Web
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -85,6 +82,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.filter
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.normalizeWebSessionBookmarkUrl
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.validSourcePageUrl
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
 import java.text.DateFormat
@@ -365,7 +363,6 @@ internal fun WebSessionHistorySheet(
                     selectedFilter.category,
                     range.cutoffTimeMillis(System.currentTimeMillis()),
                 )
-                showDeleteRangeSheet = false
             },
         )
     }
@@ -708,23 +705,13 @@ private fun HistoryEntryRow(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HistoryDeleteRangeSheet(
     onDismiss: () -> Unit,
     onSelectRange: (WebSessionHistoryDeleteRange) -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        dragHandle = null,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
-        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f),
-        tonalElevation = 0.dp,
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().navigationBarsPadding()) {
+    KiyoriModalBottomDrawer(onDismissRequest = onDismiss) { dismissDrawer ->
+        Column(modifier = Modifier.fillMaxWidth()) {
             WebSessionBrowserDialogHeader(
                 icon = Icons.Filled.History,
                 tone = WebSessionBrowserMenuTone.HISTORY,
@@ -741,7 +728,10 @@ private fun HistoryDeleteRangeSheet(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .clickable(role = Role.Button) { onSelectRange(range) }
+                            .clickable(role = Role.Button) {
+                                onSelectRange(range)
+                                dismissDrawer()
+                            }
                             .padding(horizontal = 24.dp, vertical = 16.dp),
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -753,7 +743,7 @@ private fun HistoryDeleteRangeSheet(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .clickable(role = Role.Button, onClick = onDismiss)
+                        .clickable(role = Role.Button, onClick = dismissDrawer)
                         .padding(horizontal = 24.dp, vertical = 16.dp),
             )
         }

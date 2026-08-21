@@ -22,6 +22,7 @@ import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolParameter
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileItem
+import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -376,9 +377,7 @@ fun FileContextMenu(
     }
 
     if (showMenu && (contextMenuFile != null || isMultiSelectMode)) {
-        val bottomSheetState = rememberModalBottomSheetState()
-
-        ModalBottomSheet(onDismissRequest = onDismissRequest, sheetState = bottomSheetState) {
+        KiyoriModalBottomDrawer(onDismissRequest = onDismissRequest) { dismissDrawer ->
             Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                 if (isMultiSelectMode) {
                     Text(
@@ -450,7 +449,7 @@ fun FileContextMenu(
                             onClick = {
                                 newFileName = contextMenuFile!!.name
                                 showRenameDialog = true
-                                onDismissRequest()
+                                dismissDrawer()
                             }
                     )
 
@@ -462,7 +461,7 @@ fun FileContextMenu(
                                 text = stringResource(R.string.file_menu_extract),
                                 onClick = {
                                     showUnzipDialog = true
-                                    onDismissRequest()
+                                    dismissDrawer()
                                 }
                         )
                     }
@@ -477,7 +476,7 @@ fun FileContextMenu(
                                 renameStartNumber = "1"
                                 renameUseOriginalName = true
                                 showBatchRenameDialog = true
-                                onDismissRequest()
+                                dismissDrawer()
                             }
                     )
 
@@ -489,7 +488,7 @@ fun FileContextMenu(
                                 compressFileName =
                                         "archive_${System.currentTimeMillis() / 1000}.zip"
                                 showCompressDialog = true
-                                onDismissRequest()
+                                dismissDrawer()
                             }
                     )
                 }
@@ -499,14 +498,14 @@ fun FileContextMenu(
                         text = stringResource(R.string.delete),
                         onClick = {
                             showDeleteConfirmDialog = true
-                            onDismissRequest()
+                            dismissDrawer()
                         }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Button(
-                        onClick = onDismissRequest,
+                        onClick = dismissDrawer,
                         modifier = Modifier.fillMaxWidth(),
                         colors =
                                 ButtonDefaults.buttonColors(

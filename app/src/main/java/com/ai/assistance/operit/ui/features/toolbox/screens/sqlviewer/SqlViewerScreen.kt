@@ -44,6 +44,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -57,7 +58,6 @@ fun SqlViewerScreen(navController: NavController? = null) {
     val context = LocalContext.current
     val viewModel: SqlViewerViewModel = viewModel(factory = SqlViewerViewModel.Factory(context))
     val state by viewModel.state.collectAsState()
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showControlsSheet by remember { mutableStateOf(false) }
 
     var sqlText by remember { mutableStateOf("SELECT * FROM chats") }
@@ -142,10 +142,7 @@ fun SqlViewerScreen(navController: NavController? = null) {
         }
 
     if (showControlsSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showControlsSheet = false },
-            sheetState = sheetState
-        ) {
+        KiyoriModalBottomDrawer(onDismissRequest = { showControlsSheet = false }) { _ ->
             Column(
                 modifier = Modifier
                     .fillMaxWidth()

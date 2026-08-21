@@ -7502,16 +7502,6 @@
     <string name="api_protocol_gemini_native">Gemini 네이티브 API</string>
     <string name="api_protocol_mnn_native">MNN 온디바이스 추론</string>
     <string name="api_protocol_llama_cpp_native">llama.cpp 온디바이스 추론</string>
-    <string name="api_protocol_auto_detect">자동 감지</string>
-    <string name="api_protocol_auto_detect_summary">공급자와 엔드포인트에서 프로토콜을 결정하며, 하나로 결정되지 않으면 직접 선택해야 합니다</string>
-    <string name="api_protocol_auto_detected">감지됨: %1$s</string>
-    <string name="api_protocol_auto_detected_detail">감지됨: %1$s (근거: %2$s)</string>
-    <string name="api_protocol_auto_detect_unresolved">현재 엔드포인트에서 API 프로토콜을 하나로 결정할 수 없습니다. 직접 선택하세요.</string>
-    <string name="api_protocol_detection_source_single">공급자가 이 프로토콜만 지원함</string>
-    <string name="api_protocol_detection_source_provider_default">공급자 카탈로그의 기본 프로토콜</string>
-    <string name="api_protocol_detection_source_known_endpoint">공급자 카탈로그의 알려진 전체 엔드포인트</string>
-    <string name="api_protocol_detection_source_known_base_endpoint">공급자 카탈로그의 알려진 기본 엔드포인트</string>
-    <string name="api_protocol_detection_source_explicit_path">엔드포인트의 명시적 프로토콜 경로</string>
     <string name="api_protocol_openai_chat_summary">Chat Completions 호환 요청</string>
     <string name="api_protocol_openai_responses_summary">Responses API 호환 요청</string>
     <string name="api_protocol_anthropic_messages_summary">Anthropic Messages 호환 요청</string>

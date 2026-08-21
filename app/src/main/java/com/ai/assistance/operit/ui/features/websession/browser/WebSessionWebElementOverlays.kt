@@ -44,17 +44,14 @@ import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -87,6 +84,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.extern
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.imageUrl
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.isHttpBrowserNetworkUrl
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_BOTTOM_CONTENT_HEIGHT_DP
+import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 
 internal const val WEB_SESSION_AD_MARKING_WORKBENCH_HEIGHT_DP = 300
 internal const val WEB_SESSION_AD_MARKING_FOOTER_BUTTON_HEIGHT_DP = 40
@@ -94,7 +92,6 @@ internal const val WEB_SESSION_AD_MARKING_FOOTER_VERTICAL_PADDING_DP =
     (WEB_SESSION_BROWSER_BOTTOM_CONTENT_HEIGHT_DP -
         WEB_SESSION_AD_MARKING_FOOTER_BUTTON_HEIGHT_DP) / 2
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun WebSessionWebElementActionDialog(
     state: WebSessionWebElementActionState,
@@ -113,27 +110,7 @@ internal fun WebSessionWebElementActionDialog(
     onBlockUrl: (String) -> Unit,
 ) {
     val actionPlan = remember(state) { buildBrowserWebElementActionPlan(state) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.42f),
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        dragHandle = {
-            Box(
-                modifier =
-                    Modifier
-                        .padding(top = 10.dp, bottom = 6.dp)
-                        .size(width = 36.dp, height = 4.dp)
-                        .background(
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.32f),
-                            RoundedCornerShape(2.dp),
-                        ),
-            )
-        },
-    ) {
+    KiyoriModalBottomDrawer(onDismissRequest = onDismiss) { dismissDrawer ->
         Column(
             modifier =
                 Modifier
@@ -151,7 +128,7 @@ internal fun WebSessionWebElementActionDialog(
                         webElementActionUi(
                             action = action,
                             state = state,
-                            onDismiss = onDismiss,
+                            onDismiss = dismissDrawer,
                             onOpenInNewTab = onOpenInNewTab,
                             onCopyUrl = onCopyUrl,
                             onCopyText = onCopyText,
@@ -175,7 +152,7 @@ internal fun WebSessionWebElementActionDialog(
                             webElementActionUi(
                                 action = action,
                                 state = state,
-                                onDismiss = onDismiss,
+                                onDismiss = dismissDrawer,
                                 onOpenInNewTab = onOpenInNewTab,
                                 onCopyUrl = onCopyUrl,
                                 onCopyText = onCopyText,
@@ -199,7 +176,7 @@ internal fun WebSessionWebElementActionDialog(
                         webElementActionUi(
                             action = action,
                             state = state,
-                            onDismiss = onDismiss,
+                            onDismiss = dismissDrawer,
                             onOpenInNewTab = onOpenInNewTab,
                             onCopyUrl = onCopyUrl,
                             onCopyText = onCopyText,
@@ -1107,18 +1084,13 @@ internal fun WebSessionAdMarkingClearConfirmation(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun WebSessionAdMarkingNavigationPolicySheet(
     selectedPolicy: BrowserAdMarkingNavigationPolicy,
     onDismiss: () -> Unit,
     onSelect: (BrowserAdMarkingNavigationPolicy) -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-    ) {
+    KiyoriModalBottomDrawer(onDismissRequest = onDismiss) { dismissDrawer ->
         Column(
             modifier = Modifier.fillMaxWidth().padding(bottom = 18.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -1140,7 +1112,10 @@ internal fun WebSessionAdMarkingNavigationPolicySheet(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .clickable { onSelect(policy) }
+                            .clickable {
+                                onSelect(policy)
+                                dismissDrawer()
+                            }
                             .padding(horizontal = 20.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -1167,7 +1142,7 @@ internal fun WebSessionAdMarkingNavigationPolicySheet(
                 }
             }
             TextButton(
-                onClick = onDismiss,
+                onClick = dismissDrawer,
                 modifier = Modifier.align(Alignment.End).padding(horizontal = 12.dp),
             ) {
                 Text("取消")

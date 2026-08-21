@@ -319,7 +319,6 @@ internal fun KiyoriDownloadSettingsPage(
             onDismiss = { selection = null },
             onSelect = { option ->
                 option.onSelect()
-                selection = null
             },
         )
     }

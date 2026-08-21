@@ -43,7 +43,6 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -71,6 +70,7 @@ import com.ai.assistance.operit.data.model.moveModelName
 import com.ai.assistance.operit.data.model.parseModelNameInput
 import com.ai.assistance.operit.data.model.serializeModelNames
 import com.ai.assistance.operit.ui.common.copyPlainTextToClipboard
+import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -501,7 +501,6 @@ internal fun ModelNameTagEditor(
             onDismissRequest = { showSortSheet = false },
             onConfirm = { sortedModels ->
                 onReorderModels(sortedModels)
-                showSortSheet = false
             }
         )
     }
@@ -765,7 +764,6 @@ private fun ModelManualAddDialog(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ModelSortSheet(
     models: List<String>,
@@ -779,9 +777,7 @@ private fun ModelSortSheet(
             orderedModels = moveModelName(orderedModels, from.index, to.index)
         }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismissRequest
-    ) {
+    KiyoriModalBottomDrawer(onDismissRequest = onDismissRequest) { dismissDrawer ->
         Column(
             modifier =
                 Modifier
@@ -913,11 +909,14 @@ private fun ModelSortSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
             ) {
-                TextButton(onClick = onDismissRequest) {
+                TextButton(onClick = dismissDrawer) {
                     Text(stringResource(R.string.cancel))
                 }
                 Button(
-                    onClick = { onConfirm(orderedModels) },
+                    onClick = {
+                        onConfirm(orderedModels)
+                        dismissDrawer()
+                    },
                     colors = ButtonDefaults.buttonColors()
                 ) {
                     Text(stringResource(R.string.model_sort_done))

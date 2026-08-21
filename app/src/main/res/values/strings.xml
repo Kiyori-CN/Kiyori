@@ -8456,16 +8456,6 @@
     <string name="api_protocol_gemini_native">Gemini 原生 API</string>
     <string name="api_protocol_mnn_native">MNN 端侧推理</string>
     <string name="api_protocol_llama_cpp_native">llama.cpp 端侧推理</string>
-    <string name="api_protocol_auto_detect">自动识别</string>
-    <string name="api_protocol_auto_detect_summary">根据供应商和当前端点确定协议；无法唯一识别时需要手动选择</string>
-    <string name="api_protocol_auto_detected">已识别：%1$s</string>
-    <string name="api_protocol_auto_detected_detail">已识别：%1$s（依据：%2$s）</string>
-    <string name="api_protocol_auto_detect_unresolved">无法从当前端点唯一确定 API 协议，请手动选择</string>
-    <string name="api_protocol_detection_source_single">供应商仅支持这一种协议</string>
-    <string name="api_protocol_detection_source_provider_default">供应商目录的默认协议</string>
-    <string name="api_protocol_detection_source_known_endpoint">供应商目录中的已知完整端点</string>
-    <string name="api_protocol_detection_source_known_base_endpoint">供应商目录中的已知基础端点</string>
-    <string name="api_protocol_detection_source_explicit_path">端点中的明确协议路径</string>
     <string name="api_protocol_openai_chat_summary">兼容 Chat Completions 的请求协议</string>
     <string name="api_protocol_openai_responses_summary">兼容 Responses API 的请求协议</string>
     <string name="api_protocol_anthropic_messages_summary">兼容 Anthropic Messages 的请求协议</string>

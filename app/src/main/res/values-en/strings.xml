@@ -8371,16 +8371,6 @@
     <string name="api_protocol_gemini_native">Gemini native API</string>
     <string name="api_protocol_mnn_native">MNN on-device inference</string>
     <string name="api_protocol_llama_cpp_native">llama.cpp on-device inference</string>
-    <string name="api_protocol_auto_detect">Auto-detect</string>
-    <string name="api_protocol_auto_detect_summary">Resolve the protocol from the provider and endpoint; manual selection is required when the result is not unique</string>
-    <string name="api_protocol_auto_detected">Detected: %1$s</string>
-    <string name="api_protocol_auto_detected_detail">Detected: %1$s (evidence: %2$s)</string>
-    <string name="api_protocol_auto_detect_unresolved">The API protocol cannot be uniquely determined from this endpoint. Select it manually.</string>
-    <string name="api_protocol_detection_source_single">The provider supports only this protocol</string>
-    <string name="api_protocol_detection_source_provider_default">The provider catalog default</string>
-    <string name="api_protocol_detection_source_known_endpoint">A known full endpoint in the provider catalog</string>
-    <string name="api_protocol_detection_source_known_base_endpoint">A known base endpoint in the provider catalog</string>
-    <string name="api_protocol_detection_source_explicit_path">An explicit protocol path in the endpoint</string>
     <string name="api_protocol_openai_chat_summary">OpenAI-compatible Chat Completions requests</string>
     <string name="api_protocol_openai_responses_summary">OpenAI-compatible Responses requests</string>
     <string name="api_protocol_anthropic_messages_summary">Anthropic-compatible Messages requests</string>

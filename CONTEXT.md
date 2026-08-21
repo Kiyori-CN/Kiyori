@@ -418,12 +418,10 @@ Current work status and implementation notes belong in `docs/TODO/`.
   protocol, supported protocols, protocol-specific endpoint, endpoint choices, model-list
   endpoint, and API-key requirement. Unsupported supplier/protocol pairs are rejected rather
   than translated into another protocol.
-- Protocol auto-detection is a configuration action, not a runtime transport mode. It resolves
-  a concrete protocol from the supplier catalog, an exact known endpoint, a base endpoint that
-  belongs to exactly one supported protocol, or an explicit `/chat/completions`, `/responses`,
-  or `/messages` path. A trailing `#` endpoint-completion control marker is ignored for detection.
-  Shared or otherwise ambiguous base endpoints require manual selection. Runtime requests never
-  switch protocol after a failed request.
+- The protocol picker has no automatic-detection mode or action. For multi-protocol suppliers,
+  the user explicitly selects one serialized `ApiProtocol`; switching suppliers applies only that
+  supplier's catalog default. A trailing `#` remains an endpoint-completion control marker, not a
+  protocol signal. Runtime requests never switch protocol after a failed request.
 - OpenAI-compatible Chat normally preserves the supplier-specific adapter. Anthropic and Google
   OpenAI-compatible Chat use the generic `OpenAIProvider`; xAI Chat also uses that generic
   capability owner while retaining xAI identity. Responses use

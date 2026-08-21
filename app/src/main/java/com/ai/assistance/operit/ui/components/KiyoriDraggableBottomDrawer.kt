@@ -275,6 +275,19 @@ internal fun resolveKiyoriBottomDrawerContentViewportHeight(
     return (visibleDrawerHeightDp - KIYORI_BOTTOM_DRAWER_HANDLE_HEIGHT_DP).coerceAtLeast(0f)
 }
 
+internal fun resolveKiyoriBottomDrawerPartialFraction(
+    widthDp: Float,
+    heightDp: Float,
+): Float {
+    require(widthDp > 0f) { "widthDp must be positive" }
+    require(heightDp > 0f) { "heightDp must be positive" }
+    return when {
+        widthDp < 600f -> if (widthDp > heightDp) 0.78f else 0.64f
+        widthDp < 840f -> 0.68f
+        else -> 0.72f
+    }
+}
+
 private fun KiyoriBottomDrawerValue.offsetFraction(partialOffsetFraction: Float): Float =
     when (this) {
         KiyoriBottomDrawerValue.HIDDEN -> 1f

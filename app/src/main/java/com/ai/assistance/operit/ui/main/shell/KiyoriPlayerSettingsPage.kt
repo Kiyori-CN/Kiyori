@@ -403,7 +403,6 @@ internal fun KiyoriPlayerSettingsPage(
             onDismiss = { selection = null },
             onSelect = { option ->
                 option.onSelect()
-                selection = null
             },
         )
     }

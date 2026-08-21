@@ -17,15 +17,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +34,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.LocalKiyoriSettingsColors
 import com.kiyori.design.theme.resolveSettingsIconColors
@@ -223,7 +221,6 @@ internal fun KiyoriSettingsDivider() {
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun KiyoriSettingsSelectionSheet(
     selection: KiyoriSettingsSelection,
@@ -231,32 +228,8 @@ internal fun KiyoriSettingsSelectionSheet(
     onSelect: (KiyoriSettingsSelectionOption) -> Unit,
 ) {
     val colors = LocalKiyoriSettingsColors.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        dragHandle = {
-            Box(
-                modifier =
-                    Modifier
-                        .padding(top = 10.dp, bottom = 6.dp)
-                        .size(width = 36.dp, height = 4.dp)
-                        .background(
-                            color = colors.mutedIcon.copy(alpha = 0.55f),
-                            shape = RoundedCornerShape(50),
-                        ),
-            )
-        },
-        shape =
-            RoundedCornerShape(
-                topStart = KIYORI_SETTINGS_SELECTION_CORNER_RADIUS_DP.dp,
-                topEnd = KIYORI_SETTINGS_SELECTION_CORNER_RADIUS_DP.dp,
-            ),
-        containerColor = colors.cardBackground,
-        scrimColor = colors.scrim,
-        tonalElevation = 0.dp,
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().navigationBarsPadding()) {
+    KiyoriModalBottomDrawer(onDismissRequest = onDismiss) { dismissDrawer ->
+        Column(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = selection.title,
                 color = colors.primaryText,
@@ -279,7 +252,10 @@ internal fun KiyoriSettingsSelectionSheet(
                         Modifier
                             .fillMaxWidth()
                             .heightIn(min = KIYORI_SETTINGS_SELECTION_OPTION_MIN_HEIGHT_DP.dp)
-                            .clickable { onSelect(option) }
+                            .clickable {
+                                onSelect(option)
+                                dismissDrawer()
+                            }
                             .padding(
                                 horizontal = 22.dp,
                                 vertical =
@@ -327,7 +303,7 @@ internal fun KiyoriSettingsSelectionSheet(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .clickable(onClick = onDismiss)
+                        .clickable(onClick = dismissDrawer)
                         .padding(
                             vertical =
                                 KIYORI_SETTINGS_SELECTION_CANCEL_VERTICAL_PADDING_DP.dp,

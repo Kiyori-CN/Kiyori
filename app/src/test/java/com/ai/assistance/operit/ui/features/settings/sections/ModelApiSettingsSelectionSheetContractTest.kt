@@ -18,34 +18,24 @@ class ModelApiSettingsSelectionSheetContractTest {
                 .substringAfter("private fun ApiProtocolSelectionSheet(")
                 .substringBefore("private fun ApiProviderSelectionSheet(")
 
-        assertTrue(providerSheet.contains("ModalBottomSheet("))
-        assertTrue(providerSheet.contains("rememberModalBottomSheetState(skipPartiallyExpanded = true)"))
+        assertTrue(providerSheet.contains("KiyoriModalBottomDrawer("))
+        assertFalse(providerSheet.contains("ModalBottomSheet("))
         assertTrue(providerSheet.contains("var searchQuery by remember"))
         assertTrue(providerSheet.contains("ModelApiProviderPresentationPolicy.buildRows("))
         assertTrue(providerSheet.contains("val isSelected = provider.id == selectedProviderTypeId"))
         assertTrue(providerSheet.contains("Icons.Default.Check"))
         assertFalse(providerSheet.contains("Dialog("))
 
-        assertTrue(protocolSheet.contains("ModalBottomSheet("))
-        assertTrue(protocolSheet.contains("rememberModalBottomSheetState(skipPartiallyExpanded = true)"))
-        assertTrue(protocolSheet.contains("detectionMessage?.let"))
-        assertTrue(protocolSheet.contains(".clickable(onClick = onAutoDetect)"))
+        assertTrue(protocolSheet.contains("KiyoriModalBottomDrawer("))
+        assertFalse(protocolSheet.contains("ModalBottomSheet("))
         assertTrue(protocolSheet.contains(".heightIn(min = 280.dp, max = 620.dp)"))
         assertTrue(protocolSheet.contains(".weight(1f, fill = false)"))
         assertFalse(protocolSheet.contains("Dialog("))
-    }
-
-    @Test
-    fun unresolvedDetectionKeepsTheSheetOpenAndTheCurrentProtocolUntouched() {
-        val source = settingsSource()
-        val unresolvedBlock =
-            source
-                .substringAfter("ProviderProtocolDetectionResult.RequiresManualSelection")
-                .substringBefore("onProtocolSelected =")
-
-        assertTrue(unresolvedBlock.contains("protocolDetectionMessage ="))
-        assertFalse(unresolvedBlock.contains("selectedApiProtocol ="))
-        assertFalse(unresolvedBlock.contains("showApiProtocolSheet = false"))
+        assertFalse(protocolSheet.contains("onAutoDetect"))
+        assertFalse(protocolSheet.contains("detectionMessage"))
+        assertFalse(source.contains("ProviderProtocolDetectionResult"))
+        assertFalse(source.contains("protocolDetectionMessage"))
+        assertFalse(source.contains("api_protocol_auto_detect"))
     }
 
     @Test

@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,23 +22,19 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -56,8 +50,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.model.ModelOption
+import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun UpstreamModelPickerSheet(
     models: List<ModelOption>,
@@ -80,7 +74,6 @@ internal fun UpstreamModelPickerSheet(
     var deselectedExistingModels by remember {
         mutableStateOf<Set<String>>(emptySet())
     }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val filteredModels =
         remember(searchQuery, models) {
             val normalizedQuery = searchQuery.trim()
@@ -132,20 +125,12 @@ internal fun UpstreamModelPickerSheet(
                 (nextExistingUpstreamModelIds - deselectedExistingModels)
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismissRequest,
-        sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
-        dragHandle = { BottomSheetDefaults.DragHandle() }
-    ) {
+    KiyoriModalBottomDrawer(onDismissRequest = onDismissRequest) { dismissDrawer ->
         Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .heightIn(min = 360.dp, max = 720.dp)
-                    .imePadding()
-                    .navigationBarsPadding()
         ) {
             Row(
                 modifier =
@@ -488,13 +473,16 @@ internal fun UpstreamModelPickerSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(
-                    onClick = onDismissRequest,
+                    onClick = dismissDrawer,
                     modifier = Modifier.height(46.dp)
                 ) {
                     Text(stringResource(R.string.cancel))
                 }
                 Button(
-                    onClick = { onApplySelection(selectedModels) },
+                    onClick = {
+                        onApplySelection(selectedModels)
+                        dismissDrawer()
+                    },
                     enabled = hasSelectionChanges,
                     modifier =
                         Modifier

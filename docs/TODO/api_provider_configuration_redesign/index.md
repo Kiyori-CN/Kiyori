@@ -2,7 +2,13 @@
 
 ## 目标、范围与状态
 
-状态：`FOLLOW-UP LOCAL IMPLEMENTATION, AUTOMATED VALIDATION, DEBUG APK AND MAIN DELIVERY COMPLETE / DEVICE AND REAL-SERVICE VERIFICATION PENDING`。
+状态：`AUTO-DETECTION REMOVAL, DRAWER UNIFICATION AND RESPONSES TOOL FIX IN PROGRESS / PRIOR DELIVERY COMPLETE`。
+
+2026-08-21 用户再次调整当前方案：彻底删除“API 协议自动识别”，将当前仓库全部底部
+`ModalBottomSheet` 统一为浏览器书签、历史和下载共用的三态抽屉，并修复 DeepSeek 及其他
+Responses 供应商的工具调用结果关联。当前任务的唯一详细设计、12 处迁移矩阵和验收边界见
+[`9_auto_detection_removal_drawer_unification_and_responses_tools.md`](9_auto_detection_removal_drawer_unification_and_responses_tools.md)。
+本文件下方关于自动识别“保留并修复”的描述只属于上一轮历史实现，不再代表当前目标。
 
 2026-08-21 用户复核后纠正了分组和协议范围：不设置“主流供应商”独立分类；OpenAI、
 Anthropic 应位于国际供应商顶部，DeepSeek 应位于国内供应商顶部；供应商名称需要统一重命名，
@@ -64,9 +70,8 @@ Anthropic 应位于国际供应商顶部，DeepSeek 应位于国内供应商顶�
    五档 profile；普通 OpenAI profile 只声明标准三档。
 7. endpoint 补全必须以 `ApiProtocol` 为主入口，旧的 `completeEndpoint(endpoint, providerType)`
    继续保留并委托到旧 ID 的协议推导，以保护既有测试和调用者。
-8. “自动识别”是配置动作，不是第五种 wire protocol。它只根据供应商 catalog、已知端点和
-   明确协议路径解析为一个具体 `ApiProtocol`；无法唯一判断时要求手动选择，运行时不尝试
-   其他协议。
+8. 协议始终由用户显式选择并保存为具体 `ApiProtocol`；切换供应商时只应用 catalog 的明确
+   默认协议。不存在自动识别入口、自动协议状态或运行时协议切换。
 
 ## 阶段状态
 
@@ -77,7 +82,8 @@ Anthropic 应位于国际供应商顶部，DeepSeek 应位于国内供应商顶�
 5. [DONE] 按新矩阵修订协议选择器、自动识别、默认端点、连接测试、模型列表和运行时路由。
 6. [DONE] 资源、文档、定向/完整测试、formal readiness、Debug APK 和产物审计已重新通过。
 7. [DONE] 精确 Git 审计、提交、推送和远端 ref 对账。
-8. [PENDING DEVICE] 目标设备上的供应商弹层、协议切换、保存、连接测试、Back、键盘、
+8. [DONE LOCAL / PENDING DEVICE] 本轮删除自动识别、统一底部抽屉并修复 Responses 工具调用
+   的本地实现与自动化合同已完成；目标设备上的供应商弹层、协议切换、保存、连接测试、Back、键盘、
    滚动和真实服务请求验收。
 
 各阶段的文件范围和验收命令见下列分项文档。
@@ -85,9 +91,12 @@ Anthropic 应位于国际供应商顶部，DeepSeek 应位于国内供应商顶�
 本轮后续需求、根因、方案取舍、里程碑和验收矩阵见
 [`8_followup_interaction_and_reasoning_design.md`](8_followup_interaction_and_reasoning_design.md)。
 
-本轮新增范围：
+本轮新决策与当前实施状态见
+[`9_auto_detection_removal_drawer_unification_and_responses_tools.md`](9_auto_detection_removal_drawer_unification_and_responses_tools.md)。
 
-- 修复配置阶段自动识别的 endpoint/base endpoint 证据边界，继续拒绝真正歧义的协议；
+上一轮后续范围如下；其中自动识别已被本轮新决策删除：
+
+- 上一轮曾修复配置阶段自动识别；当前实现和资源将在 M11 中彻底删除；
 - 国际供应商新增 xAI（Grok 系列），国内分组移动到国际分组前；
 - 删除海外供应商切换时的底部通知，保留并优化 API 协议下方说明；
 - 供应商与协议选择器改为稳定底部抽屉；

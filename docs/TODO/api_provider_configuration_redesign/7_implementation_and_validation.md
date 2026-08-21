@@ -1,9 +1,9 @@
 # 实现、验证与交付
 
-当前状态：M1-M4 的上一轮实现、完整验证和 main 交付已经完成；本轮 M5-M8 后续实现和 M9
-本地门禁均已完成。最新 Kotlin 编译、`60` 项定向 JVM、完整 JVM、资源/文档/架构门禁、
-Debug APK 与 APK/ELF 审计均通过；精确提交推送和远端对账已完成。设备与真实供应商请求不在
-本轮操作范围内，保持 `verification_pending`。
+当前状态：本文件记录 M1-M9 的历史实现和交付证据。用户随后要求删除自动识别、统一全部底部
+抽屉并修复 Responses 工具调用；当前实施与验收权威已经转移到
+[`9_auto_detection_removal_drawer_unification_and_responses_tools.md`](9_auto_detection_removal_drawer_unification_and_responses_tools.md)。
+下方数字不能作为新一轮完成证据复用。
 
 ## 里程碑
 
@@ -90,8 +90,7 @@ Debug APK 与 APK/ELF 审计均通过；精确提交推送和远端对账已完�
 
 交付：
 
-- 配置阶段自动识别增加唯一已知 base endpoint 与尾部 `#` 控制符识别，继续拒绝共享 base
-  的歧义结果
+- 历史版本曾增加配置阶段自动识别；该入口、算法、资源和测试已被后续 M11 删除
 - 新增 xAI/Grok canonical provider、Chat/Responses/model list catalog 和运行时路由
 - 国内供应商分组前移；Provider/Protocol 选择器改为单一 `ModalBottomSheetState`
 - 国际供应商只显示页面内网络提示，不再触发底部通知
@@ -146,7 +145,7 @@ git diff --check
 
 - 编译：`.\gradlew.bat :app:compileDebugKotlin --no-daemon --console=plain`，
   `BUILD SUCCESSFUL`。
-- 定向 JVM：catalog 完整性、逐供应商协议矩阵、自动识别、供应商展示排序、
+- 定向 JVM：catalog 完整性、逐供应商协议矩阵、历史自动识别、供应商展示排序、
   endpoint completion、service route、模型列表 route、Chat/Responses reasoning、
   Anthropic endpoint/auth 和 readiness 全部通过。
 - 完整 JVM：`.\gradlew.bat :app:testDebugUnitTest --no-daemon --console=plain`，

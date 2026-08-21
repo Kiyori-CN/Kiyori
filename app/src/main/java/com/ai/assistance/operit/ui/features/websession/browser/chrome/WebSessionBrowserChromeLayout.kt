@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.ui.features.websession.browser.chrome
 
 import androidx.compose.runtime.Immutable
+import com.ai.assistance.operit.ui.components.resolveKiyoriBottomDrawerPartialFraction
 
 // App Shell and browser bottom bars share one five-slot Kiyori geometry contract.
 internal const val WEB_SESSION_BROWSER_CHROME_SLOT_COUNT = 5
@@ -58,19 +59,22 @@ internal fun resolveWebSessionBrowserChromeLayout(
             WebSessionBrowserChromeLayout(
                 tabColumnCount = 2,
                 drawerMaxWidthDp = (widthDp - 12f).coerceAtLeast(1f),
-                drawerPartialFraction = if (widthDp > heightDp) 0.78f else 0.64f,
+                drawerPartialFraction =
+                    resolveKiyoriBottomDrawerPartialFraction(widthDp, heightDp),
             )
         widthDp < 840f ->
             WebSessionBrowserChromeLayout(
                 tabColumnCount = 3,
                 drawerMaxWidthDp = 600f,
-                drawerPartialFraction = 0.68f,
+                drawerPartialFraction =
+                    resolveKiyoriBottomDrawerPartialFraction(widthDp, heightDp),
             )
         else ->
             WebSessionBrowserChromeLayout(
                 tabColumnCount = 4,
                 drawerMaxWidthDp = 680f,
-                drawerPartialFraction = 0.72f,
+                drawerPartialFraction =
+                    resolveKiyoriBottomDrawerPartialFraction(widthDp, heightDp),
             )
     }
 }

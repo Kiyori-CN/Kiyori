@@ -7534,16 +7534,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="api_protocol_gemini_native">API nativa do Gemini</string>
     <string name="api_protocol_mnn_native">Inferência no dispositivo MNN</string>
     <string name="api_protocol_llama_cpp_native">Inferência no dispositivo llama.cpp</string>
-    <string name="api_protocol_auto_detect">Detecção automática</string>
-    <string name="api_protocol_auto_detect_summary">Determina o protocolo pelo provedor e endpoint; exige seleção manual quando o resultado não é único</string>
-    <string name="api_protocol_auto_detected">Detectado: %1$s</string>
-    <string name="api_protocol_auto_detected_detail">Detectado: %1$s (evidência: %2$s)</string>
-    <string name="api_protocol_auto_detect_unresolved">Não é possível determinar um único protocolo de API por este endpoint. Selecione manualmente.</string>
-    <string name="api_protocol_detection_source_single">O provedor suporta apenas este protocolo</string>
-    <string name="api_protocol_detection_source_provider_default">Protocolo padrão do catálogo do provedor</string>
-    <string name="api_protocol_detection_source_known_endpoint">Endpoint completo conhecido no catálogo do provedor</string>
-    <string name="api_protocol_detection_source_known_base_endpoint">Endpoint base conhecido no catálogo do provedor</string>
-    <string name="api_protocol_detection_source_explicit_path">Caminho de protocolo explícito no endpoint</string>
     <string name="api_protocol_openai_chat_summary">Requisições compatíveis com Chat Completions</string>
     <string name="api_protocol_openai_responses_summary">Requisições compatíveis com Responses API</string>
     <string name="api_protocol_anthropic_messages_summary">Requisições compatíveis com Anthropic Messages</string>

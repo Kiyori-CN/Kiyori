@@ -31,4 +31,12 @@ class KiyoriDraggableBottomDrawerPolicyTest {
             0f,
         )
     }
+
+    @Test
+    fun `modal drawers share the browser partial-height policy`() {
+        assertEquals(0.64f, resolveKiyoriBottomDrawerPartialFraction(390f, 844f), 0f)
+        assertEquals(0.72f, resolveKiyoriBottomDrawerPartialFraction(844f, 390f), 0f)
+        assertEquals(0.68f, resolveKiyoriBottomDrawerPartialFraction(700f, 1000f), 0f)
+        assertEquals(0.72f, resolveKiyoriBottomDrawerPartialFraction(1000f, 700f), 0f)
+    }
 }

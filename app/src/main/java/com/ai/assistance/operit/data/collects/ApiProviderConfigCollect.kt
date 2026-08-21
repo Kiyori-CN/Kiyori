@@ -15,7 +15,6 @@ data class ProviderProtocolConfig(
     val defaultApiEndpoint: String = "",
     val endpointOptions: List<ProviderEndpointOption> = emptyList(),
     val defaultModelListEndpoint: String = "",
-    val knownBaseEndpoints: List<String> = emptyList(),
 )
 
 data class ProviderApiConfig(
@@ -34,37 +33,18 @@ data class ProviderApiConfig(
     }
 }
 
-enum class ProviderProtocolDetectionSource {
-    SINGLE_SUPPORTED_PROTOCOL,
-    PROVIDER_DEFAULT,
-    KNOWN_ENDPOINT,
-    KNOWN_BASE_ENDPOINT,
-    EXPLICIT_ENDPOINT_PATH,
-}
-
-sealed interface ProviderProtocolDetectionResult {
-    data class Resolved(
-        val protocol: ApiProtocol,
-        val source: ProviderProtocolDetectionSource,
-    ) : ProviderProtocolDetectionResult
-
-    data object RequiresManualSelection : ProviderProtocolDetectionResult
-}
-
 object ApiProviderConfigs {
     private fun protocolConfig(
         defaultModelName: String = "",
         defaultApiEndpoint: String = "",
         endpointOptions: List<ProviderEndpointOption> = emptyList(),
         defaultModelListEndpoint: String = "",
-        knownBaseEndpoints: List<String> = emptyList(),
     ): ProviderProtocolConfig =
         ProviderProtocolConfig(
             defaultModelName = defaultModelName,
             defaultApiEndpoint = defaultApiEndpoint,
             endpointOptions = endpointOptions,
             defaultModelListEndpoint = defaultModelListEndpoint,
-            knownBaseEndpoints = knownBaseEndpoints,
         )
 
     private fun singleProtocolConfig(
@@ -74,7 +54,6 @@ object ApiProviderConfigs {
         defaultApiEndpoint: String = "",
         endpointOptions: List<ProviderEndpointOption> = emptyList(),
         defaultModelListEndpoint: String = "",
-        knownBaseEndpoints: List<String> = emptyList(),
         requiresApiKey: Boolean = true,
     ): ProviderApiConfig =
         ProviderApiConfig(
@@ -88,7 +67,6 @@ object ApiProviderConfigs {
                             defaultApiEndpoint = defaultApiEndpoint,
                             endpointOptions = endpointOptions,
                             defaultModelListEndpoint = defaultModelListEndpoint,
-                            knownBaseEndpoints = knownBaseEndpoints,
                         )
                 ),
             requiresApiKey = requiresApiKey,
@@ -183,8 +161,6 @@ object ApiProviderConfigs {
                                 "https://generativelanguage.googleapis.com/v1beta/models",
                             defaultModelListEndpoint =
                                 "https://generativelanguage.googleapis.com/v1beta/models",
-                            knownBaseEndpoints =
-                                listOf("https://generativelanguage.googleapis.com/v1beta"),
                         ),
                     ApiProtocol.OPENAI_CHAT_COMPLETIONS to
                         protocolConfig(
@@ -193,10 +169,6 @@ object ApiProviderConfigs {
                                 "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
                             defaultModelListEndpoint =
                                 "https://generativelanguage.googleapis.com/v1beta/openai/models",
-                            knownBaseEndpoints =
-                                listOf(
-                                    "https://generativelanguage.googleapis.com/v1beta/openai"
-                                ),
                         ),
                 ),
         ),
@@ -680,127 +652,6 @@ object ApiProviderConfigs {
         return requireNotNull(get(providerType).protocolConfigs[protocol]) {
             "${providerType.name} does not support ${protocol.name}"
         }
-    }
-
-    fun detectProtocol(
-        providerType: ApiProviderType,
-        apiEndpoint: String,
-    ): ProviderProtocolDetectionResult {
-        val providerConfig = get(providerType)
-        val supportedProtocols = providerConfig.protocolConfigs.keys.toList()
-        if (supportedProtocols.size == 1) {
-            return ProviderProtocolDetectionResult.Resolved(
-                protocol = supportedProtocols.single(),
-                source = ProviderProtocolDetectionSource.SINGLE_SUPPORTED_PROTOCOL,
-            )
-        }
-
-        val normalizedEndpoint = normalizeEndpointForProtocolDetection(apiEndpoint)
-        if (normalizedEndpoint.isEmpty()) {
-            return ProviderProtocolDetectionResult.Resolved(
-                protocol = providerConfig.defaultProtocol,
-                source = ProviderProtocolDetectionSource.PROVIDER_DEFAULT,
-            )
-        }
-
-        val matchingProtocols =
-            providerConfig.protocolConfigs
-                .filter { (_, protocolConfig) ->
-                    normalizeEndpointForProtocolDetection(protocolConfig.defaultApiEndpoint) ==
-                        normalizedEndpoint ||
-                        protocolConfig.endpointOptions.any { option ->
-                            normalizeEndpointForProtocolDetection(option.endpoint) ==
-                                normalizedEndpoint
-                        }
-                }
-                .keys
-                .toList()
-        if (matchingProtocols.size == 1) {
-            return ProviderProtocolDetectionResult.Resolved(
-                protocol = matchingProtocols.single(),
-                source = ProviderProtocolDetectionSource.KNOWN_ENDPOINT,
-            )
-        }
-
-        val matchingBaseProtocols =
-            providerConfig.protocolConfigs
-                .filter { (_, protocolConfig) ->
-                    knownBaseEndpoints(protocolConfig).contains(normalizedEndpoint)
-                }
-                .keys
-                .toList()
-        if (matchingBaseProtocols.size == 1) {
-            return ProviderProtocolDetectionResult.Resolved(
-                protocol =
-                    matchingBaseProtocols.single(),
-                source = ProviderProtocolDetectionSource.KNOWN_BASE_ENDPOINT,
-            )
-        }
-
-        val endpointPath =
-            runCatching { URI(normalizedEndpoint).path.orEmpty().removeSuffix("/").lowercase() }
-                .getOrDefault("")
-        val pathProtocol =
-            when {
-                endpointPath.endsWith("/chat/completions") ->
-                    ApiProtocol.OPENAI_CHAT_COMPLETIONS
-                endpointPath.endsWith("/responses") ->
-                    ApiProtocol.OPENAI_RESPONSES
-                endpointPath.endsWith("/messages") ->
-                    ApiProtocol.ANTHROPIC_MESSAGES
-                else -> null
-            }
-        if (pathProtocol != null && pathProtocol in supportedProtocols) {
-            return ProviderProtocolDetectionResult.Resolved(
-                protocol = pathProtocol,
-                source = ProviderProtocolDetectionSource.EXPLICIT_ENDPOINT_PATH,
-            )
-        }
-
-        return ProviderProtocolDetectionResult.RequiresManualSelection
-    }
-
-    private fun normalizeEndpointForProtocolDetection(endpoint: String): String {
-        return endpoint.trim().removeSuffix("#").removeSuffix("/")
-    }
-
-    private fun knownBaseEndpoints(protocolConfig: ProviderProtocolConfig): Set<String> {
-        return buildSet {
-            protocolConfig.knownBaseEndpoints.forEach { endpoint ->
-                normalizeEndpointForProtocolDetection(endpoint)
-                    .takeIf(String::isNotBlank)
-                    ?.let(::add)
-            }
-            protocolBaseEndpoint(protocolConfig.defaultApiEndpoint)?.let(::add)
-            protocolConfig.endpointOptions.forEach { option ->
-                protocolBaseEndpoint(option.endpoint)?.let(::add)
-            }
-        }
-    }
-
-    private fun protocolBaseEndpoint(endpoint: String): String? {
-        val normalizedEndpoint = normalizeEndpointForProtocolDetection(endpoint)
-        if (normalizedEndpoint.isBlank()) {
-            return null
-        }
-        val uri = runCatching { URI(normalizedEndpoint) }.getOrNull() ?: return null
-        val normalizedPath = uri.path.orEmpty().removeSuffix("/")
-        val protocolSuffix =
-            listOf(
-                "/chat/completions",
-                "/responses",
-                "/messages",
-            ).firstOrNull(normalizedPath::endsWith) ?: return null
-        val basePath = normalizedPath.removeSuffix(protocolSuffix)
-        return URI(
-            uri.scheme,
-            uri.userInfo,
-            uri.host,
-            uri.port,
-            basePath,
-            null,
-            null,
-        ).toString().removeSuffix("/")
     }
 
     fun getDefaultModelName(providerType: ApiProviderType): String {

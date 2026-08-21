@@ -31,13 +31,11 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -64,12 +62,12 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.preferences.UserProfileDocumentRepository
 import com.ai.assistance.operit.ui.common.displays.MarkdownTextComposable
 import com.ai.assistance.operit.ui.features.settings.components.rememberMarkdownSyntaxOutputTransformation
+import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
 import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsWorkspacePage
 import com.kiyori.design.theme.LocalKiyoriSettingsColors
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserPreferencesSettingsScreen(onNavigateBack: () -> Unit) {
     val context = LocalContext.current
@@ -400,16 +398,10 @@ fun UserPreferencesSettingsScreen(onNavigateBack: () -> Unit) {
 
     archiveSheetMarkdown?.let { archive ->
         val archiveScrollState = rememberScrollState()
-        ModalBottomSheet(
-            onDismissRequest = { archiveSheetMarkdown = null },
-            containerColor = settingsColors.cardBackground,
-            scrimColor = settingsColors.scrim,
-            tonalElevation = 0.dp,
-        ) {
+        KiyoriModalBottomDrawer(onDismissRequest = { archiveSheetMarkdown = null }) { dismissDrawer ->
             Column(
                 modifier =
                     Modifier.fillMaxWidth()
-                        .fillMaxHeight(0.85f)
                         .padding(horizontal = 20.dp)
                         .padding(bottom = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -441,7 +433,7 @@ fun UserPreferencesSettingsScreen(onNavigateBack: () -> Unit) {
                     TextButton(
                         onClick = {
                             context.copyPlainTextToClipboard("Kiyori preferences", archive)
-                            archiveSheetMarkdown = null
+                            dismissDrawer()
                             scope.launch {
                                 snackbarHostState.showSnackbar(
                                     context.getString(R.string.copied_to_clipboard)

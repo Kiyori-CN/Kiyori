@@ -42,14 +42,11 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -67,6 +64,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
 import com.ai.assistance.operit.ui.common.copyPlainTextToClipboard
+import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -1156,14 +1154,12 @@ private fun MessageItem(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MessageCopyPreviewBottomSheet(
     text: String,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val textScrollState = rememberScrollState()
     var showPlainText by remember(text) { mutableStateOf(true) }
     var plainText by remember(text) { mutableStateOf<String?>(null) }
@@ -1183,10 +1179,7 @@ private fun MessageCopyPreviewBottomSheet(
             stringResource(R.string.copy_markdown_source)
         }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-    ) {
+    KiyoriModalBottomDrawer(onDismissRequest = onDismiss) { _ ->
         Column(
             modifier = Modifier
                 .fillMaxWidth()

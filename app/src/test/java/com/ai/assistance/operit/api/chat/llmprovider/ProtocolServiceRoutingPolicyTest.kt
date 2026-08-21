@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.api.chat.llmprovider
 
+import com.ai.assistance.operit.data.collects.ApiProviderConfigs
 import com.ai.assistance.operit.data.model.ApiProviderType
 import com.ai.assistance.operit.data.model.ApiProtocol
 import org.junit.Assert.assertEquals
@@ -43,6 +44,30 @@ class ProtocolServiceRoutingPolicyTest {
             ApiProviderType.OPENAI_RESPONSES_GENERIC,
             responsesRoute.capabilityProviderType,
         )
+    }
+
+    @Test
+    fun everyCatalogResponsesProviderUsesTheSharedResponsesService() {
+        val responsesProviders =
+            ApiProviderType.entries.filter { providerType ->
+                ApiProtocol.OPENAI_RESPONSES in
+                    ApiProviderConfigs.getSupportedProtocols(providerType)
+            }
+
+        responsesProviders.forEach { providerType ->
+            val route =
+                ProtocolServiceRoutingPolicy.resolve(
+                    providerType = providerType,
+                    apiProtocol = ApiProtocol.OPENAI_RESPONSES,
+                )
+
+            assertEquals(
+                "${providerType.name} bypassed the shared Responses service",
+                ProtocolServiceKind.OPENAI_RESPONSES,
+                route.serviceKind,
+            )
+            assertEquals(providerType, route.identityProviderType)
+        }
     }
 
     @Test

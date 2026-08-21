@@ -54,7 +54,6 @@ data class ProviderProtocolConfig(
     val defaultApiEndpoint: String,
     val endpointOptions: List<ProviderEndpointOption>,
     val defaultModelListEndpoint: String,
-    val knownBaseEndpoints: List<String>,
 )
 
 data class ProviderApiConfig(
@@ -125,19 +124,11 @@ data class ProviderApiConfig(
 保留旧 provider-type 重载作为兼容入口，并由旧 ID 推导协议。端点文本带 `#` 时仍只移除
 控制符而不补全路径。
 
-## 配置阶段自动识别
+## 显式协议选择
 
-协议选择器提供“自动识别”操作，但不新增 `ApiProtocol.AUTO`，也不把自动状态交给运行时。
-识别成功后仍保存一个明确的 `ApiProtocol`：
-
-1. 单协议供应商直接得到唯一协议。
-2. 端点为空时使用该供应商 catalog 中的 `defaultProtocol`。
-3. 精确匹配 catalog 默认端点或 endpoint option 时使用该端点登记的协议。
-4. 端点精确匹配 catalog 中只属于一个协议的已知 base endpoint 时使用该协议；多个协议共享
-   同一个 base endpoint 时仍视为歧义。
-5. 自定义端点仅在路径明确以 `/chat/completions`、`/responses` 或 `/messages` 结束时识别。
-6. 识别时只移除尾部 `/` 与明确的尾部 `#` 补全控制符，不根据 host、模型名或错误响应猜测。
-7. 无法唯一确定时返回“需要手动选择”，不发送探测请求，也不修改当前协议。
+协议选择器不提供自动识别或 `ApiProtocol.AUTO`。多协议供应商始终由用户显式选择一个
+`ApiProtocol` 并持久化；切换供应商时只应用该供应商 catalog 中声明的 `defaultProtocol`。
+单协议供应商不显示无意义的选择器。
 
 运行时不执行“先请求一个协议，失败后再请求另一个协议”的策略，避免重复计费、重复工具调用、
 Responses 后台状态丢失和不可复现的协议切换。

@@ -7651,16 +7651,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="api_protocol_gemini_native">API asli Gemini</string>
     <string name="api_protocol_mnn_native">Inferens pada peranti MNN</string>
     <string name="api_protocol_llama_cpp_native">Inferens pada peranti llama.cpp</string>
-    <string name="api_protocol_auto_detect">Kesan automatik</string>
-    <string name="api_protocol_auto_detect_summary">Tentukan protokol daripada pembekal dan endpoint; pilihan manual diperlukan jika hasil tidak unik</string>
-    <string name="api_protocol_auto_detected">Dikesan: %1$s</string>
-    <string name="api_protocol_auto_detected_detail">Dikesan: %1$s (bukti: %2$s)</string>
-    <string name="api_protocol_auto_detect_unresolved">Protokol API tidak dapat ditentukan secara unik daripada endpoint ini. Pilih secara manual.</string>
-    <string name="api_protocol_detection_source_single">Pembekal hanya menyokong protokol ini</string>
-    <string name="api_protocol_detection_source_provider_default">Protokol lalai katalog pembekal</string>
-    <string name="api_protocol_detection_source_known_endpoint">Endpoint penuh yang dikenali dalam katalog pembekal</string>
-    <string name="api_protocol_detection_source_known_base_endpoint">Endpoint asas yang dikenali dalam katalog pembekal</string>
-    <string name="api_protocol_detection_source_explicit_path">Laluan protokol yang jelas dalam endpoint</string>
     <string name="api_protocol_openai_chat_summary">Permintaan serasi Chat Completions</string>
     <string name="api_protocol_openai_responses_summary">Permintaan serasi Responses API</string>
     <string name="api_protocol_anthropic_messages_summary">Permintaan serasi Anthropic Messages</string>

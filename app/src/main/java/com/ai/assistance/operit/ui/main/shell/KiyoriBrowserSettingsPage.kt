@@ -527,7 +527,6 @@ internal fun KiyoriBrowserSettingsPage(
             onDismiss = { settingsSelection = null },
             onSelect = { option ->
                 option.onSelect()
-                settingsSelection = null
             },
         )
     }

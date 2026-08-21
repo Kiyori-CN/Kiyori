@@ -2,7 +2,12 @@
 
 ## 目标、范围与状态
 
-状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION, DEBUG APK AND MAIN DELIVERY COMPLETE / DEVICE AND REAL-SERVICE VERIFICATION PENDING`。
+状态：`SUPERSEDED HISTORICAL DELIVERY / CURRENT WORK MOVED TO DOCUMENT 9`。
+
+本文件保留上一轮“修复并保留自动识别”的历史需求、设计和交付证据。用户随后明确要求彻底
+删除自动识别，因此本文中与自动识别相关的目标、方案和验收项均已失效；当前语义和实施状态以
+[`9_auto_detection_removal_drawer_unification_and_responses_tools.md`](9_auto_detection_removal_drawer_unification_and_responses_tools.md)
+为准。
 
 本文件是 2026-08-21 供应商/协议基础重构之后的延伸专项设计，承接上一轮已经提交到
 `main` 的协议 catalog、运行时路由、模型列表路由和 Responses 执行持久化。它只描述本轮
@@ -76,30 +81,15 @@ Responses execution state、ToolPkg provider ID 和既有 route 标识仍需保�
 
 ## 当前代码事实与根因
 
-### 自动识别
+### 自动识别（已被后续方案取代）
 
-当前 `ApiProviderConfigs.detectProtocol()` 的顺序是：
+本节原先记录过 `ApiProviderConfigs.detectProtocol()` 的识别顺序、已知 endpoint 证据和
+手动选择边界。用户在 2026-08-21 明确决定彻底删除该入口及其专用实现，因此这部分不再是
+当前代码事实，也不应作为后续实现方向。
 
-1. 单协议供应商直接返回唯一协议；
-2. 空端点返回 catalog 的 `defaultProtocol`；
-3. 仅匹配完整的 catalog 默认 endpoint 或 endpoint option；
-4. 仅匹配路径结尾 `/chat/completions`、`/responses`、`/messages`；
-5. 其余情况要求手动选择。
-
-这套边界本身没有运行时协议切换风险，但用户填写或历史配置常见的是供应商 base URL，例如
-`https://api.example.com/v1`，而不是完整请求路径。当前 catalog 没有把“可唯一对应的
-已知 base endpoint”登记为可识别证据，因此多协议供应商会直接进入第 5 步。
-
-修复方向：
-
-- 为协议 catalog 增加结构化、可审计的已知 endpoint/base endpoint 证据，而不是用字符串
-  猜测或发网络探测；
-- 只有一个协议能匹配时才返回 `Resolved`；
-- 多个协议共享同一个 base endpoint 时仍返回 `RequiresManualSelection`，不能把当前选择
-  伪装成识别结果；
-- 识别结果需要携带可展示的 source/reason，成功和失败文案都说明命中了什么证据；
-- 识别输入统一去除控制性尾部标记和尾部斜杠，并保留 query/fragment 的协议语义；不把任意
-  host 名称或模型名当成协议证据。
+当前协议配置只保留显式 `ApiProtocol` 选择、供应商明确的默认协议、已有序列化值和旧配置
+读取兼容。删除范围、保留边界及验证证据见
+`9_auto_detection_removal_drawer_unification_and_responses_tools.md`。
 
 ### 海外提示
 
