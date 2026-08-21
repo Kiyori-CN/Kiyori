@@ -5,14 +5,18 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -229,7 +233,7 @@ internal fun KiyoriSettingsSelectionSheet(
 ) {
     val colors = LocalKiyoriSettingsColors.current
     KiyoriModalBottomDrawer(onDismissRequest = onDismiss) { dismissDrawer ->
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth().fillMaxHeight()) {
             Text(
                 text = selection.title,
                 color = colors.primaryText,
@@ -246,54 +250,60 @@ internal fun KiyoriSettingsSelectionSheet(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
             )
             HorizontalDivider(color = colors.divider)
-            selection.options.forEach { option ->
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = KIYORI_SETTINGS_SELECTION_OPTION_MIN_HEIGHT_DP.dp)
-                            .clickable {
-                                onSelect(option)
-                                dismissDrawer()
-                            }
-                            .padding(
-                                horizontal = 22.dp,
-                                vertical =
-                                    KIYORI_SETTINGS_SELECTION_OPTION_VERTICAL_PADDING_DP.dp,
-                            ),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f).padding(end = 14.dp)) {
-                        Text(
-                            text = option.label,
-                            color = colors.primaryText,
-                            fontSize = 14.sp,
-                            fontWeight =
-                                if (option.selected) FontWeight.SemiBold else FontWeight.Normal,
-                        )
-                        option.description?.let { description ->
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                contentPadding = PaddingValues(bottom = 4.dp),
+            ) {
+                itemsIndexed(selection.options) { _, option ->
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = KIYORI_SETTINGS_SELECTION_OPTION_MIN_HEIGHT_DP.dp)
+                                .clickable {
+                                    onSelect(option)
+                                    dismissDrawer()
+                                }
+                                .padding(
+                                    horizontal = 22.dp,
+                                    vertical =
+                                        KIYORI_SETTINGS_SELECTION_OPTION_VERTICAL_PADDING_DP.dp,
+                                ),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 14.dp)) {
                             Text(
-                                text = description,
-                                fontSize = 12.sp,
-                                lineHeight = 17.sp,
-                                color = colors.secondaryText,
-                                modifier = Modifier.padding(top = 3.dp),
+                                text = option.label,
+                                color = colors.primaryText,
+                                fontSize = 14.sp,
+                                fontWeight =
+                                    if (option.selected) FontWeight.SemiBold
+                                    else FontWeight.Normal,
+                            )
+                            option.description?.let { description ->
+                                Text(
+                                    text = description,
+                                    fontSize = 12.sp,
+                                    lineHeight = 17.sp,
+                                    color = colors.secondaryText,
+                                    modifier = Modifier.padding(top = 3.dp),
+                                )
+                            }
+                        }
+                        if (option.selected) {
+                            Icon(
+                                imageVector = Icons.Rounded.Check,
+                                contentDescription = null,
+                                tint = colors.accent,
+                                modifier =
+                                    Modifier.size(
+                                        KIYORI_SETTINGS_SELECTION_CHECK_ICON_SIZE_DP.dp,
+                                    ),
                             )
                         }
                     }
-                    if (option.selected) {
-                        Icon(
-                            imageVector = Icons.Rounded.Check,
-                            contentDescription = null,
-                            tint = colors.accent,
-                            modifier =
-                                Modifier.size(
-                                    KIYORI_SETTINGS_SELECTION_CHECK_ICON_SIZE_DP.dp,
-                                ),
-                        )
-                    }
+                    HorizontalDivider(color = colors.divider)
                 }
-                HorizontalDivider(color = colors.divider)
             }
             Text(
                 text = "取消",

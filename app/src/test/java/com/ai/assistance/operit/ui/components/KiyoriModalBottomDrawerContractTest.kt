@@ -14,6 +14,10 @@ class KiyoriModalBottomDrawerContractTest {
             ).readText()
 
         assertTrue(source.contains("KiyoriDraggableBottomDrawer("))
+        assertTrue(source.contains("Dialog("))
+        assertTrue(source.contains("usePlatformDefaultWidth = false"))
+        assertTrue(source.contains("dismissOnBackPress = false"))
+        assertTrue(source.contains("dismissOnClickOutside = false"))
         assertTrue(source.contains("BackHandler(enabled = isVisible"))
         assertTrue(source.contains("onDismissRequest = dismissDrawer"))
         assertTrue(source.contains("onHidden = onDismissRequest"))

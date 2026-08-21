@@ -2,7 +2,7 @@
 
 ## 目标、范围与状态
 
-状态：`IMPLEMENTATION COMPLETE / AUTOMATED VALIDATION IN PROGRESS`。
+状态：`IMPLEMENTATION COMPLETE / DEVICE VERIFICATION PENDING`。
 
 本文件承接已经交付的供应商与协议重构，以及
 [`8_followup_interaction_and_reasoning_design.md`](8_followup_interaction_and_reasoning_design.md)
@@ -136,7 +136,11 @@ function_call_output(call_id=B)
 
 新增 `ui/components/KiyoriModalBottomDrawer.kt`，职责仅包括：
 
+- 通过全屏 `Dialog` 脱离调用方的 `LazyColumn`、`Card` 或滚动 `Column` 测量树，保证自身
+  是独立的模态窗口层；
 - 内部复用唯一 `KiyoriDraggableBottomDrawer`；
+- Settings 选项抽屉的标题和取消操作保持固定，选项集合在独立的 `LazyColumn` 视口内上下
+  滚动，不能因选项数量超过可见高度而裁掉底部选项；
 - 从 Hidden 动画进入 Partial；
 - 遮罩、手柄下拉和系统 Back 都先进入 Hidden；
 - Hidden 完成后才调用外部 `onDismissRequest`；
@@ -231,7 +235,9 @@ rg "ModalBottomSheet\(" app/src/main/java
 - M10 Responses 输入排序与共享供应商合同：`DONE`；
 - M11 自动识别整套删除：`DONE`；
 - M12 统一模态底部抽屉与 12 处迁移：`DONE`；
-- M13 文档收口、完整回归、Debug APK、Git 提交推送：`IN PROGRESS`。
+- M13 文档收口、完整回归、Debug APK、Git 提交推送：`DONE`；
+- M14 修复统一抽屉被页面测量树裁剪、以及长选项列表无法滚动的问题：`DONE`；
+  真机手势与视觉验收仍待执行。
 
 ## 自动化验收矩阵
 
