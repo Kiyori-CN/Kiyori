@@ -326,7 +326,7 @@ Kiyori App Shell 的设置 route callback 以 `AI_HOST` 来源打开
 8. [DONE] 更新 `CONTEXT.md`、中英文 README、合同测试和 TODO 最终状态。
 9. [DONE] 运行定向 JVM/Python、formal readiness、architecture、Markdown/translation、
    `git diff --check` 和规定 Debug APK 构建；核验 APK 内 Mihomo/launcher 与签名/对齐。
-10. [IN PROGRESS] 审计精确候选树、敏感内容、私有订阅、缓存、大文件、子模块和远端竞争，提交并推送
+10. [DONE] 审计精确候选树、敏感内容、私有订阅、缓存、大文件、子模块和远端竞争，提交并推送
     `main`，核对 local/tracking/remote ref。
 11. [PENDING] 在目标设备完成真实订阅、多订阅切换/测速、外部 VPN 并存、Browser、AI、播放器、
    下载器、脚本和进程
