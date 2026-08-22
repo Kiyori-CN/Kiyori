@@ -653,6 +653,237 @@ version、唯一 Launcher、Debug 签名、16 KB alignment、ABI/native/runtime 
 - 当前未创建提交、未推送、未运行 fresh-clone candidate、未安装 APK 或操作设备；真实 endpoint、
   provider cache、Room instrumentation 和设备 UI 保持 `verification_pending`。
 
+### M7 全终态工具历史闭合与中断恢复
+
+状态：`IMPLEMENTATION VERIFIED / DEVICE VERIFICATION PENDING`。
+
+#### 扩展 Goal 与成功条件
+
+用户现场确认手动停止和未手动停止都可能在下一次发送时出现
+`MISSING_TOOL_RESULT at user_boundary`。本里程碑必须保证：任何普通发送、工具执行、手动停止、
+非手动取消、Provider/工具失败或进程终止留下的 durable history，在进入下一条用户消息或自动
+压缩前都不包含未闭合工具事务；正常完成仍须通过严格协议校验。实现不能伪造 tool result、
+静默放宽校验、重试工具副作用、切换 Provider/协议或建立第二份历史 owner。
+
+完成条件：
+
+1. 周期快照、全部终态和历史恢复共用一个 replay-safe 投影；已按调用顺序闭合的事务逐字保留；
+   完整但按并行完成顺序写入的结果只在 durable replay 副本中无损规范为调用顺序；只有从首个
+   未闭合、无法唯一匹配或身份冲突事务开始的后缀被排除出模型可重放 surface
+2. UI 仍显示原始实时流，conversation audit 仍保留原始 Provider/工具事件；durable message
+   只承担下一请求和 compaction 可安全消费的投影
+3. 普通完成和单条消息重新生成若仍有 open tool call，当前回合立即进入可见协议失败，不得先写
+   `COMPLETED` 或保存新 variant
+4. 旧版本损坏消息先检查工具事务是否被后续持久消息合法闭合；直到 replay boundary 仍未闭合的
+   历史必须修复，不能再用 `completedAt != 0` 或缺少同 timestamp 失败审计阻止修复
+5. 自动压缩在历史修复之后取 snapshot，并继续用既有 digest、route、工具闭合和相邻 summary
+   门禁验证提交；修复不得绕过 `ConversationCompactionContract`
+6. 自动化回归、正式开发门禁、Debug APK 和产物核验通过；最终提交推送 `main` 并完成三方 ref
+   对账。真实 Provider、进程强杀和设备 UI 复测继续单列 `verification_pending`
+
+#### 首轮实现后的现场纠正
+
+首轮候选把 pending calls 实现为 FIFO queue，并在每个 result 到达时直接比较队首名称。真实完成
+回合随后出现 `TOOL_RESULT_NAME_MISMATCH, pending=4, truncationIndex=4246`，且异常发生在
+`completeAssistantResponse()` 最终持久化之前，表现为回复已经结束但整条助手消息丢失。
+
+源码证明这不是 Provider 返回了损坏结果：`ToolExecutionManager.executeInvocations()` 对允许并行
+的调用创建多个 `async`；`executeAndEmitTool()` 在各工具完成时立即向共享 collector 发射可见
+结果，因此 live message 的结果顺序是完成顺序。只有供同一回合后续 Provider 请求使用的
+`orderedAggregated` 才按原始 invocation 顺序重排。首版投影把两个不同顺序错误地当作同一顺序，
+所以第一个完成的非队首工具会让 pending 数保持为整组调用数并误报名称冲突。
+
+修正后的状态机在同一事务中保留调用顺序表和未匹配结果表：结果有 `provider_call_id` 时以稳定
+身份匹配；没有 ID 时按协议工具名匹配第一个尚未闭合的同名调用。结果 XML 的 `name` 保留代理
+目标等 UI 展示名，`provider_tool_name` 固定原始 invocation 名；执行层用一元素缓冲把同一工具
+Flow 的 start/chunk 等结果标为 `provider_result_terminal=false`，正常结束后只有终态结果闭合
+调用。全部调用均取得唯一终态结果后，把结果块放回原调用顺序对应的 result 槽位；所有非工具
+字节、标签内容和结果 payload 保持不变。即时拒绝与实际执行结果也按 `normalizedInvocations`
+顺序合并，结果数量不足或存在无 owner 结果时显式失败。若结果不足、结果无法匹配、ID 冲突、
+孤立结果、截断标签，仍从事务起点截断，绝不伪造结果。完成门禁返回规范化正文，消息 owner
+必须持久化这个返回值；live `contentStream` 和审计不重排。
+
+#### 第二次现场纠正：完成标记不等于历史闭合
+
+首轮乱序修正后的现场再次出现
+`MISSING_TOOL_RESULT, pending=1 at history_end`。调用链表明异常发生在下一轮请求的
+`OpenAIProvider.buildMessagesAndCountTokens()`：历史末尾已经排入一条 `TOOL_CALL`，但发送前恢复
+没有修改它，因此严格状态机在 `history_end` 发现一个 open call。
+
+根因不是 Provider 编译器遗漏结果，而是恢复策略把 `completedAt != 0` 或同 message timestamp 的
+失败/取消审计当成修复资格。旧损坏消息可能已经被普通收尾写入非零完成时间，也可能没有对应失败
+审计；这两项都不能证明工具事务已闭合。当前发送失败产生的新回合审计也不能反向成为旧消息的
+同 timestamp 证据。只要该事务直到 replay boundary 仍未被后续持久历史合法闭合，它就无法供任一
+严格 Provider 重放，必须建立安全 revision。
+
+第二次修正删除这项资格门禁。`completedAt` 与终态审计继续保留为诊断事实，原始工具/Provider
+事件仍留在 append-only audit；修复资格只由 durable replay surface 的协议状态决定。跨消息闭合
+必须与实际请求编译链一致：只有 `ai` 消息中的工具结果标签会成为 `TOOL_RESULT`，普通 `user` 或
+`summary` 正文中的同名 XML 不能闭合调用。被合法跨消息事务消费的 AI 结果消息与原调用消息共同
+保留；结果顺序、工具名或 call ID 不满足 Provider 现有协议时仍按损坏历史处理，不放宽严格校验。
+
+跨消息保留还要求 source message 自身没有待应用的 durable 规范化：调用消息内已经出现的结果
+必须满足 Provider FIFO、全部是终态，且不需要结果重排或补写 `provider_tool_name`。因此
+`call A, call B, result B` 后接 `result A` 仍是非法历史，不能把后续结果当作“补齐”而保留。
+旧 `package_proxy / proxy` 的同消息展示别名可以从调用参数证明真实 invocation 名并原地补写
+`provider_tool_name`；跨消息结果无法在保留 source 时原地规范化，所以别名匹配会进入安全修复。
+
+#### 最终反向审查补齐的协议入口
+
+最终候选还补齐了五处不经过普通发送完成 owner、但会生成或消费 replay history 的入口：
+
+1. “插入总结”的切片压缩和通用自动压缩都先等待当前 chat 的活动回合结束，再执行统一 repair
+2. 单条消息重新生成在新 variant 入库前执行 `requireClosed("regeneration_completion")`
+3. `ConversationService` 将同一并行调用组的连续 `TOOL_RESULT` 合并为一个 Provider turn，保持
+   当前 follow-up 与未来 Gemini replay 的结果组形状一致；`TOOL_CALL` 仍逐项保留
+4. OpenAI 在 `call.execute()` 前遇到请求体编译、工具历史协议或本地请求创建错误时原样抛出，
+   不进入网络重试，也不再误包装成“连接超时”；HTTP 提交后的失败继续遵守既有重试合同
+5. 跨消息闭合和 legacy proxy 只接受无需改写即可由严格 Provider 重放的历史，不把修复能力当成
+   放宽协议的理由
+6. 多结果 follow-up 的总字符预算必须保留每个真实调用的完整结果信封，只压缩 payload；达到总
+   长度后停止追加或直接截断 XML 都会重新制造 open call，必须删除
+
+#### 已确认失败矩阵
+
+| 入口 | 当前行为 | 失败结果 |
+| --- | --- | --- |
+| 周期流式快照 | 每 1 秒把 `contentSnapshot` 原样 upsert 到 `ChatMessage` | 工具组执行期间进程终止会留下 call-only 历史 |
+| 手动停止 | `detachStreamingAiMessage()` 原样保存 replay cache | call 已到达而 result 未全部到达时污染下一轮 |
+| 非手动取消 | `CancellationException` 跳过 `finalizeMessageAndNotify()` | 最后一次中间快照继续留在数据库 |
+| 普通 Provider/工具失败 | 错误可见，但普通消息收尾仍保存原始部分正文 | 失败回合可携带未闭合工具事务 |
+| 正常完成 | 只检查非空正文，没有检查工具事务闭合 | 上游误报完成时可写入协议不完整消息 |
+| 多结果 follow-up 总长度 | 超过 64000 字符后停止追加，外层仍可直接截断 | 无取消也会只提交部分结果并在 user boundary 失败 |
+| 自动上下文压缩 | `ConversationCompactionContract` 正确拒绝非法工具历史 | 拒绝后发送仍使用原历史，并在 Provider 边界失败 |
+| 旧版本恢复 | 没有基于中断证据的历史修复 | 已损坏聊天升级后仍无法继续发送 |
+
+并行工具是非手动复现的重要入口：`executeInvocations()` 使用结构化 `coroutineScope` 和多个
+`async`。任一工具在审计、账本、结果发射或其他基础设施阶段抛出异常时，兄弟任务会收到
+`JobCancellationException`；当前回合按错误结束，但已输出的多个 tool call 不一定都有结果。
+这不是网络重试问题，也不能通过给缺失项生成失败文本来掩盖。
+
+#### 设计与状态所有权
+
+新增纯 Kotlin replay projection，输入单条当前 assistant surface，输出原内容、规范化完整内容或
+安全前缀以及结构化诊断。解析规则支持随机标签后缀；结果按 `provider_call_id` 或名称匹配整组
+pending calls，而不是只比较队首；多个并行调用只在全部结果闭合后提交整个事务，并把 durable
+结果块规范为原调用顺序。完整第一轮加未闭合第二轮时，只移除第二轮事务；截断 opening/closing
+XML 从所属事务起移除。投影不写数据库、不执行工具、不读取 Provider，也不改变 live stream 或
+审计。
+
+接线顺序：
+
+1. `persistStreamingSnapshot()` 继续把原始内容写入审计，但 upsert 消息时使用安全投影；带
+   `contentStream` 的 UI 仍由 live stream 显示当前工具状态
+2. `completeAssistantResponse()` 在写正常终态前取得投影：无损结果重排可正常完成并保存投影
+   正文；只有截断诊断才抛出明确协议异常
+3. 手动停止、普通失败和非手动取消的部分消息统一通过同一投影后再持久化；破坏性历史修改仍不
+   保留部分回答
+4. 新用户消息、通用自动 compaction 和“插入总结”的切片 compaction 在读取 snapshot 前执行一次
+   replay-boundary 旧历史修复；两类压缩都先等待活动回合完成安全终态持久化，修复再通过
+   `ConversationAuditRepository.reviseMessage()` 在同一 Room 事务中写入 before/after、诊断、
+   revision、当前 projection、恢复事件和 seal
+5. 普通完成与重新生成分别在 `assistant_completion`、`regeneration_completion` 边界要求闭合，
+   保存闭合检查返回的规范化正文；连续并行结果在请求编译层合并为一个 Provider result turn
+6. `ConversationMarkupManager` 先计算全部结果的最小完整信封，再公平分配剩余 payload 预算；
+   `EnhancedAIService` 只接受满足结构化上限的完整消息，不再执行字符级截断
+7. Provider adapters 与 `ProviderToolHistoryState` 保持严格，不添加修复分支；
+   `ConversationCompactionContract` 继续作为压缩范围与提交校验 owner
+
+#### Responses typed state 边界
+
+`message_provider_states`、`OpenAIResponsesExecutionState` 与
+`RepositoryOpenAIResponsesExecutionPersistence` 的读写链已经单独核对。`outputItemsJson` 由同一个
+Responses execution 的事件流维护，只用于已知 `remoteResponseId` 和 `lastAppliedSequence` 的
+sequence 续接；当前 `functionCallOutputsJson` 固定写入 `[]`。普通下一轮请求、PromptTurn 编译和
+`ConversationCompactionContract` 均没有读取这张表，Responses 的跨轮 `function_call` /
+`function_call_output` 仍从 `ChatMessage.content` 编译。
+
+因此本里程碑不修改、清空或投影 typed provider state。中断回合的 provider-private output items
+继续作为不可覆盖的 execution/audit 事实存在，但不会绕过修复后的 `ChatMessage` 单独进入下一轮
+模型请求。这样保持 exactly-once/sequence 恢复职责与跨轮 replay surface 单一所有权，不引入
+第二份 compaction 历史。
+
+#### 影响文件与非目标
+
+确认影响：
+
+- `core/chat/AssistantReplayHistoryProjection.kt` 及对应 JVM 测试
+- `api/chat/enhance/ConversationMarkupManager.kt`、`ConversationService.kt`、
+  `ToolExecutionManager.kt` 及对应 JVM 测试
+- `api/chat/EnhancedAIService.kt`
+- `api/chat/llmprovider/OpenAIProvider.kt`、`GeminiProvider.kt`、`StructuredToolCallBridge.kt`
+  及对应 JVM 测试
+- `services/core/MessageProcessingDelegate.kt` 及对应测试
+- `services/core/MessageCoordinationDelegate.kt`
+- `services/core/ChatHistoryDelegate.kt`
+- `data/repository/ChatHistoryManager.kt`
+- `data/audit/ConversationAuditRepository.kt`
+- `core/chat/ConversationCompactionContract.kt` 及对应 JVM 测试
+- `util/ChatMarkupRegex.kt` 及对应 JVM 测试
+- `CONTEXT.md`、本文件与 `docs/TODO/README.md`
+
+非目标：不改变工具执行并发策略、工具权限、HTTP 提交后的 Provider network retry、Responses
+exactly-once 账本、消息数据库 schema、UI 布局、自动压缩选区算法或用户可见取消交互；不运行
+Release，不安装或操作设备。
+
+#### 风险、回滚点与验证
+
+- 风险：错误截断普通 XML。控制方式是只识别现有工具标签语法，只处理 `ai` durable surface，
+  并在跨消息场景按真实 PromptTurn sender、FIFO 结果顺序、工具名和 call ID 验证闭合；普通用户
+  正文中的工具样式 XML 不构成闭合证据
+- 风险：周期投影覆盖 live UI。控制方式是保留原 `contentStream`，只改变持久化 `content`
+- 风险：修复与活动回合或异步 compaction 竞争。控制方式是自动压缩先等待活动回合落盘，再在
+  compaction plan 之前完成修复，并保留提交时 digest 复核
+- 风险：并行工具部分结果被单独保留。控制方式是从该组第一条 call 起按事务移除，而不是只删
+  缺失 call
+- 风险：跨消息后缀掩盖 source message 内的错序或中间结果。控制方式是只有 source 本身已经满足
+  FIFO、无需任何内容规范化且后续终态结果继续按 FIFO 到达时才保留整个事务
+- 风险：多工具大结果在总长度门禁中重新丢失。控制方式是先预留全部真实结果信封并用严格状态机
+  回归四并行大结果，payload 预算不足只影响内容长度，不影响结果数量和 XML 完整性
+- 回滚点：本里程碑独立提交；回滚只能恢复提交前代码，不得通过放宽协议校验或伪造结果替代
+
+验证顺序：纯投影/修复策略 JVM 测试；消息处理与 compaction 定向回归；必要完整 JVM 回归；
+formal readiness、architecture/Markdown、`git diff --check`；规定 Debug 构建和 APK 静态核验；
+最后执行 staged/sensitive/submodule/artifact 审计、提交、推送及 ref 对账。
+
+#### 当前实现与验证证据
+
+- `AssistantReplayHistoryProjector` 已覆盖纯文本、随机标签后缀、单工具、三个并行工具、四个并行
+  工具乱序完成、同名 call ID、代理显示名/协议名、流式中间/终态结果、部分结果、完整事务、连续
+  事务、截断 XML、孤立结果、名称与 call ID 冲突、投影幂等，以及跨持久消息闭合/未闭合策略；
+  完成路径测试确认实际保存闭合检查返回的规范化正文
+- 每秒快照只持久化安全投影；正常完成先执行闭合断言；普通失败、手动停止和非预期取消均不再把
+  call-only 后缀写回 durable replay surface
+- 旧历史恢复使用不会吞数据库异常的严格读取入口；凡当前 AI variant 直到 replay boundary 仍未
+  闭合就建立安全 revision，不再依赖完成时间或同 timestamp 失败审计。已经按真实 PromptTurn
+  sender、FIFO 结果顺序、工具名和 call ID 被后续持久消息合法闭合，且 source message 没有
+  中间结果、错序或待应用规范化的事务保持不变；原始 Provider/工具事实仍保留在 immutable
+  audit payload
+- 通用自动压缩与切片压缩入口都等待当前 chat 的活动回合结束，再修复和取得 snapshot；既有
+  `ConversationCompactionContract` 的工具闭合、范围 digest、route 和相邻 summary 门禁保持不变
+- 重新生成保存新 variant 前执行 `regeneration_completion`；连续并行 `TOOL_RESULT` 编译为同一
+  Provider turn；OpenAI 的 HTTP 提交前本地协议失败不再进入五次网络重试
+- 最终候选的完整 `:app:testDebugUnitTest` 为 `291 suites / 1715 tests`，
+  `failures/errors/skipped = 0/0/0`；`:app:compileDebugAndroidTestKotlin`、formal readiness、
+  architecture `phase=m03` 与差异检查通过
+- 四并行 `40000` 字符结果在 `64000` 总预算内保留 `4/4` 个完整 XML 信封和各自 payload 前缀，
+  并通过严格 `ProviderToolHistoryState.requireClosed("user_boundary")`；带图片的大结果保留完整 link
+- 规定的 `:app:assembleDebug` 为 `BUILD SUCCESSFUL in 47s`，232 个任务中 22 个 executed、
+  210 个 up-to-date。APK 于 `2026-08-22 20:32:57 +08:00` 写入
+  `app/build/outputs/apk/debug/app-debug.apk`，大小 `472737951` bytes，SHA-256
+  `5317969BAD123305343D957A337ABC35DC99667841C633001156CF42E02B8E2F`；身份为
+  `com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`，唯一 `MainActivity` launcher、Android Debug V2
+  单 signer 与 16 KB ZIP alignment 通过。APK 共 `5506` 个 file entry、`44` 个 DEX，仅含
+  `arm64-v8a` 的 `51` 个无重复 basename `.so`；生产包白名单 `45/45`，其中 `12` 个生成式
+  ToolPkg；shell/ripgrep 存在，不含 `libsudo.so`
+- 加 shell 共 `52/52` 个 ELF64/AArch64；`153` 个 `PT_LOAD` 为
+  `0x4000 x 151 + 0x10000 x 2`，无低于 16 KiB；播放器与 FFmpegKit 的 `19/19` 个 AAR native
+  payload 和 APK 逐字节一致。消息处理 DEX 主方法为 `25438 / 100000`，三个 continuation 为
+  `35 / 33 / 30` registers，`violations=[]`；关键投影类、完成/重新生成边界和 Provider 协议错误
+  已在最终 DEX 中检出，结构化结果预算与外层超限断言也已进入 DEX
+- 真实 Provider、进程强杀、手动/非手动中断交互和自动压缩现场复测保持
+  `verification_pending`
+
 ## 可恢复开发与上下文压缩合同
 
 本任务允许跨多轮继续，但每一轮必须从以下持久状态恢复，不依赖模型记忆：
@@ -670,8 +901,9 @@ version、唯一 Launcher、Debug 签名、16 KB alignment、ABI/native/runtime 
 
 ## 当前停止点
 
-M0-M5 已完成本地实现、定向与完整 JVM 验证、AndroidTest Kotlin 编译、正式/架构/资源门禁、
-最终 Debug APK 和独立静态产物审计。M6 的本地验证部分已完成；由于当前未授权提交推送，
-未生成 candidate commit 或执行只验证旧 HEAD 的 fresh-clone。设备上的 Room migration
-instrumentation、真实 provider usage/cache 命中、网络与进程恢复、顶栏视觉交互仍为
-`verification_pending`。
+M0-M6 已完成既有 DeepSeek/多协议/长上下文范围的本地实现与主分支交付。M7 已完成三次现场问题的
+根因修正、最终反向审查、代码与文档实现，并重新通过完整 JVM、AndroidTest Kotlin 编译、Debug
+APK、签名/对齐、消息处理 DEX、formal readiness 和 architecture `phase=m03`。本轮 Git 交付目标
+是唯一 `main` 与 `origin/main`；最终提交和三方 ref 证据以本次交付报告为准，不在本设计文件中
+固化易漂移的提交哈希。设备上的真实 Provider、进程强杀、手动/非手动中断交互和自动压缩现场
+复测仍为 `verification_pending`。

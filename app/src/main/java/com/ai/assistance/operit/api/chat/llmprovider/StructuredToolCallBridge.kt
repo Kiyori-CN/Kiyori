@@ -778,7 +778,7 @@ internal object StructuredToolCallBridge {
             } else {
                 fullContent
             }
-            val resultName = ChatMarkupRegex.nameAttr.find(match.value)?.groupValues?.getOrNull(1)
+            val resultName = ChatMarkupRegex.extractToolResultProtocolName(match.value)
             results.add(ToolResultRecord(resultName, resultContent))
             textContent = textContent.replace(match.value, "").trim()
         }

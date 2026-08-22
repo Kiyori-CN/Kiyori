@@ -71,6 +71,23 @@ class ConversationCompactionContractTest {
     }
 
     @Test
+    fun replaySafeProjectionMakesInterruptedTurnEligibleForCompaction() {
+        val interruptedContent = "partial answer\n" + toolCall("call_1", "shell")
+        val repairedContent =
+            AssistantReplayHistoryProjector.project(interruptedContent).content
+        val messages =
+            listOf(
+                message("user", "run", 10L),
+                message("ai", repairedContent, 20L),
+            )
+
+        val result = ConversationCompactionContract.plan("chat", messages, route)
+
+        assertEquals("partial answer\n", repairedContent)
+        assertTrue(result is ConversationCompactionPlanResult.Ready)
+    }
+
+    @Test
     fun parallelToolCallsRequireEveryResultBeforeBoundary() {
         val complete =
             listOf(
@@ -106,18 +123,96 @@ class ConversationCompactionContractTest {
     }
 
     @Test
-    fun toolTransactionMaySpanPersistedMessagesWhenNamesAndIdsMatch() {
+    fun providerToolNameClosesProxyCallWhileDisplayNameRemainsVisible() {
         val messages =
             listOf(
-                message("user", "run shell", 10L),
-                message("ai", toolCall("call_1", "shell"), 20L),
-                message("user", toolResult("shell", "done", providerCallId = "call_1"), 30L),
-                message("ai", "completed", 40L),
+                message("user", "run", 10L),
+                message(
+                    "ai",
+                    toolCall("call_1", "package_proxy") +
+                        "<tool_result_A1 name=\"terminal:run\" " +
+                        "provider_tool_name=\"package_proxy\" provider_call_id=\"call_1\" " +
+                        "status=\"success\"><content>ok</content></tool_result_A1>",
+                    20L,
+                ),
             )
 
         assertTrue(
             ConversationCompactionContract.plan("chat", messages, route)
                 is ConversationCompactionPlanResult.Ready
+        )
+    }
+
+    @Test
+    fun canonicalizedLegacyProxyResultPassesStrictCompactionHistory() {
+        val legacyContent =
+            "<tool_A1 name=\"package_proxy\" provider_call_id=\"call_1\">" +
+                "<param name=\"tool_name\">terminal:run</param></tool_A1>" +
+                "<tool_result_A1 name=\"terminal:run\" provider_call_id=\"call_1\" " +
+                "status=\"success\"><content>ok</content></tool_result_A1>"
+        val canonicalContent = AssistantReplayHistoryProjector.project(legacyContent).content
+        val messages =
+            listOf(
+                message("user", "run", 10L),
+                message("ai", canonicalContent, 20L),
+            )
+
+        assertTrue(canonicalContent.contains("provider_tool_name=\"package_proxy\""))
+        assertTrue(
+            ConversationCompactionContract.plan("chat", messages, route)
+                is ConversationCompactionPlanResult.Ready
+        )
+    }
+
+    @Test
+    fun toolTransactionMaySpanPersistedMessagesWhenNamesAndIdsMatch() {
+        val messages =
+            listOf(
+                message("user", "run shell", 10L),
+                message("ai", toolCall("call_1", "shell"), 20L),
+                message(
+                    "ai",
+                    toolResult("shell", "done", providerCallId = "call_1") + "completed",
+                    30L,
+                ),
+            )
+
+        assertTrue(
+            ConversationCompactionContract.plan("chat", messages, route)
+                is ConversationCompactionPlanResult.Ready
+        )
+    }
+
+    @Test
+    fun userToolMarkupDoesNotClosePendingAssistantCall() {
+        val messages =
+            listOf(
+                message("ai", toolCall("call_1", "shell"), 10L),
+                message("user", toolResult("shell", "done", providerCallId = "call_1"), 20L),
+            )
+
+        assertRejected(
+            expected = ConversationCompactionRejection.TOOL_HISTORY_INVALID,
+            actual = ConversationCompactionContract.plan("chat", messages, route),
+        )
+    }
+
+    @Test
+    fun assistantTextCannotInterruptOpenToolTransaction() {
+        val messages =
+            listOf(
+                message(
+                    "ai",
+                    toolCall("call_1", "shell") +
+                        "not a result" +
+                        toolResult("shell", "done", providerCallId = "call_1"),
+                    10L,
+                ),
+            )
+
+        assertRejected(
+            expected = ConversationCompactionRejection.TOOL_HISTORY_INVALID,
+            actual = ConversationCompactionContract.plan("chat", messages, route),
         )
     }
 

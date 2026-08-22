@@ -137,12 +137,15 @@ class ConversationAuditRepository private constructor(
             val eventRequest =
                 ConversationAuditEventRequest(
                     chatId = request.chatId,
-                    category = "REVISION",
-                    eventType = "MESSAGE_REVISED",
-                    actor = "USER",
+                    category = request.category,
+                    eventType = request.eventType,
+                    actor = request.actor,
                     summary = request.summary,
                     messageTimestamp = request.messageTimestamp,
                     variantIndex = request.variantIndex,
+                    terminalState = request.terminalState,
+                    completeness = request.completeness,
+                    failureCode = request.failureCode,
                     occurredAt = request.occurredAt,
                     payloads =
                         listOf(
@@ -156,7 +159,7 @@ class ConversationAuditRepository private constructor(
                                 role = baseMessage.sender,
                                 value = request.newContent,
                             ),
-                        ),
+                        ) + request.additionalPayloads,
                 )
             val storedPayloads = storePayloads(eventRequest)
             database.withTransaction {
@@ -244,7 +247,7 @@ class ConversationAuditRepository private constructor(
                         currentWindowSize = chat.currentWindowSize,
                     )
                 }
-                val seal = sealInsideTransaction(request.chatId, reason = "MESSAGE_REVISED")
+                val seal = sealInsideTransaction(request.chatId, reason = request.sealReason)
                 ConversationMessageRevisionResult(
                     event = event,
                     revision = revision,
@@ -1771,6 +1774,15 @@ data class ConversationMessageRevisionRequest(
     val newContent: String,
     val source: String = "USER_EDIT",
     val summary: String = "消息内容已修订",
+    val category: String = "REVISION",
+    val eventType: String = "MESSAGE_REVISED",
+    val actor: String = "USER",
+    val terminalState: String? = null,
+    val completeness: ConversationAuditCompletenessStatus =
+        ConversationAuditCompletenessStatus.COMPLETE,
+    val failureCode: String? = null,
+    val additionalPayloads: List<ConversationAuditPayloadInput> = emptyList(),
+    val sealReason: String = "MESSAGE_REVISED",
     val occurredAt: Long = System.currentTimeMillis(),
 ) {
     init {
@@ -1779,6 +1791,10 @@ data class ConversationMessageRevisionRequest(
         require(variantIndex >= 0) { "variantIndex must not be negative" }
         require(source.isNotBlank()) { "source must not be blank" }
         require(summary.isNotBlank()) { "summary must not be blank" }
+        require(category.isNotBlank()) { "category must not be blank" }
+        require(eventType.isNotBlank()) { "eventType must not be blank" }
+        require(actor.isNotBlank()) { "actor must not be blank" }
+        require(sealReason.isNotBlank()) { "sealReason must not be blank" }
         require(occurredAt > 0L) { "occurredAt must be positive" }
     }
 }

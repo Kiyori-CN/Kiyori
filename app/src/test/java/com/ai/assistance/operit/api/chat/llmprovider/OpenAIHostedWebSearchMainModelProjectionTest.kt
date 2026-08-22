@@ -116,6 +116,26 @@ class OpenAIHostedWebSearchMainModelProjectionTest {
         )
     }
 
+    @Test
+    fun `visible tool result carries stable replay identity without changing display name`() {
+        val message =
+            ConversationMarkupManager.formatToolResultForMessage(
+                result =
+                    ToolResult(
+                        toolName = "terminal:run",
+                        success = true,
+                        result = StringResultData("ok"),
+                    ),
+                providerToolName = "package_proxy",
+                providerCallId = "call-1",
+            )
+
+        assertTrue(message.contains("name=\"terminal:run\""))
+        assertTrue(message.contains("provider_tool_name=\"package_proxy\""))
+        assertTrue(message.contains("provider_call_id=\"call-1\""))
+        assertTrue(message.contains("provider_result_terminal=\"true\""))
+    }
+
     private fun resultWithUncitedSource(): OpenAIHostedWebSearchResult {
         val citedSource =
             OpenAIHostedWebSearchSource(

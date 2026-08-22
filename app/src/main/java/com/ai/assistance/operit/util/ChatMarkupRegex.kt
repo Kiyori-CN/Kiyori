@@ -89,7 +89,20 @@ object ChatMarkupRegex {
 
     val toolParamPattern = Regex("<param\\s+name=\"([^\"]+)\">([\\s\\S]*?)</param>")
 
-    val nameAttr = Regex("name\\s*=\\s*\"([^\"]+)\"", RegexOption.IGNORE_CASE)
+    val nameAttr =
+        Regex("(?:^|\\s)name\\s*=\\s*\"([^\"]+)\"", RegexOption.IGNORE_CASE)
+
+    val providerToolNameAttr =
+        Regex(
+            "(?:^|\\s)provider_tool_name\\s*=\\s*[\"']([^\"']+)[\"']",
+            RegexOption.IGNORE_CASE,
+        )
+
+    val providerResultTerminalAttr =
+        Regex(
+            "(?:^|\\s)provider_result_terminal\\s*=\\s*[\"'](true|false)[\"']",
+            RegexOption.IGNORE_CASE,
+        )
 
     val statusAttr = Regex("status\\s*=\\s*\"([^\"]+)\"", RegexOption.IGNORE_CASE)
 
@@ -229,6 +242,29 @@ object ChatMarkupRegex {
     fun extractOpeningTagName(xml: String): String? {
         return openingTagNameRegex.find(xml.trim())?.groupValues?.getOrNull(1)
     }
+
+    fun extractToolResultProtocolName(xml: String): String? {
+        val openingTag = xml.substringBefore('>')
+        return providerToolNameAttr
+            .find(openingTag)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?: nameAttr
+                .find(openingTag)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+    }
+
+    fun isProviderTerminalToolResult(xml: String): Boolean =
+        providerResultTerminalAttr
+            .find(xml.substringBefore('>'))
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.equals("false", ignoreCase = true) != true
 
     fun generateRandomToolTagName(): String = "tool_${generateRandomTagCode()}"
 

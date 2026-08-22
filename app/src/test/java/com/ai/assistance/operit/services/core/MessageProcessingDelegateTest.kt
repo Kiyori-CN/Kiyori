@@ -53,6 +53,32 @@ class MessageProcessingDelegateTest {
     }
 
     @Test
+    fun completeInterruptedMessage_removesOpenToolTransactionFromReplaySurface() {
+        val openToolCall =
+            "<tool_exec name=\"run\" provider_call_id=\"call-1\">" +
+                "<param name=\"command\">pwd</param></tool_exec>"
+        val message =
+            ChatMessage(
+                sender = "ai",
+                content = "stale",
+                timestamp = 10L,
+                contentStream = emptyStream(),
+            )
+
+        val result =
+            MessageProcessingDelegate.completeInterruptedMessage(
+                streamingMessage = message,
+                finalContent = "visible prefix\n$openToolCall",
+                snapshot = null,
+                completedAt = 5_000L,
+            )
+
+        assertEquals("visible prefix\n", result.content)
+        assertNull(result.contentStream)
+        assertEquals(5_000L, result.completedAt)
+    }
+
+    @Test
     fun providerFailureIsRetainedAsFinalErrorAfterRuntimeCleanup() {
         val terminal =
             MessageProcessingDelegate.createTurnFailureTerminal(

@@ -412,6 +412,10 @@ class MessageCoordinationDelegate(
         if (messageProcessingDelegate.isChatLoading(chatId)) {
             throw IllegalStateException(context.getString(R.string.chat_regenerate_busy))
         }
+        repairAssistantReplayHistoryBeforeBoundary(
+            chatId = chatId,
+            boundary = "regeneration",
+        )
 
         val currentHistory = chatHistoryDelegate.chatHistory.value
         val targetMessage =
@@ -563,6 +567,27 @@ class MessageCoordinationDelegate(
         val chatId = chatIdOverride ?: chatHistoryDelegate.currentChatId.value
         if (chatId == null) {
             uiStateDelegate.showErrorMessage(context.getString(R.string.chat_no_active_conversation))
+            return
+        }
+        if (messageProcessingDelegate.isChatLoading(chatId)) {
+            AppLogger.w(TAG, "发送消息已忽略：chat 正在处理上一回合, chatId=$chatId")
+            return
+        }
+        try {
+            runBlocking {
+                repairAssistantReplayHistoryBeforeBoundary(
+                    chatId = chatId,
+                    boundary = "send",
+                )
+            }
+        } catch (error: Exception) {
+            AppLogger.e(TAG, "发送前修复中断工具历史失败", error)
+            uiStateDelegate.showErrorMessage(
+                context.getString(
+                    R.string.message_send_failed,
+                    error.message ?: error::class.java.simpleName,
+                )
+            )
             return
         }
         if (!isAutoContinuation) {
@@ -1625,6 +1650,22 @@ class MessageCoordinationDelegate(
         }
     }
 
+    private suspend fun repairAssistantReplayHistoryBeforeBoundary(
+        chatId: String,
+        boundary: String,
+    ) =
+        chatHistoryDelegate.repairAssistantReplayHistory(chatId).also { report ->
+            if (report.repairedMessageCount > 0) {
+                AppLogger.w(
+                    TAG,
+                    "进入 $boundary 边界前已修复或规范化工具历史: chatId=$chatId, " +
+                        "messages=${report.repairedMessageCount}, " +
+                        "removedChars=${report.removedCharacterCount}, " +
+                        "reorderedTransactions=${report.reorderedTransactionCount}",
+                )
+            }
+        }
+
     suspend fun summarizeConversationSlice(
         chatId: String,
         boundaryMessage: ChatMessage,
@@ -1633,6 +1674,11 @@ class MessageCoordinationDelegate(
         require(boundaryMessage.sender == "user" || boundaryMessage.sender == "ai") {
             "Summary insertion boundary must be a user or AI message"
         }
+        messageProcessingDelegate.awaitChatTurnIdleForHistoryBoundary(chatId)
+        repairAssistantReplayHistoryBeforeBoundary(
+            chatId = chatId,
+            boundary = "slice_compaction",
+        )
         val beforeTimestampExclusive =
             boundaryMessage.timestamp.takeIf { boundaryMessage.sender == "user" }
         val upToTimestampInclusive =
@@ -2055,6 +2101,13 @@ class MessageCoordinationDelegate(
                 AppLogger.w(TAG, "没有活动聊天，无法生成总结")
                 return false
             }
+            // Token 超限总结可能与当前回合收尾并发。必须等安全终态落盘后再修复和取快照，
+            // 否则仍在运行的正常工具事务会被误判成中断残留。
+            messageProcessingDelegate.awaitChatTurnIdleForHistoryBoundary(currentChatId)
+            repairAssistantReplayHistoryBeforeBoundary(
+                chatId = currentChatId,
+                boundary = "compaction",
+            )
             val currentMessages =
                 chatHistoryDelegate.getRuntimeChatHistoryForCompaction(currentChatId)
             if (currentMessages.isEmpty()) {

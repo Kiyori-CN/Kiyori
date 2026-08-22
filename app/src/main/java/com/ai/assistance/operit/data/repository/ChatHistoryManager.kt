@@ -23,11 +23,15 @@ import com.ai.assistance.operit.core.chat.ConversationCompactionRouteIdentity
 import com.ai.assistance.operit.core.chat.ConversationCompactionSnapshot
 import com.ai.assistance.operit.core.chat.ConversationCompactionUsage
 import com.ai.assistance.operit.core.chat.ConversationToolResultPruningReport
+import com.ai.assistance.operit.core.chat.AssistantReplayHistoryProjector
+import com.ai.assistance.operit.core.chat.AssistantReplayHistoryRepairPolicy
+import com.ai.assistance.operit.core.chat.AssistantReplayHistoryRepairReport
 import com.ai.assistance.operit.data.db.AppDatabase
 import com.ai.assistance.operit.data.model.ChatEntity
 import com.ai.assistance.operit.data.model.ChatHistory
 import com.ai.assistance.operit.data.model.ChatMessage
 import com.ai.assistance.operit.data.model.ChatMessageLocatorPreview
+import com.ai.assistance.operit.data.model.ConversationAuditCompletenessStatus
 import com.ai.assistance.operit.data.model.CharacterCardChatStats
 import com.ai.assistance.operit.data.model.CharacterGroupChatStats
 import com.ai.assistance.operit.data.model.MessageEntity
@@ -1438,6 +1442,137 @@ class ChatHistoryManager private constructor(private val context: Context) {
                 throw e
             }
         }
+    }
+
+    /**
+     * Canonicalizes complete parallel results and repairs history that remains unreplayable at the
+     * boundary. The original provider stream remains in the append-only audit payloads.
+     */
+    suspend fun repairAssistantReplayHistory(
+        chatId: String,
+    ): AssistantReplayHistoryRepairReport {
+        // 恢复边界不能使用会把数据库异常转换为空历史的普通读取入口；否则修复失败后仍会
+        // 继续提交下一轮请求，并再次把原始协议缺口暴露给 Provider。
+        val messages = loadRuntimeChatMessagesForCompaction(chatId)
+        val projectedCandidates =
+            messages.filter { message ->
+                message.sender == "ai" &&
+                    AssistantReplayHistoryProjector.project(message.content).changed
+            }
+        if (projectedCandidates.isEmpty()) {
+            return AssistantReplayHistoryRepairReport(
+                inspectedMessageCount = messages.size,
+                candidateCount = 0,
+                repairedMessageCount = 0,
+                removedCharacterCount = 0,
+                reorderedTransactionCount = 0,
+            )
+        }
+
+        val plannedRepairs =
+            AssistantReplayHistoryRepairPolicy.plan(
+                messages = messages,
+            )
+        if (plannedRepairs.isEmpty()) {
+            return AssistantReplayHistoryRepairReport(
+                inspectedMessageCount = messages.size,
+                candidateCount = projectedCandidates.size,
+                repairedMessageCount = 0,
+                removedCharacterCount = 0,
+                reorderedTransactionCount = 0,
+            )
+        }
+
+        var repairedMessageCount = 0
+        var removedCharacterCount = 0
+        var reorderedTransactionCount = 0
+        chatMutex(chatId).withLock {
+            plannedRepairs.forEach { repair ->
+                val message = repair.message
+                val currentContent =
+                    if (message.selectedVariantIndex == 0) {
+                        chatContentDao.getMessageByTimestamp(chatId, message.timestamp)?.content
+                    } else {
+                        chatContentDao.getVariantForMessage(
+                            chatId,
+                            message.timestamp,
+                            message.selectedVariantIndex,
+                        )?.content
+                    }
+                if (currentContent == null || currentContent != message.content) {
+                    return@forEach
+                }
+                val projection = AssistantReplayHistoryProjector.project(currentContent)
+                if (!projection.changed) {
+                    return@forEach
+                }
+                val canonicalizationOnly = !projection.truncated
+                val now = System.currentTimeMillis()
+                conversationAuditRepository.reviseMessage(
+                    ConversationMessageRevisionRequest(
+                        chatId = chatId,
+                        messageTimestamp = message.timestamp,
+                        variantIndex = message.selectedVariantIndex,
+                        newContent = projection.content,
+                        source = "ASSISTANT_REPLAY_HISTORY_REPAIR",
+                        summary =
+                            if (canonicalizationOnly) {
+                                "已规范化完整工具事务的模型重放表示"
+                            } else {
+                                "已从模型重放投影移除未闭合的工具事务后缀"
+                            },
+                        category = "RECOVERY",
+                        eventType = "ASSISTANT_REPLAY_HISTORY_REPAIRED",
+                        actor = "KIYORI",
+                        terminalState = "REPAIRED",
+                        completeness =
+                            if (canonicalizationOnly) {
+                                ConversationAuditCompletenessStatus.COMPLETE
+                            } else {
+                                ConversationAuditCompletenessStatus.PARTIAL
+                            },
+                        failureCode = if (canonicalizationOnly) null else projection.reason?.name,
+                        occurredAt = now,
+                        sealReason = "ASSISTANT_REPLAY_HISTORY_REPAIRED",
+                        additionalPayloads =
+                            listOf(
+                                ConversationAuditPayloadInput.text(
+                                    label = "repair_diagnostics",
+                                    role = "metadata",
+                                    value =
+                                        JSONObject()
+                                            .put("reason", projection.reason?.name)
+                                            .put("truncationIndex", projection.truncationIndex)
+                                            .put(
+                                                "pendingToolCallCount",
+                                                projection.pendingToolCallCount,
+                                            )
+                                            .put(
+                                                "removedCharacterCount",
+                                                projection.removedCharacterCount,
+                                            )
+                                            .put(
+                                                "reorderedTransactionCount",
+                                                projection.reorderedTransactionCount,
+                                            )
+                                            .toString(),
+                                    mediaType = "application/json",
+                                ),
+                            ),
+                    )
+                )
+                repairedMessageCount += 1
+                removedCharacterCount += projection.removedCharacterCount
+                reorderedTransactionCount += projection.reorderedTransactionCount
+            }
+        }
+        return AssistantReplayHistoryRepairReport(
+            inspectedMessageCount = messages.size,
+            candidateCount = projectedCandidates.size,
+            repairedMessageCount = repairedMessageCount,
+            removedCharacterCount = removedCharacterCount,
+            reorderedTransactionCount = reorderedTransactionCount,
+        )
     }
 
     suspend fun recordConversationCompactionRequested(

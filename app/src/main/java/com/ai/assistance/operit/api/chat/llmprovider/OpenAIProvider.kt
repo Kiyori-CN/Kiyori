@@ -3826,10 +3826,12 @@ open class OpenAIProvider(
                 // 请求已经失败并离开当前传输边界；保留旧引用会让后续取消误指向已结束的 Call。
                 activeCall = null
                 activeResponse = null
+                // 请求体编译和本地协议校验发生在任何 HTTP 提交之前。相同输入不会因网络重试
+                // 变得合法，且包装成“连接超时”会掩盖真正的工具历史错误。
+                if (!responsesSubmissionStarted) {
+                    throw e
+                }
                 if (usesAtMostOnceResponsesSubmission) {
-                    if (!responsesSubmissionStarted) {
-                        throw e
-                    }
                     retryCount =
                         handleAtMostOnceResponsesFailure(
                             context = context,

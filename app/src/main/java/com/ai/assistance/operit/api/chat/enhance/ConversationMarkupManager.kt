@@ -61,6 +61,22 @@ class ConversationMarkupManager {
             )
         }
 
+        /** Adds replay identity while keeping [ToolResult.toolName] as the UI-facing name. */
+        fun formatToolResultForMessage(
+            result: ToolResult,
+            providerToolName: String,
+            providerCallId: String?,
+            providerResultTerminal: Boolean = true,
+        ): String {
+            return formatToolResult(
+                result = result,
+                useMainModelProjection = false,
+                providerToolName = providerToolName,
+                providerCallId = providerCallId,
+                providerResultTerminal = providerResultTerminal,
+            )
+        }
+
         /**
          * Formats a tool result for the follow-up model request.
          *
@@ -70,16 +86,31 @@ class ConversationMarkupManager {
          * these paths separate is required because the renderer must still see all_sources.
          */
         fun formatToolResultForModel(result: ToolResult): String {
-            return formatToolResult(
+            return formatToolResultForModel(
                 result = result,
-                useMainModelProjection = true,
+                maxFormattedChars = ToolExecutionLimits.MAX_FINAL_TOOL_RESULT_MESSAGE_CHARS,
             )
         }
+
+        private fun formatToolResultForModel(
+            result: ToolResult,
+            maxFormattedChars: Int,
+        ): String =
+            formatToolResult(
+                result = result,
+                useMainModelProjection = true,
+                maxFormattedChars = maxFormattedChars,
+            )
 
         private fun formatToolResult(
             result: ToolResult,
             useMainModelProjection: Boolean,
+            providerToolName: String? = null,
+            providerCallId: String? = null,
+            providerResultTerminal: Boolean? = null,
+            maxFormattedChars: Int = ToolExecutionLimits.MAX_FINAL_TOOL_RESULT_MESSAGE_CHARS,
         ): String {
+            require(maxFormattedChars >= 0) { "Tool result character budget must not be negative" }
             return if (result.success) {
                 val rawResult = result.result.toString()
                 val projectedResult =
@@ -101,20 +132,38 @@ class ConversationMarkupManager {
                     }
                 val (toolPayload, imageLinkPayload) =
                     splitImageLinksForModel(xmlSafeResult)
+                val minimumToolResultXml =
+                    createBoundedToolResultXml(
+                        toolName = result.toolName,
+                        status = "success",
+                        rawPayload = "",
+                        maxXmlChars = 0,
+                        providerToolName = providerToolName,
+                        providerCallId = providerCallId,
+                        providerResultTerminal = providerResultTerminal,
+                    ) { payload ->
+                        "<content>$payload</content>"
+                    }
+                val maxImageLinkChars =
+                    (maxFormattedChars - minimumToolResultXml.length - 1).coerceAtLeast(0)
+                val boundedImageLinkPayload =
+                    takeWholeLinesWithin(imageLinkPayload, maxImageLinkChars)
+                val imageLinkSuffix =
+                    boundedImageLinkPayload.takeIf { it.isNotBlank() }?.let { "\n$it" }.orEmpty()
                 val toolResultXml =
                     createBoundedToolResultXml(
                         toolName = result.toolName,
                         status = "success",
-                        rawPayload = toolPayload
+                        rawPayload = toolPayload,
+                        maxXmlChars = (maxFormattedChars - imageLinkSuffix.length).coerceAtLeast(0),
+                        providerToolName = providerToolName,
+                        providerCallId = providerCallId,
+                        providerResultTerminal = providerResultTerminal,
                     ) { payload ->
                         "<content>$payload</content>"
                     }
 
-                if (imageLinkPayload.isBlank()) {
-                    toolResultXml
-                } else {
-                    "$toolResultXml\n$imageLinkPayload"
-                }
+                toolResultXml + imageLinkSuffix
             } else {
                 val errorPayload = buildString {
                     val message = result.error.orEmpty().trim()
@@ -130,7 +179,11 @@ class ConversationMarkupManager {
                 createBoundedToolResultXml(
                     toolName = result.toolName,
                     status = "error",
-                    rawPayload = errorPayload
+                    rawPayload = errorPayload,
+                    maxXmlChars = maxFormattedChars,
+                    providerToolName = providerToolName,
+                    providerCallId = providerCallId,
+                    providerResultTerminal = providerResultTerminal,
                 ) { payload ->
                     "<content><error>$payload</error></content>"
                 }
@@ -161,21 +214,59 @@ class ConversationMarkupManager {
 
             val maxChars = ToolExecutionLimits.MAX_FINAL_TOOL_RESULT_MESSAGE_CHARS
             val separator = "\n"
-            val builder = StringBuilder()
-
-            for (result in results) {
-                val formatted = formatToolResultForModel(result)
-                val additionalLength =
-                    (if (builder.isEmpty()) 0 else separator.length) + formatted.length
-                if (builder.length + additionalLength > maxChars) {
-                    break
+            // 总上限必须先为每个真实调用预留完整结果信封。直接停止追加或按字符截断会让
+            // Provider 保留未闭合调用；剩余空间只用于公平分配各结果的 payload。
+            val minimumMessages =
+                results.map { result ->
+                    formatToolResultForModel(result = result, maxFormattedChars = 0)
                 }
+            val minimumTotalChars =
+                minimumMessages.sumOf { it.length } + separator.length * (results.size - 1)
+            check(minimumTotalChars <= maxChars) {
+                "Tool result envelopes require $minimumTotalChars characters, limit is $maxChars"
+            }
+            val builder = StringBuilder()
+            var remainingPayloadBudget = maxChars - minimumTotalChars
+
+            results.forEachIndexed { index, result ->
                 if (builder.isNotEmpty()) {
                     builder.append(separator)
                 }
+                val remainingResultCount = results.size - index
+                val allocatedPayloadBudget = remainingPayloadBudget / remainingResultCount
+                val currentBudget = minimumMessages[index].length + allocatedPayloadBudget
+                val formatted =
+                    formatToolResultForModel(
+                        result = result,
+                        maxFormattedChars = currentBudget,
+                    )
+                check(formatted.length <= currentBudget) {
+                    "Structured tool result exceeded its allocated character budget"
+                }
                 builder.append(formatted)
+                val consumedPayloadBudget =
+                    (formatted.length - minimumMessages[index].length).coerceAtLeast(0)
+                remainingPayloadBudget -= consumedPayloadBudget
             }
 
+            return builder.toString()
+        }
+
+        private fun takeWholeLinesWithin(content: String, maxChars: Int): String {
+            if (content.isBlank() || maxChars <= 0) {
+                return ""
+            }
+            val builder = StringBuilder()
+            for (line in content.lineSequence()) {
+                val additionalChars = line.length + if (builder.isEmpty()) 0 else 1
+                if (builder.length + additionalChars > maxChars) {
+                    break
+                }
+                if (builder.isNotEmpty()) {
+                    builder.append('\n')
+                }
+                builder.append(line)
+            }
             return builder.toString()
         }
 
@@ -205,33 +296,77 @@ class ConversationMarkupManager {
             return createToolErrorStatus(toolName, errorMessage)
         }
 
-        private fun createToolResultXml(toolName: String, status: String, content: String): String {
+        private fun createToolResultXml(
+            toolName: String,
+            status: String,
+            content: String,
+            providerToolName: String? = null,
+            providerCallId: String? = null,
+            providerResultTerminal: Boolean? = null,
+        ): String {
             val tagName = ChatMarkupRegex.generateRandomToolResultTagName()
-            return """<$tagName name="$toolName" status="$status">$content</$tagName>""".trimIndent()
+            val replayAttributes = buildString {
+                providerToolName?.takeIf { it.isNotBlank() }?.let { name ->
+                    append(" provider_tool_name=\"")
+                    append(escapeXmlAttribute(name))
+                    append('"')
+                }
+                providerCallId?.takeIf { it.isNotBlank() }?.let { callId ->
+                    append(" provider_call_id=\"")
+                    append(escapeXmlAttribute(callId))
+                    append('"')
+                }
+                providerResultTerminal?.let { terminal ->
+                    append(" provider_result_terminal=\"")
+                    append(terminal)
+                    append('"')
+                }
+            }
+            return "<$tagName name=\"${escapeXmlAttribute(toolName)}\" " +
+                "status=\"${escapeXmlAttribute(status)}\"$replayAttributes>" +
+                "$content</$tagName>"
         }
 
         private fun createBoundedToolResultXml(
             toolName: String,
             status: String,
             rawPayload: String,
+            maxXmlChars: Int = ToolExecutionLimits.MAX_FINAL_TOOL_RESULT_MESSAGE_CHARS,
+            providerToolName: String? = null,
+            providerCallId: String? = null,
+            providerResultTerminal: Boolean? = null,
             bodyBuilder: (String) -> String
         ): String {
             val emptyXml =
                 createToolResultXml(
                     toolName = toolName,
                     status = status,
-                    content = bodyBuilder("")
+                    content = bodyBuilder(""),
+                    providerToolName = providerToolName,
+                    providerCallId = providerCallId,
+                    providerResultTerminal = providerResultTerminal,
                 )
             val maxPayloadChars =
-                (ToolExecutionLimits.MAX_FINAL_TOOL_RESULT_MESSAGE_CHARS - emptyXml.length)
+                (maxXmlChars - emptyXml.length)
                     .coerceAtLeast(0)
             val boundedPayload = truncatePayload(rawPayload, maxPayloadChars)
             return createToolResultXml(
                 toolName = toolName,
                 status = status,
-                content = bodyBuilder(boundedPayload)
+                content = bodyBuilder(boundedPayload),
+                providerToolName = providerToolName,
+                providerCallId = providerCallId,
+                providerResultTerminal = providerResultTerminal,
             )
         }
+
+        private fun escapeXmlAttribute(value: String): String =
+            value
+                .replace("&", "&amp;")
+                .replace("\"", "&quot;")
+                .replace("'", "&apos;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
 
         private fun truncatePayload(payload: String, maxChars: Int): String {
             if (payload.length <= maxChars) {

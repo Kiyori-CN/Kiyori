@@ -2354,16 +2354,14 @@ class EnhancedAIService private constructor(private val context: Context) {
         val toolNames = results.joinToString(", ") { it.toolName }
         val rawToolResultMessage =
             toolResultMessageOverride ?: ConversationMarkupManager.buildBoundedToolResultMessage(results)
-        val toolResultMessage =
-            if (rawToolResultMessage.length <= ToolExecutionLimits.MAX_FINAL_TOOL_RESULT_MESSAGE_CHARS) {
-                rawToolResultMessage
-            } else {
-                AppLogger.w(
-                    TAG,
-                    "工具结果消息超过最终兜底上限，已静默截断。原长度: ${rawToolResultMessage.length}"
-                )
-                rawToolResultMessage.take(ToolExecutionLimits.MAX_FINAL_TOOL_RESULT_MESSAGE_CHARS)
-            }
+        // 普通工具结果已在 XML 构建层完成结构化预算；这里仅断言调用方没有绕过该合同，
+        // 不能再按字符截断并把不完整的工具协议提交给 Provider。
+        check(rawToolResultMessage.length <= ToolExecutionLimits.MAX_FINAL_TOOL_RESULT_MESSAGE_CHARS) {
+            "Tool result message exceeds the structural character limit: " +
+                "${rawToolResultMessage.length} > " +
+                ToolExecutionLimits.MAX_FINAL_TOOL_RESULT_MESSAGE_CHARS
+        }
+        val toolResultMessage = rawToolResultMessage
 
         if (toolResultMessage.isBlank()) {
             AppLogger.w(TAG, "工具结果消息为空，跳过后续AI请求")

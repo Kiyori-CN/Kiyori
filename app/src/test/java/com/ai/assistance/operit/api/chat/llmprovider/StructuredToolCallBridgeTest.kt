@@ -51,6 +51,31 @@ class StructuredToolCallBridgeTest {
     }
 
     @Test
+    fun `protocol result name is independent from UI display name`() {
+        val messages =
+            JSONArray(
+                StructuredToolCallBridge.buildMessagesJson(
+                    history =
+                        listOf(
+                            PromptTurn(
+                                PromptTurnKind.TOOL_CALL,
+                                toolCallXml("read_file", "call_123", "path", "one.txt"),
+                            ),
+                            PromptTurn(
+                                PromptTurnKind.TOOL_RESULT,
+                                "<tool_result_A1 name=\"Files: read\" " +
+                                    "provider_tool_name=\"read_file\" status=\"success\">" +
+                                    "<content>one</content></tool_result_A1>",
+                            ),
+                        ),
+                    preserveThinkInHistory = true,
+                )
+            )
+
+        assertEquals("read_file", messages.getJSONObject(1).getString("name"))
+    }
+
+    @Test
     fun `same provider identity with same payload is emitted once`() {
         val duplicateCall = toolCallXml("read_file", "call_123", "path", "same.txt")
         val messages =

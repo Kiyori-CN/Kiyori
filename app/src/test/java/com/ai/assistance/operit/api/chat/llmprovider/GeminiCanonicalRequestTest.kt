@@ -148,6 +148,34 @@ class GeminiCanonicalRequestTest {
         )
     }
 
+    @Test
+    fun replayResultUsesProtocolNameInsteadOfUiDisplayName() {
+        val request =
+            request(
+                listOf(
+                    PromptTurn(
+                        PromptTurnKind.TOOL_CALL,
+                        toolCallXml("read_file", "one.txt"),
+                    ),
+                    PromptTurn(
+                        PromptTurnKind.TOOL_RESULT,
+                        "<tool_result_A1 name=\"Files: read\" " +
+                            "provider_tool_name=\"read_file\" status=\"success\">" +
+                            "<content>one</content></tool_result_A1>",
+                    ),
+                )
+            )
+
+        val response =
+            request
+                .getJSONArray("contents")
+                .getJSONObject(1)
+                .getJSONArray("parts")
+                .getJSONObject(0)
+                .getJSONObject("functionResponse")
+        assertEquals("read_file", response.getString("name"))
+    }
+
     private fun requestWithTools(tools: List<ToolPrompt>) =
         provider()
             .createRequestJson(

@@ -397,7 +397,7 @@ Current work status and implementation notes belong in `docs/TODO/`.
 - Audit payloads are redacted before hashing and encryption. API keys, Authorization, Cookie, passwords, private keys, access tokens, request signatures, credential URL parameters, and HTTP Basic user-info never enter persistent plaintext. Redacted payloads use GZIP plus Android Keystore AES-GCM; independent EC P-256 / `SHA256withECDSA` keys seal chain heads.
 - `ConversationAuditProviderRequestRecorder` synchronously writes `FINAL_PROVIDER_SEMANTIC_REQUEST` before each actual Provider hop and passes the exact same `ProviderRequestContext` to the Provider. The snapshot includes final prompt turns, model parameters, complete tool schema, Provider/model, thinking/stream flags, and hop identity while excluding credential values. A failed critical write prevents the Provider call.
 - Prompt Hook input/output/error, Provider semantic events, aggregated visible text deltas or revisions, tool request/start/result/error, cancellation, complete throwable chains, terminal usage, and final assistant projection enter the same audit chain. Kiyori records only locally constructed or Provider-returned facts; hidden server reasoning, TCP chunks, heartbeat, polling, and idle time are outside the contract.
-- User and AI visible text can be edited only by creating immutable revisions. The selected AI variant has its own revision chain; future context and the current bubble use the latest projection, while historical Provider requests, actual token counts, wait/output timing, tools, exceptions, and Provider events remain unchanged and read-only. The existing edit-and-resend operation remains separate.
+- User and AI visible text can be edited only by creating immutable revisions. The selected AI variant has its own revision chain; future context and the current bubble use the latest projection, while historical Provider requests, actual token counts, wait/output timing, tools, exceptions, and Provider events remain unchanged and read-only. Evidence-qualified repair of an interrupted assistant replay surface is also a system-authored immutable revision: it records before/after and diagnostics under `ASSISTANT_REPLAY_HISTORY_REPAIRED` without rewriting the original Provider events. The existing edit-and-resend operation remains separate.
 - Message deletion, rollback, variant deletion, branch replacement, and aborted branch creation use tombstone events. Deleting a whole chat physically removes that chat's audit; shared payload content remains until no surviving chat references it. A branch receives a self-contained chain through its branch point and does not depend on the parent remaining present.
 - Visible completeness values are `COMPLETE / IN_PROGRESS / PARTIAL / BASIC / RECORDING_INTERRUPTED / CONTENT_CORRUPTED / SOURCE_UNVERIFIED / KEY_UNAVAILABLE`. Native complete/in-progress transitions cannot overwrite historical partial/basic/source-unverified or more severe integrity facts.
 - Conversation Details exposes Timeline, Conversation, and Raw JSONL views. It loads the newest 100 events, pages older events by sequence cursor, appends new events from a last-event observer, and decrypts large payloads only when expanded. The header shows total/loaded events, chain head, Provider/model, storage, and completeness. Back closes annotation, expansion/search, message editing, or Raw search before returning to chat.
@@ -487,7 +487,8 @@ Current work status and implementation notes belong in `docs/TODO/`.
 - 助手取消请求以 chat 和 turn ID 为身份记录。只有明确的用户停止和破坏性历史修改可以静默
   进入 `Idle`；配置刷新、生命周期失效、应用退出和来源未知的 `CancellationException` 必须
   投影为可见 `Error`。已取消的发送 Job 只允许在受限 `NonCancellable` 区域提交终态和错误
-  提示，不得重新执行请求、工具或其他业务逻辑。
+  提示及 replay-safe 部分消息，不得重新执行请求、工具或其他业务逻辑。用户停止由外层取消
+  owner 保存同一安全投影；破坏性历史修改不保留部分回答。
 - 工具执行和工具结果 follow-up 属于同一消息主失败链。长期工具 scope 使用
   `SupervisorJob` 隔离不同任务；当前 `Deferred.await()` 仍把原始失败交回调用者。一次
   follow-up 失败不得取消长期父 scope、并行污染其他独立回合或使后续发送继承旧异常；
@@ -498,7 +499,46 @@ Current work status and implementation notes belong in `docs/TODO/`.
   provider、model、provider request context 和最后输入状态；空白正文以
   `AI_STREAM_EMPTY_TERMINATION` 进入可见 `Error`。普通非取消异常必须同时写入
   `finalInputStateAfterSend`，保证服务随后重放 `Idle` 时，cleanup 后仍由消息 owner 恢复
-  Error；缺失任何终态的回合以 `AI_TURN_TERMINAL_MISSING` 失败。
+  Error；缺失任何终态的回合以 `AI_TURN_TERMINAL_MISSING` 失败。写入 `COMPLETED` 前还必须由
+  `AssistantReplayHistoryProjector` 证明所有工具事务闭合，不能把 call-only 正文标记为成功。
+- `AssistantReplayHistoryProjector` 是 durable assistant replay surface 的唯一纯状态机。它按
+  原顺序识别随机后缀 `tool_* / tool_result_*`、独立 `name`、协议工具名
+  `provider_tool_name`、可选 `provider_call_id` 和流式终态标记 `provider_result_terminal`。
+  `name` 保留代理目标等 UI 展示名，协议匹配和 Provider follow-up 使用原始 invocation 名；同一
+  工具 Flow 的中间结果标记为非终态并只留在实时流与审计中，只有正常结束后的终态结果可以闭合
+  调用。旧 `package_proxy / proxy` 的同消息结果只有在调用参数能证明原始协议工具名时，才会补写
+  `provider_tool_name`；跨消息结果不能原地规范化展示别名，因此不会作为安全闭合证据。并行工具的
+  live result 按完成顺序到达，投影必须把终态结果匹配到整组 pending calls，
+  并只在 durable 副本中规范为原调用顺序；即时拒绝和实际执行结果交回 Provider 前也必须共同恢复
+  invocation 顺序，结果缺失或无 owner 结果直接失败。已经有序的完整事务逐字保留。未闭合、
+  截断、孤立结果、无法唯一匹配或身份冲突从所属事务起移除整个后缀，不生成工具结果。正常完成
+  owner 必须保存闭合检查返回的规范化正文，不能校验后写回原始错序正文。实时
+  `contentStream` 与 conversation audit 继续保存原始完成顺序；
+  每秒消息快照、普通失败收尾、手动停止和非预期取消只把 replay-safe projection 写入
+  `messages / message_variants`。
+- 下一次发送在读取自动 compaction snapshot 和添加新用户轮次之前检查旧历史；通用自动压缩
+  入口先等待当前活动回合完成安全终态持久化，再执行同一检查，不能把仍在运行的工具事务当成
+  中断残留。恢复读取采用严格失败语义，数据库读取失败时不得以空历史继续请求。截断或未闭合
+  事务必须先检查是否在后续持久 AI 消息中按 FIFO 顺序、协议工具名和 call ID 合法闭合；普通
+  user/summary 正文中的工具样式 XML 不会被请求编译器解释为工具结果，不能作为闭合证据。若直到
+  replay boundary 仍未闭合，它已经是 Provider 无法重放的历史，必须修复，不得再以
+  `completedAt != 0` 或缺少同 timestamp 失败审计为由保留。完成时间与终态审计只属于诊断事实，
+  不是修复资格。跨消息保留还要求调用消息自身已经满足 Provider FIFO、没有流式中间结果，也没有
+  待应用的结果重排或协议名规范化；`call A, call B, result B` 后接 `result A` 不能被误认成合法
+  闭合。真正损坏的当前 variant 通过
+  `ConversationAuditRepository.reviseMessage` 原子写入修复 revision、投影、审计事件和 seal；
+  已由后续消息合法闭合的跨消息事务不改写。`ConversationCompactionContract` 随后只对修复后的
+  同一 runtime history 建立 snapshot，并继续执行 digest、route、工具闭合和相邻 summary 门禁。
+  通用自动压缩与“插入总结”的切片压缩入口都必须先等待活动回合并执行这项修复；单条消息重新
+  生成在保存新 variant 前还必须通过 `regeneration_completion` 闭合断言。
+- `ConversationService` 把同一批并行调用产生的连续 `TOOL_RESULT` 合并成一个 Provider turn，
+  与首次工具 follow-up 的聚合形状一致；`TOOL_CALL` 继续保持独立，不能丢失调用级元数据。
+- 多工具 follow-up 的 `64000` 字符总预算先为每个真实调用预留完整 `tool_result` XML 信封，再把
+  剩余 payload 空间按结果数分配；不得在达到总长度时停止追加后续结果，也不得对最终 XML 直接
+  按字符截断。结构信封本身无法装入上限时必须在本地显式失败，不能让 Provider 收到部分结果组。
+- OpenAI 请求体编译、工具历史校验或本地请求创建在 `call.execute()` 之前失败时，异常必须原样
+  交回消息失败链，不进入网络重试，也不能包装成“连接超时”；HTTP 提交开始后的传输失败继续由
+  既有重试与 at-most-once 合同处理。
 - Provider 原生工具标签中的 `name`、`provider_name`、`provider_call_id` 和
   `provider_response_id` 是四个独立属性。工具解析只读取独立 `name` 属性，不能把
   `provider_name` 的值当作工具名。
@@ -512,8 +552,11 @@ Current work status and implementation notes belong in `docs/TODO/`.
   和完成收尾分开编译。该结构是针对 vivo Android 16 `SIGABRT / Unexpected instruction:
   unused-e6` 的 ART DEX 兼容性修复；它不增加请求重试、不改变提交次数、不引入模型降级，也
   不改变已知 `response_id` 的 `starting_after` 续接。
-- `message_provider_states` 保存 provider-private output items 与 usage；聊天正文不是远端执行
-  状态的唯一来源。相同 provider 与 `call_id` 只能对应同一工具名和语义一致的参数；相同身份
+- `message_provider_states` 保存同一个 Responses execution 的 provider-private output items、
+  sequence cursor 与 usage，只服务已知 `remoteResponseId` 的断流续接；普通下一用户轮次、
+  PromptTurn 历史编译和 compaction 不读取该表。跨轮 `function_call / function_call_output`
+  仍由 replay-safe `ChatMessage.content` 编译，typed execution state 不能成为第二份跨轮历史
+  owner。相同 provider 与 `call_id` 只能对应同一工具名和语义一致的参数；相同身份
   在 XML 投影、当前回合执行和 Responses 历史重放中都只保留一次，冲突必须在副作用前失败。
   compatible endpoint 没有真实远端 response ID 时只做当前回合身份规范化，不伪造 response
   ID。`tool_invocation_ledger` 仅以真实 provider、response ID 和原始 `call_id` 为键，已运行

@@ -471,7 +471,9 @@ class GeminiProvider(
         var textContent = content
         
         matches.forEach { match ->
-            val toolName = match.groupValues[2]
+            val toolName =
+                ChatMarkupRegex.extractToolResultProtocolName(match.value)
+                    ?: match.groupValues[2]
             val fullContent = match.groupValues[3].trim()
             val contentMatch = ChatMarkupRegex.contentTag.find(fullContent)
             val resultContent = if (contentMatch != null) {

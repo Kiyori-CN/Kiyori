@@ -12,6 +12,7 @@ import com.ai.assistance.operit.api.chat.AssistantTurnFailurePolicy
 import com.ai.assistance.operit.api.chat.EnhancedAIService
 import com.ai.assistance.operit.api.chat.llmprovider.ProviderRequestContext
 import com.ai.assistance.operit.core.chat.AIMessageManager
+import com.ai.assistance.operit.core.chat.AssistantReplayHistoryProjector
 import com.ai.assistance.operit.core.chat.AssistantTurnCancellationPolicy
 import com.ai.assistance.operit.core.chat.AssistantTurnCancellationSource
 import com.ai.assistance.operit.core.chat.AssistantTurnCancellationTerminal
@@ -105,6 +106,8 @@ class MessageProcessingDelegate(
             snapshot: TurnCancellationSnapshot?,
             completedAt: Long,
         ): ChatMessage {
+            val replaySafeContent =
+                AssistantReplayHistoryProjector.project(finalContent).content
             val messageWithMetrics =
                 snapshot?.let { stats ->
                     streamingMessage.copy(
@@ -117,7 +120,7 @@ class MessageProcessingDelegate(
                     )
                 } ?: streamingMessage
             return messageWithMetrics.copy(
-                content = finalContent,
+                content = replaySafeContent,
                 contentStream = null,
                 completedAt = completedAt,
             )
@@ -583,7 +586,6 @@ class MessageProcessingDelegate(
     ) {
         val streamingMessage = activeTurn.message
         val finalContent = resolveFinalContent(streamingMessage)
-        streamingMessage.content = finalContent
         val completedAt = System.currentTimeMillis()
         val finalMessage =
             completeInterruptedMessage(
@@ -592,6 +594,7 @@ class MessageProcessingDelegate(
                 snapshot = snapshot,
                 completedAt = completedAt,
             )
+        streamingMessage.content = finalMessage.content
         val messages = getRuntimeChatHistory(chatId)
         withContext(Dispatchers.Main) {
             snapshot?.let { stats ->
@@ -809,6 +812,10 @@ class MessageProcessingDelegate(
         return runtimeFor(chatId).isLoading.value
     }
 
+    suspend fun awaitChatTurnIdleForHistoryBoundary(chatId: String) {
+        runtimeFor(chatId).isLoading.first { isLoading -> !isLoading }
+    }
+
     fun setSpeakMessageHandler(handler: (String, Boolean) -> Unit) {
         speakMessageHandler = handler
     }
@@ -1011,6 +1018,38 @@ class MessageProcessingDelegate(
                         } else {
                             "unexpected_cancelled"
                         }
+                    if (
+                        state.effectivePersistTurn &&
+                            cancellation.source != AssistantTurnCancellationSource.USER_STOP &&
+                            cancellation.source !=
+                                AssistantTurnCancellationSource.DESTRUCTIVE_HISTORY_MUTATION
+                    ) {
+                        withContext(NonCancellable) {
+                            state.chatRuntime.activeStreamingTurn?.let { activeTurn ->
+                                runCatching {
+                                    detachStreamingAiMessage(
+                                        chatId = state.chatId,
+                                        activeTurn = activeTurn,
+                                        snapshot = readCurrentTurnCancellationSnapshot(state.chatId),
+                                    )
+                                }.onFailure { persistenceError ->
+                                    AppLogger.e(
+                                        TAG,
+                                        "非预期取消回合的安全部分消息持久化失败",
+                                        persistenceError,
+                                    )
+                                }
+                            }
+                            runCatching { saveCurrentChat() }
+                                .onFailure { persistenceError ->
+                                    AppLogger.e(
+                                        TAG,
+                                        "非预期取消回合的聊天状态保存失败",
+                                        persistenceError,
+                                    )
+                                }
+                        }
+                    }
                     if (state.effectivePersistTurn) {
                         withContext(NonCancellable) {
                             runCatching {
@@ -2086,7 +2125,9 @@ class MessageProcessingDelegate(
         }
         addMessageToChat(
             state.chatId,
-            state.aiMessage.copy(content = contentSnapshot)
+            state.aiMessage.copy(
+                content = AssistantReplayHistoryProjector.project(contentSnapshot).content
+            )
         )
     }
 
@@ -2108,17 +2149,22 @@ class MessageProcessingDelegate(
             // 服务状态已经明确失败时不能继续把共享流的正常关闭解释为成功；保留服务提供的真实错误。
             throw IllegalStateException(stateAfterStream.message)
         }
+        val replaySafeFinalContent =
+            AssistantReplayHistoryProjector.requireClosed(
+                content = finalContent,
+                boundary = "assistant_completion",
+            )
         // Provider、共享流或服务层即使以正常完成返回，消息最终 owner 也只能在存在可交付内容时
         // 写入 Completed；否则目标设备会表现为加载结束但没有正文和错误。
         AssistantResponseCompletionPolicy.requireContent(
-            content = finalContent,
+            content = replaySafeFinalContent,
             emptyResponseMessage =
                 context.getString(
                     R.string.openai_error_stream_output_empty,
                     AssistantTurnDiagnostics.STREAM_EMPTY_TERMINATION,
                 ),
         )
-        state.aiMessage.content = finalContent
+        state.aiMessage.content = replaySafeFinalContent
 
         runCatching {
             state.turnInputTokens = state.service.getCurrentInputTokenCount()
@@ -2527,7 +2573,11 @@ class MessageProcessingDelegate(
                     }
             }
 
-            val finalContent = resolveFinalContent(aiMessage)
+            val finalContent =
+                AssistantReplayHistoryProjector.requireClosed(
+                    content = resolveFinalContent(aiMessage),
+                    boundary = "regeneration_completion",
+                )
             var turnInputTokens = 0
             var turnOutputTokens = 0
             var turnCachedInputTokens = 0
@@ -2693,7 +2743,9 @@ class MessageProcessingDelegate(
             val aiMessage = aiMessageProvider()
             // 优先使用共享流的全量重放缓存重建最终文本，避免完成信号早于收集协程处理尾部字符时丢字。
             val finalContent = resolveFinalContent(aiMessage)
-            aiMessage.content = finalContent
+            val replaySafeContent =
+                AssistantReplayHistoryProjector.project(finalContent).content
+            aiMessage.content = replaySafeContent
             val completedAt = System.currentTimeMillis()
 
             withContext(Dispatchers.IO) {
@@ -2704,7 +2756,7 @@ class MessageProcessingDelegate(
                     // 普通模式，直接清理流
                     val finalMessage =
                         aiMessage.copy(
-                            content = finalContent,
+                            content = replaySafeContent,
                             contentStream = null,
                             completedAt = completedAt,
                         )
@@ -2714,11 +2766,11 @@ class MessageProcessingDelegate(
                         }
                         AppLogger.d(
                             TAG,
-                            "autoRead[final] enabled=${getIsAutoReadEnabled()} skipFinalAutoRead=$skipFinalAutoRead len=${finalContent.length}"
+                            "autoRead[final] enabled=${getIsAutoReadEnabled()} skipFinalAutoRead=$skipFinalAutoRead len=${replaySafeContent.length}"
                         )
                         // 如果启用了自动朗读，则朗读完整消息
                         if (getIsAutoReadEnabled() && !skipFinalAutoRead) {
-                            speakMessageHandler(finalContent, true)
+                            speakMessageHandler(replaySafeContent, true)
                         }
                         forceEmitScrollToBottom(chatId)
                     }
@@ -2730,24 +2782,8 @@ class MessageProcessingDelegate(
             AppLogger.d(TAG, "消息收尾阶段被取消，跳过waifu收尾处理")
             throw e
         } catch (e: Exception) {
-            AppLogger.e(TAG, "处理waifu模式时出错", e)
-            try {
-                val aiMessage = aiMessageProvider()
-                val finalContent = aiMessage.content
-                val finalMessage =
-                    aiMessage.copy(
-                        content = finalContent,
-                        contentStream = null,
-                        completedAt = System.currentTimeMillis(),
-                    )
-                withContext(Dispatchers.Main) {
-                    if (turnOptions.persistTurn && chatId != null) {
-                        addMessageToChat(chatId, finalMessage)
-                    }
-                }
-            } catch (ex: Exception) {
-                AppLogger.e(TAG, "回退到普通模式也失败", ex)
-            }
+            // 收尾失败时不能再次保存未经投影的正文，否则下一轮会重新暴露未闭合工具事务。
+            AppLogger.e(TAG, "消息收尾失败，未写入不安全的部分消息", e)
         }
         return false
     }

@@ -30,6 +30,7 @@ import com.ai.assistance.operit.core.chat.ConversationCompactionCommitResult
 import com.ai.assistance.operit.core.chat.ConversationCompactionSnapshot
 import com.ai.assistance.operit.core.chat.ConversationCompactionRouteIdentity
 import com.ai.assistance.operit.core.chat.ConversationCompactionUsage
+import com.ai.assistance.operit.core.chat.AssistantReplayHistoryRepairReport
 import com.ai.assistance.operit.core.chat.ConversationToolResultPruningReport
 import com.ai.assistance.operit.data.model.toProviderUsageAggregate
 import com.ai.assistance.operit.plugins.toolpkg.ToolPkgChatMessageHookBridge
@@ -357,6 +358,19 @@ class ChatHistoryDelegate(
 
     suspend fun getRuntimeChatHistoryForCompaction(chatId: String): List<ChatMessage> =
         chatHistoryManager.loadRuntimeChatMessagesForCompaction(chatId)
+
+    suspend fun repairAssistantReplayHistory(
+        chatId: String,
+    ): AssistantReplayHistoryRepairReport {
+        val report =
+            historyUpdateMutex.withLock {
+                chatHistoryManager.repairAssistantReplayHistory(chatId)
+            }
+        if (report.repairedMessageCount > 0 && chatId == _currentChatId.value) {
+            reloadCurrentChatDisplayHistory(chatId)
+        }
+        return report
+    }
 
     suspend fun getRuntimeChatHistoryUpTo(
         chatId: String,

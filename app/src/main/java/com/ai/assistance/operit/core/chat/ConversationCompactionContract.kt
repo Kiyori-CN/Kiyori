@@ -374,13 +374,15 @@ object ConversationCompactionContract {
         return runCatching {
             val state = ProviderToolHistoryState()
             messages.forEachIndexed { messageIndex, message ->
+                if (message.sender != "ai") {
+                    state.requireClosed("message_${messageIndex}_${message.sender}")
+                    return@forEachIndexed
+                }
                 val blocks = ChatMarkupRegex.toolOrToolResultBlock.findAll(message.content).toList()
                 if (blocks.isEmpty()) {
                     if (
                         ChatMarkupRegex.containsAnyToolLikeTag(message.content) ||
-                            message.sender == "summary" ||
-                            (message.sender == "user" && message.content.isNotBlank()) ||
-                            (message.sender == "ai" && message.content.isNotBlank())
+                            message.content.isNotBlank()
                     ) {
                         state.requireClosed("message_${messageIndex}_${message.sender}")
                     }
@@ -391,6 +393,7 @@ object ConversationCompactionContract {
                 }
 
                 val pendingCalls = mutableListOf<ProviderToolCallDescriptor>()
+                var cursor = 0
 
                 fun flushToolCalls() {
                     if (pendingCalls.isEmpty()) {
@@ -404,6 +407,12 @@ object ConversationCompactionContract {
                 }
 
                 blocks.forEachIndexed { blockIndex, match ->
+                    if (
+                        message.content.substring(cursor, match.range.first).isNotBlank() &&
+                            (pendingCalls.isNotEmpty() || state.pendingCount() > 0)
+                    ) {
+                        error("Text interrupted a tool transaction at message $messageIndex")
+                    }
                     val normalizedTagName =
                         ChatMarkupRegex.normalizeToolLikeTagName(
                             ChatMarkupRegex.extractOpeningTagName(match.value)
@@ -438,13 +447,12 @@ object ConversationCompactionContract {
                             )
                         }
                         "tool_result" -> {
+                            if (!ChatMarkupRegex.isProviderTerminalToolResult(match.value)) {
+                                return@forEachIndexed
+                            }
                             flushToolCalls()
                             val resultName =
-                                ChatMarkupRegex.nameAttr
-                                    .find(match.value)
-                                    ?.groupValues
-                                    ?.getOrNull(1)
-                                    ?.trim()
+                                ChatMarkupRegex.extractToolResultProtocolName(match.value)
                             val resultCallId =
                                 PROVIDER_CALL_ID_ATTRIBUTE
                                     .find(match.value.substringBefore('>'))
@@ -464,6 +472,7 @@ object ConversationCompactionContract {
                         }
                         else -> error("Unknown tool markup at message $messageIndex")
                     }
+                    cursor = match.range.last + 1
                 }
                 flushToolCalls()
 
@@ -472,10 +481,7 @@ object ConversationCompactionContract {
                 if (ChatMarkupRegex.containsAnyToolLikeTag(unmatchedContent)) {
                     error("Tool markup is incomplete at message $messageIndex")
                 }
-                if (
-                    message.sender == "summary" ||
-                        (message.sender == "user" && unmatchedContent.isNotBlank())
-                ) {
+                if (message.content.substring(cursor).isNotBlank()) {
                     state.requireClosed("message_${messageIndex}_${message.sender}_text")
                 }
             }

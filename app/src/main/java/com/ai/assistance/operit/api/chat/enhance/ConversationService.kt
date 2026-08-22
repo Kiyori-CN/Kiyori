@@ -70,6 +70,55 @@ class ConversationService(
             """<file-request-content\b[^>]*><!\[CDATA\[(.*?)\]\]></file-request-content>""",
             setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
         )
+
+        internal fun mergePreparedToolSegments(
+            segments: List<PromptTurn>,
+        ): List<PromptTurn> {
+            val mergedSegments = mutableListOf<PromptTurn>()
+            var currentKind: PromptTurnKind? = null
+            val currentContent = StringBuilder()
+            var currentToolName: String? = null
+            var currentMetadata: Map<String, Any?> = emptyMap()
+
+            for (segment in segments) {
+                // One Provider turn must carry every response for a parallel call group. Calls
+                // remain distinct so provider-specific call metadata is never conflated.
+                val shouldMergeCurrent =
+                    segment.kind == currentKind &&
+                        segment.kind != PromptTurnKind.TOOL_CALL
+                if (shouldMergeCurrent) {
+                    currentContent.append("\n").append(segment.content)
+                } else {
+                    if (currentContent.isNotEmpty() && currentKind != null) {
+                        mergedSegments.add(
+                            PromptTurn(
+                                kind = currentKind,
+                                content = currentContent.toString().trim(),
+                                toolName = currentToolName,
+                                metadata = currentMetadata,
+                            )
+                        )
+                        currentContent.clear()
+                    }
+                    currentKind = segment.kind
+                    currentToolName = segment.toolName
+                    currentMetadata = segment.metadata
+                    currentContent.append(segment.content)
+                }
+            }
+
+            if (currentContent.isNotEmpty() && currentKind != null) {
+                mergedSegments.add(
+                    PromptTurn(
+                        kind = currentKind,
+                        content = currentContent.toString().trim(),
+                        toolName = currentToolName,
+                        metadata = currentMetadata,
+                    )
+                )
+            }
+            return mergedSegments
+        }
     }
 
     private val apiPreferences = ApiPreferences.getInstance(context)
@@ -821,55 +870,7 @@ class ConversationService(
             }
         }
 
-        // 合并连续的相同角色消息
-        val mergedSegments = mutableListOf<PromptTurn>()
-        var currentKind: PromptTurnKind? = null
-        var currentContent = StringBuilder()
-        var currentToolName: String? = null
-        var currentMetadata: Map<String, Any?> = emptyMap()
-
-        for (segment in segments) {
-            val shouldMergeCurrent =
-                segment.kind == currentKind &&
-                    segment.kind !in setOf(PromptTurnKind.TOOL_CALL, PromptTurnKind.TOOL_RESULT)
-            if (shouldMergeCurrent) {
-                // 如果角色与当前角色相同，则合并内容
-                currentContent.append("\n").append(segment.content)
-            } else {
-                // 角色不同，先保存当前内容（如果有）
-                if (currentContent.isNotEmpty() && currentKind != null) {
-                    mergedSegments.add(
-                        PromptTurn(
-                            kind = currentKind,
-                            content = currentContent.toString().trim(),
-                            toolName = currentToolName,
-                            metadata = currentMetadata
-                        )
-                    )
-                    currentContent.clear()
-                }
-                // 更新当前角色和内容
-                currentKind = segment.kind
-                currentToolName = segment.toolName
-                currentMetadata = segment.metadata
-                currentContent.append(segment.content)
-            }
-        }
-
-        // 添加最后一条消息
-        if (currentContent.isNotEmpty() && currentKind != null) {
-            mergedSegments.add(
-                PromptTurn(
-                    kind = currentKind,
-                    content = currentContent.toString().trim(),
-                    toolName = currentToolName,
-                    metadata = currentMetadata
-                )
-            )
-        }
-
-        // 将合并后的消息添加到对话历史
-        conversationHistory.addAll(mergedSegments)
+        conversationHistory.addAll(mergePreparedToolSegments(segments))
     }
 
     /** Data class for search-replace operations, used for JSON deserialization. */

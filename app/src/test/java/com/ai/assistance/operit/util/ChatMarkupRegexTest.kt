@@ -8,6 +8,31 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ChatMarkupRegexTest {
+    @Test
+    fun toolResultProtocolName_prefersProtocolMetadataWithoutConfusingProviderAttributes() {
+        val result =
+            "<tool_result_exec provider_name=\"OPENAI\" name=\"terminal:run\" " +
+                "provider_tool_name=\"package_proxy\">ok</tool_result_exec>"
+
+        assertEquals("terminal:run", ChatMarkupRegex.nameAttr.find(result)?.groupValues?.get(1))
+        assertEquals("package_proxy", ChatMarkupRegex.extractToolResultProtocolName(result))
+    }
+
+    @Test
+    fun providerTerminalResult_defaultsToLegacyTerminalAndRecognizesExplicitIntermediate() {
+        assertTrue(
+            ChatMarkupRegex.isProviderTerminalToolResult(
+                "<tool_result name=\"run\">ok</tool_result>"
+            )
+        )
+        assertFalse(
+            ChatMarkupRegex.isProviderTerminalToolResult(
+                "<tool_result name=\"run\" provider_result_terminal=\"false\">" +
+                    "chunk</tool_result>"
+            )
+        )
+    }
+
 
     @Test fun toolTagName_acceptsBaseTool() {
         assertTrue(ChatMarkupRegex.isToolTagName("tool"))
