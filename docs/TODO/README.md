@@ -9,7 +9,7 @@ APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观
 
 ## 2026-08-23 Kiyori 应用级网络代理与内嵌 Mihomo
 
-状态：`IMPLEMENTATION VERIFIED / DEVICE VERIFICATION PENDING`。
+状态：`IMPLEMENTATION VERIFIED / DEVICE VERIFICATION PENDING`（本轮继续修复设置路由崩溃并优化代理页，设备验收边界不变）。
 
 上一版传统脚本代理正在升级为 Kiyori 唯一的应用级代理 owner。正式入口迁至“设置首页 -> 更多
 功能 -> 网络代理”，支持默认连接、逐模块连接和脚本模块内逐脚本规则；AI 服务、AI 工具、
@@ -22,7 +22,8 @@ Browser、下载器、播放器、脚本与扩展、Kiyori 在线服务按各自
 本轮同时把单订阅模型升级为加密多订阅库，覆盖刷新、添加、切换、更新、编辑、复制、删除、按组
 展示和单节点/整组测速。自动测试和 Debug APK 仍只证明本地实现，真机回归需由安装包现场确认。
 
-界面移除外部 mixed-port 的主机/端口/认证表单。外部 Clash 使用 Android VPN 时无需填写；内嵌
+界面移除外部 mixed-port 的主机/端口/认证表单。代理页当前路由会显示当前订阅、策略组选择链和最终节点；
+逐脚本规则只展示已启用传统 JsEngine 包，并保留手动包名入口。外部 Clash 使用 Android VPN 时无需填写；内嵌
 Mihomo 与系统 VPN 并存默认阻止，明确授权后才形成双层链路。完整模型、UI、策略组、首次导入、
 路由矩阵、安全边界、实施计划和验收项见
 [`application_network_proxy/index.md`](application_network_proxy/index.md)。本地实现、Debug APK、

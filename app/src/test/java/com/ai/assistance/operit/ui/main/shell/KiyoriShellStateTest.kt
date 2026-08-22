@@ -87,6 +87,7 @@ class KiyoriShellStateTest {
             listOf(
                 KiyoriSettingsPresentation.PRIMARY_ROOT to true,
                 KiyoriSettingsPresentation.SOURCE_OVERLAY to true,
+                KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_HOME to false,
                 KiyoriSettingsPresentation.OPERIT_ROUTE_DETAIL to false,
                 KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_WORKSPACE to false,
             )
@@ -836,6 +837,32 @@ class KiyoriShellStateTest {
             assertEquals(expectedReturnTarget, browserState.browserReturnTarget)
             assertEquals(expectedRestoredState, browserState.exitBrowser())
         }
+    }
+
+    @Test
+    fun `browser home preserves the bottom settings session when opened from settings`() {
+        val settingsHome = KiyoriShellState().selectPrimary(PrimaryDestination.SETTINGS_HOME)
+        val browserState =
+            settingsHome.openExternalDestination(KiyoriShellExternalDestination.BROWSER_HOME)
+
+        assertEquals(PrimaryDestination.BROWSER_HOME, browserState.primaryDestination)
+        assertEquals(
+            KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_HOME,
+            browserState.settingsNavigation?.presentation,
+        )
+        assertEquals(settingsHome, browserState.exitBrowser())
+    }
+
+    @Test
+    fun `settings surface route starts a session when a restored settings home has none`() {
+        val restoredSettingsHome =
+            KiyoriShellState(primaryDestination = PrimaryDestination.SETTINGS_HOME)
+
+        val moreFeatures =
+            restoredSettingsHome.openSettingsSurfaceRoute(KiyoriSettingsRoute.MORE_FEATURES)
+
+        assertEquals(KiyoriSettingsRoute.MORE_FEATURES, moreFeatures.settingsNavigation?.currentRoute)
+        assertEquals(KiyoriSettingsOrigin.BOTTOM_NAVIGATION, moreFeatures.settingsNavigation?.origin)
     }
 
     @Test

@@ -13,6 +13,7 @@ enum class KiyoriSettingsOrigin {
 enum class KiyoriSettingsPresentation {
     PRIMARY_ROOT,
     SOURCE_OVERLAY,
+    SUSPENDED_FOR_BROWSER_HOME,
     SUSPENDED_FOR_BROWSER_WORKSPACE,
     OPERIT_ROUTE_DETAIL,
 }
@@ -37,6 +38,7 @@ data class KiyoriSettingsNavigationState(
                 require(
                     presentation == KiyoriSettingsPresentation.PRIMARY_ROOT ||
                         presentation == KiyoriSettingsPresentation.OPERIT_ROUTE_DETAIL ||
+                        presentation == KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_HOME ||
                         presentation ==
                         KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_WORKSPACE,
                 ) {
@@ -92,6 +94,9 @@ data class KiyoriSettingsNavigationState(
     fun suspendForBrowserWorkspace(): KiyoriSettingsNavigationState =
         copy(presentation = KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_WORKSPACE)
 
+    fun suspendForBrowserHome(): KiyoriSettingsNavigationState =
+        copy(presentation = KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_HOME)
+
     companion object {
         fun start(
             origin: KiyoriSettingsOrigin,
@@ -126,15 +131,16 @@ data class KiyoriSettingsNavigationState(
 /**
  * Settings owns system Back only while its visual surface is rendered by the Shell.
  *
- * Operit route details and the Browser workspace have their own active host. Treating either
- * presentation as Shell-owned lets an outer BackHandler bypass that host and lose the settings
- * session's return owner.
+ * Operit route details, Browser Home handoffs, and Browser workspaces have their own active host.
+ * Treating each suspended presentation as Shell-unowned lets the active host receive Back and
+ * keeps the settings session's return owner intact.
  */
 internal fun isKiyoriSettingsBackOwnedByShell(
     settingsNavigation: KiyoriSettingsNavigationState?,
 ): Boolean =
     when (settingsNavigation?.presentation) {
         null,
+        KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_HOME,
         KiyoriSettingsPresentation.OPERIT_ROUTE_DETAIL,
         KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_WORKSPACE,
         -> false

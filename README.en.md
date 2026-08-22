@@ -55,6 +55,11 @@ Kiyori-owned online services. The default is Direct or Proxy; every module can i
 its own mode. Traditional `JsEngine` packages may add a per-package override in Script Rules. The Environment
 drawer links here directly, and ToolPkg is intentionally kept under AI Tools rather than treated as a script.
 
+The Current Route section expands the active subscription's `KIYORI_APP_PROXY` root selection through nested
+groups to the terminal node. An unresolved automatic group or cycle is shown as unresolved rather than being
+presented as a node. Script Rules lists enabled executable traditional `JsEngine` packages and keeps an explicit
+manual package-name entry; an empty list means there is no enabled traditional script, not that AI Tools are missing.
+
 The subscription section accepts a Clash/Mihomo subscription URL or an explicitly selected single-document
 UTF-8 YAML file. Requests use the `Clash.Meta` identity so services that negotiate Base64 and YAML return a
 Clash YAML mapping. Base64 URI lists, duplicate keys, invalid providers, configurations without usable

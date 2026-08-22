@@ -338,7 +338,7 @@ internal fun KiyoriAppShell(
                     onOpenDataSettings = onOpenDataSettingsFromKiyoriSettings,
                     onOpenMoreFeatures = {
                         onStateChange(
-                            state.openSettingsRoute(KiyoriSettingsRoute.MORE_FEATURES),
+                            state.openSettingsSurfaceRoute(KiyoriSettingsRoute.MORE_FEATURES),
                         )
                     },
                     modifier = Modifier.fillMaxSize().zIndex(4f),
@@ -473,7 +473,7 @@ internal fun KiyoriAppShell(
                                 onOpenDataSettings = onOpenDataSettingsFromKiyoriSettings,
                                 onOpenMoreFeatures = {
                                     onStateChange(
-                                        state.openSettingsRoute(
+                                        state.openSettingsSurfaceRoute(
                                             KiyoriSettingsRoute.MORE_FEATURES,
                                         ),
                                     )
@@ -707,6 +707,7 @@ internal fun shouldElevateKiyoriAiHost(
         -> true
         KiyoriSettingsPresentation.PRIMARY_ROOT,
         KiyoriSettingsPresentation.SOURCE_OVERLAY,
+        KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_HOME,
         KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_WORKSPACE,
         -> false
     }
@@ -754,6 +755,7 @@ internal fun shouldPresentKiyoriSettingsOverlay(state: KiyoriShellState): Boolea
     val navigation = state.settingsNavigation ?: return false
     if (
         navigation.presentation == KiyoriSettingsPresentation.OPERIT_ROUTE_DETAIL ||
+            navigation.presentation == KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_HOME ||
             navigation.presentation ==
             KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_WORKSPACE
     ) {
@@ -851,6 +853,7 @@ internal fun shouldEnableKiyoriBrowserHostBackHandler(state: KiyoriShellState): 
     return when (state.settingsNavigation?.presentation) {
         null,
         KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_WORKSPACE,
+        KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_HOME,
         -> true
         KiyoriSettingsPresentation.PRIMARY_ROOT,
         KiyoriSettingsPresentation.SOURCE_OVERLAY,

@@ -149,7 +149,12 @@ data class KiyoriShellState(
             primaryDestination = targetPrimaryDestination,
             softwareHomePage = targetSoftwareHomePage,
             child = null,
-            settingsNavigation = null,
+            settingsNavigation =
+                if (returnTarget == KiyoriBrowserReturnTarget.SETTINGS_HOME) {
+                    settingsNavigation?.restoreSettingsPresentation()
+                } else {
+                    null
+                },
             isAiDrawerOpen = false,
             isBookmarkDrawerOpen = false,
             isHistoryDrawerOpen = false,
@@ -230,6 +235,19 @@ data class KiyoriShellState(
                     "Settings route requires an active settings session."
                 }.push(route),
         )
+
+    /**
+     * Settings Home can be restored as a primary surface without its transient session after an
+     * older process state or a browser handoff. Re-establish the session at this boundary before
+     * pushing a child route so a user action never reaches the strict route-stack contract with a
+     * null owner.
+     */
+    fun openSettingsSurfaceRoute(
+        route: KiyoriSettingsRoute,
+        origin: KiyoriSettingsOrigin = KiyoriSettingsOrigin.BOTTOM_NAVIGATION,
+    ): KiyoriShellState =
+        settingsNavigation?.let { openSettingsRoute(route) }
+            ?: openSettings(origin = origin, initialRoute = route)
 
     fun showSettingsOperitRoute(): KiyoriShellState =
         copy(
@@ -494,11 +512,22 @@ internal fun KiyoriShellState.openExternalDestination(
     destination: KiyoriShellExternalDestination,
 ): KiyoriShellState =
     when (destination) {
-        KiyoriShellExternalDestination.BROWSER_HOME ->
-            openBrowser(
-                returnTarget = resolveExternalBrowserReturnTarget(),
-                exitPresentation = resolveExternalBrowserExitPresentation(),
-            )
+        KiyoriShellExternalDestination.BROWSER_HOME -> {
+            val returnTarget = resolveExternalBrowserReturnTarget()
+            val nextState =
+                openBrowser(
+                    returnTarget = returnTarget,
+                    exitPresentation = resolveExternalBrowserExitPresentation(),
+                )
+            if (
+                returnTarget == KiyoriBrowserReturnTarget.SETTINGS_HOME &&
+                    settingsNavigation != null
+            ) {
+                nextState.copy(settingsNavigation = settingsNavigation.suspendForBrowserHome())
+            } else {
+                nextState
+            }
+        }
         KiyoriShellExternalDestination.BROWSER_HOME_FROM_MINIMIZED_INDICATOR ->
             openBrowser(
                 returnTarget = resolveExternalBrowserReturnTarget(),

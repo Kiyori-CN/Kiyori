@@ -21,6 +21,12 @@ import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.KiyoriSettingsHomeIconPalette
 import com.kiyori.integration.operit.navigation.AppRouteCatalog
 import com.kiyori.integration.operit.onboarding.KIYORI_PERMISSION_SETTINGS_PAGE_TITLE
+import com.kiyori.platform.network.KiyoriProxySubscription
+import com.kiyori.platform.network.KiyoriSubscriptionSourceType
+import com.kiyori.platform.network.MihomoConfigSanitizer
+import com.kiyori.platform.network.MihomoProxyGroupSummary
+import com.kiyori.platform.network.MihomoRuntimeGroupState
+import com.kiyori.platform.network.MihomoSubscriptionSummary
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -28,6 +34,61 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class KiyoriSettingsPagesTest {
+    @Test
+    fun `current proxy route resolves nested group selection to the terminal node`() {
+        val autoGroup =
+            MihomoProxyGroupSummary(
+                name = "自动选择",
+                type = "url-test",
+                options = listOf("东京-01", "新加坡-01"),
+                manuallySelectable = false,
+            )
+        val subscription =
+            KiyoriProxySubscription(
+                id = "subscription",
+                displayName = "测试订阅",
+                sourceType = KiyoriSubscriptionSourceType.LOCAL_FILE,
+                sourceLabel = "测试 YAML",
+                sanitizedYaml = "proxies: []",
+                createdAtEpochMillis = 1L,
+                updatedAtEpochMillis = 1L,
+                summary =
+                    MihomoSubscriptionSummary(
+                        groups = listOf(autoGroup),
+                        rootCandidates = listOf("自动选择"),
+                    ),
+                selectedGroupItems =
+                    mapOf(
+                        MihomoConfigSanitizer.ROUTE_GROUP_NAME to "自动选择",
+                        "自动选择" to "东京-01",
+                    ),
+            )
+
+        val selection =
+            resolveActiveProxySelection(
+                subscription = subscription,
+                runtimeGroups =
+                    listOf(
+                        MihomoRuntimeGroupState(
+                            name = MihomoConfigSanitizer.ROUTE_GROUP_NAME,
+                            type = "select",
+                            currentItem = "自动选择",
+                            allItems = listOf("自动选择"),
+                        ),
+                        MihomoRuntimeGroupState(
+                            name = "自动选择",
+                            type = "url-test",
+                            currentItem = "东京-01",
+                            allItems = listOf("东京-01", "新加坡-01"),
+                        ),
+                    ),
+            )
+
+        assertEquals(listOf("默认代理", "自动选择", "东京-01"), selection.chain)
+        assertEquals("自动选择", selection.finalGroupName)
+        assertEquals("东京-01", selection.selectedItemName)
+    }
+
     @Test
     fun `shared settings header follows the reference start middle and pinned frames`() {
         assertEquals("网页浏览器", KIYORI_BROWSER_SETTINGS_PAGE_TITLE)
