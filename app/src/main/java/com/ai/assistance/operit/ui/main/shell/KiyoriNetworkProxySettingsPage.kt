@@ -1,15 +1,11 @@
 package com.ai.assistance.operit.ui.main.shell
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -32,7 +28,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Refresh
@@ -42,8 +37,8 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.ViewModule
 import androidx.compose.material.icons.filled.VpnKey
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -54,6 +49,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -117,17 +113,10 @@ private enum class NetworkProxyPageSection(
     val title: String,
 ) {
     OVERVIEW("网络代理"),
-    MODULES("模块连接"),
-    GROUPS("策略组与节点"),
-}
-
-private enum class NetworkProxyNodeLayout(
-    val label: String,
-    val columns: Int,
-) {
-    SINGLE("单列", 1),
-    DOUBLE("双列", 2),
-    MULTI("多列", 3),
+    CURRENT_NODE("当前节点"),
+    SUBSCRIPTIONS("订阅管理"),
+    MODULES("模块连接模式"),
+    SCRIPTS("逐脚本连接模式"),
 }
 
 private enum class NetworkProxyNodeSort(
@@ -183,16 +172,6 @@ private sealed interface ModeSelection {
     data class Script(val packageName: String) : ModeSelection
 }
 
-private data class GroupActionTarget(
-    val subscriptionId: String,
-    val group: MihomoProxyGroupSummary,
-)
-
-private data class GroupSelectionTarget(
-    val subscriptionId: String,
-    val group: MihomoProxyGroupSummary,
-)
-
 private data class SelectedYaml(
     val displayName: String,
     val text: String,
@@ -238,33 +217,19 @@ internal fun KiyoriNetworkProxySettingsPage(
     var editorUrlVisible by remember { mutableStateOf(false) }
     var yamlImportTarget by remember { mutableStateOf<YamlImportTarget?>(null) }
     var subscriptionActionsId by remember { mutableStateOf<String?>(null) }
-    var currentSubscriptionSheetVisible by remember { mutableStateOf(false) }
-    var inspectedSubscriptionId by remember { mutableStateOf<String?>(null) }
-    var copyUrlSubscriptionId by remember { mutableStateOf<String?>(null) }
     var deleteSubscriptionId by remember { mutableStateOf<String?>(null) }
     var resetDialogVisible by remember { mutableStateOf(false) }
-    var groupActionTarget by remember { mutableStateOf<GroupActionTarget?>(null) }
-    var groupSelectionTarget by remember { mutableStateOf<GroupSelectionTarget?>(null) }
     var pendingModeSelection by remember { mutableStateOf<ModeSelection?>(null) }
-    var scriptRulesVisible by remember { mutableStateOf(false) }
     var scriptPackageDialogVisible by remember { mutableStateOf(false) }
     var scriptPackageDraft by remember { mutableStateOf("") }
     var discoveredScriptPackages by remember { mutableStateOf<List<String>>(emptyList()) }
     var scriptCatalogRefreshing by remember { mutableStateOf(false) }
-    var testUrlDialogVisible by remember { mutableStateOf(false) }
-    var testUrlDraft by remember { mutableStateOf(config?.testUrl ?: KiyoriNetworkProxyConfig.DEFAULT_TEST_URL) }
     var pageSection by remember { mutableStateOf(NetworkProxyPageSection.OVERVIEW) }
     var selectedGroupTabName by remember { mutableStateOf<String?>(null) }
     var nodeSearchQuery by remember { mutableStateOf("") }
-    var nodeLayout by remember { mutableStateOf(NetworkProxyNodeLayout.SINGLE) }
     var nodeSort by remember { mutableStateOf(NetworkProxyNodeSort.DEFAULT) }
-    var nodeLayoutMenuVisible by remember { mutableStateOf(false) }
     var nodeSortMenuVisible by remember { mutableStateOf(false) }
 
-    val inspectedSubscription =
-        config?.subscriptions?.firstOrNull { subscription -> subscription.id == inspectedSubscriptionId }
-            ?: activeSubscription
-            ?: config?.subscriptions?.firstOrNull()
     val controlsEnabled = config != null && activeOperation == null
     val activeRuntimeGroups =
         runtimeState.groups.takeIf { groups -> runtimeState.subscriptionId == activeSubscription?.id }
@@ -274,7 +239,7 @@ internal fun KiyoriNetworkProxySettingsPage(
             resolveActiveProxySelection(subscription, activeRuntimeGroups)
         }
 
-    val sectionSubscription = inspectedSubscription
+    val sectionSubscription = activeSubscription
     val sectionGroups = sectionSubscription?.let(::subscriptionGroups).orEmpty()
     val selectedGroupTab =
         sectionGroups.firstOrNull { group -> group.name == selectedGroupTabName }
@@ -285,7 +250,6 @@ internal fun KiyoriNetworkProxySettingsPage(
     }
 
     LaunchedEffect(pageSection) {
-        nodeLayoutMenuVisible = false
         nodeSortMenuVisible = false
         nodeSearchQuery = ""
     }
@@ -328,18 +292,6 @@ internal fun KiyoriNetworkProxySettingsPage(
 
     LaunchedEffect(Unit) {
         refreshScriptCatalog()
-    }
-
-    LaunchedEffect(config?.activeSubscriptionId, config?.subscriptions?.map(KiyoriProxySubscription::id)) {
-        val inspectedStillExists = config?.subscriptions?.any { it.id == inspectedSubscriptionId } == true
-        if (!inspectedStillExists) {
-            inspectedSubscriptionId = config?.activeSubscriptionId ?: config?.subscriptions?.firstOrNull()?.id
-        }
-    }
-    LaunchedEffect(config?.testUrl) {
-        if (!testUrlDialogVisible) {
-            testUrlDraft = config?.testUrl ?: KiyoriNetworkProxyConfig.DEFAULT_TEST_URL
-        }
     }
 
     fun runOperation(
@@ -419,12 +371,10 @@ internal fun KiyoriNetworkProxySettingsPage(
                 val selected = withContext(Dispatchers.IO) { readNetworkProxyYaml(context, uri) }
                 when (target) {
                     YamlImportTarget.Add -> {
-                        val added = manager.addLocalYaml(selected.text, selected.displayName)
-                        inspectedSubscriptionId = added.id
+                        manager.addLocalYaml(selected.text, selected.displayName)
                     }
                     is YamlImportTarget.Replace -> {
                         manager.replaceLocalSubscription(target.subscriptionId, selected.text, selected.displayName)
-                        inspectedSubscriptionId = target.subscriptionId
                     }
                 }
             }
@@ -439,7 +389,7 @@ internal fun KiyoriNetworkProxySettingsPage(
             modifier = modifier,
             headerAction = {
                 if (
-                    pageSection == NetworkProxyPageSection.GROUPS &&
+                    pageSection == NetworkProxyPageSection.CURRENT_NODE &&
                         sectionSubscription != null &&
                         selectedGroupTab != null
                 ) {
@@ -459,33 +409,6 @@ internal fun KiyoriNetworkProxySettingsPage(
                                 CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                             } else {
                                 Icon(Icons.Default.Speed, contentDescription = "测速当前分组")
-                            }
-                        }
-                        Box {
-                            IconButton(
-                                enabled = controlsEnabled,
-                                onClick = { nodeLayoutMenuVisible = true },
-                            ) {
-                                Icon(Icons.Default.ViewModule, contentDescription = "节点布局")
-                            }
-                            DropdownMenu(
-                                expanded = nodeLayoutMenuVisible,
-                                onDismissRequest = { nodeLayoutMenuVisible = false },
-                            ) {
-                                NetworkProxyNodeLayout.entries.forEach { option ->
-                                    DropdownMenuItem(
-                                        text = { Text(option.label) },
-                                        onClick = {
-                                            nodeLayout = option
-                                            nodeLayoutMenuVisible = false
-                                        },
-                                        trailingIcon = {
-                                            if (nodeLayout == option) {
-                                                Icon(Icons.Default.Check, contentDescription = "当前布局")
-                                            }
-                                        },
-                                    )
-                                }
                             }
                         }
                         Box {
@@ -516,246 +439,337 @@ internal fun KiyoriNetworkProxySettingsPage(
                             }
                         }
                     }
-                } else {
-                    Row {
-                        IconButton(
-                            enabled = controlsEnabled,
-                            onClick = {
-                                runOperation(
-                                    NetworkProxyOperation("refresh_runtime", NetworkProxyOperationArea.STATUS, "正在刷新运行状态"),
-                                    "运行状态已刷新。",
-                                ) { manager.refreshRuntimeState() }
-                            },
-                        ) {
-                            if (activeOperation?.id == "refresh_runtime") {
-                                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                            } else {
-                                Icon(Icons.Default.Refresh, contentDescription = "刷新状态")
-                            }
-                        }
-                        IconButton(
-                            enabled = controlsEnabled,
-                            onClick = {
-                                runOperation(
-                                    NetworkProxyOperation("test_connection", NetworkProxyOperationArea.STATUS, "正在测试当前代理"),
-                                    "当前代理连接测试通过。",
-                                ) { manager.testActiveProxyConnection() }
-                            },
-                        ) {
-                            if (activeOperation?.id == "test_connection") {
-                                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                            } else {
-                                Icon(Icons.Default.Speed, contentDescription = "测试当前代理")
-                            }
-                        }
-                    }
                 }
             },
         ) {
-        if (pageSection == NetworkProxyPageSection.OVERVIEW) item(key = "network_proxy_status") {
-            KiyoriSettingsGroupSection(
-                title = "代理状态",
-                description = "只影响 Kiyori 进程内已接入模块，不改变其他应用的网络。",
-            ) {
-                KiyoriSettingsRow(
-                    title = "启用应用内代理",
-                    description = networkProxyRuntimeDescription(config, runtimeState.phase, activeSubscription),
-                    kind = KiyoriSettingsRowKind.TOGGLE,
-                    icon = Icons.Default.VpnKey,
-                    iconTone = KiyoriSemanticTone.CYAN,
-                    checked = config?.enabled == true,
-                    enabled = controlsEnabled,
-                    onClick = {
-                        val nextEnabled = config?.enabled != true
-                        runOperation(
-                            NetworkProxyOperation("toggle_enabled", NetworkProxyOperationArea.STATUS, "正在保存并应用代理状态"),
-                            if (nextEnabled) "应用内代理已开启。" else "应用内代理已关闭。",
-                        ) { manager.updateConfig { current -> current.copy(enabled = nextEnabled) } }
-                    },
-                )
-                if (config == null) {
-                    KiyoriSettingsDivider()
+        if (pageSection == NetworkProxyPageSection.OVERVIEW) {
+            item(key = "network_proxy_overview_status") {
+                KiyoriSettingsGroupSection(
+                    title = "应用内代理",
+                    description = "只影响 Kiyori 进程内已接入模块；不会改变其他应用的网络。",
+                ) {
                     KiyoriSettingsRow(
-                        title = "重置不可读设置",
-                        description = "删除无法解密的代理配置并重新初始化",
-                        kind = KiyoriSettingsRowKind.NAVIGATION,
-                        icon = Icons.Default.Delete,
-                        iconTone = KiyoriSemanticTone.RED,
-                        enabled = activeOperation == null,
-                        onClick = { resetDialogVisible = true },
-                    )
-                }
-                NetworkProxyOperationFeedback(
-                    area = NetworkProxyOperationArea.STATUS,
-                    operation = activeOperation,
-                    feedback = feedback,
-                    runtimeError = runtimeState.phase == KiyoriMihomoRuntimePhase.ERROR,
-                )
-            }
-        }
-
-        if (pageSection == NetworkProxyPageSection.OVERVIEW) item(key = "network_proxy_current_route") {
-            KiyoriSettingsGroupSection(
-                title = "当前路由",
-                description = "显示当前订阅中从“默认代理”根组解析出的实际策略链和最终节点。",
-            ) {
-                if (activeSubscription == null) {
-                    Text(
-                        text = "尚未选择当前订阅。开启代理前，请先导入并选择一条 Clash / Mihomo 订阅。",
-                        color = LocalKiyoriSettingsColors.current.secondaryText,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(18.dp),
-                    )
-                } else {
-                    KiyoriSettingsRow(
-                        title = "当前订阅",
-                        description = subscriptionSourceLabel(activeSubscription),
-                        kind = KiyoriSettingsRowKind.NAVIGATION,
-                        icon = Icons.Default.CheckCircle,
+                        title = "启用应用内代理",
+                        description = networkProxyRuntimeDescription(config, runtimeState.phase, activeSubscription),
+                        kind = KiyoriSettingsRowKind.TOGGLE,
+                        icon = Icons.Default.VpnKey,
                         iconTone = KiyoriSemanticTone.CYAN,
-                        value = activeSubscription.displayName,
+                        checked = config?.enabled == true,
                         enabled = controlsEnabled,
-                        onClick = { currentSubscriptionSheetVisible = true },
-                    )
-                    KiyoriSettingsDivider()
-                    KiyoriSettingsRow(
-                        title = "策略链",
-                        description =
-                            activeProxySelection?.chain?.joinToString(" → ")
-                                ?: "尚未从根策略组读到当前选择",
-                        kind = KiyoriSettingsRowKind.NAVIGATION,
-                        icon = Icons.Default.Tune,
-                        iconTone = KiyoriSemanticTone.BLUE,
-                        value = activeProxySelection?.finalGroupName?.let(::groupDisplayName),
-                        enabled = controlsEnabled && activeProxySelection?.finalGroupName != null,
                         onClick = {
-                            activeProxySelection?.finalGroupName?.let { groupName ->
-                                inspectedSubscriptionId = activeSubscription.id
-                                selectedGroupTabName = groupName
-                                pageSection = NetworkProxyPageSection.GROUPS
-                            }
+                            val nextEnabled = config?.enabled != true
+                            runOperation(
+                                NetworkProxyOperation("toggle_enabled", NetworkProxyOperationArea.STATUS, "正在保存并应用代理状态"),
+                                if (nextEnabled) "应用内代理已开启。" else "应用内代理已关闭。",
+                            ) { manager.updateConfig { current -> current.copy(enabled = nextEnabled) } }
                         },
                     )
                     KiyoriSettingsDivider()
+                    Text(
+                        text = "默认连接",
+                        color = LocalKiyoriSettingsColors.current.primaryText,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(start = 18.dp, top = 14.dp, end = 18.dp),
+                    )
+                    Text(
+                        text = "模块选择“跟随默认”时使用此模式；总开关关闭时所有模块按直连处理。",
+                        color = LocalKiyoriSettingsColors.current.secondaryText,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp,
+                        modifier = Modifier.padding(start = 18.dp, top = 4.dp, end = 18.dp),
+                    )
+                    NetworkProxySegmentedMode(
+                        selected = config?.defaultMode ?: KiyoriNetworkConnectionMode.DIRECT,
+                        enabled = controlsEnabled,
+                        onSelect = { mode ->
+                            runOperation(
+                                NetworkProxyOperation("default_mode", NetworkProxyOperationArea.ROUTING, "正在保存默认连接"),
+                                "默认连接模式已保存。",
+                            ) { manager.updateConfig { it.copy(defaultMode = mode) } }
+                        },
+                    )
+                    NetworkProxyOperationFeedback(NetworkProxyOperationArea.STATUS, activeOperation, feedback, runtimeState.phase == KiyoriMihomoRuntimePhase.ERROR)
+                    NetworkProxyOperationFeedback(NetworkProxyOperationArea.ROUTING, activeOperation, feedback, false)
+                }
+            }
+            item(key = "network_proxy_overview_connections") {
+                KiyoriSettingsGroupSection(
+                    title = "连接范围",
+                    description = "进入对应子页面管理当前节点、订阅、模块和逐脚本规则。",
+                ) {
+                    val routeSummary = activeProxySelection?.chain?.joinToString(" → ") ?: "尚未选择节点"
                     KiyoriSettingsRow(
                         title = "当前节点",
-                        description =
-                            activeProxySelection?.selectedItemName?.let {
-                                "由 ${activeProxySelection.finalGroupName?.let(::groupDisplayName) ?: "当前组"} 选中"
-                            } ?: "当前组还没有可用节点选择",
+                        description = routeSummary,
                         kind = KiyoriSettingsRowKind.NAVIGATION,
                         icon = Icons.Default.Speed,
                         iconTone = KiyoriSemanticTone.GREEN,
                         value = activeProxySelection?.selectedItemName ?: "未选择",
-                        enabled = controlsEnabled && activeProxySelection?.finalGroupName != null,
+                        enabled = controlsEnabled,
                         onClick = {
-                            activeProxySelection?.finalGroupName?.let { groupName ->
-                                inspectedSubscriptionId = activeSubscription.id
-                                selectedGroupTabName = groupName
-                                pageSection = NetworkProxyPageSection.GROUPS
-                            }
+                            selectedGroupTabName = activeProxySelection?.finalGroupName
+                            pageSection = NetworkProxyPageSection.CURRENT_NODE
                         },
                     )
-                }
-            }
-        }
-
-        if (pageSection == NetworkProxyPageSection.OVERVIEW) item(key = "network_proxy_subscriptions") {
-            KiyoriSettingsGroupSection(
-                title = "订阅库",
-                description = "多条 Clash / Mihomo 配置独立保存；只有当前订阅进入主代理运行时。",
-            ) {
-                KiyoriSettingsRow(
-                    title = "当前订阅",
-                    description = activeSubscription?.let(::subscriptionDescription) ?: "尚未选择订阅",
-                    kind = KiyoriSettingsRowKind.NAVIGATION,
-                    icon = Icons.Default.CheckCircle,
-                    iconTone = KiyoriSemanticTone.CYAN,
-                    value = activeSubscription?.displayName,
-                    enabled = controlsEnabled && config.subscriptions.isNotEmpty(),
-                    onClick = { currentSubscriptionSheetVisible = true },
-                )
-                KiyoriSettingsDivider()
-                KiyoriSettingsRow(
-                    title = "添加订阅地址",
-                    description = "下载 Clash.Meta YAML，校验通过后加入订阅库",
-                    kind = KiyoriSettingsRowKind.NAVIGATION,
-                    icon = Icons.Default.Add,
-                    iconTone = KiyoriSemanticTone.BLUE,
-                    enabled = controlsEnabled,
-                    onClick = { openSubscriptionEditor(SubscriptionEditor.AddUrl) },
-                )
-                KiyoriSettingsDivider()
-                KiyoriSettingsRow(
-                    title = "导入 YAML 文件",
-                    description = "从本地文件创建独立订阅，不保留其他条目的 URL",
-                    kind = KiyoriSettingsRowKind.NAVIGATION,
-                    icon = Icons.Default.Upload,
-                    iconTone = KiyoriSemanticTone.GREEN,
-                    enabled = controlsEnabled,
-                    onClick = {
-                        yamlImportTarget = YamlImportTarget.Add
-                        filePicker.launch(arrayOf("*/*"))
-                    },
-                )
-                config?.subscriptions?.forEach { subscription ->
                     KiyoriSettingsDivider()
                     KiyoriSettingsRow(
-                        title = subscription.displayName,
-                        description = subscriptionListDescription(subscription),
+                        title = "订阅管理",
+                        description = activeSubscription?.let(::subscriptionDescription) ?: "尚未导入 Clash / Mihomo 订阅",
                         kind = KiyoriSettingsRowKind.NAVIGATION,
                         icon = Icons.Default.Cloud,
-                        iconTone = if (subscription.id == config.activeSubscriptionId) KiyoriSemanticTone.CYAN else KiyoriSemanticTone.BLUE,
-                        value = if (subscription.id == config.activeSubscriptionId) "使用中" else null,
+                        iconTone = KiyoriSemanticTone.CYAN,
+                        value = activeSubscription?.displayName,
                         enabled = controlsEnabled,
-                        onClick = { subscriptionActionsId = subscription.id },
+                        onClick = { pageSection = NetworkProxyPageSection.SUBSCRIPTIONS },
                     )
-                }
-                NetworkProxyOperationFeedback(
-                    area = NetworkProxyOperationArea.SUBSCRIPTIONS,
-                    operation = activeOperation,
-                    feedback = feedback,
-                    runtimeError = false,
-                )
-            }
-        }
-
-        if (pageSection == NetworkProxyPageSection.OVERVIEW) item(key = "network_proxy_default_mode") {
-            KiyoriSettingsGroupSection(
-                title = "默认连接",
-                description = "模块选择“跟随默认”时使用此模式；总开关关闭时所有模块按直连处理。",
-            ) {
-                NetworkProxySegmentedMode(
-                    selected = config?.defaultMode ?: KiyoriNetworkConnectionMode.DIRECT,
-                    enabled = controlsEnabled,
-                    onSelect = { mode ->
-                        runOperation(
-                            NetworkProxyOperation("default_mode", NetworkProxyOperationArea.ROUTING, "正在保存默认连接"),
-                            "默认连接模式已保存。",
-                        ) { manager.updateConfig { it.copy(defaultMode = mode) } }
-                    },
-                )
-                NetworkProxyOperationFeedback(NetworkProxyOperationArea.ROUTING, activeOperation, feedback, false)
-            }
-        }
-
-        if (pageSection == NetworkProxyPageSection.OVERVIEW) {
-            item(key = "network_proxy_modules_summary") {
-                val configuredModuleCount = config?.moduleModes?.size ?: 0
-                KiyoriSettingsGroupSection(
-                    title = "模块连接",
-                    description = "七个联网模块集中管理；需要单独设置时进入模块连接。",
-                ) {
+                    KiyoriSettingsDivider()
                     KiyoriSettingsRow(
                         title = "模块连接模式",
                         description = "总开关 → 模块覆盖 → 传统脚本包覆盖",
                         kind = KiyoriSettingsRowKind.NAVIGATION,
                         icon = Icons.Default.Tune,
                         iconTone = KiyoriSemanticTone.BLUE,
-                        value = if (configuredModuleCount == 0) "跟随默认" else "$configuredModuleCount 个覆盖",
+                        value = config?.moduleModes?.size?.takeIf { it > 0 }?.let { "$it 个覆盖" } ?: "跟随默认",
                         enabled = controlsEnabled,
                         onClick = { pageSection = NetworkProxyPageSection.MODULES },
                     )
+                    KiyoriSettingsDivider()
+                    KiyoriSettingsRow(
+                        title = "逐脚本连接模式",
+                        description =
+                            when {
+                                scriptCatalogRefreshing -> "正在读取已启用脚本…"
+                                discoveredScriptPackages.isEmpty() && config?.scriptModes.isNullOrEmpty() -> "当前没有已启用的传统脚本"
+                                else -> "已发现 ${discoveredScriptPackages.size} 个脚本，已配置 ${config?.scriptModes?.size ?: 0} 个覆盖"
+                            },
+                        kind = KiyoriSettingsRowKind.NAVIGATION,
+                        icon = Icons.Default.Tune,
+                        iconTone = KiyoriSemanticTone.PURPLE,
+                        value = config?.scriptModes?.size?.takeIf { it > 0 }?.let { "$it 个覆盖" },
+                        enabled = controlsEnabled,
+                        onClick = {
+                            refreshScriptCatalog()
+                            pageSection = NetworkProxyPageSection.SCRIPTS
+                        },
+                    )
+                }
+            }
+            item(key = "network_proxy_overview_advanced") {
+                KiyoriSettingsGroupSection(
+                    title = "网络选项",
+                    description = "直连仍可能经过 Android 系统 VPN；并存时 Kiyori Mihomo 位于应用请求链路内。",
+                ) {
+                    KiyoriSettingsRow(
+                        title = "代理局域网地址",
+                        description = "允许私有地址进入 Kiyori 内嵌代理",
+                        kind = KiyoriSettingsRowKind.TOGGLE,
+                        icon = Icons.Default.Tune,
+                        iconTone = KiyoriSemanticTone.ORANGE,
+                        checked = config?.proxyPrivateNetworks == true,
+                        enabled = controlsEnabled,
+                        onClick = {
+                            runOperation(
+                                NetworkProxyOperation("private_networks", NetworkProxyOperationArea.ADVANCED, "正在保存局域网路由"),
+                                "局域网路由设置已保存。",
+                            ) { manager.updateConfig { it.copy(proxyPrivateNetworks = !it.proxyPrivateNetworks) } }
+                        },
+                    )
+                    KiyoriSettingsDivider()
+                    KiyoriSettingsRow(
+                        title = "允许与系统 VPN 并存",
+                        description = "应用请求先经过 Kiyori Mihomo，再经过外部 Clash/VPN",
+                        kind = KiyoriSettingsRowKind.TOGGLE,
+                        icon = Icons.Default.VpnKey,
+                        iconTone = KiyoriSemanticTone.RED,
+                        checked = config?.allowConcurrentSystemVpn == true,
+                        enabled = controlsEnabled,
+                        onClick = {
+                            runOperation(
+                                NetworkProxyOperation("vpn_coexistence", NetworkProxyOperationArea.ADVANCED, "正在保存 VPN 并存设置"),
+                                "VPN 并存设置已保存。",
+                            ) { manager.updateConfig { it.copy(allowConcurrentSystemVpn = !it.allowConcurrentSystemVpn) } }
+                        },
+                    )
+                    KiyoriSettingsDivider()
+                    KiyoriSettingsRow(
+                        title = "重置网络代理",
+                        description = "停止核心并删除订阅、模块规则和加密配置",
+                        kind = KiyoriSettingsRowKind.NAVIGATION,
+                        icon = Icons.Default.Delete,
+                        iconTone = KiyoriSemanticTone.RED,
+                        enabled = activeOperation == null,
+                        onClick = { resetDialogVisible = true },
+                    )
+                    NetworkProxyOperationFeedback(NetworkProxyOperationArea.ADVANCED, activeOperation, feedback, false)
+                }
+            }
+        }
+
+        if (pageSection == NetworkProxyPageSection.CURRENT_NODE) {
+            item(key = "network_proxy_current_node") {
+                val subscription = sectionSubscription
+                KiyoriSettingsGroupSection(
+                    title = subscription?.displayName ?: "当前节点",
+                    description = subscription?.let { "${subscriptionSourceLabel(it)} · ${subscriptionDescription(it)}" }
+                        ?: "请先在订阅管理中导入并切换一份 Clash / Mihomo 订阅。",
+                ) {
+                    if (subscription == null) {
+                        Text(
+                            text = "当前没有可用订阅。",
+                            color = LocalKiyoriSettingsColors.current.secondaryText,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(18.dp),
+                        )
+                    } else {
+                        OutlinedTextField(
+                            value = nodeSearchQuery,
+                            onValueChange = { nodeSearchQuery = it },
+                            singleLine = true,
+                            enabled = controlsEnabled,
+                            placeholder = { Text("搜索当前分组节点") },
+                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                            trailingIcon = if (nodeSearchQuery.isBlank()) null else {
+                                { IconButton(onClick = { nodeSearchQuery = "" }) { Icon(Icons.Default.Clear, contentDescription = "清除搜索") } }
+                            },
+                            colors = kiyoriSettingsOutlinedTextFieldColors(),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                        NetworkProxyGroupTabs(
+                            groups = sectionGroups,
+                            selectedGroupName = selectedGroupTab?.name,
+                            enabled = controlsEnabled,
+                            onSelect = { group ->
+                                selectedGroupTabName = group.name
+                                nodeSearchQuery = ""
+                            },
+                        )
+                        selectedGroupTab?.let { group ->
+                            val runtimeMatches = runtimeState.subscriptionId == subscription.id
+                            val runtimeGroups = runtimeState.groups.takeIf { runtimeMatches }.orEmpty()
+                            val liveGroup = runtimeGroups.firstOrNull { it.name == group.name }
+                            val currentItem = liveGroup?.currentItem ?: subscription.selectedGroupItems[group.name]
+                            val allNodes = displayGroupNodes(subscription, group, runtimeState.nodes.takeIf { runtimeMatches }.orEmpty())
+                            val query = nodeSearchQuery.trim().lowercase(Locale.ROOT)
+                            val filteredNodes = allNodes.filter { node ->
+                                query.isBlank() || node.name.lowercase(Locale.ROOT).contains(query) || node.type.lowercase(Locale.ROOT).contains(query)
+                            }
+                            val displayedNodes = when (nodeSort) {
+                                NetworkProxyNodeSort.DEFAULT -> filteredNodes
+                                NetworkProxyNodeSort.NAME -> filteredNodes.sortedBy { it.name.lowercase(Locale.ROOT) }
+                                NetworkProxyNodeSort.DELAY -> filteredNodes.sortedWith(compareBy<MihomoNodeTestResult> { it.delayMillis ?: Long.MAX_VALUE }.thenBy { it.name.lowercase(Locale.ROOT) })
+                            }
+                            Text(
+                                text = "${groupDisplayName(group.name)} · ${groupDescription(group, liveGroup)} · 当前：${currentItem ?: "未选择"}",
+                                color = LocalKiyoriSettingsColors.current.secondaryText,
+                                fontSize = 12.sp,
+                                lineHeight = 17.sp,
+                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp),
+                            )
+                            KiyoriSettingsDivider()
+                            when {
+                                allNodes.isEmpty() -> Text("当前分组没有可显示的节点。", color = LocalKiyoriSettingsColors.current.secondaryText, fontSize = 13.sp, modifier = Modifier.padding(18.dp))
+                                displayedNodes.isEmpty() -> Text("没有匹配当前搜索条件的节点。", color = LocalKiyoriSettingsColors.current.secondaryText, fontSize = 13.sp, modifier = Modifier.padding(18.dp))
+                                else -> NetworkProxyNodeList(
+                                    nodes = displayedNodes,
+                                    selectedNodeName = currentItem,
+                                    selectable = group.manuallySelectable,
+                                    enabled = controlsEnabled,
+                                    onSelect = { node ->
+                                        runOperation(NetworkProxyOperation("select_node", NetworkProxyOperationArea.GROUPS, "正在切换节点"), "已切换到 ${node.name}。") {
+                                            manager.selectGroup(subscription.id, group.name, node.name)
+                                        }
+                                    },
+                                    onTest = { node ->
+                                        runOperation(NetworkProxyOperation("test_node", NetworkProxyOperationArea.GROUPS, "正在测试节点"), "${node.name} 测速完成。") {
+                                            if (node.type == "策略组") {
+                                                manager.testSubscriptionGroup(subscription.id, node.name)
+                                            } else {
+                                                manager.testSubscriptionNode(subscription.id, node.name)
+                                            }
+                                        }
+                                    },
+                                )
+                            }
+                        }
+                    }
+                    NetworkProxyOperationFeedback(NetworkProxyOperationArea.GROUPS, activeOperation, feedback, probeState.phase == KiyoriMihomoProbePhase.ERROR)
+                }
+            }
+        }
+
+        if (pageSection == NetworkProxyPageSection.SUBSCRIPTIONS) {
+            item(key = "network_proxy_subscriptions") {
+                KiyoriSettingsGroupSection(
+                    title = "订阅管理",
+                    description = "保存多份 Clash / Mihomo 订阅；点击订阅行立即切换当前配置，右侧菜单管理条目。",
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedButton(
+                            modifier = Modifier.weight(1f),
+                            enabled = controlsEnabled,
+                            onClick = { openSubscriptionEditor(SubscriptionEditor.AddUrl) },
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("添加订阅地址", fontSize = 12.sp, maxLines = 1)
+                        }
+                        OutlinedButton(
+                            modifier = Modifier.weight(1f),
+                            enabled = controlsEnabled,
+                            onClick = { yamlImportTarget = YamlImportTarget.Add; filePicker.launch(arrayOf("*/*")) },
+                        ) {
+                            Icon(Icons.Default.Upload, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("导入 YAML 文件", fontSize = 12.sp, maxLines = 1)
+                        }
+                    }
+                    val subscriptions = config?.subscriptions.orEmpty()
+                    if (subscriptions.isEmpty()) {
+                        Text("还没有订阅。可添加订阅地址或导入本地 YAML 文件。", color = LocalKiyoriSettingsColors.current.secondaryText, fontSize = 13.sp, modifier = Modifier.padding(18.dp))
+                    } else {
+                        subscriptions.forEachIndexed { index, subscription ->
+                            if (index > 0) KiyoriSettingsDivider()
+                            NetworkProxySubscriptionRow(
+                                subscription = subscription,
+                                active = subscription.id == config?.activeSubscriptionId,
+                                enabled = controlsEnabled,
+                                menuExpanded = subscriptionActionsId == subscription.id,
+                                onSelect = {
+                                    if (subscription.id == config?.activeSubscriptionId) {
+                                        feedback = NetworkProxyFeedback(NetworkProxyOperationArea.SUBSCRIPTIONS, "${subscription.displayName} 已是当前订阅。", false)
+                                    } else {
+                                        runOperation(NetworkProxyOperation("switch_subscription", NetworkProxyOperationArea.SUBSCRIPTIONS, "正在切换当前订阅"), "当前订阅已切换为 ${subscription.displayName}。") {
+                                            manager.switchActiveSubscription(subscription.id)
+                                        }
+                                    }
+                                },
+                                onOpenMenu = { subscriptionActionsId = subscription.id },
+                                onDismissMenu = { subscriptionActionsId = null },
+                                onUpdate = {
+                                    subscriptionActionsId = null
+                                    if (subscription.sourceType == KiyoriSubscriptionSourceType.URL) {
+                                        runOperation(NetworkProxyOperation("update_subscription", NetworkProxyOperationArea.SUBSCRIPTIONS, "正在下载、校验并更新订阅"), "${subscription.displayName} 已更新。") { manager.updateUrlSubscription(subscription.id) }
+                                    } else {
+                                        yamlImportTarget = YamlImportTarget.Replace(subscription.id)
+                                        filePicker.launch(arrayOf("*/*"))
+                                    }
+                                },
+                                onEdit = { subscriptionActionsId = null; openSubscriptionEditor(SubscriptionEditor.Edit(subscription.id)) },
+                                onCopy = {
+                                    subscriptionActionsId = null
+                                    runOperation(NetworkProxyOperation("duplicate_subscription", NetworkProxyOperationArea.SUBSCRIPTIONS, "正在复制订阅"), "已复制 ${subscription.displayName}。") {
+                                        manager.duplicateSubscription(subscription.id, "${subscription.displayName} 副本")
+                                    }
+                                },
+                                onDelete = { subscriptionActionsId = null; deleteSubscriptionId = subscription.id },
+                            )
+                        }
+                    }
+                    NetworkProxyOperationFeedback(NetworkProxyOperationArea.SUBSCRIPTIONS, activeOperation, feedback, false)
                 }
             }
         }
@@ -763,8 +777,8 @@ internal fun KiyoriNetworkProxySettingsPage(
         if (pageSection == NetworkProxyPageSection.MODULES) {
             item(key = "network_proxy_modules_detail") {
                 KiyoriSettingsGroupSection(
-                    title = "模块连接",
-                    description = "先应用总开关，再应用模块覆盖；直连仍可能经过 Android 系统 VPN。",
+                    title = "模块连接模式",
+                    description = "总开关关闭时所有请求按直连处理；直连仍可能经过 Android 系统 VPN。",
                 ) {
                     networkProxyModules.forEachIndexed { index, (module, label) ->
                         val override = config?.moduleModes?.get(module) ?: KiyoriNetworkOverrideMode.INHERIT
@@ -780,463 +794,64 @@ internal fun KiyoriNetworkProxySettingsPage(
                         )
                         if (index != networkProxyModules.lastIndex) KiyoriSettingsDivider()
                     }
+                    NetworkProxyOperationFeedback(NetworkProxyOperationArea.ROUTING, activeOperation, feedback, false)
                 }
             }
         }
 
-        if (pageSection == NetworkProxyPageSection.OVERVIEW) {
-            item(key = "network_proxy_groups_summary") {
-                val routeDescription =
-                    activeProxySelection?.chain?.joinToString(" → ") ?: "尚未选择订阅中的策略组和节点"
+        if (pageSection == NetworkProxyPageSection.SCRIPTS) {
+            item(key = "network_proxy_scripts_detail") {
+                val configuredScriptPackages = config?.scriptModes?.keys.orEmpty()
+                val scriptPackages = (discoveredScriptPackages + configuredScriptPackages).distinct().sorted()
                 KiyoriSettingsGroupSection(
-                    title = "策略组与节点",
-                    description = "按订阅分组查看节点；进入后用横向标签切换策略组。",
+                    title = "逐脚本连接模式",
+                    description = "只列出传统 JsEngine 脚本；ToolPkg 统一归入 AI 工具。每条规则可跟随脚本模块、直连或代理。",
                 ) {
-                    KiyoriSettingsRow(
-                        title = "打开策略组与节点",
-                        description = routeDescription,
-                        kind = KiyoriSettingsRowKind.NAVIGATION,
-                        icon = Icons.Default.Speed,
-                        iconTone = KiyoriSemanticTone.GREEN,
-                        value = activeProxySelection?.selectedItemName ?: "未选择",
-                        enabled = controlsEnabled && config.subscriptions.isNotEmpty(),
-                        onClick = {
-                            inspectedSubscriptionId = activeSubscription?.id ?: config?.subscriptions?.firstOrNull()?.id
-                            selectedGroupTabName = activeProxySelection?.finalGroupName
-                            pageSection = NetworkProxyPageSection.GROUPS
-                        },
-                    )
-                    NetworkProxyOperationFeedback(
-                        area = NetworkProxyOperationArea.GROUPS,
-                        operation = activeOperation,
-                        feedback = feedback,
-                        runtimeError = probeState.phase == KiyoriMihomoProbePhase.ERROR,
-                    )
-                }
-            }
-        }
-
-        if (pageSection == NetworkProxyPageSection.GROUPS) {
-            item(key = "network_proxy_groups_detail") {
-                val subscription = sectionSubscription
-                KiyoriSettingsGroupSection(
-                    title = subscription?.displayName ?: "策略组与节点",
-                    description = "横向切换分组；选择当前项目与测速是两个独立操作。",
-                ) {
-                    if (subscription == null) {
-                        Text(
-                            "添加订阅后可管理策略组和节点。",
-                            color = LocalKiyoriSettingsColors.current.secondaryText,
-                            fontSize = 13.sp,
-                            modifier = Modifier.padding(18.dp),
-                        )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedButton(
+                            modifier = Modifier.weight(1f),
+                            enabled = controlsEnabled && !scriptCatalogRefreshing,
+                            onClick = { refreshScriptCatalog() },
+                        ) {
+                            if (scriptCatalogRefreshing) CircularProgressIndicator(Modifier.size(17.dp), strokeWidth = 2.dp) else Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(17.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("刷新脚本", fontSize = 12.sp, maxLines = 1)
+                        }
+                        OutlinedButton(
+                            modifier = Modifier.weight(1f),
+                            enabled = controlsEnabled,
+                            onClick = { scriptPackageDialogVisible = true },
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(17.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("添加规则", fontSize = 12.sp, maxLines = 1)
+                        }
+                    }
+                    if (scriptPackages.isEmpty()) {
+                        Text("当前没有已启用的传统脚本。仍可通过“添加规则”手动设置包名。", color = LocalKiyoriSettingsColors.current.secondaryText, fontSize = 13.sp, modifier = Modifier.padding(18.dp))
                     } else {
-                        val runtimeMatches = runtimeState.subscriptionId == subscription.id
-                        val runtimeGroups = if (runtimeMatches) runtimeState.groups else emptyList()
-                        KiyoriSettingsRow(
-                            title = "查看订阅",
-                            description = subscriptionSourceLabel(subscription),
-                            kind = KiyoriSettingsRowKind.NAVIGATION,
-                            icon = Icons.Default.Cloud,
-                            iconTone = KiyoriSemanticTone.CYAN,
-                            value = subscriptionDescription(subscription),
-                            enabled = controlsEnabled,
-                            onClick = { currentSubscriptionSheetVisible = true },
-                        )
-                        KiyoriSettingsDivider()
-                        NetworkProxyGroupTabs(
-                            groups = sectionGroups,
-                            selectedGroupName = selectedGroupTab?.name,
-                            enabled = controlsEnabled,
-                            onSelect = {
-                                group ->
-                                selectedGroupTabName = group.name
-                                nodeSearchQuery = ""
-                            },
-                        )
-                        OutlinedTextField(
-                            value = nodeSearchQuery,
-                            onValueChange = { nodeSearchQuery = it },
-                            singleLine = true,
-                            enabled = controlsEnabled,
-                            placeholder = { Text("搜索当前分组节点") },
-                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                            trailingIcon =
-                                if (nodeSearchQuery.isBlank()) {
-                                    null
-                                } else {
-                                    {
-                                        IconButton(onClick = { nodeSearchQuery = "" }) {
-                                            Icon(Icons.Default.Clear, contentDescription = "清除搜索")
-                                        }
-                                    }
-                                },
-                            colors = kiyoriSettingsOutlinedTextFieldColors(),
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                        )
-                        selectedGroupTab?.let { group ->
-                            val liveGroup = runtimeGroups.firstOrNull { it.name == group.name }
-                            val currentItem = liveGroup?.currentItem ?: subscription.selectedGroupItems[group.name]
-                            val allNodes =
-                                displayNodes(subscription, runtimeState.nodes.takeIf { runtimeMatches }.orEmpty())
-                                    .filter { node -> group.name in node.groupNames }
-                            val query = nodeSearchQuery.trim().lowercase(Locale.ROOT)
-                            val nodes =
-                                allNodes.filter { node ->
-                                    query.isBlank() ||
-                                        node.name.lowercase(Locale.ROOT).contains(query) ||
-                                        node.type.lowercase(Locale.ROOT).contains(query)
-                                }
-                            val displayedNodes =
-                                when (nodeSort) {
-                                    NetworkProxyNodeSort.DEFAULT -> nodes
-                                    NetworkProxyNodeSort.NAME -> nodes.sortedBy { it.name.lowercase(Locale.ROOT) }
-                                    NetworkProxyNodeSort.DELAY ->
-                                        nodes.sortedWith(
-                                            compareBy<MihomoNodeTestResult> { it.delayMillis ?: Long.MAX_VALUE }
-                                                .thenBy { it.name.lowercase(Locale.ROOT) },
-                                        )
-                                }
-                            KiyoriSettingsDivider()
+                        scriptPackages.forEachIndexed { index, packageName ->
+                            if (index > 0) KiyoriSettingsDivider()
+                            val mode = config?.scriptModes?.get(packageName)
                             KiyoriSettingsRow(
-                                title = "当前项目",
-                                description = groupDescription(group, liveGroup),
+                                title = packageName,
+                                description = if (mode == null) "跟随传统脚本模块" else "覆盖：${networkProxyOverrideLabel(mode)}",
                                 kind = KiyoriSettingsRowKind.NAVIGATION,
                                 icon = Icons.Default.Tune,
-                                iconTone = if (group.manuallySelectable) KiyoriSemanticTone.CYAN else KiyoriSemanticTone.ORANGE,
-                                value = currentItem ?: "未选择",
-                                enabled = controlsEnabled && group.manuallySelectable,
-                                onClick = { groupActionTarget = GroupActionTarget(subscription.id, group) },
-                            )
-                            KiyoriSettingsDivider()
-                            KiyoriSettingsRow(
-                                title = "刷新节点与分组",
-                                description = "读取 provider 动态节点；不切换当前订阅",
-                                kind = KiyoriSettingsRowKind.NAVIGATION,
-                                icon = Icons.Default.Refresh,
-                                iconTone = KiyoriSemanticTone.CYAN,
+                                iconTone = KiyoriSemanticTone.PURPLE,
+                                value = networkProxyOverrideLabel(mode ?: KiyoriNetworkOverrideMode.INHERIT),
                                 enabled = controlsEnabled,
-                                onClick = {
-                                    runOperation(
-                                        NetworkProxyOperation("refresh_nodes", NetworkProxyOperationArea.GROUPS, "正在探测 ${subscription.displayName}"),
-                                        "节点与分组已刷新。",
-                                    ) { manager.refreshSubscriptionNodes(subscription.id) }
-                                },
-                            )
-                            KiyoriSettingsDivider()
-                            if (allNodes.isEmpty()) {
-                                Text(
-                                    "当前分组没有已发现的静态或动态节点。",
-                                    color = LocalKiyoriSettingsColors.current.secondaryText,
-                                    fontSize = 13.sp,
-                                    modifier = Modifier.padding(18.dp),
-                                )
-                            } else if (displayedNodes.isEmpty()) {
-                                Text(
-                                    "没有匹配当前搜索条件的节点。",
-                                    color = LocalKiyoriSettingsColors.current.secondaryText,
-                                    fontSize = 13.sp,
-                                    modifier = Modifier.padding(18.dp),
-                                )
-                            } else {
-                                NetworkProxyNodeGrid(
-                                    nodes = displayedNodes,
-                                    layout = nodeLayout,
-                                    selectedNodeName = currentItem,
-                                    selectable = group.manuallySelectable,
-                                    enabled = controlsEnabled,
-                                    onSelect = { node ->
-                                        runOperation(
-                                            NetworkProxyOperation("select_node", NetworkProxyOperationArea.GROUPS, "正在切换节点"),
-                                            "已切换到 ${node.name}。",
-                                        ) { manager.selectGroup(subscription.id, group.name, node.name) }
-                                    },
-                                    onTest = { node ->
-                                        runOperation(
-                                            NetworkProxyOperation("test_node", NetworkProxyOperationArea.GROUPS, "正在测试节点"),
-                                            "${node.name} 测速完成。",
-                                        ) { manager.testSubscriptionNode(subscription.id, node.name) }
-                                    },
-                                )
-                            }
-                            KiyoriSettingsDivider()
-                            KiyoriSettingsRow(
-                                title = "测试整组",
-                                description = "使用 Mihomo group 延迟接口并发测试本组节点",
-                                kind = KiyoriSettingsRowKind.NAVIGATION,
-                                icon = Icons.Default.Speed,
-                                iconTone = KiyoriSemanticTone.GREEN,
-                                enabled = controlsEnabled,
-                                onClick = {
-                                    runOperation(
-                                        NetworkProxyOperation("test_group", NetworkProxyOperationArea.GROUPS, "正在测试 ${groupDisplayName(group.name)}"),
-                                        "${groupDisplayName(group.name)} 测速完成。",
-                                    ) { manager.testSubscriptionGroup(subscription.id, group.name) }
-                                },
+                                onClick = { pendingModeSelection = ModeSelection.Script(packageName) },
                             )
                         }
                     }
-                    NetworkProxyOperationFeedback(
-                        area = NetworkProxyOperationArea.GROUPS,
-                        operation = activeOperation,
-                        feedback = feedback,
-                        runtimeError = probeState.phase == KiyoriMihomoProbePhase.ERROR,
-                    )
+                    NetworkProxyOperationFeedback(NetworkProxyOperationArea.SCRIPTS, activeOperation, feedback, false)
                 }
             }
         }
-
-        if (pageSection == NetworkProxyPageSection.OVERVIEW) item(key = "network_proxy_scripts") {
-            val scriptCount = config?.scriptModes?.size ?: 0
-            KiyoriSettingsGroupSection(
-                title = "脚本规则",
-                description = "仅对已启用的传统 JsEngine 脚本提供包级覆盖；ToolPkg 归入 AI 工具。",
-            ) {
-                KiyoriSettingsRow(
-                    title = "逐脚本连接模式",
-                    description =
-                        when {
-                            scriptCatalogRefreshing -> "正在读取已启用脚本…"
-                            discoveredScriptPackages.isEmpty() && scriptCount == 0 ->
-                                "当前没有已启用的传统脚本；仍可手动添加包名规则"
-                            else ->
-                                "已发现 ${discoveredScriptPackages.size} 个脚本，已配置 $scriptCount 个覆盖"
-                        },
-                    kind = KiyoriSettingsRowKind.NAVIGATION,
-                    icon = Icons.Default.Tune,
-                    iconTone = KiyoriSemanticTone.PURPLE,
-                    enabled = controlsEnabled,
-                    onClick = {
-                        refreshScriptCatalog()
-                        scriptRulesVisible = true
-                    },
-                )
-                NetworkProxyOperationFeedback(NetworkProxyOperationArea.SCRIPTS, activeOperation, feedback, false)
-            }
-        }
-
-        if (pageSection == NetworkProxyPageSection.OVERVIEW) item(key = "network_proxy_advanced") {
-            KiyoriSettingsGroupSection(
-                title = "高级",
-                description = "外部 Clash 使用 Android VPN 时无需填写 mixed-port；并存会形成双层链路。",
-            ) {
-                KiyoriSettingsRow(
-                    title = "代理局域网地址",
-                    description = "允许私有地址进入 Kiyori 内嵌代理",
-                    kind = KiyoriSettingsRowKind.TOGGLE,
-                    icon = Icons.Default.Tune,
-                    iconTone = KiyoriSemanticTone.ORANGE,
-                    checked = config?.proxyPrivateNetworks == true,
-                    enabled = controlsEnabled,
-                    onClick = {
-                        runOperation(
-                            NetworkProxyOperation("private_networks", NetworkProxyOperationArea.ADVANCED, "正在保存局域网路由"),
-                            "局域网路由设置已保存。",
-                        ) { manager.updateConfig { it.copy(proxyPrivateNetworks = !it.proxyPrivateNetworks) } }
-                    },
-                )
-                KiyoriSettingsDivider()
-                KiyoriSettingsRow(
-                    title = "允许与系统 VPN 并存",
-                    description = "代理模块先经过 Kiyori Mihomo，再经过外部 Clash/VPN",
-                    kind = KiyoriSettingsRowKind.TOGGLE,
-                    icon = Icons.Default.VpnKey,
-                    iconTone = KiyoriSemanticTone.RED,
-                    checked = config?.allowConcurrentSystemVpn == true,
-                    enabled = controlsEnabled,
-                    onClick = {
-                        runOperation(
-                            NetworkProxyOperation("vpn_coexistence", NetworkProxyOperationArea.ADVANCED, "正在保存 VPN 并存设置"),
-                            "VPN 并存设置已保存。",
-                        ) { manager.updateConfig { it.copy(allowConcurrentSystemVpn = !it.allowConcurrentSystemVpn) } }
-                    },
-                )
-                KiyoriSettingsDivider()
-                KiyoriSettingsRow(
-                    title = "测试地址",
-                    description = "用于单节点、整组和代理连通性测试",
-                    kind = KiyoriSettingsRowKind.NAVIGATION,
-                    icon = Icons.Default.Speed,
-                    iconTone = KiyoriSemanticTone.CYAN,
-                    value = config?.testUrl,
-                    enabled = controlsEnabled,
-                    onClick = { testUrlDialogVisible = true },
-                )
-                KiyoriSettingsDivider()
-                KiyoriSettingsRow(
-                    title = "重置网络代理",
-                    description = "停止核心并删除订阅库、模块规则和加密配置",
-                    kind = KiyoriSettingsRowKind.NAVIGATION,
-                    icon = Icons.Default.Delete,
-                    iconTone = KiyoriSemanticTone.RED,
-                    enabled = activeOperation == null,
-                    onClick = { resetDialogVisible = true },
-                )
-                NetworkProxyOperationFeedback(NetworkProxyOperationArea.ADVANCED, activeOperation, feedback, false)
-            }
-        }
-        }
-    }
-
-    currentSubscriptionSheetVisible.takeIf { it }?.let {
-        val subscriptions = config?.subscriptions.orEmpty()
-        KiyoriSettingsSelectionSheet(
-            selection =
-                KiyoriSettingsSelection(
-                    title = "当前订阅",
-                    currentValue = activeSubscription?.displayName ?: "未选择",
-                    options =
-                        subscriptions.map { subscription ->
-                            KiyoriSettingsSelectionOption(
-                                label = subscription.displayName,
-                                description = subscriptionListDescription(subscription),
-                                selected = subscription.id == config?.activeSubscriptionId,
-                                onSelect = {
-                                    runOperation(
-                                        NetworkProxyOperation("switch_subscription", NetworkProxyOperationArea.SUBSCRIPTIONS, "正在切换当前订阅"),
-                                        "当前订阅已切换为 ${subscription.displayName}。",
-                                    ) {
-                                        manager.switchActiveSubscription(subscription.id)
-                                        inspectedSubscriptionId = subscription.id
-                                    }
-                                },
-                            )
-                        },
-                ),
-            onDismiss = { currentSubscriptionSheetVisible = false },
-            onSelect = { option -> option.onSelect() },
-            searchable = true,
-        )
-    }
-
-    subscriptionActionsId?.let { subscriptionId ->
-        val subscription = config?.subscriptions?.firstOrNull { it.id == subscriptionId }
-        if (subscription == null) {
-            subscriptionActionsId = null
-        } else {
-            val isActive = subscription.id == config.activeSubscriptionId
-            KiyoriSettingsSelectionSheet(
-                selection =
-                    KiyoriSettingsSelection(
-                        title = subscription.displayName,
-                        currentValue = if (isActive) "当前订阅" else subscriptionSourceLabel(subscription),
-                        options =
-                            buildList {
-                                add(KiyoriSettingsSelectionOption("查看分组与节点", subscriptionDescription(subscription), false) {
-                                    subscriptionActionsId = null
-                                    inspectedSubscriptionId = subscription.id
-                                    selectedGroupTabName = null
-                                    pageSection = NetworkProxyPageSection.GROUPS
-                                })
-                                if (!isActive) {
-                                    add(KiyoriSettingsSelectionOption("设为当前订阅", "切换主代理使用的配置", false) {
-                                        runOperation(NetworkProxyOperation("switch_subscription", NetworkProxyOperationArea.SUBSCRIPTIONS, "正在切换当前订阅"), "当前订阅已切换为 ${subscription.displayName}。") {
-                                            manager.switchActiveSubscription(subscription.id)
-                                            inspectedSubscriptionId = subscription.id
-                                        }
-                                    })
-                                }
-                                if (subscription.sourceType == KiyoriSubscriptionSourceType.URL) {
-                                    add(KiyoriSettingsSelectionOption("更新订阅", "从已保存地址下载并原子替换节点", false) {
-                                        runOperation(NetworkProxyOperation("update_subscription", NetworkProxyOperationArea.SUBSCRIPTIONS, "正在下载、校验并更新订阅"), "${subscription.displayName} 已更新。") {
-                                            manager.updateUrlSubscription(subscription.id)
-                                        }
-                                    })
-                                    add(KiyoriSettingsSelectionOption("编辑名称与地址", "地址变化时会重新下载和校验", false) { openSubscriptionEditor(SubscriptionEditor.Edit(subscription.id)) })
-                                    add(KiyoriSettingsSelectionOption("复制订阅地址", "链接可能包含访问凭据", false) { copyUrlSubscriptionId = subscription.id })
-                                } else {
-                                    add(KiyoriSettingsSelectionOption("重新导入 YAML", "选择新文件并原子替换此条目", false) {
-                                        yamlImportTarget = YamlImportTarget.Replace(subscription.id)
-                                        filePicker.launch(arrayOf("*/*"))
-                                    })
-                                    add(KiyoriSettingsSelectionOption("重命名", "修改订阅库中的显示名称", false) { openSubscriptionEditor(SubscriptionEditor.Edit(subscription.id)) })
-                                }
-                                add(KiyoriSettingsSelectionOption("创建副本", "生成新 ID，不切换当前订阅", false) {
-                                    runOperation(NetworkProxyOperation("duplicate_subscription", NetworkProxyOperationArea.SUBSCRIPTIONS, "正在创建订阅副本"), "已创建 ${subscription.displayName} 的副本。") {
-                                        manager.duplicateSubscription(subscription.id, "${subscription.displayName} 副本")
-                                    }
-                                })
-                                add(KiyoriSettingsSelectionOption("删除", "删除前需要二次确认", false) { deleteSubscriptionId = subscription.id })
-                            },
-                    ),
-                onDismiss = { subscriptionActionsId = null },
-                onSelect = { option -> option.onSelect() },
-            )
-        }
-    }
-
-    groupActionTarget?.let { target ->
-        val subscription = config?.subscriptions?.firstOrNull { it.id == target.subscriptionId }
-        if (subscription == null) {
-            groupActionTarget = null
-        } else {
-            val options = availableGroupItems(subscription, target.group, runtimeState.groups.takeIf { runtimeState.subscriptionId == subscription.id }.orEmpty())
-            val runtimeGroup =
-                runtimeState.groups
-                    .takeIf { runtimeState.subscriptionId == subscription.id }
-                    ?.firstOrNull { group -> group.name == target.group.name }
-            KiyoriSettingsSelectionSheet(
-                selection =
-                    KiyoriSettingsSelection(
-                        title = groupDisplayName(target.group.name),
-                        currentValue =
-                            runtimeGroup?.currentItem
-                                ?: subscription.selectedGroupItems[target.group.name]
-                                ?: "未选择",
-                        options =
-                            buildList {
-                                if (target.group.manuallySelectable && options.isNotEmpty()) {
-                                    add(KiyoriSettingsSelectionOption("选择组内项目", "保存此订阅的策略选择", false) {
-                                        groupActionTarget = null
-                                        groupSelectionTarget = GroupSelectionTarget(subscription.id, target.group)
-                                    })
-                                }
-                                add(KiyoriSettingsSelectionOption("查看组内节点", "按此组筛选节点清单", false) {
-                                    groupActionTarget = null
-                                    inspectedSubscriptionId = subscription.id
-                                    selectedGroupTabName = target.group.name
-                                    pageSection = NetworkProxyPageSection.GROUPS
-                                })
-                                add(KiyoriSettingsSelectionOption("测试整组", "使用 Mihomo /group 延迟接口并发测速", false) {
-                                    groupActionTarget = null
-                                    runOperation(NetworkProxyOperation("test_group", NetworkProxyOperationArea.GROUPS, "正在测试 ${groupDisplayName(target.group.name)}"), "${groupDisplayName(target.group.name)} 测速完成。") {
-                                        manager.testSubscriptionGroup(subscription.id, target.group.name)
-                                    }
-                                })
-                            },
-                    ),
-                onDismiss = { groupActionTarget = null },
-                onSelect = { option -> option.onSelect() },
-            )
-        }
-    }
-
-    groupSelectionTarget?.let { target ->
-        val subscription = config?.subscriptions?.firstOrNull { it.id == target.subscriptionId }
-        if (subscription == null) {
-            groupSelectionTarget = null
-        } else {
-            val runtimeGroups = runtimeState.groups.takeIf { runtimeState.subscriptionId == subscription.id }.orEmpty()
-            val options = availableGroupItems(subscription, target.group, runtimeGroups)
-            val currentItem =
-                runtimeGroups.firstOrNull { group -> group.name == target.group.name }?.currentItem
-                    ?: subscription.selectedGroupItems[target.group.name]
-            KiyoriSettingsSelectionSheet(
-                selection =
-                    KiyoriSettingsSelection(
-                        title = "选择 ${groupDisplayName(target.group.name)}",
-                        currentValue = currentItem ?: "未选择",
-                        options = options.map { item -> KiyoriSettingsSelectionOption(item, selected = item == currentItem, onSelect = {}) },
-                    ),
-                onDismiss = { groupSelectionTarget = null },
-                onSelect = { option ->
-                    groupSelectionTarget = null
-                    runOperation(NetworkProxyOperation("select_group", NetworkProxyOperationArea.GROUPS, "正在保存策略组选择"), "策略组已切换为 ${option.label}。") {
-                        manager.selectGroup(subscription.id, target.group.name, option.label)
-                    }
-                },
-                searchable = true,
-            )
         }
     }
 
@@ -1295,69 +910,6 @@ internal fun KiyoriNetworkProxySettingsPage(
         )
     }
 
-    if (scriptRulesVisible) {
-        val configuredScriptPackages = config?.scriptModes?.keys.orEmpty()
-        val scriptPackages =
-            (discoveredScriptPackages + configuredScriptPackages)
-                .distinct()
-                .sorted()
-        KiyoriSettingsSelectionSheet(
-            selection =
-                KiyoriSettingsSelection(
-                    title = "脚本规则",
-                    currentValue =
-                        if (scriptCatalogRefreshing) "正在刷新" else "已发现 ${scriptPackages.size} 个",
-                    options =
-                        buildList {
-                            add(
-                                KiyoriSettingsSelectionOption(
-                                    label = if (scriptCatalogRefreshing) "正在刷新脚本清单" else "刷新脚本清单",
-                                    description = "重新读取已启用的传统 JsEngine 包，不改变任何连接规则",
-                                    selected = false,
-                                    onSelect = { refreshScriptCatalog() },
-                                ),
-                            )
-                            add(
-                                KiyoriSettingsSelectionOption(
-                                    "手动添加脚本包",
-                                    "输入包名后设置单独连接模式；规则不会自动启用脚本",
-                                    false,
-                                ) { scriptPackageDialogVisible = true },
-                            )
-                            if (scriptPackages.isEmpty()) {
-                                add(
-                                    KiyoriSettingsSelectionOption(
-                                        "没有已启用的传统脚本",
-                                        "ToolPkg 不显示在这里；请先到扩展 → 脚本启用脚本，或手动添加包名",
-                                        false,
-                                    ) {},
-                                )
-                            }
-                            scriptPackages.forEach { packageName ->
-                                val mode = config?.scriptModes?.get(packageName)
-                                val isDiscovered = packageName in discoveredScriptPackages
-                                add(
-                                    KiyoriSettingsSelectionOption(
-                                        label = packageName,
-                                        description =
-                                            if (mode == null) {
-                                                if (isDiscovered) "未设置覆盖，跟随传统脚本模块" else "规则仍保留，但当前脚本目录未找到"
-                                            } else {
-                                                "覆盖：${networkProxyOverrideLabel(mode)}"
-                                            },
-                                        selected = mode != null,
-                                        onSelect = { pendingModeSelection = ModeSelection.Script(packageName) },
-                                    ),
-                                )
-                            }
-                        },
-                ),
-            onDismiss = { scriptRulesVisible = false },
-            onSelect = { option -> option.onSelect() },
-            searchable = true,
-        )
-    }
-
     SubscriptionEditorDialog(
         editor = subscriptionEditor,
         config = config,
@@ -1375,8 +927,7 @@ internal fun KiyoriNetworkProxySettingsPage(
             when (editor) {
                 SubscriptionEditor.AddUrl ->
                     runOperation(operation, "订阅已加入订阅库。", onSuccess = { subscriptionEditor = null }) {
-                        val added = manager.addSubscriptionUrl(editorUrl, editorName)
-                        inspectedSubscriptionId = added.id
+                        manager.addSubscriptionUrl(editorUrl, editorName)
                     }
                 is SubscriptionEditor.Edit -> {
                     val subscription = config?.subscriptions?.firstOrNull { it.id == editor.subscriptionId }
@@ -1392,32 +943,6 @@ internal fun KiyoriNetworkProxySettingsPage(
             }
         },
     )
-
-    copyUrlSubscriptionId?.let { subscriptionId ->
-        val subscription = config?.subscriptions?.firstOrNull { it.id == subscriptionId }
-        if (subscription == null) {
-            copyUrlSubscriptionId = null
-        } else {
-            AlertDialog(
-                onDismissRequest = { copyUrlSubscriptionId = null },
-                title = { Text("复制订阅地址？") },
-                text = { Text("订阅链接可能包含访问凭据。确认后会写入 Android 系统剪贴板。") },
-                confirmButton = {
-                    Button(onClick = {
-                        val clipboard = context.getSystemService(ClipboardManager::class.java)
-                        clipboard.setPrimaryClip(ClipData.newPlainText("Clash subscription", subscription.subscriptionUrl))
-                        feedback = NetworkProxyFeedback(NetworkProxyOperationArea.SUBSCRIPTIONS, "订阅地址已复制。", false)
-                        copyUrlSubscriptionId = null
-                    }) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("复制")
-                    }
-                },
-                dismissButton = { TextButton(onClick = { copyUrlSubscriptionId = null }) { Text("取消") } },
-            )
-        }
-    }
 
     deleteSubscriptionId?.let { subscriptionId ->
         val subscription = config?.subscriptions?.firstOrNull { it.id == subscriptionId }
@@ -1439,35 +964,6 @@ internal fun KiyoriNetworkProxySettingsPage(
                 dismissButton = { TextButton(onClick = { deleteSubscriptionId = null }) { Text("取消") } },
             )
         }
-    }
-
-    if (testUrlDialogVisible) {
-        AlertDialog(
-            onDismissRequest = { if (activeOperation == null) testUrlDialogVisible = false },
-            title = { Text("测试地址") },
-            text = {
-                OutlinedTextField(
-                    value = testUrlDraft,
-                    onValueChange = { testUrlDraft = it },
-                    singleLine = true,
-                    label = { Text("HTTPS URL") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                    colors = kiyoriSettingsOutlinedTextFieldColors(),
-                )
-            },
-            confirmButton = {
-                Button(
-                    enabled = activeOperation == null && testUrlDraft.trim().startsWith("https://"),
-                    onClick = {
-                        val value = testUrlDraft.trim()
-                        runOperation(NetworkProxyOperation("test_url", NetworkProxyOperationArea.ADVANCED, "正在保存测试地址"), "测试地址已保存。", onSuccess = { testUrlDialogVisible = false }) {
-                            manager.updateConfig { it.copy(testUrl = value) }
-                        }
-                    },
-                ) { Text("保存") }
-            },
-            dismissButton = { TextButton(enabled = activeOperation == null, onClick = { testUrlDialogVisible = false }) { Text("取消") } },
-        )
     }
 
     if (scriptPackageDialogVisible) {
@@ -1709,16 +1205,6 @@ private fun rootGroupSummary(subscription: KiyoriProxySubscription): MihomoProxy
         manuallySelectable = true,
     )
 
-private fun availableGroupItems(
-    subscription: KiyoriProxySubscription,
-    group: MihomoProxyGroupSummary,
-    runtimeGroups: List<MihomoRuntimeGroupState>,
-): List<String> {
-    val live = runtimeGroups.firstOrNull { it.name == group.name }?.allItems.orEmpty()
-    val discovered = subscription.nodeTests.filter { group.name in it.groupNames }.map(MihomoNodeTestResult::name)
-    return (live + group.options + discovered).distinct()
-}
-
 private fun displayNodes(
     subscription: KiyoriProxySubscription,
     runtimeNodes: List<MihomoRuntimeNodeState>,
@@ -1750,6 +1236,30 @@ private fun displayNodes(
             )
     }
     return stored.values.toList()
+}
+
+private fun displayGroupNodes(
+    subscription: KiyoriProxySubscription,
+    group: MihomoProxyGroupSummary,
+    runtimeNodes: List<MihomoRuntimeNodeState>,
+): List<MihomoNodeTestResult> {
+    val knownGroups = subscriptionGroups(subscription).associateBy(MihomoProxyGroupSummary::name)
+    val nodes =
+        displayNodes(subscription, runtimeNodes)
+            .filter { node -> group.name in node.groupNames }
+            .associateBy(MihomoNodeTestResult::name)
+            .toMutableMap()
+    group.options.forEach { option ->
+        if (option !in nodes) {
+            nodes[option] =
+                MihomoNodeTestResult(
+                    name = option,
+                    type = if (option in knownGroups) "策略组" else "节点",
+                    groupNames = listOf(group.name),
+                )
+        }
+    }
+    return nodes.values.toList()
 }
 
 private fun subscriptionDescription(subscription: KiyoriProxySubscription): String =
@@ -1900,183 +1410,87 @@ private fun isValidScriptPackageName(value: String): Boolean =
     value.matches(Regex("[A-Za-z0-9._:-]{1,200}"))
 
 @Composable
-private fun NetworkProxyNodeGrid(
+private fun NetworkProxyNodeList(
     nodes: List<MihomoNodeTestResult>,
-    layout: NetworkProxyNodeLayout,
     selectedNodeName: String?,
     selectable: Boolean,
     enabled: Boolean,
     onSelect: (MihomoNodeTestResult) -> Unit,
     onTest: (MihomoNodeTestResult) -> Unit,
 ) {
-    if (layout.columns == 1) {
-        nodes.forEachIndexed { index, node ->
-            NetworkProxyNodeRow(
-                node = node,
-                selected = node.name == selectedNodeName,
-                selectable = selectable,
-                enabled = enabled,
-                onSelect = { onSelect(node) },
-                onTest = { onTest(node) },
-            )
-            if (index != nodes.lastIndex) KiyoriSettingsDivider()
-        }
-    } else {
-        val rows = nodes.chunked(layout.columns)
-        rows.forEachIndexed { rowIndex, rowNodes ->
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                rowNodes.forEach { node ->
-                    NetworkProxyNodeTile(
-                        node = node,
-                        selected = node.name == selectedNodeName,
-                        selectable = selectable,
-                        enabled = enabled,
-                        modifier = Modifier.weight(1f),
-                        onSelect = { onSelect(node) },
-                        onTest = { onTest(node) },
-                    )
-                }
-                repeat(layout.columns - rowNodes.size) {
-                    Spacer(Modifier.weight(1f))
-                }
-            }
-            if (rowIndex != rows.lastIndex) {
-                Spacer(Modifier.height(8.dp))
-            }
-        }
-    }
-}
-
-@Composable
-private fun NetworkProxyNodeTile(
-    node: MihomoNodeTestResult,
-    selected: Boolean,
-    selectable: Boolean,
-    enabled: Boolean,
-    modifier: Modifier,
-    onSelect: () -> Unit,
-    onTest: () -> Unit,
-) {
     val colors = LocalKiyoriSettingsColors.current
-    Column(
-        modifier =
-            modifier
-                .alpha(if (enabled) 1f else 0.42f)
-                .background(colors.pageBackground, RoundedCornerShape(10.dp))
-                .border(BorderStroke(0.6.dp, colors.divider), RoundedCornerShape(10.dp))
-                .clickable(enabled = enabled && selectable, onClick = onSelect)
-                .padding(10.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = node.name,
-                color = colors.primaryText,
-                fontSize = 14.sp,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            if (selected) {
-                Icon(
-                    Icons.Default.Check,
-                    contentDescription = "当前节点",
-                    tint = colors.accent,
-                    modifier = Modifier.size(17.dp),
+    nodes.forEachIndexed { index, node ->
+        val selected = node.name == selectedNodeName
+        Row(
+            modifier = Modifier.fillMaxWidth().alpha(if (enabled) 1f else 0.42f).clickable(enabled = enabled && selectable) { onSelect(node) }.padding(start = 18.dp, end = 6.dp, top = 12.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = node.name,
+                    color = colors.primaryText,
+                    fontSize = 15.sp,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                    maxLines = 3,
+                    overflow = TextOverflow.Clip,
+                )
+                Text(
+                    text = buildString {
+                        append(node.type)
+                        append(" · ")
+                        append(nodeDelayLabel(node))
+                        append(" · ")
+                        append(if (selectable) "点击切换" else "自动策略组由 Mihomo 决定")
+                    },
+                    color = colors.secondaryText,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Clip,
+                    modifier = Modifier.padding(top = 3.dp),
                 )
             }
-            IconButton(
-                enabled = enabled,
-                onClick = onTest,
-                modifier = Modifier.size(36.dp),
-            ) {
-                Icon(
-                    Icons.Default.Speed,
-                    contentDescription = "测速 ${node.name}",
-                    tint = colors.accent,
-                    modifier = Modifier.size(18.dp),
-                )
+            if (selected) {
+                Icon(Icons.Default.Check, contentDescription = "当前节点", tint = colors.accent, modifier = Modifier.padding(horizontal = 4.dp).size(19.dp))
+            }
+            IconButton(enabled = enabled, onClick = { onTest(node) }, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.Default.Speed, contentDescription = "测速 ${node.name}", tint = colors.accent, modifier = Modifier.size(20.dp))
             }
         }
-        Text(
-            text = nodeDelayLabel(node),
-            color = colors.primaryText,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(top = 4.dp),
-        )
-        Text(
-            text =
-                if (selectable) {
-                    "点击切换 · ${node.type}"
-                } else {
-                    "自动策略 · ${node.type}"
-                },
-            color = colors.secondaryText,
-            fontSize = 11.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 2.dp),
-        )
+        if (index != nodes.lastIndex) KiyoriSettingsDivider()
     }
 }
 
 @Composable
-private fun NetworkProxyNodeRow(
-    node: MihomoNodeTestResult,
-    selected: Boolean,
-    selectable: Boolean,
+private fun NetworkProxySubscriptionRow(
+    subscription: KiyoriProxySubscription,
+    active: Boolean,
     enabled: Boolean,
+    menuExpanded: Boolean,
     onSelect: () -> Unit,
-    onTest: () -> Unit,
+    onOpenMenu: () -> Unit,
+    onDismissMenu: () -> Unit,
+    onUpdate: () -> Unit,
+    onEdit: () -> Unit,
+    onCopy: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     val colors = LocalKiyoriSettingsColors.current
     Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .alpha(if (enabled) 1f else 0.42f)
-                .clickable(enabled = enabled && selectable, onClick = onSelect)
-                .padding(start = 18.dp, end = 8.dp, top = 13.dp, bottom = 13.dp),
+        modifier = Modifier.fillMaxWidth().alpha(if (enabled) 1f else 0.42f).clickable(enabled = enabled, onClick = onSelect).padding(start = 18.dp, end = 6.dp, top = 12.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(34.dp)
-                    .background(
-                        if (selected) colors.accent.copy(alpha = 0.16f) else colors.pageBackground,
-                        RoundedCornerShape(10.dp),
-                    ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                Icons.Default.Speed,
-                contentDescription = null,
-                tint = if (selected) colors.accent else colors.mutedIcon,
-                modifier = Modifier.size(19.dp),
-            )
-        }
-        Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = node.name,
+                text = subscription.displayName,
                 color = colors.primaryText,
                 fontSize = 15.sp,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text =
-                    if (selectable) {
-                        "点击节点切换 · ${nodeDescription(node)}"
-                    } else {
-                        "自动策略组由 Mihomo 决定 · ${nodeDescription(node)}"
-                    },
+                text = subscriptionListDescription(subscription),
                 color = colors.secondaryText,
                 fontSize = 12.sp,
                 lineHeight = 17.sp,
@@ -2085,24 +1499,19 @@ private fun NetworkProxyNodeRow(
                 modifier = Modifier.padding(top = 3.dp),
             )
         }
-        Text(
-            text = nodeDelayLabel(node),
-            color = colors.secondaryText,
-            fontSize = 12.sp,
-            maxLines = 1,
-            modifier = Modifier.padding(start = 8.dp),
-        )
-        IconButton(
-            enabled = enabled,
-            onClick = onTest,
-            modifier = Modifier.size(44.dp),
-        ) {
-            Icon(
-                Icons.Default.Speed,
-                contentDescription = "测速 ${node.name}",
-                tint = colors.accent,
-                modifier = Modifier.size(20.dp),
-            )
+        if (active) {
+            Text("使用中", color = colors.accent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 6.dp))
+        }
+        Box {
+            IconButton(enabled = enabled, onClick = onOpenMenu, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.Default.MoreVert, contentDescription = "管理 ${subscription.displayName}", tint = colors.mutedIcon)
+            }
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = onDismissMenu) {
+                DropdownMenuItem(text = { Text("更新") }, onClick = onUpdate)
+                DropdownMenuItem(text = { Text("编辑") }, onClick = onEdit)
+                DropdownMenuItem(text = { Text("复制") }, onClick = onCopy)
+                DropdownMenuItem(text = { Text("删除") }, onClick = onDelete)
+            }
         }
     }
 }

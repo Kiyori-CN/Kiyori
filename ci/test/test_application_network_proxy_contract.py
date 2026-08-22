@@ -129,6 +129,32 @@ class ApplicationNetworkProxyContractTest(unittest.TestCase):
         self.assertNotIn("用户名（可选）", page)
         self.assertNotIn("密码（可选）", page)
 
+    def test_network_proxy_page_uses_compact_child_page_contract(self) -> None:
+        page = self.read_operit("ui/main/shell/KiyoriNetworkProxySettingsPage.kt")
+        for label in (
+            "启用应用内代理",
+            "默认连接",
+            "当前节点",
+            "订阅管理",
+            "模块连接模式",
+            "逐脚本连接模式",
+            "代理局域网地址",
+            "允许与系统 VPN 并存",
+            "重置网络代理",
+            "添加订阅地址",
+            "导入 YAML 文件",
+            "DropdownMenuItem(text = { Text(\"更新\") }",
+            "DropdownMenuItem(text = { Text(\"编辑\") }",
+            "DropdownMenuItem(text = { Text(\"复制\") }",
+            "DropdownMenuItem(text = { Text(\"删除\") }",
+        ):
+            self.assertIn(label, page)
+        for redundant in ("当前项目", "刷新节点与分组", "节点布局", "单列", "双列", "多列", "测试地址"):
+            self.assertNotIn(redundant, page)
+        self.assertIn("NetworkProxyPageSection.CURRENT_NODE", page)
+        self.assertIn("NetworkProxyPageSection.SUBSCRIPTIONS", page)
+        self.assertIn("private fun NetworkProxyNodeList", page)
+
     def test_runtime_is_loopback_only_and_does_not_take_over_android_vpn(self) -> None:
         runtime = self.read_kiyori("platform/network/KiyoriMihomoRuntime.kt")
         sanitizer = self.read_kiyori("platform/network/MihomoConfigSanitizer.kt")

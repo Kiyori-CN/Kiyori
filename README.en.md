@@ -55,12 +55,17 @@ Kiyori-owned online services. The default is Direct or Proxy; every module can i
 its own mode. Traditional `JsEngine` packages may add a per-package override in Script Rules. The Environment
 drawer links here directly, and ToolPkg is intentionally kept under AI Tools rather than treated as a script.
 
-The Current Route section expands the active subscription's `KIYORI_APP_PROXY` root selection through nested
-groups to the terminal node. An unresolved automatic group or cycle is shown as unresolved rather than being
-presented as a node. Script Rules lists enabled executable traditional `JsEngine` packages and keeps an explicit
-manual package-name entry; an empty list means there is no enabled traditional script, not that AI Tools are missing.
+The home page keeps only the application-proxy switch, default connection, Current Node, Subscription Management,
+Module Connection Mode, Per-script Connection Mode, private-network routing, system-VPN coexistence, and reset.
+Current Node, Subscription Management, module modes, and script rules are separate child pages. Current Node uses
+horizontal group tabs, a current-group search field, a header group-test action, and sorting; nodes are single-column
+rows whose body selects `select` groups while the trailing button only tests that node. Automatic groups are never
+presented as manually selectable. Script Rules lists enabled executable traditional `JsEngine` packages and keeps
+an explicit manual package-name entry; an empty list means there is no enabled traditional script, not that AI Tools are missing.
 
-The subscription section accepts a Clash/Mihomo subscription URL or an explicitly selected single-document
+Subscription Management provides Add Subscription URL and Import YAML buttons. Tapping a row switches the active
+subscription; its overflow menu contains Update, Edit, Copy, and Delete. Copy creates a new subscription entry and
+does not switch the active route. The subscription section accepts a Clash/Mihomo subscription URL or an explicitly selected single-document
 UTF-8 YAML file. Requests use the `Clash.Meta` identity so services that negotiate Base64 and YAML return a
 Clash YAML mapping. Base64 URI lists, duplicate keys, invalid providers, configurations without usable
 outbounds, or Mihomo validation failures are rejected. Local, loopback, link-local, private, and multicast
