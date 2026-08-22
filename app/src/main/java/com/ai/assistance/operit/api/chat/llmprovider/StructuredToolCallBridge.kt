@@ -27,7 +27,11 @@ internal object StructuredToolCallBridge {
             return null
         }
         val tools = buildToolDefinitions(toolPrompts)
-        return if (tools.length() > 0) tools.toString() else null
+        return if (tools.length() > 0) {
+            ProviderToolCallIdentityContract.canonicalJsonText(tools.toString())
+        } else {
+            null
+        }
     }
 
     fun buildToolsArray(toolPrompts: List<ToolPrompt>?): JSONArray {
@@ -89,6 +93,8 @@ internal object StructuredToolCallBridge {
         var currentBlockType: ProviderHistoryBlockType? = null
         var currentContent = StringBuilder()
         var currentMetadata: Map<String, Any?> = emptyMap()
+        var currentBlockContainsAssistant = false
+        var currentBlockContainsToolCall = false
 
         fun flushCurrentBlock() {
             val blockType = currentBlockType ?: return
@@ -96,10 +102,18 @@ internal object StructuredToolCallBridge {
                 PromptTurn(
                     kind =
                         when (blockType) {
-                            ProviderHistoryBlockType.ASSISTANT -> PromptTurnKind.ASSISTANT
+                            ProviderHistoryBlockType.ASSISTANT ->
+                                if (
+                                    currentBlockContainsToolCall &&
+                                        !currentBlockContainsAssistant
+                                ) {
+                                    PromptTurnKind.TOOL_CALL
+                                } else {
+                                    PromptTurnKind.ASSISTANT
+                                }
                             ProviderHistoryBlockType.USER_INPUT -> PromptTurnKind.USER
                             ProviderHistoryBlockType.TOOL_RESULT ->
-                                if (useToolCall) PromptTurnKind.TOOL_RESULT else PromptTurnKind.USER
+                                PromptTurnKind.TOOL_RESULT
                         },
                     content = currentContent.toString().trim(),
                     metadata = currentMetadata
@@ -108,6 +122,8 @@ internal object StructuredToolCallBridge {
             currentBlockType = null
             currentContent = StringBuilder()
             currentMetadata = emptyMap()
+            currentBlockContainsAssistant = false
+            currentBlockContainsToolCall = false
         }
 
         fun appendToBlock(blockType: ProviderHistoryBlockType, turn: PromptTurn) {
@@ -125,6 +141,10 @@ internal object StructuredToolCallBridge {
             if (turn.metadata.isNotEmpty()) {
                 currentMetadata = currentMetadata + turn.metadata
             }
+            currentBlockContainsAssistant =
+                currentBlockContainsAssistant || turn.kind == PromptTurnKind.ASSISTANT
+            currentBlockContainsToolCall =
+                currentBlockContainsToolCall || turn.kind == PromptTurnKind.TOOL_CALL
         }
 
         for (turn in history) {
@@ -169,7 +189,7 @@ internal object StructuredToolCallBridge {
         var queuedToolCalls = JSONArray()
         val queuedToolCallIds = mutableListOf<String>()
         val openToolCallIds = mutableListOf<String>()
-        var nextToolCallOrdinal = 0
+        val toolHistoryState = ProviderToolHistoryState()
 
         fun appendQueuedAssistantToolText(text: String) {
             if (text.isBlank()) return
@@ -186,7 +206,13 @@ internal object StructuredToolCallBridge {
             for (i in 0 until toolCalls.length()) {
                 val sourceToolCall = toolCalls.optJSONObject(i) ?: continue
                 val toolCall = JSONObject(sourceToolCall.toString())
-                val callId = generatedToolCallId(nextToolCallOrdinal++)
+                val callId = toolCall.optString("id", "").trim()
+                if (callId.isEmpty()) {
+                    throw ProviderToolHistoryProtocolException(
+                        violation = ProviderToolHistoryViolation.TOOL_CALL_WITHOUT_PAYLOAD,
+                        detail = "Structured tool call has no stable call ID",
+                    )
+                }
                 toolCall.put("id", callId)
                 queuedToolCalls.put(toolCall)
                 queuedToolCallIds.add(callId)
@@ -212,24 +238,18 @@ internal object StructuredToolCallBridge {
             )
 
             openToolCallIds.addAll(queuedToolCallIds)
+            toolHistoryState.acceptToolCalls(
+                callIds = queuedToolCallIds.toList(),
+                boundary = "structured_assistant_tool_calls",
+            )
             queuedAssistantToolText = null
             queuedToolCalls = JSONArray()
             queuedToolCallIds.clear()
         }
 
-        fun flushOpenToolCallsAsCancelled() {
+        fun requireNoOpenToolCalls(boundary: String) {
             emitQueuedToolCallsIfNeeded()
-            if (openToolCallIds.isEmpty()) return
-
-            for (toolCallId in openToolCallIds) {
-                messagesArray.put(
-                    JSONObject().apply {
-                        put("role", "tool")
-                        put("tool_call_id", toolCallId)
-                        put("content", "User cancelled")
-                    }
-                )
-            }
+            toolHistoryState.requireClosed(boundary)
             openToolCallIds.clear()
         }
 
@@ -243,22 +263,22 @@ internal object StructuredToolCallBridge {
 
             when (turn.kind) {
                 PromptTurnKind.SYSTEM -> {
-                    flushOpenToolCallsAsCancelled()
+                    requireNoOpenToolCalls("system_boundary")
                     messagesArray.put(
                         JSONObject().apply {
                             put("role", "system")
-                            put("content", nonEmptyContent(content))
+                            put("content", content)
                         }
                     )
                 }
 
                 PromptTurnKind.USER,
                 PromptTurnKind.SUMMARY -> {
-                    flushOpenToolCallsAsCancelled()
+                    requireNoOpenToolCalls("user_boundary")
                     messagesArray.put(
                         JSONObject().apply {
                             put("role", "user")
-                            put("content", nonEmptyContent(content))
+                            put("content", content)
                         }
                     )
                 }
@@ -273,14 +293,16 @@ internal object StructuredToolCallBridge {
                         }
 
                     if (toolCalls != null && toolCalls.length() > 0) {
-                        flushOpenToolCallsAsCancelled()
+                        requireNoOpenToolCalls("assistant_tool_call_before_result")
                         queueToolCalls(textContent, toolCalls)
                     } else {
-                        flushOpenToolCallsAsCancelled()
                         messagesArray.put(
                             JSONObject().apply {
                                 put("role", "assistant")
-                                put("content", nonEmptyContent(content))
+                                put(
+                                    "content",
+                                    if (content.isBlank()) JSONObject.NULL else content,
+                                )
                             }
                         )
                     }
@@ -296,15 +318,12 @@ internal object StructuredToolCallBridge {
                         }
 
                     if (toolCalls != null && toolCalls.length() > 0) {
-                        flushOpenToolCallsAsCancelled()
+                        requireNoOpenToolCalls("typed_tool_call_before_result")
                         queueToolCalls(textContent, toolCalls)
                     } else {
-                        flushOpenToolCallsAsCancelled()
-                        messagesArray.put(
-                            JSONObject().apply {
-                                put("role", "assistant")
-                                put("content", nonEmptyContent(content))
-                            }
+                        throw ProviderToolHistoryProtocolException(
+                            violation = ProviderToolHistoryViolation.TOOL_CALL_WITHOUT_PAYLOAD,
+                            detail = "Typed TOOL_CALL has no structured payload",
                         )
                     }
                 }
@@ -312,45 +331,37 @@ internal object StructuredToolCallBridge {
                 PromptTurnKind.TOOL_RESULT -> {
                     emitQueuedToolCallsIfNeeded()
                     val (textContent, toolResults) = parseXmlToolResults(content)
-                    val resultsList = toolResults ?: emptyList()
-
-                    if (resultsList.isNotEmpty() && openToolCallIds.isNotEmpty()) {
-                        val validCount = minOf(resultsList.size, openToolCallIds.size)
-                        repeat(validCount) { index ->
-                            val result = resultsList[index]
-                            val toolMessage = JSONObject().apply {
-                                put("role", "tool")
-                                put("tool_call_id", openToolCallIds[index])
-                                if (!result.name.isNullOrBlank()) {
-                                    put("name", result.name)
-                                }
-                                put("content", nonEmptyContent(result.content))
-                            }
-                            messagesArray.put(toolMessage)
-                        }
-                        repeat(validCount) {
-                            openToolCallIds.removeAt(0)
-                        }
-                        if (textContent.isNotBlank()) {
-                            messagesArray.put(
-                                JSONObject().apply {
-                                    put("role", "user")
-                                    put("content", textContent)
-                                }
+                    val resultsList =
+                        toolResults
+                            ?: throw ProviderToolHistoryProtocolException(
+                                violation = ProviderToolHistoryViolation.TOOL_RESULT_WITHOUT_PAYLOAD,
+                                detail = "Typed TOOL_RESULT has no structured payload",
                             )
+                    toolHistoryState.acceptToolResults(
+                        resultCount = resultsList.size,
+                        boundary = "structured_tool_result",
+                    )
+                    repeat(resultsList.size) { index ->
+                        val result = resultsList[index]
+                        val toolMessage = JSONObject().apply {
+                            put("role", "tool")
+                            put("tool_call_id", openToolCallIds[index])
+                            if (!result.name.isNullOrBlank()) {
+                                put("name", result.name)
+                            }
+                            put("content", result.content)
                         }
-                    } else {
-                        flushOpenToolCallsAsCancelled()
+                        messagesArray.put(toolMessage)
+                    }
+                    repeat(resultsList.size) {
+                        openToolCallIds.removeAt(0)
+                    }
+                    if (textContent.isNotBlank()) {
+                        toolHistoryState.requireClosed("structured_tool_result_text_boundary")
                         messagesArray.put(
                             JSONObject().apply {
                                 put("role", "user")
-                                put(
-                                    "content",
-                                    when {
-                                        textContent.isNotBlank() -> textContent
-                                        else -> nonEmptyContent(content)
-                                    }
-                                )
+                                put("content", textContent)
                             }
                         )
                     }
@@ -358,17 +369,26 @@ internal object StructuredToolCallBridge {
             }
         }
 
-        flushOpenToolCallsAsCancelled()
+        requireNoOpenToolCalls("history_end")
         return messagesArray
-    }
-    private fun nonEmptyContent(content: String): String {
-        return if (content.isBlank()) "[Empty]" else content
     }
 
     private fun buildToolDefinitions(toolPrompts: List<ToolPrompt>): JSONArray {
         val tools = JSONArray()
 
-        for (tool in toolPrompts) {
+        val sortedTools = toolPrompts.sortedBy { it.name }
+        val duplicateToolName =
+            sortedTools
+                .groupingBy { it.name }
+                .eachCount()
+                .entries
+                .firstOrNull { it.value > 1 }
+                ?.key
+        require(duplicateToolName == null) {
+            "Structured tool definitions contain duplicate name: $duplicateToolName"
+        }
+
+        for (tool in sortedTools) {
             tools.put(JSONObject().apply {
                 put("type", "function")
                 put("function", JSONObject().apply {
@@ -395,7 +415,19 @@ internal object StructuredToolCallBridge {
         val properties = JSONObject()
         val required = JSONArray()
 
-        for (param in params) {
+        val sortedParams = params.sortedBy { it.name }
+        val duplicateParameterName =
+            sortedParams
+                .groupingBy { it.name }
+                .eachCount()
+                .entries
+                .firstOrNull { it.value > 1 }
+                ?.key
+        require(duplicateParameterName == null) {
+            "Structured tool schema contains duplicate parameter: $duplicateParameterName"
+        }
+
+        for (param in sortedParams) {
             properties.put(param.name, JSONObject().apply {
                 put("type", param.type)
                 put("description", param.description)
@@ -609,10 +641,13 @@ internal object StructuredToolCallBridge {
         val toolCalls = JSONArray()
         var textContent = content
         var callIndex = 0
+        val providerCallSignatures =
+            linkedMapOf<ProviderToolCallKey, ProviderToolCallSignature>()
 
         matches.forEach { match ->
             val toolName = match.groupValues[2]
             val toolBody = match.groupValues[3]
+            val openingTag = match.value.substringBefore('>')
 
             val params = JSONObject()
             ChatMarkupRegex.toolParamPattern.findAll(toolBody).forEach { paramMatch ->
@@ -621,9 +656,43 @@ internal object StructuredToolCallBridge {
                 params.put(paramName, paramValue)
             }
 
-            val toolNamePart = sanitizeToolCallId(toolName)
-            val hashPart = stableIdHashPart("${toolName}:${params}")
-            val callId = sanitizeToolCallId("call_${toolNamePart}_${hashPart}_$callIndex")
+            val providerCallId =
+                extractXmlAttribute(openingTag, "provider_call_id")
+            val providerName =
+                extractXmlAttribute(openingTag, "provider_name").orEmpty()
+            val argumentsJson =
+                ProviderToolCallIdentityContract.canonicalJsonText(
+                    params.toString()
+                )
+            val providerIdentity =
+                ProviderToolCallIdentityContract.key(providerName, providerCallId)
+            if (providerIdentity != null) {
+                val signature =
+                    ProviderToolCallIdentityContract.signature(
+                        toolName = toolName,
+                        argumentsJson = argumentsJson,
+                    )
+                val existing = providerCallSignatures[providerIdentity]
+                if (existing != null) {
+                    ProviderToolCallIdentityContract.requireSame(
+                        key = providerIdentity,
+                        existing = existing,
+                        incoming = signature,
+                    )
+                    callIndex++
+                    textContent = textContent.replace(match.value, "")
+                    return@forEach
+                }
+                providerCallSignatures[providerIdentity] = signature
+            }
+
+            val callId =
+                providerCallId
+                    ?: run {
+                        val toolNamePart = sanitizeToolCallId(toolName)
+                        val hashPart = stableIdHashPart("${toolName}:${argumentsJson}")
+                        sanitizeToolCallId("call_${toolNamePart}_${hashPart}_$callIndex")
+                    }
 
             toolCalls.put(JSONObject().apply {
                 put("id", callId)
@@ -639,6 +708,17 @@ internal object StructuredToolCallBridge {
         }
 
         return textContent.trim() to toolCalls
+    }
+
+    private fun extractXmlAttribute(openingTag: String, attributeName: String): String? {
+        if (openingTag.isEmpty()) {
+            return null
+        }
+        val match =
+            Regex("""\b${Regex.escape(attributeName)}="([^"]*)"""")
+                .find(openingTag)
+                ?: return null
+        return XmlEscaper.unescape(match.groupValues[1]).takeIf { it.isNotBlank() }
     }
 
     private fun wrapPackageToolCallsWithProxy(toolCalls: JSONArray): JSONArray {
@@ -664,10 +744,12 @@ internal object StructuredToolCallBridge {
                 put("name", "package_proxy")
                 put(
                     "arguments",
-                    JSONObject().apply {
-                        put("tool_name", toolName)
-                        put("params", originalArguments)
-                    }.toString()
+                    ProviderToolCallIdentityContract.canonicalJsonText(
+                        JSONObject().apply {
+                            put("tool_name", toolName)
+                            put("params", originalArguments)
+                        }.toString()
+                    )
                 )
             }
 
@@ -737,16 +819,6 @@ internal object StructuredToolCallBridge {
             }
         }.replace(Regex("_+"), "_").trim('_')
         return if (output.isEmpty()) "call" else output
-    }
-
-    private fun generatedToolCallId(ordinal: Int): String {
-        val raw = "${stableIdHashPart("tool_call:$ordinal")}_$ordinal"
-        val cleaned = raw.filter { it.isLetterOrDigit() }
-        if (cleaned.isEmpty()) return "call00000"
-        if (cleaned.length == 9) return cleaned
-        if (cleaned.length > 9) return cleaned.takeLast(9)
-        val filler = stableIdHashPart(raw)
-        return (cleaned + filler + "000000000").take(9)
     }
 
     private fun stableIdHashPart(raw: String): String {

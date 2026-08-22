@@ -39,7 +39,12 @@ TCP 分片、心跳、轮询、页面停留时间和其他无业务意义的活�
 
 ## 数据模型
 
-Room 数据库版本 22 包含七张审计表：
+Room 数据库版本 24 包含七张审计表，并在 `chats`、`messages` 与
+`message_variants` 上保存 provider usage v2 的请求覆盖计数、互斥输入 token 桶、输出、
+reasoning 细分以及仅覆盖已报告 cache metric hop 的 prompt 分母。22→23 增加 provider usage
+projection；23→24 增加 `providerCacheMetricPromptTokens`，并把无法恢复该分母的旧
+`providerCacheMetricRequestCount` 重置为未报告。旧行中的零值表示历史版本未提供对应 provider
+指标，不表示供应商明确报告了零缓存命中。
 
 | 表 | 责任 |
 | --- | --- |
@@ -228,9 +233,11 @@ payloads/<sha256>.<txt|bin>
 
 ### 普通聊天归档
 
-`OperitChatArchive.CURRENT_FORMAT_VERSION` 为 3。v3 可携带完整审计、payload、revision、
-projection 和 seal；v1/v2 继续导入并进入诚实的历史重建。带完整审计的 v3 若与本地同 ID 聊天
-冲突会拒绝覆盖，防止破坏本地原始事实。
+`OperitChatArchive.CURRENT_FORMAT_VERSION` 为 4。v4 在 v3 的完整审计、payload、
+revision、projection 和 seal 基础上，增加聊天、消息与 variant 的 provider usage v2
+字段。v1/v2/v3 继续导入并进入诚实的历史重建；缺失的新字段按零读取，语义是“历史版本未
+记录”，不能解释为供应商明确报告了零缓存命中。带完整审计的 v3/v4 若与本地同 ID 聊天冲突
+会拒绝覆盖，防止破坏本地原始事实。
 
 ## 历史重建
 

@@ -25,6 +25,13 @@ import com.ai.assistance.operit.data.preferences.CharacterCardManager
 import com.ai.assistance.operit.data.preferences.ActivePromptManager
 import com.ai.assistance.operit.data.model.ActivePrompt
 import com.ai.assistance.operit.data.model.ChatMessageTimestampAllocator
+import com.ai.assistance.operit.data.model.ProviderUsageAggregate
+import com.ai.assistance.operit.core.chat.ConversationCompactionCommitResult
+import com.ai.assistance.operit.core.chat.ConversationCompactionSnapshot
+import com.ai.assistance.operit.core.chat.ConversationCompactionRouteIdentity
+import com.ai.assistance.operit.core.chat.ConversationCompactionUsage
+import com.ai.assistance.operit.core.chat.ConversationToolResultPruningReport
+import com.ai.assistance.operit.data.model.toProviderUsageAggregate
 import com.ai.assistance.operit.plugins.toolpkg.ToolPkgChatMessageHookBridge
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -33,10 +40,18 @@ class ChatHistoryDelegate(
         private val context: Context,
         private val coroutineScope: CoroutineScope,
         private val selectionMode: ChatSelectionMode = ChatSelectionMode.FOLLOW_GLOBAL,
-        private val onTokenStatisticsLoaded: (chatId: String, inputTokens: Int, outputTokens: Int, windowSize: Int) -> Unit,
+        private val onTokenStatisticsLoaded:
+            (
+                chatId: String,
+                inputTokens: Int,
+                outputTokens: Int,
+                windowSize: Int,
+                providerUsage: ProviderUsageAggregate,
+            ) -> Unit,
         private val getEnhancedAiService: () -> EnhancedAIService?,
         private val ensureAiServiceAvailable: () -> Unit = {}, // 确保AI服务可用的回调
         private val getChatStatistics: () -> Triple<Long, Long, Long> = { Triple(0L, 0L, 0L) }, // 获取（输入token, 输出token, 窗口大小）
+        private val getProviderUsageAggregate: () -> ProviderUsageAggregate,
         private val onScrollToBottom: () -> Unit = {} // 滚动到底部事件回调
 ) {
     companion object {
@@ -340,6 +355,9 @@ class ChatHistoryDelegate(
     suspend fun getRuntimeChatHistory(chatId: String): List<ChatMessage> =
         chatHistoryManager.loadRuntimeChatMessages(chatId)
 
+    suspend fun getRuntimeChatHistoryForCompaction(chatId: String): List<ChatMessage> =
+        chatHistoryManager.loadRuntimeChatMessagesForCompaction(chatId)
+
     suspend fun getRuntimeChatHistoryUpTo(
         chatId: String,
         upToTimestampInclusive: Long
@@ -351,16 +369,60 @@ class ChatHistoryDelegate(
         return chatHistoryManager.loadRuntimeChatMessages(chatId)
     }
 
-    suspend fun loadMessagesForSummaryInsertion(
+    suspend fun loadMessagesForCompactionInsertion(
         chatId: String,
         beforeTimestampExclusive: Long? = null,
         upToTimestampInclusive: Long? = null,
     ): List<ChatMessage> =
-        chatHistoryManager.loadMessagesAfterLatestSummaryInRange(
+        chatHistoryManager.loadMessagesForCompactionInsertion(
             chatId = chatId,
             beforeTimestampExclusive = beforeTimestampExclusive,
             upToTimestampInclusive = upToTimestampInclusive,
         )
+
+    suspend fun recordConversationCompactionRequested(
+        snapshot: ConversationCompactionSnapshot,
+    ) {
+        chatHistoryManager.recordConversationCompactionRequested(snapshot)
+    }
+
+    suspend fun recordConversationCompactionGenerated(
+        snapshot: ConversationCompactionSnapshot,
+        summaryMessage: ChatMessage,
+        usage: ConversationCompactionUsage,
+        pruningReport: ConversationToolResultPruningReport,
+    ) {
+        chatHistoryManager.recordConversationCompactionGenerated(
+            snapshot = snapshot,
+            summaryMessage = summaryMessage,
+            usage = usage,
+            pruningReport = pruningReport,
+        )
+    }
+
+    suspend fun commitConversationCompaction(
+        snapshot: ConversationCompactionSnapshot,
+        summaryMessage: ChatMessage,
+        usage: ConversationCompactionUsage,
+        pruningReport: ConversationToolResultPruningReport,
+        currentRouteIdentity: ConversationCompactionRouteIdentity,
+    ): ConversationCompactionCommitResult {
+        val result =
+            chatHistoryManager.commitConversationCompaction(
+                snapshot = snapshot,
+                summaryMessage = summaryMessage,
+                usage = usage,
+                pruningReport = pruningReport,
+                currentRouteIdentity = currentRouteIdentity,
+            )
+        if (
+            result.persistedSummaryMessage != null &&
+                snapshot.chatId == _currentChatId.value
+        ) {
+            reloadCurrentChatDisplayHistory(snapshot.chatId)
+        }
+        return result
+    }
 
     suspend fun loadChatMessageLocatorPreviews(
         chatId: String,
@@ -625,7 +687,13 @@ class ChatHistoryDelegate(
             // 查找聊天元数据，更新token统计
             val selectedChat = _chatHistories.value.find { it.id == chatId }
             if (selectedChat != null) {
-                onTokenStatisticsLoaded(chatId, selectedChat.inputTokens, selectedChat.outputTokens, selectedChat.currentWindowSize)
+                onTokenStatisticsLoaded(
+                    chatId,
+                    selectedChat.inputTokens,
+                    selectedChat.outputTokens,
+                    selectedChat.currentWindowSize,
+                    selectedChat.toProviderUsageAggregate(),
+                )
 
 
             }
@@ -774,7 +842,12 @@ class ChatHistoryDelegate(
     ) {
         coroutineScope.launch {
             val (inputTokens, outputTokens, windowSize) = getChatStatistics()
-            saveCurrentChat(inputTokens, outputTokens, windowSize) // 使用获取到的完整统计数据
+            saveCurrentChat(
+                inputTokens = inputTokens,
+                outputTokens = outputTokens,
+                actualContextWindowSize = windowSize,
+                providerUsage = getProviderUsageAggregate(),
+            ) // 使用获取到的完整统计数据
 
             // 获取当前对话ID，以便继承分组
             val currentChatId = _currentChatId.value
@@ -847,7 +920,13 @@ class ChatHistoryDelegate(
                     _currentChatId.value = newChat.id
                     loadChatMessages(newChat.id)
                 }
-                onTokenStatisticsLoaded(newChat.id, 0, 0, 0)
+                onTokenStatisticsLoaded(
+                    newChat.id,
+                    0,
+                    0,
+                    0,
+                    newChat.toProviderUsageAggregate(),
+                )
             }
         }
     }
@@ -861,7 +940,12 @@ class ChatHistoryDelegate(
 
             try {
                 val (inputTokens, outputTokens, windowSize) = getChatStatistics()
-                saveCurrentChat(inputTokens, outputTokens, windowSize) // 切换前使用正确的窗口大小保存
+                saveCurrentChat(
+                    inputTokens = inputTokens,
+                    outputTokens = outputTokens,
+                    actualContextWindowSize = windowSize,
+                    providerUsage = getProviderUsageAggregate(),
+                ) // 切换前使用正确的窗口大小保存
 
                 if (syncToGlobal) {
                     chatHistoryManager.setCurrentChatId(chatId)
@@ -897,7 +981,12 @@ class ChatHistoryDelegate(
     fun createBranch(upToMessageTimestamp: Long? = null) {
         coroutineScope.launch {
             val (inputTokens, outputTokens, windowSize) = getChatStatistics()
-            saveCurrentChat(inputTokens, outputTokens, windowSize) // 保存当前聊天
+            saveCurrentChat(
+                inputTokens = inputTokens,
+                outputTokens = outputTokens,
+                actualContextWindowSize = windowSize,
+                providerUsage = getProviderUsageAggregate(),
+            ) // 保存当前聊天
 
             val currentChatId = _currentChatId.value
             if (currentChatId != null) {
@@ -911,7 +1000,8 @@ class ChatHistoryDelegate(
                     branchChat.id,
                     branchChat.inputTokens,
                     branchChat.outputTokens,
-                    branchChat.currentWindowSize
+                    branchChat.currentWindowSize,
+                    branchChat.toProviderUsageAggregate(),
                 )
                 
                 delay(200)
@@ -1232,21 +1322,24 @@ class ChatHistoryDelegate(
         inputTokens: Long = 0L,
         outputTokens: Long = 0L,
         actualContextWindowSize: Long = 0L,
+        providerUsage: ProviderUsageAggregate,
         chatIdOverride: String? = null
     ) {
         val chatId = chatIdOverride ?: _currentChatId.value
         chatId?.let {
             if (
-                _chatHistory.value.isNotEmpty() ||
+                    _chatHistory.value.isNotEmpty() ||
                     inputTokens != 0L ||
                     outputTokens != 0L ||
-                    actualContextWindowSize != 0L
+                    actualContextWindowSize != 0L ||
+                    providerUsage.requestCount != 0
             ) {
                 chatHistoryManager.updateChatTokenCounts(
                     it,
                     inputTokens.toPersistedTokenCount(),
                     outputTokens.toPersistedTokenCount(),
-                    actualContextWindowSize.toPersistedTokenCount()
+                    actualContextWindowSize.toPersistedTokenCount(),
+                    providerUsage,
                 )
             }
         }
@@ -1560,7 +1653,12 @@ class ChatHistoryDelegate(
     fun createGroup(groupName: String, characterCardName: String?, characterGroupId: String? = null) {
         coroutineScope.launch {
             val (inputTokens, outputTokens, windowSize) = getChatStatistics()
-            saveCurrentChat(inputTokens, outputTokens, windowSize)
+            saveCurrentChat(
+                inputTokens = inputTokens,
+                outputTokens = outputTokens,
+                actualContextWindowSize = windowSize,
+                providerUsage = getProviderUsageAggregate(),
+            )
 
             val newChat = chatHistoryManager.createNewChat(
                 group = groupName,
@@ -1570,74 +1668,13 @@ class ChatHistoryDelegate(
             _currentChatId.value = newChat.id
             loadChatMessages(newChat.id)
 
-            onTokenStatisticsLoaded(newChat.id, 0, 0, 0)
-        }
-    }
-
-    /**
-     * 在前后锚点之间添加一条总结消息。
-     *
-     * @param summaryMessage 要添加的总结消息。
-     * @param beforeTimestamp 前置锚点消息时间戳，可为空。
-     * @param afterTimestamp 后置锚点消息时间戳，可为空。
-     */
-    suspend fun addSummaryMessage(
-        summaryMessage: ChatMessage,
-        beforeTimestamp: Long?,
-        afterTimestamp: Long?,
-        chatIdOverride: String? = null,
-    ) {
-        historyUpdateMutex.withLock {
-            val chatId = chatIdOverride ?: _currentChatId.value ?: return@withLock
-            val isCurrentChat = chatId == _currentChatId.value
-            val currentDisplayStartTimestamp = currentChatWindow.currentDisplayStartTimestamp()
-            val currentDisplayEndTimestamp = currentChatWindow.currentDisplayEndTimestamp()
-            val currentPageCount = currentDisplayPageCount()
-            val persistedSummaryMessage =
-                chatHistoryManager.addSummaryMessageBetweenSliceNeighbors(
-                    chatId = chatId,
-                    message = summaryMessage,
-                    beforeTimestamp = beforeTimestamp,
-                    afterTimestamp = afterTimestamp,
-                )
-
-            if (persistedSummaryMessage == null) {
-                AppLogger.w(
-                    TAG,
-                    "总结消息插入被跳过: chatId=$chatId, before=$beforeTimestamp, after=$afterTimestamp",
-                )
-                return@withLock
-            }
-
-            AppLogger.d(
-                TAG,
-                "添加总结消息: chatId=$chatId, persistedTimestamp=${persistedSummaryMessage.timestamp}, before=$beforeTimestamp, after=$afterTimestamp",
+            onTokenStatisticsLoaded(
+                newChat.id,
+                0,
+                0,
+                0,
+                newChat.toProviderUsageAggregate(),
             )
-
-            // 更新消息列表
-            if (isCurrentChat) {
-                if (
-                    currentDisplayEndTimestamp != null &&
-                    persistedSummaryMessage.timestamp > currentDisplayEndTimestamp
-                ) {
-                    applyCurrentChatDisplayWindow(
-                        chatId = chatId,
-                        messages =
-                            collectNewestDisplayPages(
-                                chatId = chatId,
-                                pageCount = currentPageCount,
-                                endTimestampInclusive = persistedSummaryMessage.timestamp,
-                            ),
-                    )
-                } else if (
-                    currentDisplayStartTimestamp != null &&
-                    persistedSummaryMessage.timestamp < currentDisplayStartTimestamp
-                ) {
-                    revealMessageForCurrentChat(persistedSummaryMessage.timestamp)
-                } else {
-                    reloadCurrentChatDisplayHistory(chatId)
-                }
-            }
         }
     }
 
@@ -1655,21 +1692,6 @@ class ChatHistoryDelegate(
     suspend fun summarizeMemory(messages: List<ChatMessage>) { ... }
     */
     
-    /**
-     * 找到合适的总结插入位置。
-     * 新的逻辑是，总结应该插入在上一个已完成对话轮次的末尾，
-     * 即最后一条AI消息之后。
-     */
-    fun findProperSummaryPosition(messages: List<ChatMessage>): Int {
-        // 从后往前找，找到最近的一条AI消息的索引。
-        val lastAiMessageIndex = messages.indexOfLast { it.sender == "ai" }
-
-        // 摘要应该被放置在最后一条AI消息之后，这标志着一个完整对话轮次的结束。
-        // 如果没有找到AI消息（例如，在聊天的开始），lastAiMessageIndex将是-1，
-        // 我们将在索引0处插入，这是正确的行为。
-        return lastAiMessageIndex + 1
-    }
-
     /** 切换是否显示聊天历史选择器 */
     fun toggleChatHistorySelector() {
         _showChatHistorySelector.value = !_showChatHistorySelector.value

@@ -36,4 +36,11 @@ class MessageCopyTextTest {
 
         assertEquals("<meta charset=\"utf-8\">visibleanswer", cleanMessageContentForCopy(content))
     }
+
+    @Test fun cleanMessageContentForCopy_removesAnthropicContentBlocksMetadata() {
+        val content =
+            "answer<meta provider=\"anthropic:content_blocks\">payload</meta>"
+
+        assertEquals("answer", cleanMessageContentForCopy(content))
+    }
 }

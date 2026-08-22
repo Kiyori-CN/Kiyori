@@ -139,6 +139,34 @@ class MessageProcessingDelegate(
                 shouldNotifyTurnComplete = false,
             )
         }
+
+        internal fun applyWaifuTurnMetrics(
+            messages: List<ChatMessage>,
+            sourceMessage: ChatMessage,
+        ): List<ChatMessage> {
+            val sourceProviderUsage = sourceMessage.toProviderUsageAggregate()
+            return messages.mapIndexed { index, message ->
+                val messageWithMetrics =
+                    message.copy(
+                        inputTokens = sourceMessage.inputTokens,
+                        outputTokens = sourceMessage.outputTokens,
+                        cachedInputTokens = sourceMessage.cachedInputTokens,
+                        sentAt = sourceMessage.sentAt,
+                        outputDurationMs = sourceMessage.outputDurationMs,
+                        waitDurationMs = sourceMessage.waitDurationMs,
+                        completedAt = sourceMessage.completedAt,
+                    )
+                // Waifu 模式不持久化普通 aiMessage。整轮 provider usage 必须由最后一个
+                // 实际分段唯一持有，否则按消息汇总时会重复计费或完全丢失该回合。
+                messageWithMetrics.withProviderUsageAggregate(
+                    if (index == messages.lastIndex) {
+                        sourceProviderUsage
+                    } else {
+                        ProviderUsageAggregate()
+                    }
+                )
+            }
+        }
     }
 
 
@@ -322,6 +350,7 @@ class MessageProcessingDelegate(
         var turnInputTokens: Int = 0
         var turnOutputTokens: Int = 0
         var turnCachedInputTokens: Int = 0
+        var turnProviderUsage: ProviderUsageAggregate = ProviderUsageAggregate()
         var calculateNextWindowSize: (suspend () -> Int?)? = null
 
         var shouldNotifyTurnComplete: Boolean = false
@@ -1738,17 +1767,12 @@ class MessageProcessingDelegate(
         if (!state.effectivePersistTurn || state.waifuEmittedMessages.isEmpty()) return
 
         withContext(Dispatchers.Main) {
-            state.waifuEmittedMessages.indices.forEach { index ->
-                val updatedMessage =
-                    state.waifuEmittedMessages[index].copy(
-                        inputTokens = sourceMessage.inputTokens,
-                        outputTokens = sourceMessage.outputTokens,
-                        cachedInputTokens = sourceMessage.cachedInputTokens,
-                        sentAt = sourceMessage.sentAt,
-                        outputDurationMs = sourceMessage.outputDurationMs,
-                        waitDurationMs = sourceMessage.waitDurationMs,
-                        completedAt = sourceMessage.completedAt,
-                    )
+            val updatedMessages =
+                applyWaifuTurnMetrics(
+                    messages = state.waifuEmittedMessages,
+                    sourceMessage = sourceMessage,
+                )
+            updatedMessages.forEachIndexed { index, updatedMessage ->
                 state.waifuEmittedMessages[index] = updatedMessage
                 addMessageToChat(state.chatId, updatedMessage)
             }
@@ -2100,6 +2124,7 @@ class MessageProcessingDelegate(
             state.turnInputTokens = state.service.getCurrentInputTokenCount()
             state.turnOutputTokens = state.service.getCurrentOutputTokenCount()
             state.turnCachedInputTokens = state.service.getCurrentCachedInputTokenCount()
+            state.turnProviderUsage = state.service.getCurrentProviderUsageAggregate()
         }.onFailure {
             AppLogger.w(TAG, "读取本轮 token 统计失败", it)
         }
@@ -2126,7 +2151,7 @@ class MessageProcessingDelegate(
                         cachedInputTokens = state.turnCachedInputTokens,
                         sentAt = state.requestSentAt,
                         outputDurationMs = outputDurationMs,
-                        waitDurationMs = waitDurationMs
+                        waitDurationMs = waitDurationMs,
                     )
                 addMessageToChat(state.chatId, state.userMessage)
             }
@@ -2138,8 +2163,8 @@ class MessageProcessingDelegate(
                     cachedInputTokens = state.turnCachedInputTokens,
                     sentAt = state.requestSentAt,
                     outputDurationMs = outputDurationMs,
-                    waitDurationMs = waitDurationMs
-                )
+                    waitDurationMs = waitDurationMs,
+                ).withProviderUsageAggregate(state.turnProviderUsage)
         }
         state.aiMessage = state.aiMessage.copy(completedAt = System.currentTimeMillis())
         if (state.effectivePersistTurn) {
@@ -2506,10 +2531,12 @@ class MessageProcessingDelegate(
             var turnInputTokens = 0
             var turnOutputTokens = 0
             var turnCachedInputTokens = 0
+            var turnProviderUsage = ProviderUsageAggregate()
             runCatching {
                 turnInputTokens = service.getCurrentInputTokenCount()
                 turnOutputTokens = service.getCurrentOutputTokenCount()
                 turnCachedInputTokens = service.getCurrentCachedInputTokenCount()
+                turnProviderUsage = service.getCurrentProviderUsageAggregate()
             }.onFailure {
                 AppLogger.w(TAG, "读取重新生成 token 统计失败", it)
             }
@@ -2536,7 +2563,7 @@ class MessageProcessingDelegate(
                     sentAt = requestSentAt,
                     outputDurationMs = outputDurationMs,
                     waitDurationMs = waitDurationMs,
-                ).copy(
+                ).withProviderUsageAggregate(turnProviderUsage).copy(
                     content = finalContent,
                     contentStream = null,
                     completedAt = completedAt,

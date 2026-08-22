@@ -15,6 +15,14 @@ import com.ai.assistance.operit.data.audit.ConversationAuditPayloadInput
 import com.ai.assistance.operit.data.audit.ConversationAuditRepository
 import com.ai.assistance.operit.data.audit.ConversationMessageRevisionRequest
 import com.ai.assistance.operit.data.audit.toOperitArchivedChat
+import com.ai.assistance.operit.core.chat.ConversationCompactionCommitDecision
+import com.ai.assistance.operit.core.chat.ConversationCompactionCommitResult
+import com.ai.assistance.operit.core.chat.ConversationCompactionContract
+import com.ai.assistance.operit.core.chat.ConversationCompactionRejection
+import com.ai.assistance.operit.core.chat.ConversationCompactionRouteIdentity
+import com.ai.assistance.operit.core.chat.ConversationCompactionSnapshot
+import com.ai.assistance.operit.core.chat.ConversationCompactionUsage
+import com.ai.assistance.operit.core.chat.ConversationToolResultPruningReport
 import com.ai.assistance.operit.data.db.AppDatabase
 import com.ai.assistance.operit.data.model.ChatEntity
 import com.ai.assistance.operit.data.model.ChatHistory
@@ -28,8 +36,10 @@ import com.ai.assistance.operit.data.model.OperitArchivedChat
 import com.ai.assistance.operit.data.model.OperitArchivedConversationAudit
 import com.ai.assistance.operit.data.model.OperitArchivedMessageVariant
 import com.ai.assistance.operit.data.model.OperitChatArchive
+import com.ai.assistance.operit.data.model.ProviderUsageAggregate
 import com.ai.assistance.operit.data.model.WorkspaceRenameResult
 import com.ai.assistance.operit.util.LocaleUtils
+import com.ai.assistance.operit.util.ChatUtils
 import com.ai.assistance.operit.data.converter.*
 import com.ai.assistance.operit.data.exporter.*
 import com.google.gson.GsonBuilder
@@ -637,6 +647,16 @@ class ChatHistoryManager private constructor(private val context: Context) {
             inputTokens = this.inputTokens,
             outputTokens = this.outputTokens,
             currentWindowSize = this.currentWindowSize,
+            providerRequestCount = this.providerRequestCount,
+            providerUsageRequestCount = this.providerUsageRequestCount,
+            providerCacheMetricRequestCount = this.providerCacheMetricRequestCount,
+            providerCacheMetricPromptTokens = this.providerCacheMetricPromptTokens,
+            providerTotalInputTokens = this.providerTotalInputTokens,
+            providerUncachedInputTokens = this.providerUncachedInputTokens,
+            providerCacheReadTokens = this.providerCacheReadTokens,
+            providerCacheWriteTokens = this.providerCacheWriteTokens,
+            providerOutputTokens = this.providerOutputTokens,
+            providerReasoningTokens = this.providerReasoningTokens,
             group = this.group, // 映射group字段
             displayOrder = this.displayOrder,
             workspace = this.workspace, // 映射workspace字段
@@ -995,64 +1015,6 @@ class ChatHistoryManager private constructor(private val context: Context) {
             }
 
             else -> message
-        }
-    }
-
-    suspend fun addSummaryMessageBetweenSliceNeighbors(
-        chatId: String,
-        message: ChatMessage,
-        beforeTimestamp: Long?,
-        afterTimestamp: Long?,
-    ): ChatMessage? {
-        chatMutex(chatId).withLock {
-            try {
-                val beforeMessage =
-                    when {
-                        beforeTimestamp != null ->
-                            chatContentDao.getMessageByTimestamp(chatId, beforeTimestamp)
-                        afterTimestamp != null ->
-                            chatContentDao
-                                .getMessagesForChatBeforeTimestampExclusiveDesc(
-                                    chatId,
-                                    afterTimestamp,
-                                    1,
-                                ).firstOrNull()
-                        else -> null
-                    }
-                val afterMessage =
-                    when {
-                        beforeTimestamp != null && afterTimestamp == null ->
-                            chatContentDao
-                                .getMessagesForChatAfterTimestampExclusiveAsc(
-                                    chatId,
-                                    beforeTimestamp,
-                                    1,
-                                ).firstOrNull()
-                        afterTimestamp != null ->
-                            chatContentDao.getMessageByTimestamp(chatId, afterTimestamp)
-                        else -> null
-                    }
-
-                if (beforeMessage?.sender == "summary" || afterMessage?.sender == "summary") {
-                    AppLogger.w(
-                        TAG,
-                        "相邻消息已是 summary，取消插入: chatId=$chatId, before=${beforeMessage?.timestamp}, after=${afterMessage?.timestamp}",
-                    )
-                    return null
-                }
-
-                val messageToPersist =
-                    resolveAnchoredMessageLocked(
-                        chatId = chatId,
-                        message = message,
-                        beforeTimestamp = beforeTimestamp,
-                        afterTimestamp = afterTimestamp,
-                    ) ?: return null
-                return persistMessageLocked(chatId, messageToPersist)
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "Failed to add summary message between slice neighbors for chat $chatId", e)
-                throw e
-            }
         }
     }
 
@@ -1478,6 +1440,293 @@ class ChatHistoryManager private constructor(private val context: Context) {
         }
     }
 
+    suspend fun recordConversationCompactionRequested(
+        snapshot: ConversationCompactionSnapshot,
+    ) {
+        conversationAuditRepository.appendEvent(
+            ConversationAuditEventRequest(
+                chatId = snapshot.chatId,
+                category = "COMPACTION",
+                eventType = "COMPACTION_REQUESTED",
+                actor = "KIYORI",
+                summary =
+                    "已请求压缩 ${snapshot.sourceMessageCount} 条运行态消息，范围 " +
+                        "${snapshot.rangeStartTimestamp}..${snapshot.rangeEndTimestamp}",
+                messageTimestamp = snapshot.rangeEndTimestamp,
+                terminalState = "REQUESTED",
+                payloads =
+                    listOf(
+                        ConversationAuditPayloadInput.text(
+                            label = "compaction_request",
+                            role = "metadata",
+                            value = buildCompactionMetadata(snapshot).toString(),
+                            mediaType = "application/json",
+                        )
+                    ),
+            )
+        )
+    }
+
+    suspend fun recordConversationCompactionGenerated(
+        snapshot: ConversationCompactionSnapshot,
+        summaryMessage: ChatMessage,
+        usage: ConversationCompactionUsage,
+        pruningReport: ConversationToolResultPruningReport,
+    ) {
+        conversationAuditRepository.appendEvent(
+            ConversationAuditEventRequest(
+                chatId = snapshot.chatId,
+                category = "COMPACTION",
+                eventType = "COMPACTION_GENERATED",
+                actor = "KIYORI",
+                summary =
+                    "压缩摘要已生成，等待提交前重新验证范围、工具事务和主聊天路由",
+                messageTimestamp = snapshot.rangeEndTimestamp,
+                terminalState = "GENERATED",
+                payloads =
+                    listOf(
+                        ConversationAuditPayloadInput.text(
+                            label = "summary",
+                            role = "summary",
+                            value = summaryMessage.content,
+                        ),
+                        ConversationAuditPayloadInput.text(
+                            label = "compaction_generation",
+                            role = "metadata",
+                            value =
+                                buildCompactionMetadata(
+                                    snapshot = snapshot,
+                                    usage = usage,
+                                    pruningReport = pruningReport,
+                                ).toString(),
+                            mediaType = "application/json",
+                        ),
+                    ),
+            )
+        )
+    }
+
+    suspend fun commitConversationCompaction(
+        snapshot: ConversationCompactionSnapshot,
+        summaryMessage: ChatMessage,
+        usage: ConversationCompactionUsage,
+        pruningReport: ConversationToolResultPruningReport,
+        currentRouteIdentity: ConversationCompactionRouteIdentity,
+    ): ConversationCompactionCommitResult {
+        val safeSummaryMessage =
+            summaryMessage.copy(
+                sender = "summary",
+                content =
+                    ConversationCompactionContract.requireSafeSummaryCheckpoint(
+                        summaryMessage.content
+                    ),
+            )
+        return withContext(Dispatchers.IO) {
+            chatMutex(snapshot.chatId).withLock {
+                val currentRange =
+                    hydrateMessages(
+                        snapshot.chatId,
+                        chatContentDao.getMessagesForChatWindowAsc(
+                            chatId = snapshot.chatId,
+                            startTimestampInclusive = snapshot.rangeStartTimestamp,
+                            endTimestampInclusive = snapshot.rangeEndTimestamp,
+                        ),
+                    )
+                val currentAfterAnchor =
+                    hydrateMessages(
+                        snapshot.chatId,
+                        chatContentDao.getMessagesForChatAfterTimestampExclusiveAsc(
+                            chatId = snapshot.chatId,
+                            afterTimestampExclusive = snapshot.rangeEndTimestamp,
+                            limit = 1,
+                        ),
+                    ).firstOrNull()
+                val decision =
+                    ConversationCompactionContract.validateCommit(
+                        snapshot = snapshot,
+                        chatId = snapshot.chatId,
+                        currentRangeMessages = currentRange,
+                        currentAfterAnchor = currentAfterAnchor,
+                        currentRouteIdentity = currentRouteIdentity,
+                    )
+                if (decision is ConversationCompactionCommitDecision.Reject) {
+                    recordConversationCompactionRejected(
+                        snapshot = snapshot,
+                        decision = decision,
+                        usage = usage,
+                        pruningReport = pruningReport,
+                    )
+                    return@withLock ConversationCompactionCommitResult(decision = decision)
+                }
+
+                val allowed = decision as ConversationCompactionCommitDecision.Allow
+                val messageToPersist =
+                    resolveAnchoredMessageLocked(
+                        chatId = snapshot.chatId,
+                        message = safeSummaryMessage,
+                        beforeTimestamp = snapshot.beforeAnchorTimestamp,
+                        afterTimestamp = allowed.afterAnchorTimestamp,
+                    )
+                if (messageToPersist == null) {
+                    val rejected =
+                        ConversationCompactionCommitDecision.Reject(
+                            reason = ConversationCompactionRejection.BOUNDARY_INVALID,
+                            detail = "Summary timestamp could not be allocated between current anchors",
+                        )
+                    recordConversationCompactionRejected(
+                        snapshot = snapshot,
+                        decision = rejected,
+                        usage = usage,
+                        pruningReport = pruningReport,
+                    )
+                    return@withLock ConversationCompactionCommitResult(decision = rejected)
+                }
+
+                val oldTokenEstimate =
+                    currentRange.fold(0L) { total, message ->
+                        total + ChatUtils.estimateTokenCount(message.content).toLong()
+                    }
+                val newTokenEstimate =
+                    ChatUtils.estimateTokenCount(messageToPersist.content).toLong()
+                val auditResult =
+                    conversationAuditRepository.mutateAndAppendEvent(
+                        ConversationAuditEventRequest(
+                            chatId = snapshot.chatId,
+                            category = "COMPACTION",
+                            eventType = "COMPACTION_COMMITTED",
+                            actor = "KIYORI",
+                            summary =
+                                "压缩摘要已提交；完整历史保留，下一次运行态请求从新 summary 开始",
+                            messageTimestamp = messageToPersist.timestamp,
+                            terminalState = "COMMITTED",
+                            payloads =
+                                listOf(
+                                    ConversationAuditPayloadInput.text(
+                                        label = "summary",
+                                        role = "summary",
+                                        value = messageToPersist.content,
+                                    ),
+                                    ConversationAuditPayloadInput.text(
+                                        label = "compaction_commit",
+                                        role = "metadata",
+                                        value =
+                                            buildCompactionMetadata(
+                                                 snapshot = snapshot,
+                                                 usage = usage,
+                                                 pruningReport = pruningReport,
+                                                 oldTokenEstimate = oldTokenEstimate,
+                                                newTokenEstimate = newTokenEstimate,
+                                                persistedTimestamp = messageToPersist.timestamp,
+                                            ).toString(),
+                                        mediaType = "application/json",
+                                    ),
+                                ),
+                        )
+                    ) {
+                        persistMessageLocked(snapshot.chatId, messageToPersist)
+                    }
+                ConversationCompactionCommitResult(
+                    decision = decision,
+                    persistedSummaryMessage = auditResult.value,
+                )
+            }
+        }
+    }
+
+    private suspend fun recordConversationCompactionRejected(
+        snapshot: ConversationCompactionSnapshot,
+        decision: ConversationCompactionCommitDecision.Reject,
+        usage: ConversationCompactionUsage,
+        pruningReport: ConversationToolResultPruningReport,
+    ) {
+        conversationAuditRepository.appendEvent(
+            ConversationAuditEventRequest(
+                chatId = snapshot.chatId,
+                category = "COMPACTION",
+                eventType = "COMPACTION_REJECTED",
+                actor = "KIYORI",
+                summary = "压缩摘要未提交：${decision.reason.name}",
+                messageTimestamp = snapshot.rangeEndTimestamp,
+                terminalState = "REJECTED",
+                failureCode = decision.reason.name,
+                payloads =
+                    listOf(
+                        ConversationAuditPayloadInput.text(
+                            label = "compaction_rejection",
+                            role = "metadata",
+                            value =
+                                buildCompactionMetadata(
+                                    snapshot = snapshot,
+                                    usage = usage,
+                                    pruningReport = pruningReport,
+                                    rejection = decision,
+                                ).toString(),
+                            mediaType = "application/json",
+                        )
+                    ),
+            )
+        )
+    }
+
+    private fun buildCompactionMetadata(
+        snapshot: ConversationCompactionSnapshot,
+        usage: ConversationCompactionUsage? = null,
+        pruningReport: ConversationToolResultPruningReport? = null,
+        oldTokenEstimate: Long? = null,
+        newTokenEstimate: Long? = null,
+        persistedTimestamp: Long? = null,
+        rejection: ConversationCompactionCommitDecision.Reject? = null,
+    ): JSONObject {
+        return JSONObject().apply {
+            put("range_start_timestamp", snapshot.rangeStartTimestamp)
+            put("range_end_timestamp", snapshot.rangeEndTimestamp)
+            put("before_anchor_timestamp", snapshot.beforeAnchorTimestamp)
+            put("after_anchor_timestamp", snapshot.afterAnchorTimestamp ?: JSONObject.NULL)
+            put("range_digest", snapshot.rangeDigest)
+            put("source_message_count", snapshot.sourceMessageCount)
+            put(
+                "route",
+                JSONObject().apply {
+                    put("config_id", snapshot.routeIdentity.configId)
+                    put("model_index", snapshot.routeIdentity.modelIndex)
+                    put("provider_type_id", snapshot.routeIdentity.providerTypeId)
+                    put("protocol", snapshot.routeIdentity.protocol.name)
+                    put("model_name", snapshot.routeIdentity.modelName)
+                }
+            )
+            usage?.let {
+                put(
+                    "summary_usage",
+                    JSONObject().apply {
+                        put("provider_model", it.providerModel)
+                        put("input_tokens", it.inputTokens)
+                        put("cache_read_tokens", it.cacheReadTokens)
+                        put("output_tokens", it.outputTokens)
+                    }
+                )
+            }
+            pruningReport?.let {
+                put(
+                    "tool_result_pruning",
+                    JSONObject().apply {
+                        put("inspected_result_count", it.inspectedResultCount)
+                        put("pruned_result_count", it.prunedResultCount)
+                        put("original_payload_chars", it.originalPayloadChars)
+                        put("projected_payload_chars", it.projectedPayloadChars)
+                        put("omitted_payload_chars", it.omittedPayloadChars)
+                    }
+                )
+            }
+            oldTokenEstimate?.let { put("old_heuristic_token_estimate", it) }
+            newTokenEstimate?.let { put("new_heuristic_token_estimate", it) }
+            persistedTimestamp?.let { put("persisted_summary_timestamp", it) }
+            rejection?.let {
+                put("rejection_reason", it.reason.name)
+                put("rejection_detail", it.detail)
+            }
+        }
+    }
+
     suspend fun reviseMessage(
         chatId: String,
         message: ChatMessage,
@@ -1815,19 +2064,32 @@ class ChatHistoryManager private constructor(private val context: Context) {
         chatId: String,
         inputTokens: Int,
         outputTokens: Int,
-        currentWindowSize: Int
+        currentWindowSize: Int,
+        providerUsage: ProviderUsageAggregate,
     ) {
         chatMutex(chatId).withLock {
             try {
                 val chat = chatDao.getChatById(chatId)
                 if (chat != null) {
-                    chatDao.updateChatMetadata(
+                    chatDao.updateChatUsageStatistics(
                         chatId = chatId,
-                        title = chat.title,
                         timestamp = System.currentTimeMillis(),
                         inputTokens = inputTokens,
                         outputTokens = outputTokens,
-                        currentWindowSize = currentWindowSize
+                        currentWindowSize = currentWindowSize,
+                        providerRequestCount = providerUsage.requestCount,
+                        providerUsageRequestCount = providerUsage.providerUsageRequestCount,
+                        providerCacheMetricRequestCount =
+                            providerUsage.providerCacheMetricRequestCount,
+                        providerCacheMetricPromptTokens =
+                            providerUsage.providerCacheMetricPromptTokens,
+                        providerTotalInputTokens = providerUsage.providerTotalInputTokens,
+                        providerUncachedInputTokens =
+                            providerUsage.providerUncachedInputTokens,
+                        providerCacheReadTokens = providerUsage.providerCacheReadTokens,
+                        providerCacheWriteTokens = providerUsage.providerCacheWriteTokens,
+                        providerOutputTokens = providerUsage.providerOutputTokens,
+                        providerReasoningTokens = providerUsage.providerReasoningTokens,
                     )
                 }
             } catch (e: Exception) {
@@ -2362,6 +2624,18 @@ class ChatHistoryManager private constructor(private val context: Context) {
                         inputTokens = entity.inputTokens,
                         outputTokens = entity.outputTokens,
                         currentWindowSize = entity.currentWindowSize,
+                        providerRequestCount = entity.providerRequestCount,
+                        providerUsageRequestCount = entity.providerUsageRequestCount,
+                        providerCacheMetricRequestCount =
+                            entity.providerCacheMetricRequestCount,
+                        providerCacheMetricPromptTokens =
+                            entity.providerCacheMetricPromptTokens,
+                        providerTotalInputTokens = entity.providerTotalInputTokens,
+                        providerUncachedInputTokens = entity.providerUncachedInputTokens,
+                        providerCacheReadTokens = entity.providerCacheReadTokens,
+                        providerCacheWriteTokens = entity.providerCacheWriteTokens,
+                        providerOutputTokens = entity.providerOutputTokens,
+                        providerReasoningTokens = entity.providerReasoningTokens,
                         group = entity.group,
                         displayOrder = entity.displayOrder,
                         workspace = entity.workspace,
@@ -2403,6 +2677,18 @@ class ChatHistoryManager private constructor(private val context: Context) {
                     inputTokens = entity.inputTokens,
                     outputTokens = entity.outputTokens,
                     currentWindowSize = entity.currentWindowSize,
+                    providerRequestCount = entity.providerRequestCount,
+                    providerUsageRequestCount = entity.providerUsageRequestCount,
+                    providerCacheMetricRequestCount =
+                        entity.providerCacheMetricRequestCount,
+                    providerCacheMetricPromptTokens =
+                        entity.providerCacheMetricPromptTokens,
+                    providerTotalInputTokens = entity.providerTotalInputTokens,
+                    providerUncachedInputTokens = entity.providerUncachedInputTokens,
+                    providerCacheReadTokens = entity.providerCacheReadTokens,
+                    providerCacheWriteTokens = entity.providerCacheWriteTokens,
+                    providerOutputTokens = entity.providerOutputTokens,
+                    providerReasoningTokens = entity.providerReasoningTokens,
                     group = entity.group,
                     displayOrder = entity.displayOrder,
                     workspace = entity.workspace,
@@ -2746,53 +3032,6 @@ class ChatHistoryManager private constructor(private val context: Context) {
         }
     }
 
-    suspend fun getLatestSummaryTimestamp(chatId: String): Long? {
-        return withContext(Dispatchers.IO) {
-            try {
-                messageDao.getLatestSummaryTimestamp(chatId)
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "获取最新 summary 时间戳失败", e)
-                null
-            }
-        }
-    }
-
-    suspend fun loadMessagesAfterLatestSummaryInRange(
-        chatId: String,
-        beforeTimestampExclusive: Long? = null,
-        upToTimestampInclusive: Long? = null,
-    ): List<ChatMessage> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val latestSummaryTimestamp =
-                    when {
-                        beforeTimestampExclusive != null ->
-                            messageDao.getLatestSummaryTimestampBefore(
-                                chatId,
-                                beforeTimestampExclusive,
-                            )
-                        upToTimestampInclusive != null ->
-                            messageDao.getLatestSummaryTimestampUpTo(
-                                chatId,
-                                upToTimestampInclusive,
-                            )
-                        else -> messageDao.getLatestSummaryTimestamp(chatId)
-                    }
-                val messageEntities =
-                    chatContentDao.getMessagesForChatInRangeAsc(
-                        chatId = chatId,
-                        afterTimestampExclusive = latestSummaryTimestamp,
-                        beforeTimestampExclusive = beforeTimestampExclusive,
-                        upToTimestampInclusive = upToTimestampInclusive,
-                    )
-                hydrateMessages(chatId, messageEntities)
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "按总结窗口加载聊天消息失败", e)
-                emptyList()
-            }
-        }
-    }
-
     suspend fun hasUserMessage(chatId: String): Boolean {
         return withContext(Dispatchers.IO) {
             try {
@@ -2822,6 +3061,54 @@ class ChatHistoryManager private constructor(private val context: Context) {
                 AppLogger.e(TAG, "加载运行态聊天消息失败", e)
                 emptyList()
             }
+        }
+    }
+
+    suspend fun loadRuntimeChatMessagesForCompaction(chatId: String): List<ChatMessage> {
+        return withContext(Dispatchers.IO) {
+            val latestSummaryTimestamp = messageDao.getLatestSummaryTimestamp(chatId)
+            val messageEntities =
+                if (latestSummaryTimestamp != null) {
+                    chatContentDao.getMessagesForChatFromTimestampAsc(
+                        chatId,
+                        latestSummaryTimestamp,
+                    )
+                } else {
+                    chatContentDao.getMessagesForChat(chatId)
+                }
+            hydrateMessages(chatId, messageEntities)
+        }
+    }
+
+    suspend fun loadMessagesForCompactionInsertion(
+        chatId: String,
+        beforeTimestampExclusive: Long? = null,
+        upToTimestampInclusive: Long? = null,
+    ): List<ChatMessage> {
+        return withContext(Dispatchers.IO) {
+            val latestSummaryTimestamp =
+                when {
+                    beforeTimestampExclusive != null ->
+                        messageDao.getLatestSummaryTimestampBefore(
+                            chatId,
+                            beforeTimestampExclusive,
+                        )
+                    upToTimestampInclusive != null ->
+                        messageDao.getLatestSummaryTimestampUpTo(
+                            chatId,
+                            upToTimestampInclusive,
+                        )
+                    else -> messageDao.getLatestSummaryTimestamp(chatId)
+                }
+            hydrateMessages(
+                chatId,
+                chatContentDao.getMessagesForChatInRangeAsc(
+                    chatId = chatId,
+                    afterTimestampExclusive = latestSummaryTimestamp,
+                    beforeTimestampExclusive = beforeTimestampExclusive,
+                    upToTimestampInclusive = upToTimestampInclusive,
+                ),
+            )
         }
     }
 

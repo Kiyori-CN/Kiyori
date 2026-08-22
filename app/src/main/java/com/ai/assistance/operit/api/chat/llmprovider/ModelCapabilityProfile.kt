@@ -152,6 +152,7 @@ object ModelCapabilityResolver {
         providerType: ApiProviderType,
         modelName: String,
         apiEndpoint: String,
+        providerIdentityType: ApiProviderType = providerType,
     ): ModelCapabilityProfile {
         val normalizedModel = modelName.trim().lowercase()
         val reasoningWireFormat =
@@ -175,6 +176,8 @@ object ModelCapabilityResolver {
             providerContractAuthority == ProviderContractAuthority.OPENAI_OFFICIAL
         val isResponses = reasoningWireFormat == ReasoningWireFormat.RESPONSES
         val isOfficialResponses = isOfficialOpenAi && isResponses
+        val isDeepSeekResponses =
+            providerIdentityType == ApiProviderType.DEEPSEEK && isResponses
         val isGpt56Family = normalizedModel.startsWith("gpt-5.6")
 
         if (isGpt56Family && reasoningWireFormat != ReasoningWireFormat.NONE) {
@@ -199,7 +202,7 @@ object ModelCapabilityResolver {
                 supportedReasoningEfforts = FIVE_LEVEL_REASONING.toSet(),
                 qualityLevelToReasoningEffort = FIVE_LEVEL_REASONING,
                 reasoningSummary =
-                    if (isResponses) {
+                    if (isOfficialResponses) {
                         ReasoningSummaryCapability.OPENAI_AUTO
                     } else {
                         ReasoningSummaryCapability.NONE
@@ -214,6 +217,9 @@ object ModelCapabilityResolver {
                     when {
                         isOfficialResponses ->
                             ExecutionPersistenceCapability.OPENAI_BACKGROUND_SEQUENCE_RESUME
+
+                        isDeepSeekResponses ->
+                            ExecutionPersistenceCapability.NONE
 
                         isResponses ->
                             ExecutionPersistenceCapability.RESPONSES_AT_MOST_ONCE
@@ -254,6 +260,22 @@ object ModelCapabilityResolver {
                     ProviderContractAuthority.OPENAI_COMPATIBLE -> "openai-compatible"
                     ProviderContractAuthority.NOT_APPLICABLE -> "provider"
                 }
+            if (isDeepSeekResponses) {
+                return ModelCapabilityProfile(
+                    profileId = "deepseek-responses-replay-only-v1",
+                    modelFamily = normalizedModel.ifBlank { "deepseek" },
+                    providerContractAuthority = providerContractAuthority,
+                    reasoningWireFormat = ReasoningWireFormat.RESPONSES,
+                    supportedReasoningEfforts = emptySet(),
+                    reasoningSummary = ReasoningSummaryCapability.NONE,
+                    reasoningReplay = ReasoningReplayCapability.NONE,
+                    executionPersistence = ExecutionPersistenceCapability.NONE,
+                    promptCache = PromptCacheCapability.NONE,
+                    promptCacheNamespace = null,
+                    toolSchema = ToolSchemaCapability.BASELINE,
+                    toolDiscovery = ToolDiscoveryCapability.EAGER_ONLY,
+                )
+            }
             return ModelCapabilityProfile(
                 profileId = "$contractId-passthrough-v2",
                 modelFamily = normalizedModel.ifBlank { "openai-compatible" },

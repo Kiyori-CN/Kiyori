@@ -10,6 +10,9 @@ import com.ai.assistance.operit.core.chat.hooks.SummaryHookContext
 import com.ai.assistance.operit.core.chat.hooks.SummaryHookRegistry
 import com.ai.assistance.operit.core.chat.hooks.buildActivePromptHookMetadata
 import com.ai.assistance.operit.core.chat.hooks.toPromptTurns
+import com.ai.assistance.operit.core.chat.ConversationCompactionContract
+import com.ai.assistance.operit.core.chat.ConversationCompactionUsage
+import com.ai.assistance.operit.core.chat.GeneratedConversationSummaryContent
 import com.ai.assistance.operit.core.config.SystemPromptConfig
 import com.ai.assistance.operit.core.tools.climode.ToolExposureMode
 import com.ai.assistance.operit.R
@@ -113,6 +116,20 @@ class ConversationService(
             multiServiceManager: MultiServiceManager,
             customRules: String? = null
     ): String {
+        return generateSummaryResultFromPromptTurns(
+            messages = messages,
+            previousSummary = previousSummary,
+            multiServiceManager = multiServiceManager,
+            customRules = customRules,
+        ).content
+    }
+
+    suspend fun generateSummaryResultFromPromptTurns(
+            messages: List<PromptTurn>,
+            previousSummary: String?,
+            multiServiceManager: MultiServiceManager,
+            customRules: String? = null
+    ): GeneratedConversationSummaryContent {
         try {
             val useEnglish = LocaleUtils.getCurrentLanguage(context).lowercase().startsWith("en")
             val activePromptMetadata = buildActivePromptHookMetadata(context)
@@ -122,8 +139,9 @@ class ConversationService(
                 systemPrompt += "\n\n${customRules.trim()}"
             }
             val sanitizedMessages =
-                ChatUtils.stripOpenAiResponsesReasoningMetaTurns(
-                    ChatUtils.stripGeminiThoughtSignatureMetaTurns(messages)
+                ChatUtils.stripProviderReplayMetadataTurns(
+                    messages = messages,
+                    retainedKinds = emptySet(),
                 )
 
             // Get all model parameters from preferences (with enabled state)
@@ -281,8 +299,9 @@ class ConversationService(
                 context.getString(R.string.conversation_summary_completed)
             )
 
-            // 获取完整的总结内容
-            var summaryContent = ChatUtils.removeThinkingContent(contentBuilder.toString().trim())
+            // 摘要 checkpoint 不能保留 provider-private replay、reasoning 或工具事务标记，
+            // 否则下一轮会把摘要误解为可重放的 provider 历史。
+            var summaryContent = sanitizeSummaryCheckpoint(contentBuilder.toString())
 
             // 获取本次总结生成的token统计
             val inputTokens = summaryService.inputTokenCount
@@ -310,12 +329,8 @@ class ConversationService(
                             )
                     )
                 )
-            summaryContent = afterGenerateContext.summaryResult ?: summaryContent
-
-            // 如果内容为空，返回默认消息
-            if (summaryContent.isBlank()) {
-                return "Conversation Summary: Unable to generate valid summary."
-            }
+            summaryContent =
+                sanitizeSummaryCheckpoint(afterGenerateContext.summaryResult ?: summaryContent)
 
             // 将总结token计数添加到用户偏好分析的token统计中
             try {
@@ -330,12 +345,25 @@ class ConversationService(
                 AppLogger.e(TAG, "更新token统计失败", e)
             }
 
-            return summaryContent
+            return GeneratedConversationSummaryContent(
+                content = summaryContent,
+                usage =
+                    ConversationCompactionUsage(
+                        providerModel = summaryService.providerModel,
+                        inputTokens = inputTokens,
+                        cacheReadTokens = cachedInputTokens,
+                        outputTokens = outputTokens,
+                    ),
+            )
         } catch (e: Exception) {
             AppLogger.e(TAG, "生成总结时出错", e)
             // return "对话摘要：生成摘要时出错，但对话仍在继续。"
             throw e
         }
+    }
+
+    private fun sanitizeSummaryCheckpoint(content: String): String {
+        return ConversationCompactionContract.requireSafeSummaryCheckpoint(content)
     }
 
 

@@ -3,6 +3,9 @@ package com.ai.assistance.operit.services.core
 import com.ai.assistance.operit.api.chat.AssistantTurnFailureKind
 import com.ai.assistance.operit.data.model.ChatMessage
 import com.ai.assistance.operit.data.model.InputProcessingState
+import com.ai.assistance.operit.data.model.ProviderUsageAggregate
+import com.ai.assistance.operit.data.model.toProviderUsageAggregate
+import com.ai.assistance.operit.data.model.withProviderUsageAggregate
 import com.ai.assistance.operit.util.stream.emptyStream
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -90,5 +93,66 @@ class MessageProcessingDelegateTest {
         )
         assertFalse(emptyOutput.shouldNotifyTurnComplete)
         assertFalse(missingTerminal.shouldNotifyTurnComplete)
+    }
+
+    @Test
+    fun waifuSegmentsKeepOneProviderUsageOwnerForTheWholeTurn() {
+        val usage =
+            ProviderUsageAggregate(
+                requestCount = 2,
+                providerUsageRequestCount = 2,
+                providerCacheMetricRequestCount = 2,
+                providerCacheMetricPromptTokens = 100L,
+                providerTotalInputTokens = 100L,
+                providerUncachedInputTokens = 20L,
+                providerCacheReadTokens = 70L,
+                providerCacheWriteTokens = 10L,
+                providerOutputTokens = 30L,
+                providerReasoningTokens = 8L,
+            )
+        val sourceMessage =
+            ChatMessage(
+                sender = "ai",
+                inputTokens = 120,
+                outputTokens = 30,
+                cachedInputTokens = 70,
+                sentAt = 1_000L,
+                outputDurationMs = 4_000L,
+                waitDurationMs = 500L,
+                completedAt = 6_000L,
+            ).withProviderUsageAggregate(usage)
+        val segments =
+            listOf("第一段", "第二段", "第三段").mapIndexed { index, content ->
+                ChatMessage(
+                    sender = "ai",
+                    content = content,
+                    timestamp = 100L + index,
+                ).withProviderUsageAggregate(usage)
+            }
+
+        val result =
+            MessageProcessingDelegate.applyWaifuTurnMetrics(
+                messages = segments,
+                sourceMessage = sourceMessage,
+            )
+
+        result.forEach { message ->
+            assertEquals(sourceMessage.inputTokens, message.inputTokens)
+            assertEquals(sourceMessage.outputTokens, message.outputTokens)
+            assertEquals(sourceMessage.cachedInputTokens, message.cachedInputTokens)
+            assertEquals(sourceMessage.sentAt, message.sentAt)
+            assertEquals(sourceMessage.outputDurationMs, message.outputDurationMs)
+            assertEquals(sourceMessage.waitDurationMs, message.waitDurationMs)
+            assertEquals(sourceMessage.completedAt, message.completedAt)
+        }
+        assertEquals(ProviderUsageAggregate(), result[0].toProviderUsageAggregate())
+        assertEquals(ProviderUsageAggregate(), result[1].toProviderUsageAggregate())
+        assertEquals(usage, result[2].toProviderUsageAggregate())
+        assertEquals(
+            usage,
+            result.fold(ProviderUsageAggregate()) { aggregate, message ->
+                aggregate + message.toProviderUsageAggregate()
+            },
+        )
     }
 }

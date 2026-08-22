@@ -25,6 +25,16 @@ data class ChatMessage(
         val completedAt: Long = 0L, // 本轮消息完成时间（时间戳）
         val displayMode: ChatMessageDisplayMode = ChatMessageDisplayMode.NORMAL,
         val isFavorite: Boolean = false,
+        val providerRequestCount: Int = 0,
+        val providerUsageRequestCount: Int = 0,
+        val providerCacheMetricRequestCount: Int = 0,
+        val providerTotalInputTokens: Long = 0L,
+        val providerUncachedInputTokens: Long = 0L,
+        val providerCacheReadTokens: Long = 0L,
+        val providerCacheWriteTokens: Long = 0L,
+        val providerOutputTokens: Long = 0L,
+        val providerReasoningTokens: Long = 0L,
+        val providerCacheMetricPromptTokens: Long = 0L,
         @Transient
         val isVariantPreview: Boolean = false,
         @Transient
@@ -55,6 +65,18 @@ data class ChatMessage(
         displayMode = readDisplayModeFromParcel(parcel),
         isFavorite = readBooleanFromParcel(parcel),
         completedAt = if (parcel.dataAvail() > 0) parcel.readLong() else 0L,
+        providerRequestCount = if (parcel.dataAvail() > 0) parcel.readInt() else 0,
+        providerUsageRequestCount = if (parcel.dataAvail() > 0) parcel.readInt() else 0,
+        providerCacheMetricRequestCount =
+            if (parcel.dataAvail() > 0) parcel.readInt() else 0,
+        providerTotalInputTokens = if (parcel.dataAvail() > 0) parcel.readLong() else 0L,
+        providerUncachedInputTokens =
+            if (parcel.dataAvail() > 0) parcel.readLong() else 0L,
+        providerCacheReadTokens = if (parcel.dataAvail() > 0) parcel.readLong() else 0L,
+        providerCacheWriteTokens = if (parcel.dataAvail() > 0) parcel.readLong() else 0L,
+        providerOutputTokens = if (parcel.dataAvail() > 0) parcel.readLong() else 0L,
+        providerReasoningTokens = if (parcel.dataAvail() > 0) parcel.readLong() else 0L,
+        providerCacheMetricPromptTokens = if (parcel.dataAvail() > 0) parcel.readLong() else 0L,
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -75,6 +97,16 @@ data class ChatMessage(
         parcel.writeString(displayMode.name)
         parcel.writeInt(if (isFavorite) 1 else 0)
         parcel.writeLong(completedAt)
+        parcel.writeInt(providerRequestCount)
+        parcel.writeInt(providerUsageRequestCount)
+        parcel.writeInt(providerCacheMetricRequestCount)
+        parcel.writeLong(providerTotalInputTokens)
+        parcel.writeLong(providerUncachedInputTokens)
+        parcel.writeLong(providerCacheReadTokens)
+        parcel.writeLong(providerCacheWriteTokens)
+        parcel.writeLong(providerOutputTokens)
+        parcel.writeLong(providerReasoningTokens)
+        parcel.writeLong(providerCacheMetricPromptTokens)
         // 不需要序列化contentStream，因为它是暂时性的
     }
 

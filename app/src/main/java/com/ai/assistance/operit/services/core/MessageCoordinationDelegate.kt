@@ -5,6 +5,11 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.api.chat.EnhancedAIService
 import com.ai.assistance.operit.core.chat.AIMessageManager
+import com.ai.assistance.operit.core.chat.ConversationCompactionCommitDecision
+import com.ai.assistance.operit.core.chat.ConversationCompactionContract
+import com.ai.assistance.operit.core.chat.ConversationCompactionPlan
+import com.ai.assistance.operit.core.chat.ConversationCompactionPlanResult
+import com.ai.assistance.operit.core.chat.ConversationCompactionRouteIdentity
 import com.ai.assistance.operit.core.chat.hooks.PromptTurn
 import com.ai.assistance.operit.core.chat.hooks.PromptTurnKind
 import com.ai.assistance.operit.core.config.FunctionalPrompts
@@ -304,10 +309,12 @@ class MessageCoordinationDelegate(
                 memorySpaceIdOverride = effectiveMemorySpaceIdOverride
             )
         val (inputTokens, outputTokens) = tokenStatsDelegate.getCumulativeTokenCounts(targetChatId)
+        val providerUsage = tokenStatsDelegate.getCumulativeProviderUsage(targetChatId)
         chatHistoryDelegate.saveCurrentChat(
             inputTokens = inputTokens,
             outputTokens = outputTokens,
             actualContextWindowSize = newWindowSize.toLong(),
+            providerUsage = providerUsage,
             chatIdOverride = targetChatId
         )
         withContext(Dispatchers.Main) {
@@ -702,25 +709,29 @@ class MessageCoordinationDelegate(
             )
 
             if (isShouldGenerateSummary) {
-                val snapshotMessages = currentMessages.toList()
-                val insertPosition = chatHistoryDelegate.findProperSummaryPosition(snapshotMessages)
-                val beforeTimestamp = snapshotMessages.getOrNull(insertPosition - 1)?.timestamp
-                val afterTimestamp = snapshotMessages.getOrNull(insertPosition)?.timestamp
+                val compactionPlan =
+                    runBlocking {
+                        createConversationCompactionPlan(
+                            chatId = chatId,
+                            messages = currentMessages,
+                            chatModelConfigIdOverride = resolvedChatModelConfigIdOverride,
+                            chatModelIndexOverride = resolvedChatModelIndexOverride,
+                            roleCardIdOverride = roleCardId,
+                        )
+                    }
+                if (compactionPlan != null) {
+                    // 异步生成总结，不阻塞当前消息发送。提交前会在原聊天的写锁中重新验证范围。
+                    launchAsyncSummaryForSend(
+                        compactionPlan = compactionPlan,
+                        roleCardId = roleCardId,
+                        chatModelConfigIdOverride = resolvedChatModelConfigIdOverride,
+                        chatModelIndexOverride = resolvedChatModelIndexOverride,
+                        memorySpaceIdOverride = resolvedMemorySpaceIdOverride,
+                    )
 
-                // 异步生成总结，不阻塞当前消息发送
-                launchAsyncSummaryForSend(
-                    snapshotMessages = snapshotMessages,
-                    beforeTimestamp = beforeTimestamp,
-                    afterTimestamp = afterTimestamp,
-                    originalChatId = chatId,
-                    roleCardId = roleCardId,
-                    chatModelConfigIdOverride = resolvedChatModelConfigIdOverride,
-                    chatModelIndexOverride = resolvedChatModelIndexOverride,
-                    memorySpaceIdOverride = resolvedMemorySpaceIdOverride
-                )
-
-                // 本次请求的Token阈值在原基础上增加 0.5
-                tokenUsageThresholdForSend += 0.5
+                    // 本次请求的Token阈值在原基础上增加 0.5
+                    tokenUsageThresholdForSend += 0.5
+                }
             }
         }
 
@@ -1614,6 +1625,77 @@ class MessageCoordinationDelegate(
         }
     }
 
+    suspend fun summarizeConversationSlice(
+        chatId: String,
+        boundaryMessage: ChatMessage,
+        isGroupChat: Boolean,
+    ): Boolean {
+        require(boundaryMessage.sender == "user" || boundaryMessage.sender == "ai") {
+            "Summary insertion boundary must be a user or AI message"
+        }
+        val beforeTimestampExclusive =
+            boundaryMessage.timestamp.takeIf { boundaryMessage.sender == "user" }
+        val upToTimestampInclusive =
+            boundaryMessage.timestamp.takeIf { boundaryMessage.sender == "ai" }
+        val sourceMessages =
+            chatHistoryDelegate.loadMessagesForCompactionInsertion(
+                chatId = chatId,
+                beforeTimestampExclusive = beforeTimestampExclusive,
+                upToTimestampInclusive = upToTimestampInclusive,
+            )
+        val routeRoleCardId = resolveWindowEstimateRoleCardId(chatId, null)
+        val compactionPlan =
+            createConversationCompactionPlan(
+                chatId = chatId,
+                messages = sourceMessages,
+                chatModelConfigIdOverride = currentChatModelConfigIdOverride,
+                chatModelIndexOverride = currentChatModelIndexOverride,
+                roleCardIdOverride = routeRoleCardId,
+                afterAnchorTimestampOverride = beforeTimestampExclusive,
+            ) ?: return false
+        val service = getEnhancedAiService() ?: return false
+        chatHistoryDelegate.recordConversationCompactionRequested(compactionPlan.snapshot)
+        val generatedSummary =
+            AIMessageManager.summarizeMemoryWithUsage(
+                enhancedAiService = service,
+                messages = compactionPlan.sourceMessages,
+                autoContinue = false,
+                isGroupChat = isGroupChat,
+                summaryCustomRules = readSummaryCustomRules(),
+            ) ?: return false
+        chatHistoryDelegate.recordConversationCompactionGenerated(
+            snapshot = compactionPlan.snapshot,
+            summaryMessage = generatedSummary.message,
+            usage = generatedSummary.usage,
+            pruningReport = generatedSummary.pruningReport,
+        )
+        val currentRouteIdentity =
+            resolveConversationCompactionRouteIdentity(
+                chatId = chatId,
+                roleCardId = routeRoleCardId,
+                chatModelConfigIdOverride = currentChatModelConfigIdOverride,
+                chatModelIndexOverride = currentChatModelIndexOverride,
+            )
+        val commitResult =
+            chatHistoryDelegate.commitConversationCompaction(
+                snapshot = compactionPlan.snapshot,
+                summaryMessage = generatedSummary.message,
+                usage = generatedSummary.usage,
+                pruningReport = generatedSummary.pruningReport,
+                currentRouteIdentity = currentRouteIdentity,
+            )
+        if (commitResult.decision !is ConversationCompactionCommitDecision.Allow) {
+            AppLogger.w(
+                TAG,
+                "Manual compaction commit rejected: chatId=$chatId, " +
+                    "decision=${commitResult.decision}",
+            )
+            return false
+        }
+        refreshStableContextWindow(chatId = chatId)
+        return true
+    }
+
     /**
      * 处理Token超限的情况，触发一次历史总结并继续。
      */
@@ -1754,18 +1836,13 @@ class MessageCoordinationDelegate(
     }
 
     private fun launchAsyncSummaryForSend(
-        snapshotMessages: List<ChatMessage>,
-        beforeTimestamp: Long?,
-        afterTimestamp: Long?,
-        originalChatId: String?,
+        compactionPlan: ConversationCompactionPlan,
         roleCardId: String?,
         chatModelConfigIdOverride: String? = null,
         chatModelIndexOverride: Int? = null,
         memorySpaceIdOverride: String? = null
     ) {
-        if (snapshotMessages.isEmpty() || originalChatId == null) {
-            return
-        }
+        val originalChatId = compactionPlan.snapshot.chatId
 
         // 标记：有一次发送触发的异步总结正在进行
         _isSendTriggeredSummarizing.value = true
@@ -1781,35 +1858,51 @@ class MessageCoordinationDelegate(
             coroutineScope.launch {
             try {
                 val service = getEnhancedAiService() ?: return@launch
+                chatHistoryDelegate.recordConversationCompactionRequested(
+                    compactionPlan.snapshot
+                )
 
                 // 检查是否是群聊
                 val currentChat = chatHistoryDelegate.chatHistories.value.firstOrNull { it.id == originalChatId }
                 val isGroupChat = currentChat?.characterGroupId != null
 
                 val summaryCustomRules = readSummaryCustomRules()
-                val summaryMessage = AIMessageManager.summarizeMemory(
+                val generatedSummary = AIMessageManager.summarizeMemoryWithUsage(
                     enhancedAiService = service,
-                    messages = snapshotMessages,
+                    messages = compactionPlan.sourceMessages,
                     autoContinue = false,
                     isGroupChat = isGroupChat,
                     summaryCustomRules = summaryCustomRules
                 ) ?: return@launch
-
-                val currentChatId = chatHistoryDelegate.currentChatId.value
-                if (currentChatId != originalChatId) {
-                    AppLogger.d(
+                chatHistoryDelegate.recordConversationCompactionGenerated(
+                    snapshot = compactionPlan.snapshot,
+                    summaryMessage = generatedSummary.message,
+                    usage = generatedSummary.usage,
+                    pruningReport = generatedSummary.pruningReport,
+                )
+                val currentRouteIdentity =
+                    resolveConversationCompactionRouteIdentity(
+                        chatId = originalChatId,
+                        roleCardId = roleCardId,
+                        chatModelConfigIdOverride = chatModelConfigIdOverride,
+                        chatModelIndexOverride = chatModelIndexOverride,
+                    )
+                val commitResult =
+                    chatHistoryDelegate.commitConversationCompaction(
+                        snapshot = compactionPlan.snapshot,
+                        summaryMessage = generatedSummary.message,
+                        usage = generatedSummary.usage,
+                        pruningReport = generatedSummary.pruningReport,
+                        currentRouteIdentity = currentRouteIdentity,
+                    )
+                if (commitResult.decision !is ConversationCompactionCommitDecision.Allow) {
+                    AppLogger.w(
                         TAG,
-                        "Async summary skipped: chat switched from $originalChatId to $currentChatId"
+                        "Async compaction commit rejected: chatId=$originalChatId, " +
+                            "decision=${commitResult.decision}",
                     )
                     return@launch
                 }
-
-                chatHistoryDelegate.addSummaryMessage(
-                    summaryMessage = summaryMessage,
-                    beforeTimestamp = beforeTimestamp,
-                    afterTimestamp = afterTimestamp,
-                    chatIdOverride = originalChatId,
-                )
 
                 refreshStableContextWindow(
                     chatId = originalChatId,
@@ -1851,6 +1944,64 @@ class MessageCoordinationDelegate(
         sendTriggeredSummaryJob = asyncSummaryJob
     }
 
+    private suspend fun createConversationCompactionPlan(
+        chatId: String,
+        messages: List<ChatMessage>,
+        chatModelConfigIdOverride: String?,
+        chatModelIndexOverride: Int?,
+        roleCardIdOverride: String? = null,
+        afterAnchorTimestampOverride: Long? = null,
+    ): ConversationCompactionPlan? {
+        val routeIdentity =
+            resolveConversationCompactionRouteIdentity(
+                chatId = chatId,
+                roleCardId = roleCardIdOverride,
+                chatModelConfigIdOverride = chatModelConfigIdOverride,
+                chatModelIndexOverride = chatModelIndexOverride,
+            )
+        return when (
+            val result =
+                ConversationCompactionContract.plan(
+                    chatId = chatId,
+                    messages = messages,
+                    routeIdentity = routeIdentity,
+                    afterAnchorTimestampOverride = afterAnchorTimestampOverride,
+                )
+        ) {
+            is ConversationCompactionPlanResult.Ready -> result.plan
+            is ConversationCompactionPlanResult.Rejected -> {
+                AppLogger.w(
+                    TAG,
+                    "Conversation compaction plan rejected: chatId=$chatId, " +
+                        "reason=${result.reason}, detail=${result.detail}",
+                )
+                null
+            }
+        }
+    }
+
+    private suspend fun resolveConversationCompactionRouteIdentity(
+        chatId: String?,
+        roleCardId: String?,
+        chatModelConfigIdOverride: String?,
+        chatModelIndexOverride: Int?,
+    ): ConversationCompactionRouteIdentity {
+        val effectiveRoleCardId =
+            roleCardId
+                ?: resolveBoundRoleCardId(chatId)
+        val roleCardOverrides =
+            effectiveRoleCardId?.let { resolveRoleCardChatModelOverrides(it) }
+                ?: (null to null)
+        val effectiveConfigIdOverride =
+            roleCardOverrides.first ?: chatModelConfigIdOverride
+        val effectiveModelIndexOverride =
+            roleCardOverrides.second ?: chatModelIndexOverride
+        return apiConfigDelegate.resolveConversationCompactionRouteIdentity(
+            configIdOverride = effectiveConfigIdOverride,
+            modelIndexOverride = effectiveModelIndexOverride,
+        )
+    }
+
     /**
      * 执行历史总结并自动继续对话的核心逻辑
      */
@@ -1889,6 +2040,8 @@ class MessageCoordinationDelegate(
                 ?: currentMemorySpaceIdOverride
                 ?: roleCardIdOverride?.let { resolveRoleCardMemoryProfileOverride(it) }
         val effectiveIsGroupChat = isGroupChat || isGroupChatSession(currentChatId)
+        val effectiveRouteRoleCardId =
+            resolveWindowEstimateRoleCardId(currentChatId, roleCardIdOverride)
 
         var summarySuccess = false
         try {
@@ -1898,31 +2051,75 @@ class MessageCoordinationDelegate(
                 return false
             }
 
+            if (currentChatId == null) {
+                AppLogger.w(TAG, "没有活动聊天，无法生成总结")
+                return false
+            }
             val currentMessages =
-                currentChatId?.let { chatHistoryDelegate.getRuntimeChatHistory(it) }.orEmpty()
+                chatHistoryDelegate.getRuntimeChatHistoryForCompaction(currentChatId)
             if (currentMessages.isEmpty()) {
                 AppLogger.d(TAG, "历史记录为空，无需总结")
                 return false
             }
 
-            val summaryInsertReferenceMessages = currentMessages
-            val insertPosition =
-                chatHistoryDelegate.findProperSummaryPosition(summaryInsertReferenceMessages)
-            val beforeTimestamp =
-                summaryInsertReferenceMessages.getOrNull(insertPosition - 1)?.timestamp
-            val afterTimestamp =
-                summaryInsertReferenceMessages.getOrNull(insertPosition)?.timestamp
+            val compactionPlan =
+                createConversationCompactionPlan(
+                    chatId = currentChatId,
+                    messages = currentMessages,
+                    chatModelConfigIdOverride = effectiveChatModelConfigIdOverride,
+                    chatModelIndexOverride = effectiveChatModelIndexOverride,
+                    roleCardIdOverride = effectiveRouteRoleCardId,
+                ) ?: run {
+                    uiStateDelegate.showErrorMessage(
+                        context.getString(R.string.chat_summarize_failed_no_valid_summary)
+                    )
+                    return false
+                }
+            chatHistoryDelegate.recordConversationCompactionRequested(
+                compactionPlan.snapshot
+            )
             val summaryCustomRules = readSummaryCustomRules()
-            val summaryMessage =
-                AIMessageManager.summarizeMemory(service, currentMessages, autoContinue, effectiveIsGroupChat, summaryCustomRules)
-
-            if (summaryMessage != null) {
-                chatHistoryDelegate.addSummaryMessage(
-                    summaryMessage = summaryMessage,
-                    beforeTimestamp = beforeTimestamp,
-                    afterTimestamp = afterTimestamp,
-                    chatIdOverride = currentChatId,
+            val generatedSummary =
+                AIMessageManager.summarizeMemoryWithUsage(
+                    enhancedAiService = service,
+                    messages = compactionPlan.sourceMessages,
+                    autoContinue = autoContinue,
+                    isGroupChat = effectiveIsGroupChat,
+                    summaryCustomRules = summaryCustomRules,
                 )
+            if (generatedSummary != null) {
+                chatHistoryDelegate.recordConversationCompactionGenerated(
+                    snapshot = compactionPlan.snapshot,
+                    summaryMessage = generatedSummary.message,
+                    usage = generatedSummary.usage,
+                    pruningReport = generatedSummary.pruningReport,
+                )
+                val currentRouteIdentity =
+                    resolveConversationCompactionRouteIdentity(
+                        chatId = currentChatId,
+                        roleCardId = effectiveRouteRoleCardId,
+                        chatModelConfigIdOverride = currentChatModelConfigIdOverride,
+                        chatModelIndexOverride = currentChatModelIndexOverride,
+                    )
+                val commitResult =
+                    chatHistoryDelegate.commitConversationCompaction(
+                        snapshot = compactionPlan.snapshot,
+                        summaryMessage = generatedSummary.message,
+                        usage = generatedSummary.usage,
+                        pruningReport = generatedSummary.pruningReport,
+                        currentRouteIdentity = currentRouteIdentity,
+                    )
+                if (commitResult.decision !is ConversationCompactionCommitDecision.Allow) {
+                    AppLogger.w(
+                        TAG,
+                        "Conversation compaction commit rejected: chatId=$currentChatId, " +
+                            "decision=${commitResult.decision}",
+                    )
+                    uiStateDelegate.showErrorMessage(
+                        context.getString(R.string.chat_summarize_failed_no_valid_summary)
+                    )
+                    return false
+                }
 
                 refreshStableContextWindow(
                     chatId = currentChatId,

@@ -35,7 +35,7 @@ last_reviewed: 2026-07-31
 | 合同 | 当前值/位置 | 类别 | 验证 |
 | --- | --- | --- | --- |
 | Room database | `app_database` | `FROZEN` | 字面量 snapshot |
-| Room schema | version `20` | `FROZEN` per naming refactor | `AppDatabase.kt` SHA-256 |
+| Room schema | version `24`；22→23 增加 provider usage projection，23→24 增加仅覆盖已报告缓存指标的 prompt 分母 | `FROZEN` per reviewed migration | `AppDatabase.kt` SHA-256、迁移测试与 ARCH009/ARCH010 快照 |
 | Room tables | `chats`, `messages`, `message_variants` 等现有表 | `FROZEN` | database/entity source SHA-256 |
 | ObjectBox model/UID | 当前 generated model | `FROZEN` | model 与备份 model SHA-256 |
 | ObjectBox 目录 | `objectbox` / `objectbox_$profileId` | `FROZEN` | 字面量与 `ObjectBox.kt` SHA-256 |

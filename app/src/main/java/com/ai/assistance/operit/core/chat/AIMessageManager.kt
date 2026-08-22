@@ -92,11 +92,6 @@ object AIMessageManager {
 
     @Volatile private var lastActiveChatKey: String = DEFAULT_CHAT_KEY
 
-    private data class PackageUsageStat(
-        val packageName: String,
-        val count: Int
-    )
-
     private lateinit var toolHandler: AIToolHandler
     private lateinit var packageManager: PackageManager
     private lateinit var context: Context
@@ -722,6 +717,22 @@ object AIMessageManager {
         isGroupChat: Boolean = false,
         summaryCustomRules: String? = null
     ): ChatMessage? {
+        return summarizeMemoryWithUsage(
+            enhancedAiService = enhancedAiService,
+            messages = messages,
+            autoContinue = autoContinue,
+            isGroupChat = isGroupChat,
+            summaryCustomRules = summaryCustomRules,
+        )?.message
+    }
+
+    suspend fun summarizeMemoryWithUsage(
+        enhancedAiService: EnhancedAIService,
+        messages: List<ChatMessage>,
+        autoContinue: Boolean = false,
+        isGroupChat: Boolean = false,
+        summaryCustomRules: String? = null
+    ): GeneratedConversationSummary? {
         val lastSummaryIndex = messages.indexOfLast { it.sender == "summary" }
         val previousSummary = if (lastSummaryIndex != -1) messages[lastSummaryIndex].content.trim() else null
 
@@ -738,6 +749,14 @@ object AIMessageManager {
 
         val memoryTagRegex = Regex("<memory>.*?</memory>", RegexOption.DOT_MATCHES_ALL)
         val conversationReviewEntries = mutableListOf<Pair<String, String>>()
+        var pruningReport = ConversationToolResultPruningReport()
+
+        fun projectToolResultsForSummary(text: String): String {
+            val projected = ConversationToolResultPruner.pruneContent(text)
+            pruningReport += projected.report
+            return projected.content
+        }
+
         fun normalizeForReview(text: String): String {
             return text
                 .replace("\r\n", "\n")
@@ -879,10 +898,10 @@ object AIMessageManager {
             return condenseHeadTail(pruned, headChars = 240, tailChars = 96)
         }
 
-        fun condenseAssistantForReview(text: String): String {
+        fun condenseAssistantForReview(text: String): String? {
             val cleaned = ChatUtils.removeThinkingContent(text)
             val normalized = normalizeForReview(cleaned)
-            if (normalized.isBlank()) return "[Empty]"
+            if (normalized.isBlank()) return null
 
             data class Segment(
                 val kind: String,
@@ -1017,7 +1036,7 @@ object AIMessageManager {
             }
 
             val combined = parts.joinToString(" ").trim()
-            return if (combined.isBlank()) "[Empty]" else combined
+            return combined.takeIf { it.isNotBlank() }
         }
 
         // 群聊模式：将消息打包成多角色格式
@@ -1036,11 +1055,12 @@ object AIMessageManager {
                         stripMediaLinksForAssistant(withoutThinking)
                     }
 
-                    if (cleanedContent.isNotBlank()) {
+                    val projectedContent = projectToolResultsForSummary(cleanedContent)
+                    if (projectedContent.isNotBlank()) {
                         val displayContent = if (message.sender == "ai") {
-                            condenseAssistantForReview(cleanedContent)
+                            condenseAssistantForReview(projectedContent)
                         } else {
-                            condenseUserForReview(cleanedContent)
+                            condenseUserForReview(projectedContent)
                         }
 
                         val speakerLabel = if (message.sender == "user") {
@@ -1049,10 +1069,12 @@ object AIMessageManager {
                             message.roleName.takeIf { it.isNotBlank() } ?: "AI"
                         }
 
-                        conversationReviewEntries.add(speakerLabel to displayContent)
+                        if (!displayContent.isNullOrBlank()) {
+                            conversationReviewEntries.add(speakerLabel to displayContent)
+                        }
 
                         if (isNotEmpty()) append(" ")
-                        append("$speakerLabel: $cleanedContent")
+                        append("$speakerLabel: $projectedContent")
                     }
                 }
             }
@@ -1066,11 +1088,18 @@ object AIMessageManager {
                         message.content.replace(memoryTagRegex, "").trim()
                     )
                 } else {
-                    stripMediaLinksForAssistant(message.content)
+                    stripMediaLinksForAssistant(
+                        ChatUtils.removeThinkingContent(message.content)
+                    )
                 }
-                if (cleanedContent.isNotBlank()) {
+                val projectedContent = projectToolResultsForSummary(cleanedContent)
+                if (projectedContent.isNotBlank()) {
                     val displayContent =
-                        if (role == "assistant") condenseAssistantForReview(cleanedContent) else condenseUserForReview(cleanedContent)
+                        if (role == "assistant") {
+                            condenseAssistantForReview(projectedContent)
+                        } else {
+                            condenseUserForReview(projectedContent)
+                        }
                     val speakerLabel =
                         if (message.sender == "user") {
                             "user"
@@ -1078,15 +1107,23 @@ object AIMessageManager {
                             val roleName = message.roleName.takeIf { it.isNotBlank() }
                             if (roleName != null) roleName else "AI"
                         }
-                    conversationReviewEntries.add(speakerLabel to displayContent)
+                    if (!displayContent.isNullOrBlank()) {
+                        conversationReviewEntries.add(speakerLabel to displayContent)
+                    }
                 }
-                Pair(role, "#${index + 1}: $cleanedContent")
+                Pair(role, "#${index + 1}: $projectedContent")
             }
         }
 
         return try {
             AppLogger.d(TAG, "开始使用AI生成对话总结：总结 ${messagesToSummarize.size} 条消息")
-            val summary = enhancedAiService.generateSummary(conversationToSummarize, previousSummary, summaryCustomRules)
+            val generated =
+                enhancedAiService.generateSummaryResult(
+                    conversationToSummarize,
+                    previousSummary,
+                    summaryCustomRules,
+                )
+            val summary = generated.content
             AppLogger.d(TAG, "AI生成总结完成: ${summary.take(50)}...")
 
             if (summary.isBlank()) {
@@ -1095,8 +1132,6 @@ object AIMessageManager {
             } else {
                 // 如果是自动续写，在总结消息尾部添加续写提示
                 val trimmedSummary = summary.trim()
-                val useEnglish = LocaleUtils.getCurrentLanguage(context).lowercase().startsWith("en")
-                val packageWarmupBlock = buildPackageWarmupBlock(messagesToSummarize, useEnglish)
                 val summaryWithQuotes = buildString {
                     append(trimmedSummary)
                     if (conversationReviewEntries.isNotEmpty()) {
@@ -1109,10 +1144,6 @@ object AIMessageManager {
                             append("\n")
                         }
                     }
-                    if (packageWarmupBlock.isNotBlank()) {
-                        append("\n\n")
-                        append(packageWarmupBlock)
-                    }
                 }.trimEnd()
 
                 val finalSummary = if (autoContinue) {
@@ -1120,12 +1151,19 @@ object AIMessageManager {
                 } else {
                     summaryWithQuotes
                 }
+                val safeSummary =
+                    ConversationCompactionContract.requireSafeSummaryCheckpoint(finalSummary)
                 
-                ChatMessage(
-                    sender = "summary",
-                    content = finalSummary,
-                    timestamp = ChatMessageTimestampAllocator.next(),
-                    roleName = "system" // 总结消息的角色名
+                GeneratedConversationSummary(
+                    message =
+                        ChatMessage(
+                            sender = "summary",
+                            content = safeSummary,
+                            timestamp = ChatMessageTimestampAllocator.next(),
+                            roleName = "system" // 总结消息的角色名
+                        ),
+                    usage = generated.usage,
+                    pruningReport = pruningReport,
                 )
             }
         } catch (e: Exception) {
@@ -1135,174 +1173,6 @@ object AIMessageManager {
             AppLogger.e(TAG, "AI生成总结过程中发生异常", e)
             throw e
         }
-    }
-
-    private suspend fun buildPackageWarmupBlock(
-        messagesToSummarize: List<ChatMessage>,
-        useEnglish: Boolean
-    ): String {
-        val title = context.getString(R.string.ai_message_package_warmup_title)
-        val topPackages = extractTopPackageUsages(messagesToSummarize, limit = 2)
-
-        if (topPackages.isEmpty()) {
-            val emptyMessage =
-                if (useEnglish) {
-                    "No activated packages were detected in this summary window."
-                } else {
-                    context.getString(R.string.ai_message_package_warmup_empty)
-                }
-            return "$title\n$emptyMessage"
-        }
-
-        val intro =
-            if (useEnglish) {
-                "The following activated packages can be used directly."
-            } else {
-                context.getString(R.string.ai_message_package_warmup_intro)
-            }
-
-        val body = withContext(Dispatchers.IO) {
-            val packageManager = toolHandler.getOrCreatePackageManager()
-            buildString {
-                appendLine(intro)
-                appendLine()
-                topPackages.forEachIndexed { index, stat ->
-                    val resultText =
-                        runCatching { packageManager.usePackage(stat.packageName).trim() }
-                            .getOrElse { throwable ->
-                                if (useEnglish) {
-                                    "use_package failed: ${throwable.message ?: "unknown error"}"
-                                } else {
-                                    context.getString(
-                                        R.string.ai_message_use_package_failed,
-                                        throwable.message ?: context.getString(R.string.unknown_error)
-                                    )
-                                }
-                            }
-                            .ifBlank {
-                                if (useEnglish) {
-                                    "use_package returned empty content."
-                                } else {
-                                    context.getString(R.string.ai_message_use_package_empty)
-                                }
-                            }
-
-                    // 该摘要会进入下一轮模型上下文；明确“已激活”可避免重复调用 use_package。
-                    if (useEnglish) {
-                        appendLine("${index + 1}. Package ${stat.packageName} (${stat.count} hits)")
-                        appendLine("   Activated package: the tool prompt below can be used directly.")
-                    } else {
-                        appendLine(
-                            context.getString(
-                                R.string.ai_message_package_warmup_item,
-                                index + 1,
-                                stat.packageName,
-                                stat.count
-                            )
-                        )
-                        appendLine("   已激活包：以下工具提示可以直接使用。")
-                    }
-                    appendLine(indentBlock(resultText, "   "))
-                    if (index != topPackages.lastIndex) {
-                        appendLine()
-                    }
-                }
-            }.trimEnd()
-        }
-
-        return buildString {
-            appendLine(title)
-            append(body)
-        }.trimEnd()
-    }
-
-    private fun extractTopPackageUsages(
-        messagesToSummarize: List<ChatMessage>,
-        limit: Int
-    ): List<PackageUsageStat> {
-        if (limit <= 0) {
-            return emptyList()
-        }
-
-        data class PackageUsageCounter(
-            var count: Int,
-            val firstSeenOrder: Int
-        )
-
-        val packageUsage = linkedMapOf<String, PackageUsageCounter>()
-        var nextOrder = 0
-
-        fun recordPackageUsage(toolName: String) {
-            val normalizedToolName = toolName.trim()
-            if (normalizedToolName.isBlank() || !normalizedToolName.contains(':')) {
-                return
-            }
-
-            val packageName = normalizedToolName.substringBefore(':').trim()
-            if (packageName.isBlank()) {
-                return
-            }
-
-            val existing = packageUsage[packageName]
-            if (existing == null) {
-                packageUsage[packageName] = PackageUsageCounter(count = 1, firstSeenOrder = nextOrder)
-                nextOrder += 1
-            } else {
-                existing.count += 1
-            }
-        }
-
-        messagesToSummarize
-            .asSequence()
-            .filter { it.sender == "ai" }
-            .forEach { message ->
-                val content = ChatUtils.removeThinkingContent(message.content)
-                ChatMarkupRegex.toolCallPattern.findAll(content).forEach { match ->
-                    val toolName = match.groupValues.getOrNull(2).orEmpty().trim()
-                    val toolBody = match.groupValues.getOrNull(3).orEmpty()
-
-                    when {
-                        toolName == "package_proxy" || toolName == "proxy" -> {
-                            val proxiedToolName =
-                                ChatMarkupRegex.toolParamPattern
-                                    .findAll(toolBody)
-                                    .firstOrNull { it.groupValues.getOrNull(1)?.trim() == "tool_name" }
-                                    ?.groupValues
-                                    ?.getOrNull(2)
-                                    ?.trim()
-                                    .orEmpty()
-                            recordPackageUsage(proxiedToolName)
-                        }
-                        toolName == "use_package" -> Unit
-                        else -> recordPackageUsage(toolName)
-                    }
-                }
-            }
-
-        return packageUsage.entries
-            .sortedWith(
-                compareByDescending<Map.Entry<String, PackageUsageCounter>> { it.value.count }
-                    .thenBy { it.value.firstSeenOrder }
-            )
-            .take(limit)
-            .map { entry ->
-                PackageUsageStat(
-                    packageName = entry.key,
-                    count = entry.value.count
-                )
-            }
-    }
-
-    private fun indentBlock(text: String, prefix: String): String {
-        return text
-            .lines()
-            .joinToString("\n") { line ->
-                if (line.isBlank()) {
-                    line
-                } else {
-                    prefix + line
-                }
-            }
     }
 
     /**

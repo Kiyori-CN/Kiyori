@@ -37,7 +37,7 @@ class OpenAIResponsesPayloadAdapterTest {
     }
 
     @Test
-    fun parallelFunctionCallsKeepStableAdjacentOutputPairs() {
+    fun parallelFunctionCallsAndOutputsKeepOriginalHistoryOrder() {
         val input =
             convert(
                 JSONArray()
@@ -70,21 +70,21 @@ class OpenAIResponsesPayloadAdapterTest {
             listOf(
                 "message",
                 "function_call",
-                "function_call_output",
                 "function_call",
+                "function_call_output",
                 "function_call_output",
             ),
             inputTypes(input),
         )
         assertEquals("call-a", input.getJSONObject(1).getString("call_id"))
-        assertEquals("call-a", input.getJSONObject(2).getString("call_id"))
+        assertEquals("call-b", input.getJSONObject(2).getString("call_id"))
         assertEquals("call-b", input.getJSONObject(3).getString("call_id"))
-        assertEquals("call-b", input.getJSONObject(4).getString("call_id"))
+        assertEquals("call-a", input.getJSONObject(4).getString("call_id"))
     }
 
     @Test
-    fun unrelatedMessagesCannotSplitAFunctionCallFromItsOutput() {
-        val input =
+    fun unrelatedMessagesCannotCrossAnOpenFunctionCallBoundary() {
+        assertThrows(ProviderToolHistoryProtocolException::class.java) {
             convert(
                 JSONArray()
                     .put(
@@ -103,11 +103,7 @@ class OpenAIResponsesPayloadAdapterTest {
                     .put(JSONObject().put("role", "assistant").put("content", "中间消息"))
                     .put(toolMessage(callId = "call-1", output = "file contents"))
             )
-
-        assertEquals(
-            listOf("function_call", "function_call_output", "message"),
-            inputTypes(input),
-        )
+        }
     }
 
     @Test
@@ -165,6 +161,100 @@ class OpenAIResponsesPayloadAdapterTest {
         assertThrows(OpenAIResponsesProtocolException::class.java) {
             convert(messages)
         }
+    }
+
+    @Test
+    fun missingFunctionCallOutputFailsBeforeRequestSubmission() {
+        val messages =
+            JSONArray().put(
+                assistantMessage(
+                    text = "",
+                    functionCalls =
+                        JSONArray().put(
+                            functionCall(
+                                callId = "call-1",
+                                name = "read_file",
+                                arguments = """{"path":"notes.txt"}""",
+                            )
+                        ),
+                )
+            )
+
+        assertThrows(ProviderToolHistoryProtocolException::class.java) {
+            convert(messages)
+        }
+    }
+
+    @Test
+    fun orphanFunctionCallOutputFailsBeforeRequestSubmission() {
+        assertThrows(ProviderToolHistoryProtocolException::class.java) {
+            convert(
+                JSONArray().put(
+                    toolMessage(callId = "call-orphan", output = "unexpected")
+                )
+            )
+        }
+    }
+
+    @Test
+    fun deepSeekCacheHitFieldIsSeparatedFromUncachedInput() {
+        val usage =
+            OpenAIResponsesPayloadAdapter.parseUsageCounts(
+                JSONObject()
+                    .put("prompt_tokens", 100)
+                    .put("prompt_cache_hit_tokens", 76)
+                    .put("completion_tokens", 12)
+            )
+
+        requireNotNull(usage)
+        assertEquals(100, usage.totalInputTokens)
+        assertEquals(24, usage.actualInputTokens)
+        assertEquals(76, usage.cachedInputTokens)
+        assertEquals(
+            ProviderCacheMetricState.REPORTED,
+            usage.cacheMetricState,
+        )
+    }
+
+    @Test
+    fun inconsistentNestedCachedTokensAreClampedAndMarkedInvalid() {
+        val usage =
+            OpenAIResponsesPayloadAdapter.parseUsageCounts(
+                JSONObject()
+                    .put("input_tokens", 20)
+                    .put(
+                        "input_tokens_details",
+                        JSONObject().put("cached_tokens", 99),
+                    )
+            )
+
+        requireNotNull(usage)
+        assertEquals(20, usage.totalInputTokens)
+        assertEquals(20, usage.cachedInputTokens)
+        assertEquals(0, usage.actualInputTokens)
+        assertEquals(
+            ProviderCacheMetricState.INVALID,
+            usage.cacheMetricState,
+        )
+    }
+
+    @Test
+    fun explicitZeroUsageWithCacheFieldIsReportedNotMissing() {
+        val usage =
+            OpenAIResponsesPayloadAdapter.parseUsageCounts(
+                JSONObject()
+                    .put("prompt_tokens", 0)
+                    .put("prompt_cache_hit_tokens", 0)
+                    .put("completion_tokens", 0)
+            )
+
+        requireNotNull(usage)
+        assertEquals(0, usage.totalInputTokens)
+        assertEquals(0, usage.cachedInputTokens)
+        assertEquals(
+            ProviderCacheMetricState.REPORTED,
+            usage.cacheMetricState,
+        )
     }
 
     private fun convert(messages: JSONArray): JSONArray =

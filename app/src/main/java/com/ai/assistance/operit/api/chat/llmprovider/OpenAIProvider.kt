@@ -121,7 +121,7 @@ open class OpenAIProvider(
     protected val supportsAudio: Boolean = false, // 是否支持音频输入
     protected val supportsVideo: Boolean = false, // 是否支持视频输入
     val enableToolCall: Boolean = false // 是否启用Tool Call接口
-) : AIService {
+) : AIService, ProviderUsageReporting {
     // private val client: OkHttpClient = HttpClientFactory.instance
 
     protected val JSON = "application/json".toMediaType()
@@ -152,6 +152,16 @@ open class OpenAIProvider(
     // Token缓存管理器
     val tokenCacheManager = TokenCacheManager()
 
+    @Volatile
+    private var latestProviderUsageSnapshot: ProviderUsageSnapshot? = null
+
+    @Synchronized
+    override fun consumeLatestProviderUsageSnapshot(): ProviderUsageSnapshot? {
+        val snapshot = latestProviderUsageSnapshot
+        latestProviderUsageSnapshot = null
+        return snapshot
+    }
+
     protected open val useResponsesApi: Boolean = false
     protected open val supportsResponsesStreamResumption: Boolean = false
     protected val modelCapabilityProfile: ModelCapabilityProfile by lazy {
@@ -159,6 +169,7 @@ open class OpenAIProvider(
             providerType = capabilityProviderType,
             modelName = modelName,
             apiEndpoint = apiEndpoint,
+            providerIdentityType = providerType,
         )
     }
     private val usesAtMostOnceResponsesSubmission: Boolean
@@ -199,6 +210,19 @@ open class OpenAIProvider(
         val parsed = OpenAIResponsesPayloadAdapter.parseUsageCounts(usage) ?: return
         tokenCacheManager.updateActualTokens(parsed.actualInputTokens, parsed.cachedInputTokens)
         tokenCacheManager.setOutputTokens(parsed.outputTokens)
+        latestProviderUsageSnapshot =
+            ProviderUsageSnapshot(
+                providerModel = providerModel,
+                protocol = endpointProtocol,
+                totalInputTokens = parsed.totalInputTokens.toLong(),
+                uncachedInputTokens = parsed.actualInputTokens.toLong(),
+                cacheReadTokens = parsed.cachedInputTokens.toLong(),
+                cacheWriteTokens = parsed.cacheWriteTokens.toLong(),
+                outputTokens = parsed.outputTokens.toLong(),
+                reasoningTokens = parsed.reasoningTokens.toLong(),
+                cacheMetricState = parsed.cacheMetricState,
+                source = ProviderUsageSource.PROVIDER,
+            )
         onTokensUpdated(
             parsed.totalInputTokens,
             parsed.cachedInputTokens,
@@ -674,7 +698,10 @@ open class OpenAIProvider(
             if (tools.length() > 0) {
                 jsonObject.put("tools", tools)
                 jsonObject.put("tool_choice", "auto") // 让模型自动决定是否使用工具
-                toolsJson = tools.toString() // 保存工具定义用于token计算
+                toolsJson =
+                    ProviderToolCallIdentityContract.canonicalJsonText(
+                        tools.toString()
+                    ) // 保存稳定工具定义用于 token 计算
                 AppLogger.d("AIService", "Tool Call已启用，添加了 ${tools.length()} 个工具定义")
             }
         }
@@ -698,7 +725,9 @@ open class OpenAIProvider(
 
         customizeFinalRequestObject(finalRequestObject, messagesArray, toolsJson)
 
-        return finalRequestObject.toString()
+        return ProviderToolCallIdentityContract.canonicalJsonText(
+            finalRequestObject.toString()
+        )
     }
 
     protected open fun comparableRoleForTurn(turn: PromptTurn): String {
@@ -833,7 +862,7 @@ open class OpenAIProvider(
             return when {
                 audioLinks.isNotEmpty() || videoLinks.isNotEmpty() -> context.getString(R.string.openai_audio_video_omitted)
                 imageLinks.isNotEmpty() -> context.getString(R.string.openai_image_omitted)
-                else -> "[Empty]"
+                else -> ""
             }
         }
 
@@ -914,6 +943,7 @@ open class OpenAIProvider(
         var queuedToolCalls = JSONArray()
         val queuedToolCallIds = mutableListOf<String>()
         val openToolCallIds = mutableListOf<String>()
+        val toolHistoryState = ProviderToolHistoryState()
 
         fun appendQueuedAssistantToolText(text: String) {
             if (text.isBlank()) return
@@ -957,28 +987,18 @@ open class OpenAIProvider(
             messagesArray.put(historyMessage)
 
             openToolCallIds.addAll(queuedToolCallIds)
+            toolHistoryState.acceptToolCalls(
+                callIds = queuedToolCallIds.toList(),
+                boundary = "assistant_tool_calls",
+            )
             queuedAssistantToolText = null
             queuedToolCalls = JSONArray()
             queuedToolCallIds.clear()
         }
 
-        fun flushOpenToolCallsAsCancelled(reason: String) {
+        fun requireNoOpenToolCalls(reason: String) {
             emitQueuedToolCallsIfNeeded()
-            if (openToolCallIds.isEmpty()) return
-
-            AppLogger.w(
-                "AIService",
-                "发现未完成的tool_calls，按取消处理: count=${openToolCallIds.size}, reason=$reason"
-            )
-            for (toolCallId in openToolCallIds) {
-                messagesArray.put(
-                    JSONObject().apply {
-                        put("role", "tool")
-                        put("tool_call_id", toolCallId)
-                        put("content", "User cancelled")
-                    }
-                )
-            }
+            toolHistoryState.requireClosed(reason)
             openToolCallIds.clear()
         }
 
@@ -990,7 +1010,7 @@ open class OpenAIProvider(
                 if (useToolCall) {
                     when (turn.kind) {
                         PromptTurnKind.SYSTEM -> {
-                            flushOpenToolCallsAsCancelled("system_boundary")
+                            requireNoOpenToolCalls("system_boundary")
                             messagesArray.put(
                                 JSONObject().apply {
                                     put("role", "system")
@@ -1001,7 +1021,7 @@ open class OpenAIProvider(
 
                         PromptTurnKind.USER,
                         PromptTurnKind.SUMMARY -> {
-                            flushOpenToolCallsAsCancelled("user_boundary")
+                            requireNoOpenToolCalls("user_boundary")
                             messagesArray.put(
                                 JSONObject().apply {
                                     put("role", "user")
@@ -1020,22 +1040,17 @@ open class OpenAIProvider(
                                 }
 
                             if (toolCalls != null && toolCalls.length() > 0) {
-                                if (openToolCallIds.isNotEmpty()) {
-                                    flushOpenToolCallsAsCancelled("assistant_tool_call_before_result")
-                                }
+                                requireNoOpenToolCalls("assistant_tool_call_before_result")
                                 queueToolCalls(textContent, toolCalls)
                             } else {
-                                flushOpenToolCallsAsCancelled("assistant_boundary")
-                                val effectiveContent = if (content.isBlank()) {
-                                    AppLogger.d("AIService", "发现空的assistant消息，填充为[空消息]")
-                                    "[Empty]"
-                                } else {
-                                    content
-                                }
+                                requireNoOpenToolCalls("assistant_boundary")
                                 messagesArray.put(
                                     JSONObject().apply {
                                         put("role", "assistant")
-                                        put("content", buildContentField(context, effectiveContent))
+                                        put(
+                                            "content",
+                                            if (content.isBlank()) JSONObject.NULL else buildContentField(context, content),
+                                        )
                                     }
                                 )
                             }
@@ -1051,18 +1066,12 @@ open class OpenAIProvider(
                                 }
 
                             if (toolCalls != null && toolCalls.length() > 0) {
-                                if (openToolCallIds.isNotEmpty()) {
-                                    flushOpenToolCallsAsCancelled("typed_tool_call_before_result")
-                                }
+                                requireNoOpenToolCalls("typed_tool_call_before_result")
                                 queueToolCalls(textContent, toolCalls)
                             } else {
-                                flushOpenToolCallsAsCancelled("typed_tool_call_without_payload")
-                                val effectiveContent = if (content.isBlank()) "[Empty]" else content
-                                messagesArray.put(
-                                    JSONObject().apply {
-                                        put("role", "assistant")
-                                        put("content", buildContentField(context, effectiveContent))
-                                    }
+                                throw ProviderToolHistoryProtocolException(
+                                    violation = ProviderToolHistoryViolation.TOOL_CALL_WITHOUT_PAYLOAD,
+                                    detail = "Typed TOOL_CALL has no structured payload",
                                 )
                             }
                         }
@@ -1070,78 +1079,67 @@ open class OpenAIProvider(
                         PromptTurnKind.TOOL_RESULT -> {
                             emitQueuedToolCallsIfNeeded()
                             val (textContent, toolResults) = parseXmlToolResults(content)
-                            val resultsList = toolResults ?: emptyList()
-
-                            if (resultsList.isNotEmpty() && openToolCallIds.isNotEmpty()) {
-                                val validCount = minOf(resultsList.size, openToolCallIds.size)
-                                repeat(validCount) { index ->
-                                    val (_, resultContent) = resultsList[index]
-                                    messagesArray.put(
-                                        JSONObject().apply {
-                                            put("role", "tool")
-                                            put("tool_call_id", openToolCallIds[index])
-                                            put("content", resultContent)
-                                        }
+                            val resultsList =
+                                toolResults
+                                    ?: throw ProviderToolHistoryProtocolException(
+                                        violation = ProviderToolHistoryViolation.TOOL_RESULT_WITHOUT_PAYLOAD,
+                                        detail = "Typed TOOL_RESULT has no structured payload",
                                     )
-                                }
-                                repeat(validCount) {
-                                    openToolCallIds.removeAt(0)
-                                }
-
-                                if (resultsList.size > validCount) {
-                                    AppLogger.w(
-                                        "AIService",
-                                        "发现多余的tool_result: ${resultsList.size} results vs ${validCount} pending tool_calls"
-                                    )
-                                }
-
-                                if (textContent.isNotEmpty()) {
-                                    messagesArray.put(
-                                        JSONObject().apply {
-                                            put("role", "user")
-                                            put("content", buildContentField(context, textContent))
-                                        }
-                                    )
-                                }
-                            } else {
-                                flushOpenToolCallsAsCancelled("tool_result_without_structured_match")
-                                val fallbackContent =
-                                    when {
-                                        textContent.isNotEmpty() -> textContent
-                                        content.isNotBlank() -> content
-                                        else -> "[Empty]"
+                            toolHistoryState.acceptToolResults(
+                                resultCount = resultsList.size,
+                                boundary = "tool_result",
+                            )
+                            repeat(resultsList.size) { index ->
+                                val (_, resultContent) = resultsList[index]
+                                messagesArray.put(
+                                    JSONObject().apply {
+                                        put("role", "tool")
+                                        put("tool_call_id", openToolCallIds[index])
+                                        put("content", resultContent)
                                     }
+                                )
+                            }
+                            repeat(resultsList.size) {
+                                openToolCallIds.removeAt(0)
+                            }
+                            if (textContent.isNotEmpty()) {
+                                toolHistoryState.requireClosed("tool_result_text_boundary")
                                 messagesArray.put(
                                     JSONObject().apply {
                                         put("role", "user")
-                                        put("content", buildContentField(context, fallbackContent))
+                                        put("content", buildContentField(context, textContent))
                                     }
                                 )
                             }
                         }
                     }
                 } else {
-                    flushOpenToolCallsAsCancelled("tool_call_api_disabled")
+                    requireNoOpenToolCalls("tool_call_api_disabled")
+                    if (turn.kind == PromptTurnKind.TOOL_CALL || turn.kind == PromptTurnKind.TOOL_RESULT) {
+                        throw ProviderToolHistoryProtocolException(
+                            violation = ProviderToolHistoryViolation.TOOL_PROTOCOL_DISABLED,
+                            detail = "Typed ${turn.kind} cannot be replayed when native tool calls are disabled",
+                        )
+                    }
                     val role = providerRoleForTurn(turn)
                     // 不启用Tool Call API时，保持原样
                     val historyMessage = JSONObject()
                     historyMessage.put("role", role)
 
-                    // 检查assistant角色的空消息
-                    val effectiveContent = if (role == "assistant" && content.isBlank()) {
-                        AppLogger.d("AIService", "发现空的assistant消息，填充为[空消息]")
-                        "[Empty]"
-                    } else {
-                        content
-                    }
-
-                    historyMessage.put("content", buildContentField(context, effectiveContent))
+                    historyMessage.put(
+                        "content",
+                        if (role == "assistant" && content.isBlank()) {
+                            JSONObject.NULL
+                        } else {
+                            buildContentField(context, content)
+                        },
+                    )
                     messagesArray.put(historyMessage)
                 }
             }
         }
 
-        flushOpenToolCallsAsCancelled("history_end")
+        requireNoOpenToolCalls("history_end")
 
         return Pair(messagesArray, tokenCount)
     }
@@ -1173,8 +1171,19 @@ open class OpenAIProvider(
      */
     fun buildToolDefinitions(toolPrompts: List<ToolPrompt>): JSONArray {
         val tools = JSONArray()
+        val sortedTools = toolPrompts.sortedBy { tool -> tool.name }
+        val duplicateToolName =
+            sortedTools
+                .groupingBy { tool -> tool.name }
+                .eachCount()
+                .entries
+                .firstOrNull { entry -> entry.value > 1 }
+                ?.key
+        require(duplicateToolName == null) {
+            "OpenAI-compatible tool definitions contain duplicate name: $duplicateToolName"
+        }
 
-        for (tool in toolPrompts.sortedBy { tool -> tool.name }) {
+        for (tool in sortedTools) {
             tools.put(JSONObject().apply {
                 put("type", "function")
                 put("function", JSONObject().apply {
@@ -1217,8 +1226,19 @@ open class OpenAIProvider(
 
         val properties = JSONObject()
         val required = JSONArray()
+        val sortedParams = params.sortedBy { parameter -> parameter.name }
+        val duplicateParameterName =
+            sortedParams
+                .groupingBy { parameter -> parameter.name }
+                .eachCount()
+                .entries
+                .firstOrNull { entry -> entry.value > 1 }
+                ?.key
+        require(duplicateParameterName == null) {
+            "OpenAI-compatible tool schema contains duplicate parameter: $duplicateParameterName"
+        }
 
-        for (param in params.sortedBy { parameter -> parameter.name }) {
+        for (param in sortedParams) {
             properties.put(param.name, JSONObject().apply {
                 put("type", param.type)
                 put("description", param.description)
@@ -1672,7 +1692,12 @@ open class OpenAIProvider(
 
             val wrappedFunction = JSONObject(function.toString()).apply {
                 put("name", "package_proxy")
-                put("arguments", proxyArguments.toString())
+                put(
+                    "arguments",
+                    ProviderToolCallIdentityContract.canonicalJsonText(
+                        proxyArguments.toString()
+                    ),
+                )
             }
 
             val wrappedToolCall = JSONObject(toolCall.toString()).apply {
@@ -1724,7 +1749,10 @@ open class OpenAIProvider(
             val providerName =
                 extractXmlAttribute(openingTag, "provider_name")
                     ?: providerType.name
-            val argumentsJson = params.toString()
+            val argumentsJson =
+                ProviderToolCallIdentityContract.canonicalJsonText(
+                    params.toString()
+                )
             val providerIdentity =
                 ProviderToolCallIdentityContract.key(providerName, providerCallId)
             if (providerIdentity != null) {
@@ -1751,7 +1779,7 @@ open class OpenAIProvider(
                     providerCallId
                 } else {
                     val toolNamePart = sanitizeToolCallId(toolName)
-                    val hashPart = stableIdHashPart("${toolName}:${params}")
+            val hashPart = stableIdHashPart("${toolName}:${argumentsJson}")
                     sanitizeToolCallId("call_${toolNamePart}_${hashPart}_$callIndex")
                 }
             toolCalls.put(JSONObject().apply {
@@ -3489,6 +3517,7 @@ open class OpenAIProvider(
         val eventChannel = MutableSharedStream<TextStreamEvent>(replay = Int.MAX_VALUE)
         val responseStream = stream {
             isManuallyCancelled = false
+            latestProviderUsageSnapshot = null
             // 重置输出token计数（输入token由TokenCacheManager管理）
             tokenCacheManager.addOutputTokens(-tokenCacheManager.outputTokenCount)
             onTokensUpdated(

@@ -91,7 +91,7 @@ class ModelRequestCompilerTest {
             ExecutionPersistenceCapability.RESPONSES_AT_MOST_ONCE,
             profile.executionPersistence,
         )
-        assertTrue(compiled.reasoningSummaryEnabled)
+        assertFalse(compiled.reasoningSummaryEnabled)
         assertFalse(compiled.encryptedReasoningContentEnabled)
         assertFalse(compiled.background)
         assertNull(compiled.store)
@@ -123,12 +123,45 @@ class ModelRequestCompilerTest {
             ExecutionPersistenceCapability.RESPONSES_AT_MOST_ONCE,
             profile.executionPersistence,
         )
-        assertTrue(compiled.reasoningSummaryEnabled)
+        assertFalse(compiled.reasoningSummaryEnabled)
         assertFalse(compiled.encryptedReasoningContentEnabled)
         assertFalse(compiled.background)
         assertNull(compiled.store)
         assertFalse(compiled.promptCacheEnabled)
         assertFalse(compiled.strictToolSchemasWhenCompatible)
+        assertFalse(compiled.toolSearchEnabled)
+    }
+
+    @Test
+    fun deepSeekResponses_isReplayOnlyAndDoesNotReceiveOpenAiExclusiveFeatures() {
+        val route =
+            ProtocolServiceRoutingPolicy.resolve(
+                providerType = ApiProviderType.DEEPSEEK,
+                apiProtocol = ApiProtocol.OPENAI_RESPONSES,
+            )
+        val profile =
+            ModelCapabilityResolver.resolve(
+                providerType = route.capabilityProviderType,
+                providerIdentityType = route.identityProviderType,
+                modelName = "deepseek-reasoner",
+                apiEndpoint = "https://api.deepseek.com/v1/responses",
+            )
+        val compiled =
+            ModelRequestCompiler.compile(
+                profile = profile,
+                intent = UserExecutionIntent(enableThinking = true, thinkingQualityLevel = 5),
+            )
+
+        assertEquals(ReasoningWireFormat.RESPONSES, profile.reasoningWireFormat)
+        assertEquals(ExecutionPersistenceCapability.NONE, profile.executionPersistence)
+        assertEquals(ReasoningReplayCapability.NONE, profile.reasoningReplay)
+        assertEquals(PromptCacheCapability.NONE, profile.promptCache)
+        assertNull(compiled.reasoningEffort)
+        assertFalse(compiled.reasoningSummaryEnabled)
+        assertFalse(compiled.encryptedReasoningContentEnabled)
+        assertFalse(compiled.background)
+        assertNull(compiled.store)
+        assertFalse(compiled.promptCacheEnabled)
         assertFalse(compiled.toolSearchEnabled)
     }
 

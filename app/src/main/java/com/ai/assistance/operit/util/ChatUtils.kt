@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.util
 
+import com.ai.assistance.operit.api.chat.llmprovider.ProviderReplayMetadataKind
 import com.ai.assistance.operit.core.chat.hooks.PromptTurn
 import com.ai.assistance.operit.core.chat.hooks.withContent
 
@@ -28,6 +29,37 @@ object ChatUtils {
     fun stripOpenAiResponsesReasoningMetaTurns(messages: List<PromptTurn>): List<PromptTurn> {
         return messages.map { turn ->
             turn.withContent(stripOpenAiResponsesReasoningMeta(turn.content))
+        }
+    }
+
+    fun stripAnthropicContentBlocksMeta(content: String): String {
+        return ChatMarkupRegex.removeAnthropicContentBlocksMeta(content)
+    }
+
+    fun stripProviderReplayMetadata(
+        content: String,
+        retainedKinds: Set<ProviderReplayMetadataKind>,
+    ): String {
+        return ProviderReplayMetadataKind.entries.fold(content) { current, kind ->
+            if (kind in retainedKinds) {
+                current
+            } else {
+                ChatMarkupRegex.removeProviderReplayMetadata(current, kind)
+            }
+        }
+    }
+
+    fun stripProviderReplayMetadataTurns(
+        messages: List<PromptTurn>,
+        retainedKinds: Set<ProviderReplayMetadataKind>,
+    ): List<PromptTurn> {
+        return messages.map { turn ->
+            turn.withContent(
+                stripProviderReplayMetadata(
+                    content = turn.content,
+                    retainedKinds = retainedKinds,
+                )
+            )
         }
     }
 

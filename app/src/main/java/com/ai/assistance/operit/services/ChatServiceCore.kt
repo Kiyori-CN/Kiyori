@@ -16,6 +16,7 @@ import com.ai.assistance.operit.services.core.ChatHistoryDelegate
 import com.ai.assistance.operit.services.core.MessageCoordinationDelegate
 import com.ai.assistance.operit.services.core.MessageProcessingDelegate
 import com.ai.assistance.operit.services.core.TokenStatisticsDelegate
+import com.ai.assistance.operit.data.model.ProviderUsageAggregate
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.ui.features.chat.viewmodel.UiStateDelegate
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.process.WorkspaceChangeTracker
@@ -107,9 +108,21 @@ class ChatServiceCore(
             context = context,
             coroutineScope = coroutineScope,
             selectionMode = selectionMode,
-            onTokenStatisticsLoaded = { chatId, inputTokens, outputTokens, windowSize ->
+            onTokenStatisticsLoaded = {
+                    chatId,
+                    inputTokens,
+                    outputTokens,
+                    windowSize,
+                    providerUsage,
+                ->
                 tokenStatisticsDelegate.setActiveChatId(chatId)
-                tokenStatisticsDelegate.setTokenCounts(chatId, inputTokens, outputTokens, windowSize)
+                tokenStatisticsDelegate.setTokenCounts(
+                    chatId,
+                    inputTokens.toLong(),
+                    outputTokens.toLong(),
+                    windowSize.toLong(),
+                    providerUsage,
+                )
             },
             getEnhancedAiService = { enhancedAiService },
             ensureAiServiceAvailable = {
@@ -122,6 +135,9 @@ class ChatServiceCore(
                 val (inputTokens, outputTokens) = tokenStatisticsDelegate.getCumulativeTokenCounts()
                 val windowSize = tokenStatisticsDelegate.getLastCurrentWindowSize()
                 Triple(inputTokens, outputTokens, windowSize)
+            },
+            getProviderUsageAggregate = {
+                tokenStatisticsDelegate.getCumulativeProviderUsage()
             },
             onScrollToBottom = {
                 messageProcessingDelegate.scrollToBottom()
@@ -173,7 +189,12 @@ class ChatServiceCore(
             saveCurrentChat = {
                 val (inputTokens, outputTokens) = tokenStatisticsDelegate.getCumulativeTokenCounts()
                 val windowSize = tokenStatisticsDelegate.getLastCurrentWindowSize()
-                chatHistoryDelegate.saveCurrentChat(inputTokens, outputTokens, windowSize)
+                chatHistoryDelegate.saveCurrentChat(
+                    inputTokens = inputTokens,
+                    outputTokens = outputTokens,
+                    actualContextWindowSize = windowSize,
+                    providerUsage = tokenStatisticsDelegate.getCumulativeProviderUsage(),
+                )
             },
             showErrorMessage = { error ->
                 AppLogger.e(
@@ -197,9 +218,11 @@ class ChatServiceCore(
                 tokenStatisticsDelegate.setTokenCounts(chatId, inputTokens, outputTokens, windowSize)
                 if (turnOptions.persistTurn) {
                     chatHistoryDelegate.saveCurrentChat(
-                        inputTokens,
-                        outputTokens,
-                        windowSize,
+                        inputTokens = inputTokens,
+                        outputTokens = outputTokens,
+                        actualContextWindowSize = windowSize,
+                        providerUsage =
+                            tokenStatisticsDelegate.getCumulativeProviderUsage(chatId),
                         chatIdOverride = chatId
                     )
                 }
@@ -485,6 +508,9 @@ class ChatServiceCore(
 
     val perRequestTokenCountFlow: StateFlow<Pair<Int, Int>?>
         get() = tokenStatisticsDelegate.perRequestTokenCountFlow
+
+    val cumulativeProviderUsageFlow: StateFlow<ProviderUsageAggregate>
+        get() = tokenStatisticsDelegate.cumulativeProviderUsageFlow
 
     // 附件相关
     val attachments: StateFlow<List<AttachmentInfo>>

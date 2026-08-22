@@ -2,6 +2,7 @@ package com.ai.assistance.operit.services.core
 
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.api.chat.EnhancedAIService
+import com.ai.assistance.operit.data.model.ProviderUsageAggregate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +35,10 @@ class TokenStatisticsDelegate(
     private val _perRequestTokenCount = MutableStateFlow<Pair<Int, Int>?>(null)
     val perRequestTokenCountFlow: StateFlow<Pair<Int, Int>?> = _perRequestTokenCount.asStateFlow()
 
+    private val _cumulativeProviderUsage = MutableStateFlow(ProviderUsageAggregate())
+    val cumulativeProviderUsageFlow: StateFlow<ProviderUsageAggregate> =
+        _cumulativeProviderUsage.asStateFlow()
+
     // --- Internal State ---
     private var lastCurrentWindowSize = 0L
     private var tokenCollectorJob: Job? = null
@@ -46,6 +51,8 @@ class TokenStatisticsDelegate(
     private val lastWindowSizeByChatKey = ConcurrentHashMap<String, Long>()
     private val perRequestTokenCountByChatKey =
         ConcurrentHashMap<String, Pair<Int, Int>?>()
+    private val cumulativeProviderUsageByChatKey =
+        ConcurrentHashMap<String, ProviderUsageAggregate>()
 
     @Volatile private var activeChatId: String? = null
 
@@ -59,11 +66,13 @@ class TokenStatisticsDelegate(
         val output = cumulativeOutputTokensByChatKey[key] ?: 0L
         val window = lastWindowSizeByChatKey[key] ?: 0L
         val perRequest = perRequestTokenCountByChatKey[key]
+        val providerUsage = cumulativeProviderUsageByChatKey[key] ?: ProviderUsageAggregate()
 
         _cumulativeInputTokens.value = input
         _cumulativeOutputTokens.value = output
         _currentWindowSize.value = window
         _perRequestTokenCount.value = perRequest
+        _cumulativeProviderUsage.value = providerUsage
         lastCurrentWindowSize = window
     }
 
@@ -163,12 +172,14 @@ class TokenStatisticsDelegate(
         _cumulativeOutputTokens.value = 0L
         _currentWindowSize.value = 0L
         _perRequestTokenCount.value = null
+        _cumulativeProviderUsage.value = ProviderUsageAggregate()
         lastCurrentWindowSize = 0L
 
         cumulativeInputTokensByChatKey.clear()
         cumulativeOutputTokensByChatKey.clear()
         lastWindowSizeByChatKey.clear()
         perRequestTokenCountByChatKey.clear()
+        cumulativeProviderUsageByChatKey.clear()
 
         // 同时重置服务中的token计数
         val services = buildSet {
@@ -188,22 +199,30 @@ class TokenStatisticsDelegate(
                 // 从AI服务获取最新的token统计
                 val currentInputTokens = it.getCurrentInputTokenCount().toLong().coerceAtLeast(0L)
                 val currentOutputTokens = it.getCurrentOutputTokenCount().toLong().coerceAtLeast(0L)
+                val currentProviderUsage = it.getCurrentProviderUsageAggregate()
 
                 // 更新累计token数
                 val newInput = (cumulativeInputTokensByChatKey[key] ?: 0L) + currentInputTokens
                 val newOutput = (cumulativeOutputTokensByChatKey[key] ?: 0L) + currentOutputTokens
                 cumulativeInputTokensByChatKey[key] = newInput
                 cumulativeOutputTokensByChatKey[key] = newOutput
+                val newProviderUsage =
+                    (cumulativeProviderUsageByChatKey[key] ?: ProviderUsageAggregate()) +
+                        currentProviderUsage
+                cumulativeProviderUsageByChatKey[key] = newProviderUsage
 
                 if (isActiveKey(key)) {
                     _cumulativeInputTokens.value = newInput
                     _cumulativeOutputTokens.value = newOutput
+                    _cumulativeProviderUsage.value = newProviderUsage
                 }
 
                 AppLogger.d(
                         TAG,
                     "Cumulative token stats updated - " +
-                            "Input: $newInput, Output: $newOutput"
+                            "Input: $newInput, Output: $newOutput, " +
+                            "ProviderRequests: ${newProviderUsage.requestCount}, " +
+                            "ProviderUsageCoverage: ${newProviderUsage.providerUsageRequestCount}"
                 )
             } catch (e: Exception) {
                 AppLogger.e(TAG, "获取累计token计数时出错: ${e.message}", e)
@@ -212,7 +231,13 @@ class TokenStatisticsDelegate(
     }
 
     /** 设置累计token计数 */
-    fun setTokenCounts(chatId: String?, inputTokens: Long, outputTokens: Long, windowSize: Long) {
+    fun setTokenCounts(
+        chatId: String?,
+        inputTokens: Long,
+        outputTokens: Long,
+        windowSize: Long,
+        providerUsage: ProviderUsageAggregate? = null,
+    ) {
         val key = chatKey(chatId)
         val safeInputTokens = inputTokens.coerceAtLeast(0L)
         val safeOutputTokens = outputTokens.coerceAtLeast(0L)
@@ -227,6 +252,7 @@ class TokenStatisticsDelegate(
             _currentWindowSize.value = safeWindowSize
             lastCurrentWindowSize = safeWindowSize
         }
+        providerUsage?.let { setProviderUsageAggregate(chatId, it) }
     }
 
     fun setTokenCounts(chatId: String?, inputTokens: Int, outputTokens: Int, windowSize: Int) {
@@ -237,6 +263,17 @@ class TokenStatisticsDelegate(
         setTokenCounts(activeChatId, inputTokens, outputTokens, windowSize)
     }
 
+    fun setProviderUsageAggregate(
+        chatId: String?,
+        providerUsage: ProviderUsageAggregate,
+    ) {
+        val key = chatKey(chatId)
+        cumulativeProviderUsageByChatKey[key] = providerUsage
+        if (isActiveKey(key)) {
+            _cumulativeProviderUsage.value = providerUsage
+        }
+    }
+
     /** 获取当前累计token计数 */
     fun getCumulativeTokenCounts(chatId: String? = activeChatId): Pair<Long, Long> {
         val key = chatKey(chatId)
@@ -244,6 +281,13 @@ class TokenStatisticsDelegate(
             cumulativeInputTokensByChatKey[key] ?: 0L,
             cumulativeOutputTokensByChatKey[key] ?: 0L
         )
+    }
+
+    fun getCumulativeProviderUsage(
+        chatId: String? = activeChatId,
+    ): ProviderUsageAggregate {
+        val key = chatKey(chatId)
+        return cumulativeProviderUsageByChatKey[key] ?: ProviderUsageAggregate()
     }
 
     /** 获取最近一次的实际上下文窗口大小 */

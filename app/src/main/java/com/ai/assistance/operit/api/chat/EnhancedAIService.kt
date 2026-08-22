@@ -12,7 +12,12 @@ import com.ai.assistance.operit.api.chat.enhance.FileBindingService
 import com.ai.assistance.operit.api.chat.enhance.MultiServiceManager
 import com.ai.assistance.operit.api.chat.enhance.ToolExecutionManager
 import com.ai.assistance.operit.api.chat.llmprovider.AIService
+import com.ai.assistance.operit.api.chat.llmprovider.ProviderReplayMetadataConsumer
 import com.ai.assistance.operit.api.chat.llmprovider.ProviderRequestContext
+import com.ai.assistance.operit.api.chat.llmprovider.ProviderUsageAccumulator
+import com.ai.assistance.operit.api.chat.llmprovider.ProviderUsageReporting
+import com.ai.assistance.operit.api.chat.llmprovider.ProviderUsageSnapshot
+import com.ai.assistance.operit.api.chat.llmprovider.toProviderUsageAggregate
 import com.ai.assistance.operit.core.chat.logMessageTiming
 import com.ai.assistance.operit.core.chat.messageTimingNow
 import com.ai.assistance.operit.core.chat.hooks.PromptHookContext
@@ -34,11 +39,13 @@ import com.ai.assistance.operit.core.tools.packTool.PackageManager
 import com.ai.assistance.operit.data.model.FunctionType
 import com.ai.assistance.operit.data.model.InputProcessingState
 import com.ai.assistance.operit.data.model.PromptFunctionType
+import com.ai.assistance.operit.data.model.ApiProtocol
 import com.ai.assistance.operit.data.model.ToolInvocation
 import com.ai.assistance.operit.data.model.ToolResult
 import com.ai.assistance.operit.data.model.ModelConfigData
 import com.ai.assistance.operit.data.model.ModelParameter
 import com.ai.assistance.operit.data.model.AITool
+import com.ai.assistance.operit.data.model.ProviderUsageAggregate
 import com.ai.assistance.operit.data.preferences.ApiPreferences
 import com.ai.assistance.operit.data.preferences.ExternalHttpApiPreferences
 import com.ai.assistance.operit.data.preferences.WakeWordPreferences
@@ -409,6 +416,10 @@ class EnhancedAIService private constructor(private val context: Context) {
     private val _requestWindowEstimate = MutableStateFlow<Int?>(null)
     val requestWindowEstimateFlow: StateFlow<Int?> = _requestWindowEstimate.asStateFlow()
 
+    private val _providerUsageAggregate = MutableStateFlow(ProviderUsageAggregate())
+    val providerUsageAggregateFlow: StateFlow<ProviderUsageAggregate> =
+        _providerUsageAggregate.asStateFlow()
+
     // Conversation management
     // private val streamBuffer = StringBuilder() // Moved to MessageExecutionContext
     // private val roundManager = ConversationRoundManager() // Moved to MessageExecutionContext
@@ -550,10 +561,43 @@ class EnhancedAIService private constructor(private val context: Context) {
     private var currentRequestInputTokenCount = 0
     private var currentRequestOutputTokenCount = 0
     private var currentRequestCachedInputTokenCount = 0
+    private val providerUsageAccumulator = ProviderUsageAccumulator()
+    private val nextUntrackedProviderHopId = AtomicInteger(0)
 
     private fun saturatedTokenSum(vararg values: Int): Int {
         val total = values.fold(0L) { acc, value -> acc + value.toLong().coerceAtLeast(0L) }
         return total.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+    }
+
+    /**
+     * Close one provider hop's source-aware usage boundary.
+     *
+     * Provider services own their latest wire usage; the conversation service
+     * owns hop identity and aggregation. A missing provider report is recorded
+     * explicitly so local prefix estimates cannot become cache evidence.
+     */
+    private fun recordProviderUsageSnapshot(
+        service: AIService,
+        providerRequestContext: ProviderRequestContext?,
+    ): ProviderUsageSnapshot {
+        val snapshot =
+            (service as? ProviderUsageReporting)?.consumeLatestProviderUsageSnapshot()
+                ?: ProviderUsageSnapshot.unavailable(
+                    providerModel = service.providerModel,
+                    protocol = ApiProtocol.PROVIDER_NATIVE,
+                )
+        val providerHopId =
+            providerRequestContext?.localExecutionId
+                ?: "untracked-provider-hop-${nextUntrackedProviderHopId.incrementAndGet()}"
+        providerUsageAccumulator.record(providerHopId, snapshot)
+        _providerUsageAggregate.value = providerUsageAccumulator.aggregate()
+        AppLogger.d(
+            TAG,
+            "Provider usage closed: hop=$providerHopId, source=${snapshot.source}, " +
+                "cacheMetric=${snapshot.cacheMetricState}, input=${snapshot.totalInputTokens}, " +
+                "cached=${snapshot.cacheReadTokens}, output=${snapshot.outputTokens}"
+        )
+        return snapshot
     }
 
     // Callbacks
@@ -895,14 +939,20 @@ class EnhancedAIService private constructor(private val context: Context) {
             )
         finalProcessedInput = beforeSendContext.processedInput ?: finalProcessedInput
         finalPreparedHistory = beforeSendContext.preparedHistory
-        if (!ChatUtils.isGeminiProviderModel(serviceForFunction.providerModel)) {
-            finalProcessedInput = ChatUtils.stripGeminiThoughtSignatureMeta(finalProcessedInput)
-            finalPreparedHistory = ChatUtils.stripGeminiThoughtSignatureMetaTurns(finalPreparedHistory)
-        }
-        if (!ChatUtils.isOpenAIResponsesProviderModel(serviceForFunction.providerModel)) {
-            finalProcessedInput = ChatUtils.stripOpenAiResponsesReasoningMeta(finalProcessedInput)
-            finalPreparedHistory = ChatUtils.stripOpenAiResponsesReasoningMetaTurns(finalPreparedHistory)
-        }
+        val retainedReplayMetadataKinds =
+            (serviceForFunction as? ProviderReplayMetadataConsumer)
+                ?.consumedReplayMetadataKinds
+                .orEmpty()
+        finalProcessedInput =
+            ChatUtils.stripProviderReplayMetadata(
+                content = finalProcessedInput,
+                retainedKinds = retainedReplayMetadataKinds,
+            )
+        finalPreparedHistory =
+            ChatUtils.stripProviderReplayMetadataTurns(
+                messages = finalPreparedHistory,
+                retainedKinds = retainedReplayMetadataKinds,
+            )
 
         val requestHistory =
             applyFinalizedCurrentUserTurn(
@@ -983,6 +1033,8 @@ class EnhancedAIService private constructor(private val context: Context) {
         currentRequestInputTokenCount = 0
         currentRequestOutputTokenCount = 0
         currentRequestCachedInputTokenCount = 0
+        providerUsageAccumulator.clear()
+        _providerUsageAggregate.value = ProviderUsageAggregate()
 
         val eventChannel = MutableSharedStream<TextStreamEvent>(replay = Int.MAX_VALUE)
         val wrappedStream = stream {
@@ -1116,14 +1168,20 @@ class EnhancedAIService private constructor(private val context: Context) {
                         )
                     finalProcessedInput = beforeSendContext.processedInput ?: finalProcessedInput
                     finalPreparedHistory = beforeSendContext.preparedHistory
-                    if (!ChatUtils.isGeminiProviderModel(serviceForFunction.providerModel)) {
-                        finalProcessedInput = ChatUtils.stripGeminiThoughtSignatureMeta(finalProcessedInput)
-                        finalPreparedHistory = ChatUtils.stripGeminiThoughtSignatureMetaTurns(finalPreparedHistory)
-                    }
-                    if (!ChatUtils.isOpenAIResponsesProviderModel(serviceForFunction.providerModel)) {
-                        finalProcessedInput = ChatUtils.stripOpenAiResponsesReasoningMeta(finalProcessedInput)
-                        finalPreparedHistory = ChatUtils.stripOpenAiResponsesReasoningMetaTurns(finalPreparedHistory)
-                    }
+                    val retainedReplayMetadataKinds =
+                        (serviceForFunction as? ProviderReplayMetadataConsumer)
+                            ?.consumedReplayMetadataKinds
+                            .orEmpty()
+                    finalProcessedInput =
+                        ChatUtils.stripProviderReplayMetadata(
+                            content = finalProcessedInput,
+                            retainedKinds = retainedReplayMetadataKinds,
+                        )
+                    finalPreparedHistory =
+                        ChatUtils.stripProviderReplayMetadataTurns(
+                            messages = finalPreparedHistory,
+                            retainedKinds = retainedReplayMetadataKinds,
+                        )
                     val requestHistory =
                         applyFinalizedCurrentUserTurn(
                             preparedHistory = finalPreparedHistory,
@@ -1262,6 +1320,16 @@ class EnhancedAIService private constructor(private val context: Context) {
                             revisionJob?.cancelAndJoin()
                         }
                     }
+
+                    val providerUsageSnapshot =
+                        recordProviderUsageSnapshot(
+                        service = serviceForFunction,
+                        providerRequestContext = providerHopContext,
+                        )
+                    apiPreferences.updateProviderUsageAggregateForModel(
+                        providerModel = serviceForFunction.providerModel,
+                        usage = providerUsageSnapshot.toProviderUsageAggregate(),
+                    )
 
                     // Update accumulated token counts and persist them
                     val inputTokens = serviceForFunction.inputTokenCount
@@ -2523,6 +2591,16 @@ class EnhancedAIService private constructor(private val context: Context) {
                     }
                 }
 
+                val providerUsageSnapshot =
+                    recordProviderUsageSnapshot(
+                    service = serviceForFunction,
+                    providerRequestContext = providerHopContext,
+                    )
+                apiPreferences.updateProviderUsageAggregateForModel(
+                    providerModel = serviceForFunction.providerModel,
+                    usage = providerUsageSnapshot.toProviderUsageAggregate(),
+                )
+
                 // Update accumulated token counts and persist them
                 val inputTokens = serviceForFunction.inputTokenCount
                 val cachedInputTokens = serviceForFunction.cachedInputTokenCount
@@ -2638,6 +2716,9 @@ class EnhancedAIService private constructor(private val context: Context) {
         )
     }
 
+    fun getCurrentProviderUsageAggregate(): ProviderUsageAggregate =
+        _providerUsageAggregate.value
+
     fun setCurrentTurnTokenCounts(
         inputTokens: Int,
         outputTokens: Int,
@@ -2649,6 +2730,8 @@ class EnhancedAIService private constructor(private val context: Context) {
         currentRequestInputTokenCount = 0
         currentRequestOutputTokenCount = 0
         currentRequestCachedInputTokenCount = 0
+        providerUsageAccumulator.clear()
+        _providerUsageAggregate.value = ProviderUsageAggregate()
         _perRequestTokenCounts.value =
             Pair(accumulatedInputTokenCount, accumulatedOutputTokenCount)
         AppLogger.d(
@@ -2690,7 +2773,20 @@ class EnhancedAIService private constructor(private val context: Context) {
             previousSummary: String?,
             customRules: String? = null
     ): String {
-        return generateSummaryFromPromptTurns(messages.toPromptTurns(), previousSummary, customRules)
+        return generateSummaryResult(messages, previousSummary, customRules).content
+    }
+
+    suspend fun generateSummaryResult(
+            messages: List<Pair<String, String>>,
+            previousSummary: String?,
+            customRules: String? = null
+    ): com.ai.assistance.operit.core.chat.GeneratedConversationSummaryContent {
+        return conversationService.generateSummaryResultFromPromptTurns(
+            messages = messages.toPromptTurns(),
+            previousSummary = previousSummary,
+            multiServiceManager = multiServiceManager,
+            customRules = customRules,
+        )
     }
 
     suspend fun generateSummaryFromPromptTurns(

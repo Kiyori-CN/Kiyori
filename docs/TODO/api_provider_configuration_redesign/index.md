@@ -22,6 +22,10 @@ Anthropic 应位于国际供应商顶部，DeepSeek 应位于国内供应商顶�
 目标是让用户先选择一个清晰的供应商，再在供应商配置内部选择实际协议、端点和协议相关
 能力；同时修复当前 OpenAI Responses、Anthropic-compatible 端点和思考模式的运行时错配。
 
+本轮 DeepSeek/多协议/长上下文后续方案不在本专项创建第二份协议架构；provider/protocol
+能力边界、DeepSeek Responses replay-only 约束、canonical request 和 usage 语义统一见
+[`../unified_model_capability_and_resumable_execution/6_deepseek_long_context_cache_and_usage_plan.md`](../unified_model_capability_and_resumable_execution/6_deepseek_long_context_cache_and_usage_plan.md)。
+
 范围包括：
 
 - 供应商身份、协议、端点默认值和协议选择器

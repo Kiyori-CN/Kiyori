@@ -1,11 +1,10 @@
 package com.ai.assistance.operit.util
 
+import com.ai.assistance.operit.api.chat.llmprovider.ProviderReplayMetadataKind
 import java.security.SecureRandom
 
 object ChatMarkupRegex {
     private const val TOOL_TAG_SUFFIX_REGEX_SOURCE = "[A-Za-z0-9_]+"
-    private const val GEMINI_THOUGHT_SIGNATURE_PROVIDER = "gemini:thought_signature"
-    private const val OPENAI_RESPONSES_REASONING_PROVIDER = "openai:responses_reasoning"
     const val TOOL_TAG_NAME_REGEX_SOURCE =
         "tool(?:_(?!result(?:_|\\b))$TOOL_TAG_SUFFIX_REGEX_SOURCE)?"
     const val TOOL_RESULT_TAG_NAME_REGEX_SOURCE = "tool_result(?:_${TOOL_TAG_SUFFIX_REGEX_SOURCE})?"
@@ -236,36 +235,81 @@ object ChatMarkupRegex {
     fun generateRandomToolResultTagName(): String = "tool_result_${generateRandomTagCode()}"
 
     fun geminiThoughtSignatureMetaTag(signatureBase64: String): String {
-        return """<meta provider="$GEMINI_THOUGHT_SIGNATURE_PROVIDER">$signatureBase64</meta>"""
+        return providerReplayMetadataTag(
+            ProviderReplayMetadataKind.GEMINI_THOUGHT_SIGNATURE,
+            signatureBase64,
+        )
     }
 
     fun openAiResponsesReasoningMetaTag(payloadBase64: String): String {
-        return """<meta provider="$OPENAI_RESPONSES_REASONING_PROVIDER">$payloadBase64</meta>"""
+        return providerReplayMetadataTag(
+            ProviderReplayMetadataKind.OPENAI_RESPONSES_REASONING,
+            payloadBase64,
+        )
+    }
+
+    fun geminiContentPartsMetaTag(payloadBase64: String): String {
+        return providerReplayMetadataTag(
+            ProviderReplayMetadataKind.GEMINI_CONTENT_PARTS,
+            payloadBase64,
+        )
+    }
+
+    fun anthropicContentBlocksMetaTag(payloadBase64: String): String {
+        return providerReplayMetadataTag(
+            ProviderReplayMetadataKind.ANTHROPIC_CONTENT_BLOCKS,
+            payloadBase64,
+        )
+    }
+
+    private fun providerReplayMetadataTag(
+        kind: ProviderReplayMetadataKind,
+        payloadBase64: String,
+    ): String {
+        return """<meta provider="${kind.providerTag}">$payloadBase64</meta>"""
     }
 
     fun extractGeminiThoughtSignature(content: String): String? {
-        return metaTag.findAll(content)
-            .mapNotNull { match ->
-                val tagContent = match.value
-                val provider = extractMetaProvider(tagContent)
-                if (!provider.equals(GEMINI_THOUGHT_SIGNATURE_PROVIDER, ignoreCase = true)) {
-                    return@mapNotNull null
-                }
-                metaBodyRegex.find(tagContent)
-                    ?.groupValues
-                    ?.getOrNull(1)
-                    ?.trim()
-                    ?.takeIf { it.isNotEmpty() }
-            }
-            .lastOrNull()
+        return extractGeminiThoughtSignatures(content).lastOrNull()
+    }
+
+    fun extractGeminiThoughtSignatures(content: String): List<String> {
+        return extractProviderReplayMetadataPayloads(
+            content,
+            ProviderReplayMetadataKind.GEMINI_THOUGHT_SIGNATURE,
+        )
     }
 
     fun extractOpenAiResponsesReasoningPayloads(content: String): List<String> {
+        return extractProviderReplayMetadataPayloads(
+            content,
+            ProviderReplayMetadataKind.OPENAI_RESPONSES_REASONING,
+        )
+    }
+
+    fun extractGeminiContentPartsPayloads(content: String): List<String> {
+        return extractProviderReplayMetadataPayloads(
+            content,
+            ProviderReplayMetadataKind.GEMINI_CONTENT_PARTS,
+        )
+    }
+
+    fun extractAnthropicContentBlocksPayloads(content: String): List<String> {
+        return extractProviderReplayMetadataPayloads(
+            content,
+            ProviderReplayMetadataKind.ANTHROPIC_CONTENT_BLOCKS,
+        )
+    }
+
+    private fun extractProviderReplayMetadataPayloads(
+        content: String,
+        kind: ProviderReplayMetadataKind,
+    ): List<String> {
         return metaTag.findAll(content)
             .mapNotNull { match ->
                 val tagContent = match.value
                 val provider = extractMetaProvider(tagContent)
-                if (!provider.equals(OPENAI_RESPONSES_REASONING_PROVIDER, ignoreCase = true)) {
+                if (!provider.equals(kind.providerTag, ignoreCase = true)) {
                     return@mapNotNull null
                 }
                 metaBodyRegex.find(tagContent)
@@ -278,24 +322,41 @@ object ChatMarkupRegex {
     }
 
     fun removeGeminiThoughtSignatureMeta(content: String): String {
-        var removed = false
-        val result = metaTag.replace(content) { match ->
-            val provider = extractMetaProvider(match.value)
-            if (provider.equals(GEMINI_THOUGHT_SIGNATURE_PROVIDER, ignoreCase = true)) {
-                removed = true
-                ""
-            } else {
-                match.value
-            }
-        }
-        return if (removed) result.trimEnd() else result
+        return removeProviderReplayMetadata(
+            content,
+            ProviderReplayMetadataKind.GEMINI_THOUGHT_SIGNATURE,
+        )
     }
 
     fun removeOpenAiResponsesReasoningMeta(content: String): String {
+        return removeProviderReplayMetadata(
+            content,
+            ProviderReplayMetadataKind.OPENAI_RESPONSES_REASONING,
+        )
+    }
+
+    fun removeGeminiContentPartsMeta(content: String): String {
+        return removeProviderReplayMetadata(
+            content,
+            ProviderReplayMetadataKind.GEMINI_CONTENT_PARTS,
+        )
+    }
+
+    fun removeAnthropicContentBlocksMeta(content: String): String {
+        return removeProviderReplayMetadata(
+            content,
+            ProviderReplayMetadataKind.ANTHROPIC_CONTENT_BLOCKS,
+        )
+    }
+
+    fun removeProviderReplayMetadata(
+        content: String,
+        kind: ProviderReplayMetadataKind,
+    ): String {
         var removed = false
         val result = metaTag.replace(content) { match ->
             val provider = extractMetaProvider(match.value)
-            if (provider.equals(OPENAI_RESPONSES_REASONING_PROVIDER, ignoreCase = true)) {
+            if (provider.equals(kind.providerTag, ignoreCase = true)) {
                 removed = true
                 ""
             } else {

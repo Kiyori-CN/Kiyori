@@ -17,6 +17,9 @@ import com.ai.assistance.operit.data.model.FunctionType
 import com.ai.assistance.operit.data.model.ModelParameter
 import com.ai.assistance.operit.data.model.ParameterCategory
 import com.ai.assistance.operit.data.model.ParameterValueType
+import com.ai.assistance.operit.data.model.ProviderUsageAggregate
+import com.ai.assistance.operit.data.model.saturatedProviderUsageIntSum
+import com.ai.assistance.operit.data.model.saturatedProviderUsageLongSum
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -97,6 +100,33 @@ class ApiPreferences private constructor(private val context: Context) {
         // 请求次数统计键
         fun getRequestCountKey(providerModel: String) =
                 intPreferencesKey("request_count_${providerModel.replace(":", "_")}")
+
+        fun getProviderUsageRequestCountKey(providerModel: String) =
+                intPreferencesKey("provider_usage_request_count_${providerModel.replace(":", "_")}")
+
+        fun getProviderCacheMetricRequestCountKey(providerModel: String) =
+                intPreferencesKey("provider_cache_metric_request_count_${providerModel.replace(":", "_")}")
+
+        fun getProviderCacheMetricPromptTokensKey(providerModel: String) =
+                longPreferencesKey("provider_cache_metric_prompt_${providerModel.replace(":", "_")}")
+
+        fun getProviderTotalInputTokensKey(providerModel: String) =
+                longPreferencesKey("provider_total_input_${providerModel.replace(":", "_")}")
+
+        fun getProviderUncachedInputTokensKey(providerModel: String) =
+                longPreferencesKey("provider_uncached_input_${providerModel.replace(":", "_")}")
+
+        fun getProviderCacheReadTokensKey(providerModel: String) =
+                longPreferencesKey("provider_cache_read_${providerModel.replace(":", "_")}")
+
+        fun getProviderCacheWriteTokensKey(providerModel: String) =
+                longPreferencesKey("provider_cache_write_${providerModel.replace(":", "_")}")
+
+        fun getProviderOutputTokensKey(providerModel: String) =
+                longPreferencesKey("provider_output_${providerModel.replace(":", "_")}")
+
+        fun getProviderReasoningTokensKey(providerModel: String) =
+                longPreferencesKey("provider_reasoning_${providerModel.replace(":", "_")}")
 
         // 计费方式键
         fun getBillingModeKey(providerModel: String) =
@@ -555,6 +585,108 @@ class ApiPreferences private constructor(private val context: Context) {
     }
 
     /**
+     * 累计 provider wire usage v2。该方法只接收互斥 prompt 桶，不能从本地窗口估算值构造。
+     */
+    suspend fun updateProviderUsageAggregateForModel(
+        providerModel: String,
+        usage: ProviderUsageAggregate,
+    ) {
+        context.apiDataStore.edit { preferences ->
+            fun addLong(key: Preferences.Key<Long>, value: Long) {
+                val current = readTokenCount(preferences, key.name)
+                preferences[key] =
+                    saturatedProviderUsageLongSum(
+                        current,
+                        value,
+                    )
+            }
+
+            fun addInt(key: Preferences.Key<Int>, value: Int) {
+                val current = preferences[key] ?: 0
+                preferences[key] = saturatedProviderUsageIntSum(current, value)
+            }
+
+            // request_count_* is the established public request counter and is
+            // incremented by the existing request boundary exactly once.
+            addInt(
+                getProviderUsageRequestCountKey(providerModel),
+                usage.providerUsageRequestCount,
+            )
+            addInt(
+                getProviderCacheMetricRequestCountKey(providerModel),
+                usage.providerCacheMetricRequestCount,
+            )
+            addLong(
+                getProviderCacheMetricPromptTokensKey(providerModel),
+                usage.providerCacheMetricPromptTokens,
+            )
+            addLong(
+                getProviderTotalInputTokensKey(providerModel),
+                usage.providerTotalInputTokens,
+            )
+            addLong(
+                getProviderUncachedInputTokensKey(providerModel),
+                usage.providerUncachedInputTokens,
+            )
+            addLong(
+                getProviderCacheReadTokensKey(providerModel),
+                usage.providerCacheReadTokens,
+            )
+            addLong(
+                getProviderCacheWriteTokensKey(providerModel),
+                usage.providerCacheWriteTokens,
+            )
+            addLong(
+                getProviderOutputTokensKey(providerModel),
+                usage.providerOutputTokens,
+            )
+            addLong(
+                getProviderReasoningTokensKey(providerModel),
+                usage.providerReasoningTokens,
+            )
+        }
+    }
+
+    suspend fun getProviderUsageAggregateForModel(
+        providerModel: String,
+    ): ProviderUsageAggregate {
+        val preferences = context.apiDataStore.data.first()
+        return ProviderUsageAggregate(
+            requestCount = preferences[getRequestCountKey(providerModel)] ?: 0,
+            providerUsageRequestCount =
+                preferences[getProviderUsageRequestCountKey(providerModel)] ?: 0,
+            providerCacheMetricRequestCount =
+                preferences[getProviderCacheMetricRequestCountKey(providerModel)] ?: 0,
+            providerCacheMetricPromptTokens =
+                readTokenCount(
+                    preferences,
+                    getProviderCacheMetricPromptTokensKey(providerModel).name,
+                ),
+            providerTotalInputTokens =
+                readTokenCount(preferences, getProviderTotalInputTokensKey(providerModel).name),
+            providerUncachedInputTokens =
+                readTokenCount(
+                    preferences,
+                    getProviderUncachedInputTokensKey(providerModel).name,
+                ),
+            providerCacheReadTokens =
+                readTokenCount(preferences, getProviderCacheReadTokensKey(providerModel).name),
+            providerCacheWriteTokens =
+                readTokenCount(
+                    preferences,
+                    getProviderCacheWriteTokensKey(providerModel).name,
+                ),
+            providerOutputTokens =
+                readTokenCount(preferences, getProviderOutputTokensKey(providerModel).name),
+            providerReasoningTokens =
+                readTokenCount(
+                    preferences,
+                    getProviderReasoningTokensKey(providerModel).name,
+                ),
+        )
+    }
+
+    /**
      * 获取指定供应商:模型的输入token数量
      */
     suspend fun getInputTokensForProviderModel(providerModel: String): Long {
@@ -652,7 +784,20 @@ class ApiPreferences private constructor(private val context: Context) {
             val keysToRemove = mutableListOf<Preferences.Key<*>>()
             preferences.asMap().forEach { (key, _) ->
                 val keyName = key.name
-                if (keyName.startsWith("token_input_") || keyName.startsWith("token_output_") || keyName.startsWith("token_cached_input_") || keyName.startsWith("request_count_")) {
+                if (
+                    keyName.startsWith("token_input_") ||
+                    keyName.startsWith("token_output_") ||
+                    keyName.startsWith("token_cached_input_") ||
+                    keyName.startsWith("request_count_") ||
+                    keyName.startsWith("provider_usage_request_count_") ||
+                    keyName.startsWith("provider_cache_metric_request_count_") ||
+                    keyName.startsWith("provider_total_input_") ||
+                    keyName.startsWith("provider_uncached_input_") ||
+                    keyName.startsWith("provider_cache_read_") ||
+                    keyName.startsWith("provider_cache_write_") ||
+                    keyName.startsWith("provider_output_") ||
+                    keyName.startsWith("provider_reasoning_")
+                ) {
                     keysToRemove.add(key)
                 }
             }
@@ -675,6 +820,14 @@ class ApiPreferences private constructor(private val context: Context) {
             preferences[getTokenCachedInputKey(providerModel)] = 0L
             preferences[getTokenOutputKey(providerModel)] = 0L
             preferences[getRequestCountKey(providerModel)] = 0
+            preferences[getProviderUsageRequestCountKey(providerModel)] = 0
+            preferences[getProviderCacheMetricRequestCountKey(providerModel)] = 0
+            preferences[getProviderTotalInputTokensKey(providerModel)] = 0L
+            preferences[getProviderUncachedInputTokensKey(providerModel)] = 0L
+            preferences[getProviderCacheReadTokensKey(providerModel)] = 0L
+            preferences[getProviderCacheWriteTokensKey(providerModel)] = 0L
+            preferences[getProviderOutputTokensKey(providerModel)] = 0L
+            preferences[getProviderReasoningTokensKey(providerModel)] = 0L
         }
     }
 
@@ -750,7 +903,7 @@ class ApiPreferences private constructor(private val context: Context) {
         context.apiDataStore.edit { preferences ->
             val countKey = getRequestCountKey(providerModel)
             val currentCount = preferences[countKey] ?: 0
-            preferences[countKey] = currentCount + 1
+            preferences[countKey] = saturatedProviderUsageIntSum(currentCount, 1)
         }
     }
 

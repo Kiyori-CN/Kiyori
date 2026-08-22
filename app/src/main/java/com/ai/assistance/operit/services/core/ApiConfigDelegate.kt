@@ -5,6 +5,9 @@ import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.api.chat.EnhancedAIService
 import com.ai.assistance.operit.data.model.ActivePrompt
 import com.ai.assistance.operit.data.model.ApiProviderType
+import com.ai.assistance.operit.data.model.getModelByIndex
+import com.ai.assistance.operit.data.model.getValidModelIndex
+import com.ai.assistance.operit.core.chat.ConversationCompactionRouteIdentity
 import com.ai.assistance.operit.data.model.CharacterCardChatModelBindingMode
 import com.ai.assistance.operit.data.model.FunctionType
 import com.ai.assistance.operit.data.model.ModelConfigData
@@ -398,6 +401,66 @@ class ApiConfigDelegate(
             "Model config not found: $configId"
         }
         return buildChatContextSettings(configId, config)
+    }
+
+    suspend fun resolveConversationCompactionRouteIdentity(
+        configIdOverride: String?,
+        modelIndexOverride: Int?,
+    ): ConversationCompactionRouteIdentity {
+        modelConfigManager.initializeIfNeeded()
+        functionalConfigManager.initializeIfNeeded()
+        val mapping =
+            if (!configIdOverride.isNullOrBlank()) {
+                com.ai.assistance.operit.data.preferences.FunctionConfigMapping(
+                    configId = configIdOverride.trim(),
+                    modelIndex = (modelIndexOverride ?: 0).coerceAtLeast(0),
+                )
+            } else {
+                resolveEffectiveChatConfigMapping()
+            }
+        val config = requireNotNull(modelConfigManager.getModelConfig(mapping.configId)) {
+            "Model config not found: ${mapping.configId}"
+        }
+        val effectiveModelIndex = getValidModelIndex(config.modelName, mapping.modelIndex)
+        val selectedModelName = getModelByIndex(config.modelName, effectiveModelIndex)
+        require(selectedModelName.isNotBlank()) {
+            "Model config ${config.id} has no selected chat model"
+        }
+        return ConversationCompactionRouteIdentity(
+            configId = config.id,
+            modelIndex = effectiveModelIndex,
+            providerTypeId = config.apiProviderTypeId.ifBlank { config.apiProviderType.name },
+            protocol = config.apiProtocol,
+            modelName = selectedModelName,
+        )
+    }
+
+    private suspend fun resolveEffectiveChatConfigMapping():
+        com.ai.assistance.operit.data.preferences.FunctionConfigMapping {
+        val globalMapping =
+            functionalConfigManager.getConfigMappingForFunction(FunctionType.CHAT)
+        val activePrompt = activePromptManager.activePromptFlow.first()
+        if (activePrompt !is ActivePrompt.CharacterCard) {
+            return globalMapping
+        }
+        val card = characterCardManager.getCharacterCardFlow(activePrompt.id).first()
+        val bindingMode =
+            CharacterCardChatModelBindingMode.normalize(card.chatModelBindingMode)
+        val fixedConfigId =
+            card.chatModelConfigId
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+        return if (
+            bindingMode == CharacterCardChatModelBindingMode.FIXED_CONFIG &&
+                fixedConfigId != null
+        ) {
+            com.ai.assistance.operit.data.preferences.FunctionConfigMapping(
+                configId = fixedConfigId,
+                modelIndex = card.chatModelIndex.coerceAtLeast(0),
+            )
+        } else {
+            globalMapping
+        }
     }
 
     private suspend fun resolveEditableChatConfigId(): String {

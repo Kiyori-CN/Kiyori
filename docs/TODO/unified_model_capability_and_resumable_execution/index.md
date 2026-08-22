@@ -53,10 +53,18 @@ GPT-5.6 映射固定为：
 3. [PARTIAL] [缓存、工具与遥测](3_cache_tools_and_metrics.md)
 4. [LOCAL VERIFIED] [验证与交付](4_validation_and_delivery.md)
 5. [IN PROGRESS] [故障注入、进程恢复与可观察性收口](5_post_regression_development_plan.md)
+6. [M1-M5 LOCAL VERIFIED / M6 LOCAL VALIDATION COMPLETE] [DeepSeek、长上下文缓存、协议适配与对话统计方案](6_deepseek_long_context_cache_and_usage_plan.md)
+
+本轮新增方案以 DeepSeek Harness 官方固定提交
+`b150a551b8d465e31e418e1b2eaf5e79bbb7d28e` 为研究基准，冻结 provider usage、DeepSeek
+Chat/Responses/Anthropic 边界、canonical request prefix、工具结果保真、自动压缩替换和
+顶栏缓存命中率未知态。实现必须按该方案的 M1→M6 串行推进；方案中的历史 `[IMPLEMENTED]`
+或 `[DONE]` 仅表示既有专项状态，不替代本轮新测试、构建和审计证据。
 
 当前代码证据：
 
-- `AppDatabase` 版本 21 与四张 provider execution 表
+- `AppDatabase` 版本 24、四张 provider execution 表，以及 provider usage 持久化字段的
+  22→23 迁移和 cache-metric prompt 分母的 23→24 迁移
 - `ProviderRequestContext` 从消息时间戳/variant 贯穿到 provider hop
 - `OpenAIResponsesExecutionState` 与 `starting_after` 同 response 续接
 - 官方 Responses 首事件的一基 sequence 校验，未应用事件继续使用独立 `-1` 哨兵
@@ -92,6 +100,39 @@ GPT-5.6 映射固定为：
 - Provider 工具身份属性使用独立 XML 属性边界；`provider_name` 不会再覆盖工具 `name`
 - 相同 provider 与 `call_id` 的同名同参调用在 XML、当前回合执行和 Responses 历史重放中只
   保留一次；身份、工具名、参数或同一输出的内容冲突在副作用或下一 hop 前失败
+- Chat Completions 历史编译使用 `ProviderToolHistoryState` 严格验证 call/result 配对；缺少、
+  多余、孤立、重复或非结构化工具节点在请求体生成前抛出协议错误，不生成伪造结果
+- DeepSeek 请求在流式模式固定携带 `stream_options.include_usage=true`；启用的模型参数、
+  工具定义、schema 参数和最终 JSON envelope 按稳定顺序 canonicalize，保持未变化前缀
+- `StructuredToolCallBridge.compileHistoryForProvider` 保留 typed `TOOL_CALL`/`TOOL_RESULT`
+  类型，禁止在原生工具协议关闭时静默改写成普通 assistant/user 消息
+- M2 的 5 个定向 JVM suite 共 `34` tests 与 AndroidTest Kotlin 编译通过；阶段 Debug APK
+  为 `472736006` bytes，SHA-256
+  `5F9372567E0F01CC2BC8D2CE7D77710720D676ABD1097DEA45DD862CDDF733EF`。APK 的唯一
+  Launcher、Debug V2 单 signer、16 KiB zipalign、`5504` 个无重复 ZIP entry、`44` 个 DEX、
+  `51` 个无重复 `.so` basename、`52/52` 个 AArch64 ELF 和 DEX continuation 门禁均通过
+- M3 的 Gemini 响应 replay accumulator 是每个 HTTP attempt 的局部状态；缓存的 provider
+  实例不会跨并发请求或 retry attempt 共享 thinking/Part metadata，只有成功 attempt 在
+  provider hop 末尾写入一次 metadata
+- M3 的 11 个定向 JVM suite 共 `54` tests、AndroidTest Kotlin 编译和 Debug APK 构建通过；
+  APK 为 `472736006` bytes，SHA-256
+  `D733CAB690B0E65B0419A64B9AA2F8E97C1FF7E62D1BB28ACAA917784E23A6B8`。唯一 Launcher、
+  Debug V2 单 signer、16 KiB zipalign、`5504` 个无重复 ZIP entry、`44` 个 DEX、
+  `51` 个无重复 `.so` basename、12 个生成式 ToolPkg、`52/52` 个 AArch64 ELF 与 DEX
+  continuation 门禁均通过
+- M4 自动/手动压缩共用强类型 snapshot/commit owner；范围锚点、digest、工具事务、route
+  identity 和相邻 summary 在提交前重新验证，summary 只保存纯文本 checkpoint。超大工具结果
+  只在 provider-visible projection 中按 head/middle/tail 剪枝，原始历史与审计事实源不改
+- M5 缓存命中率只消费 provider 明确报告 cache metric 的 prompt 分母；Room、消息/变体/
+  聊天、归档、偏好、Waifu 分段和顶栏 projection 均保存
+  `providerCacheMetricPromptTokens`。顶栏可区分“未提供”和明确 `0.0%`
+- M4/M5 的 8 个核心 JVM suite 共 `41` tests 通过；完整 JVM 为
+  `284 suites / 1658 tests`，零失败、错误和跳过。AndroidTest Kotlin 编译、formal readiness、
+  architecture `phase=m03`、七语言资源差分与 Debug APK 构建审计通过
+- 最终 Debug APK 为 `472737774` bytes，SHA-256
+  `2858892B6B60D4DA1B5A154984196751540ACF18478AEB49F7CFAC131412DC9B`；唯一 Launcher、
+  Debug V2 单 signer、16 KiB zipalign、5504 个无重复 entry、44 DEX、arm64-only、
+  51 个无重复 `.so`、12 个 ToolPkg 和 52/52 个 AArch64 ELF 均通过
 - compatible endpoint 没有真实 response ID 时只按 `call_id` 做当前回合规范化，不伪造远端
   response ID 或持久化账本身份
 - 长期工具 scope 使用 `SupervisorJob` 隔离任务；工具执行和 follow-up 请求以

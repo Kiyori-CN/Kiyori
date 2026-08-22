@@ -148,7 +148,7 @@ open class KimiProvider(
         var queuedToolCalls = JSONArray()
         val queuedToolCallIds = mutableListOf<String>()
         val openToolCallIds = mutableListOf<String>()
-        var nextToolCallOrdinal = 0
+        val toolHistoryState = ProviderToolHistoryState()
 
         fun appendQueuedAssistantToolText(text: String) {
             if (text.isBlank()) return
@@ -176,7 +176,13 @@ open class KimiProvider(
             for (i in 0 until toolCalls.length()) {
                 val sourceToolCall = toolCalls.optJSONObject(i) ?: continue
                 val toolCall = JSONObject(sourceToolCall.toString())
-                val callId = generatedToolCallId(nextToolCallOrdinal++)
+                val callId = toolCall.optString("id", "").trim()
+                if (callId.isEmpty()) {
+                    throw ProviderToolHistoryProtocolException(
+                        violation = ProviderToolHistoryViolation.TOOL_CALL_WITHOUT_PAYLOAD,
+                        detail = "Kimi structured tool call has no stable call ID",
+                    )
+                }
                 toolCall.put("id", callId)
                 queuedToolCalls.put(toolCall)
                 queuedToolCallIds.add(callId)
@@ -200,29 +206,19 @@ open class KimiProvider(
             )
 
             openToolCallIds.addAll(queuedToolCallIds)
+            toolHistoryState.acceptToolCalls(
+                callIds = queuedToolCallIds.toList(),
+                boundary = "kimi_assistant_tool_calls",
+            )
             queuedAssistantToolText = null
             queuedAssistantReasoning = null
             queuedToolCalls = JSONArray()
             queuedToolCallIds.clear()
         }
 
-        fun flushOpenToolCallsAsCancelled(reason: String) {
+        fun requireNoOpenToolCalls(boundary: String) {
             emitQueuedToolCallsIfNeeded()
-            if (openToolCallIds.isEmpty()) return
-
-            AppLogger.w(
-                "KimiProvider",
-                "发现未完成的tool_calls，按取消处理: count=${openToolCallIds.size}, reason=$reason"
-            )
-            for (toolCallId in openToolCallIds) {
-                messagesArray.put(
-                    JSONObject().apply {
-                        put("role", "tool")
-                        put("tool_call_id", toolCallId)
-                        put("content", "User cancelled")
-                    }
-                )
-            }
+            toolHistoryState.requireClosed(boundary)
             openToolCallIds.clear()
         }
 
@@ -232,7 +228,7 @@ open class KimiProvider(
                 if (useToolCall) {
                     when (turn.kind) {
                         PromptTurnKind.SYSTEM -> {
-                            flushOpenToolCallsAsCancelled("system_boundary")
+                            requireNoOpenToolCalls("system_boundary")
                             messagesArray.put(
                                 JSONObject().apply {
                                     put("role", "system")
@@ -243,7 +239,7 @@ open class KimiProvider(
 
                         PromptTurnKind.USER,
                         PromptTurnKind.SUMMARY -> {
-                            flushOpenToolCallsAsCancelled("user_boundary")
+                            requireNoOpenToolCalls("user_boundary")
                             messagesArray.put(
                                 JSONObject().apply {
                                     put("role", "user")
@@ -264,16 +260,20 @@ open class KimiProvider(
 
                             if (toolCalls != null && toolCalls.length() > 0) {
                                 if (openToolCallIds.isNotEmpty()) {
-                                    flushOpenToolCallsAsCancelled("assistant_tool_call_before_result")
+                                    requireNoOpenToolCalls("assistant_tool_call_before_result")
                                 }
                                 queueToolCalls(textContent, toolCalls, reasoningContent)
                             } else {
-                                flushOpenToolCallsAsCancelled("assistant_boundary")
+                                requireNoOpenToolCalls("assistant_boundary")
                                 messagesArray.put(
                                     JSONObject().apply {
                                         put("role", "assistant")
                                         put("reasoning_content", reasoningContent)
-                                        put("content", buildContentField(context, content.ifBlank { "[Empty]" }))
+                                        put(
+                                            "content",
+                                            if (content.isBlank()) JSONObject.NULL
+                                            else buildContentField(context, content),
+                                        )
                                     }
                                 )
                             }
@@ -290,17 +290,13 @@ open class KimiProvider(
 
                             if (toolCalls != null && toolCalls.length() > 0) {
                                 if (openToolCallIds.isNotEmpty()) {
-                                    flushOpenToolCallsAsCancelled("typed_tool_call_before_result")
+                                    requireNoOpenToolCalls("typed_tool_call_before_result")
                                 }
                                 queueToolCalls(textContent, toolCalls)
                             } else {
-                                flushOpenToolCallsAsCancelled("typed_tool_call_without_payload")
-                                messagesArray.put(
-                                    JSONObject().apply {
-                                        put("role", "assistant")
-                                        put("reasoning_content", "")
-                                        put("content", buildContentField(context, originalContent.ifBlank { "[Empty]" }))
-                                    }
+                                throw ProviderToolHistoryProtocolException(
+                                    violation = ProviderToolHistoryViolation.TOOL_CALL_WITHOUT_PAYLOAD,
+                                    detail = "Kimi typed TOOL_CALL has no structured payload",
                                 )
                             }
                         }
@@ -308,11 +304,19 @@ open class KimiProvider(
                         PromptTurnKind.TOOL_RESULT -> {
                             emitQueuedToolCallsIfNeeded()
                             val (textContent, toolResults) = parseXmlToolResults(originalContent)
-                            val resultsList = toolResults ?: emptyList()
+                            val resultsList =
+                                toolResults
+                                    ?: throw ProviderToolHistoryProtocolException(
+                                        violation = ProviderToolHistoryViolation.TOOL_RESULT_WITHOUT_PAYLOAD,
+                                        detail = "Kimi typed TOOL_RESULT has no structured payload",
+                                    )
 
                             if (resultsList.isNotEmpty() && openToolCallIds.isNotEmpty()) {
-                                val validCount = minOf(resultsList.size, openToolCallIds.size)
-                                repeat(validCount) { index ->
+                                toolHistoryState.acceptToolResults(
+                                    resultCount = resultsList.size,
+                                    boundary = "kimi_tool_result",
+                                )
+                                repeat(resultsList.size) { index ->
                                     val (_, resultContent) = resultsList[index]
                                     messagesArray.put(
                                         JSONObject().apply {
@@ -322,18 +326,12 @@ open class KimiProvider(
                                         }
                                     )
                                 }
-                                repeat(validCount) {
+                                repeat(resultsList.size) {
                                     openToolCallIds.removeAt(0)
                                 }
 
-                                if (resultsList.size > validCount) {
-                                    AppLogger.w(
-                                        "KimiProvider",
-                                        "发现多余的tool_result: ${resultsList.size} results vs ${validCount} pending tool_calls"
-                                    )
-                                }
-
                                 if (textContent.isNotEmpty()) {
+                                    toolHistoryState.requireClosed("kimi_tool_result_text_boundary")
                                     messagesArray.put(
                                         JSONObject().apply {
                                             put("role", "user")
@@ -342,18 +340,9 @@ open class KimiProvider(
                                     )
                                 }
                             } else {
-                                flushOpenToolCallsAsCancelled("tool_result_without_structured_match")
-                                val fallbackContent =
-                                    when {
-                                        textContent.isNotEmpty() -> textContent
-                                        originalContent.isNotBlank() -> originalContent
-                                        else -> "[Empty]"
-                                    }
-                                messagesArray.put(
-                                    JSONObject().apply {
-                                        put("role", "user")
-                                        put("content", buildContentField(context, fallbackContent))
-                                    }
+                                throw ProviderToolHistoryProtocolException(
+                                    violation = ProviderToolHistoryViolation.TOOL_RESULT_WITHOUT_CALL,
+                                    detail = "Kimi TOOL_RESULT has no pending tool call",
                                 )
                             }
                         }
@@ -370,8 +359,7 @@ open class KimiProvider(
                         }
 
                         PromptTurnKind.USER,
-                        PromptTurnKind.SUMMARY,
-                        PromptTurnKind.TOOL_RESULT -> {
+                        PromptTurnKind.SUMMARY -> {
                             messagesArray.put(
                                 JSONObject().apply {
                                     put("role", "user")
@@ -386,18 +374,20 @@ open class KimiProvider(
                                 JSONObject().apply {
                                     put("role", "assistant")
                                     put("reasoning_content", reasoningContent)
-                                    put("content", buildContentField(context, content.ifBlank { "[Empty]" }))
+                                    put(
+                                        "content",
+                                        if (content.isBlank()) JSONObject.NULL
+                                        else buildContentField(context, content),
+                                    )
                                 }
                             )
                         }
 
-                        PromptTurnKind.TOOL_CALL -> {
-                            messagesArray.put(
-                                JSONObject().apply {
-                                    put("role", "assistant")
-                                    put("reasoning_content", "")
-                                    put("content", buildContentField(context, originalContent.ifBlank { "[Empty]" }))
-                                }
+                        PromptTurnKind.TOOL_CALL,
+                        PromptTurnKind.TOOL_RESULT -> {
+                            throw ProviderToolHistoryProtocolException(
+                                violation = ProviderToolHistoryViolation.TOOL_PROTOCOL_DISABLED,
+                                detail = "Kimi typed tool history cannot be replayed with native tools disabled",
                             )
                         }
                     }
@@ -405,7 +395,7 @@ open class KimiProvider(
             }
         }
 
-        flushOpenToolCallsAsCancelled("history_end")
+        requireNoOpenToolCalls("history_end")
         return messagesArray
     }
 

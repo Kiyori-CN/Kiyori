@@ -22,7 +22,7 @@ import org.json.JSONObject
  * 继承自OpenAIProvider，以重用大部分兼容逻辑，但特别处理了`reasoning_content`参数。
  * 当启用推理模式时，会将assistant消息中的<think>标签内容提取出来作为reasoning_content字段。
  */
-class DeepseekProvider(
+open class DeepseekProvider(
     apiEndpoint: String,
     apiKeyProvider: ApiKeyProvider,
     modelName: String,
@@ -81,25 +81,47 @@ class DeepseekProvider(
         val jsonObject = JSONObject()
         jsonObject.put("model", modelName)
         jsonObject.put("stream", stream)
+        if (stream) {
+            jsonObject.put(
+                "stream_options",
+                JSONObject().put("include_usage", true),
+            )
+        }
 
         // DeepSeek Thinking Mode 默认开启，关闭时也必须显式发送 thinking.type=disabled。
         applyThinkingParamsIfNeeded(jsonObject)
 
         // 添加已启用的模型参数
-        for (param in modelParameters) {
-            if (param.isEnabled) {
-                when (param.valueType) {
-                    com.ai.assistance.operit.data.model.ParameterValueType.INT ->
-                        jsonObject.put(param.apiName, param.currentValue as Int)
-                    com.ai.assistance.operit.data.model.ParameterValueType.FLOAT ->
-                        jsonObject.put(param.apiName, param.currentValue as Float)
-                    com.ai.assistance.operit.data.model.ParameterValueType.STRING ->
-                        jsonObject.put(param.apiName, param.currentValue as String)
-                    com.ai.assistance.operit.data.model.ParameterValueType.BOOLEAN ->
-                        jsonObject.put(param.apiName, param.currentValue as Boolean)
-                    com.ai.assistance.operit.data.model.ParameterValueType.OBJECT -> {
-                        val raw = param.currentValue.toString().trim()
-                        val parsed: Any? = try {
+        val enabledParameters = modelParameters.filter { it.isEnabled }.sortedBy { it.apiName }
+        val duplicateParameterName =
+            enabledParameters
+                .groupingBy { it.apiName }
+                .eachCount()
+                .entries
+                .firstOrNull { it.value > 1 }
+                ?.key
+        require(duplicateParameterName == null) {
+            "DeepSeek request contains duplicate model parameter: $duplicateParameterName"
+        }
+        val reservedParameterName =
+            enabledParameters.firstOrNull { it.apiName in DEEPSEEK_RESERVED_REQUEST_FIELDS }?.apiName
+        require(reservedParameterName == null) {
+            "DeepSeek model parameter conflicts with request field: $reservedParameterName"
+        }
+        for (param in enabledParameters) {
+            when (param.valueType) {
+                com.ai.assistance.operit.data.model.ParameterValueType.INT ->
+                    jsonObject.put(param.apiName, param.currentValue as Int)
+                com.ai.assistance.operit.data.model.ParameterValueType.FLOAT ->
+                    jsonObject.put(param.apiName, param.currentValue as Float)
+                com.ai.assistance.operit.data.model.ParameterValueType.STRING ->
+                    jsonObject.put(param.apiName, param.currentValue as String)
+                com.ai.assistance.operit.data.model.ParameterValueType.BOOLEAN ->
+                    jsonObject.put(param.apiName, param.currentValue as Boolean)
+                com.ai.assistance.operit.data.model.ParameterValueType.OBJECT -> {
+                    val raw = param.currentValue.toString().trim()
+                    val parsed: Any? =
+                        try {
                             when {
                                 raw.startsWith("{") -> JSONObject(raw)
                                 raw.startsWith("[") -> JSONArray(raw)
@@ -107,14 +129,15 @@ class DeepseekProvider(
                             }
                         } catch (e: Exception) {
                             AppLogger.w("DeepseekProvider", "OBJECT参数解析失败: ${param.apiName}", e)
-                            null
+                            throw IllegalArgumentException(
+                                "DeepSeek OBJECT parameter is not valid JSON: ${param.apiName}",
+                                e,
+                            )
                         }
-                        if (parsed != null) {
-                            jsonObject.put(param.apiName, parsed)
-                        } else {
-                            jsonObject.put(param.apiName, raw)
-                        }
+                    require(parsed != null) {
+                        "DeepSeek OBJECT parameter must be a JSON object or array: ${param.apiName}"
                     }
+                    jsonObject.put(param.apiName, parsed)
                 }
             }
         }
@@ -149,7 +172,9 @@ class DeepseekProvider(
             )
         jsonObject.put("messages", messagesArray)
 
-        return createJsonRequestBody(jsonObject.toString())
+        return createJsonRequestBody(
+            ProviderToolCallIdentityContract.canonicalJsonText(jsonObject.toString()),
+        )
     }
 
     /**
@@ -168,7 +193,7 @@ class DeepseekProvider(
         var queuedToolCalls = JSONArray()
         val queuedToolCallIds = mutableListOf<String>()
         val openToolCallIds = mutableListOf<String>()
-        var nextToolCallOrdinal = 0
+        val toolHistoryState = ProviderToolHistoryState()
 
         fun appendQueuedAssistantToolText(text: String) {
             if (text.isBlank()) return
@@ -196,7 +221,13 @@ class DeepseekProvider(
             for (i in 0 until toolCalls.length()) {
                 val sourceToolCall = toolCalls.optJSONObject(i) ?: continue
                 val toolCall = JSONObject(sourceToolCall.toString())
-                val callId = generatedToolCallId(nextToolCallOrdinal++)
+                val callId = toolCall.optString("id", "").trim()
+                if (callId.isEmpty()) {
+                    throw ProviderToolHistoryProtocolException(
+                        violation = ProviderToolHistoryViolation.TOOL_CALL_WITHOUT_PAYLOAD,
+                        detail = "DeepSeek tool call has no provider call ID",
+                    )
+                }
                 toolCall.put("id", callId)
                 queuedToolCalls.put(toolCall)
                 queuedToolCallIds.add(callId)
@@ -220,29 +251,19 @@ class DeepseekProvider(
             )
 
             openToolCallIds.addAll(queuedToolCallIds)
+            toolHistoryState.acceptToolCalls(
+                callIds = queuedToolCallIds.toList(),
+                boundary = "deepseek_assistant_tool_calls",
+            )
             queuedAssistantToolText = null
             queuedAssistantReasoning = null
             queuedToolCalls = JSONArray()
             queuedToolCallIds.clear()
         }
 
-        fun flushOpenToolCallsAsCancelled(reason: String) {
+        fun requireNoOpenToolCalls(reason: String) {
             emitQueuedToolCallsIfNeeded()
-            if (openToolCallIds.isEmpty()) return
-
-            AppLogger.w(
-                "DeepseekProvider",
-                "发现未完成的tool_calls，按取消处理: count=${openToolCallIds.size}, reason=$reason"
-            )
-            for (toolCallId in openToolCallIds) {
-                messagesArray.put(
-                    JSONObject().apply {
-                        put("role", "tool")
-                        put("tool_call_id", toolCallId)
-                        put("content", "User cancelled")
-                    }
-                )
-            }
+            toolHistoryState.requireClosed(reason)
             openToolCallIds.clear()
         }
 
@@ -252,7 +273,7 @@ class DeepseekProvider(
                 if (useToolCall) {
                     when (turn.kind) {
                         PromptTurnKind.SYSTEM -> {
-                            flushOpenToolCallsAsCancelled("system_boundary")
+                            requireNoOpenToolCalls("system_boundary")
                             messagesArray.put(
                                 JSONObject().apply {
                                     put("role", "system")
@@ -263,7 +284,7 @@ class DeepseekProvider(
 
                         PromptTurnKind.USER,
                         PromptTurnKind.SUMMARY -> {
-                            flushOpenToolCallsAsCancelled("user_boundary")
+                            requireNoOpenToolCalls("user_boundary")
                             messagesArray.put(
                                 JSONObject().apply {
                                     put("role", "user")
@@ -283,17 +304,18 @@ class DeepseekProvider(
                                 }
 
                             if (toolCalls != null && toolCalls.length() > 0) {
-                                if (openToolCallIds.isNotEmpty()) {
-                                    flushOpenToolCallsAsCancelled("assistant_tool_call_before_result")
-                                }
+                                requireNoOpenToolCalls("assistant_tool_call_before_result")
                                 queueToolCalls(textContent, toolCalls, reasoningContent)
                             } else {
-                                flushOpenToolCallsAsCancelled("assistant_boundary")
+                                requireNoOpenToolCalls("assistant_boundary")
                                 messagesArray.put(
                                     JSONObject().apply {
                                         put("role", "assistant")
                                         put("reasoning_content", reasoningContent)
-                                        put("content", buildContentField(context, content.ifBlank { "[Empty]" }))
+                                        put(
+                                            "content",
+                                            if (content.isBlank()) JSONObject.NULL else buildContentField(context, content),
+                                        )
                                     }
                                 )
                             }
@@ -309,18 +331,12 @@ class DeepseekProvider(
                                 }
 
                             if (toolCalls != null && toolCalls.length() > 0) {
-                                if (openToolCallIds.isNotEmpty()) {
-                                    flushOpenToolCallsAsCancelled("typed_tool_call_before_result")
-                                }
+                                requireNoOpenToolCalls("typed_tool_call_before_result")
                                 queueToolCalls(textContent, toolCalls)
                             } else {
-                                flushOpenToolCallsAsCancelled("typed_tool_call_without_payload")
-                                messagesArray.put(
-                                    JSONObject().apply {
-                                        put("role", "assistant")
-                                        put("reasoning_content", "")
-                                        put("content", buildContentField(context, originalContent.ifBlank { "[Empty]" }))
-                                    }
+                                throw ProviderToolHistoryProtocolException(
+                                    violation = ProviderToolHistoryViolation.TOOL_CALL_WITHOUT_PAYLOAD,
+                                    detail = "DeepSeek typed TOOL_CALL has no structured payload",
                                 )
                             }
                         }
@@ -328,51 +344,35 @@ class DeepseekProvider(
                         PromptTurnKind.TOOL_RESULT -> {
                             emitQueuedToolCallsIfNeeded()
                             val (textContent, toolResults) = parseXmlToolResults(originalContent)
-                            val resultsList = toolResults ?: emptyList()
-
-                            if (resultsList.isNotEmpty() && openToolCallIds.isNotEmpty()) {
-                                val validCount = minOf(resultsList.size, openToolCallIds.size)
-                                repeat(validCount) { index ->
-                                    val (_, resultContent) = resultsList[index]
-                                    messagesArray.put(
-                                        JSONObject().apply {
-                                            put("role", "tool")
-                                            put("tool_call_id", openToolCallIds[index])
-                                            put("content", resultContent)
-                                        }
+                            val resultsList =
+                                toolResults
+                                    ?: throw ProviderToolHistoryProtocolException(
+                                        violation = ProviderToolHistoryViolation.TOOL_RESULT_WITHOUT_PAYLOAD,
+                                        detail = "DeepSeek typed TOOL_RESULT has no structured payload",
                                     )
-                                }
-                                repeat(validCount) {
-                                    openToolCallIds.removeAt(0)
-                                }
-
-                                if (resultsList.size > validCount) {
-                                    AppLogger.w(
-                                        "DeepseekProvider",
-                                        "发现多余的tool_result: ${resultsList.size} results vs ${validCount} pending tool_calls"
-                                    )
-                                }
-
-                                if (textContent.isNotEmpty()) {
-                                    messagesArray.put(
-                                        JSONObject().apply {
-                                            put("role", "user")
-                                            put("content", buildContentField(context, textContent))
-                                        }
-                                    )
-                                }
-                            } else {
-                                flushOpenToolCallsAsCancelled("tool_result_without_structured_match")
-                                val fallbackContent =
-                                    when {
-                                        textContent.isNotEmpty() -> textContent
-                                        originalContent.isNotBlank() -> originalContent
-                                        else -> "[Empty]"
+                            toolHistoryState.acceptToolResults(
+                                resultCount = resultsList.size,
+                                boundary = "deepseek_tool_result",
+                            )
+                            repeat(resultsList.size) { index ->
+                                val (_, resultContent) = resultsList[index]
+                                messagesArray.put(
+                                    JSONObject().apply {
+                                        put("role", "tool")
+                                        put("tool_call_id", openToolCallIds[index])
+                                        put("content", resultContent)
                                     }
+                                )
+                            }
+                            repeat(resultsList.size) {
+                                openToolCallIds.removeAt(0)
+                            }
+                            if (textContent.isNotEmpty()) {
+                                toolHistoryState.requireClosed("deepseek_tool_result_text_boundary")
                                 messagesArray.put(
                                     JSONObject().apply {
                                         put("role", "user")
-                                        put("content", buildContentField(context, fallbackContent))
+                                        put("content", buildContentField(context, textContent))
                                     }
                                 )
                             }
@@ -390,8 +390,7 @@ class DeepseekProvider(
                         }
 
                         PromptTurnKind.USER,
-                        PromptTurnKind.SUMMARY,
-                        PromptTurnKind.TOOL_RESULT -> {
+                        PromptTurnKind.SUMMARY -> {
                             messagesArray.put(
                                 JSONObject().apply {
                                     put("role", "user")
@@ -406,18 +405,25 @@ class DeepseekProvider(
                                 JSONObject().apply {
                                     put("role", "assistant")
                                     put("reasoning_content", reasoningContent)
-                                    put("content", buildContentField(context, content.ifBlank { "[Empty]" }))
+                                    put(
+                                        "content",
+                                        if (content.isBlank()) JSONObject.NULL else buildContentField(context, content),
+                                    )
                                 }
                             )
                         }
 
                         PromptTurnKind.TOOL_CALL -> {
-                            messagesArray.put(
-                                JSONObject().apply {
-                                    put("role", "assistant")
-                                    put("reasoning_content", "")
-                                    put("content", buildContentField(context, originalContent.ifBlank { "[Empty]" }))
-                                }
+                            throw ProviderToolHistoryProtocolException(
+                                violation = ProviderToolHistoryViolation.TOOL_PROTOCOL_DISABLED,
+                                detail = "DeepSeek TOOL_CALL cannot be replayed when native tool calls are disabled",
+                            )
+                        }
+
+                        PromptTurnKind.TOOL_RESULT -> {
+                            throw ProviderToolHistoryProtocolException(
+                                violation = ProviderToolHistoryViolation.TOOL_PROTOCOL_DISABLED,
+                                detail = "DeepSeek TOOL_RESULT cannot be replayed when native tool calls are disabled",
                             )
                         }
                     }
@@ -425,7 +431,7 @@ class DeepseekProvider(
             }
         }
 
-        flushOpenToolCallsAsCancelled("history_end")
+        requireNoOpenToolCalls("history_end")
         return messagesArray
     }
 
@@ -466,5 +472,19 @@ class DeepseekProvider(
     ): Stream<String> {
         // 直接调用父类的sendMessage实现
         return super.sendMessage(context, chatHistory, modelParameters, enableThinking, stream, availableTools, preserveThinkInHistory, providerRequestContext, onTokensUpdated, onNonFatalError, enableRetry)
+    }
+
+    private companion object {
+        val DEEPSEEK_RESERVED_REQUEST_FIELDS =
+            setOf(
+                "messages",
+                "model",
+                "reasoning_effort",
+                "stream",
+                "stream_options",
+                "thinking",
+                "tool_choice",
+                "tools",
+            )
     }
 }

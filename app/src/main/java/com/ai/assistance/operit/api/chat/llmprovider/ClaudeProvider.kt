@@ -40,6 +40,126 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 
+internal object AnthropicUsagePayloadAdapter {
+    data class UsageCounts(
+        val uncachedInputTokens: Int?,
+        val cachedInputTokens: Int?,
+        val cacheCreationInputTokens: Int?,
+        val outputTokens: Int?,
+        val cacheMetricState: ProviderCacheMetricState,
+    )
+
+    private fun sumNumericFields(jsonObject: JSONObject?): Int {
+        jsonObject ?: return 0
+
+        var total = 0
+        val keys = jsonObject.keys()
+        while (keys.hasNext()) {
+            val key = keys.next()
+            when (val value = jsonObject.opt(key)) {
+                is Number -> total += value.toInt()
+                is JSONObject -> total += sumNumericFields(value)
+            }
+        }
+        return total
+    }
+
+    fun parse(usage: JSONObject?): UsageCounts? {
+        usage ?: return null
+
+        val cacheReadPresent =
+            usage.has("cache_read_input_tokens") ||
+                usage.optJSONObject("input_tokens_details")?.has("cached_tokens") == true ||
+                usage.has("cached_tokens")
+        val rawCacheReadTokens =
+            when {
+                usage.has("cache_read_input_tokens") ->
+                    usage.optInt("cache_read_input_tokens", 0)
+                usage.optJSONObject("input_tokens_details")?.has("cached_tokens") == true ->
+                    usage.optJSONObject("input_tokens_details")?.optInt("cached_tokens", 0) ?: 0
+                usage.has("cached_tokens") ->
+                    usage.optInt("cached_tokens", 0)
+                else -> 0
+            }
+
+        val cacheCreationPresent =
+            usage.has("cache_creation_input_tokens") ||
+                usage.optJSONObject("cache_creation") != null
+        val rawCacheCreationInputTokens =
+            when {
+                usage.has("cache_creation_input_tokens") ->
+                    usage.optInt("cache_creation_input_tokens", 0)
+                usage.optJSONObject("cache_creation") != null ->
+                    sumNumericFields(usage.optJSONObject("cache_creation"))
+                else -> 0
+            }
+
+        val directInputPresent = usage.has("input_tokens")
+        val promptInputPresent = usage.has("prompt_tokens")
+        val rawDirectInputTokens = usage.optInt("input_tokens", 0)
+        val rawPromptTokens = usage.optInt("prompt_tokens", 0)
+        val inputInvalid =
+            rawDirectInputTokens < 0 ||
+                rawPromptTokens < 0 ||
+                rawCacheReadTokens < 0 ||
+                rawCacheCreationInputTokens < 0 ||
+                (
+                    promptInputPresent &&
+                        rawCacheReadTokens.coerceAtLeast(0) +
+                            rawCacheCreationInputTokens.coerceAtLeast(0) >
+                            rawPromptTokens.coerceAtLeast(0)
+                    )
+
+        val cacheReadTokens = rawCacheReadTokens.coerceAtLeast(0)
+        val cacheCreationInputTokens = rawCacheCreationInputTokens.coerceAtLeast(0)
+        val uncachedInputTokens =
+            when {
+                directInputPresent -> rawDirectInputTokens.coerceAtLeast(0)
+                promptInputPresent ->
+                    (
+                        rawPromptTokens.coerceAtLeast(0) -
+                            cacheReadTokens -
+                            cacheCreationInputTokens
+                        ).coerceAtLeast(0)
+                else -> null
+            }
+
+        val outputPresent =
+            usage.has("output_tokens") ||
+                usage.has("completion_tokens")
+        val rawOutputTokens =
+            usage.optInt("output_tokens", usage.optInt("completion_tokens", 0))
+        val outputTokens = rawOutputTokens.coerceAtLeast(0).takeIf { outputPresent }
+
+        val hasAnyField =
+            directInputPresent ||
+                promptInputPresent ||
+                cacheReadPresent ||
+                cacheCreationPresent ||
+                outputPresent
+        if (!hasAnyField) {
+            return null
+        }
+
+        return UsageCounts(
+            uncachedInputTokens = uncachedInputTokens,
+            cachedInputTokens = cacheReadTokens.takeIf { cacheReadPresent },
+            cacheCreationInputTokens =
+                cacheCreationInputTokens.takeIf { cacheCreationPresent },
+            outputTokens = outputTokens,
+            cacheMetricState =
+                when {
+                    inputInvalid || rawOutputTokens < 0 ->
+                        ProviderCacheMetricState.INVALID
+                    cacheReadPresent || cacheCreationPresent ->
+                        ProviderCacheMetricState.REPORTED
+                    else ->
+                        ProviderCacheMetricState.NOT_REPORTED
+                },
+        )
+    }
+}
+
 /** Anthropic Claude API的实现，处理Claude特有的API格式 */
 class ClaudeProvider(
     private val apiEndpoint: String,
@@ -53,14 +173,16 @@ class ClaudeProvider(
     private val endpointProviderType: ApiProviderType = ApiProviderType.ANTHROPIC,
     private val authenticationMode: AnthropicAuthenticationMode =
         AnthropicAuthenticationPolicy.resolve(providerType),
-) : AIService {
+) : AIService, ProviderUsageReporting, ProviderReplayMetadataConsumer {
     // private val client: OkHttpClient = HttpClientFactory.instance
+
+    override val consumedReplayMetadataKinds: Set<ProviderReplayMetadataKind> =
+        setOf(ProviderReplayMetadataKind.ANTHROPIC_CONTENT_BLOCKS)
 
     private val JSON = "application/json".toMediaType()
     private val ANTHROPIC_VERSION = "2023-06-01" // Claude API版本
     private val PROMPT_CACHE_CONTROL_TYPE = "ephemeral"
     private val DEFAULT_MAX_TOKENS = 4096
-    private val EMPTY_MESSAGE_TEXT = "[Empty]"
 
     // 当前活跃的Call对象，用于取消流式传输
     private var activeCall: Call? = null
@@ -75,14 +197,6 @@ class ClaudeProvider(
     private enum class ThinkingFormat { ADAPTIVE, ENABLED }
 
     /**
-     * 缓存：当前模型对应的 thinking 格式。
-     * 初始由模型名启发式决定；若 API 返回 thinking 类型不兼容的 400 错误，
-     * 会自动翻转并缓存，后续请求直接使用正确格式，避免重复失败。
-     */
-    @Volatile
-    private var cachedThinkingFormat: ThinkingFormat? = null
-
-    /**
      * 由客户端错误（如4xx状态码）触发的API异常，是否重试由统一策略决定
      */
     class NonRetriableException(
@@ -93,6 +207,16 @@ class ClaudeProvider(
 
     // 添加token计数器
     private val tokenCacheManager = TokenCacheManager()
+
+    @Volatile
+    private var latestProviderUsageSnapshot: ProviderUsageSnapshot? = null
+
+    @Synchronized
+    override fun consumeLatestProviderUsageSnapshot(): ProviderUsageSnapshot? {
+        val snapshot = latestProviderUsageSnapshot
+        latestProviderUsageSnapshot = null
+        return snapshot
+    }
 
     // 公开token计数
     override val inputTokenCount: Int
@@ -109,6 +233,7 @@ class ClaudeProvider(
     // 重置token计数
     override fun resetTokenCounts() {
         tokenCacheManager.resetTokenCounts()
+        latestProviderUsageSnapshot = null
     }
 
     private fun logLargeString(tag: String, message: String, prefix: String = "") {
@@ -149,95 +274,84 @@ class ClaudeProvider(
         AppLogger.d("AIService", "取消标志已设置，流读取将立即被中断")
     }
 
-    private data class AnthropicUsageCounts(
-        val actualInputTokens: Int,
-        val cachedInputTokens: Int,
-        val totalInputTokens: Int,
-        val outputTokens: Int,
-        val cacheCreationInputTokens: Int
-    )
-
-    private fun sumNumericFields(jsonObject: JSONObject?): Int {
-        jsonObject ?: return 0
-
-        var total = 0
-        val keys = jsonObject.keys()
-        while (keys.hasNext()) {
-            val key = keys.next()
-            when (val value = jsonObject.opt(key)) {
-                is Number -> total += value.toInt()
-                is JSONObject -> total += sumNumericFields(value)
-            }
-        }
-        return total
-    }
-
-    private fun parseAnthropicUsage(usage: JSONObject?): AnthropicUsageCounts? {
-        usage ?: return null
-
-        val cachedInputTokens = when {
-            usage.has("cache_read_input_tokens") -> usage.optInt("cache_read_input_tokens", 0)
-            usage.optJSONObject("input_tokens_details") != null ->
-                usage.optJSONObject("input_tokens_details")?.optInt("cached_tokens", 0) ?: 0
-            else -> usage.optInt("cached_tokens", 0)
-        }.coerceAtLeast(0)
-
-        val cacheCreationInputTokens = when {
-            usage.has("cache_creation_input_tokens") -> usage.optInt("cache_creation_input_tokens", 0)
-            usage.optJSONObject("cache_creation") != null ->
-                sumNumericFields(usage.optJSONObject("cache_creation"))
-            else -> 0
-        }.coerceAtLeast(0)
-
-        val actualInputTokens = if (usage.has("input_tokens")) {
-            usage.optInt("input_tokens", 0).coerceAtLeast(0) + cacheCreationInputTokens
-        } else {
-            (usage.optInt("prompt_tokens", 0).coerceAtLeast(0) - cachedInputTokens)
-                .coerceAtLeast(0) + cacheCreationInputTokens
-        }
-
-        val totalInputTokens = actualInputTokens + cachedInputTokens
-        val outputTokens =
-            usage.optInt("output_tokens", usage.optInt("completion_tokens", 0)).coerceAtLeast(0)
-
-        if (totalInputTokens <= 0 && outputTokens <= 0) {
-            return null
-        }
-
-        return AnthropicUsageCounts(
-            actualInputTokens = actualInputTokens,
-            cachedInputTokens = cachedInputTokens,
-            totalInputTokens = totalInputTokens,
-            outputTokens = outputTokens,
-            cacheCreationInputTokens = cacheCreationInputTokens
-        )
-    }
-
     private suspend fun applyAnthropicUsage(
         usage: JSONObject?,
         onTokensUpdated: suspend (input: Int, cachedInput: Int, output: Int) -> Unit,
         source: String,
         overwriteOutputTokens: Boolean
     ): Boolean {
-        val parsed = parseAnthropicUsage(usage) ?: return false
+        val parsed = AnthropicUsagePayloadAdapter.parse(usage) ?: return false
+        val previous = latestProviderUsageSnapshot
+        val uncachedInputTokens =
+            parsed.uncachedInputTokens?.toLong()
+                ?: previous?.uncachedInputTokens
+                ?: 0L
+        val cachedInputTokens =
+            parsed.cachedInputTokens?.toLong()
+                ?: previous?.cacheReadTokens
+                ?: 0L
+        val cacheCreationInputTokens =
+            parsed.cacheCreationInputTokens?.toLong()
+                ?: previous?.cacheWriteTokens
+                ?: 0L
+        val outputTokens =
+            parsed.outputTokens?.toLong()
+                ?: previous?.outputTokens
+                ?: tokenCacheManager.outputTokenCount.toLong()
+        val cacheMetricState =
+            when {
+                parsed.cacheMetricState == ProviderCacheMetricState.INVALID ||
+                    previous?.cacheMetricState == ProviderCacheMetricState.INVALID ->
+                    ProviderCacheMetricState.INVALID
+                parsed.cacheMetricState == ProviderCacheMetricState.REPORTED ||
+                    previous?.cacheMetricState == ProviderCacheMetricState.REPORTED ->
+                    ProviderCacheMetricState.REPORTED
+                else -> ProviderCacheMetricState.NOT_REPORTED
+            }
+        val snapshot =
+            ProviderUsageSnapshot(
+                providerModel = providerModel,
+                protocol = ApiProtocol.ANTHROPIC_MESSAGES,
+                totalInputTokens =
+                    uncachedInputTokens +
+                        cachedInputTokens +
+                        cacheCreationInputTokens,
+                uncachedInputTokens = uncachedInputTokens,
+                cacheReadTokens = cachedInputTokens,
+                cacheWriteTokens = cacheCreationInputTokens,
+                outputTokens = outputTokens,
+                reasoningTokens = 0L,
+                cacheMetricState = cacheMetricState,
+                source = ProviderUsageSource.PROVIDER,
+            )
+        latestProviderUsageSnapshot = snapshot
 
         tokenCacheManager.updateActualTokens(
-            actualInput = parsed.actualInputTokens,
-            cachedInput = parsed.cachedInputTokens
+            actualInput =
+                (uncachedInputTokens + cacheCreationInputTokens)
+                    .coerceAtMost(Int.MAX_VALUE.toLong())
+                    .toInt(),
+            cachedInput =
+                cachedInputTokens.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
         )
 
-        if (overwriteOutputTokens && parsed.outputTokens > 0) {
-            tokenCacheManager.setOutputTokens(parsed.outputTokens)
+        if (overwriteOutputTokens && parsed.outputTokens != null) {
+            tokenCacheManager.setOutputTokens(
+                outputTokens.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+            )
         }
 
         AppLogger.d(
             "AIService",
-            "Claude[$source]实际Token: 输入=${parsed.totalInputTokens}, 缓存=${parsed.cachedInputTokens}, 输出=${parsed.outputTokens}, cache_creation=${parsed.cacheCreationInputTokens}"
+            "Claude[$source]实际Token: 输入=${snapshot.totalInputTokens}, " +
+                "缓存=${snapshot.cacheReadTokens}, 输出=${snapshot.outputTokens}, " +
+                "cache_creation=${snapshot.cacheWriteTokens}, " +
+                "cache_metric=${snapshot.cacheMetricState}"
         )
 
         onTokensUpdated(
-            parsed.totalInputTokens,
-            parsed.cachedInputTokens,
+            snapshot.totalInputTokens.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+            snapshot.cacheReadTokens.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
             tokenCacheManager.outputTokenCount
         )
         return true
@@ -288,6 +402,21 @@ class ClaudeProvider(
         return if (base.isEmpty()) "0" else base
     }
 
+    private fun extractXmlAttribute(
+        openingTag: String,
+        attributeName: String,
+    ): String? {
+        val match =
+            Regex(
+                """\b${Regex.escape(attributeName)}\s*=\s*"([^"]*)"""",
+                RegexOption.IGNORE_CASE,
+            ).find(openingTag)
+                ?: return null
+        return XmlEscaper.unescape(match.groupValues[1])
+            .trim()
+            .takeIf { it.isNotEmpty() }
+    }
+
     /**
      * 解析XML格式的tool调用，转换为Claude Tool格式
      * @return Pair<文本内容, tool_use数组>
@@ -308,6 +437,7 @@ class ClaudeProvider(
         matches.forEach { match ->
             val toolName = match.groupValues[2]
             val toolBody = match.groupValues[3]
+            val openingTag = match.value.substringBefore('>')
 
             // 解析参数
             val input = JSONObject()
@@ -318,10 +448,19 @@ class ClaudeProvider(
                 input.put(paramName, paramValue)
             }
 
-            // 构建tool_use对象（Claude格式）
-            val toolNamePart = sanitizeToolCallId(toolName)
-            val hashPart = stableIdHashPart("${toolName}:${input}")
-            val callId = sanitizeToolCallId("toolu_${toolNamePart}_${hashPart}_$callIndex")
+            // provider_call_id 是跨工具 hop 的协议身份；只有旧历史确实没有 ID 时，才按内容
+            // 生成稳定且可重建的本地 ID。按当前数组位置覆盖会让下一次请求无法闭合原 tool_use。
+            val canonicalInput =
+                ProviderToolCallIdentityContract.canonicalJsonText(input.toString())
+            val callId =
+                extractXmlAttribute(openingTag, "provider_call_id")
+                    ?: run {
+                        val toolNamePart = sanitizeToolCallId(toolName)
+                        val hashPart = stableIdHashPart("$toolName:$canonicalInput")
+                        sanitizeToolCallId(
+                            "toolu_${toolNamePart}_${hashPart}_$callIndex"
+                        )
+                    }
             toolUses.put(JSONObject().apply {
                 put("type", "tool_use")
                 put("id", callId)
@@ -373,6 +512,104 @@ class ClaudeProvider(
         }
         
         return Pair(textContent.trim(), results)
+    }
+
+    private fun appendAnthropicToolUseXml(
+        target: StringBuilder,
+        block: JSONObject,
+    ) {
+        if (!enableToolCall) {
+            throw ProviderToolHistoryProtocolException(
+                violation = ProviderToolHistoryViolation.TOOL_PROTOCOL_DISABLED,
+                detail = "Anthropic response contains tool_use while native tools are disabled",
+            )
+        }
+        val toolName = block.optString("name", "").trim()
+        val toolUseId = block.optString("id", "").trim()
+        val input =
+            block.optJSONObject("input")
+                ?: throw AnthropicProtocolException(
+                    "Anthropic response tool_use $toolUseId has no input object"
+                )
+        if (toolName.isEmpty() || toolUseId.isEmpty()) {
+            throw AnthropicProtocolException(
+                "Anthropic response tool_use has no stable ID or name"
+            )
+        }
+
+        val toolTagName = ChatMarkupRegex.generateRandomToolTagName()
+        target.append("\n<")
+        target.append(toolTagName)
+        target.append(" name=\"")
+        target.append(XmlEscaper.escape(toolName))
+        target.append("\" provider_name=\"")
+        target.append(XmlEscaper.escape(providerType.name))
+        target.append("\" provider_call_id=\"")
+        target.append(XmlEscaper.escape(toolUseId))
+        target.append("\">")
+
+        val converter = StreamingJsonXmlConverter()
+        converter.feed(input.toString()).forEach { event ->
+            when (event) {
+                is StreamingJsonXmlConverter.Event.Tag -> target.append(event.text)
+                is StreamingJsonXmlConverter.Event.Content -> target.append(event.text)
+            }
+        }
+        converter.flush().forEach { event ->
+            when (event) {
+                is StreamingJsonXmlConverter.Event.Tag -> target.append(event.text)
+                is StreamingJsonXmlConverter.Event.Content -> target.append(event.text)
+            }
+        }
+        target.append("\n</")
+        target.append(toolTagName)
+        target.append(">\n")
+    }
+
+    private fun renderAnthropicContentBlocks(contentBlocks: JSONArray): String {
+        val rendered = StringBuilder()
+        for (index in 0 until contentBlocks.length()) {
+            val block =
+                contentBlocks.optJSONObject(index)
+                    ?: throw AnthropicProtocolException(
+                        "Anthropic response content block at index $index is not an object"
+                    )
+            when (val type = block.optString("type", "").trim()) {
+                "text" -> rendered.append(block.optString("text", ""))
+                "thinking" -> {
+                    val thinking = block.optString("thinking", "")
+                    rendered.append("\n<think>")
+                    rendered.append(thinking)
+                    rendered.append("</think>\n")
+                }
+                "redacted_thinking" -> Unit
+                "tool_use" -> appendAnthropicToolUseXml(rendered, block)
+                else -> {
+                    throw AnthropicProtocolException(
+                        "Unsupported Anthropic response content block type '$type'"
+                    )
+                }
+            }
+        }
+        AnthropicContentBlockReplayCodec.createMetadataTag(
+            modelName = modelName,
+            contentBlocks = contentBlocks,
+        )?.let { metadataTag ->
+            if (rendered.isNotEmpty() && rendered.last() != '\n') {
+                rendered.append('\n')
+            }
+            rendered.append(metadataTag)
+        }
+        return rendered.toString()
+    }
+
+    private fun parseAnthropicNonStreamingResponse(jsonResponse: JSONObject): String {
+        val content =
+            jsonResponse.optJSONArray("content")
+                ?: throw AnthropicProtocolException(
+                    "Anthropic non-streaming response has no content array"
+                )
+        return renderAnthropicContentBlocks(content)
     }
     
     /**
@@ -448,10 +685,6 @@ class ClaudeProvider(
         return true
     }
 
-    private fun nonEmptyContentText(text: String): String {
-        return if (text.isBlank()) EMPTY_MESSAGE_TEXT else text
-    }
-
     private fun buildContentArray(text: String, allowEmptyArray: Boolean = false): JSONArray {
         val contentArray = JSONArray()
 
@@ -487,8 +720,9 @@ class ClaudeProvider(
         }
 
         if (!allowEmptyArray && contentArray.length() == 0) {
-            AppLogger.d("AIService", "发现空的Claude消息，填充为[空消息]")
-            appendTextContentBlock(contentArray, EMPTY_MESSAGE_TEXT)
+            throw AnthropicProtocolException(
+                "Anthropic message has no text or supported media content"
+            )
         }
         
         return contentArray
@@ -644,19 +878,8 @@ class ClaudeProvider(
         var queuedToolUses = JSONArray()
         val queuedToolUseIds = mutableListOf<String>()
         val openToolUseIds = mutableListOf<String>()
-        var nextToolUseOrdinal = 0
-
-        fun generatedToolUseId(ordinal: Int): String {
-            val raw = "${stableIdHashPart("tool_use:$ordinal")}_$ordinal"
-            val cleaned = raw.filter { it.isLetterOrDigit() }
-            val suffix = when {
-                cleaned.isEmpty() -> "toolu00000"
-                cleaned.length == 9 -> cleaned
-                cleaned.length > 9 -> cleaned.takeLast(9)
-                else -> (cleaned + stableIdHashPart(raw) + "000000000").take(9)
-            }
-            return "toolu_$suffix"
-        }
+        val toolHistoryState = ProviderToolHistoryState()
+        val toolUseSignatures = mutableMapOf<String, ProviderToolCallSignature>()
 
         fun appendQueuedAssistantToolText(text: String) {
             if (text.isBlank()) return
@@ -668,16 +891,73 @@ class ClaudeProvider(
                 }
         }
 
+        fun registerToolUses(
+            toolUses: JSONArray,
+            boundary: String,
+        ): List<String> {
+            val callIds = mutableListOf<String>()
+            for (index in 0 until toolUses.length()) {
+                val toolUse =
+                    toolUses.optJSONObject(index)
+                        ?: throw ProviderToolHistoryProtocolException(
+                            violation = ProviderToolHistoryViolation.TOOL_CALL_WITHOUT_PAYLOAD,
+                            detail = "Anthropic tool_use at $boundary is not an object",
+                        )
+                if (toolUse.optString("type", "") != "tool_use") {
+                    continue
+                }
+                val callId = toolUse.optString("id", "").trim()
+                val toolName = toolUse.optString("name", "").trim()
+                val input =
+                    toolUse.optJSONObject("input")
+                        ?: throw ProviderToolHistoryProtocolException(
+                            violation = ProviderToolHistoryViolation.TOOL_CALL_WITHOUT_PAYLOAD,
+                            detail = "Anthropic tool_use $callId at $boundary has no input object",
+                        )
+                if (callId.isEmpty() || toolName.isEmpty()) {
+                    throw ProviderToolHistoryProtocolException(
+                        violation = ProviderToolHistoryViolation.TOOL_CALL_WITHOUT_PAYLOAD,
+                        detail = "Anthropic tool_use at $boundary has no stable ID or name",
+                    )
+                }
+                val signature =
+                    ProviderToolCallIdentityContract.signature(
+                        toolName = toolName,
+                        argumentsJson =
+                            ProviderToolCallIdentityContract.canonicalJsonText(
+                                input.toString()
+                            ),
+                    )
+                val previous = toolUseSignatures.putIfAbsent(callId, signature)
+                if (previous != null) {
+                    if (previous != signature) {
+                        throw AnthropicProtocolException(
+                            "Anthropic tool_use ID $callId changed name or input"
+                        )
+                    }
+                    throw ProviderToolHistoryProtocolException(
+                        violation = ProviderToolHistoryViolation.DUPLICATE_TOOL_CALL_ID,
+                        detail = "Anthropic tool_use ID $callId appeared more than once",
+                    )
+                }
+                callIds.add(callId)
+            }
+            return callIds
+        }
+
         fun queueToolUses(textContent: String, toolUses: JSONArray) {
             appendQueuedAssistantToolText(textContent)
+            val callIds =
+                registerToolUses(
+                    toolUses = toolUses,
+                    boundary = "anthropic_legacy_assistant_tool_use",
+                )
             for (i in 0 until toolUses.length()) {
                 val sourceToolUse = toolUses.optJSONObject(i) ?: continue
                 val toolUse = JSONObject(sourceToolUse.toString())
-                val toolUseId = generatedToolUseId(nextToolUseOrdinal++)
-                toolUse.put("id", toolUseId)
                 queuedToolUses.put(toolUse)
-                queuedToolUseIds.add(toolUseId)
             }
+            queuedToolUseIds.addAll(callIds)
         }
 
         fun emitQueuedToolUsesIfNeeded() {
@@ -699,49 +979,98 @@ class ClaudeProvider(
             )
 
             openToolUseIds.addAll(queuedToolUseIds)
+            toolHistoryState.acceptToolCalls(
+                callIds = queuedToolUseIds.toList(),
+                boundary = "anthropic_assistant_tool_use",
+            )
             queuedAssistantToolText = null
             queuedToolUses = JSONArray()
             queuedToolUseIds.clear()
         }
 
-        fun appendCancelledOpenToolUses(target: JSONArray, reason: String): Boolean {
+        fun requireNoOpenToolUses(boundary: String) {
             emitQueuedToolUsesIfNeeded()
-            if (openToolUseIds.isEmpty()) return false
+            toolHistoryState.requireClosed(boundary)
+            openToolUseIds.clear()
+        }
 
-            AppLogger.w(
-                "AIService",
-                "发现未完成的tool_use，按取消处理: count=${openToolUseIds.size}, reason=$reason"
-            )
-            for (toolUseId in openToolUseIds) {
-                target.put(
-                    JSONObject().apply {
-                        put("type", "tool_result")
-                        put("tool_use_id", toolUseId)
-                        put("content", "User cancelled")
-                    }
+        fun appendReplayAssistantMessage(
+            turn: PromptTurn,
+            originalContent: String,
+        ): Boolean {
+            val snapshot =
+                AnthropicContentBlockReplayCodec.extractSnapshot(originalContent)
+                    ?: return false
+            if (
+                turn.kind != PromptTurnKind.ASSISTANT &&
+                    turn.kind != PromptTurnKind.TOOL_CALL
+            ) {
+                throw AnthropicProtocolException(
+                    "Anthropic content-block metadata is attached to ${turn.kind}"
                 )
             }
-            openToolUseIds.clear()
+
+            requireNoOpenToolUses("anthropic_replay_assistant_boundary")
+            val replayBlocks =
+                AnthropicContentBlockReplayCodec.replayBlocksForModel(
+                    snapshot = snapshot,
+                    currentModelName = modelName,
+                )
+            val toolUseIds =
+                AnthropicContentBlockReplayCodec.toolUseIds(replayBlocks)
+            if (turn.kind == PromptTurnKind.TOOL_CALL && toolUseIds.isEmpty()) {
+                throw ProviderToolHistoryProtocolException(
+                    violation = ProviderToolHistoryViolation.TOOL_CALL_WITHOUT_PAYLOAD,
+                    detail = "Anthropic typed TOOL_CALL metadata has no tool_use block",
+                )
+            }
+            if (!enableToolCall && toolUseIds.isNotEmpty()) {
+                throw ProviderToolHistoryProtocolException(
+                    violation = ProviderToolHistoryViolation.TOOL_PROTOCOL_DISABLED,
+                    detail = "Anthropic tool history cannot be replayed with native tools disabled",
+                )
+            }
+            if (toolUseIds.isNotEmpty()) {
+                registerToolUses(
+                    toolUses = replayBlocks,
+                    boundary = "anthropic_content_block_replay",
+                )
+            }
+
+            messagesArray.put(
+                JSONObject().apply {
+                    put("role", "assistant")
+                    put("content", replayBlocks)
+                }
+            )
+            if (toolUseIds.isNotEmpty()) {
+                openToolUseIds.addAll(toolUseIds)
+                toolHistoryState.acceptToolCalls(
+                    callIds = toolUseIds,
+                    boundary = "anthropic_content_block_replay",
+                )
+            }
             return true
         }
 
-        fun flushOpenToolUsesAsCancelled(reason: String) {
-            val contentArray = JSONArray()
-            if (!appendCancelledOpenToolUses(contentArray, reason)) return
-            messagesArray.put(
-                JSONObject().apply {
-                    put("role", "user")
-                    put("content", contentArray)
-                }
-            )
-        }
-
         for (turn in historyWithoutSystem) {
+            val originalContent = turn.content
+            if (appendReplayAssistantMessage(turn, originalContent)) {
+                continue
+            }
+
+            val contentWithoutMetadata =
+                AnthropicContentBlockReplayCodec.contentWithoutMetadata(originalContent)
             val content =
-                if (!preserveThinkInHistory && turn.kind == PromptTurnKind.ASSISTANT) {
-                    ChatUtils.removeThinkingContent(turn.content)
+                if (
+                    turn.kind == PromptTurnKind.ASSISTANT ||
+                        turn.kind == PromptTurnKind.TOOL_CALL
+                ) {
+                    // 没有 signature/content-block 快照的旧 <think> 文本不具备 Anthropic
+                    // replay 身份。继续把它作为普通 text 发送会伪造 thinking 历史。
+                    ChatUtils.removeThinkingContent(contentWithoutMetadata)
                 } else {
-                    turn.content
+                    contentWithoutMetadata
                 }
 
             if (enableToolCall) {
@@ -751,12 +1080,10 @@ class ClaudeProvider(
                     PromptTurnKind.ASSISTANT -> {
                         val (textContent, toolUses) = parseXmlToolCalls(content)
                         if (toolUses != null && toolUses.length() > 0) {
-                            if (openToolUseIds.isNotEmpty()) {
-                                flushOpenToolUsesAsCancelled("assistant_tool_use_before_result")
-                            }
+                            requireNoOpenToolUses("assistant_tool_use_before_result")
                             queueToolUses(textContent, toolUses)
                         } else {
-                            flushOpenToolUsesAsCancelled("assistant_boundary")
+                            requireNoOpenToolUses("assistant_boundary")
                             messagesArray.put(
                                 JSONObject().apply {
                                     put("role", "assistant")
@@ -769,36 +1096,23 @@ class ClaudeProvider(
                     PromptTurnKind.TOOL_CALL -> {
                         val (textContent, toolUses) = parseXmlToolCalls(content)
                         if (toolUses != null && toolUses.length() > 0) {
-                            if (openToolUseIds.isNotEmpty()) {
-                                flushOpenToolUsesAsCancelled("typed_tool_use_before_result")
-                            }
+                            requireNoOpenToolUses("typed_tool_use_before_result")
                             queueToolUses(textContent, toolUses)
                         } else {
-                            flushOpenToolUsesAsCancelled("typed_tool_call_without_payload")
-                            messagesArray.put(
-                                JSONObject().apply {
-                                    put("role", "assistant")
-                                    put("content", buildContentArray(content))
-                                }
+                            throw ProviderToolHistoryProtocolException(
+                                violation = ProviderToolHistoryViolation.TOOL_CALL_WITHOUT_PAYLOAD,
+                                detail = "Anthropic typed TOOL_CALL has no structured payload",
                             )
                         }
                     }
 
                     PromptTurnKind.USER,
                     PromptTurnKind.SUMMARY -> {
-                        val contentArray = JSONArray()
-                        appendCancelledOpenToolUses(contentArray, "user_boundary")
-                        appendContentBlocks(
-                            contentArray,
-                            buildContentArray(
-                                content,
-                                allowEmptyArray = contentArray.length() > 0
-                            )
-                        )
+                        requireNoOpenToolUses("user_boundary")
                         messagesArray.put(
                             JSONObject().apply {
                                 put("role", "user")
-                                put("content", contentArray)
+                                put("content", buildContentArray(content))
                             }
                         )
                     }
@@ -806,86 +1120,89 @@ class ClaudeProvider(
                     PromptTurnKind.TOOL_RESULT -> {
                         emitQueuedToolUsesIfNeeded()
                         val (textContent, toolResults) = parseXmlToolResults(content)
-                        val resultsList = toolResults ?: emptyList()
-
-                        if (resultsList.isNotEmpty() && openToolUseIds.isNotEmpty()) {
-                            val contentArray = JSONArray()
-                            val validCount = minOf(resultsList.size, openToolUseIds.size)
-
-                            for (index in 0 until validCount) {
-                                val (_, resultContent) = resultsList[index]
-                                contentArray.put(
-                                    JSONObject().apply {
-                                        put("type", "tool_result")
-                                        put("tool_use_id", openToolUseIds[index])
-                                        put("content", nonEmptyContentText(resultContent))
-                                    }
+                        val resultsList =
+                            toolResults
+                                ?: throw ProviderToolHistoryProtocolException(
+                                    violation = ProviderToolHistoryViolation.TOOL_RESULT_WITHOUT_PAYLOAD,
+                                    detail = "Anthropic typed TOOL_RESULT has no structured payload",
                                 )
-                                AppLogger.d(
-                                    "AIService",
-                                    "历史XML→ClaudeToolResult: ID=${openToolUseIds[index]}, content length=${resultContent.length}"
-                                )
-                            }
+                        val resultToolUseIds =
+                            openToolUseIds.take(resultsList.size)
+                        toolHistoryState.acceptToolResults(
+                            resultCount = resultsList.size,
+                            boundary = "anthropic_tool_result",
+                        )
 
-                            repeat(validCount) {
-                                openToolUseIds.removeAt(0)
-                            }
-
-                            if (resultsList.size > validCount) {
-                                AppLogger.w(
-                                    "AIService",
-                                    "发现多余的tool_result: ${resultsList.size} results vs ${validCount} pending tool_uses"
-                                )
-                            }
-
-                            if (textContent.isNotEmpty()) {
-                                appendContentBlocks(contentArray, buildContentArray(textContent))
-                            }
-
-                            messagesArray.put(
+                        val contentArray = JSONArray()
+                        resultsList.forEachIndexed { index, (_, resultContent) ->
+                            val toolUseId = resultToolUseIds[index]
+                            contentArray.put(
                                 JSONObject().apply {
-                                    put("role", "user")
-                                    put("content", contentArray)
+                                    put("type", "tool_result")
+                                    put("tool_use_id", toolUseId)
+                                    put("content", resultContent)
                                 }
                             )
-                        } else {
-                            val contentArray = JSONArray()
-                            appendCancelledOpenToolUses(contentArray, "tool_result_without_structured_match")
-                            appendContentBlocks(
-                                contentArray,
-                                buildContentArray(
-                                    when {
-                                        textContent.isNotEmpty() -> textContent
-                                        else -> content
-                                    },
-                                    allowEmptyArray = contentArray.length() > 0
-                                )
-                            )
-                            messagesArray.put(
-                                JSONObject().apply {
-                                    put("role", "user")
-                                    put("content", contentArray)
-                                }
+                            AppLogger.d(
+                                "AIService",
+                                "历史XML→ClaudeToolResult: ID=$toolUseId, content length=${resultContent.length}"
                             )
                         }
+                        repeat(resultsList.size) {
+                            openToolUseIds.removeAt(0)
+                        }
+                        if (textContent.isNotEmpty()) {
+                            toolHistoryState.requireClosed(
+                                "anthropic_tool_result_text_boundary"
+                            )
+                            appendContentBlocks(
+                                contentArray,
+                                buildContentArray(textContent),
+                            )
+                        }
+                        messagesArray.put(
+                            JSONObject().apply {
+                                put("role", "user")
+                                put("content", contentArray)
+                            }
+                        )
                     }
                 }
             } else {
-                val claudeRole =
-                    when (turn.kind) {
-                        PromptTurnKind.ASSISTANT,
-                        PromptTurnKind.TOOL_CALL -> "assistant"
-                        else -> "user"
+                when (turn.kind) {
+                    PromptTurnKind.TOOL_CALL,
+                    PromptTurnKind.TOOL_RESULT -> {
+                        throw ProviderToolHistoryProtocolException(
+                            violation = ProviderToolHistoryViolation.TOOL_PROTOCOL_DISABLED,
+                            detail = "Anthropic typed tool history cannot be replayed with native tools disabled",
+                        )
                     }
-                val contentArray = buildContentArray(content)
-                val messageObject = JSONObject()
-                messageObject.put("role", claudeRole)
-                messageObject.put("content", contentArray)
-                messagesArray.put(messageObject)
+
+                    PromptTurnKind.ASSISTANT -> {
+                        messagesArray.put(
+                            JSONObject().apply {
+                                put("role", "assistant")
+                                put("content", buildContentArray(content))
+                            }
+                        )
+                    }
+
+                    PromptTurnKind.USER,
+                    PromptTurnKind.SUMMARY -> {
+                        messagesArray.put(
+                            JSONObject().apply {
+                                put("role", "user")
+                                put("content", buildContentArray(content))
+                            }
+                        )
+                    }
+
+                    PromptTurnKind.SYSTEM -> Unit
+                }
             }
         }
 
-        flushOpenToolUsesAsCancelled("history_end")
+        requireNoOpenToolUses("history_end")
 
         return ClaudeSerializedHistory(
             messagesArray = messagesArray,
@@ -965,6 +1282,28 @@ class ClaudeProvider(
             availableTools: List<ToolPrompt>? = null,
             preserveThinkInHistory: Boolean = false
     ): RequestBody {
+        val jsonObject =
+            createRequestJson(
+                context = context,
+                chatHistory = chatHistory,
+                modelParameters = modelParameters,
+                enableThinking = enableThinking,
+                stream = stream,
+                availableTools = availableTools,
+                preserveThinkInHistory = preserveThinkInHistory,
+            )
+        return jsonObject.toString().toByteArray(Charsets.UTF_8).toRequestBody(JSON)
+    }
+
+    internal fun createRequestJson(
+            context: Context,
+            chatHistory: List<PromptTurn>,
+            modelParameters: List<ModelParameter<*>> = emptyList(),
+            enableThinking: Boolean,
+            stream: Boolean = true,
+            availableTools: List<ToolPrompt>? = null,
+            preserveThinkInHistory: Boolean = false
+    ): JSONObject {
         val jsonObject = JSONObject()
         jsonObject.put("model", modelName)
         jsonObject.put("stream", stream)
@@ -978,9 +1317,8 @@ class ClaudeProvider(
         val maxTokensValue = (maxTokensFromParams as? Number)?.toInt()?.takeIf { it > 0 }
             ?: jsonObject.optInt("max_tokens", 0).takeIf { it > 0 }
             ?: resolveOfficialAnthropicMaxTokens()
-        if (maxTokensValue != null) {
-            jsonObject.put("max_tokens", maxTokensValue)
-        }
+            ?: DEFAULT_MAX_TOKENS
+        jsonObject.put("max_tokens", maxTokensValue)
 
         // 添加 Tool Call 工具定义（如果启用且有可用工具）
         var tools: JSONArray? = null
@@ -1009,8 +1347,6 @@ class ClaudeProvider(
             when (format) {
                 ThinkingFormat.ADAPTIVE -> {
                     // adaptive thinking: thinking.type=adaptive + display=summarized
-                    // Opus 4.8/4.7 default display to "omitted" (empty thinking),
-                    // must explicitly set "summarized" to receive thinking content.
                     val thinkingObject = JSONObject()
                     thinkingObject.put("type", "adaptive")
                     thinkingObject.put("display", "summarized")
@@ -1026,8 +1362,16 @@ class ClaudeProvider(
                     val budgetTokensFromParams = modelParameters
                         .firstOrNull { it.apiName == "budget_tokens" }
                         ?.currentValue
-                    val budgetTokensValue = (budgetTokensFromParams as? Number)?.toInt()?.takeIf { it > 0 }
-                        ?: minOf(1024, maxTokensValue ?: DEFAULT_MAX_TOKENS)
+                    val budgetTokensValue =
+                        (budgetTokensFromParams as? Number)
+                            ?.toInt()
+                            ?.takeIf { it > 0 }
+                            ?: 1024
+                    if (budgetTokensValue >= maxTokensValue) {
+                        throw AnthropicProtocolException(
+                            "Anthropic budget_tokens must be lower than max_tokens"
+                        )
+                    }
                     thinkingObject.put("budget_tokens", budgetTokensValue)
 
                     jsonObject.put("thinking", thinkingObject)
@@ -1036,7 +1380,7 @@ class ClaudeProvider(
             }
         }
 
-        return jsonObject.toString().toByteArray(Charsets.UTF_8).toRequestBody(JSON)
+        return jsonObject
     }
 
     private fun resolveOfficialAnthropicMaxTokens(): Int? {
@@ -1061,13 +1405,11 @@ class ClaudeProvider(
     }
 
 
-    /**
-     * 判断模型是否推荐使用 adaptive thinking 格式。
-     * 仅做启发式匹配，覆盖已知官方模型家族和常见中转命名。
-     */
+    /** 按当前请求模型确定唯一 thinking wire format，不在提交后静默切换协议。 */
     private fun prefersAdaptiveThinking(): Boolean {
         val name = normalizeClaudeModelName(modelName)
 
+        if (name.contains("mythos-preview")) return true
         if (hasClaudeFamilyAtLeast(name, "fable", 5, 0)) return true
         if (hasClaudeFamilyAtLeast(name, "mythos", 5, 0)) return true
 
@@ -1133,50 +1475,12 @@ class ClaudeProvider(
         return major to minor
     }
 
-    /**
-     * 获取当前模型应使用的 thinking 格式。
-     * 优先返回缓存值（包含回退后的正确结果）；
-     * 无缓存时根据模型名启发式推断。
-     */
     private fun getThinkingFormat(): ThinkingFormat {
-        return cachedThinkingFormat
-            ?: if (prefersAdaptiveThinking()) ThinkingFormat.ADAPTIVE
-            else ThinkingFormat.ENABLED
-    }
-
-    /**
-     * 在检测到 API 返回 thinking type 不兼容的 400 错误后，
-     * 翻转当前缓存的 thinking 格式并记录日志。
-     */
-    private fun flipThinkingFormat(): ThinkingFormat {
-        val current = getThinkingFormat()
-        val flipped = if (current == ThinkingFormat.ADAPTIVE) ThinkingFormat.ENABLED
-                      else ThinkingFormat.ADAPTIVE
-        cachedThinkingFormat = flipped
-        AppLogger.w(
-            "AIService",
-            "【Claude Thinking 回退】$modelName detected thinking type incompatibility, " +
-            "flipped $current → $flipped (cached for subsequent requests)"
-        )
-        return flipped
-    }
-
-    /**
-     * 检测异常是否由 thinking type 不兼容导致（API 返回400）。
-     * 匹配关键词：thinking.type / thinking_type / "enabled" is not supported / "adaptive" is not supported
-     * 同时检查 Anthropic 直接错误和通过中转平台转发的错误。
-     */
-    private fun isThinkingTypeError(e: Exception): Boolean {
-        if (e !is NonRetriableException && e !is IOException) return false
-        val msg = e.message?.lowercase() ?: return false
-        // Anthropic 官方 / AWS Bedrock 的错误格式
-        return msg.contains("thinking") && (
-            msg.contains("is not supported") ||
-            msg.contains("not supported for this model") ||
-            msg.contains("type.") ||
-            msg.contains("unsupported") ||
-            msg.contains("invalid")
-        )
+        return if (prefersAdaptiveThinking()) {
+            ThinkingFormat.ADAPTIVE
+        } else {
+            ThinkingFormat.ENABLED
+        }
     }
 
     private fun mapThinkingQualityToEffort(qualityLevel: Int): String =
@@ -1353,6 +1657,7 @@ class ClaudeProvider(
         val eventChannel = MutableSharedStream<TextStreamEvent>(replay = Int.MAX_VALUE)
         val responseStream = stream {
         isManuallyCancelled = false
+        latestProviderUsageSnapshot = null
         tokenCacheManager.setOutputTokens(0)
 
         val maxRetries = LlmRetryPolicy.MAX_RETRY_ATTEMPTS
@@ -1360,7 +1665,6 @@ class ClaudeProvider(
         var lastException: Exception? = null
         val receivedContent = StringBuilder()
         val requestSavepointId = "attempt_${UUID.randomUUID().toString().replace("-", "")}"
-        var thinkingFormatFlipped = false  // limit thinking format flip to once
 
         suspend fun emitSavepoint(id: String) {
             eventChannel.emit(TextStreamEvent(TextStreamEventType.SAVEPOINT, id))
@@ -1371,68 +1675,6 @@ class ClaudeProvider(
                 receivedContent.setLength(0)
             }
             eventChannel.emit(TextStreamEvent(TextStreamEventType.ROLLBACK, id))
-        }
-
-        fun parseAnthropicNonStreaming(jsonResponse: JSONObject): String {
-            val content = jsonResponse.optJSONArray("content") ?: return ""
-            if (content.length() <= 0) return ""
-            val fullText = StringBuilder()
-            for (i in 0 until content.length()) {
-                val block = content.optJSONObject(i) ?: continue
-                when (block.optString("type")) {
-                    "text" -> {
-                        val text = block.optString("text", "")
-                        if (text.isNotEmpty()) fullText.append(text)
-                    }
-                    "thinking" -> {
-                        val thinking = block.optString("thinking", "")
-                        if (thinking.isNotEmpty()) {
-                            fullText.append("\n<think>")
-                            fullText.append(thinking)
-                            fullText.append("</think>\n")
-                        }
-                    }
-                    "redacted_thinking" -> {
-                    }
-                    "tool_use" -> {
-                        if (enableToolCall) {
-                            val toolName = block.optString("name", "")
-                            if (toolName.isNotEmpty()) {
-                                val toolTagName = ChatMarkupRegex.generateRandomToolTagName()
-                                fullText.append("\n<$toolTagName name=\"$toolName\">")
-                                val input = block.optJSONObject("input")
-                                if (input != null) {
-                                    val converter = StreamingJsonXmlConverter()
-                                    val events = converter.feed(input.toString())
-                                    events.forEach { event ->
-                                        when (event) {
-                                            is StreamingJsonXmlConverter.Event.Tag -> fullText.append(event.text)
-                                            is StreamingJsonXmlConverter.Event.Content -> fullText.append(event.text)
-                                        }
-                                    }
-                                    val flushEvents = converter.flush()
-                                    flushEvents.forEach { event ->
-                                        when (event) {
-                                            is StreamingJsonXmlConverter.Event.Tag -> fullText.append(event.text)
-                                            is StreamingJsonXmlConverter.Event.Content -> fullText.append(event.text)
-                                        }
-                                    }
-                                }
-                                fullText.append("\n</$toolTagName>\n")
-                            }
-                        }
-                    }
-                }
-            }
-            return fullText.toString()
-        }
-
-        fun parseOpenAiNonStreaming(jsonResponse: JSONObject): String {
-            val choices = jsonResponse.optJSONArray("choices") ?: return ""
-            if (choices.length() <= 0) return ""
-            val first = choices.optJSONObject(0) ?: return ""
-            val messageObj = first.optJSONObject("message")
-            return messageObj?.optString("content", "") ?: ""
         }
 
         emitSavepoint(requestSavepointId)
@@ -1521,38 +1763,16 @@ class ClaudeProvider(
                             "Claude响应格式检测: looksLikeJson=$looksLikeJson, looksLikeSse=$looksLikeSse, isEventStream=$isEventStream"
                         )
 
-                        if (stream && !looksLikeSse && looksLikeJson) {
-                            val responseText = responseBody.string().trim()
-                            val json = JSONObject(responseText)
-                            val resultText = parseAnthropicNonStreaming(json).ifBlank { parseOpenAiNonStreaming(json) }
-                            if (resultText.isNotBlank()) {
-                                emit(resultText)
-                                receivedContent.append(resultText)
-                                tokenCacheManager.addOutputTokens(ChatUtils.estimateTokenCount(resultText))
-                            }
-                            val usageApplied = applyAnthropicUsage(
-                                usage = json.optJSONObject("usage"),
-                                onTokensUpdated = onTokensUpdated,
-                                source = "non_streaming_json",
-                                overwriteOutputTokens = true
+                        if (stream && !looksLikeSse && !isEventStream) {
+                            throw AnthropicProtocolException(
+                                "Anthropic streaming response is not an SSE event stream"
                             )
-                            if (resultText.isBlank() && !usageApplied) {
-                                throw IOException(context.getString(R.string.provider_error_parsing_failed))
-                            }
-                            if (resultText.isNotBlank() && !usageApplied) {
-                                onTokensUpdated(
-                                    tokenCacheManager.totalInputTokenCount,
-                                    tokenCacheManager.cachedInputTokenCount,
-                                    tokenCacheManager.outputTokenCount
-                                )
-                            }
-                            return@withContext
                         }
 
                         if (!stream) {
                             val responseText = responseBody.string().trim()
                             val json = JSONObject(responseText)
-                            val resultText = parseAnthropicNonStreaming(json).ifBlank { parseOpenAiNonStreaming(json) }
+                            val resultText = parseAnthropicNonStreamingResponse(json)
                             if (resultText.isNotBlank()) {
                                 emit(resultText)
                                 receivedContent.append(resultText)
@@ -1580,7 +1800,9 @@ class ClaudeProvider(
                         var isInToolCall = false
                         var isInThinkingBlock = false
                         var emittedAny = false
-                        val nonSseJsonLinesBuffer = StringBuilder()
+                        var messageStopped = false
+                        val contentBlockAccumulator =
+                            AnthropicStreamingContentBlockAccumulator(modelName)
 
                         while (true) {
                             val rawLine = reader.readLine() ?: break
@@ -1590,39 +1812,26 @@ class ClaudeProvider(
                                 break
                             }
                             if (!line.startsWith("data:")) {
-                                // 某些兼容端点可能直接返回 JSON/JSONL（不带 SSE 的 data: 前缀）
-                                if ((line.startsWith("{") || line.startsWith("[")) &&
-                                    nonSseJsonLinesBuffer.length < 2_000_000
-                                ) {
-                                    nonSseJsonLinesBuffer.append(line).append('\n')
-                                }
                                 continue
                             }
                             val data = line.substringAfter("data:").trimStart()
                             if (data == "[DONE]") break
                             if (data.isBlank()) continue
 
-                            val jsonResponse = runCatching { JSONObject(data) }.getOrNull() ?: continue
-                            val type = jsonResponse.optString("type", "")
-
-                            // OpenAI-style chunk (no `type`)
-                            if (type.isBlank()) {
-                                val choices = jsonResponse.optJSONArray("choices")
-                                val first = choices?.optJSONObject(0)
-                                val delta = first?.optJSONObject("delta")
-                                val content = delta?.optString("content", "").orEmpty()
-                                if (content.isNotEmpty()) {
-                                    emittedAny = true
-                                    tokenCacheManager.addOutputTokens(ChatUtils.estimateTokenCount(content))
-                                    onTokensUpdated(
-                                        tokenCacheManager.totalInputTokenCount,
-                                        tokenCacheManager.cachedInputTokenCount,
-                                        tokenCacheManager.outputTokenCount
+                            val jsonResponse =
+                                try {
+                                    JSONObject(data)
+                                } catch (error: Exception) {
+                                    throw AnthropicProtocolException(
+                                        "Anthropic SSE data is not valid JSON",
+                                        error,
                                     )
-                                    emit(content)
-                                    receivedContent.append(content)
                                 }
-                                continue
+                            val type = jsonResponse.optString("type", "")
+                            if (type.isBlank()) {
+                                throw AnthropicProtocolException(
+                                    "Anthropic SSE event has no type"
+                                )
                             }
 
                             when (type) {
@@ -1637,37 +1846,95 @@ class ClaudeProvider(
                                     )
                                 }
                                 "content_block_start" -> {
-                                    val contentBlock = jsonResponse.optJSONObject("content_block")
-                                    if (contentBlock != null) {
-                                        when (contentBlock.optString("type")) {
+                                    val blockIndex = jsonResponse.optInt("index", -1)
+                                    val contentBlock =
+                                        jsonResponse.optJSONObject("content_block")
+                                            ?: throw AnthropicProtocolException(
+                                                "Anthropic content_block_start has no content_block"
+                                            )
+                                    contentBlockAccumulator.startBlock(
+                                        index = blockIndex,
+                                        contentBlock = contentBlock,
+                                    )
+                                    when (contentBlock.optString("type")) {
+                                            "text" -> {
+                                                val initialText =
+                                                    contentBlock.optString("text", "")
+                                                if (initialText.isNotEmpty()) {
+                                                    emittedAny = true
+                                                    tokenCacheManager.addOutputTokens(
+                                                        ChatUtils.estimateTokenCount(initialText)
+                                                    )
+                                                    onTokensUpdated(
+                                                        tokenCacheManager.totalInputTokenCount,
+                                                        tokenCacheManager.cachedInputTokenCount,
+                                                        tokenCacheManager.outputTokenCount
+                                                    )
+                                                    emit(initialText)
+                                                    receivedContent.append(initialText)
+                                                }
+                                            }
                                             "tool_use" -> {
-                                                if (enableToolCall) {
-                                                    val toolName = contentBlock.optString("name", "")
-                                                    if (toolName.isNotEmpty()) {
-                                                        val toolTagName = ChatMarkupRegex.generateRandomToolTagName()
-                                                        currentToolTagName = toolTagName
-                                                        val toolStartTag = "\n<$toolTagName name=\"$toolName\">"
-                                                        emittedAny = true
-                                                        emit(toolStartTag)
-                                                        receivedContent.append(toolStartTag)
+                                                if (!enableToolCall) {
+                                                    throw ProviderToolHistoryProtocolException(
+                                                        violation = ProviderToolHistoryViolation.TOOL_PROTOCOL_DISABLED,
+                                                        detail = "Anthropic stream contains tool_use while native tools are disabled",
+                                                    )
+                                                }
+                                                val toolName =
+                                                    contentBlock.optString("name", "").trim()
+                                                val toolUseId =
+                                                    contentBlock.optString("id", "").trim()
+                                                if (toolName.isEmpty() || toolUseId.isEmpty()) {
+                                                    throw AnthropicProtocolException(
+                                                        "Anthropic streaming tool_use has no stable ID or name"
+                                                    )
+                                                }
+                                                val toolTagName =
+                                                    ChatMarkupRegex.generateRandomToolTagName()
+                                                currentToolTagName = toolTagName
+                                                val toolStartTag =
+                                                    buildString {
+                                                        append("\n<")
+                                                        append(toolTagName)
+                                                        append(" name=\"")
+                                                        append(XmlEscaper.escape(toolName))
+                                                        append("\" provider_name=\"")
+                                                        append(
+                                                            XmlEscaper.escape(
+                                                                providerType.name
+                                                            )
+                                                        )
+                                                        append("\" provider_call_id=\"")
+                                                        append(
+                                                            XmlEscaper.escape(
+                                                                toolUseId
+                                                            )
+                                                        )
+                                                        append("\">")
+                                                    }
+                                                emittedAny = true
+                                                emit(toolStartTag)
+                                                receivedContent.append(toolStartTag)
 
-                                                        currentToolParser = StreamingJsonXmlConverter()
-                                                        isInToolCall = true
+                                                currentToolParser = StreamingJsonXmlConverter()
+                                                isInToolCall = true
 
-                                                        val input = contentBlock.optJSONObject("input")
-                                                        if (input != null) {
-                                                            val events = currentToolParser.feed(input.toString())
-                                                            events.forEach { event ->
-                                                                when (event) {
-                                                                    is StreamingJsonXmlConverter.Event.Tag -> {
-                                                                        emit(event.text)
-                                                                        receivedContent.append(event.text)
-                                                                    }
-                                                                    is StreamingJsonXmlConverter.Event.Content -> {
-                                                                        emit(event.text)
-                                                                        receivedContent.append(event.text)
-                                                                    }
-                                                                }
+                                                val input = contentBlock.optJSONObject("input")
+                                                if (input != null && input.length() > 0) {
+                                                    val events =
+                                                        currentToolParser.feed(
+                                                            input.toString()
+                                                        )
+                                                    events.forEach { event ->
+                                                        when (event) {
+                                                            is StreamingJsonXmlConverter.Event.Tag -> {
+                                                                emit(event.text)
+                                                                receivedContent.append(event.text)
+                                                            }
+                                                            is StreamingJsonXmlConverter.Event.Content -> {
+                                                                emit(event.text)
+                                                                receivedContent.append(event.text)
                                                             }
                                                         }
                                                     }
@@ -1694,14 +1961,21 @@ class ClaudeProvider(
                                             }
                                             "redacted_thinking" -> {
                                             }
-                                        }
                                     }
                                 }
                                 "content_block_delta" -> {
-                                    val delta = jsonResponse.optJSONObject("delta")
-                                    if (delta != null) {
-                                        val deltaType = delta.optString("type", "")
-                                        if (deltaType == "text_delta" || delta.has("text")) {
+                                    val blockIndex = jsonResponse.optInt("index", -1)
+                                    val delta =
+                                        jsonResponse.optJSONObject("delta")
+                                            ?: throw AnthropicProtocolException(
+                                                "Anthropic content_block_delta has no delta"
+                                            )
+                                    contentBlockAccumulator.appendDelta(
+                                        index = blockIndex,
+                                        delta = delta,
+                                    )
+                                    val deltaType = delta.optString("type", "")
+                                    if (deltaType == "text_delta") {
                                             val content = delta.optString("text", "")
                                             if (content.isNotEmpty()) {
                                                 emittedAny = true
@@ -1714,7 +1988,10 @@ class ClaudeProvider(
                                                 emit(content)
                                                 receivedContent.append(content)
                                             }
-                                        } else if (isInThinkingBlock && (deltaType == "thinking_delta" || delta.has("thinking"))) {
+                                        } else if (
+                                            isInThinkingBlock &&
+                                                deltaType == "thinking_delta"
+                                        ) {
                                             val thinking = delta.optString("thinking", "")
                                             if (thinking.isNotEmpty()) {
                                                 emittedAny = true
@@ -1727,7 +2004,12 @@ class ClaudeProvider(
                                                 emit(thinking)
                                                 receivedContent.append(thinking)
                                             }
-                                        } else if (enableToolCall && isInToolCall && currentToolParser != null && deltaType == "input_json_delta") {
+                                        } else if (
+                                            enableToolCall &&
+                                                isInToolCall &&
+                                                currentToolParser != null &&
+                                                deltaType == "input_json_delta"
+                                        ) {
                                             val partialJson = delta.optString("partial_json", "")
                                             if (partialJson.isNotEmpty()) {
                                                 val events = currentToolParser.feed(partialJson)
@@ -1744,10 +2026,11 @@ class ClaudeProvider(
                                                     }
                                                 }
                                             }
-                                        }
                                     }
                                 }
                                 "content_block_stop" -> {
+                                    val blockIndex = jsonResponse.optInt("index", -1)
+                                    contentBlockAccumulator.stopBlock(blockIndex)
                                     if (isInToolCall && currentToolParser != null) {
                                         val events = currentToolParser.flush()
                                         events.forEach { event ->
@@ -1816,73 +2099,32 @@ class ClaudeProvider(
                                         receivedContent.append(thinkingEndTag)
                                         isInThinkingBlock = false
                                     }
+                                    contentBlockAccumulator.createMetadataTag()
+                                        ?.let { metadataTag ->
+                                            emit(metadataTag)
+                                            receivedContent.append(metadataTag)
+                                            emittedAny = true
+                                        }
+                                    messageStopped = true
                                     break
                                 }
-                            }
-                        }
-
-                        if (!emittedAny && nonSseJsonLinesBuffer.isNotBlank()) {
-                            val buffered = nonSseJsonLinesBuffer.toString().trim()
-                            AppLogger.w(
-                                "AIService",
-                                "Claude流式返回疑似JSON/JSONL(无data:前缀)，尝试回退解析。"
-                                    + " ${LlmLogPrivacy.summarizeText(buffered).format()}",
-                            )
-
-                            // 先尝试整体当成一个JSON对象解析
-                            val wholeJson = runCatching { JSONObject(buffered) }.getOrNull()
-                            if (wholeJson != null) {
-                                val resultText = parseAnthropicNonStreaming(wholeJson)
-                                    .ifBlank { parseOpenAiNonStreaming(wholeJson) }
-                                if (resultText.isNotBlank()) {
-                                    emittedAny = true
-                                    emit(resultText)
-                                    receivedContent.append(resultText)
-                                    tokenCacheManager.addOutputTokens(ChatUtils.estimateTokenCount(resultText))
-                                }
-                                val usageApplied = applyAnthropicUsage(
-                                    usage = wholeJson.optJSONObject("usage"),
-                                    onTokensUpdated = onTokensUpdated,
-                                    source = "buffered_json_fallback",
-                                    overwriteOutputTokens = true
-                                )
-                                if (resultText.isNotBlank() && !usageApplied) {
-                                    onTokensUpdated(
-                                        tokenCacheManager.totalInputTokenCount,
-                                        tokenCacheManager.cachedInputTokenCount,
-                                        tokenCacheManager.outputTokenCount
+                                else -> {
+                                    throw AnthropicProtocolException(
+                                        "Unsupported Anthropic SSE event type '$type'"
                                     )
                                 }
-                            } else {
-                                // 再尝试逐行解析（JSONL），优先支持 OpenAI-style delta
-                                buffered.lineSequence().forEach { jsonLine ->
-                                    val t = jsonLine.trim()
-                                    if (!t.startsWith("{")) return@forEach
-                                    val obj = runCatching { JSONObject(t) }.getOrNull() ?: return@forEach
-                                    val choices = obj.optJSONArray("choices") ?: return@forEach
-                                    val first = choices.optJSONObject(0) ?: return@forEach
-                                    val delta = first.optJSONObject("delta") ?: return@forEach
-                                    val content = delta.optString("content", "")
-                                    if (content.isNotBlank()) {
-                                        emittedAny = true
-                                        tokenCacheManager.addOutputTokens(ChatUtils.estimateTokenCount(content))
-                                        onTokensUpdated(
-                                            tokenCacheManager.totalInputTokenCount,
-                                            tokenCacheManager.cachedInputTokenCount,
-                                            tokenCacheManager.outputTokenCount
-                                        )
-                                        emit(content)
-                                        receivedContent.append(content)
-                                    }
-                                }
                             }
                         }
 
-                        if (!emittedAny && previewTrim.isNotEmpty() && looksLikeJson) {
-                            AppLogger.w(
-                                "AIService",
-                                "Claude流式响应未解析到任何内容，可能不是SSE。"
-                                    + " ${LlmLogPrivacy.summarizeText(previewTrim).format()}",
+                        if (!messageStopped) {
+                            throw AnthropicProtocolException(
+                                "Anthropic SSE stream ended before message_stop"
+                            )
+                        }
+
+                        if (!emittedAny) {
+                            throw AnthropicProtocolException(
+                                "Anthropic SSE stream completed without content"
                             )
                         }
                     } finally {
@@ -1897,29 +2139,15 @@ class ClaudeProvider(
             } catch (e: Exception) {
                 lastException = e
                 emitRollback(requestSavepointId)
-
-                // 检测 thinking type 不兼容错误，自动翻转格式并立即重试
-                if (enableThinking && !thinkingFormatFlipped && isThinkingTypeError(e)) {
-                    flipThinkingFormat()
-                    thinkingFormatFlipped = true
-                    onNonFatalError(
-                        context.getString(R.string.provider_error_retry_message,
-                            "Thinking format incompatibility detected, switching format",
-                            retryCount + 1)
-                    )
-                    // 不增加 retryCount，因为这是格式问题而非网络问题
-                    AppLogger.w("AIService", "【Claude】Thinking格式不兼容，已自动切换，准备立即重试")
-                } else {
-                    retryCount = handleRetryableError(
-                        context,
-                        e,
-                        retryCount,
-                        maxRetries,
-                        enableRetry,
-                        onNonFatalError
-                    ) { errorText, retryNumber ->
-                        context.getString(R.string.provider_error_retry_message, errorText, retryNumber)
-                    }
+                retryCount = handleRetryableError(
+                    context,
+                    e,
+                    retryCount,
+                    maxRetries,
+                    enableRetry,
+                    onNonFatalError
+                ) { errorText, retryNumber ->
+                    context.getString(R.string.provider_error_retry_message, errorText, retryNumber)
                 }
             } finally {
                 activeCall = null

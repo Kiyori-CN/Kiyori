@@ -1157,6 +1157,18 @@
 
     <string name="output_tokens">Jumlah Keluaran: %1$s</string>
     <string name="context_window">Permintaan: %1$s</string>
+    <string name="chat_stats_context">Konteks (anggaran): %1$s / %2$s</string>
+    <string name="chat_stats_request_count">Permintaan: %1$s</string>
+    <string name="chat_stats_input_tokens">Masukan: %1$s</string>
+    <string name="chat_stats_output_tokens">Keluaran: %1$s</string>
+    <string name="chat_stats_cache_read_tokens">Bacaan cache: %1$s</string>
+    <string name="chat_stats_cache_write_tokens">Tulisan cache: %1$s</string>
+    <string name="chat_stats_cache_hit_rate">Kadar hit cache: %1$s</string>
+    <string name="chat_stats_usage_coverage">Liputan penggunaan: %1$s</string>
+    <string name="chat_stats_cache_coverage">Liputan cache: %1$s</string>
+    <string name="chat_stats_reasoning_tokens">Penaakulan: %1$s</string>
+    <string name="chat_stats_total_tokens">Jumlah: %1$s</string>
+    <string name="chat_stats_cache_hit_rate_unavailable">Tidak disediakan</string>
     <string name="auto_approve">Kelulusan Automatik:</string>
     <string name="auto_approve_desc">Digunakan untuk mengawal strategi lalai global semasa panggilan alat AI: Apabila dihidupkan, semua panggilan alat akan dilaksanakan secara lalai tanpa pengesahan pop-up; peraturan pengecualian yang anda tetapkan untuk alat tunggal dalam "Tetapan - Pengurusan Kebenaran Alat" masih akan berkuat kuasa terlebih dahulu. Apabila dimatikan, pengesahan pop-up akan muncul secara lalai untuk semua panggilan alat.</string>
     <string name="enabled">Dihidupkan</string>
@@ -7080,12 +7092,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="ai_message_image_attached_multimodal_notice">Kandungan gambar telah dilampirkan sebagai input multimodal bersama mesej ini, jangan panggil alat baca fail untuk membaca laluan ini.</string>
     <string name="ai_message_result_prefix">[Hasil: </string>
     <string name="ai_message_result_suffix">]</string>
-    <string name="ai_message_package_warmup_title">【Pemanasan Kit Alat】</string>
-    <string name="ai_message_package_warmup_empty">Tiada panggilan alat kit dikesan dalam skop ringkasan ini, jadi tiada pemanasan kit alat dilakukan.</string>
-    <string name="ai_message_package_warmup_intro">Berdasarkan kekerapan penggunaan alat dalam skop ringkasan ini, kit alat yang paling kerap digunakan telah diaktifkan secara automatik, dan hasil pulangan use_package disertakan untuk pemanasan seterusnya.</string>
-    <string name="ai_message_use_package_failed">Panggilan use_package gagal: %1$s</string>
-    <string name="ai_message_use_package_empty">Pulangan use_package kosong.</string>
-    <string name="ai_message_package_warmup_item">%1$d. Kit %2$s (dikenakan %3$d kali)</string>
     <string name="project_issues">Laporkan isu</string>
     <string name="app_update_channel">Kemas kini aplikasi</string>
     <string name="app_update_channel_disabled">Versi ini tidak menerima kemas kini atau pengumuman jarak jauh. Versi baharu diedarkan secara berasingan melalui repositori Kiyori.</string>

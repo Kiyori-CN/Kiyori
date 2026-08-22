@@ -43,4 +43,19 @@ class ChatMarkupRegexMetaTest {
 
         assertEquals(content, ChatMarkupRegex.removeOpenAiResponsesReasoningMeta(content))
     }
+
+    @Test fun anthropicContentBlocks_extractAndRemoveOnlyMatchingMetadata() {
+        val content =
+            "<meta provider=\"other\">visible</meta>" +
+                "<meta provider=\"anthropic:content_blocks\">payload</meta>answer"
+
+        assertEquals(
+            listOf("payload"),
+            ChatMarkupRegex.extractAnthropicContentBlocksPayloads(content),
+        )
+        assertEquals(
+            "<meta provider=\"other\">visible</meta>answer",
+            ChatMarkupRegex.removeAnthropicContentBlocksMeta(content),
+        )
+    }
 }

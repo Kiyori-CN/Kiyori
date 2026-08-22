@@ -22,7 +22,6 @@ import com.ai.assistance.operit.api.chat.ChatRuntimeSlot
 import com.ai.assistance.operit.api.chat.EnhancedAIService
 import com.ai.assistance.operit.data.audit.ConversationAuditRepository
 import com.ai.assistance.operit.data.audit.ConversationAuditExporter
-import com.ai.assistance.operit.core.chat.AIMessageManager
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.FileOperationData
 import com.ai.assistance.operit.data.model.ApiProviderType
@@ -328,6 +327,7 @@ class ChatViewModel(
     val inputTokenCount: StateFlow<Long> by lazy { tokenStatsDelegate.cumulativeInputTokensFlow }
     val outputTokenCount: StateFlow<Long> by lazy { tokenStatsDelegate.cumulativeOutputTokensFlow }
     val perRequestTokenCount: StateFlow<Pair<Int, Int>?> by lazy { tokenStatsDelegate.perRequestTokenCountFlow }
+    val providerUsageAggregate by lazy { tokenStatsDelegate.cumulativeProviderUsageFlow }
 
 
 
@@ -887,55 +887,19 @@ class ChatViewModel(
                     InputProcessingState.Summarizing(context.getString(R.string.chat_summarizing_generating))
                 )
 
-                val beforeTimestamp = if (message.sender == "ai") message.timestamp else null
-                val afterTimestamp = if (message.sender == "user") message.timestamp else null
-                val messagesToSummarize =
-                    chatHistoryDelegate
-                        .loadMessagesForSummaryInsertion(
-                            chatId = currentChatId,
-                            beforeTimestampExclusive = afterTimestamp,
-                            upToTimestampInclusive = beforeTimestamp,
-                        ).filter { it.sender == "user" || it.sender == "ai" }
-
-                if (messagesToSummarize.isEmpty()) {
-                    uiStateDelegate.showToast(context.getString(R.string.chat_no_messages_to_summarize))
-                    messageProcessingDelegate.setInputProcessingStateForChat(currentChatId, InputProcessingState.Idle)
-                    return@launch
-                }
-                
                 // 显示生成中提示
                 uiStateDelegate.showToast(context.getString(R.string.chat_summarizing_generating))
-                
-                // 调用AI生成总结
-                if (enhancedAiService == null) {
-                    uiStateDelegate.showToast(context.getString(R.string.chat_ai_service_not_initialized))
-                    messageProcessingDelegate.setInputProcessingStateForChat(currentChatId, InputProcessingState.Idle)
-                    return@launch
-                }
 
                 // 检查是否是群聊
                 val currentChat = chatHistoryDelegate.chatHistories.value.firstOrNull { it.id == currentChatId }
                 val isGroupChat = currentChat?.characterGroupId != null
-                val summaryCustomRules = messageCoordinationDelegate.readSummaryCustomRules()
-
-                val summaryMessage = AIMessageManager.summarizeMemory(
-                    enhancedAiService!!,
-                    messagesToSummarize,
-                    autoContinue = false,
-                    isGroupChat = isGroupChat,
-                    summaryCustomRules = summaryCustomRules
-                )
-
-                if (summaryMessage != null) {
-                    // 插入总结消息
-                    chatHistoryDelegate.addSummaryMessage(
-                        summaryMessage = summaryMessage,
-                        beforeTimestamp = beforeTimestamp,
-                        afterTimestamp = afterTimestamp,
+                val summarized =
+                    messageCoordinationDelegate.summarizeConversationSlice(
+                        chatId = currentChatId,
+                        boundaryMessage = message,
+                        isGroupChat = isGroupChat,
                     )
-
-                    messageCoordinationDelegate.refreshStableContextWindow(chatId = currentChatId)
-
+                if (summarized) {
                     uiStateDelegate.showToast(context.getString(R.string.chat_summary_inserted))
                 } else {
                     uiStateDelegate.showToast(context.getString(R.string.chat_summary_generation_failed))
@@ -1113,7 +1077,12 @@ class ChatViewModel(
         viewModelScope.launch {
             val (inputTokens, outputTokens) = tokenStatsDelegate.getCumulativeTokenCounts()
             val currentWindowSize = tokenStatsDelegate.getLastCurrentWindowSize()
-            chatHistoryDelegate.saveCurrentChat(inputTokens, outputTokens, currentWindowSize)
+            chatHistoryDelegate.saveCurrentChat(
+                inputTokens = inputTokens,
+                outputTokens = outputTokens,
+                actualContextWindowSize = currentWindowSize,
+                providerUsage = tokenStatsDelegate.getCumulativeProviderUsage(),
+            )
         }
     }
 

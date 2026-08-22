@@ -7,6 +7,7 @@ import com.ai.assistance.operit.core.tools.packTool.TOOLPKG_EVENT_AI_PROVIDER_LI
 import com.ai.assistance.operit.core.tools.packTool.TOOLPKG_EVENT_AI_PROVIDER_SEND_MESSAGE
 import com.ai.assistance.operit.core.tools.packTool.TOOLPKG_EVENT_AI_PROVIDER_TEST_CONNECTION
 import com.ai.assistance.operit.data.model.ModelConfigData
+import com.ai.assistance.operit.data.model.ApiProtocol
 import com.ai.assistance.operit.data.model.ModelOption
 import com.ai.assistance.operit.data.model.ModelParameter
 import com.ai.assistance.operit.data.model.ToolPrompt
@@ -24,10 +25,94 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
+internal object ToolPkgUsagePayloadAdapter {
+    data class UsageCounts(
+        val input: Int?,
+        val cachedInput: Int?,
+        val cacheWrite: Int?,
+        val output: Int?,
+        val reasoning: Int?,
+        val cacheMetricState: ProviderCacheMetricState,
+    )
+
+    private data class ParsedCount(
+        val value: Int,
+        val invalid: Boolean,
+    )
+
+    fun parse(json: JSONObject): UsageCounts? {
+        val source = json.optJSONObject("usage") ?: json
+        val input = source.readCount("input", "inputTokens")
+        val cachedInput = source.readCount("cachedInput", "cachedInputTokens")
+        val cacheWrite =
+            source.readCount(
+                "cacheWrite",
+                "cacheWriteTokens",
+                "cacheCreationInputTokens",
+            )
+        val output = source.readCount("output", "outputTokens")
+        val reasoning = source.readCount("reasoning", "reasoningTokens")
+        val counts = listOf(input, cachedInput, cacheWrite, output, reasoning)
+        if (counts.all { it == null }) {
+            return null
+        }
+
+        return UsageCounts(
+            input = input?.value,
+            cachedInput = cachedInput?.value,
+            cacheWrite = cacheWrite?.value,
+            output = output?.value,
+            reasoning = reasoning?.value,
+            cacheMetricState =
+                when {
+                    counts.filterNotNull().any { it.invalid } ->
+                        ProviderCacheMetricState.INVALID
+                    cachedInput != null || cacheWrite != null ->
+                        ProviderCacheMetricState.REPORTED
+                    else ->
+                        ProviderCacheMetricState.NOT_REPORTED
+                },
+        )
+    }
+
+    private fun JSONObject.readCount(vararg keys: String): ParsedCount? {
+        keys.forEach { key ->
+            if (!has(key) || isNull(key)) {
+                return@forEach
+            }
+            val raw = opt(key)
+            val decimal =
+                when (raw) {
+                    null -> null
+                    is Number -> raw.toString().toBigDecimalOrNull()
+                    is String -> raw.trim().toBigDecimalOrNull()
+                    else -> null
+                }
+            if (decimal == null) {
+                return ParsedCount(value = 0, invalid = true)
+            }
+            val invalid =
+                decimal.signum() < 0 ||
+                    decimal > java.math.BigDecimal.valueOf(Int.MAX_VALUE.toLong())
+            return ParsedCount(
+                value =
+                    decimal
+                        .coerceIn(
+                            java.math.BigDecimal.ZERO,
+                            java.math.BigDecimal.valueOf(Int.MAX_VALUE.toLong()),
+                        )
+                        .toInt(),
+                invalid = invalid,
+            )
+        }
+        return null
+    }
+}
+
 internal class ToolPkgJsAiProviderService(
     private val config: ModelConfigData,
     private val provider: ToolPkgAiProviderRegistration
-) : AIService {
+) : AIService, ProviderUsageReporting {
     private sealed interface ProviderHookValue {
         data object NullValue : ProviderHookValue
 
@@ -61,6 +146,16 @@ internal class ToolPkgJsAiProviderService(
     @Volatile
     private var currentOutputTokenCount: Int = 0
 
+    @Volatile
+    private var latestProviderUsageSnapshot: ProviderUsageSnapshot? = null
+
+    @Synchronized
+    override fun consumeLatestProviderUsageSnapshot(): ProviderUsageSnapshot? {
+        val snapshot = latestProviderUsageSnapshot
+        latestProviderUsageSnapshot = null
+        return snapshot
+    }
+
     private val executionChatId =
         "toolpkg-ai-provider:${provider.providerId}:${UUID.randomUUID().toString().replace("-", "")}"
 
@@ -83,6 +178,7 @@ internal class ToolPkgJsAiProviderService(
         currentInputTokenCount = 0
         currentCachedInputTokenCount = 0
         currentOutputTokenCount = 0
+        latestProviderUsageSnapshot = null
     }
 
     override fun cancelStreaming() {
@@ -116,6 +212,7 @@ internal class ToolPkgJsAiProviderService(
         onNonFatalError: suspend (error: String) -> Unit,
         enableRetry: Boolean
     ): Stream<String> = com.ai.assistance.operit.util.stream.stream {
+        latestProviderUsageSnapshot = null
         var hasIntermediateTextChunk = false
         val decoded =
             invokeProviderFunction(
@@ -512,33 +609,75 @@ internal class ToolPkgJsAiProviderService(
         }
     }
 
-    private fun extractUsage(decoded: ProviderHookValue): TokenUsage? {
+    private fun extractUsage(
+        decoded: ProviderHookValue,
+    ): ToolPkgUsagePayloadAdapter.UsageCounts? {
         return when (decoded) {
             is ProviderHookValue.ObjectValue -> extractUsageFromJson(decoded.value)
             else -> null
         }
     }
 
-    private fun extractUsageFromJson(json: JSONObject): TokenUsage? {
-        val usageObject = json.optJSONObject("usage")
-        val source = usageObject ?: json
-        val input = source.optTokenCount("input", "inputTokens")
-        val cachedInput = source.optTokenCount("cachedInput", "cachedInputTokens")
-        val output = source.optTokenCount("output", "outputTokens")
-        if (input == null && cachedInput == null && output == null) {
-            return null
-        }
-        return TokenUsage(
-            input = input ?: currentInputTokenCount,
-            cachedInput = cachedInput ?: currentCachedInputTokenCount,
-            output = output ?: currentOutputTokenCount
-        )
-    }
+    private fun extractUsageFromJson(json: JSONObject): ToolPkgUsagePayloadAdapter.UsageCounts? =
+        ToolPkgUsagePayloadAdapter.parse(json)
 
-    private fun applyUsage(usage: TokenUsage) {
-        currentInputTokenCount = usage.input.coerceAtLeast(0)
-        currentCachedInputTokenCount = usage.cachedInput.coerceAtLeast(0)
-        currentOutputTokenCount = usage.output.coerceAtLeast(0)
+    private fun applyUsage(usage: ToolPkgUsagePayloadAdapter.UsageCounts) {
+        val previous = latestProviderUsageSnapshot
+        val uncachedInputTokens =
+            usage.input?.toLong()
+                ?: previous?.uncachedInputTokens
+                ?: currentInputTokenCount.toLong()
+        val cachedInputTokens =
+            usage.cachedInput?.toLong()
+                ?: previous?.cacheReadTokens
+                ?: currentCachedInputTokenCount.toLong()
+        val cacheWriteTokens =
+            usage.cacheWrite?.toLong()
+                ?: previous?.cacheWriteTokens
+                ?: 0L
+        val outputTokens =
+            usage.output?.toLong()
+                ?: previous?.outputTokens
+                ?: currentOutputTokenCount.toLong()
+        val reasoningTokens =
+            usage.reasoning?.toLong()
+                ?: previous?.reasoningTokens
+                ?: 0L
+        val cacheMetricState =
+            when {
+                usage.cacheMetricState == ProviderCacheMetricState.INVALID ||
+                    previous?.cacheMetricState == ProviderCacheMetricState.INVALID ->
+                    ProviderCacheMetricState.INVALID
+                usage.cacheMetricState == ProviderCacheMetricState.REPORTED ||
+                    previous?.cacheMetricState == ProviderCacheMetricState.REPORTED ->
+                    ProviderCacheMetricState.REPORTED
+                else -> ProviderCacheMetricState.NOT_REPORTED
+            }
+
+        currentInputTokenCount =
+            (uncachedInputTokens + cacheWriteTokens)
+                .coerceAtMost(Int.MAX_VALUE.toLong())
+                .toInt()
+        currentCachedInputTokenCount =
+            cachedInputTokens.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        currentOutputTokenCount =
+            outputTokens.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        latestProviderUsageSnapshot =
+            ProviderUsageSnapshot(
+                providerModel = providerModel,
+                protocol = ApiProtocol.PROVIDER_NATIVE,
+                totalInputTokens =
+                    uncachedInputTokens +
+                        cachedInputTokens +
+                        cacheWriteTokens,
+                uncachedInputTokens = uncachedInputTokens,
+                cacheReadTokens = cachedInputTokens,
+                cacheWriteTokens = cacheWriteTokens,
+                outputTokens = outputTokens,
+                reasoningTokens = reasoningTokens,
+                cacheMetricState = cacheMetricState,
+                source = ProviderUsageSource.PROVIDER,
+            )
     }
 
     private fun extractMessageChunks(decoded: ProviderHookValue): List<String> {
@@ -588,9 +727,4 @@ internal class ToolPkgJsAiProviderService(
         }
     }
 
-    private data class TokenUsage(
-        val input: Int,
-        val cachedInput: Int,
-        val output: Int
-    )
 }

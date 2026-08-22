@@ -7,6 +7,26 @@ import com.ai.assistance.operit.data.model.ModelOption
 import com.ai.assistance.operit.data.model.ToolPrompt
 import com.ai.assistance.operit.util.stream.Stream
 
+enum class ProviderReplayMetadataKind(
+    val providerTag: String,
+) {
+    GEMINI_THOUGHT_SIGNATURE("gemini:thought_signature"),
+    GEMINI_CONTENT_PARTS("gemini:content_parts"),
+    OPENAI_RESPONSES_REASONING("openai:responses_reasoning"),
+    ANTHROPIC_CONTENT_BLOCKS("anthropic:content_blocks"),
+}
+
+/**
+ * 声明当前协议能够消费的隐藏 provider replay 元数据。
+ *
+ * 这些元数据会持久化在消息正文中，但只能进入拥有对应 wire contract 的请求。协议切换时若不
+ * 集中剥离，signature、encrypted reasoning 或 Anthropic content blocks 会作为普通文本泄漏给
+ * 其他模型；仅按供应商名称判断又会误删兼容端点的合法协议状态。
+ */
+interface ProviderReplayMetadataConsumer {
+    val consumedReplayMetadataKinds: Set<ProviderReplayMetadataKind>
+}
+
 /** AI服务接口，定义与不同AI提供商进行交互的标准方法 */
 interface AIService {
     /** 输入token计数 (仅新增部分) */

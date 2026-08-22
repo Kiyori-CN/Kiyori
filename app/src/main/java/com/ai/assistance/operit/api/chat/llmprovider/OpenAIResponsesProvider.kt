@@ -42,7 +42,10 @@ class OpenAIResponsesProvider(
     supportsAudio = supportsAudio,
     supportsVideo = supportsVideo,
     enableToolCall = enableToolCall
-) {
+), ProviderReplayMetadataConsumer {
+    override val consumedReplayMetadataKinds: Set<ProviderReplayMetadataKind> =
+        setOf(ProviderReplayMetadataKind.OPENAI_RESPONSES_REASONING)
+
     override val useResponsesApi: Boolean = true
     override val supportsResponsesStreamResumption: Boolean =
         modelCapabilityProfile.executionPersistence ==
@@ -313,7 +316,10 @@ object OpenAIResponsesPayloadAdapter {
         val totalInputTokens: Int,
         val actualInputTokens: Int,
         val cachedInputTokens: Int,
-        val outputTokens: Int
+        val outputTokens: Int,
+        val cacheMetricState: ProviderCacheMetricState,
+        val cacheWriteTokens: Int = 0,
+        val reasoningTokens: Int = 0,
     )
 
     data class ParsedResponseOutput(
@@ -335,18 +341,64 @@ object OpenAIResponsesPayloadAdapter {
     fun parseUsageCounts(usage: JSONObject?): UsageCounts? {
         usage ?: return null
 
-        val totalInputTokens = usage.optInt("prompt_tokens", usage.optInt("input_tokens", 0))
-        val outputTokens = usage.optInt("completion_tokens", usage.optInt("output_tokens", 0))
+        val rawTotalInputTokens =
+            usage.optInt("prompt_tokens", usage.optInt("input_tokens", 0))
+        val totalInputTokens = rawTotalInputTokens.coerceAtLeast(0)
+        val outputTokens =
+            usage.optInt("completion_tokens", usage.optInt("output_tokens", 0)).coerceAtLeast(0)
         val cachedDetails =
             usage.optJSONObject("prompt_tokens_details")
                 ?: usage.optJSONObject("input_tokens_details")
-        val cachedInputTokens =
-            cachedDetails?.optInt("cached_tokens", usage.optInt("cached_tokens", 0))
-                ?: usage.optInt("cached_tokens", 0)
-        val actualInputTokens = (totalInputTokens - cachedInputTokens).coerceAtLeast(0)
+        val hasCacheMetric =
+            usage.has("prompt_cache_hit_tokens") ||
+                usage.has("cached_tokens") ||
+                cachedDetails?.has("cached_tokens") == true
+        val rawCachedInputTokens =
+            when {
+                usage.has("prompt_cache_hit_tokens") ->
+                    usage.optInt("prompt_cache_hit_tokens", 0)
+                cachedDetails?.has("cached_tokens") == true ->
+                    cachedDetails.optInt("cached_tokens", 0)
+                usage.has("cached_tokens") ->
+                    usage.optInt("cached_tokens", 0)
+                else -> 0
+            }
+        val cachedInputTokens = rawCachedInputTokens.coerceAtLeast(0)
+        val boundedCachedInputTokens = cachedInputTokens.coerceAtMost(totalInputTokens)
+        val cacheMetricState =
+            when {
+                !hasCacheMetric -> ProviderCacheMetricState.NOT_REPORTED
+                rawTotalInputTokens < 0 ||
+                    rawCachedInputTokens < 0 ||
+                    rawCachedInputTokens > totalInputTokens ->
+                    ProviderCacheMetricState.INVALID
+                else -> ProviderCacheMetricState.REPORTED
+            }
+        val reasoningTokens =
+            usage.optJSONObject("completion_tokens_details")
+                ?.optInt("reasoning_tokens", 0)
+                ?.coerceAtLeast(0)
+                ?: usage.optJSONObject("output_tokens_details")
+                    ?.optInt("reasoning_tokens", 0)
+                    ?.coerceAtLeast(0)
+                ?: 0
 
-        return if (totalInputTokens > 0 || outputTokens > 0 || cachedInputTokens > 0) {
-            UsageCounts(totalInputTokens, actualInputTokens, cachedInputTokens, outputTokens)
+        val hasUsageFields =
+            usage.has("prompt_tokens") ||
+                usage.has("input_tokens") ||
+                usage.has("completion_tokens") ||
+                usage.has("output_tokens") ||
+                hasCacheMetric
+
+        return if (hasUsageFields) {
+            UsageCounts(
+                totalInputTokens = totalInputTokens,
+                actualInputTokens = (totalInputTokens - boundedCachedInputTokens).coerceAtLeast(0),
+                cachedInputTokens = boundedCachedInputTokens,
+                outputTokens = outputTokens,
+                cacheMetricState = cacheMetricState,
+                reasoningTokens = reasoningTokens,
+            )
         } else {
             null
         }
@@ -520,42 +572,8 @@ object OpenAIResponsesPayloadAdapter {
         val functionCallsByIdentity =
             linkedMapOf<ProviderToolCallKey, ProviderToolCallSignature>()
         val functionOutputsByCallId = linkedMapOf<String, String>()
-        val knownFunctionCallIds = linkedSetOf<String>()
         val emittedFunctionOutputs = mutableSetOf<String>()
-
-        // 先收集完整历史中的调用身份和工具输出。Responses 兼容端点会严格校验
-        // function_call 后面紧跟同 call_id 的 function_call_output；若边遍历边输出，
-        // assistant 普通文本或其他历史项会把二者拆开并导致服务端误判输出缺失。
-        for (i in 0 until messages.length()) {
-            val message = messages.optJSONObject(i) ?: continue
-            val role = message.optString("role", "")
-            when (role) {
-                "assistant" -> {
-                    val toolCalls = message.optJSONArray("tool_calls") ?: continue
-                    for (j in 0 until toolCalls.length()) {
-                        val callId = toolCalls.optJSONObject(j)?.optString("id", "").orEmpty()
-                        if (callId.isNotEmpty()) {
-                            knownFunctionCallIds.add(callId)
-                        }
-                    }
-                }
-
-                "tool" -> {
-                    val callId = message.optString("tool_call_id", "")
-                    if (callId.isEmpty()) {
-                        continue
-                    }
-                    val outputText = extractToolOutputText(message.opt("content"))
-                    val previousOutput = functionOutputsByCallId[callId]
-                    if (previousOutput != null && previousOutput != outputText) {
-                        throw OpenAIResponsesProtocolException(
-                            "Responses history contains conflicting outputs for tool call $callId"
-                        )
-                    }
-                    functionOutputsByCallId.putIfAbsent(callId, outputText)
-                }
-            }
-        }
+        val toolHistoryState = ProviderToolHistoryState()
 
         for (i in 0 until messages.length()) {
             val message = messages.optJSONObject(i) ?: continue
@@ -563,32 +581,60 @@ object OpenAIResponsesPayloadAdapter {
             if (role.isEmpty()) continue
 
             if (role == "tool") {
-                val callId = message.optString("tool_call_id", "")
-                if (callId.isNotEmpty()) {
-                    if (callId in knownFunctionCallIds) {
-                        continue
-                    }
-                    if (emittedFunctionOutputs.add(callId)) {
-                        appendFunctionCallOutput(
-                            input = input,
-                            callId = callId,
-                            outputText = functionOutputsByCallId.getValue(callId),
+                val callId = message.optString("tool_call_id", "").trim()
+                if (callId.isEmpty()) {
+                    throw ProviderToolHistoryProtocolException(
+                        violation = ProviderToolHistoryViolation.TOOL_RESULT_WITHOUT_PAYLOAD,
+                        detail = "Responses tool message has no tool_call_id",
+                    )
+                }
+                val outputText = extractToolOutputText(message.opt("content"))
+                val previousOutput = functionOutputsByCallId[callId]
+                if (previousOutput != null) {
+                    if (previousOutput != outputText) {
+                        throw OpenAIResponsesProtocolException(
+                            "Responses history contains conflicting outputs for tool call $callId"
                         )
                     }
                     continue
                 }
+                toolHistoryState.acceptToolResult(
+                    callId = callId,
+                    boundary = "responses_function_call_output",
+                )
+                functionOutputsByCallId[callId] = outputText
+                if (emittedFunctionOutputs.add(callId)) {
+                    appendFunctionCallOutput(
+                        input = input,
+                        callId = callId,
+                        outputText = outputText,
+                    )
+                }
+                continue
             }
 
             if (role == "assistant") {
+                toolHistoryState.requireClosed("responses_assistant_boundary")
                 appendReasoningItemsFromAssistantMessage(message, input)
                 appendMessageItem(message = message, role = role, input = input)
                 val toolCalls = message.optJSONArray("tool_calls")
                 if (toolCalls != null && toolCalls.length() > 0) {
+                    val newlyEmittedCallIds = mutableListOf<String>()
                     for (j in 0 until toolCalls.length()) {
                         val call = toolCalls.optJSONObject(j) ?: continue
-                        val function = call.optJSONObject("function") ?: continue
+                        val function =
+                            call.optJSONObject("function")
+                                ?: throw ProviderToolHistoryProtocolException(
+                                    violation = ProviderToolHistoryViolation.TOOL_CALL_WITHOUT_PAYLOAD,
+                                    detail = "Responses function call has no function payload",
+                                )
                         val name = function.optString("name", "")
-                        if (name.isEmpty()) continue
+                        if (name.isEmpty()) {
+                            throw ProviderToolHistoryProtocolException(
+                                violation = ProviderToolHistoryViolation.TOOL_CALL_WITHOUT_PAYLOAD,
+                                detail = "Responses function call has no name",
+                            )
+                        }
 
                         val callItem = JSONObject().apply {
                             put("type", "function_call")
@@ -596,54 +642,54 @@ object OpenAIResponsesPayloadAdapter {
                             put("arguments", function.optString("arguments", "{}"))
                         }
 
-                        val callId = call.optString("id", "")
-                        if (callId.isNotEmpty()) {
-                            val key =
-                                requireNotNull(
-                                    ProviderToolCallIdentityContract.key(
-                                        providerName = ApiProviderType.OPENAI_RESPONSES.name,
-                                        callId = callId,
-                                    )
-                                )
-                            val signature =
-                                ProviderToolCallIdentityContract.signature(
-                                    toolName = name,
-                                    argumentsJson = function.optString("arguments", "{}"),
-                                )
-                            val existing = functionCallsByIdentity[key]
-                            if (existing != null) {
-                                ProviderToolCallIdentityContract.requireSame(
-                                    key,
-                                    existing,
-                                    signature,
-                                )
-                                continue
-                            }
-                            functionCallsByIdentity[key] = signature
-                            callItem.put("call_id", callId)
+                        val callId = call.optString("id", "").trim()
+                        if (callId.isEmpty()) {
+                            throw ProviderToolHistoryProtocolException(
+                                violation = ProviderToolHistoryViolation.TOOL_CALL_WITHOUT_PAYLOAD,
+                                detail = "Responses function call has no stable call ID",
+                            )
                         }
-
-                        input.put(callItem)
-                        if (callId.isNotEmpty()) {
-                            functionOutputsByCallId[callId]?.let { outputText ->
-                                if (!emittedFunctionOutputs.add(callId)) {
-                                    return@let
-                                }
-                                appendFunctionCallOutput(
-                                    input = input,
+                        val key =
+                            requireNotNull(
+                                ProviderToolCallIdentityContract.key(
+                                    providerName = ApiProviderType.OPENAI_RESPONSES.name,
                                     callId = callId,
-                                    outputText = outputText,
                                 )
-                            }
+                            )
+                        val signature =
+                            ProviderToolCallIdentityContract.signature(
+                                toolName = name,
+                                argumentsJson = function.optString("arguments", "{}"),
+                            )
+                        val existing = functionCallsByIdentity[key]
+                        if (existing != null) {
+                            ProviderToolCallIdentityContract.requireSame(
+                                key,
+                                existing,
+                                signature,
+                            )
+                            continue
                         }
+                        functionCallsByIdentity[key] = signature
+                        callItem.put("call_id", callId)
+                        newlyEmittedCallIds.add(callId)
+                        input.put(callItem)
+                    }
+                    if (newlyEmittedCallIds.isNotEmpty()) {
+                        toolHistoryState.acceptToolCalls(
+                            callIds = newlyEmittedCallIds,
+                            boundary = "responses_function_calls",
+                        )
                     }
                 }
                 continue
             }
 
+            toolHistoryState.requireClosed("responses_${role}_boundary")
             appendMessageItem(message = message, role = role, input = input)
         }
 
+        toolHistoryState.requireClosed("responses_history_end")
         return input
     }
 

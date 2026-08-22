@@ -69,13 +69,13 @@ internal object ProviderToolCallIdentityContract {
             value.isJsonNull -> "null"
             value.isJsonObject -> {
                 val entries = value.asJsonObject.entrySet().sortedBy { it.key }
-                entries.joinToString(prefix = "{", postfix = "}") { entry ->
+                entries.joinToString(separator = ",", prefix = "{", postfix = "}") { entry ->
                     "${JsonPrimitive(entry.key)}:${canonicalJsonValue(entry.value)}"
                 }
             }
 
             value.isJsonArray ->
-                value.asJsonArray.joinToString(prefix = "[", postfix = "]") { item ->
+                value.asJsonArray.joinToString(separator = ",", prefix = "[", postfix = "]") { item ->
                     canonicalJsonValue(item)
                 }
 

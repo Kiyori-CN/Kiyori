@@ -47,6 +47,50 @@ interface ChatDao {
             currentWindowSize: Int
     )
 
+    /**
+     * 原子更新聊天级 token 与 provider usage 聚合。
+     *
+     * 覆盖计数和 token 桶必须在同一事务语句中写入；拆开保存会让进程异常时把“未提供”
+     * 误解释为“明确报告 0”。
+     */
+    @Query(
+        """
+        UPDATE chats SET
+            updatedAt = :timestamp,
+            inputTokens = :inputTokens,
+            outputTokens = :outputTokens,
+            currentWindowSize = :currentWindowSize,
+            providerRequestCount = :providerRequestCount,
+            providerUsageRequestCount = :providerUsageRequestCount,
+            providerCacheMetricRequestCount = :providerCacheMetricRequestCount,
+            providerCacheMetricPromptTokens = :providerCacheMetricPromptTokens,
+            providerTotalInputTokens = :providerTotalInputTokens,
+            providerUncachedInputTokens = :providerUncachedInputTokens,
+            providerCacheReadTokens = :providerCacheReadTokens,
+            providerCacheWriteTokens = :providerCacheWriteTokens,
+            providerOutputTokens = :providerOutputTokens,
+            providerReasoningTokens = :providerReasoningTokens
+        WHERE id = :chatId
+        """
+    )
+    suspend fun updateChatUsageStatistics(
+        chatId: String,
+        timestamp: Long,
+        inputTokens: Int,
+        outputTokens: Int,
+        currentWindowSize: Int,
+        providerRequestCount: Int,
+        providerUsageRequestCount: Int,
+        providerCacheMetricRequestCount: Int,
+        providerCacheMetricPromptTokens: Long,
+        providerTotalInputTokens: Long,
+        providerUncachedInputTokens: Long,
+        providerCacheReadTokens: Long,
+        providerCacheWriteTokens: Long,
+        providerOutputTokens: Long,
+        providerReasoningTokens: Long,
+    )
+
     /** 更新聊天标题 */
     @Query("UPDATE chats SET title = :title, updatedAt = :timestamp WHERE id = :chatId")
     suspend fun updateChatTitle(chatId: String, title: String, timestamp: Long = System.currentTimeMillis())

@@ -47,7 +47,7 @@ import com.ai.assistance.operit.data.model.ToolInvocationLedgerEntity
         ConversationMessageProjectionEntity::class,
         ConversationAuditSealEntity::class,
     ],
-    version = 22,
+    version = 24,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -629,6 +629,49 @@ abstract class AppDatabase : RoomDatabase() {
                 }
             }
 
+        internal val MIGRATION_22_23 =
+            object : Migration(22, 23) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    val columns =
+                        listOf(
+                            "providerRequestCount",
+                            "providerUsageRequestCount",
+                            "providerCacheMetricRequestCount",
+                            "providerTotalInputTokens",
+                            "providerUncachedInputTokens",
+                            "providerCacheReadTokens",
+                            "providerCacheWriteTokens",
+                            "providerOutputTokens",
+                            "providerReasoningTokens",
+                        )
+                    listOf("chats", "messages", "message_variants").forEach { table ->
+                        columns.forEach { column ->
+                            db.execSQL(
+                                "ALTER TABLE `$table` ADD COLUMN `$column` " +
+                                    "INTEGER NOT NULL DEFAULT 0"
+                            )
+                        }
+                    }
+                }
+            }
+
+        internal val MIGRATION_23_24 =
+            object : Migration(23, 24) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    listOf("chats", "messages", "message_variants").forEach { table ->
+                        db.execSQL(
+                            "ALTER TABLE `$table` ADD COLUMN " +
+                                "`providerCacheMetricPromptTokens` INTEGER NOT NULL DEFAULT 0"
+                        )
+                        // 版本 23 只保存了缓存指标请求数，没有保存对应的 prompt 分母。
+                        // 若继续保留旧计数，历史记录会被误解为 provider 已报告 0 命中。
+                        db.execSQL(
+                            "UPDATE `$table` SET `providerCacheMetricRequestCount` = 0"
+                        )
+                    }
+                }
+            }
+
         // 定义从版本2到3的迁移
         private val MIGRATION_2_3 =
             object : Migration(2, 3) {
@@ -747,7 +790,9 @@ abstract class AppDatabase : RoomDatabase() {
                                 MIGRATION_18_19,
                                 MIGRATION_19_20,
                                 MIGRATION_20_21,
-                                MIGRATION_21_22
+                                MIGRATION_21_22,
+                                MIGRATION_22_23,
+                                MIGRATION_23_24
                             ) // 添加新的迁移
                             .build()
                     INSTANCE = instance

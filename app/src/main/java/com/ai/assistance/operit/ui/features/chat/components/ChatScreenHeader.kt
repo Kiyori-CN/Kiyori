@@ -120,8 +120,7 @@ fun ChatScreenHeader(
     val isFloatingMode by actualViewModel.isFloatingMode.collectAsState()
     val currentWindowSize by actualViewModel.currentWindowSize.collectAsState()
     val maxWindowSizeInK by actualViewModel.maxWindowSizeInK.collectAsState()
-    val inputTokenCount by actualViewModel.inputTokenCount.collectAsState()
-    val outputTokenCount by actualViewModel.outputTokenCount.collectAsState()
+    val providerUsageAggregate by actualViewModel.providerUsageAggregate.collectAsState()
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -172,8 +171,23 @@ fun ChatScreenHeader(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // 统计信息
-            val maxWindowSize = (maxWindowSizeInK * 1024).toLong().coerceAtLeast(0L)
-            val totalTokenCount = inputTokenCount + outputTokenCount
+            val maxWindowSize =
+                (maxWindowSizeInK.toLong().coerceAtLeast(0L) * 1024L)
+                    .coerceAtLeast(0L)
+            val totalTokenCount = providerUsageAggregate.providerTotalTokens
+            val cacheHitRate =
+                ChatStatisticsFormatter.formatCacheHitRate(providerUsageAggregate.cacheHitRate)
+                    ?: stringResource(R.string.chat_stats_cache_hit_rate_unavailable)
+            val usageCoverage =
+                ChatStatisticsFormatter.formatCoverage(
+                    reported = providerUsageAggregate.providerUsageRequestCount,
+                    total = providerUsageAggregate.requestCount,
+                )
+            val cacheCoverage =
+                ChatStatisticsFormatter.formatCoverage(
+                    reported = providerUsageAggregate.providerCacheMetricRequestCount,
+                    total = providerUsageAggregate.providerUsageRequestCount,
+                )
             val contextUsagePercentage =
                     if (maxWindowSize > 0) {
                         ((currentWindowSize.toDouble() / maxWindowSize.toDouble()) * 100.0)
@@ -231,40 +245,143 @@ fun ChatScreenHeader(
                                         .background(MaterialTheme.colorScheme.surface)
                 ) {
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.context_window, currentWindowSize)) },
+                        text = {
+                            Text(
+                                stringResource(
+                                    R.string.chat_stats_context,
+                                    currentWindowSize,
+                                    maxWindowSize,
+                                )
+                            )
+                        },
                         onClick = {},
                         enabled = false
                     )
-                    
+
                     DropdownMenuItem(
-                            text = { Text(stringResource(R.string.input_tokens, inputTokenCount)) },
-                            onClick = {},
-                            enabled = false
-                    )
-                    DropdownMenuItem(
-                            text = {
-                                Text(stringResource(R.string.output_tokens, outputTokenCount))
-                            },
-                            onClick = {},
-                            enabled = false
-                    )
-                    DropdownMenuItem(
-                            text = {
-                                Text(
-                                        stringResource(R.string.total_tokens, totalTokenCount),
-                                        style =
-                                                MaterialTheme.typography.bodyMedium.copy(
-                                                        fontWeight =
-                                                                androidx.compose.ui.text.font
-                                                                        .FontWeight.Bold
-                                                ),
-                                        color = normalColors.icon
+                        text = {
+                            Text(
+                                stringResource(
+                                    R.string.chat_stats_request_count,
+                                    providerUsageAggregate.requestCount,
                                 )
-                            },
-                            onClick = {},
-                            enabled = false
+                            )
+                        },
+                        onClick = {},
+                        enabled = false
                     )
-                    
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(
+                                    R.string.chat_stats_input_tokens,
+                                    providerUsageAggregate.providerTotalInputTokens,
+                                )
+                            )
+                        },
+                        onClick = {},
+                        enabled = false
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(
+                                    R.string.chat_stats_output_tokens,
+                                    providerUsageAggregate.providerOutputTokens,
+                                )
+                            )
+                        },
+                        onClick = {},
+                        enabled = false
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(
+                                    R.string.chat_stats_cache_read_tokens,
+                                    providerUsageAggregate.providerCacheReadTokens,
+                                )
+                            )
+                        },
+                        onClick = {},
+                        enabled = false
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(
+                                    R.string.chat_stats_cache_write_tokens,
+                                    providerUsageAggregate.providerCacheWriteTokens,
+                                )
+                            )
+                        },
+                        onClick = {},
+                        enabled = false
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(
+                                    R.string.chat_stats_cache_hit_rate,
+                                    cacheHitRate,
+                                )
+                            )
+                        },
+                        onClick = {},
+                        enabled = false
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(
+                                    R.string.chat_stats_usage_coverage,
+                                    usageCoverage,
+                                )
+                            )
+                        },
+                        onClick = {},
+                        enabled = false
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(
+                                    R.string.chat_stats_cache_coverage,
+                                    cacheCoverage,
+                                )
+                            )
+                        },
+                        onClick = {},
+                        enabled = false
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(
+                                    R.string.chat_stats_reasoning_tokens,
+                                    providerUsageAggregate.providerReasoningTokens,
+                                )
+                            )
+                        },
+                        onClick = {},
+                        enabled = false
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(R.string.chat_stats_total_tokens, totalTokenCount),
+                                style =
+                                    MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight =
+                                            androidx.compose.ui.text.font
+                                                .FontWeight.Bold
+                                    ),
+                                color = normalColors.icon
+                            )
+                        },
+                        onClick = {},
+                        enabled = false
+                    )
                 }
             }
         }
