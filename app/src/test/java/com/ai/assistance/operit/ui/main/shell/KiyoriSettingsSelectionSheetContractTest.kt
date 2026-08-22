@@ -15,7 +15,7 @@ class KiyoriSettingsSelectionSheetContractTest {
         assertTrue(source.contains("Column(modifier = Modifier.fillMaxWidth().fillMaxHeight())"))
         assertTrue(source.contains("LazyColumn("))
         assertTrue(source.contains("Modifier.fillMaxWidth().weight(1f)"))
-        assertTrue(source.contains("itemsIndexed(selection.options)"))
+        assertTrue(source.contains("itemsIndexed(visibleOptions)"))
     }
 
     private fun repositoryFile(relativePath: String): File {

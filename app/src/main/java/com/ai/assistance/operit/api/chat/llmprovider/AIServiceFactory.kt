@@ -9,6 +9,8 @@ import com.ai.assistance.operit.data.model.ModelConfigData
 import com.ai.assistance.operit.data.preferences.ModelConfigManager
 import com.ai.assistance.operit.plugins.toolpkg.ToolPkgAiProviderRegistry
 import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.applyKiyoriNetworkProxy
 import java.io.IOException
 import java.net.InetAddress
 import java.net.InetSocketAddress
@@ -256,6 +258,7 @@ private class LlmNetworkEventListener(
 internal object SharedHttpClient {
     val instance: OkHttpClient by lazy {
         OkHttpClient.Builder()
+                .applyKiyoriNetworkProxy(KiyoriNetworkModule.AI_SERVICES)
                 // Increase the connection timeout to handle slow networks better.
                 .connectTimeout(60, TimeUnit.SECONDS)
                 // Set long read/write timeouts for streaming responses.

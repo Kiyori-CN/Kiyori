@@ -5,6 +5,8 @@ import android.os.SystemClock
 import com.ai.assistance.operit.data.preferences.GitHubAuthPreferences
 import com.ai.assistance.operit.data.preferences.GitHubUser
 import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.applyKiyoriNetworkProxy
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -129,6 +131,7 @@ data class GitHubReleaseAsset(
 class GitHubApiService(private val context: Context) {
     
     private val client = OkHttpClient.Builder()
+        .applyKiyoriNetworkProxy(KiyoriNetworkModule.APP_SERVICES)
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)

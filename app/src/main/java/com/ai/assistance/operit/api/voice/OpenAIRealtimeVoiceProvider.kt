@@ -8,6 +8,8 @@ import android.util.Base64
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.preferences.SpeechServicesPreferences
 import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.applyKiyoriNetworkProxy
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -61,6 +63,7 @@ class OpenAIRealtimeVoiceProvider(
 
     private val webSocketClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
+            .applyKiyoriNetworkProxy(KiyoriNetworkModule.AI_SERVICES)
             .connectTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(0, TimeUnit.MILLISECONDS)
             .writeTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)

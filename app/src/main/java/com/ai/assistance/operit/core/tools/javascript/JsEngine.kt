@@ -16,13 +16,13 @@ import com.ai.assistance.operit.core.application.ActivityLifecycleManager
 import com.ai.assistance.operit.core.chat.logMessageTiming
 import com.ai.assistance.operit.core.chat.messageTimingNow
 import com.ai.assistance.operit.core.tools.AIToolHandler
-import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkCallIdentity
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
 import com.ai.assistance.operit.core.tools.packTool.TOOLPKG_EVENT_MESSAGE_PROCESSING
 import com.ai.assistance.operit.ui.main.navigation.AppRouteDiscoveryGateway
 import com.ai.assistance.operit.ui.main.navigation.AppRouterGateway
 import com.ai.assistance.operit.ui.main.navigation.RouteEntrySource
 import com.ai.assistance.operit.ui.main.navigation.RouteRuntime
+import com.kiyori.platform.network.KiyoriScriptNetworkCallIdentity
 import com.ai.assistance.operit.ui.main.screens.Screen
 import com.ai.assistance.operit.ui.main.screens.ScreenRouteRegistry
 import com.ai.assistance.operit.ui.features.packages.screens.ToolPkgHostEnvironmentEditRequestStore
@@ -120,7 +120,7 @@ class JsEngine(
         val dispatchIntermediateOnMain: Boolean,
         val envOverrides: Map<String, String>,
         val packageName: String?,
-        val scriptNetworkEligible: Boolean,
+        val scriptProxyEligible: Boolean,
         val packageChatId: String?,
         val toolPkgRuntimeKind: String?,
         val toolPkgLogSnapshot: JsToolPkgExecutionContext.LogSnapshot,
@@ -354,8 +354,8 @@ class JsEngine(
                     ?.toString()
                     ?.trim()
                     ?.ifBlank { null },
-            scriptNetworkEligible =
-                params[ScriptNetworkCallIdentity.RUNTIME_ELIGIBLE_PARAMETER]
+            scriptProxyEligible =
+                params[KiyoriScriptNetworkCallIdentity.RUNTIME_ELIGIBLE_PARAMETER]
                     ?.toString()
                     ?.equals("true", ignoreCase = true) == true,
             packageChatId =
@@ -2561,7 +2561,7 @@ class JsEngine(
                 sendToolResult = { callback, result, isError ->
                     sendToolResult(callback, result, isError)
                 },
-                trustedParameters = trustedScriptNetworkParameters(executionCallId),
+                trustedParameters = trustedScriptProxyParameters(executionCallId),
             )
         }
 
@@ -2626,15 +2626,15 @@ class JsEngine(
                 sendIntermediateResult = { callback, result, isError ->
                     sendToolResult(callback, result, isError)
                 },
-                trustedParameters = trustedScriptNetworkParameters(executionCallId),
+                trustedParameters = trustedScriptProxyParameters(executionCallId),
             )
         }
 
-        private fun trustedScriptNetworkParameters(executionCallId: String?): Map<String, String> {
+        private fun trustedScriptProxyParameters(executionCallId: String?): Map<String, String> {
             val session = executionCallId?.let(::resolveExecutionSession) ?: return emptyMap()
-            return ScriptNetworkCallIdentity.trustedParameters(
+            return KiyoriScriptNetworkCallIdentity.trustedParameters(
                 packageName = session.packageName,
-                eligible = session.scriptNetworkEligible,
+                eligible = session.scriptProxyEligible,
             )
         }
 

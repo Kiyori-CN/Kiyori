@@ -20,14 +20,20 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -230,8 +236,20 @@ internal fun KiyoriSettingsSelectionSheet(
     selection: KiyoriSettingsSelection,
     onDismiss: () -> Unit,
     onSelect: (KiyoriSettingsSelectionOption) -> Unit,
+    searchable: Boolean = false,
 ) {
     val colors = LocalKiyoriSettingsColors.current
+    var searchQuery by remember(selection.title) { mutableStateOf("") }
+    val visibleOptions =
+        if (!searchable || searchQuery.isBlank()) {
+            selection.options
+        } else {
+            val query = searchQuery.trim().lowercase()
+            selection.options.filter { option ->
+                option.label.lowercase().contains(query) ||
+                    option.description?.lowercase()?.contains(query) == true
+            }
+        }
     KiyoriModalBottomDrawer(onDismissRequest = onDismiss) { dismissDrawer ->
         Column(modifier = Modifier.fillMaxWidth().fillMaxHeight()) {
             Text(
@@ -249,12 +267,23 @@ internal fun KiyoriSettingsSelectionSheet(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
             )
+            if (searchable) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    singleLine = true,
+                    placeholder = { Text("搜索名称") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    colors = kiyoriSettingsOutlinedTextFieldColors(),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
+                )
+            }
             HorizontalDivider(color = colors.divider)
             LazyColumn(
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 contentPadding = PaddingValues(bottom = 4.dp),
             ) {
-                itemsIndexed(selection.options) { _, option ->
+                itemsIndexed(visibleOptions) { _, option ->
                     Row(
                         modifier =
                             Modifier
@@ -303,6 +332,17 @@ internal fun KiyoriSettingsSelectionSheet(
                         }
                     }
                     HorizontalDivider(color = colors.divider)
+                }
+                if (visibleOptions.isEmpty()) {
+                    item {
+                        Text(
+                            text = "没有匹配项",
+                            color = colors.secondaryText,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth().padding(24.dp),
+                        )
+                    }
                 }
             }
             Text(

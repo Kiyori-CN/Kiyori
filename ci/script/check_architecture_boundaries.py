@@ -463,6 +463,8 @@ M05A1_EXPECTED_IMPORT_CONSUMERS = {
         "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
         "KiyoriAdBlockSettingsPage.kt",
         "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
+        "KiyoriNetworkProxySettingsPage.kt",
+        "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
         "KiyoriBrowserPasswordManagerPage.kt",
         "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
         "KiyoriBrowserTextSizePage.kt",
@@ -527,9 +529,9 @@ M05A2_CONSUMER_IMPORT_SNAPSHOT = (
     "m05a2-semantic-consumer-imports.txt"
 )
 M05A2_DESIGN_PACKAGE = "com.kiyori.design.theme"
-M05A2_PRODUCTION_CONSUMER_COUNT = 53
+M05A2_PRODUCTION_CONSUMER_COUNT = 54
 M05A2_EXTERNAL_TEST_CONSUMER_COUNT = 4
-M05A2_CONSUMER_IMPORT_COUNT = 100
+M05A2_CONSUMER_IMPORT_COUNT = 101
 M05A2_MOVED_IMPORT_SYMBOLS = {
     "KiyoriSemanticTone",
     "kiyoriSemanticToneForStableId",
@@ -749,7 +751,7 @@ M05B_NEW_FORMATTER_IMPORT = (
 M05B_OLD_FORMATTER_IMPORT = (
     "com.ai.assistance.operit.util.ThrowableTextFormatter"
 )
-M05B_KIYORI_CONSUMER_COUNT = 9
+M05B_KIYORI_CONSUMER_COUNT = 11
 M05B_HASHED_PATHS = (
     M05B_LOGGER_PATH,
     M05B_FORMATTER_PATH,
@@ -9006,6 +9008,9 @@ def check_m05b_platform_logging(
                 )
                 and not relative_path.startswith(
                     "app/src/main/java/com/kiyori/integration/operit/"
+                )
+                and not relative_path.startswith(
+                    "app/src/main/java/com/kiyori/platform/"
                 )
                 and relative_path != M03_APPLICATION_PATH
                 for relative_path in consumer_entries

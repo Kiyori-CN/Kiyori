@@ -8,6 +8,8 @@ import com.ai.assistance.operit.util.OperitPaths
 import com.ai.assistance.operit.data.model.ApiProviderType
 import com.ai.assistance.operit.data.model.ApiProtocol
 import com.ai.assistance.operit.data.model.ModelOption
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.applyKiyoriNetworkProxy
 import java.io.File
 import java.io.IOException
 import java.net.SocketTimeoutException
@@ -104,6 +106,7 @@ object ModelListFetcher {
     // 使用更长的超时时间
     private val client =
             OkHttpClient.Builder()
+                    .applyKiyoriNetworkProxy(KiyoriNetworkModule.AI_SERVICES)
                     .connectTimeout(30, TimeUnit.SECONDS)
                     .readTimeout(30, TimeUnit.SECONDS)
                     .writeTimeout(30, TimeUnit.SECONDS)

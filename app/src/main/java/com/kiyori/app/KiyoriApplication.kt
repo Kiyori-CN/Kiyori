@@ -69,6 +69,9 @@ import com.kiyori.platform.android.ApplicationContextAccess
 import com.kiyori.platform.lifecycle.ApplicationStartupTime
 import com.kiyori.platform.lifecycle.MainApplicationInitialization
 import com.kiyori.platform.logging.KiyoriLogger
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.KiyoriNetworkProxyManager
+import com.kiyori.platform.network.applyKiyoriNetworkProxy
 import com.kiyori.platform.serialization.ApplicationJson
 import com.kiyori.platform.storage.KiyoriPaths
 import java.io.File
@@ -136,6 +139,8 @@ class KiyoriApplication :
         val startTime = System.currentTimeMillis()
         ApplicationStartupTime.recordForProcess(startTime)
         ApplicationContextAccess.installForProcess(this)
+        val networkProxyManager = KiyoriNetworkProxyManager.getInstance(this)
+        networkProxyManager.scheduleStartupReconciliation()
         KiyoriLogger.bindContext(this, KiyoriPaths::kiyoriRootDir)
 
         configureOpenMpEnvironment()
@@ -152,6 +157,16 @@ class KiyoriApplication :
                 encodeDefaults = true
             }
         )
+
+        if (CrashProcessIdentity.currentProcessName(this) == packageName) {
+            applicationScope.launch {
+                try {
+                    networkProxyManager.reconcileEnabledState()
+                } catch (error: Exception) {
+                    KiyoriLogger.e(TAG, "应用级网络代理启动协调失败", error)
+                }
+            }
+        }
 
     }
 
@@ -403,6 +418,7 @@ class KiyoriApplication :
 
     private fun createImageLoader(): ImageLoader {
         val imageOkHttpClient = OkHttpClient.Builder()
+            .applyKiyoriNetworkProxy(KiyoriNetworkModule.APP_SERVICES)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)

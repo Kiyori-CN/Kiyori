@@ -24,6 +24,8 @@ import androidx.webkit.WebMessageCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import com.ai.assistance.operit.R
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.applyKiyoriNetworkProxy
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ParsedUserscriptMetadata
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptCapabilityRegistry
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptExecutionWorld
@@ -142,6 +144,7 @@ internal class WebSessionUserscriptManager(
     private val secureRandom = SecureRandom()
     private val requestClient =
         OkHttpClient.Builder()
+            .applyKiyoriNetworkProxy(KiyoriNetworkModule.BROWSER)
             .followRedirects(true)
             .followSslRedirects(true)
             // Network interceptors run once per concrete network hop. The request tag is copied by

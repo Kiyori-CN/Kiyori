@@ -98,3 +98,4 @@ app/src/test/java/com/ai/assistance/operit/ui/features/packages/screens/PackageM
 app/src/test/java/com/ai/assistance/operit/ui/features/websession/browser/chrome/WebSessionBrowserVisualPolicyTest.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/test/java/com/ai/assistance/operit/ui/main/shell/KiyoriSettingsPagesTest.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/test/java/com/ai/assistance/operit/ui/main/shell/KiyoriShellStateTest.kt	com.kiyori.design.theme.KiyoriSemanticTone
+app/src/main/java/com/ai/assistance/operit/ui/main/shell/KiyoriNetworkProxySettingsPage.kt	com.kiyori.design.theme.KiyoriSemanticTone

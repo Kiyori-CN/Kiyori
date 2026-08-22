@@ -4,6 +4,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -13,6 +14,7 @@ internal const val KIYORI_MORE_FEATURES_SETTINGS_PAGE_TITLE = "更多功能"
 internal enum class KiyoriMoreFeaturesSettingsAction {
     OPEN_PERMISSIONS,
     OPEN_AGREEMENT,
+    OPEN_NETWORK_PROXY,
 }
 
 internal data class KiyoriMoreFeaturesSettingsEntrySpec(
@@ -30,6 +32,19 @@ internal data class KiyoriMoreFeaturesSettingsGroupSpec(
 
 internal val kiyoriMoreFeaturesSettingsGroups =
     listOf(
+        KiyoriMoreFeaturesSettingsGroupSpec(
+            title = "网络能力",
+            description = "为 Kiyori 内部的不同模块选择直连或内嵌 Mihomo 代理",
+            entries =
+                listOf(
+                    KiyoriMoreFeaturesSettingsEntrySpec(
+                        title = "网络代理",
+                        description = "管理订阅、策略组、模块路由和脚本规则",
+                        icon = Icons.Default.VpnKey,
+                        action = KiyoriMoreFeaturesSettingsAction.OPEN_NETWORK_PROXY,
+                    ),
+                ),
+        ),
         KiyoriMoreFeaturesSettingsGroupSpec(
             title = "应用与隐私",
             description = "查看 Kiyori 的用户协议、隐私政策与应用使用边界",
@@ -63,6 +78,7 @@ internal fun KiyoriMoreFeaturesSettingsPage(
     onBack: () -> Unit,
     onOpenPermissions: () -> Unit,
     onOpenAgreement: () -> Unit,
+    onOpenNetworkProxy: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     KiyoriCollapsingSettingsPage(
@@ -90,6 +106,8 @@ internal fun KiyoriMoreFeaturesSettingsPage(
                                     onOpenPermissions()
                                 KiyoriMoreFeaturesSettingsAction.OPEN_AGREEMENT ->
                                     onOpenAgreement()
+                                KiyoriMoreFeaturesSettingsAction.OPEN_NETWORK_PROXY ->
+                                    onOpenNetworkProxy()
                             }
                         },
                     )

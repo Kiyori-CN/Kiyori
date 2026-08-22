@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
@@ -88,6 +89,7 @@ import com.kiyori.design.theme.resolveColors
 internal fun PackageEnvironmentVariablesSheet(
     packages: List<ToolPackage>,
     currentValues: Map<PackageEnvironmentVariableKey, String>,
+    onOpenNetworkProxy: () -> Unit,
     onDismiss: () -> Unit,
     onConfirm: (Map<PackageEnvironmentVariableKey, String>) -> Unit,
 ) {
@@ -224,6 +226,10 @@ internal fun PackageEnvironmentVariablesSheet(
                             }
                     },
                     onCancel = requestClose,
+                    onOpenNetworkProxy = {
+                        requestClose()
+                        onOpenNetworkProxy()
+                    },
                     onSave = {
                         onConfirm(editableValues)
                         requestClose()
@@ -248,6 +254,7 @@ private fun PackageEnvironmentVariablesSheetContent(
     onClearQuery: () -> Unit,
     onTogglePackage: (String) -> Unit,
     onValueChange: (PackageEnvironmentVariableKey, String) -> Unit,
+    onOpenNetworkProxy: () -> Unit,
     onCancel: () -> Unit,
     onSave: () -> Unit,
 ) {
@@ -344,6 +351,12 @@ private fun PackageEnvironmentVariablesSheetContent(
             horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            TextButton(onClick = onOpenNetworkProxy) {
+                Icon(Icons.Outlined.VpnKey, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(text = "网络代理")
+            }
+            Spacer(modifier = Modifier.weight(1f))
             TextButton(onClick = onCancel) {
                 Text(text = stringResource(R.string.pkg_cancel))
             }

@@ -4,6 +4,8 @@ import android.content.Context
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.OperitPaths
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.applyKiyoriNetworkProxy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -116,6 +118,7 @@ class MnnModelDownloadManager private constructor(private val context: Context) 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     
     private val okHttpClient = OkHttpClient.Builder()
+        .applyKiyoriNetworkProxy(KiyoriNetworkModule.DOWNLOADS)
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
         .build()

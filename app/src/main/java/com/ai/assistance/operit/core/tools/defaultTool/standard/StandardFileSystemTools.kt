@@ -19,15 +19,16 @@ import com.ai.assistance.operit.core.tools.ToolProgressBus
 import com.ai.assistance.operit.core.tools.GrepResultData
 import com.ai.assistance.operit.core.tools.StringResultData
 import com.ai.assistance.operit.core.tools.ToolExecutionLimits
-import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkCallIdentity
-import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkErrorCode
-import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkException
-import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkHttpClientFactory
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.FunctionType
 import com.ai.assistance.operit.data.model.ModelParameter
 import com.ai.assistance.operit.data.model.ToolParameter
 import com.ai.assistance.operit.data.model.ToolResult
+import com.kiyori.platform.network.KiyoriNetworkErrorCode
+import com.kiyori.platform.network.KiyoriNetworkException
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.KiyoriNetworkProxyManager
+import com.kiyori.platform.network.KiyoriScriptNetworkCallIdentity
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.File
@@ -4315,7 +4316,7 @@ open class StandardFileSystemTools(protected val context: Context) {
         val headersParam = tool.parameters.find { it.name == "headers" }?.value
         val scriptPackageName =
             tool.parameters
-                .find { it.name == ScriptNetworkCallIdentity.INTERNAL_PACKAGE_PARAMETER }
+                .find { it.name == KiyoriScriptNetworkCallIdentity.INTERNAL_PACKAGE_PARAMETER }
                 ?.value
                 ?.trim()
                 ?.ifBlank { null }
@@ -4557,8 +4558,13 @@ open class StandardFileSystemTools(protected val context: Context) {
                 .readTimeout(60, TimeUnit.SECONDS)
                 .followRedirects(true)
                 .followSslRedirects(true)
-        ScriptNetworkHttpClientFactory.getInstance(context)
-            .applyScriptRoute(builder, scriptPackageName)
+        KiyoriNetworkProxyManager.getInstance(context)
+            .applyRoute(
+                builder = builder,
+                module = KiyoriNetworkModule.SCRIPTS,
+                scriptPackageName = scriptPackageName,
+                mapFailures = true,
+            )
         val requestBuilder =
             Request.Builder()
                 .url(resolvedUrl)
@@ -4568,14 +4574,14 @@ open class StandardFileSystemTools(protected val context: Context) {
         try {
             builder.build().newCall(requestBuilder.get().build()).execute().use { response ->
                 if (!response.isSuccessful) {
-                    throw ScriptNetworkException(
-                        ScriptNetworkErrorCode.HTTP_FAILED,
+                    throw KiyoriNetworkException(
+                        KiyoriNetworkErrorCode.HTTP_FAILED,
                         "Script download returned HTTP ${response.code}.",
                     )
                 }
                 val body = response.body
-                    ?: throw ScriptNetworkException(
-                        ScriptNetworkErrorCode.HTTP_FAILED,
+                    ?: throw KiyoriNetworkException(
+                        KiyoriNetworkErrorCode.HTTP_FAILED,
                         "Script download returned an empty response body.",
                     )
                 val total = body.contentLength()

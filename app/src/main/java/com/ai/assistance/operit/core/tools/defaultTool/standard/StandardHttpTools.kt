@@ -5,10 +5,11 @@ import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.core.tools.HttpStreamEventData
 import com.ai.assistance.operit.core.tools.HttpResponseData
 import com.ai.assistance.operit.core.tools.StringResultData
-import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkCallIdentity
-import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkHttpClientFactory
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolResult
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.KiyoriNetworkProxyManager
+import com.kiyori.platform.network.KiyoriScriptNetworkCallIdentity
 import java.io.File
 import java.io.StringReader
 import java.net.InetSocketAddress
@@ -110,11 +111,23 @@ class StandardHttpTools(private val context: Context) {
             require(proxyHost.isNullOrBlank() && proxyPort == 0) {
                 "Script HTTP calls cannot override the host-managed proxy route"
             }
-            ScriptNetworkHttpClientFactory.getInstance(context)
-                .applyScriptRoute(builder, scriptPackageName)
+            KiyoriNetworkProxyManager.getInstance(context)
+                .applyRoute(
+                    builder = builder,
+                    module = KiyoriNetworkModule.SCRIPTS,
+                    scriptPackageName = scriptPackageName,
+                    mapFailures = true,
+                )
         } else if (!proxyHost.isNullOrBlank() && proxyPort > 0) {
             val proxy = Proxy(Proxy.Type.HTTP, InetSocketAddress(proxyHost, proxyPort))
             builder.proxy(proxy)
+        } else {
+            KiyoriNetworkProxyManager.getInstance(context)
+                .applyRoute(
+                    builder = builder,
+                    module = KiyoriNetworkModule.AI_TOOLS,
+                    mapFailures = true,
+                )
         }
 
         require(!ignoreSsl) {
@@ -204,7 +217,7 @@ class StandardHttpTools(private val context: Context) {
         val ignoreSslParam = tool.parameters.find { it.name == "ignore_ssl" }?.value
         val scriptPackageName =
                 tool.parameters
-                        .find { it.name == ScriptNetworkCallIdentity.INTERNAL_PACKAGE_PARAMETER }
+                        .find { it.name == KiyoriScriptNetworkCallIdentity.INTERNAL_PACKAGE_PARAMETER }
                         ?.value
                         ?.trim()
                         ?.ifBlank { null }
@@ -626,7 +639,7 @@ class StandardHttpTools(private val context: Context) {
         val ignoreSslParam = tool.parameters.find { it.name == "ignore_ssl" }?.value
         val scriptPackageName =
                 tool.parameters
-                        .find { it.name == ScriptNetworkCallIdentity.INTERNAL_PACKAGE_PARAMETER }
+                        .find { it.name == KiyoriScriptNetworkCallIdentity.INTERNAL_PACKAGE_PARAMETER }
                         ?.value
                         ?.trim()
                         ?.ifBlank { null }

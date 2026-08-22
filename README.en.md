@@ -47,26 +47,26 @@ The project retains Operit's chat, model configuration, tool calling, workflows,
 
 Some pages, physical-device interactions, and release workflows remain under verification. [`CONTEXT.md`](CONTEXT.md) is the source of truth for implementation ownership and compatibility contracts. [`docs/TODO/`](docs/TODO/README.md) records active work and device-acceptance status.
 
-### Script network proxy
+### Application-wide network proxy
 
-Open **AI drawer → Extensions → Script → top-bar Settings → Network proxy** to control host networking
-for every traditional `JsEngine` package. The global mode is Direct, External Proxy, or Embedded
-Subscription; each imported script can independently Inherit, use Direct, use External Proxy, or use the
-Embedded Subscription. External mode accepts an HTTP proxy host, port, and optional credentials. For
-Clash, enter its `mixed-port`, commonly `127.0.0.1:7890` when Clash runs on the same device.
+Open **Settings Home → More Features → Network Proxy**. This is the single routing owner for the Kiyori
+process and covers AI services and speech, AI tools, Browser, Downloads, Player, traditional Scripts, and
+Kiyori-owned online services. The default is Direct or Proxy; every module can inherit the default or choose
+its own mode. Traditional `JsEngine` packages may add a per-package override in Script Rules. The Environment
+drawer links here directly, and ToolPkg is intentionally kept under AI Tools rather than treated as a script.
 
-Embedded mode accepts a subscription URL, pasted YAML, or an imported single-document UTF-8
-Clash/Mihomo file and requires an explicit node selection. Kiyori reconstructs a loopback-only private
-configuration containing outbound nodes and HTTP providers; it does not enable TUN, LAN listeners, or a
-subscription-supplied controller. Sensitive configuration is encrypted with Android Keystore in the
-application's no-backup storage.
+The subscription section accepts a Clash/Mihomo subscription URL or an explicitly selected single-document
+UTF-8 YAML file. Requests use the `Clash.Meta` identity so services that negotiate Base64 and YAML return a
+Clash YAML mapping. Base64 URI lists, duplicate keys, invalid providers, configurations without usable
+outbounds, or Mihomo validation failures are rejected. Local, loopback, link-local, private, and multicast
+nodes are isolated and counted while valid proxy groups and their order are retained. Subscription URL,
+sanitized YAML, and controller secrets are encrypted with Android Keystore in no-backup storage.
 
-Direct disables Kiyori's application-level HTTP proxy but cannot bypass Android system VPN routing. An
-active system VPN blocks embedded startup until the user explicitly allows the nested Kiyori Mihomo →
-system Clash/VPN path. This policy applies only to traditional scripts' `http_request`,
-`multipart_request`, `visit_web`, and `download_file`. Browser Runtime, browser userscripts, ToolPkg,
-MCP, AI providers, Terminal, Player, and browser downloads do not read it. Route failures are explicit;
-Kiyori never changes to another route after a failure.
+Embedded Mihomo listens only on a random loopback mixed-port; it does not enable TUN, LAN listeners, or a
+subscription-provided controller. When an external Clash runs as a system VPN/TUN, no host, port, username,
+or password is required. Direct bypasses Kiyori's application proxy but can still be captured by Android's
+VPN. External VPN coexistence is denied by default and must be explicitly enabled; authorized proxy traffic
+then follows `Kiyori Mihomo → system VPN → node`. The setting affects only Kiyori's own process.
 
 ## Product structure
 

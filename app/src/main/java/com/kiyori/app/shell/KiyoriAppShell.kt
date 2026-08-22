@@ -51,6 +51,7 @@ import com.ai.assistance.operit.ui.main.shell.KiyoriDownloadSettingsPage
 import com.ai.assistance.operit.ui.main.shell.KiyoriHistoryDrawerHost
 import com.ai.assistance.operit.ui.main.shell.KiyoriMinusOnePage
 import com.ai.assistance.operit.ui.main.shell.KiyoriMoreFeaturesSettingsPage
+import com.ai.assistance.operit.ui.main.shell.KiyoriNetworkProxySettingsPage
 import com.ai.assistance.operit.ui.main.shell.KiyoriPlayerSettingsPage
 import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsHomePage
 import com.kiyori.capability.browser.presentation.KiyoriBrowserWorkspaceRoute
@@ -495,6 +496,16 @@ internal fun KiyoriAppShell(
                                         state.openSettingsRoute(KiyoriSettingsRoute.AGREEMENT),
                                     )
                                 },
+                                onOpenNetworkProxy = {
+                                    onStateChange(
+                                        state.openSettingsRoute(KiyoriSettingsRoute.NETWORK_PROXY),
+                                    )
+                                },
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        KiyoriSettingsRoute.NETWORK_PROXY ->
+                            KiyoriNetworkProxySettingsPage(
+                                onBack = { onStateChange(state.closeSettingsRoute()) },
                                 modifier = Modifier.fillMaxSize(),
                             )
                         KiyoriSettingsRoute.PERMISSIONS ->

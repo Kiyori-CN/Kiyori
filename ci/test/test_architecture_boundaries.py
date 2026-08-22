@@ -2257,6 +2257,8 @@ class ArchitectureBoundaryTest(unittest.TestCase):
                 "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
                 "KiyoriAdBlockSettingsPage.kt",
                 "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
+                "KiyoriNetworkProxySettingsPage.kt",
+                "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
                 "KiyoriBrowserPasswordManagerPage.kt",
                 "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
                 "KiyoriBrowserTextSizePage.kt",
@@ -2530,7 +2532,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
         player_path = next(
             iter(M05A2_EXPECTED_QUALIFIED_REFERENCES["KiyoriSemanticColors"])
         )
-        legacy_production_consumer_count = M05A2_PRODUCTION_CONSUMER_COUNT - 2
+        legacy_production_consumer_count = M05A2_PRODUCTION_CONSUMER_COUNT - 3
         assistant_experience_path = (
             "app/src/main/java/com/ai/assistance/operit/ui/features/"
             "semantic/AssistantExperienceSettingsPages.kt"
@@ -2539,11 +2541,15 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             "app/src/main/java/com/kiyori/integration/operit/onboarding/"
             "KiyoriPermissionPresentation.kt"
         )
+        network_proxy_path = (
+            "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
+            "KiyoriNetworkProxySettingsPage.kt"
+        )
         production_paths = [player_path] + [
             "app/src/main/java/com/ai/assistance/operit/ui/features/"
             f"semantic/Consumer{index:02d}.kt"
             for index in range(legacy_production_consumer_count - 1)
-        ] + [assistant_experience_path, permission_presentation_path]
+        ] + [assistant_experience_path, permission_presentation_path, network_proxy_path]
         test_paths = [
             "app/src/test/java/com/ai/assistance/operit/ui/semantic/"
             f"SemanticConsumer{index}.kt"
@@ -2566,6 +2572,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             if relative_path in {
                 assistant_experience_path,
                 permission_presentation_path,
+                network_proxy_path,
             }:
                 imports_by_path[relative_path] = ["KiyoriSemanticTone"]
                 continue
@@ -3462,6 +3469,10 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             KIYORI_FIRST_RUN_SCREEN_PATH,
             "app/src/main/java/com/kiyori/integration/operit/onboarding/"
             "KiyoriPermissionsSettingsPage.kt",
+            "app/src/main/java/com/kiyori/platform/network/"
+            "KiyoriMihomoRuntime.kt",
+            "app/src/main/java/com/kiyori/platform/network/"
+            "KiyoriNetworkProxyConfigStore.kt",
         )
         for relative_path in consumer_paths:
             extra_import = (

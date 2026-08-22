@@ -6,6 +6,8 @@ import com.ai.assistance.operit.data.preferences.GitHubUser
 import com.ai.assistance.operit.ui.features.packages.market.normalizeMarketArtifactId
 import com.ai.assistance.operit.util.AppLogger
 import com.kiyori.platform.android.ApplicationContextAccess
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.applyKiyoriNetworkProxy
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
@@ -1349,6 +1351,7 @@ class MarketStatsApiService {
 
         private val STATIC_CLIENT by lazy {
             OkHttpClient.Builder()
+                .applyKiyoriNetworkProxy(KiyoriNetworkModule.APP_SERVICES)
                 .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .writeTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -1359,6 +1362,7 @@ class MarketStatsApiService {
 
         private val DYNAMIC_CLIENT by lazy {
             OkHttpClient.Builder()
+                .applyKiyoriNetworkProxy(KiyoriNetworkModule.APP_SERVICES)
                 .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .writeTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)

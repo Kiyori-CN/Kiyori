@@ -20,6 +20,8 @@ import com.ai.assistance.operit.core.player.shortPlayerDiagnosticId
 import `is`.xyz.mpv.MPVLib
 import `is`.xyz.mpv.MPVNode
 import `is`.xyz.mpv.Utils
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.KiyoriNetworkProxyManager
 import java.io.File
 import java.nio.file.Files
 
@@ -272,6 +274,14 @@ internal class MpvPlayerEngine(
         setRequiredOption("slang", "zh,chi,zho,chs,cht,zh-CN,zh-TW,en,eng")
         setRequiredOption("tls-ca-file", tlsCaFile.absolutePath)
         setRequiredOption("tls-verify", "yes")
+        val proxyEndpoint =
+            KiyoriNetworkProxyManager.getInstance(appContext)
+                .resolveRouteBlocking(KiyoriNetworkModule.PLAYER)
+        if (proxyEndpoint != null) {
+            setRequiredOption("http-proxy", "${proxyEndpoint.host}:${proxyEndpoint.port}")
+        } else {
+            setRequiredOption("http-proxy", "")
+        }
         // Browser media candidates are already direct executable media requests.
         // No yt-dlp binary is distributed, so the ytdl hook must not turn a native
         // HTTP error into unrelated subprocess lookup failures.

@@ -16,6 +16,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.applyKiyoriNetworkProxy
 
 internal const val BROWSER_DOWNLOAD_TRANSPORT_RETRY_COUNT = 5
 internal const val BROWSER_DOWNLOAD_TRANSPORT_RESOURCE_BUFFER_BYTES = 64 * 1024
@@ -111,6 +113,7 @@ internal class BrowserDownloadTransport(
         ConnectionPool(dispatcher.maxRequests, 30L, TimeUnit.SECONDS)
     private val clientBuilder =
         OkHttpClient.Builder()
+            .applyKiyoriNetworkProxy(KiyoriNetworkModule.DOWNLOADS)
             .followRedirects(true)
             .followSslRedirects(true)
             .retryOnConnectionFailure(true)

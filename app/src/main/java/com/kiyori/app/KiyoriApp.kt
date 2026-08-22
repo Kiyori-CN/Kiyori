@@ -999,6 +999,14 @@ fun KiyoriApp(
                         },
                         showNavigationMenu = showNavigationMenu,
                         onGoBack = ::requestGoBack,
+                        onOpenKiyoriNetworkProxy = {
+                            updateShellState(
+                                shellState
+                                    .openSettings(origin = KiyoriSettingsOrigin.AI_HOST)
+                                    .openSettingsRoute(KiyoriSettingsRoute.MORE_FEATURES)
+                                    .openSettingsRoute(KiyoriSettingsRoute.NETWORK_PROXY),
+                            )
+                        },
                         isNavigatingBack = isNavigatingBack,
                     )
                 },

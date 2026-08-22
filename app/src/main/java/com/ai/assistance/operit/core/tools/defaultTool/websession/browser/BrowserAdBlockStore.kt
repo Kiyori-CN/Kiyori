@@ -3,6 +3,8 @@ package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 import android.content.Context
 import android.util.AtomicFile
 import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.applyKiyoriNetworkProxy
 import java.io.EOFException
 import java.io.File
 import java.io.IOException
@@ -2310,6 +2312,7 @@ internal class BrowserAdBlockStore private constructor(
                         context = context.applicationContext,
                         httpClient =
                             OkHttpClient.Builder()
+                                .applyKiyoriNetworkProxy(KiyoriNetworkModule.BROWSER)
                                 .connectTimeout(20L, TimeUnit.SECONDS)
                                 .readTimeout(60L, TimeUnit.SECONDS)
                                 .callTimeout(10L, TimeUnit.MINUTES)

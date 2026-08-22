@@ -70,14 +70,15 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.StringResultData
 import com.ai.assistance.operit.core.tools.ToolExecutor
 import com.ai.assistance.operit.core.tools.VisitWebResultData
-import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkCallIdentity
-import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkErrorCode
-import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkException
-import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkHttpClientFactory
 import com.ai.assistance.operit.data.preferences.DisplayPreferencesManager
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolResult
 import com.ai.assistance.operit.data.model.ToolValidationResult
+import com.kiyori.platform.network.KiyoriNetworkErrorCode
+import com.kiyori.platform.network.KiyoriNetworkException
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.KiyoriNetworkProxyManager
+import com.kiyori.platform.network.KiyoriScriptNetworkCallIdentity
 import com.ai.assistance.operit.util.OperitPaths
 import java.io.File
 import java.util.UUID
@@ -154,7 +155,7 @@ class StandardWebVisitTool(private val context: Context) : ToolExecutor {
         val userAgentPresetParam = tool.parameters.find { it.name == "user_agent_preset" }?.value
         val scriptPackageName =
             tool.parameters
-                .find { it.name == ScriptNetworkCallIdentity.INTERNAL_PACKAGE_PARAMETER }
+                .find { it.name == KiyoriScriptNetworkCallIdentity.INTERNAL_PACKAGE_PARAMETER }
                 ?.value
                 ?.trim()
                 ?.ifBlank { null }
@@ -504,27 +505,32 @@ class StandardWebVisitTool(private val context: Context) : ToolExecutor {
                 .readTimeout(30, TimeUnit.SECONDS)
                 .followRedirects(true)
                 .followSslRedirects(true)
-        ScriptNetworkHttpClientFactory.getInstance(context)
-            .applyScriptRoute(builder, scriptPackageName)
+        KiyoriNetworkProxyManager.getInstance(context)
+            .applyRoute(
+                builder = builder,
+                module = KiyoriNetworkModule.SCRIPTS,
+                scriptPackageName = scriptPackageName,
+                mapFailures = true,
+            )
         val requestBuilder = Request.Builder().url(url).header("User-Agent", userAgent)
         headers.forEach { (name, value) -> requestBuilder.header(name, value) }
 
         builder.build().newCall(requestBuilder.get().build()).execute().use { response ->
             if (!response.isSuccessful) {
-                throw ScriptNetworkException(
-                    ScriptNetworkErrorCode.HTTP_FAILED,
+                throw KiyoriNetworkException(
+                    KiyoriNetworkErrorCode.HTTP_FAILED,
                     "Script web visit returned HTTP ${response.code}.",
                 )
             }
             val responseBody = response.body
-                ?: throw ScriptNetworkException(
-                    ScriptNetworkErrorCode.HTTP_FAILED,
+                ?: throw KiyoriNetworkException(
+                    KiyoriNetworkErrorCode.HTTP_FAILED,
                     "Script web visit returned an empty response body.",
                 )
             val declaredLength = responseBody.contentLength()
             if (declaredLength > MAX_SCRIPT_VISIT_BODY_BYTES) {
-                throw ScriptNetworkException(
-                    ScriptNetworkErrorCode.HTTP_FAILED,
+                throw KiyoriNetworkException(
+                    KiyoriNetworkErrorCode.HTTP_FAILED,
                     "Script web visit exceeded the 8 MiB document limit.",
                 )
             }
@@ -535,8 +541,8 @@ class StandardWebVisitTool(private val context: Context) : ToolExecutor {
                     val read = input.read(buffer)
                     if (read < 0) break
                     if (output.size() + read > MAX_SCRIPT_VISIT_BODY_BYTES) {
-                        throw ScriptNetworkException(
-                            ScriptNetworkErrorCode.HTTP_FAILED,
+                        throw KiyoriNetworkException(
+                            KiyoriNetworkErrorCode.HTTP_FAILED,
                             "Script web visit exceeded the 8 MiB document limit.",
                         )
                     }

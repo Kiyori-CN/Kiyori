@@ -12,6 +12,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.location.LocationManagerCompat
 import androidx.core.os.CancellationSignal
 import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.applyKiyoriNetworkProxy
 import java.io.IOException
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -44,6 +46,7 @@ internal class KiyoriWeatherRepository private constructor(context: Context) {
     }
     private val client by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         OkHttpClient.Builder()
+            .applyKiyoriNetworkProxy(KiyoriNetworkModule.APP_SERVICES)
             .callTimeout(WEATHER_REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .build()
     }

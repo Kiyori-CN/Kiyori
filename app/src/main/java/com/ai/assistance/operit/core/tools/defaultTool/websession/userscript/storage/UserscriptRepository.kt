@@ -24,6 +24,8 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.Use
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptRuntimeCapabilities
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptSourceTools
 import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.applyKiyoriNetworkProxy
 import java.io.File
 import java.net.URI
 import java.net.URLDecoder
@@ -76,6 +78,7 @@ internal class UserscriptRepository private constructor(
     private val sourceTools = UserscriptSourceTools(appContext)
     private val httpClient =
         OkHttpClient.Builder()
+            .applyKiyoriNetworkProxy(KiyoriNetworkModule.BROWSER)
             .followRedirects(true)
             .followSslRedirects(true)
             .build()

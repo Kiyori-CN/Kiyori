@@ -15,4 +15,6 @@ object ApplicationContextAccess {
     internal fun installForProcess(application: Application) {
         current = application
     }
+
+    internal fun isInstalled(): Boolean = ::current.isInitialized
 }

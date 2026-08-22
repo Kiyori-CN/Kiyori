@@ -100,6 +100,7 @@ internal val LocalKiyoriEmbeddedSettingsNavigation =
     compositionLocalOf<KiyoriEmbeddedSettingsNavigation> {
         error("Kiyori embedded settings navigation is not available")
     }
+internal val LocalOpenKiyoriNetworkProxy = compositionLocalOf<() -> Unit> { {} }
 
 private tailrec fun Context.findActivity(): Activity? =
     when (this) {
@@ -169,6 +170,7 @@ fun AppContent(
         onGestureConsumed: (Boolean) -> Unit = {},
         showNavigationMenu: Boolean,
         onGoBack: () -> Unit,
+        onOpenKiyoriNetworkProxy: () -> Unit = {},
         isNavigatingBack: Boolean = false,
 ) {
     // Get background image state
@@ -702,7 +704,9 @@ fun AppContent(
                                                             } else {
                                                                 onGoBack
                                                             },
-                                                    ),
+                                                        ),
+                                                LocalOpenKiyoriNetworkProxy provides
+                                                    onOpenKiyoriNetworkProxy,
                                             ) {
                                                 screenContent()
                                             }

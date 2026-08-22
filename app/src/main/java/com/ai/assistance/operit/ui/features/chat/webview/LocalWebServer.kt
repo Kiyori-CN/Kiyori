@@ -15,6 +15,8 @@ import com.ai.assistance.operit.data.model.ToolParameter
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.workspaceMimeTypeForPath
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.OperitPaths
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.applyKiyoriNetworkProxy
 import fi.iki.elonen.NanoHTTPD
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -58,6 +60,7 @@ private constructor(
     @Volatile
     private var workspaceEnv: String? = null
     private val proxyClient = OkHttpClient.Builder()
+        .applyKiyoriNetworkProxy(KiyoriNetworkModule.BROWSER)
         .followRedirects(true)
         .followSslRedirects(true)
         .build()

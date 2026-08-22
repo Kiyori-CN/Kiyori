@@ -12,13 +12,13 @@ import android.text.TextUtils
 import android.util.Base64
 import android.util.TypedValue
 import com.ai.assistance.operit.core.tools.AIToolHandler
-import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkCallIdentity
 import com.ai.assistance.operit.core.tools.BinaryResultData
 import com.ai.assistance.operit.core.tools.BooleanResultData
 import com.ai.assistance.operit.core.tools.IntResultData
 import com.ai.assistance.operit.core.tools.SandboxScriptExecutionResultData
 import com.ai.assistance.operit.core.tools.StringResultData
 import com.ai.assistance.operit.core.tools.ToolResultData
+import com.kiyori.platform.network.KiyoriScriptNetworkCallIdentity
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
 import com.ai.assistance.operit.core.tools.packTool.ToolPkgArtifactBuilder
 import com.ai.assistance.operit.data.model.AITool
@@ -102,7 +102,7 @@ internal object JsNativeInterfaceDelegates {
         jsonObject.keys().forEach { key ->
             params[key] = jsonObject.opt(key)?.toString() ?: ""
         }
-        ScriptNetworkCallIdentity.mergeTrustedParameters(params, trustedParameters)
+        KiyoriScriptNetworkCallIdentity.mergeTrustedParameters(params, trustedParameters)
 
         val fullToolName =
             if (toolType.isNotEmpty() && toolType != "default") {

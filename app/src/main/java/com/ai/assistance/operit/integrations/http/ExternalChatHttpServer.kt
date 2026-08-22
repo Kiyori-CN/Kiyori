@@ -14,6 +14,8 @@ import com.ai.assistance.operit.integrations.externalchat.ExternalChatStreamEnve
 import com.ai.assistance.operit.integrations.externalchat.ExternalChatStreamingStartResult
 import com.ai.assistance.operit.data.model.InputProcessingState
 import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.applyKiyoriNetworkProxy
 import fi.iki.elonen.NanoHTTPD
 import java.io.BufferedWriter
 import java.io.FilterInputStream
@@ -47,6 +49,7 @@ class ExternalChatHttpServer(
     private val executor = ExternalChatRequestExecutor(appContext)
     private val webChatBridge = WebChatHttpBridge(appContext, preferences, serviceScope)
     private val callbackClient = OkHttpClient.Builder()
+        .applyKiyoriNetworkProxy(KiyoriNetworkModule.AI_SERVICES)
         .retryOnConnectionFailure(false)
         .build()
     private val running = AtomicBoolean(false)

@@ -7,3 +7,5 @@ app/src/main/java/com/kiyori/app/startup/KiyoriMainTaskVisibilityCoordinator.kt
 app/src/main/java/com/kiyori/integration/operit/navigation/OperitNavigationIntegration.kt
 app/src/main/java/com/kiyori/integration/operit/onboarding/KiyoriOnboardingScreen.kt
 app/src/main/java/com/kiyori/integration/operit/onboarding/KiyoriPermissionsSettingsPage.kt
+app/src/main/java/com/kiyori/platform/network/KiyoriMihomoRuntime.kt
+app/src/main/java/com/kiyori/platform/network/KiyoriNetworkProxyConfigStore.kt

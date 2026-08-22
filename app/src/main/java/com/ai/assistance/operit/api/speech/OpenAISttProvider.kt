@@ -8,6 +8,8 @@ import android.media.MediaRecorder
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.api.speech.SpeechPrerollStore
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.applyKiyoriNetworkProxy
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -53,6 +55,7 @@ class OpenAISttProvider(
 
     private val httpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
+            .applyKiyoriNetworkProxy(KiyoriNetworkModule.AI_SERVICES)
             .connectTimeout(DEFAULT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS)
             .readTimeout(DEFAULT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS)
             .writeTimeout(DEFAULT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS)

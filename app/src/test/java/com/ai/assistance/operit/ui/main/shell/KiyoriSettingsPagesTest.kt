@@ -204,14 +204,14 @@ class KiyoriSettingsPagesTest {
     @Test
     fun `more features exposes legal documents and the native permission center`() {
         assertEquals(
-            listOf("应用与隐私", "系统能力"),
+            listOf("网络能力", "应用与隐私", "系统能力"),
             kiyoriMoreFeaturesSettingsGroups.map(KiyoriMoreFeaturesSettingsGroupSpec::title),
         )
         val entries =
             kiyoriMoreFeaturesSettingsGroups
                 .flatMap(KiyoriMoreFeaturesSettingsGroupSpec::entries)
         assertEquals(
-            listOf("用户协议与隐私政策", "权限"),
+            listOf("网络代理", "用户协议与隐私政策", "权限"),
             entries.map(KiyoriMoreFeaturesSettingsEntrySpec::title),
         )
         val agreementEntry =

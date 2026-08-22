@@ -3,12 +3,11 @@ package com.ai.assistance.operit.core.tools.javascript
 import android.content.Context
 import com.ai.assistance.operit.core.tools.ScriptExecutionTraceData
 import com.ai.assistance.operit.core.tools.StringResultData
-import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkCallIdentity
-import com.ai.assistance.operit.core.tools.javascript.network.ScriptProxyRuntime
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolResult
 import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.platform.network.KiyoriScriptNetworkCallIdentity
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
@@ -21,13 +20,6 @@ class JsToolManager private constructor(
     private val context: Context,
     private val packageManager: PackageManager
 ) {
-    init {
-        // Schedule stale no-backup cleanup when the script host initializes; every runtime start
-        // also awaits the same job, so a fast script call cannot race with deletion.
-        ScriptProxyRuntime.getInstance(context).scheduleStaleRuntimeCleanup()
-    }
-
-
     private class ToolParameterConversionException(
         val argumentError: ToolPkgInvocationArgumentError,
     ) : IllegalArgumentException(argumentError.toJson())
@@ -113,9 +105,9 @@ class JsToolManager private constructor(
 
         val toolPkgRuntime = packageManager.resolveToolPkgSubpackageRuntimeInternal(packageName)
         if (toolPkgRuntime == null) {
-            runtimeParams[ScriptNetworkCallIdentity.RUNTIME_ELIGIBLE_PARAMETER] = "true"
+            runtimeParams[KiyoriScriptNetworkCallIdentity.RUNTIME_ELIGIBLE_PARAMETER] = "true"
         } else {
-            runtimeParams.remove(ScriptNetworkCallIdentity.RUNTIME_ELIGIBLE_PARAMETER)
+            runtimeParams.remove(KiyoriScriptNetworkCallIdentity.RUNTIME_ELIGIBLE_PARAMETER)
         }
 
         toolPkgRuntime?.let { runtime ->
