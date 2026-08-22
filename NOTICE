@@ -107,3 +107,32 @@ Player native stack
 The exact transformed-artifact hash, packaged ABI list, dynamic dependency
 audit, and 16 KB ELF evidence are maintained in
 docs/doc-src/dev-core/PLAYER_NATIVE_STACK.md.
+
+Script proxy runtime
+--------------------
+
+5. Mihomo
+
+   Source: https://github.com/MetaCubeX/mihomo
+   Fixed tag: v1.19.30
+   Fixed commit: ac017cdd246ce8bd547653d927e7bf77d7ee73d5
+   Release asset: mihomo-android-arm64-v8-v1.19.30.gz
+   Release archive SHA-256: 19AFEB40FCA190FC2E3906A4E3B87C74A0C2120626FD3CB3AE0CF4092CB780AD
+   Packaged ELF SHA-256: 94344144936968F25E7089BBEAC2D87F3CAF67574BA433511424724AD7435DAD
+   License: GPL-3.0
+
+   Kiyori uses this fixed arm64 executable only as a separate, loopback-only
+   process for traditional JavaScript package traffic. The Gradle build checks
+   the release archive and executable hashes, ABI, Android interpreter, PIE
+   type, and 16 KB PT_LOAD alignment before packaging. Distribution must keep
+   this notice and provide Mihomo's complete corresponding source and build
+   information as required by GPL-3.0. Kiyori's full GPLv3 text is in LICENSE.
+
+6. SnakeYAML Engine
+
+   Source: https://bitbucket.org/snakeyaml/snakeyaml-engine/
+   Version: 3.1.1
+   License: Apache-2.0
+
+   Kiyori uses SnakeYAML Engine's safe loader to parse and reconstruct Mihomo
+   subscription YAML before any configuration reaches the embedded process.

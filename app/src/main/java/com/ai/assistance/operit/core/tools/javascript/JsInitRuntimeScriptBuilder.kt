@@ -488,17 +488,19 @@ private fun buildRuntimeToolCallScript(): String {
                                 }
                             };
                             callNative(
-                                'callToolAsyncStreaming',
+                                'callToolAsyncStreamingForExecution',
                                 callbackId,
                                 intermediateCallbackId,
+                                asString(windowRef.__operitCurrentCallId || ''),
                                 parsed.type || 'default',
                                 parsed.name,
                                 JSON.stringify(parsed.params || {})
                             );
                         } else {
                             callNative(
-                                'callToolAsync',
+                                'callToolAsyncForExecution',
                                 callbackId,
+                                asString(windowRef.__operitCurrentCallId || ''),
                                 parsed.type || 'default',
                                 parsed.name,
                                 JSON.stringify(parsed.params || {})

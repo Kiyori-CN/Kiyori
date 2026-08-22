@@ -5,6 +5,8 @@ import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.core.tools.HttpStreamEventData
 import com.ai.assistance.operit.core.tools.HttpResponseData
 import com.ai.assistance.operit.core.tools.StringResultData
+import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkCallIdentity
+import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkHttpClientFactory
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolResult
 import java.io.File
@@ -79,7 +81,7 @@ class StandardHttpTools(private val context: Context) {
                     .build()
 
     // 创建可配置的OkHttpClient
-    private fun buildConfigurableClient(
+    private suspend fun buildConfigurableClient(
             connectTimeout: Long = 15,
             readTimeout: Long = 20,
             writeTimeout: Long = 15,
@@ -88,7 +90,8 @@ class StandardHttpTools(private val context: Context) {
             useCookies: Boolean = true,
             proxyHost: String? = null,
             proxyPort: Int = 0,
-            ignoreSsl: Boolean = false
+            ignoreSsl: Boolean = false,
+            scriptPackageName: String? = null,
     ): OkHttpClient {
         val builder =
                 OkHttpClient.Builder()
@@ -103,8 +106,13 @@ class StandardHttpTools(private val context: Context) {
             builder.cookieJar(cookieJar)
         }
 
-        // 配置代理
-        if (!proxyHost.isNullOrBlank() && proxyPort > 0) {
+        if (scriptPackageName != null) {
+            require(proxyHost.isNullOrBlank() && proxyPort == 0) {
+                "Script HTTP calls cannot override the host-managed proxy route"
+            }
+            ScriptNetworkHttpClientFactory.getInstance(context)
+                .applyScriptRoute(builder, scriptPackageName)
+        } else if (!proxyHost.isNullOrBlank() && proxyPort > 0) {
             val proxy = Proxy(Proxy.Type.HTTP, InetSocketAddress(proxyHost, proxyPort))
             builder.proxy(proxy)
         }
@@ -176,7 +184,7 @@ class StandardHttpTools(private val context: Context) {
         )
     }
 
-    private fun prepareHttpRequest(tool: AITool): PreparedHttpRequest {
+    private suspend fun prepareHttpRequest(tool: AITool): PreparedHttpRequest {
         val url = tool.parameters.find { it.name == "url" }?.value ?: ""
         val methodParam = tool.parameters.find { it.name == "method" }?.value
         val method = methodParam?.uppercase() ?: "GET"
@@ -194,6 +202,12 @@ class StandardHttpTools(private val context: Context) {
         val proxyPortParam = tool.parameters.find { it.name == "proxy_port" }?.value
         val customCookiesParam = tool.parameters.find { it.name == "custom_cookies" }?.value
         val ignoreSslParam = tool.parameters.find { it.name == "ignore_ssl" }?.value
+        val scriptPackageName =
+                tool.parameters
+                        .find { it.name == ScriptNetworkCallIdentity.INTERNAL_PACKAGE_PARAMETER }
+                        ?.value
+                        ?.trim()
+                        ?.ifBlank { null }
 
         require(url.isNotBlank()) { "URL parameter cannot be empty" }
         require(isValidUrl(url)) { "Invalid URL format: $url" }
@@ -218,7 +232,8 @@ class StandardHttpTools(private val context: Context) {
                         useCookies = useCookies,
                         proxyHost = proxyHostParam,
                         proxyPort = proxyPortParam?.toIntOrNull() ?: 0,
-                        ignoreSsl = ignoreSslParam?.lowercase() == "true"
+                        ignoreSsl = ignoreSslParam?.lowercase() == "true",
+                        scriptPackageName = scriptPackageName,
                 )
 
         if (customCookies != null) {
@@ -609,6 +624,12 @@ class StandardHttpTools(private val context: Context) {
         val proxyPortParam = tool.parameters.find { it.name == "proxy_port" }?.value
         val customCookiesParam = tool.parameters.find { it.name == "custom_cookies" }?.value
         val ignoreSslParam = tool.parameters.find { it.name == "ignore_ssl" }?.value
+        val scriptPackageName =
+                tool.parameters
+                        .find { it.name == ScriptNetworkCallIdentity.INTERNAL_PACKAGE_PARAMETER }
+                        ?.value
+                        ?.trim()
+                        ?.ifBlank { null }
 
         if (url.isBlank()) {
             return ToolResult(
@@ -660,7 +681,8 @@ class StandardHttpTools(private val context: Context) {
                             useCookies = useCookiesParam?.lowercase() != "false",
                             proxyHost = proxyHostParam,
                             proxyPort = proxyPortParam?.toIntOrNull() ?: 0,
-                            ignoreSsl = ignoreSslParam?.lowercase() == "true"
+                            ignoreSsl = ignoreSslParam?.lowercase() == "true",
+                            scriptPackageName = scriptPackageName,
                     )
 
             // 如果有自定义Cookie，添加到cookieStore

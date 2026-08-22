@@ -285,7 +285,7 @@ private fun RowScope.PackageManagerTopBarActionButton(
             IconButton(onClick = onEnvironmentClick) {
                 Icon(
                     imageVector = Icons.Outlined.Settings,
-                    contentDescription = stringResource(R.string.pkg_manage_env_vars),
+                    contentDescription = stringResource(R.string.script_settings),
                     tint = contentColor,
                 )
             }

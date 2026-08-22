@@ -180,6 +180,8 @@ fun PackageManagerScreen(
 
     // Environment variables drawer state
     var showEnvSheet by remember { mutableStateOf(false) }
+    var showScriptSettingsChooser by remember { mutableStateOf(false) }
+    var showScriptNetworkSettings by remember { mutableStateOf(false) }
     var envVariables by
         remember {
             mutableStateOf<Map<PackageEnvironmentVariableKey, String>>(emptyMap())
@@ -628,22 +630,26 @@ fun PackageManagerScreen(
         selectedTab = selectedTab,
         isRefreshing = isLoading,
         onEnvironmentClick = {
-            envVariables =
-                environmentVariableKeys.associateWith { key ->
-                    when (key.scope) {
-                        EnvVarScope.GLOBAL ->
-                            envPreferences.getEnv(key.variableName).orEmpty()
-                        EnvVarScope.PACKAGE ->
-                            toolPkgHostEnvironmentRepository
-                                .getValue(
-                                    containerPackageName =
-                                        requireNotNull(key.ownerPackageName),
-                                    variableName = key.variableName,
-                                )
-                                .orEmpty()
+            if (selectedTab == PackageTab.PACKAGES) {
+                showScriptSettingsChooser = true
+            } else {
+                envVariables =
+                    environmentVariableKeys.associateWith { key ->
+                        when (key.scope) {
+                            EnvVarScope.GLOBAL ->
+                                envPreferences.getEnv(key.variableName).orEmpty()
+                            EnvVarScope.PACKAGE ->
+                                toolPkgHostEnvironmentRepository
+                                    .getValue(
+                                        containerPackageName =
+                                            requireNotNull(key.ownerPackageName),
+                                        variableName = key.variableName,
+                                    )
+                                    .orEmpty()
+                        }
                     }
-                }
-            showEnvSheet = true
+                showEnvSheet = true
+            }
         },
         onMarketClick = {
             onNavigateToArtifactMarket(
@@ -998,6 +1004,59 @@ fun PackageManagerScreen(
             }
 
             // Environment Variables Drawer for packages
+            if (showScriptSettingsChooser) {
+                ScriptSettingsChooserDialog(
+                    onEnvironmentClick = {
+                        envVariables =
+                            environmentVariableKeys.associateWith { key ->
+                                when (key.scope) {
+                                    EnvVarScope.GLOBAL ->
+                                        envPreferences.getEnv(key.variableName).orEmpty()
+                                    EnvVarScope.PACKAGE ->
+                                        toolPkgHostEnvironmentRepository
+                                            .getValue(
+                                                containerPackageName =
+                                                    requireNotNull(key.ownerPackageName),
+                                                variableName = key.variableName,
+                                            )
+                                            .orEmpty()
+                                }
+                            }
+                        showEnvSheet = true
+                    },
+                    onNetworkProxyClick = { showScriptNetworkSettings = true },
+                    onDismiss = { showScriptSettingsChooser = false },
+                )
+            }
+
+            if (showScriptNetworkSettings) {
+                ScriptNetworkSettingsDialog(
+                    packages =
+                        visibleImportedPackages.value
+                            .mapNotNull { packageName ->
+                                if (
+                                    packageManager.resolveToolPkgSubpackageRuntimeInternal(
+                                        packageName,
+                                    ) != null
+                                ) {
+                                    return@mapNotNull null
+                                }
+                                allAvailablePackages.value[packageName]?.let { toolPackage ->
+                                    ScriptNetworkPackageItem(
+                                        packageName = packageName,
+                                        displayName =
+                                            toolPackage.displayName.resolve(context).ifBlank {
+                                                packageName
+                                            },
+                                        category = toolPackage.category,
+                                    )
+                                }
+                            }
+                            .sortedBy { item -> item.displayName.lowercase() },
+                    onDismiss = { showScriptNetworkSettings = false },
+                )
+            }
+
             if (showEnvSheet) {
                 PackageEnvironmentVariablesSheet(
                     packages = visibleEnvironmentPackages,

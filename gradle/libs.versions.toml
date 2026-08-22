@@ -49,6 +49,7 @@ navigation-compose = "2.7.7"
 shizuku = "13.1.5"
 okhttp = "4.12.0"
 jsoup = "1.23.1"
+snakeyaml-engine = "3.1.1"
 datastore = "1.0.0"
 poi = "5.5.1"
 bouncycastle = "1.85"
@@ -221,6 +222,7 @@ retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = 
 retrofit-moshi = { group = "com.squareup.retrofit2", name = "converter-moshi", version.ref = "retrofit" }
 moshi-kotlin = { group = "com.squareup.moshi", name = "moshi-kotlin", version.ref = "moshi" }
 jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup" }
+snakeyaml-engine = { group = "org.snakeyaml", name = "snakeyaml-engine", version.ref = "snakeyaml-engine" }
 
 # DataStore
 datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }

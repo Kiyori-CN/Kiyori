@@ -96,6 +96,7 @@ private fun getOpenSourceLibraries(): List<OpenSourceLibrary> {
         OpenSourceLibrary("Jsoup", "Java HTML parser", "MIT", "https://jsoup.org/"),
         OpenSourceLibrary("Ktor", "Asynchronous networking framework", "Apache-2.0", "https://ktor.io/"),
         OpenSourceLibrary("MCP SDK", "Model Context Protocol SDK", "MIT", "https://github.com/modelcontextprotocol/kotlin-sdk"),
+        OpenSourceLibrary("Mihomo", "Pinned v1.19.30 proxy runtime for traditional JavaScript packages", "GPL-3.0", "https://github.com/MetaCubeX/mihomo"),
         OpenSourceLibrary("NanoHTTPD", "Lightweight HTTP server library", "BSD-3-Clause", "https://github.com/NanoHttpd/nanohttpd"),
         OpenSourceLibrary("OkHttp", "HTTP client library", "Apache-2.0", "https://square.github.io/okhttp/"),
         OpenSourceLibrary("Retrofit", "Type-safe HTTP client", "Apache-2.0", "https://square.github.io/retrofit/"),
@@ -106,6 +107,7 @@ private fun getOpenSourceLibraries(): List<OpenSourceLibrary> {
         OpenSourceLibrary("kotlin-uuid", "UUID library for Kotlin", "Apache-2.0", "https://github.com/benasher44/uuid"),
         OpenSourceLibrary("kotlinx.serialization", "Kotlin serialization library", "Apache-2.0", "https://github.com/Kotlin/kotlinx.serialization"),
         OpenSourceLibrary("Moshi", "Modern JSON library for Kotlin", "Apache-2.0", "https://github.com/square/moshi"),
+        OpenSourceLibrary("SnakeYAML Engine", "Safe YAML parser used to sanitize Mihomo subscriptions", "Apache-2.0", "https://bitbucket.org/snakeyaml/snakeyaml-engine/"),
 
         // Database
         OpenSourceLibrary("ObjectBox", "High-performance NoSQL database", "Apache-2.0", "https://objectbox.io/"),

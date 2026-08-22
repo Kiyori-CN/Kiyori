@@ -16,6 +16,7 @@ import com.ai.assistance.operit.core.application.ActivityLifecycleManager
 import com.ai.assistance.operit.core.chat.logMessageTiming
 import com.ai.assistance.operit.core.chat.messageTimingNow
 import com.ai.assistance.operit.core.tools.AIToolHandler
+import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkCallIdentity
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
 import com.ai.assistance.operit.core.tools.packTool.TOOLPKG_EVENT_MESSAGE_PROCESSING
 import com.ai.assistance.operit.ui.main.navigation.AppRouteDiscoveryGateway
@@ -118,6 +119,8 @@ class JsEngine(
         val intermediateResultCallback: ((Any?) -> Unit)?,
         val dispatchIntermediateOnMain: Boolean,
         val envOverrides: Map<String, String>,
+        val packageName: String?,
+        val scriptNetworkEligible: Boolean,
         val packageChatId: String?,
         val toolPkgRuntimeKind: String?,
         val toolPkgLogSnapshot: JsToolPkgExecutionContext.LogSnapshot,
@@ -346,6 +349,15 @@ class JsEngine(
             intermediateResultCallback = onIntermediateResult,
             dispatchIntermediateOnMain = dispatchIntermediateOnMain,
             envOverrides = envOverrides,
+            packageName =
+                params["__operit_package_name"]
+                    ?.toString()
+                    ?.trim()
+                    ?.ifBlank { null },
+            scriptNetworkEligible =
+                params[ScriptNetworkCallIdentity.RUNTIME_ELIGIBLE_PARAMETER]
+                    ?.toString()
+                    ?.equals("true", ignoreCase = true) == true,
             packageChatId =
                 params["__operit_package_chat_id"]
                     ?.toString()
@@ -2504,6 +2516,39 @@ class JsEngine(
                 toolName: String,
                 paramsJson: String
         ) {
+            callToolAsyncInternal(
+                callbackId = callbackId,
+                executionCallId = null,
+                toolType = toolType,
+                toolName = toolName,
+                paramsJson = paramsJson,
+            )
+        }
+
+        @JavascriptInterface
+        fun callToolAsyncForExecution(
+                callbackId: String,
+                executionCallId: String,
+                toolType: String,
+                toolName: String,
+                paramsJson: String
+        ) {
+            callToolAsyncInternal(
+                callbackId = callbackId,
+                executionCallId = executionCallId,
+                toolType = toolType,
+                toolName = toolName,
+                paramsJson = paramsJson,
+            )
+        }
+
+        private fun callToolAsyncInternal(
+                callbackId: String,
+                executionCallId: String?,
+                toolType: String,
+                toolName: String,
+                paramsJson: String
+        ) {
             JsNativeInterfaceDelegates.callToolAsync(
                 toolHandler = toolHandler,
                 callbackId = callbackId,
@@ -2515,7 +2560,8 @@ class JsEngine(
                 binaryDataThreshold = BINARY_DATA_THRESHOLD,
                 sendToolResult = { callback, result, isError ->
                     sendToolResult(callback, result, isError)
-                }
+                },
+                trustedParameters = trustedScriptNetworkParameters(executionCallId),
             )
         }
 
@@ -2523,6 +2569,43 @@ class JsEngine(
         fun callToolAsyncStreaming(
                 callbackId: String,
                 intermediateCallbackId: String,
+                toolType: String,
+                toolName: String,
+                paramsJson: String
+        ) {
+            callToolAsyncStreamingInternal(
+                callbackId = callbackId,
+                intermediateCallbackId = intermediateCallbackId,
+                executionCallId = null,
+                toolType = toolType,
+                toolName = toolName,
+                paramsJson = paramsJson,
+            )
+        }
+
+        @JavascriptInterface
+        fun callToolAsyncStreamingForExecution(
+                callbackId: String,
+                intermediateCallbackId: String,
+                executionCallId: String,
+                toolType: String,
+                toolName: String,
+                paramsJson: String
+        ) {
+            callToolAsyncStreamingInternal(
+                callbackId = callbackId,
+                intermediateCallbackId = intermediateCallbackId,
+                executionCallId = executionCallId,
+                toolType = toolType,
+                toolName = toolName,
+                paramsJson = paramsJson,
+            )
+        }
+
+        private fun callToolAsyncStreamingInternal(
+                callbackId: String,
+                intermediateCallbackId: String,
+                executionCallId: String?,
                 toolType: String,
                 toolName: String,
                 paramsJson: String
@@ -2542,7 +2625,16 @@ class JsEngine(
                 },
                 sendIntermediateResult = { callback, result, isError ->
                     sendToolResult(callback, result, isError)
-                }
+                },
+                trustedParameters = trustedScriptNetworkParameters(executionCallId),
+            )
+        }
+
+        private fun trustedScriptNetworkParameters(executionCallId: String?): Map<String, String> {
+            val session = executionCallId?.let(::resolveExecutionSession) ?: return emptyMap()
+            return ScriptNetworkCallIdentity.trustedParameters(
+                packageName = session.packageName,
+                eligible = session.scriptNetworkEligible,
             )
         }
 

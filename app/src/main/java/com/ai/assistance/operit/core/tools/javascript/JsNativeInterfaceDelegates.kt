@@ -12,6 +12,7 @@ import android.text.TextUtils
 import android.util.Base64
 import android.util.TypedValue
 import com.ai.assistance.operit.core.tools.AIToolHandler
+import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkCallIdentity
 import com.ai.assistance.operit.core.tools.BinaryResultData
 import com.ai.assistance.operit.core.tools.BooleanResultData
 import com.ai.assistance.operit.core.tools.IntResultData
@@ -88,7 +89,8 @@ internal object JsNativeInterfaceDelegates {
     private fun parseToolCall(
         toolType: String,
         toolName: String,
-        paramsJson: String
+        paramsJson: String,
+        trustedParameters: Map<String, String> = emptyMap(),
     ): ParsedToolCall {
         val normalizedToolName = toolName.trim()
         if (normalizedToolName.isEmpty()) {
@@ -100,6 +102,7 @@ internal object JsNativeInterfaceDelegates {
         jsonObject.keys().forEach { key ->
             params[key] = jsonObject.opt(key)?.toString() ?: ""
         }
+        ScriptNetworkCallIdentity.mergeTrustedParameters(params, trustedParameters)
 
         val fullToolName =
             if (toolType.isNotEmpty() && toolType != "default") {
@@ -850,11 +853,12 @@ internal object JsNativeInterfaceDelegates {
         binaryDataRegistry: ConcurrentHashMap<String, ByteArray>,
         binaryHandlePrefix: String,
         binaryDataThreshold: Int,
-        sendToolResult: (callbackId: String, result: String, isError: Boolean) -> Unit
+        sendToolResult: (callbackId: String, result: String, isError: Boolean) -> Unit,
+        trustedParameters: Map<String, String> = emptyMap(),
     ) {
         val parsed =
             try {
-                parseToolCall(toolType, toolName, paramsJson)
+                parseToolCall(toolType, toolName, paramsJson, trustedParameters)
             } catch (e: Exception) {
                 AppLogger.e(TAG, "[Async] Error preparing tool call: ${e.message}", e)
                 sendToolResult(
@@ -900,11 +904,12 @@ internal object JsNativeInterfaceDelegates {
         binaryHandlePrefix: String,
         binaryDataThreshold: Int,
         sendToolResult: (callbackId: String, result: String, isError: Boolean) -> Unit,
-        sendIntermediateResult: (callbackId: String, result: String, isError: Boolean) -> Unit
+        sendIntermediateResult: (callbackId: String, result: String, isError: Boolean) -> Unit,
+        trustedParameters: Map<String, String> = emptyMap(),
     ) {
         val parsed =
             try {
-                parseToolCall(toolType, toolName, paramsJson)
+                parseToolCall(toolType, toolName, paramsJson, trustedParameters)
             } catch (e: Exception) {
                 AppLogger.e(TAG, "[AsyncStream] Error preparing tool call: ${e.message}", e)
                 sendToolResult(

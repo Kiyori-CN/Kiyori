@@ -6,10 +6,14 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.io.RandomAccessFile
+import java.net.HttpURLConnection
+import java.net.URI
 import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import java.util.Locale
 import java.util.Properties
+import java.util.zip.GZIPInputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
@@ -140,6 +144,10 @@ val playerRequiredLibcxxSymbols =
         "_ZNSt6__ndk127__from_chars_floating_pointIdEENS_19__from_chars_resultIT_EEPKcS5_NS_12chars_formatE",
     )
 val playerNativeZipAlignment = 16 * 1024L
+val scriptProxyMihomoSha256 =
+    "94344144936968f25e7089bbeac2d87f3caf67574ba433511424724ad7435dad"
+val scriptProxyLauncherSha256 =
+    "93399232fa7a6b786a142e45dd1658ea0690aeb9ac9ebaa4a656a77d8c1e2c67"
 
 private fun File.sha256Hex(): String {
     val digest = MessageDigest.getInstance("SHA-256")
@@ -152,6 +160,54 @@ private fun File.sha256Hex(): String {
         }
     }
     return digest.digest().joinToString("") { byte -> "%02x".format(byte) }
+}
+
+private fun ByteArray.sha256Hex(): String =
+    MessageDigest.getInstance("SHA-256")
+        .digest(this)
+        .joinToString("") { byte -> "%02x".format(byte) }
+
+private fun ByteArray.requireAndroidArm64Elf(label: String) {
+    check(size >= 64 && copyOfRange(0, 4).contentEquals(byteArrayOf(0x7f, 0x45, 0x4c, 0x46))) {
+        "$label has no ELF magic"
+    }
+    check(this[4] == 2.toByte() && this[5] == 1.toByte()) {
+        "$label must be little-endian ELF64"
+    }
+    fun ushort(offset: Int): Int =
+        (this[offset].toInt() and 0xff) or ((this[offset + 1].toInt() and 0xff) shl 8)
+    fun uint(offset: Int): Long =
+        (0 until 4).fold(0L) { value, index ->
+            value or ((this[offset + index].toLong() and 0xffL) shl (index * 8))
+        }
+    fun long(offset: Int): Long =
+        (0 until 8).fold(0L) { value, index ->
+            value or ((this[offset + index].toLong() and 0xffL) shl (index * 8))
+        }
+    check(ushort(16) == 3) { "$label must be ET_DYN/PIE" }
+    check(ushort(18) == 183) { "$label must target AArch64" }
+    val programHeaderOffset = long(32)
+    val entrySize = ushort(54)
+    val entryCount = ushort(56)
+    val elfSize = size
+    check(programHeaderOffset in 0..Int.MAX_VALUE.toLong()) {
+        "$label has an invalid program-header offset"
+    }
+    val loadAlignments = buildList {
+        repeat(entryCount) { index ->
+            val offset = programHeaderOffset.toInt() + index * entrySize
+            check(offset >= 0 && offset + entrySize <= elfSize) {
+                "$label program header exceeds the file"
+            }
+            if (uint(offset) == 1L) add(long(offset + 48))
+        }
+    }
+    check(loadAlignments.isNotEmpty() && loadAlignments.all { alignment -> alignment >= 0x4000L }) {
+        "$label PT_LOAD alignment must be at least 0x4000: $loadAlignments"
+    }
+    check(containsByteSequence("/system/bin/linker64".toByteArray(Charsets.US_ASCII))) {
+        "$label does not use the Android arm64 linker"
+    }
 }
 
 private fun RandomAccessFile.readUnsignedShortLittleEndian(): Int {
@@ -887,6 +943,12 @@ abstract class BuildShellIdentityLauncherTask @Inject constructor(
     @get:OutputDirectory
     abstract val outputDirectory: DirectoryProperty
 
+    @get:Input
+    abstract val outputRelativePath: Property<String>
+
+    @get:Input
+    abstract val componentLabel: Property<String>
+
     private fun File.calculateSha256(): String {
         val digest = MessageDigest.getInstance("SHA-256")
         inputStream().buffered().use { stream ->
@@ -918,13 +980,14 @@ abstract class BuildShellIdentityLauncherTask @Inject constructor(
 
     @TaskAction
     fun build() {
+        val label = componentLabel.get()
         val osName = System.getProperty("os.name").lowercase()
         val hostTag =
             when {
                 osName.contains("windows") -> "windows-x86_64"
                 osName.contains("linux") -> "linux-x86_64"
                 osName.contains("mac") || osName.contains("darwin") -> "darwin-x86_64"
-                else -> error("Unsupported shell identity launcher build host: $osName")
+                else -> error("Unsupported $label build host: $osName")
             }
         val compilerName =
             "aarch64-linux-android${androidApiLevel.get()}-clang++" +
@@ -934,17 +997,20 @@ abstract class BuildShellIdentityLauncherTask @Inject constructor(
                 .resolve("toolchains/llvm/prebuilt/$hostTag/bin/$compilerName")
                 .canonicalFile
         check(compiler.isFile) {
-            "Android compiler for shell identity launcher was not found: $compiler"
+            "Android compiler for $label was not found: $compiler"
         }
 
         val generatedRoot = outputDirectory.get().asFile
         check(!generatedRoot.exists() || generatedRoot.deleteRecursively()) {
-            "Unable to clear generated shell identity launcher directory: $generatedRoot"
+            "Unable to clear generated $label directory: $generatedRoot"
         }
         check(generatedRoot.mkdirs() || generatedRoot.isDirectory) {
-            "Unable to create generated shell identity launcher directory: $generatedRoot"
+            "Unable to create generated $label directory: $generatedRoot"
         }
-        val launcher = generatedRoot.resolve("operit_shell_exec")
+        val launcher = generatedRoot.resolve(outputRelativePath.get())
+        check(launcher.parentFile.mkdirs() || launcher.parentFile.isDirectory) {
+            "Unable to create $label output directory: ${launcher.parentFile}"
+        }
         execOperations.exec {
             executable(compiler)
             args(
@@ -967,17 +1033,17 @@ abstract class BuildShellIdentityLauncherTask @Inject constructor(
         }.assertNormalExitValue()
 
         val bytes = launcher.readBytes()
-        check(bytes.size >= 64) { "Shell identity launcher is not a complete ELF file" }
+        check(bytes.size >= 64) { "$label is not a complete ELF file" }
         check(
             bytes[0] == 0x7f.toByte() &&
                 bytes[1] == 'E'.code.toByte() &&
                 bytes[2] == 'L'.code.toByte() &&
                 bytes[3] == 'F'.code.toByte()
         ) {
-            "Shell identity launcher has no ELF magic"
+            "$label has no ELF magic"
         }
         check(bytes[4] == 2.toByte() && bytes[5] == 1.toByte()) {
-            "Shell identity launcher must be little-endian ELF64"
+            "$label must be little-endian ELF64"
         }
 
         fun readUnsignedShort(offset: Int): Int =
@@ -1001,20 +1067,20 @@ abstract class BuildShellIdentityLauncherTask @Inject constructor(
         }
 
         check(readUnsignedShort(18) == 183) {
-            "Shell identity launcher must target AArch64"
+            "$label must target AArch64"
         }
         val programHeaderOffset = readLong(32)
         val programHeaderEntrySize = readUnsignedShort(54)
         val programHeaderCount = readUnsignedShort(56)
         check(programHeaderOffset in 0..Int.MAX_VALUE.toLong()) {
-            "Shell identity launcher has an invalid program-header offset"
+            "$label has an invalid program-header offset"
         }
         val loadAlignments =
             buildList {
                 repeat(programHeaderCount) { index ->
                     val offset = programHeaderOffset.toInt() + index * programHeaderEntrySize
                     check(offset >= 0 && offset + programHeaderEntrySize <= bytes.size) {
-                        "Shell identity launcher program header exceeds the file"
+                        "$label program header exceeds the file"
                     }
                     if (readUnsignedInt(offset) == 1L) {
                         add(readLong(offset + 48))
@@ -1022,21 +1088,203 @@ abstract class BuildShellIdentityLauncherTask @Inject constructor(
                 }
             }
         check(loadAlignments.isNotEmpty() && loadAlignments.all { alignment -> alignment >= 0x4000L }) {
-            "Shell identity launcher PT_LOAD alignment must be at least 0x4000: $loadAlignments"
+            "$label PT_LOAD alignment must be at least 0x4000: $loadAlignments"
         }
         check(bytes.containsSequence("/system/bin/linker64".toByteArray(Charsets.US_ASCII))) {
-            "Shell identity launcher does not use the Android arm64 linker"
+            "$label does not use the Android arm64 linker"
         }
         check(!bytes.containsSequence("native-lib.cpp".toByteArray(Charsets.US_ASCII))) {
-            "Shell identity launcher still contains source-level debug paths"
+            "$label still contains source-level debug paths"
         }
         check(!bytes.containsSequence("libc++_shared.so".toByteArray(Charsets.US_ASCII))) {
-            "Shell identity launcher must not depend on the APK C++ shared runtime"
+            "$label must not depend on the APK C++ shared runtime"
         }
         logger.lifecycle(
-            "Verified shell identity launcher: SHA-256=${launcher.calculateSha256()}, " +
+            "Verified $label: SHA-256=${launcher.calculateSha256()}, " +
                 "PT_LOAD=${loadAlignments.joinToString { alignment -> "0x${alignment.toString(16)}" }}"
         )
+    }
+}
+
+@CacheableTask
+abstract class PrepareMihomoRuntimeTask : DefaultTask() {
+    @get:Input
+    abstract val releaseUrl: Property<String>
+
+    @get:Input
+    abstract val archiveSize: Property<Long>
+
+    @get:Input
+    abstract val archiveSha256: Property<String>
+
+    @get:Input
+    abstract val executableSize: Property<Long>
+
+    @get:Input
+    abstract val executableSha256: Property<String>
+
+    @get:LocalState
+    abstract val cacheFile: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val outputDirectory: DirectoryProperty
+
+    @TaskAction
+    fun prepare() {
+        val archive = cacheFile.get().asFile
+        if (!isValidArchive(archive)) {
+            downloadArchive(archive)
+        }
+        check(isValidArchive(archive)) {
+            "Cached Mihomo archive failed the pinned size or SHA-256 contract: $archive"
+        }
+
+        val generatedRoot = outputDirectory.get().asFile
+        check(!generatedRoot.exists() || generatedRoot.deleteRecursively()) {
+            "Unable to clear generated Mihomo runtime directory: $generatedRoot"
+        }
+        val executable = generatedRoot.resolve("arm64-v8a/libkiyori_mihomo.so")
+        check(executable.parentFile.mkdirs() || executable.parentFile.isDirectory) {
+            "Unable to create generated Mihomo ABI directory: ${executable.parentFile}"
+        }
+        val temporary = executable.resolveSibling("${executable.name}.tmp")
+        GZIPInputStream(archive.inputStream().buffered()).use { input ->
+            temporary.outputStream().buffered().use(input::copyTo)
+        }
+        check(temporary.length() == executableSize.get()) {
+            "Mihomo ELF size mismatch: expected=${executableSize.get()} actual=${temporary.length()}"
+        }
+        val actualSha256 = calculateSha256(temporary)
+        check(actualSha256.equals(executableSha256.get(), ignoreCase = true)) {
+            "Mihomo ELF SHA-256 mismatch: $actualSha256"
+        }
+        validateAndroidArm64Elf(temporary)
+        Files.move(temporary.toPath(), executable.toPath())
+        logger.lifecycle(
+            "Verified Mihomo runtime: size=${executable.length()} SHA-256=${calculateSha256(executable)}"
+        )
+    }
+
+    private fun isValidArchive(file: File): Boolean =
+        file.isFile &&
+            file.length() == archiveSize.get() &&
+            calculateSha256(file).equals(archiveSha256.get(), ignoreCase = true)
+
+    private fun calculateSha256(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().buffered().use { input ->
+            val buffer = ByteArray(1024 * 1024)
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                digest.update(buffer, 0, read)
+            }
+        }
+        return digest.digest().joinToString("") { byte -> "%02x".format(byte) }
+    }
+
+    private fun downloadArchive(destination: File) {
+        check(destination.parentFile.mkdirs() || destination.parentFile.isDirectory) {
+            "Unable to create Mihomo cache directory: ${destination.parentFile}"
+        }
+        val temporary = destination.resolveSibling("${destination.name}.download")
+        if (temporary.exists()) check(temporary.delete()) { "Unable to replace $temporary" }
+        var current = URI(releaseUrl.get())
+        repeat(6) { redirectIndex ->
+            check(current.scheme.equals("https", ignoreCase = true)) {
+                "Mihomo download must remain HTTPS: $current"
+            }
+            val connection = current.toURL().openConnection() as HttpURLConnection
+            connection.instanceFollowRedirects = false
+            connection.connectTimeout = 15_000
+            connection.readTimeout = 30_000
+            connection.setRequestProperty("User-Agent", "Kiyori-Mihomo-Build/1")
+            try {
+                when (val code = connection.responseCode) {
+                    in 200..299 -> {
+                        connection.inputStream.use { input ->
+                            temporary.outputStream().buffered().use { output ->
+                                val buffer = ByteArray(1024 * 1024)
+                                var written = 0L
+                                while (true) {
+                                    val read = input.read(buffer)
+                                    if (read < 0) break
+                                    written += read
+                                    check(written <= archiveSize.get()) {
+                                        "Mihomo archive exceeded the pinned size"
+                                    }
+                                    output.write(buffer, 0, read)
+                                }
+                            }
+                        }
+                        check(isValidArchive(temporary)) {
+                            "Downloaded Mihomo archive failed the pinned size or SHA-256 contract"
+                        }
+                        Files.move(
+                            temporary.toPath(),
+                            destination.toPath(),
+                            StandardCopyOption.REPLACE_EXISTING,
+                        )
+                        return
+                    }
+                    in 300..399 -> {
+                        val location = connection.getHeaderField("Location")
+                            ?: error("Mihomo redirect has no Location header")
+                        current = current.resolve(location)
+                    }
+                    else -> error("Mihomo download failed with HTTP $code")
+                }
+            } finally {
+                connection.disconnect()
+            }
+            check(redirectIndex < 5) { "Mihomo download exceeded the redirect limit" }
+        }
+        error("Mihomo download did not produce an archive")
+    }
+
+    private fun validateAndroidArm64Elf(file: File) {
+        val bytes = file.readBytes()
+        check(
+            bytes.size >= 64 &&
+                bytes.copyOfRange(0, 4).contentEquals(byteArrayOf(0x7f, 0x45, 0x4c, 0x46)),
+        ) {
+            "Mihomo runtime has no ELF magic"
+        }
+        check(bytes[4] == 2.toByte() && bytes[5] == 1.toByte()) {
+            "Mihomo runtime must be little-endian ELF64"
+        }
+        fun ushort(offset: Int): Int =
+            (bytes[offset].toInt() and 0xff) or ((bytes[offset + 1].toInt() and 0xff) shl 8)
+        fun uint(offset: Int): Long =
+            (0 until 4).fold(0L) { value, index ->
+                value or ((bytes[offset + index].toLong() and 0xffL) shl (index * 8))
+            }
+        fun long(offset: Int): Long =
+            (0 until 8).fold(0L) { value, index ->
+                value or ((bytes[offset + index].toLong() and 0xffL) shl (index * 8))
+            }
+        check(ushort(16) == 3) { "Mihomo runtime must be ET_DYN/PIE" }
+        check(ushort(18) == 183) { "Mihomo runtime must target AArch64" }
+        val programHeaderOffset = long(32).toInt()
+        val entrySize = ushort(54)
+        val entryCount = ushort(56)
+        val alignments = buildList {
+            repeat(entryCount) { index ->
+                val offset = programHeaderOffset + index * entrySize
+                check(offset >= 0 && offset + entrySize <= bytes.size) {
+                    "Mihomo program header exceeds the ELF"
+                }
+                if (uint(offset) == 1L) add(long(offset + 48))
+            }
+        }
+        check(alignments.isNotEmpty() && alignments.all { it >= 0x4000L }) {
+            "Mihomo PT_LOAD alignment must be at least 0x4000: $alignments"
+        }
+        val text = bytes.toString(Charsets.ISO_8859_1)
+        check("/system/bin/linker64" in text) { "Mihomo runtime has the wrong interpreter" }
+        listOf("liblog.so", "libdl.so", "libc.so").forEach { dependency ->
+            check(dependency in text) { "Mihomo runtime is missing dependency marker $dependency" }
+        }
     }
 }
 
@@ -1191,6 +1439,13 @@ android {
         
         jniLibs {
             useLegacyPackaging = true
+            // These files are launched as standalone PIE executables. Stripping the packaged
+            // files changes their verified bytes and breaks the runtime provenance contract.
+            keepDebugSymbols +=
+                setOf(
+                    "**/libkiyori_mihomo.so",
+                    "**/libkiyori_mihomo_launcher.so",
+                )
         }
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -1613,8 +1868,55 @@ val verifySingleDebugLauncher =
             "Verifies that dependency manifests cannot add a second Debug launcher icon."
     }
 
+val verifyDebugScriptProxyRuntimePackaging =
+    tasks.register("verifyDebugScriptProxyRuntimePackaging") {
+        description = "Verifies the pinned Mihomo runtime and parent-death launcher in the Debug APK."
+        val debugApk = layout.buildDirectory.file("outputs/apk/debug/app-debug.apk")
+        inputs.file(debugApk)
+        doLast {
+            val apk = debugApk.get().asFile
+            check(apk.isFile) { "Debug APK is missing: $apk" }
+            ZipFile(apk).use { archive ->
+                val nativeEntries =
+                    archive.entries().asSequence()
+                        .filter { entry -> !entry.isDirectory && entry.name.endsWith(".so") }
+                        .toList()
+                val duplicateBasenames =
+                    nativeEntries.groupBy { entry -> entry.name.substringAfterLast('/') }
+                        .filterValues { entries -> entries.size > 1 }
+                        .mapValues { (_, entries) -> entries.map { entry -> entry.name } }
+                check(duplicateBasenames.isEmpty()) {
+                    "Debug APK contains duplicate native basenames: $duplicateBasenames"
+                }
+
+                val required =
+                    linkedMapOf(
+                        "lib/arm64-v8a/libkiyori_mihomo.so" to scriptProxyMihomoSha256,
+                        "lib/arm64-v8a/libkiyori_mihomo_launcher.so" to
+                            scriptProxyLauncherSha256,
+                    )
+                required.forEach { (path, expectedSha256) ->
+                    val matches = nativeEntries.filter { entry -> entry.name == path }
+                    check(matches.size == 1) {
+                        "Debug APK must contain exactly one $path, found ${matches.size}"
+                    }
+                    val bytes = archive.getInputStream(matches.single()).use { stream -> stream.readBytes() }
+                    val actualSha256 = bytes.sha256Hex()
+                    check(actualSha256 == expectedSha256) {
+                        "$path SHA-256 mismatch: expected=$expectedSha256 actual=$actualSha256"
+                    }
+                    bytes.requireAndroidArm64Elf(path)
+                }
+            }
+        }
+    }
+
 tasks.matching { task -> task.name == "assembleDebug" }.configureEach {
-    finalizedBy(verifyDebugPlayerRuntimePackaging, verifySingleDebugLauncher)
+    finalizedBy(
+        verifyDebugPlayerRuntimePackaging,
+        verifySingleDebugLauncher,
+        verifyDebugScriptProxyRuntimePackaging,
+    )
 }
 
 //    aaptOptions {
@@ -1650,6 +1952,37 @@ val buildShellIdentityLauncher =
         ndkVersion.set(providers.gradleProperty("kiyori.android.ndkVersion"))
         ndkDirectory.set(androidComponents.sdkComponents.ndkDirectory)
         outputDirectory.set(layout.buildDirectory.dir("generated/shellIdentityLauncherAssets"))
+        outputRelativePath.set("operit_shell_exec")
+        componentLabel.set("shell identity launcher")
+    }
+
+val prepareMihomoRuntime =
+    tasks.register<PrepareMihomoRuntimeTask>("prepareMihomoRuntime") {
+        description = "Downloads and verifies the pinned arm64 Mihomo runtime."
+        releaseUrl.set(
+            "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.30/" +
+                "mihomo-android-arm64-v8-v1.19.30.gz"
+        )
+        archiveSize.set(17_932_346L)
+        archiveSha256.set("19AFEB40FCA190FC2E3906A4E3B87C74A0C2120626FD3CB3AE0CF4092CB780AD")
+        executableSize.set(52_586_488L)
+        executableSha256.set("94344144936968F25E7089BBEAC2D87F3CAF67574BA433511424724AD7435DAD")
+        cacheFile.set(layout.projectDirectory.file("libs/mihomo-android-arm64-v8-v1.19.30.gz"))
+        outputDirectory.set(layout.buildDirectory.dir("generated/mihomoRuntime/jniLibs"))
+    }
+
+val buildMihomoParentDeathLauncher =
+    tasks.register<BuildShellIdentityLauncherTask>("buildMihomoParentDeathLauncher") {
+        description = "Builds the arm64 launcher that terminates Mihomo with the Kiyori process."
+        sourceFile.set(
+            rootProject.layout.projectDirectory.file("tools/mihomo_parent_launcher/native-lib.cpp")
+        )
+        androidApiLevel.set(26)
+        ndkVersion.set(providers.gradleProperty("kiyori.android.ndkVersion"))
+        ndkDirectory.set(androidComponents.sdkComponents.ndkDirectory)
+        outputDirectory.set(layout.buildDirectory.dir("generated/mihomoParentLauncher/jniLibs"))
+        outputRelativePath.set("arm64-v8a/libkiyori_mihomo_launcher.so")
+        componentLabel.set("Mihomo parent-death launcher")
     }
 
 androidComponents {
@@ -1681,6 +2014,12 @@ androidComponents {
                 "Android variant ${variant.name} does not expose a JNI libs source directory."
             }
         jniLibs.addGeneratedSourceDirectory(buildNativeRipgrep) {
+            it.outputDirectory
+        }
+        jniLibs.addGeneratedSourceDirectory(prepareMihomoRuntime) {
+            it.outputDirectory
+        }
+        jniLibs.addGeneratedSourceDirectory(buildMihomoParentDeathLauncher) {
             it.outputDirectory
         }
         val outputFileName =
@@ -1915,6 +2254,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.sse)
     implementation(libs.jsoup)
+    implementation(libs.snakeyaml.engine)
 
     // DataStore dependencies
     implementation(libs.datastore.preferences)

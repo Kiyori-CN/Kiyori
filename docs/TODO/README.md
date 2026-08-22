@@ -7,6 +7,28 @@ For_Agent: 对项目大规模动工前按本规范协作
 本文件顶部记录当前跨领域长期任务，后续段落保留专项实施与历史证据。历史段落中的分支、提交、
 APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观察点，不能替代当前 Git、构建或设备状态。
 
+## 2026-08-22 全脚本宿主代理与 Clash 订阅运行时
+
+状态：`M0-M5 IMPLEMENTED / M6 IN PROGRESS / DEVICE VERIFICATION PENDING`。
+
+本轮为“扩展 -> 脚本”中的全部传统 `JsEngine` JavaScript 包建立宿主级网络策略，而不是只改
+Search 分类。全局支持直连、外部 HTTP/Clash mixed-port 和内嵌 Mihomo 订阅；每个已导入脚本可
+选择继承、直连、外部代理或内嵌订阅。作用面严格限制为传统脚本的 `http_request`、
+`multipart_request`、`visit_web` 与 `download_file` 四个标准入口，不改变 Browser Runtime、
+Browser userscript、ToolPkg、MCP、AI Provider、Terminal、播放器或浏览器下载器。
+
+内嵌核心固定 `MetaCubeX/mihomo v1.19.30` 官方 arm64 制品和 SHA，通过生成式 JNI 打包，不向 Git
+提交 52 MiB ELF。Kiyori 重新构造仅有 loopback mixed-port/Controller 的配置，禁止 LAN、TUN、
+用户 listener 和公开控制面；敏感配置由 Android Keystore AES-GCM 加密并放入 no-backup 私有
+目录。传统脚本 `visit_web` 使用可代理的 OkHttp + Jsoup 文档提取，避免 Android WebView 的
+进程级代理影响 Browser。系统 VPN 下内嵌运行默认阻止，只有用户显式确认才允许形成嵌套链路。
+任何代理或核心错误都明确失败，不改变路由。
+
+完整设置字段、UI、身份传播、路由优先级、订阅清洗、核心生命周期、VPN/Clash 共存矩阵、地址
+策略、安全边界、阶段计划与验收矩阵见
+[`script_network_proxy/index.md`](script_network_proxy/index.md)。本地实现、Debug APK、提交和
+推送属于当前授权；设备安装、ADB、模拟器、Release 和部署不属于当前授权。
+
 ## 2026-08-22 全终态工具历史闭合与中断恢复
 
 状态：`IMPLEMENTATION VERIFIED / DEVICE VERIFICATION PENDING`。

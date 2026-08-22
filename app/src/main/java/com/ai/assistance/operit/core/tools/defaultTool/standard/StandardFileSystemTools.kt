@@ -19,6 +19,10 @@ import com.ai.assistance.operit.core.tools.ToolProgressBus
 import com.ai.assistance.operit.core.tools.GrepResultData
 import com.ai.assistance.operit.core.tools.StringResultData
 import com.ai.assistance.operit.core.tools.ToolExecutionLimits
+import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkCallIdentity
+import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkErrorCode
+import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkException
+import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkHttpClientFactory
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.FunctionType
 import com.ai.assistance.operit.data.model.ModelParameter
@@ -32,9 +36,13 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
+import java.util.concurrent.TimeUnit
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
@@ -74,6 +82,8 @@ import com.ai.assistance.operit.util.LocaleUtils
 import com.ai.assistance.operit.util.ripgrep.NativeRipgrep
 import org.json.JSONObject
 import java.util.concurrent.atomic.AtomicInteger
+import okhttp3.OkHttpClient
+import okhttp3.Request
 
 /**
  * Collection of file system operation tools for the AI assistant These tools use Java File APIs for
@@ -4303,6 +4313,12 @@ open class StandardFileSystemTools(protected val context: Context) {
 
         val destPath = tool.parameters.find { it.name == "destination" }?.value ?: ""
         val headersParam = tool.parameters.find { it.name == "headers" }?.value
+        val scriptPackageName =
+            tool.parameters
+                .find { it.name == ScriptNetworkCallIdentity.INTERNAL_PACKAGE_PARAMETER }
+                ?.value
+                ?.trim()
+                ?.ifBlank { null }
         val environment = tool.parameters.find { it.name == "environment" }?.value
         PathValidator.validateAndroidPath(destPath, tool.name, "destination")?.let { return it }
 
@@ -4440,6 +4456,17 @@ open class StandardFileSystemTools(protected val context: Context) {
 
                 val lastEmitMs = java.util.concurrent.atomic.AtomicLong(0L)
                 val headers = parseHeaders(headersParam)
+                if (scriptPackageName != null) {
+                    return downloadScriptNetworkFile(
+                        toolName = tool.name,
+                        scriptPackageName = scriptPackageName,
+                        resolvedUrl = resolvedUrl,
+                        destPath = destPath,
+                        destFile = destFile,
+                        headers = headers,
+                        formatSize = ::formatSize,
+                    )
+                }
                 HttpMultiPartDownloader.download(resolvedUrl, destFile, headers = headers, threadCount = 4) { downloaded, total ->
                     val now = System.currentTimeMillis()
                     val last = lastEmitMs.get()
@@ -4506,6 +4533,111 @@ open class StandardFileSystemTools(protected val context: Context) {
                 ),
                 error = "Error downloading file: ${e.message}"
             )
+        }
+    }
+
+    private suspend fun downloadScriptNetworkFile(
+        toolName: String,
+        scriptPackageName: String,
+        resolvedUrl: String,
+        destPath: String,
+        destFile: File,
+        headers: Map<String, String>,
+        formatSize: (Long) -> String,
+    ): ToolResult {
+        val parent = destFile.parentFile
+            ?: throw IllegalArgumentException("Download destination must have a parent directory")
+        if (!parent.exists() && !parent.mkdirs()) {
+            throw IllegalStateException("Unable to create the download destination directory")
+        }
+        val temporary = parent.resolve(".${destFile.name}.kiyori-${UUID.randomUUID()}.part")
+        val builder =
+            OkHttpClient.Builder()
+                .connectTimeout(15, TimeUnit.SECONDS)
+                .readTimeout(60, TimeUnit.SECONDS)
+                .followRedirects(true)
+                .followSslRedirects(true)
+        ScriptNetworkHttpClientFactory.getInstance(context)
+            .applyScriptRoute(builder, scriptPackageName)
+        val requestBuilder =
+            Request.Builder()
+                .url(resolvedUrl)
+                .header("User-Agent", "Kiyori-Script-Download/1")
+        headers.forEach { (name, value) -> requestBuilder.header(name, value) }
+
+        try {
+            builder.build().newCall(requestBuilder.get().build()).execute().use { response ->
+                if (!response.isSuccessful) {
+                    throw ScriptNetworkException(
+                        ScriptNetworkErrorCode.HTTP_FAILED,
+                        "Script download returned HTTP ${response.code}.",
+                    )
+                }
+                val body = response.body
+                    ?: throw ScriptNetworkException(
+                        ScriptNetworkErrorCode.HTTP_FAILED,
+                        "Script download returned an empty response body.",
+                    )
+                val total = body.contentLength()
+                var downloaded = 0L
+                var lastProgressAt = 0L
+                body.byteStream().buffered().use { input ->
+                    temporary.outputStream().buffered().use { output ->
+                        val buffer = ByteArray(64 * 1024)
+                        while (true) {
+                            val read = input.read(buffer)
+                            if (read < 0) break
+                            output.write(buffer, 0, read)
+                            downloaded += read
+                            val now = System.currentTimeMillis()
+                            if (now - lastProgressAt >= 200L) {
+                                lastProgressAt = now
+                                val progress =
+                                    if (total > 0L) {
+                                        (downloaded.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+                                    } else {
+                                        -1f
+                                    }
+                                ToolProgressBus.update(
+                                    toolName,
+                                    progress,
+                                    if (total > 0L) {
+                                        "Downloading... ${formatSize(downloaded)}/${formatSize(total)}"
+                                    } else {
+                                        "Downloading... ${formatSize(downloaded)}"
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            Files.move(
+                temporary.toPath(),
+                destFile.toPath(),
+                StandardCopyOption.ATOMIC_MOVE,
+                StandardCopyOption.REPLACE_EXISTING,
+            )
+            ToolProgressBus.update(toolName, 1f, "Completed")
+            return ToolResult(
+                toolName = toolName,
+                success = true,
+                result =
+                    FileOperationData(
+                        operation = "download",
+                        path = destPath,
+                        successful = true,
+                        details =
+                            "File downloaded successfully: $resolvedUrl -> $destPath " +
+                                "(file size: ${formatSize(destFile.length())})",
+                    ),
+                error = "",
+            )
+        } finally {
+            if (temporary.exists() && !temporary.delete()) {
+                AppLogger.w(TAG, "Unable to delete incomplete script download: ${temporary.name}")
+            }
+            ToolProgressBus.clear()
         }
     }
 

@@ -70,6 +70,10 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.StringResultData
 import com.ai.assistance.operit.core.tools.ToolExecutor
 import com.ai.assistance.operit.core.tools.VisitWebResultData
+import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkCallIdentity
+import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkErrorCode
+import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkException
+import com.ai.assistance.operit.core.tools.javascript.network.ScriptNetworkHttpClientFactory
 import com.ai.assistance.operit.data.preferences.DisplayPreferencesManager
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolResult
@@ -88,7 +92,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.json.JSONObject
+import org.jsoup.Jsoup
 
 /** Tool for web page visiting and content extraction */
 class StandardWebVisitTool(private val context: Context) : ToolExecutor {
@@ -103,6 +109,9 @@ class StandardWebVisitTool(private val context: Context) : ToolExecutor {
 
         private const val MAX_INLINE_VISIT_CONTENT_CHARS = 12_000
         private const val MAX_INLINE_VISIT_CONTENT_PREVIEW_CHARS = 8_000
+        private const val MAX_SCRIPT_VISIT_BODY_BYTES = 8 * 1024 * 1024
+        private const val MAX_SCRIPT_VISIT_LINKS = 2_000
+        private const val MAX_SCRIPT_VISIT_IMAGES = 1_000
 
         // Cache to store visit results
         private val visitCache = ConcurrentHashMap<String, VisitWebResultData>()
@@ -143,6 +152,12 @@ class StandardWebVisitTool(private val context: Context) : ToolExecutor {
         val headersParam = tool.parameters.find { it.name == "headers" }?.value
         val userAgentParam = tool.parameters.find { it.name == "user_agent" }?.value
         val userAgentPresetParam = tool.parameters.find { it.name == "user_agent_preset" }?.value
+        val scriptPackageName =
+            tool.parameters
+                .find { it.name == ScriptNetworkCallIdentity.INTERNAL_PACKAGE_PARAMETER }
+                ?.value
+                ?.trim()
+                ?.ifBlank { null }
 
         val targetUrl = when {
             !visitKey.isNullOrBlank() && !linkNumberStr.isNullOrBlank() -> {
@@ -225,7 +240,20 @@ class StandardWebVisitTool(private val context: Context) : ToolExecutor {
         val resolvedUserAgent = resolveUserAgent(userAgentPresetParam, userAgentParam)
 
         return try {
-            val pageContent = visitWebPage(targetUrl, headers, resolvedUserAgent, includeImageLinks)
+            val pageContent =
+                if (scriptPackageName != null) {
+                    runBlocking(Dispatchers.IO) {
+                        visitScriptWebPage(
+                            url = targetUrl,
+                            headers = headers,
+                            userAgent = resolvedUserAgent,
+                            includeImageLinks = includeImageLinks,
+                            scriptPackageName = scriptPackageName,
+                        )
+                    }
+                } else {
+                    visitWebPage(targetUrl, headers, resolvedUserAgent, includeImageLinks)
+                }
             ToolResult(toolName = tool.name, success = true, result = pageContent, error = null)
         } catch (e: Exception) {
             AppLogger.e(TAG, "Error visiting web page", e)
@@ -460,6 +488,120 @@ class StandardWebVisitTool(private val context: Context) : ToolExecutor {
             persistVisitContentIfNeeded(
                     VisitWebResultData(url = url, title = "Error", content = extractedJson)
             )
+        }
+    }
+
+    private suspend fun visitScriptWebPage(
+        url: String,
+        headers: Map<String, String>,
+        userAgent: String,
+        includeImageLinks: Boolean,
+        scriptPackageName: String,
+    ): VisitWebResultData {
+        val builder =
+            OkHttpClient.Builder()
+                .connectTimeout(15, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .followRedirects(true)
+                .followSslRedirects(true)
+        ScriptNetworkHttpClientFactory.getInstance(context)
+            .applyScriptRoute(builder, scriptPackageName)
+        val requestBuilder = Request.Builder().url(url).header("User-Agent", userAgent)
+        headers.forEach { (name, value) -> requestBuilder.header(name, value) }
+
+        builder.build().newCall(requestBuilder.get().build()).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw ScriptNetworkException(
+                    ScriptNetworkErrorCode.HTTP_FAILED,
+                    "Script web visit returned HTTP ${response.code}.",
+                )
+            }
+            val responseBody = response.body
+                ?: throw ScriptNetworkException(
+                    ScriptNetworkErrorCode.HTTP_FAILED,
+                    "Script web visit returned an empty response body.",
+                )
+            val declaredLength = responseBody.contentLength()
+            if (declaredLength > MAX_SCRIPT_VISIT_BODY_BYTES) {
+                throw ScriptNetworkException(
+                    ScriptNetworkErrorCode.HTTP_FAILED,
+                    "Script web visit exceeded the 8 MiB document limit.",
+                )
+            }
+            val bytes = responseBody.byteStream().use { input ->
+                val output = java.io.ByteArrayOutputStream()
+                val buffer = ByteArray(32 * 1024)
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read < 0) break
+                    if (output.size() + read > MAX_SCRIPT_VISIT_BODY_BYTES) {
+                        throw ScriptNetworkException(
+                            ScriptNetworkErrorCode.HTTP_FAILED,
+                            "Script web visit exceeded the 8 MiB document limit.",
+                        )
+                    }
+                    output.write(buffer, 0, read)
+                }
+                output.toByteArray()
+            }
+            val charset = responseBody.contentType()?.charset(Charsets.UTF_8) ?: Charsets.UTF_8
+            val finalUrl = response.request.url.toString()
+            val document = Jsoup.parse(String(bytes, charset), finalUrl)
+            val metadata = linkedMapOf<String, String>()
+            document.select("meta").forEach { element ->
+                val name =
+                    sequenceOf(
+                        element.attr("name"),
+                        element.attr("property"),
+                        element.attr("itemprop"),
+                    ).firstOrNull { it.isNotBlank() }
+                val content = element.attr("content").trim()
+                if (!name.isNullOrBlank() && content.isNotEmpty()) metadata[name] = content
+            }
+            val links =
+                document.select("a[href]")
+                    .asSequence()
+                    .mapNotNull { element ->
+                        val absoluteUrl = element.absUrl("href").trim()
+                        val text = element.text().trim()
+                        if (absoluteUrl.startsWith("http://") || absoluteUrl.startsWith("https://")) {
+                            VisitWebResultData.LinkData(absoluteUrl, text)
+                        } else {
+                            null
+                        }
+                    }
+                    .distinctBy { link -> link.url to link.text }
+                    .take(MAX_SCRIPT_VISIT_LINKS)
+                    .toList()
+            val imageLinks =
+                if (includeImageLinks) {
+                    document.select("img[src]")
+                        .asSequence()
+                        .map { element -> element.absUrl("src").substringBefore('#').trim() }
+                        .filter { imageUrl ->
+                            (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) &&
+                                !imageUrl.substringBefore('?').endsWith(".svg", ignoreCase = true)
+                        }
+                        .distinct()
+                        .take(MAX_SCRIPT_VISIT_IMAGES)
+                        .toList()
+                } else {
+                    emptyList()
+                }
+            val visitKey = UUID.randomUUID().toString()
+            val result =
+                VisitWebResultData(
+                    url = finalUrl,
+                    title = document.title().ifBlank { "No Title" },
+                    content = document.body().text(),
+                    metadata = metadata,
+                    links = links,
+                    imageLinks = imageLinks,
+                    visitKey = visitKey,
+                )
+            val compactResult = persistVisitContentIfNeeded(result)
+            visitCache[visitKey] = compactResult
+            return compactResult
         }
     }
 

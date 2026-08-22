@@ -60,6 +60,24 @@ Kiyori 是一款以浏览器为产品中心、以内置 Operit AI 为智能子�
 
 “完整缓存”仍使用同一个 mpv 请求、同一组请求头和同一个播放内核。只有有限时长、完整可拖动、总大小已知且空间充足的 HTTP/HTTPS 直链视频才会使用应用私有会话磁盘缓存；HLS/DASH、直播、滚动 DVR、未知大小或空间不足的媒体会明确保持为不符合完整缓存资格，并继续使用该档内建的基础播放缓冲。切换视频、关闭播放器或播放器进程重新建立时会释放对应会话缓存；它不是离线下载，也不会创建第二个网络请求或本地媒体副本。
 
+### 脚本网络代理
+
+“AI 对话左抽屉 → 扩展 → 脚本 → 顶栏设置 → 网络代理”用于控制全部传统
+`JsEngine` 脚本包的宿主网络。全局可选“直连 / 外部代理 / 内嵌订阅”，每个已导入脚本还可
+独立选择“继承 / 直连 / 外部代理 / 内嵌订阅”。外部代理填写 HTTP 代理主机、端口和可选认证；
+Clash 用户填写其 `mixed-port`，本机常见示例为 `127.0.0.1:7890`。
+
+内嵌订阅支持 URL 更新、粘贴或导入单文档 UTF-8 Clash/Mihomo YAML，并要求用户明确选择节点。
+Kiyori 只保留出站节点和 HTTP provider，重建只监听 `127.0.0.1` 的私有配置，不启用 TUN、
+LAN 入站或订阅中的 Controller/listener。订阅 URL、外部代理密码、清洗后的 YAML 和逐脚本规则
+使用 Android Keystore 加密并存放在 no-backup 私有目录。
+
+“直连”表示 Kiyori 不使用应用层 HTTP 代理，但 Android 系统 VPN 仍可捕获流量。系统 VPN
+存在时，内嵌核心默认拒绝启动；只有显式开启允许项才形成“Kiyori Mihomo → 系统 Clash/VPN”
+的嵌套链路。该功能只影响传统脚本的 `http_request`、`multipart_request`、`visit_web` 和
+`download_file`；Browser Runtime、Browser userscript、ToolPkg、MCP、AI Provider、终端、播放器
+和浏览器下载器不读取该设置。代理失败会明确返回错误，不会改走另一条路线。
+
 ## 产品结构
 
 ```text
