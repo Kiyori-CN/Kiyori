@@ -1,8 +1,8 @@
 /* METADATA
 {
-    "name": "crossref",
+    "name": "crossref_search",
     "display_name": {
-        "zh": "Crossref 学术文献查询",
+        "zh": "Crossref 搜索",
         "en": "Crossref Academic Literature Search"
     },
     "description": {

@@ -29,7 +29,7 @@ openai_web_search.js
 
 优点：
 
-- 与 `tavily.js` 结构接近
+- 与 `tavily_search.js` 结构接近
 - 实现量小
 - 适合验证请求和响应字段
 

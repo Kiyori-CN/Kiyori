@@ -7,6 +7,36 @@ For_Agent: 对项目大规模动工前按本规范协作
 本文件顶部记录当前跨领域长期任务，后续段落保留专项实施与历史证据。历史段落中的分支、提交、
 APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观察点，不能替代当前 Git、构建或设备状态。
 
+## 2026-08-22 Search 内置脚本规范化与四家官方 API 完善
+
+状态：`M0-M5 VERIFIED / M6 IN PROGRESS / DEVICE VERIFICATION PENDING`。
+
+本轮从干净的 `main@e5f5f01cd25205fa37aa2cb384617d59bf912d7f` 开始，目标是规范
+AI 对话左抽屉“扩展 -> 脚本”中全部 `Search` 分组内置包，并重写
+`tavily_search`、`serpapi_search`、`brave_search`、`zhipu_search`。所有 Search 包 ID
+必须以 `_search` 结尾、不得声明作者；四个核心包必须按 2026-08-22 官方文档覆盖正式接口，
+使用逗号分隔的多 Key、进程内原子轮询、明确凭据错误换 Key，以及逐 Key 的并行连通性检查。
+实时复核还确认 Brave 的 17 个方法变体及七条已弃用但仍在官方文档中的 Summarizer 端点均在
+范围内；弃用能力独立暴露，不作为 Answers 的运行时降级路径。
+
+调查已确认包说明会先进入隐藏工具目录；`use_package` 激活后，工具说明和参数说明才作为真实
+`packageName:toolName` 契约注入。因此元数据将按“包级选择说明 + 工具级调用说明 + 参数级约束”
+分层，避免把面向人的教程和营销文案塞入模型提示词。内置脚本由 4 个 `JsEngine` 池调度，
+模块局部游标不能证明全局轮询；实现必须使用共享原子轮询所有者，不得把单引擎计数伪装成完成。
+
+M2-M4 已完成：八个 Search 包 ID 均以 `_search` 结尾且无作者字段；四个核心脚本覆盖冻结的
+官方接口矩阵、逗号多 Key、进程级原子轮询、固定 Key 后续请求和逐 Key 并行检查。最终生成 JS
+的真实官方 API 矩阵为 `47/47 accepted`，连通性为 Tavily `14/14`、SerpApi `4/4`、Brave
+四类 `4/4`、智谱 `1/1`；专项 JVM 测试 `7/7` 通过。Tavily Logs/Organization Usage 与
+Brave 已弃用 Summarizer 的权限或业务响应不等于功能成功，精确状态记录在专项文档。Debug APK
+已完成规定构建与独立静态审计，大小 `472737951` bytes，SHA-256
+`BDF7DFB3935FB305A804FC4F4A29B76539E258AA7D22F79C1B611FA858F85555`；交付审计与
+`origin/main` 对账仍按 M6 执行。抽屉显示和代表性模型现场调用保持设备待验收。
+
+详细范围、接口矩阵、多 Key 状态机、阶段计划与验收规则见
+[`search_script_standardization/index.md`](search_script_standardization/index.md)。临时 API Key 只允许
+进入真实测试进程，不得写入仓库、文档、日记、构建产物或提交。
+
 ## 2026-08-21 DeepSeek、Responses、长上下文缓存与对话统计优化
 
 状态：`M1-M5 LOCAL VERIFIED / M6 LOCAL VALIDATION COMPLETE / ENDPOINT AND DEVICE VERIFICATION PENDING`。

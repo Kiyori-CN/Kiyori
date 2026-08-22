@@ -1,7 +1,7 @@
 /*
 METADATA
 {
-    "name": "duckduckgo",
+    "name": "duckduckgo_search",
 
     "display_name": {
         "zh": "DuckDuckGo 搜索",

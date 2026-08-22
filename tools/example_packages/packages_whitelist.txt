@@ -1,10 +1,11 @@
 12306.js
 automatic_ui_base.js
 automatic_ui_subagent.js
+brave_search.js
 code_runner.js
-crossref.js
+crossref_search.js
 daily_life.js
-duckduckgo.js
+duckduckgo_search.js
 extended_memory_tools.js
 extended_http_tools.js
 extended_file_tools.js
@@ -16,10 +17,11 @@ extended_chat.js
 nanobanana_draw.js
 minimax_draw.js
 qwen_draw.js
+serpapi_search.js
 siliconflow_draw.js
 super_admin.js
 system_tools.js
-tavily.js
+tavily_search.js
 time.js
 various_search.js
 workflow.js
