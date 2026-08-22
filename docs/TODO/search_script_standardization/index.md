@@ -2,7 +2,7 @@
 
 ## 1. 状态与任务契约
 
-- 当前状态：`M0-M5 VERIFIED / M6 IN PROGRESS / DEVICE VERIFICATION PENDING`
+- 当前状态：`M0-M6 MAIN DELIVERED / DEVICE VERIFICATION PENDING`
 - 基线：`main@e5f5f01cd25205fa37aa2cb384617d59bf912d7f`
 - 目标：规范全部 `Search` 分组内置脚本，并把 Tavily、SerpApi、Brave、智谱重写为可供后续
   脚本开发复用的双语示例。
@@ -256,11 +256,13 @@ multi-search 冒充成该接口能力。
 
 ### M6：提交与推送
 
-- 状态：`IN PROGRESS`。
+- 状态：`DONE`。
 - 全树与暂存区检查临时 Key、凭据模式、构建产物、缓存、嵌套 `.git`、子模块和异常大文件。
 - 只提交本任务文件，不处理可选未初始化子模块。
 - 推送 `main` 前 `fetch --prune` 并确认可 fast-forward；若远端变化，重新审计与验证，不强推。
 - 推送后核对 local HEAD、`origin/main` 和 `git ls-remote origin refs/heads/main`。
+- 实现提交 `bb5715028768b43e7f42f1aa1f88d6a9ed4410b8` 已推送；该提交推送后 local HEAD、
+  `origin/main` 与远端 `refs/heads/main` 三方一致。
 
 ## 8. 验收矩阵
 

@@ -9,7 +9,7 @@ APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观
 
 ## 2026-08-22 Search 内置脚本规范化与四家官方 API 完善
 
-状态：`M0-M5 VERIFIED / M6 IN PROGRESS / DEVICE VERIFICATION PENDING`。
+状态：`M0-M6 MAIN DELIVERED / DEVICE VERIFICATION PENDING`。
 
 本轮从干净的 `main@e5f5f01cd25205fa37aa2cb384617d59bf912d7f` 开始，目标是规范
 AI 对话左抽屉“扩展 -> 脚本”中全部 `Search` 分组内置包，并重写
@@ -30,8 +30,9 @@ M2-M4 已完成：八个 Search 包 ID 均以 `_search` 结尾且无作者字段
 四类 `4/4`、智谱 `1/1`；专项 JVM 测试 `7/7` 通过。Tavily Logs/Organization Usage 与
 Brave 已弃用 Summarizer 的权限或业务响应不等于功能成功，精确状态记录在专项文档。Debug APK
 已完成规定构建与独立静态审计，大小 `472737951` bytes，SHA-256
-`BDF7DFB3935FB305A804FC4F4A29B76539E258AA7D22F79C1B611FA858F85555`；交付审计与
-`origin/main` 对账仍按 M6 执行。抽屉显示和代表性模型现场调用保持设备待验收。
+`BDF7DFB3935FB305A804FC4F4A29B76539E258AA7D22F79C1B611FA858F85555`。
+实现提交 `bb5715028768b43e7f42f1aa1f88d6a9ed4410b8` 已推送到 `origin/main` 并完成三方 ref
+对账。抽屉显示和代表性模型现场调用保持设备待验收。
 
 详细范围、接口矩阵、多 Key 状态机、阶段计划与验收规则见
 [`search_script_standardization/index.md`](search_script_standardization/index.md)。临时 API Key 只允许
