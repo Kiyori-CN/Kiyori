@@ -52,6 +52,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
     private val proxyLog = KiyoriNetworkProxyLogStore
     private val subscriptionClient = MihomoSubscriptionClient()
     private val mutationMutex = Mutex()
+    private val nodeTestMutex = Mutex()
 
     val configState: StateFlow<KiyoriNetworkProxyStoreState> = configStore.state
     val runtimeState: StateFlow<KiyoriMihomoRuntimeState> = runtime.state
@@ -534,33 +535,15 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
         subscriptionId: String,
         nodeName: String,
     ): KiyoriProxySubscription =
-        mutationMutex.withLock {
-            val current = currentConfig()
-            val subscription = KiyoriNetworkProxyPolicy.requireSubscription(current, subscriptionId)
+        nodeTestMutex.withLock {
+            val initial = currentConfig()
+            val subscription = KiyoriNetworkProxyPolicy.requireSubscription(initial, subscriptionId)
             val normalizedNode = nodeName.trim()
             try {
-                val (snapshot, delay) =
-                    runtime.probeNodeDelay(subscription, normalizedNode, current.testUrl)
-                val now = System.currentTimeMillis()
-                val tested =
-                    subscription.copy(
-                        nodeTests =
-                            mergeSnapshot(subscription.nodeTests, snapshot, now).map { result ->
-                                if (result.name == normalizedNode) {
-                                    result.copy(
-                                        delayMillis = delay,
-                                        status = MihomoNodeTestStatus.SUCCESS,
-                                        testedAtEpochMillis = now,
-                                    )
-                                } else {
-                                    result
-                                }
-                            },
-                    )
-                persistSubscriptionReplacement(current, tested, reconcileActive = false)
-                tested
+                val (snapshot, delay) = testNodeDelayForSubscription(subscription, normalizedNode, initial.testUrl)
+                persistNodeTestResult(subscriptionId, normalizedNode, snapshot, delay)
             } catch (error: KiyoriNetworkException) {
-                persistNodeFailure(current, subscription, normalizedNode)
+                persistNodeFailure(subscriptionId, normalizedNode, error)
                 throw error
             }
         }
@@ -569,35 +552,101 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
         subscriptionId: String,
         groupName: String,
     ): KiyoriProxySubscription =
-        mutationMutex.withLock {
-            val current = currentConfig()
-            val subscription = KiyoriNetworkProxyPolicy.requireSubscription(current, subscriptionId)
+        nodeTestMutex.withLock {
+            val initial = currentConfig()
+            val subscription = KiyoriNetworkProxyPolicy.requireSubscription(initial, subscriptionId)
             val normalizedGroup = groupName.trim()
-            val (snapshot, delays) =
-                runtime.probeGroupDelays(subscription, normalizedGroup, current.testUrl)
+            try {
+                val (snapshot, delays) = testGroupDelaysForSubscription(subscription, normalizedGroup, initial.testUrl)
+                persistGroupTestResult(subscriptionId, normalizedGroup, snapshot, delays)
+            } catch (error: KiyoriNetworkException) {
+                proxyLog.error("分组测速", "策略组测速失败：$normalizedGroup，${error.code.name}")
+                throw error
+            }
+        }
+
+    private suspend fun testNodeDelayForSubscription(
+        subscription: KiyoriProxySubscription,
+        nodeName: String,
+        testUrl: String,
+    ): Pair<MihomoRuntimeSnapshot, Int> {
+        if (runtimeState.value.subscriptionId == subscription.id && runtimeState.value.phase == KiyoriMihomoRuntimePhase.RUNNING) {
+            val delay = runtime.testActiveNodeDelay(nodeName, testUrl)
+            return runtime.refreshActiveSnapshot() to delay
+        }
+        return runtime.probeNodeDelay(subscription, nodeName, testUrl)
+    }
+
+    private suspend fun testGroupDelaysForSubscription(
+        subscription: KiyoriProxySubscription,
+        groupName: String,
+        testUrl: String,
+    ): Pair<MihomoRuntimeSnapshot, Map<String, Int>> {
+        if (runtimeState.value.subscriptionId == subscription.id && runtimeState.value.phase == KiyoriMihomoRuntimePhase.RUNNING) {
+            val delays = runtime.testActiveGroupDelays(groupName, testUrl)
+            return runtime.refreshActiveSnapshot() to delays
+        }
+        return runtime.probeGroupDelays(subscription, groupName, testUrl)
+    }
+
+    private suspend fun persistNodeTestResult(
+        subscriptionId: String,
+        nodeName: String,
+        snapshot: MihomoRuntimeSnapshot,
+        delay: Int,
+    ): KiyoriProxySubscription =
+        mutationMutex.withLock {
+            val latest = currentConfig()
+            val subscription = KiyoriNetworkProxyPolicy.requireSubscription(latest, subscriptionId)
             val now = System.currentTimeMillis()
             val tested =
                 subscription.copy(
                     nodeTests =
                         mergeSnapshot(subscription.nodeTests, snapshot, now).map { result ->
-                            if (normalizedGroup !in result.groupNames) return@map result
-                            val delay = delays[result.name]
-                            if (delay == null) {
-                                result.copy(
-                                    delayMillis = null,
-                                    status = MihomoNodeTestStatus.TIMEOUT,
-                                    testedAtEpochMillis = now,
-                                )
-                            } else {
+                            if (result.name == nodeName) {
                                 result.copy(
                                     delayMillis = delay,
                                     status = MihomoNodeTestStatus.SUCCESS,
                                     testedAtEpochMillis = now,
                                 )
+                            } else {
+                                result
                             }
                         },
                 )
-            persistSubscriptionReplacement(current, tested, reconcileActive = false)
+            persistSubscriptionReplacement(latest, tested, reconcileActive = false)
+            tested
+        }
+
+    private suspend fun persistGroupTestResult(
+        subscriptionId: String,
+        groupName: String,
+        snapshot: MihomoRuntimeSnapshot,
+        delays: Map<String, Int>,
+    ): KiyoriProxySubscription =
+        mutationMutex.withLock {
+            val latest = currentConfig()
+            val subscription = KiyoriNetworkProxyPolicy.requireSubscription(latest, subscriptionId)
+            val now = System.currentTimeMillis()
+            val tested =
+                subscription.copy(
+                    nodeTests =
+                        mergeSnapshot(subscription.nodeTests, snapshot, now).map { result ->
+                            if (groupName !in result.groupNames) return@map result
+                            delays[result.name]?.let { delay ->
+                                result.copy(
+                                    delayMillis = delay,
+                                    status = MihomoNodeTestStatus.SUCCESS,
+                                    testedAtEpochMillis = now,
+                                )
+                            } ?: result.copy(
+                                delayMillis = null,
+                                status = MihomoNodeTestStatus.TIMEOUT,
+                                testedAtEpochMillis = now,
+                            )
+                        },
+                )
+            persistSubscriptionReplacement(latest, tested, reconcileActive = false)
             tested
         }
 
@@ -753,29 +802,39 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
     }
 
     private suspend fun persistNodeFailure(
-        current: KiyoriNetworkProxyConfig,
-        subscription: KiyoriProxySubscription,
+        subscriptionId: String,
         nodeName: String,
+        originalError: KiyoriNetworkException,
     ) {
-        val now = System.currentTimeMillis()
-        val existing = subscription.nodeTests.firstOrNull { result -> result.name == nodeName }
-        if (existing == null) return
-        val failed =
-            subscription.copy(
-                nodeTests =
-                    subscription.nodeTests.map { result ->
-                        if (result.name == nodeName) {
-                            result.copy(
-                                delayMillis = null,
-                                status = MihomoNodeTestStatus.FAILED,
-                                testedAtEpochMillis = now,
-                            )
-                        } else {
-                            result
-                        }
-                    },
+        try {
+            mutationMutex.withLock {
+                val latest = currentConfig()
+                val subscription = latest.subscriptions.firstOrNull { it.id == subscriptionId } ?: return@withLock
+                if (subscription.nodeTests.none { result -> result.name == nodeName }) return@withLock
+                val now = System.currentTimeMillis()
+                val failed =
+                    subscription.copy(
+                        nodeTests =
+                            subscription.nodeTests.map { result ->
+                                if (result.name == nodeName) {
+                                    result.copy(
+                                        delayMillis = null,
+                                        status = MihomoNodeTestStatus.FAILED,
+                                        testedAtEpochMillis = now,
+                                    )
+                                } else {
+                                    result
+                                }
+                            },
+                    )
+                persistSubscriptionReplacement(latest, failed, reconcileActive = false)
+            }
+        } catch (error: Exception) {
+            proxyLog.error(
+                "节点测速",
+                "测速失败状态保存失败：$nodeName，原始错误=${originalError.code.name}，保存错误=${error::class.java.simpleName}",
             )
-        persistSubscriptionReplacement(current, failed, reconcileActive = false)
+        }
     }
 
     private suspend fun persistSubscriptionReplacement(

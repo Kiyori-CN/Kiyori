@@ -130,7 +130,7 @@ private enum class NetworkProxyPageSection(
     LOGS("代理日志"),
 }
 
-private enum class NetworkProxyNodeSort(
+internal enum class NetworkProxyNodeSort(
     val label: String,
 ) {
     DEFAULT("默认"),
@@ -266,6 +266,11 @@ internal fun KiyoriNetworkProxySettingsPage(
 
     LaunchedEffect(pageSection) {
         nodeSortMenuVisible = false
+        nodeSearchQuery = ""
+    }
+
+    LaunchedEffect(sectionSubscription?.id) {
+        selectedGroupTabName = null
         nodeSearchQuery = ""
     }
 
@@ -552,16 +557,25 @@ internal fun KiyoriNetworkProxySettingsPage(
             item(key = "network_proxy_overview_connections") {
                 KiyoriSettingsGroupSection(
                     title = "连接范围",
-                    description = "进入对应子页面管理当前节点、订阅、模块和逐脚本规则。",
+                    description = "进入对应子页面管理节点选择、订阅、模块和逐脚本规则。",
                 ) {
-                    val routeSummary = activeProxySelection?.chain?.joinToString(" → ") ?: "尚未选择节点"
+                    val nodeSelectionDescription =
+                        activeProxySelection?.let { selection ->
+                            buildString {
+                                append("当前：")
+                                append(selection.selectedItemName ?: selection.chain.lastOrNull() ?: "未选择")
+                                if (selection.chain.size > 1) {
+                                    append(" · ")
+                                    append(selection.chain.dropLast(1).joinToString(" → "))
+                                }
+                            }
+                        } ?: "选择当前订阅中的策略组和节点"
                     KiyoriSettingsRow(
-                        title = "当前节点",
-                        description = routeSummary,
+                        title = "节点选择",
+                        description = nodeSelectionDescription,
                         kind = KiyoriSettingsRowKind.NAVIGATION,
                         icon = Icons.Default.Speed,
                         iconTone = KiyoriSemanticTone.GREEN,
-                        value = activeProxySelection?.selectedItemName ?: "未选择",
                         enabled = controlsEnabled,
                         onClick = {
                             selectedGroupTabName = activeProxySelection?.finalGroupName
@@ -728,7 +742,7 @@ internal fun KiyoriNetworkProxySettingsPage(
             item(key = "network_proxy_current_node") {
                 val subscription = sectionSubscription
                 KiyoriSettingsGroupSection(
-                    title = subscription?.displayName ?: "当前节点",
+                    title = subscription?.displayName ?: "节点选择",
                     description = subscription?.let { "${subscriptionSourceLabel(it)} · ${subscriptionDescription(it)}" }
                         ?: "请先在订阅管理中导入并切换一份 Clash / Mihomo 订阅。",
                 ) {
@@ -772,13 +786,9 @@ internal fun KiyoriNetworkProxySettingsPage(
                             val filteredNodes = allNodes.filter { node ->
                                 query.isBlank() || node.name.lowercase(Locale.ROOT).contains(query) || node.type.lowercase(Locale.ROOT).contains(query)
                             }
-                            val displayedNodes = when (nodeSort) {
-                                NetworkProxyNodeSort.DEFAULT -> filteredNodes
-                                NetworkProxyNodeSort.NAME -> filteredNodes.sortedBy { it.name.lowercase(Locale.ROOT) }
-                                NetworkProxyNodeSort.DELAY -> filteredNodes.sortedWith(compareBy<MihomoNodeTestResult> { it.delayMillis ?: Long.MAX_VALUE }.thenBy { it.name.lowercase(Locale.ROOT) })
-                            }
+                            val displayedNodes = sortNetworkProxyNodes(filteredNodes, nodeSort)
                             Text(
-                                text = "${groupDisplayName(group.name)} · ${groupDescription(group, liveGroup)} · 当前：${currentItem ?: "未选择"}",
+                                text = "${groupDisplayName(group.name)} · ${groupDescription(group, liveGroup)} · 已选择：${currentItem ?: "未选择"}",
                                 color = LocalKiyoriSettingsColors.current.secondaryText,
                                 fontSize = 12.sp,
                                 lineHeight = 17.sp,
@@ -794,12 +804,12 @@ internal fun KiyoriNetworkProxySettingsPage(
                                     selectable = group.manuallySelectable,
                                     enabled = controlsEnabled,
                                     onSelect = { node ->
-                                        runOperation(NetworkProxyOperation("select_node", NetworkProxyOperationArea.GROUPS, "正在切换节点"), "已切换到 ${node.name}。") {
+                                         runOperation(NetworkProxyOperation("select_node", NetworkProxyOperationArea.GROUPS, "正在切换：${node.name}"), "已切换到 ${node.name}。") {
                                             manager.selectGroup(subscription.id, group.name, node.name)
                                         }
                                     },
                                     onTest = { node ->
-                                        runOperation(NetworkProxyOperation("test_node", NetworkProxyOperationArea.GROUPS, "正在测试节点"), "${node.name} 测速完成。") {
+                                         runOperation(NetworkProxyOperation("test_node", NetworkProxyOperationArea.GROUPS, "正在测速：${node.name}"), "${node.name} 测速完成。") {
                                             if (node.type == "策略组") {
                                                 manager.testSubscriptionGroup(subscription.id, node.name)
                                             } else {
@@ -1407,6 +1417,46 @@ private fun displayGroupNodes(
     return nodes.values.toList()
 }
 
+/**
+ * Applies the node-page order without changing the source order used by the default view.
+ * Delay sorting deliberately puts every non-success result after measured nodes so an old or
+ * missing delay can never look faster than an actual measurement.
+ */
+internal fun sortNetworkProxyNodes(
+    nodes: List<MihomoNodeTestResult>,
+    sort: NetworkProxyNodeSort,
+): List<MihomoNodeTestResult> {
+    if (sort == NetworkProxyNodeSort.DEFAULT) return nodes
+    return nodes.withIndex()
+        .sortedWith(
+            Comparator { left, right ->
+                when (sort) {
+                    NetworkProxyNodeSort.NAME ->
+                        compareValuesBy(
+                            left,
+                            right,
+                            { it.value.name.lowercase(Locale.ROOT) },
+                            { it.value.name },
+                            { it.index },
+                        )
+                    NetworkProxyNodeSort.DELAY ->
+                        compareValuesBy(
+                            left,
+                            right,
+                            { indexed ->
+                                if (indexed.value.status == MihomoNodeTestStatus.SUCCESS && indexed.value.delayMillis != null) 0 else 1
+                            },
+                            { indexed -> indexed.value.delayMillis ?: Int.MAX_VALUE },
+                            { indexed -> indexed.value.name.lowercase(Locale.ROOT) },
+                            { it.index },
+                        )
+                    NetworkProxyNodeSort.DEFAULT -> left.index.compareTo(right.index)
+                }
+            },
+        )
+        .map(IndexedValue<MihomoNodeTestResult>::value)
+}
+
 private fun subscriptionDescription(subscription: KiyoriProxySubscription): String =
     "${subscription.summary.proxyCount} 节点 · ${subscription.summary.groupCount} 组 · ${subscription.summary.isolatedProxyCount} 隔离"
 
@@ -1600,6 +1650,7 @@ private fun NetworkProxyNodeList(
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                     maxLines = 3,
                     overflow = TextOverflow.Clip,
+                    softWrap = true,
                 )
                 Text(
                     text = buildString {
@@ -1618,7 +1669,7 @@ private fun NetworkProxyNodeList(
                 )
             }
             if (selected) {
-                Icon(Icons.Default.Check, contentDescription = "当前节点", tint = colors.accent, modifier = Modifier.padding(horizontal = 4.dp).size(19.dp))
+                Icon(Icons.Default.Check, contentDescription = "已选择节点", tint = colors.accent, modifier = Modifier.padding(horizontal = 4.dp).size(19.dp))
             }
             IconButton(enabled = enabled, onClick = { onTest(node) }, modifier = Modifier.size(44.dp)) {
                 Icon(Icons.Default.Speed, contentDescription = "测速 ${node.name}", tint = colors.accent, modifier = Modifier.size(20.dp))

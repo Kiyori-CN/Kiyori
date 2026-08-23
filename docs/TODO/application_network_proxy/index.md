@@ -44,10 +44,10 @@ date: 2026-08-23
   Kiyori 在线服务入口已接入统一网络模块；ToolPkg 与传统脚本身份边界已固定。
 - `DONE`：设置入口、模块路由、订阅操作、分组节点、单项/整组测速、作用域进度与错误反馈均在
   同一页面 owner 内闭环；本轮新增设置会话浏览器往返修复、当前组/节点投影和已启用传统脚本发现。
-- `DONE LOCALLY`：网络代理主页已收敛为“启用应用内代理、默认连接、当前节点、订阅管理、模块连接模式、
+- `DONE LOCALLY`：网络代理主页已收敛为“启用应用内代理、默认连接、节点选择、订阅管理、模块连接模式、
   逐脚本连接模式、代理局域网地址、允许与系统 VPN 并存、重置网络代理”九个明确入口/控件；移除当前路由、
   当前订阅抽屉、策略组摘要、测试地址和布局选择等重复展示。
-- `DONE LOCALLY`：当前节点作为独立子页面，只使用当前订阅的横向分组标签、分组内搜索、顶部整组测速和排序。
+- `DONE LOCALLY`：节点选择作为独立子页面，只使用当前订阅的横向分组标签、分组内搜索、顶部整组测速和排序。
   节点按单列逐行显示，左侧无图标、标题允许多行完整展示，右侧测速按钮不触发选择；`select` 组点击行直接切换，
   自动策略组仅显示当前策略并禁止伪装手动选择。
 - `DONE LOCALLY`：订阅管理作为独立子页面，顶部提供“添加订阅地址”和“导入 YAML 文件”两个按钮；订阅行点击
@@ -274,7 +274,7 @@ settings route stack，Back 恢复“更多功能”，再 Back 恢复设置首�
 
 1. **应用内代理**：`启用应用内代理` 开关和 `默认连接`（直连/代理 segmented control）。总开关关闭时不改变用户
    已保存的模块/节点选择，只让请求按直连处理。
-2. **连接范围**：四个导航行分别进入“当前节点”“订阅管理”“模块连接模式”“逐脚本连接模式”，不再在主页重复显示
+2. **连接范围**：四个导航行分别进入“节点选择”“订阅管理”“模块连接模式”“逐脚本连接模式”，不再在主页重复显示
    当前路由、当前订阅或策略组摘要。
 3. **网络选项**：`代理日志` 子页面、`代理局域网地址`、`允许与系统 VPN 并存` 两个开关和
    `重置网络代理`。主页不再展示测试地址或外部 HTTP/mixed-port 主机、端口、认证表单。
@@ -282,7 +282,7 @@ settings route stack，Back 恢复“更多功能”，再 Back 恢复设置首�
 “代理日志”子页实时显示当前进程最近事件；标题栏从左到右提供复制、导出两个图标按钮，页面底部
 提供带确认的清空操作。空日志、导出取消、目标文件写入失败和日志并发更新都必须有确定反馈。
 
-“当前节点”子页只使用当前订阅：顶部标题行右侧固定为“测速、排序”，测速直接测试当前横向标签对应的整组，排序提供
+“节点选择”子页只使用当前订阅：顶部标题行右侧固定为“测速、排序”，测速直接测试当前横向标签对应的整组，排序提供
 默认/名称/延迟。标签下方是只过滤当前组的搜索框；节点单列逐行显示，左侧无图标，标题最多三行且不截断，右侧独立
 测速按钮。点击 `select` 组节点主体直接保存选择，自动策略组主体不可选；嵌套策略组显示为“策略组”项目，不伪装成节点。
 
@@ -352,7 +352,7 @@ Kiyori App Shell 的设置 route callback 以 `AI_HOST` 来源打开
    生命周期验收。
 12. [DONE] 修复设置首页在浏览器往返后丢失 settings session 导致的 `Settings route requires an active settings session` 崩溃；当前路由和传统脚本发现加入 JVM 回归覆盖。
 13. [DONE LOCALLY] 将模块连接和策略组/节点从主页面平铺列表收敛为两个页面内二级视图，并为策略组增加横向标签切换与“选择 / 测速”分离的交互。
-14. [DONE LOCALLY] 按用户确认的最终布局收敛为当前节点、订阅管理、模块连接模式、逐脚本连接模式四个子页；移除
+14. [DONE LOCALLY] 按用户确认的最终布局收敛为节点选择、订阅管理、模块连接模式、逐脚本连接模式四个子页；移除
     当前路由/当前项目/刷新节点与分组/布局菜单/测试地址等冗余入口，订阅行切换与右侧四项溢出菜单完成。
 15. [DONE LOCALLY] 使用目标订阅的私有临时副本和固定 Mihomo v1.19.30 证明旧配置会在空目录下载
     GeoSite/GeoIP 数据；修复 DNS 清洗后同版本核心校验为退出码 0 且不生成外部数据文件。私有订阅和
@@ -373,7 +373,7 @@ Kiyori App Shell 的设置 route callback 以 `AI_HOST` 来源打开
 - 网络入口：AI 主模型与模型列表、普通 AI 工具、传统脚本四入口、Browser WebView、Browser
   下载、mpv option、Kiyori 服务 client 均使用明确 module；本地 URL 始终旁路。
 - UI/导航：More Features 顺序、NETWORK_PROXY Back 链、环境变量按钮直接开抽屉、底部左按钮、
-  主页新增代理日志入口、日志查看/复制/SAF 导出/确认清空、当前节点横向分组/搜索/整组测速/排序/单列节点、
+  主页新增代理日志入口、日志查看/复制/SAF 导出/确认清空、节点选择横向分组/搜索/整组测速/排序/单列节点、
   订阅行切换与更新/编辑/复制/删除菜单、模块/脚本子页、订阅空/有数据/加载/错误、浅深主题、横屏和窗口尺寸。
 - 仓库/APK：现有 Mihomo 固定 SHA、Gradle 下载/ELF/16 KB 检查、无订阅泄漏、无运行明文或大
   ELF 提交、Debug APK identity/signer/zipalign/native basename。
@@ -392,6 +392,59 @@ Kiyori App Shell 的设置 route callback 以 `AI_HOST` 来源打开
 - APK 为 `app/build/outputs/apk/debug/app-debug.apk`，`493116749` bytes，SHA-256
   `8094AC5DB7A45D2C53B6AABCA7E2EECD899922A402BD46ADA1BC89F402846502`；包名/版本为
   `com.kiyori / 45 / 0.1.0`，Debug V2 单 signer 与 16 KB zipalign 通过。
+
+## 2026-08-23 深度优化实施方案
+
+### 问题证据与范围
+
+本轮基线为 `main@fa61b9b5`，工作树干净，正式开发准备门禁已通过。现有实现已经具备订阅库、
+策略组、单节点/整组测速和排序入口，但仍有以下闭环问题：
+
+1. 用户可见的主页入口、子页标题、分组描述和空状态仍使用“当前节点”；截图中的长节点名进入设置行
+   的固定 `value` 区域后被省略，用户无法确认完整选项。
+2. 节点排序虽然已有菜单，但排序状态只属于当前 Compose 会话，默认顺序、同延迟稳定顺序和未测速
+   节点位置没有明确契约；切组、切订阅和返回页面时也缺少统一的状态重置规则。
+3. `KiyoriNetworkProxyManager` 在 `mutationMutex` 内执行完整 probe 启停、Controller 请求、快照
+   合并和加密写入；慢节点或整组超时会阻塞其他设置操作。测速结果仍必须由 Mihomo 官方 group delay
+   接口产生，不能改为客户端伪并发或吞掉失败。
+4. 组测速/单节点测速的 UI 反馈没有区分“当前组整组测速”和“单项测速”，长名称会进入操作提示和
+   日志，增加布局压力和可读性风险。
+
+### 实施决策
+
+- Kiyori 当前仍是未公开产品（现有正式准备文档与本专项状态均如此记录），因此本轮直接统一用户可见
+  文案为“节点选择”，不保留“当前节点”兼容显示；内部 `NetworkProxyPageSection.CURRENT_NODE`
+  和网络协议标识不改，避免扩大持久化/路由迁移范围。
+- 主页节点摘要改为两行布局：固定标签“节点选择”与可换行的节点/策略链摘要分离，节点名称最多三行
+  且不通过 `KiyoriSettingsRow.value` 承载；节点页继续单列逐行显示，测试按钮与选择点击区域分离。
+- 排序定义为稳定投影：默认严格保留 Mihomo/订阅返回顺序；名称按 `Locale.ROOT` 的不区分大小写名称
+  升序并以原顺序稳定打破相同名称；延迟按成功延迟升序，未测速/失败/超时统一置底，再按名称和原顺序
+  稳定打破。切换分组或订阅时保留用户选择的排序模式，离开节点页时只关闭菜单和清空搜索。
+- 测速仍由 `KiyoriMihomoRuntime` 的单次 Controller `/group/{name}/delay` 或
+  `/proxies/{name}/delay` 完成；管理器只在需要保护同一订阅的快照合并与持久化时互斥，probe 网络等待
+  不占用全局设置写入锁。相同订阅的测速请求在 UI 层仍禁止重复提交，其他订阅/设置操作不会被无关等待
+  阻塞；任何异常都记录到脱敏日志并显式反馈。
+- 不新增第二状态 owner、不改变 schema、Mihomo 版本、测试 URL、路由策略或 VPN/TUN/LAN 边界；不加入
+  fallback、静默重试、伪造延迟或自动切换节点。
+
+### 实际修改文件与验证
+
+实际修改：
+
+- `app/src/main/java/com/ai/assistance/operit/ui/main/shell/KiyoriNetworkProxySettingsPage.kt`：文案、
+  主页摘要、长名称约束、稳定排序和测速反馈。
+- `app/src/main/java/com/kiyori/platform/network/KiyoriNetworkProxyManager.kt`：测速任务的锁边界与
+  结果提交一致性。
+- `app/src/test/java/com/ai/assistance/operit/ui/main/shell/KiyoriNetworkProxySettingsPolicyTest.kt` 与
+  `app/src/test/java/com/kiyori/platform/network/KiyoriNetworkProxyPolicyTest.kt`：排序规则、状态重置和
+  网络路由策略边界。
+- `CONTEXT.md`、本文件：同步用户可见术语、状态所有权与验收契约。
+
+验证顺序：`git diff --check`；网络代理定向 JVM 测试；必要的 App JVM 回归；
+`python -B ci/script/check_formal_readiness.py --repository . --require-main`；
+`./gradlew :app:assembleDebug --no-daemon --console=plain` 并核验 `app/build/outputs/apk/debug/app-debug.apk`；
+最后审阅精确 diff、敏感内容、子模块/产物和 `main` 远端 ref，再提交推送。真机 UI、真实节点连通性、
+系统 VPN 并存和进程生命周期继续单独保持 `verification_pending`。
 
 ## 真机验收
 
