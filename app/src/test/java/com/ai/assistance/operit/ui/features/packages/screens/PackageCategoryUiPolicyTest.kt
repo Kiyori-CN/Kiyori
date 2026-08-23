@@ -33,6 +33,7 @@ class PackageCategoryUiPolicyTest {
     fun `preset category icons match their semantic type`() {
         val expectedIcons =
             mapOf(
+                "Academic" to PackageCategoryIcon.MENU_BOOK,
                 "Automatic" to PackageCategoryIcon.AUTO_MODE,
                 "Chat" to PackageCategoryIcon.FORUM,
                 "Development" to PackageCategoryIcon.CODE,

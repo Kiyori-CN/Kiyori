@@ -421,7 +421,53 @@ object MihomoConfigSanitizer {
         if (raw == null) return null
         val dns = deepCopyMap(stringKeyMap(raw, "dns")).toMutableMap()
         dns.remove("listen")
+        sanitizeDnsFallbackFilter(dns.remove("fallback-filter"))?.let { sanitized ->
+            dns["fallback-filter"] = sanitized
+        }
+        sanitizeDnsMatcherList(dns.remove("fake-ip-filter"), "dns fake-ip-filter")?.let {
+                sanitized ->
+            dns["fake-ip-filter"] = sanitized
+        }
+        sanitizeDnsNameserverPolicy(dns.remove("nameserver-policy"))?.let { sanitized ->
+            dns["nameserver-policy"] = sanitized
+        }
         return dns.takeIf(Map<String, Any?>::isNotEmpty)
+    }
+
+    private fun sanitizeDnsFallbackFilter(raw: Any?): Map<String, Any?>? {
+        if (raw == null) return null
+        val filter = deepCopyMap(stringKeyMap(raw, "dns fallback-filter")).toMutableMap()
+        // The runtime directory intentionally contains no external GeoSite/GeoIP databases.
+        // Retaining these selectors makes `mihomo -t` perform an unowned network download
+        // before Kiyori has a working proxy route, so the generated configuration is not
+        // self-contained and cannot start on the target device.
+        // Mihomo defaults fallback-filter.geoip to true when the key is absent. An explicit
+        // false is required; removing the key would still download geoip.metadb during `-t`.
+        filter["geoip"] = false
+        filter.remove("geoip-code")
+        filter.remove("geosite")
+        return filter
+    }
+
+    private fun sanitizeDnsMatcherList(raw: Any?, label: String): List<String>? {
+        if (raw == null) return null
+        return stringList(raw, label)
+            .filterNot(::isExternalDnsMatcher)
+            .takeIf(List<String>::isNotEmpty)
+    }
+
+    private fun sanitizeDnsNameserverPolicy(raw: Any?): Map<String, Any?>? {
+        if (raw == null) return null
+        val policy = stringKeyMap(raw, "dns nameserver-policy")
+        return policy
+            .filterKeys { matcher -> !isExternalDnsMatcher(matcher) }
+            .mapValues { (_, value) -> deepCopyValue(value, 1) }
+            .takeIf(Map<String, Any?>::isNotEmpty)
+    }
+
+    private fun isExternalDnsMatcher(raw: String): Boolean {
+        val matcher = raw.trim().lowercase()
+        return matcher.startsWith("geosite:") || matcher.startsWith("rule-set:")
     }
 
     private fun loadSingleRoot(

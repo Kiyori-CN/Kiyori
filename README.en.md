@@ -38,7 +38,7 @@ The project retains Operit's chat, model configuration, tool calling, workflows,
 
 - **Shared browser runtime** for Browser Home and AI tools, including tabs, WebView state, cookies, history, bookmarks, downloads, userscripts, and window state.
 - **Operit AI subsystem** with provider configuration, conversations, character cards, memory, tools, workflows, attachments, voice, and resumable execution.
-- **Extension ecosystem** for script packages, ToolPkg plugins, Skills, MCP servers, markets, environment variables, and permissions.
+- **Extension ecosystem** for script packages, ToolPkg plugins, Skills, MCP servers, markets, environment variables, and permissions. Bundled scripts include an `Academic` group for official arXiv, Crossref, PubMed, Semantic Scholar, and OpenAlex API queries.
 - **Local workspace** with file management, an Ubuntu terminal, SSH, development tools, workspaces, and automation. File Management Home → Phone Storage and Settings Home → File Manager open the same file-manager owner.
 - **Legal documents** under Settings Home → More Features → User Agreement and Privacy Policy, exposing the current version and both read-only documents without changing first-run consent state.
 - **Media stack** with a current-page resource directory classified by known extensions and preferred request media ranges, SVG-capable image thumbnails and full-screen viewing, browser media discovery, downloads, an mpv-based player, queues, subtitles, Anime4K, and floating/full-screen presentation.
@@ -55,9 +55,9 @@ Kiyori-owned online services. The default is Direct or Proxy; every module can i
 its own mode. Traditional `JsEngine` packages may add a per-package override in Script Rules. The Environment
 drawer links here directly, and ToolPkg is intentionally kept under AI Tools rather than treated as a script.
 
-The home page keeps only the application-proxy switch, default connection, Current Node, Subscription Management,
-Module Connection Mode, Per-script Connection Mode, private-network routing, system-VPN coexistence, and reset.
-Current Node, Subscription Management, module modes, and script rules are separate child pages. Current Node uses
+The home page provides the application-proxy switch, default connection, Current Node, Subscription Management,
+Module Connection Mode, Per-script Connection Mode, Proxy Logs, private-network routing, system-VPN coexistence,
+and reset. Current Node, Subscription Management, module modes, script rules, and logs are separate child pages. Current Node uses
 horizontal group tabs, a current-group search field, a header group-test action, and sorting; nodes are single-column
 rows whose body selects `select` groups while the trailing button only tests that node. Automatic groups are never
 presented as manually selectable. Script Rules lists enabled executable traditional `JsEngine` packages and keeps
@@ -71,6 +71,16 @@ Clash YAML mapping. Base64 URI lists, duplicate keys, invalid providers, configu
 outbounds, or Mihomo validation failures are rejected. Local, loopback, link-local, private, and multicast
 nodes are isolated and counted while valid proxy groups and their order are retained. Subscription URL,
 sanitized YAML, and controller secrets are encrypted with Android Keystore in no-backup storage.
+
+Proxy Logs keeps the latest 300 subscription-validation, Mihomo lifecycle, selection, and delay-test events for the
+current Kiyori process. Core output is redacted before display: URL credentials and paths, bearer tokens,
+secret/password/token values, UUIDs, private file paths, and long credentials are removed. The page supports
+viewing, copying, SAF text export, and confirmed clearing; subscription YAML and controller secrets are never
+persisted as logs.
+
+Runtime DNS sanitization removes matchers that depend on external GeoSite/GeoIP databases or discarded rule
+providers. This keeps `mihomo -t` self-contained in a new private work directory instead of downloading data before
+the application proxy is available.
 
 Embedded Mihomo listens only on a random loopback mixed-port; it does not enable TUN, LAN listeners, or a
 subscription-provided controller. When an external Clash runs as a system VPN/TUN, no host, port, username,

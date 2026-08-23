@@ -18,17 +18,17 @@
     {
       "name": "BRAVE_ANSWERS_API_KEYS",
       "description": { "zh": "Answers API Key；多个 Key 用英文逗号分隔。", "en": "Answers API keys; comma-separated." },
-      "required": true
+      "required": false
     },
     {
       "name": "BRAVE_SUGGEST_API_KEYS",
       "description": { "zh": "Autosuggest API Key；多个 Key 用英文逗号分隔。", "en": "Autosuggest API keys; comma-separated." },
-      "required": true
+      "required": false
     },
     {
       "name": "BRAVE_SPELLCHECK_API_KEYS",
       "description": { "zh": "Spellcheck API Key；多个 Key 用英文逗号分隔。", "en": "Spellcheck API keys; comma-separated." },
-      "required": true
+      "required": false
     }
   ],
   "category": "Search",

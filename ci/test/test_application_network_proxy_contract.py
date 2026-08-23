@@ -45,6 +45,7 @@ class ApplicationNetworkProxyContractTest(unittest.TestCase):
         store = self.read_kiyori("platform/network/KiyoriNetworkProxyConfigStore.kt")
         runtime = self.read_kiyori("platform/network/KiyoriMihomoRuntime.kt")
         manager = self.read_kiyori("platform/network/KiyoriNetworkProxyManager.kt")
+        log_store = self.read_kiyori("platform/network/KiyoriNetworkProxyLogStore.kt")
 
         self.assertIn('CLASH_META_USER_AGENT = "Clash.Meta"', client)
         self.assertIn('Accept", "application/yaml,text/yaml,text/plain,*/*"', client)
@@ -78,6 +79,13 @@ class ApplicationNetworkProxyContractTest(unittest.TestCase):
         self.assertIn("probeSnapshot", runtime)
         self.assertIn('listOf("group", groupName, "delay")', runtime)
         self.assertIn('"delay"', runtime)
+        self.assertIn("collectProcessOutput", runtime)
+        self.assertNotIn("drainProcessOutput", runtime)
+        self.assertIn("MAX_ENTRIES = 300", log_store)
+        self.assertIn("fun exportText", log_store)
+        self.assertIn("fun clear", log_store)
+        self.assertIn("LONG_CREDENTIAL", log_store)
+        self.assertIn("val logEntries", manager)
 
     def test_network_stacks_use_explicit_module_identity(self) -> None:
         expected = {
@@ -138,6 +146,7 @@ class ApplicationNetworkProxyContractTest(unittest.TestCase):
             "订阅管理",
             "模块连接模式",
             "逐脚本连接模式",
+            "代理日志",
             "代理局域网地址",
             "允许与系统 VPN 并存",
             "重置网络代理",
@@ -153,12 +162,19 @@ class ApplicationNetworkProxyContractTest(unittest.TestCase):
             self.assertNotIn(redundant, page)
         self.assertIn("NetworkProxyPageSection.CURRENT_NODE", page)
         self.assertIn("NetworkProxyPageSection.SUBSCRIPTIONS", page)
+        self.assertIn("NetworkProxyPageSection.LOGS", page)
+        self.assertIn("ActivityResultContracts.CreateDocument", page)
+        self.assertIn("copyPlainTextToClipboard", page)
+        self.assertIn("清空代理日志？", page)
         self.assertIn("private fun NetworkProxyNodeList", page)
 
     def test_runtime_is_loopback_only_and_does_not_take_over_android_vpn(self) -> None:
         runtime = self.read_kiyori("platform/network/KiyoriMihomoRuntime.kt")
         sanitizer = self.read_kiyori("platform/network/MihomoConfigSanitizer.kt")
         self.assertIn('"127.0.0.1"', sanitizer)
+        self.assertIn('filter["geoip"] = false', sanitizer)
+        self.assertIn('matcher.startsWith("geosite:")', sanitizer)
+        self.assertIn('matcher.startsWith("rule-set:")', sanitizer)
         self.assertIn("PROBE_DIRECTORY_PREFIX", runtime)
         self.assertNotIn("VpnService", runtime)
         self.assertNotIn("TUN", runtime)

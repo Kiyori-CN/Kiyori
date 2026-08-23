@@ -151,7 +151,6 @@ class SearchPackageContractTest {
         assertEquals(
             setOf(
                 "brave_search.js",
-                "crossref_search.js",
                 "duckduckgo_search.js",
                 "google_search.js",
                 "serpapi_search.js",
@@ -239,7 +238,6 @@ class SearchPackageContractTest {
         val packageIds =
             setOf(
                 "brave_search",
-                "crossref_search",
                 "duckduckgo_search",
                 "google_search",
                 "serpapi_search",
@@ -254,6 +252,28 @@ class SearchPackageContractTest {
             assertTrue("Bundled asset missing: $packageId", asset.isFile)
             assertTrue("Example/asset drift: $packageId", example.readBytes().contentEquals(asset.readBytes()))
         }
+    }
+
+    @Test
+    fun `Brave only requires the search product key`() {
+        val source = repositoryFile("examples/brave_search.js").readText()
+        val metadata = JSONObject(requireNotNull(metadataText(source)))
+        val environments = metadata.getJSONArray("env")
+        val requiredByName =
+            (0 until environments.length()).associate { index ->
+                val environment = environments.getJSONObject(index)
+                environment.getString("name") to environment.getBoolean("required")
+            }
+
+        assertEquals(
+            mapOf(
+                "BRAVE_SEARCH_API_KEYS" to true,
+                "BRAVE_ANSWERS_API_KEYS" to false,
+                "BRAVE_SUGGEST_API_KEYS" to false,
+                "BRAVE_SPELLCHECK_API_KEYS" to false,
+            ),
+            requiredByName,
+        )
     }
 
     private fun assertBilingual(value: JSONObject, label: String) {

@@ -7,9 +7,20 @@ For_Agent: 对项目大规模动工前按本规范协作
 本文件顶部记录当前跨领域长期任务，后续段落保留专项实施与历史证据。历史段落中的分支、提交、
 APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观察点，不能替代当前 Git、构建或设备状态。
 
+## 2026-08-23 Academic 学术脚本分组与五源 API
+
+状态：`IMPLEMENTATION VERIFIED`。
+
+本轮在“扩展 -> 脚本”新增 `Academic` 分组，使用独立 `MenuBook` 图标和固定明暗配色；脚本清单为
+arXiv、Crossref、PubMed、Semantic Scholar、OpenAlex。现有 `crossref_search` 从 `Search` 移入
+`Academic`，五个脚本统一使用双语 metadata、官方端点、结构化返回和显式错误日志。Brave 的
+`BRAVE_SEARCH_API_KEYS` 保持必填，Answers/Suggest/Spellcheck 三个 Key 改为可选。完整接口矩阵、
+认证字段、实施计划、15 项定向测试、真实 API 与 Debug APK 验证边界见
+[`academic_script_catalog/index.md`](academic_script_catalog/index.md)。
+
 ## 2026-08-23 Kiyori 应用级网络代理与内嵌 Mihomo
 
-状态：`IMPLEMENTATION VERIFIED / DEVICE VERIFICATION PENDING`（本轮继续修复设置路由崩溃并优化代理页，设备验收边界不变）。
+状态：`IMPLEMENTATION VERIFIED / DEVICE VERIFICATION PENDING`（真机已确认订阅可导入展示；本地已修复 Mihomo 运行配置的外部地理数据依赖并增加代理日志，等待修订 APK 现场复测）。
 
 上一版传统脚本代理正在升级为 Kiyori 唯一的应用级代理 owner。正式入口迁至“设置首页 -> 更多
 功能 -> 网络代理”，支持默认连接、逐模块连接和脚本模块内逐脚本规则；AI 服务、AI 工具、
@@ -20,16 +31,19 @@ Browser、下载器、播放器、脚本与扩展、Kiyori 在线服务按各自
 清洗后保留策略组；本地地址额度占位节点被隔离并报告，不再阻断整份有效订阅。用户安装首份 APK
 后确认 URL/YAML 导入与总开关均无法保存，根因是 Android Keystore 随机化密钥拒绝调用方 IV；
 本轮同时把单订阅模型升级为加密多订阅库，覆盖刷新、添加、切换、更新、编辑、复制、删除、按组
-展示和单节点/整组测速。自动测试和 Debug APK 仍只证明本地实现，真机回归需由安装包现场确认。
+展示和单节点/整组测速。最新真机反馈进一步证明订阅结构和 UI 投影正常，但清洗后的 DNS 仍引用
+私有工作目录不存在的 GeoSite/GeoIP 数据，主/probe runtime 均在 `mihomo -t` 阶段失败；本地修复
+已剥离这些外部数据依赖，并提供可查看、复制、SAF 导出和清空的进程内脱敏代理日志。自动测试和
+Debug APK 仍只证明本地实现，真实节点连接需由修订安装包现场确认。
 
-界面移除外部 mixed-port 的主机/端口/认证表单。代理主页只保留开关、默认连接、当前节点、订阅管理、模块连接模式、
-逐脚本连接模式、局域网地址、系统 VPN 并存和重置九项内容；当前节点、订阅管理、模块和逐脚本规则分别进入子页面。
+界面移除外部 mixed-port 的主机/端口/认证表单。代理主页保留开关、默认连接、当前节点、订阅管理、模块连接模式、
+逐脚本连接模式、代理日志、局域网地址、系统 VPN 并存和重置；当前节点、订阅管理、模块、逐脚本规则和日志分别进入子页面。
 当前节点页按横向分组标签、搜索、整组测速、排序和单列节点行组织，订阅页支持两个导入按钮、点击切换和更新/编辑/复制/删除
 三点菜单。逐脚本规则只展示已启用传统 JsEngine 包，并保留手动包名入口。外部 Clash 使用 Android VPN 时无需填写；内嵌
 Mihomo 与系统 VPN 并存默认阻止，明确授权后才形成双层链路。完整模型、UI、策略组、首次导入、
 路由矩阵、安全边界、实施计划和验收项见
-[`application_network_proxy/index.md`](application_network_proxy/index.md)。本地实现、Debug APK、
-提交和推送属于当前授权；设备安装、ADB、模拟器、Release 和部署不属于当前授权。
+[`application_network_proxy/index.md`](application_network_proxy/index.md)。最新用户指令已授权将
+当前工作树全部改动提交并推送 `main`；设备安装、ADB、模拟器、Release 和部署仍不在授权内。
 
 ## 2026-08-22 全终态工具历史闭合与中断恢复
 

@@ -91,6 +91,8 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         private const val READINESS_TIMEOUT_MILLIS = 12_000L
         private const val TEST_TIMEOUT_SECONDS = 20L
         private const val STOP_TIMEOUT_SECONDS = 3L
+        private const val OUTPUT_DRAIN_TIMEOUT_MILLIS = 2_000L
+        private const val MAX_CAPTURED_CORE_LINES = 32
         private const val DELAY_TEST_TIMEOUT_MILLIS = 8_000
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
 
@@ -119,7 +121,19 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         var appliedSelections: Map<String, String>,
     )
 
+    private class ProcessOutputCollector(
+        private val worker: Thread,
+        private val lines: ArrayDeque<String>,
+        private val lineLock: Any,
+    ) {
+        fun await(): List<String> {
+            worker.join(OUTPUT_DRAIN_TIMEOUT_MILLIS)
+            return synchronized(lineLock) { lines.toList() }
+        }
+    }
+
     private val appContext = context.applicationContext
+    private val proxyLog = KiyoriNetworkProxyLogStore
     private val processKey = sha256(KiyoriProcessIdentity.currentProcessName(appContext)).take(12)
     private val runtimeDirectory =
         appContext.noBackupFilesDir.resolve(RUNTIME_DIRECTORY_PREFIX + processKey)
@@ -180,6 +194,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                 }
                 restrictToOwner(validationDirectory)
                 try {
+                    proxyLog.info("配置校验", "开始使用内嵌 Mihomo 校验订阅运行配置")
                     val mixedPort = allocateLoopbackPort()
                     var controllerPort = allocateLoopbackPort()
                     while (controllerPort == mixedPort) controllerPort = allocateLoopbackPort()
@@ -200,6 +215,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                         configFile = configFile,
                         workDirectory = validationDirectory,
                     )
+                    proxyLog.info("配置校验", "订阅运行配置已通过内嵌 Mihomo 校验")
                 } finally {
                     clearDirectory(validationDirectory, "validation")
                 }
@@ -337,6 +353,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                 )
             var probe: ActiveRuntime? = null
             try {
+                proxyLog.info("订阅探测", "正在启动隔离 Mihomo 以读取节点或执行测速")
                 val active =
                     withContext(Dispatchers.IO) {
                         startProcess(
@@ -358,8 +375,11 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                         phase = operationPhase,
                         subscriptionId = config.id,
                     )
-                withContext(Dispatchers.IO) { block(active) }
+                withContext(Dispatchers.IO) { block(active) }.also {
+                    proxyLog.info("订阅探测", "隔离 Mihomo 操作已完成")
+                }
             } catch (error: KiyoriNetworkException) {
+                proxyLog.error("订阅探测", "隔离 Mihomo 操作失败：${error.code.name} ${error.message.orEmpty()}")
                 mutableProbeState.value =
                     KiyoriMihomoProbeState(
                         phase = KiyoriMihomoProbePhase.ERROR,
@@ -369,6 +389,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                 throw error
             } catch (error: Exception) {
                 KiyoriLogger.e(TAG, "Unable to run the isolated Mihomo subscription probe", error)
+                proxyLog.error("订阅探测", "隔离 Mihomo 启动异常：${error::class.java.simpleName}")
                 val wrapped =
                     KiyoriNetworkException(
                         KiyoriNetworkErrorCode.CORE_START_FAILED,
@@ -421,6 +442,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         }
 
         mutableState.value = KiyoriMihomoRuntimeState(phase = KiyoriMihomoRuntimePhase.STARTING)
+        proxyLog.info("主运行时", "正在启动内嵌 Mihomo")
         return try {
             val active =
                 withContext(Dispatchers.IO) {
@@ -431,10 +453,12 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
             publishRunningState(active)
             active
         } catch (error: KiyoriNetworkException) {
+            proxyLog.error("主运行时", "内嵌 Mihomo 启动失败：${error.code.name} ${error.message.orEmpty()}")
             stopLocked(KiyoriMihomoRuntimePhase.ERROR, error.message)
             throw error
         } catch (error: Exception) {
             KiyoriLogger.e(TAG, "Unable to start the embedded Mihomo runtime", error)
+            proxyLog.error("主运行时", "内嵌 Mihomo 启动异常：${error::class.java.simpleName}")
             val wrapped =
                 KiyoriNetworkException(
                     KiyoriNetworkErrorCode.CORE_START_FAILED,
@@ -464,6 +488,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         }
 
         resetDirectory(workDirectory, directoryLabel)
+        proxyLog.info("Mihomo $directoryLabel", "正在生成并校验自包含运行配置")
         val mixedPort = allocateLoopbackPort()
         var controllerPort = allocateLoopbackPort()
         while (controllerPort == mixedPort) controllerPort = allocateLoopbackPort()
@@ -490,7 +515,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                 secret = secret,
                 workDirectory = workDirectory,
             )
-        drainProcessOutput(process)
+        collectProcessOutput(process, "Mihomo $directoryLabel")
         val active =
             ActiveRuntime(
                 process = process,
@@ -538,6 +563,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                     "The embedded proxy configuration could not be removed after startup.",
                 )
             }
+            proxyLog.info("Mihomo $directoryLabel", "Controller 已就绪，明文运行配置已清理")
             return active
         } catch (error: Exception) {
             stopProcessBlocking(process)
@@ -563,18 +589,35 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                 configFile.absolutePath,
                 workDirectory = workDirectory,
             ).start()
-        drainProcessOutput(process)
+        val output = collectProcessOutput(process, "Mihomo 校验")
         if (!process.waitFor(TEST_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
             process.destroyForcibly()
+            output.await()
+            proxyLog.error("Mihomo 校验", "配置校验在 ${TEST_TIMEOUT_SECONDS} 秒后超时")
             throw KiyoriNetworkException(
                 KiyoriNetworkErrorCode.CONFIG_INVALID,
                 "Mihomo configuration validation timed out.",
             )
         }
-        if (process.exitValue() != 0) {
+        val captured = output.await()
+        val exitCode = process.exitValue()
+        if (exitCode != 0) {
+            val detail = captured.lastOrNull { line -> line.isNotBlank() }
+            proxyLog.error(
+                "Mihomo 校验",
+                buildString {
+                    append("核心拒绝运行配置，退出码 ")
+                    append(exitCode)
+                    detail?.let { append("：").append(it) }
+                },
+            )
             throw KiyoriNetworkException(
                 KiyoriNetworkErrorCode.CONFIG_INVALID,
-                "Mihomo rejected the sanitized subscription.",
+                buildString {
+                    append("Mihomo rejected the sanitized subscription")
+                    detail?.let { append(": ").append(it) }
+                    append('.')
+                },
             )
         }
     }
@@ -725,6 +768,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         nodeName: String,
         testUrl: String,
     ): Int {
+        proxyLog.info("节点测速", "正在测试节点：$nodeName")
         if (active.nodes.none { node -> node.name == nodeName }) {
             throw KiyoriNetworkException(
                 KiyoriNetworkErrorCode.PROXY_CONNECT_FAILED,
@@ -739,6 +783,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                 "Mihomo returned an invalid node delay.",
             )
         }
+        proxyLog.info("节点测速", "节点测速完成：$nodeName，${delay} ms")
         return delay
     }
 
@@ -747,6 +792,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         groupName: String,
         testUrl: String,
     ): Map<String, Int> {
+        proxyLog.info("分组测速", "正在测试策略组：$groupName")
         if (active.groups.none { group -> group.name == groupName }) {
             throw KiyoriNetworkException(
                 KiyoriNetworkErrorCode.GROUP_SELECTION_INVALID,
@@ -762,6 +808,9 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                 if (delay > 0) put(name, delay)
             }
         }.takeIf(Map<String, Int>::isNotEmpty)
+            ?.also { delays ->
+                proxyLog.info("分组测速", "策略组测速完成：$groupName，成功 ${delays.size} 项")
+            }
             ?: throw KiyoriNetworkException(
                 KiyoriNetworkErrorCode.PROXY_CONNECT_FAILED,
                 "Mihomo returned no successful node delays for the selected group.",
@@ -847,6 +896,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                     )
                 }
             }
+            proxyLog.info("节点选择", "已将策略组 $groupName 切换为 $itemName")
         } catch (error: KiyoriNetworkException) {
             throw error
         } catch (error: Exception) {
@@ -897,6 +947,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
             kotlinx.coroutines.runBlocking {
                 mutex.withLock {
                     if (activeRuntime?.process === active.process) {
+                        proxyLog.error("主运行时", "内嵌 Mihomo 进程异常退出，退出码 $exitCode")
                         activeRuntime = null
                         mutableState.value =
                             KiyoriMihomoRuntimeState(
@@ -910,14 +961,27 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         }
     }
 
-    private fun drainProcessOutput(process: Process) {
-        thread(name = "Kiyori-Mihomo-Output", isDaemon = true) {
-            runCatching {
-                process.inputStream.bufferedReader(Charsets.UTF_8).useLines { lines ->
-                    lines.forEach { /* Drain without persisting subscription or credential data. */ }
+    private fun collectProcessOutput(process: Process, source: String): ProcessOutputCollector {
+        val captured = ArrayDeque<String>(MAX_CAPTURED_CORE_LINES)
+        val lineLock = Any()
+        val worker =
+            thread(name = "Kiyori-Mihomo-Output", isDaemon = true) {
+                runCatching {
+                    process.inputStream.bufferedReader(Charsets.UTF_8).useLines { lines ->
+                        lines.forEach { rawLine ->
+                            proxyLog.core(source, rawLine)?.let { redactedLine ->
+                                synchronized(lineLock) {
+                                    captured.addLast(redactedLine)
+                                    while (captured.size > MAX_CAPTURED_CORE_LINES) {
+                                        captured.removeFirst()
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
-        }
+        return ProcessOutputCollector(worker, captured, lineLock)
     }
 
     private suspend fun stopLocked(
@@ -927,12 +991,16 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         val active = activeRuntime
         activeRuntime = null
         if (active != null) {
+            proxyLog.info("主运行时", "正在停止内嵌 Mihomo")
             mutableState.value =
                 KiyoriMihomoRuntimeState(phase = KiyoriMihomoRuntimePhase.STOPPING)
             withContext(Dispatchers.IO) { stopProcessBlocking(active.process) }
         }
         withContext(Dispatchers.IO) { clearRuntimeDirectory() }
         mutableState.value = KiyoriMihomoRuntimeState(phase = finalPhase, message = message)
+        if (active != null && finalPhase == KiyoriMihomoRuntimePhase.STOPPED) {
+            proxyLog.info("主运行时", "内嵌 Mihomo 已停止")
+        }
     }
 
     private fun resetDirectory(directory: File, label: String) {

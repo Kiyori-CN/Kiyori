@@ -77,6 +77,54 @@ class MihomoConfigSanitizerTest {
     }
 
     @Test
+    fun `dns sanitizer removes external geodata and rule set dependencies`() {
+        val sanitized =
+            MihomoConfigSanitizer.sanitize(
+                """
+                proxies:
+                  - { name: node-a, type: socks5, server: proxy.example.com, port: 1080 }
+                dns:
+                  enable: true
+                  listen: 0.0.0.0:53
+                  enhanced-mode: fake-ip
+                  nameserver: [https://dns.example.com/dns-query]
+                  fallback-filter:
+                    geoip: true
+                    geoip-code: CN
+                    geosite: [gfw]
+                    domain: [+.example.org]
+                    ipcidr: [203.0.113.0/24]
+                  fake-ip-filter: [geosite:private, rule-set:lan, +.local.example]
+                  nameserver-policy:
+                    geosite:cn: [https://cn.example.com/dns-query]
+                    rule-set:private: [system]
+                    +.explicit.example: [https://policy.example.com/dns-query]
+                """.trimIndent(),
+            )
+
+        val runtime =
+            MihomoConfigSanitizer.buildRuntimeConfig(
+                sanitizedYaml = sanitized.yaml,
+                mixedPort = 31001,
+                controllerPort = 31002,
+                controllerSecret = "controller-secret",
+                testUrl = KiyoriNetworkProxyConfig.DEFAULT_TEST_URL,
+            )
+
+        assertFalse(runtime.yaml.contains("listen:"))
+        assertFalse(runtime.yaml.contains("geoip: true"))
+        assertTrue(runtime.yaml.contains("geoip: false"))
+        assertFalse(runtime.yaml.contains("geoip-code:"))
+        assertFalse(runtime.yaml.contains("geosite:"))
+        assertFalse(runtime.yaml.contains("rule-set:"))
+        assertTrue(runtime.yaml.contains("+.example.org"))
+        assertTrue(runtime.yaml.contains("203.0.113.0/24"))
+        assertTrue(runtime.yaml.contains("+.local.example"))
+        assertTrue(runtime.yaml.contains("+.explicit.example"))
+        assertTrue(runtime.yaml.contains("https://dns.example.com/dns-query"))
+    }
+
+    @Test
     fun `duplicate names and invalid providers are rejected while local nodes are isolated`() {
         val duplicate =
             """

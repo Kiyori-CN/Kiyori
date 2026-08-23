@@ -49,12 +49,18 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
     private val appContext = context.applicationContext
     private val configStore = KiyoriNetworkProxyConfigStore.getInstance(appContext)
     private val runtime = KiyoriMihomoRuntime.getInstance(appContext)
+    private val proxyLog = KiyoriNetworkProxyLogStore
     private val subscriptionClient = MihomoSubscriptionClient()
     private val mutationMutex = Mutex()
 
     val configState: StateFlow<KiyoriNetworkProxyStoreState> = configStore.state
     val runtimeState: StateFlow<KiyoriMihomoRuntimeState> = runtime.state
     val probeState: StateFlow<KiyoriMihomoProbeState> = runtime.probeState
+    val logEntries: StateFlow<List<KiyoriNetworkProxyLogEntry>> = proxyLog.entries
+
+    fun exportLogText(): String = proxyLog.exportText()
+
+    fun clearLog() = proxyLog.clear()
 
     fun scheduleStartupReconciliation() {
         runtime.scheduleStaleRuntimeCleanup()
@@ -443,9 +449,11 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
     suspend fun switchActiveSubscription(subscriptionId: String): KiyoriNetworkProxyConfig =
         mutationMutex.withLock {
             val current = currentConfig()
-            KiyoriNetworkProxyPolicy.requireSubscription(current, subscriptionId)
+            val subscription = KiyoriNetworkProxyPolicy.requireSubscription(current, subscriptionId)
+            proxyLog.info("订阅管理", "正在切换当前订阅：${subscription.displayName}")
             val updated = persistConfig { it.copy(activeSubscriptionId = subscriptionId) }
             reconcileSavedConfig(updated)
+            proxyLog.info("订阅管理", "当前订阅已切换：${subscription.displayName}")
             updated
         }
 

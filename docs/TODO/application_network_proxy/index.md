@@ -35,6 +35,9 @@ date: 2026-08-23
 
 ## 当前实施状态
 
+- `DONE LOCALLY`：用户真机确认订阅、策略组和节点可以正常导入展示，但主 runtime 与 probe runtime
+  均在 `mihomo -t` 阶段拒绝运行配置，导致开启代理、选点和测速不可用。本轮已删除 DNS 中对外部
+  GeoSite/GeoIP 数据文件和已移除 rule-provider 的残留依赖，并增加可查看、复制、导出和清空的脱敏代理日志。
 - `DONE`：Android Keystore 随机 IV、保存事务和多订阅 schema 已修复；订阅 URL/YAML 导入、更新、
   切换、复制、删除、分组节点和单节点/整组测速均由同一代理 owner 持有。
 - `DONE`：AI 主模型/语音/embedding、AI 工具、传统脚本、Browser、下载、播放器、Coil 图片和
@@ -54,7 +57,7 @@ date: 2026-08-23
   包名规则；所有修改仍通过同一 `KiyoriNetworkProxyManager`。
 - `REGRESSION FIXED LOCALLY`：崩溃报告 `9619e60b-3d09-4c69-b181-20b001d38251` 的设置路由
   生命周期已由 Shell 状态和 JVM 回归测试覆盖；上一份 APK 的现场保存问题不能作为当前实现结论。
-- `verification_pending`：修订 APK 尚未在真机验证；真实订阅、多订阅切换、WebView、AI、播放器、
+- `verification_pending`：本轮修订 APK 尚未在真机验证；真实订阅、多订阅切换、日志交互、WebView、AI、播放器、
   下载器、脚本、外部 VPN 并存和进程生命周期矩阵仍待设备验收。
 
 ## 非目标
@@ -63,8 +66,8 @@ date: 2026-08-23
 - 不代理 Kiyori 之外的应用，不修改系统 Wi-Fi 代理，不接管其他应用的 Clash 配置。
 - 不承诺改变 Terminal、用户自行启动的进程或远端 MCP 进程内部自行创建的 socket；只有 Kiyori
   宿主持有并能明确归类的网络入口进入本合同。
-- 不把私有订阅 URL、订阅响应、节点密钥、Controller secret 或本地运行配置写入 Git、日志、
-  崩溃报告、任务日记或普通偏好文件。
+- 不把私有订阅 URL、订阅响应、节点密钥、Controller secret 或本地运行配置写入 Git、崩溃报告、
+  任务日记或普通偏好文件。代理日志只保存当前进程内的有界脱敏事件；复制和导出必须由用户明确触发。
 - 不安装 APK、不操作 ADB/模拟器/设备；真实网络、系统 VPN 和播放器流量仍需要目标设备验收。
 
 ## 现场错误与根因证据
@@ -107,6 +110,7 @@ date: 2026-08-23
 | `MihomoConfigSanitizer` | YAML 结构、安全边界、策略组清洗与运行配置重建 |
 | `MihomoSubscriptionClient` | 订阅 URL 校验、内容协商、大小/重定向/UTF-8 检查 |
 | `KiyoriMihomoRuntime` | 核心启动、私有端口、Controller、策略切换、进程退出与明文清理 |
+| `KiyoriNetworkProxyLogStore` | 当前进程内有界脱敏日志、复制/导出文本和清空状态 |
 | `KiyoriNetworkProxyManager` | 路由解析、系统 VPN 门禁、OkHttp/WebView/mpv 适配和状态投影 |
 
 上一版 `ScriptNetworkConfigStore`、`ScriptProxyRuntime`、`ScriptNetworkHttpClientFactory` 与
@@ -191,7 +195,9 @@ WebView 的 AndroidX `ProxyController` 是进程级 API，不能把不同 WebVie
 - 删除订阅提供的所有 inbound、TUN、LAN、sniffer、Controller、secret、profile 路径和 listener。
 - 静态节点必须有唯一名称、类型和安全的 server；本地/私有字面地址条目被隔离并计数。
 - provider 只允许 `http` 类型和绝对 HTTP(S) URL；provider 本地 path 改写到应用私有目录。
-- DNS 可以保留出站解析配置，但删除 `listen`；不允许订阅开启本机 DNS listener。
+- DNS 只保留不依赖订阅规则集和外部地理数据库的出站解析配置；删除 `listen`、GeoSite/GeoIP
+  过滤引用及与原订阅路由规则耦合的字段。Kiyori 运行配置只有自己的 `MATCH` 根规则，不能把已经
+  移除的规则集依赖继续带入全新私有工作目录，也不允许订阅开启本机 DNS listener。
 
 ### 组清洗
 
@@ -234,8 +240,10 @@ UI 展示真实订阅组名、组类型、当前项目、节点数量与延迟�
   loopback bind、短生命周期和应用退出联动共同缩小暴露面。Controller 仍强制随机 bearer secret。
 - 运行 YAML 写入 no-backup 私有目录，权限收紧；Mihomo 完成读取并通过 Controller readiness 后
   删除明文。启动前先清理上次崩溃留下的运行目录。
-- 日志只保留阶段、错误码、计数和脱敏 host；不得记录订阅 URL path/query、YAML、节点、密钥、
-  代理认证、Controller secret 或响应正文。
+- 日志只在当前应用进程内保留最近的有界事件，覆盖订阅校验、核心启动/停止、选点、测速和错误。
+  Mihomo 输出进入日志前必须裁剪并遮蔽 URL user-info/query、Bearer、secret/password/token、UUID、
+  私有文件路径和长凭据；不得记录订阅 YAML、代理认证、Controller secret 或响应正文。查看之外的
+  复制、SAF 导出和清空均由用户显式操作，导出不申请额外存储权限。
 
 ## 外部 Clash / 系统 VPN 共存
 
@@ -268,8 +276,11 @@ settings route stack，Back 恢复“更多功能”，再 Back 恢复设置首�
    已保存的模块/节点选择，只让请求按直连处理。
 2. **连接范围**：四个导航行分别进入“当前节点”“订阅管理”“模块连接模式”“逐脚本连接模式”，不再在主页重复显示
    当前路由、当前订阅或策略组摘要。
-3. **网络选项**：`代理局域网地址`、`允许与系统 VPN 并存` 两个开关和 `重置网络代理`。主页不再展示测试地址或
-   外部 HTTP/mixed-port 主机、端口、认证表单。
+3. **网络选项**：`代理日志` 子页面、`代理局域网地址`、`允许与系统 VPN 并存` 两个开关和
+   `重置网络代理`。主页不再展示测试地址或外部 HTTP/mixed-port 主机、端口、认证表单。
+
+“代理日志”子页实时显示当前进程最近事件；标题栏从左到右提供复制、导出两个图标按钮，页面底部
+提供带确认的清空操作。空日志、导出取消、目标文件写入失败和日志并发更新都必须有确定反馈。
 
 “当前节点”子页只使用当前订阅：顶部标题行右侧固定为“测速、排序”，测速直接测试当前横向标签对应的整组，排序提供
 默认/名称/延迟。标签下方是只过滤当前组的搜索框；节点单列逐行显示，左侧无图标，标题最多三行且不截断，右侧独立
@@ -314,8 +325,8 @@ Kiyori App Shell 的设置 route callback 以 `AI_HOST` 来源打开
 | `GROUP_SELECTION_INVALID` | 保存的组项目不再存在 | 要求用户重新选择 |
 | `PROXY_CONNECT_FAILED` | 请求无法通过当前内嵌核心 | 当前请求失败 |
 
-页面显示本地化、可执行的短消息；日志保留错误码和异常类型。不得把原始英文异常直接作为主 UI，
-也不得在失败后自动修改总开关、模块模式、节点或测试 URL。
+页面显示本地化、可执行的短消息；代理日志保留阶段、错误码和经过脱敏的 Mihomo 校验原因。不得把
+原始核心输出直接作为主 UI，也不得在失败后自动修改总开关、模块模式、节点或测试 URL。
 
 ## 实施顺序
 
@@ -343,21 +354,44 @@ Kiyori App Shell 的设置 route callback 以 `AI_HOST` 来源打开
 13. [DONE LOCALLY] 将模块连接和策略组/节点从主页面平铺列表收敛为两个页面内二级视图，并为策略组增加横向标签切换与“选择 / 测速”分离的交互。
 14. [DONE LOCALLY] 按用户确认的最终布局收敛为当前节点、订阅管理、模块连接模式、逐脚本连接模式四个子页；移除
     当前路由/当前项目/刷新节点与分组/布局菜单/测试地址等冗余入口，订阅行切换与右侧四项溢出菜单完成。
+15. [DONE LOCALLY] 使用目标订阅的私有临时副本和固定 Mihomo v1.19.30 证明旧配置会在空目录下载
+    GeoSite/GeoIP 数据；修复 DNS 清洗后同版本核心校验为退出码 0 且不生成外部数据文件。私有订阅和
+    生成配置未进入 Git 或任务记录，并已从系统临时目录删除。
+16. [DONE LOCALLY] 增加单一进程内脱敏日志 owner，接入配置校验、主/probe runtime、选点和测速链路；
+    非零核心退出必须保留可诊断原因，同时继续清理明文运行配置。
+17. [DONE LOCALLY] 在网络代理主页增加“代理日志”入口，完成实时查看、复制、SAF 导出和确认清空子页面。
+18. [DONE LOCALLY] 补充 DNS 地理数据依赖剥离、日志脱敏/有界性、UI 合同与 Mihomo 错误输出回归，完成
+    定向/完整 JVM、Python、正式开发门禁和规定 Debug APK 构建；真机复测继续保持 `verification_pending`。
 
 ## 自动验证矩阵
 
 - 模型策略：总开关、默认模式、逐模块、逐脚本、VPN 门禁、局域网地址策略。
 - YAML：目标服务同类 Clash YAML、Base64 格式拒绝、占位节点隔离、策略组引用清理、重复名、
-  provider path、单文档、UTF-8、4 MiB、alias、深度和 secret 不出现在异常。
+  provider path、单文档、UTF-8、4 MiB、alias、深度、DNS GeoSite/GeoIP 依赖剥离和 secret 不出现在异常。
 - Runtime：随机 loopback port、无 LAN/TUN、Controller bearer、组快照/切换、旧明文清理、核心
-  异常退出、parent-death、配置指纹变化和停机幂等。
+  异常退出、parent-death、配置指纹变化、校验错误输出收集和停机幂等。
 - 网络入口：AI 主模型与模型列表、普通 AI 工具、传统脚本四入口、Browser WebView、Browser
   下载、mpv option、Kiyori 服务 client 均使用明确 module；本地 URL 始终旁路。
 - UI/导航：More Features 顺序、NETWORK_PROXY Back 链、环境变量按钮直接开抽屉、底部左按钮、
-  主页九项最终布局、当前节点横向分组/搜索/整组测速/排序/单列节点、订阅行切换与更新/编辑/复制/删除菜单、
-  模块/脚本子页、订阅空/有数据/加载/错误、浅深主题、横屏和窗口尺寸。
+  主页新增代理日志入口、日志查看/复制/SAF 导出/确认清空、当前节点横向分组/搜索/整组测速/排序/单列节点、
+  订阅行切换与更新/编辑/复制/删除菜单、模块/脚本子页、订阅空/有数据/加载/错误、浅深主题、横屏和窗口尺寸。
 - 仓库/APK：现有 Mihomo 固定 SHA、Gradle 下载/ELF/16 KB 检查、无订阅泄漏、无运行明文或大
   ELF 提交、Debug APK identity/signer/zipalign/native basename。
+
+本轮本地证据（2026-08-23）：
+
+- 目标订阅旧运行配置在空目录执行固定 Mihomo v1.19.30 `-t` 时生成 `GeoSite.dat` 与
+  `geoip.metadb`；修复后的同版本校验退出码为 0，空目录生成文件数为 0。
+- `MihomoConfigSanitizerTest`、`KiyoriNetworkProxyLogStoreTest` 与
+  `KiyoriNetworkProxyPolicyTest` 定向通过；完整 App JVM 为 `295 suites / 1731 tests`，零失败、
+  零错误、零跳过。
+- `ci/test` 为 `228/228`，网络代理专项合同 `8/8`，formal readiness 与 `git diff --check` 通过；
+  仓库扫描未发现目标订阅 host/token 特征。
+- `:app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL`，`235` tasks 中 `26`
+  executed、`209` up-to-date；唯一 Launcher、Mihomo/launcher 和播放器运行时打包门禁通过。
+- APK 为 `app/build/outputs/apk/debug/app-debug.apk`，`493116749` bytes，SHA-256
+  `8094AC5DB7A45D2C53B6AABCA7E2EECD899922A402BD46ADA1BC89F402846502`；包名/版本为
+  `com.kiyori / 45 / 0.1.0`，Debug V2 单 signer 与 16 KB zipalign 通过。
 
 ## 真机验收
 

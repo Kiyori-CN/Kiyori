@@ -1,6 +1,7 @@
 12306.js
 automatic_ui_base.js
 automatic_ui_subagent.js
+arxiv_search.js
 brave_search.js
 code_runner.js
 crossref_search.js
@@ -28,10 +29,12 @@ workflow.js
 xai_draw.js
 openai_draw.js
 openai_web_search
+openalex_search.js
 operit_editor.js
 browser.js
 context_limiter_c
 windows_control
+pubmed_search.js
 zhipu_draw.js
 zhipu_search.js
 linux_ssh
@@ -43,3 +46,4 @@ worldbook
 qqbot
 thinking_guidance
 plan_mode
+semantic_scholar_search.js

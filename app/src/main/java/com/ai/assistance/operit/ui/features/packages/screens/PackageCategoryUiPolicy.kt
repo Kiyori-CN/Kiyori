@@ -3,6 +3,7 @@ package com.ai.assistance.operit.ui.features.packages.screens
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Apps
@@ -74,6 +75,7 @@ private val PACKAGE_PINYIN_BOUNDARIES =
     )
 
 internal enum class PackageCategoryIcon {
+    MENU_BOOK,
     ACCOUNT_TREE,
     APPS,
     AUTO_MODE,
@@ -122,6 +124,7 @@ private data class PackageCategoryPreset(
 
 internal val PACKAGE_CATEGORY_PRESET_LABELS =
     listOf(
+        "Academic",
         "Automatic",
         "Chat",
         "Development",
@@ -146,6 +149,17 @@ private val PACKAGE_CATEGORY_PRESET_LABELS_BY_KEY =
 
 private val PACKAGE_CATEGORY_PRESETS =
     mapOf(
+        "academic" to
+            PackageCategoryPreset(
+                icon = PackageCategoryIcon.MENU_BOOK,
+                palette =
+                    PackageCategoryPalette(
+                        lightIcon = Color(0xFF00695C),
+                        lightContainer = Color(0xFFD9F3EE),
+                        darkIcon = Color(0xFF78D9C8),
+                        darkContainer = Color(0xFF173A35),
+                    ),
+            ),
         "automatic" to
             PackageCategoryPreset(
                 icon = PackageCategoryIcon.AUTO_MODE,
@@ -519,6 +533,7 @@ internal fun <T> packageCategoryAndDisplayNameComparator(
 
 internal fun PackageCategoryIcon.toImageVector(): ImageVector =
     when (this) {
+        PackageCategoryIcon.MENU_BOOK -> Icons.AutoMirrored.Filled.MenuBook
         PackageCategoryIcon.ACCOUNT_TREE -> Icons.Filled.AccountTree
         PackageCategoryIcon.APPS -> Icons.Filled.Apps
         PackageCategoryIcon.AUTO_MODE -> Icons.Filled.AutoMode

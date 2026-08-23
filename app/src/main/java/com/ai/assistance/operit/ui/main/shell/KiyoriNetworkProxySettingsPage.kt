@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
@@ -28,10 +29,13 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Upload
@@ -67,6 +71,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -75,6 +80,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.packTool.PackageManager as ToolPackageManager
+import com.ai.assistance.operit.ui.common.copyPlainTextToClipboard
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.LocalKiyoriSettingsColors
 import com.kiyori.platform.logging.KiyoriLogger
@@ -86,6 +92,8 @@ import com.kiyori.platform.network.KiyoriNetworkException
 import com.kiyori.platform.network.KiyoriNetworkModule
 import com.kiyori.platform.network.KiyoriNetworkOverrideMode
 import com.kiyori.platform.network.KiyoriNetworkProxyConfig
+import com.kiyori.platform.network.KiyoriNetworkProxyLogEntry
+import com.kiyori.platform.network.KiyoriNetworkProxyLogLevel
 import com.kiyori.platform.network.KiyoriNetworkProxyManager
 import com.kiyori.platform.network.KiyoriNetworkProxyPolicy
 import com.kiyori.platform.network.KiyoriNetworkProxyStoreState
@@ -99,8 +107,10 @@ import com.kiyori.platform.network.MihomoProxyGroupSummary
 import com.kiyori.platform.network.MihomoRuntimeGroupState
 import com.kiyori.platform.network.MihomoRuntimeNodeState
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.text.DateFormat
 import java.text.DecimalFormat
+import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
@@ -117,6 +127,7 @@ private enum class NetworkProxyPageSection(
     SUBSCRIPTIONS("订阅管理"),
     MODULES("模块连接模式"),
     SCRIPTS("逐脚本连接模式"),
+    LOGS("代理日志"),
 }
 
 private enum class NetworkProxyNodeSort(
@@ -133,6 +144,7 @@ private enum class NetworkProxyOperationArea {
     ROUTING,
     GROUPS,
     SCRIPTS,
+    LOGS,
     ADVANCED,
 }
 
@@ -206,6 +218,7 @@ internal fun KiyoriNetworkProxySettingsPage(
     val storeState by manager.configState.collectAsState()
     val runtimeState by manager.runtimeState.collectAsState()
     val probeState by manager.probeState.collectAsState()
+    val proxyLogs by manager.logEntries.collectAsState()
     val config = (storeState as? KiyoriNetworkProxyStoreState.Ready)?.config
     val activeSubscription = config?.let(KiyoriNetworkProxyPolicy::activeSubscription)
 
@@ -219,6 +232,8 @@ internal fun KiyoriNetworkProxySettingsPage(
     var subscriptionActionsId by remember { mutableStateOf<String?>(null) }
     var deleteSubscriptionId by remember { mutableStateOf<String?>(null) }
     var resetDialogVisible by remember { mutableStateOf(false) }
+    var clearLogDialogVisible by remember { mutableStateOf(false) }
+    var pendingLogExportText by remember { mutableStateOf<String?>(null) }
     var pendingModeSelection by remember { mutableStateOf<ModeSelection?>(null) }
     var scriptPackageDialogVisible by remember { mutableStateOf(false) }
     var scriptPackageDraft by remember { mutableStateOf("") }
@@ -380,6 +395,19 @@ internal fun KiyoriNetworkProxySettingsPage(
             }
         }
 
+    val logExportLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri: Uri? ->
+            val text = pendingLogExportText
+            pendingLogExportText = null
+            if (uri == null || text == null) return@rememberLauncherForActivityResult
+            runOperation(
+                NetworkProxyOperation("export_log", NetworkProxyOperationArea.LOGS, "正在导出代理日志"),
+                "代理日志已导出。",
+            ) {
+                withContext(Dispatchers.IO) { writeNetworkProxyLog(context, uri, text) }
+            }
+        }
+
     key(pageSection) {
         KiyoriCollapsingSettingsPage(
             title = pageSection.title,
@@ -437,6 +465,34 @@ internal fun KiyoriNetworkProxySettingsPage(
                                     )
                                 }
                             }
+                        }
+                    }
+                }
+                if (pageSection == NetworkProxyPageSection.LOGS) {
+                    Row {
+                        IconButton(
+                            enabled = proxyLogs.isNotEmpty() && activeOperation == null,
+                            onClick = {
+                                runOperation(
+                                    NetworkProxyOperation("copy_log", NetworkProxyOperationArea.LOGS, "正在复制代理日志"),
+                                    "代理日志已复制。",
+                                ) {
+                                    context.copyPlainTextToClipboard("Kiyori 代理日志", manager.exportLogText())
+                                }
+                            },
+                        ) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = "复制代理日志")
+                        }
+                        IconButton(
+                            enabled = proxyLogs.isNotEmpty() && activeOperation == null,
+                            onClick = {
+                                pendingLogExportText = manager.exportLogText()
+                                val timestamp =
+                                    SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(Date())
+                                logExportLauncher.launch("kiyori-network-proxy-$timestamp.txt")
+                            },
+                        ) {
+                            Icon(Icons.Default.SaveAlt, contentDescription = "导出代理日志")
                         }
                     }
                 }
@@ -561,6 +617,22 @@ internal fun KiyoriNetworkProxySettingsPage(
                     description = "直连仍可能经过 Android 系统 VPN；并存时 Kiyori Mihomo 位于应用请求链路内。",
                 ) {
                     KiyoriSettingsRow(
+                        title = "代理日志",
+                        description =
+                            if (proxyLogs.isEmpty()) {
+                                "当前进程暂无代理日志"
+                            } else {
+                                "当前进程最近 ${proxyLogs.size} 条脱敏记录"
+                            },
+                        kind = KiyoriSettingsRowKind.NAVIGATION,
+                        icon = Icons.Default.Description,
+                        iconTone = KiyoriSemanticTone.BLUE,
+                        value = proxyLogs.lastOrNull()?.let { proxyLogLevelLabel(it.level) },
+                        enabled = activeOperation == null,
+                        onClick = { pageSection = NetworkProxyPageSection.LOGS },
+                    )
+                    KiyoriSettingsDivider()
+                    KiyoriSettingsRow(
                         title = "代理局域网地址",
                         description = "允许私有地址进入 Kiyori 内嵌代理",
                         kind = KiyoriSettingsRowKind.TOGGLE,
@@ -602,6 +674,52 @@ internal fun KiyoriNetworkProxySettingsPage(
                         onClick = { resetDialogVisible = true },
                     )
                     NetworkProxyOperationFeedback(NetworkProxyOperationArea.ADVANCED, activeOperation, feedback, false)
+                }
+            }
+        }
+
+        if (pageSection == NetworkProxyPageSection.LOGS) {
+            item(key = "network_proxy_logs") {
+                KiyoriSettingsGroupSection(
+                    title = "当前进程日志",
+                    description = "最多保留最近 300 条。核心输出已遮蔽凭据、私有路径和订阅地址；复制或导出由你主动触发。",
+                ) {
+                    if (proxyLogs.isEmpty()) {
+                        Text(
+                            text = "暂无日志。导入、启用代理、切换节点或测速后，相关状态会显示在这里。",
+                            color = LocalKiyoriSettingsColors.current.secondaryText,
+                            fontSize = 13.sp,
+                            lineHeight = 19.sp,
+                            modifier = Modifier.padding(18.dp),
+                        )
+                    } else {
+                        SelectionContainer {
+                            Text(
+                                text = networkProxyLogDisplayText(proxyLogs),
+                                color = LocalKiyoriSettingsColors.current.primaryText,
+                                fontSize = 12.sp,
+                                lineHeight = 18.sp,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.fillMaxWidth().padding(18.dp),
+                            )
+                        }
+                        KiyoriSettingsDivider()
+                        TextButton(
+                            enabled = activeOperation == null,
+                            onClick = { clearLogDialogVisible = true },
+                            modifier = Modifier.align(Alignment.End).padding(horizontal = 8.dp, vertical = 4.dp),
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("清空日志")
+                        }
+                    }
+                    NetworkProxyOperationFeedback(
+                        NetworkProxyOperationArea.LOGS,
+                        activeOperation,
+                        feedback,
+                        false,
+                    )
                 }
             }
         }
@@ -1009,6 +1127,33 @@ internal fun KiyoriNetworkProxySettingsPage(
             dismissButton = { TextButton(enabled = activeOperation == null, onClick = { resetDialogVisible = false }) { Text("取消") } },
         )
     }
+
+    if (clearLogDialogVisible) {
+        AlertDialog(
+            onDismissRequest = { clearLogDialogVisible = false },
+            title = { Text("清空代理日志？") },
+            text = { Text("这会删除当前进程内的全部代理日志，不会修改订阅、节点或连接模式。") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        manager.clearLog()
+                        clearLogDialogVisible = false
+                        feedback =
+                            NetworkProxyFeedback(
+                                NetworkProxyOperationArea.LOGS,
+                                "代理日志已清空。",
+                                isError = false,
+                            )
+                    },
+                ) {
+                    Text("清空")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { clearLogDialogVisible = false }) { Text("取消") }
+            },
+        )
+    }
 }
 
 @Composable
@@ -1366,6 +1511,28 @@ private fun networkProxyRuntimeDescription(
         else -> "已开启；等待代理模块发起请求"
     }
 
+private fun networkProxyLogDisplayText(entries: List<KiyoriNetworkProxyLogEntry>): String {
+    val timeFormat = DateFormat.getTimeInstance(DateFormat.MEDIUM)
+    return entries.joinToString(separator = "\n\n") { entry ->
+        buildString {
+            append(timeFormat.format(Date(entry.timestampEpochMillis)))
+            append("  ")
+            append(proxyLogLevelLabel(entry.level))
+            append("  ")
+            append(entry.source)
+            append('\n')
+            append(entry.message)
+        }
+    }
+}
+
+private fun proxyLogLevelLabel(level: KiyoriNetworkProxyLogLevel): String =
+    when (level) {
+        KiyoriNetworkProxyLogLevel.INFO -> "信息"
+        KiyoriNetworkProxyLogLevel.WARNING -> "警告"
+        KiyoriNetworkProxyLogLevel.ERROR -> "错误"
+    }
+
 private fun networkProxyUserMessage(error: KiyoriNetworkException): String =
     when (error.code) {
         KiyoriNetworkErrorCode.CONFIG_MISSING -> "请选择有效订阅，并至少为一个模块启用代理。"
@@ -1640,4 +1807,15 @@ private suspend fun readNetworkProxyYaml(
             )
         }
     return SelectedYaml(displayName = displayName, text = text)
+}
+
+private fun writeNetworkProxyLog(
+    context: android.content.Context,
+    uri: Uri,
+    text: String,
+) {
+    val stream =
+        context.contentResolver.openOutputStream(uri, "wt")
+            ?: throw IOException("The selected proxy log document cannot be opened for writing.")
+    stream.bufferedWriter(Charsets.UTF_8).use { writer -> writer.write(text) }
 }

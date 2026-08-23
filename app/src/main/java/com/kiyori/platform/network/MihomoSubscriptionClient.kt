@@ -16,6 +16,7 @@ class MihomoSubscriptionClient {
     ): SanitizedMihomoSubscription =
         try {
             withContext(Dispatchers.IO) {
+            KiyoriNetworkProxyLogStore.info("订阅下载", "正在获取 Clash.Meta YAML 订阅")
             val client = createClient(proxyEndpoint)
             var current = requireHttpUrl(rawUrl)
             repeat(MAX_REDIRECTS + 1) { redirectIndex ->
@@ -71,7 +72,14 @@ class MihomoSubscriptionClient {
                                 )
                             return@withContext sanitized.copy(
                                 usage = parseSubscriptionUsage(response.header(SUBSCRIPTION_USERINFO)),
-                            )
+                            ).also {
+                                KiyoriNetworkProxyLogStore.info(
+                                    "订阅下载",
+                                    "订阅下载与结构清洗完成：${it.summary.proxyCount} 个静态节点，" +
+                                        "${it.summary.groupCount} 个策略组，" +
+                                        "隔离 ${it.summary.isolatedProxyCount} 个本地条目",
+                                )
+                            }
                         }
                         in 300..399 -> {
                             if (redirectIndex == MAX_REDIRECTS) {
@@ -105,8 +113,16 @@ class MihomoSubscriptionClient {
                 subscriptionFailure("The subscription did not return a configuration.")
             }
         } catch (error: KiyoriNetworkException) {
+            KiyoriNetworkProxyLogStore.error(
+                "订阅下载",
+                "订阅下载或清洗失败：${error.code.name} ${error.message.orEmpty()}",
+            )
             throw error
         } catch (error: Exception) {
+            KiyoriNetworkProxyLogStore.error(
+                "订阅下载",
+                "订阅下载异常：${error::class.java.simpleName}",
+            )
             throw KiyoriNetworkException(
                 KiyoriNetworkErrorCode.SUBSCRIPTION_FAILED,
                 "The subscription could not be downloaded.",
