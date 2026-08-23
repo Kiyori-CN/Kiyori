@@ -65,6 +65,8 @@ import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.KiyoriNetworkProxyManager
 
 private const val TAG = "MarkdownImageRenderer"
 
@@ -446,7 +448,12 @@ private suspend fun saveImageFromUrl(context: Context, imageUrl: String): Boolea
                         requestedFileName = fileName,
                         mimeType = "image/jpeg",
                     ) { outputStream ->
-                        val connection = java.net.URL(imageUrl).openConnection()
+                        val connection =
+                            KiyoriNetworkProxyManager.getInstance(context)
+                                .openConnectionBlocking(
+                                    java.net.URL(imageUrl),
+                                    KiyoriNetworkModule.APP_SERVICES,
+                                )
                         connection.connect()
                         connection.getInputStream().use { input -> input.copyTo(outputStream) }
                     }

@@ -9,6 +9,8 @@ import com.ai.assistance.operit.core.tools.skill.SkillPackage
 import com.ai.assistance.operit.data.preferences.SkillVisibilityPreferences
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.SkillRepoZipPoolManager
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.KiyoriNetworkProxyManager
 import com.google.gson.JsonParser
 import java.io.BufferedInputStream
 import java.io.File
@@ -380,7 +382,9 @@ class SkillRepository private constructor(private val context: Context) {
 
     private fun downloadFromUrl(zipUrl: String, outFile: File): Boolean {
         val url = URL(zipUrl)
-        val connection = (url.openConnection() as HttpURLConnection).apply {
+        val connection =
+            (KiyoriNetworkProxyManager.getInstance(context)
+                .openConnectionBlocking(url, KiyoriNetworkModule.DOWNLOADS) as HttpURLConnection).apply {
             connectTimeout = CONNECT_TIMEOUT
             readTimeout = READ_TIMEOUT
             doInput = true
@@ -415,7 +419,9 @@ class SkillRepository private constructor(private val context: Context) {
         val apiUrl = "https://api.github.com/repos/$owner/$repoName"
         return try {
             val url = URL(apiUrl)
-            val connection = (url.openConnection() as HttpURLConnection).apply {
+            val connection =
+                (KiyoriNetworkProxyManager.getInstance(context)
+                    .openConnectionBlocking(url, KiyoriNetworkModule.APP_SERVICES) as HttpURLConnection).apply {
                 requestMethod = "GET"
                 setRequestProperty("Accept", "application/vnd.github.v3+json")
                 connectTimeout = CONNECT_TIMEOUT

@@ -3,11 +3,15 @@ package com.kiyori.platform.network
 import android.content.Context
 import com.kiyori.platform.android.KiyoriProcessIdentity
 import com.kiyori.platform.logging.KiyoriLogger
+import android.os.Process as AndroidProcess
 import java.io.File
+import java.net.InetSocketAddress
 import java.net.Proxy
 import java.net.ServerSocket
+import java.net.Socket
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 import kotlinx.coroutines.CoroutineScope
@@ -37,6 +41,44 @@ enum class KiyoriMihomoRuntimePhase {
     ERROR,
 }
 
+enum class KiyoriMihomoRuntimeFailureKind {
+    UNEXPECTED_PROCESS_EXIT,
+    HEALTH_CHECK_FAILED,
+    START_FAILED,
+}
+
+internal data class KiyoriMihomoProcessExitOutcome(
+    val phase: KiyoriMihomoRuntimePhase,
+    val logLevel: KiyoriNetworkProxyLogLevel,
+    val message: String,
+    val failureKind: KiyoriMihomoRuntimeFailureKind?,
+)
+
+internal fun classifyMihomoProcessExit(
+    expectedStop: Boolean,
+    exitCode: Int,
+): KiyoriMihomoProcessExitOutcome =
+    if (expectedStop) {
+        KiyoriMihomoProcessExitOutcome(
+            phase = KiyoriMihomoRuntimePhase.STOPPED,
+            logLevel = KiyoriNetworkProxyLogLevel.INFO,
+            message = "内嵌 Mihomo 已按请求停止，退出码 $exitCode",
+            failureKind = null,
+        )
+    } else {
+        KiyoriMihomoProcessExitOutcome(
+            phase = KiyoriMihomoRuntimePhase.ERROR,
+            logLevel = KiyoriNetworkProxyLogLevel.ERROR,
+            message = "内嵌 Mihomo 进程意外退出，退出码 $exitCode",
+            failureKind = KiyoriMihomoRuntimeFailureKind.UNEXPECTED_PROCESS_EXIT,
+        )
+    }
+
+internal fun isCurrentMihomoProcess(
+    activeProcess: Process?,
+    observedProcess: Process,
+): Boolean = activeProcess === observedProcess
+
 data class MihomoRuntimeGroupState(
     val name: String,
     val type: String,
@@ -63,7 +105,28 @@ data class KiyoriMihomoRuntimeState(
     val groups: List<MihomoRuntimeGroupState> = emptyList(),
     val nodes: List<MihomoRuntimeNodeState> = emptyList(),
     val message: String? = null,
+    val runtimeGeneration: Long? = null,
+    val mixedPort: Int? = null,
+    val controllerPort: Int? = null,
+    val controllerHealthy: Boolean? = null,
+    val mixedPortListening: Boolean? = null,
+    val startedAtEpochMillis: Long? = null,
+    val stopReason: String? = null,
+    val failureKind: KiyoriMihomoRuntimeFailureKind? = null,
 )
+
+internal fun formatKiyoriMihomoRuntimeDiagnostic(
+    state: KiyoriMihomoRuntimeState,
+): String =
+    "应用级 Mihomo runtime phase=${state.phase} " +
+        "runtimeGeneration=${state.runtimeGeneration ?: "none"} " +
+        "mixedPort=${state.mixedPort ?: "none"} " +
+        "controllerPort=${state.controllerPort ?: "none"} " +
+        "controllerHealthy=${state.controllerHealthy ?: "unknown"} " +
+        "mixedPortListening=${state.mixedPortListening ?: "unknown"} " +
+        "stopReason=${state.stopReason ?: "none"} " +
+        "failure=${state.failureKind ?: "none"} " +
+        "message=${state.message ?: "none"}"
 
 enum class KiyoriMihomoProbePhase {
     IDLE,
@@ -94,6 +157,10 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         private const val OUTPUT_DRAIN_TIMEOUT_MILLIS = 2_000L
         private const val MAX_CAPTURED_CORE_LINES = 32
         private const val DELAY_TEST_TIMEOUT_MILLIS = 8_000
+        private const val PORT_HEALTH_TIMEOUT_MILLIS = 500
+        private const val CONTROLLER_HEALTH_TIMEOUT_MILLIS = 800L
+        private const val HEALTH_MONITOR_INTERVAL_MILLIS = 10_000L
+        private const val HEALTH_FAILURE_THRESHOLD = 2
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
 
         @Volatile
@@ -119,6 +186,13 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         var groups: List<MihomoRuntimeGroupState>,
         var nodes: List<MihomoRuntimeNodeState>,
         var appliedSelections: Map<String, String>,
+        val runtimeGeneration: Long,
+        val startedAtEpochMillis: Long,
+        val outputCollector: ProcessOutputCollector,
+        @Volatile var expectedStop: Boolean = false,
+        @Volatile var stopReason: String? = null,
+        @Volatile var controllerHealthy: Boolean = true,
+        @Volatile var mixedPortListening: Boolean = true,
     )
 
     private class ProcessOutputCollector(
@@ -130,10 +204,21 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
             worker.join(OUTPUT_DRAIN_TIMEOUT_MILLIS)
             return synchronized(lineLock) { lines.toList() }
         }
+
+        fun snapshot(): List<String> = synchronized(lineLock) { lines.toList() }
     }
+
+    private data class RuntimeHealth(
+        val controllerReady: Boolean,
+        val controllerStatus: Int?,
+        val mixedPortListening: Boolean,
+        val elapsedMillis: Long,
+    )
 
     private val appContext = context.applicationContext
     private val proxyLog = KiyoriNetworkProxyLogStore
+    private val processName = KiyoriProcessIdentity.currentProcessName(appContext)
+    private val hostProcessId = AndroidProcess.myPid()
     private val processKey = sha256(KiyoriProcessIdentity.currentProcessName(appContext)).take(12)
     private val runtimeDirectory =
         appContext.noBackupFilesDir.resolve(RUNTIME_DIRECTORY_PREFIX + processKey)
@@ -153,6 +238,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
             }
         }
     private val random by lazy(LazyThreadSafetyMode.SYNCHRONIZED) { SecureRandom() }
+    private val runtimeGeneration = AtomicLong(0L)
     private val controllerClient by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         OkHttpClient.Builder()
             .proxy(Proxy.NO_PROXY)
@@ -161,12 +247,26 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
             .callTimeout(12, TimeUnit.SECONDS)
             .build()
     }
+    // A stuck-but-alive core must fail route setup quickly instead of holding Browser/player setup
+    // behind the normal Controller request timeout.
+    private val controllerHealthClient by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        OkHttpClient.Builder()
+            .proxy(Proxy.NO_PROXY)
+            .connectTimeout(CONTROLLER_HEALTH_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
+            .readTimeout(CONTROLLER_HEALTH_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
+            .callTimeout(CONTROLLER_HEALTH_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
+            .build()
+    }
     private val mutableState = MutableStateFlow(KiyoriMihomoRuntimeState())
     val state: StateFlow<KiyoriMihomoRuntimeState> = mutableState.asStateFlow()
     private val mutableProbeState = MutableStateFlow(KiyoriMihomoProbeState())
     val probeState: StateFlow<KiyoriMihomoProbeState> = mutableProbeState.asStateFlow()
 
     private var activeRuntime: ActiveRuntime? = null
+
+    init {
+        proxyLog.setProcessContext(processName, hostProcessId)
+    }
 
     fun scheduleStaleRuntimeCleanup() {
         startupCleanup.start()
@@ -415,9 +515,9 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         }
     }
 
-    suspend fun stop() {
+    suspend fun stop(reason: String = "explicit_request") {
         awaitStartupCleanup()
-        mutex.withLock { stopLocked(KiyoriMihomoRuntimePhase.STOPPED, null) }
+        mutex.withLock { stopLocked(KiyoriMihomoRuntimePhase.STOPPED, null, reason) }
     }
 
     private suspend fun awaitStartupCleanup() {
@@ -437,8 +537,39 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         }
         val fingerprint = sha256(config.id + '\u0000' + config.sanitizedYaml + '\u0000' + testUrl)
         activeRuntime?.let { active ->
-            if (active.process.isAlive && active.fingerprint == fingerprint) return active
-            stopLocked(KiyoriMihomoRuntimePhase.STOPPED, null)
+            if (active.process.isAlive && active.fingerprint == fingerprint) {
+                val health = inspectRuntimeHealth(active)
+                active.controllerHealthy = health.controllerReady
+                active.mixedPortListening = health.mixedPortListening
+                if (!health.controllerReady || !health.mixedPortListening) {
+                    proxyLog.error(
+                        "运行时健康",
+                        "复用检查失败 runtimeGeneration=${active.runtimeGeneration} " +
+                            "processAlive=true controllerReady=${health.controllerReady} " +
+                            "mixedPortListening=${health.mixedPortListening} " +
+                            "controllerStatus=${health.controllerStatus ?: "none"} " +
+                            "elapsedMs=${health.elapsedMillis}",
+                    )
+                    stopLocked(
+                        finalPhase = KiyoriMihomoRuntimePhase.ERROR,
+                        message = "The embedded Mihomo runtime health check failed.",
+                        reason = "health_check_failed",
+                        failureKind = KiyoriMihomoRuntimeFailureKind.HEALTH_CHECK_FAILED,
+                    )
+                    throw KiyoriNetworkException(
+                        KiyoriNetworkErrorCode.CORE_START_FAILED,
+                        "The embedded Mihomo runtime health check failed.",
+                    )
+                }
+                proxyLog.info(
+                    "运行时健康",
+                    "复用检查通过 runtimeGeneration=${active.runtimeGeneration} " +
+                        "mixedPortListening=true controllerReady=true elapsedMs=${health.elapsedMillis}",
+                )
+                publishRunningState(active)
+                return active
+            }
+            stopLocked(KiyoriMihomoRuntimePhase.STOPPED, null, "runtime_replaced")
         }
 
         mutableState.value = KiyoriMihomoRuntimeState(phase = KiyoriMihomoRuntimePhase.STARTING)
@@ -450,11 +581,12 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                 }
             activeRuntime = active
             monitorProcess(active)
+            monitorRuntimeHealth(active)
             publishRunningState(active)
             active
         } catch (error: KiyoriNetworkException) {
             proxyLog.error("主运行时", "内嵌 Mihomo 启动失败：${error.code.name} ${error.message.orEmpty()}")
-            stopLocked(KiyoriMihomoRuntimePhase.ERROR, error.message)
+            stopLocked(KiyoriMihomoRuntimePhase.ERROR, error.message, "runtime_start_failed")
             throw error
         } catch (error: Exception) {
             KiyoriLogger.e(TAG, "Unable to start the embedded Mihomo runtime", error)
@@ -465,7 +597,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                     "The embedded Mihomo runtime could not be started.",
                     error,
                 )
-            stopLocked(KiyoriMihomoRuntimePhase.ERROR, wrapped.message)
+            stopLocked(KiyoriMihomoRuntimePhase.ERROR, wrapped.message, "runtime_start_exception")
             throw wrapped
         }
     }
@@ -506,6 +638,13 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         restrictToOwner(configFile)
 
         testConfiguration(launcher, core, configFile, workDirectory)
+        val generation = runtimeGeneration.incrementAndGet()
+        val startedAtEpochMillis = System.currentTimeMillis()
+        proxyLog.info(
+            "Mihomo $directoryLabel",
+            "启动参数已准备 runtimeGeneration=$generation mixedPort=$mixedPort " +
+                "controllerPort=$controllerPort hostProcess=$processName hostPid=$hostProcessId",
+        )
         val process =
             startMihomoProcess(
                 launcher = launcher,
@@ -515,7 +654,11 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                 secret = secret,
                 workDirectory = workDirectory,
             )
-        collectProcessOutput(process, "Mihomo $directoryLabel")
+        val outputCollector =
+            collectProcessOutput(
+                process,
+                "Mihomo $directoryLabel generation=$generation",
+            )
         val active =
             ActiveRuntime(
                 process = process,
@@ -529,6 +672,9 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                 groups = emptyList(),
                 nodes = emptyList(),
                 appliedSelections = emptyMap(),
+                runtimeGeneration = generation,
+                startedAtEpochMillis = startedAtEpochMillis,
+                outputCollector = outputCollector,
             )
         try {
             val deadline = System.currentTimeMillis() + READINESS_TIMEOUT_MILLIS
@@ -557,6 +703,21 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                     "The embedded subscription exposed no selectable root route.",
                 )
             }
+            val health = inspectRuntimeHealth(active)
+            active.controllerHealthy = health.controllerReady
+            active.mixedPortListening = health.mixedPortListening
+            if (!health.mixedPortListening) {
+                throw KiyoriNetworkException(
+                    KiyoriNetworkErrorCode.CORE_START_FAILED,
+                    "The embedded Mihomo mixed port did not start listening.",
+                )
+            }
+            proxyLog.info(
+                "Mihomo $directoryLabel",
+                "运行时健康 runtimeGeneration=${active.runtimeGeneration} " +
+                    "controllerReady=${health.controllerReady} mixedPortListening=${health.mixedPortListening} " +
+                    "controllerStatus=${health.controllerStatus ?: "none"} elapsedMs=${health.elapsedMillis}",
+            )
             if (configFile.exists() && !configFile.delete()) {
                 throw KiyoriNetworkException(
                     KiyoriNetworkErrorCode.CORE_START_FAILED,
@@ -566,7 +727,12 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
             proxyLog.info("Mihomo $directoryLabel", "Controller 已就绪，明文运行配置已清理")
             return active
         } catch (error: Exception) {
-            stopProcessBlocking(process)
+            val exitCode = stopProcessBlocking(process)
+            proxyLog.error(
+                "Mihomo $directoryLabel",
+                "启动阶段失败 runtimeGeneration=${active.runtimeGeneration} exitCode=$exitCode " +
+                    "lastCoreLine=${active.outputCollector.snapshot().lastOrNull() ?: "none"}",
+            )
             clearDirectory(workDirectory, directoryLabel)
             throw error
         }
@@ -665,11 +831,40 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                     .forEach(builder.environment()::remove)
             }
 
-    private fun controllerVersionIsReady(active: ActiveRuntime): Boolean {
+    private fun controllerVersionIsReady(active: ActiveRuntime): Boolean =
+        controllerHealth(active, controllerClient).first
+
+    private fun controllerHealth(
+        active: ActiveRuntime,
+        client: OkHttpClient,
+    ): Pair<Boolean, Int?> {
         val request = controllerRequest(active, controllerUrl(active, "version")).get().build()
         return runCatching {
-            controllerClient.newCall(request).execute().use { response -> response.isSuccessful }
-        }.getOrDefault(false)
+            client.newCall(request).execute().use { response ->
+                response.isSuccessful to response.code
+            }
+        }.getOrDefault(false to null)
+    }
+
+    private fun inspectRuntimeHealth(active: ActiveRuntime): RuntimeHealth {
+        val startedAt = System.currentTimeMillis()
+        val (controllerReady, controllerStatus) = controllerHealth(active, controllerHealthClient)
+        val mixedPortListening =
+            runCatching {
+                Socket().use { socket ->
+                    socket.connect(
+                        InetSocketAddress(active.endpoint.host, active.endpoint.port),
+                        PORT_HEALTH_TIMEOUT_MILLIS,
+                    )
+                }
+                true
+            }.getOrDefault(false)
+        return RuntimeHealth(
+            controllerReady = controllerReady,
+            controllerStatus = controllerStatus,
+            mixedPortListening = mixedPortListening,
+            elapsedMillis = (System.currentTimeMillis() - startedAt).coerceAtLeast(0L),
+        )
     }
 
     private fun fetchSnapshot(active: ActiveRuntime): MihomoRuntimeSnapshot {
@@ -760,6 +955,12 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                 subscriptionId = active.subscriptionId,
                 groups = active.groups,
                 nodes = active.nodes,
+                runtimeGeneration = active.runtimeGeneration,
+                mixedPort = active.endpoint.port,
+                controllerPort = active.controllerPort,
+                controllerHealthy = active.controllerHealthy,
+                mixedPortListening = active.mixedPortListening,
+                startedAtEpochMillis = active.startedAtEpochMillis,
             )
     }
 
@@ -822,6 +1023,13 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         pathSegments: List<String>,
         testUrl: String,
     ): JSONObject {
+        val startedAt = System.currentTimeMillis()
+        val operation = pathSegments.firstOrNull().orEmpty().ifBlank { "controller" }
+        proxyLog.info(
+            "Mihomo Controller",
+            "开始请求 operation=$operation runtimeGeneration=${active.runtimeGeneration} " +
+                "controllerPort=${active.controllerPort} timeoutMs=$DELAY_TEST_TIMEOUT_MILLIS",
+        )
         val url =
             controllerUrl(active, *pathSegments.toTypedArray())
                 .newBuilder()
@@ -829,20 +1037,46 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                 .addQueryParameter("timeout", DELAY_TEST_TIMEOUT_MILLIS.toString())
                 .build()
         val request = controllerRequest(active, url).get().build()
-        controllerClient.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                throw KiyoriNetworkException(
-                    KiyoriNetworkErrorCode.PROXY_CONNECT_FAILED,
-                    "Mihomo could not complete the requested delay test.",
-                )
-            }
-            val body =
-                response.body
-                    ?: throw KiyoriNetworkException(
-                        KiyoriNetworkErrorCode.PROXY_CONNECT_FAILED,
-                        "Mihomo returned an empty delay-test response.",
+        return try {
+            controllerClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    proxyLog.error(
+                        "Mihomo Controller",
+                        "请求失败 operation=$operation runtimeGeneration=${active.runtimeGeneration} " +
+                            "httpStatus=${response.code} elapsedMs=${elapsedSince(startedAt)}",
                     )
-            return JSONObject(body.string())
+                    throw KiyoriNetworkException(
+                        KiyoriNetworkErrorCode.PROXY_CONNECT_FAILED,
+                        "Mihomo could not complete the requested delay test.",
+                    )
+                }
+                val body =
+                    response.body
+                        ?: throw KiyoriNetworkException(
+                            KiyoriNetworkErrorCode.PROXY_CONNECT_FAILED,
+                            "Mihomo returned an empty delay-test response.",
+                        )
+                JSONObject(body.string()).also {
+                    proxyLog.info(
+                        "Mihomo Controller",
+                        "请求完成 operation=$operation runtimeGeneration=${active.runtimeGeneration} " +
+                            "httpStatus=${response.code} elapsedMs=${elapsedSince(startedAt)}",
+                    )
+                }
+            }
+        } catch (error: KiyoriNetworkException) {
+            throw error
+        } catch (error: Exception) {
+            proxyLog.error(
+                "Mihomo Controller",
+                "请求异常 operation=$operation runtimeGeneration=${active.runtimeGeneration} " +
+                    "type=${error::class.java.simpleName} elapsedMs=${elapsedSince(startedAt)}",
+            )
+            throw KiyoriNetworkException(
+                KiyoriNetworkErrorCode.PROXY_CONNECT_FAILED,
+                "Mihomo could not complete the requested delay test.",
+                error,
+            )
         }
     }
 
@@ -928,10 +1162,22 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         if (!active.process.isAlive) {
             activeRuntime = null
             clearRuntimeDirectory()
+            proxyLog.error(
+                "运行时健康",
+                "使用前发现核心进程已退出 runtimeGeneration=${active.runtimeGeneration} " +
+                    "lastCoreLine=${active.outputCollector.snapshot().lastOrNull() ?: "none"}",
+            )
             mutableState.value =
                 KiyoriMihomoRuntimeState(
                     phase = KiyoriMihomoRuntimePhase.ERROR,
                     message = "The embedded Mihomo process is no longer running.",
+                    runtimeGeneration = active.runtimeGeneration,
+                    mixedPort = active.endpoint.port,
+                    controllerPort = active.controllerPort,
+                    controllerHealthy = false,
+                    mixedPortListening = false,
+                    startedAtEpochMillis = active.startedAtEpochMillis,
+                    failureKind = KiyoriMihomoRuntimeFailureKind.UNEXPECTED_PROCESS_EXIT,
                 )
             throw KiyoriNetworkException(
                 KiyoriNetworkErrorCode.CORE_START_FAILED,
@@ -946,17 +1192,98 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
             val exitCode = runCatching { active.process.waitFor() }.getOrNull() ?: return@thread
             kotlinx.coroutines.runBlocking {
                 mutex.withLock {
-                    if (activeRuntime?.process === active.process) {
-                        proxyLog.error("主运行时", "内嵌 Mihomo 进程异常退出，退出码 $exitCode")
+                    if (isCurrentMihomoProcess(activeRuntime?.process, active.process)) {
+                        val outcome = classifyMihomoProcessExit(active.expectedStop, exitCode)
+                        val detailedMessage =
+                            outcome.message +
+                                " runtimeGeneration=${active.runtimeGeneration}" +
+                                " uptimeMs=${(System.currentTimeMillis() - active.startedAtEpochMillis).coerceAtLeast(0L)}" +
+                                " lastCoreLine=${active.outputCollector.snapshot().lastOrNull() ?: "none"}"
+                        when (outcome.logLevel) {
+                            KiyoriNetworkProxyLogLevel.INFO -> proxyLog.info("主运行时", detailedMessage)
+                            KiyoriNetworkProxyLogLevel.WARNING -> proxyLog.warning("主运行时", detailedMessage)
+                            KiyoriNetworkProxyLogLevel.ERROR -> proxyLog.error("主运行时", detailedMessage)
+                        }
                         activeRuntime = null
                         mutableState.value =
                             KiyoriMihomoRuntimeState(
-                                phase = KiyoriMihomoRuntimePhase.ERROR,
-                                message = "Embedded Mihomo process exited with code $exitCode.",
+                                phase = outcome.phase,
+                                message = detailedMessage,
+                                runtimeGeneration = active.runtimeGeneration,
+                                mixedPort = active.endpoint.port,
+                                controllerPort = active.controllerPort,
+                                controllerHealthy = false,
+                                mixedPortListening = false,
+                                startedAtEpochMillis = active.startedAtEpochMillis,
+                                stopReason = active.stopReason,
+                                failureKind = outcome.failureKind,
                             )
                         clearRuntimeDirectory()
                     }
                 }
+            }
+        }
+    }
+
+    private fun monitorRuntimeHealth(active: ActiveRuntime) {
+        thread(name = "Kiyori-Mihomo-Health", isDaemon = true) {
+            var consecutiveFailures = 0
+            while (active.process.isAlive) {
+                try {
+                    Thread.sleep(HEALTH_MONITOR_INTERVAL_MILLIS)
+                } catch (_: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    return@thread
+                }
+                if (!active.process.isAlive) return@thread
+
+                val health = inspectRuntimeHealth(active)
+                var runtimeStopped = false
+                kotlinx.coroutines.runBlocking {
+                    mutex.withLock {
+                        if (!isCurrentMihomoProcess(activeRuntime?.process, active.process) || active.expectedStop) {
+                            return@withLock
+                        }
+                        active.controllerHealthy = health.controllerReady
+                        active.mixedPortListening = health.mixedPortListening
+                        if (health.controllerReady && health.mixedPortListening) {
+                            if (consecutiveFailures > 0) {
+                                proxyLog.info(
+                                    "运行时健康",
+                                    "健康看护恢复 runtimeGeneration=${active.runtimeGeneration} " +
+                                        "consecutiveFailures=$consecutiveFailures " +
+                                        "controllerStatus=${health.controllerStatus ?: "none"} " +
+                                        "elapsedMs=${health.elapsedMillis}",
+                                )
+                                publishRunningState(active)
+                            }
+                            consecutiveFailures = 0
+                            return@withLock
+                        }
+
+                        consecutiveFailures += 1
+                        proxyLog.warning(
+                            "运行时健康",
+                            "健康看护失败 runtimeGeneration=${active.runtimeGeneration} " +
+                                "consecutiveFailures=$consecutiveFailures/$HEALTH_FAILURE_THRESHOLD " +
+                                "controllerReady=${health.controllerReady} " +
+                                "mixedPortListening=${health.mixedPortListening} " +
+                                "controllerStatus=${health.controllerStatus ?: "none"} " +
+                                "elapsedMs=${health.elapsedMillis}",
+                        )
+                        publishRunningState(active)
+                        if (consecutiveFailures >= HEALTH_FAILURE_THRESHOLD) {
+                            runtimeStopped = true
+                            stopLocked(
+                                finalPhase = KiyoriMihomoRuntimePhase.ERROR,
+                                message = "The embedded Mihomo runtime failed its health checks.",
+                                reason = "health_check_failed",
+                                failureKind = KiyoriMihomoRuntimeFailureKind.HEALTH_CHECK_FAILED,
+                            )
+                        }
+                    }
+                }
+                if (runtimeStopped) return@thread
             }
         }
     }
@@ -987,19 +1314,63 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
     private suspend fun stopLocked(
         finalPhase: KiyoriMihomoRuntimePhase,
         message: String?,
+        reason: String,
+        failureKind: KiyoriMihomoRuntimeFailureKind? =
+            if (finalPhase == KiyoriMihomoRuntimePhase.ERROR) {
+                KiyoriMihomoRuntimeFailureKind.START_FAILED
+            } else {
+                null
+            },
     ) {
         val active = activeRuntime
+        active?.expectedStop = true
+        active?.stopReason = reason
         activeRuntime = null
+        var exitCode: Int? = null
         if (active != null) {
-            proxyLog.info("主运行时", "正在停止内嵌 Mihomo")
+            proxyLog.info(
+                "主运行时",
+                "正在停止内嵌 Mihomo runtimeGeneration=${active.runtimeGeneration} " +
+                    "reason=$reason",
+            )
             mutableState.value =
-                KiyoriMihomoRuntimeState(phase = KiyoriMihomoRuntimePhase.STOPPING)
-            withContext(Dispatchers.IO) { stopProcessBlocking(active.process) }
+                KiyoriMihomoRuntimeState(
+                    phase = KiyoriMihomoRuntimePhase.STOPPING,
+                    runtimeGeneration = active.runtimeGeneration,
+                    mixedPort = active.endpoint.port,
+                    controllerPort = active.controllerPort,
+                    controllerHealthy = active.controllerHealthy,
+                    mixedPortListening = active.mixedPortListening,
+                    startedAtEpochMillis = active.startedAtEpochMillis,
+                    stopReason = reason,
+                )
+            exitCode = withContext(Dispatchers.IO) { stopProcessBlocking(active.process) }
+            proxyLog.info(
+                "主运行时",
+                "内嵌 Mihomo 停止完成 runtimeGeneration=${active.runtimeGeneration} " +
+                    "reason=$reason exitCode=$exitCode lastCoreLine=${active.outputCollector.snapshot().lastOrNull() ?: "none"}",
+            )
         }
         withContext(Dispatchers.IO) { clearRuntimeDirectory() }
-        mutableState.value = KiyoriMihomoRuntimeState(phase = finalPhase, message = message)
+        mutableState.value =
+            KiyoriMihomoRuntimeState(
+                phase = finalPhase,
+                message = message,
+                runtimeGeneration = active?.runtimeGeneration,
+                mixedPort = active?.endpoint?.port,
+                controllerPort = active?.controllerPort,
+                controllerHealthy = active?.controllerHealthy,
+                mixedPortListening = active?.mixedPortListening,
+                startedAtEpochMillis = active?.startedAtEpochMillis,
+                stopReason = reason,
+                failureKind = failureKind,
+            )
         if (active != null && finalPhase == KiyoriMihomoRuntimePhase.STOPPED) {
-            proxyLog.info("主运行时", "内嵌 Mihomo 已停止")
+            proxyLog.info(
+                "主运行时",
+                "内嵌 Mihomo 已停止 runtimeGeneration=${active.runtimeGeneration} " +
+                    "reason=$reason exitCode=${exitCode ?: "none"}",
+            )
         }
     }
 
@@ -1021,13 +1392,17 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         }
     }
 
-    private fun stopProcessBlocking(process: Process) {
+    private fun stopProcessBlocking(process: Process): Int {
         process.destroy()
         if (!process.waitFor(STOP_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
             process.destroyForcibly()
             process.waitFor(STOP_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         }
+        return runCatching { process.exitValue() }.getOrDefault(-1)
     }
+
+    private fun elapsedSince(startedAtEpochMillis: Long): Long =
+        (System.currentTimeMillis() - startedAtEpochMillis).coerceAtLeast(0L)
 
     private fun restrictToOwner(file: File) {
         file.setReadable(false, false)

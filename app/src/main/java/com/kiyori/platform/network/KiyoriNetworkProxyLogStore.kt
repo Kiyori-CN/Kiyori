@@ -20,6 +20,11 @@ data class KiyoriNetworkProxyLogEntry(
     val message: String,
 )
 
+data class KiyoriNetworkProxyProcessContext(
+    val processName: String,
+    val processId: Int,
+)
+
 /**
  * Process-local diagnostic history for the single Kiyori proxy owner.
  *
@@ -28,7 +33,7 @@ data class KiyoriNetworkProxyLogEntry(
  * boundary before it reaches observable state, clipboard, or SAF export.
  */
 object KiyoriNetworkProxyLogStore {
-    private const val MAX_ENTRIES = 300
+    private const val MAX_ENTRIES = 1_000
     private const val MAX_SOURCE_CHARS = 48
     private const val MAX_MESSAGE_CHARS = 1_000
     private const val MAX_RAW_MESSAGE_CHARS = 4_000
@@ -38,6 +43,24 @@ object KiyoriNetworkProxyLogStore {
     private val mutableEntries = MutableStateFlow<List<KiyoriNetworkProxyLogEntry>>(emptyList())
     val entries: StateFlow<List<KiyoriNetworkProxyLogEntry>> = mutableEntries.asStateFlow()
     private var nextId = 1L
+    private var droppedEntryCount = 0L
+    private var processContext = KiyoriNetworkProxyProcessContext("unknown", 0)
+
+    internal fun setProcessContext(processName: String, processId: Int) {
+        val normalizedName =
+            processName
+                .replace(CONTROL_CHARACTERS, " ")
+                .trim()
+                .take(MAX_PROCESS_NAME_CHARS)
+                .ifBlank { "unknown" }
+        synchronized(lock) {
+            processContext =
+                KiyoriNetworkProxyProcessContext(
+                    processName = normalizedName,
+                    processId = processId.coerceAtLeast(0),
+                )
+        }
+    }
 
     fun info(source: String, message: String) {
         append(KiyoriNetworkProxyLogLevel.INFO, source, message)
@@ -57,6 +80,7 @@ object KiyoriNetworkProxyLogStore {
     fun clear() {
         synchronized(lock) {
             buffer.clear()
+            droppedEntryCount = 0L
             mutableEntries.value = emptyList()
         }
     }
@@ -67,6 +91,10 @@ object KiyoriNetworkProxyLogStore {
                 appendLine("Kiyori network proxy log")
                 appendLine("Generated: ${Instant.now()}")
                 appendLine("Scope: current application process; sensitive values are redacted")
+                appendLine(
+                    "Process: ${processContext.processName} pid=${processContext.processId}",
+                )
+                appendLine("Entries: ${buffer.size} dropped=$droppedEntryCount")
                 appendLine()
                 buffer.forEach { entry ->
                     append(Instant.ofEpochMilli(entry.timestampEpochMillis))
@@ -101,7 +129,10 @@ object KiyoriNetworkProxyLogStore {
                     message = message,
                 ),
             )
-            while (buffer.size > MAX_ENTRIES) buffer.removeFirst()
+            while (buffer.size > MAX_ENTRIES) {
+                buffer.removeFirst()
+                droppedEntryCount += 1
+            }
             mutableEntries.value = buffer.toList()
         }
         return message
@@ -141,6 +172,7 @@ object KiyoriNetworkProxyLogStore {
         }
     }
 
+    private const val MAX_PROCESS_NAME_CHARS = 96
     private val CONTROL_CHARACTERS = Regex("[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F\\r\\n\\t]+")
     private val REPEATED_WHITESPACE = Regex(" {2,}")
     private val PROXY_URI =

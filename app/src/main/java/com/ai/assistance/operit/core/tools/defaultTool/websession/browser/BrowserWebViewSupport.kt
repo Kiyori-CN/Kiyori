@@ -42,6 +42,8 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.Use
 import com.ai.assistance.operit.ui.main.MainActivity
 import com.ai.assistance.operit.util.AppLogger
 import com.kiyori.capability.browser.presentation.KiyoriBrowserSearchSource
+import com.kiyori.platform.network.KiyoriNetworkProxyLogStore
+import com.kiyori.platform.network.KiyoriNetworkProxyManager
 import java.io.ByteArrayInputStream
 import java.util.LinkedHashSet
 import java.util.Locale
@@ -670,6 +672,18 @@ internal fun StandardBrowserSessionTools.configureWebView(
             ) {
                 super.onReceivedError(view, request, error)
                 if (request.isForMainFrame) {
+                    val runtimeState =
+                        KiyoriNetworkProxyManager.getInstance(context).runtimeState.value
+                    KiyoriNetworkProxyLogStore.warning(
+                        "WebView 网络",
+                        "主文档加载失败 session=${session.id} url=${request.url} " +
+                            "errorCode=${error.errorCode} description=${error.description} " +
+                            "runtimePhase=${runtimeState.phase} " +
+                            "runtimeGeneration=${runtimeState.runtimeGeneration ?: "none"} " +
+                            "endpointPort=${runtimeState.mixedPort ?: "none"} " +
+                            "controllerHealthy=${runtimeState.controllerHealthy ?: "unknown"} " +
+                            "mixedPortListening=${runtimeState.mixedPortListening ?: "unknown"}",
+                    )
                     restoreReturnWithoutReloadOnMain(session)
                 }
             }

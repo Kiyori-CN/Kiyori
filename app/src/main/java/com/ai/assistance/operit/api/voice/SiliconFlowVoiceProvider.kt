@@ -6,6 +6,8 @@ import android.media.MediaPlayer
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.preferences.SpeechServicesPreferences
 import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.KiyoriNetworkProxyManager
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -265,7 +267,9 @@ class SiliconFlowVoiceProvider(
 
             // 发送HTTP请求
             val url = URL(API_URL)
-            val connection = url.openConnection() as HttpURLConnection
+            val connection =
+                KiyoriNetworkProxyManager.getInstance(context)
+                    .openConnectionBlocking(url, KiyoriNetworkModule.AI_SERVICES) as HttpURLConnection
             connection.requestMethod = "POST"
             connection.setRequestProperty("Authorization", "Bearer $apiKey")
             connection.setRequestProperty("Content-Type", "application/json")

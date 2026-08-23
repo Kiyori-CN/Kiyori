@@ -59,6 +59,15 @@ date: 2026-08-23
   生命周期已由 Shell 状态和 JVM 回归测试覆盖；上一份 APK 的现场保存问题不能作为当前实现结论。
 - `verification_pending`：本轮修订 APK 尚未在真机验证；真实订阅、多订阅切换、日志交互、WebView、AI、播放器、
   下载器、脚本、外部 VPN 并存和进程生命周期矩阵仍待设备验收。
+- `DONE LOCALLY`：完成应用级代理跨进程与跨入口修订。加密配置 Store 在读取时检查文件前缀指纹，
+  因而主进程保存配置后，独立 `:player` 进程不会继续使用旧缓存；Browser 下载、AI 多段下载和显式
+  `HttpURLConnection` 入口在任务开始时固定同一份路由快照，且 loopback/私网旁路与 OkHttp selector
+  采用同一策略。播放器在初始化和每次媒体加载前应用 `PLAYER` 路由，并输出脱敏的应用级代理状态。
+- `verification_pending`：2026-08-23 用户诊断报告显示 Android 与 `PlayerNetwork` 快照为
+  `proxy=absent`，但 mpv 同时明确记录 `route=PROXY` 与 `mpvHttpProxy=127.0.0.1:<port>`；应用级
+  路由已真实生效，TLS handshake aborted/loading failed 仍需区分 Mihomo runtime 生命周期与上游节点/Range
+  链路问题。主进程代理日志还显示 Mihomo 在配置校验、Controller、节点切换和测速成功后以退出码 `0`
+  输出 `shutting down`；主进程与独立 `:player` 进程的 runtime 必须按进程分别对齐 generation、端点和退出时间。
 
 ## 非目标
 
@@ -176,15 +185,17 @@ Keystore/文件原子写入本身失败才显示“未保存”。所有持久�
 | `AI_SERVICES` | 主模型、模型列表、云端 embedding、语音/STT/TTS | AI Provider 与流式/WebSocket 客户端 |
 | `AI_TOOLS` | `http_request`、web visit、宿主下载等普通 AI 工具 | 不含已识别为传统脚本的请求 |
 | `BROWSER` | Browser Runtime WebView、Browser 辅助请求、用户脚本远端资源 | WebView 代理覆盖当前进程全部 WebView，loopback 始终旁路 |
-| `DOWNLOADS` | Browser 文件下载、模型/扩展资产下载 | 下载任务创建时读取当前路由 |
-| `PLAYER` | mpv HTTP/HTTPS、HLS/DASH、字幕与封面 | 在 mpv 初始化前设置 `http-proxy` |
+| `DOWNLOADS` | Browser 文件下载、模型/扩展资产下载 | 每个任务创建时冻结端点与局域网旁路策略；HEAD、Range、重试和并发分片不漂移 |
+| `PLAYER` | mpv HTTP/HTTPS、HLS/DASH、字幕与封面 | 在 mpv 初始化和每次媒体加载前应用 `http-proxy`；播放器独立进程读取同一加密配置 |
 | `SCRIPTS` | 传统 `JsEngine` 脚本包的标准宿主网络 | 支持逐 package override |
 | `APP_SERVICES` | GitHub、市场、天气、规则订阅、Coil 网络图片 | Kiyori 自身在线能力 |
 
 WebView 的 AndroidX `ProxyController` 是进程级 API，不能把不同 WebView 可靠拆成多个代理模式；
 所有远程 WebView 因此归入 `BROWSER`。本地 `127.0.0.1`、`localhost` 与应用内页面必须旁路。
 播放器由独立 mpv 网络栈持有，不能依赖 Java `ProxySelector`。OkHttp 与 `HttpURLConnection`
-分别使用 manager 提供的动态 selector/显式 `Proxy`，不设置 JVM 全局 system property。
+分别使用 manager 提供的动态 selector/显式 `Proxy`，不设置 JVM 全局 system property。显式
+`URLConnection` 也必须先执行相同的 loopback/私网旁路判断，不能因绕过 `ProxySelector` 把局域网
+请求发送给 Mihomo。
 
 ## Mihomo 配置与策略组
 
@@ -358,7 +369,7 @@ Kiyori App Shell 的设置 route callback 以 `AI_HOST` 来源打开
     GeoSite/GeoIP 数据；修复 DNS 清洗后同版本核心校验为退出码 0 且不生成外部数据文件。私有订阅和
     生成配置未进入 Git 或任务记录，并已从系统临时目录删除。
 16. [DONE LOCALLY] 增加单一进程内脱敏日志 owner，接入配置校验、主/probe runtime、选点和测速链路；
-    非零核心退出必须保留可诊断原因，同时继续清理明文运行配置。
+    意外核心退出无论退出码是否为零都必须保留可诊断原因，同时继续清理明文运行配置。
 17. [DONE LOCALLY] 在网络代理主页增加“代理日志”入口，完成实时查看、复制、SAF 导出和确认清空子页面。
 18. [DONE LOCALLY] 补充 DNS 地理数据依赖剥离、日志脱敏/有界性、UI 合同与 Mihomo 错误输出回归，完成
     定向/完整 JVM、Python、正式开发门禁和规定 Debug APK 构建；真机复测继续保持 `verification_pending`。
@@ -369,9 +380,10 @@ Kiyori App Shell 的设置 route callback 以 `AI_HOST` 来源打开
 - YAML：目标服务同类 Clash YAML、Base64 格式拒绝、占位节点隔离、策略组引用清理、重复名、
   provider path、单文档、UTF-8、4 MiB、alias、深度、DNS GeoSite/GeoIP 依赖剥离和 secret 不出现在异常。
 - Runtime：随机 loopback port、无 LAN/TUN、Controller bearer、组快照/切换、旧明文清理、核心
-  异常退出、parent-death、配置指纹变化、校验错误输出收集和停机幂等。
+  异常退出（含退出码 0）、parent-death、配置指纹变化、校验错误输出收集和停机幂等。
 - 网络入口：AI 主模型与模型列表、普通 AI 工具、传统脚本四入口、Browser WebView、Browser
-  下载、mpv option、Kiyori 服务 client 均使用明确 module；本地 URL 始终旁路。
+  下载、AI/市场/MCP/Skill/语音/Compose DSL/Markdown 图片、mpv option、Kiyori 服务 client
+  均使用明确 module；本地 URL 始终旁路；多段下载任务内路由固定。
 - UI/导航：More Features 顺序、NETWORK_PROXY Back 链、环境变量按钮直接开抽屉、底部左按钮、
   主页新增代理日志入口、日志查看/复制/SAF 导出/确认清空、节点选择横向分组/搜索/整组测速/排序/单列节点、
   订阅行切换与更新/编辑/复制/删除菜单、模块/脚本子页、订阅空/有数据/加载/错误、浅深主题、横屏和窗口尺寸。
@@ -476,3 +488,225 @@ owner，也不改变节点测速、路由或持久化行为。
 7. 旋转、分屏、前后台、进程强杀、订阅更新失败、核心异常退出、网络切换和重启后状态一致。
 
 自动检查和 Debug APK 不能代替这些设备证据；设备完成前状态保持 `verification_pending`。
+
+## 2026-08-23 应用级路由闭环修订
+
+### 证据边界
+
+用户提供的三份播放器诊断报告只保留以下最小事实：Android 网络快照与 `PlayerNetwork` 快照均为
+`proxy=absent`；mpv 记录过 TLS handshake 被对端中止以及媒体加载失败；请求属于远程 HTTPS 视频
+资源。报告没有记录 Kiyori 应用级路由解析结果，因此不能把系统代理缺失等同于“应用级代理一定未配置”，
+也不把 TLS 对端中止单独归因于代理。完整 URL、query、Cookie、节点和订阅正文不进入仓库文档。
+
+### 实施结果
+
+- `KiyoriNetworkProxyConfigStore.currentConfig()` 在每次跨进程读取时比较存在性、长度、修改时间和
+  加密头/随机 IV 前缀；`:player` 进程因此会重新读取主进程刚保存的配置，而不会沿用进程启动时缓存。
+- `KiyoriNetworkProxyManager` 以一份 `ResolvedNetworkRoute` 同时保存配置、模块路由、Mihomo 端点和
+  私网策略。任务级 `connectionFactoryBlocking()` 与 Browser `proxySelectorBlocking()` 在任务创建时
+  冻结这份快照，避免 HEAD、Range、重试或并发分片在订阅/节点变化时分裂到不同端点。
+- 显式 `HttpURLConnection` 路径与 `ScopedKiyoriProxySelector` 共用 loopback、localhost、任播/组播、
+  link-local 和私网判断；`proxyPrivateNetworks=false` 时私网直连，设为 true 时公网与私网均按
+  应用代理发送，loopback 仍保持直连。
+- `HttpMultiPartDownloader` 不再内部创建裸连接；HEAD 探测、单段下载和全部 Range 分片都由调用方
+  注入的工厂创建。AI 宿主下载因此进入 `AI_TOOLS`，Browser 下载进入 `DOWNLOADS`。
+- 播放器独立 `:player` 进程在 mpv 初始化前和每次 `load()` 前重新解析 `PLAYER` 路由。初始化使用
+  `http-proxy` option，播放会话中发生路由变化时更新 property，并读回确认实际属性值；诊断只输出
+  `route=PROXY/DIRECT` 与脱敏端点，不输出 URL、Cookie、节点名或认证信息。
+- 其他发现的裸 `HttpURLConnection` 生产入口已归类到 `APP_SERVICES`、`DOWNLOADS`、`AI_SERVICES` 或
+  `BROWSER`。`GithubReleaseUtil` 的镜像测速函数仍无生产调用，本轮不为未使用工具建立第二套路由或
+  扩大公开 API 范围。
+
+### 自动验证与剩余验收
+
+本轮通过 `:app:compileDebugKotlin`、`:app:compileDebugUnitTestKotlin`，以及代理/下载/播放器定向
+测试 `159 actionable tasks` 对应的 `testDebugUnitTest BUILD SUCCESSFUL`；正式开发准备、fresh clone、
+architecture `phase=m03` 和 `git diff --check` 通过。规定的 `:app:assembleDebug --no-daemon
+--console=plain` 为 `BUILD SUCCESSFUL in 51s`，`235` 个任务中 `23` 个 executed、`212` 个 up-to-date；
+唯一 launcher、脚本代理运行时、播放器运行时和 native packaging Gradle 门禁通过。
+
+APK 为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `493116749` bytes，SHA-256 为
+`F58C50D01808D6B677D6263CB8CC72EFF3F046AF0D644376D836695C97BE3748`；包身份为
+`com.kiyori / 45 / 0.1.0 / min 26 / target 34 / compile 37`，仅含 `arm64-v8a`，唯一 launcher
+为 `com.ai.assistance.operit.ui.main.MainActivity`。Android Debug V2 单 signer、证书指纹
+`E72AD950D07ADBEDFB9C909C48D922FDDB3560677012DA79B686A127867AE902` 和
+`zipalign -c -P 16 -v 4` 均通过。
+
+未安装 APK、未操作设备、未连接真实节点，状态保持 `verification_pending`。下一步最有价值的是用
+同一订阅执行 Browser WebView、播放器、AI 多段下载和 Browser 下载的 `DIRECT/PROXY/私网` 矩阵，
+再决定是否需要增加用户可见的按模块连接测试或代理健康检查入口；当前不新增设置选项。
+
+## 2026-08-23 Mihomo runtime 生命周期修订
+
+### 已确认问题
+
+- `KiyoriApplication.onCreate` 会启动一次应用级协调，而设置写入路径也会协调同一 runtime。此前无参
+  协调的默认配置在进入函数前读取，未与 `mutationMutex` 串行；旧配置可能在新配置已经启动 Mihomo
+  后执行 `runtime.stop()`，造成短时 `ERR_PROXY_CONNECTION_FAILED`。现在协调函数在锁内读取当前加密配置，
+  设置写入、启动协调和运行时刷新共用同一串行边界。
+- `monitorProcess` 此前把所有退出码统一记录为“异常退出”。现在 `ActiveRuntime.expectedStop` 由
+  `stopLocked` 在销毁进程前设置；按请求退出归档为 `STOPPED`/INFO，未被停止所有权标记的退出即使为
+  `0` 仍归档为 `ERROR`/ERROR。旧 monitor 只有在观察到的 `Process` 仍是当前 runtime 时才可更新状态。
+
+### 证据与边界
+
+- 这次修订解释并消除了一个可复现的配置协调停止竞态，也修正了退出码 `0` 的诊断语义；它没有自动
+  重启、自动换节点、静默直连或吞掉代理错误。
+- 主进程日志在 `21:50:40` 的 `Mihomo shutting down` 仍需目标设备用新版日志确认触发者；本地构建无法
+  证明真实订阅、Android 进程调度、上游节点稳定性或 MPV Range 连接是否已经恢复。
+- `:player` 拥有独立的 `KiyoriMihomoRuntime` 和 runtime 目录；播放器报告中的 `route=PROXY` 只能证明
+  mpv 获得了应用级代理，不能把主进程的 runtime 日志当成 `:player` 的 runtime 生命迹象。
+
+### 本轮验证
+
+- `:app:compileDebugKotlin`、`:app:compileDebugUnitTestKotlin`、定向代理/下载/播放器测试和完整
+  `:app:testDebugUnitTest` 均通过；`159 actionable tasks` 的测试任务零失败。
+- `python -B ci/script/check_formal_readiness.py --repository . --require-main`、
+  `python -B ci/script/check_fresh_clone.py --repository .`、
+  `python -B ci/script/check_architecture_boundaries.py --repository . --require-main --phase auto`、
+  `git diff --check` 均通过。Markdown 链接脚本当前只接受两个 Git tree/commit 参数；本轮文档没有
+  移动文件或新增本地链接目标，dirty worktree 未伪造临时候选提交。
+- `./gradlew :app:assembleDebug --no-daemon --console=plain` 通过，`235 actionable tasks`，
+  Mihomo parent-death、脚本代理 runtime、播放器 runtime packaging 门禁通过。
+- Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `493116749` bytes，SHA-256 为
+  `B492238288A650B2490BDA2EF2AC78A5CBF89CC6ECEE7F692121CD66B59F629A`。独立核验确认
+  `com.kiyori / 45 / 0.1.0 / min 26 / target 34 / compile 37`、唯一 launcher、仅 `arm64-v8a`、
+  Android Debug V2 单 signer 和 `zipalign -c -P 16 -v 4` 均通过。
+
+## 2026-08-23 代理运行时诊断链路增强
+
+### 新现场证据
+
+- 两份播放器报告都记录了 `route=PROXY` 和同一形式的 loopback `mpvHttpProxy`，因此当前问题不能
+  继续用“播放器没有应用代理”概括；报告仍缺少该端口是否可连接、Controller 是否健康、`:player`
+  进程内 Mihomo runtime 的 generation/退出时间和停止触发源。
+- 主进程代理日志只把核心输出与少数管理操作写入 300 条进程内历史，没有宿主进程身份、runtime
+  generation、端口、启动时刻、Controller/混合端口健康结果或 stop reason；因此同一份日志无法证明
+  主进程和 `:player` 的事件是否属于同一个 runtime。
+- Mihomo 是当前内嵌的 Clash.Meta 核心。外置 Clash Meta 的 TUN、系统全局代理、LAN listener 和
+  客户端 UI 不是这次应用级 `ERR_PROXY_CONNECTION_FAILED` 的直接缺口；本轮不把这些能力移植到
+  Kiyori，也不扩大既定的 loopback-only/application-only 边界。
+
+### 本轮实施决策
+
+1. 继续复用 `KiyoriNetworkProxyLogStore`、`KiyoriMihomoRuntime`、`KiyoriNetworkProxyManager` 和
+   现有 `PlayerDebugLogBuffer`，不建立第二份代理状态或第二个日志数据库。
+2. 每个进程的导出日志增加 process name/PID；每次 Mihomo 启动分配单调 runtime generation，并
+   记录 mixed/controller 端口、启动时刻、配置校验、Controller readiness、混合端口监听检查、
+   复用健康检查、选点/测速请求结果和 stop reason。核心原始行继续经过同一脱敏边界。
+3. route resolution 与 WebView proxy override 记录 module、mode、VPN gate、runtime generation、
+   endpoint port 和耗时；失败保留真实错误码与阶段，不自动切换节点、自动直连或吞掉错误。
+4. `:player` 进程监听同一进程内的代理 runtime state，把 generation、端口、健康/退出状态和退出
+   原因写入既有播放器诊断报告，使“mpv 代理选项已设置”和“Mihomo 端口实际可用”可以分开判断。
+
+### 验收条件
+
+- 单元测试覆盖 runtime generation/stop reason、主动停止与自然退出、Controller/混合端口健康结果、
+  进程上下文脱敏导出和 route/播放器诊断投影。
+- Debug APK 构建通过，且现有代理、下载器、播放器和完整 JVM 回归不退化。
+- 真实设备必须用同一订阅分别导出主进程代理日志与播放器报告，按 process/PID、generation、端口和
+  时间对齐 `Mihomo shutting down`、TLS/Range 错误以及 Controller/混合端口健康结果；在此之前本专项
+  状态继续为 `verification_pending`。
+
+本轮不新增设置选项；是否需要按模块健康检查按钮、连接诊断向导或更多 Clash.Meta 功能，待上述现场
+证据闭合后再决定，避免用新 UI 掩盖尚未归因的 runtime 或上游节点故障。
+
+### 本轮实现与本地验证
+
+- `KiyoriNetworkProxyLogStore` 的导出头现在包含进程名/PID；`KiyoriMihomoRuntimeState` 和核心日志
+  包含 runtime generation、mixed/controller 端口、Controller/混合端口健康、启动时刻和 stop reason。
+- runtime 复用前执行 Controller 与 loopback mixed-port 健康检查；失败进入明确 `ERROR` 并阻断当前
+  代理路由；运行中连续两次健康失败会停止旧 generation，进入同一受限自动恢复协调，不创建第二核心
+  或静默改路由。所有 manager route resolution 与 VPN 冲突 stop 现在位于同一 `mutationMutex` 边界；
+  复用健康检查使用 `800ms` 独立 Controller 超时，健康看护每 `10s` 检查一次，避免核心卡死时拖住
+  网页/播放器 route setup。
+- `MpvPlayerEngine` 在代理解析失败或成功时写入 runtime health 投影；`:player` 的
+  `PlayerRuntimeService` 监听本进程 proxy runtime state，使用共享诊断格式写入现有播放器报告。
+- 变更涉及 `KiyoriMihomoRuntime.kt`、`KiyoriNetworkProxyManager.kt`、`KiyoriNetworkProxyLogStore.kt`、
+  `BrowserWebViewSupport.kt`、`BrowserDownloadTransport.kt`、`HttpMultiPartDownloader.kt`、
+  `MpvPlayerEngine.kt`、`PlayerRuntimeService.kt`、对应代理/下载测试和 `CONTEXT.md`；未改变订阅
+  schema、Mihomo 版本、端口暴露边界、模块模式或 UI 设置项。
+- 定向编译与代理/播放器专项测试通过；完整 `:app:testDebugUnitTest` 为 `299` 个 XML 报告、`1747`
+  个测试，`0 failures / 0 errors / 0 skipped`。formal readiness、fresh clone、architecture
+  `phase=m03` 和 `git diff --check` 通过。
+- `:app:assembleDebug --no-daemon --console=plain` 通过，`235` actionable tasks；Mihomo
+  parent-death、脚本代理 runtime、播放器 runtime packaging 和唯一 Debug launcher 门禁通过。
+  APK 为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `493116749` bytes，SHA-256 为
+  `74B9EEE50D11B37B6F2AB60B128429BE972C54DC62E03C93936C136E3A429F2C`；包身份为
+  `com.kiyori / 45 / 0.1.0`，仅 `arm64-v8a`，Android Debug V2 单 signer 和
+  `zipalign -c -P 16 -v 4` 均通过。
+
+## 2026-08-23 异常自然退出自动恢复
+
+### 现场根因边界
+
+- 新日志确认主进程 `runtimeGeneration=1` 在 `15:26:45` 记录 `Mihomo shutting down`，随后以退出码 `0`
+  结束；直到 `15:28:12` 下一次协调才出现 generation 2。这段时间 mixed-port 已不存在，能够解释整站
+  `net::ERR_PROXY_CONNECTION_FAILED`，属于代理 runtime 空窗，不是播放器未设置 `http-proxy`。
+- 同一批历史日志另有 `context deadline exceeded`、上游节点拨号 `i/o timeout`、mpv TLS 被对端中止和
+  Range 媒体 `partial file`。这些属于上游节点、目标站点或媒体服务连接质量问题；核心进程重启不能将
+  它们伪装成已修复，也不触发本次异常进程恢复。
+- 现场导出没有出现对应的 `正在停止内嵌 Mihomo`，且导出头中的宿主 PID 在前后保持一致，因此当前能
+  确认的是“未被现有 runtime 停止所有权记录的自然退出”，发送停止信号的更细来源仍需设备级日志和
+  系统进程证据继续确认。
+
+### 自动恢复契约
+
+- `KiyoriMihomoRuntime` 为自然退出发布 `failureKind=UNEXPECTED_PROCESS_EXIT`；运行中连续两次本地
+  Controller/mixed-port 健康检查失败发布 `failureKind=HEALTH_CHECK_FAILED`。按请求停止和启动失败分别
+  保持独立状态，不进入自动恢复触发条件。
+- `KiyoriNetworkProxyManager` 监听同一进程的 runtime state，在 `mutationMutex` 内重新读取当前加密配置、
+  VPN 状态、订阅和模块路由后执行一次协调。用户关闭代理、切换订阅或发生 VPN 冲突时，当前配置优先，
+  不会用旧订阅重新拉起核心。
+- 每个失败 generation 只触发一次；同一进程五分钟内最多自动恢复两次，超过限额保持 `ERROR` 并记录
+  限额原因，避免核心持续退出或健康失效时形成重启循环。恢复失败保留错误状态，不自动换节点、静默
+  直连或吞掉原始故障。
+- Browser WebView 在恢复协调中重新安装新 mixed-port；`:player` 在新 generation 进入 `RUNNING` 后
+  在既有 mpv 线程刷新 `http-proxy`。已经创建的下载任务继续使用其任务级路由快照，恢复后新建任务使用
+  新端点，避免下载中途无记录地切换线路。
+- 代理诊断格式新增 `failure=...`；主进程日志记录 failed generation、恢复次数、恢复结果、新 generation、
+  新端口和健康状态；播放器报告的 runtime 诊断也包含同一故障类型和 generation 变化。主文档 WebView
+  网络错误、动态 OkHttp 连接错误和浏览器下载重试/耗尽错误进入同一脱敏日志窗口；ProxyController 安装
+  与清理回调等待 5 秒后会明确失败，不会永久占用协调锁。
+- 多段下载对 Range 分段严格要求 HTTP `206`。服务端忽略 Range 返回 `200` 时明确失败，避免完整响应被
+  写入某一个分段文件后生成静默损坏的下载文件。
+
+### 本轮验证与待验证
+
+- `:app:compileDebugKotlin` 与 `KiyoriMihomoRuntimeProcessPolicyTest`、`KiyoriNetworkProxyLogStoreTest`
+  定向测试通过。
+- 真实设备仍需验证：核心自然退出后 Browser WebView、活动 mpv、Browser 下载和 AI 多段下载的行为，
+  以及恢复失败限额、外部 VPN/Clash 并存、前后台切换和进程重建。设备验证前本专项保持
+  `verification_pending`。
+
+## 2026-08-24 最终收口与交付候选
+
+### 本轮实现
+
+- 运行中 Mihomo 每 `10s` 执行一次本地 Controller/mixed-port 健康检查，连续两次失败才停止旧
+  generation 并进入现有每 generation 一次、五分钟最多两次的自动恢复；主动停止、启动失败和上游节点
+  超时不进入该触发器。
+- Browser WebView 主文档错误、动态 OkHttp 路由连接错误、浏览器下载重试/耗尽错误和 Mihomo 核心尾行
+  都写入同一个 1000 条脱敏日志窗口；导出继续保留 process/PID、generation、端口、健康状态和 stop
+  reason。ProxyController 安装/清理回调增加 5 秒超时。
+- `HttpMultiPartDownloader` 对 Range 分段严格要求 HTTP `206`，避免服务器忽略 Range 返回完整 `200`
+  时造成静默分段损坏；Browser 下载保留任务级 route snapshot，恢复完成后的新任务使用新端点。
+
+### 本地验证
+
+- `:app:testDebugUnitTest --no-daemon --console=plain`：299 个 XML 报告、1750 个测试，
+  `0 failures / 0 errors / 0 skipped`。
+- `check_formal_readiness.py --repository . --require-main`：PASS；
+  `check_architecture_boundaries.py --repository . --require-main --phase auto`：PASS；
+  `git diff --check`：PASS。
+- `:app:assembleDebug --no-daemon --console=plain`：PASS，235 actionable tasks，
+  Mihomo parent-death、脚本代理 runtime、播放器 runtime packaging 和唯一 Debug launcher 门禁通过。
+- APK：`app/build/outputs/apk/debug/app-debug.apk`，`493116749` bytes，SHA-256
+  `EC4B0B4D25571B2CF4F27F7F4C97FC83B6A442C2944F16EEB27FC703FE4E3C1C`；包身份为
+  `com.kiyori / 45 / 0.1.0`，仅 `arm64-v8a`，Debug V2 单 signer 与 16 KB `zipalign` 通过。
+
+### 待验证边界
+
+本轮未安装 APK、未操作 ADB/设备、未使用真实订阅复测，未进行外部 Clash/VPN 并存、网络切换、前后台
+重建或 Mihomo 人为自然退出注入。真机仍需确认健康看护实际触发、WebView 新端口生效、活动 mpv 刷新、
+下载任务冻结端点的可观测失败行为和真实上游速度；在这些证据完成前，本专项保持 `verification_pending`。

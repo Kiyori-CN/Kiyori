@@ -5,6 +5,7 @@ import java.io.FileOutputStream
 import java.io.RandomAccessFile
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLConnection
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicReference
@@ -26,28 +27,33 @@ object HttpMultiPartDownloader {
         url: String,
         dest: File,
         headers: Map<String, String> = emptyMap(),
+        connectionFactory: (URL) -> URLConnection,
         threadCount: Int = 4,
         onProgress: ((downloadedBytes: Long, totalBytes: Long) -> Unit)? = null
     ) {
         val safeThreads = threadCount.coerceIn(1, 8)
 
-        val meta = probeDownload(url, headers)
+        val meta = probeDownload(url, headers, connectionFactory)
         val total = meta.contentLength
         val supportsRanges = meta.acceptRanges
 
         if (total <= 0L || !supportsRanges || safeThreads == 1) {
-            downloadSingle(url, dest, headers, total, onProgress)
+            downloadSingle(url, dest, headers, connectionFactory, total, onProgress)
             return
         }
 
-        downloadMulti(url, dest, headers, total, safeThreads, onProgress)
+        downloadMulti(url, dest, headers, connectionFactory, total, safeThreads, onProgress)
     }
 
-    fun probeDownload(url: String, headers: Map<String, String> = emptyMap()): ProbeResult {
+    fun probeDownload(
+        url: String,
+        headers: Map<String, String> = emptyMap(),
+        connectionFactory: (URL) -> URLConnection,
+    ): ProbeResult {
         // Prefer HEAD, but some servers don't allow it.
         var conn: HttpURLConnection? = null
         try {
-            conn = (URL(url).openConnection() as HttpURLConnection).apply {
+            conn = (connectionFactory(URL(url)) as HttpURLConnection).apply {
                 requestMethod = "HEAD"
                 applyHeaders(this, headers)
                 setRequestProperty("Accept-Encoding", "identity")
@@ -70,7 +76,7 @@ object HttpMultiPartDownloader {
         // Fallback GET with Range 0-0 to detect range support.
         var conn2: HttpURLConnection? = null
         try {
-            conn2 = (URL(url).openConnection() as HttpURLConnection).apply {
+            conn2 = (connectionFactory(URL(url)) as HttpURLConnection).apply {
                 requestMethod = "GET"
                 applyHeaders(this, headers)
                 setRequestProperty("Accept-Encoding", "identity")
@@ -125,6 +131,7 @@ object HttpMultiPartDownloader {
         url: String,
         dest: File,
         headers: Map<String, String> = emptyMap(),
+        connectionFactory: (URL) -> URLConnection,
         startInclusive: Long = 0L,
         endInclusive: Long? = null,
         append: Boolean = false,
@@ -133,7 +140,7 @@ object HttpMultiPartDownloader {
     ) {
         var conn: HttpURLConnection? = null
         try {
-            conn = (URL(url).openConnection() as HttpURLConnection).apply {
+            conn = (connectionFactory(URL(url)) as HttpURLConnection).apply {
                 requestMethod = "GET"
                 applyHeaders(this, headers)
                 setRequestProperty("Accept-Encoding", "identity")
@@ -154,8 +161,8 @@ object HttpMultiPartDownloader {
             val code = conn.responseCode
             val expectedPartial = startInclusive > 0L || endInclusive != null
             if (expectedPartial) {
-                if (code != HttpURLConnection.HTTP_PARTIAL && code != HttpURLConnection.HTTP_OK) {
-                    throw RuntimeException("HTTP $code")
+                if (code != HttpURLConnection.HTTP_PARTIAL) {
+                    throw RuntimeException("HTTP $code for ranged request")
                 }
             } else if (code !in 200..299) {
                 throw RuntimeException("HTTP $code")
@@ -194,6 +201,7 @@ object HttpMultiPartDownloader {
         url: String,
         dest: File,
         headers: Map<String, String>,
+        connectionFactory: (URL) -> URLConnection,
         totalBytes: Long,
         onProgress: ((Long, Long) -> Unit)?
     ) {
@@ -203,6 +211,7 @@ object HttpMultiPartDownloader {
             url = url,
             dest = dest,
             headers = headers,
+            connectionFactory = connectionFactory,
             startInclusive = 0L,
             endInclusive = null,
             append = false,
@@ -217,6 +226,7 @@ object HttpMultiPartDownloader {
         url: String,
         dest: File,
         headers: Map<String, String>,
+        connectionFactory: (URL) -> URLConnection,
         totalBytes: Long,
         threadCount: Int,
         onProgress: ((Long, Long) -> Unit)?
@@ -245,6 +255,7 @@ object HttpMultiPartDownloader {
                         url = url,
                         dest = partFile,
                         headers = headers,
+                        connectionFactory = connectionFactory,
                         startInclusive = start,
                         endInclusive = end,
                         append = false,

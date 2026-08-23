@@ -11,11 +11,13 @@ class KiyoriNetworkProxyLogStoreTest {
     @Before
     fun setUp() {
         KiyoriNetworkProxyLogStore.clear()
+        KiyoriNetworkProxyLogStore.setProcessContext("test", 0)
     }
 
     @After
     fun tearDown() {
         KiyoriNetworkProxyLogStore.clear()
+        KiyoriNetworkProxyLogStore.setProcessContext("test", 0)
     }
 
     @Test
@@ -43,15 +45,27 @@ class KiyoriNetworkProxyLogStoreTest {
 
     @Test
     fun `log history is bounded exportable and clearable`() {
-        repeat(340) { index -> KiyoriNetworkProxyLogStore.info("test", "entry-$index") }
+        repeat(1_040) { index -> KiyoriNetworkProxyLogStore.info("test", "entry-$index") }
 
         val entries = KiyoriNetworkProxyLogStore.entries.value
-        assertEquals(300, entries.size)
+        assertEquals(1_000, entries.size)
         assertEquals("entry-40", entries.first().message)
-        assertEquals("entry-339", entries.last().message)
-        assertTrue(KiyoriNetworkProxyLogStore.exportText().contains("[INFO] [test] entry-339"))
+        assertEquals("entry-1039", entries.last().message)
+        assertTrue(KiyoriNetworkProxyLogStore.exportText().contains("Entries: 1000 dropped=40"))
+        assertTrue(KiyoriNetworkProxyLogStore.exportText().contains("[INFO] [test] entry-1039"))
 
         KiyoriNetworkProxyLogStore.clear()
         assertTrue(KiyoriNetworkProxyLogStore.entries.value.isEmpty())
+    }
+
+    @Test
+    fun `export includes process context without exposing raw process data in entries`() {
+        KiyoriNetworkProxyLogStore.setProcessContext("com.kiyori:player", 27934)
+        KiyoriNetworkProxyLogStore.info("runtime", "runtimeGeneration=4 mixedPort=33497")
+
+        val exported = KiyoriNetworkProxyLogStore.exportText()
+
+        assertTrue(exported.contains("Process: com.kiyori:player pid=27934"))
+        assertTrue(exported.contains("[INFO] [runtime] runtimeGeneration=4 mixedPort=33497"))
     }
 }

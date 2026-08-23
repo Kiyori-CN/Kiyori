@@ -35,6 +35,8 @@ class KiyoriNetworkProxyConfigStore private constructor(context: Context) {
         private const val OBSOLETE_FILE_NAME = "config.v1.enc"
         private const val FILE_VERSION = 1
         private const val IV_SIZE = 12
+        // The encrypted header plus the random GCM IV changes on every successful save.
+        private const val FILE_STATE_PREFIX_BYTES = 21
         private const val GCM_TAG_BITS = 128
         private val MAGIC =
             byteArrayOf(
@@ -68,9 +70,11 @@ class KiyoriNetworkProxyConfigStore private constructor(context: Context) {
         }
     private val lock = Any()
     private val mutableState = MutableStateFlow(initializeState())
+    private var observedFileState = readFileState()
     val state: StateFlow<KiyoriNetworkProxyStoreState> = mutableState.asStateFlow()
 
-    fun currentConfig(): KiyoriNetworkProxyConfig =
+    fun currentConfig(): KiyoriNetworkProxyConfig = synchronized(lock) {
+        reloadIfChangedLocked()
         when (val current = mutableState.value) {
             is KiyoriNetworkProxyStoreState.Ready -> current.config
             is KiyoriNetworkProxyStoreState.Unreadable ->
@@ -79,6 +83,7 @@ class KiyoriNetworkProxyConfigStore private constructor(context: Context) {
                     current.message,
                 )
         }
+    }
 
     fun update(
         transform: (KiyoriNetworkProxyConfig) -> KiyoriNetworkProxyConfig,
@@ -98,6 +103,7 @@ class KiyoriNetworkProxyConfigStore private constructor(context: Context) {
                 )
             }
             mutableState.value = KiyoriNetworkProxyStoreState.Ready(updated)
+            observedFileState = readFileState()
             updated
         }
 
@@ -116,6 +122,7 @@ class KiyoriNetworkProxyConfigStore private constructor(context: Context) {
                 }
                 val initial = KiyoriNetworkProxyConfig()
                 mutableState.value = KiyoriNetworkProxyStoreState.Ready(initial)
+                observedFileState = readFileState()
                 initial
             } catch (error: Exception) {
                 KiyoriLogger.e(TAG, "Unable to reset encrypted application proxy settings", error)
@@ -153,6 +160,44 @@ class KiyoriNetworkProxyConfigStore private constructor(context: Context) {
             )
         }
     }
+
+    private fun reloadIfChangedLocked() {
+        val currentFileState = readFileState()
+        if (currentFileState == observedFileState) return
+        mutableState.value = loadState()
+        observedFileState = currentFileState
+    }
+
+    private fun readFileState(): ConfigFileState =
+        atomicFile.baseFile.let { file ->
+            ConfigFileState(
+                exists = file.isFile,
+                lastModifiedEpochMillis = file.lastModified(),
+                length = file.length(),
+                encryptedPrefix = readEncryptedPrefix(file),
+            )
+        }
+
+    private fun readEncryptedPrefix(file: java.io.File): String {
+        if (!file.isFile) return ""
+        return file.inputStream().use { input ->
+            val bytes = ByteArray(FILE_STATE_PREFIX_BYTES)
+            var offset = 0
+            while (offset < bytes.size) {
+                val count = input.read(bytes, offset, bytes.size - offset)
+                if (count <= 0) break
+                offset += count
+            }
+            bytes.copyOf(offset).toString(Charsets.ISO_8859_1)
+        }
+    }
+
+    private data class ConfigFileState(
+        val exists: Boolean,
+        val lastModifiedEpochMillis: Long,
+        val length: Long,
+        val encryptedPrefix: String,
+    )
 
     private fun writeEncrypted(config: KiyoriNetworkProxyConfig) {
         if (!rootDirectory.exists() && !rootDirectory.mkdirs()) {

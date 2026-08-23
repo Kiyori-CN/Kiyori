@@ -16,6 +16,8 @@ import com.ai.assistance.operit.data.mcp.plugins.MCPBridgeClient
 import com.ai.assistance.operit.data.mcp.plugins.MCPConfigGenerator
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolParameter
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.KiyoriNetworkProxyManager
 
 import com.google.gson.Gson
 import com.google.gson.JsonParser
@@ -586,7 +588,9 @@ class MCPRepository(private val context: Context) {
         AppLogger.d(TAG, "从 GitHub API 获取仓库信息: $apiUrl")
         try {
             val url = URL(apiUrl)
-            val connection = url.openConnection() as HttpURLConnection
+            val connection =
+                KiyoriNetworkProxyManager.getInstance(context)
+                    .openConnectionBlocking(url, KiyoriNetworkModule.APP_SERVICES) as HttpURLConnection
             connection.requestMethod = "GET"
             connection.setRequestProperty("Accept", "application/vnd.github.v3+json")
             connection.connectTimeout = CONNECT_TIMEOUT
@@ -627,7 +631,9 @@ class MCPRepository(private val context: Context) {
         
         try {
             val url = URL(zipUrl)
-            val connection = url.openConnection() as HttpURLConnection
+            val connection =
+                KiyoriNetworkProxyManager.getInstance(context)
+                    .openConnectionBlocking(url, KiyoriNetworkModule.DOWNLOADS) as HttpURLConnection
             connection.connectTimeout = CONNECT_TIMEOUT
             connection.readTimeout = READ_TIMEOUT
             connection.doInput = true

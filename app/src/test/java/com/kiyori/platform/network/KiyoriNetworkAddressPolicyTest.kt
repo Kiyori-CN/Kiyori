@@ -32,4 +32,11 @@ class KiyoriNetworkAddressPolicyTest {
         assertEquals(listOf(Proxy.NO_PROXY), selector.select(URI("http://127.0.0.1/local")))
         assertEquals(listOf(Proxy.NO_PROXY), selector.select(URI("http://192.168.1.8/local")))
     }
+
+    @Test
+    fun `explicit URL connections use the same private-network bypass contract`() {
+        assertTrue(shouldBypassKiyoriProxy("127.0.0.1", proxyPrivateNetworks = true))
+        assertTrue(shouldBypassKiyoriProxy("192.168.1.8", proxyPrivateNetworks = false))
+        assertFalse(shouldBypassKiyoriProxy("192.168.1.8", proxyPrivateNetworks = true))
+    }
 }

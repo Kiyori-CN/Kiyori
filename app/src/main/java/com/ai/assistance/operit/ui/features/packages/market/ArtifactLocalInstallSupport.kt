@@ -4,6 +4,8 @@ import android.content.Context
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
 import com.ai.assistance.operit.data.api.ArtifactProjectVersionResponse
 import com.ai.assistance.operit.data.api.MarketV2Entry
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.KiyoriNetworkProxyManager
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -218,7 +220,9 @@ private fun downloadArtifactProjectVersionToTempFile(
     }
 
     val targetFile = File(downloadDir, version.assetName.ifBlank { "${version.runtimePackageId}.bin" })
-    val connection = URL(downloadUrl).openConnection() as HttpURLConnection
+    val connection =
+        KiyoriNetworkProxyManager.getInstance(context)
+            .openConnectionBlocking(URL(downloadUrl), KiyoriNetworkModule.DOWNLOADS) as HttpURLConnection
     connection.instanceFollowRedirects = true
     connection.connectTimeout = 30_000
     connection.readTimeout = 60_000

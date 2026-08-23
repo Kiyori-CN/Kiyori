@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.ui.common.composedsl
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.net.http.SslError
@@ -62,6 +63,8 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+import com.kiyori.platform.network.KiyoriNetworkModule
+import com.kiyori.platform.network.KiyoriNetworkProxyManager
 
 private const val TAG = "ToolPkgComposeDslWebView"
 
@@ -1209,12 +1212,16 @@ private fun buildComposeDslWebResourceResponse(
 }
 
 private fun fetchComposeDslRewrittenResource(
+    context: Context,
     request: WebResourceRequest,
     rewrittenUrl: String,
     rewrittenHeaders: Map<String, String>
 ): WebResourceResponse? {
     return runCatching {
-        val connection = URL(rewrittenUrl).openConnection() as? HttpURLConnection ?: return null
+        val connection =
+            KiyoriNetworkProxyManager.getInstance(context)
+                .openConnectionBlocking(URL(rewrittenUrl), KiyoriNetworkModule.BROWSER) as? HttpURLConnection
+                ?: return null
         connection.instanceFollowRedirects = true
         connection.connectTimeout = 10_000
         connection.readTimeout = 10_000
@@ -1803,6 +1810,7 @@ internal fun renderWebViewNode(
                                     super.shouldInterceptRequest(view, actualRequest)
                                 } else {
                                     fetchComposeDslRewrittenResource(
+                                        context = context,
                                         request = actualRequest,
                                         rewrittenUrl = rewrittenUrl,
                                         rewrittenHeaders = decision.headers

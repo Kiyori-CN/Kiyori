@@ -4468,7 +4468,16 @@ open class StandardFileSystemTools(protected val context: Context) {
                         formatSize = ::formatSize,
                     )
                 }
-                HttpMultiPartDownloader.download(resolvedUrl, destFile, headers = headers, threadCount = 4) { downloaded, total ->
+                val downloadConnectionFactory =
+                    KiyoriNetworkProxyManager.getInstance(context)
+                        .connectionFactoryBlocking(KiyoriNetworkModule.AI_TOOLS)
+                HttpMultiPartDownloader.download(
+                    url = resolvedUrl,
+                    dest = destFile,
+                    headers = headers,
+                    connectionFactory = downloadConnectionFactory,
+                    threadCount = 4,
+                ) { downloaded, total ->
                     val now = System.currentTimeMillis()
                     val last = lastEmitMs.get()
                     if (now - last < 200L) return@download

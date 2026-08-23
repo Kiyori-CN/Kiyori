@@ -9,6 +9,7 @@ import java.io.RandomAccessFile
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
+import com.kiyori.platform.android.ApplicationContextAccess
 import okhttp3.ConnectionPool
 import okhttp3.Dispatcher
 import okhttp3.Dns
@@ -17,7 +18,8 @@ import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import com.kiyori.platform.network.KiyoriNetworkModule
-import com.kiyori.platform.network.applyKiyoriNetworkProxy
+import com.kiyori.platform.network.KiyoriNetworkProxyLogStore
+import com.kiyori.platform.network.KiyoriNetworkProxyManager
 
 internal const val BROWSER_DOWNLOAD_TRANSPORT_RETRY_COUNT = 5
 internal const val BROWSER_DOWNLOAD_TRANSPORT_RESOURCE_BUFFER_BYTES = 64 * 1024
@@ -113,7 +115,14 @@ internal class BrowserDownloadTransport(
         ConnectionPool(dispatcher.maxRequests, 30L, TimeUnit.SECONDS)
     private val clientBuilder =
         OkHttpClient.Builder()
-            .applyKiyoriNetworkProxy(KiyoriNetworkModule.DOWNLOADS)
+            .apply {
+                if (ApplicationContextAccess.isInstalled()) {
+                    proxySelector(
+                        KiyoriNetworkProxyManager.getInstance(ApplicationContextAccess.current)
+                            .proxySelectorBlocking(KiyoriNetworkModule.DOWNLOADS),
+                    )
+                }
+            }
             .followRedirects(true)
             .followSslRedirects(true)
             .retryOnConnectionFailure(true)
@@ -148,7 +157,8 @@ internal class BrowserDownloadTransport(
     internal fun probe(
         url: String,
         headers: Map<String, String> = emptyMap(),
-    ): BrowserDownloadProbeResult = executeWithRetry { probeOnce(url, headers) }
+    ): BrowserDownloadProbeResult =
+        executeWithRetry(operation = "probe", targetUrl = url) { probeOnce(url, headers) }
 
     private fun probeOnce(
         url: String,
@@ -200,6 +210,8 @@ internal class BrowserDownloadTransport(
         val initialLength = if (append && destination.exists()) destination.length() else 0L
         var attemptBytes = 0L
         return executeWithRetry(
+            operation = "range",
+            targetUrl = url,
             onAttemptFailure = {
                 rollbackFile(destination, initialLength, append)
                 emitNegativeChunkDelta(attemptBytes, onChunk)
@@ -238,6 +250,8 @@ internal class BrowserDownloadTransport(
         val initialLength = if (append && destination.exists()) destination.length() else 0L
         var attemptBytes = 0L
         return executeWithRetry(
+            operation = "stream",
+            targetUrl = url,
             onAttemptFailure = {
                 rollbackFile(destination, initialLength, append)
                 emitNegativeChunkDelta(attemptBytes, onChunk)
@@ -281,7 +295,7 @@ internal class BrowserDownloadTransport(
         headers: Map<String, String> = emptyMap(),
         maxBytes: Long = BROWSER_DOWNLOAD_MAX_TEXT_RESPONSE_BYTES,
     ): BrowserDownloadTextResult =
-        executeWithRetry {
+        executeWithRetry(operation = "text", targetUrl = url) {
             require(maxBytes > 0L) { "Browser download text limit must be positive" }
             val request = buildRequest(url, headers, range = null)
             client.newCall(request).execute().use { response ->
@@ -553,24 +567,49 @@ internal class BrowserDownloadTransport(
     }
 
     private fun <T> executeWithRetry(
+        operation: String,
+        targetUrl: String,
         onAttemptFailure: () -> Unit = {},
-        operation: () -> T,
+        action: () -> T,
     ): T {
         var attempt = 0
         var lastError: IOException? = null
         while (attempt < BROWSER_DOWNLOAD_TRANSPORT_RETRY_COUNT) {
             try {
-                return operation()
+                return action()
             } catch (error: CancellationException) {
                 onAttemptFailure()
                 throw error
             } catch (error: BrowserDownloadNonRetryableException) {
                 onAttemptFailure()
+                KiyoriNetworkProxyLogStore.error(
+                    "浏览器下载",
+                    "请求不可重试 operation=$operation url=$targetUrl " +
+                        "type=${error::class.java.simpleName} message=${error.message.orEmpty()}",
+                )
                 throw error
             } catch (error: IOException) {
                 lastError = error
                 attempt += 1
                 onAttemptFailure()
+                val levelMessage = if (attempt < BROWSER_DOWNLOAD_TRANSPORT_RETRY_COUNT) {
+                    "请求失败，将重试"
+                } else {
+                    "请求失败，重试耗尽"
+                }
+                if (attempt < BROWSER_DOWNLOAD_TRANSPORT_RETRY_COUNT) {
+                    KiyoriNetworkProxyLogStore.warning(
+                        "浏览器下载",
+                        "$levelMessage operation=$operation attempt=$attempt/$BROWSER_DOWNLOAD_TRANSPORT_RETRY_COUNT " +
+                            "url=$targetUrl type=${error::class.java.simpleName} message=${error.message.orEmpty()}",
+                    )
+                } else {
+                    KiyoriNetworkProxyLogStore.error(
+                        "浏览器下载",
+                        "$levelMessage operation=$operation attempt=$attempt/$BROWSER_DOWNLOAD_TRANSPORT_RETRY_COUNT " +
+                            "url=$targetUrl type=${error::class.java.simpleName} message=${error.message.orEmpty()}",
+                    )
+                }
                 if (attempt < BROWSER_DOWNLOAD_TRANSPORT_RETRY_COUNT) {
                     retryDelay(250L * attempt)
                 }
