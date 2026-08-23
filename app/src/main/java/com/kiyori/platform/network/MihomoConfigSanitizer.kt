@@ -212,7 +212,19 @@ object MihomoConfigSanitizer {
             when (routingMode) {
                 KiyoriNetworkConnectionMode.RULE ->
                     buildList {
-                        addAll(customRules.filter(KiyoriNetworkProxyRule::enabled).map(::toMihomoRule))
+                        addAll(
+                            customRules
+                                .filter(KiyoriNetworkProxyRule::enabled)
+                                .sortedWith(
+                                    compareBy<KiyoriNetworkProxyRule> {
+                                        when (it.type) {
+                                            KiyoriNetworkRuleType.DOMAIN -> 0
+                                            KiyoriNetworkRuleType.DOMAIN_SUFFIX -> 1
+                                            KiyoriNetworkRuleType.DOMAIN_KEYWORD -> 2
+                                        }
+                                    }.thenBy { it.createdAtEpochMillis },
+                                ).map(::toMihomoRule),
+                        )
                         addAll(subscriptionRules)
                         add("MATCH,$ROUTE_GROUP_NAME")
                     }
@@ -354,7 +366,12 @@ object MihomoConfigSanitizer {
     private fun toMihomoRule(rule: KiyoriNetworkProxyRule): String {
         val pattern = rule.pattern.trim().lowercase()
         val domain = pattern.removePrefix("*.").removePrefix(".")
-        val kind = if (pattern.startsWith("*.") || pattern.startsWith(".")) "DOMAIN-SUFFIX" else "DOMAIN"
+        val kind =
+            when (rule.type) {
+                KiyoriNetworkRuleType.DOMAIN -> "DOMAIN"
+                KiyoriNetworkRuleType.DOMAIN_SUFFIX -> "DOMAIN-SUFFIX"
+                KiyoriNetworkRuleType.DOMAIN_KEYWORD -> "DOMAIN-KEYWORD"
+            }
         val target =
             when (rule.mode) {
                 KiyoriNetworkRuleMode.DIRECT -> "DIRECT"
@@ -501,9 +518,25 @@ object MihomoConfigSanitizer {
         }
 
     private fun sanitizeDns(raw: Any?): Map<String, Any?>? {
-        if (raw == null) return null
+        if (raw == null) {
+            return linkedMapOf(
+                "enable" to true,
+                "ipv6" to false,
+                "respect-rules" to false,
+                "default-nameserver" to DEFAULT_DNS_SERVERS,
+                "nameserver" to DEFAULT_DNS_SERVERS,
+            )
+        }
         val dns = deepCopyMap(stringKeyMap(raw, "dns")).toMutableMap()
         dns.remove("listen")
+        // DNS resolution must not re-enter the application rule graph. In rule mode that
+        // creates a resolver -> rule -> resolver cycle and surfaces as "dns resolve failed"
+        // for otherwise valid DIRECT domains. Mihomo's loopback mixed-port remains the only
+        // application entry point; DNS is kept as an internal resolver service.
+        dns["enable"] = true
+        dns["respect-rules"] = false
+        dns["ipv6"] = false
+        dns.remove("proxy-server-nameserver")
         sanitizeDnsFallbackFilter(dns.remove("fallback-filter"))?.let { sanitized ->
             dns["fallback-filter"] = sanitized
         }
@@ -692,6 +725,7 @@ object MihomoConfigSanitizer {
         )
     private val BUILTIN_OUTBOUNDS =
         setOf("DIRECT", "REJECT", "REJECT-DROP", "PASS", "COMPATIBLE")
+    private val DEFAULT_DNS_SERVERS = listOf("223.5.5.5", "119.29.29.29")
     private val SUPPORTED_GROUP_TYPES = setOf("select", "url-test", "fallback", "load-balance")
     private val SUPPORTED_RULE_TYPES =
         setOf(

@@ -170,8 +170,22 @@ class KiyoriNetworkProxyConfigStore private constructor(context: Context) {
                     schemaVersion = KiyoriNetworkProxyConfig.CURRENT_SCHEMA_VERSION,
                     customRules = emptyList(),
                 )
+            3 ->
+                config.copy(
+                    schemaVersion = KiyoriNetworkProxyConfig.CURRENT_SCHEMA_VERSION,
+                    customRules = config.customRules.map(::migrateCustomRule),
+                )
             else -> config
         }
+
+    private fun migrateCustomRule(rule: KiyoriNetworkProxyRule): KiyoriNetworkProxyRule {
+        val rawPattern = rule.pattern.trim().lowercase()
+        val suffix = rawPattern.startsWith("*.") || rawPattern.startsWith(".")
+        return rule.copy(
+            pattern = if (suffix) rawPattern.removePrefix("*.").removePrefix(".") else rawPattern,
+            type = if (suffix) KiyoriNetworkRuleType.DOMAIN_SUFFIX else rule.type,
+        )
+    }
 
     private fun reloadIfChangedLocked() {
         val currentFileState = readFileState()

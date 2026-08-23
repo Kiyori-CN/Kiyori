@@ -35,6 +35,30 @@ date: 2026-08-23
 
 ## 当前实施状态
 
+## 2026-08-24 规则模式网页与播放器链路修复
+
+本轮根据 2026-08-24 现场导出的 Web/播放器/代理日志继续修复规则模式，而不是把所有失败归因
+为上游节点。Mihomo 日志中的 `DOMAIN-KEYWORD`、`DOMAIN-SUFFIX` 直连命中伴随 DNS resolve
+failed，根因是订阅的 `respect-rules: true` 让 DNS 解析重新进入业务规则图；清洗器现在明确启用
+内部 DNS、关闭 `respect-rules`、关闭 IPv6、移除依赖域名启动的 `proxy-server-nameserver`，并在订阅
+没有 DNS 段时写入受控的 IP nameserver。GeoSite/GeoIP 依赖继续被移除并计数，不会偷偷下载外部数据。
+
+播放器日志中的 HTTPS 视频不能仅靠 mpv `http-proxy` 代理：mpv 该选项只覆盖 HTTP。`:player`
+现在为需要应用级代理的 HTTP(S) 直链和 HLS 媒体创建一个随机令牌、仅监听 IPv4 `127.0.0.1` 的流式桥接端点；mpv
+读取本地 HTTP 流，桥接端点用同一份 `PLAYER` 路由请求原始 URL，转发原始请求头、Range、响应状态、
+Content-Range 和流式响应。桥接端点不会暴露在 LAN，也不创建第二个 Mihomo 或第二份持久化网络状态。
+播放器诊断将该路径标记为 `PROXY_BRIDGE`；直连模式仍直接加载原始 URL。
+
+自定义规则从“根据 `*.` 前缀猜测语义”升级为显式三种类型：完整域名 `DOMAIN`、域名后缀
+`DOMAIN-SUFFIX`、域名关键字 `DOMAIN-KEYWORD`；规则动作仍为直连或代理。运行时按完整域名、后缀、
+关键字的特异性排序，用户规则整体优先于订阅规则；schema 3 旧规则在读取时保留原有通配符含义并迁移
+到 schema 4。订阅更新只替换订阅来源规则，用户规则和启用状态不被覆盖。
+
+- [DONE LOCALLY] DNS 规则递归修复与无 DNS 段运行配置收口
+- [DONE LOCALLY] HTTPS 播放器 loopback 流式桥接与 Range/请求头转发
+- [DONE LOCALLY] 自定义规则显式类型、schema 迁移、排序和设置页选项
+- [verification_pending] 目标设备使用真实订阅复测 WebView、HTTPS MP4/HLS、AI、下载与系统 VPN 并存
+
 ## 本轮规则模式设计（2026-08-24）
 
 本轮将顶部“默认连接”更名为“代理模式”，提供固定顺序的三个选项：
@@ -58,10 +82,10 @@ Browser、AI、下载、播放器和传统脚本共享同一 Mihomo 规则，同
 - **当前订阅规则**：从当前订阅 YAML 的 `rules` 中提取受支持的域名/IP/端口规则，只读展示；
   更新订阅会原子替换这部分内容。依赖外部 GeoSite、GeoIP、RULE-SET 文件的规则不会被伪装成
   可用规则，并在摘要中计数。
-- **自定义规则**：单独加密保存在应用代理配置中，支持新增、编辑、删除和启用/停用；只接受
-  域名或域名后缀，动作只有“直连”和“代理”。它们永远排在订阅规则前，订阅更新不会覆盖。
+- **自定义规则**：单独加密保存在应用代理配置中，支持新增、编辑、删除和启用/停用；规则类型为
+  完整域名、域名后缀或域名关键字，动作只有“直连”和“代理”。它们永远排在订阅规则前，订阅更新不会覆盖。
 
-用户规则编译为 Mihomo `DOMAIN` 或 `DOMAIN-SUFFIX` 条目；代理动作指向
+用户规则编译为 Mihomo `DOMAIN`、`DOMAIN-SUFFIX` 或 `DOMAIN-KEYWORD` 条目；代理动作指向
 `KIYORI_APP_PROXY`，直连动作指向 `DIRECT`。每次规则、订阅、节点或顶部模式变化都会重新校验
 并原子重建当前运行配置，失败时保留已保存配置并明确报告运行未生效。
 
@@ -163,18 +187,19 @@ Browser、AI、下载、播放器和传统脚本共享同一 Mihomo 规则，同
 
 上一版 `ScriptNetworkConfigStore`、`ScriptProxyRuntime`、`ScriptNetworkHttpClientFactory` 与
 `ScriptNetworkSettingsScreen` 不再作为兼容入口保留。Kiyori 尚无公开发行渠道，本轮直接建立
-schema v3 的应用级配置；schema v2 仅把旧 `PROXY` 映射到全局语义并补齐规则字段，不读取或迁移本机
+schema v4 的应用级配置；schema v2 仅把旧 `PROXY` 映射到全局语义并补齐规则字段，schema v3 旧自定义规则
+会把 `*.`/`.` 前缀迁移为显式域名后缀类型，不读取或迁移本机
 开发阶段的 `script_network` 私有目录。
 
 ## 持久化模型
 
 ```text
-KiyoriNetworkProxyConfig(schemaVersion = 3)
+KiyoriNetworkProxyConfig(schemaVersion = 4)
 ├── enabled: Boolean = false
 ├── defaultMode: RULE | GLOBAL | DIRECT
 ├── moduleModes: Map<NetworkModule, INHERIT | DIRECT | PROXY>
 ├── scriptModes: Map<packageName, INHERIT | DIRECT | PROXY>
-├── customRules: List<id / domainPattern / DIRECT|PROXY / enabled>
+├── customRules: List<id / DOMAIN|DOMAIN-SUFFIX|DOMAIN-KEYWORD / pattern / DIRECT|PROXY / enabled>
 ├── subscriptions: List<KiyoriProxySubscription>
 │   ├── id / displayName / sourceType
 │   ├── url // URL source only
@@ -229,13 +254,15 @@ Keystore/文件原子写入本身失败才显示“未保存”。所有持久�
 | `AI_TOOLS` | `http_request`、web visit、宿主下载等普通 AI 工具 | 不含已识别为传统脚本的请求 |
 | `BROWSER` | Browser Runtime WebView、Browser 辅助请求、用户脚本远端资源 | WebView 代理覆盖当前进程全部 WebView，loopback 始终旁路 |
 | `DOWNLOADS` | Browser 文件下载、模型/扩展资产下载 | 每个任务创建时冻结端点与局域网旁路策略；HEAD、Range、重试和并发分片不漂移 |
-| `PLAYER` | mpv HTTP/HTTPS、HLS/DASH、字幕与封面 | 在 mpv 初始化和每次媒体加载前应用 `http-proxy`；播放器独立进程读取同一加密配置 |
+| `PLAYER` | mpv HTTP/HTTPS、HLS/DASH、字幕与封面 | HTTP 仍使用 mpv 代理；HTTPS 直链和 HLS 媒体通过仅监听 IPv4 loopback 的流式桥接转发到同一 `PLAYER` 路由，DASH 继续由 mpv 原生协议能力处理并待设备验收 |
 | `SCRIPTS` | 传统 `JsEngine` 脚本包的标准宿主网络 | 支持逐 package override |
 | `APP_SERVICES` | GitHub、市场、天气、规则订阅、Coil 网络图片 | Kiyori 自身在线能力 |
 
 WebView 的 AndroidX `ProxyController` 是进程级 API，不能把不同 WebView 可靠拆成多个代理模式；
 所有远程 WebView 因此归入 `BROWSER`。本地 `127.0.0.1`、`localhost` 与应用内页面必须旁路。
-播放器由独立 mpv 网络栈持有，不能依赖 Java `ProxySelector`。OkHttp 与 `HttpURLConnection`
+播放器由独立 mpv 网络栈持有，不能依赖 Java `ProxySelector`；由于 mpv `http-proxy` 不覆盖 HTTPS，
+应用代理模式下的 HTTP(S) 直链和 HLS 媒体由 `PlayerMediaStreamBridge` 转成 IPv4 loopback HTTP 流，桥接端点使用
+同一 `PLAYER` 路由并转发 Range/请求头/响应流。OkHttp 与 `HttpURLConnection`
 分别使用 manager 提供的动态 selector/显式 `Proxy`，不设置 JVM 全局 system property。显式
 `URLConnection` 也必须先执行相同的 loopback/私网旁路判断，不能因绕过 `ProxySelector` 把局域网
 请求发送给 Mihomo。
@@ -250,8 +277,9 @@ WebView 的 AndroidX `ProxyController` 是进程级 API，不能把不同 WebVie
 - 静态节点必须有唯一名称、类型和安全的 server；本地/私有字面地址条目被隔离并计数。
 - provider 只允许 `http` 类型和绝对 HTTP(S) URL；provider 本地 path 改写到应用私有目录。
 - DNS 只保留不依赖订阅规则集和外部地理数据库的出站解析配置；删除 `listen`、GeoSite/GeoIP
-  过滤引用及与原订阅路由规则耦合的字段。Kiyori 运行配置只有自己的 `MATCH` 根规则，不能把已经
-  移除的规则集依赖继续带入全新私有工作目录，也不允许订阅开启本机 DNS listener。
+  过滤引用、`proxy-server-nameserver` 和 `respect-rules` 业务规则耦合。运行配置强制 `enable=true`、
+  `ipv6=false`、`respect-rules=false`；订阅没有 DNS 段时使用受控的 IP nameserver。Kiyori 运行配置
+  不能把已经移除的规则集依赖继续带入全新私有工作目录，也不允许订阅开启本机 DNS listener。
 
 ### 组清洗
 
@@ -526,7 +554,7 @@ owner，也不改变节点测速、路由或持久化行为。
 3. Browser 打开被阻断网站并测试登录、Cookie、WebSocket、下载、无痕和本地页面；直连模式与
    代理模式按模块切换。
 4. AI 主模型完成普通与流式响应，语音/embedding 按 AI 模块路由；AI 工具和脚本按各自模块路由。
-5. mpv 播放 HTTP/HTTPS、HLS/DASH 与字幕，切换视频、前后台和服务重建后仍使用快照模式。
+5. mpv 播放 HTTP/HTTPS、HLS/DASH 与字幕，切换视频、前后台和服务重建后仍使用快照模式；HTTPS 直链与 HLS 的 bridge 语义需在设备验收，DASH 不宣称已由 bridge 重写。
 6. 系统 VPN 存在且未授权时内嵌核心明确拒绝；授权后验证双层链路；直连模块仍经过系统 VPN。
 7. 旋转、分屏、前后台、进程强杀、订阅更新失败、核心异常退出、网络切换和重启后状态一致。
 
@@ -623,7 +651,7 @@ APK 为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `493116749` bytes�
 - 两份播放器报告都记录了 `route=PROXY` 和同一形式的 loopback `mpvHttpProxy`，因此当前问题不能
   继续用“播放器没有应用代理”概括；报告仍缺少该端口是否可连接、Controller 是否健康、`:player`
   进程内 Mihomo runtime 的 generation/退出时间和停止触发源。
-- 主进程代理日志只把核心输出与少数管理操作写入 300 条进程内历史，没有宿主进程身份、runtime
+- 主进程代理日志只把核心输出与少数管理操作写入 1000 条进程内历史，没有宿主进程身份、runtime
   generation、端口、启动时刻、Controller/混合端口健康结果或 stop reason；因此同一份日志无法证明
   主进程和 `:player` 的事件是否属于同一个 runtime。
 - Mihomo 是当前内嵌的 Clash.Meta 核心。外置 Clash Meta 的 TUN、系统全局代理、LAN listener 和

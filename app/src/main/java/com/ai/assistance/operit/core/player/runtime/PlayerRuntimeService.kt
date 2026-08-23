@@ -345,7 +345,7 @@ internal class PlayerRuntimeService : Service() {
                     )
                     val activeEngine = requireNotNull(engine) { "播放器运行时尚未初始化" }
                     val resolver = requireNotNull(mediaResolver) { "媒体解析器尚未初始化" }
-                    val target = resolver.resolve(request.uri)
+                    val target = resolver.resolve(request.uri, request.headers)
                     currentLoadCommandId = commandId
                     currentMediaSource = target
                     lastMediaIdentitySnapshot = null

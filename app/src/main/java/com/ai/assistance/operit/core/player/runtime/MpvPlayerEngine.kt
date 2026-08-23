@@ -223,6 +223,7 @@ internal class MpvPlayerEngine(
     private var appliedVolumeBoost: Boolean? = null
     private var appliedShaderFiles: List<String>? = null
     private var appliedApplicationProxyOption: String? = null
+    private var activeMediaUsesProxyBridge = false
 
     fun initialize(settings: PlayerSettings): Unit = callMpv("初始化") {
         if (initialized) return
@@ -332,7 +333,11 @@ internal class MpvPlayerEngine(
     ) = callMpv("加载媒体") {
         check(initialized) { "mpv engine is not initialized" }
         firstPlaybackFailure = null
-        applyApplicationProxyRoute(useInitializationOption = false)
+        activeMediaUsesProxyBridge = isPlayerMediaProxyBridgeTarget(target)
+        applyApplicationProxyRoute(
+            useInitializationOption = false,
+            forceDirect = activeMediaUsesProxyBridge,
+        )
         diagnostic(
             PlayerDebugLogLevel.INFO,
             TAG,
@@ -818,25 +823,32 @@ internal class MpvPlayerEngine(
         check(result >= 0) { "mpv rejected option $name" }
     }
 
-    private fun applyApplicationProxyRoute(useInitializationOption: Boolean) {
+    private fun applyApplicationProxyRoute(
+        useInitializationOption: Boolean,
+        forceDirect: Boolean = false,
+    ) {
         val networkManager = KiyoriNetworkProxyManager.getInstance(appContext)
         val proxyEndpoint =
-            runCatching {
-                networkManager.resolveRouteBlocking(KiyoriNetworkModule.PLAYER)
-            }.onFailure { error ->
-                val code =
-                    (error as? KiyoriNetworkException)?.code?.name
-                        ?: error::class.java.simpleName
-                val state = networkManager.runtimeState.value
-                diagnostic(
-                    PlayerDebugLogLevel.ERROR,
-                    TAG,
-                    "应用级代理路由解析失败 code=$code " +
-                        "runtimePhase=${state.phase} runtimeGeneration=${state.runtimeGeneration ?: "none"} " +
-                        "controllerHealthy=${state.controllerHealthy ?: "unknown"} " +
-                        "mixedPortListening=${state.mixedPortListening ?: "unknown"}",
-                )
-            }.getOrThrow()
+            if (forceDirect) {
+                null
+            } else {
+                runCatching {
+                    networkManager.resolveRouteBlocking(KiyoriNetworkModule.PLAYER)
+                }.onFailure { error ->
+                    val code =
+                        (error as? KiyoriNetworkException)?.code?.name
+                            ?: error::class.java.simpleName
+                    val state = networkManager.runtimeState.value
+                    diagnostic(
+                        PlayerDebugLogLevel.ERROR,
+                        TAG,
+                        "应用级代理路由解析失败 code=$code " +
+                            "runtimePhase=${state.phase} runtimeGeneration=${state.runtimeGeneration ?: "none"} " +
+                            "controllerHealthy=${state.controllerHealthy ?: "unknown"} " +
+                            "mixedPortListening=${state.mixedPortListening ?: "unknown"}",
+                    )
+                }.getOrThrow()
+            }
         val proxyOption = proxyEndpoint?.let { endpoint -> "${endpoint.host}:${endpoint.port}" }.orEmpty()
         if (useInitializationOption) {
             setRequiredOption("http-proxy", proxyOption)
@@ -851,7 +863,11 @@ internal class MpvPlayerEngine(
         diagnostic(
             PlayerDebugLogLevel.INFO,
             TAG,
-            "应用级代理路由 route=${if (proxyEndpoint == null) "DIRECT" else "PROXY"} " +
+            "应用级代理路由 route=${when {
+                forceDirect && activeMediaUsesProxyBridge -> "PROXY_BRIDGE"
+                proxyEndpoint == null -> "DIRECT"
+                else -> "PROXY"
+            }} " +
                 "mpvHttpProxy=${proxyOption.ifEmpty { "disabled" }} " +
                 "runtimePhase=${state.phase} runtimeGeneration=${state.runtimeGeneration ?: "none"} " +
                 "controllerHealthy=${state.controllerHealthy ?: "unknown"} " +
@@ -861,7 +877,10 @@ internal class MpvPlayerEngine(
 
     fun refreshApplicationProxyRoute() = callMpv("刷新应用级代理路由") {
         if (!initialized) return@callMpv
-        applyApplicationProxyRoute(useInitializationOption = false)
+        applyApplicationProxyRoute(
+            useInitializationOption = false,
+            forceDirect = activeMediaUsesProxyBridge,
+        )
     }
 
     private fun setNetworkCacheOptions(policy: PlayerNetworkCachePolicy) {

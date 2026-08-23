@@ -100,6 +100,7 @@ import com.kiyori.platform.network.KiyoriNetworkProxyPolicy
 import com.kiyori.platform.network.KiyoriNetworkProxyRule
 import com.kiyori.platform.network.KiyoriNetworkProxyStoreState
 import com.kiyori.platform.network.KiyoriNetworkRuleMode
+import com.kiyori.platform.network.KiyoriNetworkRuleType
 import com.kiyori.platform.network.KiyoriNetworkSettingsAppliedException
 import com.kiyori.platform.network.KiyoriProxySubscription
 import com.kiyori.platform.network.KiyoriSubscriptionSourceType
@@ -253,6 +254,7 @@ internal fun KiyoriNetworkProxySettingsPage(
     var scriptCatalogRefreshing by remember { mutableStateOf(false) }
     var customRuleEditor by remember { mutableStateOf<CustomRuleEditor?>(null) }
     var customRulePattern by remember { mutableStateOf("") }
+    var customRuleType by remember { mutableStateOf(KiyoriNetworkRuleType.DOMAIN) }
     var customRuleMode by remember { mutableStateOf(KiyoriNetworkRuleMode.PROXY) }
     var deleteCustomRuleId by remember { mutableStateOf<String?>(null) }
     var pageSection by remember { mutableStateOf(NetworkProxyPageSection.OVERVIEW) }
@@ -399,11 +401,13 @@ internal fun KiyoriNetworkProxySettingsPage(
         when (editor) {
             CustomRuleEditor.Add -> {
                 customRulePattern = ""
+                customRuleType = KiyoriNetworkRuleType.DOMAIN
                 customRuleMode = KiyoriNetworkRuleMode.PROXY
             }
             is CustomRuleEditor.Edit -> {
                 val rule = config?.customRules?.firstOrNull { it.id == editor.ruleId }
                 customRulePattern = rule?.pattern.orEmpty()
+                customRuleType = rule?.type ?: KiyoriNetworkRuleType.DOMAIN
                 customRuleMode = rule?.mode ?: KiyoriNetworkRuleMode.PROXY
             }
         }
@@ -1023,7 +1027,7 @@ internal fun KiyoriNetworkProxySettingsPage(
                                         NetworkProxyOperation("toggle_custom_rule", NetworkProxyOperationArea.ROUTING, "正在更新规则状态"),
                                         "规则状态已更新。",
                                     ) {
-                                        manager.updateCustomRule(rule.id, rule.pattern, rule.mode, !rule.enabled)
+                                        manager.updateCustomRule(rule.id, rule.pattern, rule.type, rule.mode, !rule.enabled)
                                     }
                                 },
                             )
@@ -1209,7 +1213,7 @@ internal fun KiyoriNetworkProxySettingsPage(
             (editor as? CustomRuleEditor.Edit)?.let { selected ->
                 config?.customRules?.firstOrNull { it.id == selected.ruleId }
             }
-        val validPattern = customRulePattern.trim().isNotBlank()
+        val validPattern = isCustomRuleInputValid(customRulePattern, customRuleType)
         AlertDialog(
             onDismissRequest = { if (activeOperation == null) customRuleEditor = null },
             title = { Text(if (editor is CustomRuleEditor.Add) "添加自定义规则" else "编辑自定义规则") },
@@ -1218,12 +1222,40 @@ internal fun KiyoriNetworkProxySettingsPage(
                     OutlinedTextField(
                         value = customRulePattern,
                         onValueChange = { customRulePattern = it },
-                        label = { Text("域名") },
-                        placeholder = { Text("example.com 或 *.example.com") },
+                        label = { Text(if (customRuleType == KiyoriNetworkRuleType.DOMAIN_KEYWORD) "关键字" else "域名") },
+                        placeholder = { Text(if (customRuleType == KiyoriNetworkRuleType.DOMAIN_KEYWORD) "例如 bilibili" else "例如 example.com") },
                         singleLine = true,
                         isError = customRulePattern.isNotBlank() && !validPattern,
-                        supportingText = { Text("只填写域名；子域名可用 *.") },
+                        supportingText = {
+                            Text(
+                                when (customRuleType) {
+                                    KiyoriNetworkRuleType.DOMAIN -> "仅匹配这个完整域名"
+                                    KiyoriNetworkRuleType.DOMAIN_SUFFIX -> "匹配该域名及其所有子域名"
+                                    KiyoriNetworkRuleType.DOMAIN_KEYWORD -> "域名中包含此关键字时命中"
+                                },
+                            )
+                        },
                     )
+                    Text("规则类型", fontSize = 13.sp, color = LocalKiyoriSettingsColors.current.secondaryText)
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        listOf(
+                            KiyoriNetworkRuleType.DOMAIN to "完整域名",
+                            KiyoriNetworkRuleType.DOMAIN_SUFFIX to "域名后缀",
+                            KiyoriNetworkRuleType.DOMAIN_KEYWORD to "域名关键字",
+                        ).forEach { (type, label) ->
+                            val selected = customRuleType == type
+                            TextButton(
+                                onClick = { customRuleType = type },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text(
+                                    text = if (selected) "✓ $label" else label,
+                                    color = if (selected) LocalKiyoriSettingsColors.current.accent else LocalKiyoriSettingsColors.current.primaryText,
+                                    fontSize = 12.sp,
+                                )
+                            }
+                        }
+                    }
                     Text("匹配动作", fontSize = 13.sp, color = LocalKiyoriSettingsColors.current.secondaryText)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf(
@@ -1251,9 +1283,9 @@ internal fun KiyoriNetworkProxySettingsPage(
                         val operation = NetworkProxyOperation("save_custom_rule", NetworkProxyOperationArea.ROUTING, "正在保存自定义规则")
                         runOperation(operation, "自定义规则已保存。", onSuccess = { customRuleEditor = null }) {
                             if (editingRule == null) {
-                                manager.addCustomRule(customRulePattern, customRuleMode)
+                                manager.addCustomRule(customRulePattern, customRuleType, customRuleMode)
                             } else {
-                                manager.updateCustomRule(editingRule.id, customRulePattern, customRuleMode, editingRule.enabled)
+                                manager.updateCustomRule(editingRule.id, customRulePattern, customRuleType, customRuleMode, editingRule.enabled)
                             }
                         }
                     },
@@ -1958,6 +1990,26 @@ private fun NetworkProxySubscriptionRow(
     }
 }
 
+private fun isCustomRuleInputValid(
+    raw: String,
+    type: KiyoriNetworkRuleType,
+): Boolean {
+    val value = raw.trim().lowercase()
+    if (value.isBlank() || value.length > KiyoriNetworkProxyConfig.MAX_RULE_PATTERN_LENGTH) return false
+    return when (type) {
+        KiyoriNetworkRuleType.DOMAIN -> value.matches(
+            Regex("(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}"),
+        )
+        KiyoriNetworkRuleType.DOMAIN_SUFFIX -> value.removePrefix("*.").removePrefix(".").matches(
+            Regex("(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}"),
+        )
+        KiyoriNetworkRuleType.DOMAIN_KEYWORD ->
+            value.none { it == ',' || it.isWhitespace() } &&
+                value.any(Char::isLetterOrDigit) &&
+                value.all { it.isLetterOrDigit() || it in ".-_" }
+    }
+}
+
 @Composable
 private fun CustomRuleRow(
     rule: KiyoriNetworkProxyRule,
@@ -1982,8 +2034,12 @@ private fun CustomRuleRow(
             )
             Text(
                 text = when (rule.mode) {
-                    KiyoriNetworkRuleMode.DIRECT -> "直连 · 自定义规则"
-                    KiyoriNetworkRuleMode.PROXY -> "代理 · 自定义规则"
+                    KiyoriNetworkRuleMode.DIRECT -> "直连"
+                    KiyoriNetworkRuleMode.PROXY -> "代理"
+                } + " · " + when (rule.type) {
+                    KiyoriNetworkRuleType.DOMAIN -> "完整域名"
+                    KiyoriNetworkRuleType.DOMAIN_SUFFIX -> "域名后缀"
+                    KiyoriNetworkRuleType.DOMAIN_KEYWORD -> "域名关键字"
                 },
                 color = colors.secondaryText,
                 fontSize = 12.sp,

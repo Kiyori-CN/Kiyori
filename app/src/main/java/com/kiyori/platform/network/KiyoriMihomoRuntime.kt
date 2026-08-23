@@ -544,7 +544,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                 config.id + '\u0000' + config.sanitizedYaml + '\u0000' + testUrl +
                     '\u0000' + routingMode.name + '\u0000' +
                     customRules.joinToString("\u0001") { rule ->
-                        "${rule.id}:${rule.pattern}:${rule.mode.name}:${rule.enabled}"
+                        "${rule.id}:${rule.type.name}:${rule.pattern}:${rule.mode.name}:${rule.enabled}"
                     },
             )
         activeRuntime?.let { active ->

@@ -51,13 +51,13 @@ Some pages, physical-device interactions, and release workflows remain under ver
 
 Open **Settings Home → More Features → Network Proxy**. This is the single routing owner for the Kiyori
 process and covers AI services and speech, AI tools, Browser, Downloads, Player, traditional Scripts, and
-Kiyori-owned online services. The default is Direct or Proxy; every module can inherit the default or choose
+Kiyori-owned online services. The top-level modes are Rule, Global, and Direct; every module can inherit the top-level mode or choose
 its own mode. Traditional `JsEngine` packages may add a per-package override in Script Rules. The Environment
 drawer links here directly, and ToolPkg is intentionally kept under AI Tools rather than treated as a script.
 
 The home page provides the application-proxy switch, default connection, Current Node, Subscription Management,
 Module Connection Mode, Per-script Connection Mode, Proxy Logs, private-network routing, system-VPN coexistence,
-and reset. Current Node, Subscription Management, module modes, script rules, and logs are separate child pages. Current Node uses
+and reset. Current Node, Subscription Management, Rule Management, module modes, script rules, and logs are separate child pages. Current Node uses
 horizontal group tabs, a current-group search field, a header group-test action, and sorting; nodes are single-column
 rows whose body selects `select` groups while the trailing button only tests that node. Automatic groups are never
 presented as manually selectable. Script Rules lists enabled executable traditional `JsEngine` packages and keeps
@@ -72,15 +72,21 @@ outbounds, or Mihomo validation failures are rejected. Local, loopback, link-loc
 nodes are isolated and counted while valid proxy groups and their order are retained. Subscription URL,
 sanitized YAML, and controller secrets are encrypted with Android Keystore in no-backup storage.
 
-Proxy Logs keeps the latest 300 subscription-validation, Mihomo lifecycle, selection, and delay-test events for the
+Proxy Logs keeps the latest 1000 subscription-validation, Mihomo lifecycle, selection, and delay-test events for the
 current Kiyori process. Core output is redacted before display: URL credentials and paths, bearer tokens,
 secret/password/token values, UUIDs, private file paths, and long credentials are removed. The page supports
 viewing, copying, SAF text export, and confirmed clearing; subscription YAML and controller secrets are never
 persisted as logs.
 
 Runtime DNS sanitization removes matchers that depend on external GeoSite/GeoIP databases or discarded rule
-providers. This keeps `mihomo -t` self-contained in a new private work directory instead of downloading data before
-the application proxy is available.
+providers, and prevents DNS resolution from re-entering the business rule graph. When a subscription has no DNS
+section, the runtime writes controlled IP nameservers. This keeps `mihomo -t` self-contained in a new private work
+directory instead of downloading data before the application proxy is available.
+
+When application proxying is enabled, HTTP(S) direct media and HLS use an IPv4 loopback streaming bridge because
+mpv's `http-proxy` option does not cover HTTPS. mpv reads a local HTTP stream while the bridge fetches the
+original media through the `PLAYER` route and forwards Range and request headers. The bridge listens only on
+`127.0.0.1`.
 
 Embedded Mihomo listens only on a random loopback mixed-port; it does not enable TUN, LAN listeners, or a
 subscription-provided controller. When an external Clash runs as a system VPN/TUN, no host, port, username,

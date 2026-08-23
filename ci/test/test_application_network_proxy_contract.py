@@ -55,7 +55,9 @@ class ApplicationNetworkProxyContractTest(unittest.TestCase):
         self.assertIn("ROUTE_GROUP_NAME", sanitizer)
         self.assertIn("127.0.0.1", sanitizer)
         self.assertIn("allow-lan", sanitizer)
-        self.assertIn("CURRENT_SCHEMA_VERSION = 2", models)
+        self.assertIn("CURRENT_SCHEMA_VERSION = 4", models)
+        for rule_type in ("DOMAIN", "DOMAIN_SUFFIX", "DOMAIN_KEYWORD"):
+            self.assertIn(rule_type, models)
         self.assertIn("subscriptions: List<KiyoriProxySubscription>", models)
         self.assertIn("activeSubscriptionId", models)
         self.assertIn("SETTINGS_WRITE_FAILED", models)
@@ -81,7 +83,7 @@ class ApplicationNetworkProxyContractTest(unittest.TestCase):
         self.assertIn('"delay"', runtime)
         self.assertIn("collectProcessOutput", runtime)
         self.assertNotIn("drainProcessOutput", runtime)
-        self.assertIn("MAX_ENTRIES = 300", log_store)
+        self.assertIn("MAX_ENTRIES = 1_000", log_store)
         self.assertIn("fun exportText", log_store)
         self.assertIn("fun clear", log_store)
         self.assertIn("LONG_CREDENTIAL", log_store)
@@ -127,6 +129,10 @@ class ApplicationNetworkProxyContractTest(unittest.TestCase):
         self.assertIn("NETWORK_PROXY", route)
         self.assertIn("OPEN_NETWORK_PROXY", more)
         self.assertIn("KiyoriNetworkProxyManager", page)
+        self.assertIn("KiyoriNetworkRuleType", page)
+        self.assertIn("完整域名", page)
+        self.assertIn("域名后缀", page)
+        self.assertIn("域名关键字", page)
         self.assertIn("导入 YAML 文件", page)
         self.assertIn("onOpenNetworkProxy", drawer)
         self.assertIn("网络代理", drawer)
@@ -141,9 +147,10 @@ class ApplicationNetworkProxyContractTest(unittest.TestCase):
         page = self.read_operit("ui/main/shell/KiyoriNetworkProxySettingsPage.kt")
         for label in (
             "启用应用内代理",
-            "默认连接",
-            "当前节点",
+            "代理模式",
+            "节点选择",
             "订阅管理",
+            "规则管理",
             "模块连接模式",
             "逐脚本连接模式",
             "代理日志",
@@ -173,11 +180,23 @@ class ApplicationNetworkProxyContractTest(unittest.TestCase):
         sanitizer = self.read_kiyori("platform/network/MihomoConfigSanitizer.kt")
         self.assertIn('"127.0.0.1"', sanitizer)
         self.assertIn('filter["geoip"] = false', sanitizer)
+        self.assertIn('dns["respect-rules"] = false', sanitizer)
+        self.assertIn('dns.remove("proxy-server-nameserver")', sanitizer)
         self.assertIn('matcher.startsWith("geosite:")', sanitizer)
         self.assertIn('matcher.startsWith("rule-set:")', sanitizer)
         self.assertIn("PROBE_DIRECTORY_PREFIX", runtime)
         self.assertNotIn("VpnService", runtime)
         self.assertNotIn("TUN", runtime)
+
+    def test_https_player_media_uses_the_loopback_stream_bridge(self) -> None:
+        resolver = self.read_operit("core/player/runtime/PlayerMediaResolver.kt")
+        service = self.read_operit("core/player/runtime/PlayerRuntimeService.kt")
+        engine = self.read_operit("core/player/runtime/MpvPlayerEngine.kt")
+        self.assertIn("PlayerMediaStreamBridge", resolver)
+        self.assertIn("InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1))", resolver)
+        self.assertIn('PLAYER_MEDIA_BRIDGE_HOST = "127.0.0.1"', resolver)
+        self.assertIn("request.headers", service)
+        self.assertIn("PROXY_BRIDGE", engine)
 
 
 if __name__ == "__main__":

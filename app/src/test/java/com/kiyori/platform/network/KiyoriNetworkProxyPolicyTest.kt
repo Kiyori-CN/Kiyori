@@ -104,6 +104,34 @@ class KiyoriNetworkProxyPolicyTest {
         assertEquals(KiyoriNetworkErrorCode.VPN_CONFLICT, vpnError.code)
     }
 
+    @Test
+    fun `custom rule validation follows explicit matcher type`() {
+        val base = KiyoriNetworkProxyConfig()
+        KiyoriNetworkProxyPolicy.validateSchema(
+            base.copy(
+                customRules =
+                    listOf(
+                        KiyoriNetworkProxyRule("domain", "api.example.com", KiyoriNetworkRuleMode.PROXY, KiyoriNetworkRuleType.DOMAIN),
+                        KiyoriNetworkProxyRule("suffix", "example.com", KiyoriNetworkRuleMode.DIRECT, KiyoriNetworkRuleType.DOMAIN_SUFFIX),
+                        KiyoriNetworkProxyRule("keyword", "bilibili", KiyoriNetworkRuleMode.PROXY, KiyoriNetworkRuleType.DOMAIN_KEYWORD),
+                    ),
+            ),
+        )
+        assertEquals(
+            KiyoriNetworkErrorCode.CONFIG_INVALID,
+            assertThrows(KiyoriNetworkException::class.java) {
+                KiyoriNetworkProxyPolicy.validateSchema(
+                    base.copy(
+                        customRules =
+                            listOf(
+                                KiyoriNetworkProxyRule("bad", "https://example.com", KiyoriNetworkRuleMode.PROXY, KiyoriNetworkRuleType.DOMAIN_KEYWORD),
+                            ),
+                    ),
+                )
+            }.code,
+        )
+    }
+
     private fun usableSubscription(): KiyoriProxySubscription =
         KiyoriProxySubscription(
             id = "subscription-1",

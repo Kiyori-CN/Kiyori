@@ -196,6 +196,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
 
     suspend fun addCustomRule(
         pattern: String,
+        type: KiyoriNetworkRuleType,
         mode: KiyoriNetworkRuleMode,
     ): KiyoriNetworkProxyRule =
         mutationMutex.withLock {
@@ -203,8 +204,9 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
             val rule =
                 KiyoriNetworkProxyRule(
                     id = UUID.randomUUID().toString(),
-                    pattern = pattern.trim().lowercase(),
+                    pattern = normalizeCustomRulePattern(pattern, type),
                     mode = mode,
+                    type = type,
                     createdAtEpochMillis = now,
                     updatedAtEpochMillis = now,
                 )
@@ -216,6 +218,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
     suspend fun updateCustomRule(
         ruleId: String,
         pattern: String,
+        type: KiyoriNetworkRuleType,
         mode: KiyoriNetworkRuleMode,
         enabled: Boolean,
     ): KiyoriNetworkProxyRule =
@@ -227,7 +230,8 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                     "The selected custom rule no longer exists.",
                 )
             val updatedRule = existing.copy(
-                pattern = pattern.trim().lowercase(),
+                pattern = normalizeCustomRulePattern(pattern, type),
+                type = type,
                 mode = mode,
                 enabled = enabled,
                 updatedAtEpochMillis = System.currentTimeMillis(),
@@ -1443,6 +1447,19 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
             KiyoriNetworkConnectionMode.GLOBAL,
             KiyoriNetworkConnectionMode.PROXY,
             -> "PROXY"
+        }
+    }
+
+    private fun normalizeCustomRulePattern(
+        pattern: String,
+        type: KiyoriNetworkRuleType,
+    ): String {
+        val normalized = pattern.trim().lowercase()
+        return when (type) {
+            KiyoriNetworkRuleType.DOMAIN,
+            KiyoriNetworkRuleType.DOMAIN_KEYWORD,
+            -> normalized
+            KiyoriNetworkRuleType.DOMAIN_SUFFIX -> normalized.removePrefix("*.").removePrefix(".")
         }
     }
 

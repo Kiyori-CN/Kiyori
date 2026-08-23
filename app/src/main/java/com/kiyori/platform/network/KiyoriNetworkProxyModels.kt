@@ -37,11 +37,23 @@ enum class KiyoriNetworkRuleMode {
     PROXY,
 }
 
+/**
+ * Explicit matcher semantics for a user-authored domain rule. Keeping the type in the
+ * persisted model avoids inferring intent from punctuation in the input field.
+ */
+@Serializable
+enum class KiyoriNetworkRuleType {
+    DOMAIN,
+    DOMAIN_SUFFIX,
+    DOMAIN_KEYWORD,
+}
+
 @Serializable
 data class KiyoriNetworkProxyRule(
     val id: String,
     val pattern: String,
     val mode: KiyoriNetworkRuleMode,
+    val type: KiyoriNetworkRuleType = KiyoriNetworkRuleType.DOMAIN,
     val enabled: Boolean = true,
     val createdAtEpochMillis: Long = 0L,
     val updatedAtEpochMillis: Long = 0L,
@@ -146,7 +158,7 @@ data class KiyoriNetworkProxyConfig(
     val testUrl: String = DEFAULT_TEST_URL,
 ) {
     companion object {
-        const val CURRENT_SCHEMA_VERSION = 3
+        const val CURRENT_SCHEMA_VERSION = 4
         const val DEFAULT_TEST_URL = "https://cp.cloudflare.com/generate_204"
         const val MAX_SUBSCRIPTIONS = 32
         const val MAX_SUBSCRIPTION_NAME_LENGTH = 80
@@ -380,8 +392,8 @@ object KiyoriNetworkProxyPolicy {
             if (pattern.isBlank() || pattern.length > KiyoriNetworkProxyConfig.MAX_RULE_PATTERN_LENGTH) {
                 invalid("A custom rule has an invalid domain pattern.")
             }
-            if (!isValidRulePattern(pattern)) {
-                invalid("Custom rules must use a domain or wildcard domain pattern.")
+            if (!isValidRulePattern(pattern, rule.type)) {
+                invalid("A custom rule pattern does not match its selected rule type.")
             }
         }
         if (config.activeSubscriptionId != null && config.activeSubscriptionId !in ids) {
@@ -400,11 +412,22 @@ object KiyoriNetworkProxyPolicy {
     private fun invalid(message: String): Nothing =
         throw KiyoriNetworkException(KiyoriNetworkErrorCode.CONFIG_INVALID, message)
 
-    private fun isValidRulePattern(value: String): Boolean {
-        val pattern = value.removePrefix("*.").removePrefix(".").trim().lowercase()
-        return pattern.length <= KiyoriNetworkProxyConfig.MAX_RULE_PATTERN_LENGTH &&
-            pattern.matches(Regex("(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}"))
+    private fun isValidRulePattern(value: String, type: KiyoriNetworkRuleType): Boolean {
+        val pattern = value.trim().lowercase()
+        if (pattern.isBlank() || pattern.length > KiyoriNetworkProxyConfig.MAX_RULE_PATTERN_LENGTH) return false
+        return when (type) {
+            KiyoriNetworkRuleType.DOMAIN -> pattern.matches(DOMAIN_PATTERN)
+            KiyoriNetworkRuleType.DOMAIN_SUFFIX ->
+                pattern.removePrefix("*.").removePrefix(".").matches(DOMAIN_PATTERN)
+            KiyoriNetworkRuleType.DOMAIN_KEYWORD ->
+                pattern.none { it == ',' || it.isWhitespace() } &&
+                    pattern.any { it.isLetterOrDigit() } &&
+                    pattern.all { it.isLetterOrDigit() || it in ".-_" }
+        }
     }
+
+    private val DOMAIN_PATTERN =
+        Regex("(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}")
 }
 
 object KiyoriScriptNetworkCallIdentity {

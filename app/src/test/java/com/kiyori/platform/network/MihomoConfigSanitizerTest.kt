@@ -104,8 +104,9 @@ class MihomoConfigSanitizerTest {
                     listOf(
                         KiyoriNetworkProxyRule(
                             id = "rule-1",
-                            pattern = "*.example.com",
+                            pattern = "example.com",
                             mode = KiyoriNetworkRuleMode.DIRECT,
+                            type = KiyoriNetworkRuleType.DOMAIN_SUFFIX,
                         ),
                     ),
             )
@@ -151,6 +152,8 @@ class MihomoConfigSanitizerTest {
             )
 
         assertFalse(runtime.yaml.contains("listen:"))
+        assertTrue(runtime.yaml.contains("respect-rules: false"))
+        assertFalse(runtime.yaml.contains("proxy-server-nameserver:"))
         assertFalse(runtime.yaml.contains("geoip: true"))
         assertTrue(runtime.yaml.contains("geoip: false"))
         assertFalse(runtime.yaml.contains("geoip-code:"))
@@ -161,6 +164,38 @@ class MihomoConfigSanitizerTest {
         assertTrue(runtime.yaml.contains("+.local.example"))
         assertTrue(runtime.yaml.contains("+.explicit.example"))
         assertTrue(runtime.yaml.contains("https://dns.example.com/dns-query"))
+    }
+
+    @Test
+    fun `custom matcher types become explicit Mihomo rules with specific rules first`() {
+        val sanitized =
+            MihomoConfigSanitizer.sanitize(
+                """
+                proxies:
+                  - { name: node-a, type: socks5, server: proxy.example.com, port: 1080 }
+                """.trimIndent(),
+            )
+        val runtime =
+            MihomoConfigSanitizer.buildRuntimeConfig(
+                sanitizedYaml = sanitized.yaml,
+                mixedPort = 31001,
+                controllerPort = 31002,
+                controllerSecret = "controller-secret",
+                testUrl = KiyoriNetworkProxyConfig.DEFAULT_TEST_URL,
+                routingMode = KiyoriNetworkConnectionMode.RULE,
+                customRules =
+                    listOf(
+                        KiyoriNetworkProxyRule("keyword", "video", KiyoriNetworkRuleMode.PROXY, KiyoriNetworkRuleType.DOMAIN_KEYWORD, createdAtEpochMillis = 1),
+                        KiyoriNetworkProxyRule("suffix", "example.com", KiyoriNetworkRuleMode.DIRECT, KiyoriNetworkRuleType.DOMAIN_SUFFIX, createdAtEpochMillis = 2),
+                        KiyoriNetworkProxyRule("domain", "api.example.com", KiyoriNetworkRuleMode.PROXY, KiyoriNetworkRuleType.DOMAIN, createdAtEpochMillis = 3),
+                    ),
+            )
+        val exact = runtime.yaml.indexOf("DOMAIN,api.example.com,KIYORI_APP_PROXY")
+        val suffix = runtime.yaml.indexOf("DOMAIN-SUFFIX,example.com,DIRECT")
+        val keyword = runtime.yaml.indexOf("DOMAIN-KEYWORD,video,KIYORI_APP_PROXY")
+        assertTrue(exact >= 0)
+        assertTrue(suffix > exact)
+        assertTrue(keyword > suffix)
     }
 
     @Test
