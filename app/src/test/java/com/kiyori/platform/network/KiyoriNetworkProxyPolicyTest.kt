@@ -6,6 +6,48 @@ import org.junit.Test
 
 class KiyoriNetworkProxyPolicyTest {
     @Test
+    fun `rule and global modes both use embedded route while direct bypasses`() {
+        val subscription = usableSubscription()
+        val ruleConfig =
+            KiyoriNetworkProxyConfig(
+                enabled = true,
+                defaultMode = KiyoriNetworkConnectionMode.RULE,
+                subscriptions = listOf(subscription),
+                activeSubscriptionId = subscription.id,
+            )
+        assertEquals(
+            KiyoriNetworkRoute.EmbeddedProxy,
+            KiyoriNetworkProxyPolicy.resolve(ruleConfig, KiyoriNetworkModule.BROWSER, isSystemVpnActive = false),
+        )
+        val globalConfig = ruleConfig.copy(defaultMode = KiyoriNetworkConnectionMode.GLOBAL)
+        assertEquals(
+            KiyoriNetworkRoute.EmbeddedProxy,
+            KiyoriNetworkProxyPolicy.resolve(globalConfig, KiyoriNetworkModule.BROWSER, isSystemVpnActive = false),
+        )
+        val directConfig = ruleConfig.copy(defaultMode = KiyoriNetworkConnectionMode.DIRECT)
+        assertEquals(
+            KiyoriNetworkRoute.Direct,
+            KiyoriNetworkProxyPolicy.resolve(directConfig, KiyoriNetworkModule.BROWSER, isSystemVpnActive = false),
+        )
+    }
+
+    @Test
+    fun `proxy override keeps top level rule semantics`() {
+        val subscription = usableSubscription()
+        val config =
+            KiyoriNetworkProxyConfig(
+                enabled = true,
+                defaultMode = KiyoriNetworkConnectionMode.RULE,
+                moduleModes = mapOf(KiyoriNetworkModule.BROWSER to KiyoriNetworkOverrideMode.PROXY),
+                subscriptions = listOf(subscription),
+                activeSubscriptionId = subscription.id,
+            )
+        assertEquals(
+            KiyoriNetworkConnectionMode.RULE,
+            KiyoriNetworkProxyPolicy.effectiveMode(config, KiyoriNetworkModule.BROWSER),
+        )
+    }
+    @Test
     fun `disabled application is always direct`() {
         val config = KiyoriNetworkProxyConfig(enabled = false, defaultMode = KiyoriNetworkConnectionMode.PROXY)
         assertEquals(

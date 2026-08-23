@@ -16,7 +16,10 @@ enum class KiyoriNetworkModule {
 
 @Serializable
 enum class KiyoriNetworkConnectionMode {
+    RULE,
+    GLOBAL,
     DIRECT,
+    /** Legacy serialized value from the unpublished two-state schema. Treat as GLOBAL. */
     PROXY,
 }
 
@@ -24,8 +27,25 @@ enum class KiyoriNetworkConnectionMode {
 enum class KiyoriNetworkOverrideMode {
     INHERIT,
     DIRECT,
+    /** Uses the current top-level proxy mode. */
     PROXY,
 }
+
+@Serializable
+enum class KiyoriNetworkRuleMode {
+    DIRECT,
+    PROXY,
+}
+
+@Serializable
+data class KiyoriNetworkProxyRule(
+    val id: String,
+    val pattern: String,
+    val mode: KiyoriNetworkRuleMode,
+    val enabled: Boolean = true,
+    val createdAtEpochMillis: Long = 0L,
+    val updatedAtEpochMillis: Long = 0L,
+)
 
 @Serializable
 enum class KiyoriSubscriptionSourceType {
@@ -67,6 +87,8 @@ data class MihomoSubscriptionSummary(
     val providerNames: List<String> = emptyList(),
     val groups: List<MihomoProxyGroupSummary> = emptyList(),
     val rootCandidates: List<String> = emptyList(),
+    val ruleCount: Int = 0,
+    val unsupportedRuleCount: Int = 0,
 ) {
     val staticProxyNames: List<String>
         get() = staticProxies.map(MihomoProxySummary::name)
@@ -104,6 +126,8 @@ data class KiyoriProxySubscription(
     val usage: MihomoSubscriptionUsage? = null,
     val selectedGroupItems: Map<String, String> = emptyMap(),
     val nodeTests: List<MihomoNodeTestResult> = emptyList(),
+    /** Rules retained from the subscription. They are replaced atomically on refresh. */
+    val rules: List<String> = emptyList(),
 )
 
 @Serializable
@@ -113,6 +137,8 @@ data class KiyoriNetworkProxyConfig(
     val defaultMode: KiyoriNetworkConnectionMode = KiyoriNetworkConnectionMode.DIRECT,
     val moduleModes: Map<KiyoriNetworkModule, KiyoriNetworkOverrideMode> = emptyMap(),
     val scriptModes: Map<String, KiyoriNetworkOverrideMode> = emptyMap(),
+    /** User-authored rules are independent from every subscription and survive updates. */
+    val customRules: List<KiyoriNetworkProxyRule> = emptyList(),
     val subscriptions: List<KiyoriProxySubscription> = emptyList(),
     val activeSubscriptionId: String? = null,
     val proxyPrivateNetworks: Boolean = false,
@@ -120,12 +146,15 @@ data class KiyoriNetworkProxyConfig(
     val testUrl: String = DEFAULT_TEST_URL,
 ) {
     companion object {
-        const val CURRENT_SCHEMA_VERSION = 2
+        const val CURRENT_SCHEMA_VERSION = 3
         const val DEFAULT_TEST_URL = "https://cp.cloudflare.com/generate_204"
         const val MAX_SUBSCRIPTIONS = 32
         const val MAX_SUBSCRIPTION_NAME_LENGTH = 80
         const val MAX_NODE_TEST_RESULTS = 2_000
         const val MAX_SCRIPT_RULES = 1_000
+        const val MAX_SUBSCRIPTION_RULES = 20_000
+        const val MAX_CUSTOM_RULES = 1_000
+        const val MAX_RULE_PATTERN_LENGTH = 253
     }
 }
 
@@ -180,7 +209,12 @@ object KiyoriNetworkProxyPolicy {
         when (config.moduleModes[module] ?: KiyoriNetworkOverrideMode.INHERIT) {
             KiyoriNetworkOverrideMode.INHERIT -> config.defaultMode
             KiyoriNetworkOverrideMode.DIRECT -> KiyoriNetworkConnectionMode.DIRECT
-            KiyoriNetworkOverrideMode.PROXY -> KiyoriNetworkConnectionMode.PROXY
+            KiyoriNetworkOverrideMode.PROXY ->
+                when (config.defaultMode) {
+                    KiyoriNetworkConnectionMode.DIRECT -> KiyoriNetworkConnectionMode.GLOBAL
+                    KiyoriNetworkConnectionMode.PROXY -> KiyoriNetworkConnectionMode.GLOBAL
+                    else -> config.defaultMode
+                }
         }
 
     fun effectiveMode(
@@ -197,14 +231,33 @@ object KiyoriNetworkProxyPolicy {
         ) {
             KiyoriNetworkOverrideMode.INHERIT -> effectiveModuleMode(config, module)
             KiyoriNetworkOverrideMode.DIRECT -> KiyoriNetworkConnectionMode.DIRECT
-            KiyoriNetworkOverrideMode.PROXY -> KiyoriNetworkConnectionMode.PROXY
+            KiyoriNetworkOverrideMode.PROXY ->
+                when (config.defaultMode) {
+                    KiyoriNetworkConnectionMode.DIRECT,
+                    KiyoriNetworkConnectionMode.PROXY,
+                    -> KiyoriNetworkConnectionMode.GLOBAL
+                    else -> config.defaultMode
+                }
+        }
+    }
+
+    fun runtimeMode(config: KiyoriNetworkProxyConfig): KiyoriNetworkConnectionMode {
+        if (config.defaultMode != KiyoriNetworkConnectionMode.DIRECT) return config.defaultMode
+        return if (config.moduleModes.values.any { it == KiyoriNetworkOverrideMode.PROXY } ||
+            config.scriptModes.values.any { it == KiyoriNetworkOverrideMode.PROXY }
+        ) {
+            KiyoriNetworkConnectionMode.GLOBAL
+        } else {
+            KiyoriNetworkConnectionMode.DIRECT
         }
     }
 
     fun hasConfiguredProxyRoute(config: KiyoriNetworkProxyConfig): Boolean =
         KiyoriNetworkModule.entries.any { module ->
-            effectiveModuleMode(config, module) == KiyoriNetworkConnectionMode.PROXY
-        } || config.scriptModes.values.any { mode -> mode == KiyoriNetworkOverrideMode.PROXY }
+            effectiveModuleMode(config, module) != KiyoriNetworkConnectionMode.DIRECT
+        } || config.scriptModes.keys.any { packageName ->
+            effectiveMode(config, KiyoriNetworkModule.SCRIPTS, packageName) != KiyoriNetworkConnectionMode.DIRECT
+        }
 
     fun requiresEmbeddedProxy(config: KiyoriNetworkProxyConfig): Boolean =
         config.enabled && hasConfiguredProxyRoute(config)
@@ -233,7 +286,10 @@ object KiyoriNetworkProxyPolicy {
         validateSchema(config)
         return when (effectiveMode(config, module, scriptPackageName)) {
             KiyoriNetworkConnectionMode.DIRECT -> KiyoriNetworkRoute.Direct
-            KiyoriNetworkConnectionMode.PROXY -> {
+            KiyoriNetworkConnectionMode.RULE,
+            KiyoriNetworkConnectionMode.GLOBAL,
+            KiyoriNetworkConnectionMode.PROXY,
+            -> {
                 validateEmbeddedStart(config, isSystemVpnActive)
                 KiyoriNetworkRoute.EmbeddedProxy
             }
@@ -308,6 +364,25 @@ object KiyoriNetworkProxyPolicy {
             if (subscription.nodeTests.size > KiyoriNetworkProxyConfig.MAX_NODE_TEST_RESULTS) {
                 invalid("A subscription contains too many node test results.")
             }
+            if (subscription.rules.size > KiyoriNetworkProxyConfig.MAX_SUBSCRIPTION_RULES) {
+                invalid("A subscription contains too many retained rules.")
+            }
+        }
+        if (config.customRules.size > KiyoriNetworkProxyConfig.MAX_CUSTOM_RULES) {
+            invalid("The custom network rule limit was exceeded.")
+        }
+        val ruleIds = linkedSetOf<String>()
+        config.customRules.forEach { rule ->
+            if (rule.id.isBlank() || rule.id.length > 64 || !ruleIds.add(rule.id)) {
+                invalid("Custom rule identifiers must be non-blank and unique.")
+            }
+            val pattern = rule.pattern.trim()
+            if (pattern.isBlank() || pattern.length > KiyoriNetworkProxyConfig.MAX_RULE_PATTERN_LENGTH) {
+                invalid("A custom rule has an invalid domain pattern.")
+            }
+            if (!isValidRulePattern(pattern)) {
+                invalid("Custom rules must use a domain or wildcard domain pattern.")
+            }
         }
         if (config.activeSubscriptionId != null && config.activeSubscriptionId !in ids) {
             invalid("The active subscription identifier is not present in the subscription library.")
@@ -324,6 +399,12 @@ object KiyoriNetworkProxyPolicy {
 
     private fun invalid(message: String): Nothing =
         throw KiyoriNetworkException(KiyoriNetworkErrorCode.CONFIG_INVALID, message)
+
+    private fun isValidRulePattern(value: String): Boolean {
+        val pattern = value.removePrefix("*.").removePrefix(".").trim().lowercase()
+        return pattern.length <= KiyoriNetworkProxyConfig.MAX_RULE_PATTERN_LENGTH &&
+            pattern.matches(Regex("(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}"))
+    }
 }
 
 object KiyoriScriptNetworkCallIdentity {

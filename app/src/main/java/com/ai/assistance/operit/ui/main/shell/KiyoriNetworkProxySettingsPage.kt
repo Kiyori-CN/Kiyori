@@ -56,6 +56,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -96,7 +97,9 @@ import com.kiyori.platform.network.KiyoriNetworkProxyLogEntry
 import com.kiyori.platform.network.KiyoriNetworkProxyLogLevel
 import com.kiyori.platform.network.KiyoriNetworkProxyManager
 import com.kiyori.platform.network.KiyoriNetworkProxyPolicy
+import com.kiyori.platform.network.KiyoriNetworkProxyRule
 import com.kiyori.platform.network.KiyoriNetworkProxyStoreState
+import com.kiyori.platform.network.KiyoriNetworkRuleMode
 import com.kiyori.platform.network.KiyoriNetworkSettingsAppliedException
 import com.kiyori.platform.network.KiyoriProxySubscription
 import com.kiyori.platform.network.KiyoriSubscriptionSourceType
@@ -127,6 +130,7 @@ private enum class NetworkProxyPageSection(
     OVERVIEW("网络代理"),
     CURRENT_NODE(NETWORK_PROXY_NODE_SELECTION_TITLE),
     SUBSCRIPTIONS("订阅管理"),
+    RULES("规则管理"),
     MODULES("模块连接模式"),
     SCRIPTS("逐脚本连接模式"),
     LOGS("代理日志"),
@@ -186,6 +190,12 @@ private sealed interface ModeSelection {
     data class Script(val packageName: String) : ModeSelection
 }
 
+private sealed interface CustomRuleEditor {
+    data object Add : CustomRuleEditor
+
+    data class Edit(val ruleId: String) : CustomRuleEditor
+}
+
 private data class SelectedYaml(
     val displayName: String,
     val text: String,
@@ -193,9 +203,9 @@ private data class SelectedYaml(
 
 private val networkProxyModeOptions =
     listOf(
-        NetworkProxyModeOption("跟随默认", "使用页面顶部的默认连接模式", KiyoriNetworkOverrideMode.INHERIT),
+        NetworkProxyModeOption("跟随模式", "使用上方代理模式", KiyoriNetworkOverrideMode.INHERIT),
         NetworkProxyModeOption("直连", "绕过 Kiyori 内嵌 Mihomo；仍受系统 VPN 影响", KiyoriNetworkOverrideMode.DIRECT),
-        NetworkProxyModeOption("代理", "经过当前订阅的 Kiyori 内嵌 Mihomo", KiyoriNetworkOverrideMode.PROXY),
+        NetworkProxyModeOption("代理", "经过内嵌 Mihomo，并使用上方代理模式", KiyoriNetworkOverrideMode.PROXY),
     )
 
 private val networkProxyModules =
@@ -241,6 +251,10 @@ internal fun KiyoriNetworkProxySettingsPage(
     var scriptPackageDraft by remember { mutableStateOf("") }
     var discoveredScriptPackages by remember { mutableStateOf<List<String>>(emptyList()) }
     var scriptCatalogRefreshing by remember { mutableStateOf(false) }
+    var customRuleEditor by remember { mutableStateOf<CustomRuleEditor?>(null) }
+    var customRulePattern by remember { mutableStateOf("") }
+    var customRuleMode by remember { mutableStateOf(KiyoriNetworkRuleMode.PROXY) }
+    var deleteCustomRuleId by remember { mutableStateOf<String?>(null) }
     var pageSection by remember { mutableStateOf(NetworkProxyPageSection.OVERVIEW) }
     var selectedGroupTabName by remember { mutableStateOf<String?>(null) }
     var nodeSearchQuery by remember { mutableStateOf("") }
@@ -376,6 +390,21 @@ internal fun KiyoriNetworkProxySettingsPage(
                 val subscription = config?.subscriptions?.firstOrNull { it.id == editor.subscriptionId }
                 editorName = subscription?.displayName.orEmpty()
                 editorUrl = subscription?.subscriptionUrl.orEmpty()
+            }
+        }
+    }
+
+    fun openCustomRuleEditor(editor: CustomRuleEditor) {
+        customRuleEditor = editor
+        when (editor) {
+            CustomRuleEditor.Add -> {
+                customRulePattern = ""
+                customRuleMode = KiyoriNetworkRuleMode.PROXY
+            }
+            is CustomRuleEditor.Edit -> {
+                val rule = config?.customRules?.firstOrNull { it.id == editor.ruleId }
+                customRulePattern = rule?.pattern.orEmpty()
+                customRuleMode = rule?.mode ?: KiyoriNetworkRuleMode.PROXY
             }
         }
     }
@@ -530,14 +559,14 @@ internal fun KiyoriNetworkProxySettingsPage(
                     )
                     KiyoriSettingsDivider()
                     Text(
-                        text = "默认连接",
+                        text = "代理模式",
                         color = LocalKiyoriSettingsColors.current.primaryText,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(start = 18.dp, top = 14.dp, end = 18.dp),
                     )
                     Text(
-                        text = "模块选择“跟随默认”时使用此模式；总开关关闭时所有模块按直连处理。",
+                        text = "规则按域名细分；全局让 Kiyori 请求统一进入当前策略组；直连不经过内嵌 Mihomo。",
                         color = LocalKiyoriSettingsColors.current.secondaryText,
                         fontSize = 12.sp,
                         lineHeight = 17.sp,
@@ -548,8 +577,8 @@ internal fun KiyoriNetworkProxySettingsPage(
                         enabled = controlsEnabled,
                         onSelect = { mode ->
                             runOperation(
-                                NetworkProxyOperation("default_mode", NetworkProxyOperationArea.ROUTING, "正在保存默认连接"),
-                                "默认连接模式已保存。",
+                                NetworkProxyOperation("default_mode", NetworkProxyOperationArea.ROUTING, "正在保存代理模式"),
+                                "代理模式已保存。",
                             ) { manager.updateConfig { it.copy(defaultMode = mode) } }
                         },
                     )
@@ -598,12 +627,26 @@ internal fun KiyoriNetworkProxySettingsPage(
                     )
                     KiyoriSettingsDivider()
                     KiyoriSettingsRow(
+                        title = "规则管理",
+                        description =
+                            activeSubscription?.let { subscription ->
+                                "订阅规则 ${subscription.summary.ruleCount} 条 · 自定义规则 ${config.customRules.size} 条"
+                            } ?: "自定义规则 ${config?.customRules?.size ?: 0} 条；导入订阅后读取订阅规则",
+                        kind = KiyoriSettingsRowKind.NAVIGATION,
+                        icon = Icons.Default.Tune,
+                        iconTone = KiyoriSemanticTone.ORANGE,
+                        value = config?.customRules?.size?.takeIf { it > 0 }?.let { "$it 条自定义" },
+                        enabled = controlsEnabled,
+                        onClick = { pageSection = NetworkProxyPageSection.RULES },
+                    )
+                    KiyoriSettingsDivider()
+                    KiyoriSettingsRow(
                         title = "模块连接模式",
                         description = "总开关 → 模块覆盖 → 传统脚本包覆盖",
                         kind = KiyoriSettingsRowKind.NAVIGATION,
                         icon = Icons.Default.Tune,
                         iconTone = KiyoriSemanticTone.BLUE,
-                        value = config?.moduleModes?.size?.takeIf { it > 0 }?.let { "$it 个覆盖" } ?: "跟随默认",
+                        value = config?.moduleModes?.size?.takeIf { it > 0 }?.let { "$it 个覆盖" } ?: "跟随模式",
                         enabled = controlsEnabled,
                         onClick = { pageSection = NetworkProxyPageSection.MODULES },
                     )
@@ -905,6 +948,92 @@ internal fun KiyoriNetworkProxySettingsPage(
             }
         }
 
+        if (pageSection == NetworkProxyPageSection.RULES) {
+            item(key = "network_proxy_rules_detail") {
+                KiyoriSettingsGroupSection(
+                    title = "规则管理",
+                    description = "自定义规则优先于当前订阅规则；更新订阅只替换订阅来源，不覆盖自定义规则。",
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = controlsEnabled,
+                            onClick = { openCustomRuleEditor(CustomRuleEditor.Add) },
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("添加自定义规则", fontSize = 12.sp, maxLines = 1)
+                        }
+                    }
+                    val subscriptionRules = activeSubscription?.rules.orEmpty()
+                    KiyoriSettingsRow(
+                        title = "当前订阅规则",
+                        description =
+                            if (activeSubscription == null) {
+                                "尚未选择订阅"
+                            } else {
+                                "更新订阅时自动替换；仅保留 Kiyori 可安全执行的直接规则"
+                            },
+                        kind = KiyoriSettingsRowKind.NAVIGATION,
+                        icon = Icons.Default.Cloud,
+                        iconTone = KiyoriSemanticTone.CYAN,
+                        value = "${subscriptionRules.size} 条",
+                        enabled = false,
+                        onClick = {},
+                    )
+                    if (subscriptionRules.isNotEmpty()) {
+                        Text(
+                            text = subscriptionRules.take(200).joinToString("\n"),
+                            color = LocalKiyoriSettingsColors.current.secondaryText,
+                            fontSize = 11.sp,
+                            lineHeight = 16.sp,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
+                        )
+                        if (subscriptionRules.size > 200) {
+                            Text(
+                                text = "还有 ${subscriptionRules.size - 200} 条未展开",
+                                color = LocalKiyoriSettingsColors.current.secondaryText,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp),
+                            )
+                        }
+                    }
+                    KiyoriSettingsDivider()
+                    val customRules = config?.customRules.orEmpty()
+                    if (customRules.isEmpty()) {
+                        Text(
+                            text = "暂无自定义规则。添加后会优先于订阅规则匹配。",
+                            color = LocalKiyoriSettingsColors.current.secondaryText,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(18.dp),
+                        )
+                    } else {
+                        customRules.forEachIndexed { index, rule ->
+                            if (index > 0) KiyoriSettingsDivider()
+                            CustomRuleRow(
+                                rule = rule,
+                                enabled = controlsEnabled,
+                                onEdit = { openCustomRuleEditor(CustomRuleEditor.Edit(rule.id)) },
+                                onDelete = { deleteCustomRuleId = rule.id },
+                                onToggle = {
+                                    runOperation(
+                                        NetworkProxyOperation("toggle_custom_rule", NetworkProxyOperationArea.ROUTING, "正在更新规则状态"),
+                                        "规则状态已更新。",
+                                    ) {
+                                        manager.updateCustomRule(rule.id, rule.pattern, rule.mode, !rule.enabled)
+                                    }
+                                },
+                            )
+                        }
+                    }
+                    NetworkProxyOperationFeedback(NetworkProxyOperationArea.ROUTING, activeOperation, feedback, false)
+                }
+            }
+        }
+
         if (pageSection == NetworkProxyPageSection.MODULES) {
             item(key = "network_proxy_modules_detail") {
                 KiyoriSettingsGroupSection(
@@ -1074,6 +1203,89 @@ internal fun KiyoriNetworkProxySettingsPage(
             }
         },
     )
+
+    customRuleEditor?.let { editor ->
+        val editingRule =
+            (editor as? CustomRuleEditor.Edit)?.let { selected ->
+                config?.customRules?.firstOrNull { it.id == selected.ruleId }
+            }
+        val validPattern = customRulePattern.trim().isNotBlank()
+        AlertDialog(
+            onDismissRequest = { if (activeOperation == null) customRuleEditor = null },
+            title = { Text(if (editor is CustomRuleEditor.Add) "添加自定义规则" else "编辑自定义规则") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = customRulePattern,
+                        onValueChange = { customRulePattern = it },
+                        label = { Text("域名") },
+                        placeholder = { Text("example.com 或 *.example.com") },
+                        singleLine = true,
+                        isError = customRulePattern.isNotBlank() && !validPattern,
+                        supportingText = { Text("只填写域名；子域名可用 *.") },
+                    )
+                    Text("匹配动作", fontSize = 13.sp, color = LocalKiyoriSettingsColors.current.secondaryText)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(
+                            KiyoriNetworkRuleMode.PROXY to "代理",
+                            KiyoriNetworkRuleMode.DIRECT to "直连",
+                        ).forEach { (mode, label) ->
+                            val selected = customRuleMode == mode
+                            TextButton(
+                                onClick = { customRuleMode = mode },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text(
+                                    text = if (selected) "✓ $label" else label,
+                                    color = if (selected) LocalKiyoriSettingsColors.current.accent else LocalKiyoriSettingsColors.current.primaryText,
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = validPattern && activeOperation == null,
+                    onClick = {
+                        val operation = NetworkProxyOperation("save_custom_rule", NetworkProxyOperationArea.ROUTING, "正在保存自定义规则")
+                        runOperation(operation, "自定义规则已保存。", onSuccess = { customRuleEditor = null }) {
+                            if (editingRule == null) {
+                                manager.addCustomRule(customRulePattern, customRuleMode)
+                            } else {
+                                manager.updateCustomRule(editingRule.id, customRulePattern, customRuleMode, editingRule.enabled)
+                            }
+                        }
+                    },
+                ) { Text("保存") }
+            },
+            dismissButton = {
+                TextButton(onClick = { customRuleEditor = null }, enabled = activeOperation == null) { Text("取消") }
+            },
+        )
+    }
+
+    deleteCustomRuleId?.let { ruleId ->
+        val rule = config?.customRules?.firstOrNull { it.id == ruleId }
+        AlertDialog(
+            onDismissRequest = { deleteCustomRuleId = null },
+            title = { Text("删除自定义规则？") },
+            text = { Text(rule?.pattern.orEmpty()) },
+            confirmButton = {
+                TextButton(
+                    enabled = activeOperation == null,
+                    onClick = {
+                        runOperation(
+                            NetworkProxyOperation("delete_custom_rule", NetworkProxyOperationArea.ROUTING, "正在删除自定义规则"),
+                            "自定义规则已删除。",
+                            onSuccess = { deleteCustomRuleId = null },
+                        ) { manager.removeCustomRule(ruleId) }
+                    },
+                ) { Text("删除") }
+            },
+            dismissButton = { TextButton(onClick = { deleteCustomRuleId = null }) { Text("取消") } },
+        )
+    }
 
     deleteSubscriptionId?.let { subscriptionId ->
         val subscription = config?.subscriptions?.firstOrNull { it.id == subscriptionId }
@@ -1542,7 +1754,7 @@ private fun networkProxyModuleDescription(module: KiyoriNetworkModule): String =
 
 private fun networkProxyOverrideLabel(mode: KiyoriNetworkOverrideMode): String =
     when (mode) {
-        KiyoriNetworkOverrideMode.INHERIT -> "跟随默认"
+        KiyoriNetworkOverrideMode.INHERIT -> "跟随模式"
         KiyoriNetworkOverrideMode.DIRECT -> "直连"
         KiyoriNetworkOverrideMode.PROXY -> "代理"
     }
@@ -1557,11 +1769,20 @@ private fun networkProxyRuntimeDescription(
         !config.enabled -> "已关闭；Kiyori 使用系统网络或外部 VPN"
         !KiyoriNetworkProxyPolicy.hasConfiguredProxyRoute(config) -> "已开启；当前所有模块均配置为直连"
         activeSubscription == null -> "已开启；需要选择当前订阅"
-        phase == KiyoriMihomoRuntimePhase.RUNNING -> "运行中 · ${activeSubscription.displayName}"
+        phase == KiyoriMihomoRuntimePhase.RUNNING -> "运行中 · ${networkProxyConnectionModeLabel(config.defaultMode)} · ${activeSubscription.displayName}"
         phase == KiyoriMihomoRuntimePhase.STARTING -> "正在启动 ${activeSubscription.displayName}"
         phase == KiyoriMihomoRuntimePhase.STOPPING -> "正在停止内嵌 Mihomo"
         phase == KiyoriMihomoRuntimePhase.ERROR -> "运行失败；设置仍保留"
         else -> "已开启；等待代理模块发起请求"
+    }
+
+private fun networkProxyConnectionModeLabel(mode: KiyoriNetworkConnectionMode): String =
+    when (mode) {
+        KiyoriNetworkConnectionMode.RULE -> "规则"
+        KiyoriNetworkConnectionMode.GLOBAL,
+        KiyoriNetworkConnectionMode.PROXY,
+        -> "全局"
+        KiyoriNetworkConnectionMode.DIRECT -> "直连"
     }
 
 private fun networkProxyLogDisplayText(entries: List<KiyoriNetworkProxyLogEntry>): String {
@@ -1738,6 +1959,43 @@ private fun NetworkProxySubscriptionRow(
 }
 
 @Composable
+private fun CustomRuleRow(
+    rule: KiyoriNetworkProxyRule,
+    enabled: Boolean,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onToggle: () -> Unit,
+) {
+    val colors = LocalKiyoriSettingsColors.current
+    Row(
+        modifier = Modifier.fillMaxWidth().alpha(if (enabled) 1f else 0.42f).clickable(enabled = enabled, onClick = onEdit).padding(start = 18.dp, end = 6.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = rule.pattern,
+                color = colors.primaryText,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = when (rule.mode) {
+                    KiyoriNetworkRuleMode.DIRECT -> "直连 · 自定义规则"
+                    KiyoriNetworkRuleMode.PROXY -> "代理 · 自定义规则"
+                },
+                color = colors.secondaryText,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 3.dp),
+            )
+        }
+        Switch(checked = rule.enabled, onCheckedChange = { onToggle() }, enabled = enabled)
+        TextButton(enabled = enabled, onClick = onDelete) { Text("删除") }
+    }
+}
+
+@Composable
 private fun NetworkProxyGroupTabs(
     groups: List<MihomoProxyGroupSummary>,
     selectedGroupName: String?,
@@ -1792,15 +2050,22 @@ private fun NetworkProxySegmentedMode(
     onSelect: (KiyoriNetworkConnectionMode) -> Unit,
 ) {
     val colors = LocalKiyoriSettingsColors.current
+    val normalizedSelected =
+        if (selected == KiyoriNetworkConnectionMode.PROXY) {
+            KiyoriNetworkConnectionMode.GLOBAL
+        } else {
+            selected
+        }
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         listOf(
+            KiyoriNetworkConnectionMode.RULE to "规则",
+            KiyoriNetworkConnectionMode.GLOBAL to "全局",
             KiyoriNetworkConnectionMode.DIRECT to "直连",
-            KiyoriNetworkConnectionMode.PROXY to "代理",
         ).forEach { (mode, label) ->
-            val isSelected = selected == mode
+            val isSelected = normalizedSelected == mode
             Row(
                 modifier =
                     Modifier

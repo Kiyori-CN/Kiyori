@@ -15,6 +15,7 @@ data class SanitizedMihomoSubscription(
     val yaml: String,
     val summary: MihomoSubscriptionSummary,
     val usage: MihomoSubscriptionUsage? = null,
+    val rules: List<String> = emptyList(),
 )
 
 data class MihomoRuntimeConfig(
@@ -68,6 +69,13 @@ object MihomoConfigSanitizer {
         if (rootCandidates.isEmpty() && providers.isEmpty()) {
             invalid("The subscription contains no usable root route candidates.")
         }
+        val ruleTargets =
+            (groups.map(NamedGroup::name) +
+                    proxyResult.accepted.map(NamedMapping::name) +
+                    providers.map(NamedMapping::name) +
+                    BUILTIN_OUTBOUNDS + ROUTE_GROUP_NAME)
+                .toSet()
+        val rules = sanitizeRules(root["rules"], ruleTargets)
 
         val sanitized = linkedMapOf<String, Any?>()
         if (proxyResult.accepted.isNotEmpty()) {
@@ -78,6 +86,7 @@ object MihomoConfigSanitizer {
         }
         if (groups.isNotEmpty()) sanitized["proxy-groups"] = groups.map(NamedGroup::mapping)
         sanitizeDns(root["dns"])?.let { sanitized["dns"] = it }
+        if (rules.accepted.isNotEmpty()) sanitized["rules"] = rules.accepted
 
         val groupSummaries = groups.map(NamedGroup::summary)
         return SanitizedMihomoSubscription(
@@ -104,7 +113,10 @@ object MihomoConfigSanitizer {
                     providerNames = providers.map(NamedMapping::name),
                     groups = groupSummaries,
                     rootCandidates = rootCandidates.ifEmpty { providers.map(NamedMapping::name) },
+                    ruleCount = rules.accepted.size,
+                    unsupportedRuleCount = rules.unsupportedCount,
                 ),
+            rules = rules.accepted,
         )
     }
 
@@ -132,6 +144,8 @@ object MihomoConfigSanitizer {
         controllerPort: Int,
         controllerSecret: String,
         testUrl: String,
+        routingMode: KiyoriNetworkConnectionMode = KiyoriNetworkConnectionMode.GLOBAL,
+        customRules: List<KiyoriNetworkProxyRule> = emptyList(),
     ): MihomoRuntimeConfig {
         require(mixedPort in 1..65535) { "Invalid Mihomo mixed port" }
         require(controllerPort in 1..65535) { "Invalid Mihomo controller port" }
@@ -156,6 +170,13 @@ object MihomoConfigSanitizer {
         if (rootCandidates.isEmpty() && providers.isEmpty()) {
             invalid("The sanitized subscription has no usable outbound source.")
         }
+        val ruleTargets =
+            (groups.map(NamedGroup::name) +
+                    proxyResult.accepted.map(NamedMapping::name) +
+                    providers.map(NamedMapping::name) +
+                    BUILTIN_OUTBOUNDS + ROUTE_GROUP_NAME)
+                .toSet()
+        val subscriptionRules = sanitizeRules(root["rules"], ruleTargets).accepted
 
         val runtime =
             linkedMapOf<String, Any?>(
@@ -187,7 +208,19 @@ object MihomoConfigSanitizer {
             routeGroup["use"] = providers.map(NamedMapping::name)
         }
         runtime["proxy-groups"] = listOf(routeGroup) + groups.map(NamedGroup::mapping)
-        runtime["rules"] = listOf("MATCH,$ROUTE_GROUP_NAME")
+        runtime["rules"] =
+            when (routingMode) {
+                KiyoriNetworkConnectionMode.RULE ->
+                    buildList {
+                        addAll(customRules.filter(KiyoriNetworkProxyRule::enabled).map(::toMihomoRule))
+                        addAll(subscriptionRules)
+                        add("MATCH,$ROUTE_GROUP_NAME")
+                    }
+                KiyoriNetworkConnectionMode.GLOBAL,
+                KiyoriNetworkConnectionMode.PROXY,
+                KiyoriNetworkConnectionMode.DIRECT,
+                -> listOf("MATCH,$ROUTE_GROUP_NAME")
+            }
 
         val rootSummary =
             MihomoProxyGroupSummary(
@@ -212,6 +245,11 @@ object MihomoConfigSanitizer {
     private data class ProxySanitizeResult(
         val accepted: List<NamedMapping>,
         val isolatedCount: Int,
+    )
+
+    private data class RuleSanitizeResult(
+        val accepted: List<String>,
+        val unsupportedCount: Int,
     )
 
     private data class GroupDraft(
@@ -278,6 +316,51 @@ object MihomoConfigSanitizer {
             mapping.remove("proxy")
             NamedMapping(name, mapping)
         }
+    }
+
+    private fun sanitizeRules(raw: Any?, validTargets: Set<String>): RuleSanitizeResult {
+        if (raw == null) return RuleSanitizeResult(emptyList(), 0)
+        val entries = raw as? List<*> ?: invalid("The rules field must be a YAML list.")
+        var unsupported = 0
+        val accepted = entries.mapNotNull { entry ->
+            val value = entry as? String ?: invalid("A subscription rule must be a string.")
+            val parts = value.split(',').map(String::trim)
+            val kind = parts.firstOrNull()?.uppercase() ?: ""
+            val target = parts.lastOrNull().orEmpty()
+            val supported =
+                kind in SUPPORTED_RULE_TYPES &&
+                    parts.size >= 2 &&
+                    target in validTargets &&
+                    when (kind) {
+                        "MATCH" -> parts.size == 2
+                        else -> parts.size >= 3 && isRuleMatcher(parts[1])
+                    }
+            if (!supported) {
+                unsupported += 1
+                null
+            } else {
+                parts.joinToString(",")
+            }
+        }.distinct()
+        return RuleSanitizeResult(accepted, unsupported)
+    }
+
+    private fun isRuleMatcher(value: String): Boolean =
+        value.equals("no-resolve", ignoreCase = true) ||
+            value.equals("src", ignoreCase = true) ||
+            value.equals("src-ip-cidr", ignoreCase = true) ||
+            value.matches(Regex("[a-zA-Z0-9*._:/-]{1,253}"))
+
+    private fun toMihomoRule(rule: KiyoriNetworkProxyRule): String {
+        val pattern = rule.pattern.trim().lowercase()
+        val domain = pattern.removePrefix("*.").removePrefix(".")
+        val kind = if (pattern.startsWith("*.") || pattern.startsWith(".")) "DOMAIN-SUFFIX" else "DOMAIN"
+        val target =
+            when (rule.mode) {
+                KiyoriNetworkRuleMode.DIRECT -> "DIRECT"
+                KiyoriNetworkRuleMode.PROXY -> ROUTE_GROUP_NAME
+            }
+        return "$kind,$domain,$target"
     }
 
     private fun sanitizeGroups(
@@ -610,4 +693,17 @@ object MihomoConfigSanitizer {
     private val BUILTIN_OUTBOUNDS =
         setOf("DIRECT", "REJECT", "REJECT-DROP", "PASS", "COMPATIBLE")
     private val SUPPORTED_GROUP_TYPES = setOf("select", "url-test", "fallback", "load-balance")
+    private val SUPPORTED_RULE_TYPES =
+        setOf(
+            "DOMAIN",
+            "DOMAIN-SUFFIX",
+            "DOMAIN-KEYWORD",
+            "IP-CIDR",
+            "IP-CIDR6",
+            "SRC-IP-CIDR",
+            "DST-PORT",
+            "SRC-PORT",
+            "PROCESS-NAME",
+            "MATCH",
+        )
 }

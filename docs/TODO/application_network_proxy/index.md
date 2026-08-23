@@ -10,7 +10,7 @@ date: 2026-08-23
 ## 目标与完成标准
 
 本阶段把上一版“传统脚本宿主代理”提升为 Kiyori 唯一的应用级网络路由能力。用户只在
-“设置首页 -> 更多功能 -> 网络代理”管理订阅、内嵌核心、默认连接模式、逐模块连接模式和脚本
+“设置首页 -> 更多功能 -> 网络代理”管理订阅、内嵌核心、代理模式、逐模块连接模式和脚本
 细分规则。Browser、播放器、AI 主模型与其他由 Kiyori 持有的联网客户端读取同一份配置，不再
 由脚本页面持有第二套代理状态。
 
@@ -35,6 +35,45 @@ date: 2026-08-23
 
 ## 当前实施状态
 
+## 本轮规则模式设计（2026-08-24）
+
+本轮将顶部“默认连接”更名为“代理模式”，提供固定顺序的三个选项：
+
+1. **规则**：Kiyori 内嵌 Mihomo 接收请求后，先匹配用户自定义域名规则，再匹配当前订阅中
+   已安全保留的直接规则，最后进入 `KIYORI_APP_PROXY` 策略组。用户规则优先于订阅规则，
+   因而可以覆盖订阅的同域名结果。
+2. **全局**：Kiyori 内嵌 Mihomo 接收的请求全部进入 `KIYORI_APP_PROXY`，不使用订阅域名规则。
+3. **直连**：应用层不把请求交给 Kiyori Mihomo；Android 系统 VPN 仍可能继续生效。
+
+这是应用范围的策略选择，只影响已经接入 `com.kiyori.platform.network` 的 Kiyori 请求，
+不启用 `VpnService`，不影响其他应用。
+
+模块连接模式与逐脚本连接模式继续保留，但它们只决定某个入口是否“跟随代理模式”或覆盖为
+“代理/直连”。其中“代理”表示使用顶部当前模式，而不是另建一套规则核心；这样可以满足
+Browser、AI、下载、播放器和传统脚本共享同一 Mihomo 规则，同时避开 AndroidX
+`ProxyController` 的进程级限制。总开关关闭时所有入口均为直连。
+
+“规则管理”位于“节点选择”与“订阅管理”下方，分为两类来源：
+
+- **当前订阅规则**：从当前订阅 YAML 的 `rules` 中提取受支持的域名/IP/端口规则，只读展示；
+  更新订阅会原子替换这部分内容。依赖外部 GeoSite、GeoIP、RULE-SET 文件的规则不会被伪装成
+  可用规则，并在摘要中计数。
+- **自定义规则**：单独加密保存在应用代理配置中，支持新增、编辑、删除和启用/停用；只接受
+  域名或域名后缀，动作只有“直连”和“代理”。它们永远排在订阅规则前，订阅更新不会覆盖。
+
+用户规则编译为 Mihomo `DOMAIN` 或 `DOMAIN-SUFFIX` 条目；代理动作指向
+`KIYORI_APP_PROXY`，直连动作指向 `DIRECT`。每次规则、订阅、节点或顶部模式变化都会重新校验
+并原子重建当前运行配置，失败时保留已保存配置并明确报告运行未生效。
+
+### 本轮实施阶段
+
+- [DONE LOCALLY] 数据模型、schema 迁移与规则校验
+- [DONE LOCALLY] 订阅规则清洗、运行 YAML 合成与规则模式
+- [DONE LOCALLY] Manager/Runtime 路由参数和更新事务
+- [DONE LOCALLY] 设置页规则管理及模块/脚本文案
+- [DONE LOCALLY] 定向测试、Debug APK 与文档
+- [verification_pending] 真机网络、WebView、播放器、下载器、脚本和外部 VPN 并存验收
+
 - `DONE LOCALLY`：用户真机确认订阅、策略组和节点可以正常导入展示，但主 runtime 与 probe runtime
   均在 `mihomo -t` 阶段拒绝运行配置，导致开启代理、选点和测速不可用。本轮已删除 DNS 中对外部
   GeoSite/GeoIP 数据文件和已移除 rule-provider 的残留依赖，并增加可查看、复制、导出和清空的脱敏代理日志。
@@ -44,7 +83,7 @@ date: 2026-08-23
   Kiyori 在线服务入口已接入统一网络模块；ToolPkg 与传统脚本身份边界已固定。
 - `DONE`：设置入口、模块路由、订阅操作、分组节点、单项/整组测速、作用域进度与错误反馈均在
   同一页面 owner 内闭环；本轮新增设置会话浏览器往返修复、当前组/节点投影和已启用传统脚本发现。
-- `DONE LOCALLY`：网络代理主页已收敛为“启用应用内代理、默认连接、节点选择、订阅管理、模块连接模式、
+- `DONE LOCALLY`：网络代理主页已收敛为“启用应用内代理、代理模式、节点选择、订阅管理、规则管理、模块连接模式、
   逐脚本连接模式、代理局域网地址、允许与系统 VPN 并存、重置网络代理”九个明确入口/控件；移除当前路由、
   当前订阅抽屉、策略组摘要、测试地址和布局选择等重复展示。
 - `DONE LOCALLY`：节点选择作为独立子页面，只使用当前订阅的横向分组标签、分组内搜索、顶部整组测速和排序。
@@ -124,20 +163,23 @@ date: 2026-08-23
 
 上一版 `ScriptNetworkConfigStore`、`ScriptProxyRuntime`、`ScriptNetworkHttpClientFactory` 与
 `ScriptNetworkSettingsScreen` 不再作为兼容入口保留。Kiyori 尚无公开发行渠道，本轮直接建立
-schema v1 的应用级配置，不读取或迁移本机开发阶段的 `script_network` 私有目录。
+schema v3 的应用级配置；schema v2 仅把旧 `PROXY` 映射到全局语义并补齐规则字段，不读取或迁移本机
+开发阶段的 `script_network` 私有目录。
 
 ## 持久化模型
 
 ```text
-KiyoriNetworkProxyConfig(schemaVersion = 2)
+KiyoriNetworkProxyConfig(schemaVersion = 3)
 ├── enabled: Boolean = false
-├── defaultMode: DIRECT | PROXY
+├── defaultMode: RULE | GLOBAL | DIRECT
 ├── moduleModes: Map<NetworkModule, INHERIT | DIRECT | PROXY>
 ├── scriptModes: Map<packageName, INHERIT | DIRECT | PROXY>
+├── customRules: List<id / domainPattern / DIRECT|PROXY / enabled>
 ├── subscriptions: List<KiyoriProxySubscription>
 │   ├── id / displayName / sourceType
 │   ├── url // URL source only
 │   ├── sanitizedYaml
+│   ├── rules // 保留的直接规则；更新时随订阅替换
 │   ├── createdAtEpochMillis / updatedAtEpochMillis
 │   ├── summary(nodes, groups, providers, isolatedEntries)
 │   ├── usage(upload, download, total, expire) // 响应存在时
@@ -156,7 +198,8 @@ KiyoriNetworkProxyConfig(schemaVersion = 2)
 
 `enabled=false` 是总开关：所有模块均在应用层直连，但不抹掉用户已选模块、当前订阅和策略。
 `enabled=true` 时先取模块 override，再取 `defaultMode`；脚本请求在模块结果之上应用对应 package
-override。任何 `PROXY` 路由都要求当前订阅有效、根策略已选择、系统 VPN 门禁通过且核心处于
+override。模块/脚本的 `PROXY` 表示使用顶部当前模式；规则模式中的自定义域名规则永远排在订阅规则
+之前。任何非 `DIRECT` 路由都要求当前订阅有效、根策略已选择、系统 VPN 门禁通过且核心处于
 `RUNNING`。
 
 ### 订阅操作事务

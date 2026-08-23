@@ -77,6 +77,45 @@ class MihomoConfigSanitizerTest {
     }
 
     @Test
+    fun `sanitizer retains supported subscription rules and runtime puts custom rules first`() {
+        val sanitized =
+            MihomoConfigSanitizer.sanitize(
+                """
+                proxies:
+                  - { name: node-a, type: socks5, server: proxy.example.com, port: 1080 }
+                rules:
+                  - DOMAIN-SUFFIX,example.com,DIRECT
+                  - DOMAIN,api.example.com,KIYORI_APP_PROXY
+                  - RULE-SET,ads,REJECT
+                """.trimIndent(),
+            )
+        assertEquals(listOf("DOMAIN-SUFFIX,example.com,DIRECT", "DOMAIN,api.example.com,KIYORI_APP_PROXY"), sanitized.rules)
+        assertEquals(2, sanitized.summary.ruleCount)
+        assertEquals(1, sanitized.summary.unsupportedRuleCount)
+        val runtime =
+            MihomoConfigSanitizer.buildRuntimeConfig(
+                sanitizedYaml = sanitized.yaml,
+                mixedPort = 31001,
+                controllerPort = 31002,
+                controllerSecret = "controller-secret",
+                testUrl = KiyoriNetworkProxyConfig.DEFAULT_TEST_URL,
+                routingMode = KiyoriNetworkConnectionMode.RULE,
+                customRules =
+                    listOf(
+                        KiyoriNetworkProxyRule(
+                            id = "rule-1",
+                            pattern = "*.example.com",
+                            mode = KiyoriNetworkRuleMode.DIRECT,
+                        ),
+                    ),
+            )
+        val customIndex = runtime.yaml.indexOf("DOMAIN-SUFFIX,example.com,DIRECT")
+        val subscriptionIndex = runtime.yaml.indexOf("DOMAIN-SUFFIX,example.com,DIRECT", customIndex + 1)
+        assertTrue(customIndex >= 0)
+        assertTrue(subscriptionIndex > customIndex)
+    }
+
+    @Test
     fun `dns sanitizer removes external geodata and rule set dependencies`() {
         val sanitized =
             MihomoConfigSanitizer.sanitize(

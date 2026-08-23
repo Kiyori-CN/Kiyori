@@ -194,6 +194,65 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
     suspend fun replaceConfig(config: KiyoriNetworkProxyConfig): KiyoriNetworkProxyConfig =
         updateConfig { config }
 
+    suspend fun addCustomRule(
+        pattern: String,
+        mode: KiyoriNetworkRuleMode,
+    ): KiyoriNetworkProxyRule =
+        mutationMutex.withLock {
+            val now = System.currentTimeMillis()
+            val rule =
+                KiyoriNetworkProxyRule(
+                    id = UUID.randomUUID().toString(),
+                    pattern = pattern.trim().lowercase(),
+                    mode = mode,
+                    createdAtEpochMillis = now,
+                    updatedAtEpochMillis = now,
+                )
+            val updated = persistConfig { current -> current.copy(customRules = current.customRules + rule) }
+            reconcileSavedConfig(updated)
+            rule
+        }
+
+    suspend fun updateCustomRule(
+        ruleId: String,
+        pattern: String,
+        mode: KiyoriNetworkRuleMode,
+        enabled: Boolean,
+    ): KiyoriNetworkProxyRule =
+        mutationMutex.withLock {
+            val current = currentConfig()
+            val existing = current.customRules.firstOrNull { it.id == ruleId }
+                ?: throw KiyoriNetworkException(
+                    KiyoriNetworkErrorCode.CONFIG_INVALID,
+                    "The selected custom rule no longer exists.",
+                )
+            val updatedRule = existing.copy(
+                pattern = pattern.trim().lowercase(),
+                mode = mode,
+                enabled = enabled,
+                updatedAtEpochMillis = System.currentTimeMillis(),
+            )
+            val updated = persistConfig {
+                it.copy(customRules = it.customRules.map { rule -> if (rule.id == ruleId) updatedRule else rule })
+            }
+            reconcileSavedConfig(updated)
+            updatedRule
+        }
+
+    suspend fun removeCustomRule(ruleId: String): KiyoriNetworkProxyConfig =
+        mutationMutex.withLock {
+            val current = currentConfig()
+            if (current.customRules.none { it.id == ruleId }) {
+                throw KiyoriNetworkException(
+                    KiyoriNetworkErrorCode.CONFIG_INVALID,
+                    "The selected custom rule no longer exists.",
+                )
+            }
+            val updated = persistConfig { it.copy(customRules = it.customRules.filterNot { rule -> rule.id == ruleId }) }
+            reconcileSavedConfig(updated)
+            updated
+        }
+
     suspend fun reconcileEnabledState(
         config: KiyoriNetworkProxyConfig? = null,
     ) = mutationMutex.withLock {
@@ -219,12 +278,17 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                     config = config,
                     isSystemVpnActive = isSystemVpnActive(),
                 )
-            val endpoint = runtime.ensureReady(subscription, config.testUrl)
+            val endpoint = runtime.ensureReady(
+                subscription,
+                config.testUrl,
+                KiyoriNetworkProxyPolicy.runtimeMode(config),
+                config.customRules,
+            )
             if (
                 KiyoriNetworkProxyPolicy.effectiveModuleMode(
                     config,
                     KiyoriNetworkModule.BROWSER,
-                ) == KiyoriNetworkConnectionMode.PROXY
+                ) != KiyoriNetworkConnectionMode.DIRECT
             ) {
                 setWebViewProxy(endpoint, config.proxyPrivateNetworks)
             } else {
@@ -269,7 +333,12 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
         }
         val subscription =
             KiyoriNetworkProxyPolicy.validateEmbeddedStart(config, isSystemVpnActive())
-        val endpoint = runtime.ensureReady(subscription, config.testUrl)
+        val endpoint = runtime.ensureReady(
+            subscription,
+            config.testUrl,
+            KiyoriNetworkProxyPolicy.runtimeMode(config),
+            config.customRules,
+        )
         val client =
             OkHttpClient.Builder()
                 .proxy(endpoint.toJavaProxy())
@@ -377,7 +446,12 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                             KiyoriNetworkErrorCode.CONFIG_MISSING,
                             "No active Clash or Mihomo subscription has been selected.",
                         )
-                val endpoint = runtime.ensureReady(subscription, config.testUrl)
+                val endpoint = runtime.ensureReady(
+                    subscription,
+                    config.testUrl,
+                    KiyoriNetworkProxyPolicy.runtimeMode(config),
+                    config.customRules,
+                )
                 val state = runtimeState.value
                 proxyLog.info(
                     "路由解析",
@@ -950,7 +1024,12 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
     ): KiyoriProxyEndpoint? {
         if (!KiyoriNetworkProxyPolicy.requiresEmbeddedProxy(config)) return null
         val active = KiyoriNetworkProxyPolicy.validateEmbeddedStart(config, isSystemVpnActive())
-        return runtime.ensureReady(active, config.testUrl)
+        return runtime.ensureReady(
+            active,
+            config.testUrl,
+            KiyoriNetworkProxyPolicy.runtimeMode(config),
+            config.customRules,
+        )
     }
 
     private fun buildImportedSubscription(
@@ -988,6 +1067,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
             usage = sanitized.usage,
             selectedGroupItems = selectedGroups,
             nodeTests = emptyList(),
+            rules = sanitized.rules,
         )
     }
 
@@ -1359,7 +1439,10 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
         val config = runCatching { currentConfig() }.getOrNull() ?: return "UNKNOWN"
         return when (KiyoriNetworkProxyPolicy.effectiveMode(config, module)) {
             KiyoriNetworkConnectionMode.DIRECT -> "DIRECT"
-            KiyoriNetworkConnectionMode.PROXY -> "PROXY"
+            KiyoriNetworkConnectionMode.RULE -> "RULE"
+            KiyoriNetworkConnectionMode.GLOBAL,
+            KiyoriNetworkConnectionMode.PROXY,
+            -> "PROXY"
         }
     }
 

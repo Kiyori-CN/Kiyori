@@ -326,11 +326,13 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
     suspend fun ensureReady(
         config: KiyoriProxySubscription,
         testUrl: String,
+        routingMode: KiyoriNetworkConnectionMode = KiyoriNetworkConnectionMode.GLOBAL,
+        customRules: List<KiyoriNetworkProxyRule> = emptyList(),
     ): KiyoriProxyEndpoint {
         awaitStartupCleanup()
         return withContext(Dispatchers.IO) {
             mutex.withLock {
-                val active = startOrReuseLocked(config, testUrl)
+                val active = startOrReuseLocked(config, testUrl, routingMode, customRules)
                 if (active.appliedSelections != config.selectedGroupItems) {
                     applySelectionsLocked(active, config.selectedGroupItems)
                     active.appliedSelections = config.selectedGroupItems
@@ -528,6 +530,8 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
     private suspend fun startOrReuseLocked(
         config: KiyoriProxySubscription,
         testUrl: String,
+        routingMode: KiyoriNetworkConnectionMode,
+        customRules: List<KiyoriNetworkProxyRule>,
     ): ActiveRuntime {
         if (config.sanitizedYaml.isBlank()) {
             throw KiyoriNetworkException(
@@ -535,7 +539,14 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                 "No Clash or Mihomo subscription has been imported.",
             )
         }
-        val fingerprint = sha256(config.id + '\u0000' + config.sanitizedYaml + '\u0000' + testUrl)
+        val fingerprint =
+            sha256(
+                config.id + '\u0000' + config.sanitizedYaml + '\u0000' + testUrl +
+                    '\u0000' + routingMode.name + '\u0000' +
+                    customRules.joinToString("\u0001") { rule ->
+                        "${rule.id}:${rule.pattern}:${rule.mode.name}:${rule.enabled}"
+                    },
+            )
         activeRuntime?.let { active ->
             if (active.process.isAlive && active.fingerprint == fingerprint) {
                 val health = inspectRuntimeHealth(active)
@@ -577,7 +588,15 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         return try {
             val active =
                 withContext(Dispatchers.IO) {
-                    startProcess(config, testUrl, fingerprint, runtimeDirectory, "runtime")
+                    startProcess(
+                        config = config,
+                        testUrl = testUrl,
+                        fingerprint = fingerprint,
+                        workDirectory = runtimeDirectory,
+                        directoryLabel = "runtime",
+                        routingMode = routingMode,
+                        customRules = customRules,
+                    )
                 }
             activeRuntime = active
             monitorProcess(active)
@@ -608,6 +627,8 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         fingerprint: String,
         workDirectory: File,
         directoryLabel: String,
+        routingMode: KiyoriNetworkConnectionMode = KiyoriNetworkConnectionMode.GLOBAL,
+        customRules: List<KiyoriNetworkProxyRule> = emptyList(),
     ): ActiveRuntime {
         val nativeDirectory = File(appContext.applicationInfo.nativeLibraryDir)
         val core = nativeDirectory.resolve(CORE_FILE_NAME)
@@ -632,6 +653,8 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                 controllerPort = controllerPort,
                 controllerSecret = secret,
                 testUrl = testUrl,
+                routingMode = routingMode,
+                customRules = customRules,
             )
         val configFile = workDirectory.resolve(CONFIG_FILE_NAME)
         configFile.writeText(runtimeConfig.yaml, Charsets.UTF_8)

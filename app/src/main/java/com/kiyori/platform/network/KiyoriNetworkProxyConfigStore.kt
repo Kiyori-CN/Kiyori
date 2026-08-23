@@ -147,10 +147,11 @@ class KiyoriNetworkProxyConfigStore private constructor(context: Context) {
         }
         return try {
             val plaintext = decrypt(atomicFile.readFully())
-            val config =
+            val decoded =
                 json.decodeFromString<KiyoriNetworkProxyConfig>(
                     plaintext.toString(Charsets.UTF_8),
                 )
+            val config = migrateConfig(decoded)
             KiyoriNetworkProxyPolicy.validateSchema(config)
             KiyoriNetworkProxyStoreState.Ready(config)
         } catch (error: Exception) {
@@ -160,6 +161,17 @@ class KiyoriNetworkProxyConfigStore private constructor(context: Context) {
             )
         }
     }
+
+    private fun migrateConfig(config: KiyoriNetworkProxyConfig): KiyoriNetworkProxyConfig =
+        when (config.schemaVersion) {
+            KiyoriNetworkProxyConfig.CURRENT_SCHEMA_VERSION -> config
+            2 ->
+                config.copy(
+                    schemaVersion = KiyoriNetworkProxyConfig.CURRENT_SCHEMA_VERSION,
+                    customRules = emptyList(),
+                )
+            else -> config
+        }
 
     private fun reloadIfChangedLocked() {
         val currentFileState = readFileState()
