@@ -7,6 +7,12 @@ import org.junit.Test
 
 class KiyoriNetworkProxySettingsPolicyTest {
     @Test
+    fun `node page uses final title and two header action slots`() {
+        assertEquals("节点选择", NETWORK_PROXY_NODE_SELECTION_TITLE)
+        assertEquals(96, NETWORK_PROXY_HEADER_ACTION_WIDTH_DP)
+    }
+
+    @Test
     fun `default order keeps subscription order`() {
         val nodes = listOf(node("Beta"), node("Alpha"), node("Gamma"))
 

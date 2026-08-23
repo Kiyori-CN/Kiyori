@@ -446,6 +446,22 @@ Kiyori App Shell 的设置 route callback 以 `AI_HOST` 来源打开
 最后审阅精确 diff、敏感内容、子模块/产物和 `main` 远端 ref，再提交推送。真机 UI、真实节点连通性、
 系统 VPN 并存和进程生命周期继续单独保持 `verification_pending`。
 
+### 2026-08-23 节点页标题栏真机反馈修复
+
+真机截图确认节点入口已经显示“节点选择”，但子页大标题仍显示“当前节点”，且标题栏只显示测速按钮。
+源码核对确认两个问题互相独立：子页标题仍取 `NetworkProxyPageSection.CURRENT_NODE` 的旧显示值；
+排序按钮已经接入，但共享折叠标题栏把整个 `headerAction` 固定限制在单按钮 `48dp` 宽度，两个按钮中的
+第二个被父容器裁剪。
+
+本轮保留内部 `CURRENT_NODE` 路由标识，只把用户可见标题绑定到唯一“节点选择”术语；共享标题栏增加
+显式操作区宽度合同，默认单按钮页面继续使用 `48dp`，网络代理页使用 `96dp` 并同步扩大标题右侧留白，
+使测速和排序各自拥有稳定的 `48dp` 点击区域。排序菜单和既有“默认、名称、延迟”逻辑不建立第二状态
+owner，也不改变节点测速、路由或持久化行为。
+
+定向 `KiyoriSettingsPagesTest` 与 `KiyoriNetworkProxySettingsPolicyTest` 合计 `23/23` 通过，
+`compileDebugKotlin`、正式开发准备检查和 `git diff --check` 均通过；标题栏的无操作、单按钮、双按钮
+右侧留白分别固定为 `16dp`、`64dp`、`112dp`。最终用户可见布局仍需使用本轮 Debug APK 在目标设备复测。
+
 ## 真机验收
 
 1. 外部 Clash 关闭：从本地 YAML 首次导入，开启 Kiyori 代理，Google、DuckDuckGo、Brave 与

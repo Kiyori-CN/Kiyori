@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.ui.main.shell
 
+import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadNetworkPolicy
@@ -131,6 +132,9 @@ class KiyoriSettingsPagesTest {
         assertEquals(56f, pinned.titleStartDp, 0.0001f)
         assertEquals(16f, pinned.titleTopDp, 0.0001f)
         assertEquals(20f, pinned.titleFontSizeSp, 0.0001f)
+        assertEquals(16.dp, calculateKiyoriSettingsHeaderTitleEndPadding(null))
+        assertEquals(64.dp, calculateKiyoriSettingsHeaderTitleEndPadding(48.dp))
+        assertEquals(112.dp, calculateKiyoriSettingsHeaderTitleEndPadding(96.dp))
         assertEquals(16, KIYORI_SETTINGS_ROW_VERTICAL_PADDING_DP)
         assertEquals(26, KIYORI_SETTINGS_SELECTION_CORNER_RADIUS_DP)
         assertEquals(56, KIYORI_SETTINGS_SELECTION_OPTION_MIN_HEIGHT_DP)

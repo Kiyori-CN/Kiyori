@@ -38,6 +38,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -85,6 +86,15 @@ internal fun calculateKiyoriSettingsHeaderFrame(
     )
 }
 
+internal fun calculateKiyoriSettingsHeaderTitleEndPadding(
+    headerActionWidth: Dp?,
+): Dp {
+    require(headerActionWidth == null || headerActionWidth > 0.dp) {
+        "headerActionWidth must be positive when an action is present"
+    }
+    return if (headerActionWidth == null) 16.dp else headerActionWidth + 16.dp
+}
+
 @Composable
 internal fun KiyoriCollapsingSettingsPage(
     title: String,
@@ -92,6 +102,7 @@ internal fun KiyoriCollapsingSettingsPage(
     modifier: Modifier = Modifier,
     navigationIcon: KiyoriSettingsNavigationIcon = KiyoriSettingsNavigationIcon.BACK,
     headerAction: (@Composable () -> Unit)? = null,
+    headerActionWidth: Dp = 48.dp,
     content: LazyListScope.() -> Unit,
 ) {
     KiyoriSettingsTheme {
@@ -100,6 +111,7 @@ internal fun KiyoriCollapsingSettingsPage(
             onBack = onBack,
             navigationIcon = navigationIcon,
             headerAction = headerAction,
+            headerActionWidth = headerActionWidth,
             modifier = modifier,
             content = content,
         )
@@ -112,6 +124,7 @@ private fun KiyoriCollapsingSettingsPageContent(
     onBack: () -> Unit,
     navigationIcon: KiyoriSettingsNavigationIcon,
     headerAction: (@Composable () -> Unit)?,
+    headerActionWidth: Dp,
     modifier: Modifier,
     content: LazyListScope.() -> Unit,
 ) {
@@ -163,6 +176,7 @@ private fun KiyoriCollapsingSettingsPageContent(
             onBack = onBack,
             navigationIcon = navigationIcon,
             headerAction = headerAction,
+            headerActionWidth = headerActionWidth,
             statusBarHeight = statusBarHeight,
             frame = headerFrame,
             modifier = Modifier.zIndex(1f),
@@ -194,6 +208,7 @@ private fun KiyoriCollapsingSettingsHeader(
     onBack: () -> Unit,
     navigationIcon: KiyoriSettingsNavigationIcon,
     headerAction: (@Composable () -> Unit)?,
+    headerActionWidth: Dp,
     statusBarHeight: androidx.compose.ui.unit.Dp,
     frame: KiyoriCollapsingSettingsHeaderFrame,
     modifier: Modifier = Modifier,
@@ -243,7 +258,10 @@ private fun KiyoriCollapsingSettingsHeader(
                     .fillMaxWidth()
                     .padding(
                         start = frame.titleStartDp.dp,
-                        end = if (headerAction == null) 16.dp else 64.dp,
+                        end =
+                            calculateKiyoriSettingsHeaderTitleEndPadding(
+                                headerActionWidth.takeIf { headerAction != null },
+                            ),
                     )
                     .offset(y = statusBarHeight + frame.titleTopDp.dp)
                     .semantics { heading() },
@@ -254,7 +272,7 @@ private fun KiyoriCollapsingSettingsHeader(
                     Modifier
                         .align(Alignment.TopEnd)
                         .offset(x = (-8).dp, y = statusBarHeight + 4.dp)
-                        .size(48.dp),
+                        .size(width = headerActionWidth, height = 48.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 headerAction()

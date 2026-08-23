@@ -118,12 +118,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private const val TAG = "KiyoriNetworkProxyPage"
+internal const val NETWORK_PROXY_NODE_SELECTION_TITLE = "节点选择"
+internal const val NETWORK_PROXY_HEADER_ACTION_WIDTH_DP = 96
 
 private enum class NetworkProxyPageSection(
     val title: String,
 ) {
     OVERVIEW("网络代理"),
-    CURRENT_NODE("当前节点"),
+    CURRENT_NODE(NETWORK_PROXY_NODE_SELECTION_TITLE),
     SUBSCRIPTIONS("订阅管理"),
     MODULES("模块连接模式"),
     SCRIPTS("逐脚本连接模式"),
@@ -420,6 +422,7 @@ internal fun KiyoriNetworkProxySettingsPage(
                 if (pageSection == NetworkProxyPageSection.OVERVIEW) onBack() else pageSection = NetworkProxyPageSection.OVERVIEW
             },
             modifier = modifier,
+            headerActionWidth = NETWORK_PROXY_HEADER_ACTION_WIDTH_DP.dp,
             headerAction = {
                 if (
                     pageSection == NetworkProxyPageSection.CURRENT_NODE &&
@@ -571,7 +574,7 @@ internal fun KiyoriNetworkProxySettingsPage(
                             }
                         } ?: "选择当前订阅中的策略组和节点"
                     KiyoriSettingsRow(
-                        title = "节点选择",
+                        title = NETWORK_PROXY_NODE_SELECTION_TITLE,
                         description = nodeSelectionDescription,
                         kind = KiyoriSettingsRowKind.NAVIGATION,
                         icon = Icons.Default.Speed,
@@ -742,7 +745,7 @@ internal fun KiyoriNetworkProxySettingsPage(
             item(key = "network_proxy_current_node") {
                 val subscription = sectionSubscription
                 KiyoriSettingsGroupSection(
-                    title = subscription?.displayName ?: "节点选择",
+                    title = subscription?.displayName ?: NETWORK_PROXY_NODE_SELECTION_TITLE,
                     description = subscription?.let { "${subscriptionSourceLabel(it)} · ${subscriptionDescription(it)}" }
                         ?: "请先在订阅管理中导入并切换一份 Clash / Mihomo 订阅。",
                 ) {
