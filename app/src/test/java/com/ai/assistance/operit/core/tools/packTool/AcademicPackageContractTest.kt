@@ -70,6 +70,8 @@ class AcademicPackageContractTest {
                             "api_key",
                             "configuredValue(\"PUBMED_API_KEY\")",
                             "tool: \"Kiyori\"",
+                            "NCBI rejected PUBMED_API_KEY as invalid",
+                            "clear the optional value",
                         ),
                 ),
             "semantic_scholar_search" to

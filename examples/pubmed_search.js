@@ -12,7 +12,7 @@
   "env": [
     {
       "name": "PUBMED_API_KEY",
-      "description": { "zh": "可选 NCBI API Key；配置后使用官方提高的请求额度。", "en": "Optional NCBI API key for the official higher request-rate allowance." },
+      "description": { "zh": "可选 NCBI API Key；无 Key 使用官方基础额度，配置错误的 Key 会被 NCBI 拒绝。", "en": "Optional NCBI API key; requests use the official base allowance without one, while NCBI rejects an invalid configured key." },
       "required": false
     },
     {
@@ -80,15 +80,33 @@ const PubMedSearch = (function () {
             result.email = email;
         if (apiKey)
             result.api_key = apiKey;
-        return result;
+        return { params: result, apiKeyConfigured: apiKey !== "" };
+    }
+    function failureMessage(response, apiKeyConfigured) {
+        const statusMessage = response.statusMessage.trim();
+        const status = statusMessage ? `HTTP ${response.statusCode} ${statusMessage}` : `HTTP ${response.statusCode}`;
+        const genericMessage = `PubMed request failed: ${status}`;
+        if (response.statusCode !== 400 || !apiKeyConfigured)
+            return genericMessage;
+        try {
+            const payload = response.json();
+            if (typeof payload.error === "string" && payload.error.trim().toLowerCase() === "api key invalid") {
+                return `${genericMessage}. NCBI rejected PUBMED_API_KEY as invalid; update it or clear the optional value to use the official unauthenticated request allowance.`;
+            }
+        }
+        catch (error) {
+            console.error(`pubmed_search could not parse the NCBI error response: ${errorText(error)}`);
+        }
+        return genericMessage;
     }
     async function requestJson(path, params) {
-        const response = await client.get(`${BASE_URL}/${path}?${encodeQuery(requestParams(params))}`, {
+        const request = requestParams(params);
+        const response = await client.get(`${BASE_URL}/${path}?${encodeQuery(request.params)}`, {
             Accept: "application/json",
             "User-Agent": "Kiyori/0.1.0 (https://github.com/Kiyori-CN/Kiyori)",
         });
         if (!response.isSuccessful()) {
-            return { success: false, message: `PubMed request failed: HTTP ${response.statusCode} ${response.statusMessage}`, statusCode: response.statusCode };
+            return { success: false, message: failureMessage(response, request.apiKeyConfigured), statusCode: response.statusCode };
         }
         return response.json();
     }

@@ -2,7 +2,7 @@
 
 ## 1. 状态与任务契约
 
-- 当前状态：`IMPLEMENTATION VERIFIED`
+- 当前状态：`IMPLEMENTATION VERIFIED; DEVICE RETEST PENDING`
 - 目标：在“扩展 -> 脚本”中新增 `Academic` 学术学习分组，使用独立图标和明暗配色，并提供
   arXiv、Crossref、PubMed、Semantic Scholar、OpenAlex 五个官方 API 脚本。
 - 分组命名决策：使用 `Academic`。它能覆盖预印本、DOI 元数据、生物医学索引、学术图谱和开放学术
@@ -85,6 +85,13 @@ Key 仅提升请求额度的官方契约。以上日志只记录状态和结构�
 - `check_formal_readiness.py --repository . --require-main` 与 `git diff --check` 通过。
 - 五源官方 HTTP 搜索/详情和生成脚本适配运行通过；Semantic Scholar 的成功与 429 证据按第 3 节边界
   解释，不把外部额度状态写成永久可用保证。
+- 2026-08-23 真机 AI 审计中，`pubmed_search:search` 的复杂检索、最简检索和
+  `pubmed_search:get_articles` 均返回 HTTP 400；同一设备通过通用 HTTP 工具直接请求无 Key 的
+  ESearch/ESummary 均为 HTTP 200。结合最初 Key 被 NCBI 判定无效、更新 Key 在直连/代理/生成脚本
+  适配器中均为 HTTP 200 的证据，根因范围收敛到设备当前的 `PUBMED_API_KEY` 配置，最可能是仍保存
+  失效值。脚本现会
+  解析 NCBI 的结构化 `API key invalid` 响应，并明确要求更新或清空可选 Key；不会静默忽略凭据或
+  自动重复请求。审计按安全设计不导出环境变量值，新 APK 仍需在设备更新配置后复测。
 - `:app:assembleDebug --no-daemon --console=plain` 通过 235 个任务；APK 为 `com.kiyori 0.1.0 (45)`，
   V2 单签名、16 KB ZIP 对齐通过，6 个相关脚本在 APK 中各一份且与源码 assets 哈希一致。
 
@@ -96,4 +103,5 @@ Key 仅提升请求额度的官方契约。以上日志只记录状态和结构�
 | TypeScript 编译与同步 | examples/assets 无漂移 | 不等同于设备安装 |
 | 官方 HTTP | 五源搜索和详情按脚本实际参数解析最小成功结构；三项凭据均取得成功响应 | 凭据额度、出口和外部限流随时间变化；Semantic Scholar 连续调用可能返回 429 |
 | Debug APK | 构建成功且 assets 打包 | 不等同于真机视觉/交互验收 |
+| 真机 PubMed | 失效 Key 的 HTTP 400 可定位为明确配置错误；更新或清空 Key 后搜索与详情均成功 | 新 APK 与设备配置组合仍待用户复测 |
 | Git 交付 | 只提交本任务文件，`main` 三方一致 | 不启用远端 Actions、不做 Release |
