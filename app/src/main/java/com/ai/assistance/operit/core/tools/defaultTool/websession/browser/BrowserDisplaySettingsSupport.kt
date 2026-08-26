@@ -3,20 +3,53 @@ package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 import android.webkit.WebSettings
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 
+internal const val BROWSER_FORCE_PAGE_ZOOM_MIN_SCALE = "0.1"
+
+internal fun shouldUseBrowserOverviewMode(
+    usesDesktopLayout: Boolean,
+    forcePageZoomEnabled: Boolean,
+    viewportWidthCssPx: Int?,
+): Boolean =
+    usesDesktopLayout &&
+        viewportWidthCssPx == null &&
+        !forcePageZoomEnabled
+
+internal fun StandardBrowserSessionTools.isForcePageZoomEnabledForPage(
+    domainOrUrl: String,
+): Boolean {
+    val settings = browserSettingsStore.current
+    return resolveWebSessionSiteFeatureEnabled(
+        settings = settings,
+        domainOrUrl = domainOrUrl,
+        feature = WebSessionSiteFeature.FORCE_PAGE_ZOOM,
+        globalEnabled = settings.forcePageZoomEnabled,
+    )
+}
+
+internal fun StandardBrowserSessionTools.applyBrowserViewportSettings(
+    session: BrowserToolSession,
+    domainOrUrl: String = session.currentUrl,
+) {
+    val forcePageZoomEnabled = isForcePageZoomEnabledForPage(domainOrUrl)
+    with(session.webView.settings) {
+        useWideViewPort = session.usesDesktopUserAgentLayout && session.viewportWidthCssPx == null
+        loadWithOverviewMode =
+            shouldUseBrowserOverviewMode(
+                usesDesktopLayout = session.usesDesktopUserAgentLayout,
+                forcePageZoomEnabled = forcePageZoomEnabled,
+                viewportWidthCssPx = session.viewportWidthCssPx,
+            )
+    }
+}
+
 internal fun StandardBrowserSessionTools.applyBrowserDisplaySettingsOnMain() {
     val settings = browserSettingsStore.current
     StandardBrowserSessionTools.sessions.values.forEach { session ->
         session.webView.settings.textZoom = settings.webTextZoomPercent
+        applyBrowserViewportSettings(session)
         if (session.pageLoaded) {
-            val forcePageZoomEnabled =
-                resolveWebSessionSiteFeatureEnabled(
-                    settings = settings,
-                    domainOrUrl = session.currentUrl,
-                    feature = WebSessionSiteFeature.FORCE_PAGE_ZOOM,
-                    globalEnabled = settings.forcePageZoomEnabled,
-                )
             session.webView.evaluateJavascript(
-                browserForcePageZoomScript(forcePageZoomEnabled),
+                browserForcePageZoomScript(isForcePageZoomEnabledForPage(session.currentUrl)),
                 null,
             )
         }
@@ -29,15 +62,9 @@ internal fun StandardBrowserSessionTools.applyBrowserDisplaySettingsOnPage(
 ) {
     val settings = browserSettingsStore.current
     session.webView.settings.textZoom = settings.webTextZoomPercent
-    val forcePageZoomEnabled =
-        resolveWebSessionSiteFeatureEnabled(
-            settings = settings,
-            domainOrUrl = session.currentUrl,
-            feature = WebSessionSiteFeature.FORCE_PAGE_ZOOM,
-            globalEnabled = settings.forcePageZoomEnabled,
-        )
+    applyBrowserViewportSettings(session)
     session.webView.evaluateJavascript(
-        browserForcePageZoomScript(forcePageZoomEnabled),
+        browserForcePageZoomScript(isForcePageZoomEnabledForPage(session.currentUrl)),
         null,
     )
 }
@@ -135,9 +162,12 @@ private val BROWSER_FORCE_PAGE_ZOOM_SCRIPT_TEMPLATE =
           .filter((part) => part.length > 0)
           .filter((part) => {
             const key = part.split("=")[0].trim().toLowerCase();
-            return key !== "user-scalable" && key !== "maximum-scale";
+            return key !== "user-scalable" &&
+              key !== "minimum-scale" &&
+              key !== "maximum-scale";
           });
         directives.push("user-scalable=yes");
+        directives.push("minimum-scale=${BROWSER_FORCE_PAGE_ZOOM_MIN_SCALE}");
         directives.push("maximum-scale=10.0");
         return directives.join(", ");
       };

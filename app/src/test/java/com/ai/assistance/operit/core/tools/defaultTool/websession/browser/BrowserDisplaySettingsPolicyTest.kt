@@ -42,6 +42,8 @@ class BrowserDisplaySettingsPolicyTest {
         val disabled = browserForcePageZoomScript(enabled = false)
 
         assertTrue(enabled.contains("user-scalable=yes"))
+        assertTrue(enabled.contains("key !== \"minimum-scale\""))
+        assertTrue(enabled.contains("minimum-scale=$BROWSER_FORCE_PAGE_ZOOM_MIN_SCALE"))
         assertTrue(enabled.contains("maximum-scale=10.0"))
         assertTrue(enabled.contains("MutationObserver"))
         assertTrue(enabled.contains("observer.disconnect()"))
@@ -51,5 +53,37 @@ class BrowserDisplaySettingsPolicyTest {
         assertTrue(disabled.contains("if (!false)"))
         assertTrue(disabled.contains("previous.dispose()"))
         assertFalse(enabled.contains("location.reload"))
+    }
+
+    @Test
+    fun `desktop overview is disabled only while forced page zoom is enabled`() {
+        assertFalse(
+            shouldUseBrowserOverviewMode(
+                usesDesktopLayout = true,
+                forcePageZoomEnabled = true,
+                viewportWidthCssPx = null,
+            ),
+        )
+        assertTrue(
+            shouldUseBrowserOverviewMode(
+                usesDesktopLayout = true,
+                forcePageZoomEnabled = false,
+                viewportWidthCssPx = null,
+            ),
+        )
+        assertFalse(
+            shouldUseBrowserOverviewMode(
+                usesDesktopLayout = false,
+                forcePageZoomEnabled = true,
+                viewportWidthCssPx = null,
+            ),
+        )
+        assertFalse(
+            shouldUseBrowserOverviewMode(
+                usesDesktopLayout = true,
+                forcePageZoomEnabled = false,
+                viewportWidthCssPx = 900,
+            ),
+        )
     }
 }

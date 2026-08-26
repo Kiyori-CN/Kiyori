@@ -483,7 +483,11 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 super.onPageStarted(view, url, favicon)
                 // Redirects do not pass through navigateSessionOnMain; update before their
                 // subresources inherit the previous page's site-specific identity.
-                applySessionUserAgent(session, resolveSessionUserAgent(session, url))
+                applySessionUserAgent(
+                    session,
+                    resolveSessionUserAgent(session, url),
+                    targetUrl = url,
+                )
                 if (
                     shouldClearBrowserSearchRecoveryOnNavigation(
                         pageLoaded = session.pageLoaded,
@@ -591,6 +595,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
                     applySessionUserAgent(
                         session,
                         resolveSessionUserAgent(session, uri.toString()),
+                        targetUrl = uri.toString(),
                     )
                 }
                 return handleNavigationOverrideOnMain(request, session)
@@ -1870,7 +1875,11 @@ internal fun StandardBrowserSessionTools.navigateSessionOnMain(
         } else {
             session.browserHomeNavigationState.cancelPending()
         }
-    applySessionUserAgent(session, resolveSessionUserAgent(session, targetUrl))
+    applySessionUserAgent(
+        session,
+        resolveSessionUserAgent(session, targetUrl),
+        targetUrl = targetUrl,
+    )
     session.pageLoaded = false
     session.isLoading = true
     session.currentUrl = targetUrl
@@ -1960,7 +1969,11 @@ private fun StandardBrowserSessionTools.applyHistoryTargetUserAgent(
     // leaving's site rule, which can trigger the version-redirect loop this setting prevents.
     val history = session.webView.copyBackForwardList()
     val target = history.getItemAtIndex(history.currentIndex + delta) ?: return
-    applySessionUserAgent(session, resolveSessionUserAgent(session, target.url))
+    applySessionUserAgent(
+        session,
+        resolveSessionUserAgent(session, target.url),
+        targetUrl = target.url,
+    )
 }
 
 private fun StandardBrowserSessionTools.completeBrowserHomeNavigationOnMain(
@@ -2400,25 +2413,18 @@ internal fun StandardBrowserSessionTools.resolveSessionUserAgent(
 internal fun StandardBrowserSessionTools.applySessionUserAgent(
     session: BrowserToolSession,
     resolvedUserAgent: WebSessionResolvedUserAgent,
+    targetUrl: String = session.currentUrl,
 ) {
     session.usesDesktopUserAgentLayout = resolvedUserAgent.usesDesktopLayout
-    with(session.webView.settings) {
-        userAgentString = resolvedUserAgent.userAgent
-        useWideViewPort =
-            resolvedUserAgent.usesDesktopLayout && session.viewportWidthCssPx == null
-        loadWithOverviewMode =
-            resolvedUserAgent.usesDesktopLayout && session.viewportWidthCssPx == null
-    }
+    session.webView.settings.userAgentString = resolvedUserAgent.userAgent
     session.appliedUserAgent = resolvedUserAgent.userAgent
+    applyBrowserViewportSettings(session, domainOrUrl = targetUrl)
 }
 
 internal fun StandardBrowserSessionTools.applyViewportOverride(session: BrowserToolSession) {
     val requestedWidth = session.viewportWidthCssPx
     val requestedHeight = session.viewportHeightCssPx
-    session.webView.settings.useWideViewPort =
-        session.usesDesktopUserAgentLayout && requestedWidth == null
-    session.webView.settings.loadWithOverviewMode =
-        session.usesDesktopUserAgentLayout && requestedWidth == null
+    applyBrowserViewportSettings(session)
     browserHost?.setViewportSize(requestedWidth, requestedHeight)
     session.webView.requestLayout()
 }

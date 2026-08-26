@@ -7,6 +7,21 @@ For_Agent: 对项目大规模动工前按本规范协作
 本文件顶部记录当前跨领域长期任务，后续段落保留专项实施与历史证据。历史段落中的分支、提交、
 APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观察点，不能替代当前 Git、构建或设备状态。
 
+## 2026-08-27 强制页面缩放的 PC UA 双指缩小修复
+
+状态：`IMPLEMENTATION VERIFIED / DEVICE VERIFICATION PENDING`。
+
+用户现场确认“设置 -> 网页浏览器 -> 强制页面缩放”在双指向外放大时正常，但在双指向内缩小、尤其是 PC UA 页面上，网页已经处于 WebView 的最低概览比例，继续缩小没有反应。本专项沿同一个 `StandardBrowserSessionTools` / `WebSession` / Android System WebView owner 研究，不创建第二套缩放状态或网页运行时。
+
+已确认的根因与设计边界：
+
+- `BrowserDisplaySettingsSupport.kt` 的 viewport 覆盖只移除 `user-scalable` 与 `maximum-scale`，保留网页自身的 `minimum-scale`；作者下限仍可限制 Chromium page scale。
+- `BrowserWebViewSupport.kt` 对桌面 UA 同时开启 `useWideViewPort` 与 `loadWithOverviewMode`。Android 官方定义 overview 为“按宽度缩出以适配屏幕”，Chromium 会据此把最低 page scale 提升到视口宽度与内容宽度之比；因此 PC UA 首帧可能已经在最低比例。
+- 修复同时移除 `minimum-scale` 并显式提供 `minimum-scale=0.1`；强制缩放打开时，桌面 UA 保留 `useWideViewPort=true` 以维持 PC 页面布局，但关闭 `loadWithOverviewMode`，使首帧不再抢占整个缩小区间。关闭强制缩放时恢复已有 desktop overview 行为。
+- Android、iPhone 等移动 UA 继续使用其响应式 viewport 适配；不会把 UA 改写成另一种设备身份、不会移除 `initial-scale`、不会通过刷新或 JS transform 伪造缩放。
+
+详细阶段、文件、风险和验收矩阵见 [`kiyori_browser_force_zoom/`](kiyori_browser_force_zoom/index.md)。本轮代码、定向测试和 Debug APK 属本地证据；真实 PC UA/Android 页面上的手势与视觉仍需目标设备复测，完成前保持 `verification_pending`。
+
 ## 2026-08-23 Academic 学术脚本分组与五源 API
 
 状态：`IMPLEMENTATION VERIFIED`。
