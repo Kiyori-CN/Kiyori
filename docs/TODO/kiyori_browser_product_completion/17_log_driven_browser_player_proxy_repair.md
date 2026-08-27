@@ -233,7 +233,7 @@ Parcelable 初始化必须拒绝空 target、未知 transport 和非法 header�
 - 架构合同：`ci.test.test_architecture_boundaries`，`109/109 OK`；真实 gate `PASS (phase=m03)`。
 - 正式准备：`check_formal_readiness.py --require-main`，`PASS`。
 - Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，`503669293` bytes，SHA-256
-  `5DF79861FEBF001EFC36AACF117B2FC3361B736EB9757EE6CB13D332C5F1F629`；Gradle 已通过
+  `6FCFF11D46CBD0F189EB7B7C2236A14A55007EA496266CF02AD41C42B5E15F2A`；Gradle 已通过
   `verifySingleDebugLauncher`、`verifyDebugPlayerRuntimePackaging`。
 
 APK 签名、16 KB ZIP/native 对齐、arm64 native closure、真实可用节点的 MP4/HLS Range/seek、
