@@ -37,6 +37,21 @@ internal data class PlayerRuntimeConfig(
     }
 }
 
+internal enum class PlayerRuntimeMediaTransport(
+    val persistedId: String,
+) {
+    DIRECT("direct"),
+    MAIN_PROCESS_PROXY_BRIDGE("main_process_proxy_bridge"),
+    LOCAL_DESCRIPTOR("local_descriptor"),
+    ;
+
+    companion object {
+        fun fromPersistedId(value: String): PlayerRuntimeMediaTransport =
+            entries.singleOrNull { it.persistedId == value }
+                ?: error("Unknown player media transport: $value")
+    }
+}
+
 @Parcelize
 internal data class PlayerRuntimeLoadRequest(
     val requestId: String,
@@ -44,10 +59,12 @@ internal data class PlayerRuntimeLoadRequest(
     val headers: Map<String, String>,
     val config: PlayerRuntimeConfig,
     val initialSpeed: Double,
+    val transportId: String = PlayerRuntimeMediaTransport.DIRECT.persistedId,
 ) : Parcelable {
     init {
         require(requestId.isNotBlank()) { "Player runtime request ID is blank" }
         require(uri.isNotBlank()) { "Player runtime URI is blank" }
+        PlayerRuntimeMediaTransport.fromPersistedId(transportId)
         require(isSupportedPlayerSpeed(initialSpeed)) {
             "Player runtime initial speed is invalid"
         }

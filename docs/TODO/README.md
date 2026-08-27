@@ -4,6 +4,19 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # Kiyori 开发任务与验证索引
 
+## 2026-08-27 日志驱动的浏览器、播放器与代理链路修复
+
+状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND DEBUG APK AUDIT COMPLETE / TARGET DEVICE VERIFICATION PENDING`。
+
+vivo Android 16 真机日志证明当前 Browser 媒体候选交给独立 `:player` 后，播放器进程重新创建了
+第二个 Mihomo runtime：主进程为 `mixedPort=40877`，`:player` 为 `mixedPort=42071`。同一时段
+目标节点对媒体域名返回 `503 Service Unavailable`，但 `PlayerMediaStreamBridge` 的异常路径只关闭
+socket，mpv 最终只能显示 EOF/`loading failed`。本轮方案把 `PLAYER` route 解析和 loopback bridge
+移回唯一主进程 `PlayerSession`；`:player` 只消费已解析 target，不读取代理配置、不启动 Mihomo。
+同时补齐 bridge HTTP 错误响应，以及 Browser candidate/handoff、Player request 与主进程 proxy
+generation 的脱敏关联。完整证据、边界、影响文件、风险、回滚点和验收矩阵见
+[`kiyori_browser_product_completion/17_log_driven_browser_player_proxy_repair.md`](kiyori_browser_product_completion/17_log_driven_browser_player_proxy_repair.md)。
+
 ## 2026-08-27 浏览器运行时诊断与菜单优化
 
 状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND DEBUG APK AUDIT COMPLETE / TARGET DEVICE VERIFICATION PENDING`。

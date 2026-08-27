@@ -15,27 +15,15 @@ import com.ai.assistance.operit.core.player.describePlayerMediaUriForDiagnostics
 import com.ai.assistance.operit.core.player.isSupportedPlayerSpeed
 import com.ai.assistance.operit.core.player.sanitizePlayerDiagnosticMessage
 import com.ai.assistance.operit.core.player.shortPlayerDiagnosticId
-import com.kiyori.platform.network.formatKiyoriMihomoRuntimeDiagnostic
-import com.kiyori.platform.network.KiyoriMihomoRuntimePhase
-import com.kiyori.platform.network.KiyoriNetworkProxyManager
 import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.math.roundToInt
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.launch
 
 internal class PlayerRuntimeService : Service() {
     private lateinit var runtimeThread: HandlerThread
     private lateinit var runtimeHandler: Handler
     private lateinit var thumbnailExecutor: ExecutorService
-    private val proxyRuntimeScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private var lastProxyRuntimeDiagnosticKey: String? = null
-    private var lastAppliedProxyRuntimeGeneration: Long? = null
 
     private var callback: IPlayerRuntimeCallback? = null
     private var callbackGeneration: Long = 0L
@@ -344,8 +332,25 @@ internal class PlayerRuntimeService : Service() {
                             "headerCount=${request.headers.size}",
                     )
                     val activeEngine = requireNotNull(engine) { "播放器运行时尚未初始化" }
-                    val resolver = requireNotNull(mediaResolver) { "媒体解析器尚未初始化" }
-                    val target = resolver.resolve(request.uri, request.headers)
+                    val transport = PlayerRuntimeMediaTransport.fromPersistedId(request.transportId)
+                    val target =
+                        when (transport) {
+                            PlayerRuntimeMediaTransport.LOCAL_DESCRIPTOR ->
+                                requireNotNull(mediaResolver) { "本地媒体解析器尚未初始化" }
+                                    .resolveLocal(request.uri)
+                            PlayerRuntimeMediaTransport.DIRECT -> {
+                                check(!isPlayerMediaProxyBridgeTarget(request.uri)) {
+                                    "直接媒体传输不能使用主进程 bridge URL"
+                                }
+                                request.uri
+                            }
+                            PlayerRuntimeMediaTransport.MAIN_PROCESS_PROXY_BRIDGE -> {
+                                check(isPlayerMediaProxyBridgeTarget(request.uri)) {
+                                    "主进程媒体 bridge URL 无效"
+                                }
+                                request.uri
+                            }
+                        }
                     currentLoadCommandId = commandId
                     currentMediaSource = target
                     lastMediaIdentitySnapshot = null
@@ -362,6 +367,7 @@ internal class PlayerRuntimeService : Service() {
                         requestId = request.requestId,
                         target = target,
                         headers = request.headers,
+                        transport = transport,
                         settings = request.config.toPlayerSettings(),
                         shaderFiles = request.config.shaderFiles,
                         initialSpeed = request.initialSpeed,
@@ -702,13 +708,11 @@ internal class PlayerRuntimeService : Service() {
             Executors.newSingleThreadExecutor { runnable ->
                 Thread(runnable, THUMBNAIL_THREAD_NAME).apply { isDaemon = true }
             }
-        startProxyRuntimeDiagnostics()
     }
 
     override fun onBind(intent: Intent?): IBinder = binder
 
     override fun onDestroy() {
-        proxyRuntimeScope.cancel()
         if (::runtimeHandler.isInitialized) {
             runtimeHandler.post {
                 closeRuntimeResources()
@@ -719,64 +723,6 @@ internal class PlayerRuntimeService : Service() {
             }
         }
         super.onDestroy()
-    }
-
-    private fun startProxyRuntimeDiagnostics() {
-        proxyRuntimeScope.launch {
-            KiyoriNetworkProxyManager.getInstance(applicationContext).runtimeState.collect { state ->
-                if (
-                    state.runtimeGeneration == null &&
-                        state.phase == KiyoriMihomoRuntimePhase.STOPPED &&
-                        state.message == null
-                ) {
-                    return@collect
-                }
-                runtimeHandler.post {
-                    val key =
-                        listOf(
-                            state.phase,
-                            state.runtimeGeneration,
-                            state.mixedPort,
-                            state.controllerPort,
-                            state.controllerHealthy,
-                            state.mixedPortListening,
-                            state.stopReason,
-                            state.failureKind,
-                            state.message,
-                        ).joinToString("|")
-                    if (key == lastProxyRuntimeDiagnosticKey) return@post
-                    lastProxyRuntimeDiagnosticKey = key
-                    val level =
-                        if (state.phase == KiyoriMihomoRuntimePhase.ERROR) {
-                            PlayerDebugLogLevel.ERROR
-                        } else {
-                            PlayerDebugLogLevel.INFO
-                        }
-                    emitDiagnostic(
-                        level,
-                        PROXY_RUNTIME_TAG,
-                        formatKiyoriMihomoRuntimeDiagnostic(state),
-                    )
-                    if (
-                        state.phase == KiyoriMihomoRuntimePhase.RUNNING &&
-                            state.runtimeGeneration != null &&
-                            state.runtimeGeneration != lastAppliedProxyRuntimeGeneration
-                    ) {
-                        engine?.let { activeEngine ->
-                            runCatching { activeEngine.refreshApplicationProxyRoute() }
-                                .onSuccess { lastAppliedProxyRuntimeGeneration = state.runtimeGeneration }
-                                .onFailure { error ->
-                                    emitDiagnostic(
-                                        PlayerDebugLogLevel.ERROR,
-                                        PROXY_RUNTIME_TAG,
-                                        "恢复后刷新播放器代理失败 type=${error::class.java.simpleName}",
-                                    )
-                                }
-                        }
-                    }
-                }
-            }
-        }
     }
 
     private fun postSimpleCommand(
@@ -1052,7 +998,6 @@ internal class PlayerRuntimeService : Service() {
     private companion object {
         const val TAG = "PlayerRuntimeService"
         const val NETWORK_TAG = "PlayerNetwork"
-        const val PROXY_RUNTIME_TAG = "KiyoriMihomo"
         const val RUNTIME_THREAD_NAME = "KiyoriPlayerRuntime"
         const val PROGRESS_INTERVAL_MS = 250L
         const val MAX_DIAGNOSTIC_STACK_FRAMES = 8

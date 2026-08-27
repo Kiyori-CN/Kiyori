@@ -139,8 +139,15 @@ class KiyoriApplication :
         val startTime = System.currentTimeMillis()
         ApplicationStartupTime.recordForProcess(startTime)
         ApplicationContextAccess.installForProcess(this)
-        val networkProxyManager = KiyoriNetworkProxyManager.getInstance(this)
-        networkProxyManager.scheduleStartupReconciliation()
+        val isMainProcess = CrashProcessIdentity.currentProcessName(this) == packageName
+        val networkProxyManager =
+            if (isMainProcess) {
+                KiyoriNetworkProxyManager.getInstance(this).also {
+                    it.scheduleStartupReconciliation()
+                }
+            } else {
+                null
+            }
         KiyoriLogger.bindContext(this, KiyoriPaths::kiyoriRootDir)
 
         configureOpenMpEnvironment()
@@ -158,10 +165,10 @@ class KiyoriApplication :
             }
         )
 
-        if (CrashProcessIdentity.currentProcessName(this) == packageName) {
+        if (isMainProcess) {
             applicationScope.launch {
                 try {
-                    networkProxyManager.reconcileEnabledState()
+                    requireNotNull(networkProxyManager).reconcileEnabledState()
                 } catch (error: Exception) {
                     KiyoriLogger.e(TAG, "应用级网络代理启动协调失败", error)
                 }

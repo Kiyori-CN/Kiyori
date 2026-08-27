@@ -290,6 +290,22 @@ internal fun buildPlayerMpvHttpHeaderPlan(
     )
 }
 
+/**
+ * A loopback bridge already owns the original upstream request headers in the main process.
+ * Passing those headers through Binder would make mpv send credentials to the local bridge a
+ * second time, so only direct media keeps the caller-provided header snapshot.
+ */
+internal fun headersForPlayerRuntimeTransport(
+    transport: PlayerRuntimeMediaTransport,
+    headers: Map<String, String>,
+): Map<String, String> =
+    when (transport) {
+        PlayerRuntimeMediaTransport.DIRECT -> headers
+        PlayerRuntimeMediaTransport.MAIN_PROCESS_PROXY_BRIDGE,
+        PlayerRuntimeMediaTransport.LOCAL_DESCRIPTOR,
+        -> emptyMap()
+    }
+
 private val PlayerMpvOwnedOrBrowserOnlyHeaders =
     setOf(
         "accept-encoding",

@@ -14,15 +14,13 @@ import com.ai.assistance.operit.core.player.PlayerRenderingProfile
 import com.ai.assistance.operit.core.player.PlayerSettings
 import com.ai.assistance.operit.core.player.PlayerTrack
 import com.ai.assistance.operit.core.player.PlayerVideoFitMode
+import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeMediaTransport
 import com.ai.assistance.operit.core.player.isPlayerNetworkMediaUri
 import com.ai.assistance.operit.core.player.sanitizePlayerDiagnosticMessage
 import com.ai.assistance.operit.core.player.shortPlayerDiagnosticId
 import `is`.xyz.mpv.MPVLib
 import `is`.xyz.mpv.MPVNode
 import `is`.xyz.mpv.Utils
-import com.kiyori.platform.network.KiyoriNetworkException
-import com.kiyori.platform.network.KiyoriNetworkModule
-import com.kiyori.platform.network.KiyoriNetworkProxyManager
 import java.io.File
 import java.nio.file.Files
 
@@ -222,8 +220,6 @@ internal class MpvPlayerEngine(
     private var appliedSubtitleScale: Double? = null
     private var appliedVolumeBoost: Boolean? = null
     private var appliedShaderFiles: List<String>? = null
-    private var appliedApplicationProxyOption: String? = null
-    private var activeMediaUsesProxyBridge = false
 
     fun initialize(settings: PlayerSettings): Unit = callMpv("初始化") {
         if (initialized) return
@@ -277,7 +273,9 @@ internal class MpvPlayerEngine(
         setRequiredOption("slang", "zh,chi,zho,chs,cht,zh-CN,zh-TW,en,eng")
         setRequiredOption("tls-ca-file", tlsCaFile.absolutePath)
         setRequiredOption("tls-verify", "yes")
-        applyApplicationProxyRoute(useInitializationOption = true)
+        // Application-level proxying is owned by the main-process media bridge. The isolated
+        // player process must never create or apply a second proxy runtime.
+        setRequiredOption("http-proxy", "")
         // Browser media candidates are already direct executable media requests.
         // No yt-dlp binary is distributed, so the ytdl hook must not turn a native
         // HTTP error into unrelated subprocess lookup failures.
@@ -327,21 +325,18 @@ internal class MpvPlayerEngine(
         requestId: String,
         target: String,
         headers: Map<String, String>,
+        transport: PlayerRuntimeMediaTransport,
         settings: PlayerSettings,
         shaderFiles: List<String>,
         initialSpeed: Double,
     ) = callMpv("加载媒体") {
         check(initialized) { "mpv engine is not initialized" }
         firstPlaybackFailure = null
-        activeMediaUsesProxyBridge = isPlayerMediaProxyBridgeTarget(target)
-        applyApplicationProxyRoute(
-            useInitializationOption = false,
-            forceDirect = activeMediaUsesProxyBridge,
-        )
         diagnostic(
             PlayerDebugLogLevel.INFO,
             TAG,
-            "播放器网络快照 ${capturePlayerNetworkSnapshot(appContext).diagnosticSummary()}",
+            "播放器网络快照 transport=${transport.persistedId} " +
+                capturePlayerNetworkSnapshot(appContext).diagnosticSummary(),
         )
         val headerPlan = buildPlayerMpvHttpHeaderPlan(headers)
         val requestFields =
@@ -821,66 +816,6 @@ internal class MpvPlayerEngine(
     private fun setRequiredOption(name: String, value: String) {
         val result = MPVLib.setOptionString(name, value)
         check(result >= 0) { "mpv rejected option $name" }
-    }
-
-    private fun applyApplicationProxyRoute(
-        useInitializationOption: Boolean,
-        forceDirect: Boolean = false,
-    ) {
-        val networkManager = KiyoriNetworkProxyManager.getInstance(appContext)
-        val proxyEndpoint =
-            if (forceDirect) {
-                null
-            } else {
-                runCatching {
-                    networkManager.resolveRouteBlocking(KiyoriNetworkModule.PLAYER)
-                }.onFailure { error ->
-                    val code =
-                        (error as? KiyoriNetworkException)?.code?.name
-                            ?: error::class.java.simpleName
-                    val state = networkManager.runtimeState.value
-                    diagnostic(
-                        PlayerDebugLogLevel.ERROR,
-                        TAG,
-                        "应用级代理路由解析失败 code=$code " +
-                            "runtimePhase=${state.phase} runtimeGeneration=${state.runtimeGeneration ?: "none"} " +
-                            "controllerHealthy=${state.controllerHealthy ?: "unknown"} " +
-                            "mixedPortListening=${state.mixedPortListening ?: "unknown"}",
-                    )
-                }.getOrThrow()
-            }
-        val proxyOption = proxyEndpoint?.let { endpoint -> "${endpoint.host}:${endpoint.port}" }.orEmpty()
-        if (useInitializationOption) {
-            setRequiredOption("http-proxy", proxyOption)
-        } else if (proxyOption != appliedApplicationProxyOption) {
-            MPVLib.setPropertyString("http-proxy", proxyOption)
-            check(MPVLib.getPropertyString("http-proxy") == proxyOption) {
-                "mpv did not apply dynamic option http-proxy"
-            }
-        }
-        appliedApplicationProxyOption = proxyOption
-        val state = networkManager.runtimeState.value
-        diagnostic(
-            PlayerDebugLogLevel.INFO,
-            TAG,
-            "应用级代理路由 route=${when {
-                forceDirect && activeMediaUsesProxyBridge -> "PROXY_BRIDGE"
-                proxyEndpoint == null -> "DIRECT"
-                else -> "PROXY"
-            }} " +
-                "mpvHttpProxy=${proxyOption.ifEmpty { "disabled" }} " +
-                "runtimePhase=${state.phase} runtimeGeneration=${state.runtimeGeneration ?: "none"} " +
-                "controllerHealthy=${state.controllerHealthy ?: "unknown"} " +
-            "mixedPortListening=${state.mixedPortListening ?: "unknown"}",
-        )
-    }
-
-    fun refreshApplicationProxyRoute() = callMpv("刷新应用级代理路由") {
-        if (!initialized) return@callMpv
-        applyApplicationProxyRoute(
-            useInitializationOption = false,
-            forceDirect = activeMediaUsesProxyBridge,
-        )
     }
 
     private fun setNetworkCacheOptions(policy: PlayerNetworkCachePolicy) {

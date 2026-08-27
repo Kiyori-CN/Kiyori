@@ -54,6 +54,7 @@ internal fun buildPlayerDebugLogReport(
                 "pixelFormat:${state.videoPixelFormat ?: "unknown"} " +
                 "codecProfile:${state.videoCodecProfile ?: "unknown"}",
         )
+        appendLine("mediaTransport=${state.mediaTransport}")
         appendLine(
             "fullVideoCache=active:${state.fullVideoCacheActive} " +
                 "complete:${state.fullVideoCacheComplete} " +

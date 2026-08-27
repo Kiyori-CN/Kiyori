@@ -85,8 +85,9 @@ private fun StandardBrowserSessionTools.openMediaCandidate(
             details =
                 mapOf(
                     "candidateId" to candidate.id,
-                    "url" to candidate.url,
+                    "requestId" to candidate.id,
                     "presentation" to presentation.name,
+                    "transportOwner" to "MAIN_PROCESS_PLAYER_SESSION",
                 ),
         )
         if (presentation == PlayerPresentation.FULLSCREEN_PLAYER) {

@@ -32,7 +32,8 @@ Kiyori because the existing `BrowserDownloadManager` and mpv cache already own t
 presentation, playback snapshot, explicit media queue, chapters, seek-preview state and Surface lease. It never
 constructs mpv or opens the media descriptor.
 
-The non-exported `:player` `PlayerRuntimeService` owns one `HandlerThread`, one `MpvPlayerEngine`, one
+The main process `PlayerSession` owns the HTTP(S) transport resolver and loopback-only `PlayerMediaStreamBridge`.
+The non-exported `:player` `PlayerRuntimeService` owns one `HandlerThread`, one `MpvPlayerEngine`, one local
 `PlayerMediaResolver`, one content descriptor and one remote Surface wrapper. A separate single thumbnail executor may
 call the packaged binding's `grabThumbnailFast` directly for non-network media. A network request becomes eligible only
 after the same mpv demuxer establishes authoritative `FULL_VIDEO / COMPLETE`; the runtime then uses `dump-cache` to

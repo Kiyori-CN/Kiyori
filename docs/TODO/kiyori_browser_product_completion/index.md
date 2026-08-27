@@ -10,6 +10,15 @@ hikerview_reference: 5de8809049e4710471f9f42642e54550ecf5dbe3
 
 # 浏览器产品能力连续完善
 
+## 2026-08-27 日志驱动的浏览器、播放器与代理链路修复
+
+本轮根据 vivo Android 16 导出的 Browser、Player 和主进程代理日志，继续处理真实媒体交接失败。
+已证实主进程 Mihomo 使用 `mixedPort=40877` 后，独立 `:player` 又创建了
+`mixedPort=42071` 的第二个进程内 runtime；目标节点同时对媒体域名返回 `503`，而当前
+`PlayerMediaStreamBridge` 把上游失败折叠成 mpv 的 EOF 与 `loading failed`。完整根因、唯一主进程
+代理 owner、bridge 生命周期、IPC、错误投影、影响文件、风险和验收矩阵见
+[`17_log_driven_browser_player_proxy_repair.md`](17_log_driven_browser_player_proxy_repair.md)。主进程唯一代理 owner、bridge 错误语义、IPC transport 边界、自动验证和 Debug APK 已完成；提交推送在本轮收尾阶段执行，目标设备真实网络复测仍待执行。
+
 ## 2026-08-27 浏览器运行时诊断与菜单优化
 
 本轮专项方案、影响范围、风险、里程碑和验收矩阵见

@@ -11,10 +11,12 @@ import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeConfig
 import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeConnection
 import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeConnectionListener
 import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeLoadRequest
+import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeMediaTransport
 import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeMediaIdentitySnapshot
 import com.ai.assistance.operit.core.player.runtime.PlayerRuntimePlaybackSnapshot
 import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeTrackSnapshot
 import com.ai.assistance.operit.core.player.runtime.PlayerSeekLifecycleEvent
+import com.ai.assistance.operit.core.player.runtime.headersForPlayerRuntimeTransport
 import com.ai.assistance.operit.core.player.runtime.isPlayerUserSeekEvent
 import com.ai.assistance.operit.core.player.runtime.reducePlayerSeeking
 import com.ai.assistance.operit.core.player.runtime.toPlayerChapter
@@ -47,6 +49,7 @@ internal class PlayerSession private constructor(context: Context) {
     private val settingsStore = PlayerSettingsStore.getInstance(appContext)
     private val historyStore = WebSessionHistoryStore.getInstance(appContext)
     private val shaderManager = Anime4KShaderManager(appContext)
+    private var mediaTransportResolver: PlayerMediaTransportResolver? = null
     private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val _state = MutableStateFlow(PlayerSessionState())
 
@@ -173,6 +176,10 @@ internal class PlayerSession private constructor(context: Context) {
                         runtimeConnection.disconnect()
                         finalizeClosedSession()
                         return
+                    }
+                    PlayerRuntimeCommandType.LOAD -> {
+                        mediaTransportResolver?.close()
+                        mediaTransportResolver = null
                     }
                     else -> Unit
                 }
@@ -706,7 +713,9 @@ internal class PlayerSession private constructor(context: Context) {
                 "media=${describePlayerMediaUriForDiagnostics(request.uri)} " +
                 "headerCount=${request.headers.size}",
         )
-        _state.value = transition.state
+        _state.value = transition.state.copy(mediaTransport = "unresolved")
+        mediaTransportResolver?.close()
+        mediaTransportResolver = null
         if (request.persistPlaybackHistory) {
             mainScope.launch(Dispatchers.IO) {
                 historyStore.recordMediaPlayback(
@@ -733,7 +742,18 @@ internal class PlayerSession private constructor(context: Context) {
                     headers = request.headers.toMap(),
                     config = config,
                     initialSpeed = transition.state.speed,
+                    target = request.uri.takeUnless(::isPlayerNetworkMediaUri),
+                    transportId =
+                        when {
+                            isPlayerNetworkMediaUri(request.uri) -> null
+                            request.uri.startsWith("content:", ignoreCase = true) ||
+                            request.uri.startsWith("file:", ignoreCase = true) ||
+                            request.uri.substringBefore(':', missingDelimiterValue = "").isBlank() ->
+                                PlayerRuntimeMediaTransport.LOCAL_DESCRIPTOR.persistedId
+                            else -> PlayerRuntimeMediaTransport.DIRECT.persistedId
+                        },
                 )
+            preparePendingMediaTransport(request.requestId, request.uri, request.headers)
             when (_state.value.runtimeState) {
                 PlayerRuntimeState.STOPPED,
                 PlayerRuntimeState.DEAD,
@@ -1410,6 +1430,8 @@ internal class PlayerSession private constructor(context: Context) {
         activeLongPressSpeedBoost = null
         closeCommandId = null
         pendingMediaLoad = null
+        mediaTransportResolver?.close()
+        mediaTransportResolver = null
         lastLoadCommandId = null
         pendingUserSeekCommandId = null
         pendingUserSeekLoadCommandId = null
@@ -1581,6 +1603,9 @@ internal class PlayerSession private constructor(context: Context) {
 
     private fun startPendingMediaLoad() {
         val pending = pendingMediaLoad ?: return
+        val target = pending.target ?: return
+        val transport =
+            PlayerRuntimeMediaTransport.fromPersistedId(requireNotNull(pending.transportId))
         val snapshot = _state.value
         if (
             snapshot.runtimeState != PlayerRuntimeState.ACTIVE ||
@@ -1596,14 +1621,17 @@ internal class PlayerSession private constructor(context: Context) {
             runtimeConnection.load(
                 PlayerRuntimeLoadRequest(
                     requestId = pending.requestId,
-                    uri = pending.uri,
-                    headers = pending.headers,
+                    uri = target,
+                    headers = headersForPlayerRuntimeTransport(transport, pending.headers),
                     config = pending.config,
                     initialSpeed = pending.initialSpeed,
+                    transportId = transport.persistedId,
                 ),
             )
         if (commandId == null) {
             pendingMediaLoad = null
+            mediaTransportResolver?.close()
+            mediaTransportResolver = null
             setError(
                 "无法发送媒体加载命令",
                 IllegalStateException("Player runtime is unavailable"),
@@ -1623,6 +1651,58 @@ internal class PlayerSession private constructor(context: Context) {
             TAG,
             "Surface attach 已确认，发送媒体加载 request=${pending.requestId}",
         )
+    }
+
+    private fun preparePendingMediaTransport(
+        requestId: String,
+        uri: String,
+        headers: Map<String, String>,
+    ) {
+        if (!isPlayerNetworkMediaUri(uri)) {
+            _state.value =
+                _state.value.copy(
+                    mediaTransport = requireNotNull(pendingMediaLoad?.transportId),
+                )
+            return
+        }
+        val resolver = PlayerMediaTransportResolver(appContext).also { mediaTransportResolver = it }
+        mainScope.launch(Dispatchers.IO) {
+            val result = runCatching { resolver.resolveNetworkTransport(requestId, uri, headers) }
+            withContext(Dispatchers.Main.immediate) {
+                if (_state.value.request?.requestId != requestId || mediaTransportResolver !== resolver) {
+                    resolver.close()
+                    return@withContext
+                }
+                result
+                    .onSuccess { transport ->
+                        pendingMediaLoad =
+                            pendingMediaLoad?.takeIf { pending -> pending.requestId == requestId }
+                                ?.copy(
+                                    target = transport.target,
+                                    transportId = transport.transport.persistedId,
+                                )
+                        _state.value =
+                            _state.value.copy(mediaTransport = transport.transport.persistedId)
+                        PlayerDebugLogBuffer.append(
+                            PlayerDebugLogLevel.INFO,
+                            TAG,
+                            "媒体传输已准备 request=${shortPlayerDiagnosticId(requestId)} " +
+                                "transport=${transport.transport.persistedId} " +
+                                "routeGeneration=${transport.runtimeGeneration ?: "none"}",
+                        )
+                        startPendingMediaLoad()
+                    }
+                    .onFailure { error ->
+                        pendingMediaLoad = null
+                        mediaTransportResolver?.close()
+                        mediaTransportResolver = null
+                        setError(
+                            "无法准备媒体网络传输：${error.message ?: error.javaClass.simpleName}",
+                            error,
+                        )
+                    }
+            }
+        }
     }
 
     private fun handleSurfaceAttachFailure(commandId: Long) {
@@ -1717,6 +1797,8 @@ internal class PlayerSession private constructor(context: Context) {
         pendingSurfaceLease = null
         activeSurfaceLease = null
         pendingMediaLoad = null
+        mediaTransportResolver?.close()
+        mediaTransportResolver = null
         lastLoadCommandId = null
         pendingUserSeekCommandId = null
         pendingUserSeekLoadCommandId = null
@@ -1765,6 +1847,8 @@ internal class PlayerSession private constructor(context: Context) {
         }
         failAllScreenshots(IllegalStateException(message))
         pendingMediaLoad = null
+        mediaTransportResolver?.close()
+        mediaTransportResolver = null
         pendingThumbnailCommandId = null
         pendingUserSeekCommandId = null
         pendingUserSeekCommandTargetSeconds = null
@@ -2126,6 +2210,8 @@ internal class PlayerSession private constructor(context: Context) {
         val headers: Map<String, String>,
         val config: PlayerRuntimeConfig,
         val initialSpeed: Double,
+        val target: String?,
+        val transportId: String?,
     )
 
     private data class SurfaceParcel(

@@ -95,16 +95,19 @@ class ApplicationNetworkProxyContractTest(unittest.TestCase):
             "core/tools/defaultTool/standard/StandardHttpTools.kt": "AI_TOOLS",
             "core/tools/defaultTool/standard/StandardWebVisitTool.kt": None,
             "core/tools/defaultTool/websession/browser/BrowserDownloadTransport.kt": "DOWNLOADS",
-            "core/player/runtime/MpvPlayerEngine.kt": "PLAYER",
+            "core/player/runtime/MpvPlayerEngine.kt": None,
             "data/api/GitHubApiService.kt": "APP_SERVICES",
         }
         for relative_path, module in expected.items():
             source = self.read_operit(relative_path)
             if module is None:
-                self.assertIn("KiyoriNetworkModule", source, relative_path)
+                if relative_path == "core/player/runtime/MpvPlayerEngine.kt":
+                    self.assertNotIn("KiyoriNetworkProxyManager", source, relative_path)
+                    self.assertNotIn("KiyoriMihomoRuntime", source, relative_path)
             else:
                 self.assertIn("KiyoriNetworkModule." + module, source, relative_path)
-            self.assertIn("KiyoriNetworkProxy", source, relative_path)
+            if relative_path != "core/player/runtime/MpvPlayerEngine.kt":
+                self.assertIn("KiyoriNetworkProxy", source, relative_path)
 
     def test_script_identity_is_host_owned_and_toolpkg_is_excluded(self) -> None:
         manager = self.read_operit("core/tools/javascript/JsToolManager.kt")
@@ -190,13 +193,16 @@ class ApplicationNetworkProxyContractTest(unittest.TestCase):
 
     def test_https_player_media_uses_the_loopback_stream_bridge(self) -> None:
         resolver = self.read_operit("core/player/runtime/PlayerMediaResolver.kt")
+        transport = self.read_operit("core/player/PlayerMediaTransportResolver.kt")
         service = self.read_operit("core/player/runtime/PlayerRuntimeService.kt")
         engine = self.read_operit("core/player/runtime/MpvPlayerEngine.kt")
-        self.assertIn("PlayerMediaStreamBridge", resolver)
+        self.assertIn("PlayerMediaStreamBridge", transport)
         self.assertIn("InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1))", resolver)
         self.assertIn('PLAYER_MEDIA_BRIDGE_HOST = "127.0.0.1"', resolver)
-        self.assertIn("request.headers", service)
-        self.assertIn("PROXY_BRIDGE", engine)
+        self.assertIn("requestHeaders = headers", transport)
+        self.assertIn("MAIN_PROCESS_PROXY_BRIDGE", service)
+        self.assertNotIn("KiyoriNetworkProxyManager", service)
+        self.assertNotIn("KiyoriNetworkProxyManager", engine)
 
 
 if __name__ == "__main__":

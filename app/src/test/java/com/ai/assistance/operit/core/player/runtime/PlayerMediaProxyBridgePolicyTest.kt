@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.core.player.runtime
 
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.net.InetAddress
@@ -10,6 +11,7 @@ import java.net.Socket
 import java.net.URL
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.CopyOnWriteArrayList
 
 class PlayerMediaProxyBridgePolicyTest {
     @Test
@@ -85,6 +87,105 @@ class PlayerMediaProxyBridgePolicyTest {
         closedConnection.readTimeout = 500
         assertThrowsConnectionFailure { closedConnection.connect() }
     }
+
+    @Test
+    fun `bridge preserves upstream http status instead of collapsing it into eof`() {
+        val upstream = ServerSocket(0, 1, InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1)))
+        val diagnostics = CopyOnWriteArrayList<String>()
+        val upstreamThread = Thread {
+            upstream.accept().use { socket ->
+                readHttpRequest(socket)
+                socket.getOutputStream().use { output ->
+                    val body = "upstream-private-error".toByteArray()
+                    output.write(
+                        "HTTP/1.1 503 Service Unavailable\r\nContent-Length: ${body.size}\r\nConnection: close\r\n\r\n"
+                            .toByteArray(),
+                    )
+                    output.write(body)
+                    output.flush()
+                }
+            }
+        }
+        upstreamThread.start()
+        val bridge =
+            PlayerMediaStreamBridge(
+                targetUrl = "http://127.0.0.1:${upstream.localPort}/video.mp4",
+                requestHeaders = emptyMap(),
+                proxySelector = noProxySelector(),
+                diagnostic = { _, message -> diagnostics += message },
+            )
+        try {
+            val connection = URL(bridge.start()).openConnection() as java.net.HttpURLConnection
+            connection.connectTimeout = 2_000
+            connection.readTimeout = 2_000
+            assertEquals(503, connection.responseCode)
+            assertTrue(connection.errorStream == null || connection.errorStream.readBytes().isEmpty())
+            assertTrue(diagnostics.any { message -> message.contains("code=503") })
+        } finally {
+            bridge.close()
+            upstream.close()
+            upstreamThread.join(2_000)
+        }
+    }
+
+    @Test
+    fun `bridge returns bad gateway when upstream cannot be connected`() {
+        val probe = ServerSocket(0, 1, InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1)))
+        val unusedPort = probe.localPort
+        probe.close()
+        val diagnostics = CopyOnWriteArrayList<String>()
+        val bridge =
+            PlayerMediaStreamBridge(
+                targetUrl = "http://127.0.0.1:$unusedPort/video.mp4",
+                requestHeaders = emptyMap(),
+                proxySelector = noProxySelector(),
+                diagnostic = { _, message -> diagnostics += message },
+            )
+        try {
+            val connection = URL(bridge.start()).openConnection() as java.net.HttpURLConnection
+            connection.connectTimeout = 2_000
+            connection.readTimeout = 2_000
+            assertEquals(502, connection.responseCode)
+            assertTrue(diagnostics.any { message -> message.contains("stage=UPSTREAM_CONNECT") })
+        } finally {
+            bridge.close()
+        }
+    }
+
+    @Test
+    fun `bridge rejects an oversized request line with bad request`() {
+        val bridge =
+            PlayerMediaStreamBridge(
+                targetUrl = "http://127.0.0.1:1/video.mp4",
+                requestHeaders = emptyMap(),
+                proxySelector = noProxySelector(),
+            )
+        try {
+            val bridgeUrl = java.net.URI(bridge.start())
+            Socket("127.0.0.1", bridgeUrl.port).use { socket ->
+                val oversizedPath = "/_kiyori_player/" + "a".repeat(16 * 1024)
+                val output = socket.getOutputStream()
+                output.write("GET $oversizedPath HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n".toByteArray())
+                output.flush()
+                val response = socket.getInputStream().bufferedReader().readLine()
+                assertEquals("HTTP/1.1 400 Bad Request", response)
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
+    private fun noProxySelector(): ProxySelector =
+        object : ProxySelector() {
+            override fun select(uri: java.net.URI?): List<java.net.Proxy> =
+                listOf(java.net.Proxy.NO_PROXY)
+
+            override fun connectFailed(
+                uri: java.net.URI?,
+                sa: java.net.SocketAddress?,
+                ioe: java.io.IOException?,
+            ) = Unit
+        }
 
     private fun readHttpRequest(socket: Socket) {
         val input = socket.getInputStream()

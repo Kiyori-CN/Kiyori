@@ -24,8 +24,8 @@ import java.util.concurrent.TimeUnit
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
-import com.kiyori.platform.network.KiyoriNetworkModule
-import com.kiyori.platform.network.KiyoriNetworkProxyManager
+import com.ai.assistance.operit.core.player.PlayerDebugLogBuffer
+import com.ai.assistance.operit.core.player.PlayerDebugLogLevel
 
 internal fun isPlayerMediaProxyBridgeTarget(target: String): Boolean {
     val uri = runCatching { URI(target) }.getOrNull() ?: return false
@@ -48,9 +48,8 @@ internal fun isPlayerMediaProxyBridgeTarget(target: String): Boolean {
 internal class PlayerMediaResolver(context: Context) {
     private val appContext = context.applicationContext
     private var contentFileDescriptor: ParcelFileDescriptor? = null
-    private var streamBridge: PlayerMediaStreamBridge? = null
 
-    fun resolve(uriText: String, headers: Map<String, String> = emptyMap()): String {
+    fun resolveLocal(uriText: String): String {
         close()
         val uri = uriText.toUri()
         return when (uri.scheme?.lowercase(Locale.ROOT)) {
@@ -63,22 +62,7 @@ internal class PlayerMediaResolver(context: Context) {
                 "fd://${descriptor.fd}"
             }
             "file" -> requireNotNull(uri.path) { "File URI has no path" }
-            "http", "https" -> {
-                val manager = KiyoriNetworkProxyManager.getInstance(appContext)
-                val endpoint = manager.resolveRouteBlocking(KiyoriNetworkModule.PLAYER)
-                if (endpoint == null) {
-                    uriText
-                } else {
-                    val bridge =
-                        PlayerMediaStreamBridge(
-                            targetUrl = uriText,
-                            requestHeaders = headers,
-                            proxySelector = manager.proxySelectorBlocking(KiyoriNetworkModule.PLAYER),
-                        )
-                    streamBridge = bridge
-                    bridge.start()
-                }
-            }
+            "http", "https" -> uriText
             "rtsp", "rtmp", "rtmps" -> uriText
             null -> File(uriText).absolutePath
             else -> error("Unsupported player URI scheme: ${uri.scheme}")
@@ -86,8 +70,6 @@ internal class PlayerMediaResolver(context: Context) {
     }
 
     fun close() {
-        streamBridge?.close()
-        streamBridge = null
         runCatching { contentFileDescriptor?.close() }
             .onFailure { error ->
                 Log.w(TAG, "Failed to close player content descriptor", error)
@@ -109,6 +91,9 @@ internal class PlayerMediaStreamBridge(
     private val targetUrl: String,
     private val requestHeaders: Map<String, String>,
     proxySelector: ProxySelector,
+    private val diagnostic: (PlayerDebugLogLevel, String) -> Unit = { level, message ->
+        PlayerDebugLogBuffer.append(level, "PlayerMediaBridge", message)
+    },
 ) : AutoCloseable {
     private val server =
         ServerSocket().apply {
@@ -177,9 +162,10 @@ internal class PlayerMediaStreamBridge(
     private fun handle(socket: Socket) {
         socket.use { connection ->
             connection.soTimeout = 30_000
+            var responseHeadersCommitted = false
+            val output = BufferedOutputStream(connection.getOutputStream())
             try {
                 val input = BufferedInputStream(connection.getInputStream())
-                val output = BufferedOutputStream(connection.getOutputStream())
                 val requestLine = readLine(input) ?: return
                 val requestParts = requestLine.split(' ', limit = 3)
                 if (requestParts.size != 3 || requestParts[2] != "HTTP/1.1" && requestParts[2] != "HTTP/1.0") {
@@ -211,8 +197,13 @@ internal class PlayerMediaStreamBridge(
                             }
                     }
                 val incomingHeaders = linkedMapOf<String, String>()
+                var headerBytes = 0
                 while (true) {
-                    val line = readLine(input) ?: return
+                    val line = readLine(input) ?: throw BridgeProtocolException("Incomplete request headers")
+                    headerBytes += line.toByteArray(Charsets.ISO_8859_1).size + 2
+                    if (headerBytes > MAX_HEADER_BYTES) {
+                        throw BridgeProtocolException("Bridge request headers exceed $MAX_HEADER_BYTES bytes")
+                    }
                     if (line.isEmpty()) break
                     val separator = line.indexOf(':')
                     if (separator <= 0) continue
@@ -230,23 +221,62 @@ internal class PlayerMediaStreamBridge(
                         incomingHeaders["if-none-match"]?.let { header("If-None-Match", it) }
                         incomingHeaders["if-modified-since"]?.let { header("If-Modified-Since", it) }
                     }.build()
+                diagnostic(
+                    PlayerDebugLogLevel.INFO,
+                    "桥接请求开始 method=$method range=${incomingHeaders.containsKey("range")}",
+                )
                 client.newCall(request).execute().use { response ->
-                    writeResponse(output, response, method == "HEAD")
+                    diagnostic(
+                        if (response.isSuccessful) PlayerDebugLogLevel.INFO else PlayerDebugLogLevel.ERROR,
+                        "上游响应 code=${response.code} method=$method range=${incomingHeaders.containsKey("range")}",
+                    )
+                    writeResponse(
+                        output = output,
+                        response = response,
+                        headOnly = method == "HEAD",
+                        onHeadersCommitted = { responseHeadersCommitted = true },
+                    )
+                }
+            } catch (error: BridgeProtocolException) {
+                if (!closed) {
+                    diagnostic(
+                        PlayerDebugLogLevel.ERROR,
+                        "桥接请求协议无效 stage=REQUEST_PROTOCOL type=${error.javaClass.simpleName}",
+                    )
+                    if (!responseHeadersCommitted) {
+                        writeError(output, 400, "Bad Request")
+                    }
                 }
             } catch (error: Exception) {
-                if (!closed) Log.w(TAG, "Player media stream bridge request failed", error)
+                if (!closed) {
+                    diagnostic(
+                        PlayerDebugLogLevel.ERROR,
+                        "桥接请求失败 stage=${if (responseHeadersCommitted) "UPSTREAM_BODY" else "UPSTREAM_CONNECT"} " +
+                            "type=${error.javaClass.simpleName}",
+                    )
+                    if (!responseHeadersCommitted) {
+                        writeError(output, 502, "Bad Gateway")
+                    }
+                    Log.w(TAG, "Player media stream bridge request failed", error)
+                }
             }
         }
     }
 
-    private fun writeResponse(output: BufferedOutputStream, response: Response, headOnly: Boolean) {
+    private fun writeResponse(
+        output: BufferedOutputStream,
+        response: Response,
+        headOnly: Boolean,
+        onHeadersCommitted: () -> Unit,
+    ) {
+        val forwardBody = response.isSuccessful && !headOnly
         val manifestBody =
-            if (!headOnly && isManifest(response)) {
+            if (forwardBody && isManifest(response)) {
                 response.body?.bytes()?.let { bytes -> rewriteHlsManifest(response, bytes) }
             } else {
                 null
             }
-        val reason = response.message.ifBlank { "OK" }
+        val reason = response.message.replace(Regex("[\\r\\n]"), " ").trim().take(64).ifBlank { "OK" }
         output.write("HTTP/1.1 ${response.code} $reason\r\n".toByteArray(Charsets.ISO_8859_1))
         response.headers.forEach { (name, value) ->
             if (name.equals("Transfer-Encoding", ignoreCase = true) ||
@@ -256,26 +286,41 @@ internal class PlayerMediaStreamBridge(
             ) return@forEach
             output.write("$name: $value\r\n".toByteArray(Charsets.ISO_8859_1))
         }
-        (manifestBody?.size?.toLong() ?: response.body?.contentLength())?.takeIf { it >= 0L }?.let { length ->
+        val responseBodyLength =
+            when {
+                !response.isSuccessful -> 0L
+                manifestBody != null -> manifestBody.size.toLong()
+                headOnly -> response.body?.contentLength()
+                else -> response.body?.contentLength()
+            }
+        responseBodyLength?.takeIf { it >= 0L }?.let { length ->
             output.write("Content-Length: $length\r\n".toByteArray(Charsets.ISO_8859_1))
         }
         output.write("Connection: close\r\n\r\n".toByteArray(Charsets.ISO_8859_1))
         output.flush()
-        if (headOnly) return
+        onHeadersCommitted()
+        if (!forwardBody) return
         if (manifestBody != null) {
             output.write(manifestBody)
             output.flush()
             return
         }
         val body = response.body ?: return
-        body.byteStream().use { source ->
-            val buffer = ByteArray(32 * 1024)
-            while (true) {
-                val count = source.read(buffer)
-                if (count < 0) break
-                output.write(buffer, 0, count)
-                output.flush()
+        try {
+            body.byteStream().use { source ->
+                val buffer = ByteArray(32 * 1024)
+                while (true) {
+                    val count = source.read(buffer)
+                    if (count < 0) break
+                    output.write(buffer, 0, count)
+                    output.flush()
+                }
             }
+        } catch (error: IOException) {
+            diagnostic(
+                PlayerDebugLogLevel.ERROR,
+                "上游响应体读取失败 stage=UPSTREAM_BODY type=${error.javaClass.simpleName}",
+            )
         }
     }
 
@@ -361,11 +406,14 @@ internal class PlayerMediaStreamBridge(
 
     private fun readLine(input: BufferedInputStream): String? {
         val bytes = ByteArrayOutputStream()
-        while (bytes.size() <= 16 * 1024) {
+        while (bytes.size() < MAX_LINE_BYTES) {
             val value = input.read()
             if (value < 0) return if (bytes.size() == 0) null else bytes.toString(Charsets.ISO_8859_1.name())
             if (value == '\n'.code) break
             if (value != '\r'.code) bytes.write(value)
+        }
+        if (bytes.size() >= MAX_LINE_BYTES) {
+            throw BridgeProtocolException("Bridge request line exceeds $MAX_LINE_BYTES bytes")
         }
         return bytes.toString(Charsets.ISO_8859_1.name())
     }
@@ -378,8 +426,12 @@ internal class PlayerMediaStreamBridge(
     private companion object {
         const val TAG = "PlayerMediaStreamBridge"
         const val MAX_RESOURCES = 4_096
+        const val MAX_LINE_BYTES = 16 * 1024
+        const val MAX_HEADER_BYTES = 64 * 1024
     }
 }
+
+private class BridgeProtocolException(message: String) : IOException(message)
 
 private const val PLAYER_MEDIA_BRIDGE_HOST = "127.0.0.1"
 private const val PLAYER_MEDIA_BRIDGE_PATH = "/_kiyori_player/"

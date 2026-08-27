@@ -369,6 +369,33 @@ class PlayerRuntimeProtocolPolicyTest {
         assertFalse(plan.forwardedHeaders.keys.any { it.equals("Purpose", ignoreCase = true) })
     }
 
+    @Test
+    fun runtimeTransportHeaderBoundaryKeepsCredentialsOutOfLoopbackBridge() {
+        val headers =
+            linkedMapOf(
+                "Cookie" to "session=private",
+                "Authorization" to "Bearer private",
+                "Referer" to "https://example.test/watch",
+            )
+
+        assertEquals(
+            headers,
+            headersForPlayerRuntimeTransport(PlayerRuntimeMediaTransport.DIRECT, headers),
+        )
+        assertTrue(
+            headersForPlayerRuntimeTransport(
+                PlayerRuntimeMediaTransport.MAIN_PROCESS_PROXY_BRIDGE,
+                headers,
+            ).isEmpty(),
+        )
+        assertTrue(
+            headersForPlayerRuntimeTransport(
+                PlayerRuntimeMediaTransport.LOCAL_DESCRIPTOR,
+                headers,
+            ).isEmpty(),
+        )
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun mpvHeadersRejectInjectedLineBreaksBeforeLoggingOrSerialization() {
         buildPlayerMpvHttpHeaderPlan(

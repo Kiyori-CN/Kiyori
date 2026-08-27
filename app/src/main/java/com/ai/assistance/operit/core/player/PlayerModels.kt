@@ -442,6 +442,7 @@ internal data class PlayerSessionState(
     val chapters: List<PlayerChapter> = emptyList(),
     val seekPreview: PlayerSeekPreview? = null,
     val mediaContainer: String? = null,
+    val mediaTransport: String = "unresolved",
     val videoCodec: String? = null,
     val audioCodec: String? = null,
     val videoTrackCount: Int = 0,

@@ -441,6 +441,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                     config = config,
                     route = route,
                     endpoint = null,
+                    runtimeGeneration = null,
                 )
             }
             KiyoriNetworkRoute.EmbeddedProxy -> {
@@ -468,6 +469,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                     config = config,
                     route = route,
                     endpoint = endpoint,
+                    runtimeGeneration = state.runtimeGeneration,
                 )
             }
         }
@@ -477,12 +479,39 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
         val config: KiyoriNetworkProxyConfig,
         val route: KiyoriNetworkRoute,
         val endpoint: KiyoriProxyEndpoint?,
+        val runtimeGeneration: Long?,
+    )
+
+    internal data class TransportRouteSnapshot(
+        val route: KiyoriNetworkRoute,
+        val proxySelector: ProxySelector,
+        val runtimeGeneration: Long?,
     )
 
     fun resolveRouteBlocking(
         module: KiyoriNetworkModule,
     ): KiyoriProxyEndpoint? =
         runBlocking(Dispatchers.IO) { resolveRoute(module).second }
+
+    internal suspend fun resolveTransportRoute(
+        module: KiyoriNetworkModule,
+    ): TransportRouteSnapshot {
+        val snapshot = resolveRouteSnapshot(module)
+        return TransportRouteSnapshot(
+            route = snapshot.route,
+            proxySelector =
+                ScopedKiyoriProxySelector(
+                    proxy = snapshot.endpoint?.toJavaProxy() ?: Proxy.NO_PROXY,
+                    proxyPrivateNetworks = snapshot.config.proxyPrivateNetworks,
+                ),
+            runtimeGeneration = snapshot.runtimeGeneration,
+        )
+    }
+
+    internal fun resolveTransportRouteBlocking(
+        module: KiyoriNetworkModule,
+    ): TransportRouteSnapshot =
+        runBlocking(Dispatchers.IO) { resolveTransportRoute(module) }
 
     suspend fun applyRoute(
         builder: OkHttpClient.Builder,
