@@ -147,6 +147,9 @@ class ApplicationNetworkProxyContractTest(unittest.TestCase):
         self.assertNotIn("模块连接模式", page)
         self.assertNotIn("逐脚本连接模式", page)
         self.assertNotIn("添加脚本规则", page)
+        self.assertIn("filteredSubscriptionRules", page)
+        self.assertIn("SubscriptionRuleRow", page)
+        self.assertIn("保存时重新校验规则类型、匹配内容、目标和依赖", page)
 
     def test_old_external_mixed_port_form_is_not_in_the_new_page(self) -> None:
         page = self.read_operit("ui/main/shell/KiyoriNetworkProxySettingsPage.kt")
@@ -232,6 +235,24 @@ class ApplicationNetworkProxyContractTest(unittest.TestCase):
         self.assertIn("PROBE_DIRECTORY_PREFIX", runtime)
         self.assertNotIn("VpnService", runtime)
         self.assertNotIn("TUN", runtime)
+
+    def test_subscription_rules_and_site_proxy_disable_share_existing_owners(self) -> None:
+        sanitizer = self.read_kiyori("platform/network/MihomoConfigSanitizer.kt")
+        models = self.read_kiyori("platform/network/KiyoriNetworkProxyModels.kt")
+        manager = self.read_kiyori("platform/network/KiyoriNetworkProxyManager.kt")
+        site_policy = self.read_operit(
+            "core/tools/defaultTool/websession/browser/WebSessionSiteSettingsPolicy.kt"
+        )
+        browser = self.read_operit(
+            "core/tools/defaultTool/websession/browser/BrowserWebViewSupport.kt"
+        )
+        self.assertIn("replaceSubscriptionRule", sanitizer)
+        self.assertIn("DOMAIN_WILDCARD", models)
+        self.assertIn("IP_CIDR6", models)
+        self.assertIn("splitRuleParts", sanitizer)
+        self.assertIn("refreshBrowserProxyOverride", manager)
+        self.assertIn("DISABLE_NETWORK_PROXY", site_policy)
+        self.assertIn("setBrowserSiteProxyPolicy", browser)
 
     def test_https_player_media_uses_the_loopback_stream_bridge(self) -> None:
         resolver = self.read_operit("core/player/runtime/PlayerMediaResolver.kt")

@@ -53,6 +53,63 @@ AI 主模型与其他由 Kiyori 持有的联网客户端读取同一份配置，
    抽屉底部左侧“网络代理”按钮进入同一个设置子页面。
 8. 敏感配置、运行时明文、核心制品和私有订阅都满足现有安全、打包、许可证和仓库卫生门禁。
 
+## 2026-08-28 规则管理与站点代理禁用方案
+
+状态：`IMPLEMENTED LOCALLY / AUTOMATED VALIDATION PENDING / DEVICE VERIFICATION PENDING`。
+
+### 研究结论
+
+- 当前规则页把订阅规则截断为最多 200 行的只读文本，订阅规则没有编辑事务；自定义规则只支持
+  `DOMAIN`、`DOMAIN-SUFFIX`、`DOMAIN-KEYWORD`，因此 IP 规则不能由用户创建。
+- 订阅清洗器只接受 10 种规则类型，并用简单的 `split(',')` 解析逻辑规则；Mihomo 官方规则语法还包括
+  `DOMAIN-WILDCARD`、`DOMAIN-REGEX`、`GEOSITE`、`IP-SUFFIX`、`IP-ASN`、`SRC-*`、`IN-*`、
+  `PROCESS-*`、`UID`、`NETWORK`、`DSCP`、`RULE-SET`、`AND/OR/NOT`、`SUB-RULE` 和 `MATCH`。
+  规则顺序是从上到下，前面的规则优先级更高；`no-resolve`、`src` 等附加参数必须保留。
+- 现有 `sanitizedYaml` 是订阅运行配置的唯一来源，因此编辑订阅规则必须在同一 manager 事务中同时更新
+  `sanitizedYaml` 和 `subscription.rules`，运行中的 active subscription 也必须重新协调；更新 URL 或重新导入
+  本地 YAML 时整份订阅重新清洗，覆盖此前对订阅规则的编辑，自定义规则不受影响。
+- 浏览器站点设置已经有同域名持久化规则和统一 Back 链，但网络代理不在该特征集合中。WebView 走进程级
+  `ProxyController`，浏览器的 OkHttp/下载入口走 `KiyoriNetworkProxyManager`，必须让两条路径都读取同一
+  站点规则，而不能再建第二份域名配置。
+
+### 选择的设计
+
+1. 规则管理采用单页两段式布局：顶部搜索框；“自定义规则”永远位于上方，“当前订阅规则”位于下方；
+   两段都在同一滚动列表中按需渲染，搜索同时匹配规则类型、匹配值、目标和完整原文。订阅规则行点击进入
+   原文编辑对话框，保留完整 Mihomo 语法和附加参数；自定义规则继续提供新增、编辑、启用/停用和删除。
+2. 订阅规则以原始规范化字符串按索引编辑，保存前使用与导入相同的 YAML 规则校验和目标校验；不接受空行、
+   控制字符、重复规则或超出长度/数量上限的输入。规则解析从首个逗号和最后一个逗号取类型/目标，中间内容
+   可包含逻辑规则所需的逗号和括号。支持的类型集合与 Mihomo 文档一致；`RULE-SET` 只有在订阅提供对应
+   `rule-providers` 时才保留，provider URL/path 经过同一安全清洗；`SUB-RULE` 会连同顶层
+   `sub-rules` 映射一起校验并保留，缺失依赖继续计数并拒绝进入运行 YAML。
+3. 自定义规则新增 `IP-CIDR`、`IP-CIDR6`、`IP-SUFFIX`、`IP-ASN`、`SRC-IP-CIDR`、`SRC-IP-SUFFIX`、
+   `SRC-IP-ASN`、`GEOIP` 和 `SRC-GEOIP` 选项；运行时生成对应 Mihomo 规则，代理目标仍为
+   `KIYORI_APP_PROXY`，直连目标仍为 `DIRECT`。规则排序保持现有特异性顺序，并让所有自定义规则整体先于订阅规则。
+4. “网站配置”新增 `禁用网络代理`，作为一个域名的最高代理禁用优先级。该开关写入现有
+   `WebSessionSiteSettingsRule`，覆盖 Kiyori 应用代理、订阅规则和脚本代理，但不绕过 Android 系统 VPN。
+   `KiyoriNetworkProxyManager` 接收 Browser 设置 store 的只读域名判定投影：动态 ProxySelector 按 host 判定，
+   `ProxyController` 更新 bypass 列表；变更后复用当前 Mihomo runtime 重新安装同一个 process-wide override，不创建
+   第二核心、第二 WebView 或静默直连路径。关闭站点开关后同一设置入口即可恢复全局代理。
+
+### 迁移、风险与回滚点
+
+- 规则模型继续使用现有 schema-5 字段，新增类型枚举保持 Kotlin serialization 的旧值可读；不引入第二份规则
+  存储。订阅编辑不改变订阅 ID、节点选择或测速记录，更新/重新导入时按现有原子替换边界覆盖规则。
+- 规则 provider 的远程拉取由 Mihomo 运行时负责，若 provider 本身不可用，核心启动会按现有明确错误路径失败；
+  不添加网络失败回退、自动换节点或静默直连。站点代理禁用只影响 Browser 相关 host 判定，其他模块继续使用各自
+  的应用级路由。
+- 回滚点为本次提交前的 `main`；若设备验证发现 provider 兼容性问题，可独立回滚 provider 保留改动，不影响
+  自定义 IP 规则与站点开关的持久化格式。
+
+### 验证矩阵
+
+- JVM：规则类型/逻辑逗号/附加参数/目标校验、provider 清洗、订阅规则编辑覆盖、IP 自定义规则生成、站点规则
+  持久化与最高优先级判定、ProxySelector/ProxyController bypass 投影。
+- 静态与构建：相关 `:app:testDebugUnitTest`、Python 网络代理合同、formal readiness、`git diff --check`，
+  串行 `:app:assembleDebug --no-daemon --console=plain` 和 APK 身份/签名/16 KiB 对齐审计。
+- 设备：安装后检查规则搜索与编辑、订阅更新覆盖、自定义 IP 规则、站点开关对顶层页面/子资源/脚本/下载的
+  实际路由，并验证切换开关后 WebView 代理立即恢复；设备未验收前状态保持 `verification_pending`。
+
 ## 当前实施状态
 
 ## 2026-08-27 在线播放、启动代理与脚本规则重构方案

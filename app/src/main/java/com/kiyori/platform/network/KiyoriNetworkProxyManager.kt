@@ -103,6 +103,8 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
     private val startupReconciliationScheduled = AtomicBoolean(false)
     private val startupReconciliationLaunched = AtomicBoolean(false)
     @Volatile private var browserWebViewRuntimeReady = false
+    @Volatile private var browserSiteProxyDisabledProvider: ((String) -> Boolean)? = null
+    @Volatile private var browserSiteProxyDisabledDomainsProvider: (() -> Set<String>)? = null
     private var lastHandledUnexpectedRuntimeGeneration: Long? = null
     private var automaticRecoveryWindowStartedAtEpochMillis = 0L
     private var automaticRecoveryAttemptsInWindow = 0
@@ -168,6 +170,17 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
     internal fun startupProxyReadiness(): KiyoriNetworkProxyReadiness = readinessState
 
     internal fun startupProxyReadinessGeneration(): Long = readinessGeneration
+
+    internal fun setBrowserSiteProxyPolicy(
+        disabledHostProvider: (String) -> Boolean,
+        disabledDomainsProvider: () -> Set<String>,
+    ) {
+        browserSiteProxyDisabledProvider = disabledHostProvider
+        browserSiteProxyDisabledDomainsProvider = disabledDomainsProvider
+    }
+
+    internal fun isBrowserSiteProxyDisabled(host: String): Boolean =
+        browserSiteProxyDisabledProvider?.invoke(host.trim().lowercase()) == true
 
     internal suspend fun awaitStartupReconciliation() {
         scheduleStartupReconciliation()
@@ -355,6 +368,64 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
             val updated = persistConfig { it.copy(customRules = it.customRules.filterNot { rule -> rule.id == ruleId }) }
             reconcileSavedConfig(updated)
             updated
+        }
+
+    suspend fun updateSubscriptionRule(
+        subscriptionId: String,
+        ruleIndex: Int,
+        rawRule: String,
+    ): KiyoriProxySubscription =
+        mutationMutex.withLock {
+            val current = currentConfig()
+            val existing = KiyoriNetworkProxyPolicy.requireSubscription(current, subscriptionId)
+            val sanitized =
+                MihomoConfigSanitizer.replaceSubscriptionRule(
+                    sanitizedYaml = existing.sanitizedYaml,
+                    ruleIndex = ruleIndex,
+                    rawRule = rawRule,
+                )
+            val updatedSubscription =
+                existing.copy(
+                    sanitizedYaml = sanitized.yaml,
+                    summary = sanitized.summary,
+                    rules = sanitized.rules,
+                    updatedAtEpochMillis = System.currentTimeMillis(),
+                )
+            runtime.validateConfiguration(updatedSubscription, current.testUrl)
+            persistSubscriptionReplacement(
+                current = current,
+                subscription = updatedSubscription,
+                reconcileActive = current.activeSubscriptionId == subscriptionId,
+            )
+            updatedSubscription
+        }
+
+    internal suspend fun refreshBrowserProxyOverride() =
+        mutationMutex.withLock {
+            val config = currentConfig()
+            if (!KiyoriNetworkProxyPolicy.requiresEmbeddedProxy(config)) {
+                clearWebViewProxy()
+                return@withLock
+            }
+            val subscription =
+                KiyoriNetworkProxyPolicy.validateEmbeddedStart(config, isSystemVpnActive())
+            val endpoint =
+                runtime.ensureReady(
+                    subscription,
+                    config.testUrl,
+                    KiyoriNetworkProxyPolicy.runtimeMode(config),
+                    config.customRules,
+                )
+            if (
+                KiyoriNetworkProxyPolicy.effectiveMode(
+                    config,
+                    KiyoriNetworkModule.BROWSER,
+                ) == KiyoriNetworkConnectionMode.DIRECT
+            ) {
+                clearWebViewProxy()
+            } else {
+                setWebViewProxy(endpoint, config.proxyPrivateNetworks)
+            }
         }
 
     suspend fun reconcileEnabledState(
@@ -578,6 +649,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                 )
                 ResolvedNetworkRoute(
                     config = config,
+                    module = module,
                     route = route,
                     endpoint = null,
                     runtimeGeneration = null,
@@ -606,6 +678,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                 )
                 ResolvedNetworkRoute(
                     config = config,
+                    module = module,
                     route = route,
                     endpoint = endpoint,
                     runtimeGeneration = state.runtimeGeneration,
@@ -616,6 +689,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
 
     private data class ResolvedNetworkRoute(
         val config: KiyoriNetworkProxyConfig,
+        val module: KiyoriNetworkModule,
         val route: KiyoriNetworkRoute,
         val endpoint: KiyoriProxyEndpoint?,
         val runtimeGeneration: Long?,
@@ -642,6 +716,12 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                 ScopedKiyoriProxySelector(
                     proxy = snapshot.endpoint?.toJavaProxy() ?: Proxy.NO_PROXY,
                     proxyPrivateNetworks = snapshot.config.proxyPrivateNetworks,
+                    browserSiteProxyDisabled =
+                        if (module == KiyoriNetworkModule.BROWSER) {
+                            ::isBrowserSiteProxyDisabled
+                        } else {
+                            { false }
+                        },
                 ),
             runtimeGeneration = snapshot.runtimeGeneration,
         )
@@ -666,6 +746,12 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                 ScopedKiyoriProxySelector(
                     proxy = snapshot.endpoint.toJavaProxy(),
                     proxyPrivateNetworks = snapshot.config.proxyPrivateNetworks,
+                    browserSiteProxyDisabled =
+                        if (module == KiyoriNetworkModule.BROWSER) {
+                            ::isBrowserSiteProxyDisabled
+                        } else {
+                            { false }
+                        },
                 ),
             )
         }
@@ -724,6 +810,12 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
         return ScopedKiyoriProxySelector(
             proxy = snapshot.endpoint?.toJavaProxy() ?: Proxy.NO_PROXY,
             proxyPrivateNetworks = snapshot.config.proxyPrivateNetworks,
+            browserSiteProxyDisabled =
+                if (module == KiyoriNetworkModule.BROWSER) {
+                    ::isBrowserSiteProxyDisabled
+                } else {
+                    { false }
+                },
         )
     }
 
@@ -733,7 +825,8 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
     ): URLConnection {
         val bypass =
             snapshot.endpoint == null ||
-                shouldBypassKiyoriProxy(url.host, snapshot.config.proxyPrivateNetworks)
+                shouldBypassKiyoriProxy(url.host, snapshot.config.proxyPrivateNetworks) ||
+                (snapshot.module == KiyoriNetworkModule.BROWSER && isBrowserSiteProxyDisabled(url.host))
         return url.openConnection(if (bypass) Proxy.NO_PROXY else snapshot.endpoint.toJavaProxy())
     }
 
@@ -1468,6 +1561,13 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                 .addBypassRule("127.0.0.1")
                 .addBypassRule("[::1]")
                 .addBypassRule("<local>")
+        browserSiteProxyDisabledDomainsProvider?.invoke().orEmpty().forEach { domain ->
+            val normalizedDomain = domain.trim().lowercase()
+            if (normalizedDomain.isNotBlank()) {
+                builder.addBypassRule(normalizedDomain)
+                builder.addBypassRule("*.$normalizedDomain")
+            }
+        }
         if (!proxyPrivateNetworks) {
             builder.addBypassRule("10.*")
             builder.addBypassRule("192.168.*")
@@ -1622,12 +1722,14 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
         pattern: String,
         type: KiyoriNetworkRuleType,
     ): String {
-        val normalized = pattern.trim().lowercase()
+        val normalized = pattern.trim()
         return when (type) {
             KiyoriNetworkRuleType.DOMAIN,
             KiyoriNetworkRuleType.DOMAIN_KEYWORD,
-            -> normalized
-            KiyoriNetworkRuleType.DOMAIN_SUFFIX -> normalized.removePrefix("*.").removePrefix(".")
+            -> normalized.lowercase()
+            KiyoriNetworkRuleType.DOMAIN_SUFFIX ->
+                normalized.lowercase().removePrefix("*.").removePrefix(".")
+            else -> normalized
         }
     }
 
@@ -1660,7 +1762,11 @@ internal class DynamicKiyoriProxySelector(
     override fun select(uri: URI?): List<Proxy> {
         val config = manager.currentConfig()
         val host = uri?.host?.trim()?.lowercase().orEmpty()
-        if (host.isEmpty() || shouldBypassKiyoriProxy(host, config.proxyPrivateNetworks)) {
+        if (
+            host.isEmpty() ||
+                shouldBypassKiyoriProxy(host, config.proxyPrivateNetworks) ||
+                (module == KiyoriNetworkModule.BROWSER && manager.isBrowserSiteProxyDisabled(host))
+        ) {
             return listOf(Proxy.NO_PROXY)
         }
         val (_, endpoint) = runBlocking(Dispatchers.IO) { manager.resolveRoute(module) }
@@ -1675,10 +1781,15 @@ internal class DynamicKiyoriProxySelector(
 internal class ScopedKiyoriProxySelector(
     private val proxy: Proxy,
     private val proxyPrivateNetworks: Boolean,
+    private val browserSiteProxyDisabled: (String) -> Boolean = { false },
 ) : ProxySelector() {
     override fun select(uri: URI?): List<Proxy> {
         val host = uri?.host?.trim()?.lowercase().orEmpty()
-        return if (host.isEmpty() || shouldBypassKiyoriProxy(host, proxyPrivateNetworks)) {
+        return if (
+            host.isEmpty() ||
+                shouldBypassKiyoriProxy(host, proxyPrivateNetworks) ||
+                browserSiteProxyDisabled(host)
+        ) {
             listOf(Proxy.NO_PROXY)
         } else {
             listOf(proxy)

@@ -72,6 +72,21 @@ class WebSessionSiteSettingsPolicyTest {
                 globalEnabled = true,
             ),
         )
+        val proxyDisabled =
+            updateWebSessionSiteSettingsRules(
+                rules = emptyList(),
+                domainOrUrl = "https://example.com/page",
+                feature = WebSessionSiteFeature.DISABLE_NETWORK_PROXY,
+                disabled = true,
+            )
+        assertTrue(
+            WebSessionBrowserSettings(siteSettingsRules = proxyDisabled)
+                .isNetworkProxyDisabledForSite("https://child.example.com/asset"),
+        )
+        assertFalse(
+            WebSessionBrowserSettings(siteSettingsRules = proxyDisabled)
+                .isNetworkProxyDisabledForSite("https://another.test/asset"),
+        )
     }
 
     @Test

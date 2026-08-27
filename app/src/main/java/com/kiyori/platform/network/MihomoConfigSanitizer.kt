@@ -69,13 +69,27 @@ object MihomoConfigSanitizer {
         if (rootCandidates.isEmpty() && providers.isEmpty()) {
             invalid("The subscription contains no usable root route candidates.")
         }
+        val ruleProviders = sanitizeRuleProviders(root["rule-providers"])
         val ruleTargets =
             (groups.map(NamedGroup::name) +
                     proxyResult.accepted.map(NamedMapping::name) +
                     providers.map(NamedMapping::name) +
+                    ruleProviders.keys +
                     BUILTIN_OUTBOUNDS + ROUTE_GROUP_NAME)
                 .toSet()
-        val rules = sanitizeRules(root["rules"], ruleTargets)
+        val subRules =
+            sanitizeSubRules(
+                raw = root["sub-rules"],
+                validTargets = ruleTargets,
+                ruleProviderNames = ruleProviders.keys,
+            )
+        val rules =
+            sanitizeRules(
+                raw = root["rules"],
+                validTargets = ruleTargets,
+                ruleProviderNames = ruleProviders.keys,
+                subRuleNames = subRules.keys,
+            )
 
         val sanitized = linkedMapOf<String, Any?>()
         if (proxyResult.accepted.isNotEmpty()) {
@@ -83,6 +97,12 @@ object MihomoConfigSanitizer {
         }
         if (providers.isNotEmpty()) {
             sanitized["proxy-providers"] = providers.associate { it.name to it.mapping }
+        }
+        if (ruleProviders.isNotEmpty()) {
+            sanitized["rule-providers"] = ruleProviders
+        }
+        if (subRules.isNotEmpty()) {
+            sanitized["sub-rules"] = subRules.mapValues { (_, result) -> result.accepted }
         }
         if (groups.isNotEmpty()) sanitized["proxy-groups"] = groups.map(NamedGroup::mapping)
         sanitizeDns(root["dns"])?.let { sanitized["dns"] = it }
@@ -114,7 +134,7 @@ object MihomoConfigSanitizer {
                     groups = groupSummaries,
                     rootCandidates = rootCandidates.ifEmpty { providers.map(NamedMapping::name) },
                     ruleCount = rules.accepted.size,
-                    unsupportedRuleCount = rules.unsupportedCount,
+                    unsupportedRuleCount = rules.unsupportedCount + subRules.values.sumOf { it.unsupportedCount },
                 ),
             rules = rules.accepted,
         )
@@ -170,13 +190,27 @@ object MihomoConfigSanitizer {
         if (rootCandidates.isEmpty() && providers.isEmpty()) {
             invalid("The sanitized subscription has no usable outbound source.")
         }
+        val ruleProviders = sanitizeRuleProviders(root["rule-providers"])
         val ruleTargets =
             (groups.map(NamedGroup::name) +
                     proxyResult.accepted.map(NamedMapping::name) +
                     providers.map(NamedMapping::name) +
+                    ruleProviders.keys +
                     BUILTIN_OUTBOUNDS + ROUTE_GROUP_NAME)
                 .toSet()
-        val subscriptionRules = sanitizeRules(root["rules"], ruleTargets).accepted
+        val subRules =
+            sanitizeSubRules(
+                raw = root["sub-rules"],
+                validTargets = ruleTargets,
+                ruleProviderNames = ruleProviders.keys,
+            )
+        val subscriptionRules =
+            sanitizeRules(
+                raw = root["rules"],
+                validTargets = ruleTargets,
+                ruleProviderNames = ruleProviders.keys,
+                subRuleNames = subRules.keys,
+            ).accepted
 
         val runtime =
             linkedMapOf<String, Any?>(
@@ -196,6 +230,10 @@ object MihomoConfigSanitizer {
         if (providers.isNotEmpty()) {
             runtime["proxy-providers"] = providers.associate { it.name to it.mapping }
         }
+        if (ruleProviders.isNotEmpty()) {
+            runtime["rule-providers"] = ruleProviders
+        }
+        if (subRules.isNotEmpty()) runtime["sub-rules"] = subRules.mapValues { it.value.accepted }
         sanitizeDns(root["dns"])?.let { runtime["dns"] = it }
 
         val routeGroup =
@@ -216,13 +254,8 @@ object MihomoConfigSanitizer {
                             customRules
                                 .filter(KiyoriNetworkProxyRule::enabled)
                                 .sortedWith(
-                                    compareBy<KiyoriNetworkProxyRule> {
-                                        when (it.type) {
-                                            KiyoriNetworkRuleType.DOMAIN -> 0
-                                            KiyoriNetworkRuleType.DOMAIN_SUFFIX -> 1
-                                            KiyoriNetworkRuleType.DOMAIN_KEYWORD -> 2
-                                        }
-                                    }.thenBy { it.createdAtEpochMillis },
+                                    compareBy<KiyoriNetworkProxyRule> { ruleSpecificity(it.type) }
+                                        .thenBy { it.createdAtEpochMillis },
                                 ).map(::toMihomoRule),
                         )
                         addAll(subscriptionRules)
@@ -249,6 +282,40 @@ object MihomoConfigSanitizer {
         )
     }
 
+    fun replaceSubscriptionRule(
+        sanitizedYaml: String,
+        ruleIndex: Int,
+        rawRule: String,
+    ): SanitizedMihomoSubscription {
+        val root = loadSingleRoot(sanitizedYaml, KiyoriNetworkErrorCode.CONFIG_INVALID)
+        val existingRules =
+            (root["rules"] as? List<*>)
+                ?.mapIndexed { index, value ->
+                    value as? String ?: invalid("Subscription rule ${index + 1} must be a string.")
+                }
+                ?: invalid("The selected subscription has no editable rules.")
+        if (ruleIndex !in existingRules.indices) {
+            invalid("The selected subscription rule no longer exists.")
+        }
+        val normalizedRule = rawRule.trim()
+        if (normalizedRule.isBlank() || normalizedRule.any(Char::isISOControl)) {
+            invalid("A subscription rule must not be blank or contain control characters.")
+        }
+        val updatedRules = existingRules.toMutableList().apply { this[ruleIndex] = normalizedRule }
+        if (updatedRules.toSet().size != updatedRules.size) {
+            invalid("Duplicate subscription rules are not allowed.")
+        }
+        val updatedRoot = linkedMapOf<String, Any?>().apply {
+            putAll(root)
+            put("rules", updatedRules)
+        }
+        val sanitized = sanitize(dump(updatedRoot))
+        if (sanitized.rules.size != updatedRules.size) {
+            invalid("The subscription rule uses an unsupported type, matcher, target, or dependency.")
+        }
+        return sanitized
+    }
+
     private data class NamedMapping(
         val name: String,
         val mapping: Map<String, Any?>,
@@ -260,6 +327,11 @@ object MihomoConfigSanitizer {
     )
 
     private data class RuleSanitizeResult(
+        val accepted: List<String>,
+        val unsupportedCount: Int,
+    )
+
+    private data class SubRuleSanitizeResult(
         val accepted: List<String>,
         val unsupportedCount: Int,
     )
@@ -330,22 +402,95 @@ object MihomoConfigSanitizer {
         }
     }
 
-    private fun sanitizeRules(raw: Any?, validTargets: Set<String>): RuleSanitizeResult {
+    private fun sanitizeRuleProviders(raw: Any?): Map<String, Map<String, Any?>> {
+        if (raw == null) return emptyMap()
+        val providers = stringKeyMap(raw, "rule-providers")
+        val seen = linkedSetOf<String>()
+        return providers.entries.associate { (rawName, rawValue) ->
+            val name = rawName.trim()
+            if (name.isBlank() || !seen.add(name)) {
+                invalid("Rule provider name is blank or duplicated.")
+            }
+            val source = stringKeyMap(rawValue, "rule provider $name")
+            if (source["type"]?.toString()?.trim()?.lowercase() != "http") {
+                invalid("Rule provider $name must use type http.")
+            }
+            val url = source["url"]?.toString()?.trim().orEmpty()
+            if (!isHttpUrl(url)) invalid("Rule provider $name must use an absolute HTTP(S) URL.")
+            val mapping = deepCopyMap(source).toMutableMap()
+            mapping["type"] = "http"
+            mapping["url"] = url
+            mapping["path"] = "rule-providers/${sha256(name).take(24)}.yaml"
+            mapping.remove("proxy")
+            name to mapping
+        }
+    }
+
+    private fun sanitizeSubRules(
+        raw: Any?,
+        validTargets: Set<String>,
+        ruleProviderNames: Set<String>,
+    ): Map<String, SubRuleSanitizeResult> {
+        if (raw == null) return emptyMap()
+        val subRules = stringKeyMap(raw, "sub-rules")
+        val names = subRules.keys.map(String::trim).toSet()
+        if (names.any(String::isBlank)) invalid("A sub-rule name must not be blank.")
+        return subRules.entries.mapNotNull { (rawName, rawRules) ->
+            val name = rawName.trim()
+            if (name.length > KiyoriNetworkProxyConfig.MAX_SUBSCRIPTION_NAME_LENGTH) {
+                invalid("The sub-rule name is too long: $name")
+            }
+            val result =
+                sanitizeRules(
+                    raw = rawRules,
+                    validTargets = validTargets,
+                    ruleProviderNames = ruleProviderNames,
+                    subRuleNames = names,
+                )
+            result.takeIf { it.accepted.isNotEmpty() }?.let { sanitized ->
+                name to SubRuleSanitizeResult(sanitized.accepted, sanitized.unsupportedCount)
+            }
+        }.toMap(linkedMapOf())
+    }
+
+    private fun sanitizeRules(
+        raw: Any?,
+        validTargets: Set<String>,
+        ruleProviderNames: Set<String> = emptySet(),
+        subRuleNames: Set<String> = emptySet(),
+    ): RuleSanitizeResult {
         if (raw == null) return RuleSanitizeResult(emptyList(), 0)
         val entries = raw as? List<*> ?: invalid("The rules field must be a YAML list.")
         var unsupported = 0
         val accepted = entries.mapNotNull { entry ->
             val value = entry as? String ?: invalid("A subscription rule must be a string.")
-            val parts = value.split(',').map(String::trim)
-            val kind = parts.firstOrNull()?.uppercase() ?: ""
-            val target = parts.lastOrNull().orEmpty()
+            val normalized = value.trim()
+            val parts = splitRuleParts(normalized)
+            val kind = parts.firstOrNull()?.uppercase().orEmpty()
+            val targetIndex =
+                parts
+                    .asReversed()
+                    .indexOfFirst { part -> part.isNotBlank() && part.lowercase() !in RULE_OPTIONS }
+                    .let { reversedIndex ->
+                        if (reversedIndex < 0) -1 else parts.lastIndex - reversedIndex
+                    }
+            val target = parts.getOrNull(targetIndex).orEmpty()
+            val matcher =
+                if (targetIndex > 1) {
+                    parts.subList(1, targetIndex).joinToString(",")
+                } else {
+                    ""
+                }
             val supported =
                 kind in SUPPORTED_RULE_TYPES &&
                     parts.size >= 2 &&
+                    targetIndex >= 1 &&
                     target in validTargets &&
                     when (kind) {
-                        "MATCH" -> parts.size == 2
-                        else -> parts.size >= 3 && isRuleMatcher(parts[1])
+                        "MATCH" -> targetIndex == 1
+                        "RULE-SET" -> targetIndex > 1 && matcher in ruleProviderNames
+                        "SUB-RULE" -> targetIndex > 1 && matcher in subRuleNames
+                        else -> targetIndex > 1 && isRuleMatcher(matcher)
                     }
             if (!supported) {
                 unsupported += 1
@@ -358,27 +503,57 @@ object MihomoConfigSanitizer {
     }
 
     private fun isRuleMatcher(value: String): Boolean =
-        value.equals("no-resolve", ignoreCase = true) ||
-            value.equals("src", ignoreCase = true) ||
-            value.equals("src-ip-cidr", ignoreCase = true) ||
-            value.matches(Regex("[a-zA-Z0-9*._:/-]{1,253}"))
+        value.isNotBlank() &&
+            value.length <= KiyoriNetworkProxyConfig.MAX_RULE_PATTERN_LENGTH &&
+            value.none(Char::isISOControl)
+
+    private fun splitRuleParts(value: String): List<String> {
+        val parts = mutableListOf<String>()
+        val current = StringBuilder()
+        var depth = 0
+        value.forEach { character ->
+            when (character) {
+                '(' -> depth += 1
+                ')' -> depth = (depth - 1).coerceAtLeast(0)
+                ',' ->
+                    if (depth == 0) {
+                        parts += current.toString().trim()
+                        current.clear()
+                        return@forEach
+                    }
+            }
+            current.append(character)
+        }
+        parts += current.toString().trim()
+        return parts
+    }
 
     private fun toMihomoRule(rule: KiyoriNetworkProxyRule): String {
-        val pattern = rule.pattern.trim().lowercase()
-        val domain = pattern.removePrefix("*.").removePrefix(".")
-        val kind =
+        val pattern = rule.pattern.trim()
+        val matcher =
             when (rule.type) {
-                KiyoriNetworkRuleType.DOMAIN -> "DOMAIN"
-                KiyoriNetworkRuleType.DOMAIN_SUFFIX -> "DOMAIN-SUFFIX"
-                KiyoriNetworkRuleType.DOMAIN_KEYWORD -> "DOMAIN-KEYWORD"
+                KiyoriNetworkRuleType.DOMAIN,
+                KiyoriNetworkRuleType.DOMAIN_SUFFIX,
+                KiyoriNetworkRuleType.DOMAIN_KEYWORD,
+                -> pattern.lowercase().removePrefix("*.").removePrefix(".")
+                else -> pattern
             }
+        val kind = rule.type.wireName
         val target =
             when (rule.mode) {
                 KiyoriNetworkRuleMode.DIRECT -> "DIRECT"
                 KiyoriNetworkRuleMode.PROXY -> ROUTE_GROUP_NAME
             }
-        return "$kind,$domain,$target"
+        return "$kind,$matcher,$target"
     }
+
+    private fun ruleSpecificity(type: KiyoriNetworkRuleType): Int =
+        when (type) {
+            KiyoriNetworkRuleType.DOMAIN -> 0
+            KiyoriNetworkRuleType.DOMAIN_SUFFIX -> 1
+            KiyoriNetworkRuleType.DOMAIN_KEYWORD -> 2
+            else -> 3
+        }
 
     private fun sanitizeGroups(
         raw: Any?,
@@ -732,12 +907,40 @@ object MihomoConfigSanitizer {
             "DOMAIN",
             "DOMAIN-SUFFIX",
             "DOMAIN-KEYWORD",
+            "DOMAIN-WILDCARD",
+            "DOMAIN-REGEX",
+            "GEOSITE",
             "IP-CIDR",
             "IP-CIDR6",
+            "IP-SUFFIX",
+            "IP-ASN",
+            "GEOIP",
+            "SRC-GEOIP",
+            "SRC-IP-ASN",
             "SRC-IP-CIDR",
+            "SRC-IP-SUFFIX",
             "DST-PORT",
             "SRC-PORT",
+            "IN-PORT",
+            "IN-TYPE",
+            "IN-USER",
+            "IN-NAME",
+            "REMATCH-NAME",
+            "PROCESS-PATH",
+            "PROCESS-PATH-WILDCARD",
+            "PROCESS-PATH-REGEX",
             "PROCESS-NAME",
+            "PROCESS-NAME-WILDCARD",
+            "PROCESS-NAME-REGEX",
+            "UID",
+            "NETWORK",
+            "DSCP",
+            "RULE-SET",
+            "AND",
+            "OR",
+            "NOT",
+            "SUB-RULE",
             "MATCH",
         )
+    private val RULE_OPTIONS = setOf("no-resolve", "src")
 }

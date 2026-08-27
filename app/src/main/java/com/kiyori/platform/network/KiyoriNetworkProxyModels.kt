@@ -1,6 +1,7 @@
 package com.kiyori.platform.network
 
 import java.net.URI
+import java.net.InetAddress
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -46,6 +47,43 @@ enum class KiyoriNetworkRuleType {
     DOMAIN,
     DOMAIN_SUFFIX,
     DOMAIN_KEYWORD,
+    DOMAIN_WILDCARD,
+    DOMAIN_REGEX,
+    GEOSITE,
+    IP_CIDR,
+    IP_CIDR6,
+    IP_SUFFIX,
+    IP_ASN,
+    GEOIP,
+    SRC_GEOIP,
+    SRC_IP_ASN,
+    SRC_IP_CIDR,
+    SRC_IP_SUFFIX,
+    DST_PORT,
+    SRC_PORT,
+    IN_PORT,
+    IN_TYPE,
+    IN_USER,
+    IN_NAME,
+    REMATCH_NAME,
+    PROCESS_PATH,
+    PROCESS_PATH_WILDCARD,
+    PROCESS_PATH_REGEX,
+    PROCESS_NAME,
+    PROCESS_NAME_WILDCARD,
+    PROCESS_NAME_REGEX,
+    UID,
+    NETWORK,
+    DSCP,
+    RULE_SET,
+    AND,
+    OR,
+    NOT,
+    SUB_RULE,
+    MATCH;
+
+    val wireName: String
+        get() = name.replace('_', '-')
 }
 
 @Serializable
@@ -165,7 +203,7 @@ data class KiyoriNetworkProxyConfig(
         const val MAX_SCRIPT_RULES = 1_000
         const val MAX_SUBSCRIPTION_RULES = 20_000
         const val MAX_CUSTOM_RULES = 1_000
-        const val MAX_RULE_PATTERN_LENGTH = 253
+        const val MAX_RULE_PATTERN_LENGTH = 4096
     }
 }
 
@@ -377,7 +415,7 @@ object KiyoriNetworkProxyPolicy {
             if (pattern.isBlank() || pattern.length > KiyoriNetworkProxyConfig.MAX_RULE_PATTERN_LENGTH) {
                 invalid("A custom rule has an invalid domain pattern.")
             }
-            if (!isValidRulePattern(pattern, rule.type)) {
+            if (!isKiyoriNetworkRulePatternValid(pattern, rule.type)) {
                 invalid("A custom rule pattern does not match its selected rule type.")
             }
         }
@@ -397,23 +435,62 @@ object KiyoriNetworkProxyPolicy {
     private fun invalid(message: String): Nothing =
         throw KiyoriNetworkException(KiyoriNetworkErrorCode.CONFIG_INVALID, message)
 
-    private fun isValidRulePattern(value: String, type: KiyoriNetworkRuleType): Boolean {
-        val pattern = value.trim().lowercase()
-        if (pattern.isBlank() || pattern.length > KiyoriNetworkProxyConfig.MAX_RULE_PATTERN_LENGTH) return false
-        return when (type) {
-            KiyoriNetworkRuleType.DOMAIN -> pattern.matches(DOMAIN_PATTERN)
-            KiyoriNetworkRuleType.DOMAIN_SUFFIX ->
-                pattern.removePrefix("*.").removePrefix(".").matches(DOMAIN_PATTERN)
-            KiyoriNetworkRuleType.DOMAIN_KEYWORD ->
-                pattern.none { it == ',' || it.isWhitespace() } &&
-                    pattern.any { it.isLetterOrDigit() } &&
-                    pattern.all { it.isLetterOrDigit() || it in ".-_" }
-        }
-    }
-
-    private val DOMAIN_PATTERN =
-        Regex("(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}")
 }
+
+internal fun isKiyoriNetworkRulePatternValid(
+    value: String,
+    type: KiyoriNetworkRuleType,
+): Boolean {
+    val pattern = value.trim().lowercase()
+    if (pattern.isBlank() || pattern.length > KiyoriNetworkProxyConfig.MAX_RULE_PATTERN_LENGTH) return false
+    return when (type) {
+        KiyoriNetworkRuleType.DOMAIN -> pattern.matches(KIYORI_DOMAIN_PATTERN)
+        KiyoriNetworkRuleType.DOMAIN_SUFFIX ->
+            pattern.removePrefix("*.").removePrefix(".").matches(KIYORI_DOMAIN_PATTERN)
+        KiyoriNetworkRuleType.DOMAIN_KEYWORD ->
+            pattern.none { it == ',' || it.isWhitespace() } &&
+                pattern.any { it.isLetterOrDigit() } &&
+                pattern.all { it.isLetterOrDigit() || it in ".-_" }
+        KiyoriNetworkRuleType.IP_CIDR,
+        KiyoriNetworkRuleType.IP_CIDR6,
+        KiyoriNetworkRuleType.SRC_IP_CIDR,
+        -> isValidKiyoriIpCidr(pattern)
+        KiyoriNetworkRuleType.IP_SUFFIX,
+        KiyoriNetworkRuleType.SRC_IP_SUFFIX,
+        -> pattern.matches(KIYORI_IP_SUFFIX_PATTERN)
+        KiyoriNetworkRuleType.IP_ASN,
+        KiyoriNetworkRuleType.SRC_IP_ASN,
+        KiyoriNetworkRuleType.DST_PORT,
+        KiyoriNetworkRuleType.SRC_PORT,
+        KiyoriNetworkRuleType.IN_PORT,
+        KiyoriNetworkRuleType.UID,
+        -> pattern.matches(KIYORI_NUMERIC_OR_RANGE_PATTERN)
+        KiyoriNetworkRuleType.GEOIP,
+        KiyoriNetworkRuleType.SRC_GEOIP,
+        KiyoriNetworkRuleType.NETWORK,
+        KiyoriNetworkRuleType.IN_TYPE,
+        KiyoriNetworkRuleType.IN_USER,
+        KiyoriNetworkRuleType.IN_NAME,
+        KiyoriNetworkRuleType.REMATCH_NAME,
+        -> pattern.none(Char::isISOControl) && pattern.none(Char::isWhitespace)
+        KiyoriNetworkRuleType.MATCH -> false
+        else -> pattern.none(Char::isISOControl)
+    }
+}
+
+private fun isValidKiyoriIpCidr(value: String): Boolean {
+    val slash = value.lastIndexOf('/')
+    if (slash <= 0 || slash == value.lastIndex) return false
+    val address = runCatching { InetAddress.getByName(value.substring(0, slash)) }.getOrNull() ?: return false
+    val prefix = value.substring(slash + 1).toIntOrNull() ?: return false
+    val maxPrefix = if (address.address.size == 16) 128 else 32
+    return prefix in 0..maxPrefix
+}
+
+private val KIYORI_DOMAIN_PATTERN =
+    Regex("(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}")
+private val KIYORI_IP_SUFFIX_PATTERN = Regex("[0-9a-f:.]+(?:/[0-9]{1,3})?")
+private val KIYORI_NUMERIC_OR_RANGE_PATTERN = Regex("[0-9]+(?:-[0-9]+)?")
 
 object KiyoriScriptNetworkCallIdentity {
     const val INTERNAL_PACKAGE_PARAMETER = "__operit_network_script_package"

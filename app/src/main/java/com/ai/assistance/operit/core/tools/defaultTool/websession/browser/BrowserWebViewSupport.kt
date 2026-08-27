@@ -118,6 +118,17 @@ internal fun StandardBrowserSessionTools.createSessionOnMain(
         event = "USERSCRIPT_SESSION_ATTACHED",
         session = session,
     )
+    KiyoriNetworkProxyManager.getInstance(appContext).setBrowserSiteProxyPolicy(
+        disabledHostProvider = { host ->
+            browserSettingsStore.current.isNetworkProxyDisabledForSite(host)
+        },
+        disabledDomainsProvider = {
+            browserSettingsStore.current.siteSettingsRules
+                .filter { rule ->
+                    WebSessionSiteFeature.DISABLE_NETWORK_PROXY in rule.disabledFeatures
+                }.mapTo(linkedSetOf()) { rule -> rule.domain }
+        },
+    )
     // The process-wide ProxyController only becomes usable after the real WebView provider and
     // its support-library bridge have both been initialized. Signal readiness after configuration
     // and diagnostics, before the caller can schedule the first remote navigation.
@@ -1399,6 +1410,17 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                 when (feature) {
                     WebSessionSiteFeature.USER_SCRIPTS ->
                         userscriptManager.refreshSiteSettings()
+                    WebSessionSiteFeature.DISABLE_NETWORK_PROXY ->
+                        ioScope.launch {
+                            runCatching {
+                                KiyoriNetworkProxyManager.getInstance(context.applicationContext)
+                                    .refreshBrowserProxyOverride()
+                            }.onSuccess {
+                                StandardBrowserSessionTools.mainHandler.post { getActiveSessionOnMain()?.webView?.reload() }
+                            }.onFailure { error ->
+                                AppLogger.e(WEBVIEW_SUPPORT_TAG, "Failed to refresh browser proxy after site rule change", error)
+                            }
+                        }
                     WebSessionSiteFeature.FORCE_PAGE_ZOOM ->
                         applyBrowserDisplaySettingsOnMain()
                     WebSessionSiteFeature.WEB_ELEMENT_LONG_PRESS_MENU ->
@@ -1424,6 +1446,16 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                 applyBrowserWebElementLongPressMenuSettingOnMain()
                 applyWebsitePasswordSavingSettingOnMain()
                 userscriptManager.refreshSiteSettings()
+                ioScope.launch {
+                    runCatching {
+                        KiyoriNetworkProxyManager.getInstance(context.applicationContext)
+                            .refreshBrowserProxyOverride()
+                    }.onSuccess {
+                        StandardBrowserSessionTools.mainHandler.post { getActiveSessionOnMain()?.webView?.reload() }
+                    }.onFailure { error ->
+                        AppLogger.e(WEBVIEW_SUPPORT_TAG, "Failed to refresh browser proxy after clearing site settings", error)
+                    }
+                }
                 refreshSessionUiOnMain()
             }
         }

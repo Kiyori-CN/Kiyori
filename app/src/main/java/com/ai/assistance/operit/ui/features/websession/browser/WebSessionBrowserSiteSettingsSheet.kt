@@ -38,9 +38,11 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.Browse
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSettings
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSiteFeature
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveBrowserAdBlockAllowlistedDomain
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveWebSessionNetworkProxyDisabledDomain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.siteSettingsRule
 
 internal enum class WebSessionSiteSettingId {
+    NETWORK_PROXY,
     AD_BLOCKING,
     USER_SCRIPTS,
     RETURN_WITHOUT_RELOAD,
@@ -69,6 +71,19 @@ internal data class WebSessionSiteSettingSection(
 
 internal val webSessionSiteSettingSections =
     listOf(
+        WebSessionSiteSettingSection(
+            title = "网络",
+            description = "控制当前域名是否经过 Kiyori 应用内代理",
+            settings =
+                listOf(
+                    WebSessionSiteSettingSpec(
+                        id = WebSessionSiteSettingId.NETWORK_PROXY,
+                        title = "禁用网络代理",
+                        description = "当前域名及其子域名始终直连，优先于应用代理和订阅规则",
+                        feature = WebSessionSiteFeature.DISABLE_NETWORK_PROXY,
+                    ),
+                ),
+        ),
         WebSessionSiteSettingSection(
             title = "内容与脚本",
             description = "控制当前域名的内容过滤和网页脚本运行",
@@ -170,8 +185,10 @@ internal fun isWebSessionSiteSettingGloballyEnabled(
     browserSettings: WebSessionBrowserSettings,
     adBlockState: BrowserAdBlockState,
     userScriptsAllowed: Boolean,
+    networkProxyEnabled: Boolean = true,
 ): Boolean =
     when (id) {
+        WebSessionSiteSettingId.NETWORK_PROXY -> networkProxyEnabled
         WebSessionSiteSettingId.AD_BLOCKING -> adBlockState.enabled
         WebSessionSiteSettingId.USER_SCRIPTS -> userScriptsAllowed
         WebSessionSiteSettingId.RETURN_WITHOUT_RELOAD ->
@@ -200,6 +217,7 @@ internal fun WebSessionBrowserSiteSettingsSheet(
     browserSettings: WebSessionBrowserSettings,
     adBlockState: BrowserAdBlockState,
     userScriptsAllowed: Boolean,
+    networkProxyEnabled: Boolean = true,
     onSetFeatureDisabled: (String, WebSessionSiteFeature, Boolean) -> Unit,
     onSetAdBlockingDisabled: (String, Boolean) -> Unit,
     onClearSiteSettings: (String) -> Unit,
@@ -244,6 +262,7 @@ internal fun WebSessionBrowserSiteSettingsSheet(
                     browserSettings = browserSettings,
                     adBlockState = adBlockState,
                     userScriptsAllowed = userScriptsAllowed,
+                    networkProxyEnabled = networkProxyEnabled,
                     onSetFeatureDisabled = onSetFeatureDisabled,
                     onSetAdBlockingDisabled = onSetAdBlockingDisabled,
                     onClearSiteSettings = onClearSiteSettings,
@@ -259,6 +278,7 @@ private fun WebSessionSiteSettingsContent(
     browserSettings: WebSessionBrowserSettings,
     adBlockState: BrowserAdBlockState,
     userScriptsAllowed: Boolean,
+    networkProxyEnabled: Boolean,
     onSetFeatureDisabled: (String, WebSessionSiteFeature, Boolean) -> Unit,
     onSetAdBlockingDisabled: (String, Boolean) -> Unit,
     onClearSiteSettings: (String) -> Unit,
@@ -268,6 +288,10 @@ private fun WebSessionSiteSettingsContent(
     val matchedAdBlockDomain =
         resolveBrowserAdBlockAllowlistedDomain(domain, adBlockState.allowlistedDomains)
     val siteRule = browserSettings.siteSettingsRule(domain)
+    val exactNetworkProxyDisabled =
+        WebSessionSiteFeature.DISABLE_NETWORK_PROXY in siteRule?.disabledFeatures.orEmpty()
+    val matchedNetworkProxyDomain =
+        resolveWebSessionNetworkProxyDisabledDomain(domain, browserSettings.siteSettingsRules)
     val hasExactSiteSettings = siteRule != null || exactAdBlockDisabled
 
     LazyColumn(
@@ -323,8 +347,11 @@ private fun WebSessionSiteSettingsContent(
                 browserSettings = browserSettings,
                 adBlockState = adBlockState,
                 userScriptsAllowed = userScriptsAllowed,
+                networkProxyEnabled = networkProxyEnabled,
                 matchedAdBlockDomain = matchedAdBlockDomain,
                 exactAdBlockDisabled = exactAdBlockDisabled,
+                matchedNetworkProxyDomain = matchedNetworkProxyDomain,
+                exactNetworkProxyDisabled = exactNetworkProxyDisabled,
                 onSetFeatureDisabled = onSetFeatureDisabled,
                 onSetAdBlockingDisabled = onSetAdBlockingDisabled,
             )
@@ -391,8 +418,11 @@ private fun WebSessionSiteSettingsSectionCard(
     browserSettings: WebSessionBrowserSettings,
     adBlockState: BrowserAdBlockState,
     userScriptsAllowed: Boolean,
+    networkProxyEnabled: Boolean,
     matchedAdBlockDomain: String?,
     exactAdBlockDisabled: Boolean,
+    matchedNetworkProxyDomain: String?,
+    exactNetworkProxyDisabled: Boolean,
     onSetFeatureDisabled: (String, WebSessionSiteFeature, Boolean) -> Unit,
     onSetAdBlockingDisabled: (String, Boolean) -> Unit,
 ) {
@@ -432,28 +462,38 @@ private fun WebSessionSiteSettingsSectionCard(
                             browserSettings = browserSettings,
                             adBlockState = adBlockState,
                             userScriptsAllowed = userScriptsAllowed,
+                            networkProxyEnabled = networkProxyEnabled,
                         )
                     val inheritedAdBlockDisabled =
                         setting.id == WebSessionSiteSettingId.AD_BLOCKING &&
                             matchedAdBlockDomain != null &&
                             !exactAdBlockDisabled
+                    val inheritedNetworkProxyDisabled =
+                        setting.id == WebSessionSiteSettingId.NETWORK_PROXY &&
+                            matchedNetworkProxyDomain != null &&
+                            !exactNetworkProxyDisabled
                     val siteDisabled =
-                        if (setting.id == WebSessionSiteSettingId.AD_BLOCKING) {
-                            matchedAdBlockDomain != null
-                        } else {
-                            setting.feature in
-                                browserSettings
-                                    .siteSettingsRule(domain)
-                                    ?.disabledFeatures
-                                    .orEmpty()
+                        when (setting.id) {
+                            WebSessionSiteSettingId.AD_BLOCKING -> matchedAdBlockDomain != null
+                            WebSessionSiteSettingId.NETWORK_PROXY -> matchedNetworkProxyDomain != null
+                            else ->
+                                setting.feature in
+                                    browserSettings
+                                        .siteSettingsRule(domain)
+                                        ?.disabledFeatures
+                                        .orEmpty()
                         }
                     WebSessionSiteSettingRow(
                         setting = setting,
                         globalEnabled = globalEnabled,
                         siteDisabled = siteDisabled,
-                        inheritedAdBlockDomain =
-                            matchedAdBlockDomain.takeIf { inheritedAdBlockDisabled },
-                        enabled = !inheritedAdBlockDisabled,
+                        inheritedDisabledDomain =
+                            when {
+                                inheritedAdBlockDisabled -> matchedAdBlockDomain
+                                inheritedNetworkProxyDisabled -> matchedNetworkProxyDomain
+                                else -> null
+                            },
+                        enabled = !inheritedAdBlockDisabled && !inheritedNetworkProxyDisabled,
                         onCheckedChange = { disabled ->
                             if (setting.id == WebSessionSiteSettingId.AD_BLOCKING) {
                                 onSetAdBlockingDisabled(domain, disabled)
@@ -483,15 +523,15 @@ private fun WebSessionSiteSettingRow(
     setting: WebSessionSiteSettingSpec,
     globalEnabled: Boolean,
     siteDisabled: Boolean,
-    inheritedAdBlockDomain: String?,
+    inheritedDisabledDomain: String?,
     enabled: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     val toneColors = WebSessionBrowserMenuTone.SITE_CONFIG.resolveColors()
     val statusText =
         when {
-            inheritedAdBlockDomain != null ->
-                "由 $inheritedAdBlockDomain 白名单规则禁用"
+            inheritedDisabledDomain != null ->
+                "由 $inheritedDisabledDomain 的上级域名规则禁用"
             !globalEnabled && siteDisabled ->
                 "全局已关闭 · 已保留当前域名禁用"
             !globalEnabled ->
@@ -503,7 +543,7 @@ private fun WebSessionSiteSettingRow(
         }
     val statusColor =
         when {
-            inheritedAdBlockDomain != null || siteDisabled -> toneColors.icon
+            inheritedDisabledDomain != null || siteDisabled -> toneColors.icon
             globalEnabled -> MaterialTheme.colorScheme.primary
             else -> MaterialTheme.colorScheme.onSurfaceVariant
         }

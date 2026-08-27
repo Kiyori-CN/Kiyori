@@ -10,6 +10,7 @@ import org.json.JSONObject
 internal enum class WebSessionSiteFeature(
     val persistedId: String,
 ) {
+    DISABLE_NETWORK_PROXY("disable_network_proxy"),
     USER_SCRIPTS("user_scripts"),
     RETURN_WITHOUT_RELOAD("return_without_reload"),
     SWIPE_HISTORY_NAVIGATION("swipe_history_navigation"),
@@ -96,6 +97,23 @@ internal fun WebSessionBrowserSettings.isSiteFeatureDisabled(
     domainOrUrl: String,
     feature: WebSessionSiteFeature,
 ): Boolean = siteSettingsRule(domainOrUrl)?.disabledFeatures?.contains(feature) == true
+
+internal fun resolveWebSessionNetworkProxyDisabledDomain(
+    domainOrUrl: String,
+    rules: List<WebSessionSiteSettingsRule>,
+): String? {
+    val host = normalizeWebSessionSiteSettingsDomain(domainOrUrl) ?: return null
+    return rules
+        .asSequence()
+        .filter { rule -> WebSessionSiteFeature.DISABLE_NETWORK_PROXY in rule.disabledFeatures }
+        .map(WebSessionSiteSettingsRule::domain)
+        .filter { domain -> host == domain || host.endsWith(".$domain") }
+        .maxByOrNull(String::length)
+}
+
+internal fun WebSessionBrowserSettings.isNetworkProxyDisabledForSite(
+    domainOrUrl: String,
+): Boolean = resolveWebSessionNetworkProxyDisabledDomain(domainOrUrl, siteSettingsRules) != null
 
 internal fun resolveWebSessionSiteFeatureEnabled(
     settings: WebSessionBrowserSettings,

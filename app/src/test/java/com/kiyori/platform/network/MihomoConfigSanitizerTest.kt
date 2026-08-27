@@ -117,6 +117,91 @@ class MihomoConfigSanitizerTest {
     }
 
     @Test
+    fun `sanitizer keeps cidr options and nested logic rules`() {
+        val sanitized =
+            MihomoConfigSanitizer.sanitize(
+                """
+                proxies:
+                  - { name: node-a, type: socks5, server: proxy.example.com, port: 1080 }
+                rules:
+                  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+                  - IP-CIDR6,2001:db8::/32,KIYORI_APP_PROXY,no-resolve
+                  - GEOIP,CN,DIRECT
+                  - PROCESS-NAME,com.example.app,KIYORI_APP_PROXY
+                  - AND,((DOMAIN,example.com),(NETWORK,udp)),DIRECT
+                  - OR,((DOMAIN,example.net),(NETWORK,tcp)),KIYORI_APP_PROXY
+                  - NOT,((DOMAIN,blocked.example)),DIRECT
+                """.trimIndent(),
+            )
+
+        assertEquals(7, sanitized.rules.size)
+        assertTrue(sanitized.rules.contains("IP-CIDR,10.0.0.0/8,DIRECT,no-resolve"))
+        assertTrue(sanitized.rules.contains("AND,((DOMAIN,example.com),(NETWORK,udp)),DIRECT"))
+        assertEquals(0, sanitized.summary.unsupportedRuleCount)
+    }
+
+    @Test
+    fun `sanitizer keeps sub-rules and validates their references`() {
+        val sanitized =
+            MihomoConfigSanitizer.sanitize(
+                """
+                proxies:
+                  - { name: node-a, type: socks5, server: proxy.example.com, port: 1080 }
+                sub-rules:
+                  blocked:
+                    - DOMAIN-SUFFIX,blocked.example,DIRECT
+                    - MATCH,KIYORI_APP_PROXY
+                rules:
+                  - SUB-RULE,blocked,KIYORI_APP_PROXY
+                  - SUB-RULE,missing,DIRECT
+                """.trimIndent(),
+            )
+
+        assertEquals(listOf("SUB-RULE,blocked,KIYORI_APP_PROXY"), sanitized.rules)
+        assertEquals(1, sanitized.summary.unsupportedRuleCount)
+        assertTrue(sanitized.yaml.contains("sub-rules:"))
+        assertTrue(sanitized.yaml.contains("SUB-RULE,blocked,KIYORI_APP_PROXY"))
+
+        val runtime =
+            MihomoConfigSanitizer.buildRuntimeConfig(
+                sanitizedYaml = sanitized.yaml,
+                mixedPort = 31001,
+                controllerPort = 31002,
+                controllerSecret = "controller-secret",
+                testUrl = KiyoriNetworkProxyConfig.DEFAULT_TEST_URL,
+            )
+        assertTrue(runtime.yaml.contains("sub-rules:"))
+        assertTrue(runtime.yaml.contains("DOMAIN-SUFFIX,blocked.example,DIRECT"))
+    }
+
+    @Test
+    fun `subscription rule replacement validates and preserves the normalized rule list`() {
+        val imported =
+            MihomoConfigSanitizer.sanitize(
+                """
+                proxies:
+                  - { name: node-a, type: socks5, server: proxy.example.com, port: 1080 }
+                rules:
+                  - DOMAIN-SUFFIX,example.com,DIRECT
+                  - IP-CIDR,203.0.113.0/24,KIYORI_APP_PROXY,no-resolve
+                """.trimIndent(),
+            )
+        val updated =
+            MihomoConfigSanitizer.replaceSubscriptionRule(
+                sanitizedYaml = imported.yaml,
+                ruleIndex = 1,
+                rawRule = "IP-CIDR,198.51.100.0/24,DIRECT,no-resolve",
+            )
+        assertEquals(
+            listOf(
+                "DOMAIN-SUFFIX,example.com,DIRECT",
+                "IP-CIDR,198.51.100.0/24,DIRECT,no-resolve",
+            ),
+            updated.rules,
+        )
+    }
+
+    @Test
     fun `dns sanitizer removes external geodata and rule set dependencies`() {
         val sanitized =
             MihomoConfigSanitizer.sanitize(

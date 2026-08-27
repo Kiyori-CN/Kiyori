@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -113,6 +115,7 @@ import com.kiyori.platform.network.MihomoNodeTestStatus
 import com.kiyori.platform.network.MihomoProxyGroupSummary
 import com.kiyori.platform.network.MihomoRuntimeGroupState
 import com.kiyori.platform.network.MihomoRuntimeNodeState
+import com.kiyori.platform.network.isKiyoriNetworkRulePatternValid
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.text.DateFormat
@@ -200,6 +203,11 @@ private sealed interface CustomRuleEditor {
     data class Edit(val ruleId: String) : CustomRuleEditor
 }
 
+private data class SubscriptionRuleEditor(
+    val subscriptionId: String,
+    val ruleIndex: Int,
+)
+
 private data class SelectedYaml(
     val displayName: String,
     val text: String,
@@ -248,12 +256,16 @@ internal fun KiyoriNetworkProxySettingsPage(
     var customRulePattern by remember { mutableStateOf("") }
     var customRuleType by remember { mutableStateOf(KiyoriNetworkRuleType.DOMAIN) }
     var customRuleMode by remember { mutableStateOf(KiyoriNetworkRuleMode.PROXY) }
+    var customRuleTypeMenuVisible by remember { mutableStateOf(false) }
     var deleteCustomRuleId by remember { mutableStateOf<String?>(null) }
+    var subscriptionRuleEditor by remember { mutableStateOf<SubscriptionRuleEditor?>(null) }
+    var subscriptionRuleText by remember { mutableStateOf("") }
     var pageSection by remember { mutableStateOf(NetworkProxyPageSection.OVERVIEW) }
     var selectedGroupTabName by remember { mutableStateOf<String?>(null) }
     var nodeSearchQuery by remember { mutableStateOf("") }
     var nodeSort by remember { mutableStateOf(NetworkProxyNodeSort.DEFAULT) }
     var nodeSortMenuVisible by remember { mutableStateOf(false) }
+    var ruleSearchQuery by remember { mutableStateOf("") }
 
     val controlsEnabled = config != null && activeOperation == null
     val activeRuntimeGroups =
@@ -277,6 +289,7 @@ internal fun KiyoriNetworkProxySettingsPage(
     LaunchedEffect(pageSection) {
         nodeSortMenuVisible = false
         nodeSearchQuery = ""
+        ruleSearchQuery = ""
     }
 
     LaunchedEffect(sectionSubscription?.id) {
@@ -413,6 +426,11 @@ internal fun KiyoriNetworkProxySettingsPage(
                 customRuleMode = rule?.mode ?: KiyoriNetworkRuleMode.PROXY
             }
         }
+    }
+
+    fun openSubscriptionRuleEditor(subscriptionId: String, ruleIndex: Int, rawRule: String) {
+        subscriptionRuleEditor = SubscriptionRuleEditor(subscriptionId, ruleIndex)
+        subscriptionRuleText = rawRule
     }
 
     val filePicker =
@@ -956,87 +974,104 @@ internal fun KiyoriNetworkProxySettingsPage(
         }
 
         if (pageSection == NetworkProxyPageSection.RULES) {
-            item(key = "network_proxy_rules_detail") {
+            item(key = "network_proxy_rules_search") {
                 KiyoriSettingsGroupSection(
                     title = "规则管理",
-                    description = "自定义规则优先于当前订阅规则；更新订阅只替换订阅来源，不覆盖自定义规则。",
+                    description = "自定义规则优先于当前订阅规则；订阅更新会覆盖订阅规则编辑，不影响自定义规则。",
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        OutlinedButton(
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = controlsEnabled,
-                            onClick = { openCustomRuleEditor(CustomRuleEditor.Add) },
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("添加自定义规则", fontSize = 12.sp, maxLines = 1)
-                        }
-                    }
-                    val subscriptionRules = activeSubscription?.rules.orEmpty()
-                    KiyoriSettingsRow(
-                        title = "当前订阅规则",
-                        description =
-                            if (activeSubscription == null) {
-                                "尚未选择订阅"
-                            } else {
-                                "更新订阅时自动替换；仅保留 Kiyori 可安全执行的直接规则"
-                            },
-                        kind = KiyoriSettingsRowKind.NAVIGATION,
-                        icon = Icons.Default.Cloud,
-                        iconTone = KiyoriSemanticTone.CYAN,
-                        value = "${subscriptionRules.size} 条",
-                        enabled = false,
-                        onClick = {},
+                    OutlinedTextField(
+                        value = ruleSearchQuery,
+                        onValueChange = { ruleSearchQuery = it },
+                        singleLine = true,
+                        enabled = controlsEnabled,
+                        placeholder = { Text("搜索规则类型、匹配内容或目标") },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                        trailingIcon = if (ruleSearchQuery.isBlank()) null else {
+                            { IconButton(onClick = { ruleSearchQuery = "" }) { Icon(Icons.Default.Clear, contentDescription = "清除搜索") } }
+                        },
+                        colors = kiyoriSettingsOutlinedTextFieldColors(),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                     )
-                    if (subscriptionRules.isNotEmpty()) {
-                        Text(
-                            text = subscriptionRules.take(200).joinToString("\n"),
-                            color = LocalKiyoriSettingsColors.current.secondaryText,
-                            fontSize = 11.sp,
-                            lineHeight = 16.sp,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
-                        )
-                        if (subscriptionRules.size > 200) {
-                            Text(
-                                text = "还有 ${subscriptionRules.size - 200} 条未展开",
-                                color = LocalKiyoriSettingsColors.current.secondaryText,
-                                fontSize = 12.sp,
-                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp),
-                            )
-                        }
+                }
+            }
+            item(key = "network_proxy_custom_rules_header") {
+                KiyoriSettingsGroupSection(
+                    title = "自定义规则",
+                    description = "由你创建并单独加密保存，始终排在订阅规则前。",
+                ) {
+                    OutlinedButton(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                        enabled = controlsEnabled,
+                        onClick = { openCustomRuleEditor(CustomRuleEditor.Add) },
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("添加自定义规则", fontSize = 12.sp, maxLines = 1)
                     }
-                    KiyoriSettingsDivider()
-                    val customRules = config?.customRules.orEmpty()
-                    if (customRules.isEmpty()) {
+                    if (filteredCustomRules(config?.customRules.orEmpty(), ruleSearchQuery).isEmpty()) {
                         Text(
-                            text = "暂无自定义规则。添加后会优先于订阅规则匹配。",
+                            text = if (config?.customRules.isNullOrEmpty()) "暂无自定义规则。" else "没有匹配的自定义规则。",
                             color = LocalKiyoriSettingsColors.current.secondaryText,
                             fontSize = 13.sp,
                             modifier = Modifier.padding(18.dp),
                         )
-                    } else {
-                        customRules.forEachIndexed { index, rule ->
-                            if (index > 0) KiyoriSettingsDivider()
-                            CustomRuleRow(
-                                rule = rule,
-                                enabled = controlsEnabled,
-                                onEdit = { openCustomRuleEditor(CustomRuleEditor.Edit(rule.id)) },
-                                onDelete = { deleteCustomRuleId = rule.id },
-                                onToggle = {
-                                    runOperation(
-                                        NetworkProxyOperation("toggle_custom_rule", NetworkProxyOperationArea.ROUTING, "正在更新规则状态"),
-                                        "规则状态已更新。",
-                                    ) {
-                                        manager.updateCustomRule(rule.id, rule.pattern, rule.type, rule.mode, !rule.enabled)
-                                    }
-                                },
-                            )
-                        }
+                    }
+                }
+            }
+            items(
+                items = filteredCustomRules(config?.customRules.orEmpty(), ruleSearchQuery),
+                key = KiyoriNetworkProxyRule::id,
+            ) { rule ->
+                KiyoriSettingsGroupCard(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    CustomRuleRow(
+                        rule = rule,
+                        enabled = controlsEnabled,
+                        onEdit = { openCustomRuleEditor(CustomRuleEditor.Edit(rule.id)) },
+                        onDelete = { deleteCustomRuleId = rule.id },
+                        onToggle = {
+                            runOperation(
+                                NetworkProxyOperation("toggle_custom_rule", NetworkProxyOperationArea.ROUTING, "正在更新规则状态"),
+                                "规则状态已更新。",
+                            ) {
+                                manager.updateCustomRule(rule.id, rule.pattern, rule.type, rule.mode, !rule.enabled)
+                            }
+                        },
+                    )
+                }
+            }
+            item(key = "network_proxy_subscription_rules_header") {
+                KiyoriSettingsGroupSection(
+                    title = "当前订阅规则",
+                    description =
+                        activeSubscription?.let {
+                            "${it.displayName} · ${it.rules.size} 条；点击规则可编辑，更新订阅时覆盖。"
+                        } ?: "尚未选择订阅。",
+                ) {
+                    if (filteredSubscriptionRules(activeSubscription?.rules.orEmpty(), ruleSearchQuery).isEmpty()) {
+                        Text(
+                            text = if (activeSubscription?.rules.isNullOrEmpty()) "当前订阅没有可执行规则。" else "没有匹配的订阅规则。",
+                            color = LocalKiyoriSettingsColors.current.secondaryText,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(18.dp),
+                        )
                     }
                     NetworkProxyOperationFeedback(NetworkProxyOperationArea.ROUTING, activeOperation, feedback, false)
+                }
+            }
+            items(
+                items = filteredSubscriptionRules(activeSubscription?.rules.orEmpty(), ruleSearchQuery),
+                key = { indexedRule -> "${activeSubscription?.id}:${indexedRule.index}" },
+            ) { indexedRule ->
+                KiyoriSettingsGroupCard(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    SubscriptionRuleRow(
+                        rule = indexedRule.value,
+                        enabled = controlsEnabled,
+                        onEdit = {
+                            activeSubscription?.let { subscription ->
+                                openSubscriptionRuleEditor(subscription.id, indexedRule.index, indexedRule.value)
+                            }
+                        },
+                    )
                 }
             }
         }
@@ -1194,36 +1229,39 @@ internal fun KiyoriNetworkProxySettingsPage(
                     OutlinedTextField(
                         value = customRulePattern,
                         onValueChange = { customRulePattern = it },
-                        label = { Text(if (customRuleType == KiyoriNetworkRuleType.DOMAIN_KEYWORD) "关键字" else "域名") },
-                        placeholder = { Text(if (customRuleType == KiyoriNetworkRuleType.DOMAIN_KEYWORD) "例如 bilibili" else "例如 example.com") },
+                        label = { Text("匹配内容") },
+                        placeholder = { Text(customRulePatternExample(customRuleType)) },
                         singleLine = true,
                         isError = customRulePattern.isNotBlank() && !validPattern,
                         supportingText = {
-                            Text(
-                                when (customRuleType) {
-                                    KiyoriNetworkRuleType.DOMAIN -> "仅匹配这个完整域名"
-                                    KiyoriNetworkRuleType.DOMAIN_SUFFIX -> "匹配该域名及其所有子域名"
-                                    KiyoriNetworkRuleType.DOMAIN_KEYWORD -> "域名中包含此关键字时命中"
-                                },
-                            )
+                            Text(customRuleTypeDescription(customRuleType))
                         },
                     )
                     Text("规则类型", fontSize = 13.sp, color = LocalKiyoriSettingsColors.current.secondaryText)
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        listOf(
-                            KiyoriNetworkRuleType.DOMAIN to "完整域名",
-                            KiyoriNetworkRuleType.DOMAIN_SUFFIX to "域名后缀",
-                            KiyoriNetworkRuleType.DOMAIN_KEYWORD to "域名关键字",
-                        ).forEach { (type, label) ->
-                            val selected = customRuleType == type
-                            TextButton(
-                                onClick = { customRuleType = type },
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text(
-                                    text = if (selected) "✓ $label" else label,
-                                    color = if (selected) LocalKiyoriSettingsColors.current.accent else LocalKiyoriSettingsColors.current.primaryText,
-                                    fontSize = 12.sp,
+                    Box {
+                        OutlinedButton(
+                            onClick = { customRuleTypeMenuVisible = true },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(customRuleTypeLabel(customRuleType), modifier = Modifier.weight(1f))
+                            Icon(Icons.Default.MoreVert, contentDescription = "选择规则类型")
+                        }
+                        DropdownMenu(
+                            expanded = customRuleTypeMenuVisible,
+                            onDismissRequest = { customRuleTypeMenuVisible = false },
+                        ) {
+                            customRuleEditorTypes.forEach { type ->
+                                DropdownMenuItem(
+                                    text = { Text(customRuleTypeLabel(type)) },
+                                    onClick = {
+                                        customRuleType = type
+                                        customRuleTypeMenuVisible = false
+                                    },
+                                    trailingIcon = {
+                                        if (customRuleType == type) {
+                                            Icon(Icons.Default.Check, contentDescription = "当前类型")
+                                        }
+                                    },
                                 )
                             }
                         }
@@ -1265,6 +1303,61 @@ internal fun KiyoriNetworkProxySettingsPage(
             },
             dismissButton = {
                 TextButton(onClick = { customRuleEditor = null }, enabled = activeOperation == null) { Text("取消") }
+            },
+        )
+    }
+
+    subscriptionRuleEditor?.let { editor ->
+        val subscription = config?.subscriptions?.firstOrNull { it.id == editor.subscriptionId }
+        val ruleStillExists = editor.ruleIndex in subscription?.rules.orEmpty().indices
+        AlertDialog(
+            onDismissRequest = { if (activeOperation == null) subscriptionRuleEditor = null },
+            title = { Text("编辑当前订阅规则") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "${subscription?.displayName.orEmpty()} · 第 ${editor.ruleIndex + 1} 条",
+                        color = LocalKiyoriSettingsColors.current.secondaryText,
+                        fontSize = 12.sp,
+                    )
+                    OutlinedTextField(
+                        value = subscriptionRuleText,
+                        onValueChange = { subscriptionRuleText = it },
+                        label = { Text("Mihomo 规则") },
+                        minLines = 2,
+                        maxLines = 5,
+                        isError = subscriptionRuleText.isBlank() || subscriptionRuleText.any(Char::isISOControl),
+                        supportingText = { Text("保存时重新校验规则类型、匹配内容、目标和依赖；更新订阅会覆盖此编辑。") },
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled =
+                        activeOperation == null &&
+                            ruleStillExists &&
+                            subscriptionRuleText.isNotBlank() &&
+                            subscriptionRuleText.none(Char::isISOControl),
+                    onClick = {
+                        runOperation(
+                            NetworkProxyOperation("save_subscription_rule", NetworkProxyOperationArea.ROUTING, "正在校验并保存订阅规则"),
+                            "订阅规则已保存。",
+                            onSuccess = { subscriptionRuleEditor = null },
+                        ) {
+                            manager.updateSubscriptionRule(
+                                subscriptionId = editor.subscriptionId,
+                                ruleIndex = editor.ruleIndex,
+                                rawRule = subscriptionRuleText,
+                            )
+                        }
+                    },
+                ) { Text("保存") }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = activeOperation == null,
+                    onClick = { subscriptionRuleEditor = null },
+                ) { Text("取消") }
             },
         )
     }
@@ -1317,7 +1410,7 @@ internal fun KiyoriNetworkProxySettingsPage(
         AlertDialog(
             onDismissRequest = { if (activeOperation == null) resetDialogVisible = false },
             title = { Text("重置网络代理？") },
-            text = { Text("这会停止内嵌 Mihomo，并删除全部订阅、模块规则和加密代理配置。") },
+            text = { Text("这会停止内嵌 Mihomo，并删除全部订阅、脚本规则、自定义规则和加密代理配置。") },
             confirmButton = {
                 Button(enabled = activeOperation == null, onClick = {
                     runOperation(NetworkProxyOperation("reset", NetworkProxyOperationArea.ADVANCED, "正在重置网络代理"), "网络代理设置已重置。", onSuccess = { resetDialogVisible = false }) {
@@ -1920,20 +2013,78 @@ private fun NetworkProxySubscriptionRow(
 private fun isCustomRuleInputValid(
     raw: String,
     type: KiyoriNetworkRuleType,
-): Boolean {
-    val value = raw.trim().lowercase()
-    if (value.isBlank() || value.length > KiyoriNetworkProxyConfig.MAX_RULE_PATTERN_LENGTH) return false
-    return when (type) {
-        KiyoriNetworkRuleType.DOMAIN -> value.matches(
-            Regex("(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}"),
+): Boolean = isKiyoriNetworkRulePatternValid(raw, type)
+
+private val customRuleEditorTypes =
+    KiyoriNetworkRuleType.entries.filterNot { type ->
+        type in setOf(
+            KiyoriNetworkRuleType.RULE_SET,
+            KiyoriNetworkRuleType.SUB_RULE,
+            KiyoriNetworkRuleType.MATCH,
         )
-        KiyoriNetworkRuleType.DOMAIN_SUFFIX -> value.removePrefix("*.").removePrefix(".").matches(
-            Regex("(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}"),
-        )
-        KiyoriNetworkRuleType.DOMAIN_KEYWORD ->
-            value.none { it == ',' || it.isWhitespace() } &&
-                value.any(Char::isLetterOrDigit) &&
-                value.all { it.isLetterOrDigit() || it in ".-_" }
+    }
+
+private fun customRuleTypeLabel(type: KiyoriNetworkRuleType): String =
+    when (type) {
+        KiyoriNetworkRuleType.DOMAIN -> "完整域名 · DOMAIN"
+        KiyoriNetworkRuleType.DOMAIN_SUFFIX -> "域名后缀 · DOMAIN-SUFFIX"
+        KiyoriNetworkRuleType.DOMAIN_KEYWORD -> "域名关键字 · DOMAIN-KEYWORD"
+        KiyoriNetworkRuleType.IP_CIDR -> "IPv4 网段 · IP-CIDR"
+        KiyoriNetworkRuleType.IP_CIDR6 -> "IPv6 网段 · IP-CIDR6"
+        KiyoriNetworkRuleType.GEOIP -> "IP 国家/地区 · GEOIP"
+        else -> type.wireName
+    }
+
+private fun customRuleTypeDescription(type: KiyoriNetworkRuleType): String =
+    when (type) {
+        KiyoriNetworkRuleType.DOMAIN -> "仅匹配这个完整域名"
+        KiyoriNetworkRuleType.DOMAIN_SUFFIX -> "匹配该域名及其所有子域名"
+        KiyoriNetworkRuleType.DOMAIN_KEYWORD -> "域名中包含此关键字时命中"
+        KiyoriNetworkRuleType.IP_CIDR,
+        KiyoriNetworkRuleType.IP_CIDR6,
+        KiyoriNetworkRuleType.SRC_IP_CIDR,
+        -> "使用 CIDR 表示法，例如 203.0.113.0/24"
+        KiyoriNetworkRuleType.GEOIP,
+        KiyoriNetworkRuleType.SRC_GEOIP,
+        -> "使用国家或地区代码，例如 CN"
+        else -> "填写 ${type.wireName} 的 Mihomo 匹配内容"
+    }
+
+private fun customRulePatternExample(type: KiyoriNetworkRuleType): String =
+    when (type) {
+        KiyoriNetworkRuleType.DOMAIN,
+        KiyoriNetworkRuleType.DOMAIN_SUFFIX,
+        -> "例如 example.com"
+        KiyoriNetworkRuleType.DOMAIN_KEYWORD -> "例如 bilibili"
+        KiyoriNetworkRuleType.IP_CIDR -> "例如 203.0.113.0/24"
+        KiyoriNetworkRuleType.IP_CIDR6 -> "例如 2001:db8::/32"
+        KiyoriNetworkRuleType.GEOIP,
+        KiyoriNetworkRuleType.SRC_GEOIP,
+        -> "例如 CN"
+        else -> "输入匹配内容"
+    }
+
+private fun filteredCustomRules(
+    rules: List<KiyoriNetworkProxyRule>,
+    rawQuery: String,
+): List<KiyoriNetworkProxyRule> {
+    val query = rawQuery.trim().lowercase(Locale.ROOT)
+    if (query.isBlank()) return rules
+    return rules.filter { rule ->
+        rule.pattern.lowercase(Locale.ROOT).contains(query) ||
+            rule.type.wireName.lowercase(Locale.ROOT).contains(query) ||
+            rule.mode.name.lowercase(Locale.ROOT).contains(query) ||
+            customRuleTypeLabel(rule.type).lowercase(Locale.ROOT).contains(query)
+    }
+}
+
+private fun filteredSubscriptionRules(
+    rules: List<String>,
+    rawQuery: String,
+): List<IndexedValue<String>> {
+    val query = rawQuery.trim().lowercase(Locale.ROOT)
+    return rules.withIndex().filter { indexed ->
+        query.isBlank() || indexed.value.lowercase(Locale.ROOT).contains(query)
     }
 }
 
@@ -1963,11 +2114,7 @@ private fun CustomRuleRow(
                 text = when (rule.mode) {
                     KiyoriNetworkRuleMode.DIRECT -> "直连"
                     KiyoriNetworkRuleMode.PROXY -> "代理"
-                } + " · " + when (rule.type) {
-                    KiyoriNetworkRuleType.DOMAIN -> "完整域名"
-                    KiyoriNetworkRuleType.DOMAIN_SUFFIX -> "域名后缀"
-                    KiyoriNetworkRuleType.DOMAIN_KEYWORD -> "域名关键字"
-                },
+                } + " · " + customRuleTypeLabel(rule.type),
                 color = colors.secondaryText,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(top = 3.dp),
@@ -1975,6 +2122,40 @@ private fun CustomRuleRow(
         }
         Switch(checked = rule.enabled, onCheckedChange = { onToggle() }, enabled = enabled)
         TextButton(enabled = enabled, onClick = onDelete) { Text("删除") }
+    }
+}
+
+@Composable
+private fun SubscriptionRuleRow(
+    rule: String,
+    enabled: Boolean,
+    onEdit: () -> Unit,
+) {
+    val colors = LocalKiyoriSettingsColors.current
+    val kind = rule.substringBefore(',').trim().ifBlank { "未知类型" }
+    val target = rule.substringAfterLast(',').trim().ifBlank { "未知目标" }
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .alpha(if (enabled) 1f else 0.42f)
+                .clickable(enabled = enabled, onClick = onEdit)
+                .padding(horizontal = 18.dp, vertical = 12.dp),
+    ) {
+        Text(
+            text = rule,
+            color = colors.primaryText,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+            fontFamily = FontFamily.Monospace,
+            softWrap = true,
+        )
+        Text(
+            text = "$kind · 目标 $target · 点击编辑",
+            color = colors.secondaryText,
+            fontSize = 11.sp,
+            modifier = Modifier.padding(top = 4.dp),
+        )
     }
 }
 

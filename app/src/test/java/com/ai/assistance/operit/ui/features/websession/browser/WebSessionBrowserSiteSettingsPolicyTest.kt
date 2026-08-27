@@ -9,9 +9,9 @@ import org.junit.Test
 
 class WebSessionBrowserSiteSettingsPolicyTest {
     @Test
-    fun `site settings expose four groups and eleven negative controls`() {
+    fun `site settings expose five groups and twelve negative controls`() {
         assertEquals(
-            listOf(2, 4, 3, 2),
+            listOf(1, 2, 4, 3, 2),
             webSessionSiteSettingSections.map { section -> section.settings.size },
         )
         assertEquals(

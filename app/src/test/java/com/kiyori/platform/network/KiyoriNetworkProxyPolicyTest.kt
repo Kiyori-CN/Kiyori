@@ -7,6 +7,9 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.net.Proxy
+import java.net.InetSocketAddress
+import java.net.URI
 
 class KiyoriNetworkProxyPolicyTest {
     @Test
@@ -235,6 +238,19 @@ class KiyoriNetworkProxyPolicyTest {
                 )
             }.code,
         )
+    }
+
+    @Test
+    fun `browser scoped selector honors the highest priority site proxy disable`() {
+        val selector =
+            ScopedKiyoriProxySelector(
+                proxy = Proxy(Proxy.Type.HTTP, InetSocketAddress.createUnresolved("127.0.0.1", 8080)),
+                proxyPrivateNetworks = true,
+                browserSiteProxyDisabled = { host -> host == "example.com" || host.endsWith(".example.com") },
+            )
+        assertEquals(Proxy.NO_PROXY, selector.select(URI("https://example.com"))[0])
+        assertEquals(Proxy.NO_PROXY, selector.select(URI("https://cdn.example.com"))[0])
+        assertEquals(Proxy.Type.HTTP, selector.select(URI("https://other.test"))[0].type())
     }
 
     private fun usableSubscription(): KiyoriProxySubscription =

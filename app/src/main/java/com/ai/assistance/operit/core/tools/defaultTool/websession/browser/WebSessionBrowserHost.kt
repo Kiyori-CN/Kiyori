@@ -51,6 +51,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.kiyori.platform.network.KiyoriNetworkProxyManager
+import com.kiyori.platform.network.KiyoriNetworkProxyStoreState
 import kotlin.math.roundToInt
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -249,6 +251,10 @@ internal class WebSessionBrowserHost(
         val userscriptUiState by userscriptStore.state.collectAsState()
         val browserSettings by browserSettingsStore.state.collectAsState()
         val adBlockState by adBlockStore.state.collectAsState()
+        val networkProxyStoreState by
+            KiyoriNetworkProxyManager.getInstance(appContext).configState.collectAsState()
+        val networkProxyEnabled =
+            (networkProxyStoreState as? KiyoriNetworkProxyStoreState.Ready)?.config?.enabled == true
         val playerSession = PlayerSession.getInstance(appContext)
         val playerState by playerSession.state.collectAsState()
         val currentPageUrl = hostState.browserState.currentUrl
@@ -292,6 +298,7 @@ internal class WebSessionBrowserHost(
             hostState = hostState,
             browserSettings = browserSettings,
             adBlockState = adBlockState,
+            networkProxyEnabled = networkProxyEnabled,
             bookmarks = bookmarks,
             bookmarkFolders = bookmarkFolders,
             globalHistory = history,

@@ -37,6 +37,7 @@ The project retains Operit's chat, model configuration, tool calling, workflows,
 ## Main capabilities
 
 - **Shared browser runtime** for Browser Home and AI tools, including tabs, WebView state, cookies, history, bookmarks, downloads, userscripts, and window state.
+- **Per-site network policy** from the Browser Menu can disable Kiyori's application proxy for the current HTTP(S) host and its subdomains. This has the highest Kiyori proxy priority but never bypasses an Android system VPN; the choice persists with other site settings.
 - **Browser diagnostics** from the Browser Menu, with a redacted process-local drawer for the active WebView provider, capabilities, navigation, permission, script, and renderer events. It is separate from the current-page network resource directory and never persists page or private data.
 - **Operit AI subsystem** with provider configuration, conversations, character cards, memory, tools, workflows, attachments, voice, and resumable execution.
 - **Extension ecosystem** for script packages, ToolPkg plugins, Skills, MCP servers, markets, environment variables, and permissions. Bundled scripts include an `Academic` group for official arXiv, Crossref, PubMed, Semantic Scholar, and OpenAlex API queries.
@@ -70,6 +71,8 @@ WebView proxy override. The reconciliation completes before Browser sends a remo
 navigation with an explicit error instead of silently using direct access. A later successful reconciliation from
 Network Proxy settings publishes a new readiness generation and allows subsequent navigation; local `about:` and
 `file:` pages do not wait for this barrier.
+
+Rule Management has one search field and two ordered sections: user-authored rules first, then the current subscription rules. Both sections support search; subscription rules are editable as normalized Mihomo source lines, and a subscription refresh replaces those edits while leaving user rules intact. User rules support Mihomo domain, wildcard, regular-expression, IP/CIDR, GeoIP, port, process, network, and logical matcher types with Direct or Proxy actions. Subscription rules retain `no-resolve` and `src` options, plus validated `RULE-SET` and `SUB-RULE` dependencies from `rule-providers` and `sub-rules`; these mappings are retained only when safely sanitized and referenced by an accepted rule.
 
 Subscription Management provides Add Subscription URL and Import YAML buttons. Tapping a row switches the active
 subscription; its overflow menu contains Update, Edit, Copy, and Delete. Copy creates a new subscription entry and
