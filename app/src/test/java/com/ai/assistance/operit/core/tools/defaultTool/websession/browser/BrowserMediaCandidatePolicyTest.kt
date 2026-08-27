@@ -372,6 +372,56 @@ class BrowserMediaCandidatePolicyTest {
     }
 
     @Test
+    fun staleDocumentCompletionCannotPublishAfterAConditionalNavigationStarts() {
+        assertFalse(
+            isCurrentBrowserDocumentCompletion(
+                pendingDocumentStartToken = "pending",
+                startedDocumentUrl = "https://page.example/old",
+                callbackUrl = "https://page.example/old",
+            ),
+        )
+        assertFalse(
+            isCurrentBrowserDocumentCompletion(
+                pendingDocumentStartToken = null,
+                startedDocumentUrl = "https://page.example/new",
+                callbackUrl = "https://page.example/old",
+            ),
+        )
+        assertTrue(
+            isCurrentBrowserDocumentCompletion(
+                pendingDocumentStartToken = null,
+                startedDocumentUrl = "https://page.example/new",
+                callbackUrl = "https://page.example/new",
+            ),
+        )
+    }
+
+    @Test
+    fun historyUpdatesFollowTheCurrentWebViewUrlWithoutBlockingSpaNavigation() {
+        assertFalse(
+            isCurrentBrowserHistoryUpdate(
+                pendingDocumentStartToken = "pending",
+                callbackUrl = "https://page.example/new#section",
+                webViewUrl = "https://page.example/new#section",
+            ),
+        )
+        assertFalse(
+            isCurrentBrowserHistoryUpdate(
+                pendingDocumentStartToken = null,
+                callbackUrl = "https://page.example/old",
+                webViewUrl = "https://page.example/new",
+            ),
+        )
+        assertTrue(
+            isCurrentBrowserHistoryUpdate(
+                pendingDocumentStartToken = null,
+                callbackUrl = "https://page.example/new#section",
+                webViewUrl = "https://page.example/new#section",
+            ),
+        )
+    }
+
+    @Test
     fun historyReplayKeepsPersistedIdentityWithoutAWebSessionOwner() {
         val entry =
             WebSessionHistoryEntry(

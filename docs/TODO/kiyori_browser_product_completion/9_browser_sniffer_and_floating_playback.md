@@ -21,7 +21,7 @@
 - `StandardBrowserSessionTools.WebSession` 继续是候选唯一 owner，新增当前文档的自动悬浮消费 token。候选被任何 Browser 播放入口接受时，记录候选 `documentToken`；自动 effect 只读取该 owner 的投影，手动播放仍可用。
 - `WebSessionBrowserState` 投影 `activeDocumentToken`、消费 token、`pageLoaded` 和 `isLoading`；`WebSessionBrowserMediaCandidate` 投影自身 `documentToken`。自动触发只允许在活动文档 token 非空、页面已完成且不在加载状态时执行，消费 token 与活动 token 相等时永不重新触发。
 - `navigateSessionOnMain` 在发出 `loadUrl` 前就生成新的文档 token并清空候选；`onPageStarted` 继续建立 WebView 真实导航边界并重复清理。旧文档异步请求由 token 校验丢弃，新文档不会继承旧候选或旧消费事实。
-- 后退、前进、刷新和 UA 设置触发的重新加载统一在 WebView 操作前调用同一文档失效 helper；`pendingBrowserDocumentStartToken` 阻止旧文档的 commit/finished/history 回调提前恢复 loaded 状态，并由匹配的 `onPageStarted` 消费。DOM observer 脚本携带注入时的 token，延迟 bridge 回调必须与当前 token 相等才会合并。
+- 后退、前进、刷新和 UA 设置触发的重新加载统一在 WebView 操作前调用同一文档失效 helper；`pendingBrowserDocumentStartToken` 阻止旧文档的 commit/finished/history 回调提前恢复 loaded 状态，并由匹配的 `onPageStarted` 消费；`browserDocumentStartedUrl` 再拒绝新文档开始后迟到的旧 URL completion 和主框架错误。历史更新要求回调 URL 等于 WebView 当前 URL，因此保留同文档 SPA URL 变化，同时拒绝旧文档迟到回调。没有主框架标识且可能先于 `onPageStarted` 的证书回调只负责拒绝无效证书；页面 SSL 状态由带主框架标识、且通过当前文档校验的网络错误回调更新。DOM observer 脚本携带注入时的 token，延迟 bridge 回调必须与当前 token 相等才会合并。
 - `PlayerSession` 仍只负责媒体和 runtime 关闭；关闭按钮只调用既有 `close()`，不调用网页 `pause/play/load`、`loadUrl/reload`，不等待异步关闭再由 UI 自己推断状态。关闭同页候选不会自动重弹；新文档的候选在稳定、完成加载后可自动播放，同页手动播放不受影响。
 
 ### 影响文件、风险与回滚点
@@ -49,7 +49,7 @@
 
 - 浏览器候选与播放器定向 JVM 测试通过；新增覆盖文档消费 token、加载门禁、DOM observer token 绑定和伪装 `.mp3` 视频证据。
 - 完整 App JVM、Python 合同测试 `124/124`、formal readiness、fresh-clone 检查和 `git diff --check` 均通过。
-- 最终串行 `:app:assembleDebug` 为 `BUILD SUCCESSFUL in 2m 16s`，共 `235` tasks；唯一 launcher、代理和 Player runtime packaging 门禁通过。Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，`503669293` 字节，SHA-256 `50078798329E135778D3DBE55AB3D6670D0D8DC0103CDA8A49D3055718A3B13F`；`com.kiyori / 45 / 0.1.0 / minSdk 26 / targetSdk 34 / compileSdk 37`、Android Debug V2 单 signer、16 KiB ZIP 对齐、`5512` 个 ZIP entry 零重复和播放器/代理 native/runtime 清单均通过。
+- 最终串行 `:app:assembleDebug` 为 `BUILD SUCCESSFUL in 47s`，共 `235` tasks；唯一 launcher、代理和 Player runtime packaging 门禁通过。Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，写入时间 `2026-08-27 21:15:43 +08:00`，`503669293` 字节，SHA-256 `83A76359CBB903EB7CDBD845AB13E9D0DE0238E2F827F146595F65B755EF97DE`；`com.kiyori / 45 / 0.1.0 / minSdk 26 / targetSdk 34 / compileSdk 37`、Android Debug V2 单 signer、16 KiB ZIP 对齐、`5512` 个 ZIP entry 零重复、仅 arm64 和播放器/代理 native/runtime 清单均通过。
 - 未安装 APK、未执行 ADB/MuMu 或真实网页操作；vivo Android 16 上的关闭按钮、切换网页、旧媒体不重弹、新文档自动悬浮和 Surface/runtime 时序仍为 `verification_pending`。
 
 ## 2026-08-03 画质排序、最高画质自动小窗与快速触发

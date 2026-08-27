@@ -675,6 +675,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
                     session.credentialDocumentToken = UUID.randomUUID().toString()
                     session.automaticFloatingConsumedDocumentToken = null
                 }
+                session.browserDocumentStartedUrl = url
                 // Redirects do not pass through navigateSessionOnMain; update before their
                 // subresources inherit the previous page's site-specific identity.
                 applySessionUserAgent(
@@ -725,7 +726,15 @@ internal fun StandardBrowserSessionTools.configureWebView(
 
             override fun onPageCommitVisible(view: WebView, url: String) {
                 super.onPageCommitVisible(view, url)
-                if (session.pendingBrowserDocumentStartToken != null) return
+                if (
+                    !isCurrentBrowserDocumentCompletion(
+                        pendingDocumentStartToken = session.pendingBrowserDocumentStartToken,
+                        startedDocumentUrl = session.browserDocumentStartedUrl,
+                        callbackUrl = url,
+                    )
+                ) {
+                    return
+                }
                 session.currentUrl = url
                 session.lastSnapshot = null
                 recordBrowserDiagnostic(
@@ -743,7 +752,15 @@ internal fun StandardBrowserSessionTools.configureWebView(
 
             override fun onPageFinished(view: WebView, url: String) {
                 super.onPageFinished(view, url)
-                if (session.pendingBrowserDocumentStartToken != null) return
+                if (
+                    !isCurrentBrowserDocumentCompletion(
+                        pendingDocumentStartToken = session.pendingBrowserDocumentStartToken,
+                        startedDocumentUrl = session.browserDocumentStartedUrl,
+                        callbackUrl = url,
+                    )
+                ) {
+                    return
+                }
                 session.currentUrl = url
                 if (session.searchRecoveryPending) {
                     session.lastSearchRecovery =
@@ -852,7 +869,15 @@ internal fun StandardBrowserSessionTools.configureWebView(
 
             override fun doUpdateVisitedHistory(view: WebView, url: String, isReload: Boolean) {
                 super.doUpdateVisitedHistory(view, url, isReload)
-                if (session.pendingBrowserDocumentStartToken != null) return
+                if (
+                    !isCurrentBrowserHistoryUpdate(
+                        pendingDocumentStartToken = session.pendingBrowserDocumentStartToken,
+                        callbackUrl = url,
+                        webViewUrl = view.url.orEmpty(),
+                    )
+                ) {
+                    return
+                }
                 session.currentUrl = url
                 userscriptManager.syncUrlChange(session.id, url)
                 val pageTitle = view.title.orEmpty()
@@ -888,15 +913,9 @@ internal fun StandardBrowserSessionTools.configureWebView(
                             "primaryError" to error.primaryError.toString(),
                         ),
                 )
+                // This callback has no main-frame flag and may run before onPageStarted. Cancel the
+                // invalid certificate here; the matching main-frame onReceivedError owns page state.
                 handler.cancel()
-                restoreReturnWithoutReloadOnMain(session)
-                session.pageLoaded = false
-                session.isLoading = false
-                session.hasSslError = true
-                completeBrowserHomeNavigationOnMain(view, session, error.url)
-                notifySessionStateChanged(session)
-                updateNavigationState(session)
-                refreshSessionUiOnMain(session.id)
             }
 
             override fun onReceivedError(
@@ -905,7 +924,14 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 error: android.webkit.WebResourceError,
             ) {
                 super.onReceivedError(view, request, error)
-                if (request.isForMainFrame) {
+                if (
+                    request.isForMainFrame &&
+                        isCurrentBrowserDocumentCompletion(
+                            pendingDocumentStartToken = session.pendingBrowserDocumentStartToken,
+                            startedDocumentUrl = session.browserDocumentStartedUrl,
+                            callbackUrl = request.url.toString(),
+                        )
+                ) {
                     val runtimeState =
                         KiyoriNetworkProxyManager.getInstance(context).runtimeState.value
                     KiyoriNetworkProxyLogStore.warning(
@@ -927,6 +953,15 @@ internal fun StandardBrowserSessionTools.configureWebView(
                         details = mapOf("url" to request.url.toString(), "errorCode" to error.errorCode.toString()),
                     )
                     restoreReturnWithoutReloadOnMain(session)
+                    if (error.errorCode == WebViewClient.ERROR_FAILED_SSL_HANDSHAKE) {
+                        session.pageLoaded = false
+                        session.isLoading = false
+                        session.hasSslError = true
+                        completeBrowserHomeNavigationOnMain(view, session, request.url.toString())
+                        notifySessionStateChanged(session)
+                        updateNavigationState(session)
+                        refreshSessionUiOnMain(session.id)
+                    }
                 }
             }
 
@@ -2222,12 +2257,31 @@ private fun StandardBrowserSessionTools.beginBrowserDocumentNavigation(
     // window where automatic playback could select media from the page being left.
     session.credentialDocumentToken = UUID.randomUUID().toString()
     session.pendingBrowserDocumentStartToken = session.credentialDocumentToken
+    session.browserDocumentStartedUrl = ""
     session.automaticFloatingConsumedDocumentToken = null
     session.pageLoaded = false
     session.isLoading = true
     clearMediaCandidates(session)
     refreshSessionUiOnMain(session.id)
 }
+
+internal fun isCurrentBrowserDocumentCompletion(
+    pendingDocumentStartToken: String?,
+    startedDocumentUrl: String,
+    callbackUrl: String,
+): Boolean =
+    pendingDocumentStartToken == null &&
+        startedDocumentUrl.isNotBlank() &&
+        callbackUrl == startedDocumentUrl
+
+internal fun isCurrentBrowserHistoryUpdate(
+    pendingDocumentStartToken: String?,
+    callbackUrl: String,
+    webViewUrl: String,
+): Boolean =
+    pendingDocumentStartToken == null &&
+        callbackUrl.isNotBlank() &&
+        callbackUrl == webViewUrl
 
 private fun StandardBrowserSessionTools.applyHistoryTargetUserAgent(
     session: BrowserToolSession,

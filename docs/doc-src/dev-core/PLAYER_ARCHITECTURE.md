@@ -102,15 +102,18 @@ Browser floating to fullscreen to floating to close never calls WebView `loadUrl
 candidate rescan or JavaScript media control. A page may continue its own media independently; Kiyori does not mutate
 that page state. Closing projects `BROWSER_ONLY` immediately so the floating composition disappears before native
 detach and runtime close finish. Each `WebSession` owns a current `credentialDocumentToken`, a pending-start token for
-app-initiated navigation, and an automatic-floating consumption token beside the candidates rather than in Compose. A
+app-initiated navigation, the URL from its latest `onPageStarted`, and an automatic-floating consumption token beside
+the candidates rather than in Compose. A
 candidate accepted by the single `PlayerSession` records that document token, whether the entry was automatic or
 manual. Automatic startup additionally
 requires the active document to be fully loaded (`pageLoaded=true`, `isLoading=false`) and filters candidates by the
 same document token. Closing, natural completion, or fullscreen `CLOSE` therefore cannot turn a consumed document's
 candidate into a new request, second `loadfile`, fresh runtime or fresh cache. Manual playback remains available.
-Navigation rotates the document token and clears candidates before the WebView operation. Stale completion callbacks
-are ignored until the matching `onPageStarted` consumes the pending-start token, so an old page's player cannot consume
-or reopen a candidate discovered by the new page.
+Navigation rotates the document token and clears candidates before the WebView operation. Completion callbacks are
+ignored until the matching `onPageStarted` consumes the pending-start token, and later callbacks must match the latest
+started URL, so an old page's player cannot consume or reopen a candidate discovered by the new page. Since
+`onReceivedSslError` has no main-frame identity and may precede `onPageStarted`, it only cancels the invalid certificate;
+the matching main-frame `onReceivedError` owns the current document's SSL and loading state.
 
 The fixed `mpvlibAndroid@168e0a5e` lifecycle remains the native Surface authority: detach sets `vo=null`,
 `force-window=no`, and releases the native window; attach restores the configured VO and `force-window=yes`. Kiyori
