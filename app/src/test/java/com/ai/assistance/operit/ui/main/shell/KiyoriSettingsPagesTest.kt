@@ -1193,7 +1193,7 @@ class KiyoriSettingsPagesTest {
         assertEquals(
             listOf(
                 WebSessionBrowserMenuTone.PAGE_SOURCE,
-                WebSessionBrowserMenuTone.READER_MODE,
+                WebSessionBrowserMenuTone.DIAGNOSTICS,
                 WebSessionBrowserMenuTone.PLUGINS,
                 WebSessionBrowserMenuTone.AI_DIALOGUE,
                 WebSessionBrowserMenuTone.TOOLBOX,

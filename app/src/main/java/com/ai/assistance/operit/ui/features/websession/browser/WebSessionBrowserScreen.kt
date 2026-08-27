@@ -63,6 +63,7 @@ import com.ai.assistance.operit.core.player.PlayerPresentation
 import com.ai.assistance.operit.core.player.PlayerSession
 import com.ai.assistance.operit.core.player.PlayerSessionState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDiagnosticScope
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadPromptState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadRenameMode
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserImageViewerItem
@@ -171,6 +172,7 @@ internal fun WebSessionBrowserScreen(
     onDeleteHistory: (WebSessionHistoryCategory?, Long?) -> Unit,
     onDeleteHistoryEntries: (Set<WebSessionHistoryEntryKey>) -> Unit,
     onClearNetworkLog: () -> Unit,
+    onClearDiagnosticLog: (BrowserDiagnosticScope) -> Unit,
     onAddNetworkBlockRule: (String) -> Unit,
     onSelectUserAgentMode: (WebSessionUserAgentMode) -> Unit,
     onSaveCustomGlobalUserAgent: (String) -> Unit,
@@ -989,6 +991,7 @@ internal fun WebSessionBrowserScreen(
                     },
                     onOpenUserAgent = { onHostStateChange { it.copy(sheetRoute = WebSessionBrowserSheetRoute.USER_AGENT) } },
                     onOpenNetworkLog = { onHostStateChange { it.copy(sheetRoute = WebSessionBrowserSheetRoute.NETWORK_LOG) } },
+                    onOpenDiagnosticLog = { onHostStateChange { it.copy(sheetRoute = WebSessionBrowserSheetRoute.DIAGNOSTICS) } },
                     onOpenAiDialogue = {
                         dismissSheet()
                         onOpenAiDialogue()
@@ -1000,7 +1003,6 @@ internal fun WebSessionBrowserScreen(
                     onToggleIncognito = {
                         toggleDefaultProfile(browserState.defaultSessionProfile)
                     },
-                    onOpenReaderMode = { openPlaceholder(WebSessionBrowserPlaceholderPage.READER_MODE) },
                     onOpenPageSource = {
                         dismissSheet()
                         onOpenPageSource()
@@ -1079,6 +1081,7 @@ internal fun WebSessionBrowserScreen(
                             onDeleteHistory = onDeleteHistory,
                             onDeleteHistoryEntries = onDeleteHistoryEntries,
                             onClearNetworkLog = onClearNetworkLog,
+                            onClearDiagnosticLog = onClearDiagnosticLog,
                             onAddNetworkBlockRule = onAddNetworkBlockRule,
                             onHostStateChange = onHostStateChange,
                             hostState = hostState,
@@ -1529,6 +1532,7 @@ private fun WebSessionBrowserDrawerContent(
     onDeleteHistory: (WebSessionHistoryCategory?, Long?) -> Unit,
     onDeleteHistoryEntries: (Set<WebSessionHistoryEntryKey>) -> Unit,
     onClearNetworkLog: () -> Unit,
+    onClearDiagnosticLog: (BrowserDiagnosticScope) -> Unit,
     onAddNetworkBlockRule: (String) -> Unit,
     onHostStateChange: ((WebSessionBrowserHostState) -> WebSessionBrowserHostState) -> Unit,
     hostState: WebSessionBrowserHostState,
@@ -1705,6 +1709,14 @@ private fun WebSessionBrowserDrawerContent(
                     onDismiss()
                     onOpenPageSource()
                 },
+                modifier = Modifier.fillMaxSize(),
+            )
+
+        WebSessionBrowserSheetRoute.DIAGNOSTICS ->
+            WebSessionBrowserDiagnosticSheet(
+                entries = browserState.diagnosticEntries,
+                activeSessionId = browserState.activeSessionId,
+                onClear = onClearDiagnosticLog,
                 modifier = Modifier.fillMaxSize(),
             )
 

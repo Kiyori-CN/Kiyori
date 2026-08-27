@@ -76,6 +76,19 @@ private fun StandardBrowserSessionTools.openMediaCandidate(
                 ),
             presentation = presentation,
         )
+        recordBrowserDiagnostic(
+            level = BrowserDiagnosticLevel.INFO,
+            category = BrowserDiagnosticCategory.MEDIA,
+            event = "PLAYER_HANDOFF",
+            session = browserSession,
+            documentToken = candidate.documentToken,
+            details =
+                mapOf(
+                    "candidateId" to candidate.id,
+                    "url" to candidate.url,
+                    "presentation" to presentation.name,
+                ),
+        )
         if (presentation == PlayerPresentation.FULLSCREEN_PLAYER) {
             playerSession.requestFullscreenActivityLaunchWhenReady()
         }
@@ -95,7 +108,18 @@ internal fun StandardBrowserSessionTools.downloadMediaCandidate(
                 sessionById(sourceSessionId)
             } ?: return@runOnMainSync false
         val candidate = findMediaCandidate(browserSession, candidateId) ?: return@runOnMainSync false
-        startMediaCandidateDownload(browserSession, candidate, destination)
+        startMediaCandidateDownload(browserSession, candidate, destination).also { accepted ->
+            if (accepted) {
+                recordBrowserDiagnostic(
+                    level = BrowserDiagnosticLevel.INFO,
+                    category = BrowserDiagnosticCategory.MEDIA,
+                    event = "MEDIA_DOWNLOAD_REQUESTED",
+                    session = browserSession,
+                    documentToken = candidate.documentToken,
+                    details = mapOf("candidateId" to candidate.id, "url" to candidate.url),
+                )
+            }
+        }
     }
 
 internal fun StandardBrowserSessionTools.toggleBrowserPlayerPause() {

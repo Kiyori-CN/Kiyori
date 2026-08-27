@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -57,11 +58,11 @@ internal fun WebSessionBrowserMenuDrawer(
     onOpenFloatingSniffer: () -> Unit,
     onOpenUserAgent: () -> Unit,
     onOpenNetworkLog: () -> Unit,
+    onOpenDiagnosticLog: () -> Unit,
     onOpenAiDialogue: () -> Unit,
     onOpenToolbox: () -> Unit,
     incognitoEnabled: Boolean,
     onToggleIncognito: () -> Unit,
-    onOpenReaderMode: () -> Unit,
     onOpenPageSource: () -> Unit,
     onOpenAdMarking: () -> Unit,
     onOpenSiteConfig: () -> Unit,
@@ -139,10 +140,10 @@ internal fun WebSessionBrowserMenuDrawer(
                         MenuAction(stringResource(R.string.web_session_plugins), R.drawable.ic_kiyori_tool_plugin, onOpenPlugins, tone = WebSessionBrowserMenuTone.PLUGINS),
                     )
                     MenuRow(
-                        MenuAction(stringResource(R.string.web_session_floating_sniffer), R.drawable.ic_kiyori_tool_sniffer, onOpenFloatingSniffer, tone = WebSessionBrowserMenuTone.FLOATING_SNIFFER),
                         MenuAction(stringResource(R.string.web_session_user_agent), R.drawable.ic_kiyori_tool_ua, onOpenUserAgent, tone = WebSessionBrowserMenuTone.USER_AGENT),
+                        MenuAction(stringResource(R.string.web_session_floating_sniffer), R.drawable.ic_kiyori_tool_sniffer, onOpenFloatingSniffer, tone = WebSessionBrowserMenuTone.FLOATING_SNIFFER),
                         MenuAction(stringResource(R.string.web_session_network_log), R.drawable.ic_kiyori_tool_network_log, onOpenNetworkLog, tone = WebSessionBrowserMenuTone.NETWORK_LOG),
-                        MenuAction(stringResource(R.string.web_session_ai_dialogue), R.drawable.ic_kiyori_tool_ai_dialogue, onOpenAiDialogue, tone = WebSessionBrowserMenuTone.AI_DIALOGUE),
+                        MenuAction(stringResource(R.string.web_session_diagnostics), R.drawable.ic_kiyori_tool_diagnostics, onOpenDiagnosticLog, tone = WebSessionBrowserMenuTone.DIAGNOSTICS),
                         MenuAction(stringResource(R.string.web_session_browser_toolbox), R.drawable.ic_kiyori_browser_bottom_toolbox, onOpenToolbox, tone = WebSessionBrowserMenuTone.TOOLBOX),
                     )
                     MenuRow(
@@ -153,10 +154,10 @@ internal fun WebSessionBrowserMenuDrawer(
                             enabled = incognitoEnabled,
                             tone = WebSessionBrowserMenuTone.INCOGNITO,
                         ),
-                        MenuAction(stringResource(R.string.web_session_reader_mode), R.drawable.ic_kiyori_tool_reader_mode, onOpenReaderMode, tone = WebSessionBrowserMenuTone.READER_MODE),
                         MenuAction(stringResource(R.string.web_session_page_source), R.drawable.ic_kiyori_tool_view_source, onOpenPageSource, tone = WebSessionBrowserMenuTone.PAGE_SOURCE),
                         MenuAction(stringResource(R.string.web_session_ad_marking), R.drawable.ic_kiyori_tool_ad_block, onOpenAdMarking, tone = WebSessionBrowserMenuTone.AD_MARKING),
                         MenuAction(stringResource(R.string.web_session_site_config), R.drawable.ic_kiyori_tool_site_config, onOpenSiteConfig, tone = WebSessionBrowserMenuTone.SITE_CONFIG),
+                        MenuAction(stringResource(R.string.web_session_ai_dialogue), R.drawable.ic_kiyori_tool_ai_dialogue, onOpenAiDialogue, tone = WebSessionBrowserMenuTone.AI_DIALOGUE),
                     )
                     Row(
                         modifier =
@@ -249,7 +250,7 @@ private fun RowScope.MenuCell(action: MenuAction) {
                 vertical = WEB_SESSION_BROWSER_MENU_CELL_VERTICAL_PADDING_DP.dp,
             )
             .clickable(enabled = action.enabled, role = Role.Button, onClick = action.onClick)
-            .semantics {
+            .semantics(mergeDescendants = true) {
                 contentDescription = action.title
                 role = Role.Button
             },
@@ -269,11 +270,13 @@ private fun RowScope.MenuCell(action: MenuAction) {
             text = action.title,
             style = MaterialTheme.typography.labelSmall,
             fontSize = WEB_SESSION_BROWSER_MENU_LABEL_SIZE_SP.sp,
+            lineHeight = 12.sp,
             fontWeight = FontWeight.Normal,
             textAlign = TextAlign.Center,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (action.enabled) 1f else 0.38f),
+            modifier = Modifier.height(WEB_SESSION_BROWSER_MENU_LABEL_HEIGHT_DP.dp),
         )
     }
 }

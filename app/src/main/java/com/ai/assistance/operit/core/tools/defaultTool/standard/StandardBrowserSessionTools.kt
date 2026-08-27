@@ -129,6 +129,8 @@ class StandardBrowserSessionTools private constructor(
         BrowserSessionRecoveryStore.getInstance(context.applicationContext)
     }
     internal val profileManager = WebSessionProfileManager()
+    internal val browserDiagnosticLog = BrowserDiagnosticLog()
+    internal val browserDiagnosticRefreshScheduled = AtomicBoolean(false)
     @Volatile internal var defaultSessionProfile: WebSessionProfile = WebSessionProfile.NORMAL
     internal val browserRecoveryRevision = AtomicLong(0L)
     internal val browserRecoveryWriterRunning = AtomicBoolean(false)

@@ -18,6 +18,7 @@ internal enum class WebSessionBrowserSheetRoute {
     PLUGINS,
     USER_AGENT,
     NETWORK_LOG,
+    DIAGNOSTICS,
     MEDIA_CANDIDATES,
     SITE_CONFIG,
     PAGE_SOURCE,
@@ -59,7 +60,6 @@ internal sealed interface WebSessionBrowserPluginRoute {
 
 internal enum class WebSessionBrowserPlaceholderPage {
     TOOLBOX,
-    READER_MODE,
 }
 
 @Immutable
@@ -378,6 +378,7 @@ internal data class WebSessionBrowserState(
     val tabs: List<WebSessionBrowserTab> = emptyList(),
     val userscriptMenuCommands: List<UserscriptPageMenuCommand> = emptyList(),
     val networkEntries: List<WebSessionBrowserNetworkEntry> = emptyList(),
+    val diagnosticEntries: List<BrowserDiagnosticEntry> = emptyList(),
     val mediaCandidates: List<WebSessionBrowserMediaCandidate> = emptyList(),
 )
 

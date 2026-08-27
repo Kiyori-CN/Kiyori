@@ -7,6 +7,15 @@ last_updated: 2026-07-31
 
 # 浏览器插件平台与插件中心架构
 
+## 当前 WebKit 运行时版本（2026-08-27）
+
+Kiyori 的浏览器和 userscript 继续运行在 Android System WebView 提供的 Chromium provider 上；
+仓库不打包独立 Chromium，也不引入 X5/TBS 或 GeckoView。当前 Gradle 依赖为
+`androidx.webkit:webkit:1.17.0`（Google Maven 稳定发布，元数据更新时间为 2026-08-12）。
+1.17.0 只作为现有 WebViewCompat 调用和能力查询的 API 层升级；导航、缓存、Cookie、Profile、
+用户脚本和播放器交接仍由现有 Browser Runtime owner 持有。浏览器运行时诊断与菜单入口的结构化
+日志合同见 [`16_browser_runtime_diagnostics_and_menu_optimization.md`](../../TODO/kiyori_browser_product_completion/16_browser_runtime_diagnostics_and_menu_optimization.md)。
+
 ## 1. 文档职责
 
 本文是 Kiyori 浏览器插件平台的正式架构合同，回答以下问题：
@@ -325,7 +334,7 @@ Android Debug V2 签名与 `zipalign -P 16` 检查通过。
 优点：
 
 - 保留唯一 Browser Runtime 和现有页面、下载、AI、历史、媒体、Profile 能力
-- AndroidX WebKit 1.16.0 已提供隔离世界基础
+- AndroidX WebKit 1.17.0 保留并扩展了 1.16.0 引入的隔离世界基础
 - 可以采用 Manifest V3 字段形状，逐步扩大真实兼容面
 - 可以为 AI 创作提供稳定 SDK、静态检查和测试合同
 
@@ -966,7 +975,7 @@ Kiyori 原生扩展要求以下 WebViewFeature：
 - `JS_INJECTION_IN_FRAME_AND_WORLD`
 - `WEB_MESSAGE_LISTENER`
 
-项目升级到 AndroidX WebKit 1.16.0 后才能编译该运行时。设备当前 WebView 不支持上述 feature 时：
+项目当前以 AndroidX WebKit 1.17.0 编译该运行时。设备当前 WebView 不支持上述 feature 时：
 
 - userscript Provider 根据自己的能力继续显示真实状态
 - Kiyori Extension Provider 显示 `UNSUPPORTED_RUNTIME`
@@ -1966,7 +1975,7 @@ v1 不提供 blocking webRequest。
 - 本文与实施 TODO 一致
 - 唯一 Browser Runtime 不变量未改变
 - UI 按当前未发布方案继续迭代
-- `.kbx`、MV3 子集和 AndroidX WebKit 1.16.0 已定案
+- `.kbx`、MV3 子集和当前 AndroidX WebKit 1.17.0 API 边界已定案
 - userscript 安全整改排在功能扩展之前
 - ToolPkg 与 Browser Plugin 协议保持分离
 - 不支持 API、字段、设备能力和包必须明确拒绝

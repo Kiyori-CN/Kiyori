@@ -488,6 +488,8 @@ private fun StandardBrowserSessionTools.recordMediaCandidate(
     observation: BrowserMediaCandidateObservation,
 ) {
     var changed = false
+    var diagnosticCandidate: BrowserMediaCandidate? = null
+    var diagnosticEvent: String? = null
     if (session.credentialDocumentToken != observation.documentToken) {
         return
     }
@@ -515,7 +517,32 @@ private fun StandardBrowserSessionTools.recordMediaCandidate(
                 session.mediaCandidates.removeAt(oldestIndex)
             }
             changed = true
+            if (current == null || merged.isActionableMedia != current.isActionableMedia) {
+                diagnosticCandidate = merged
+                diagnosticEvent =
+                    if (current == null) {
+                        "MEDIA_CANDIDATE_DISCOVERED"
+                    } else {
+                        "MEDIA_CANDIDATE_CLASSIFIED"
+                    }
+            }
         }
+    }
+    diagnosticCandidate?.let { candidate ->
+        recordBrowserDiagnostic(
+            level = BrowserDiagnosticLevel.INFO,
+            category = BrowserDiagnosticCategory.MEDIA,
+            event = requireNotNull(diagnosticEvent),
+            session = session,
+            documentToken = candidate.documentToken,
+            details =
+                mapOf(
+                    "url" to candidate.url,
+                    "mediaKind" to candidate.mediaKind.name,
+                    "actionable" to candidate.isActionableMedia.toString(),
+                    "sourceCount" to candidate.discoverySources.size.toString(),
+                ),
+        )
     }
     if (changed) {
         notifySessionStateChanged(session)

@@ -37,6 +37,7 @@ The project retains Operit's chat, model configuration, tool calling, workflows,
 ## Main capabilities
 
 - **Shared browser runtime** for Browser Home and AI tools, including tabs, WebView state, cookies, history, bookmarks, downloads, userscripts, and window state.
+- **Browser diagnostics** from the Browser Menu, with a redacted process-local drawer for the active WebView provider, capabilities, navigation, permission, script, and renderer events. It is separate from the current-page network resource directory and never persists page or private data.
 - **Operit AI subsystem** with provider configuration, conversations, character cards, memory, tools, workflows, attachments, voice, and resumable execution.
 - **Extension ecosystem** for script packages, ToolPkg plugins, Skills, MCP servers, markets, environment variables, and permissions. Bundled scripts include an `Academic` group for official arXiv, Crossref, PubMed, Semantic Scholar, and OpenAlex API queries.
 - **Local workspace** with file management, an Ubuntu terminal, SSH, development tools, workspaces, and automation. File Management Home → Phone Storage and Settings Home → File Manager open the same file-manager owner.

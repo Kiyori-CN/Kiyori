@@ -118,7 +118,7 @@ internal val kiyoriMinusOneQuickTools =
         KiyoriMinusOneQuickTool(
             "手册",
             R.drawable.ic_kiyori_minus_one_manual,
-            WebSessionBrowserMenuTone.READER_MODE,
+            WebSessionBrowserMenuTone.DIAGNOSTICS,
         ),
         KiyoriMinusOneQuickTool(
             "版本",

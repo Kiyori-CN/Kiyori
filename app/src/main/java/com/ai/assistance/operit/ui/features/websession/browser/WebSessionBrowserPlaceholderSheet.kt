@@ -9,7 +9,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -107,13 +106,6 @@ private fun WebSessionBrowserPlaceholderPage.placeholderModel(): PlaceholderMode
                 description = stringResource(R.string.web_session_placeholder_toolbox),
                 icon = Icons.Filled.Build,
                 tone = WebSessionBrowserMenuTone.TOOLBOX,
-            )
-        WebSessionBrowserPlaceholderPage.READER_MODE ->
-            PlaceholderModel(
-                title = stringResource(R.string.web_session_reader_mode),
-                description = stringResource(R.string.web_session_placeholder_reader_mode),
-                icon = Icons.AutoMirrored.Filled.MenuBook,
-                tone = WebSessionBrowserMenuTone.READER_MODE,
             )
     }
 

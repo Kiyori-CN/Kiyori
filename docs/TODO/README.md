@@ -4,6 +4,23 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # Kiyori 开发任务与验证索引
 
+## 2026-08-27 浏览器运行时诊断与菜单优化
+
+状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND DEBUG APK AUDIT COMPLETE / TARGET DEVICE VERIFICATION PENDING`。
+
+在不替换 Android System WebView/Chromium provider、不创建第二 Browser Runtime 的前提下，
+本轮将浏览器菜单固定为三行 `5/5/5`：第一行“加书签 / 书签 / 历史 / 下载 / 插件”，第二行
+“UA 标识 / 资源嗅探 / 网络日志 / 诊断日志 / 工具箱”，第三行“无痕模式 / 查看源码 / 标记广告 /
+网站配置 / AI 对话”。未实现的“阅读模式”占位入口、route、图标与文案会彻底移除；未来阅读模式
+从工具箱的浏览器页面工具重新设计。新增诊断抽屉使用唯一 `StandardBrowserSessionTools` 的
+进程级有界结构化缓冲区，记录 provider、WebKit 能力、导航、权限、弹窗、userscript、媒体和
+渲染错误事件，保留 session/document/Profile 上下文，并按当前/全部会话、级别、类别与查询词筛选，
+统一脱敏后才允许查看、复制或 SAF 导出。AndroidX WebKit 从 `1.16.0` 升级到
+Google Maven 当前稳定 `1.17.0`；`loadUrl` 导航合同和缓存策略本轮不迁移。定向诊断/菜单测试、
+完整 `:app:testDebugUnitTest`、`phase=m03` 架构门禁、正式开发准备门禁、新鲜克隆检查和 Debug
+APK 静态审计均已通过；完整方案见
+[`kiyori_browser_product_completion/16_browser_runtime_diagnostics_and_menu_optimization.md`](kiyori_browser_product_completion/16_browser_runtime_diagnostics_and_menu_optimization.md)。
+
 本文件顶部记录当前跨领域长期任务，后续段落保留专项实施与历史证据。历史段落中的分支、提交、
 APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观察点，不能替代当前 Git、构建或设备状态。
 
@@ -808,7 +825,7 @@ Kiyori 尚未发布，本轮删除 Toolbox 中的文件管理器与协议可见 
 
 状态：`LOCAL IMPLEMENTATION AND AUTOMATED VERIFICATION COMPLETE / TARGET DEVICE VERIFICATION PENDING`。本轮复用
 [`kiyori_browser_product_completion`](kiyori_browser_product_completion/index.md) 和
-[`浏览器四行菜单真实能力`](kiyori_browser_product_completion/7_browser_menu_capabilities.md)
+[`浏览器菜单真实能力`](kiyori_browser_product_completion/7_browser_menu_capabilities.md)
 作为唯一浏览器专项载体，不创建第二个源码页面、编辑器或 Browser Runtime。
 
 目标合同：
@@ -855,7 +872,7 @@ Android Debug v2 单 signer 和 16 KB ZIP 对齐通过。APK 仅含 arm64-v8a：
 ## 浏览器当前域名网站配置与全局设置匹配
 
 状态：本地实现、定向验证、最终门禁、Debug APK、候选审计与 `main` 提交推送均已完成；目标设备
-现场验收保持 `verification_pending`。浏览器四行菜单、`WebSessionBrowserSettingsStore`、
+现场验收保持 `verification_pending`。浏览器菜单、`WebSessionBrowserSettingsStore`、
 `BrowserAdBlockStore`、userscript runtime、WebView 权限/导航/凭据、嗅探与自动悬浮播放调用链
 均已核对。参考图只用于确认“按当前域名进一步禁用”的产品方向；UI 与状态继续复用 Kiyori 的共享
 Browser Runtime、可拖动浏览器子抽屉和中性浏览器配色，不复制 hikerView 的 Activity、X5/TBS、
@@ -941,7 +958,7 @@ LitePal 或并行设置架构。
 非图片资源会误入图片分类。本轮继续复用
 [`kiyori_browser_product_completion`](kiyori_browser_product_completion/index.md)
 及其
-[`浏览器四行菜单真实能力`](kiyori_browser_product_completion/7_browser_menu_capabilities.md)
+[`浏览器菜单真实能力`](kiyori_browser_product_completion/7_browser_menu_capabilities.md)
 作为唯一浏览器专项载体，不创建平行网络日志或图片查看器。
 
 细化计划：
@@ -1001,7 +1018,7 @@ LitePal 或并行设置架构。
 已完成；目标设备交互仍为 `verification_pending`。本轮复用
 [`kiyori_browser_product_completion`](kiyori_browser_product_completion/index.md)
 及其
-[`浏览器四行菜单真实能力`](kiyori_browser_product_completion/7_browser_menu_capabilities.md)
+[`浏览器菜单真实能力`](kiyori_browser_product_completion/7_browser_menu_capabilities.md)
 作为唯一浏览器菜单专项载体，不创建平行 TODO。Kiyori 尚未发布，本轮属于现有网页元素长按能力的
 正常迭代：保留输入框系统原生选区和现有 Browser Runtime/规则/下载/窗口 owner，重构普通网页元素
 动作策略与弹层 UI，并增加默认开启的持久化总开关。
@@ -1081,7 +1098,7 @@ Kotlin 编译、正式门禁和规定的 Debug APK 静态核验；目标设备�
 本轮继续复用
 [`kiyori_browser_product_completion`](kiyori_browser_product_completion/index.md)
 及其
-[`浏览器四行菜单真实能力`](kiyori_browser_product_completion/7_browser_menu_capabilities.md)
+[`浏览器菜单真实能力`](kiyori_browser_product_completion/7_browser_menu_capabilities.md)
 作为唯一浏览器专项载体，不创建平行 TODO。Kiyori 尚未发布，因此直接删除输入框自绘选区路径，
 不保留复制、全选、取消自定义操作栏的兼容实现。
 
@@ -1131,7 +1148,7 @@ Debug APK 构建/静态产物核验已完成；目标设备交互验收保持 `v
 本轮继续复用
 [`kiyori_browser_product_completion`](kiyori_browser_product_completion/index.md)
 及其
-[`浏览器四行菜单真实能力`](kiyori_browser_product_completion/7_browser_menu_capabilities.md)
+[`浏览器菜单真实能力`](kiyori_browser_product_completion/7_browser_menu_capabilities.md)
 作为唯一浏览器菜单专项载体，不创建平行 TODO。Kiyori 尚未发布，当前图片查看器属于未发布的
 浏览器内部交互，可按用户给出的目标方案直接替换，不保留旧居中黑窗、关闭叉号或并行查看路径。
 

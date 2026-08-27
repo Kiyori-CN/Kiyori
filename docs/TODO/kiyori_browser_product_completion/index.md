@@ -10,6 +10,15 @@ hikerview_reference: 5de8809049e4710471f9f42642e54550ecf5dbe3
 
 # 浏览器产品能力连续完善
 
+## 2026-08-27 浏览器运行时诊断与菜单优化
+
+本轮专项方案、影响范围、风险、里程碑和验收矩阵见
+[`16_browser_runtime_diagnostics_and_menu_optimization.md`](16_browser_runtime_diagnostics_and_menu_optimization.md)。
+目标是保持唯一 Android System WebView/Chromium provider 边界，移除未实现的阅读模式菜单入口，
+新增浏览器专用结构化诊断抽屉，并将 AndroidX WebKit 从 `1.16.0` 升级到官方稳定 `1.17.0`。
+本轮实现、自动验证、正式门禁与 Debug APK 静态审计已完成；真实 provider、网页性能、菜单视觉、
+系统 Back 和无痕 Profile 仍按项目规则保持 `verification_pending`。
+
 ## 任务定位
 
 本计划承接已经完成的 [浏览器首页与 WebSession 共用计划](../kiyori_browser_home_websession/index.md)、[浏览器沉浸式 UI 重构](../kiyori_browser_ui_refactor/index.md) 和 [浏览器顶栏、全屏搜索、浏览器菜单与窗口重构](../kiyori_browser_topbar_search_toolbox_windows/index.md)。前三轮已经建立唯一 Browser Runtime、沉浸式 Browser Home、搜索与菜单框架；本轮继续解决悬浮窗口系统行为、人工窗口的 AI 接管、软件首页、真无痕、窗口缩略图、设置、下载、负一屏、菜单真实能力和播放器。
@@ -79,7 +88,7 @@ Kiyori 尚未发布，因此默认模式与工作台按钮属于现有方案迭�
 - 人工创建和导航的浏览器窗口始终能被 Operit AI 发现、读取和操作
 - 软件首页、全屏网页搜索、普通/无痕窗口、设置和下载形成现代、清晰、适配手机与平板的产品界面
 - 浏览器窗口总览显示真实网页缩略图，普通与无痕窗口拥有真实隔离语义
-- 负一屏接入书签、历史和下载；浏览器四行菜单逐步移除说明页并接入真实能力
+- 负一屏接入书签、历史和下载；浏览器菜单以三行 `5/5/5` 工具网格加底部三动作接入真实能力
 - 最后建立 Kiyori 播放器、媒体 Intent、浏览器资源嗅探和无刷新悬浮播放
 
 ## 依赖顺序
@@ -197,6 +206,9 @@ kiyori_browser_product_completion/
   `verification_pending`
 
 ### 2026-08-08 浏览器插件与负一屏入口配色调整
+
+> 以下为当时的历史映射；2026-08-27 删除 `READER_MODE` 后，负一屏“手册”改用
+> `DIAGNOSTICS`，其余历史构建与配色证据不变。
 
 - 浏览器菜单 `PLUGINS` 从高饱和洋红改为低饱和深梅紫：浅色
   `#5E3A8A / #EEE8F4`，深色 `#CBB8E2 / #2D2238`

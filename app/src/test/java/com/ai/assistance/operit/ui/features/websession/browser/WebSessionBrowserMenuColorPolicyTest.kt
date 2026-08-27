@@ -2,6 +2,7 @@ package com.ai.assistance.operit.ui.features.websession.browser
 
 import androidx.compose.ui.graphics.Color
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -10,9 +11,45 @@ class WebSessionBrowserMenuColorPolicyTest {
     fun `four menu rows contain eighteen stable action identities`() {
         val tones = WebSessionBrowserMenuTone.entries
         val tonesByRow = tones.groupBy(WebSessionBrowserMenuTone::rowIndex)
+        val expectedRows =
+            listOf(
+                listOf(
+                    WebSessionBrowserMenuTone.ADD_BOOKMARK,
+                    WebSessionBrowserMenuTone.BOOKMARKS,
+                    WebSessionBrowserMenuTone.HISTORY,
+                    WebSessionBrowserMenuTone.DOWNLOADS,
+                    WebSessionBrowserMenuTone.PLUGINS,
+                ),
+                listOf(
+                    WebSessionBrowserMenuTone.USER_AGENT,
+                    WebSessionBrowserMenuTone.FLOATING_SNIFFER,
+                    WebSessionBrowserMenuTone.NETWORK_LOG,
+                    WebSessionBrowserMenuTone.DIAGNOSTICS,
+                    WebSessionBrowserMenuTone.TOOLBOX,
+                ),
+                listOf(
+                    WebSessionBrowserMenuTone.INCOGNITO,
+                    WebSessionBrowserMenuTone.PAGE_SOURCE,
+                    WebSessionBrowserMenuTone.AD_MARKING,
+                    WebSessionBrowserMenuTone.SITE_CONFIG,
+                    WebSessionBrowserMenuTone.AI_DIALOGUE,
+                ),
+                listOf(
+                    WebSessionBrowserMenuTone.EXIT_BROWSER,
+                    WebSessionBrowserMenuTone.COLLAPSE,
+                    WebSessionBrowserMenuTone.SETTINGS,
+                ),
+            )
 
         assertEquals(18, tones.size)
         assertEquals(listOf(5, 5, 5, 3), (0..3).map { row -> tonesByRow.getValue(row).size })
+        assertEquals(
+            expectedRows,
+            (0..3).map { row ->
+                tonesByRow.getValue(row).sortedBy(WebSessionBrowserMenuTone::columnIndex)
+            },
+        )
+        assertFalse(tones.any { tone -> tone.name == "READER_MODE" })
         tonesByRow.forEach { (_, rowTones) ->
             assertEquals(
                 rowTones.size,

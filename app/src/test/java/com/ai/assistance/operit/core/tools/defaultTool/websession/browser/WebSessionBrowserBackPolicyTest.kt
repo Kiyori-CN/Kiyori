@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class WebSessionBrowserBackPolicyTest {
@@ -182,6 +183,17 @@ class WebSessionBrowserBackPolicyTest {
                 base.copy(textSelectionActions = null, downloadPrompt = null),
             ),
         )
+        assertEquals(
+            WebSessionBrowserBackAction.CLOSE_SHEET,
+            resolveWebSessionBrowserBackAction(
+                base.copy(
+                    textSelectionActions = null,
+                    downloadPrompt = null,
+                    sheetRoute = WebSessionBrowserSheetRoute.DIAGNOSTICS,
+                ),
+            ),
+        )
+        assertFalse(WebSessionBrowserSheetRoute.entries.any { route -> route.name == "READER_MODE" })
         assertEquals(
             WebSessionBrowserBackAction.CLOSE_SEARCH_ENGINE_PANEL,
             resolveWebSessionBrowserBackAction(

@@ -408,6 +408,43 @@ internal fun StandardBrowserSessionTools.notifySessionStateChanged(session: Brow
     }
 }
 
+internal fun StandardBrowserSessionTools.recordBrowserDiagnostic(
+    level: BrowserDiagnosticLevel,
+    category: BrowserDiagnosticCategory,
+    event: String,
+    session: BrowserToolSession? = null,
+    sessionId: String? = session?.id,
+    profile: WebSessionProfile? = session?.profile,
+    documentToken: String? = session?.credentialDocumentToken,
+    pageUrl: String = session?.currentUrl.orEmpty(),
+    message: String = "",
+    details: Map<String, String> = emptyMap(),
+) {
+    browserDiagnosticLog.append(
+        BrowserDiagnosticEntry(
+            timestamp = System.currentTimeMillis(),
+            level = level,
+            category = category,
+            event = event,
+            sessionId = sessionId,
+            profile = profile,
+            documentToken = documentToken,
+            host = browserNetworkHost(pageUrl),
+            message = message,
+            details = details,
+        ),
+    )
+    if (browserDiagnosticRefreshScheduled.compareAndSet(false, true)) {
+        StandardBrowserSessionTools.mainHandler.postDelayed(
+            {
+                browserDiagnosticRefreshScheduled.set(false)
+                refreshSessionUiOnMain()
+            },
+            BROWSER_NETWORK_REFRESH_INTERVAL_MILLIS,
+        )
+    }
+}
+
 internal fun mergeBrowserNetworkResourceEntry(
     current: BrowserNetworkRequestEntry,
     observed: BrowserNetworkRequestEntry,

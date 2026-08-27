@@ -74,7 +74,7 @@ internal enum class WebSessionBrowserMenuTone(
     ),
     FLOATING_SNIFFER(
         1,
-        0,
+        1,
         Color(0xFF0891B2),
         Color(0xFFCFFAFE),
         Color(0xFF67E8F9),
@@ -82,7 +82,7 @@ internal enum class WebSessionBrowserMenuTone(
     ),
     USER_AGENT(
         1,
-        1,
+        0,
         Color(0xFF4F46E5),
         Color(0xFFE0E7FF),
         Color(0xFFA5B4FC),
@@ -97,8 +97,8 @@ internal enum class WebSessionBrowserMenuTone(
         Color(0xFF042F2E),
     ),
     AI_DIALOGUE(
-        1,
-        3,
+        2,
+        4,
         Color(0xFF0369A1),
         Color(0xFFE0F2FE),
         Color(0xFF7DD3FC),
@@ -112,6 +112,14 @@ internal enum class WebSessionBrowserMenuTone(
         Color(0xFFFDBA74),
         Color(0xFF431407),
     ),
+    DIAGNOSTICS(
+        1,
+        3,
+        Color(0xFF1E40AF),
+        Color(0xFFEFF6FF),
+        Color(0xFFBFDBFE),
+        Color(0xFF1E3A5F),
+    ),
     INCOGNITO(
         2,
         0,
@@ -120,17 +128,9 @@ internal enum class WebSessionBrowserMenuTone(
         Color(0xFFD8B4FE),
         Color(0xFF3B0764),
     ),
-    READER_MODE(
-        2,
-        1,
-        Color(0xFF4D7C0F),
-        Color(0xFFECFCCB),
-        Color(0xFFBEF264),
-        Color(0xFF1A2E05),
-    ),
     PAGE_SOURCE(
         2,
-        2,
+        1,
         Color(0xFF1D4ED8),
         Color(0xFFDBEAFE),
         Color(0xFF93C5FD),
@@ -138,7 +138,7 @@ internal enum class WebSessionBrowserMenuTone(
     ),
     AD_MARKING(
         2,
-        3,
+        2,
         Color(0xFFDC2626),
         Color(0xFFFEE2E2),
         Color(0xFFFCA5A5),
@@ -146,7 +146,7 @@ internal enum class WebSessionBrowserMenuTone(
     ),
     SITE_CONFIG(
         2,
-        4,
+        3,
         Color(0xFFA16207),
         Color(0xFFFEF9C3),
         Color(0xFFFDE047),

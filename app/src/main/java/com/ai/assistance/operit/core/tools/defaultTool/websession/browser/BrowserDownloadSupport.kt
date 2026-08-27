@@ -2916,12 +2916,34 @@ internal fun StandardBrowserSessionTools.browserDownloadManager(): BrowserDownlo
 
 internal fun StandardBrowserSessionTools.initializeBrowserDownloadSupport() {
     browserDownloadManager().setTaskListener { task, event ->
-        task.sessionId?.let { sessionId ->
-            sessionById(sessionId)?.let { session ->
-                session.lastDownloadEvent = event
-                session.lastDownloadEventAt = System.currentTimeMillis()
+        val session =
+            task.sessionId?.let { sessionId ->
+                sessionById(sessionId)?.also { session ->
+                    session.lastDownloadEvent = event
+                    session.lastDownloadEventAt = System.currentTimeMillis()
+                }
             }
-        }
+        recordBrowserDiagnostic(
+            level =
+                if (task.status == BrowserDownloadStatus.FAILED) {
+                    BrowserDiagnosticLevel.ERROR
+                } else {
+                    BrowserDiagnosticLevel.INFO
+                },
+            category = BrowserDiagnosticCategory.DOWNLOAD,
+            event = "DOWNLOAD_${event.status.uppercase(Locale.ROOT)}",
+            session = session,
+            sessionId = task.sessionId,
+            details =
+                mapOf(
+                    "taskId" to task.id,
+                    "type" to task.type,
+                    "status" to task.status.wireName,
+                    "downloadedBytes" to task.downloadedBytes.toString(),
+                    "totalBytes" to task.totalBytes.toString(),
+                    "hasError" to (task.errorMessage != null).toString(),
+                ),
+        )
     }
     browserDownloadManager().setUiRefreshListener {
         StandardBrowserSessionTools.mainHandler.post {

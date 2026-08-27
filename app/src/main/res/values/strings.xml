@@ -7783,7 +7783,6 @@
     <string name="web_session_normal_mode">有痕模式</string>
     <string name="web_session_incognito_enabled">已开启无痕模式</string>
     <string name="web_session_incognito_disabled">已关闭无痕模式</string>
-    <string name="web_session_reader_mode">阅读模式</string>
     <string name="web_session_ad_marking">标记广告</string>
     <string name="web_session_site_config">网站配置</string>
     <string name="web_session_exit_browser">退出浏览器</string>
@@ -7798,7 +7797,6 @@
     <string name="web_session_placeholder_status">当前功能尚未接入</string>
     <string name="web_session_placeholder_runtime_unchanged">此页面不会改变当前网页、标签页、Cookie 或 AI 操控状态。</string>
     <string name="web_session_placeholder_toolbox">浏览器菜单已经是唯一菜单入口，独立第二工具箱尚未定义。</string>
-    <string name="web_session_placeholder_reader_mode">阅读模式需要正文提取、转换和阅读状态管线，目前尚未接入。</string>
     <string name="web_session_browser_menu_button">浏览器菜单按钮</string>
     <string name="web_session_browser_menu_title">浏览器下拉抽屉菜单</string>
     <string name="web_session_user_agent">UA标识</string>
@@ -7819,6 +7817,20 @@
     <string name="web_session_user_agent_full_domain">完整域名</string>
     <string name="web_session_user_agent_site_unavailable">当前页面没有可设置UA的域名</string>
     <string name="web_session_network_log">网络日志</string>
+    <string name="web_session_diagnostics">诊断日志</string>
+    <string name="web_session_diagnostics_scope_current">当前标签</string>
+    <string name="web_session_diagnostics_scope_all">全部会话</string>
+    <string name="web_session_diagnostics_filter_all">全部</string>
+    <string name="web_session_diagnostics_filter_warning">警告</string>
+    <string name="web_session_diagnostics_filter_error">错误</string>
+    <string name="web_session_diagnostics_search_hint">搜索事件、类别、页面或消息</string>
+    <string name="web_session_diagnostics_clear">清空</string>
+    <string name="web_session_diagnostics_empty">当前没有浏览器诊断事件</string>
+    <string name="web_session_diagnostics_empty_filter">当前筛选下没有诊断事件</string>
+    <string name="web_session_diagnostics_detail_session">会话</string>
+    <string name="web_session_diagnostics_detail_profile">Profile</string>
+    <string name="web_session_diagnostics_detail_document">文档</string>
+    <string name="web_session_diagnostics_detail_host">页面</string>
     <string name="web_session_network_log_empty">当前页面还没有发现资源链接</string>
     <string name="web_session_network_log_empty_filter">当前筛选下没有资源链接</string>
     <plurals name="web_session_network_log_count">

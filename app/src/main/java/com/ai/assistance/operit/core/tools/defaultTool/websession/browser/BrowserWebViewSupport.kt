@@ -34,6 +34,9 @@ import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.withTranslation
 import androidx.core.net.toUri
+import androidx.core.content.pm.PackageInfoCompat
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.browser.navigation.BrowserAddressResolver
 import com.ai.assistance.operit.core.application.ActivityLifecycleManager
@@ -102,13 +105,67 @@ internal fun StandardBrowserSessionTools.createSessionOnMain(
         session = session,
         resolvedUserAgent = resolveSessionUserAgent(session, targetUrl = "about:blank"),
     )
+    recordBrowserWebViewRuntimeSnapshot(session)
     userscriptManager.attachSession(
         sessionId = session.id,
         webView = session.webView,
         cookieScope = session.profile.wireName,
         cookieManager = session.cookieManager,
     )
+    recordBrowserDiagnostic(
+        level = BrowserDiagnosticLevel.INFO,
+        category = BrowserDiagnosticCategory.USERSCRIPT,
+        event = "USERSCRIPT_SESSION_ATTACHED",
+        session = session,
+    )
     return session
+}
+
+private fun StandardBrowserSessionTools.recordBrowserWebViewRuntimeSnapshot(
+    session: BrowserToolSession,
+) {
+    val provider =
+        runCatching { WebViewCompat.getCurrentWebViewPackage(context) }
+            .onFailure { error ->
+                AppLogger.w(WEBVIEW_SUPPORT_TAG, "Failed to read the active WebView provider", error)
+            }
+            .getOrNull()
+    recordBrowserDiagnostic(
+        level = BrowserDiagnosticLevel.INFO,
+        category = BrowserDiagnosticCategory.PROVIDER,
+        event = "PROVIDER_SNAPSHOT",
+        session = session,
+        details =
+            linkedMapOf<String, String>().apply {
+                put("package", provider?.packageName ?: "unavailable")
+                put("versionName", provider?.versionName ?: "unavailable")
+                put("versionCode", provider?.let(PackageInfoCompat::getLongVersionCode)?.toString() ?: "unavailable")
+            },
+    )
+    val featureSupport =
+        linkedMapOf(
+            "MULTI_PROFILE" to WebViewFeature.MULTI_PROFILE,
+            "DOCUMENT_START_SCRIPT" to WebViewFeature.DOCUMENT_START_SCRIPT,
+            "WEB_MESSAGE_LISTENER" to WebViewFeature.WEB_MESSAGE_LISTENER,
+            "JS_INJECTION_IN_FRAME_AND_WORLD" to WebViewFeature.JS_INJECTION_IN_FRAME_AND_WORLD,
+            "MUTE_AUDIO" to WebViewFeature.MUTE_AUDIO,
+            "PROXY_OVERRIDE" to WebViewFeature.PROXY_OVERRIDE,
+        )
+    recordBrowserDiagnostic(
+        level = BrowserDiagnosticLevel.INFO,
+        category = BrowserDiagnosticCategory.CAPABILITY,
+        event = "WEBKIT_FEATURES",
+        session = session,
+        details = featureSupport.mapValues { (_, feature) -> WebViewFeature.isFeatureSupported(feature).toString() },
+    )
+    recordBrowserDiagnostic(
+        level = BrowserDiagnosticLevel.INFO,
+        category = BrowserDiagnosticCategory.SESSION,
+        event = "SESSION_CREATED",
+        session = session,
+        message = "Browser WebSession created",
+        details = mapOf("creationReason" to session.creationReason.name),
+    )
 }
 
 internal fun StandardBrowserSessionTools.resolveWebViewContext(fallbackContext: Context): Context {
@@ -320,23 +377,70 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 if (session.adMarkingActive) {
                     // 标记元素期间禁止网页创建第二窗口；否则 _blank、window.open 或广告 SDK
                     // 可以绕过当前 WebView 的主框架导航拦截。
+                    recordBrowserDiagnostic(
+                        level = BrowserDiagnosticLevel.WARNING,
+                        category = BrowserDiagnosticCategory.POPUP,
+                        event = "POPUP_BLOCKED_AD_MARKING",
+                        session = session,
+                        message = "Popup rejected while ad marking owns the gesture",
+                    )
                     return false
                 }
                 if (!isUserGesture || isDialog) {
+                    recordBrowserDiagnostic(
+                        level = BrowserDiagnosticLevel.INFO,
+                        category = BrowserDiagnosticCategory.POPUP,
+                        event = "POPUP_REJECTED",
+                        session = session,
+                        message = "Popup requires a user gesture and a non-dialog target",
+                        details = mapOf("userGesture" to isUserGesture.toString(), "dialog" to isDialog.toString()),
+                    )
                     return false
                 }
-                val message = resultMsg ?: return false
-                val transport = message.obj as? WebView.WebViewTransport ?: return false
+                val message = resultMsg ?: run {
+                    recordBrowserDiagnostic(
+                        level = BrowserDiagnosticLevel.WARNING,
+                        category = BrowserDiagnosticCategory.POPUP,
+                        event = "POPUP_REJECTED_NO_MESSAGE",
+                        session = session,
+                    )
+                    return false
+                }
+                val transport = message.obj as? WebView.WebViewTransport ?: run {
+                    recordBrowserDiagnostic(
+                        level = BrowserDiagnosticLevel.WARNING,
+                        category = BrowserDiagnosticCategory.POPUP,
+                        event = "POPUP_REJECTED_INVALID_TRANSPORT",
+                        session = session,
+                    )
+                    return false
+                }
                 val resolver =
                     runCatching {
                         BrowserPopupTargetResolver(
                             tools = this@configureWebView,
                             parentSession = session,
                         )
-                    }.getOrNull() ?: return false
+                    }.onFailure { error ->
+                        AppLogger.w(WEBVIEW_SUPPORT_TAG, "Unable to create popup target resolver", error)
+                    }.getOrNull() ?: run {
+                        recordBrowserDiagnostic(
+                            level = BrowserDiagnosticLevel.WARNING,
+                            category = BrowserDiagnosticCategory.POPUP,
+                            event = "POPUP_REJECTED_RESOLVER",
+                            session = session,
+                        )
+                        return false
+                    }
                 transport.webView = resolver.webView
                 message.sendToTarget()
                 resolver.start()
+                recordBrowserDiagnostic(
+                    level = BrowserDiagnosticLevel.INFO,
+                    category = BrowserDiagnosticCategory.POPUP,
+                    event = "POPUP_ACCEPTED",
+                    session = session,
+                )
                 return true
             }
 
@@ -344,8 +448,21 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 super.onCloseWindow(window)
                 val popupSession = window?.let(::findSessionByWebView)
                 if (popupSession != null) {
+                    recordBrowserDiagnostic(
+                        level = BrowserDiagnosticLevel.INFO,
+                        category = BrowserDiagnosticCategory.POPUP,
+                        event = "POPUP_CLOSED",
+                        session = session,
+                        details = mapOf("popupSessionId" to popupSession.id),
+                    )
                     closeSession(popupSession.id)
                 } else {
+                    recordBrowserDiagnostic(
+                        level = BrowserDiagnosticLevel.INFO,
+                        category = BrowserDiagnosticCategory.POPUP,
+                        event = "POPUP_TARGET_CLOSED",
+                        session = session,
+                    )
                     window?.destroy()
                 }
             }
@@ -364,15 +481,35 @@ internal fun StandardBrowserSessionTools.configureWebView(
 
             override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
                 if (consoleMessage != null) {
+                    val level = consoleMessage.messageLevel().name.lowercase(Locale.ROOT)
                     appendConsoleEntry(
                         session,
                         BrowserConsoleEntry(
-                            level = consoleMessage.messageLevel().name.lowercase(Locale.ROOT),
+                            level = level,
                             message = consoleMessage.message().orEmpty(),
                             sourceId = consoleMessage.sourceId(),
                             lineNumber = consoleMessage.lineNumber()
                         )
                     )
+                    if (level == "warning" || level == "error") {
+                        recordBrowserDiagnostic(
+                            level =
+                                if (level == "error") {
+                                    BrowserDiagnosticLevel.ERROR
+                                } else {
+                                    BrowserDiagnosticLevel.WARNING
+                                },
+                            category = BrowserDiagnosticCategory.WEBVIEW,
+                            event = "CONSOLE_${level.uppercase(Locale.ROOT)}",
+                            session = session,
+                            message = "WebView console reported a ${level.lowercase(Locale.ROOT)}",
+                            details =
+                                mapOf(
+                                    "sourceUrl" to consoleMessage.sourceId().orEmpty(),
+                                    "lineNumber" to consoleMessage.lineNumber().toString(),
+                                ),
+                        )
+                    }
                 }
                 return super.onConsoleMessage(consoleMessage)
             }
@@ -390,6 +527,17 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 session.pendingFileChooserCallback = filePathCallback
                 session.lastFileChooserRequestAt = System.currentTimeMillis()
                 notifySessionStateChanged(session)
+                recordBrowserDiagnostic(
+                    level = BrowserDiagnosticLevel.INFO,
+                    category = BrowserDiagnosticCategory.PERMISSION,
+                    event = "FILE_CHOOSER_REQUESTED",
+                    session = session,
+                    details =
+                        mapOf(
+                            "mode" to (fileChooserParams?.mode?.toString() ?: "unknown"),
+                            "multiple" to (fileChooserParams?.mode == WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE).toString(),
+                        ),
+                )
 
                 AppLogger.d(
                     WEBVIEW_SUPPORT_TAG,
@@ -403,7 +551,15 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 if (request == null) {
                     return
                 }
-                handleWebPermissionRequest(request)
+                recordBrowserDiagnostic(
+                    level = BrowserDiagnosticLevel.INFO,
+                    category = BrowserDiagnosticCategory.PERMISSION,
+                    event = "WEB_PERMISSION_REQUESTED",
+                    session = session,
+                    message = "Web permission request received",
+                    details = mapOf("resourceCount" to (request.resources?.size ?: 0).toString()),
+                )
+                handleWebPermissionRequest(request, session)
             }
 
             override fun onGeolocationPermissionsShowPrompt(
@@ -414,7 +570,14 @@ internal fun StandardBrowserSessionTools.configureWebView(
                     callback?.invoke(origin.orEmpty(), false, false)
                     return
                 }
-                handleGeolocationPermissionRequest(origin, callback)
+                recordBrowserDiagnostic(
+                    level = BrowserDiagnosticLevel.INFO,
+                    category = BrowserDiagnosticCategory.PERMISSION,
+                    event = "GEOLOCATION_REQUESTED",
+                    session = session,
+                    details = mapOf("origin" to origin),
+                )
+                handleGeolocationPermissionRequest(origin, callback, session)
             }
 
             override fun onJsAlert(
@@ -432,7 +595,14 @@ internal fun StandardBrowserSessionTools.configureWebView(
                     )
                 notifySessionStateChanged(session)
                 refreshSessionUiOnMain(session.id)
-                AppLogger.d(WEBVIEW_SUPPORT_TAG, "web_session js alert pending: ${message.orEmpty()}")
+                recordBrowserDiagnostic(
+                    level = BrowserDiagnosticLevel.INFO,
+                    category = BrowserDiagnosticCategory.WEBVIEW,
+                    event = "JS_ALERT",
+                    session = session,
+                    details = mapOf("url" to url.orEmpty()),
+                )
+                AppLogger.d(WEBVIEW_SUPPORT_TAG, "web_session js alert pending: session=${session.id}")
                 return true
             }
 
@@ -451,7 +621,14 @@ internal fun StandardBrowserSessionTools.configureWebView(
                     )
                 notifySessionStateChanged(session)
                 refreshSessionUiOnMain(session.id)
-                AppLogger.d(WEBVIEW_SUPPORT_TAG, "web_session js confirm pending: ${message.orEmpty()}")
+                recordBrowserDiagnostic(
+                    level = BrowserDiagnosticLevel.INFO,
+                    category = BrowserDiagnosticCategory.WEBVIEW,
+                    event = "JS_CONFIRM",
+                    session = session,
+                    details = mapOf("url" to url.orEmpty()),
+                )
+                AppLogger.d(WEBVIEW_SUPPORT_TAG, "web_session js confirm pending: session=${session.id}")
                 return true
             }
 
@@ -472,7 +649,14 @@ internal fun StandardBrowserSessionTools.configureWebView(
                     )
                 notifySessionStateChanged(session)
                 refreshSessionUiOnMain(session.id)
-                AppLogger.d(WEBVIEW_SUPPORT_TAG, "web_session js prompt pending: ${message.orEmpty()}")
+                recordBrowserDiagnostic(
+                    level = BrowserDiagnosticLevel.INFO,
+                    category = BrowserDiagnosticCategory.WEBVIEW,
+                    event = "JS_PROMPT",
+                    session = session,
+                    details = mapOf("url" to url.orEmpty()),
+                )
+                AppLogger.d(WEBVIEW_SUPPORT_TAG, "web_session js prompt pending: session=${session.id}")
                 return true
             }
         }
@@ -512,6 +696,13 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 clearEventLogs(session)
                 clearMediaCandidates(session)
                 session.pendingDialog = null
+                recordBrowserDiagnostic(
+                    level = BrowserDiagnosticLevel.INFO,
+                    category = BrowserDiagnosticCategory.NAVIGATION,
+                    event = "NAVIGATION_STARTED",
+                    session = session,
+                    details = mapOf("url" to url),
+                )
                 injectBrowserElementInteractionHelper(
                     webView = view,
                     navigationPolicy = session.externalNavigationPolicy,
@@ -527,6 +718,13 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 super.onPageCommitVisible(view, url)
                 session.currentUrl = url
                 session.lastSnapshot = null
+                recordBrowserDiagnostic(
+                    level = BrowserDiagnosticLevel.INFO,
+                    category = BrowserDiagnosticCategory.NAVIGATION,
+                    event = "NAVIGATION_COMMITTED",
+                    session = session,
+                    details = mapOf("url" to url),
+                )
                 restoreReturnWithoutReloadOnMain(session)
                 notifySessionStateChanged(session)
                 userscriptManager.onPageChanged(session.id, url)
@@ -547,6 +745,13 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 session.pageTitle = view.title ?: ""
                 session.pageLoaded = true
                 session.isLoading = false
+                recordBrowserDiagnostic(
+                    level = BrowserDiagnosticLevel.INFO,
+                    category = BrowserDiagnosticCategory.NAVIGATION,
+                    event = "NAVIGATION_FINISHED",
+                    session = session,
+                    details = mapOf("url" to url),
+                )
                 completeBrowserHomeNavigationOnMain(view, session, url)
                 notifySessionStateChanged(session)
                 applyViewportOverride(session)
@@ -659,6 +864,18 @@ internal fun StandardBrowserSessionTools.configureWebView(
                     "web_session SSL error, cancelling load. " +
                         "session=${session.id}, url=${error.url}, primaryError=${error.primaryError}"
                 )
+                recordBrowserDiagnostic(
+                    level = BrowserDiagnosticLevel.ERROR,
+                    category = BrowserDiagnosticCategory.WEBVIEW,
+                    event = "SSL_ERROR",
+                    session = session,
+                    message = "SSL error; load cancelled",
+                    details =
+                        mapOf(
+                            "url" to error.url.orEmpty(),
+                            "primaryError" to error.primaryError.toString(),
+                        ),
+                )
                 handler.cancel()
                 restoreReturnWithoutReloadOnMain(session)
                 session.pageLoaded = false
@@ -689,6 +906,14 @@ internal fun StandardBrowserSessionTools.configureWebView(
                             "controllerHealthy=${runtimeState.controllerHealthy ?: "unknown"} " +
                             "mixedPortListening=${runtimeState.mixedPortListening ?: "unknown"}",
                     )
+                    recordBrowserDiagnostic(
+                        level = BrowserDiagnosticLevel.ERROR,
+                        category = BrowserDiagnosticCategory.WEBVIEW,
+                        event = "MAIN_DOCUMENT_ERROR",
+                        session = session,
+                        message = error.description?.toString().orEmpty(),
+                        details = mapOf("url" to request.url.toString(), "errorCode" to error.errorCode.toString()),
+                    )
                     restoreReturnWithoutReloadOnMain(session)
                 }
             }
@@ -701,6 +926,18 @@ internal fun StandardBrowserSessionTools.configureWebView(
                     WEBVIEW_SUPPORT_TAG,
                     "web_session render process gone: session=${session.id}, " +
                         "didCrash=${detail.didCrash()}, priority=${detail.rendererPriorityAtExit()}"
+                )
+                recordBrowserDiagnostic(
+                    level = BrowserDiagnosticLevel.ERROR,
+                    category = BrowserDiagnosticCategory.WEBVIEW,
+                    event = "RENDERER_GONE",
+                    session = session,
+                    message = "WebView renderer process exited",
+                    details =
+                        mapOf(
+                            "didCrash" to detail.didCrash().toString(),
+                            "priority" to detail.rendererPriorityAtExit().toString(),
+                        ),
                 )
                 session.pageLoaded = false
                 session.isLoading = false
@@ -1011,6 +1248,11 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             // are not erased by a presentation action in the current drawer.
             clearNetworkRequests(session)
             refreshSessionUiOnMain(session.id)
+        }
+
+        override fun onClearDiagnosticLog(scope: BrowserDiagnosticScope) {
+            browserDiagnosticLog.clear(scope, StandardBrowserSessionTools.activeSessionId)
+            refreshSessionUiOnMain()
         }
 
         override fun onAddNetworkBlockRule(url: String) {
@@ -2221,6 +2463,7 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
                     }
                 }
             } ?: emptyList(),
+        diagnosticEntries = browserDiagnosticLog.snapshot(),
         mediaCandidates =
             activeMediaCandidates.filter(BrowserMediaCandidate::isActionableMedia).map { candidate ->
                 val ranking = rankBrowserMediaCandidate(candidate)
@@ -3062,10 +3305,19 @@ internal fun StandardBrowserSessionTools.handleIntentSchemeOnMain(
     return true
 }
 
-internal fun StandardBrowserSessionTools.handleWebPermissionRequest(request: PermissionRequest) {
+internal fun StandardBrowserSessionTools.handleWebPermissionRequest(
+    request: PermissionRequest,
+    session: BrowserToolSession,
+) {
     val requestedResources = request.resources?.distinct().orEmpty()
     if (requestedResources.isEmpty()) {
         request.deny()
+        recordBrowserDiagnostic(
+            level = BrowserDiagnosticLevel.WARNING,
+            category = BrowserDiagnosticCategory.PERMISSION,
+            event = "WEB_PERMISSION_DENIED_EMPTY",
+            session = session,
+        )
         return
     }
 
@@ -3076,6 +3328,13 @@ internal fun StandardBrowserSessionTools.handleWebPermissionRequest(request: Per
 
     if (requiredPermissions.isEmpty()) {
         request.grant(requestedResources.toTypedArray())
+        recordBrowserDiagnostic(
+            level = BrowserDiagnosticLevel.INFO,
+            category = BrowserDiagnosticCategory.PERMISSION,
+            event = "WEB_PERMISSION_GRANTED",
+            session = session,
+            details = mapOf("resourceCount" to requestedResources.size.toString()),
+        )
         return
     }
 
@@ -3092,8 +3351,26 @@ internal fun StandardBrowserSessionTools.handleWebPermissionRequest(request: Per
         StandardBrowserSessionTools.mainHandler.post {
             if (grantableResources.isNotEmpty()) {
                 request.grant(grantableResources)
+                recordBrowserDiagnostic(
+                    level = BrowserDiagnosticLevel.INFO,
+                    category = BrowserDiagnosticCategory.PERMISSION,
+                    event = "WEB_PERMISSION_GRANTED",
+                    session = session,
+                    details =
+                        mapOf(
+                            "requestedResourceCount" to requestedResources.size.toString(),
+                            "grantedResourceCount" to grantableResources.size.toString(),
+                        ),
+                )
             } else {
                 request.deny()
+                recordBrowserDiagnostic(
+                    level = BrowserDiagnosticLevel.WARNING,
+                    category = BrowserDiagnosticCategory.PERMISSION,
+                    event = "WEB_PERMISSION_DENIED",
+                    session = session,
+                    details = mapOf("resourceCount" to requestedResources.size.toString()),
+                )
                 showToast(context.getString(R.string.web_session_permission_denied))
             }
         }
@@ -3102,7 +3379,8 @@ internal fun StandardBrowserSessionTools.handleWebPermissionRequest(request: Per
 
 internal fun StandardBrowserSessionTools.handleGeolocationPermissionRequest(
     origin: String,
-    callback: GeolocationPermissions.Callback
+    callback: GeolocationPermissions.Callback,
+    session: BrowserToolSession,
 ) {
     val settings = browserSettingsStore.current
     if (
@@ -3114,6 +3392,13 @@ internal fun StandardBrowserSessionTools.handleGeolocationPermissionRequest(
         )
     ) {
         callback.invoke(origin, false, false)
+        recordBrowserDiagnostic(
+            level = BrowserDiagnosticLevel.INFO,
+            category = BrowserDiagnosticCategory.PERMISSION,
+            event = "GEOLOCATION_DENIED_BY_POLICY",
+            session = session,
+            details = mapOf("origin" to origin),
+        )
         return
     }
     ioScope.launch {
@@ -3130,6 +3415,18 @@ internal fun StandardBrowserSessionTools.handleGeolocationPermissionRequest(
 
         StandardBrowserSessionTools.mainHandler.post {
             callback.invoke(origin, granted, false)
+            recordBrowserDiagnostic(
+                level =
+                    if (granted) {
+                        BrowserDiagnosticLevel.INFO
+                    } else {
+                        BrowserDiagnosticLevel.WARNING
+                    },
+                category = BrowserDiagnosticCategory.PERMISSION,
+                event = if (granted) "GEOLOCATION_GRANTED" else "GEOLOCATION_DENIED",
+                session = session,
+                details = mapOf("origin" to origin),
+            )
             if (!granted) {
                 showToast(context.getString(R.string.web_session_location_permission_denied))
             }
@@ -3249,7 +3546,14 @@ internal fun StandardBrowserSessionTools.closeSession(sessionId: String): Boolea
         }
     val wasActive = StandardBrowserSessionTools.activeSessionId == sessionId
     val previouslyActiveId = StandardBrowserSessionTools.activeSessionId
-    val session = StandardBrowserSessionTools.sessions.remove(sessionId) ?: return false
+    val session = StandardBrowserSessionTools.sessions[sessionId] ?: return false
+    recordBrowserDiagnostic(
+        level = BrowserDiagnosticLevel.INFO,
+        category = BrowserDiagnosticCategory.SESSION,
+        event = "SESSION_CLOSING",
+        session = session,
+    )
+    StandardBrowserSessionTools.sessions.remove(sessionId)
     removeSessionOrder(sessionId)
 
     runOnMainSync<Unit> {
