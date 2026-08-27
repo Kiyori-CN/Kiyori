@@ -4,6 +4,21 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # Kiyori 开发任务与验证索引
 
+## 2026-08-28 Android 16 播放器关闭与重复交接修复
+
+状态：`LOCAL FIX VERIFIED / DEVICE VERIFICATION PENDING`。
+
+最新 vivo Android 16 日志确认两条独立问题：播放器关闭在主线程调用 OkHttp
+`ConnectionPool.evictAll()`，触发 `NetworkOnMainThreadException`；同一媒体候选在短时间内产生重复
+`PLAYER_HANDOFF`，使全屏 Activity 生命周期出现竞争。媒体桥接同时把上游 TLS 握手失败投影为
+502，mpv 最终显示通用 `loading failed`。
+
+本轮把桥接器关闭改为原子一次性提交，主线程只停止监听、清空状态并停止请求 executor；活动请求取消、
+连接池/socket 回收在专用后台清理线程完成。同一候选在播放器仍有效且无错误时只复用现有 handoff，已有媒体错误或运行时
+死亡时允许用户重新打开以重新建立加载。TLS 失败保留 `UPSTREAM_TLS` 阶段和异常类型，仍返回合法
+502，不增加节点切换、直连或重试。定向测试与 Debug 构建属于本地证据，目标设备上的关闭、重复嗅探、
+实际节点 TLS 和完整播放仍待复测。
+
 ## 2026-08-28 最新安装回归：脚本长按崩溃与代理启动竞态
 
 状态：`LOCAL FIX VERIFIED / DEVICE VERIFICATION PENDING`。

@@ -10,6 +10,13 @@ hikerview_reference: 5de8809049e4710471f9f42642e54550ecf5dbe3
 
 # 浏览器产品能力连续完善
 
+## 2026-08-28 Android 16 播放器关闭与重复交接修复
+
+播放器关闭的主线程网络回收崩溃、重复媒体 handoff 和 bridge TLS 错误投影的详细根因、合同与验证矩阵见
+[`18_android16_player_close_and_handoff_repair.md`](18_android16_player_close_and_handoff_repair.md)。
+本轮实现与自动化验证完成，真实设备关闭、重播、HTTPS/Range/HLS 和旋转验收仍保持
+`verification_pending`。
+
 ## 2026-08-27 日志驱动的浏览器、播放器与代理链路修复
 
 本轮根据 vivo Android 16 导出的 Browser、Player 和主进程代理日志，继续处理真实媒体交接失败。

@@ -573,6 +573,56 @@ class PlayerPolicyTest {
     }
 
     @Test
+    fun sameRequestReloadsAfterRuntimeDeath() {
+        val request = externalRequest("request-dead")
+        val current =
+            PlayerSessionState(
+                request = request,
+                presentation = PlayerPresentation.FULLSCREEN_PLAYER,
+                runtimeState = PlayerRuntimeState.DEAD,
+                loadGeneration = 4L,
+            )
+
+        val transition =
+            resolvePlayerOpenTransition(
+                current = current,
+                request = request,
+                presentation = PlayerPresentation.FULLSCREEN_PLAYER,
+                settings = PlayerSettings(),
+            )
+
+        assertTrue(transition.shouldLoad)
+        assertEquals(5L, transition.state.loadGeneration)
+        assertEquals(PlayerPresentation.FULLSCREEN_PLAYER, transition.state.presentation)
+        assertFalse(transition.state.paused)
+    }
+
+    @Test
+    fun sameRequestReloadsAfterMediaErrorWhileRuntimeRemainsActive() {
+        val request = externalRequest("request-error")
+        val current =
+            PlayerSessionState(
+                request = request,
+                presentation = PlayerPresentation.FULLSCREEN_PLAYER,
+                runtimeState = PlayerRuntimeState.ACTIVE,
+                error = "mpv 无法继续播放：loading failed",
+                loadGeneration = 9L,
+            )
+
+        val transition =
+            resolvePlayerOpenTransition(
+                current = current,
+                request = request,
+                presentation = PlayerPresentation.FULLSCREEN_PLAYER,
+                settings = PlayerSettings(),
+            )
+
+        assertTrue(transition.shouldLoad)
+        assertEquals(10L, transition.state.loadGeneration)
+        assertNull(transition.state.error)
+    }
+
+    @Test
     fun browserFloatingFullscreenRoundTripKeepsOneLoadGeneration() {
         val request =
             PlayerMediaRequest(

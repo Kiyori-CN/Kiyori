@@ -21,6 +21,7 @@ import java.util.LinkedHashMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -111,6 +112,12 @@ internal class PlayerMediaStreamBridge(
     private val resources = LinkedHashMap<String, MediaResource>(128, 0.75f, true)
     private val resourceIdsByUrl = HashMap<String, String>()
     private val executor: ExecutorService = Executors.newCachedThreadPool()
+    // OkHttp closes pooled sockets from evictAll(). Android treats that as network I/O, so this
+    // cleanup must never run from PlayerSession's main-thread lifecycle callbacks.
+    private val cleanupExecutor: ExecutorService =
+        Executors.newSingleThreadExecutor { runnable ->
+            Thread(runnable, "Kiyori-PlayerMediaBridge-Cleanup").apply { isDaemon = true }
+        }
     private val client =
         OkHttpClient.Builder()
             .proxySelector(proxySelector)
@@ -120,7 +127,7 @@ internal class PlayerMediaStreamBridge(
             .readTimeout(60, TimeUnit.SECONDS)
             .callTimeout(0, TimeUnit.MILLISECONDS)
             .build()
-    @Volatile private var closed = false
+    private val closed = AtomicBoolean(false)
     @Volatile private var started = false
 
     private data class MediaResource(
@@ -129,11 +136,11 @@ internal class PlayerMediaStreamBridge(
     )
 
     fun start(): String {
-        check(!closed) { "Player media stream bridge is closed" }
+        check(!closed.get()) { "Player media stream bridge is closed" }
         check(!started) { "Player media stream bridge has already started" }
         started = true
         executor.execute {
-            while (!closed) {
+            while (!closed.get()) {
                 val socket =
                     try {
                         server.accept()
@@ -147,16 +154,24 @@ internal class PlayerMediaStreamBridge(
     }
 
     override fun close() {
-        if (closed) return
-        closed = true
+        if (!closed.compareAndSet(false, true)) return
         runCatching { server.close() }
-        client.dispatcher.cancelAll()
-        client.connectionPool.evictAll()
         synchronized(resources) {
             resources.clear()
             resourceIdsByUrl.clear()
         }
         executor.shutdownNow()
+        cleanupExecutor.execute {
+            try {
+                client.dispatcher.cancelAll()
+                client.connectionPool.evictAll()
+                client.dispatcher.executorService.shutdown()
+            } catch (error: Throwable) {
+                Log.w(TAG, "Failed to finish player media bridge cleanup", error)
+            } finally {
+                cleanupExecutor.shutdown()
+            }
+        }
     }
 
     private fun handle(socket: Socket) {
@@ -238,7 +253,7 @@ internal class PlayerMediaStreamBridge(
                     )
                 }
             } catch (error: BridgeProtocolException) {
-                if (!closed) {
+                if (!closed.get()) {
                     diagnostic(
                         PlayerDebugLogLevel.ERROR,
                         "桥接请求协议无效 stage=REQUEST_PROTOCOL type=${error.javaClass.simpleName}",
@@ -248,11 +263,12 @@ internal class PlayerMediaStreamBridge(
                     }
                 }
             } catch (error: Exception) {
-                if (!closed) {
+                if (!closed.get()) {
                     diagnostic(
                         PlayerDebugLogLevel.ERROR,
-                        "桥接请求失败 stage=${if (responseHeadersCommitted) "UPSTREAM_BODY" else "UPSTREAM_CONNECT"} " +
-                            "type=${error.javaClass.simpleName}",
+                        "桥接请求失败 stage=${bridgeFailureStage(error, responseHeadersCommitted)} " +
+                            "type=${error.javaClass.simpleName} " +
+                            "causeType=${error.cause?.javaClass?.simpleName ?: "none"}",
                     )
                     if (!responseHeadersCommitted) {
                         writeError(output, 502, "Bad Gateway")
@@ -403,6 +419,14 @@ internal class PlayerMediaStreamBridge(
         output.write(body)
         output.flush()
     }
+
+    private fun bridgeFailureStage(error: Exception, responseHeadersCommitted: Boolean): String =
+        when {
+            responseHeadersCommitted -> "UPSTREAM_BODY"
+            error is javax.net.ssl.SSLHandshakeException ||
+                error.cause is javax.net.ssl.SSLHandshakeException -> "UPSTREAM_TLS"
+            else -> "UPSTREAM_CONNECT"
+        }
 
     private fun readLine(input: BufferedInputStream): String? {
         val bytes = ByteArrayOutputStream()

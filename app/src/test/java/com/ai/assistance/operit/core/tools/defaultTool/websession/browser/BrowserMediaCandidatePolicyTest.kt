@@ -3,6 +3,8 @@ package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 import com.ai.assistance.operit.core.player.PlayerMediaRequest
 import com.ai.assistance.operit.core.player.PlayerMediaSource
 import com.ai.assistance.operit.core.player.PlayerPresentation
+import com.ai.assistance.operit.core.player.PlayerRuntimeState
+import com.ai.assistance.operit.core.player.PlayerSessionState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -10,6 +12,53 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BrowserMediaCandidatePolicyTest {
+    @Test
+    fun duplicateBrowserPlayerHandoffIsIdempotentWhileRuntimeIsActive() {
+        val state =
+            PlayerSessionState(
+                request =
+                    PlayerMediaRequest(
+                        requestId = "candidate-1",
+                        uri = "https://media.example/video.mp4",
+                        title = "Video",
+                        source = PlayerMediaSource.BROWSER_CANDIDATE,
+                        sourceSessionId = "session-1",
+                        sourcePageUrl = "https://page.example/watch",
+                    ),
+                presentation = PlayerPresentation.FULLSCREEN_PLAYER,
+                runtimeState = PlayerRuntimeState.ACTIVE,
+            )
+
+        assertTrue(
+            isDuplicateBrowserPlayerHandoff(
+                state = state,
+                candidateId = "candidate-1",
+                presentation = PlayerPresentation.FULLSCREEN_PLAYER,
+            ),
+        )
+        assertFalse(
+            isDuplicateBrowserPlayerHandoff(
+                state = state,
+                candidateId = "candidate-2",
+                presentation = PlayerPresentation.FULLSCREEN_PLAYER,
+            ),
+        )
+        assertFalse(
+            isDuplicateBrowserPlayerHandoff(
+                state = state.copy(runtimeState = PlayerRuntimeState.DEAD),
+                candidateId = "candidate-1",
+                presentation = PlayerPresentation.FULLSCREEN_PLAYER,
+            ),
+        )
+        assertFalse(
+            isDuplicateBrowserPlayerHandoff(
+                state = state.copy(error = "loading failed"),
+                candidateId = "candidate-1",
+                presentation = PlayerPresentation.FULLSCREEN_PLAYER,
+            ),
+        )
+    }
+
     @Test
     fun fileAndManifestUrlsAreDirectPlaybackCandidatesWithoutRewriting() {
         val videoUrl = "https://media.example/video/episode.MP4?token=raw#fragment"

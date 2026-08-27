@@ -9,6 +9,7 @@ import com.ai.assistance.operit.core.player.PlayerPresentation
 import com.ai.assistance.operit.core.player.PlayerQueueResolver
 import com.ai.assistance.operit.core.player.PlayerRuntimeState
 import com.ai.assistance.operit.core.player.PlayerSession
+import com.ai.assistance.operit.core.player.PlayerSessionState
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.ui.features.player.PlayerActivity
 import com.ai.assistance.operit.util.AppLogger
@@ -41,6 +42,18 @@ internal fun shouldAttemptAutomaticFloatingPlayback(
         pageLoaded &&
         !isLoading
 
+internal fun isDuplicateBrowserPlayerHandoff(
+    state: PlayerSessionState,
+    candidateId: String,
+    presentation: PlayerPresentation,
+): Boolean =
+    state.request?.requestId == candidateId &&
+        state.presentation == presentation &&
+        state.runtimeState != PlayerRuntimeState.STOPPED &&
+        state.runtimeState != PlayerRuntimeState.DEAD &&
+        state.runtimeState != PlayerRuntimeState.CLOSING &&
+        state.error == null
+
 private fun StandardBrowserSessionTools.openMediaCandidate(
     candidateId: String,
     presentation: PlayerPresentation,
@@ -58,6 +71,17 @@ private fun StandardBrowserSessionTools.openMediaCandidate(
             "Browser media candidate belongs to a different document"
         }
         val playerSession = PlayerSession.getInstance(context)
+        if (
+            isDuplicateBrowserPlayerHandoff(
+                state = playerSession.state.value,
+                candidateId = candidate.id,
+                presentation = presentation,
+            )
+        ) {
+            browserSession.automaticFloatingConsumedDocumentToken = candidate.documentToken
+            notifySessionStateChanged(browserSession)
+            return@runOnMainSync true
+        }
         playerSession.open(
             request =
                 createBrowserPlayerMediaRequest(

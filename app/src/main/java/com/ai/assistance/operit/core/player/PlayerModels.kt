@@ -554,7 +554,11 @@ internal fun resolvePlayerOpenTransition(
     require(presentation != PlayerPresentation.BROWSER_ONLY) {
         "A media request requires a player presentation"
     }
-    if (current.request?.requestId == request.requestId) {
+    if (
+        current.request?.requestId == request.requestId &&
+            current.runtimeState != PlayerRuntimeState.DEAD &&
+            current.error == null
+    ) {
         return PlayerOpenTransition(
             state = current.copy(presentation = presentation),
             shouldLoad = false,
