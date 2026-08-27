@@ -7,6 +7,7 @@ import com.ai.assistance.operit.core.player.PlayerMediaRequest
 import com.ai.assistance.operit.core.player.PlayerMediaSource
 import com.ai.assistance.operit.core.player.PlayerPresentation
 import com.ai.assistance.operit.core.player.PlayerQueueResolver
+import com.ai.assistance.operit.core.player.PlayerRuntimeState
 import com.ai.assistance.operit.core.player.PlayerSession
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.ui.features.player.PlayerActivity
@@ -25,36 +26,20 @@ internal fun StandardBrowserSessionTools.playMediaCandidate(candidateId: String)
 internal fun StandardBrowserSessionTools.playMediaCandidateFloating(candidateId: String): Boolean =
     openMediaCandidate(candidateId, PlayerPresentation.FLOATING_PLAYER)
 
-internal fun browserPlayerRequestBelongsToPage(
-    currentPageKey: String,
-    request: PlayerMediaRequest?,
-): Boolean {
-    if (request?.source != PlayerMediaSource.BROWSER_CANDIDATE) return false
-    val sourceSessionId = request.sourceSessionId?.takeIf(String::isNotBlank) ?: return false
-    val sourcePageUrl = request.sourcePageUrl?.takeIf(String::isNotBlank) ?: return false
-    return "$sourceSessionId|$sourcePageUrl" == currentPageKey
-}
-
-internal fun resolveConsumedAutomaticFloatingPageKey(
-    currentPageKey: String,
-    consumedPageKey: String?,
-    request: PlayerMediaRequest?,
-): String? =
-    if (browserPlayerRequestBelongsToPage(currentPageKey, request)) {
-        currentPageKey
-    } else {
-        consumedPageKey
-    }
-
 internal fun shouldAttemptAutomaticFloatingPlayback(
-    currentPageKey: String,
-    consumedPageKey: String?,
     hasMedia: Boolean,
     presentation: PlayerPresentation,
+    activeDocumentToken: String,
+    consumedDocumentToken: String?,
+    pageLoaded: Boolean,
+    isLoading: Boolean,
 ): Boolean =
-    consumedPageKey != currentPageKey &&
+    activeDocumentToken.isNotBlank() &&
+        consumedDocumentToken != activeDocumentToken &&
         !hasMedia &&
-        presentation == PlayerPresentation.BROWSER_ONLY
+        presentation == PlayerPresentation.BROWSER_ONLY &&
+        pageLoaded &&
+        !isLoading
 
 private fun StandardBrowserSessionTools.openMediaCandidate(
     candidateId: String,
@@ -66,6 +51,12 @@ private fun StandardBrowserSessionTools.openMediaCandidate(
         require(candidate.isActionableVideo) {
             "Media candidate is not an actionable video: ${candidate.url}"
         }
+        check(candidate.documentToken.isNotBlank()) {
+            "Browser media candidate has no document token"
+        }
+        check(candidate.documentToken == browserSession.credentialDocumentToken) {
+            "Browser media candidate belongs to a different document"
+        }
         val playerSession = PlayerSession.getInstance(context)
         playerSession.open(
             request =
@@ -76,6 +67,14 @@ private fun StandardBrowserSessionTools.openMediaCandidate(
                 ),
             presentation = presentation,
         )
+        val acceptedState = playerSession.state.value
+        if (
+            acceptedState.request?.requestId != candidate.id ||
+                acceptedState.presentation != presentation ||
+                acceptedState.runtimeState == PlayerRuntimeState.CLOSING
+        ) {
+            return@runOnMainSync false
+        }
         recordBrowserDiagnostic(
             level = BrowserDiagnosticLevel.INFO,
             category = BrowserDiagnosticCategory.MEDIA,
@@ -93,6 +92,9 @@ private fun StandardBrowserSessionTools.openMediaCandidate(
         if (presentation == PlayerPresentation.FULLSCREEN_PLAYER) {
             playerSession.requestFullscreenActivityLaunchWhenReady()
         }
+        browserSession.automaticFloatingConsumedDocumentToken = candidate.documentToken
+        notifySessionStateChanged(browserSession)
+        refreshSessionUiOnMain(browserSession.id)
         true
     }
 

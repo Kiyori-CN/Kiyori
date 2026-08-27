@@ -263,6 +263,8 @@ class StandardBrowserSessionTools private constructor(
         @Volatile var usesDesktopUserAgentLayout: Boolean = false
         @Volatile var appliedUserAgent: String = ""
         @Volatile var credentialDocumentToken: String = UUID.randomUUID().toString()
+        @Volatile var pendingBrowserDocumentStartToken: String? = null
+        @Volatile var automaticFloatingConsumedDocumentToken: String? = null
         @Volatile var pendingAdBlockDocumentToken: String? = null
         @Volatile var pendingAdBlockRuleRevision: Long = -1L
         @Volatile var appliedAdBlockDocumentToken: String? = null

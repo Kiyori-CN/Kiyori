@@ -376,6 +376,8 @@ internal fun StandardBrowserSessionTools.recordDomMediaCandidate(
     payload: String?,
 ) {
     val json = payload?.takeIf(String::isNotBlank)?.let(::JSONObject) ?: return
+    val documentToken = json.optString("documentToken")
+    if (documentToken.isBlank() || documentToken != session.credentialDocumentToken) return
     val source =
         BrowserMediaCandidateDiscoverySource.fromWireName(json.optString("source")) ?: return
     val url = json.optString("url")
@@ -394,7 +396,7 @@ internal fun StandardBrowserSessionTools.recordDomMediaCandidate(
                 cookieScope = session.profile.wireName,
                 cookieScopeUrl = url,
                 source = source,
-                documentToken = session.credentialDocumentToken,
+                documentToken = documentToken,
                 declaredMimeType = json.optString("mimeType").takeIf(String::isNotBlank),
                 durationMillis =
                     json.optLong("durationMillis")
@@ -412,8 +414,14 @@ internal fun StandardBrowserSessionTools.recordDomMediaCandidate(
     )
 }
 
-internal fun StandardBrowserSessionTools.injectMediaCandidateObserver(webView: WebView) {
-    webView.evaluateJavascript(BROWSER_MEDIA_CANDIDATE_OBSERVER_SCRIPT, null)
+internal fun StandardBrowserSessionTools.injectMediaCandidateObserver(
+    webView: WebView,
+    documentToken: String,
+) {
+    webView.evaluateJavascript(
+        buildBrowserMediaCandidateObserverScript(documentToken),
+        null,
+    )
 }
 
 internal class BrowserMediaCandidateBridge(
@@ -886,11 +894,12 @@ private val DURATION_QUERY_NAMES =
         "content_duration",
     )
 
-internal val BROWSER_MEDIA_CANDIDATE_OBSERVER_SCRIPT =
+internal fun buildBrowserMediaCandidateObserverScript(documentToken: String): String =
     """
     (function() {
       const bridge = window.OperitMediaCandidateBridge;
       if (!bridge || typeof bridge.observe !== 'function') return;
+      const documentToken = ${JSONObject.quote(documentToken)};
       const stateKey = '__operitMediaCandidateObserverV2';
       const report = function(media, url, source, mimeType, mediaKind) {
         if (!url) return;
@@ -905,6 +914,7 @@ internal val BROWSER_MEDIA_CANDIDATE_OBSERVER_SCRIPT =
             : null;
         bridge.observe(JSON.stringify({
           url: String(url),
+          documentToken: documentToken,
           source: source,
           mimeType: mimeType ? String(mimeType) : '',
           mediaKind: mediaKind,

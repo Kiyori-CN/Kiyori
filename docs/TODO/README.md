@@ -4,6 +4,16 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # Kiyori 开发任务与验证索引
 
+## 2026-08-27 浏览器悬浮播放器关闭后重弹修复
+
+状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND DEBUG APK AUDIT COMPLETE / DEVICE VERIFICATION PENDING`。
+
+诊断报告中的 `.mp3` URL 实际由 mpv 识别为 `mov/mp4 + H.265/AAC` 视频。当前缺陷来自自动悬浮触发状态的 UI 局部 URL 键和导航清理时序：关闭清空唯一 `PlayerSession` 后，同页候选仍可能满足自动入口；导航先更新 URL、后在 WebView `onPageStarted` 清空候选的窗口也可能把旧媒体当成新页面候选。现已改由每个 `WebSession` 持有文档 token 级消费事实，所有导航方式在发出 WebView 操作前失效旧 token/清空候选，DOM observer 也绑定注入时 token，并要求页面完成加载后才允许自动悬浮；不改写媒体 URL/MIME，不改变网页媒体状态，不创建第二播放器，不增加重试或替代路径。
+
+本地证据：浏览器候选与播放器定向 JVM、完整 `:app:testDebugUnitTest`、Python 合同测试 `124/124`、formal readiness、fresh-clone 检查和 `git diff --check` 均通过。最终串行 `:app:assembleDebug` 为 `BUILD SUCCESSFUL in 2m 16s`，共 `235` tasks，并通过唯一 launcher、代理和 Player runtime packaging 门禁。Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，`503669293` 字节，SHA-256 `50078798329E135778D3DBE55AB3D6670D0D8DC0103CDA8A49D3055718A3B13F`；`com.kiyori / 45 / 0.1.0 / minSdk 26 / targetSdk 34 / compileSdk 37`、Android Debug V2 单 signer、16 KiB ZIP 对齐、`5512` 个 ZIP entry 零重复和播放器/代理 native/runtime 清单均通过。未安装 APK 或操作目标 vivo Android 16 设备，真实网页关闭、切页和新文档重新自动悬浮仍保持 `verification_pending`。
+
+详细根因、影响文件、风险、回滚点和验收矩阵见 [`kiyori_browser_product_completion/9_browser_sniffer_and_floating_playback.md`](kiyori_browser_product_completion/9_browser_sniffer_and_floating_playback.md) 的“2026-08-27 悬浮播放器关闭后重弹与跨页旧媒体重播修复”。
+
 ## 2026-08-27 日志驱动的浏览器、播放器与代理链路修复
 
 状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND DEBUG APK AUDIT COMPLETE / TARGET DEVICE VERIFICATION PENDING`。

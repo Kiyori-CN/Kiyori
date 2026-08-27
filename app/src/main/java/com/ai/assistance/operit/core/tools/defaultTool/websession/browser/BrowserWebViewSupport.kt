@@ -665,6 +665,16 @@ internal fun StandardBrowserSessionTools.configureWebView(
         object : WebViewClient() {
             override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
                 super.onPageStarted(view, url, favicon)
+                val pendingDocumentToken = session.pendingBrowserDocumentStartToken
+                if (pendingDocumentToken != null) {
+                    check(pendingDocumentToken == session.credentialDocumentToken) {
+                        "Pending Browser document token does not match the active document"
+                    }
+                    session.pendingBrowserDocumentStartToken = null
+                } else {
+                    session.credentialDocumentToken = UUID.randomUUID().toString()
+                    session.automaticFloatingConsumedDocumentToken = null
+                }
                 // Redirects do not pass through navigateSessionOnMain; update before their
                 // subresources inherit the previous page's site-specific identity.
                 applySessionUserAgent(
@@ -685,7 +695,6 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 }
                 session.currentUrl = url
                 session.adMarkingActive = false
-                session.credentialDocumentToken = UUID.randomUUID().toString()
                 session.pageLoaded = false
                 session.isLoading = true
                 session.hasSslError = false
@@ -716,6 +725,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
 
             override fun onPageCommitVisible(view: WebView, url: String) {
                 super.onPageCommitVisible(view, url)
+                if (session.pendingBrowserDocumentStartToken != null) return
                 session.currentUrl = url
                 session.lastSnapshot = null
                 recordBrowserDiagnostic(
@@ -733,6 +743,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
 
             override fun onPageFinished(view: WebView, url: String) {
                 super.onPageFinished(view, url)
+                if (session.pendingBrowserDocumentStartToken != null) return
                 session.currentUrl = url
                 if (session.searchRecoveryPending) {
                     session.lastSearchRecovery =
@@ -769,7 +780,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 injectBrowserCredentialSupport(session)
                 // This observer only reads video URLs and reports them to the owning WebSession.
                 // Calling webpage media controls here would mutate site state during presentation changes.
-                injectMediaCandidateObserver(view)
+                injectMediaCandidateObserver(view, session.credentialDocumentToken)
                 if (session.profile.shouldPersistBrowserHistory) {
                     ioScope.launch {
                         historyStore.updateTitle(url, session.pageTitle)
@@ -841,6 +852,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
 
             override fun doUpdateVisitedHistory(view: WebView, url: String, isReload: Boolean) {
                 super.doUpdateVisitedHistory(view, url, isReload)
+                if (session.pendingBrowserDocumentStartToken != null) return
                 session.currentUrl = url
                 userscriptManager.syncUrlChange(session.id, url)
                 val pageTitle = view.title.orEmpty()
@@ -1014,6 +1026,7 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                 ensureSessionAttachedOnMain(session.id)
                 if (session.webView.canGoForward()) {
                     applyHistoryTargetUserAgent(session, delta = 1)
+                    beginBrowserDocumentNavigation(session)
                     session.webView.goForward()
                 }
                 refreshNavigationStateAsync(session)
@@ -1024,8 +1037,7 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             runOnMainSync<Unit> {
                 val session = getActiveSessionOnMain() ?: return@runOnMainSync
                 ensureSessionAttachedOnMain(session.id)
-                session.pageLoaded = false
-                session.isLoading = true
+                beginBrowserDocumentNavigation(session)
                 session.webView.reload()
                 refreshNavigationStateAsync(session)
             }
@@ -1592,7 +1604,7 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                 )
                 injectTextSelectionHelper(session.webView)
                 injectBrowserAdBlockElementRules(session)
-                injectMediaCandidateObserver(session.webView)
+                injectMediaCandidateObserver(session.webView, session.credentialDocumentToken)
                 requestSessionThumbnailOnMain(session, force = true)
             }
         }
@@ -2122,11 +2134,10 @@ internal fun StandardBrowserSessionTools.navigateSessionOnMain(
         resolveSessionUserAgent(session, targetUrl),
         targetUrl = targetUrl,
     )
-    session.pageLoaded = false
-    session.isLoading = true
     session.currentUrl = targetUrl
     session.hasSslError = false
     session.lastSnapshot = null
+    beginBrowserDocumentNavigation(session)
     updateNavigationState(session)
     refreshSessionUiOnMain(session.id)
     if (headers.isNotEmpty()) {
@@ -2150,6 +2161,7 @@ internal fun StandardBrowserSessionTools.navigateSessionBackOnMain(
                 applyHistoryTargetUserAgent(session, delta = -1)
                 try {
                     prepareReturnWithoutReloadOnMain(session)
+                    beginBrowserDocumentNavigation(session)
                     session.webView.goBack()
                 } catch (error: Exception) {
                     restoreReturnWithoutReloadOnMain(session)
@@ -2201,6 +2213,20 @@ internal fun StandardBrowserSessionTools.navigateSessionBackOnMain(
         refreshNavigationStateAsync(session)
     }
     return result
+}
+
+private fun StandardBrowserSessionTools.beginBrowserDocumentNavigation(
+    session: BrowserToolSession,
+) {
+    // Invalidate the old candidate snapshot before WebView reports onPageStarted. This closes the
+    // window where automatic playback could select media from the page being left.
+    session.credentialDocumentToken = UUID.randomUUID().toString()
+    session.pendingBrowserDocumentStartToken = session.credentialDocumentToken
+    session.automaticFloatingConsumedDocumentToken = null
+    session.pageLoaded = false
+    session.isLoading = true
+    clearMediaCandidates(session)
+    refreshSessionUiOnMain(session.id)
 }
 
 private fun StandardBrowserSessionTools.applyHistoryTargetUserAgent(
@@ -2353,7 +2379,14 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
     val activeId = registry.activeSessionId
     val activeSession = activeId?.let(::sessionById)
     val orderedIds = registry.orderedSessionIds
-    val activeMediaCandidates = activeSession?.let(::snapshotMediaCandidates).orEmpty()
+    val activeMediaCandidates =
+        activeSession
+            ?.let { session ->
+                snapshotMediaCandidates(session).filter { candidate ->
+                    candidate.documentToken == session.credentialDocumentToken
+                }
+            }
+            .orEmpty()
     val configuredHomeUrl = browserSettingsStore.current.homeUrl
     val activeSessionIsAtHome =
         activeSession?.let { session ->
@@ -2366,6 +2399,9 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
 
     return WebSessionBrowserState(
         activeSessionId = activeId,
+        activeDocumentToken = activeSession?.credentialDocumentToken.orEmpty(),
+        automaticFloatingConsumedDocumentToken =
+            activeSession?.automaticFloatingConsumedDocumentToken,
         activeProfile = activeSession?.profile,
         defaultSessionProfile = defaultSessionProfile,
         incognitoAvailability = profileManager.incognitoAvailability,
@@ -2377,6 +2413,7 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
         canGoBack = activeSession?.canGoBack == true,
         canReturnToHome = activeSession != null && !activeSessionIsAtHome,
         canGoForward = activeSession?.canGoForward == true,
+        pageLoaded = activeSession?.pageLoaded == true,
         isLoading = activeSession?.isLoading == true,
         hasSslError = activeSession?.hasSslError == true,
         userAgentMode = browserSettingsStore.current.userAgentMode,
@@ -2471,6 +2508,7 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
                     id = candidate.id,
                     url = candidate.url,
                     pageUrl = candidate.pageUrl,
+                    documentToken = candidate.documentToken,
                     mimeType = candidate.displayMimeType,
                     urlEvidence = candidate.urlEvidence,
                     videoFormat =
@@ -3493,8 +3531,7 @@ internal fun StandardBrowserSessionTools.applyBrowserUserAgentSettingsOnMain() {
 
     val activeSession = getActiveSessionOnMain()
     if (activeSession != null && activeSession.customUserAgent == null) {
-        activeSession.pageLoaded = false
-        activeSession.isLoading = true
+        beginBrowserDocumentNavigation(activeSession)
         activeSession.webView.reload()
         refreshNavigationStateAsync(activeSession)
     } else {

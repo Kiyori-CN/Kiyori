@@ -101,6 +101,7 @@ internal data class WebSessionBrowserMediaCandidate(
     val id: String,
     val url: String,
     val pageUrl: String,
+    val documentToken: String = "",
     val mimeType: String?,
     val urlEvidence: BrowserMediaCandidateUrlEvidence,
     val videoFormat: BrowserMediaCandidateVideoFormat,
@@ -353,6 +354,8 @@ internal fun isAtConfiguredBrowserHome(
 @Immutable
 internal data class WebSessionBrowserState(
     val activeSessionId: String? = null,
+    val activeDocumentToken: String = "",
+    val automaticFloatingConsumedDocumentToken: String? = null,
     val activeProfile: WebSessionProfile? = null,
     val defaultSessionProfile: WebSessionProfile = WebSessionProfile.NORMAL,
     val incognitoAvailability: WebSessionIncognitoAvailability =
@@ -364,6 +367,7 @@ internal data class WebSessionBrowserState(
     val canGoBack: Boolean = false,
     val canReturnToHome: Boolean = false,
     val canGoForward: Boolean = false,
+    val pageLoaded: Boolean = false,
     val isLoading: Boolean = false,
     val hasSslError: Boolean = false,
     val userAgentMode: WebSessionUserAgentMode = WebSessionUserAgentMode.ANDROID,

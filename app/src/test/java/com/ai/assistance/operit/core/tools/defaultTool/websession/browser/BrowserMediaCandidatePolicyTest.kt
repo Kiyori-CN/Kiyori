@@ -302,79 +302,71 @@ class BrowserMediaCandidatePolicyTest {
     }
 
     @Test
-    fun browserPlaybackConsumesOnlyThePageThatOpenedThatCandidate() {
-        val request =
-            PlayerMediaRequest(
-                requestId = "candidate",
-                uri = "https://media.example/video.mp4",
-                title = "Episode",
-                source = PlayerMediaSource.BROWSER_CANDIDATE,
-                sourceSessionId = "web-session",
-                sourcePageUrl = "https://page.example/watch",
-            )
+    fun consumedDocumentSuppressesOnlyItsAutomaticFloatingRestart() {
+        val documentToken = "document-watch"
 
+        assertFalse(
+            shouldAttemptAutomaticFloatingPlayback(
+                hasMedia = false,
+                presentation = PlayerPresentation.BROWSER_ONLY,
+                activeDocumentToken = documentToken,
+                consumedDocumentToken = documentToken,
+                pageLoaded = true,
+                isLoading = false,
+            ),
+        )
         assertTrue(
-            browserPlayerRequestBelongsToPage(
-                currentPageKey = "web-session|https://page.example/watch",
-                request = request,
+            shouldAttemptAutomaticFloatingPlayback(
+                hasMedia = false,
+                presentation = PlayerPresentation.BROWSER_ONLY,
+                activeDocumentToken = "document-next",
+                consumedDocumentToken = documentToken,
+                pageLoaded = true,
+                isLoading = false,
             ),
         )
         assertFalse(
-            browserPlayerRequestBelongsToPage(
-                currentPageKey = "web-session|https://page.example/next",
-                request = request,
-            ),
-        )
-        assertFalse(
-            browserPlayerRequestBelongsToPage(
-                currentPageKey = "web-session|https://page.example/watch",
-                request = request.copy(source = PlayerMediaSource.HISTORY_REPLAY),
-            ),
-        )
-        assertEquals(
-            "web-session|https://page.example/watch",
-            resolveConsumedAutomaticFloatingPageKey(
-                currentPageKey = "web-session|https://page.example/watch",
-                consumedPageKey = null,
-                request = request,
-            ),
-        )
-        assertEquals(
-            "web-session|https://page.example/watch",
-            resolveConsumedAutomaticFloatingPageKey(
-                currentPageKey = "web-session|https://page.example/next",
-                consumedPageKey = "web-session|https://page.example/watch",
-                request = request,
+            shouldAttemptAutomaticFloatingPlayback(
+                hasMedia = true,
+                presentation = PlayerPresentation.FULLSCREEN_PLAYER,
+                activeDocumentToken = "document-next",
+                consumedDocumentToken = documentToken,
+                pageLoaded = true,
+                isLoading = false,
             ),
         )
     }
 
     @Test
-    fun consumedPageSuppressesOnlyItsAutomaticFloatingRestart() {
-        val consumedPage = "web-session|https://page.example/watch"
-
+    fun automaticFloatingWaitsForTheCurrentDocumentToFinishLoading() {
         assertFalse(
             shouldAttemptAutomaticFloatingPlayback(
-                currentPageKey = consumedPage,
-                consumedPageKey = consumedPage,
                 hasMedia = false,
                 presentation = PlayerPresentation.BROWSER_ONLY,
+                activeDocumentToken = "document-next",
+                consumedDocumentToken = null,
+                pageLoaded = false,
+                isLoading = true,
+            ),
+        )
+        assertFalse(
+            shouldAttemptAutomaticFloatingPlayback(
+                hasMedia = false,
+                presentation = PlayerPresentation.BROWSER_ONLY,
+                activeDocumentToken = "document-next",
+                consumedDocumentToken = null,
+                pageLoaded = true,
+                isLoading = true,
             ),
         )
         assertTrue(
             shouldAttemptAutomaticFloatingPlayback(
-                currentPageKey = "web-session|https://page.example/next",
-                consumedPageKey = consumedPage,
                 hasMedia = false,
                 presentation = PlayerPresentation.BROWSER_ONLY,
-            ),
-        )
-        assertFalse(
-            shouldAttemptAutomaticFloatingPlayback(
-                currentPageKey = "web-session|https://page.example/next",
-                consumedPageKey = consumedPage,
-                hasMedia = true,
-                presentation = PlayerPresentation.FULLSCREEN_PLAYER,
+                activeDocumentToken = "document-next",
+                consumedDocumentToken = null,
+                pageLoaded = true,
+                isLoading = false,
             ),
         )
     }
@@ -749,13 +741,16 @@ class BrowserMediaCandidatePolicyTest {
 
     @Test
     fun domObserverNeverChangesPageMediaState() {
-        assertTrue(BROWSER_MEDIA_CANDIDATE_OBSERVER_SCRIPT.contains("MutationObserver"))
-        assertTrue(BROWSER_MEDIA_CANDIDATE_OBSERVER_SCRIPT.contains("addEventListener('play'"))
-        assertTrue(BROWSER_MEDIA_CANDIDATE_OBSERVER_SCRIPT.contains("addEventListener('loadedmetadata'"))
-        assertTrue(BROWSER_MEDIA_CANDIDATE_OBSERVER_SCRIPT.contains("addEventListener('durationchange'"))
-        assertTrue(BROWSER_MEDIA_CANDIDATE_OBSERVER_SCRIPT.contains("addEventListener('resize'"))
+        val observerScript = buildBrowserMediaCandidateObserverScript("document-token")
+        assertTrue(observerScript.contains("MutationObserver"))
+        assertTrue(observerScript.contains("addEventListener('play'"))
+        assertTrue(observerScript.contains("addEventListener('loadedmetadata'"))
+        assertTrue(observerScript.contains("addEventListener('durationchange'"))
+        assertTrue(observerScript.contains("addEventListener('resize'"))
+        assertTrue(observerScript.contains("const documentToken = \"document-token\";"))
+        assertTrue(observerScript.contains("documentToken: documentToken"))
         assertFalse(Regex("\\.(pause|play|load)\\s*\\(", RegexOption.IGNORE_CASE)
-            .containsMatchIn(BROWSER_MEDIA_CANDIDATE_OBSERVER_SCRIPT))
+            .containsMatchIn(observerScript))
     }
 
     private fun candidate(observation: BrowserMediaCandidateObservation): BrowserMediaCandidate =

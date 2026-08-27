@@ -1,5 +1,57 @@
 # 浏览器资源嗅探与悬浮播放
 
+## 2026-08-27 悬浮播放器关闭后重弹与跨页旧媒体重播修复
+
+[LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND DEBUG APK AUDIT COMPLETE / DEVICE VERIFICATION PENDING]
+
+### 目标、范围与非目标
+
+本专项修复浏览器视频悬浮小窗点击左上角退出后再次自动弹出，以及导航到新网页后仍重新播放旧网页媒体的问题。现场样本的媒体 URL 以 `.mp3` 结尾，但播放器诊断已证明真实容器为 `mov/mp4`、视频轨为 H.265、音频轨为 AAC；URL 后缀不是播放器重复启动的原因，真正相关的是该候选通过 DOM `video` 证据进入自动悬浮链路。
+
+范围限定为 Browser media candidate、自动悬浮触发门禁、导航生命周期和唯一 `PlayerSession` 的关闭交接。保持原始 URL、headers、DOM 观察、播放器解码器、Surface lease、网页自身播放状态和下载器合同不变；不创建第二个播放器或浏览器运行时，不改变 MIME 识别，不增加重试、替代路径或代理行为。
+
+### 已验证根因
+
+1. `WebSessionBrowserScreen` 以 `activeSessionId|currentUrl` 和一个 Compose 局部 `consumedAutomaticFloatingPageKey` 控制自动悬浮。候选真正携带的是 `credentialDocumentToken`，但该身份没有投影到浏览器状态；重定向、导航尚未落定、URL 表示差异或 UI 投影时序都可能让关闭时的 request 与当前 URL 键不匹配，关闭后的 `PlayerSession` 清空会重新满足 `BROWSER_ONLY + !hasMedia`，同一候选即可再次打开。
+2. `navigateSessionOnMain` 先更新 `currentUrl` 并调用 `loadUrl`，`mediaCandidates` 与 `credentialDocumentToken` 直到 WebView `onPageStarted` 才更新。导航期间自动 effect 看到新 URL，却仍能看到旧文档候选；若 `onPageStarted` 或网络响应超过候选确认延时，旧候选会被当成新页面候选再次交给 `PlayerSession`。后退、前进、刷新和 UA 引起的刷新也存在同一类窗口。
+3. `PlayerSession.close()` 的异步 runtime/Surface 收尾是正确的，但关闭完成前后没有 Browser Runtime 所有的、可观察的“该文档已消费自动机会”事实。把这个事实放在 Compose 中会受重组、页面切换和宿主重新挂载影响。
+
+### 方案与状态不变量
+
+- `StandardBrowserSessionTools.WebSession` 继续是候选唯一 owner，新增当前文档的自动悬浮消费 token。候选被任何 Browser 播放入口接受时，记录候选 `documentToken`；自动 effect 只读取该 owner 的投影，手动播放仍可用。
+- `WebSessionBrowserState` 投影 `activeDocumentToken`、消费 token、`pageLoaded` 和 `isLoading`；`WebSessionBrowserMediaCandidate` 投影自身 `documentToken`。自动触发只允许在活动文档 token 非空、页面已完成且不在加载状态时执行，消费 token 与活动 token 相等时永不重新触发。
+- `navigateSessionOnMain` 在发出 `loadUrl` 前就生成新的文档 token并清空候选；`onPageStarted` 继续建立 WebView 真实导航边界并重复清理。旧文档异步请求由 token 校验丢弃，新文档不会继承旧候选或旧消费事实。
+- 后退、前进、刷新和 UA 设置触发的重新加载统一在 WebView 操作前调用同一文档失效 helper；`pendingBrowserDocumentStartToken` 阻止旧文档的 commit/finished/history 回调提前恢复 loaded 状态，并由匹配的 `onPageStarted` 消费。DOM observer 脚本携带注入时的 token，延迟 bridge 回调必须与当前 token 相等才会合并。
+- `PlayerSession` 仍只负责媒体和 runtime 关闭；关闭按钮只调用既有 `close()`，不调用网页 `pause/play/load`、`loadUrl/reload`，不等待异步关闭再由 UI 自己推断状态。关闭同页候选不会自动重弹；新文档的候选在稳定、完成加载后可自动播放，同页手动播放不受影响。
+
+### 影响文件、风险与回滚点
+
+- 生产代码：`StandardBrowserSessionTools.kt`、`BrowserWebViewSupport.kt`、`WebSessionBrowserHostState.kt`、`BrowserPlayerSupport.kt`、`WebSessionBrowserScreen.kt`。
+- 测试：`BrowserMediaCandidatePolicyTest.kt`，覆盖文档 token 消费、加载期间禁止触发、导航前清理语义和手动播放可用性；保留现有 URL/DOM/MIME/时长/画质测试。
+- 文档：同步本文件和 `docs/TODO/README.md` 的阶段状态；不把现场 URL、Cookie、Authorization、查询参数或完整诊断日志写入仓库。
+- 主要风险是首个文档 token 的投影时序和手动候选入口误受自动门禁影响。通过默认空值、纯函数策略测试、导航回调静态审阅和 Debug APK 中的字段/调用链检查控制；回滚点为本轮修改前的干净 `main@e23d7393`。
+
+### 验收矩阵
+
+| 场景 | 预期证据 |
+| --- | --- |
+| DOM `video` 使用 `.mp3` URL，自动小窗首次出现 | 候选为 `VIDEO/OTHER_VIDEO`，仍按既有 DOM 证据播放一次 |
+| 小窗左上角退出 | `PlayerSession` 进入关闭流程并最终无媒体；同一 `documentToken` 的自动触发保持禁止 |
+| 退出后停留原网页 | 不再出现第二次 `PLAYER_HANDOFF`，不执行第二次 `loadfile` |
+| 退出后立即导航到新网页 | 导航入口先清空旧候选并更新 token；加载期间不触发自动悬浮 |
+| 新网页完成加载并发现新视频 | 新 token 的候选可按时长/推荐规则自动进入小窗 |
+| 资源抽屉手动播放同一候选 | 仍可手动进入全屏，关闭后不影响后续手动入口 |
+| 全屏/小窗转场、历史重播、非 Browser request | 继续使用既有唯一 `PlayerSession` 语义，不被 Browser 自动消费字段误伤 |
+
+实现后依次执行定向 JVM、相关回归、`git diff --check`、正式开发门禁和规定的串行 `assembleDebug`；APK 静态审计与提交前远端对账完成后，真机复测该 URL 的关闭、切页和重新发现新视频仍保持 `verification_pending`，不能用本地构建替代。
+
+### 本轮本地验证记录
+
+- 浏览器候选与播放器定向 JVM 测试通过；新增覆盖文档消费 token、加载门禁、DOM observer token 绑定和伪装 `.mp3` 视频证据。
+- 完整 App JVM、Python 合同测试 `124/124`、formal readiness、fresh-clone 检查和 `git diff --check` 均通过。
+- 最终串行 `:app:assembleDebug` 为 `BUILD SUCCESSFUL in 2m 16s`，共 `235` tasks；唯一 launcher、代理和 Player runtime packaging 门禁通过。Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，`503669293` 字节，SHA-256 `50078798329E135778D3DBE55AB3D6670D0D8DC0103CDA8A49D3055718A3B13F`；`com.kiyori / 45 / 0.1.0 / minSdk 26 / targetSdk 34 / compileSdk 37`、Android Debug V2 单 signer、16 KiB ZIP 对齐、`5512` 个 ZIP entry 零重复和播放器/代理 native/runtime 清单均通过。
+- 未安装 APK、未执行 ADB/MuMu 或真实网页操作；vivo Android 16 上的关闭按钮、切换网页、旧媒体不重弹、新文档自动悬浮和 Surface/runtime 时序仍为 `verification_pending`。
+
 ## 2026-08-03 画质排序、最高画质自动小窗与快速触发
 
 [LOCAL DONE / DEVICE PENDING]

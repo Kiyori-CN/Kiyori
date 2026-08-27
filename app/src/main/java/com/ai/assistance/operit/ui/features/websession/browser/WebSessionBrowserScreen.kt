@@ -101,7 +101,6 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.Browse
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.areBrowserHomeUrlsEquivalent
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.buildWebSessionBookmarkFolderTree
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.automaticFloatingCandidateStabilityDelayMillis
-import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveConsumedAutomaticFloatingPageKey
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveSelectedProfileAfterRemoval
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveWebSessionProfileToggleTarget
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.normalizeWebSessionBookmarkUrl
@@ -294,39 +293,26 @@ internal fun WebSessionBrowserScreen(
     val context = LocalContext.current
     val density = LocalDensity.current
     val browserState = hostState.browserState
-    val automaticFloatingPageKey = "${browserState.activeSessionId.orEmpty()}|${browserState.currentUrl}"
+    val currentDocumentMediaCandidates =
+        remember(browserState.mediaCandidates, browserState.activeDocumentToken) {
+            browserState.mediaCandidates.filter { candidate ->
+                candidate.documentToken == browserState.activeDocumentToken
+            }
+        }
     val automaticFloatingCandidate =
         remember(
-            browserState.mediaCandidates,
+            currentDocumentMediaCandidates,
             automaticFloatingMinimumDurationMillis,
         ) {
             selectAutomaticFloatingMediaCandidate(
-                candidates = browserState.mediaCandidates,
+                candidates = currentDocumentMediaCandidates,
                 minimumDurationMillis = automaticFloatingMinimumDurationMillis,
             )
         }
-    val latestMediaCandidates by rememberUpdatedState(browserState.mediaCandidates)
-    // 页面候选一旦成功进入唯一 PlayerSession，就消费该页面的自动悬浮机会。否则全屏
-    // CLOSE 清空会话后，这个 effect 会再次打开同一候选，表现为从 0 播放并重新缓存。
-    var consumedAutomaticFloatingPageKey by remember { mutableStateOf<String?>(null) }
+    val latestMediaCandidates by rememberUpdatedState(currentDocumentMediaCandidates)
     var totalHeightPx by remember { mutableIntStateOf(0) }
     var browserAreaHeightPx by remember { mutableIntStateOf(0) }
     var floatingOffsetYPx by remember(playerState.request?.requestId) { mutableFloatStateOf(0f) }
-    val consumeCurrentAutomaticFloatingPage: () -> Unit = {
-        consumedAutomaticFloatingPageKey =
-            resolveConsumedAutomaticFloatingPageKey(
-                currentPageKey = automaticFloatingPageKey,
-                consumedPageKey = consumedAutomaticFloatingPageKey,
-                request = playerSession.state.value.request,
-            )
-    }
-    val playMediaCandidateAndConsumeAutomaticPage: (String) -> Boolean = { candidateId ->
-        onPlayMediaCandidate(candidateId).also { accepted ->
-            if (accepted) {
-                consumeCurrentAutomaticFloatingPage()
-            }
-        }
-    }
     LaunchedEffect(totalHeightPx, browserAreaHeightPx) {
         val chromeHeightPx = (totalHeightPx - browserAreaHeightPx).coerceAtLeast(0)
         if (
@@ -347,14 +333,6 @@ internal fun WebSessionBrowserScreen(
                 }
             }
         }
-    }
-    LaunchedEffect(automaticFloatingPageKey, playerState.request) {
-        consumedAutomaticFloatingPageKey =
-            resolveConsumedAutomaticFloatingPageKey(
-                currentPageKey = automaticFloatingPageKey,
-                consumedPageKey = consumedAutomaticFloatingPageKey,
-                request = playerState.request,
-            )
     }
     val currentBookmarkUrl =
         remember(browserState.currentUrl) { normalizeWebSessionBookmarkUrl(browserState.currentUrl) }
@@ -381,7 +359,11 @@ internal fun WebSessionBrowserScreen(
         }
     }
     LaunchedEffect(
-        automaticFloatingPageKey,
+        browserState.activeSessionId,
+        browserState.activeDocumentToken,
+        browserState.automaticFloatingConsumedDocumentToken,
+        browserState.pageLoaded,
+        browserState.isLoading,
         automaticFloatingPlaybackEnabled,
         automaticFloatingMinimumDurationMillis,
         automaticFloatingCandidate?.id,
@@ -391,10 +373,12 @@ internal fun WebSessionBrowserScreen(
         if (!automaticFloatingPlaybackEnabled) return@LaunchedEffect
         if (
             !shouldAttemptAutomaticFloatingPlayback(
-                currentPageKey = automaticFloatingPageKey,
-                consumedPageKey = consumedAutomaticFloatingPageKey,
                 hasMedia = playerState.hasMedia,
                 presentation = playerState.presentation,
+                activeDocumentToken = browserState.activeDocumentToken,
+                consumedDocumentToken = browserState.automaticFloatingConsumedDocumentToken,
+                pageLoaded = browserState.pageLoaded,
+                isLoading = browserState.isLoading,
             )
         ) {
             return@LaunchedEffect
@@ -403,10 +387,12 @@ internal fun WebSessionBrowserScreen(
         delay(automaticFloatingCandidateStabilityDelayMillis(selected))
         if (
             !shouldAttemptAutomaticFloatingPlayback(
-                currentPageKey = automaticFloatingPageKey,
-                consumedPageKey = consumedAutomaticFloatingPageKey,
                 hasMedia = playerState.hasMedia,
                 presentation = playerState.presentation,
+                activeDocumentToken = browserState.activeDocumentToken,
+                consumedDocumentToken = browserState.automaticFloatingConsumedDocumentToken,
+                pageLoaded = browserState.pageLoaded,
+                isLoading = browserState.isLoading,
             )
         ) {
             return@LaunchedEffect
@@ -417,9 +403,7 @@ internal fun WebSessionBrowserScreen(
                 minimumDurationMillis = automaticFloatingMinimumDurationMillis,
             )
         if (stableSelection?.id == selected.id) {
-            if (onPlayMediaCandidateFloating(selected.id)) {
-                consumeCurrentAutomaticFloatingPage()
-            }
+            onPlayMediaCandidateFloating(selected.id)
         }
     }
     val fullscreenLaunchRequestId = playerState.surfaceLease.fullscreenLaunchRequestId
@@ -693,7 +677,6 @@ internal fun WebSessionBrowserScreen(
                         onFullscreen = onOpenPlayerFullscreen,
                         onDownload = onDownloadMediaCandidate,
                         onClose = {
-                            consumeCurrentAutomaticFloatingPage()
                             onClosePlayer()
                         },
                         modifier =
@@ -1104,7 +1087,7 @@ internal fun WebSessionBrowserScreen(
                             onOpenUserscriptDraftEditor = onOpenUserscriptDraftEditor,
                             onRequestPluginBack = onRequestPluginBack,
                             onInvokeUserscriptMenu = onInvokeUserscriptMenu,
-                            onPlayMediaCandidate = playMediaCandidateAndConsumeAutomaticPage,
+                            onPlayMediaCandidate = onPlayMediaCandidate,
                             onDownloadMediaCandidate = onDownloadMediaCandidate,
                             onOpenPageSource = onOpenPageSource,
                             onPauseDownload = onPauseDownload,

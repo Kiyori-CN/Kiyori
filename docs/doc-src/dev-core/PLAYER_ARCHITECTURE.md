@@ -101,12 +101,16 @@ successor.
 Browser floating to fullscreen to floating to close never calls WebView `loadUrl`, `reload`, page reconstruction,
 candidate rescan or JavaScript media control. A page may continue its own media independently; Kiyori does not mutate
 that page state. Closing projects `BROWSER_ONLY` immediately so the floating composition disappears before native
-detach and runtime close finish. A browser page's automatic-floating opportunity is consumed as soon as one of its
-candidates is accepted by the single `PlayerSession`, whether the entry was automatic or manual. Consumption gates
-only automatic startup, so closing, natural completion, or fullscreen `CLOSE` cannot turn the same candidate into a
-new request, second `loadfile`, fresh runtime or fresh cache. Manual playback remains available. If the user has already
-navigated, closing the old page's player does not consume the new page; after the old runtime closes, the stable
-current-page candidate may open.
+detach and runtime close finish. Each `WebSession` owns a current `credentialDocumentToken`, a pending-start token for
+app-initiated navigation, and an automatic-floating consumption token beside the candidates rather than in Compose. A
+candidate accepted by the single `PlayerSession` records that document token, whether the entry was automatic or
+manual. Automatic startup additionally
+requires the active document to be fully loaded (`pageLoaded=true`, `isLoading=false`) and filters candidates by the
+same document token. Closing, natural completion, or fullscreen `CLOSE` therefore cannot turn a consumed document's
+candidate into a new request, second `loadfile`, fresh runtime or fresh cache. Manual playback remains available.
+Navigation rotates the document token and clears candidates before the WebView operation. Stale completion callbacks
+are ignored until the matching `onPageStarted` consumes the pending-start token, so an old page's player cannot consume
+or reopen a candidate discovered by the new page.
 
 The fixed `mpvlibAndroid@168e0a5e` lifecycle remains the native Surface authority: detach sets `vo=null`,
 `force-window=no`, and releases the native window; attach restores the configured VO and `force-window=yes`. Kiyori
