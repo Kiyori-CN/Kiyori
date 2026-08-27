@@ -147,7 +147,6 @@ data class KiyoriNetworkProxyConfig(
     val schemaVersion: Int = CURRENT_SCHEMA_VERSION,
     val enabled: Boolean = false,
     val defaultMode: KiyoriNetworkConnectionMode = KiyoriNetworkConnectionMode.DIRECT,
-    val moduleModes: Map<KiyoriNetworkModule, KiyoriNetworkOverrideMode> = emptyMap(),
     val scriptModes: Map<String, KiyoriNetworkOverrideMode> = emptyMap(),
     /** User-authored rules are independent from every subscription and survive updates. */
     val customRules: List<KiyoriNetworkProxyRule> = emptyList(),
@@ -158,7 +157,7 @@ data class KiyoriNetworkProxyConfig(
     val testUrl: String = DEFAULT_TEST_URL,
 ) {
     companion object {
-        const val CURRENT_SCHEMA_VERSION = 4
+        const val CURRENT_SCHEMA_VERSION = 5
         const val DEFAULT_TEST_URL = "https://cp.cloudflare.com/generate_204"
         const val MAX_SUBSCRIPTIONS = 32
         const val MAX_SUBSCRIPTION_NAME_LENGTH = 80
@@ -217,17 +216,7 @@ object KiyoriNetworkProxyPolicy {
     fun effectiveModuleMode(
         config: KiyoriNetworkProxyConfig,
         module: KiyoriNetworkModule,
-    ): KiyoriNetworkConnectionMode =
-        when (config.moduleModes[module] ?: KiyoriNetworkOverrideMode.INHERIT) {
-            KiyoriNetworkOverrideMode.INHERIT -> config.defaultMode
-            KiyoriNetworkOverrideMode.DIRECT -> KiyoriNetworkConnectionMode.DIRECT
-            KiyoriNetworkOverrideMode.PROXY ->
-                when (config.defaultMode) {
-                    KiyoriNetworkConnectionMode.DIRECT -> KiyoriNetworkConnectionMode.GLOBAL
-                    KiyoriNetworkConnectionMode.PROXY -> KiyoriNetworkConnectionMode.GLOBAL
-                    else -> config.defaultMode
-                }
-        }
+    ): KiyoriNetworkConnectionMode = config.defaultMode
 
     fun effectiveMode(
         config: KiyoriNetworkProxyConfig,
@@ -255,9 +244,7 @@ object KiyoriNetworkProxyPolicy {
 
     fun runtimeMode(config: KiyoriNetworkProxyConfig): KiyoriNetworkConnectionMode {
         if (config.defaultMode != KiyoriNetworkConnectionMode.DIRECT) return config.defaultMode
-        return if (config.moduleModes.values.any { it == KiyoriNetworkOverrideMode.PROXY } ||
-            config.scriptModes.values.any { it == KiyoriNetworkOverrideMode.PROXY }
-        ) {
+        return if (config.scriptModes.values.any { it == KiyoriNetworkOverrideMode.PROXY }) {
             KiyoriNetworkConnectionMode.GLOBAL
         } else {
             KiyoriNetworkConnectionMode.DIRECT
@@ -265,9 +252,7 @@ object KiyoriNetworkProxyPolicy {
     }
 
     fun hasConfiguredProxyRoute(config: KiyoriNetworkProxyConfig): Boolean =
-        KiyoriNetworkModule.entries.any { module ->
-            effectiveModuleMode(config, module) != KiyoriNetworkConnectionMode.DIRECT
-        } || config.scriptModes.keys.any { packageName ->
+        config.defaultMode != KiyoriNetworkConnectionMode.DIRECT || config.scriptModes.keys.any { packageName ->
             effectiveMode(config, KiyoriNetworkModule.SCRIPTS, packageName) != KiyoriNetworkConnectionMode.DIRECT
         }
 

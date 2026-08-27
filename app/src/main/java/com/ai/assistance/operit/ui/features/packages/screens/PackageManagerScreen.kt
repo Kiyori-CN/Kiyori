@@ -58,8 +58,14 @@ import com.ai.assistance.operit.ui.features.packages.market.PluginCreationIntent
 import com.ai.assistance.operit.ui.features.packages.market.PublishArtifactType
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.ai.assistance.operit.ui.main.components.LocalOpenKiyoriNetworkProxy
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsSelection
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsSelectionOption
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsSelectionSheet
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
+import com.kiyori.platform.network.KiyoriNetworkOverrideMode
+import com.kiyori.platform.network.KiyoriNetworkProxyManager
+import com.kiyori.platform.network.KiyoriNetworkProxyStoreState
 import java.io.File
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
@@ -138,6 +144,8 @@ fun PackageManagerScreen(
     val toolPkgHostEnvironmentRepository =
         remember { ToolPkgHostEnvironmentRepository.getInstance(context) }
     val apiPreferences = remember { ApiPreferences.getInstance(context) }
+    val networkProxyManager = remember { KiyoriNetworkProxyManager.getInstance(context) }
+    val networkProxyStoreState by networkProxyManager.configState.collectAsState()
 
     // State for available and imported packages
     val availablePackages = remember { mutableStateOf<Map<String, ToolPackage>>(emptyMap()) }
@@ -194,6 +202,7 @@ fun PackageManagerScreen(
     var pluginOrder by remember { mutableStateOf<List<String>>(emptyList()) }
     var skillOrder by remember { mutableStateOf<List<String>>(emptyList()) }
     var showCreateScriptDialog by remember { mutableStateOf(false) }
+    var pendingScriptProxyPackageName by remember { mutableStateOf<String?>(null) }
     var createScriptRequirement by rememberSaveable { mutableStateOf("") }
     val packageSnapshotMutex = remember { Mutex() }
     val artifactCatalogRevision by MarketInstallStateStore.artifactCatalogRevision.collectAsState()
@@ -907,7 +916,10 @@ fun PackageManagerScreen(
                                         )
                                     }
                                 }
-                            }
+                            },
+                            onPackageLongClick = { packageName ->
+                                pendingScriptProxyPackageName = packageName
+                            },
                         )
                     }
 
@@ -1098,6 +1110,84 @@ fun PackageManagerScreen(
                             onStartPluginCreation(PluginCreationIntent.Fresh(requirement))
                         }
                     }
+                )
+            }
+
+            pendingScriptProxyPackageName?.let { packageName ->
+                val config =
+                    (networkProxyStoreState as? KiyoriNetworkProxyStoreState.Ready)?.config
+                val scriptDisplayName =
+                    allAvailablePackages.value[packageName]
+                        ?.displayName
+                        ?.resolve(context)
+                        ?.trim()
+                        ?.takeIf(String::isNotBlank)
+                        ?: allAvailablePackages.value[packageName]?.name?.takeIf(String::isNotBlank)
+                        ?: packageName
+                val currentMode =
+                    config?.scriptModes?.get(packageName)
+                        ?: KiyoriNetworkOverrideMode.INHERIT
+                val options =
+                    listOf(
+                        Triple(
+                            KiyoriNetworkOverrideMode.INHERIT,
+                            "跟随代理模式",
+                            "使用设置中的全局代理模式",
+                        ),
+                        Triple(
+                            KiyoriNetworkOverrideMode.DIRECT,
+                            "直连",
+                            "不经过 Kiyori 内嵌 Mihomo；仍受系统 VPN 影响",
+                        ),
+                        Triple(
+                            KiyoriNetworkOverrideMode.PROXY,
+                            "代理",
+                            "经过 Kiyori 内嵌 Mihomo",
+                        ),
+                    )
+                KiyoriSettingsSelectionSheet(
+                    selection =
+                        KiyoriSettingsSelection(
+                            title = "$scriptDisplayName 脚本规则",
+                            currentValue =
+                                options.first { option -> option.first == currentMode }.second,
+                            options =
+                                options.map { (mode, label, description) ->
+                                    KiyoriSettingsSelectionOption(
+                                        label = label,
+                                        description = description,
+                                        selected = mode == currentMode,
+                                        onSelect = {},
+                                    )
+                                },
+                        ),
+                    onDismiss = { pendingScriptProxyPackageName = null },
+                    onSelect = { option ->
+                        val selectedMode =
+                            options.first { (_, label, _) -> label == option.label }.first
+                        pendingScriptProxyPackageName = null
+                        scope.launch {
+                            try {
+                                networkProxyManager.updateConfig { current ->
+                                    current.copy(
+                                        scriptModes =
+                                            if (selectedMode == KiyoriNetworkOverrideMode.INHERIT) {
+                                                current.scriptModes - packageName
+                                            } else {
+                                                current.scriptModes + (packageName to selectedMode)
+                                            },
+                                    )
+                                }
+                            } catch (error: Exception) {
+                                AppLogger.e(
+                                    "PackageManagerScreen",
+                                    "Failed to save script proxy rule for $packageName",
+                                    error,
+                                )
+                                snackbarHostState.showSnackbar("脚本规则保存失败")
+                            }
+                        }
+                    },
                 )
             }
         }

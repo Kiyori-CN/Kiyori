@@ -52,17 +52,24 @@ Some pages, physical-device interactions, and release workflows remain under ver
 
 Open **Settings Home → More Features → Network Proxy**. This is the single routing owner for the Kiyori
 process and covers AI services and speech, AI tools, Browser, Downloads, Player, traditional Scripts, and
-Kiyori-owned online services. The top-level modes are Rule, Global, and Direct; every module can inherit the top-level mode or choose
-its own mode. Traditional `JsEngine` packages may add a per-package override in Script Rules. The Environment
+Kiyori-owned online services. The top-level modes are Rule, Global, and Direct, and every module follows the
+selected mode. Traditional `JsEngine` packages may add a per-package override in Script Rules. The Environment
 drawer links here directly, and ToolPkg is intentionally kept under AI Tools rather than treated as a script.
 
-The home page provides the application-proxy switch, default connection, Current Node, Subscription Management,
-Module Connection Mode, Per-script Connection Mode, Proxy Logs, private-network routing, system-VPN coexistence,
-and reset. Current Node, Subscription Management, Rule Management, module modes, script rules, and logs are separate child pages. Current Node uses
+The home page provides the application-proxy switch, proxy mode, Node Selection, Subscription Management,
+Rule Management, Script Rules, Proxy Logs, private-network routing, system-VPN coexistence, and reset. Node
+Selection, Subscription Management, Script Rules, and logs are separate child pages. Node Selection uses
 horizontal group tabs, a current-group search field, a header group-test action, and sorting; nodes are single-column
 rows whose body selects `select` groups while the trailing button only tests that node. Automatic groups are never
-presented as manually selectable. Script Rules lists enabled executable traditional `JsEngine` packages and keeps
-an explicit manual package-name entry; an empty list means there is no enabled traditional script, not that AI Tools are missing.
+presented as manually selectable. Script Rules lists every installed executable traditional `JsEngine` package,
+including disabled scripts, and does not accept manually entered package names.
+
+At application startup, Kiyori registers the saved proxy reconciliation. The first real Browser WebView must finish
+provider, capability, and userscript-bridge initialization before Kiyori installs the embedded Mihomo and process-wide
+WebView proxy override. The reconciliation completes before Browser sends a remote top-level document request. A failed reconciliation blocks that
+navigation with an explicit error instead of silently using direct access. A later successful reconciliation from
+Network Proxy settings publishes a new readiness generation and allows subsequent navigation; local `about:` and
+`file:` pages do not wait for this barrier.
 
 Subscription Management provides Add Subscription URL and Import YAML buttons. Tapping a row switches the active
 subscription; its overflow menu contains Update, Edit, Copy, and Delete. Copy creates a new subscription entry and

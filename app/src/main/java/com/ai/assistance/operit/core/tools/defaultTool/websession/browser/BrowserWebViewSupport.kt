@@ -118,6 +118,10 @@ internal fun StandardBrowserSessionTools.createSessionOnMain(
         event = "USERSCRIPT_SESSION_ATTACHED",
         session = session,
     )
+    // The process-wide ProxyController only becomes usable after the real WebView provider and
+    // its support-library bridge have both been initialized. Signal readiness after configuration
+    // and diagnostics, before the caller can schedule the first remote navigation.
+    KiyoriNetworkProxyManager.getInstance(appContext).notifyBrowserWebViewRuntimeReady()
     return session
 }
 
@@ -1060,9 +1064,7 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                 val session = getActiveSessionOnMain() ?: return@runOnMainSync
                 ensureSessionAttachedOnMain(session.id)
                 if (session.webView.canGoForward()) {
-                    applyHistoryTargetUserAgent(session, delta = 1)
-                    beginBrowserDocumentNavigation(session)
-                    session.webView.goForward()
+                    navigateSessionHistoryOnMain(session, delta = 1)
                 }
                 refreshNavigationStateAsync(session)
             }
@@ -1072,8 +1074,7 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             runOnMainSync<Unit> {
                 val session = getActiveSessionOnMain() ?: return@runOnMainSync
                 ensureSessionAttachedOnMain(session.id)
-                beginBrowserDocumentNavigation(session)
-                session.webView.reload()
+                reloadSessionOnMain(session)
                 refreshNavigationStateAsync(session)
             }
         }
@@ -2155,6 +2156,16 @@ internal fun StandardBrowserSessionTools.navigateSessionOnMain(
     targetUrl: String,
     headers: Map<String, String> = emptyMap()
 ) {
+    val proxyManager = KiyoriNetworkProxyManager.getInstance(context.applicationContext)
+    if (
+        shouldAwaitStartupProxyBeforeBrowserNavigation(
+            targetUrl = targetUrl,
+            readiness = proxyManager.startupProxyReadiness(),
+        )
+    ) {
+        deferNavigationUntilStartupProxyReady(session, targetUrl, headers, proxyManager)
+        return
+    }
     val configuredHomeUrl = browserSettingsStore.current.homeUrl
     session.browserHomeNavigationState =
         if (areBrowserHomeUrlsEquivalent(targetUrl, configuredHomeUrl)) {
@@ -2184,6 +2195,149 @@ internal fun StandardBrowserSessionTools.navigateSessionOnMain(
     scheduleBrowserRecoverySnapshotWrite()
 }
 
+private fun StandardBrowserSessionTools.deferNavigationUntilStartupProxyReady(
+    session: BrowserToolSession,
+    targetUrl: String,
+    headers: Map<String, String>,
+    proxyManager: KiyoriNetworkProxyManager,
+    reload: Boolean = false,
+) {
+    val generation = session.networkReadyNavigationGeneration + 1L
+    session.networkReadyNavigationGeneration = generation
+    ioScope.launch {
+        var failure: Exception? = null
+        try {
+            proxyManager.awaitStartupReconciliation()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            failure = error
+        }
+        StandardBrowserSessionTools.mainHandler.post {
+            if (
+                sessionById(session.id) !== session ||
+                    session.networkReadyNavigationGeneration != generation
+            ) {
+                return@post
+            }
+            if (failure != null) {
+                val startupFailure = requireNotNull(failure)
+                recordBrowserDiagnostic(
+                    level = BrowserDiagnosticLevel.ERROR,
+                    category = BrowserDiagnosticCategory.NAVIGATION,
+                    event = "STARTUP_PROXY_RECONCILIATION_FAILED",
+                    session = session,
+                    message = startupFailure.message ?: startupFailure.javaClass.simpleName,
+                    details =
+                        mapOf(
+                            "readinessGeneration" to
+                                proxyManager.startupProxyReadinessGeneration().toString(),
+                        ),
+                )
+                showToast("网络代理启动失败，网页未开始加载")
+                return@post
+            }
+            if (reload) {
+                beginBrowserDocumentNavigation(session)
+                session.webView.reload()
+            } else {
+                navigateSessionOnMain(session, targetUrl, headers)
+            }
+        }
+    }
+}
+
+private fun StandardBrowserSessionTools.navigateSessionHistoryOnMain(
+    session: BrowserToolSession,
+    delta: Int,
+) {
+    val history = session.webView.copyBackForwardList()
+    val target = history.getItemAtIndex(history.currentIndex + delta) ?: return
+    if (
+        shouldAwaitStartupProxyBeforeBrowserNavigation(
+            targetUrl = target.url,
+            readiness = KiyoriNetworkProxyManager.getInstance(context.applicationContext).startupProxyReadiness(),
+        )
+    ) {
+        deferHistoryNavigationUntilStartupProxyReady(session, delta)
+        return
+    }
+    applyHistoryTargetUserAgent(session, delta)
+    performSessionHistoryNavigationOnMain(session, delta)
+}
+
+private fun StandardBrowserSessionTools.reloadSessionOnMain(session: BrowserToolSession) {
+    val targetUrl = session.currentUrl.ifBlank { session.webView.url.orEmpty() }
+    val proxyManager = KiyoriNetworkProxyManager.getInstance(context.applicationContext)
+    if (
+        shouldAwaitStartupProxyBeforeBrowserNavigation(
+            targetUrl = targetUrl,
+            readiness = proxyManager.startupProxyReadiness(),
+        )
+    ) {
+        deferNavigationUntilStartupProxyReady(session, targetUrl, emptyMap(), proxyManager, reload = true)
+        return
+    }
+    beginBrowserDocumentNavigation(session)
+    session.webView.reload()
+}
+
+private fun StandardBrowserSessionTools.performSessionHistoryNavigationOnMain(
+    session: BrowserToolSession,
+    delta: Int,
+) {
+    try {
+        if (delta < 0) prepareReturnWithoutReloadOnMain(session)
+        beginBrowserDocumentNavigation(session)
+        if (delta < 0) session.webView.goBack() else session.webView.goForward()
+    } catch (error: Exception) {
+        if (delta < 0) restoreReturnWithoutReloadOnMain(session)
+        throw error
+    }
+}
+
+private fun StandardBrowserSessionTools.deferHistoryNavigationUntilStartupProxyReady(
+    session: BrowserToolSession,
+    delta: Int,
+) {
+    val history = session.webView.copyBackForwardList()
+    history.getItemAtIndex(history.currentIndex + delta) ?: return
+    val manager = KiyoriNetworkProxyManager.getInstance(context.applicationContext)
+    val generation = session.networkReadyNavigationGeneration + 1L
+    session.networkReadyNavigationGeneration = generation
+    ioScope.launch {
+        var failure: Exception? = null
+        try {
+            manager.awaitStartupReconciliation()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            failure = error
+        }
+        StandardBrowserSessionTools.mainHandler.post {
+            if (sessionById(session.id) !== session || session.networkReadyNavigationGeneration != generation) return@post
+            if (failure != null) {
+                recordBrowserDiagnostic(
+                    level = BrowserDiagnosticLevel.ERROR,
+                    category = BrowserDiagnosticCategory.NAVIGATION,
+                    event = "STARTUP_PROXY_RECONCILIATION_FAILED",
+                    session = session,
+                    message = requireNotNull(failure).message ?: requireNotNull(failure).javaClass.simpleName,
+                    details =
+                        mapOf(
+                            "readinessGeneration" to
+                                manager.startupProxyReadinessGeneration().toString(),
+                        ),
+                )
+                showToast("网络代理启动失败，网页未开始加载")
+                return@post
+            }
+            applyHistoryTargetUserAgent(session, delta)
+            performSessionHistoryNavigationOnMain(session, delta)
+        }
+    }
+}
+
 internal fun StandardBrowserSessionTools.navigateSessionBackOnMain(
     session: BrowserToolSession,
 ): BrowserSessionBackResult {
@@ -2193,15 +2347,7 @@ internal fun StandardBrowserSessionTools.navigateSessionBackOnMain(
     val result =
         when {
             session.canGoBack -> {
-                applyHistoryTargetUserAgent(session, delta = -1)
-                try {
-                    prepareReturnWithoutReloadOnMain(session)
-                    beginBrowserDocumentNavigation(session)
-                    session.webView.goBack()
-                } catch (error: Exception) {
-                    restoreReturnWithoutReloadOnMain(session)
-                    throw error
-                }
+                navigateSessionHistoryOnMain(session, delta = -1)
                 BrowserSessionBackResult.WEB_HISTORY
             }
             !isAtConfiguredBrowserHome(
@@ -2253,6 +2399,10 @@ internal fun StandardBrowserSessionTools.navigateSessionBackOnMain(
 private fun StandardBrowserSessionTools.beginBrowserDocumentNavigation(
     session: BrowserToolSession,
 ) {
+    // Any concrete navigation supersedes a remote navigation still waiting for startup proxy
+    // readiness. Without this generation change, an older deferred URL could replace the page the
+    // user selected more recently as soon as the process-wide override finishes installing.
+    session.networkReadyNavigationGeneration += 1L
     // Invalidate the old candidate snapshot before WebView reports onPageStarted. This closes the
     // window where automatic playback could select media from the page being left.
     session.credentialDocumentToken = UUID.randomUUID().toString()
@@ -3585,8 +3735,7 @@ internal fun StandardBrowserSessionTools.applyBrowserUserAgentSettingsOnMain() {
 
     val activeSession = getActiveSessionOnMain()
     if (activeSession != null && activeSession.customUserAgent == null) {
-        beginBrowserDocumentNavigation(activeSession)
-        activeSession.webView.reload()
+        reloadSessionOnMain(activeSession)
         refreshNavigationStateAsync(activeSession)
     } else {
         refreshSessionUiOnMain(activeSession?.id)

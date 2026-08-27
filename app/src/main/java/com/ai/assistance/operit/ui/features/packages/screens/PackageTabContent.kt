@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.ui.features.packages.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -34,14 +35,7 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.ToolPackage
 import com.ai.assistance.operit.ui.features.packages.components.EmptyState
 
-private data class PackageListEntry(
-    val packageName: String,
-    val displayName: String,
-    val description: String,
-    val categoryKey: String,
-    val categoryLabel: String,
-)
-
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun PackageTabContent(
     packages: Map<String, ToolPackage>,
@@ -49,7 +43,8 @@ fun PackageTabContent(
     isLoading: Boolean,
     isSearchActive: Boolean,
     onPackageClick: (String) -> Unit,
-    onTogglePackage: (String, Boolean) -> Unit
+    onTogglePackage: (String, Boolean) -> Unit,
+    onPackageLongClick: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val enabledPackageNameSet = remember(enabledPackageNames) { enabledPackageNames.toSet() }
@@ -70,34 +65,14 @@ fun PackageTabContent(
                 shape = MaterialTheme.shapes.medium
             ) {
                 val orderedPackages =
-                    remember(packages, context) {
-                        packages.map { (packageName, toolPackage) ->
-                            val categoryLabel =
-                                normalizePackageCategoryLabel(toolPackage.category)
-                            val packageDisplayName =
-                                toolPackage
-                                    .displayName
-                                    .resolve(context)
-                                    .trim()
-                                    .takeIf { displayName -> displayName.isNotBlank() }
-                            PackageListEntry(
-                                packageName = packageName,
-                                displayName =
-                                    packageDisplayName ?: toolPackage.name.ifBlank { packageName },
-                                description = toolPackage.description.resolve(context),
-                                categoryKey = packageCategoryKey(categoryLabel),
-                                categoryLabel = categoryLabel,
-                            )
-                        }
-                            .sortedWith(
-                                packageCategoryAndDisplayNameComparator(
-                                    categorySelector = PackageListEntry::categoryLabel,
-                                    displayNameSelector = PackageListEntry::displayName,
-                                    internalNameSelector = PackageListEntry::packageName,
-                                ),
-                            )
+                    remember(packages, enabledPackageNameSet, context) {
+                        buildScriptPackageCatalog(
+                            packages = packages,
+                            enabledPackageNames = enabledPackageNameSet,
+                            context = context,
+                        )
                     }
-                val groupedPackages = orderedPackages.groupBy(PackageListEntry::categoryKey)
+                val groupedPackages = orderedPackages.groupBy(ScriptPackageCatalogEntry::categoryKey)
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -126,7 +101,7 @@ fun PackageTabContent(
 
                         items(
                             items = packagesInCategory,
-                            key = PackageListEntry::packageName,
+                            key = ScriptPackageCatalogEntry::packageName,
                         ) { packageEntry ->
                             val isFirstInCategory =
                                 packageEntry.packageName == firstPackageName
@@ -139,6 +114,9 @@ fun PackageTabContent(
                                 categoryVisual = categoryVisual,
                                 onPackageClick = {
                                     onPackageClick(packageEntry.packageName)
+                                },
+                                onPackageLongClick = {
+                                    onPackageLongClick(packageEntry.packageName)
                                 },
                                 onToggleImport = { isChecked ->
                                     onTogglePackage(packageEntry.packageName, isChecked)
@@ -158,13 +136,15 @@ fun PackageTabContent(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun PackageListItemWithTag(
-    packageEntry: PackageListEntry,
+    packageEntry: ScriptPackageCatalogEntry,
     isImported: Boolean,
     categoryTag: String?,
     categoryVisual: PackageCategoryVisual,
     onPackageClick: () -> Unit,
+    onPackageLongClick: () -> Unit,
     onToggleImport: (Boolean) -> Unit
 ) {
     val categoryColors = categoryVisual.resolveColors()
@@ -204,7 +184,6 @@ private fun PackageListItemWithTag(
         }
 
         Surface(
-            onClick = onPackageClick,
             modifier = Modifier.fillMaxWidth(),
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 0.dp,
@@ -215,6 +194,10 @@ private fun PackageListItemWithTag(
                 modifier =
                     Modifier
                         .fillMaxWidth()
+                        .combinedClickable(
+                            onClick = onPackageClick,
+                            onLongClick = onPackageLongClick,
+                        )
                         .padding(
                             horizontal = 16.dp,
                             vertical = if (categoryTag != null) 4.dp else 8.dp

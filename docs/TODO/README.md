@@ -4,6 +4,39 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # Kiyori 开发任务与验证索引
 
+## 2026-08-28 最新安装回归：脚本长按崩溃与代理启动竞态
+
+状态：`LOCAL FIX VERIFIED / DEVICE VERIFICATION PENDING`。
+
+最新安装现场的脚本长按崩溃来自 `KiyoriSettingsSelectionSheet` 在 AI 扩展页脱离设置路由组合，读取严格的
+`LocalKiyoriSettingsColors` 默认值；组件现在自带 `KiyoriSettingsTheme` 边界，设置页和扩展页共用同一实现。
+启动代理日志显示 Mihomo 已达到 `controllerStatus=200` 与 `mixedPortListening=true`，失败发生在首个 WebView
+provider/support-library bridge 初始化前调用 `ProxyController.setProxyOverride`。启动协调现在等待真实 Browser
+WebView 完成配置、能力探测和脚本桥接后才开始；Browser 仍等待同一 readiness，不发送未代理的远程主文档请求。
+
+本轮自动证据：完整 `:app:testDebugUnitTest` 通过，Debug `:app:assembleDebug --no-daemon --console=plain` 通过，
+唯一 launcher、脚本代理运行时和播放器运行时打包门禁通过；APK 为 `503669293` 字节，SHA-256
+`86944F0B9A578B3CBA67BCBC18CBC5FB3DBD355BACDD85D8139CAC05BFAC2D0F`，`com.kiyori / versionCode 45 / versionName 0.1.0`，
+Debug V2 签名与 16 KiB 对齐通过。未安装 APK 或操作目标设备，真实长按、冷启动代理和嗅探播放仍保持
+`verification_pending`。
+
+## 2026-08-27 在线播放、启动代理与脚本规则修复
+
+状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND DEBUG APK AUDIT COMPLETE / DEVICE VERIFICATION PENDING`。
+
+本轮确认嗅探视频偶发 `Fullscreen Activity cannot launch...` 来自 `PlayerSurfaceLease` 一次性 Activity
+请求被重复/过期回调触发，而非媒体 URL 或 mpv 解码；全屏启动现在按租约状态幂等投影，同一媒体从
+悬浮切全屏也必须先完成 Surface 转移。应用冷启动代理则改为唯一共享启动协调：Browser 首次远程导航
+等待 Mihomo 与 process-wide `ProxyController` 完成，失败时阻止该导航并明确报告，不静默直连；启动协调失败后，设置页
+重新协调可发布新的 readiness generation，恢复后续远程导航。
+
+网络代理 schema 升级为 5 并移除未发布的 `moduleModes`；所有模块统一跟随顶层“规则 / 全局 / 直连”，
+只有传统 JsEngine 脚本保留包级覆盖。“逐脚本连接模式”统一为“脚本规则”，只显示全部已安装可执行
+脚本（含停用项），按扩展页相同分类分组，刷新移到标题栏图标并删除手动包名入口。AI 左抽屉 -> 扩展 -> 脚本中，
+短按仍打开详情，长按打开同一 manager/`scriptModes` 持有的规则抽屉。启动代理使用可恢复 readiness generation，
+首次协调失败不会静默直连；设置重新协调成功后允许后续导航。详细方案、迁移和验收矩阵见
+[`application_network_proxy/index.md`](application_network_proxy/index.md) 的“2026-08-27 在线播放、启动代理与脚本规则重构方案”。
+
 ## 2026-08-27 浏览器悬浮播放器关闭后重弹修复
 
 状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND DEBUG APK AUDIT COMPLETE / DEVICE VERIFICATION PENDING`。
@@ -73,7 +106,7 @@ arXiv、Crossref、PubMed、Semantic Scholar、OpenAlex。现有 `crossref_searc
 认证字段、实施计划、15 项定向测试、真实 API 与 Debug APK 验证边界见
 [`academic_script_catalog/index.md`](academic_script_catalog/index.md)。
 
-## 2026-08-23 Kiyori 应用级网络代理与内嵌 Mihomo
+## 2026-08-23 Kiyori 应用级网络代理与内嵌 Mihomo（历史方案，已由 2026-08-27 schema 5 方案取代）
 
 状态：`IMPLEMENTATION VERIFIED / DEVICE VERIFICATION PENDING`（真机已确认订阅可导入展示；本地已修复 Mihomo 运行配置的外部地理数据依赖并增加代理日志，等待修订 APK 现场复测）。
 
@@ -91,7 +124,8 @@ Browser、下载器、播放器、脚本与扩展、Kiyori 在线服务按各自
 已剥离这些外部数据依赖，并提供可查看、复制、SAF 导出和清空的进程内脱敏代理日志。自动测试和
 Debug APK 仍只证明本地实现，真实节点连接需由修订安装包现场确认。
 
-界面移除外部 mixed-port 的主机/端口/认证表单。代理主页保留开关、默认连接、当前节点、订阅管理、模块连接模式、
+以下界面描述是 2026-08-23 当时的历史实现，已被本文顶部的 2026-08-27 schema 5 方案取代：界面移除外部
+mixed-port 的主机/端口/认证表单。代理主页当时保留开关、默认连接、当前节点、订阅管理、模块连接模式、
 逐脚本连接模式、代理日志、局域网地址、系统 VPN 并存和重置；当前节点、订阅管理、模块、逐脚本规则和日志分别进入子页面。
 当前节点页按横向分组标签、搜索、整组测速、排序和单列节点行组织，订阅页支持两个导入按钮、点击切换和更新/编辑/复制/删除
 三点菜单。逐脚本规则只展示已启用传统 JsEngine 包，并保留手动包名入口。外部 Clash 使用 Android VPN 时无需填写；内嵌

@@ -165,16 +165,6 @@ class KiyoriApplication :
             }
         )
 
-        if (isMainProcess) {
-            applicationScope.launch {
-                try {
-                    requireNotNull(networkProxyManager).reconcileEnabledState()
-                } catch (error: Exception) {
-                    KiyoriLogger.e(TAG, "应用级网络代理启动协调失败", error)
-                }
-            }
-        }
-
     }
 
     /** Initializes only state that the first Compose frame can access synchronously. */

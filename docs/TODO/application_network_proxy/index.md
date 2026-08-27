@@ -7,11 +7,31 @@ date: 2026-08-23
 
 # Kiyori 应用级网络代理与内嵌 Mihomo
 
+## 2026-08-28 最新安装回归修复
+
+状态：`LOCAL FIX VERIFIED / DEVICE VERIFICATION PENDING`。
+
+最新安装报告中的代理失败不是 Mihomo 或订阅故障：Mihomo 已报告 `controllerStatus=200`、
+`mixedPortListening=true`，但应用在真实 Browser WebView provider/support-library bridge 完成前就调用了
+进程级 `ProxyController.setProxyOverride`。现在 `KiyoriApplication` 仍只负责登记启动协调，
+`KiyoriNetworkProxyManager` 先建立可等待的 readiness，再由首个 Browser `WebView` 完成配置、能力探测和用户脚本
+桥接后调用 `notifyBrowserWebViewRuntimeReady()`，启动协调随后才安装 WebView 代理。首次远程主文档继续等待同一
+readiness，失败仍明确阻止导航，不静默直连，也不增加第二 WebView、第二 Mihomo 或重试路径。
+
+同一安装中的脚本长按崩溃来自扩展页直接组合 `KiyoriSettingsSelectionSheet` 时缺少
+`LocalKiyoriSettingsColors` 提供者。选择抽屉组件现在在自身边界建立 `KiyoriSettingsTheme`，所以设置路由和扩展页
+长按使用同一主题合同，未改变 `scriptModes` 的唯一状态 owner。
+
+本轮 Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，`503669293` 字节，SHA-256
+`86944F0B9A578B3CBA67BCBC18CBC5FB3DBD355BACDD85D8139CAC05BFAC2D0F`；`com.kiyori / 45 / 0.1.0`，Debug V2 签名、
+16 KiB ZIP 对齐、唯一 launcher、脚本代理运行时和播放器运行时打包门禁均通过。目标 Android 设备尚未安装验收，
+状态保持 `verification_pending`。
+
 ## 目标与完成标准
 
 本阶段把上一版“传统脚本宿主代理”提升为 Kiyori 唯一的应用级网络路由能力。用户只在
-“设置首页 -> 更多功能 -> 网络代理”管理订阅、内嵌核心、代理模式、逐模块连接模式和脚本
-细分规则。Browser、播放器、AI 主模型与其他由 Kiyori 持有的联网客户端读取同一份配置，不再
+“设置首页 -> 更多功能 -> 网络代理”管理订阅、内嵌核心、代理模式和脚本细分规则。Browser、播放器、
+AI 主模型与其他由 Kiyori 持有的联网客户端读取同一份配置，不再
 由脚本页面持有第二套代理状态。
 
 完成标准：
@@ -21,8 +41,8 @@ date: 2026-08-23
    mapping 根，而不是 Base64 通用 URI 列表。
 2. 每份订阅独立保留安全、可用的 `proxy-groups`、静态节点、HTTP provider、策略选择和最近测速
    结果；页面按订阅和策略组展示节点，可执行单节点和整组测速。
-3. 内嵌核心关闭时，Kiyori 在应用层不设置代理；开启时，默认连接模式和逐模块规则决定哪些
-   请求进入内嵌 Mihomo。脚本模块继续允许按脚本包名细分。
+3. 内嵌核心关闭时，Kiyori 在应用层不设置代理；开启时，顶层代理模式统一决定请求是否进入
+   内嵌 Mihomo。传统脚本继续允许按脚本包名细分。
 4. AI 服务、AI 工具、Browser、下载器、播放器、脚本与扩展、Kiyori 在线服务的受支持宿主
    网络入口全部接入同一个路由 owner；代理错误必须终止当前请求，不得静默改走另一条路线。
 5. 当前订阅是唯一运行配置来源。切换、更新或编辑 URL 完成下载、清洗和 `mihomo -t` 校验后才
@@ -34,6 +54,103 @@ date: 2026-08-23
 8. 敏感配置、运行时明文、核心制品和私有订阅都满足现有安全、打包、许可证和仓库卫生门禁。
 
 ## 当前实施状态
+
+## 2026-08-27 在线播放、启动代理与脚本规则重构方案
+
+状态：`IMPLEMENTATION VERIFIED LOCALLY / AUTOMATED VALIDATION AND DEBUG APK AUDIT COMPLETE / DEVICE VERIFICATION PENDING`。
+
+本轮基线为 `main@acfaa288`，工作树在研究开始时干净，Kiyori 当前仍未公开发行，因此以下用户可见
+接口直接收敛到新设计；不会保留一套并行的旧页面或旧状态 owner。现有 `com.kiyori.platform.network`
+仍是唯一代理 owner，`PlayerSession` 仍是唯一播放器 owner，Browser 与 AI 继续共用同一个
+`StandardBrowserSessionTools`/WebSession/WebView。
+
+### 已确认根因
+
+1. 嗅探视频全屏错误来自 `PlayerSurfaceLeasePolicy.requestFullscreenActivityLaunchIfReady()` 的
+   严格断言。`BrowserPlayerSupport.openMediaCandidate()` 在 `PlayerSession.open()` 后无条件调用
+   `requestFullscreenActivityLaunchWhenReady()`；同一个 request 的重复嗅探回调、展示切换或关闭/重建
+   交错时，Surface lease 可能已经没有待处理的全屏 target，内部 `check` 直接把
+   `Fullscreen Activity cannot launch without a pending fullscreen Surface` 暴露到下方错误弹窗。
+   这不是媒体 URL、mpv 解码或网络失败。
+2. 启动代理存在可观察的初始化空窗：`KiyoriApplication.onCreate()` 仅异步调用
+   `reconcileEnabledState()`，而 Browser 可以在 Mihomo runtime 与 AndroidX `ProxyController` 完成前
+   创建 WebView 并开始导航。设置页重新测速会再次协调，因而表现为“返回后才生效”。这属于启动时序
+   和共享完成状态缺失，不通过增加第二核心、系统 VPN 或静默直连处理。
+3. 当前脚本页仍允许手动输入包名，并且只展示已启用脚本；这会使配置状态与真实安装清单分裂。扩展页的
+   脚本项尚未把短按和长按建模为两个明确动作，长按仍会复用详情弹窗。
+
+### 目标合同与实现边界
+
+**播放器全屏**
+
+- `requestFullscreenActivityLaunchWhenReady()` 改为幂等状态投影：已有启动请求直接复用；当前已经是
+  全屏 owner 时不重新发请求；仅在 `FULLSCREEN` pending target、无活动旧 owner 且 native detach 已完成
+  时创建一次 request。过期/重复调用返回“无动作”而不是抛用户可见异常。
+- `BrowserPlayerSupport` 只在 `PlayerSession.open()` 接受了目标 request/presentation 后请求启动；同一
+  request 的展示切换先由 `PlayerSession` 完成租约迁移。旧 document token 的候选仍由 Browser owner
+  拒绝，不能重新打开播放器。
+- 保持 `init -> Surface attach ACK -> loadfile` 顺序、唯一 `PlayerSession`、唯一 `:player` 进程和
+  最近的 floating/fullscreen 生命周期修复；不增加播放器实例或媒体重试回退。
+
+**启动代理**
+
+- `KiyoriNetworkProxyManager` 增加进程级启动协调的共享 readiness 状态和 generation，`onCreate()` 只启动一次
+  初始协调任务；后续 Browser 首次 attach/navigation 等待当前协调尝试。失败会明确阻止远程导航，但设置变更或
+  重新协调成功后发布新的 generation，不能被第一次失败永久封死。协调仍在现有 `mutationMutex` 内读取最新加密配置、
+  启动/复用 Mihomo 并完成 WebView `ProxyController` 安装。
+- 代理关闭、直连模式、无有效订阅、VPN 冲突和明确的启动错误保持可观察失败；不在网络失败时切换节点、
+  绕过应用代理或吞掉异常。启动等待只解决时序，不改变路由语义。
+- `KiyoriNetworkProxyConfigStore` 的跨进程文件指纹重读继续保留；Browser WebView 使用安装完成后的
+  process-wide override，不创建第二 WebView 或第二代理状态。
+
+**代理设置与脚本规则**
+
+- 删除用户可见的“模块连接模式”入口及 `KiyoriNetworkProxyConfig.moduleModes` 语义。schema 5 读取旧
+  schema 4 时丢弃未发布的 `moduleModes`，原样保留顶层 `defaultMode` 与 `scriptModes`，写回后不再生成
+  `moduleModes`；未发布产品不保留旧页面兼容入口。`KiyoriNetworkModule` 枚举继续作为代码路由分类，
+  不等于用户设置项。
+- “逐脚本连接模式”统一改名为“脚本规则”，包括主页入口、子页标题、空状态、返回链和说明文案；保留
+  `scriptModes` 的 `INHERIT/DIRECT/PROXY` 三态和同一 manager 写入路径。
+- 脚本清单只来自实际已安装的传统 JsEngine 包发现器，按 AI 对话 -> 左抽屉 -> 扩展 -> 脚本的分组/排序
+  规则投影；启用与否不影响识别。删除手动包名输入和“添加规则”，顶部“刷新脚本”移为标题行右侧
+  单独的刷新图标按钮，刷新只重新读取安装清单。
+- 扩展脚本短按保持现有脚本详情/执行入口；长按打开代理规则底部抽屉，选项与网络代理页共享同一
+  `scriptModes` 状态和 `KiyoriNetworkOverrideMode` 文案。抽屉关闭、返回和配置保存均不改变脚本详情
+  route stack。
+
+### schema、文件与验证矩阵
+
+实现预计涉及：`KiyoriNetworkProxyModels.kt`、`KiyoriNetworkProxyConfigStore.kt`、
+`KiyoriNetworkProxyManager.kt`、`KiyoriApplication.kt`、`KiyoriNetworkProxySettingsPage.kt`、
+传统脚本发现/扩展脚本列表的实际 owner、`BrowserPlayerSupport.kt`、`PlayerSession.kt`、
+`PlayerSurfaceLeasePolicy.kt`、`WebSessionBrowserScreen.kt`、资源文案、`CONTEXT.md`、`README.md` 和
+本 TODO；不修改无关市场、下载或第二浏览器实现。
+
+自动验证至少覆盖：
+
+- 全屏启动：无 target、已有 fullscreen owner、重复 request、floating detach ACK 后 request、同一
+  request 重复嗅探、关闭中/旧 document 候选和 Activity 重建；断言不再出现该 `IllegalStateException`。
+- 启动代理：默认 `enabled=true` 且存在有效订阅时，首次 manager 协调完成前的 Browser attach 会等待；
+  协调后 `ProxyController` 和 runtime generation 可观察；直连/无订阅/VPN 冲突错误不被吞掉。
+- 脚本规则：旧 schema 读取迁移、写回不含模块模式、全部已安装脚本（含停用项）投影、空清单、刷新、
+  文案和短按/长按 action 分离；脚本规则与网络代理页读写同一 map。
+- 本地门禁：聚焦及完整 JVM 测试、`check_formal_readiness.py --require-main`、Python 网络代理合同、必要的 architecture/Markdown
+  检查、`git diff --check`，以及串行 `:app:assembleDebug --no-daemon --console=plain` 和 APK 核验。
+- 设备边界：真实嗅探 MP4/HLS、页面首次进入代理站点、前后台/旋转、脚本停用项发现和长按手势仍需安装
+  APK 后在目标 Android 设备完成，自动测试不能替代，完成前状态保持 `verification_pending`。
+
+### 本轮本地验证证据（2026-08-27）
+
+- `:app:testDebugUnitTest`：`BUILD SUCCESSFUL`，159 actionable tasks；包含播放器租约、浏览器启动
+  导航策略、schema 2/3/4 -> 5 迁移和网络代理策略测试。
+- `python -B -m unittest ci.test.test_application_network_proxy_contract`：11/11 通过。
+- `python -B ci/script/check_formal_readiness.py --repository . --require-main`：PASS。
+- `:app:assembleDebug --no-daemon --console=plain`：`BUILD SUCCESSFUL`，235 actionable tasks；唯一
+  launcher、脚本代理运行时和播放器运行时打包门禁通过。APK 为 `app/build/outputs/apk/debug/app-debug.apk`，
+  包名/版本 `com.kiyori / 45 / 0.1.0`，Debug V2 单签名和 16 KiB ZIP 对齐通过。
+
+> 下面带有 2026-08-24 及更早日期的段落是历史方案和当时的验证记录。其“模块连接模式”“逐脚本连接模式”
+> 和手动包名入口已被本节 2026-08-27 schema 5 方案取代，不代表当前实现。
 
 ## 2026-08-24 规则模式网页与播放器链路修复
 

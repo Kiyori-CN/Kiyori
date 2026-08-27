@@ -698,6 +698,10 @@ internal class PlayerSession private constructor(context: Context) {
             resolvePlayerOpenTransition(queueAwareState, request, presentation, settings)
         if (!transition.shouldLoad) {
             _state.value = transition.state
+            // A repeated candidate click may only change presentation. It still has to pass
+            // through the shared Surface lease transfer so a floating owner is detached before
+            // the fullscreen Activity is requested.
+            prepareSurfaceLeaseForPresentation(presentation)
             return
         }
 
@@ -805,9 +809,7 @@ internal class PlayerSession private constructor(context: Context) {
     fun requestFullscreenActivityLaunchWhenReady() {
         requireMainThread()
         val snapshot = _state.value
-        check(snapshot.presentation == PlayerPresentation.FULLSCREEN_PLAYER) {
-            "Fullscreen Activity launch requires fullscreen presentation"
-        }
+        if (snapshot.presentation != PlayerPresentation.FULLSCREEN_PLAYER) return
         _state.value =
             snapshot.copy(
                 surfaceLease =

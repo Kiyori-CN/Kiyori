@@ -81,6 +81,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.packTool.PackageManager as ToolPackageManager
+import com.ai.assistance.operit.ui.features.packages.screens.ScriptPackageCatalogEntry
+import com.ai.assistance.operit.ui.features.packages.screens.buildScriptPackageCatalog
+import com.ai.assistance.operit.ui.features.packages.screens.resolvePackageCategoryVisual
+import com.ai.assistance.operit.ui.features.packages.screens.toImageVector
 import com.ai.assistance.operit.ui.common.copyPlainTextToClipboard
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.LocalKiyoriSettingsColors
@@ -90,7 +94,6 @@ import com.kiyori.platform.network.KiyoriMihomoRuntimePhase
 import com.kiyori.platform.network.KiyoriNetworkConnectionMode
 import com.kiyori.platform.network.KiyoriNetworkErrorCode
 import com.kiyori.platform.network.KiyoriNetworkException
-import com.kiyori.platform.network.KiyoriNetworkModule
 import com.kiyori.platform.network.KiyoriNetworkOverrideMode
 import com.kiyori.platform.network.KiyoriNetworkProxyConfig
 import com.kiyori.platform.network.KiyoriNetworkProxyLogEntry
@@ -132,8 +135,7 @@ private enum class NetworkProxyPageSection(
     CURRENT_NODE(NETWORK_PROXY_NODE_SELECTION_TITLE),
     SUBSCRIPTIONS("订阅管理"),
     RULES("规则管理"),
-    MODULES("模块连接模式"),
-    SCRIPTS("逐脚本连接模式"),
+    SCRIPTS("脚本规则"),
     LOGS("代理日志"),
 }
 
@@ -186,9 +188,10 @@ private sealed interface YamlImportTarget {
 }
 
 private sealed interface ModeSelection {
-    data class Module(val module: KiyoriNetworkModule) : ModeSelection
-
-    data class Script(val packageName: String) : ModeSelection
+    data class Script(
+        val packageName: String,
+        val displayName: String,
+    ) : ModeSelection
 }
 
 private sealed interface CustomRuleEditor {
@@ -207,17 +210,6 @@ private val networkProxyModeOptions =
         NetworkProxyModeOption("跟随模式", "使用上方代理模式", KiyoriNetworkOverrideMode.INHERIT),
         NetworkProxyModeOption("直连", "绕过 Kiyori 内嵌 Mihomo；仍受系统 VPN 影响", KiyoriNetworkOverrideMode.DIRECT),
         NetworkProxyModeOption("代理", "经过内嵌 Mihomo，并使用上方代理模式", KiyoriNetworkOverrideMode.PROXY),
-    )
-
-private val networkProxyModules =
-    listOf(
-        KiyoriNetworkModule.AI_SERVICES to "AI 主模型与语音",
-        KiyoriNetworkModule.AI_TOOLS to "AI 工具",
-        KiyoriNetworkModule.BROWSER to "浏览器",
-        KiyoriNetworkModule.DOWNLOADS to "下载",
-        KiyoriNetworkModule.PLAYER to "播放器",
-        KiyoriNetworkModule.SCRIPTS to "传统脚本",
-        KiyoriNetworkModule.APP_SERVICES to "Kiyori 在线服务",
     )
 
 @Composable
@@ -248,9 +240,9 @@ internal fun KiyoriNetworkProxySettingsPage(
     var clearLogDialogVisible by remember { mutableStateOf(false) }
     var pendingLogExportText by remember { mutableStateOf<String?>(null) }
     var pendingModeSelection by remember { mutableStateOf<ModeSelection?>(null) }
-    var scriptPackageDialogVisible by remember { mutableStateOf(false) }
-    var scriptPackageDraft by remember { mutableStateOf("") }
-    var discoveredScriptPackages by remember { mutableStateOf<List<String>>(emptyList()) }
+    var discoveredScriptCatalog by remember {
+        mutableStateOf<List<ScriptPackageCatalogEntry>>(emptyList())
+    }
     var scriptCatalogRefreshing by remember { mutableStateOf(false) }
     var customRuleEditor by remember { mutableStateOf<CustomRuleEditor?>(null) }
     var customRulePattern by remember { mutableStateOf("") }
@@ -297,25 +289,35 @@ internal fun KiyoriNetworkProxySettingsPage(
         scope.launch {
             scriptCatalogRefreshing = true
             try {
-                discoveredScriptPackages =
-                    withContext(Dispatchers.IO) {
+                val (packages, enabledPackageNames) = withContext(Dispatchers.IO) {
                         val packageManager =
                             ToolPackageManager.getInstance(
                                 context,
                                 AIToolHandler.getInstance(context),
                             )
                         val available = packageManager.getAvailablePackages(forceRefresh = true)
-                        val enabled = packageManager.getEnabledPackageNames().toSet()
-                        enabled
-                            .asSequence()
-                            .filter { packageName -> packageName in available }
-                            .filterNot(packageManager::isToolPkgContainer)
-                            .filterNot(packageManager::isToolPkgSubpackage)
-                            .sorted()
-                            .toList()
+                        val installedScripts =
+                            available.filterKeys { packageName ->
+                                !packageManager.isToolPkgContainer(packageName) &&
+                                    !packageManager.isToolPkgSubpackage(packageName)
+                            }
+                        val currentConfig = manager.currentConfig()
+                        val staleRules = currentConfig.scriptModes.keys - installedScripts.keys
+                        if (staleRules.isNotEmpty()) {
+                            manager.updateConfig { config ->
+                                config.copy(scriptModes = config.scriptModes - staleRules)
+                            }
+                        }
+                        installedScripts to packageManager.getEnabledPackageNames().toSet()
                     }
+                discoveredScriptCatalog =
+                    buildScriptPackageCatalog(
+                        packages = packages,
+                        enabledPackageNames = enabledPackageNames,
+                        context = context,
+                    )
             } catch (error: Exception) {
-                KiyoriLogger.e(TAG, "Failed to load enabled script packages", error)
+                KiyoriLogger.e(TAG, "Failed to load installed script packages", error)
                 feedback =
                     NetworkProxyFeedback(
                         NetworkProxyOperationArea.SCRIPTS,
@@ -537,6 +539,18 @@ internal fun KiyoriNetworkProxySettingsPage(
                         }
                     }
                 }
+                if (pageSection == NetworkProxyPageSection.SCRIPTS) {
+                    IconButton(
+                        enabled = controlsEnabled && !scriptCatalogRefreshing,
+                        onClick = { refreshScriptCatalog() },
+                    ) {
+                        if (scriptCatalogRefreshing) {
+                            CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                        } else {
+                            Icon(Icons.Default.Refresh, contentDescription = "刷新脚本")
+                        }
+                    }
+                }
             },
         ) {
         if (pageSection == NetworkProxyPageSection.OVERVIEW) {
@@ -593,7 +607,7 @@ internal fun KiyoriNetworkProxySettingsPage(
             item(key = "network_proxy_overview_connections") {
                 KiyoriSettingsGroupSection(
                     title = "连接范围",
-                    description = "进入对应子页面管理节点选择、订阅、模块和逐脚本规则。",
+                    description = "进入对应子页面管理节点选择、订阅、规则和脚本规则。",
                 ) {
                     val nodeSelectionDescription =
                         activeProxySelection?.let { selection ->
@@ -645,23 +659,12 @@ internal fun KiyoriNetworkProxySettingsPage(
                     )
                     KiyoriSettingsDivider()
                     KiyoriSettingsRow(
-                        title = "模块连接模式",
-                        description = "总开关 → 模块覆盖 → 传统脚本包覆盖",
-                        kind = KiyoriSettingsRowKind.NAVIGATION,
-                        icon = Icons.Default.Tune,
-                        iconTone = KiyoriSemanticTone.BLUE,
-                        value = config?.moduleModes?.size?.takeIf { it > 0 }?.let { "$it 个覆盖" } ?: "跟随模式",
-                        enabled = controlsEnabled,
-                        onClick = { pageSection = NetworkProxyPageSection.MODULES },
-                    )
-                    KiyoriSettingsDivider()
-                    KiyoriSettingsRow(
-                        title = "逐脚本连接模式",
+                        title = "脚本规则",
                         description =
                             when {
-                                scriptCatalogRefreshing -> "正在读取已启用脚本…"
-                                discoveredScriptPackages.isEmpty() && config?.scriptModes.isNullOrEmpty() -> "当前没有已启用的传统脚本"
-                                else -> "已发现 ${discoveredScriptPackages.size} 个脚本，已配置 ${config?.scriptModes?.size ?: 0} 个覆盖"
+                                scriptCatalogRefreshing -> "正在读取已安装脚本…"
+                                discoveredScriptCatalog.isEmpty() -> "当前没有已安装的传统脚本"
+                                else -> "已发现 ${discoveredScriptCatalog.size} 个脚本，已配置 ${config?.scriptModes?.size ?: 0} 个规则"
                             },
                         kind = KiyoriSettingsRowKind.NAVIGATION,
                         icon = Icons.Default.Tune,
@@ -1038,82 +1041,65 @@ internal fun KiyoriNetworkProxySettingsPage(
             }
         }
 
-        if (pageSection == NetworkProxyPageSection.MODULES) {
-            item(key = "network_proxy_modules_detail") {
-                KiyoriSettingsGroupSection(
-                    title = "模块连接模式",
-                    description = "总开关关闭时所有请求按直连处理；直连仍可能经过 Android 系统 VPN。",
-                ) {
-                    networkProxyModules.forEachIndexed { index, (module, label) ->
-                        val override = config?.moduleModes?.get(module) ?: KiyoriNetworkOverrideMode.INHERIT
-                        KiyoriSettingsRow(
-                            title = label,
-                            description = networkProxyModuleDescription(module),
-                            kind = KiyoriSettingsRowKind.NAVIGATION,
-                            icon = Icons.Default.Tune,
-                            iconTone = KiyoriSemanticTone.BLUE,
-                            value = networkProxyOverrideLabel(override),
-                            enabled = controlsEnabled,
-                            onClick = { pendingModeSelection = ModeSelection.Module(module) },
+        if (pageSection == NetworkProxyPageSection.SCRIPTS) {
+            if (discoveredScriptCatalog.isEmpty()) {
+                item(key = "network_proxy_scripts_empty") {
+                    KiyoriSettingsGroupSection(
+                        title = "脚本规则",
+                        description = "只显示已安装的传统 JsEngine 脚本，启用状态不影响识别；ToolPkg 统一归入 AI 工具。",
+                    ) {
+                        Text(
+                            "当前没有已安装的传统脚本。",
+                            color = LocalKiyoriSettingsColors.current.secondaryText,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(18.dp),
                         )
-                        if (index != networkProxyModules.lastIndex) KiyoriSettingsDivider()
                     }
-                    NetworkProxyOperationFeedback(NetworkProxyOperationArea.ROUTING, activeOperation, feedback, false)
                 }
             }
-        }
-
-        if (pageSection == NetworkProxyPageSection.SCRIPTS) {
-            item(key = "network_proxy_scripts_detail") {
-                val configuredScriptPackages = config?.scriptModes?.keys.orEmpty()
-                val scriptPackages = (discoveredScriptPackages + configuredScriptPackages).distinct().sorted()
-                KiyoriSettingsGroupSection(
-                    title = "逐脚本连接模式",
-                    description = "只列出传统 JsEngine 脚本；ToolPkg 统一归入 AI 工具。每条规则可跟随脚本模块、直连或代理。",
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        OutlinedButton(
-                            modifier = Modifier.weight(1f),
-                            enabled = controlsEnabled && !scriptCatalogRefreshing,
-                            onClick = { refreshScriptCatalog() },
+            discoveredScriptCatalog
+                .groupBy(ScriptPackageCatalogEntry::categoryKey)
+                .forEach { (categoryKey, scriptsInCategory) ->
+                    item(key = "network_proxy_scripts_category_$categoryKey") {
+                        val categoryLabel = scriptsInCategory.first().categoryLabel
+                        val categoryVisual = resolvePackageCategoryVisual(categoryLabel)
+                        KiyoriSettingsGroupSection(
+                            title = categoryLabel,
+                            description = "${scriptsInCategory.size} 个已安装脚本；未启用脚本也可预先配置规则。",
                         ) {
-                            if (scriptCatalogRefreshing) CircularProgressIndicator(Modifier.size(17.dp), strokeWidth = 2.dp) else Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(17.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("刷新脚本", fontSize = 12.sp, maxLines = 1)
-                        }
-                        OutlinedButton(
-                            modifier = Modifier.weight(1f),
-                            enabled = controlsEnabled,
-                            onClick = { scriptPackageDialogVisible = true },
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(17.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("添加规则", fontSize = 12.sp, maxLines = 1)
+                            scriptsInCategory.forEachIndexed { index, script ->
+                                if (index > 0) KiyoriSettingsDivider()
+                                val mode = config?.scriptModes?.get(script.packageName)
+                                val scriptDescription =
+                                    listOfNotNull(
+                                        if (script.enabled) "已启用" else "未启用",
+                                        script.packageName,
+                                        script.description.takeIf(String::isNotBlank),
+                                    ).joinToString(" · ")
+                                KiyoriSettingsRow(
+                                    title = script.displayName,
+                                    description = scriptDescription,
+                                    kind = KiyoriSettingsRowKind.NAVIGATION,
+                                    icon = categoryVisual.icon.toImageVector(),
+                                    iconTone = KiyoriSemanticTone.BLUE,
+                                    value = networkProxyOverrideLabel(mode ?: KiyoriNetworkOverrideMode.INHERIT),
+                                    enabled = controlsEnabled,
+                                    onClick = {
+                                        pendingModeSelection =
+                                            ModeSelection.Script(script.packageName, script.displayName)
+                                    },
+                                )
+                            }
                         }
                     }
-                    if (scriptPackages.isEmpty()) {
-                        Text("当前没有已启用的传统脚本。仍可通过“添加规则”手动设置包名。", color = LocalKiyoriSettingsColors.current.secondaryText, fontSize = 13.sp, modifier = Modifier.padding(18.dp))
-                    } else {
-                        scriptPackages.forEachIndexed { index, packageName ->
-                            if (index > 0) KiyoriSettingsDivider()
-                            val mode = config?.scriptModes?.get(packageName)
-                            KiyoriSettingsRow(
-                                title = packageName,
-                                description = if (mode == null) "跟随传统脚本模块" else "覆盖：${networkProxyOverrideLabel(mode)}",
-                                kind = KiyoriSettingsRowKind.NAVIGATION,
-                                icon = Icons.Default.Tune,
-                                iconTone = KiyoriSemanticTone.PURPLE,
-                                value = networkProxyOverrideLabel(mode ?: KiyoriNetworkOverrideMode.INHERIT),
-                                enabled = controlsEnabled,
-                                onClick = { pendingModeSelection = ModeSelection.Script(packageName) },
-                            )
-                        }
-                    }
-                    NetworkProxyOperationFeedback(NetworkProxyOperationArea.SCRIPTS, activeOperation, feedback, false)
                 }
+            item(key = "network_proxy_scripts_feedback") {
+                NetworkProxyOperationFeedback(
+                    NetworkProxyOperationArea.SCRIPTS,
+                    activeOperation,
+                    feedback,
+                    false,
+                )
             }
         }
         }
@@ -1122,24 +1108,20 @@ internal fun KiyoriNetworkProxySettingsPage(
     pendingModeSelection?.let { selection ->
         val currentOverride =
             when (selection) {
-                is ModeSelection.Module -> config?.moduleModes?.get(selection.module) ?: KiyoriNetworkOverrideMode.INHERIT
                 is ModeSelection.Script -> config?.scriptModes?.get(selection.packageName) ?: KiyoriNetworkOverrideMode.INHERIT
             }
         KiyoriSettingsSelectionSheet(
             selection =
                 KiyoriSettingsSelection(
-                    title = when (selection) {
-                        is ModeSelection.Module -> "${networkProxyModuleLabel(selection.module)}连接模式"
-                        is ModeSelection.Script -> "${selection.packageName}连接模式"
-                    },
+                    title = "${selection.displayName}脚本规则",
                     currentValue = networkProxyOverrideLabel(currentOverride),
                     options =
                         networkProxyModeOptions.map { option ->
                             KiyoriSettingsSelectionOption(
                                 label = option.label,
                                 description =
-                                    if (selection is ModeSelection.Script && option.mode == KiyoriNetworkOverrideMode.INHERIT) {
-                                        "移除此脚本的单独规则，跟随传统脚本模块"
+                                    if (option.mode == KiyoriNetworkOverrideMode.INHERIT) {
+                                        "移除此脚本的单独规则，跟随代理模式"
                                     } else {
                                         option.description
                                     },
@@ -1151,23 +1133,13 @@ internal fun KiyoriNetworkProxySettingsPage(
             onDismiss = { pendingModeSelection = null },
             onSelect = { option ->
                 val selectedMode = networkProxyModeOptions.first { it.label == option.label }.mode
-                val area = if (selection is ModeSelection.Script) NetworkProxyOperationArea.SCRIPTS else NetworkProxyOperationArea.ROUTING
-                runOperation(NetworkProxyOperation("connection_mode", area, "正在保存连接模式"), "连接模式已保存。") {
+                runOperation(NetworkProxyOperation("script_rule", NetworkProxyOperationArea.SCRIPTS, "正在保存脚本规则"), "脚本规则已保存。") {
                     manager.updateConfig { current ->
-                        when (selection) {
-                            is ModeSelection.Module ->
-                                current.copy(
-                                    moduleModes =
-                                        if (selectedMode == KiyoriNetworkOverrideMode.INHERIT) current.moduleModes - selection.module
-                                        else current.moduleModes + (selection.module to selectedMode),
-                                )
-                            is ModeSelection.Script ->
-                                current.copy(
-                                    scriptModes =
-                                        if (selectedMode == KiyoriNetworkOverrideMode.INHERIT) current.scriptModes - selection.packageName
-                                        else current.scriptModes + (selection.packageName to selectedMode),
-                                )
-                        }
+                        current.copy(
+                            scriptModes =
+                                if (selectedMode == KiyoriNetworkOverrideMode.INHERIT) current.scriptModes - selection.packageName
+                                else current.scriptModes + (selection.packageName to selectedMode),
+                        )
                     }
                 }
             },
@@ -1339,34 +1311,6 @@ internal fun KiyoriNetworkProxySettingsPage(
                 dismissButton = { TextButton(onClick = { deleteSubscriptionId = null }) { Text("取消") } },
             )
         }
-    }
-
-    if (scriptPackageDialogVisible) {
-        val validPackageName = isValidScriptPackageName(scriptPackageDraft.trim())
-        AlertDialog(
-            onDismissRequest = { scriptPackageDialogVisible = false },
-            title = { Text("添加脚本规则") },
-            text = {
-                OutlinedTextField(
-                    value = scriptPackageDraft,
-                    onValueChange = { scriptPackageDraft = it },
-                    singleLine = true,
-                    label = { Text("脚本包名") },
-                    isError = scriptPackageDraft.isNotBlank() && !validPackageName,
-                    supportingText = if (scriptPackageDraft.isNotBlank() && !validPackageName) ({ Text("仅允许字母、数字、点、下划线、冒号和连字符") }) else null,
-                    colors = kiyoriSettingsOutlinedTextFieldColors(),
-                )
-            },
-            confirmButton = {
-                Button(enabled = validPackageName, onClick = {
-                    val packageName = scriptPackageDraft.trim()
-                    scriptPackageDialogVisible = false
-                    scriptPackageDraft = ""
-                    pendingModeSelection = ModeSelection.Script(packageName)
-                }) { Text("下一步") }
-            },
-            dismissButton = { TextButton(onClick = { scriptPackageDialogVisible = false }) { Text("取消") } },
-        )
     }
 
     if (resetDialogVisible) {
@@ -1770,20 +1714,6 @@ private fun groupDescription(
 private fun groupDisplayName(name: String): String =
     if (name == MihomoConfigSanitizer.ROUTE_GROUP_NAME) "默认代理" else name
 
-private fun networkProxyModuleLabel(module: KiyoriNetworkModule): String =
-    networkProxyModules.first { it.first == module }.second
-
-private fun networkProxyModuleDescription(module: KiyoriNetworkModule): String =
-    when (module) {
-        KiyoriNetworkModule.AI_SERVICES -> "模型列表、主模型、云端 embedding、语音和实时语音"
-        KiyoriNetworkModule.AI_TOOLS -> "普通 AI 工具的 HTTP 请求和 web visit"
-        KiyoriNetworkModule.BROWSER -> "WebView、用户脚本资源和浏览器辅助请求"
-        KiyoriNetworkModule.DOWNLOADS -> "浏览器下载、模型和扩展资源下载"
-        KiyoriNetworkModule.PLAYER -> "mpv 的 HTTP、HLS/DASH、字幕和封面请求"
-        KiyoriNetworkModule.SCRIPTS -> "传统 JsEngine 脚本宿主网络，可按包覆盖"
-        KiyoriNetworkModule.APP_SERVICES -> "GitHub、市场、天气、规则订阅和网络图片"
-    }
-
 private fun networkProxyOverrideLabel(mode: KiyoriNetworkOverrideMode): String =
     when (mode) {
         KiyoriNetworkOverrideMode.INHERIT -> "跟随模式"
@@ -1878,9 +1808,6 @@ private fun formatSubscriptionBytes(bytes: Long): String {
     }
     return "${DecimalFormat("#,##0.#").format(value)} ${units[unitIndex]}"
 }
-
-private fun isValidScriptPackageName(value: String): Boolean =
-    value.matches(Regex("[A-Za-z0-9._:-]{1,200}"))
 
 @Composable
 private fun NetworkProxyNodeList(

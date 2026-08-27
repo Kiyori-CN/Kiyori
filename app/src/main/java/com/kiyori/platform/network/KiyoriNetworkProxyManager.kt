@@ -22,6 +22,7 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -36,6 +37,21 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.util.concurrent.atomic.AtomicBoolean
+
+internal enum class KiyoriNetworkProxyReadiness {
+    NOT_STARTED,
+    RECONCILING,
+    READY,
+    FAILED,
+}
+
+internal fun shouldStartStartupProxyReconciliation(
+    startupScheduled: Boolean,
+    browserWebViewRuntimeReady: Boolean,
+    startupAlreadyLaunched: Boolean,
+): Boolean =
+    startupScheduled && browserWebViewRuntimeReady && !startupAlreadyLaunched
 
 internal fun shouldAutoRecoverMihomoFailure(
     state: KiyoriMihomoRuntimeState,
@@ -79,6 +95,14 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
     private val mutationMutex = Mutex()
     private val nodeTestMutex = Mutex()
     private val runtimeRecoveryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val readinessLock = Any()
+    @Volatile private var readinessState = KiyoriNetworkProxyReadiness.NOT_STARTED
+    @Volatile private var readinessGeneration = 0L
+    @Volatile private var readinessFailure: Throwable? = null
+    @Volatile private var readinessAttempt: CompletableDeferred<Result<Unit>>? = null
+    private val startupReconciliationScheduled = AtomicBoolean(false)
+    private val startupReconciliationLaunched = AtomicBoolean(false)
+    @Volatile private var browserWebViewRuntimeReady = false
     private var lastHandledUnexpectedRuntimeGeneration: Long? = null
     private var automaticRecoveryWindowStartedAtEpochMillis = 0L
     private var automaticRecoveryAttemptsInWindow = 0
@@ -97,7 +121,83 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
     fun clearLog() = proxyLog.clear()
 
     fun scheduleStartupReconciliation() {
+        if (!startupReconciliationScheduled.compareAndSet(false, true)) return
         runtime.scheduleStaleRuntimeCleanup()
+        beginReadinessAttempt()
+        startStartupReconciliationIfReady()
+    }
+
+    /**
+     * ProxyController is process-wide but its provider is initialized by the first real WebView.
+     * The Application cannot install an override before that point: Mihomo may be healthy while
+     * the provider still rejects the override call. Browser creation is the single readiness
+     * signal, so startup reconciliation begins only after that WebView exists.
+     */
+    internal fun notifyBrowserWebViewRuntimeReady() {
+        if (browserWebViewRuntimeReady) return
+        browserWebViewRuntimeReady = true
+        startStartupReconciliationIfReady()
+    }
+
+    private fun startStartupReconciliationIfReady() {
+        if (
+            !shouldStartStartupProxyReconciliation(
+                startupScheduled = startupReconciliationScheduled.get(),
+                browserWebViewRuntimeReady = browserWebViewRuntimeReady,
+                startupAlreadyLaunched = startupReconciliationLaunched.get(),
+            )
+        ) {
+            return
+        }
+        if (!startupReconciliationLaunched.compareAndSet(false, true)) return
+        runtimeRecoveryScope.launch {
+            try {
+                reconcileEnabledState()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                proxyLog.error(
+                    "运行协调",
+                    "应用启动代理协调失败 type=${error::class.java.simpleName} " +
+                        "message=${error.message?.take(240) ?: "none"}",
+                )
+            }
+        }
+    }
+
+    internal fun startupProxyReadiness(): KiyoriNetworkProxyReadiness = readinessState
+
+    internal fun startupProxyReadinessGeneration(): Long = readinessGeneration
+
+    internal suspend fun awaitStartupReconciliation() {
+        scheduleStartupReconciliation()
+        requireNotNull(readinessAttempt).await().getOrThrow()
+    }
+
+    private fun beginReadinessAttempt(): CompletableDeferred<Result<Unit>> = synchronized(readinessLock) {
+        if (readinessState == KiyoriNetworkProxyReadiness.RECONCILING) {
+            return@synchronized requireNotNull(readinessAttempt)
+        }
+        readinessGeneration += 1L
+        readinessState = KiyoriNetworkProxyReadiness.RECONCILING
+        readinessFailure = null
+        CompletableDeferred<Result<Unit>>().also { readinessAttempt = it }
+    }
+
+    private fun completeReadinessSuccess() {
+        synchronized(readinessLock) {
+            readinessState = KiyoriNetworkProxyReadiness.READY
+            readinessFailure = null
+            readinessAttempt?.complete(Result.success(Unit))
+        }
+    }
+
+    private fun completeReadinessFailure(error: Throwable) {
+        synchronized(readinessLock) {
+            readinessState = KiyoriNetworkProxyReadiness.FAILED
+            readinessFailure = error
+            readinessAttempt?.complete(Result.failure(error))
+        }
     }
 
     private fun observeUnexpectedRuntimeExit() {
@@ -266,14 +366,24 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
     private suspend fun reconcileEnabledStateLocked(
         config: KiyoriNetworkProxyConfig,
     ) {
+        beginReadinessAttempt()
         proxyLog.info(
             "运行协调",
             "开始协调 enabled=${config.enabled} proxyRequired=${KiyoriNetworkProxyPolicy.requiresEmbeddedProxy(config)} " +
                 "vpnActive=${isSystemVpnActive()}",
         )
         if (!KiyoriNetworkProxyPolicy.requiresEmbeddedProxy(config)) {
-            clearWebViewProxy()
-            runtime.stop("proxy_route_disabled")
+            try {
+                clearWebViewProxy()
+                runtime.stop("proxy_route_disabled")
+                completeReadinessSuccess()
+            } catch (error: CancellationException) {
+                completeReadinessFailure(error)
+                throw error
+            } catch (error: Exception) {
+                completeReadinessFailure(error)
+                throw error
+            }
             return
         }
         try {
@@ -306,12 +416,27 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                     "controllerHealthy=${state.controllerHealthy ?: "unknown"} " +
                     "mixedPortListening=${state.mixedPortListening ?: "unknown"}",
             )
+            completeReadinessSuccess()
+        } catch (error: CancellationException) {
+            completeReadinessFailure(error)
+            throw error
         } catch (error: KiyoriNetworkException) {
-            if (error.code == KiyoriNetworkErrorCode.VPN_CONFLICT) {
-                clearWebViewProxy()
-                runtime.stop("vpn_conflict")
+            try {
+                if (error.code == KiyoriNetworkErrorCode.VPN_CONFLICT) {
+                    clearWebViewProxy()
+                    runtime.stop("vpn_conflict")
+                }
+            } finally {
+                proxyLog.error("运行协调", "协调失败 code=${error.code.name}")
+                completeReadinessFailure(error)
             }
-            proxyLog.error("运行协调", "协调失败 code=${error.code.name}")
+            throw error
+        } catch (error: Exception) {
+            proxyLog.error(
+                "运行协调",
+                "协调失败 type=${error::class.java.simpleName} message=${error.message?.take(240) ?: "none"}",
+            )
+            completeReadinessFailure(error)
             throw error
         }
     }
@@ -328,37 +453,45 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
         mutationMutex.withLock { testActiveProxyConnectionLocked() }
 
     private suspend fun testActiveProxyConnectionLocked(): Int {
+        beginReadinessAttempt()
         val config = currentConfig()
         if (!KiyoriNetworkProxyPolicy.requiresEmbeddedProxy(config)) {
-            throw KiyoriNetworkException(
+            val error = KiyoriNetworkException(
                 KiyoriNetworkErrorCode.CONFIG_MISSING,
                 "Enable at least one proxy route before testing the active connection.",
             )
+            completeReadinessFailure(error)
+            throw error
         }
-        val subscription =
-            KiyoriNetworkProxyPolicy.validateEmbeddedStart(config, isSystemVpnActive())
-        val endpoint = runtime.ensureReady(
-            subscription,
-            config.testUrl,
-            KiyoriNetworkProxyPolicy.runtimeMode(config),
-            config.customRules,
-        )
-        val client =
-            OkHttpClient.Builder()
-                .proxy(endpoint.toJavaProxy())
-                .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(15, TimeUnit.SECONDS)
-                .callTimeout(20, TimeUnit.SECONDS)
-                .build()
-        val request = Request.Builder().url(config.testUrl).get().build()
-        val startedAt = System.currentTimeMillis()
-        proxyLog.info(
-            "代理连通性",
-            "开始测试应用级代理 runtimeGeneration=${runtimeState.value.runtimeGeneration ?: "none"} " +
-                "endpointPort=${endpoint.port}",
-        )
-        return withContext(Dispatchers.IO) {
-            try {
+        return try {
+            val subscription =
+                KiyoriNetworkProxyPolicy.validateEmbeddedStart(config, isSystemVpnActive())
+            val endpoint = runtime.ensureReady(
+                subscription,
+                config.testUrl,
+                KiyoriNetworkProxyPolicy.runtimeMode(config),
+                config.customRules,
+            )
+            if (KiyoriNetworkProxyPolicy.effectiveMode(config, KiyoriNetworkModule.BROWSER) != KiyoriNetworkConnectionMode.DIRECT) {
+                setWebViewProxy(endpoint, config.proxyPrivateNetworks)
+            } else {
+                clearWebViewProxy()
+            }
+            val client =
+                OkHttpClient.Builder()
+                    .proxy(endpoint.toJavaProxy())
+                    .connectTimeout(10, TimeUnit.SECONDS)
+                    .readTimeout(15, TimeUnit.SECONDS)
+                    .callTimeout(20, TimeUnit.SECONDS)
+                    .build()
+            val request = Request.Builder().url(config.testUrl).get().build()
+            val startedAt = System.currentTimeMillis()
+            proxyLog.info(
+                "代理连通性",
+                "开始测试应用级代理 runtimeGeneration=${runtimeState.value.runtimeGeneration ?: "none"} " +
+                    "endpointPort=${endpoint.port}",
+            )
+            withContext(Dispatchers.IO) {
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
                         proxyLog.error(
@@ -374,21 +507,27 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                         "代理连通性",
                         "代理测试完成 httpStatus=${response.code} elapsedMs=${elapsedSince(startedAt)}",
                     )
+                    completeReadinessSuccess()
                     response.code
                 }
-            } catch (error: KiyoriNetworkException) {
-                throw error
-            } catch (error: Exception) {
-                proxyLog.error(
-                    "代理连通性",
-                    "代理测试异常 type=${error::class.java.simpleName} elapsedMs=${elapsedSince(startedAt)}",
-                )
-                throw KiyoriNetworkException(
-                    KiyoriNetworkErrorCode.PROXY_CONNECT_FAILED,
-                    "The active proxy could not reach the connection-test endpoint.",
-                    error,
-                )
             }
+        } catch (error: CancellationException) {
+            completeReadinessFailure(error)
+            throw error
+        } catch (error: KiyoriNetworkException) {
+            completeReadinessFailure(error)
+            throw error
+        } catch (error: Exception) {
+            completeReadinessFailure(error)
+            proxyLog.error(
+                "代理连通性",
+                "代理测试异常 type=${error::class.java.simpleName}",
+            )
+            throw KiyoriNetworkException(
+                KiyoriNetworkErrorCode.PROXY_CONNECT_FAILED,
+                "The active proxy could not reach the connection-test endpoint.",
+                error,
+            )
         }
     }
 

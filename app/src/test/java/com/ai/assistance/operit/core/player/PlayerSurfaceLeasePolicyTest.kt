@@ -82,6 +82,42 @@ class PlayerSurfaceLeasePolicyTest {
     }
 
     @Test
+    fun staleFullscreenLaunchRequestIsIdempotent() {
+        val state = PlayerSurfaceLeaseState()
+
+        assertEquals(state, requestFullscreenActivityLaunchIfReady(state))
+        val floating =
+            state.copy(
+                phase = PlayerSurfaceTransferPhase.FLOATING_ACTIVE,
+                currentOwner =
+                    PlayerSurfaceLeaseOwner(
+                        role = PlayerSurfaceRole.FLOATING,
+                        ownerToken = "floating-1",
+                        generation = 1L,
+                    ),
+                nativeState = PlayerNativeSurfaceState.ATTACHED,
+            )
+        assertEquals(
+            floating,
+            requestFullscreenActivityLaunchIfReady(floating),
+        )
+    }
+
+    @Test
+    fun repeatedFullscreenLaunchRequestReusesTheSameRequestId() {
+        val pending =
+            preparePlayerSurfaceLease(
+                PlayerSurfaceLeaseState(),
+                PlayerSurfaceRole.FULLSCREEN,
+            )
+
+        val requested = requestFullscreenActivityLaunchIfReady(pending)
+
+        assertEquals(1L, requested.fullscreenLaunchRequestId)
+        assertEquals(requested, requestFullscreenActivityLaunchIfReady(requested))
+    }
+
+    @Test
     fun earlyFullscreenSurfaceStaysPendingUntilFloatingOwnerDetaches() {
         val transferring =
             beginFloatingToFullscreenTransfer(

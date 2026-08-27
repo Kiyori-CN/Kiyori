@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.KiyoriSettingsTheme
 import com.kiyori.design.theme.LocalKiyoriSettingsColors
 import com.kiyori.design.theme.resolveSettingsIconColors
 
@@ -237,6 +238,26 @@ internal fun KiyoriSettingsSelectionSheet(
     onDismiss: () -> Unit,
     onSelect: (KiyoriSettingsSelectionOption) -> Unit,
     searchable: Boolean = false,
+) {
+    // Selection sheets are also opened from extension surfaces that are outside the Settings
+    // route. Establish the settings palette at the component boundary so those callers cannot
+    // read the strict CompositionLocal default and crash during the first frame.
+    KiyoriSettingsTheme {
+        KiyoriSettingsSelectionSheetContent(
+            selection = selection,
+            onDismiss = onDismiss,
+            onSelect = onSelect,
+            searchable = searchable,
+        )
+    }
+}
+
+@Composable
+private fun KiyoriSettingsSelectionSheetContent(
+    selection: KiyoriSettingsSelection,
+    onDismiss: () -> Unit,
+    onSelect: (KiyoriSettingsSelectionOption) -> Unit,
+    searchable: Boolean,
 ) {
     val colors = LocalKiyoriSettingsColors.current
     var searchQuery by remember(selection.title) { mutableStateOf("") }

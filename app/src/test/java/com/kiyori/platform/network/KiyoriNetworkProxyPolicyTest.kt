@@ -1,10 +1,117 @@
 package com.kiyori.platform.network
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Test
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 class KiyoriNetworkProxyPolicyTest {
+    @Test
+    fun `startup reconciliation waits for the real browser WebView`() {
+        assertFalse(
+            shouldStartStartupProxyReconciliation(
+                startupScheduled = true,
+                browserWebViewRuntimeReady = false,
+                startupAlreadyLaunched = false,
+            ),
+        )
+        assertTrue(
+            shouldStartStartupProxyReconciliation(
+                startupScheduled = true,
+                browserWebViewRuntimeReady = true,
+                startupAlreadyLaunched = false,
+            ),
+        )
+        assertFalse(
+            shouldStartStartupProxyReconciliation(
+                startupScheduled = true,
+                browserWebViewRuntimeReady = true,
+                startupAlreadyLaunched = true,
+            ),
+        )
+    }
+
+    @Test
+    fun `schema four payload drops only removed module overrides during migration`() {
+        val rawJson =
+            """
+            {
+              "schemaVersion":4,
+              "enabled":true,
+              "defaultMode":"RULE",
+              "moduleModes":{"BROWSER":"PROXY"},
+              "scriptModes":{"legacy.script":"DIRECT"},
+              "customRules":[],
+              "subscriptions":[],
+              "activeSubscriptionId":null,
+              "proxyPrivateNetworks":false,
+              "allowConcurrentSystemVpn":false,
+              "testUrl":"https://cp.cloudflare.com/generate_204"
+            }
+            """.trimIndent()
+        val json = Json { encodeDefaults = true; explicitNulls = false }
+        val decoded = migrateKiyoriNetworkProxyConfig(decodeKiyoriNetworkProxyConfigJson(rawJson, json))
+
+        assertEquals(KiyoriNetworkProxyConfig.CURRENT_SCHEMA_VERSION, decoded.schemaVersion)
+        assertEquals(KiyoriNetworkConnectionMode.RULE, decoded.defaultMode)
+        assertEquals(
+            KiyoriNetworkOverrideMode.DIRECT,
+            decoded.scriptModes["legacy.script"],
+        )
+        assertFalse(json.encodeToString(decoded).contains("moduleModes"))
+    }
+
+    @Test
+    fun `strict config decoding still rejects unrelated unknown fields`() {
+        val json = Json { encodeDefaults = true; explicitNulls = false }
+        val rawJson = json.encodeToString(KiyoriNetworkProxyConfig())
+            .removeSuffix("}") + ",\"unexpectedField\":true}"
+
+        assertThrows(Exception::class.java) {
+            decodeKiyoriNetworkProxyConfigJson(rawJson, json)
+        }
+    }
+
+    @Test
+    fun `legacy schema two and three retain their documented migrations`() {
+        val schemaTwo =
+            migrateKiyoriNetworkProxyConfig(
+                KiyoriNetworkProxyConfig(
+                    schemaVersion = 2,
+                    customRules =
+                        listOf(
+                            KiyoriNetworkProxyRule(
+                                id = "legacy",
+                                pattern = "*.example.com",
+                                mode = KiyoriNetworkRuleMode.PROXY,
+                            ),
+                        ),
+                ),
+            )
+        val schemaThree =
+            migrateKiyoriNetworkProxyConfig(
+                KiyoriNetworkProxyConfig(
+                    schemaVersion = 3,
+                    customRules =
+                        listOf(
+                            KiyoriNetworkProxyRule(
+                                id = "legacy",
+                                pattern = "*.example.com",
+                                mode = KiyoriNetworkRuleMode.PROXY,
+                            ),
+                        ),
+                ),
+            )
+
+        assertEquals(KiyoriNetworkProxyConfig.CURRENT_SCHEMA_VERSION, schemaTwo.schemaVersion)
+        assertEquals(emptyList<KiyoriNetworkProxyRule>(), schemaTwo.customRules)
+        assertEquals(KiyoriNetworkProxyConfig.CURRENT_SCHEMA_VERSION, schemaThree.schemaVersion)
+        assertEquals("example.com", schemaThree.customRules.single().pattern)
+        assertEquals(KiyoriNetworkRuleType.DOMAIN_SUFFIX, schemaThree.customRules.single().type)
+    }
     @Test
     fun `rule and global modes both use embedded route while direct bypasses`() {
         val subscription = usableSubscription()
@@ -32,13 +139,12 @@ class KiyoriNetworkProxyPolicyTest {
     }
 
     @Test
-    fun `proxy override keeps top level rule semantics`() {
+    fun `every module follows the top level mode`() {
         val subscription = usableSubscription()
         val config =
             KiyoriNetworkProxyConfig(
                 enabled = true,
                 defaultMode = KiyoriNetworkConnectionMode.RULE,
-                moduleModes = mapOf(KiyoriNetworkModule.BROWSER to KiyoriNetworkOverrideMode.PROXY),
                 subscriptions = listOf(subscription),
                 activeSubscriptionId = subscription.id,
             )
@@ -57,18 +163,17 @@ class KiyoriNetworkProxyPolicyTest {
     }
 
     @Test
-    fun `module and script overrides are applied in order`() {
+    fun `script override is applied over the top level mode`() {
         val config =
             KiyoriNetworkProxyConfig(
                 enabled = true,
                 defaultMode = KiyoriNetworkConnectionMode.PROXY,
-                moduleModes = mapOf(KiyoriNetworkModule.SCRIPTS to KiyoriNetworkOverrideMode.DIRECT),
                 scriptModes = mapOf("remote-script" to KiyoriNetworkOverrideMode.PROXY),
                 subscriptions = listOf(usableSubscription()),
                 activeSubscriptionId = "subscription-1",
             )
         assertEquals(
-            KiyoriNetworkRoute.Direct,
+            KiyoriNetworkRoute.EmbeddedProxy,
             KiyoriNetworkProxyPolicy.resolve(config, KiyoriNetworkModule.SCRIPTS, "local-script", false),
         )
         assertEquals(

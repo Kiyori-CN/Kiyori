@@ -221,14 +221,12 @@ internal fun rejectPlayerSurfaceDetach(
 internal fun requestFullscreenActivityLaunchIfReady(
     state: PlayerSurfaceLeaseState,
 ): PlayerSurfaceLeaseState {
+    // Activity launch is a one-shot projection of the lease state. Browser callbacks can arrive
+    // more than once while a WebView document or a floating host is being replaced; an obsolete
+    // callback must leave the lease unchanged instead of surfacing an internal state assertion.
     if (state.fullscreenLaunchRequestId != null || state.currentOwner != null) return state
     val targetRole = state.pendingTarget?.role ?: state.transferTarget
-    check(targetRole == PlayerSurfaceRole.FULLSCREEN) {
-        "Fullscreen Activity cannot launch without a pending fullscreen Surface"
-    }
-    check(state.nativeDetachCompleted) {
-        "Fullscreen Activity cannot launch before native Surface detach completes"
-    }
+    if (targetRole != PlayerSurfaceRole.FULLSCREEN || !state.nativeDetachCompleted) return state
     val requestId = state.activityRequestGeneration + 1L
     return state.copy(
         activityRequestGeneration = requestId,

@@ -15,9 +15,53 @@ import javax.crypto.spec.GCMParameterSpec
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+
+internal fun decodeKiyoriNetworkProxyConfigJson(
+    rawJson: String,
+    json: Json,
+): KiyoriNetworkProxyConfig {
+    val root = json.decodeFromString<JsonObject>(rawJson)
+    // Schema 4's unpublished module override map is the only removed field. Remove exactly that
+    // field before strict decoding so unrelated misspellings or future incompatibilities remain
+    // visible as an unreadable configuration instead of being silently accepted.
+    val migratedRoot = JsonObject(root - "moduleModes")
+    return json.decodeFromJsonElement<KiyoriNetworkProxyConfig>(migratedRoot)
+}
+
+internal fun migrateKiyoriNetworkProxyConfig(
+    config: KiyoriNetworkProxyConfig,
+): KiyoriNetworkProxyConfig =
+    when (config.schemaVersion) {
+        KiyoriNetworkProxyConfig.CURRENT_SCHEMA_VERSION -> config
+        2 ->
+            config.copy(
+                schemaVersion = KiyoriNetworkProxyConfig.CURRENT_SCHEMA_VERSION,
+                customRules = emptyList(),
+            )
+        3 ->
+            config.copy(
+                schemaVersion = KiyoriNetworkProxyConfig.CURRENT_SCHEMA_VERSION,
+                customRules = config.customRules.map(::migrateKiyoriNetworkProxyCustomRule),
+            )
+        4 -> config.copy(schemaVersion = KiyoriNetworkProxyConfig.CURRENT_SCHEMA_VERSION)
+        else -> config
+    }
+
+internal fun migrateKiyoriNetworkProxyCustomRule(
+    rule: KiyoriNetworkProxyRule,
+): KiyoriNetworkProxyRule {
+    val rawPattern = rule.pattern.trim().lowercase()
+    val suffix = rawPattern.startsWith("*.") || rawPattern.startsWith(".")
+    return rule.copy(
+        pattern = if (suffix) rawPattern.removePrefix("*.").removePrefix(".") else rawPattern,
+        type = if (suffix) KiyoriNetworkRuleType.DOMAIN_SUFFIX else rule.type,
+    )
+}
 
 sealed interface KiyoriNetworkProxyStoreState {
     data class Ready(val config: KiyoriNetworkProxyConfig) : KiyoriNetworkProxyStoreState
@@ -65,7 +109,6 @@ class KiyoriNetworkProxyConfigStore private constructor(context: Context) {
     private val json =
         Json {
             encodeDefaults = true
-            ignoreUnknownKeys = false
             explicitNulls = false
         }
     private val lock = Any()
@@ -147,11 +190,9 @@ class KiyoriNetworkProxyConfigStore private constructor(context: Context) {
         }
         return try {
             val plaintext = decrypt(atomicFile.readFully())
-            val decoded =
-                json.decodeFromString<KiyoriNetworkProxyConfig>(
-                    plaintext.toString(Charsets.UTF_8),
-                )
-            val config = migrateConfig(decoded)
+            val config = migrateKiyoriNetworkProxyConfig(
+                decodeKiyoriNetworkProxyConfigJson(plaintext.toString(Charsets.UTF_8), json),
+            )
             KiyoriNetworkProxyPolicy.validateSchema(config)
             KiyoriNetworkProxyStoreState.Ready(config)
         } catch (error: Exception) {
@@ -160,31 +201,6 @@ class KiyoriNetworkProxyConfigStore private constructor(context: Context) {
                 "Encrypted network proxy settings cannot be read. Reset them from Network Proxy settings.",
             )
         }
-    }
-
-    private fun migrateConfig(config: KiyoriNetworkProxyConfig): KiyoriNetworkProxyConfig =
-        when (config.schemaVersion) {
-            KiyoriNetworkProxyConfig.CURRENT_SCHEMA_VERSION -> config
-            2 ->
-                config.copy(
-                    schemaVersion = KiyoriNetworkProxyConfig.CURRENT_SCHEMA_VERSION,
-                    customRules = emptyList(),
-                )
-            3 ->
-                config.copy(
-                    schemaVersion = KiyoriNetworkProxyConfig.CURRENT_SCHEMA_VERSION,
-                    customRules = config.customRules.map(::migrateCustomRule),
-                )
-            else -> config
-        }
-
-    private fun migrateCustomRule(rule: KiyoriNetworkProxyRule): KiyoriNetworkProxyRule {
-        val rawPattern = rule.pattern.trim().lowercase()
-        val suffix = rawPattern.startsWith("*.") || rawPattern.startsWith(".")
-        return rule.copy(
-            pattern = if (suffix) rawPattern.removePrefix("*.").removePrefix(".") else rawPattern,
-            type = if (suffix) KiyoriNetworkRuleType.DOMAIN_SUFFIX else rule.type,
-        )
     }
 
     private fun reloadIfChangedLocked() {

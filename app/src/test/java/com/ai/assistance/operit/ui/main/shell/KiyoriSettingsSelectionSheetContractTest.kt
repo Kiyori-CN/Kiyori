@@ -18,6 +18,17 @@ class KiyoriSettingsSelectionSheetContractTest {
         assertTrue(source.contains("itemsIndexed(visibleOptions)"))
     }
 
+    @Test
+    fun selectionSheetOwnsItsSettingsThemeBoundary() {
+        val source =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/main/shell/KiyoriSettingsUi.kt"
+            ).readText()
+
+        assertTrue(source.contains("KiyoriSettingsTheme {"))
+        assertTrue(source.contains("KiyoriSettingsSelectionSheetContent("))
+    }
+
     private fun repositoryFile(relativePath: String): File {
         var current: File? =
             File(requireNotNull(System.getProperty("user.dir"))).absoluteFile

@@ -55,7 +55,8 @@ class ApplicationNetworkProxyContractTest(unittest.TestCase):
         self.assertIn("ROUTE_GROUP_NAME", sanitizer)
         self.assertIn("127.0.0.1", sanitizer)
         self.assertIn("allow-lan", sanitizer)
-        self.assertIn("CURRENT_SCHEMA_VERSION = 4", models)
+        self.assertIn("CURRENT_SCHEMA_VERSION = 5", models)
+        self.assertNotIn("val moduleModes:", models)
         for rule_type in ("DOMAIN", "DOMAIN_SUFFIX", "DOMAIN_KEYWORD"):
             self.assertIn(rule_type, models)
         self.assertIn("subscriptions: List<KiyoriProxySubscription>", models)
@@ -139,6 +140,13 @@ class ApplicationNetworkProxyContractTest(unittest.TestCase):
         self.assertIn("导入 YAML 文件", page)
         self.assertIn("onOpenNetworkProxy", drawer)
         self.assertIn("网络代理", drawer)
+        self.assertIn('SCRIPTS("脚本规则")', page)
+        self.assertIn('contentDescription = "刷新脚本"', page)
+        self.assertIn("buildScriptPackageCatalog", page)
+        self.assertIn("groupBy(ScriptPackageCatalogEntry::categoryKey)", page)
+        self.assertNotIn("模块连接模式", page)
+        self.assertNotIn("逐脚本连接模式", page)
+        self.assertNotIn("添加脚本规则", page)
 
     def test_old_external_mixed_port_form_is_not_in_the_new_page(self) -> None:
         page = self.read_operit("ui/main/shell/KiyoriNetworkProxySettingsPage.kt")
@@ -154,8 +162,7 @@ class ApplicationNetworkProxyContractTest(unittest.TestCase):
             "节点选择",
             "订阅管理",
             "规则管理",
-            "模块连接模式",
-            "逐脚本连接模式",
+            "脚本规则",
             "代理日志",
             "代理局域网地址",
             "允许与系统 VPN 并存",
@@ -177,6 +184,41 @@ class ApplicationNetworkProxyContractTest(unittest.TestCase):
         self.assertIn("copyPlainTextToClipboard", page)
         self.assertIn("清空代理日志？", page)
         self.assertIn("private fun NetworkProxyNodeList", page)
+
+    def test_extension_script_long_press_uses_the_shared_proxy_rule_owner(self) -> None:
+        screen = self.read_operit("ui/features/packages/screens/PackageManagerScreen.kt")
+        list_content = self.read_operit("ui/features/packages/screens/PackageTabContent.kt")
+
+        self.assertIn("onPackageLongClick", list_content)
+        self.assertIn("combinedClickable", list_content)
+        self.assertIn("pendingScriptProxyPackageName", screen)
+        self.assertIn("KiyoriNetworkProxyManager", screen)
+        self.assertIn("scriptModes", screen)
+        self.assertIn("scriptDisplayName", screen)
+        self.assertNotIn("ScriptNetworkConfigStore", screen)
+
+    def test_selection_sheet_provides_settings_theme_for_extension_long_press(self) -> None:
+        settings_ui = self.read_operit("ui/main/shell/KiyoriSettingsUi.kt")
+        self.assertIn("KiyoriSettingsTheme {", settings_ui)
+        self.assertIn("KiyoriSettingsSelectionSheetContent(", settings_ui)
+
+    def test_browser_startup_navigation_waits_for_recoverable_proxy_readiness(self) -> None:
+        manager = self.read_kiyori("platform/network/KiyoriNetworkProxyManager.kt")
+        browser = self.read_operit("core/tools/defaultTool/websession/browser/BrowserWebViewSupport.kt")
+        policy = self.read_operit(
+            "core/tools/defaultTool/websession/browser/BrowserStartupNavigationPolicy.kt"
+        )
+
+        self.assertIn("KiyoriNetworkProxyReadiness", manager)
+        self.assertIn("completeReadinessFailure", manager)
+        self.assertIn("completeReadinessSuccess", manager)
+        self.assertIn("startStartupReconciliationIfReady", manager)
+        self.assertIn("notifyBrowserWebViewRuntimeReady", browser)
+        self.assertIn("startupProxyReadiness", browser)
+        self.assertIn("navigateSessionHistoryOnMain", browser)
+        self.assertIn("reloadSessionOnMain", browser)
+        self.assertIn("shouldAwaitStartupProxyBeforeBrowserNavigation", policy)
+        self.assertIn('scheme == "http" || scheme == "https"', policy)
 
     def test_runtime_is_loopback_only_and_does_not_take_over_android_vpn(self) -> None:
         runtime = self.read_kiyori("platform/network/KiyoriMihomoRuntime.kt")

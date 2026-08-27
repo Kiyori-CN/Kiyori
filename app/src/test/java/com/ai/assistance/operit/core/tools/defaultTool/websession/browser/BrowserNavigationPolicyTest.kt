@@ -6,8 +6,42 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.kiyori.platform.network.KiyoriNetworkProxyReadiness
 
 class BrowserNavigationPolicyTest {
+    @Test
+    fun `startup proxy barrier only covers remote documents while not ready`() {
+        assertTrue(
+            shouldAwaitStartupProxyBeforeBrowserNavigation(
+                targetUrl = "https://example.com",
+                readiness = KiyoriNetworkProxyReadiness.RECONCILING,
+            ),
+        )
+        assertFalse(
+            shouldAwaitStartupProxyBeforeBrowserNavigation(
+                targetUrl = "about:blank",
+                readiness = KiyoriNetworkProxyReadiness.RECONCILING,
+            ),
+        )
+        assertFalse(
+            shouldAwaitStartupProxyBeforeBrowserNavigation(
+                targetUrl = "file:///android_asset/home.html",
+                readiness = KiyoriNetworkProxyReadiness.FAILED,
+            ),
+        )
+        assertFalse(
+            shouldAwaitStartupProxyBeforeBrowserNavigation(
+                targetUrl = "https://example.com",
+                readiness = KiyoriNetworkProxyReadiness.READY,
+            ),
+        )
+        assertTrue(
+            shouldAwaitStartupProxyBeforeBrowserNavigation(
+                targetUrl = "https://example.com",
+                readiness = KiyoriNetworkProxyReadiness.NOT_STARTED,
+            ),
+        )
+    }
     @Test
     fun `site identity uses registrable domain and exact local hosts`() {
         assertEquals(
