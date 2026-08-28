@@ -172,6 +172,70 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
     }
 
     @Test
+    fun deepSeekResponses404_isAConfigurationFailureAndPostsOnce() = runTest {
+        Mockito.mockStatic(AppLogger::class.java).use {
+            LocalHttpResponseServer(
+                statusCode = 404,
+                responseBody = "{\"error\":{\"message\":\"Not Found\",\"type\":\"not_found\"}}",
+            ).use { server ->
+                val repository = mock<ProviderExecutionRepository>()
+                val provider =
+                    FaultInjectionResponsesProvider(
+                        endpoint = server.responsesEndpoint,
+                        persistence = RepositoryOpenAIResponsesExecutionPersistence(repository),
+                        providerType = ApiProviderType.DEEPSEEK,
+                        capabilityProviderType = ApiProviderType.OPENAI_RESPONSES_GENERIC,
+                    )
+                val requestContext =
+                    ProviderRequestContext(
+                        localExecutionId = "local-deepseek-404",
+                        chatId = "chat-deepseek-404",
+                        messageTimestamp = 3L,
+                        variantIndex = 0,
+                        hopOrdinal = 0,
+                    )
+
+                val failure =
+                    runCatching {
+                        provider.sendMessage(
+                            context = createContext(),
+                            chatHistory =
+                                listOf(
+                                    PromptTurn(
+                                        kind = PromptTurnKind.USER,
+                                        content = "deepseek siliconflow misconfigured",
+                                    )
+                                ),
+                            modelParameters = emptyList(),
+                            enableThinking = true,
+                            stream = true,
+                            availableTools = null,
+                            preserveThinkInHistory = false,
+                            providerRequestContext = requestContext,
+                            onTokensUpdated = { _, _, _ -> },
+                            onNonFatalError = {},
+                            enableRetry = true,
+                        ).collect { error("HTTP 404 must not emit a visible chunk") }
+                    }.exceptionOrNull()
+
+                assertTrue(failure?.message?.contains("404") == true)
+                assertTrue(failure !is OpenAIResponsesSubmissionUnknownException)
+                assertEquals(listOf("POST /v1/responses"), server.requests.toList())
+                verify(repository).createExecution(any(), any())
+                verify(repository).updateStatus(
+                    localExecutionId = eq("local-deepseek-404"),
+                    status = eq(ProviderExecutionStatus.FAILED),
+                    lastErrorCode = eq("HTTP_404"),
+                    lastErrorMessage = any(),
+                    completedAt = any(),
+                    updatedAt = any(),
+                )
+                verifyNoMoreInteractions(repository)
+            }
+        }
+    }
+
+    @Test
     fun responseHeaderAbort_postsOnceAndPersistsTransportDiagnostic() = runTest {
         Mockito.mockStatic(AppLogger::class.java).use {
             MockWebServer().use { server ->
@@ -281,6 +345,8 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
     private class FaultInjectionResponsesProvider(
         endpoint: String,
         private val persistence: OpenAIResponsesExecutionPersistence,
+        providerType: ApiProviderType = ApiProviderType.OPENAI_RESPONSES,
+        capabilityProviderType: ApiProviderType = providerType,
     ) : OpenAIProvider(
         apiEndpoint = endpoint,
         apiKeyProvider =
@@ -298,7 +364,9 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
                 .retryOnConnectionFailure(false)
                 .eventListenerFactory(LlmNetworkEventListenerFactory.silent())
                 .build(),
-        providerType = ApiProviderType.OPENAI_RESPONSES,
+        providerType = providerType,
+        capabilityProviderType = capabilityProviderType,
+        endpointProtocol = com.ai.assistance.operit.data.model.ApiProtocol.OPENAI_RESPONSES,
     ) {
         override val useResponsesApi: Boolean = true
         override val supportsResponsesStreamResumption: Boolean = true

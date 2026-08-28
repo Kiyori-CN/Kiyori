@@ -133,7 +133,7 @@ class ModelRequestCompilerTest {
     }
 
     @Test
-    fun deepSeekResponses_isReplayOnlyAndDoesNotReceiveOpenAiExclusiveFeatures() {
+    fun deepSeekResponses_isAtMostOnceAndDoesNotReceiveOpenAiExclusiveFeatures() {
         val route =
             ProtocolServiceRoutingPolicy.resolve(
                 providerType = ApiProviderType.DEEPSEEK,
@@ -153,7 +153,10 @@ class ModelRequestCompilerTest {
             )
 
         assertEquals(ReasoningWireFormat.RESPONSES, profile.reasoningWireFormat)
-        assertEquals(ExecutionPersistenceCapability.NONE, profile.executionPersistence)
+        assertEquals(
+            ExecutionPersistenceCapability.RESPONSES_AT_MOST_ONCE,
+            profile.executionPersistence,
+        )
         assertEquals(ReasoningReplayCapability.NONE, profile.reasoningReplay)
         assertEquals(PromptCacheCapability.NONE, profile.promptCache)
         assertNull(compiled.reasoningEffort)
@@ -163,6 +166,24 @@ class ModelRequestCompilerTest {
         assertNull(compiled.store)
         assertFalse(compiled.promptCacheEnabled)
         assertFalse(compiled.toolSearchEnabled)
+    }
+
+    @Test
+    fun deepSeekResponses_gpt56FamilyStillUsesAtMostOnceSubmission() {
+        val profile =
+            ModelCapabilityResolver.resolve(
+                providerType = ApiProviderType.OPENAI_RESPONSES_GENERIC,
+                providerIdentityType = ApiProviderType.DEEPSEEK,
+                modelName = "gpt-5.6-sol",
+                apiEndpoint = "https://api.deepseek.com/v1/responses",
+            )
+
+        assertEquals(
+            ExecutionPersistenceCapability.RESPONSES_AT_MOST_ONCE,
+            profile.executionPersistence,
+        )
+        assertEquals(ReasoningReplayCapability.NONE, profile.reasoningReplay)
+        assertEquals(PromptCacheCapability.NONE, profile.promptCache)
     }
 
     @Test

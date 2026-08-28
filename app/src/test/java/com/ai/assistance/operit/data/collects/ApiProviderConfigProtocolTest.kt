@@ -121,6 +121,24 @@ class ApiProviderConfigProtocolTest {
     }
 
     @Test
+    fun siliconFlow_declaresChatCompletionsEndpointAndDoesNotAdvertiseResponses() {
+        assertEquals(
+            listOf(
+                ApiProtocol.OPENAI_CHAT_COMPLETIONS,
+                ApiProtocol.ANTHROPIC_MESSAGES,
+            ),
+            ApiProviderConfigs.getSupportedProtocols(ApiProviderType.SILICONFLOW),
+        )
+        val endpoint =
+            ApiProviderConfigs.getDefaultApiEndpoint(
+                providerType = ApiProviderType.SILICONFLOW,
+                protocol = ApiProtocol.OPENAI_CHAT_COMPLETIONS,
+            )
+        assertEquals("https://api.siliconflow.cn/v1/chat/completions", endpoint)
+        assertEquals(endpoint, EndpointCompleter.completeEndpoint("https://api.siliconflow.cn", ApiProtocol.OPENAI_CHAT_COMPLETIONS))
+    }
+
+    @Test
     fun multiProtocolProviders_matchTheReviewedProtocolMatrix() {
         val expected =
             linkedMapOf(

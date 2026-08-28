@@ -4,6 +4,27 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # Kiyori 开发任务与验证索引
 
+## 2026-08-29 DeepSeekHarness Responses 提交稳定性与第三方协议边界
+
+状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。
+
+本轮基于 `D:\\01_Environment\\Apps\\DeepSeekHarness` `0.1.2-alpha.1`、官方 DeepSeek
+Responses 成功审计和 SiliconFlow 404 审计，修复选择“深度求索”时 Responses 提交被普通五次
+重试的问题。DeepSeek Responses 没有已证明的 response resume 合同，但仍必须采用一次性提交状态：
+只有明确的 `429` 拒绝允许有限重试；`404/400/401/403/422` 立即失败，`408/409/5xx` 及网络
+中断标记为 `SUBMISSION_UNKNOWN`，不创建第二个 POST。
+
+第三方 SiliconFlow 的公开接口是 OpenAI Chat Completions：应显式选择“硅基流动”或在“深度求索”
+下选择 `OPENAI_CHAT_COMPLETIONS`，请求端点为 `https://api.siliconflow.cn/v1/chat/completions`。
+本轮不根据错误响应静默切换协议、不把 `/v1/chat/completions` 伪装成 Responses；官方 DeepSeek
+Responses 继续使用 `https://api.deepseek.com/v1/responses`。DeepSeek Chat 的
+`reasoning_content`、原始 `provider_call_id`、工具名和 provider usage cache-hit 桶保持互不
+覆盖的语义。
+
+详细影响文件、风险、验收矩阵和本轮证据维护在
+[`unified_model_capability_and_resumable_execution/6_deepseek_long_context_cache_and_usage_plan.md`](unified_model_capability_and_resumable_execution/6_deepseek_long_context_cache_and_usage_plan.md)
+的 M8；真实端点、缓存命中率和设备交互仍单独保持 `verification_pending`。
+
 ## 2026-08-28 五源学术搜索脚本深度优化
 
 状态：`IN PROGRESS`。

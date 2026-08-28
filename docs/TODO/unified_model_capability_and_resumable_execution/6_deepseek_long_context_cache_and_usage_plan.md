@@ -884,6 +884,75 @@ formal readiness、architecture/Markdown、`git diff --check`；规定 Debug 构
 - 真实 Provider、进程强杀、手动/非手动中断交互和自动压缩现场复测保持
   `verification_pending`
 
+### M8 2026-08-29 DeepSeekHarness Responses 提交稳定性与第三方协议边界
+
+状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。
+
+#### 研究输入与已确认事实
+
+- DeepSeekHarness `0.1.2-alpha.1` 的 DeepSeek adapter 将 Chat Completions wire、Responses
+  wire、provider usage 和 retry policy 分开；缓存命中只接受 provider usage 的明确字段。
+- 官方 DeepSeek Responses 审计使用 `https://api.deepseek.com/v1/responses` 并成功完成多轮工具
+  调用，证明当前 Responses 基础解析、工具事件和官方路径可用。
+- SiliconFlow 审计的配置是 provider `DEEPSEEK`、protocol `OPENAI_RESPONSES`、base URL
+  `https://api.siliconflow.cn/`，Kiyori 自动补全为 `/v1/responses` 后收到 HTTP 404。SiliconFlow
+  的公开 DeepSeek 接口是 `https://api.siliconflow.cn/v1/chat/completions`，属于 Chat
+  Completions，不是 Responses。
+- `CONTEXT.md` 的协议合同要求用户显式选择并持久化 `ApiProtocol`，运行时失败后不得自动切换
+  协议或端点；因此不能用错误响应触发静默降级。
+
+#### 实施合同
+
+1. DeepSeek Responses capability profile 使用
+   `ExecutionPersistenceCapability.RESPONSES_AT_MOST_ONCE`。这表示提交状态未知时禁止第二次
+   POST，不表示可以发送 OpenAI `previous_response_id`、`background`、`store`、sequence
+   resume、encrypted reasoning 或 `prompt_cache_key`。
+2. 提交阶段只有 HTTP `429` 可按统一有限次数策略重试；`404/400/401/403/422` 单次明确失败；
+   `408/409/5xx` 和响应头前/流中传输异常写入 `SUBMISSION_UNKNOWN`，保留已确认的本地执行事实。
+3. SiliconFlow 只能通过显式 `OPENAI_CHAT_COMPLETIONS` 路由请求
+   `/v1/chat/completions`。DeepSeek provider 下使用 SiliconFlow 时，用户必须把协议切到 Chat
+   Completions；软件不从 404 或模型名推断协议，不新增第二 provider 或旁路代理。
+4. DeepSeek Chat 工具结果解析保留 `provider_call_id` 和工具名；没有显式 ID 时只按已验证的
+   调用顺序匹配，不生成新的 provider ID。`reasoning_content`、工具调用身份和 usage 的
+   `uncached input/cache read/cache write/output` 桶保持互不重叠。
+
+#### 影响文件与验收矩阵
+
+- `ModelCapabilityProfile.kt`：DeepSeek Responses profile 改为 at-most-once。
+- `OpenAIProvider.kt`：复用现有 at-most-once 提交分支，确认 404 不进入普通 retry；DeepSeek
+  Chat 结果记录使用原始 call ID。
+- `AIServiceFactory.kt`、`EndpointCompleter.kt`、`ApiProviderConfigCollect.kt`、
+  `ModelListFetcher.kt`：验证官方 DeepSeek Responses 与 SiliconFlow Chat endpoint 的显式
+  协议路由不互相覆盖。
+- 对应 JVM 测试覆盖：DeepSeek profile、404 单 POST、传输中断 `SUBMISSION_UNKNOWN`、官方
+  `/v1/responses`、SiliconFlow `/v1/chat/completions`、`reasoning_content`/tool call identity、
+  cache-hit disjoint buckets。
+
+#### 风险、回滚点与验证
+
+- 风险：用户仍保存了 SiliconFlow base URL 与 Responses 协议。控制方式是保留明确的单次 HTTP
+  404/协议错误和可诊断提交状态，文档与 endpoint 预览说明正确的 Chat 配置；不在运行时改写协议。
+- 风险：工具结果 XML 中缺少 call ID。控制方式是按调用顺序匹配并让名称/数量不一致进入既有
+  严格协议错误；不伪造 ID 或结果。
+- 回滚点：本轮单独提交；回滚只恢复修改前 capability、解析和测试，不放宽协议检查或重新启用
+  重复 POST。
+- 验证顺序：定向 JVM -> `check_formal_readiness.py --require-main` -> `check_fresh_clone.py` ->
+  `git diff --check` -> 串行 `:app:assembleDebug` 与 APK 审计 -> staged/sensitive/submodule/
+  artifact 审计 -> 提交、推送和三方 ref 对账。真实 provider、真实 cache hit、设备 UI 与中断交互
+  仍保持 `verification_pending`。
+
+#### 本轮已完成的本地证据
+
+- 最终代码状态下串行执行 `./gradlew :app:testDebugUnitTest --no-daemon --console=plain`，
+  `BUILD SUCCESSFUL`；formal readiness 与 fresh-clone 基线检查均通过，`git diff --check` 无空白错误。
+- 串行执行 `./gradlew :app:assembleDebug --no-daemon --console=plain`，`BUILD SUCCESSFUL`。
+  APK 为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `503676753` bytes，SHA-256
+  为 `22AFBB5599A9D3D2882FE032F90E825593314CEDB2CB4793821508F004FB74A6`；`com.kiyori`、
+  versionCode `45`、单 signer、V2 签名和 zipalign 核验通过。
+- APK 包含 `lib/arm64-v8a/liboperit_ripgrep.so`、`assets/operit_shell_exec` 和生产白名单的
+  `12` 个 `.toolpkg`，不包含 `libsudo.so`；上述产物检查不替代真实 Provider、缓存命中、设备
+  交互或进程中断验收。
+
 ## 可恢复开发与上下文压缩合同
 
 本任务允许跨多轮继续，但每一轮必须从以下持久状态恢复，不依赖模型记忆：

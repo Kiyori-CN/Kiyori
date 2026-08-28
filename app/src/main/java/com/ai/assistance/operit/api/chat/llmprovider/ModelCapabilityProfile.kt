@@ -219,7 +219,7 @@ object ModelCapabilityResolver {
                             ExecutionPersistenceCapability.OPENAI_BACKGROUND_SEQUENCE_RESUME
 
                         isDeepSeekResponses ->
-                            ExecutionPersistenceCapability.NONE
+                            ExecutionPersistenceCapability.RESPONSES_AT_MOST_ONCE
 
                         isResponses ->
                             ExecutionPersistenceCapability.RESPONSES_AT_MOST_ONCE
@@ -262,14 +262,17 @@ object ModelCapabilityResolver {
                 }
             if (isDeepSeekResponses) {
                 return ModelCapabilityProfile(
-                    profileId = "deepseek-responses-replay-only-v1",
+                    profileId = "deepseek-responses-at-most-once-v2",
                     modelFamily = normalizedModel.ifBlank { "deepseek" },
                     providerContractAuthority = providerContractAuthority,
                     reasoningWireFormat = ReasoningWireFormat.RESPONSES,
                     supportedReasoningEfforts = emptySet(),
                     reasoningSummary = ReasoningSummaryCapability.NONE,
                     reasoningReplay = ReasoningReplayCapability.NONE,
-                    executionPersistence = ExecutionPersistenceCapability.NONE,
+                    // DeepSeek does not expose a proven response resume contract, but a submitted
+                    // Responses request must still be sent at most once when its outcome is unknown.
+                    executionPersistence =
+                        ExecutionPersistenceCapability.RESPONSES_AT_MOST_ONCE,
                     promptCache = PromptCacheCapability.NONE,
                     promptCacheNamespace = null,
                     toolSchema = ToolSchemaCapability.BASELINE,

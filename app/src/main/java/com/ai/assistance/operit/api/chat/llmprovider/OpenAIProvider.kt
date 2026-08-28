@@ -1800,7 +1800,7 @@ open class OpenAIProvider(
         return Pair(textContent.trim(), toolCalls)
     }
 
-    private fun extractXmlAttribute(
+    protected fun extractXmlAttribute(
         openingTag: String,
         attributeName: String,
     ): String? {
@@ -1812,6 +1812,40 @@ open class OpenAIProvider(
                 .find(openingTag)
                 ?: return null
         return XmlEscaper.unescape(match.groupValues[1]).takeIf { it.isNotBlank() }
+    }
+
+    /**
+     * 解析带 provider identity 的 tool_result。DeepSeek Chat 要求 tool_call_id 与原始
+     * assistant tool call 一致；缺少 provider_call_id 时返回 null，由调用方按已验证的
+     * provider 顺序匹配，而不是生成一个新的 ID。
+     */
+    internal fun parseXmlToolResultRecords(
+        content: String,
+    ): Pair<String, List<ProviderToolResultRecord>?> {
+        val matches = ChatMarkupRegex.toolResultTagWithAttrs.findAll(content).toList()
+        if (matches.isEmpty()) {
+            return Pair(content, null)
+        }
+
+        val results = mutableListOf<ProviderToolResultRecord>()
+        var textContent = content
+        matches.forEach { match ->
+            val attributes = match.groupValues[2]
+            val fullContent = match.groupValues[3].trim()
+            val contentMatch = ChatMarkupRegex.contentTag.find(fullContent)
+            val resultContent = contentMatch?.groupValues?.get(1)?.trim() ?: fullContent
+            val callId = extractXmlAttribute(attributes, "provider_call_id")
+            val toolName = extractXmlAttribute(attributes, "name")
+            results +=
+                ProviderToolResultRecord(
+                    callId = callId,
+                    toolName = toolName,
+                    content = resultContent,
+                )
+            textContent = textContent.replace(match.value, "").trim()
+        }
+
+        return Pair(textContent.trim(), results)
     }
 
     /**

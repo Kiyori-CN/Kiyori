@@ -112,6 +112,32 @@ class ProtocolServiceRoutingPolicyTest {
     }
 
     @Test
+    fun deepSeekResponses_keepsSupplierIdentityButUsesCompatibleAtMostOnceCapabilities() {
+        val route =
+            ProtocolServiceRoutingPolicy.resolve(
+                providerType = ApiProviderType.DEEPSEEK,
+                apiProtocol = ApiProtocol.OPENAI_RESPONSES,
+            )
+
+        assertEquals(ProtocolServiceKind.OPENAI_RESPONSES, route.serviceKind)
+        assertEquals(ApiProviderType.DEEPSEEK, route.identityProviderType)
+        assertEquals(ApiProviderType.OPENAI_RESPONSES_GENERIC, route.capabilityProviderType)
+        assertEquals(ApiProviderType.OPENAI_RESPONSES, route.endpointProviderType)
+
+        val profile =
+            ModelCapabilityResolver.resolve(
+                providerType = route.capabilityProviderType,
+                providerIdentityType = route.identityProviderType,
+                modelName = "deepseek-reasoner",
+                apiEndpoint = "https://api.deepseek.com/v1/responses",
+            )
+        assertEquals(
+            ExecutionPersistenceCapability.RESPONSES_AT_MOST_ONCE,
+            profile.executionPersistence,
+        )
+    }
+
+    @Test
     fun anthropicAndGoogleOpenAiChat_useTheGenericOpenAiChatService() {
         listOf(ApiProviderType.ANTHROPIC, ApiProviderType.GOOGLE).forEach { providerType ->
             val route =

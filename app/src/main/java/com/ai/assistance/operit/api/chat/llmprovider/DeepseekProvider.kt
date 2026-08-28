@@ -192,6 +192,7 @@ open class DeepseekProvider(
         var queuedAssistantReasoning: String? = null
         var queuedToolCalls = JSONArray()
         val queuedToolCallIds = mutableListOf<String>()
+        val queuedToolCallDescriptors = mutableListOf<ProviderToolCallDescriptor>()
         val openToolCallIds = mutableListOf<String>()
         val toolHistoryState = ProviderToolHistoryState()
 
@@ -231,6 +232,14 @@ open class DeepseekProvider(
                 toolCall.put("id", callId)
                 queuedToolCalls.put(toolCall)
                 queuedToolCallIds.add(callId)
+                queuedToolCallDescriptors.add(
+                    ProviderToolCallDescriptor(
+                        callId = callId,
+                        toolName = toolCall.optJSONObject("function")?.optString("name")
+                            ?.trim()
+                            ?.takeIf { it.isNotEmpty() },
+                    )
+                )
             }
         }
 
@@ -251,14 +260,15 @@ open class DeepseekProvider(
             )
 
             openToolCallIds.addAll(queuedToolCallIds)
-            toolHistoryState.acceptToolCalls(
-                callIds = queuedToolCallIds.toList(),
+            toolHistoryState.acceptToolCallDescriptors(
+                calls = queuedToolCallDescriptors.toList(),
                 boundary = "deepseek_assistant_tool_calls",
             )
             queuedAssistantToolText = null
             queuedAssistantReasoning = null
             queuedToolCalls = JSONArray()
             queuedToolCallIds.clear()
+            queuedToolCallDescriptors.clear()
         }
 
         fun requireNoOpenToolCalls(reason: String) {
@@ -343,24 +353,32 @@ open class DeepseekProvider(
 
                         PromptTurnKind.TOOL_RESULT -> {
                             emitQueuedToolCallsIfNeeded()
-                            val (textContent, toolResults) = parseXmlToolResults(originalContent)
+                            val (textContent, toolResults) = parseXmlToolResultRecords(originalContent)
                             val resultsList =
                                 toolResults
                                     ?: throw ProviderToolHistoryProtocolException(
                                         violation = ProviderToolHistoryViolation.TOOL_RESULT_WITHOUT_PAYLOAD,
                                         detail = "DeepSeek typed TOOL_RESULT has no structured payload",
                                     )
-                            toolHistoryState.acceptToolResults(
-                                resultCount = resultsList.size,
+                            toolHistoryState.acceptNamedToolResults(
+                                results =
+                                    resultsList.map { result ->
+                                        ProviderToolResultDescriptor(
+                                            callId = result.callId,
+                                            toolName = result.toolName,
+                                        )
+                                    },
                                 boundary = "deepseek_tool_result",
                             )
+                            val pendingCallIds = openToolCallIds.toList()
                             repeat(resultsList.size) { index ->
-                                val (_, resultContent) = resultsList[index]
+                                val result = resultsList[index]
+                                val resultCallId = result.callId ?: pendingCallIds[index]
                                 messagesArray.put(
                                     JSONObject().apply {
                                         put("role", "tool")
-                                        put("tool_call_id", openToolCallIds[index])
-                                        put("content", resultContent)
+                                        put("tool_call_id", resultCallId)
+                                        put("content", result.content)
                                     }
                                 )
                             }

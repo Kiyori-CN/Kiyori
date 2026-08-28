@@ -81,6 +81,62 @@ class DeepseekCanonicalRequestTest {
     }
 
     @Test
+    fun `tool result provider call IDs are preserved in DeepSeek chat history`() {
+        val request =
+            provider()
+                .requestJson(
+                    context = context,
+                    history =
+                        listOf(
+                            PromptTurn(
+                                PromptTurnKind.ASSISTANT,
+                                toolCallXml("read_file", "call_alpha", "path", "alpha.txt") +
+                                    toolCallXml("read_file", "call_beta", "path", "beta.txt"),
+                            ),
+                            PromptTurn(
+                                PromptTurnKind.TOOL_RESULT,
+                                toolResultXml("read_file", "alpha", "call_alpha") +
+                                    toolResultXml("read_file", "beta", "call_beta"),
+                            ),
+                        ),
+                    stream = true,
+                    tools = listOf(readFileTool()),
+                )
+
+        val messages = JSONObject(request).getJSONArray("messages")
+        assertEquals("call_alpha", messages.getJSONObject(1).getString("tool_call_id"))
+        assertEquals("call_beta", messages.getJSONObject(2).getString("tool_call_id"))
+        assertEquals("alpha", messages.getJSONObject(1).getString("content"))
+        assertEquals("beta", messages.getJSONObject(2).getString("content"))
+    }
+
+    @Test
+    fun `tool result provider call ID mismatch fails before DeepSeek submission`() {
+        val error =
+            assertThrows<ProviderToolHistoryProtocolException> {
+                provider()
+                    .requestJson(
+                        context = context,
+                        history =
+                            listOf(
+                                PromptTurn(
+                                    PromptTurnKind.ASSISTANT,
+                                    toolCallXml("read_file", "call_alpha", "path", "alpha.txt"),
+                                ),
+                                PromptTurn(
+                                    PromptTurnKind.TOOL_RESULT,
+                                    toolResultXml("read_file", "wrong", "call_other"),
+                                ),
+                            ),
+                        stream = true,
+                        tools = listOf(readFileTool()),
+                    )
+            }
+
+        assertEquals(ProviderToolHistoryViolation.TOOL_RESULT_CALL_ID_MISMATCH, error.violation)
+    }
+
+    @Test
     fun `non streaming request omits stream options`() {
         val request =
             provider(enableToolCall = false)
@@ -362,8 +418,10 @@ class DeepseekCanonicalRequestTest {
         </tool_A1>
         """.trimIndent()
 
-    private fun toolResultXml(name: String, content: String): String =
-        """<tool_result_A1 name="$name" status="success"><content>$content</content></tool_result_A1>"""
+    private fun toolResultXml(name: String, content: String, callId: String? = null): String {
+        val callIdAttribute = callId?.let { " provider_call_id=\"$it\"" }.orEmpty()
+        return """<tool_result_A1 name="$name"$callIdAttribute status="success"><content>$content</content></tool_result_A1>"""
+    }
 
     private inline fun <reified T : Throwable> assertThrows(block: () -> Unit): T {
         try {

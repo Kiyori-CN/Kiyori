@@ -29,6 +29,12 @@ internal data class ProviderToolResultDescriptor(
     val toolName: String?,
 )
 
+internal data class ProviderToolResultRecord(
+    val callId: String?,
+    val toolName: String?,
+    val content: String,
+)
+
 /**
  * Validates the ordered assistant-tool-result transaction required by Chat Completions-style
  * providers.
