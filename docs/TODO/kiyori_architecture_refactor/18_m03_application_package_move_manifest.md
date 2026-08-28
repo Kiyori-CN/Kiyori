@@ -5,7 +5,7 @@ milestone: M-03
 baseline: 176f803e683307aa8e182fb357f35f84755c5f8b
 m02_apk_sha256: F63AEFAADA4C712AFBD3FDE4D851490058D0A8E0E799C8104ACD13516F209DC9
 device_scope: excluded
-last_reviewed: 2026-08-01
+last_reviewed: 2026-08-28
 ---
 
 # M-03 KiyoriApplication 包迁移精确清单
@@ -115,6 +115,25 @@ ARCH018 同步锁定该值；上面的 M-03 纯移动哈希继续作为历史封
 ```
 
 ARCH018 同步锁定该值；M-03 纯移动与 2026-08-19 SVG 注册哈希继续作为历史证据。
+
+2026-08-23 应用级网络代理接入让唯一 `KiyoriApplication` 在主进程启动时登记
+`KiyoriNetworkProxyManager.scheduleStartupReconciliation()`，package 归一化 SHA-256 更新为
+`335233C9DA4CDB8F31183FD8495E6C565033CC63D6463C746D7EFB8A4FB139E1`。2026-08-27 的多进程
+收口明确只有 `com.kiyori` 主进程可创建该 manager；当时同时保留了登记任务和一次显式异步协调，
+对应 SHA-256 为 `2B0697D1B4820727C6E2E7116ABFE1F367CD40146B3946A4FA900A9477B59C09`。
+
+2026-08-28 启动修复确认登记任务已经是唯一应用级协调 owner，删除重复
+`reconcileEnabledState()` 后不再让同一冷启动发起两条协调链。本次门禁收口进一步删除随之失去用途的
+nullable manager 局部变量，保留主进程判定并直接登记唯一启动协调；`:player`、`:ffmpeg`、`:crash`
+等次级进程仍不会创建 manager、Mihomo 或 process-wide WebView override。更新后的 package 归一化
+Application SHA-256 为：
+
+```text
+78FC05DD02A789AF6C633002D2E3C52A7CDE1FF31877E6E86E30E8829260265A
+```
+
+ARCH018 同步锁定该值；以上历史哈希继续说明每次功能性变化的批准理由，不能把哈希更新当成无理由
+放宽门禁。
 
 ### Lint baseline
 

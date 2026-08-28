@@ -7,8 +7,8 @@
     en: "Time"
   }
   description: {
-    zh: "提供时间相关功能。实际上，激活本包的同时已经能够获取时间了。"
-    en: "Provides time-related utilities. In practice, current time is already available once this package is enabled."
+    zh: "获取当前本地时间、日期、星期和时间戳，或返回标准 12/24 小时格式。"
+    en: "Return the current local date, weekday, timestamp, and structured time, or standard 12-hour and 24-hour formats."
   }
   enabledByDefault: true
   category: "Utility"
@@ -16,16 +16,16 @@
     {
       name: get_time
       description: {
-        zh: "获取当前时间。当使用此包时，AI已经自动获取了当前的时间信息。"
-        en: "Get the current time. When using this package, the AI may already have the current time context."
+        zh: "返回当前时间戳、ISO 时间、本地日期时间及拆分后的日期和时间字段。"
+        en: "Return the current timestamp, ISO and local date-time strings, plus structured date and time fields."
       }
       parameters: []
     },
     {
       name: format_time
       description: {
-        zh: "格式化时间。提供各种时间格式化选项。"
-        en: "Format time. Provides various time formatting options."
+        zh: "返回当前日期、ISO 时间以及 12 小时制和 24 小时制时间字符串。"
+        en: "Return the current date, ISO time, and 12-hour and 24-hour time strings."
       }
       parameters: []
     }

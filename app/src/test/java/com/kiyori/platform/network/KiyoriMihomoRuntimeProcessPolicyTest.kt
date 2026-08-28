@@ -115,6 +115,56 @@ class KiyoriMihomoRuntimeProcessPolicyTest {
         assertFalse(shouldAutoRecoverMihomoFailure(failedHealth, handledGeneration = 5L))
     }
 
+    @Test
+    fun `recovery limit only fails readiness while embedded proxy is still required`() {
+        assertTrue(
+            shouldFailReadinessAfterMihomoRecoveryLimit(
+                requiresEmbeddedProxy = true,
+                attemptsInWindow = 2,
+                recoveryLimit = 2,
+            ),
+        )
+        assertFalse(
+            shouldFailReadinessAfterMihomoRecoveryLimit(
+                requiresEmbeddedProxy = false,
+                attemptsInWindow = 2,
+                recoveryLimit = 2,
+            ),
+        )
+        assertFalse(
+            shouldFailReadinessAfterMihomoRecoveryLimit(
+                requiresEmbeddedProxy = true,
+                attemptsInWindow = 1,
+                recoveryLimit = 2,
+            ),
+        )
+    }
+
+    @Test
+    fun `stale readiness completion cannot overwrite a newer generation`() {
+        assertTrue(
+            shouldApplyReadinessCompletion(
+                completionGeneration = 3L,
+                currentGeneration = 3L,
+                currentState = KiyoriNetworkProxyReadiness.RECONCILING,
+            ),
+        )
+        assertFalse(
+            shouldApplyReadinessCompletion(
+                completionGeneration = 2L,
+                currentGeneration = 3L,
+                currentState = KiyoriNetworkProxyReadiness.RECONCILING,
+            ),
+        )
+        assertFalse(
+            shouldApplyReadinessCompletion(
+                completionGeneration = 3L,
+                currentGeneration = 3L,
+                currentState = KiyoriNetworkProxyReadiness.READY,
+            ),
+        )
+    }
+
     private class TestProcess : Process() {
         override fun getOutputStream() = ByteArrayOutputStream()
 

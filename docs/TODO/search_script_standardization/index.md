@@ -51,7 +51,7 @@
 | --- | --- | --- | --- |
 | `tavily_search.ts/js` | `tavily_search` | `Tavily 搜索` | 由 `tavily` 改名并重写 |
 | `serpapi_search.ts/js` | `serpapi_search` | `SerpApi 搜索` | 新增 |
-| `brave_search.ts/js` | `brave_search` | `Brave搜索` | 新增 |
+| `brave_search.ts/js` | `brave_search` | `Brave 搜索` | 新增 |
 | `zhipu_search.ts/js` | `zhipu_search` | `智谱 搜索` | 保留 ID、改名并重写 |
 | `google_search.ts/js` | `google_search` | `Google 搜索` | 统一元数据格式 |
 | `duckduckgo_search.ts/js` | `duckduckgo_search` | `DuckDuckGo 搜索` | 由 `duckduckgo` 改名 |

@@ -1,17 +1,17 @@
 {
   "schema_version": 1,
   "toolpkg_id": "com.operit.windows_bundle",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "main": "dist/main.js",
   "display_name": {
     "zh": "Windows 工具包",
-    "en": "Windows Bundle"
+    "en": "Windows Toolkit"
   },
   "description": {
-    "zh": "Windows 一键配置与控制工具包",
-    "en": "Windows one-click setup and control bundle"
+    "zh": "配置 Kiyori PC Agent，并通过局域网在 Windows 上执行 PowerShell 或 CMD 命令并返回输出。",
+    "en": "Configure Kiyori PC Agent, then execute PowerShell or CMD commands on Windows over the LAN and return their output."
   },
-  "enabled_by_default": true,
+  "enabled_by_default": false,
   "subpackages": [
     {
       "id": "windows_control",

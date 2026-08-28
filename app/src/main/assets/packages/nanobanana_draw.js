@@ -3,13 +3,14 @@
   "name": "nanobanana_draw",
 
   "display_name": {
-      "zh": "Nanobanana 绘图",
-      "en": "Nanobanana Draw"
+      "zh": "Nano Banana 图像生成",
+      "en": "Nano Banana Image Generation"
   },
   "description": {
-    "zh": "使用 Nano Banana API (基于Grsai的api服务/https://grsai.com/) 根据提示词画图，支持文生图和图生图（可传入参考图片URL或本地图片路径；本地图片会先上传到图床以获得公网URL），将图片保存到本地 /sdcard/Download/Kiyori/plugins/draw/nanobanana_draw/draws/ 目录，并返回 Markdown 图片提示。",
-    "en": "Generate images using the Nano Banana API (via Grsai service / https://grsai.com/). Supports text-to-image and image-to-image (you can provide reference image URLs or local image paths; local images will be uploaded first to get public URLs). Saves images to /sdcard/Download/Kiyori/plugins/draw/nanobanana_draw/draws/ and returns a Markdown image reference."
+    "zh": "通过 Grsai Nano Banana API 生成或参考图片编辑图像；本地参考图会先上传，结果保存到本地并返回 Markdown 图片引用。",
+    "en": "Generate or edit images from references through the Grsai Nano Banana API; local references are uploaded first, and results are saved locally with a Markdown image reference."
   },
+  "enabledByDefault": false,
   "env": [
     "NANOBANANA_API_KEY",
     "NANOBANANA_API_BASE_URL",

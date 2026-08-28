@@ -2,14 +2,15 @@
 {
   "name": "siliconflow_draw",
   "display_name": {
-    "zh": "硅基流动绘图",
-    "en": "SiliconFlow Draw"
+    "zh": "SiliconFlow 图像与视频",
+    "en": "SiliconFlow Images and Video"
   },
   "description": {
     "zh": "使用 SiliconFlow 官方图像与视频接口生成图片和视频。图片走 /v1/images/generations，视频走 /v1/video/submit + /v1/video/status；生成结果会立即下载到本地，避免官方临时链接过期。",
     "en": "Generate images and videos with SiliconFlow official image and video APIs. Images use /v1/images/generations; videos use /v1/video/submit + /v1/video/status. Generated assets are downloaded locally immediately before temporary URLs expire."
   },
   "category": "Draw",
+  "enabledByDefault": false,
   "env": [
     {
       "name": "SILICONFLOW_API_KEY",

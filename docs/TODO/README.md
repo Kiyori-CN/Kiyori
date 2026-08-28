@@ -4,6 +4,36 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # Kiyori 开发任务与验证索引
 
+## 2026-08-28 内置脚本与插件目录规范化
+
+状态：`LOCAL IMPLEMENTATION VERIFIED / DEVICE VERIFICATION PENDING`。
+
+本专项统一所有随包普通脚本和目录型 ToolPkg 的命名、分类、双语 metadata、Agent 注入说明、作者字段
+和环境变量默认状态；含环境变量的包首次安装默认关闭，未发布 ToolPkg 及关联运行时版本统一为
+`1.0.0`。OpenAI 搜索显示为“OpenAI 搜索”，包内工具调用名为 `openai_search`，内部 ToolPkg/宿主
+协议标识保持兼容。详细合同、阶段、验收矩阵见
+[`builtin_script_plugin_standardization`](builtin_script_plugin_standardization/index.md)。
+
+## 2026-08-28 Mihomo Geo* 配置校验超时修复
+
+状态：`LOCAL FIX VERIFIED / TARGET DEVICE VERIFICATION PENDING`。
+
+固定 Mihomo `v1.19.30` 在运行目录缺少 GeoSite/MMDB/ASN 数据时，会因订阅 `GEOSITE`、`GEOIP`、
+`IP-ASN` 或远程 `RULE-SET` 依赖而在 `-t` 阶段下载并卡住；20 秒后才被误报为配置无效。清洗器现已
+恢复自包含运行配置边界，并覆盖已有保存 YAML 的 runtime 重建；定向 JVM、Python 合同、正式准备、
+架构边界和 Debug APK 已验证，真实设备复测仍待完成。详见
+[`application_network_proxy`](application_network_proxy/index.md)。
+
+## 2026-08-28 最新日志复核：runtime readiness 与诊断噪声
+
+状态：`LOCAL IMPLEMENTATION VERIFIED / TARGET DEVICE VERIFICATION PENDING`。
+
+最新浏览器日志的 7 个 `PLAYER_HANDOFF` 标识均唯一，未出现新的渲染器退出或应用 FATAL；代理日志的
+Mihomo generation 1/2/3 仍以退出码 `0` 自然退出并自动恢复。实现已让旧 WebView readiness 在自然
+退出时立即失效，避免恢复窗口访问死端口；相同端点/旁路策略不再重复安装 process-wide override，
+console 诊断在交错 session 中聚合并保留 `repeatCount`。具体证据、非目标与设备验收见
+[`kiyori_browser_product_completion/19_latest_log_runtime_readiness_and_diagnostic_noise.md`](kiyori_browser_product_completion/19_latest_log_runtime_readiness_and_diagnostic_noise.md)。
+
 ## 2026-08-28 Android 16 播放器关闭与重复交接修复
 
 状态：`LOCAL FIX VERIFIED / DEVICE VERIFICATION PENDING`。

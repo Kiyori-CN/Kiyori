@@ -7,7 +7,7 @@ METADATA
         "zh": "日常生活工具包",
         "en": "Daily Life Toolkit"
     },
-    "description": { "zh": "日常生活工具集合：日期时间、设备状态、电量/内存概况、天气查询、提醒、闹钟、短信、电话、微信单条消息发送、QQ单条消息发送、朋友圈发布、手电筒、音量调节、Wi‑Fi 开关、截图、拍照、深色模式、指定时间唤醒 AI 执行一次性定时任务。", "en": "Daily life utilities: date/time, device status, battery/memory overview, weather lookup, reminders, alarms, SMS, calls, single-message WeChat send, single-message QQ send, Moments posting, flashlight, volume control, Wi‑Fi toggle, screenshots, photos, dark mode, wake AI at a specified time for a one-time scheduled task." },
+    "description": { "zh": "处理日期时间、天气、提醒和闹钟、通信、截图拍照及常用设备开关；也可在指定时间唤醒 AI 执行一次性任务。", "en": "Use for date and weather, reminders and alarms, communication, screenshots and photos, common device controls, or waking the AI once at a specified time." },
     "enabledByDefault": true,
     "category": "Life",
     "tools": [

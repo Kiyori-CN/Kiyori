@@ -1931,7 +1931,7 @@
     <string name="autoglm_status_success">Konfigurasi satu klik AutoGLM telah selesai:
 - Konfigurasi model pengontrol UI AutoGLM telah dibuat atau diperbarui (autoglm-phone, Zhipu)
 - Fitur "Pengontrol UI" telah dialihkan ke konfigurasi ini
-- Automatic_ui_base telah dimatikan, Automatic_ui_subagent telah diaktifkan
+- automatic_ui_base telah dimatikan, automatic_ui_subagent telah diaktifkan
 
 Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="autoglm_status_error">Konfigurasi satu klik gagal: %1$s</string>
@@ -7503,8 +7503,8 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="pkg_env_show_sensitive">Tampilkan nilai sensitif</string>
     <string name="pkg_env_hide_sensitive">Sembunyikan nilai sensitif</string>
 
-    <!-- OpenAI Web Search evidence -->
-    <string name="openai_web_search_evidence_title">Pencarian Web OpenAI</string>
+    <!-- OpenAI Search evidence -->
+    <string name="openai_web_search_evidence_title">Pencarian OpenAI</string>
     <string name="openai_web_search_mode_live">Langsung</string>
     <string name="openai_web_search_mode_indexed">Terindeks</string>
     <string name="openai_web_search_sources_count">Sumber (%1$d)</string>
@@ -7543,7 +7543,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="openai_web_search_request_id_present">ID permintaan tersedia</string>
     <string name="openai_web_search_invalid_field">Kolom tidak valid</string>
     <string name="openai_web_search_not_present">Tidak tersedia</string>
-    <string name="openai_web_search_configuration_unavailable">Konfigurasi Pencarian Web OpenAI tidak tersedia.</string>
+    <string name="openai_web_search_configuration_unavailable">Konfigurasi Pencarian OpenAI tidak tersedia.</string>
     <string name="backup_format_kiyori_audit">Paket Audit Percakapan Kiyori</string>
     <string name="backup_format_kiyori_audit_desc">Mengimpor satu paket .kiyori-audit lengkap setelah memvalidasi jalur, rantai hash, payload, dan tanda tangan</string>
     <string name="conversation_audit_storage_title">Penyimpanan audit percakapan</string>

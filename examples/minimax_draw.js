@@ -2,14 +2,15 @@
 {
   "name": "minimax_draw",
   "display_name": {
-    "zh": "MiniMax 绘图",
-    "en": "MiniMax Draw"
+    "zh": "MiniMax 图像生成",
+    "en": "MiniMax Image Generation"
   },
   "description": {
-    "zh": "使用 MiniMax 官方图像生成接口 (/v1/image_generation) 生成图片，支持文生图和带参考图的生图；结果保存到本地 /sdcard/Download/Kiyori/plugins/draw/minimax_draw/draws/ 目录，并返回 Markdown 图片提示。",
-    "en": "Generate images with the official MiniMax image generation API (/v1/image_generation). Supports text-to-image and reference-image generation. Saves results to /sdcard/Download/Kiyori/plugins/draw/minimax_draw/draws/ and returns Markdown image hints."
+    "zh": "通过 MiniMax 官方接口进行文生图或参考图生成，保存结果到本地并返回 Markdown 图片引用。",
+    "en": "Generate images from text or a reference through the official MiniMax API, save results locally, and return Markdown image references."
   },
   "category": "Draw",
+  "enabledByDefault": false,
   "env": [
     {
       "name": "MINIMAX_API_KEY",

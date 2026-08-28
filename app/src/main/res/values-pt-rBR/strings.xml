@@ -1718,7 +1718,7 @@
     <string name="autoglm_status_success">A configuração do AutoGLM com um clique foi concluída:
 - A configuração do modelo do controlador AutoGLM UI foi criada ou atualizada (autoglm-phone, zhipu)
 - A função "UI Controller" foi alterada para esta configuração
-- Automatic_ui_base desativado, Automatic_ui_subagent ativado
+- automatic_ui_base desativado, automatic_ui_subagent ativado
 
 Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="autoglm_status_error">Falha na configuração com um clique: %1$s</string>
@@ -7380,8 +7380,8 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="pkg_env_show_sensitive">Mostrar valor sensível</string>
     <string name="pkg_env_hide_sensitive">Ocultar valor sensível</string>
 
-    <!-- OpenAI Web Search evidence -->
-    <string name="openai_web_search_evidence_title">Pesquisa na Web da OpenAI</string>
+    <!-- OpenAI Search evidence -->
+    <string name="openai_web_search_evidence_title">Pesquisa da OpenAI</string>
     <string name="openai_web_search_mode_live">Ao vivo</string>
     <string name="openai_web_search_mode_indexed">Indexado</string>
     <string name="openai_web_search_sources_count">Fontes (%1$d)</string>
@@ -7422,7 +7422,7 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="openai_web_search_request_id_present">ID da solicitação presente</string>
     <string name="openai_web_search_invalid_field">Campo inválido</string>
     <string name="openai_web_search_not_present">Não presente</string>
-    <string name="openai_web_search_configuration_unavailable">A configuração da Pesquisa na Web da OpenAI não está disponível.</string>
+    <string name="openai_web_search_configuration_unavailable">A configuração da Pesquisa da OpenAI não está disponível.</string>
     <string name="backup_format_kiyori_audit">Pacote de auditoria de conversas do Kiyori</string>
     <string name="backup_format_kiyori_audit_desc">Importa um pacote .kiyori-audit completo após validar os caminhos, a cadeia de hashes, os payloads e as assinaturas</string>
     <string name="conversation_audit_storage_title">Armazenamento de auditoria de conversas</string>

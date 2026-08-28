@@ -37,6 +37,7 @@ internal enum class BrowserDiagnosticScope {
 internal data class BrowserDiagnosticEntry(
     val timestamp: Long,
     val sequence: Long = 0L,
+    val repeatCount: Int = 1,
     val level: BrowserDiagnosticLevel,
     val category: BrowserDiagnosticCategory,
     val event: String,
@@ -62,6 +63,24 @@ internal class BrowserDiagnosticLog(
     fun append(entry: BrowserDiagnosticEntry) {
         val sanitized = sanitizeBrowserDiagnosticEntry(entry)
         synchronized(lock) {
+            val previousIndex =
+                entries.indexOfLast { previous ->
+                    shouldCoalesceBrowserDiagnostic(previous, sanitized)
+                }
+            if (previousIndex >= 0) {
+                val previous = entries[previousIndex]
+                val updated =
+                    previous.copy(
+                        timestamp = maxOf(previous.timestamp, sanitized.timestamp),
+                        repeatCount =
+                            (previous.repeatCount.toLong() + sanitized.repeatCount.toLong())
+                                .coerceAtMost(MAX_REPEAT_COUNT.toLong())
+                                .toInt(),
+                    )
+                entries.removeAt(previousIndex)
+                entries += updated
+                return
+            }
             nextSequence += 1L
             entries += sanitized.copy(sequence = nextSequence)
             if (entries.size > maxEntries) {
@@ -157,6 +176,7 @@ internal fun formatBrowserDiagnosticReport(
                 entry.details.forEach { (key, value) ->
                     append(' ').append(key).append('=').append(value)
                 }
+                if (entry.repeatCount > 1) append(" repeatCount=").append(entry.repeatCount)
                 appendLine()
             }
     }.trimEnd()
@@ -175,6 +195,7 @@ internal fun sanitizeBrowserDiagnosticEntry(
                 key.take(MAX_DETAIL_KEY_LENGTH) to sanitizeBrowserDiagnosticValue(key, value)
             }
     return entry.copy(
+        repeatCount = entry.repeatCount.coerceIn(1, MAX_REPEAT_COUNT),
         event = sanitizeBrowserDiagnosticMessage(entry.event, MAX_EVENT_LENGTH),
         sessionId = entry.sessionId?.trim()?.take(MAX_ID_LENGTH),
         documentToken = entry.documentToken?.trim()?.take(MAX_ID_LENGTH),
@@ -182,6 +203,21 @@ internal fun sanitizeBrowserDiagnosticEntry(
         message = sanitizedMessage,
         details = sanitizedDetails,
     )
+}
+
+private fun shouldCoalesceBrowserDiagnostic(
+    previous: BrowserDiagnosticEntry,
+    current: BrowserDiagnosticEntry,
+): Boolean {
+    if (!current.event.startsWith("CONSOLE_")) return false
+    if (previous.event != current.event || previous.level != current.level || previous.category != current.category) {
+        return false
+    }
+    if (previous.sessionId != current.sessionId || previous.profile != current.profile) return false
+    if (previous.documentToken != current.documentToken || previous.host != current.host) return false
+    if (previous.message != current.message || previous.details != current.details) return false
+    val elapsed = current.timestamp - previous.timestamp
+    return elapsed in 0..BROWSER_DIAGNOSTIC_COALESCE_WINDOW_MILLIS
 }
 
 internal fun sanitizeBrowserDiagnosticUrl(rawUrl: String): String {
@@ -306,6 +342,8 @@ private const val MAX_DETAIL_KEY_LENGTH = 48
 private const val MAX_DETAIL_VALUE_LENGTH = 180
 private const val MAX_QUERY_KEY_LENGTH = 48
 private const val MAX_URL_LENGTH = 512
+private const val BROWSER_DIAGNOSTIC_COALESCE_WINDOW_MILLIS = 1_000L
+private const val MAX_REPEAT_COUNT = 1_000_000
 
 private val SENSITIVE_KEY_NAMES =
     setOf(

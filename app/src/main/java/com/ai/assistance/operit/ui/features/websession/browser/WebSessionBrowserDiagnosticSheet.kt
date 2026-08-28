@@ -449,6 +449,15 @@ private fun DiagnosticRow(entry: BrowserDiagnosticEntry) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 10.sp,
                 )
+                if (entry.repeatCount > 1) {
+                    Text(
+                        text = "x${entry.repeatCount}",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(start = 5.dp),
+                    )
+                }
             }
             if (entry.message.isNotBlank()) {
                 Text(

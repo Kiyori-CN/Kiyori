@@ -377,7 +377,7 @@
 }
 */
 const windowsControl = (function () {
-    const WINDOWS_CONTROL_PACKAGE_VERSION = "0.2.2";
+    const WINDOWS_CONTROL_PACKAGE_VERSION = "1.0.0";
     const MAX_INLINE_WINDOWS_EXEC_OUTPUT_CHARS = 12000;
     const CONNECTION_TEST_TIMEOUT_MS = 5000;
     const ENV_KEYS = {

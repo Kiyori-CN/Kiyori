@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.strings = strings;
 exports.errorMessage = errorMessage;
 const ZH = {
-    title: "OpenAI Web Search",
+    title: "OpenAI 搜索",
     subtitle: "独立的 OpenAI Responses hosted web_search 搜索绑定",
     independenceNotice: "主聊天模型不会改变本插件的 endpoint、模型、Key 或配置来源。DeepSeek、Gemini、Claude、本地模型等都可以调用同一个搜索工具。",
     localValidation: "本地配置校验",
@@ -43,7 +43,7 @@ const ZH = {
     evidenceModeNone: "没有可验证网页证据",
 };
 const EN = {
-    title: "OpenAI Web Search",
+    title: "OpenAI Search",
     subtitle: "Independent OpenAI Responses hosted web_search binding",
     independenceNotice: "The primary chat model never changes this plugin's endpoint, model, key, or configuration source. DeepSeek, Gemini, Claude, local models, and others can call the same search tool.",
     localValidation: "Local configuration validation",
@@ -87,7 +87,7 @@ function strings() {
     return language.startsWith("en") ? EN : ZH;
 }
 function errorMessage(error) {
-    const message = error.message.trim() || "OpenAI Web Search operation failed";
+    const message = error.message.trim() || "OpenAI Search operation failed";
     const errorWithCode = error;
     const code = typeof errorWithCode.code === "string" ? errorWithCode.code.trim() : "";
     return code && !message.startsWith(`[${code}]`) ? `[${code}] ${message}` : message;

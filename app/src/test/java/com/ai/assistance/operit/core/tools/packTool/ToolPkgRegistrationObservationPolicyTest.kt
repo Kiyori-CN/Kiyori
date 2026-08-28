@@ -7,7 +7,7 @@ import org.junit.Test
 
 class ToolPkgRegistrationObservationPolicyTest {
     @Test
-    fun `openai web search registration proves version schema digest source thread and time`() {
+    fun `openai search registration proves version schema digest source thread and time`() {
         val digest = "ab".repeat(32)
         val log =
             ToolPkgRegistrationObservationPolicy.format(
@@ -22,7 +22,7 @@ class ToolPkgRegistrationObservationPolicyTest {
             )
 
         assertTrue(log.contains("toolpkg_id=com.kiyori.openai_web_search"))
-        assertTrue(log.contains("version=1.0.6"))
+        assertTrue(log.contains("version=${OpenAIHostedWebSearchContract.TOOLPKG_VERSION}"))
         assertTrue(log.contains("artifact_sha256=$digest"))
         assertTrue(log.contains("source_kind=asset"))
         assertTrue(log.contains("registration_thread=DefaultDispatcher-worker-3"))

@@ -10,6 +10,18 @@ hikerview_reference: 5de8809049e4710471f9f42642e54550ecf5dbe3
 
 # 浏览器产品能力连续完善
 
+## 2026-08-28 最新日志复核：runtime readiness 与诊断噪声
+
+状态：`LOCAL IMPLEMENTATION VERIFIED / TARGET DEVICE VERIFICATION PENDING`。
+
+最新 Browser Diagnostics 中 7 个播放器 handoff 均使用唯一 candidate/request，没有新的重复交接、
+渲染器退出或应用 FATAL；`go.itab.link` 的两条 `SSL_ERROR primaryError=3` 仍需作为独立 TLS 证据保留。
+代理日志确认 generation 1/2/3 均自然退出并自动恢复，退出来源尚未定位。当前实现让自然退出立即失效
+旧 WebView proxy readiness，复用相同端点与旁路策略时跳过重复 `ProxyController` 安装；诊断 console
+事件允许跨 session 交错聚合并保留有界 `repeatCount`。完整方案、风险、非目标和验收矩阵见
+[`19_latest_log_runtime_readiness_and_diagnostic_noise.md`](19_latest_log_runtime_readiness_and_diagnostic_noise.md)。
+本地自动证据完成后，vivo Android 16 的现场复测仍保持 `verification_pending`。
+
 ## 2026-08-28 Android 16 播放器关闭与重复交接修复
 
 播放器关闭的主线程网络回收崩溃、重复媒体 handoff 和 bridge TLS 错误投影的详细根因、合同与验证矩阵见

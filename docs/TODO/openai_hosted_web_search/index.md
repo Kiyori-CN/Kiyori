@@ -3,21 +3,21 @@ status: verification_pending
 implementation: revision_7_local_complete_remote_revalidation_pending
 baseline_branch: main
 baseline_head: 180db686aaeedfa301b3c8a31057ee4940d58649
-last_updated: 2026-08-13
+last_updated: 2026-08-28
 ---
 
-# OpenAI 官方联网搜索插件化接入
+# OpenAI 搜索插件化接入
 
 ## 1. 当前结论
 
-OpenAI Hosted Web Search 作为独立工具提供给 DeepSeek、Gemini、Claude、本地模型和其他主聊天模型
+OpenAI 搜索作为独立工具提供给 DeepSeek、Gemini、Claude、本地模型和其他主聊天模型
 在 Kiyori 中已经完成 revision `7` 的本地实现。revision `6` 的现场失败矩阵已转化为本地 URL
 identity、域名策略、零证据、参数、日志隐私、证据投影和可观察性合同；真实 relay、设备和用户现场
 复测仍未执行。
 
 ```text
 任意主聊天模型
-	└─ openai_web_search:search
+	└─ openai_web_search:openai_search
 		└─ com.kiyori.openai_web_search ToolPkg
 			├─ settings UI
 			├─ openai_web_search subpackage
@@ -37,8 +37,8 @@ GPT-5.6 搜索服务只承担查询规划、联网检索、网页阅读、证据
 
 ```text
 ToolPkg ID = com.kiyori.openai_web_search
-ToolPkg version = 1.0.6
-tool = openai_web_search:search
+ToolPkg version = 1.0.0
+tool = openai_web_search:openai_search
 configuration source = PACKAGE_ENV only
 host-service environment variables = 20
 response schema revision = 7
@@ -150,12 +150,12 @@ OPENAI_RESPONSES_GENERIC
 - 调用参数拒绝统一使用 `INVALID_ARGUMENT`，并携带 `field`、`reason` 和
   `submission_state=not_sent`
 - ToolPkg 注册日志记录实际 version、artifact SHA-256、source kind、registration thread 和
-  elapsed time；OpenAI Web Search 额外记录 response schema revision
+  elapsed time；OpenAI 搜索额外记录 response schema revision
 - 递归工具链计时使用 `enhanced.toolSubtree.complete`、`round`、`depth`、`invocationId` 和
   `resultCount`
 - evidence parser 返回 `NotApplicable`、`Parsed` 或 `Invalid`
 - parser-invalid 日志有界且不记录 query、answer、sources 或完整 result
-- 单个 `openai_web_search:search` 在 `READ_ONLY`、`ALL` 和 `FULL` 模式均建立 L0 工具组
+- 单个 `openai_web_search:openai_search` 在 `READ_ONLY`、`ALL` 和 `FULL` 模式均建立 L0 工具组
 - 结果卡分为搜索摘要、答案、来源、搜索轨迹、诊断与用量
 - 来源保持顺序并按每批八条展开
 - failure 与 parser-invalid 后仍保留普通 `ToolResultDisplay`

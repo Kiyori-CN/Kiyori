@@ -9,6 +9,7 @@
     "zh": "使用 xAI 官方接口生成图片和视频，并保存到本地。",
     "en": "Generate images and videos with the official xAI APIs and save them locally."
   },
+  "enabledByDefault": false,
   "env": [
     {
       "name": "XAI_API_KEY",

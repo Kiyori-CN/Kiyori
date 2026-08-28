@@ -1653,6 +1653,7 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
                 if (
                     toolPackage.isBuiltIn &&
                     toolPackage.enabledByDefault &&
+                    toolPackage.env.isEmpty() &&
                     !toolPkgSubpackageByPackageName.containsKey(toolPackage.name) &&
                     !disabledPackages.contains(toolPackage.name)
                 ) {

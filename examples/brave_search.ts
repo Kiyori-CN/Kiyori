@@ -2,13 +2,14 @@
 {
   "name": "brave_search",
   "display_name": {
-    "zh": "Brave搜索",
+    "zh": "Brave 搜索",
     "en": "Brave Search"
   },
   "description": {
     "zh": "需要 Brave 官方网页/LLM/新闻/视频/图片/地点/富结果、Summarizer、Answers、联想词或拼写检查时使用。",
     "en": "Use for official Brave web/LLM/news/video/image/place/rich search, Summarizer, Answers, suggestions, or spellcheck."
   },
+  "enabledByDefault": false,
   "env": [
     {
       "name": "BRAVE_SEARCH_API_KEYS",

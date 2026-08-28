@@ -3,14 +3,15 @@
   "name": "openai_draw",
 
   "display_name": {
-      "zh": "OpenAI 绘图",
-      "en": "OpenAI Draw"
+      "zh": "OpenAI 图像生成",
+      "en": "OpenAI Image Generation"
   },
   "description": {
-    "zh": "使用 OpenAI 格式的图像生成 API (/v1/images/generations) 根据提示词画图，将图片保存到本地 /sdcard/Download/Kiyori/plugins/draw/openai_draw/draws/ 目录，并返回 Markdown 图片提示。",
-    "en": "Generate images via an OpenAI-compatible image generation API (/v1/images/generations) from a prompt, save to /sdcard/Download/Kiyori/plugins/draw/openai_draw/draws/, and return a Markdown image reference."
+    "zh": "通过 OpenAI-compatible 图像生成接口按提示词生成图片，保存结果到本地并返回 Markdown 图片引用。",
+    "en": "Generate images from prompts through an OpenAI-compatible image endpoint, save results locally, and return Markdown image references."
   },
   "category": "Draw",
+  "enabledByDefault": false,
   "env": [
     {
       "name": "OPENAI_API_KEY",

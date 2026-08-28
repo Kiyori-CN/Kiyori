@@ -3,14 +3,15 @@
 {
     "name": "ctx_limiter_c",
     "display_name": {
-        "zh": "楼层限制器",
+        "zh": "上下文限制器",
         "en": "Context Limiter"
     },
     "description": {
-        "zh": "截取最近N层上下文，保留SYSTEM消息和最近N层USER/ASSISTANT，主要用于无缓存 API，效果不错。",
-        "en": "Keep SYSTEM messages and only the latest N USER/ASSISTANT turns. Works especially well with non-cached APIs."
+        "zh": "为无缓存模型保留系统消息和最近 N 层用户/助手对话，减少发送给模型的历史上下文。",
+        "en": "For uncached models, keep system messages and the latest N user/assistant turns to reduce transmitted conversation history."
     },
-    "enabledByDefault": true,
+    "category": "Chat",
+    "enabledByDefault": false,
     "env": [
         {
             "name": "CTX_LIMITER_C_FLOOR_LIMIT",

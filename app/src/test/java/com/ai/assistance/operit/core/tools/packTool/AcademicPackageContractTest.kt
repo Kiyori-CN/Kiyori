@@ -131,12 +131,15 @@ class AcademicPackageContractTest {
 
             assertEquals(packageId, metadata.getString("name"))
             assertEquals("Academic", metadata.getString("category"))
-            assertTrue(metadata.getBoolean("enabledByDefault"))
             assertFalse(metadata.has("author"))
             assertBilingual(metadata.getJSONObject("display_name"), "$packageId display_name")
             assertBilingual(metadata.getJSONObject("description"), "$packageId description")
 
             val environments = metadata.optJSONArray("env")
+            assertEquals(
+                environments == null || environments.length() == 0,
+                metadata.getBoolean("enabledByDefault"),
+            )
             val requirementByName =
                 if (environments == null) {
                     emptyMap()

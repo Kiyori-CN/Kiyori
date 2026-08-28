@@ -3,10 +3,10 @@
     "name": "12306_ticket",
 
     "display_name": {
-        "zh": "12306 拓展",
-        "en": "12306 Extension"
+        "zh": "12306 火车票",
+        "en": "12306 Train Tickets"
     },
-    "description": { "zh": "提供12306火车票信息查询功能，包括余票、中转、经停站等。", "en": "Query China Railway 12306 train ticket information, including availability, transfer routes, and stop stations." },
+    "description": { "zh": "查询 12306 车站编码、直达或中转余票及列车经停站；相对日期查询前可先获取上海时区当前日期。", "en": "Query 12306 station codes, direct or transfer ticket availability, and train stops; resolve relative dates against the current Asia/Shanghai date first." },
     "enabledByDefault": true,
     "category": "Life",
     "tools": [
@@ -1012,4 +1012,4 @@ exports.get_station_by_telecode = ticket12306.get_station_by_telecode;
 exports.get_tickets = ticket12306.get_tickets;
 exports.get_interline_tickets = ticket12306.get_interline_tickets;
 exports.get_train_route_stations = ticket12306.get_train_route_stations;
-exports.main = ticket12306.main; 
+exports.main = ticket12306.main;

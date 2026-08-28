@@ -12,8 +12,8 @@ function registerToolPkg() {
         screen: index_ui_js_1.default,
         params: {},
         title: {
-            zh: "OpenAI Web Search",
-            en: "OpenAI Web Search",
+            zh: "OpenAI 搜索",
+            en: "OpenAI Search",
         },
     });
     console.log("[openai_web_search] plugin registered");

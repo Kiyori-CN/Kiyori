@@ -3,21 +3,21 @@
 {
   "name": "openai_web_search",
   "display_name": {
-    "zh": "OpenAI Web Search",
-    "en": "OpenAI Web Search"
+    "zh": "OpenAI 搜索",
+    "en": "OpenAI Search"
   },
   "description": {
-    "zh": "通过 Kiyori 宿主调用独立配置的 OpenAI Responses hosted web_search，并返回答案、搜索动作、引用、来源与用量。",
-    "en": "Invoke independently configured OpenAI Responses hosted web_search through the Kiyori host and return the answer, search actions, citations, sources, and usage."
+    "zh": "需要最新网页事实、直接来源和引用时调用 OpenAI 搜索；返回 answer、search_actions、citations、sources 和 usage。",
+    "en": "Use OpenAI Search for current web facts, direct sources, and citations; returns answer, search_actions, citations, sources, and usage."
   },
   "enabledByDefault": true,
   "category": "Search",
   "tools": [
     {
-      "name": "search",
+      "name": "openai_search",
       "description": {
-        "zh": "使用独立 OpenAI Web Search 绑定搜索互联网。适用于需要最新网页事实、直接来源和引用的请求；返回结构化 answer、search_actions、citations、sources 与 usage。",
-        "en": "Search the web through the independent OpenAI Web Search binding. Use for current web facts, direct sources, and citations; returns structured answer, search_actions, citations, sources, and usage."
+        "zh": "需要最新网页事实、直接来源和引用时调用 OpenAI 搜索；返回 answer、search_actions、citations、sources 和 usage。",
+        "en": "Use OpenAI Search for current web facts, direct sources, and citations; returns answer, search_actions, citations, sources, and usage."
       },
       "parameters": [
         {
@@ -71,7 +71,7 @@
 }
 */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.search = search;
+exports.openai_search = openai_search;
 function parseContextSize(rawValue) {
     if (rawValue === undefined || rawValue.trim() === "") {
         return undefined;
@@ -82,7 +82,7 @@ function parseContextSize(rawValue) {
     }
     throw new Error("context_size must be low, medium, or high");
 }
-async function search(params) {
+async function openai_search(params) {
     const request = {
         query: params.query,
     };

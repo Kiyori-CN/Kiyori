@@ -40,7 +40,7 @@ export type LocalizedStrings = {
 };
 
 const ZH: LocalizedStrings = {
-  title: "OpenAI Web Search",
+  title: "OpenAI 搜索",
   subtitle: "独立的 OpenAI Responses hosted web_search 搜索绑定",
   independenceNotice:
     "主聊天模型不会改变本插件的 endpoint、模型、Key 或配置来源。DeepSeek、Gemini、Claude、本地模型等都可以调用同一个搜索工具。",
@@ -86,7 +86,7 @@ const ZH: LocalizedStrings = {
 };
 
 const EN: LocalizedStrings = {
-  title: "OpenAI Web Search",
+  title: "OpenAI Search",
   subtitle: "Independent OpenAI Responses hosted web_search binding",
   independenceNotice:
     "The primary chat model never changes this plugin's endpoint, model, key, or configuration source. DeepSeek, Gemini, Claude, local models, and others can call the same search tool.",
@@ -138,7 +138,7 @@ export function strings(): LocalizedStrings {
 }
 
 export function errorMessage(error: Error): string {
-  const message = error.message.trim() || "OpenAI Web Search operation failed";
+  const message = error.message.trim() || "OpenAI Search operation failed";
   const errorWithCode = error as Error & { code?: string };
   const code =
     typeof errorWithCode.code === "string" ? errorWithCode.code.trim() : "";

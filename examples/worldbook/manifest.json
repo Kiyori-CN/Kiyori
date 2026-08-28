@@ -1,21 +1,15 @@
 {
   "schema_version": 1,
   "toolpkg_id": "com.operit.worldbook",
-  "version": "1.1.0",
+  "version": "1.0.0",
   "main": "dist/main.js",
-  "author": [
-    "黑羽 燕",
-    "冰蓝天影"
-  ],
   "display_name": {
     "zh": "世界书",
-    "en": "World Book",
-    "default": "World Book"
+    "en": "World Book"
   },
   "description": {
-    "zh": "世界书/知识库插件，支持创建、编辑、启用/禁用世界书条目，并通过关键词或常驻激活自动注入到系统提示词或用户消息中。",
-    "en": "World Book / Lorebook plugin for creating, editing, enabling, and disabling entries, with automatic prompt injection through keywords or always-active mode into system prompts or user messages.",
-    "default": "World Book / Lorebook plugin for prompt injection"
+    "zh": "创建和管理世界书条目，并按关键词、正则或常驻规则将匹配内容注入系统提示词或用户消息。",
+    "en": "Create and manage world-book entries, then inject matching content into system prompts or user messages by keyword, regex, or always-active rules."
   },
   "enabled_by_default": false,
   "subpackages": [

@@ -1,6 +1,6 @@
 /* METADATA
 {
-    "name": "Automatic_ui_base",
+    "name": "automatic_ui_base",
 
     "display_name": {
         "zh": "自动化基础工具",

@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "toolpkg_id": "com.operit.deepsearching_bundle",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "main": "dist/main.js",
   "display_name": {
     "zh": "深度搜索",
-    "en": "DeepSearching"
+    "en": "Deep Search"
   },
   "description": {
-    "zh": "用于操作多个子Agent进行深度搜索。同时在菜单增加深度搜索开关。",
-    "en": "A tool for operating multiple sub-agents to perform deep searching. Also adds a toggle for deep searching in the menu."
+    "zh": "在输入菜单提供深度搜索开关，启用后编排多个子 Agent 并行检索和汇总结果。",
+    "en": "Add a Deep Search input-menu toggle that orchestrates multiple sub-agents to search in parallel and synthesize results."
   },
   "enabled_by_default": true,
   "subpackages": []

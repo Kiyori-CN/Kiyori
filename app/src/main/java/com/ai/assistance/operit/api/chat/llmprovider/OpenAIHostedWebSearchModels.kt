@@ -8,9 +8,9 @@ import org.json.JSONObject
 
 internal object OpenAIHostedWebSearchContract {
     const val TOOLPKG_ID = "com.kiyori.openai_web_search"
-    const val TOOLPKG_VERSION = "1.0.6"
+    const val TOOLPKG_VERSION = "1.0.0"
     const val SUBPACKAGE_NAME = "openai_web_search"
-    const val TOOL_NAME = "openai_web_search:search"
+    const val TOOL_NAME = "openai_web_search:openai_search"
     const val RESPONSE_SCHEMA_REVISION = 7
     const val MAX_QUERY_CHARACTERS = 8_000
     const val MAX_ADDITIONAL_INSTRUCTIONS_CHARACTERS = 4_000

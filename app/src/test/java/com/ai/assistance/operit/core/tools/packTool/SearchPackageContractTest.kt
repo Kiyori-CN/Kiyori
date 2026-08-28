@@ -68,7 +68,7 @@ class SearchPackageContractTest {
                 ),
             "brave_search" to
                 CorePackageSpec(
-                    displayNameZh = "Brave搜索",
+                    displayNameZh = "Brave 搜索",
                     environmentNames =
                         setOf(
                             "BRAVE_SEARCH_API_KEYS",

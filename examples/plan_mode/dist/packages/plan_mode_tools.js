@@ -10,6 +10,7 @@
         "zh": "读取和完成当前计划内容。",
         "en": "Read and complete the current plan content."
     },
+    "category": "Workflow",
     "enabledByDefault": true,
     "tools": [
         {

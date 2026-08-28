@@ -17,7 +17,7 @@
     }
   ],
   "category": "Academic",
-  "enabledByDefault": true,
+  "enabledByDefault": false,
   "tools": [
     {
       "name": "search",

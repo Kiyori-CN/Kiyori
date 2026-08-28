@@ -3,13 +3,14 @@
   "name": "qwen_draw",
 
   "display_name": {
-      "zh": "Qwen 绘图",
-      "en": "Qwen Draw"
+      "zh": "Qwen 图像生成",
+      "en": "Qwen Image Generation"
   },
   "description": {
-    "zh": "使用阿里云百炼/DashScope 文生图接口（通义万相/通义千问图像）根据提示词画图（异步任务轮询），将图片保存到本地 /sdcard/Download/Kiyori/plugins/draw/qwen_draw/draws/ 目录，并返回 Markdown 图片提示。",
-    "en": "Generate images via Alibaba Cloud Model Studio (DashScope) text-to-image API (async task polling), save to /sdcard/Download/Kiyori/plugins/draw/qwen_draw/draws/, and return a Markdown image reference."
+    "zh": "通过阿里云百炼 DashScope 异步图像接口生成图片，轮询任务完成后保存到本地并返回 Markdown 图片引用。",
+    "en": "Generate images through the asynchronous Alibaba Cloud Model Studio DashScope API, poll the task to completion, save locally, and return a Markdown image reference."
   },
+  "enabledByDefault": false,
   "env": [
     {
       "name": "DASHSCOPE_API_KEY",

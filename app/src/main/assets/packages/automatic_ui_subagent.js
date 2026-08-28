@@ -1,20 +1,15 @@
 /* METADATA
 {
-    name: "Automatic_ui_subagent"
+    name: "automatic_ui_subagent",
 
     display_name: {
-      zh: "自动化AutoGLM子代理"
-      en: "Automated AutoGLM Sub-agent"
+      zh: "AutoGLM UI 子代理"
+      en: "AutoGLM UI Sub-agent"
     }description: {
-        zh: '''
-兼容AutoGLM，提供基于独立UI控制器模型（例如 autoglm-phone-9b）的高层UI自动化子代理工具，用于根据自然语言意图自动规划并执行点击/输入/滑动等一系列界面操作。
-当用户提出需要帮忙完成某个界面操作任务（例如打开应用、搜索内容、在多个页面之间完成一套步骤）时，可以调用本包由子代理自动规划和执行具体步骤。
-''',
-        en: '''
-Compatible with AutoGLM. Provides a high-level UI automation sub-agent based on an independent UI-controller model (e.g. autoglm-phone-9b). It can plan and execute a sequence of UI actions (tap/type/swipe) from natural-language intent.
-When the user asks you to complete a UI task (e.g. open an app, search content, or finish a multi-step workflow across pages), you can call this package and let the sub-agent plan and execute the steps.
-'''
+        zh: "让独立 AutoGLM UI 控制器根据完整自然语言意图规划并执行应用内点击、输入和滑动；适用于主屏或虚拟屏上的多步骤界面任务。"
+        en: "Use an independent AutoGLM UI controller to plan and execute taps, typing, and swipes from a self-contained intent for multi-step app tasks on the main or virtual display."
     }
+    enabledByDefault: true
     category: "Automatic"
 
     tools: []
@@ -220,8 +215,11 @@ When the user asks you to complete a UI task (e.g. open an app, search content, 
  建议并行时每个子代理使用不同的 agent_id（必须显式传入，且不能为 'default'），避免操作同一虚拟屏幕造成冲突。
  如果并行任务中仅有部分子代理失败，则只对失败的子代理继续发起后续调用（补充纠错信息、提高约束），不要让已成功的子代理重复执行。
  每个 intent_i 必须自包含；建议不同 agent_id；只重试失败的 intent_i。
- 典型场景：多平台并行搜索；同一对象多入口确认/交叉校验；把“同一对象A”的分工并行做完后再进入B.
- '''
+典型场景：多平台并行搜索；同一对象多入口确认/交叉校验；把“同一对象A”的分工并行做完后再进入B.
+ ''',
+                        en: '''
+Run 1-4 independent UI sub-agents in parallel on virtual displays. Give every active branch a self-contained intent, an explicit non-default agent_id, and a distinct target_app. Use this for independent cross-app searches or verification; retry only failed branches. The same app must not run in multiple branches.
+'''
                     }
                     parameters: [
                         {

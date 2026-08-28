@@ -7,6 +7,47 @@ date: 2026-08-23
 
 # Kiyori 应用级网络代理与内嵌 Mihomo
 
+## 2026-08-28 Mihomo Geo* 规则回归修复
+
+状态：`IMPLEMENTED LOCALLY / AUTOMATED VALIDATION PENDING / DEVICE VERIFICATION PENDING`。
+
+### 现场证据与根因
+
+用户提供的 Kiyori Browser Diagnostics 只确认首个 Browser 文档在启动代理协调期间被阻断；同一时段的
+代理日志显示固定 Mihomo `v1.19.30` 在 `-t` 配置解析阶段记录 `Can't find MMDB, start download`，
+随后 20 秒超时，尚未建立 Controller 或 mixed-port。对照该版本源码可见，`GEOIP`/`SRC-GEOIP` 会调用
+`geodata.InitGeoIP`，`IP-ASN`/`SRC-IP-ASN` 会调用 `geodata.InitASN`，`GEOSITE` 会调用
+`geodata.InitGeoSite`；这些初始化在数据文件缺失时按默认 URL 下载 MMDB、ASN 或 GeoSite。Kiyori 的
+运行目录没有这些数据库，且代理尚未建立，下载会阻塞校验并被错误包装成配置无效。
+
+8 月 28 日规则扩展把 Geo* 规则和 `rule-providers` 重新保留进自包含运行 YAML，造成这次回归；此前
+DNS 清洗已经正确移除了相同数据依赖，但没有覆盖业务 `rules`、逻辑规则嵌套表达式和已有配置重建。
+
+### 修复决策与范围
+
+1. 订阅清洗只保留不需要外部 GeoIP/GeoSite/ASN 数据的规则；`GEOIP`、`SRC-GEOIP`、`GEOSITE`、
+   `IP-ASN`、`SRC-IP-ASN` 和引用远程 `rule-providers` 的 `RULE-SET` 被剔除并计入 `unsupportedRuleCount`。
+   `AND`/`OR`/`NOT` 中若嵌套这些类型，也按同一规则剔除；静态 `DOMAIN`、CIDR、端口、进程、网络、
+   `SUB-RULE` 等仍按原顺序保留。
+2. `rule-providers` 仍执行结构和 URL 校验，但不写入新的 sanitized YAML 或 runtime YAML，因此
+   Mihomo 不会在新私有目录初始化远程 provider。已有 schema-5 订阅在重建 runtime 时经过同一清洗逻辑，
+   不需要用户重新导入即可消除旧的 Geo*/provider 依赖；订阅列表中的历史摘要会在下一次订阅更新时重算。
+3. 用户自定义规则继续保留其持久化模型，但新的 Geo*/ASN/provider 规则不再出现在编辑器；已有且已启用的
+   外部数据规则在 runtime 构建时明确报 `CONFIG_INVALID`，不会被静默丢弃或改走直连。
+4. 不延长 20 秒校验超时、不下载或打包第二份数据库、不启用 Android VPN、不创建第二个 Mihomo，也不
+   改变保存事务：保存成功与运行应用失败仍分开报告。
+
+### 验收矩阵
+
+- JVM：订阅中的直接 Geo*/ASN、远程 `RULE-SET`、嵌套逻辑 Geo* 都被剔除并准确计数；静态逻辑规则、
+  `SUB-RULE`、DNS 清洗和附加参数保持；已有 sanitized YAML 重新生成 runtime 时不再含危险依赖；
+  启用的自定义外部数据规则明确失败。
+- 静态与构建：网络代理定向 JVM、Python 合同、formal readiness、`git diff --check`，串行
+  `./gradlew :app:assembleDebug --no-daemon --console=plain` 并核验 Debug APK。
+- 设备：使用用户真实订阅在“设置 -> 更多功能 -> 网络代理”开启代理，确认不再出现 `Can't find MMDB,
+  start download`/20 秒校验超时，Controller/mixed-port 就绪后 Browser 首个远程文档可加载；设备验收
+  前保持 `verification_pending`。
+
 ## 2026-08-28 最新安装回归修复
 
 状态：`LOCAL FIX VERIFIED / DEVICE VERIFICATION PENDING`。
@@ -59,8 +100,8 @@ AI 主模型与其他由 Kiyori 持有的联网客户端读取同一份配置，
 
 ### 研究结论
 
-- 当前规则页把订阅规则截断为最多 200 行的只读文本，订阅规则没有编辑事务；自定义规则只支持
-  `DOMAIN`、`DOMAIN-SUFFIX`、`DOMAIN-KEYWORD`，因此 IP 规则不能由用户创建。
+- 当前规则页把订阅规则截断为最多 200 行的只读文本，订阅规则没有编辑事务；自定义规则已经扩展为显式
+  Mihomo matcher 类型，但只允许不需要外部 GeoSite/GeoIP/ASN 数据的类型。
 - 订阅清洗器只接受 10 种规则类型，并用简单的 `split(',')` 解析逻辑规则；Mihomo 官方规则语法还包括
   `DOMAIN-WILDCARD`、`DOMAIN-REGEX`、`GEOSITE`、`IP-SUFFIX`、`IP-ASN`、`SRC-*`、`IN-*`、
   `PROCESS-*`、`UID`、`NETWORK`、`DSCP`、`RULE-SET`、`AND/OR/NOT`、`SUB-RULE` 和 `MATCH`。
@@ -79,12 +120,12 @@ AI 主模型与其他由 Kiyori 持有的联网客户端读取同一份配置，
    原文编辑对话框，保留完整 Mihomo 语法和附加参数；自定义规则继续提供新增、编辑、启用/停用和删除。
 2. 订阅规则以原始规范化字符串按索引编辑，保存前使用与导入相同的 YAML 规则校验和目标校验；不接受空行、
    控制字符、重复规则或超出长度/数量上限的输入。规则解析从首个逗号和最后一个逗号取类型/目标，中间内容
-   可包含逻辑规则所需的逗号和括号。支持的类型集合与 Mihomo 文档一致；`RULE-SET` 只有在订阅提供对应
-   `rule-providers` 时才保留，provider URL/path 经过同一安全清洗；`SUB-RULE` 会连同顶层
-   `sub-rules` 映射一起校验并保留，缺失依赖继续计数并拒绝进入运行 YAML。
-3. 自定义规则新增 `IP-CIDR`、`IP-CIDR6`、`IP-SUFFIX`、`IP-ASN`、`SRC-IP-CIDR`、`SRC-IP-SUFFIX`、
-   `SRC-IP-ASN`、`GEOIP` 和 `SRC-GEOIP` 选项；运行时生成对应 Mihomo 规则，代理目标仍为
-   `KIYORI_APP_PROXY`，直连目标仍为 `DIRECT`。规则排序保持现有特异性顺序，并让所有自定义规则整体先于订阅规则。
+   可包含逻辑规则所需的逗号和括号。仅保留不依赖外部 GeoSite/GeoIP/ASN 数据的规则；远程 `RULE-SET`
+   provider 被验证后剔除，`SUB-RULE` 会连同顶层 `sub-rules` 映射一起校验并保留。
+3. 自定义规则支持不需要外部数据库的 Mihomo 域名、通配符、正则、IP/CIDR、端口、进程、网络和逻辑类型；
+   GeoSite、GeoIP、ASN 以及 provider-backed 规则不出现在编辑器，已启用的历史规则在 runtime 构建时明确报错。
+   运行时生成的代理目标仍为 `KIYORI_APP_PROXY`，直连目标仍为 `DIRECT`；规则排序保持现有特异性顺序，并让
+   所有自定义规则整体先于订阅规则。
 4. “网站配置”新增 `禁用网络代理`，作为一个域名的最高代理禁用优先级。该开关写入现有
    `WebSessionSiteSettingsRule`，覆盖 Kiyori 应用代理、订阅规则和脚本代理，但不绕过 Android 系统 VPN。
    `KiyoriNetworkProxyManager` 接收 Browser 设置 store 的只读域名判定投影：动态 ProxySelector 按 host 判定，
@@ -254,10 +295,11 @@ Browser、AI、下载、播放器和传统脚本共享同一 Mihomo 规则，同
 “规则管理”位于“节点选择”与“订阅管理”下方，分为两类来源：
 
 - **当前订阅规则**：从当前订阅 YAML 的 `rules` 中提取受支持的域名/IP/端口规则，只读展示；
-  更新订阅会原子替换这部分内容。依赖外部 GeoSite、GeoIP、RULE-SET 文件的规则不会被伪装成
+  更新订阅会原子替换这部分内容。依赖外部 GeoSite、GeoIP、ASN 或远程 RULE-SET 文件的规则不会被伪装成
   可用规则，并在摘要中计数。
 - **自定义规则**：单独加密保存在应用代理配置中，支持新增、编辑、删除和启用/停用；规则类型为
-  完整域名、域名后缀或域名关键字，动作只有“直连”和“代理”。它们永远排在订阅规则前，订阅更新不会覆盖。
+  自包含的域名、通配符、正则、IP/CIDR、端口、进程、网络和逻辑 matcher，动作只有“直连”和“代理”。
+  它们永远排在订阅规则前，订阅更新不会覆盖。
 
 用户规则编译为 Mihomo `DOMAIN`、`DOMAIN-SUFFIX` 或 `DOMAIN-KEYWORD` 条目；代理动作指向
 `KIYORI_APP_PROXY`，直连动作指向 `DIRECT`。每次规则、订阅、节点或顶部模式变化都会重新校验

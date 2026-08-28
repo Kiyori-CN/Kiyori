@@ -11,7 +11,7 @@ class ToolPkgInvocationArgumentErrorTest {
     fun `structured rejection contains stable invocation metadata`() {
         val error =
             ToolPkgInvocationArgumentError(
-                toolName = "openai_web_search:search",
+                toolName = "openai_web_search:openai_search",
                 field = "allowed_domains",
                 expectedType = "array",
                 reason = ToolPkgInvocationArgumentReason.INVALID_TYPE,
@@ -19,7 +19,7 @@ class ToolPkgInvocationArgumentErrorTest {
         val json = JSONObject(error.toJson())
 
         assertEquals("INVALID_ARGUMENT", json.getString("code"))
-        assertEquals("openai_web_search:search", json.getString("tool"))
+        assertEquals("openai_web_search:openai_search", json.getString("tool"))
         assertEquals("allowed_domains", json.getString("field"))
         assertEquals("array", json.getString("expected_type"))
         assertEquals("INVALID_TYPE", json.getString("reason"))
@@ -32,7 +32,7 @@ class ToolPkgInvocationArgumentErrorTest {
         val parserMessage = "Unterminated array at character 22"
         val error =
             ToolPkgInvocationArgumentError(
-                toolName = "openai_web_search:search",
+                toolName = "openai_web_search:openai_search",
                 field = "allowed_domains",
                 expectedType = "array",
                 reason = ToolPkgInvocationArgumentReason.INVALID_TYPE,

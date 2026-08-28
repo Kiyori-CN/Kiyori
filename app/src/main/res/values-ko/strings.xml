@@ -1762,7 +1762,7 @@
     <string name="process_limit_command">명령</string>
     <string name="toolbox_description">업무 효율을 높여주는 편리하고 실용적인 도구 모음</string>
     <string name="autoglm_status_running">원클릭 구성을 실행 중입니다. 잠시 기다려 주십시오...</string>
-    <string name="autoglm_status_success">AutoGLM 원클릭 구성이 완료되었습니다:\n- AutoGLM UI 컨트롤러 모델 설정(autoglm-phone, Zhipu)을 생성 또는 업데이트했습니다\n- "UI 컨트롤러" 기능을 이 설정으로 전환했습니다\n- Automatic_ui_base를 끄고 Automatic_ui_subagent를 켰습니다\n\n이제 채팅 화면에서 AutoGLM 모드를 사용할 수 있습니다.</string>
+    <string name="autoglm_status_success">AutoGLM 원클릭 구성이 완료되었습니다:\n- AutoGLM UI 컨트롤러 모델 설정(autoglm-phone, Zhipu)을 생성 또는 업데이트했습니다\n- "UI 컨트롤러" 기능을 이 설정으로 전환했습니다\n- automatic_ui_base를 끄고 automatic_ui_subagent를 켰습니다\n\n이제 채팅 화면에서 AutoGLM 모드를 사용할 수 있습니다.</string>
     <string name="autoglm_status_error">원클릭 구성 실패: %1$s</string>
     <string name="autoglm_error_empty_api_key">먼저 Zhipu API Key를 입력해주세요.</string>
     <string name="import_or_connect_mcp_service">MCP 서비스 가져오기 또는 연결</string>
@@ -7350,8 +7350,8 @@
     <string name="pkg_env_show_sensitive">민감한 값 표시</string>
     <string name="pkg_env_hide_sensitive">민감한 값 숨기기</string>
 
-    <!-- OpenAI Web Search evidence -->
-    <string name="openai_web_search_evidence_title">OpenAI 웹 검색</string>
+    <!-- OpenAI Search evidence -->
+    <string name="openai_web_search_evidence_title">OpenAI 검색</string>
     <string name="openai_web_search_mode_live">실시간</string>
     <string name="openai_web_search_mode_indexed">색인됨</string>
     <string name="openai_web_search_sources_count">출처(%1$d)</string>
@@ -7390,7 +7390,7 @@
     <string name="openai_web_search_request_id_present">요청 ID 있음</string>
     <string name="openai_web_search_invalid_field">잘못된 필드</string>
     <string name="openai_web_search_not_present">없음</string>
-    <string name="openai_web_search_configuration_unavailable">OpenAI 웹 검색 설정을 사용할 수 없습니다.</string>
+    <string name="openai_web_search_configuration_unavailable">OpenAI 검색 설정을 사용할 수 없습니다.</string>
     <string name="backup_format_kiyori_audit">Kiyori 대화 감사 패키지</string>
     <string name="backup_format_kiyori_audit_desc">경로, 해시 체인, payload 및 서명을 검증한 뒤 하나의 완전한 .kiyori-audit 패키지를 가져옵니다</string>
     <string name="conversation_audit_storage_title">대화 감사 저장소</string>

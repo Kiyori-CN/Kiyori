@@ -9,6 +9,7 @@
     "zh": "需要智谱独立 Web Search API 的结构化全网搜索、多引擎选择或意图识别时使用。",
     "en": "Use for structured web search, engine selection, or intent detection through Zhipu's standalone Web Search API."
   },
+  "enabledByDefault": false,
   "env": [
     {
       "name": "ZHIPU_SEARCH_API_KEYS",

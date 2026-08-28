@@ -9,6 +9,7 @@
     "zh": "需要调用 SerpApi 任意搜索引擎、读取搜索归档、查询地点或账户额度时使用。engine 与 params 直接对应官方参数。",
     "en": "Use for any SerpApi search engine, search archives, locations, or account usage. engine and params map directly to official parameters."
   },
+  "enabledByDefault": false,
   "env": [
     {
       "name": "SERPAPI_API_KEYS",

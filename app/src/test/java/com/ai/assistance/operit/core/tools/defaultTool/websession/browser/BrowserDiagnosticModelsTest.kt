@@ -45,6 +45,85 @@ class BrowserDiagnosticModelsTest {
     }
 
     @Test
+    fun `identical console diagnostics within one second retain a repeat count`() {
+        val log = BrowserDiagnosticLog()
+        log.append(
+            entry(
+                timestamp = 100L,
+                level = BrowserDiagnosticLevel.WARNING,
+                category = BrowserDiagnosticCategory.WEBVIEW,
+                event = "CONSOLE_WARNING",
+                message = "WebView console reported a warning",
+            ),
+        )
+        log.append(
+            entry(
+                timestamp = 200L,
+                level = BrowserDiagnosticLevel.WARNING,
+                category = BrowserDiagnosticCategory.WEBVIEW,
+                event = "CONSOLE_WARNING",
+                message = "WebView console reported a warning",
+            ),
+        )
+
+        val snapshot = log.snapshot()
+        assertEquals(1, snapshot.size)
+        assertEquals(2, snapshot.single().repeatCount)
+        assertEquals(1L, snapshot.single().sequence)
+        assertTrue(formatBrowserDiagnosticReport(snapshot).contains("repeatCount=2"))
+    }
+
+    @Test
+    fun `different console diagnostics and older repeats remain separate`() {
+        val log = BrowserDiagnosticLog()
+        log.append(entry(timestamp = 100L, event = "CONSOLE_WARNING"))
+        log.append(entry(timestamp = 1_101L, event = "CONSOLE_WARNING"))
+        log.append(entry(timestamp = 1_102L, event = "CONSOLE_ERROR"))
+
+        assertEquals(3, log.snapshot().size)
+        assertTrue(log.snapshot().all { it.repeatCount == 1 })
+    }
+
+    @Test
+    fun `identical console diagnostics coalesce across interleaved sessions`() {
+        val log = BrowserDiagnosticLog()
+        log.append(entry(timestamp = 100L, event = "CONSOLE_WARNING", sessionId = "session-a"))
+        log.append(entry(timestamp = 150L, event = "CONSOLE_WARNING", sessionId = "session-b"))
+        log.append(entry(timestamp = 200L, event = "CONSOLE_WARNING", sessionId = "session-a"))
+
+        val snapshot = log.snapshot()
+        assertEquals(2, snapshot.size)
+        assertEquals(2, snapshot.first { it.sessionId == "session-a" }.repeatCount)
+        assertEquals(1, snapshot.first { it.sessionId == "session-b" }.repeatCount)
+    }
+
+    @Test
+    fun `repeat count is bounded when input or aggregation is excessive`() {
+        val log = BrowserDiagnosticLog()
+        log.append(
+            entry(
+                timestamp = 100L,
+                event = "CONSOLE_WARNING",
+                repeatCount = Int.MAX_VALUE,
+            ),
+        )
+        log.append(entry(timestamp = 200L, event = "CONSOLE_WARNING"))
+
+        assertEquals(1_000_000, log.snapshot().single().repeatCount)
+    }
+
+    @Test
+    fun `coalesced diagnostics remain recent for bounded eviction`() {
+        val log = BrowserDiagnosticLog(maxEntries = 2)
+        log.append(entry(timestamp = 100L, event = "CONSOLE_WARNING", sessionId = "session-a"))
+        log.append(entry(timestamp = 200L, event = "CONSOLE_WARNING", sessionId = "session-b"))
+        log.append(entry(timestamp = 300L, event = "CONSOLE_WARNING", sessionId = "session-a"))
+        log.append(entry(timestamp = 400L, event = "CONSOLE_ERROR", sessionId = "session-c"))
+
+        assertEquals(listOf("session-a", "session-c"), log.snapshot().map(BrowserDiagnosticEntry::sessionId))
+    }
+
+    @Test
     fun `diagnostic log clears only the requested session or all sessions`() {
         val log = BrowserDiagnosticLog(maxEntries = 10)
         log.append(entry(sessionId = "session-a", event = "A1"))
@@ -256,6 +335,7 @@ class BrowserDiagnosticModelsTest {
         category: BrowserDiagnosticCategory = BrowserDiagnosticCategory.SESSION,
         event: String = "SESSION_CREATED",
         sessionId: String? = "session-a",
+        repeatCount: Int = 1,
         host: String = "",
         message: String = "",
         details: Map<String, String> = emptyMap(),
@@ -263,6 +343,7 @@ class BrowserDiagnosticModelsTest {
         BrowserDiagnosticEntry(
             timestamp = timestamp,
             sequence = sequence,
+            repeatCount = repeatCount,
             level = level,
             category = category,
             event = event,

@@ -9,8 +9,8 @@
         "zh": "通过局域网 HTTP API 调用另一台设备上的 Operit，用于跨设备协作。",
         "en": "Call another Operit device over the LAN HTTP API for cross-device collaboration."
     },
-    "enabledByDefault": true,
-    "category": "System",
+    "enabledByDefault": false,
+    "category": "Network",
     "env": [
         {
             "name": "REMOTE_OPERIT_BASE_URL",

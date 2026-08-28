@@ -68,6 +68,7 @@ class MihomoConfigSanitizerTest {
                 controllerPort = 31002,
                 controllerSecret = "controller-secret",
                 testUrl = KiyoriNetworkProxyConfig.DEFAULT_TEST_URL,
+                routingMode = KiyoriNetworkConnectionMode.RULE,
             )
 
         assertTrue(runtime.yaml.contains("mixed-port: 31001"))
@@ -134,10 +135,99 @@ class MihomoConfigSanitizerTest {
                 """.trimIndent(),
             )
 
-        assertEquals(7, sanitized.rules.size)
+        assertEquals(6, sanitized.rules.size)
         assertTrue(sanitized.rules.contains("IP-CIDR,10.0.0.0/8,DIRECT,no-resolve"))
         assertTrue(sanitized.rules.contains("AND,((DOMAIN,example.com),(NETWORK,udp)),DIRECT"))
-        assertEquals(0, sanitized.summary.unsupportedRuleCount)
+        assertEquals(1, sanitized.summary.unsupportedRuleCount)
+    }
+
+    @Test
+    fun `sanitizer removes external geodata providers and nested dependencies`() {
+        val sanitized =
+            MihomoConfigSanitizer.sanitize(
+                """
+                proxies:
+                  - { name: node-a, type: socks5, server: proxy.example.com, port: 1080 }
+                rule-providers:
+                  ads:
+                    type: http
+                    url: https://rules.example.com/ads.yaml
+                rules:
+                  - GEOSITE,cn,DIRECT
+                  - GEOIP,CN,DIRECT
+                  - IP-ASN,1234,DIRECT
+                  - SRC-IP-ASN,1234,DIRECT
+                  - RULE-SET,ads,REJECT
+                  - AND,((GEOSITE,cn),(DOMAIN,example.com)),DIRECT
+                  - DOMAIN-SUFFIX,example.com,DIRECT
+                """.trimIndent(),
+            )
+
+        assertEquals(listOf("DOMAIN-SUFFIX,example.com,DIRECT"), sanitized.rules)
+        assertEquals(6, sanitized.summary.unsupportedRuleCount)
+        assertFalse(sanitized.yaml.contains("rule-providers:"))
+        assertFalse(sanitized.yaml.contains("GEOSITE"))
+        assertFalse(sanitized.yaml.contains("GEOIP"))
+        assertFalse(sanitized.yaml.contains("RULE-SET"))
+
+        val runtimeFromLegacyYaml =
+            MihomoConfigSanitizer.buildRuntimeConfig(
+                sanitizedYaml =
+                    """
+                    proxies:
+                      - { name: node-a, type: socks5, server: proxy.example.com, port: 1080 }
+                    rule-providers:
+                      ads:
+                        type: http
+                        url: https://rules.example.com/ads.yaml
+                    rules:
+                      - GEOSITE,cn,DIRECT
+                      - RULE-SET,ads,REJECT
+                      - DOMAIN,example.com,DIRECT
+                    """.trimIndent(),
+                mixedPort = 31001,
+                controllerPort = 31002,
+                controllerSecret = "controller-secret",
+                testUrl = KiyoriNetworkProxyConfig.DEFAULT_TEST_URL,
+                routingMode = KiyoriNetworkConnectionMode.RULE,
+            )
+        assertFalse(runtimeFromLegacyYaml.yaml.contains("rule-providers:"))
+        assertFalse(runtimeFromLegacyYaml.yaml.contains("GEOSITE"))
+        assertFalse(runtimeFromLegacyYaml.yaml.contains("RULE-SET"))
+        assertTrue(runtimeFromLegacyYaml.yaml.contains("DOMAIN,example.com,DIRECT"))
+    }
+
+    @Test
+    fun `runtime config rejects enabled custom rules that require external data`() {
+        val sanitized =
+            MihomoConfigSanitizer.sanitize(
+                """
+                proxies:
+                  - { name: node-a, type: socks5, server: proxy.example.com, port: 1080 }
+                """.trimIndent(),
+            )
+
+        val error =
+            assertThrows(KiyoriNetworkException::class.java) {
+                MihomoConfigSanitizer.buildRuntimeConfig(
+                    sanitizedYaml = sanitized.yaml,
+                    mixedPort = 31001,
+                    controllerPort = 31002,
+                    controllerSecret = "controller-secret",
+                    testUrl = KiyoriNetworkProxyConfig.DEFAULT_TEST_URL,
+                    customRules =
+                        listOf(
+                            KiyoriNetworkProxyRule(
+                                id = "geoip",
+                                pattern = "CN",
+                                mode = KiyoriNetworkRuleMode.PROXY,
+                                type = KiyoriNetworkRuleType.GEOIP,
+                            ),
+                        ),
+                )
+            }
+        assertEquals(KiyoriNetworkErrorCode.CONFIG_INVALID, error.code)
+        assertTrue(error.message.orEmpty().contains("external"))
     }
 
     @Test

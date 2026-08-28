@@ -7,8 +7,8 @@
         "en": "File Converter"
     },
     "description": {
-        "zh": "提供全面的文件格式转换功能。支持常见的音频/视频（如 MP4、MOV、MP3、WAV）、图像（如 JPG、PNG、WEBP）以及文档（如 Markdown、HTML、DOCX、PDF）之间的相互转换。",
-        "en": "Comprehensive file format conversion. Supports converting between common audio/video (MP4, MOV, MP3, WAV), images (JPG, PNG, WEBP), and documents (Markdown, HTML, DOCX, PDF)."
+        "zh": "在音视频、图像和文档格式之间转换本地文件；根据输入和输出扩展名选择 FFmpeg、ImageMagick 或 Pandoc，并返回输出路径。",
+        "en": "Convert local audio/video, image, and document files by selecting FFmpeg, ImageMagick, or Pandoc from the input and output extensions, then return the output path."
     },
     "enabledByDefault": true,
     "category": "File",
@@ -22,7 +22,7 @@
             "parameters": [
                 { "name": "input_path", "description": { "zh": "输入文件的路径。", "en": "Input file path." }, "type": "string", "required": true },
                 { "name": "output_path", "description": { "zh": "输出文件的路径。扩展名决定了目标格式。", "en": "Output file path. The file extension determines the target format." }, "type": "string", "required": true },
-                { "name": "options", "description": { "zh": "用于转换工具的可选命令行选项 (例如, 为 ImageMagick 设置 '-quality 80' )。", "en": "Optional CLI options for the conversion tool (e.g. set '-quality 80' for ImageMagick)." }, "type": "string", "required": false }
+                { "name": "options", "description": { "zh": "可选命令行参数数组，每个参数单独一项，例如 ['-quality', '80']。", "en": "Optional CLI argument array with one argument per item, for example ['-quality', '80']." }, "type": "array", "required": false }
             ]
         }
     ]
@@ -31,6 +31,10 @@
 const fileConverter = (function () {
 
     let terminalSessionId: string | null = null;
+    const TOOL_CHECK_TIMEOUT_MS = 15_000;
+    const PACKAGE_UPDATE_TIMEOUT_MS = 120_000;
+    const PACKAGE_INSTALL_TIMEOUT_MS = 300_000;
+    const CONVERSION_TIMEOUT_MS = 600_000;
 
     async function getTerminalSessionId(): Promise<string> {
         if (terminalSessionId) {
@@ -43,19 +47,25 @@ const fileConverter = (function () {
 
     async function executeTerminalCommand(command: string, timeoutMs?: number) {
         const sessionId = await getTerminalSessionId();
-        return await Tools.System.terminal.exec(sessionId, command);
-    }
-
-    interface ToolResponse {
-        success: boolean;
-        message: string;
-        data?: any;
+        return await Tools.System.terminal.exec(sessionId, command, timeoutMs);
     }
 
     interface ConvertFileParams {
         input_path: string;
         output_path: string;
-        options?: string;
+        options?: string[];
+    }
+
+    function shellQuote(value: string): string {
+        return `'${value.replace(/'/g, `'"'"'`)}'`;
+    }
+
+    function errorMessage(error: unknown): string {
+        return error instanceof Error ? error.message : String(error);
+    }
+
+    function errorStack(error: unknown): string | undefined {
+        return error instanceof Error ? error.stack : undefined;
     }
 
     /**
@@ -68,7 +78,7 @@ const fileConverter = (function () {
     async function checkAndInstall(toolName: string, packageName: string): Promise<boolean> {
         console.log(`Checking for ${toolName}...`);
         const checkCmd = `command -v ${toolName}`;
-        const checkResult = await executeTerminalCommand(checkCmd);
+        const checkResult = await executeTerminalCommand(checkCmd, TOOL_CHECK_TIMEOUT_MS);
 
         if (checkResult.exitCode === 0 && checkResult.output.trim() !== '') {
             console.log(`${toolName} is already installed at: ${checkResult.output.trim()}`);
@@ -80,14 +90,14 @@ const fileConverter = (function () {
         // Assuming an apt-based system (like Debian/Ubuntu).
         const updateCmd = 'apt-get update';
         console.log(`Running: ${updateCmd}`);
-        const updateResult = await executeTerminalCommand(updateCmd);
+        const updateResult = await executeTerminalCommand(updateCmd, PACKAGE_UPDATE_TIMEOUT_MS);
         if (updateResult.exitCode !== 0) {
             console.warn(`'apt-get update' failed. This might be okay if caches are fresh, but installation may fail.\nOutput: ${updateResult.output}`);
         }
 
         const installCmd = `apt-get install -y ${packageName}`;
         console.log(`Running: ${installCmd}`);
-        const installResult = await executeTerminalCommand(installCmd);
+        const installResult = await executeTerminalCommand(installCmd, PACKAGE_INSTALL_TIMEOUT_MS);
 
         if (installResult.exitCode !== 0) {
             console.error(`Failed to install ${packageName}: ${installResult.output}`);
@@ -105,10 +115,13 @@ const fileConverter = (function () {
      * @param options Additional options for the command.
      * @returns An object with tool information and the command to execute.
      */
-    function getConverterInfo(inputPath: string, outputPath: string, options?: string): { command: string; tool: string; pkg: string; } {
+    function getConverterInfo(inputPath: string, outputPath: string, options?: string[]): { command: string; tool: string; pkg: string; } {
         const getExt = (path: string) => path.split('.').pop()?.toLowerCase() || '';
         const inputExt = getExt(inputPath);
         const outputExt = getExt(outputPath);
+        const inputArgument = shellQuote(inputPath);
+        const outputArgument = shellQuote(outputPath);
+        const optionArguments = options?.map(shellQuote).join(' ') ?? '';
 
         const isAudioVideo = (ext: string) => ['mp4', 'mkv', 'avi', 'mov', 'flv', 'webm', 'mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma', 'wmv'].includes(ext);
         const isImage = (ext: string) => ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff', 'ico', 'svg'].includes(ext);
@@ -118,7 +131,7 @@ const fileConverter = (function () {
             return {
                 tool: 'ffmpeg',
                 pkg: 'ffmpeg',
-                command: `ffmpeg -y -i "${inputPath}" ${options || ''} "${outputPath}"`
+                command: `ffmpeg -y -i ${inputArgument} ${optionArguments} ${outputArgument}`
             };
         }
 
@@ -126,7 +139,7 @@ const fileConverter = (function () {
             return {
                 tool: 'convert',
                 pkg: 'imagemagick',
-                command: `convert "${inputPath}" ${options || ''} "${outputPath}"`
+                command: `convert ${inputArgument} ${optionArguments} ${outputArgument}`
             };
         }
 
@@ -134,7 +147,7 @@ const fileConverter = (function () {
             return {
                 tool: 'pandoc',
                 pkg: 'pandoc',
-                command: `pandoc "${inputPath}" -o "${outputPath}" ${options || ''}`
+                command: `pandoc ${inputArgument} -o ${outputArgument} ${optionArguments}`
             };
         }
 
@@ -159,7 +172,7 @@ const fileConverter = (function () {
         await checkAndInstall(converter.tool, converter.pkg);
 
         console.log(`Executing conversion command: ${converter.command}`);
-        const result = await executeTerminalCommand(converter.command);
+        const result = await executeTerminalCommand(converter.command, CONVERSION_TIMEOUT_MS);
 
         if (result.exitCode !== 0) {
             throw new Error(`Conversion failed. Exit code: ${result.exitCode}\nOutput:\n${result.output}`);
@@ -181,13 +194,14 @@ const fileConverter = (function () {
     /**
      * A wrapper function for executing tools to provide standardized success/error handling.
      */
-    async function wrap(func: (params: any) => Promise<any>, params: any, successMessage: string, failMessage: string) {
+    async function wrap<P, R>(func: (params: P) => Promise<R>, params: P, successMessage: string, failMessage: string) {
         try {
             const result = await func(params);
             complete({ success: true, message: successMessage, data: result });
-        } catch (error: any) {
-            console.error(`Function ${func.name} failed! Error: ${error.message}`);
-            complete({ success: false, message: `${failMessage}: ${error.message}`, error_stack: error.stack });
+        } catch (error: unknown) {
+            const message = errorMessage(error);
+            console.error(`Function ${func.name} failed: ${message}`, error);
+            complete({ success: false, message: `${failMessage}: ${message}`, error_stack: errorStack(error) });
         }
     }
 
@@ -217,8 +231,8 @@ const fileConverter = (function () {
             // Verify that readBinary can read the converted image as Base64
             const jpgBinary = await Tools.Files.readBinary(outputJpg);
             console.log("ReadBinary success: size=", jpgBinary.size, "bytes, base64 length=", jpgBinary.contentBase64.length);
-        } catch (e: any) {
-            console.error("Image conversion test failed:", e.message);
+        } catch (error: unknown) {
+            console.error("Image conversion test failed:", errorMessage(error), error);
         }
 
         // Test 2: Document conversion (MD to HTML)
@@ -234,8 +248,8 @@ const fileConverter = (function () {
             if (!htmlContent.includes("<h1")) {
                 throw new Error("HTML content is incorrect.");
             }
-        } catch (e: any) {
-            console.error("Document conversion test failed:", e.message);
+        } catch (error: unknown) {
+            console.error("Document conversion test failed:", errorMessage(error), error);
         }
 
         // Test 3: Unsupported conversion
@@ -245,8 +259,8 @@ const fileConverter = (function () {
             await Tools.Files.write(inputZip, "dummy content");
             await convert_file({ input_path: inputZip, output_path: `${testDir}/test.tar` });
             console.error("Unsupported conversion test FAILED: It should have thrown an error but didn't.");
-        } catch (e: any) {
-            console.log("Unsupported conversion test PASSED as expected:", e.message);
+        } catch (error: unknown) {
+            console.log("Unsupported conversion test PASSED as expected:", errorMessage(error));
         }
 
         console.log("\n--- File Converter Tool Test Finished ---");

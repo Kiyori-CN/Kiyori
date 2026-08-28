@@ -2018,6 +2018,11 @@ private fun isCustomRuleInputValid(
 private val customRuleEditorTypes =
     KiyoriNetworkRuleType.entries.filterNot { type ->
         type in setOf(
+            KiyoriNetworkRuleType.GEOSITE,
+            KiyoriNetworkRuleType.IP_ASN,
+            KiyoriNetworkRuleType.GEOIP,
+            KiyoriNetworkRuleType.SRC_GEOIP,
+            KiyoriNetworkRuleType.SRC_IP_ASN,
             KiyoriNetworkRuleType.RULE_SET,
             KiyoriNetworkRuleType.SUB_RULE,
             KiyoriNetworkRuleType.MATCH,

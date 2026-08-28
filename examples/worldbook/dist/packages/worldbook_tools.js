@@ -6,6 +6,7 @@
     "zh": "世界书工具",
     "en": "World Book Tools"
   },
+  "enabledByDefault": false,
   "description": {
     "zh": "世界书条目的增删改查工具，支持关键词匹配、正则表达式和常驻激活。",
     "en": "CRUD tools for world book entries with keyword matching, regex support, and always-active mode."

@@ -5447,7 +5447,7 @@
     <string name="autoglm_api_key_placeholder">Paste your Zhipu API Key here</string>
     <string name="autoglm_one_click_button">One-Click AutoGLM Config</string>
     <string name="autoglm_status_running">Running one-click configuration, please wait...</string>
-    <string name="autoglm_status_success">AutoGLM one-click configuration completed:\n- Created or updated the AutoGLM UI controller model configuration (autoglm-phone, Zhipu)\n- Switched the "UI Controller" feature to this configuration\n- Disabled Automatic_ui_base and enabled Automatic_ui_subagent\n\nYou can now use AutoGLM mode in the chat interface.</string>
+    <string name="autoglm_status_success">AutoGLM one-click configuration completed:\n- Created or updated the AutoGLM UI controller model configuration (autoglm-phone, Zhipu)\n- Switched the "UI Controller" feature to this configuration\n- Disabled automatic_ui_base and enabled automatic_ui_subagent\n\nYou can now use AutoGLM mode in the chat interface.</string>
     <string name="autoglm_status_error">One-click configuration failed: %1$s</string>
     <string name="autoglm_error_empty_api_key">Please fill in the Zhipu API Key first.</string>
 
@@ -8276,7 +8276,7 @@
     <string name="kiyori_onboarding_permission_root_desc">Request superuser access that can read and modify protected system and app data.</string>
     <string name="kiyori_onboarding_permission_screen_capture_title">Screen capture</string>
     <string name="kiyori_onboarding_permission_screen_capture_desc">Android confirms each screenshot, screen recording, or visual-analysis session when it is used.</string>
-    <string name="openai_web_search_evidence_title">OpenAI Web Search</string>
+    <string name="openai_web_search_evidence_title">OpenAI Search</string>
     <string name="openai_web_search_mode_live">Live</string>
     <string name="openai_web_search_mode_indexed">Indexed</string>
     <string name="openai_web_search_sources_count">Sources (%1$d)</string>
@@ -8316,7 +8316,7 @@
     <string name="openai_web_search_request_id_present">Request ID present</string>
     <string name="openai_web_search_invalid_field">Invalid field</string>
     <string name="openai_web_search_not_present">Not present</string>
-    <string name="openai_web_search_configuration_unavailable">OpenAI Web Search configuration is unavailable.</string>
+    <string name="openai_web_search_configuration_unavailable">OpenAI Search configuration is unavailable.</string>
     <!-- Kiyori AI assistant settings information architecture -->
     <string name="kiyori_ai_settings_title">AI Assistant</string>
     <string name="kiyori_ai_settings_group_model_generation">Models &amp; Generation</string>

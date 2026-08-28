@@ -10,6 +10,7 @@
     "zh": "调用AI模型API实现AI之间智能对话互动。",
     "en": "Call an AI model API to enable interactive conversations between AIs."
   },
+  "enabledByDefault": false,
   "env": ["AI_API_BASE_URL", "AI_API_KEY", "AI_MODEL_NAME"],
   "category": "Chat",
   "tools": [{

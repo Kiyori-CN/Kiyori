@@ -5,7 +5,7 @@
     zh: "代码运行器"
     en: "Code Runner"
   }
-  description: { zh: "提供多语言代码执行能力，支持JavaScript、Python、Ruby、Go、Rust、C和C++脚本的运行。可直接执行代码字符串或运行外部文件，适用于快速测试、自动化脚本和教学演示。", en: "Multi-language code execution. Supports running JavaScript, Python, Ruby, Go, Rust, C and C++ scripts. You can execute code strings directly or run external files, useful for quick tests, automation, and demos." }
+  description: { zh: "执行 JavaScript、Python、Ruby、Go、Rust、C 或 C++ 代码字符串和本地文件，并返回标准输出、错误输出与运行结果。", en: "Execute JavaScript, Python, Ruby, Go, Rust, C, or C++ source strings and local files, returning stdout, stderr, and execution results." }
   enabledByDefault: true
   
   category: "Development"

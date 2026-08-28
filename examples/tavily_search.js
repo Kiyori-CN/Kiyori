@@ -9,6 +9,7 @@
     "zh": "需要 Tavily 的搜索、网页提取、站点爬取/映射、Research 或用量审计时使用。覆盖 Tavily 官方 REST API。",
     "en": "Use for Tavily search, extraction, crawl/map, Research, or usage auditing. Covers the official Tavily REST API."
   },
+  "enabledByDefault": false,
   "env": [
     {
       "name": "TAVILY_API_KEYS",

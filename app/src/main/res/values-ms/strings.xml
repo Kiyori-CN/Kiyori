@@ -2695,7 +2695,7 @@
     <string name="autoglm_status_success">Konfigurasi satu klik AutoGLM telah selesai:
 - Konfigurasi model pengawal UI AutoGLM telah dicipta atau dikemas kini (autoglm-phone, Zhipu)
 - Fungsi "Pengawal UI" telah ditukar kepada konfigurasi ini
-- Automatic_ui_base telah ditutup, Automatic_ui_subagent telah dibuka
+- automatic_ui_base telah ditutup, automatic_ui_subagent telah dibuka
 
 Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="autoglm_status_error">Konfigurasi satu klik gagal: %1$s</string>
@@ -7499,8 +7499,8 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="pkg_env_show_sensitive">Tunjukkan nilai sensitif</string>
     <string name="pkg_env_hide_sensitive">Sembunyikan nilai sensitif</string>
 
-    <!-- OpenAI Web Search evidence -->
-    <string name="openai_web_search_evidence_title">Carian Web OpenAI</string>
+    <!-- OpenAI Search evidence -->
+    <string name="openai_web_search_evidence_title">Carian OpenAI</string>
     <string name="openai_web_search_mode_live">Langsung</string>
     <string name="openai_web_search_mode_indexed">Diindeks</string>
     <string name="openai_web_search_sources_count">Sumber (%1$d)</string>
@@ -7539,7 +7539,7 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="openai_web_search_request_id_present">ID permintaan tersedia</string>
     <string name="openai_web_search_invalid_field">Medan tidak sah</string>
     <string name="openai_web_search_not_present">Tiada</string>
-    <string name="openai_web_search_configuration_unavailable">Konfigurasi Carian Web OpenAI tidak tersedia.</string>
+    <string name="openai_web_search_configuration_unavailable">Konfigurasi Carian OpenAI tidak tersedia.</string>
     <string name="backup_format_kiyori_audit">Pakej Audit Perbualan Kiyori</string>
     <string name="backup_format_kiyori_audit_desc">Mengimport satu pakej .kiyori-audit lengkap selepas mengesahkan laluan, rantaian hash, payload dan tandatangan</string>
     <string name="conversation_audit_storage_title">Storan audit perbualan</string>

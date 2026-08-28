@@ -11,6 +11,32 @@ import org.snakeyaml.engine.v2.api.Load
 import org.snakeyaml.engine.v2.api.LoadSettings
 import org.snakeyaml.engine.v2.common.FlowStyle
 
+private val EXTERNAL_DATA_RULE_TYPES =
+    setOf(
+        "GEOSITE",
+        "GEOIP",
+        "SRC-GEOIP",
+        "IP-ASN",
+        "SRC-IP-ASN",
+        "RULE-SET",
+    )
+
+private val NESTED_EXTERNAL_DATA_RULE_PATTERN =
+    Regex("(?i)(?:^|[,(])\\s*(?:GEOSITE|GEOIP|SRC-GEOIP|IP-ASN|SRC-IP-ASN|RULE-SET)\\s*,")
+
+internal fun isMihomoRuleExternalDataDependent(
+    type: KiyoriNetworkRuleType,
+    pattern: String,
+): Boolean =
+    isMihomoRuleExternalDataDependent(type.wireName, pattern)
+
+private fun isMihomoRuleExternalDataDependent(
+    type: String,
+    expression: String,
+): Boolean =
+    type.uppercase() in EXTERNAL_DATA_RULE_TYPES ||
+        expression.contains(NESTED_EXTERNAL_DATA_RULE_PATTERN)
+
 data class SanitizedMihomoSubscription(
     val yaml: String,
     val summary: MihomoSubscriptionSummary,
@@ -97,9 +123,6 @@ object MihomoConfigSanitizer {
         }
         if (providers.isNotEmpty()) {
             sanitized["proxy-providers"] = providers.associate { it.name to it.mapping }
-        }
-        if (ruleProviders.isNotEmpty()) {
-            sanitized["rule-providers"] = ruleProviders
         }
         if (subRules.isNotEmpty()) {
             sanitized["sub-rules"] = subRules.mapValues { (_, result) -> result.accepted }
@@ -212,6 +235,16 @@ object MihomoConfigSanitizer {
                 subRuleNames = subRules.keys,
             ).accepted
 
+        customRules
+            .asSequence()
+            .filter(KiyoriNetworkProxyRule::enabled)
+            .firstOrNull { rule -> isMihomoRuleExternalDataDependent(rule.type, rule.pattern) }
+            ?.let { rule ->
+                invalid(
+                    "The enabled custom rule ${rule.type.wireName} requires external GeoIP, GeoSite, ASN, or rule-provider data.",
+                )
+            }
+
         val runtime =
             linkedMapOf<String, Any?>(
                 "mixed-port" to mixedPort,
@@ -229,9 +262,6 @@ object MihomoConfigSanitizer {
         }
         if (providers.isNotEmpty()) {
             runtime["proxy-providers"] = providers.associate { it.name to it.mapping }
-        }
-        if (ruleProviders.isNotEmpty()) {
-            runtime["rule-providers"] = ruleProviders
         }
         if (subRules.isNotEmpty()) runtime["sub-rules"] = subRules.mapValues { it.value.accepted }
         sanitizeDns(root["dns"])?.let { runtime["dns"] = it }
@@ -406,7 +436,7 @@ object MihomoConfigSanitizer {
         if (raw == null) return emptyMap()
         val providers = stringKeyMap(raw, "rule-providers")
         val seen = linkedSetOf<String>()
-        return providers.entries.associate { (rawName, rawValue) ->
+        providers.entries.forEach { (rawName, rawValue) ->
             val name = rawName.trim()
             if (name.isBlank() || !seen.add(name)) {
                 invalid("Rule provider name is blank or duplicated.")
@@ -417,13 +447,12 @@ object MihomoConfigSanitizer {
             }
             val url = source["url"]?.toString()?.trim().orEmpty()
             if (!isHttpUrl(url)) invalid("Rule provider $name must use an absolute HTTP(S) URL.")
-            val mapping = deepCopyMap(source).toMutableMap()
-            mapping["type"] = "http"
-            mapping["url"] = url
-            mapping["path"] = "rule-providers/${sha256(name).take(24)}.yaml"
-            mapping.remove("proxy")
-            name to mapping
         }
+        // Rule providers are remote inputs. Keeping them in the runtime config makes Mihomo
+        // fetch them during startup, before Kiyori has an application proxy route. Validate the
+        // shape above for a useful import error, then omit the provider and any RULE-SET that
+        // references it so the generated config remains self-contained.
+        return emptyMap()
     }
 
     private fun sanitizeSubRules(
@@ -483,6 +512,7 @@ object MihomoConfigSanitizer {
                 }
             val supported =
                 kind in SUPPORTED_RULE_TYPES &&
+                    !isMihomoRuleExternalDataDependent(kind, matcher) &&
                     parts.size >= 2 &&
                     targetIndex >= 1 &&
                     target in validTargets &&

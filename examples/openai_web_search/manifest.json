@@ -1,19 +1,16 @@
 {
   "schema_version": 1,
   "toolpkg_id": "com.kiyori.openai_web_search",
-  "version": "1.0.6",
+  "version": "1.0.0",
   "main": "dist/main.js",
   "display_name": {
-    "zh": "OpenAI Web Search",
-    "en": "OpenAI Web Search"
+    "zh": "OpenAI 搜索",
+    "en": "OpenAI Search"
   },
   "description": {
-    "zh": "由 Kiyori 宿主安全调用 OpenAI Responses hosted web_search 的独立搜索插件，可供任意主聊天模型使用。",
-    "en": "A standalone search plugin that securely invokes OpenAI Responses hosted web_search through the Kiyori host for use with any primary chat model."
+    "zh": "通过 Kiyori 宿主调用 OpenAI Responses hosted web_search，供主聊天模型检索最新网页并返回引用。",
+    "en": "Invoke OpenAI Responses hosted web_search through Kiyori to return current web facts and citations to the primary chat model."
   },
-  "author": [
-    "Kiyori"
-  ],
   "enabled_by_default": false,
   "environment": [
     {

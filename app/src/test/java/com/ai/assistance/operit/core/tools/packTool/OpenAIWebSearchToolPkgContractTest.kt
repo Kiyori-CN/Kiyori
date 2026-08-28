@@ -45,7 +45,7 @@ class OpenAIWebSearchToolPkgContractTest {
         assertTrue(metadata.getBoolean("enabledByDefault"))
         val tools = metadata.getJSONArray("tools")
         assertEquals(1, tools.length())
-        assertEquals("search", tools.getJSONObject(0).getString("name"))
+        assertEquals("openai_search", tools.getJSONObject(0).getString("name"))
         val parameters = tools.getJSONObject(0).getJSONArray("parameters")
         val parameterTypes =
             (0 until parameters.length())

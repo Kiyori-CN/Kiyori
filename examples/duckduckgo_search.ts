@@ -7,7 +7,8 @@ METADATA
         "zh": "DuckDuckGo 搜索",
         "en": "DuckDuckGo Search"
     },
-    "description": { "zh": "使用DuckDuckGo进行网络搜索和内容抓取。", "en": "Use DuckDuckGo for web search and content extraction." },
+    "description": { "zh": "无需 API Key 搜索 DuckDuckGo 网页结果，或抓取指定结果页面的可读正文。", "en": "Search DuckDuckGo web results without an API key, or fetch readable content from a selected result page." },
+    "enabledByDefault": true,
     "category": "Search",
     "tools": [
         {

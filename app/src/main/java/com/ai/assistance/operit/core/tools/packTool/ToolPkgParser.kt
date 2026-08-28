@@ -454,7 +454,11 @@ internal object ToolPkgArchiveParser {
                 val normalizedPackage =
                     parsedPackage.copy(
                         name = packageName,
-                        isBuiltIn = isBuiltIn
+                        isBuiltIn = isBuiltIn,
+                        // Bundled packages that own environment state require explicit activation.
+                        enabledByDefault =
+                            parsedPackage.enabledByDefault &&
+                                !(isBuiltIn && parsedPackage.env.isNotEmpty())
                     )
 
                 subpackagePackages.add(normalizedPackage)
@@ -1284,6 +1288,11 @@ internal object ToolPkgArchiveParser {
             }
         validateContainerEnvironment(manifest.environment)
 
+        val hasBuiltInEnvironment =
+            isBuiltIn &&
+                (manifest.environment.isNotEmpty() || subpackagePackages.any { it.env.isNotEmpty() })
+        val containerEnabledByDefault = manifest.enabledByDefault && !hasBuiltInEnvironment
+
         val containerPackage =
             ToolPackage(
                 name = manifest.toolpkgId,
@@ -1291,7 +1300,7 @@ internal object ToolPkgArchiveParser {
                 tools = emptyList(),
                 env = manifest.environment,
                 isBuiltIn = isBuiltIn,
-                enabledByDefault = manifest.enabledByDefault,
+                enabledByDefault = containerEnabledByDefault,
                 displayName = containerDisplayName,
                 category = "ToolPkg",
                 author = manifest.author

@@ -140,14 +140,11 @@ class KiyoriApplication :
         ApplicationStartupTime.recordForProcess(startTime)
         ApplicationContextAccess.installForProcess(this)
         val isMainProcess = CrashProcessIdentity.currentProcessName(this) == packageName
-        val networkProxyManager =
-            if (isMainProcess) {
-                KiyoriNetworkProxyManager.getInstance(this).also {
-                    it.scheduleStartupReconciliation()
-                }
-            } else {
-                null
-            }
+        if (isMainProcess) {
+            // The main process is the sole embedded-proxy owner; secondary runtimes must not
+            // create another manager or compete for the process-wide WebView proxy override.
+            KiyoriNetworkProxyManager.getInstance(this).scheduleStartupReconciliation()
+        }
         KiyoriLogger.bindContext(this, KiyoriPaths::kiyoriRootDir)
 
         configureOpenMpEnvironment()
@@ -164,7 +161,6 @@ class KiyoriApplication :
                 encodeDefaults = true
             }
         )
-
     }
 
     /** Initializes only state that the first Compose frame can access synchronously. */

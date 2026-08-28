@@ -2,8 +2,8 @@
 {
   "name": "pubmed_search",
   "display_name": {
-    "zh": "PubMed 医学文献",
-    "en": "PubMed Medical Literature"
+    "zh": "PubMed 文献搜索",
+    "en": "PubMed Literature Search"
   },
   "description": {
     "zh": "通过 NCBI 官方 E-utilities 搜索 PubMed 医学文献并获取文章摘要元数据。",
@@ -22,7 +22,7 @@
     }
   ],
   "category": "Academic",
-  "enabledByDefault": true,
+  "enabledByDefault": false,
   "tools": [
     {
       "name": "search",

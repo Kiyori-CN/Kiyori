@@ -2,13 +2,14 @@
 {
   "name": "zhipu_draw",
   "display_name": {
-    "zh": "智谱生图",
-    "en": "Zhipu Draw"
+    "zh": "智谱 图像生成",
+    "en": "Zhipu Image Generation"
   },
   "description": {
-    "zh": "使用智谱AI图像生成API根据提示词画图，将图片保存到本地 /sdcard/Download/Kiyori/plugins/draw/zhipu_draw/draws/ 目录，并返回 Markdown 图片提示。",
-    "en": "Generate images via Zhipu AI image generation API from a prompt, save to /sdcard/Download/Kiyori/plugins/draw/zhipu_draw/draws/, and return a Markdown image reference."
+    "zh": "通过智谱官方图像生成接口按提示词生成图片，保存结果到本地并返回 Markdown 图片引用。",
+    "en": "Generate images from prompts through the official Zhipu API, save results locally, and return Markdown image references."
   },
+  "enabledByDefault": false,
   "env": [
     {
       "name": "ZHIPU_API_KEY",

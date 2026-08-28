@@ -9,8 +9,8 @@
         "zh": "基于 terminal 集成能力提供 Linux SSH 连接、tmux 长任务与远程文件操作。",
         "en": "Linux SSH tools powered by terminal integration, including tmux long jobs and remote file operations."
     },
-    "enabledByDefault": true,
-    "category": "System",
+    "enabledByDefault": false,
+    "category": "Network",
     "env": [
         {
             "name": "LINUX_SSH_HOST",

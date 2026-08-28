@@ -1,16 +1,17 @@
 ---
 status: verification_pending
 implementation: local_implementation_complete
-last_updated: 2026-08-13
+last_updated: 2026-08-28
 ---
 
-# OpenAI Hosted Web Search 架构
+# OpenAI 搜索架构
 
 ## 1. 文档职责
 
-本文定义 Kiyori 将 OpenAI 官方 Web Search 作为独立工具提供给所有主聊天模型时的长期架构边界。
+本文定义 Kiyori 将 OpenAI 官方 Responses hosted `web_search` 作为“OpenAI 搜索”独立工具提供给
+所有主聊天模型时的长期架构边界。
 实施进度、分阶段任务与验证矩阵记录在
-[OpenAI 官方联网搜索插件化接入](../../TODO/openai_hosted_web_search/index.md)。
+[OpenAI 搜索插件化接入](../../TODO/openai_hosted_web_search/index.md)。
 
 当前本地实现是 revision `7`。revision `6` 的请求生命周期、admission、单一 `PACKAGE_ENV`、
 Provider 展示、三态 evidence parser 和分层结果卡继续作为基础；revision `7` 已完成 URL identity、
@@ -44,7 +45,7 @@ OpenAI Hosted Web Search 是 Kiyori AI 包管理域中的可安装、可启停 T
 ```text
 DeepSeek / Gemini / Claude / OpenAI / local model
 	└─ Kiyori tool call
-		└─ OpenAI Web Search ToolPkg
+		└─ OpenAI 搜索 ToolPkg
 			└─ openai_web_search subpackage
 				└─ OpenAI GPT-5.6 search service
 					└─ OpenAI hosted web_search
@@ -137,14 +138,14 @@ search actions、query、usage 和完整 evidence schema；主模型使用
 `formatToolResultForModel()` 接收受限 projection，只发送 answer、source markers、cited
 sources、source summary、warnings 和必要 diagnostics，不重复发送完整 `all_sources`、search
 actions、query、usage 或原始 citations。UI 和原始 ToolResult 仍保留完整 `all_sources`；只有
-精确 `openai_web_search:search` 且 schema 校验通过的结果进入专用来源卡。
+精确 `openai_web_search:openai_search` 且 schema 校验通过的结果进入专用来源卡。
 `buildBoundedToolResultMessage()` 是主模型上下文的唯一批量入口，不能将 projection 作为 UI
 evidence 重新解析。
 
 ### ToolPkg 注册与递归工具可观察性
 
 ToolPkg 注册日志复用实际加载 runtime 的 version、artifact SHA-256 和 source type，并记录
-`registration_thread` 与主注册 `elapsed_ms`。OpenAI Web Search 额外记录
+`registration_thread` 与主注册 `elapsed_ms`。OpenAI 搜索额外记录
 `response_schema_revision=7`。注册观测不记录私有路径、脚本正文、环境变量或异常正文；外部缓存
 清除一次性 observation，资产快照只保留解析后的 runtime，避免重复输出旧耗时。
 
@@ -228,7 +229,7 @@ openai_web_search
 公开工具：
 
 ```text
-openai_web_search:search
+openai_web_search:openai_search
 ```
 
 ToolPkg 容器提供：
@@ -407,7 +408,7 @@ error type、code、message 与 request/trace ID。状态页仅显示短 credent
 
 ## 11. UI 证据
 
-精确工具名 `openai_web_search:search` 在 `READ_ONLY`、`ALL` 和 `FULL` 模式下，即使单工具也建立
+精确工具名 `openai_web_search:openai_search` 在 `READ_ONLY`、`ALL` 和 `FULL` 模式下，即使单工具也建立
 消息级 L0 工具组。它复用现有 `rendererId + stableKey + expanded + userOverride +
 hasLiveXmlStream` 状态 owner；流式自动展开、静态完成自动收起、用户操作后尊重 override 的逻辑
 不创建第二份状态。
@@ -478,7 +479,7 @@ revision `7` 当前专用 owner：
 - ToolPkg container-level environment schema
 - package-scoped sensitive host-only environment repository
 - official/relay contract 和 compatibility probe
-- OpenAI Web Search package-bound host bridge
+- OpenAI 搜索 package-bound host bridge
 - `OpenAIHostedWebSearchRequestLifecycle`
 - `OpenAIHostedWebSearchAdmissionController`
 - `OpenAIHostedWebSearchReadinessEvaluator`
@@ -494,7 +495,7 @@ revision `7` 当前专用 owner：
 
 - 不把 `OpenAIResponsesProvider` 当作搜索工具直接发送伪聊天
 - 不用 `ToolPkg.registerAiProvider`
-- 不用 Browser Runtime 抓取网页替代 OpenAI Web Search
+- 不用 Browser Runtime 抓取网页替代 OpenAI 搜索
 - 不用全局 env 作为正式 Key
 
 ## 14. 兼容和发布
@@ -513,7 +514,7 @@ OpenAI Responses（兼容端点）
 选择器按 Chat Completions、Responses、其他内建 Provider 和动态 ToolPkg Provider 分组。已选
 Provider 使用多行全名与协议/端点摘要，TalkBack 语义包含标题、完整 Provider 名和摘要。
 
-revision `7` 当前 ToolPkg 版本是 `1.0.6`，manifest 声明二十个 host-service 环境变量，response
+revision `7` 当前 ToolPkg 版本是 `1.0.0`，manifest 声明二十个 host-service 环境变量，response
 schema revision 是 `7`。本地 Hosted Web Search JVM 矩阵为 `26 suites / 142 tests`，失败、错误和
 跳过均为 `0`；Kotlin compile、TypeScript strict、dist hash stability、formal readiness 和
 Debug APK 验证已通过。真实 relay revalidation、设备和用户验收仍未执行。

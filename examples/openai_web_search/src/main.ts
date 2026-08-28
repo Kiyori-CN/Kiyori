@@ -7,8 +7,8 @@ export function registerToolPkg(): boolean {
     screen: settingsScreen,
     params: {},
     title: {
-      zh: "OpenAI Web Search",
-      en: "OpenAI Web Search",
+      zh: "OpenAI 搜索",
+      en: "OpenAI Search",
     },
   });
 
