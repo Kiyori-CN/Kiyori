@@ -188,6 +188,14 @@ jobs:
 
       - name: Build bundled ToolPkg packages
         run: |
+          npm run build:examples:academic
+          git diff --exit-code -- \
+            examples/arxiv_search.js \
+            examples/crossref_search.js \
+            examples/openalex_search.js \
+            examples/pubmed_search.js \
+            examples/semantic_scholar_search.js
+          npm run test:examples:academic
           npm run build:examples:github
           git diff --exit-code -- examples/github.js
 

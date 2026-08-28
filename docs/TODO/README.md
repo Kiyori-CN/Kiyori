@@ -4,6 +4,16 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # Kiyori 开发任务与验证索引
 
+## 2026-08-28 五源学术搜索脚本深度优化
+
+状态：`IN PROGRESS`。
+
+本轮基于统一主题搜索和同篇论文交叉核验，继续优化 arXiv、Crossref、PubMed、Semantic Scholar、
+OpenAlex 五个 Academic 脚本。范围包括真实执行生成 JS 的确定性合同测试、OpenAlex 搜索排序约束、
+Crossref 默认紧凑响应、arXiv Atom 错误与版本/DOI 语义、PubMed 结构化错误，以及各源分页、字段和
+来源口径说明；不新增备用 API、静默重试、跨库自动合并或引用数换算。详细根因、阶段和验收矩阵见
+[`academic_script_catalog/index.md`](academic_script_catalog/index.md) 的“2026-08-28 五源深度优化”。
+
 ## 2026-08-28 内置脚本与插件目录规范化
 
 状态：`LOCAL IMPLEMENTATION VERIFIED / DEVICE VERIFICATION PENDING`。

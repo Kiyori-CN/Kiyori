@@ -110,11 +110,17 @@ const PubMedSearch = (function () {
         }
         return response.json();
     }
+    function finiteInteger(value, defaultValue, minimum, maximum, name) {
+        const candidate = value ?? defaultValue;
+        if (!Number.isFinite(candidate))
+            throw new Error(`${name} must be a finite number.`);
+        return Math.min(Math.max(Math.floor(candidate), minimum), maximum);
+    }
     function normalizedCount(value) {
-        return Math.min(Math.max(Math.floor(value ?? 10), 1), MAX_RESULTS);
+        return finiteInteger(value, 10, 1, MAX_RESULTS, "retmax");
     }
     function normalizedStart(value) {
-        return Math.max(Math.floor(value ?? 0), 0);
+        return finiteInteger(value, 0, 0, Number.MAX_SAFE_INTEGER, "retstart");
     }
     function normalizedSort(value) {
         const trimmed = value?.trim();
@@ -134,6 +140,36 @@ const PubMedSearch = (function () {
         });
         return values;
     }
+    function stableUniqueIds(ids) {
+        const seen = new Set();
+        const unique = [];
+        ids.forEach((id) => {
+            if (seen.has(id))
+                return;
+            seen.add(id);
+            unique.push(id);
+        });
+        return unique;
+    }
+    function searchPayloadError(payload) {
+        const result = payload.esearchresult;
+        const errors = [];
+        if (result.ERROR?.trim())
+            errors.push(result.ERROR.trim());
+        const fieldsNotFound = result.errorlist?.fieldsnotfound ?? [];
+        if (fieldsNotFound.length > 0)
+            errors.push(`Unknown field(s): ${fieldsNotFound.join(", ")}`);
+        const phrasesNotFound = result.errorlist?.phrasesnotfound ?? [];
+        if (phrasesNotFound.length > 0)
+            errors.push(`Invalid phrase(s): ${phrasesNotFound.join(", ")}`);
+        return errors.join("; ");
+    }
+    function responseInteger(value, name) {
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed) || parsed < 0)
+            throw new Error(`PubMed returned an invalid ${name} value.`);
+        return Math.floor(parsed);
+    }
     async function fetchSummaries(ids) {
         const payload = await requestJson("esummary.fcgi", {
             db: "pubmed",
@@ -143,7 +179,7 @@ const PubMedSearch = (function () {
         if ("success" in payload)
             return payload;
         const data = summaries(payload, ids);
-        return { success: true, message: `PubMed returned ${data.length} article summary record(s).`, data, ids, count: data.length };
+        return { success: true, message: `PubMed returned ${data.length} article summary record(s).`, data, ids, count: data.length, source: "PubMed" };
     }
     async function search(params) {
         if (!params.term || params.term.trim() === "")
@@ -162,7 +198,14 @@ const PubMedSearch = (function () {
         if ("success" in payload)
             return payload;
         const searchResult = payload.esearchresult;
-        const ids = searchResult.idlist ?? [];
+        // NCBI can encode query errors inside an otherwise successful HTTP 200 ESearch response.
+        const payloadError = searchPayloadError(payload);
+        if (payloadError !== "") {
+            return { success: false, message: `PubMed search rejected the query: ${payloadError}`, statusCode: 200 };
+        }
+        const ids = stableUniqueIds(searchResult.idlist ?? []);
+        const total = responseInteger(searchResult.count, "count");
+        const retstart = responseInteger(searchResult.retstart, "retstart");
         if (ids.length === 0) {
             return {
                 success: true,
@@ -170,16 +213,17 @@ const PubMedSearch = (function () {
                 data: [],
                 ids: [],
                 count: 0,
-                total: Number(searchResult.count),
-                retstart: Number(searchResult.retstart),
+                total,
+                retstart,
                 query_translation: searchResult.querytranslation,
+                source: "PubMed",
             };
         }
         const result = await fetchSummaries(ids);
         return {
             ...result,
-            total: Number(searchResult.count),
-            retstart: Number(searchResult.retstart),
+            total,
+            retstart,
             query_translation: searchResult.querytranslation,
         };
     }
@@ -190,12 +234,12 @@ const PubMedSearch = (function () {
             return { success: false, message: "ids accepts at most 100 PMIDs." };
         if (!params.ids.every((id) => typeof id === "string"))
             return { success: false, message: "ids must contain only PMID strings." };
-        const ids = params.ids.map((id) => id.trim()).filter((id) => id !== "");
-        if (ids.length !== params.ids.length)
+        const normalizedIds = params.ids.map((id) => id.trim()).filter((id) => id !== "");
+        if (normalizedIds.length !== params.ids.length)
             return { success: false, message: "ids must contain only non-empty PMID strings." };
-        if (ids.some((id) => !/^\d+$/.test(id)))
+        if (normalizedIds.some((id) => !/^\d+$/.test(id)))
             return { success: false, message: "ids must contain only decimal PMID values." };
-        return fetchSummaries(ids);
+        return fetchSummaries(stableUniqueIds(normalizedIds));
     }
     async function runTool(toolName, action) {
         try {

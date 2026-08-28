@@ -1,5 +1,135 @@
 # Academic 学术脚本分组与五源 API
 
+## 0. 2026-08-28 五源深度优化
+
+### 0.1 当前状态与任务契约
+
+- 当前状态：`LOCAL IMPLEMENTATION VERIFIED / DEVICE VERIFICATION PENDING`。
+- 目标：基于统一主题搜索和同篇论文详情交叉核验，主动审查并修复 arXiv、Crossref、PubMed、
+  Semantic Scholar、OpenAlex 五个生成脚本在相关性、参数、解析、分页、输出体积、错误诊断和
+  数据口径上的真实缺陷。
+- 范围：五个 `examples/*.ts` 唯一源码、对应生成 JS 和 APK assets、Academic 合同测试、现有
+  ToolPkg CI 步骤、本文与总 TODO 索引；语义合同变化时同步检查根 `CONTEXT.md` 和 README。
+- 非目标：不新增代理、备用域名、自动重试、跨库自动匹配或引用数换算；不把 OpenAlex
+  污染样本写成通用自动判假规则；不安装或操作设备，不执行 Release 或启用远端 Actions。
+- 发布与兼容：Kiyori 仍是未公开发行的开发版，本轮是在五个既有包 ID 和工具名上的正常迭代；保留
+  `arxiv_search`、`crossref_search`、`pubmed_search`、`semantic_scholar_search`、
+  `openalex_search` 及其现有导出名，不保留被修复实现的并行旧路径。
+- 授权：用户明确授权使用本轮临时提供的官方 API 凭据做低频真实测试，并授权验证完成后提交和推送
+  `origin/main`。凭据只进入测试进程环境，不写入源码、文档、日记、日志或构建产物；Semantic
+  Scholar 按官方初始 `1 RPS` 限制串行执行必要的搜索与详情调用。
+
+完成条件：生成 JS 的模拟运行时测试覆盖请求 URL、参数组合、200 业务错误、输出塑形和错误日志；
+五包 TypeScript 编译与 examples/assets 同步无漂移；低频官方搜索/详情矩阵取得可解释结果；相关 JVM、
+Node、formal readiness、Markdown、fresh clone 和 Debug APK 检查通过；候选树敏感内容与产物审计
+通过；提交后 local/tracking/远端 `main` 一致。
+
+### 0.2 已验证事实与根因
+
+1. 当前 `AcademicPackageContractTest` 只检查 metadata、导出名、官方字符串和 examples/assets 字节
+   一致性，没有执行生成 JS；因此 URL 构造、参数组合、二段请求、响应解析和输出体积回归均可漏过。
+2. 五包的页码/数量函数直接对输入执行 `Math.floor` 与夹取；`NaN` 或无穷值会生成非法官方参数，
+   而不是在请求前形成明确错误。
+3. OpenAlex 官方搜索默认按 `relevance_score` 降序，显式 `sort` 会改写这一顺序。当前脚本允许
+   `search` 与无约束 `cited_by_count:desc` 同用，统一主题实测会返回完全不相关的全库高引记录。
+   当前 `get_work` 未传 `select` 时还会返回完整作品对象，与搜索路径的紧凑默认不一致。
+4. OpenAlex 官方说明 works 的 `search` 搜索 title、abstract 和 fulltext；当前 Agent 参数说明误写为
+   同时搜索作者、机构和概念。OpenAlex 还明确把来源文本视为未清洗的外部数据，因此异常 DOI、作者、
+   机构和引用数必须保留来源级核验提示，不能凭单条启发式规则自动判假。
+5. Crossref 五条工具直接返回原始 work。已知 DOI 响应会携带 JATS abstract 和完整 `reference` 数组，
+   单条详情即可挤占工具输出；主题检索的 `query.bibliographic` 适合出版元数据发现，但不能承诺与专门
+   学术图谱相同的主题相关性。
+6. arXiv 官方 Atom 错误也可能使用 HTTP 200 和单个 error entry 返回；当前解析器会把它当成功论文。
+   官方示例允许 `<entry ...>` 带 namespace 属性，而当前正则只匹配精确 `<entry>`。官方还明确 DOI
+   仅在作者提供时出现，指定 `id_list=<id>vN` 才保证取特定版本；空 DOI 不是跨库缺失修复信号。
+7. PubMed ESearch 可在 HTTP 200 的 `esearchresult` 内返回 `ERROR`/`errorlist`；当前实现会把该形状
+   转为“零结果成功”，并可能产生 `NaN` total。ESearch 后的 ESummary 二段请求和
+   `querytranslation` 则是现有正确 owner，应保留。
+8. Semantic Scholar 当前搜索和详情共用包含 abstract 的默认字段，导致多结果搜索体积不必要地放大；
+   任意 `fields` 还可请求大型嵌套集合。官方 API Key 初始限制为 `1 RPS`，HTTP 429 必须原样可观察，
+   不增加重试或换源。
+9. Semantic Scholar、Crossref 和 OpenAlex 的年份、引用数来自不同记录合并和统计口径；脚本只能声明
+   当前来源，不能把跨库数值表示为可直接比较的统一指标。
+
+官方证据（2026-08-28 复核）：
+
+- [OpenAlex Search](https://help.openalex.org/api/searching/)、
+  [Sort](https://help.openalex.org/api/sorting/) 和
+  [Select Fields](https://help.openalex.org/api/selecting-fields/)；
+- [Crossref REST API](https://www.crossref.org/documentation/retrieve-metadata/rest-api/)；
+- [arXiv API User's Manual](https://info.arxiv.org/help/api/user-manual.html)；
+- [Semantic Scholar API Overview](https://www.semanticscholar.org/product/api)；
+- [NCBI E-utilities Usage Guidelines](https://eutilities.github.io/site/API_Key/usageandkey/)。
+
+### 0.3 采用方案与影响文件
+
+| 领域 | 采用方案 | 主要文件 |
+| --- | --- | --- |
+| 可执行合同 | 新增 Node `vm` 模拟宿主，直接执行提交的 CommonJS JS，记录请求并注入官方响应；接入现有 ToolPkg CI 步骤 | `tools/example_packages/academic_packages.test.mjs`、`package.json`、`.github/workflows/{pr-check,android-build}.yml` |
+| arXiv | 把普通查询拆成明确的 `all:` term AND 表达式；兼容带属性 entry；识别 200 error feed；公开 arXiv ID、版本、主分类和作者提供 DOI 的语义 | `examples/arxiv_search.ts` |
+| Crossref | 默认把 raw work 映射为紧凑出版记录、清洗并限制 abstract；只在显式请求时返回受数量限制的规范化 references；搜索结果不返回 references | `examples/crossref_search.ts` |
+| PubMed | 识别 ESearch 200 业务错误；严格验证有限整数；PMID 稳定去重；保留 ESearch/ESummary 与 query translation | `examples/pubmed_search.ts` |
+| Semantic Scholar | 搜索默认省略 abstract，详情默认包含；自定义 fields 只接受轻量白名单并稳定去重；返回来源内指标提示 | `examples/semantic_scholar_search.ts` |
+| OpenAlex | 显式 `sort` 必须同时有非空 `filter`；搜索与详情都使用紧凑 `select`；默认包含 relevance score，修正文案并返回来源/质量提示 | `examples/openalex_search.ts` |
+| 生成与交付 | `tsc` 生成 JS，白名单同步到 APK assets；扩展 JVM 静态合同；更新语义文档和最终证据 | 五个生成 JS、五个 assets、`AcademicPackageContractTest.kt`、本文、`CONTEXT.md` |
+
+不抽取五包共享运行时代码：普通脚本必须保持单文件可安装，跨包复制的少量参数/错误函数由可执行合同
+统一约束；创建共享脚本模块会引入新的打包和加载 owner，收益不足以覆盖协议复杂度。
+
+### 0.4 阶段、风险与验证
+
+1. `M0 - DONE`：读取规则、Git/历史/源码/测试/同步链，运行 formal readiness，复核五家官方文档，
+   冻结本任务契约。
+2. `M1 - DONE`：增加失败用例和模拟宿主，证明基线实现在 OpenAlex sort、arXiv error feed、
+   Crossref 大响应、PubMed 200 error、字段体积与非有限分页参数上的缺口。
+3. `M2 - DONE`：逐包实现最小闭环修复，编译 JS，同步五个 APK assets，扩展 JVM 静态合同。
+4. `M3 - DONE`：运行 Node 模拟矩阵、TypeScript、`node --check`、同步 dry-run、Academic JVM、
+   `git diff --check`、formal readiness 和 Markdown 链接检查。
+5. `M4 - DONE`：使用临时进程环境执行五源低频官方搜索/详情；Semantic Scholar 串行且请求间隔
+   不低于官方初始限制，不记录 key/email/原始大响应。PubMed、arXiv、OpenAlex、Crossref 的第二阶段
+   8 个调用均为 HTTP 200；第一阶段的 PubMed 搜索/详情与 Semantic Scholar 搜索/详情均通过夹具的
+   成功断言，随后未重复请求 Semantic Scholar。
+6. `M5 - DONE`：串行 `:app:assembleDebug --no-daemon --console=plain` 通过，核验 APK 身份、Debug
+   V2 单签名、16 KiB 对齐及五个 assets；fresh-clone、候选树/敏感内容/子模块/大文件审计通过，进入
+   精确提交推送与远端 ref 对账。
+
+主要失败模式与控制：
+
+- 过度压缩丢失出版字段：由 Crossref mock 详情和真实 DOI 对照固定核心卷期页、许可、标识和 reference
+  计数；完整 references 必须显式请求。
+- 相关性策略变成隐藏行为：OpenAlex 无 filter 的显式 sort 返回参数错误，不静默删除 sort；arXiv
+  查询构造在返回对象中公开实际 `search_query`。
+- 来源污染被误判：OpenAlex 只返回可审计提示，不依据引用阈值、作者字符串或 DOI 外观删除记录。
+- 外部限流：不重试、不换源；记录 HTTP 状态和结构，429 或额度变化作为外部证据而非本地失败掩盖。
+- 回滚点：本轮首个项目写入前的干净 `main@05ffa94de26529cb744cb1bd8338558419037725`；禁止用
+  destructive Git 命令回滚，实际撤回只通过后续精确提交完成。
+
+### 0.5 当前验证证据（2026-08-29）
+
+- Node `npm run test:examples:academic`：`8/8` 通过；覆盖请求 URL、arXiv 停用词与 HTTP 200 error
+  feed、Crossref compact/reference limit、PubMed 200 业务错误与 ID 去重、Semantic Scholar 字段白名单、
+  OpenAlex sort/filter/select 和五包非有限分页。
+- TypeScript：`npm run build:examples:academic` 通过；五个生成 JS `node --check` 通过；同步脚本
+  `--no-hot-reload` 报告 `whitelist=49, resolved=49, missing=0`，五个 Academic examples/assets
+  逐字节同步。
+- JVM：`:app:testDebugUnitTest --tests com.ai.assistance.operit.core.tools.packTool.AcademicPackageContractTest`
+  通过；静态合同锁定 metadata、官方端点、紧凑投影、来源指标提示和新错误路径。
+- JVM：`:app:testDebugUnitTest --no-daemon --console=plain` 通过，未报告失败、错误或跳过测试。
+- 正式准备：`check_formal_readiness.py --repository . --require-main` 通过；同步脚本报告
+  `whitelist=49, resolved=49, missing=0`，五个 Academic examples/assets 已逐字节一致。
+- 真实官方第二阶段：PubMed PMID `38866050` / DOI `10.1038/s41586-024-07618-3` 的搜索与详情、
+  arXiv `chain of thought` 搜索（5 条）与 `2201.11903` v6 详情、OpenAlex 搜索与同 DOI 详情、
+  Crossref 关键词与同 DOI 详情均成功；OpenAlex 无 sort 默认返回 CoT 结果，Crossref 详情未返回完整
+  references。响应正文仅在进程内读入并摘要，未保存凭据或原始 payload。
+- Debug APK：`:app:assembleDebug --no-daemon --console=plain` 通过 235 个任务；APK 为
+  `com.kiyori 0.1.0 (45)`，`503676753` 字节，SHA-256
+  `1C8DFC15B0576DD0E3C401D596FB1A9502600227D0BCE4B9CF98D2DC46ADD598`；`apksigner verify --verbose`
+  报告 Debug V2 单 signer，`zipalign -c -P 16 -v 4` 通过；APK 内五个 Academic assets 与 examples
+  逐字节一致。
+- Fresh clone：`check_fresh_clone.py --repository .` 通过（基线 `05ffa94de26529cb744cb1bd8338558419037725`）。
+- 待完成：精确提交推送与 local/tracking/远端 `main` ref 对账；目标设备的扩展抽屉显示和真实 AI
+  调用仍不属于本轮自动证据，保持 `verification_pending`。
+
 ## 1. 状态与任务契约
 
 - 当前状态：`IMPLEMENTATION VERIFIED; DEVICE RETEST PENDING`

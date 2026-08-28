@@ -333,6 +333,28 @@ Forward, and Refresh; `about:`, `file:`, and other local documents do not wait f
 | **Kiyori Capability API** | UI-independent contracts through which Operit AI observes and operates Kiyori browser, media, reader, file, download, and later domains. |
 | **High-Impact AI Action** | An AI-requested operation with destructive, privacy, financial, external-communication, account, permission, or persistent-state impact. It requires explicit authorization and an inspectable operation record. |
 
+## Academic script runtime contract
+
+The `Academic` script category is backed by five single-file CommonJS packages: `arxiv_search`,
+`crossref_search`, `pubmed_search`, `semantic_scholar_search`, and `openalex_search`. Their TypeScript
+sources live in `examples/`, generated JavaScript is synchronized to `app/src/main/assets/packages/`, and
+the production whitelist is the only bundled asset authority. Each package performs one explicit official
+HTTP request per operation, exposes structured success/error output, logs caught exceptions, and never
+switches to another source or stores credentials.
+
+Search and citation metrics are source-local. Semantic Scholar, Crossref, and OpenAlex years and citation
+counts may represent different merges, publication versions, or counting windows; the UI and Agent output
+must not present them as a cross-provider ranking. Crossref DOI details use a compact publication projection
+by default; normalized references are returned only when explicitly requested with a bounded limit. PubMed
+preserves the ESearch to ESummary request owner and query translation, and treats structured ESearch errors
+inside an HTTP 200 response as errors. arXiv preserves version suffixes, primary category and the distinction
+between an author-provided DOI and an absent DOI; an Atom error entry is an error even when HTTP status is 200.
+Semantic Scholar search uses a compact field set, while detail includes the abstract by default and accepts
+only the package's bounded field vocabulary. OpenAlex work search covers title, abstract and full text;
+default search ordering remains relevance-based, explicit `sort` requires a non-empty `filter`, and search
+and singleton calls both use compact top-level `select` fields. OpenAlex external metadata is displayed with
+an explicit verification notice rather than an automatic trust or rejection heuristic.
+
 ## Settings defaults and legal center
 
 `KiyoriSettingsRoute.MORE_FEATURES` is the single More Features settings surface. Its visible entries are ordered from top to bottom as `权限 / 网络代理 / 开源协议 / 用户协议 / 隐私政策`, grouped as system capability, network capability, and open-source/legal sections. Each row owns one capability-level route: permissions use the existing device capability owner, network proxy uses `KiyoriNetworkProxySettingsPage`, open source uses `KiyoriOpenSourceLicensesPage`, and the two legal rows use direct read-only document routes. The merged `AGREEMENT` route remains only for the legacy App Router entry and is not projected by the current Settings More Features page. Direct document pages reuse `KiyoriLegalDocument` resources, `AgreementPreferences.CURRENT_AGREEMENT_VERSION`, the opaque safe-drawing root, and the same Back owner; they do not copy consent state or document text.

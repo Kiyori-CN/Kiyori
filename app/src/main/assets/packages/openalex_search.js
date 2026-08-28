@@ -21,22 +21,22 @@
   "tools": [
     {
       "name": "search",
-      "description": { "zh": "按关键词搜索 OpenAlex works，支持官方 filter、sort 和 select 字段。", "en": "Search OpenAlex works by keyword with official filter, sort, and select fields." },
+      "description": { "zh": "按标题、摘要和全文关键词搜索 OpenAlex works；显式 sort 必须同时使用 filter 收窄范围。", "en": "Search OpenAlex works across title, abstract, and full text; an explicit sort requires a filter that narrows the corpus." },
       "parameters": [
-        { "name": "search", "description": { "zh": "作品、作者、机构、概念等全文搜索词。", "en": "Full-text search across work, author, institution, and concept fields." }, "type": "string", "required": true },
+        { "name": "search", "description": { "zh": "作品标题、摘要和全文搜索词；默认按 OpenAlex relevance_score 排序。", "en": "Search terms for work titles, abstracts, and full text; defaults to OpenAlex relevance_score ordering." }, "type": "string", "required": true },
         { "name": "per_page", "description": { "zh": "每页数量，默认 10，范围 1-100。", "en": "Results per page; defaults to 10 and is clamped to 1-100." }, "type": "number", "required": false },
         { "name": "page", "description": { "zh": "从 1 开始的页码，默认 1。", "en": "One-based page number; defaults to 1." }, "type": "number", "required": false },
         { "name": "filter", "description": { "zh": "OpenAlex 官方 filter 表达式，例如 publication_year:2024。", "en": "Official OpenAlex filter expression, for example publication_year:2024." }, "type": "string", "required": false },
-        { "name": "sort", "description": { "zh": "官方 sort 表达式，例如 cited_by_count:desc。", "en": "Official sort expression, for example cited_by_count:desc." }, "type": "string", "required": false },
-        { "name": "select", "description": { "zh": "逗号分隔的官方字段选择，减少返回字段。", "en": "Comma-separated official field selection to reduce returned fields." }, "type": "string", "required": false }
+        { "name": "sort", "description": { "zh": "官方 sort 表达式，例如 cited_by_count:desc；传入时 filter 必填，否则会覆盖主题相关性。", "en": "Official sort expression such as cited_by_count:desc; filter is required because sort replaces topical relevance ordering." }, "type": "string", "required": false },
+        { "name": "select", "description": { "zh": "可选逗号分隔轻量顶层字段。", "en": "Optional comma-separated lightweight top-level fields." }, "type": "string", "required": false }
       ]
     },
     {
       "name": "get_work",
-      "description": { "zh": "按 OpenAlex work ID、URL 或 DOI 获取一条作品的完整元数据。", "en": "Retrieve one OpenAlex work by work ID, URL, or DOI." },
+      "description": { "zh": "按 OpenAlex work ID、URL 或 DOI 获取一条紧凑作品记录。", "en": "Retrieve one compact OpenAlex work record by work ID, URL, or DOI." },
       "parameters": [
         { "name": "work_id", "description": { "zh": "例如 W2741809807、https://openalex.org/W2741809807、doi:10.7717/peerj.4375 或 DOI URL。", "en": "For example W2741809807, https://openalex.org/W2741809807, doi:10.7717/peerj.4375, or a DOI URL." }, "type": "string", "required": true },
-        { "name": "select", "description": { "zh": "可选逗号分隔的官方字段选择。", "en": "Optional comma-separated official field selection." }, "type": "string", "required": false }
+        { "name": "select", "description": { "zh": "可选逗号分隔轻量顶层字段；未填写也会使用紧凑默认。", "en": "Optional comma-separated lightweight top-level fields; a compact default is always used when omitted." }, "type": "string", "required": false }
       ]
     }
   ]
@@ -44,7 +44,12 @@
 /// <reference path="./types/index.d.ts" />
 const OpenAlexSearch = (function () {
     const BASE_URL = "https://api.openalex.org";
-    const DEFAULT_SELECT = "id,doi,title,authorships,publication_year,publication_date,primary_location,open_access,cited_by_count,type";
+    const DEFAULT_SEARCH_SELECT = "id,doi,title,authorships,publication_year,publication_date,primary_location,open_access,cited_by_count,type,relevance_score";
+    const DEFAULT_WORK_SELECT = "id,doi,title,authorships,publication_year,publication_date,primary_location,open_access,cited_by_count,type,topics";
+    const ALLOWED_SELECT_FIELDS = new Set(`${DEFAULT_SEARCH_SELECT},topics,concepts`.split(","));
+    const METRIC_NOTICE = "OpenAlex citation counts are source-specific and should only be compared within OpenAlex.";
+    const DATA_QUALITY_NOTICE = "OpenAlex aggregates external metadata; verify DOI, title, authorship, affiliation, and anomalous metrics against the publisher or another authoritative source.";
+    const MAX_REQUEST_URL_LENGTH = 4094;
     const client = OkHttp.newBuilder()
         .connectTimeout(15000)
         .readTimeout(60000)
@@ -65,18 +70,35 @@ const OpenAlexSearch = (function () {
             .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
             .join("&");
     }
-    function selectedFields(value) {
-        const selected = value?.trim() || DEFAULT_SELECT;
-        if (!/^[A-Za-z0-9_,.-]+$/.test(selected)) {
-            throw new Error("select must be a comma-separated OpenAlex field list.");
-        }
-        return selected;
+    function selectedFields(value, defaults) {
+        const configured = value?.trim();
+        const selected = configured && configured !== "" ? configured : defaults;
+        const fields = [];
+        const seen = new Set();
+        selected.split(",").forEach((rawField) => {
+            const field = rawField.trim();
+            if (field === "")
+                throw new Error("select must not contain empty entries.");
+            if (!ALLOWED_SELECT_FIELDS.has(field))
+                throw new Error(`Unsupported OpenAlex select field: ${field}.`);
+            if (seen.has(field))
+                return;
+            seen.add(field);
+            fields.push(field);
+        });
+        return fields.join(",");
+    }
+    function finiteInteger(value, defaultValue, minimum, maximum, name) {
+        const candidate = value ?? defaultValue;
+        if (!Number.isFinite(candidate))
+            throw new Error(`${name} must be a finite number.`);
+        return Math.min(Math.max(Math.floor(candidate), minimum), maximum);
     }
     function page(value) {
-        return Math.max(Math.floor(value ?? 1), 1);
+        return finiteInteger(value, 1, 1, Number.MAX_SAFE_INTEGER, "page");
     }
     function perPage(value) {
-        return Math.min(Math.max(Math.floor(value ?? 10), 1), 100);
+        return finiteInteger(value, 10, 1, 100, "per_page");
     }
     function normalizedWorkId(value) {
         const trimmed = value.trim();
@@ -91,7 +113,11 @@ const OpenAlexSearch = (function () {
     }
     async function requestJson(path, params) {
         const query = encodeQuery(queryParams(params));
-        const response = await client.get(`${BASE_URL}${path}${query ? `?${query}` : ""}`, {
+        const url = `${BASE_URL}${path}${query ? `?${query}` : ""}`;
+        if (url.length > MAX_REQUEST_URL_LENGTH) {
+            return { success: false, message: `OpenAlex request URL exceeds the official ${MAX_REQUEST_URL_LENGTH}-byte limit; shorten search, filter, sort, or select.` };
+        }
+        const response = await client.get(url, {
             Accept: "application/json",
             "User-Agent": "Kiyori/0.1.0 (https://github.com/Kiyori-CN/Kiyori)",
         });
@@ -103,16 +129,21 @@ const OpenAlexSearch = (function () {
     async function search(params) {
         if (!params.search || params.search.trim() === "")
             return { success: false, message: "search is required." };
+        const filter = params.filter?.trim();
+        const sort = params.sort?.trim();
+        if (sort && !filter) {
+            return { success: false, message: "OpenAlex sort requires filter when search is present because explicit sorting replaces relevance ordering." };
+        }
         const query = {
             search: params.search.trim(),
             per_page: String(perPage(params.per_page)),
             page: String(page(params.page)),
-            select: selectedFields(params.select),
+            select: selectedFields(params.select, DEFAULT_SEARCH_SELECT),
         };
-        if (params.filter?.trim())
-            query.filter = params.filter.trim();
-        if (params.sort?.trim())
-            query.sort = params.sort.trim();
+        if (filter)
+            query.filter = filter;
+        if (sort)
+            query.sort = sort;
         const payload = await requestJson("/works", query);
         if ("success" in payload)
             return payload;
@@ -124,19 +155,29 @@ const OpenAlexSearch = (function () {
             count: payload.results.length,
             page: payload.meta.page,
             per_page: payload.meta.per_page,
+            source: "OpenAlex",
+            metric_notice: METRIC_NOTICE,
+            data_quality_notice: DATA_QUALITY_NOTICE,
         };
     }
     async function getWork(params) {
         if (!params.work_id || params.work_id.trim() === "")
             return { success: false, message: "work_id is required." };
-        const query = {};
-        if (params.select?.trim())
-            query.select = selectedFields(params.select);
+        const query = { select: selectedFields(params.select, DEFAULT_WORK_SELECT) };
         const workId = normalizedWorkId(params.work_id);
         const payload = await requestJson(`/works/${encodeURIComponent(workId)}`, query);
         if ("success" in payload)
             return payload;
-        return { success: true, message: "OpenAlex returned one work.", data: payload, count: 1, total: 1 };
+        return {
+            success: true,
+            message: "OpenAlex returned one compact work record.",
+            data: payload,
+            count: 1,
+            total: 1,
+            source: "OpenAlex",
+            metric_notice: METRIC_NOTICE,
+            data_quality_notice: DATA_QUALITY_NOTICE,
+        };
     }
     async function runTool(toolName, action) {
         try {

@@ -82,6 +82,11 @@ interface PubMedSearchPayload {
         retstart: string;
         idlist: string[];
         querytranslation?: string;
+        ERROR?: string;
+        errorlist?: {
+            phrasesnotfound?: string[];
+            fieldsnotfound?: string[];
+        };
     };
 }
 
@@ -112,6 +117,7 @@ interface PubMedResult {
     count?: number;
     retstart?: number;
     query_translation?: string;
+    source?: string;
     statusCode?: number;
 }
 
@@ -192,12 +198,18 @@ const PubMedSearch = (function () {
         return response.json() as T;
     }
 
+    function finiteInteger(value: number | undefined, defaultValue: number, minimum: number, maximum: number, name: string): number {
+        const candidate = value ?? defaultValue;
+        if (!Number.isFinite(candidate)) throw new Error(`${name} must be a finite number.`);
+        return Math.min(Math.max(Math.floor(candidate), minimum), maximum);
+    }
+
     function normalizedCount(value: number | undefined): number {
-        return Math.min(Math.max(Math.floor(value ?? 10), 1), MAX_RESULTS);
+        return finiteInteger(value, 10, 1, MAX_RESULTS, "retmax");
     }
 
     function normalizedStart(value: number | undefined): number {
-        return Math.max(Math.floor(value ?? 0), 0);
+        return finiteInteger(value, 0, 0, Number.MAX_SAFE_INTEGER, "retstart");
     }
 
     function normalizedSort(value: string | undefined): string | undefined {
@@ -218,6 +230,34 @@ const PubMedSearch = (function () {
         return values;
     }
 
+    function stableUniqueIds(ids: string[]): string[] {
+        const seen = new Set<string>();
+        const unique: string[] = [];
+        ids.forEach((id) => {
+            if (seen.has(id)) return;
+            seen.add(id);
+            unique.push(id);
+        });
+        return unique;
+    }
+
+    function searchPayloadError(payload: PubMedSearchPayload): string {
+        const result = payload.esearchresult;
+        const errors: string[] = [];
+        if (result.ERROR?.trim()) errors.push(result.ERROR.trim());
+        const fieldsNotFound = result.errorlist?.fieldsnotfound ?? [];
+        if (fieldsNotFound.length > 0) errors.push(`Unknown field(s): ${fieldsNotFound.join(", ")}`);
+        const phrasesNotFound = result.errorlist?.phrasesnotfound ?? [];
+        if (phrasesNotFound.length > 0) errors.push(`Invalid phrase(s): ${phrasesNotFound.join(", ")}`);
+        return errors.join("; ");
+    }
+
+    function responseInteger(value: string, name: string): number {
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed) || parsed < 0) throw new Error(`PubMed returned an invalid ${name} value.`);
+        return Math.floor(parsed);
+    }
+
     async function fetchSummaries(ids: string[]): Promise<PubMedResult> {
         const payload = await requestJson<PubMedSummaryPayload>("esummary.fcgi", {
             db: "pubmed",
@@ -226,7 +266,7 @@ const PubMedSearch = (function () {
         });
         if ("success" in payload) return payload;
         const data = summaries(payload, ids);
-        return { success: true, message: `PubMed returned ${data.length} article summary record(s).`, data, ids, count: data.length };
+        return { success: true, message: `PubMed returned ${data.length} article summary record(s).`, data, ids, count: data.length, source: "PubMed" };
     }
 
     async function search(params: PubMedSearchParams): Promise<PubMedResult> {
@@ -243,7 +283,14 @@ const PubMedSearch = (function () {
         const payload = await requestJson<PubMedSearchPayload>("esearch.fcgi", query);
         if ("success" in payload) return payload;
         const searchResult = payload.esearchresult;
-        const ids = searchResult.idlist ?? [];
+        // NCBI can encode query errors inside an otherwise successful HTTP 200 ESearch response.
+        const payloadError = searchPayloadError(payload);
+        if (payloadError !== "") {
+            return { success: false, message: `PubMed search rejected the query: ${payloadError}`, statusCode: 200 };
+        }
+        const ids = stableUniqueIds(searchResult.idlist ?? []);
+        const total = responseInteger(searchResult.count, "count");
+        const retstart = responseInteger(searchResult.retstart, "retstart");
         if (ids.length === 0) {
             return {
                 success: true,
@@ -251,16 +298,17 @@ const PubMedSearch = (function () {
                 data: [],
                 ids: [],
                 count: 0,
-                total: Number(searchResult.count),
-                retstart: Number(searchResult.retstart),
+                total,
+                retstart,
                 query_translation: searchResult.querytranslation,
+                source: "PubMed",
             };
         }
         const result = await fetchSummaries(ids);
         return {
             ...result,
-            total: Number(searchResult.count),
-            retstart: Number(searchResult.retstart),
+            total,
+            retstart,
             query_translation: searchResult.querytranslation,
         };
     }
@@ -269,10 +317,10 @@ const PubMedSearch = (function () {
         if (!Array.isArray(params.ids) || params.ids.length === 0) return { success: false, message: "ids must contain at least one PMID." };
         if (params.ids.length > MAX_RESULTS) return { success: false, message: "ids accepts at most 100 PMIDs." };
         if (!params.ids.every((id) => typeof id === "string")) return { success: false, message: "ids must contain only PMID strings." };
-        const ids = params.ids.map((id) => id.trim()).filter((id) => id !== "");
-        if (ids.length !== params.ids.length) return { success: false, message: "ids must contain only non-empty PMID strings." };
-        if (ids.some((id) => !/^\d+$/.test(id))) return { success: false, message: "ids must contain only decimal PMID values." };
-        return fetchSummaries(ids);
+        const normalizedIds = params.ids.map((id) => id.trim()).filter((id) => id !== "");
+        if (normalizedIds.length !== params.ids.length) return { success: false, message: "ids must contain only non-empty PMID strings." };
+        if (normalizedIds.some((id) => !/^\d+$/.test(id))) return { success: false, message: "ids must contain only decimal PMID values." };
+        return fetchSummaries(stableUniqueIds(normalizedIds));
     }
 
     async function runTool<T>(toolName: string, action: () => Promise<T>): Promise<void> {

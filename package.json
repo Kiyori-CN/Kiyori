@@ -11,7 +11,10 @@
     "esbuild@0.25.12": true
   },
   "scripts": {
+    "build:examples:academic": "tsc -p examples/tsconfig.json --pretty false",
     "build:examples:github": "node ./examples/github/build.js",
+    "live:examples:academic": "node ./tools/example_packages/academic_packages.live.mjs",
+    "test:examples:academic": "node --test ./tools/example_packages/academic_packages.test.mjs",
     "build:webchat": "npm --prefix web-chat run build && npm --prefix web-chat run sync:android-assets"
   },
   "devDependencies": {
