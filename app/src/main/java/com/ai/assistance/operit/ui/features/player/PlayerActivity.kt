@@ -1,8 +1,11 @@
 package com.ai.assistance.operit.ui.features.player
 
+import android.content.ActivityNotFoundException
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
@@ -19,12 +22,14 @@ import com.ai.assistance.operit.core.player.PlayerMediaSource
 import com.ai.assistance.operit.core.player.PlayerPresentation
 import com.ai.assistance.operit.core.player.PlayerDebugLogBuffer
 import com.ai.assistance.operit.core.player.PlayerDebugLogLevel
+import com.ai.assistance.operit.core.player.PlayerDefaultVideoPlayer
 import com.ai.assistance.operit.core.player.PlayerQueueResolver
 import com.ai.assistance.operit.core.player.PlayerSession
 import com.ai.assistance.operit.core.player.PlayerSettingsStore
 import com.ai.assistance.operit.core.player.PlayerSurfaceTransferPhase
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadDestination
+import com.ai.assistance.operit.util.AppLogger
 import com.kiyori.design.theme.KiyoriBrowserTheme
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
@@ -104,6 +109,9 @@ class PlayerActivity : ComponentActivity() {
         }
         if (intent.action != Intent.ACTION_VIEW) return false
         val uri = intent.data ?: return false
+        if (settingsStore.current.defaultVideoPlayer == PlayerDefaultVideoPlayer.SYSTEM) {
+            return delegateToSystemVideoPlayer(intent)
+        }
         val requestId =
             intent.getStringExtra(EXTRA_REQUEST_ID)?.takeIf(String::isNotBlank)
                 ?: UUID.randomUUID().toString().also { intent.putExtra(EXTRA_REQUEST_ID, it) }
@@ -138,6 +146,60 @@ class PlayerActivity : ComponentActivity() {
             }
         }
         return true
+    }
+
+    private fun delegateToSystemVideoPlayer(sourceIntent: Intent): Boolean {
+        val externalIntent =
+            Intent(sourceIntent).apply {
+                component = null
+                setPackage(null)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                putExtra(
+                    Intent.EXTRA_EXCLUDE_COMPONENTS,
+                    arrayOf(ComponentName(this@PlayerActivity, PlayerActivity::class.java)),
+                )
+            }
+        val externalActivities =
+            packageManager
+                .queryIntentActivities(externalIntent, PackageManager.MATCH_DEFAULT_ONLY)
+                .filter { info -> info.activityInfo.packageName != packageName }
+        if (externalActivities.isEmpty()) {
+            Toast.makeText(this, "系统中没有可用的视频播放器", Toast.LENGTH_SHORT).show()
+            return false
+        }
+        val resolvedActivity =
+            packageManager.resolveActivity(externalIntent, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo
+        val target =
+            resolvedActivity?.let { resolved ->
+                externalActivities
+                    .firstOrNull { candidate ->
+                        candidate.activityInfo.packageName == resolved.packageName &&
+                            candidate.activityInfo.name == resolved.name
+                    }
+                    ?.activityInfo
+            }
+        val launchIntent =
+            if (target != null) {
+                Intent(externalIntent).apply {
+                    component = ComponentName(target.packageName, target.name)
+                }
+            } else {
+                Intent.createChooser(externalIntent, "选择系统视频播放器")
+            }
+        try {
+            startActivity(launchIntent)
+        } catch (error: ActivityNotFoundException) {
+            reportSystemPlayerLaunchFailure(error)
+        } catch (error: SecurityException) {
+            reportSystemPlayerLaunchFailure(error)
+        }
+        return false
+    }
+
+    private fun reportSystemPlayerLaunchFailure(error: RuntimeException) {
+        AppLogger.e("PlayerActivity", "无法启动系统默认视频播放器", error)
+        Toast.makeText(this, "无法启动系统默认视频播放器", Toast.LENGTH_SHORT).show()
     }
 
     private fun resolveDisplayName(uri: Uri): String {

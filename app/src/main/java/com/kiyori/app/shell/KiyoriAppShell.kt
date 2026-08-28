@@ -40,7 +40,10 @@ import androidx.compose.ui.zIndex
 import com.ai.assistance.operit.ui.main.AiHomeQuickAction
 import com.ai.assistance.operit.ui.common.gestures.AiContentHorizontalGestureOwnership
 import com.ai.assistance.operit.ui.common.gestures.LocalAiContentHorizontalGestureOwnership
+import com.ai.assistance.operit.ui.features.agreement.screens.KiyoriLegalDocument
+import com.ai.assistance.operit.ui.features.agreement.screens.KiyoriLegalDocumentScreen
 import com.ai.assistance.operit.ui.features.agreement.screens.KiyoriLegalDocumentsScreen
+import com.ai.assistance.operit.ui.features.about.screens.KiyoriOpenSourceLicensesPage
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.FileManagerScreen
 import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 import com.ai.assistance.operit.ui.main.shell.KiyoriBookmarkDrawerHost
@@ -491,14 +494,24 @@ internal fun KiyoriAppShell(
                                         ),
                                     )
                                 },
-                                onOpenAgreement = {
-                                    onStateChange(
-                                        state.openSettingsRoute(KiyoriSettingsRoute.AGREEMENT),
-                                    )
-                                },
                                 onOpenNetworkProxy = {
                                     onStateChange(
                                         state.openSettingsRoute(KiyoriSettingsRoute.NETWORK_PROXY),
+                                    )
+                                },
+                                onOpenOpenSource = {
+                                    onStateChange(
+                                        state.openSettingsRoute(KiyoriSettingsRoute.OPEN_SOURCE_LICENSES),
+                                    )
+                                },
+                                onOpenUserAgreement = {
+                                    onStateChange(
+                                        state.openSettingsRoute(KiyoriSettingsRoute.USER_AGREEMENT),
+                                    )
+                                },
+                                onOpenPrivacyPolicy = {
+                                    onStateChange(
+                                        state.openSettingsRoute(KiyoriSettingsRoute.PRIVACY_POLICY),
                                     )
                                 },
                                 modifier = Modifier.fillMaxSize(),
@@ -515,6 +528,23 @@ internal fun KiyoriAppShell(
                             )
                         KiyoriSettingsRoute.AGREEMENT ->
                             KiyoriLegalDocumentsScreen(
+                                onBack = { onStateChange(state.closeSettingsRoute()) },
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        KiyoriSettingsRoute.OPEN_SOURCE_LICENSES ->
+                            KiyoriOpenSourceLicensesPage(
+                                onBack = { onStateChange(state.closeSettingsRoute()) },
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        KiyoriSettingsRoute.USER_AGREEMENT ->
+                            KiyoriLegalDocumentScreen(
+                                document = KiyoriLegalDocument.USER_AGREEMENT,
+                                onBack = { onStateChange(state.closeSettingsRoute()) },
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        KiyoriSettingsRoute.PRIVACY_POLICY ->
+                            KiyoriLegalDocumentScreen(
+                                document = KiyoriLegalDocument.PRIVACY_POLICY,
                                 onBack = { onStateChange(state.closeSettingsRoute()) },
                                 modifier = Modifier.fillMaxSize(),
                             )

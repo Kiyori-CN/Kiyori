@@ -122,7 +122,7 @@ Manifest、AIDL、native、资源或 CI 的变化如果不是纯路径引用修�
 | `ui/theme/ThemeColorSchemeResolver.kt` | M-05A1 `SPLIT` 已完成；固定 Kiyori ColorScheme 已迁入 `com.kiyori.design.theme`，旧文件只保留 preference snapshot 到 dark/light 的 adapter | 不读取第二 preference、不拥有第二 ColorScheme；M-05A3 root theme host 已由 app owner 收口 |
 | `ui/theme/KiyoriBrowserTheme.kt` | M-05A1 `MOVE-KIYORI` 已完成，旧路径删除 | `com.kiyori.design.theme.KiyoriBrowserTheme`；保持中性 chrome、parent Typography/Shapes |
 | `ui/theme/KiyoriSettingsTheme.kt` | M-05A1 `MOVE-KIYORI` 已完成，旧路径删除 | `com.kiyori.design.theme.KiyoriSettingsTheme`；保持固定浅深页面/卡片/文字/分隔线与 CompositionLocal |
-| `ui/theme/KiyoriSemanticTheme.kt` | M-05A2 `SPLIT` + `MOVE-KIYORI` 已完成；旧 89 行混合 owner 已删除 | 纯合同由 `com/kiyori/design/theme/KiyoriSemanticColors.kt` 唯一拥有，Compose 投影由 `com/kiyori/design/theme/KiyoriSemanticTheme.kt` 唯一拥有；54 个生产与 4 个测试消费者、102 条 import 已精确迁移，不保留 facade/typealias/fallback |
+| `ui/theme/KiyoriSemanticTheme.kt` | M-05A2 `SPLIT` + `MOVE-KIYORI` 已完成；旧 89 行混合 owner 已删除 | 纯合同由 `com/kiyori/design/theme/KiyoriSemanticColors.kt` 唯一拥有，Compose 投影由 `com/kiyori/design/theme/KiyoriSemanticTheme.kt` 唯一拥有；当前 55 个生产与 4 个测试消费者、102 条 import 已精确迁移，不保留 facade/typealias/fallback |
 | `ui/theme/Theme.kt` | M-05A3 `SPLIT` 已完成；旧 144 行混合 owner 已删除 | 职责已拆入 design/app/platform 三层，不保留 facade、typealias、fallback 或旧 `OperitTheme` |
 | `ui/theme/Type.kt` | M-05A3 `SPLIT` 已完成 | 固定 Typography 与纯字体应用已迁入 `KiyoriTypography.kt`；配置字体、文件 I/O、UserPreferences 常量与日志适配保持旧 owner |
 | `com/kiyori/platform/logging/KiyoriLogger.kt` | M-05B 新建并封板；唯一 executor、提前解析的内部 filesDir、root provider、内部/package log 文件引用与 `enableFileLogging` owner；进程 Context 继续只由 `ApplicationContextAccess` 持有 | 保持 system/file/ToolPkg 日志合同；platform 不导入 Operit，hash/状态/API 由 ARCH043 锁定 |

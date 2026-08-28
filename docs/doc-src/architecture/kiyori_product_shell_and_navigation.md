@@ -262,7 +262,9 @@ Terminal 与 Workspace 是切换动作，活动时只增加各自低饱和容器
 “设置 - 更多功能 - 权限”是 Kiyori Settings 自有的“权限与设备能力”页面。它和首次启动第六页
 共同消费 `KiyoriPermissionId`、`KiyoriPermissionSnapshot`、共享 metadata、状态语义和授权动作，
 不保存第二份授权结果。Settings 页面按“应用权限 / 系统访问 / 高级设备能力”分组显示全部 21 项，
-提供总览、原位刷新、逐项处理和按真实顺序处理全部待授权项；首次启动继续使用统一平铺选择清单。
+提供总览、原位刷新、逐项处理和按真实顺序处理全部待授权项；首次启动复用相同三组顺序、说明、
+状态摘要与动作，但不提供跨电话、短信、通知读取、无障碍、Shizuku、Root 等高影响能力的全局全选，
+只处理用户逐项选择的当前可操作项目。
 
 当前源码和已接受的安全合同涉及四类能力。设备能力与 AI 工具授权已实现，后两类仍处于设计阶段：
 
@@ -395,7 +397,7 @@ Kiyori App Shell 统一拥有状态栏策略。软件首页、负一屏、五个
 
 文件管理首页按固定旧版提交保留搜索顶栏、八个文件分类、七个快捷访问和四个存储位置。分类计数固定为 `0项`；手机存储使用应用实际所在数据卷的 `StatFs.availableBytes` 与 `totalBytes`，在首次组合和宿主恢复前台时刷新，并进入唯一 `KiyoriShellChild.FILE_MANAGER`。该 child 直接复用现有 `FileManagerScreen`、`FileManagerViewModel` 与 AITool 文件操作链；页面返回关闭 child，目录向上继续只改变当前目录。`FileManagerScreen` 自身绘制全尺寸不透明背景并让内容消费 `WindowInsets.safeDrawing`，因此 Shell 仍保持 edge-to-edge 背景，工具栏和文件内容不会进入状态栏、显示 cutout 或导航栏。关闭后恢复文件管理首页，其他按钮保持空动作。分类图标到标题为 `5dp`，标题与计数使用明确行高且不再加入额外间隔，网格行距为 `10dp`。
 
-设置首页使用四张 `16dp` 圆角卡片，每张固定三行，入口从上到下为“我的账号 / AI助手 / 小程序”、“网页浏览器 / 文件下载器 / 文件管理器”、“视频播放器 / 音乐播放器 / 文档阅读器”和“界面定制 / 数据备份 / 更多功能”。页面、卡片、文字、分隔线、开关、禁用态和底部选择面板由 `KiyoriSettingsTheme` 统一适配浅色与深色；首页 12 个入口由设计层 `KiyoriSettingsHomeIconPalette` 提供独立的图标前景与低饱和容器色，不使用随机颜色或大面积高饱和背景。小程序、音乐播放器和文档阅读器在真实 owner 建立前保持诚实空动作，禁止连接 AI 包管理、脚本包、ToolPkg 或插件市场。文件管理器进入与文件管理首页相同的 `FILE_MANAGER` Shell child；Settings 会话在 child 前景期间保留但停止组合，关闭 child 后原 route、来源和 Back 链原样恢复。网页浏览器、视频播放器、文件下载器、界面定制、数据备份和更多功能进入各自唯一 owner；广告拦截器只在“网页浏览器 → 内容过滤”内部呈现，继续消费唯一 `BrowserAdBlockStore`。AI助手根页增加“文本转语音”和“语音转文本”两个设置 route，分别呈现 TTS/STT 配置但共同复用 `SpeechServicesPreferences`。更多功能使用现有折叠设置页视觉：“应用与隐私”分组中的“用户协议与隐私政策”进入 `KiyoriSettingsRoute.AGREEMENT`，只读复用现行协议版本、用户协议和隐私政策内容；该法律文档页面自行绘制全尺寸不透明背景，并让概览与正文共同消费 `WindowInsets.safeDrawing`，Settings Home 不得从任何区域透出。“系统能力”分组中的“权限”进入 `KiyoriSettingsRoute.PERMISSIONS`，不离开 Settings surface。权限页面消费首次启动的同一 21 项设备权限事实与动作，首屏不启动 Terminal、Node、Python 或 MCP 环境探测，也不显示全页“正在加载应用状态...”。主题快捷菜单固定为 `156dp`。`KiyoriSettingsNavigationState` 是唯一设置会话 owner，保存 `sessionId`、来源、完整 capability-level `KiyoriSettingsRoute` 栈和 `PRIMARY_ROOT / SOURCE_OVERLAY / OPERIT_ROUTE_DETAIL / SUSPENDED_FOR_BROWSER_WORKSPACE` 展示状态。主目的地设置首页显示底部五入口；浏览器菜单和 AI 抽屉启动来源保持会话并隐藏底栏。Agreement 与 Permissions 的标题返回和系统 Back 都先回 More Features；随后再逐级回设置首页，Browser/AI 来源最终恢复原 Browser Home/WebSession 或原 AI route stack。
+设置首页使用四张 `16dp` 圆角卡片，每张固定三行，入口从上到下为“我的账号 / AI助手 / 小程序”、“网页浏览器 / 文件下载器 / 文件管理器”、“视频播放器 / 音乐播放器 / 文档阅读器”和“界面定制 / 数据备份 / 更多功能”。页面、卡片、文字、分隔线、开关、禁用态和底部选择面板由 `KiyoriSettingsTheme` 统一适配浅色与深色；首页 12 个入口由设计层 `KiyoriSettingsHomeIconPalette` 提供独立的图标前景与低饱和容器色，不使用随机颜色或大面积高饱和背景。小程序、音乐播放器和文档阅读器在真实 owner 建立前保持诚实空动作，禁止连接 AI 包管理、脚本包、ToolPkg 或插件市场。文件管理器进入与文件管理首页相同的 `FILE_MANAGER` Shell child；Settings 会话在 child 前景期间保留但停止组合，关闭 child 后原 route、来源和 Back 链原样恢复。网页浏览器、视频播放器、文件下载器、界面定制、数据备份和更多功能进入各自唯一 owner；广告拦截器只在“网页浏览器 → 内容过滤”内部呈现，继续消费唯一 `BrowserAdBlockStore`。AI助手根页增加“文本转语音”和“语音转文本”两个设置 route，分别呈现 TTS/STT 配置但共同复用 `SpeechServicesPreferences`。更多功能使用现有折叠设置页视觉，并从上到下固定展示“权限 / 网络代理 / 开源协议 / 用户协议 / 隐私政策”；五项分别使用绿、青、橙、蓝、紫低饱和语义图标容器。五个入口分别进入 `KiyoriSettingsRoute.PERMISSIONS`、`NETWORK_PROXY`、`OPEN_SOURCE_LICENSES`、`USER_AGREEMENT` 和 `PRIVACY_POLICY`；开源协议页按组件类别展示用途、许可证、许可证正文入口和项目地址，清单版本独立于用户协议版本，FFmpegKit source lock 与页面条目由 JVM 合同逐项对账；用户协议与隐私政策直接进入各自只读正文。两份 Settings 正文使用共享折叠标题和正文分组卡，并继续复用当前法律文档资源、版本源和 `WindowInsets.safeDrawing` 不透明页面边界；首次启动同意状态仍由 `AgreementPreferences` 单独持有。权限页面消费首次启动的同一 21 项设备权限事实与动作，首屏不启动 Terminal、Node、Python 或 MCP 环境探测，也不显示全页“正在加载应用状态...”。主题快捷菜单固定为 `156dp`。`KiyoriSettingsNavigationState` 是唯一设置会话 owner，保存 `sessionId`、来源、完整 capability-level `KiyoriSettingsRoute` 栈和 `PRIMARY_ROOT / SOURCE_OVERLAY / OPERIT_ROUTE_DETAIL / SUSPENDED_FOR_BROWSER_WORKSPACE` 展示状态。主目的地设置首页显示底部五入口；浏览器菜单和 AI 抽屉启动来源保持会话并隐藏底栏。新协议页和权限页的标题返回与系统 Back 都先回 More Features；随后再逐级回设置首页，Browser/AI 来源最终恢复原 Browser Home/WebSession 或原 AI route stack。
 
 Settings surface 不参与 Shell child 的 enter/exit 动画。Shell child 动画宿主只承载
 Full-Screen Search 与共享文件管理器；底部 `PRIMARY_ROOT + HOME` 的设置首页只由 Primary Root 绘制，
@@ -569,7 +571,8 @@ AI 操作采用四级风险模型：R0 只读、R1 低影响、R2 高影响、R3
 运行时权限集中 launcher、特殊访问动作以及首次启动/Settings 共用的权限 metadata、分组和状态语义；
 协议正文与阅读页位于 Operit UI 的协议路由中，
 因为当前 Gradle namespace 仍由 Operit 兼容入口提供。`2026-08-11-r9` 保持用户协议与隐私政策
-为两个独立文档；首启接受条件只由一个明确同意复选框控制，不要求先打开文档或滚动到末尾。
+为两个独立文档；当前正文版本为 `2026-08-28-r1`。首启接受条件只由一个明确同意复选框控制，
+不要求先打开文档或滚动到末尾。
 设置内入口只提供两份文档的只读选择与阅读，不显示首启确认动作。
 Settings 权限页只重新读取该集成的真实 snapshot，不拥有第二份权限事实。该集成不拥有 AI 模型
 凭据、聊天状态、浏览器状态或 `ToolPermissionSystem` 的 AI 工具授权。
@@ -584,7 +587,8 @@ AI 助手、语音服务、账号与连接、工具箱、文件管理器、终�
 只有产品域入口的模块不宣称已经拥有完整详情页。当前逐页精修只维护中文默认资源，其余语言在
 六个中文页面全部定稿后统一同步。
 
-授权页使用一个不分组的统一清单显示真实状态：
+授权页按与 Settings 相同的三组目录和状态摘要显示真实状态。已授权、无需授权和使用时确认的项目
+使用状态图标而不是伪装成禁用复选框；未授权项目只允许逐项选择，随时可以清空已选并直接进入：
 
 - Android runtime 权限通过唯一 launcher 一次请求用户选中的当前 SDK 适用集合；
 - 所有文件、悬浮窗、系统设置、使用情况、未知来源安装、电池优化、通知读取和默认助手逐项
@@ -592,10 +596,17 @@ AI 助手、语音服务、账号与连接、工具箱、文件管理器、终�
   闹钟使用 `ACTION_SET_ALARM`；
 - Kiyori 无障碍支持、Shizuku 和 Root 复用既有真实 owner。屏幕捕获只在实际使用时由 Android
   确认，因此在清单中标记为 `ON_DEMAND`，不能伪造为已预授权。
+- `MEDIA` 只声明并请求当前 Manifest 中的视频、音频和 Android 14 选择性视觉媒体权限；照片与
+  其他文件通过系统文件选择器按次选择，不宣称拥有 `READ_MEDIA_IMAGES` 全库读取能力。
 
 拒绝状态永远重新读取 Android、系统设置、Shizuku、Root 或提供者事实，不写成成功。用户
 可以明确选择保留未授权项并进入 Kiyori；对应功能保持未授权状态。模型服务和 API Key 不再
 作为首启硬门禁，使用前由用户在相应 AI 设置中配置。
+
+六页 onboarding 根、协议版本升级触发的独立 `AGREEMENT` 目的地以及完成首启后出现的插件加载
+浮层都消费 `WindowInsets.safeDrawing`，顶部标题和操作不会进入状态栏或显示缺口。首次启动协议
+正文与 Settings 共用 `KiyoriLegalDocument` 内容，显示摘要、当前版本和完整正文层级；正文中的版本
+占位符由 `AgreementPreferences.CURRENT_AGREEMENT_VERSION` 格式化，不维护第二个版本字面量。
 
 内置 `accessibility.apk` 的用户可见应用名、服务名、说明、主题名和启动图标使用 Kiyori 品牌，
 当前版本为 `1.7`。包名 `com.ai.assistance.operit.provider`、服务类、authority 和

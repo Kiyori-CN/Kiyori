@@ -22,6 +22,7 @@ import com.ai.assistance.operit.core.player.PLAYER_SPEED_OPTIONS
 import com.ai.assistance.operit.core.player.PLAYER_SUBTITLE_SCALE_OPTIONS
 import com.ai.assistance.operit.core.player.PlayerBackgroundBehavior
 import com.ai.assistance.operit.core.player.PlayerDecoderBackend
+import com.ai.assistance.operit.core.player.PlayerDefaultVideoPlayer
 import com.ai.assistance.operit.core.player.PlayerDoubleTapAction
 import com.ai.assistance.operit.core.player.PlayerFullscreenExitBehavior
 import com.ai.assistance.operit.core.player.PlayerNetworkCachePolicy
@@ -45,6 +46,7 @@ internal enum class KiyoriPlayerSettingsDependency {
 }
 
 internal enum class KiyoriPlayerSettingsAction {
+    SELECT_DEFAULT_VIDEO_PLAYER,
     SELECT_DEFAULT_SPEED,
     TOGGLE_REMEMBER_PLAYBACK_SPEED,
     TOGGLE_AUTO_PLAY_NEXT,
@@ -115,8 +117,13 @@ internal val kiyoriPlayerSettingsGroups =
         KiyoriPlayerSettingsGroupSpec(
             title = "播放与连播",
             description = "控制新视频的播放速度，以及真实播放队列到达结尾后的行为",
-            entries =
+                entries =
                 listOf(
+                    playerNavigationSpec(
+                        "默认视频播放器",
+                        "选择打开外部视频文件时使用 Kiyori 内置播放器或系统默认播放器",
+                        KiyoriPlayerSettingsAction.SELECT_DEFAULT_VIDEO_PLAYER,
+                    ),
                     playerNavigationSpec(
                         "默认播放倍速",
                         "未开启倍速记忆时，新视频从此倍速开始",
@@ -456,6 +463,8 @@ private fun playerSettingValue(
     settings: PlayerSettings,
 ): String =
     when (action) {
+        KiyoriPlayerSettingsAction.SELECT_DEFAULT_VIDEO_PLAYER ->
+            settings.defaultVideoPlayer.displayName
         KiyoriPlayerSettingsAction.SELECT_DEFAULT_SPEED ->
             formatPlayerSpeedLabel(settings.defaultSpeed)
         KiyoriPlayerSettingsAction.SELECT_QUEUE_END_BEHAVIOR ->
@@ -524,6 +533,14 @@ private fun playerSettingSelection(
 ): KiyoriSettingsSelection {
     val options =
         when (entry.action) {
+            KiyoriPlayerSettingsAction.SELECT_DEFAULT_VIDEO_PLAYER ->
+                PlayerDefaultVideoPlayer.entries.map { value ->
+                    KiyoriSettingsSelectionOption(
+                        label = value.displayName,
+                        description = value.description,
+                        selected = value == settings.defaultVideoPlayer,
+                    ) { store.setDefaultVideoPlayer(value) }
+                }
             KiyoriPlayerSettingsAction.SELECT_DEFAULT_SPEED ->
                 PLAYER_SPEED_OPTIONS.map { value ->
                     KiyoriSettingsSelectionOption(

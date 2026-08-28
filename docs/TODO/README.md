@@ -3944,7 +3944,7 @@ SHA-256 `B8CD99D49D3F93745282C4E04F7FD7C158A875BE8897FF17161EC4D2C7F93646`；
 package/version/label、SDK、Application、稳定 launcher、多进程、arm64 53 native、零重复
 basename、Debug v2 与 16 KB 对齐全部保持。M-05A1 已封板。M-05A2 已把纯 semantic
 enum/data/color resolver 与 Compose `MaterialTheme` adapter 拆为两个
-`com.kiyori.design.theme` owner，删除旧 owner 且不保留 facade/typealias/fallback；54 个生产
+`com.kiyori.design.theme` owner，删除旧 owner 且不保留 facade/typealias/fallback；55 个生产
 消费者、4 个测试消费者、102 条 import 与一处完全限定引用已精确迁移。ARCH025/026/027/
 040/041、完整 architecture、Python `156/156`、JVM `135 suites / 810 tests`、
 formal/fresh-clone readiness 均通过。新鲜 full lint 仍报告仓库既有 `27 errors / 287 warnings /
@@ -5769,3 +5769,63 @@ Java `IllegalStateException` 的重复释放路径已在状态机与调用层闭
 
 本轮未执行 Release、Nightly、Clone、AAB、发布、部署、设备安装、ADB、MuMu、真机交互或远端
 GitHub Actions。最终提交、推送和远端 ref 状态以本次 Git 交付核验为准。
+
+## 2026-08-28 设置播放器与法律中心增量
+
+状态：`LOCAL IMPLEMENTATION VERIFIED / DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。
+
+本增量按 Kiyori 未发布版本处理，不保留旧的合并法律设置入口作为当前 More Features UI。目标是让
+播放器默认选择、更多功能顺序、开源清单和两份中文法律文档都有一个清晰的状态与导航 owner。
+
+### 实施合同
+
+- `PlayerSettingsStore` 新增 `PlayerDefaultVideoPlayer`，默认 `KIYORI`；`SYSTEM` 仅处理外部视频
+  `ACTION_VIEW`，通过 Android 外部视频活动打开并排除 Kiyori 自身，浏览器候选、历史播放和队列不变。
+- “设置 → 更多功能”从上到下固定为“权限 / 网络代理 / 开源协议 / 用户协议 / 隐私政策”，分别进入
+  `PERMISSIONS / NETWORK_PROXY / OPEN_SOURCE_LICENSES / USER_AGREEMENT / PRIVACY_POLICY`。
+- 开源协议页使用设置页折叠标题、分类分组、搜索、许可证正文和项目地址动作，目录覆盖当前直接
+  Gradle 依赖、Kiyori 原生模块、播放器/代理/AI 运行时和随包组件；清单使用独立版本基线，结构测试
+  校验名称、说明、许可证、HTTP(S) 地址、分类覆盖、项目名唯一性，并解析
+  `tools/ffmpegkit_native_build/source_lock.json` 对账每个固定 native source ID。许可证正文仍以各组件
+  随附文件为准。
+- 用户协议和隐私政策改为独立直达的只读页面，统一显示当前版本 `2026-08-28-r1`、摘要和排版后的
+  中文正文；Settings 直达页使用共享折叠标题和正文分组卡，首次启动同意仍复用同一
+  `AgreementPreferences` owner。
+
+### 当前验证
+
+- 播放器策略、设置页和开源目录三个定向 JVM 套件为 `56/56`，其中开源目录测试会解析并逐项对账
+  FFmpegKit source lock；`check_formal_readiness.py --require-main` 与 `git diff --check` 通过。
+- 规定的 `:app:assembleDebug --no-daemon --console=plain` 最终为 `BUILD SUCCESSFUL in 1m 47s`，`235` 个任务中
+  `23` 个 executed、`212` 个 up-to-date；唯一 launcher、脚本代理 runtime 与播放器 runtime packaging
+  门禁均通过。播放器和 FFmpegKit AAR SHA-256 分别为
+  `F52ACA6F35C651BE7AAB55F2EFE6B5F40180D1EBAEB1404CC446470BF8DEB6A4` 与
+  `7E6B4C20A93DFB3B90BC7F3C5D724CF657B70E2469EA4F2B1110396A8D345394`。
+- `app/build/outputs/apk/debug/app-debug.apk` 最终写入时间为 `2026-08-28 15:25:29 +08:00`，大小
+  `503676817` bytes，SHA-256 为
+  `660135CD28282B5C6317862C58BD6EF7371DDB17ABF0D079A48E546F605755C7`。包名、版本、min/target/compile
+  SDK 为 `com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`；Android Debug V2 单 signer 和
+  `zipalign -c -P 16 -v 4` 通过。APK 只含 `arm64-v8a` 的 `53` 个 `.so`，无重复 basename；这 `53`
+  个 native library 加 `assets/operit_shell_exec` 共 `54/54` 个 ELF64/AArch64，`161` 个 `PT_LOAD` 为
+  `0x4000 × 159` 与 `0x10000 × 2`，shell launcher 不依赖 `libc++_shared.so`。
+- 本轮未安装或操作真机，More Features 点击与 Back 链、系统默认播放器直接分流或选择器、content URI
+  权限传递、无外部播放器错误提示、协议长滚动与文本选择、开源搜索与外链、浅色/深色、窄屏/横屏和
+  系统安全区仍保持 `verification_pending`。
+
+### 首次启动同步优化
+
+状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND DEBUG APK AUDIT COMPLETE / DEVICE VERIFICATION PENDING`。
+
+本增量继续复用上述 `2026-08-28-r1` 法律正文和 `AgreementPreferences` 同意状态，不复制第二份启动页
+协议。实现范围为：补齐协议重确认与插件加载浮层的 `safeDrawing`；让首启协议正文同步显示摘要、
+版本与完整正文层级；正文版本由唯一常量格式化；首启权限页改为与 Settings 相同的“应用权限 / 系统
+访问 / 高级设备能力”三组和同一状态摘要；删除会串联电话、短信、无障碍、Shizuku、Root 等高影响
+能力的全局全选，只处理用户逐项选择的未授权项目；把没有 `READ_MEDIA_IMAGES` 的媒体能力准确写为
+视频与音频，照片继续通过系统文件选择入口按次处理。
+
+最终 onboarding/agreement/startup gate/Settings 六个 JVM 套件 `51/51`、首启 ARCH037 正反向
+`7/7`、完整 architecture `PASS (phase=m03)`、formal readiness、工作树 18 份 Markdown 链接及差异
+检查均通过。串行 Debug 构建和最终 APK 数据见上一节；APK 的 `5512` 个文件、`44` 个 DEX、仅
+`arm64-v8a` 的 `53` 个 `.so`、零重复 native basename、`54/54` 个 ELF64/AArch64 以及所有
+`PT_LOAD >= 0x4000` 均已独立核验。未安装或操作设备，因此六页视觉、状态栏、长文滚动、授权
+拒绝/部分授权、系统页返回、旋转、进程恢复和 OEM 入口仍需真机验收。

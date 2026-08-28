@@ -1884,3 +1884,12 @@ ARCH020 的 Operit import snapshot 删除 `MCPRepository`、增加
 `LocalPluginLoadingState`；ARCH023 锁定根组合新增 Shell helper import；ARCH024 锁定 helper
 唯一 owner 与测试接线；ARCH029 的 import snapshot允许并锁定项目内 `KiyoriLogger` 边界。
 完整 architecture gate 已通过，最终 Python/Gradle/APK 证据记录在联合启动优化方案。
+
+## 2026-08-28 设置法律路由增量
+
+`KiyoriAppShell` 继续是唯一 Shell host。本增量只增加“开源协议 / 用户协议 / 隐私政策”三个
+Settings route 的现有页面组合，不增加第二设置状态、第二协议正文或第二权限 owner。同步后的
+ARCH024 package-normalized SHA-256 为
+`1EC7AF44BD739009519193F9BE9AE986F5958CB7663A26CDEA736E12061EF17D`；完整项目 import snapshot
+新增 `KiyoriOpenSourceLicensesPage`、`KiyoriLegalDocument` 和 `KiyoriLegalDocumentScreen` 三项，
+其余 Shell、Pager、Back、Browser、Player 与 drawer owner 不变。

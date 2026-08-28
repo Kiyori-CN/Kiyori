@@ -12,6 +12,7 @@ class PlayerPolicyTest {
     @Test
     fun initialPlayerDefaultsUseRequestedPlaybackProfile() {
         val settings = FRESH_INSTALL_PLAYER_SETTINGS
+        assertEquals(PlayerDefaultVideoPlayer.KIYORI, settings.defaultVideoPlayer)
         assertEquals(PlayerDecoderBackend.SOFTWARE, settings.decoderBackend)
         assertEquals(PlayerRenderingProfile.FAST, settings.renderingProfile)
         assertFalse(settings.rememberPlaybackSpeed)
@@ -25,6 +26,21 @@ class PlayerPolicyTest {
         assertEquals(PlayerDoubleTapAction.PLAY_PAUSE, PlayerSettings().doubleTapAction)
         assertTrue(PlayerSettings().screenshotDirectoryUri.isBlank())
         assertTrue(PlayerSettings().videoDownloadDirectoryUri.isBlank())
+    }
+
+    @Test
+    fun defaultVideoPlayerHasExplicitInternalAndSystemChoices() {
+        assertEquals(
+            listOf(PlayerDefaultVideoPlayer.KIYORI, PlayerDefaultVideoPlayer.SYSTEM),
+            PlayerDefaultVideoPlayer.entries,
+        )
+        assertEquals(
+            PlayerDefaultVideoPlayer.SYSTEM,
+            PlayerDefaultVideoPlayer.fromPersistedId("system"),
+        )
+        assertThrows(IllegalArgumentException::class.java) {
+            PlayerDefaultVideoPlayer.fromPersistedId("automatic")
+        }
     }
 
     @Test

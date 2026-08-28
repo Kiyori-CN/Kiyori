@@ -21,8 +21,8 @@ Operit AI 为中心。
   本地工具和扩展生态
 - 建立简洁、现代、响应式的统一视觉，每页只承担一个任务并只保留一个主操作
 - 用户协议与隐私政策保持两个独立查看入口，但不设置打开、阅读进度或滚动到底门槛
-- 权限页平铺当前全部权限和设备能力，以真实状态和选择框让用户决定本次需要处理的项目
-- 设置内“权限与设备能力”复用同一 21 项目录、真实 snapshot 和授权动作，只改变为三组管理视图
+- 权限页与设置内“权限与设备能力”复用同一 21 项目录、三组结构、真实 snapshot、状态口径和授权动作
+- 首次启动不提供跨运行时权限、系统访问和高影响能力的全局全选；用户逐项决定本次需要处理的项目
 - 完成用户所选授权后直接进入现有 Software Home，不再保留独立完成页
 - 保留 Android 12+ 透明系统启动窗口、单次 Compose 挂载和首帧后初始化
 - Kiyori 尚未发布，旧 Operit 页面语义、旧状态枚举、旧资源和旧测试合同直接删除
@@ -41,8 +41,10 @@ Operit AI 为中心。
 页面不把当前只有产品域入口的模块写成已经拥有完整详情页，但会准确展示 Kiyori 的浏览、内容、
 AI、语音、连接、文件、终端、工具箱、小程序和日志等工作空间方向。
 
-顶部始终显示 Kiyori、进度条和单行步骤文案。第 1 页系统返回退出；第 2 至第 6 页可以返回上
-一步。打开协议正文时隐藏首启顶部，只显示文档自己的标题和返回入口。
+顶部始终显示 Kiyori、进度条和单行步骤文案，并消费状态栏、显示缺口、横向边缘与导航栏的
+`WindowInsets.safeDrawing`。第 1 页系统返回退出；第 2 至第 6 页可以返回上一步。打开协议正文时
+隐藏首启顶部，只显示文档自己的标题、当前版本、摘要、正文层级和返回入口。已完成首启但协议
+版本过期时使用同一安全区和法律文档组件，不建立第二份正文或同意状态。
 
 六页共用一个 `HorizontalPager`。第 1 至第 4 页可左右滑动，单次手势最多移动一页；第 5 页
 在用户明确同意协议前只允许向右返回，不能向左滑入权限页，确认后恢复双向滑动；第 6 页可向右
@@ -106,8 +108,9 @@ docs/doc-src/
 docs/TODO/
 ```
 
-不改变数据库、备份、ToolPkg、MCP、OAuth、Intent、AIDL、JNI 或其他稳定兼容标识。不提交、不推送，
-不安装应用或操作设备。
+不改变数据库、备份、ToolPkg、MCP、OAuth、Intent、AIDL、JNI 或其他稳定兼容标识。不安装应用、
+操作设备、构建 Release 或发布商店产物。本轮经用户明确授权，在完整本地验证和精确暂存审计后提交
+并推送 `main`。
 
 ## 验收
 
@@ -118,8 +121,10 @@ docs/TODO/
 - 第 1 至第 6 页的主按钮、顶部返回、左右滑动、步骤进度和持久化当前页指向同一个 Pager 状态
 - 单次滑动不能跨页；协议未同意不能滑入权限页；授权处理中不能切换页面
 - 设置内协议入口继续提供两份只读文档
-- 第 6 页不显示权限分区或权限等级，所有项目使用统一卡片和选择框
+- 第 6 页不显示权限等级；按“应用权限 / 系统访问 / 高级设备能力”复用设置页同一目录，只有当前
+  可操作且由用户逐项选择的项目显示选择框
 - 已授权、不适用和使用时确认状态真实显示；只对用户选中的可操作项目发起处理
+- 不提供会一次选择电话、短信、通知读取、无障碍、Shizuku、Root 等高影响能力的全局全选
 - 没有选择权限时可以直接进入；完成所选授权后直接进入，不存在 `READY` 页面
 - 首启中断后恢复当前步骤；系统设置往返后刷新状态和继续处理用户选择
 - 协议版本、首启步骤和完成版本拥有唯一持久 owner
@@ -128,3 +133,54 @@ docs/TODO/
 - 真机视觉、OEM 系统设置、授权拒绝和进程回收路径保持 `verification_pending`
 - 系统安装页、应用列表和无障碍设置中只显示 Kiyori 品牌；内部 provider 包名和 AIDL action
   保持现有 IPC 合同
+
+## 2026-08-28 协议、隐私与权限同步优化
+
+状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND DEBUG APK AUDIT COMPLETE / DEVICE VERIFICATION PENDING`。
+
+### 本轮问题证据
+
+- 全新安装六页根容器已经消费 `WindowInsets.safeDrawing`，但完成过 onboarding 后由协议版本升级触发的
+  独立确认分支没有自己的安全区，edge-to-edge 下可能让顶部内容进入状态栏。
+- Settings 权限中心已按三组展示共享 21 项事实，首次启动仍平铺 `KiyoriPermissionId.entries` 并提供
+  全局全选，信息层级和高影响授权边界不一致。
+- `MEDIA` 实际只声明并请求视频、音频与 Android 14 选择性视觉媒体权限，没有
+  `READ_MEDIA_IMAGES`；“照片、视频与音频”会把照片全库读取能力描述得比实现更宽。
+- 协议版本同时出现在 `AgreementPreferences.CURRENT_AGREEMENT_VERSION` 和两份正文文字中，版本升级时
+  存在显示内容漂移风险。
+- 首次启动完成后显示的插件加载浮层位于最高 zIndex，但根容器没有消费 `safeDrawing`。
+
+### 实施与验收合同
+
+1. `AgreementPreferences` 继续是唯一同意版本 owner；两份正文继续由 `KiyoriLegalDocument` 同时供
+   首次启动与 Settings 消费，正文显示版本由该常量格式化，不复制版本字面量。
+2. 首次安装与协议重确认都完整消费 `safeDrawing`；法律正文显示返回、文档摘要、版本和“完整正文”
+   层级，长文本可滚动、可选择复制，不遮挡系统栏。
+3. 首次启动权限页直接遍历 `kiyoriPermissionGroups`，复用 Settings 的三组顺序、说明、metadata、
+   status 与 action；不复制权限清单或状态。
+4. 删除全局全选，只保留逐项选择和清空已选；授权中显示明确进度并锁定返回、滑动和重复点击，失败
+   继续记录真实异常并提示对应项目。
+5. `MEDIA` 文案明确为视频与音频，照片通过系统文件选择入口按次选择；隐私政策的权限说明同步。
+6. 插件加载浮层消费 `safeDrawing`，TalkBack 折叠动作使用中文描述，不改变其 loading state owner、
+   超时、跳过或 MCP 启动协议。
+7. 定向 onboarding/startup/agreement JVM、首启架构门禁、formal readiness、Markdown 链接、差异检查、
+   串行 Debug APK 构建和产物审计通过；真机深浅主题、大字体、横竖屏、系统设置往返和 OEM 入口继续
+   保持 `verification_pending`。
+
+### 本地验证结果
+
+- onboarding、agreement、startup gate 与 Settings 六个 JVM 套件 `51/51` 通过，失败、错误和跳过均为 0
+- 首启 ARCH037 正反向 `7/7`、相关 M-04B/M-05A1/M-05A2/M-05A3 架构夹具及完整
+  `check_architecture_boundaries.py` 通过，完整结果为 `PASS (phase=m03)`
+- formal readiness、工作树 18 份 Markdown 链接和 `git diff --check` 通过
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL in 1m 47s`；
+  `235` 个任务中 `23` 个执行、`212` 个为最新状态，唯一 launcher、脚本代理 runtime 和播放器
+  runtime packaging 门禁通过
+- Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `503676817` bytes，SHA-256
+  `660135CD28282B5C6317862C58BD6EF7371DDB17ABF0D079A48E546F605755C7`
+- APK 为 `com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`，Android Debug V2 单 signer、16 KiB ZIP
+  对齐和唯一 `MainActivity` launcher 通过；`53` 个 `.so` 仅含 `arm64-v8a` 且 basename 零重复，
+  连同 shell launcher 共 `54/54` 个 ELF64/AArch64，`161` 个 `PT_LOAD` 为
+  `0x4000 x 159` 与 `0x10000 x 2`
+- 未安装 APK、未运行 ADB、模拟器或真机；设备视觉、触控、权限和系统设置往返继续保持
+  `verification_pending`

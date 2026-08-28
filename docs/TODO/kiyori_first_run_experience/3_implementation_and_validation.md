@@ -1,5 +1,37 @@
 # 实现与验证
 
+## 2026-08-28 协议、隐私与权限同步优化
+
+1. [DONE] 为协议版本升级后的独立确认目的地补齐 `WindowInsets.safeDrawing` 和不透明背景
+2. [DONE] 首次启动协议正文同步摘要、当前版本、“完整正文”和可选择复制说明
+3. [DONE] 两份正文的版本占位符统一由 `AgreementPreferences.CURRENT_AGREEMENT_VERSION` 格式化
+4. [DONE] 首启权限页改为复用 Settings 的三组目录、状态摘要、metadata 与 action resolver
+5. [DONE] 删除跨高影响能力的全局全选，只处理用户逐项选择的当前可操作项目
+6. [DONE] 把媒体权限文案收窄为实际声明的视频与音频，照片和其他文件说明为系统选择器按次处理
+7. [DONE] 插件加载浮层消费 `safeDrawing`，折叠动作提供中文无障碍说明
+8. [DONE] 扩充首启 surface JVM 与 ARCH037 正反向合同，同步受保护设置/播放器架构清单
+9. [DONE] 完成最终 JVM、架构、formal readiness、Markdown、差异、Debug APK 与本地交付候选审计
+10. [PENDING] 在目标设备复测六页视觉、长文、授权拒绝/部分授权、系统页返回、旋转和进程恢复
+
+本轮没有改变 onboarding 完成版本或用户选择持久化格式，已经完成首启的用户不会因为 UI 优化被
+强制重走六页；`AgreementPreferences` 的当前版本仍独立决定是否需要重新确认法律文档。首次启动和
+Settings 仍只读取 Android、无障碍提供者、Shizuku 与 Root 的真实状态，不保存第二份授权结果。
+
+最终本地验证：onboarding、agreement、startup gate 与 Settings 六个 JVM 套件 `51/51` 通过；首启
+ARCH037 正反向 `7/7`、M-04B/M-05A1/M-05A2/M-05A3 相关架构夹具通过；完整 architecture
+`PASS (phase=m03)`。formal readiness、工作树 18 份 Markdown 链接和 `git diff --check` 通过。
+
+规定的 Debug 构建为 `BUILD SUCCESSFUL in 1m 47s`，`235` 个任务中 `23` 个执行、`212` 个为最新
+状态，唯一 launcher、脚本代理 runtime 与播放器 runtime packaging 门禁通过。最终 Debug APK 位于
+`app/build/outputs/apk/debug/app-debug.apk`，写入时间 `2026-08-28 15:25:29 +08:00`，大小
+`503676817` bytes，SHA-256 为
+`660135CD28282B5C6317862C58BD6EF7371DDB17ABF0D079A48E546F605755C7`。包名、版本和
+min/target/compile SDK 为 `com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`；Android Debug V2 单 signer、
+16 KiB ZIP 对齐和唯一 `MainActivity` launcher 通过。APK 共 `5512` 个文件、`44` 个 DEX；`53` 个
+`.so` 仅含 `arm64-v8a` 且 basename 零重复，连同 shell launcher 共 `54/54` 个 ELF64/AArch64，
+`161` 个 `PT_LOAD` 为 `0x4000 x 159` 与 `0x10000 x 2`。未安装 APK、未运行 ADB、模拟器或真机，
+因此目标设备验收继续保持 `verification_pending`。
+
 ## 2026-08-11-r9 首启精确闹钟权限链收口
 
 1. [DONE] 删除首启 `EXACT_ALARM` 权限枚举、真实状态读取、系统设置 Intent 和权限元数据
@@ -158,8 +190,10 @@ IPC 兼容标识不变。真机启动器图标、首页视觉与无障碍设置�
   不再恢复稀疏标签流
 - 第 5 页分别打开 Kiyori 用户协议和隐私政策；打开、滚动和返回不改变接受条件
 - 用户只需勾选“我已阅读并同意当前版本的用户协议与隐私政策”，即可点击“同意并继续”
-- 第 6 页按一个统一清单展示所有权限和设备能力，不显示运行时、特殊访问、高级能力等分区
+- 第 6 页按“应用权限 / 系统访问 / 高级设备能力”复用 Settings 的同一 21 项目录和状态摘要，
+  不显示旧权限等级
 - 已授权、无需授权和使用时确认的项目不可加入队列；用户选择在真实状态刷新后自动清理
+- 不提供跨电话、短信、通知读取、无障碍、Shizuku、Root 等高影响能力的全局全选
 - 运行时权限共享唯一 `RequestMultiplePermissions` launcher；其他所选项目按清单顺序处理
 - 没有选择权限时按钮显示“进入 Kiyori”；存在选择时显示“授权并进入 Kiyori”
 - 所选队列处理完毕后直接完成首次启动并进入现有 Software Home，不再显示独立完成页

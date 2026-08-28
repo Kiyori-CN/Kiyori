@@ -13,12 +13,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -57,6 +59,8 @@ import androidx.core.text.HtmlCompat
 import androidx.core.widget.TextViewCompat
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.preferences.AgreementPreferences
+import com.ai.assistance.operit.ui.main.shell.KiyoriCollapsingSettingsPage
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsGroupSection
 
 internal enum class KiyoriLegalDocument(
     @StringRes val titleResId: Int,
@@ -97,24 +101,32 @@ internal fun KiyoriAgreementConfirmationScreen(
     }
 
     val document = selectedDocument
-    if (document != null) {
-        KiyoriAgreementDocumentScreen(
-            document = document,
-            onBack = { selectedDocument = null },
-        )
-    } else {
-        KiyoriAgreementSummary(
-            checked = checked,
-            onCheckedChange = { checked = it },
-            onOpenUserAgreement = {
-                selectedDocument = KiyoriLegalDocument.USER_AGREEMENT
-            },
-            onOpenPrivacyPolicy = {
-                selectedDocument = KiyoriLegalDocument.PRIVACY_POLICY
-            },
-            onDecline = onDeclined,
-            onAccept = onAccepted,
-        )
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .windowInsetsPadding(WindowInsets.safeDrawing),
+    ) {
+        if (document != null) {
+            KiyoriAgreementDocumentScreen(
+                document = document,
+                onBack = { selectedDocument = null },
+            )
+        } else {
+            KiyoriAgreementSummary(
+                checked = checked,
+                onCheckedChange = { checked = it },
+                onOpenUserAgreement = {
+                    selectedDocument = KiyoriLegalDocument.USER_AGREEMENT
+                },
+                onOpenPrivacyPolicy = {
+                    selectedDocument = KiyoriLegalDocument.PRIVACY_POLICY
+                },
+                onDecline = onDeclined,
+                onAccept = onAccepted,
+            )
+        }
     }
 }
 
@@ -335,6 +347,61 @@ internal fun KiyoriLegalDocumentsScreen(
 }
 
 @Composable
+internal fun KiyoriLegalDocumentScreen(
+    document: KiyoriLegalDocument,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+    ) {
+        KiyoriCollapsingSettingsPage(
+            title = stringResource(document.titleResId),
+            onBack = onBack,
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(
+                        WindowInsets.safeDrawing.only(
+                            WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom,
+                        ),
+                    ),
+        ) {
+            item {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = stringResource(document.summaryResId),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 21.sp,
+                    )
+                    AgreementVersionChip()
+                }
+            }
+            item {
+                KiyoriSettingsGroupSection(
+                    title = stringResource(R.string.kiyori_onboarding_legal_full_text),
+                    description =
+                        stringResource(R.string.kiyori_onboarding_legal_full_text_note),
+                ) {
+                    LegalDocumentBody(
+                        document = document,
+                        independentlyScrollable = false,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 internal fun KiyoriAgreementDocumentScreen(
     document: KiyoriLegalDocument,
     onBack: () -> Unit,
@@ -350,68 +417,106 @@ internal fun KiyoriAgreementDocumentScreen(
             title = stringResource(document.titleResId),
             onBack = onBack,
         )
+        Column(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = stringResource(document.summaryResId),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 20.sp,
+            )
+            Text(
+                text = stringResource(R.string.kiyori_onboarding_legal_full_text),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(R.string.kiyori_onboarding_legal_selectable_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 18.sp,
+            )
+        }
         HorizontalDivider()
-        val textColor = MaterialTheme.colorScheme.onSurface
-        val bodyTypography = MaterialTheme.typography.bodyMedium
-        AndroidView(
-            factory = { context ->
-                TextView(context).apply {
-                    val displayMetrics = context.resources.displayMetrics
-                    val horizontalPadding =
-                        TypedValue.applyDimension(
-                            TypedValue.COMPLEX_UNIT_DIP,
-                            8f,
-                            displayMetrics,
-                        ).toInt()
-                    setPadding(
-                        horizontalPadding,
-                        TypedValue.applyDimension(
-                            TypedValue.COMPLEX_UNIT_DIP,
-                            16f,
-                            displayMetrics,
-                        ).toInt(),
-                        horizontalPadding,
-                        TypedValue.applyDimension(
-                            TypedValue.COMPLEX_UNIT_DIP,
-                            32f,
-                            displayMetrics,
-                        ).toInt(),
-                    )
-                    movementMethod = ScrollingMovementMethod.getInstance()
-                    isVerticalScrollBarEnabled = true
-                    setTextIsSelectable(true)
-                    TextViewCompat.setLineHeight(
-                        this,
-                        TypedValue.applyDimension(
-                            TypedValue.COMPLEX_UNIT_SP,
-                            bodyTypography.lineHeight.value,
-                            displayMetrics,
-                        ).toInt(),
-                    )
-                }
-            },
-            update = { textView ->
-                textView.setTextColor(textColor.toArgb())
-                textView.setTextSize(
-                    TypedValue.COMPLEX_UNIT_SP,
-                    bodyTypography.fontSize.value,
-                )
-                if (textView.tag != document.contentResId) {
-                    textView.tag = document.contentResId
-                    textView.text =
-                        HtmlCompat.fromHtml(
-                            textView.context.getString(document.contentResId),
-                            HtmlCompat.FROM_HTML_MODE_COMPACT,
-                        )
-                    textView.scrollTo(0, 0)
-                }
-            },
-            modifier =
-                Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
+        LegalDocumentBody(
+            document = document,
+            independentlyScrollable = true,
+            modifier = Modifier.weight(1f).fillMaxWidth(),
         )
     }
+}
+
+@Composable
+private fun LegalDocumentBody(
+    document: KiyoriLegalDocument,
+    independentlyScrollable: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val textColor = MaterialTheme.colorScheme.onSurface
+    val bodyTypography = MaterialTheme.typography.bodyMedium
+    AndroidView(
+        factory = { context ->
+            TextView(context).apply {
+                val displayMetrics = context.resources.displayMetrics
+                val horizontalPadding =
+                    TypedValue.applyDimension(
+                        TypedValue.COMPLEX_UNIT_DIP,
+                        12f,
+                        displayMetrics,
+                    ).toInt()
+                setPadding(
+                    horizontalPadding,
+                    TypedValue.applyDimension(
+                        TypedValue.COMPLEX_UNIT_DIP,
+                        16f,
+                        displayMetrics,
+                    ).toInt(),
+                    horizontalPadding,
+                    TypedValue.applyDimension(
+                        TypedValue.COMPLEX_UNIT_DIP,
+                        24f,
+                        displayMetrics,
+                    ).toInt(),
+                )
+                setTextIsSelectable(true)
+                TextViewCompat.setLineHeight(
+                    this,
+                    TypedValue.applyDimension(
+                        TypedValue.COMPLEX_UNIT_SP,
+                        bodyTypography.lineHeight.value,
+                        displayMetrics,
+                    ).toInt(),
+                )
+            }
+        },
+        update = { textView ->
+            textView.movementMethod =
+                if (independentlyScrollable) ScrollingMovementMethod.getInstance() else null
+            textView.isVerticalScrollBarEnabled = independentlyScrollable
+            textView.setTextColor(textColor.toArgb())
+            textView.setTextSize(
+                TypedValue.COMPLEX_UNIT_SP,
+                bodyTypography.fontSize.value,
+            )
+            val contentKey =
+                document.contentResId to AgreementPreferences.CURRENT_AGREEMENT_VERSION
+            if (textView.tag != contentKey) {
+                textView.tag = contentKey
+                textView.text =
+                    HtmlCompat.fromHtml(
+                        textView.context.getString(
+                            document.contentResId,
+                            AgreementPreferences.CURRENT_AGREEMENT_VERSION,
+                        ),
+                        HtmlCompat.FROM_HTML_MODE_COMPACT,
+                    )
+                textView.scrollTo(0, 0)
+            }
+        },
+        modifier = modifier,
+    )
 }
 
 @Composable

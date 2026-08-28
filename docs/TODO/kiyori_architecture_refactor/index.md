@@ -360,8 +360,10 @@ system-bar owner，删除旧 `Theme.kt`、`OperitTheme`、`Theme.Operit` 和旧 
 固定 Typography 与纯 `applyFontFamilyToTypography` 已迁入 design；Type 的配置字体、文件读取、
 日志与 AI 局部字体适配保持原 owner。Liquid/Water Glass 算法与 PlayerActivity fullscreen
 system-bar 不迁不改；M-05A3 历史封板 hash 为
-`AEF88E8F34DD08098D858E4E5D3F36CBF1867AE36E6C44B96346F6A0BC11A756`，QD-04 当前
-ARCH042 hash 为 `0958C96D76C5C30E98EA84F08AC29CA576FA263C497AD1976BFEF9B4E326B7CA`。
+`AEF88E8F34DD08098D858E4E5D3F36CBF1867AE36E6C44B96346F6A0BC11A756`，QD-04
+ARCH042 hash 曾为 `0958C96D76C5C30E98EA84F08AC29CA576FA263C497AD1976BFEF9B4E326B7CA`；
+2026-08-28 默认视频播放器增量后的当前保护值为
+`61247CB0F9C67385C39574C2F11A48A810AD97A6A119FDF6B851850CF0354CA9`。
 ARCH040/041/042、
 完整 architecture `phase=m03`、Python `158/158`、JVM `134 suites / 810 tests`、
 formal/fresh-clone readiness、fresh lint 影响面和 Debug APK 审计通过；baseline 交集为

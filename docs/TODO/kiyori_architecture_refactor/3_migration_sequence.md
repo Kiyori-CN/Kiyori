@@ -255,7 +255,7 @@ resolver，旧 Browser/Settings theme 路径已删除。ARCH040 failure-first、
 消费者/ownership/test gate、完整 architecture、全量 Python/JVM、formal readiness、
 lint、Markdown、规定 Debug APK 与制品审计全部通过；设备/UI 仍待验证。M-05A2 也已封板：
 纯 semantic color contract 与 Compose MaterialTheme adapter 已分离后迁入
-`com.kiyori.design.theme`，58 个消费者、102 条 import、测试所有权和三份受影响 M-04B
+`com.kiyori.design.theme`，当前 59 个消费者、102 条 import、测试所有权和三份受影响 M-04B
 snapshot 均由 ARCH041 与 ARCH025/026/027 精确锁定；颜色、映射和 UI 未改变。完整
 architecture、Python `156/156`、JVM `810/810`、formal/fresh-clone、范围内 lint、规定
 Debug APK 与制品审计通过；仓库范围 full lint 仍保留 316 个既有 current-only issue，

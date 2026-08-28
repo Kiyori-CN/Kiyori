@@ -22,6 +22,7 @@ import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.KiyoriSettingsHomeIconPalette
 import com.kiyori.integration.operit.navigation.AppRouteCatalog
 import com.kiyori.integration.operit.onboarding.KIYORI_PERMISSION_SETTINGS_PAGE_TITLE
+import com.kiyori.capability.settings.navigation.KiyoriSettingsRoute
 import com.kiyori.platform.network.KiyoriProxySubscription
 import com.kiyori.platform.network.KiyoriSubscriptionSourceType
 import com.kiyori.platform.network.MihomoConfigSanitizer
@@ -269,22 +270,41 @@ class KiyoriSettingsPagesTest {
     @Test
     fun `more features exposes legal documents and the native permission center`() {
         assertEquals(
-            listOf("网络能力", "应用与隐私", "系统能力"),
+            listOf("系统能力", "网络能力", "开源与法律"),
             kiyoriMoreFeaturesSettingsGroups.map(KiyoriMoreFeaturesSettingsGroupSpec::title),
         )
         val entries =
             kiyoriMoreFeaturesSettingsGroups
                 .flatMap(KiyoriMoreFeaturesSettingsGroupSpec::entries)
         assertEquals(
-            listOf("网络代理", "用户协议与隐私政策", "权限"),
+            listOf("权限", "网络代理", "开源协议", "用户协议", "隐私政策"),
             entries.map(KiyoriMoreFeaturesSettingsEntrySpec::title),
+        )
+        assertEquals(
+            listOf(
+                KiyoriSemanticTone.GREEN,
+                KiyoriSemanticTone.CYAN,
+                KiyoriSemanticTone.ORANGE,
+                KiyoriSemanticTone.BLUE,
+                KiyoriSemanticTone.PURPLE,
+            ),
+            entries.map(KiyoriMoreFeaturesSettingsEntrySpec::iconTone),
         )
         val agreementEntry =
             entries.single { entry ->
-                entry.action == KiyoriMoreFeaturesSettingsAction.OPEN_AGREEMENT
+                entry.action == KiyoriMoreFeaturesSettingsAction.OPEN_USER_AGREEMENT
             }
-        assertTrue(agreementEntry.description.contains("用户协议"))
-        assertTrue(agreementEntry.description.contains("隐私政策"))
+        assertTrue(agreementEntry.description.contains("服务边界"))
+        val privacyEntry =
+            entries.single { entry ->
+                entry.action == KiyoriMoreFeaturesSettingsAction.OPEN_PRIVACY_POLICY
+            }
+        assertTrue(privacyEntry.description.contains("数据"))
+        val openSourceEntry =
+            entries.single { entry ->
+                entry.action == KiyoriMoreFeaturesSettingsAction.OPEN_OPEN_SOURCE
+            }
+        assertTrue(openSourceEntry.description.contains("许可证"))
 
         val permissionEntry =
             entries.single { entry ->
@@ -768,11 +788,12 @@ class KiyoriSettingsPagesTest {
     @Test
     fun `player settings expose only capabilities owned by PlayerSettingsStore`() {
         assertEquals(
-            listOf(4, 7, 6, 2, 2, 4),
+            listOf(5, 7, 6, 2, 2, 4),
             kiyoriPlayerSettingsGroups.map { group -> group.entries.size },
         )
         assertEquals(
             listOf(
+                "默认视频播放器",
                 "默认播放倍速",
                 "记忆播放倍速",
                 "自动播放下一集",
@@ -805,6 +826,7 @@ class KiyoriSettingsPagesTest {
         )
         assertEquals(
             mapOf(
+                "默认视频播放器" to KiyoriPlayerSettingsAction.SELECT_DEFAULT_VIDEO_PLAYER,
                 "默认播放倍速" to KiyoriPlayerSettingsAction.SELECT_DEFAULT_SPEED,
                 "记忆播放倍速" to
                     KiyoriPlayerSettingsAction.TOGGLE_REMEMBER_PLAYBACK_SPEED,
@@ -854,6 +876,22 @@ class KiyoriSettingsPagesTest {
             ),
             kiyoriPlayerSettingsGroups.map(KiyoriPlayerSettingsGroupSpec::title),
         )
+    }
+
+    @Test
+    fun `system video player delegation excludes Kiyori and respects Android resolution`() {
+        val source =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/features/player/PlayerActivity.kt",
+            ).readText()
+
+        assertTrue(source.contains("Intent.EXTRA_EXCLUDE_COMPONENTS"))
+        assertTrue(source.contains("info.activityInfo.packageName != packageName"))
+        assertTrue(source.contains("queryIntentActivities(externalIntent, PackageManager.MATCH_DEFAULT_ONLY)"))
+        assertTrue(source.contains("resolveActivity(externalIntent, PackageManager.MATCH_DEFAULT_ONLY)"))
+        assertTrue(source.contains("Intent.createChooser(externalIntent, \"选择系统视频播放器\")"))
+        assertTrue(source.contains("catch (error: SecurityException)"))
+        assertFalse(source.contains("externalActivities.firstOrNull()?.activityInfo"))
     }
 
     @Test
@@ -1253,6 +1291,14 @@ class KiyoriSettingsPagesTest {
                 ".windowInsetsPadding(WindowInsets.safeDrawing)",
             ),
         )
+        assertTrue(legalDocumentsSource.contains("internal fun KiyoriLegalDocumentScreen("))
+        assertTrue(legalDocumentsSource.contains("document: KiyoriLegalDocument"))
+        assertTrue(legalDocumentsSource.contains("KiyoriCollapsingSettingsPage("))
+        assertTrue(
+            legalDocumentsSource.contains(
+                "R.string.kiyori_onboarding_legal_full_text",
+            ),
+        )
 
         val fileManagerSource =
             repositoryFile(
@@ -1272,6 +1318,35 @@ class KiyoriSettingsPagesTest {
             fileManagerRoot.contains(
                 ".windowInsetsPadding(WindowInsets.safeDrawing)",
             ),
+        )
+    }
+
+    @Test
+    fun `more features routes split the legal documents and open source inventory`() {
+        assertEquals(
+            listOf(
+                KiyoriSettingsRoute.PERMISSIONS,
+                KiyoriSettingsRoute.NETWORK_PROXY,
+                KiyoriSettingsRoute.OPEN_SOURCE_LICENSES,
+                KiyoriSettingsRoute.USER_AGREEMENT,
+                KiyoriSettingsRoute.PRIVACY_POLICY,
+            ),
+            kiyoriMoreFeaturesSettingsGroups
+                .flatMap(KiyoriMoreFeaturesSettingsGroupSpec::entries)
+                .map { entry ->
+                    when (entry.action) {
+                        KiyoriMoreFeaturesSettingsAction.OPEN_PERMISSIONS ->
+                            KiyoriSettingsRoute.PERMISSIONS
+                        KiyoriMoreFeaturesSettingsAction.OPEN_NETWORK_PROXY ->
+                            KiyoriSettingsRoute.NETWORK_PROXY
+                        KiyoriMoreFeaturesSettingsAction.OPEN_OPEN_SOURCE ->
+                            KiyoriSettingsRoute.OPEN_SOURCE_LICENSES
+                        KiyoriMoreFeaturesSettingsAction.OPEN_USER_AGREEMENT ->
+                            KiyoriSettingsRoute.USER_AGREEMENT
+                        KiyoriMoreFeaturesSettingsAction.OPEN_PRIVACY_POLICY ->
+                            KiyoriSettingsRoute.PRIVACY_POLICY
+                    }
+                },
         )
     }
 

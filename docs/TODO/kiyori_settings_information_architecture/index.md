@@ -148,9 +148,11 @@ Settings Surface、来源会话与唯一状态 owner 合同继续有效。
 - `FileManagerScreen` 自身绘制全尺寸不透明页面背景，内容统一消费
   `WindowInsets.safeDrawing`；Shell child 仍保持 edge-to-edge 背景，但工具栏和文件内容不会进入
   状态栏、显示 cutout 或导航栏区域。
-- “更多功能”新增“应用与隐私 / 用户协议与隐私政策”，通过
-  `KiyoriSettingsRoute.AGREEMENT` 只读复用当前协议版本、用户协议与隐私政策；首次启动同意状态
-  和协议版本不在本增量中修改。
+- “更多功能”固定按“权限 / 网络代理 / 开源协议 / 用户协议 / 隐私政策”展示；五个入口分别进入
+  `PERMISSIONS / NETWORK_PROXY / OPEN_SOURCE_LICENSES / USER_AGREEMENT / PRIVACY_POLICY`，首次启动
+  同意状态继续由 `AgreementPreferences` 单独持有。开源协议按类别展示用途、许可证、许可证正文入口
+  和项目地址，清单版本独立于用户协议版本；FFmpegKit 固定 source lock 与页面条目由 JVM 测试逐项对账，
+  两份 Settings 法律正文共享折叠标题与正文分组卡。
 - `KiyoriLegalDocumentsScreen` 自身拥有全尺寸不透明背景与 `safeDrawing` 内容边界，概览页和
   两份正文共享同一安全区；Settings Home 不再从法律文档页面的透明区域透出。
 - `toolbox.file_manager` 与 `toolbox.agreement` 不再属于可见 `NavigationSurface.TOOLBOX`；
@@ -261,7 +263,7 @@ Kiyori Settings Surface 的折叠标题、分组说明、圆角卡片、双行�
 | 文档阅读器 | 空动作 | 文档阅读产品域尚无独立设置 owner |
 | 界面定制 | `RouteEntrySource.KIYORI_SETTINGS` 进入界面根 | 现有语言、主题、全局显示和布局设置 |
 | 数据备份 | `RouteEntrySource.KIYORI_SETTINGS` 进入数据根 | 现有备份与聊天历史 owner |
-| 更多功能 | `KiyoriSettingsRoute.MORE_FEATURES` | 只读法律文档 route 与现有系统能力/权限 owner |
+| 更多功能 | `KiyoriSettingsRoute.MORE_FEATURES` | 五个固定入口：权限、网络代理、开源协议、用户协议、隐私政策；分别复用设备能力、代理、开源目录和法律文档 owner |
 
 “广告拦截器”不再是首页入口，也不从 `KiyoriSettingsRoute` 中删除其内部规则子路由：
 `AD_BLOCK_OVERVIEW` 及其子页只能由 `网页浏览器 → 内容过滤 → 广告拦截器管理` 打开。

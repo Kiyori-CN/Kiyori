@@ -11,6 +11,31 @@ internal enum class PlayerPresentation {
     FULLSCREEN_PLAYER,
 }
 
+internal enum class PlayerDefaultVideoPlayer(
+    val persistedId: String,
+    val displayName: String,
+    val description: String,
+) {
+    KIYORI(
+        persistedId = "kiyori",
+        displayName = "Kiyori 内置播放器",
+        description = "使用 Kiyori 的 MPV 播放器，支持网页候选、队列和完整播放器控制",
+    ),
+    SYSTEM(
+        persistedId = "system",
+        displayName = "系统默认播放器",
+        description = "将外部视频交给 Android 上的其他视频播放器处理",
+    ),
+    ;
+
+    companion object {
+        fun fromPersistedId(value: String): PlayerDefaultVideoPlayer =
+            requireNotNull(entries.singleOrNull { it.persistedId == value }) {
+                "Unsupported default video player: $value"
+            }
+    }
+}
+
 internal enum class PlayerRuntimeState {
     STOPPED,
     BINDING,
@@ -333,6 +358,7 @@ internal data class LongPressSpeedBoostResult(
 
 @Immutable
 internal data class PlayerSettings(
+    val defaultVideoPlayer: PlayerDefaultVideoPlayer = PlayerDefaultVideoPlayer.KIYORI,
     val decoderBackend: PlayerDecoderBackend = PlayerDecoderBackend.SOFTWARE,
     val renderingProfile: PlayerRenderingProfile = PlayerRenderingProfile.FAST,
     val gpuNextEnabled: Boolean = false,

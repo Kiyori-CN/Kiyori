@@ -5,7 +5,7 @@ milestone: M-05
 submilestone: M-05E sealed; M-05 complete
 baseline: 176f803e683307aa8e182fb357f35f84755c5f8b + M-04 working tree
 device_scope: excluded
-last_reviewed: 2026-08-02
+last_reviewed: 2026-08-28
 ---
 
 # M-05 Design 与 Platform 精确实施清单
@@ -209,6 +209,11 @@ M-05A1 已于 2026-08-02 完成本地封板：
 - 初始 11 个生产消费者和新旧测试所有权已迁移；2026-08-09 浏览器文字大小与网站密码管理
   两个设置子页继续复用 `LocalKiyoriSettingsColors`，ARCH040 精确 consumer 合同同步增至
   13 个。只有 `operit-ui` 获得 `com.kiyori.design` allowed root
+- 2026-08-28 脚本长按代理选择抽屉需要从设置路由以外的扩展页打开。共享
+  `KiyoriSettingsSelectionSheet` 因此在自身组件边界建立既有 `KiyoriSettingsTheme`，继续保留
+  `LocalKiyoriSettingsColors` 缺失时的严格异常语义；ARCH040 同步登记
+  `KiyoriSettingsUi.kt` 为 `KiyoriSettingsTheme` 的真实 import consumer，不新增颜色、主题状态或
+  第二 design owner
 - ARCH040 在生产 source 出现前真实失败于缺少 `KiyoriColorSchemes.kt`；实现后的正反向
   fixture 和真实 gate 均通过
 - M-05A1 批准的两条 design import 使 M-04B App Shell checker-normalized hash 更新为
@@ -380,7 +385,7 @@ M-05A2 已于 2026-08-02 完成本地封板：
   `F4F74610C81D3080B2BA085B5D2CD20F3BC6249B8DBCE75A7786899AB9B716D2` 与
   `1E0FD1A5E0FA494776F141DDE80D4C454DBB6EE7275B703B872605860B5AC9BE`
 - 旧 `ui/theme/KiyoriSemanticTheme.kt` 已删除；没有 facade、typealias、fallback 或第二 owner
-- 54 个生产消费者、3 个外部测试消费者的 102 条 import 与 consumer snapshot 精确相等；
+- 当前为 55 个生产消费者、3 个外部测试消费者的 102 条 import 与 consumer snapshot 精确相等；
   第 4 个测试消费者为同 package 的 `KiyoriDesignThemeTest`，无需 import
 - `PlayerScreen.kt` 唯一完全限定 `KiyoriSemanticColors` 引用已迁入新 package；旧 package
   import 与旧完全限定 FQCN 均为 0
@@ -446,7 +451,10 @@ Context/File/Uri 字体加载与 AppLogger。`applyFontFamilyToTypography` 有 3
 PlayerActivity 独立拥有 fullscreen system-bar，LF-normalized SHA-256 为
 `AEF88E8F34DD08098D858E4E5D3F36CBF1867AE36E6C44B96346F6A0BC11A756`。A3 不修改该文件；
 QD-04 后续平台合同批次在保留 fullscreen system-bar owner 的前提下更新了当前
-ARCH042 PlayerActivity hash，见架构门禁规范中的 QD-04 记录。
+ARCH042 PlayerActivity hash，见架构门禁规范中的 QD-04 记录。2026-08-28 默认视频播放器
+增量增加外部 `ACTION_VIEW` 分流后，当前保护值为
+`61247CB0F9C67385C39574C2F11A48A810AD97A6A119FDF6B851850CF0354CA9`；fullscreen
+system-bar token 和 owner 未改变。
 
 ### 目标 owner
 
@@ -556,8 +564,9 @@ M-05A3 已于 2026-08-02 完成本地封板：
   exception 被完整 ownership gate 消费，`kiyori-app` 与 `operit-widget` 均未被宽泛放权
 - 6 个 `Theme.Kiyori` 声明、Manifest 6 个引用、七条 design consumer import、m03 Manifest
   semantic hash 与 ARCH039 MainActivity import snapshot 全部精确一致
-- PlayerActivity LF-normalized SHA-256 仍为
-  `AEF88E8F34DD08098D858E4E5D3F36CBF1867AE36E6C44B96346F6A0BC11A756`；
+- PlayerActivity 的 M-05A3 历史 LF-normalized SHA-256 为
+  `AEF88E8F34DD08098D858E4E5D3F36CBF1867AE36E6C44B96346F6A0BC11A756`；当前默认播放器增量后为
+  `61247CB0F9C67385C39574C2F11A48A810AD97A6A119FDF6B851850CF0354CA9`；
   fullscreen system-bar、Liquid/Water Glass 算法和用户偏好 initial 值未改变
 - ARCH040/041/042 六个正反向定向测试通过，真实 ARCH042 为 0 错误；完整 architecture
   `phase=m03` 与完整 Python `158/158` 通过

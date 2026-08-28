@@ -54,6 +54,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Extension
@@ -81,6 +82,7 @@ import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -235,48 +237,53 @@ internal fun KiyoriOnboardingScreen(
 
     fun handlePermissionAction(permissionId: KiyoriPermissionId): Boolean {
         return try {
-            when (permissionId) {
-                KiyoriPermissionId.ACCESSIBILITY -> {
-                    performKiyoriAccessibilityAction(context)
+            when (
+                resolveKiyoriPermissionAction(
+                    permissionId = permissionId,
+                    status = permissionSnapshot.status(permissionId),
+                )
+            ) {
+                KiyoriPermissionActionKind.OPEN_APPLICATION_SETTINGS -> {
+                    launchKiyoriApplicationPermissionSettings(context)
                     true
                 }
 
-                KiyoriPermissionId.SHIZUKU -> {
-                    performKiyoriShizukuAction(context) {
-                        waitingForExternalSettings = false
-                        refreshPermissions()
-                    }
-                    true
-                }
-
-                KiyoriPermissionId.ROOT -> {
-                    RootAuthorizer.requestRootPermission {
-                        waitingForExternalSettings = false
-                        refreshPermissions()
-                    }
-                    true
-                }
-
-                KiyoriPermissionId.SCREEN_CAPTURE -> false
-
-                KiyoriPermissionId.NOTIFICATIONS,
-                KiyoriPermissionId.MEDIA,
-                KiyoriPermissionId.CAMERA,
-                KiyoriPermissionId.MICROPHONE,
-                KiyoriPermissionId.LOCATION,
-                KiyoriPermissionId.BLUETOOTH,
-                KiyoriPermissionId.PHONE,
-                KiyoriPermissionId.SMS,
-                KiyoriPermissionId.LEGACY_STORAGE,
-                -> false
-
-                else -> {
+                KiyoriPermissionActionKind.OPEN_SYSTEM_SETTINGS -> {
                     launchKiyoriPermissionSettings(
                         context = context,
                         permissionId = permissionId,
                     )
                     true
                 }
+
+                KiyoriPermissionActionKind.CONFIGURE_ACCESSIBILITY -> {
+                    performKiyoriAccessibilityAction(context)
+                    true
+                }
+
+                KiyoriPermissionActionKind.CONFIGURE_SHIZUKU -> {
+                    performKiyoriShizukuAction(context) {
+                        pagerScope.launch {
+                            waitingForExternalSettings = false
+                            refreshPermissions()
+                        }
+                    }
+                    true
+                }
+
+                KiyoriPermissionActionKind.REQUEST_ROOT -> {
+                    RootAuthorizer.requestRootPermission {
+                        pagerScope.launch {
+                            waitingForExternalSettings = false
+                            refreshPermissions()
+                        }
+                    }
+                    true
+                }
+
+                KiyoriPermissionActionKind.REQUEST_RUNTIME,
+                KiyoriPermissionActionKind.NONE,
+                -> false
             }
         } catch (error: Exception) {
             KiyoriLogger.e(
@@ -329,7 +336,13 @@ internal fun KiyoriOnboardingScreen(
             return@LaunchedEffect
         }
         val runtimeIds =
-            queue.filter(::isKiyoriRuntimePermission)
+            queue.filter { permissionId ->
+                isKiyoriRuntimePermission(permissionId) &&
+                    resolveKiyoriPermissionAction(
+                        permissionId = permissionId,
+                        status = permissionSnapshot.status(permissionId),
+                    ) == KiyoriPermissionActionKind.REQUEST_RUNTIME
+            }
         if (runtimeIds.isNotEmpty()) {
             permissionQueueNames =
                 queue
@@ -698,15 +711,6 @@ internal fun KiyoriOnboardingScreen(
                                             } else {
                                                 selectedPermissionIds + permissionId
                                             }
-                                        preferences.saveSelectedPermissions(
-                                            selectedPermissionIds,
-                                        )
-                                    }
-                                },
-                                onSelectAll = {
-                                    if (!authorizationActive) {
-                                        selectedPermissionIds =
-                                            permissionSnapshot.selectable.toSet()
                                         preferences.saveSelectedPermissions(
                                             selectedPermissionIds,
                                         )
@@ -1188,6 +1192,7 @@ private fun OnboardingPrimaryButton(
     onClick: () -> Unit,
     enabled: Boolean = true,
     showArrow: Boolean = true,
+    loading: Boolean = false,
 ) {
     Button(
         onClick = onClick,
@@ -1205,6 +1210,14 @@ private fun OnboardingPrimaryButton(
                 .padding(bottom = 12.dp)
                 .height(56.dp),
     ) {
+        if (loading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
+                strokeWidth = 2.dp,
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+        }
         Text(
             text = text,
             style = MaterialTheme.typography.titleSmall,
@@ -1578,7 +1591,6 @@ private fun KiyoriPermissionAuthorizationPage(
     authorizationActive: Boolean,
     waitingForExternalSettings: Boolean,
     onTogglePermission: (KiyoriPermissionId) -> Unit,
-    onSelectAll: () -> Unit,
     onClearSelection: () -> Unit,
     onAuthorize: () -> Unit,
 ) {
@@ -1586,7 +1598,13 @@ private fun KiyoriPermissionAuthorizationPage(
         selectedPermissionIds.count { permissionId ->
             snapshot.canSelect(permissionId)
         }
-    val hasSelectablePermissions = snapshot.selectable.isNotEmpty()
+    val groupedPermissionIds =
+        remember {
+            kiyoriPermissionGroups.flatMap(KiyoriPermissionGroupSpec::permissionIds)
+        }
+    check(groupedPermissionIds == KiyoriPermissionId.entries) {
+        "Onboarding and Settings must render the same ordered permission catalog"
+    }
     Column(
         modifier =
             Modifier
@@ -1635,55 +1653,53 @@ private fun KiyoriPermissionAuthorizationPage(
                         fontWeight = FontWeight.SemiBold,
                     )
                     TextButton(
-                        onClick = {
-                            if (selectedCount == snapshot.selectable.size) {
-                                onClearSelection()
-                            } else {
-                                onSelectAll()
-                            }
-                        },
-                        enabled = hasSelectablePermissions && !authorizationActive,
+                        onClick = onClearSelection,
+                        enabled = selectedCount > 0 && !authorizationActive,
                     ) {
                         Text(
                             text =
                                 stringResource(
-                                    if (selectedCount == snapshot.selectable.size) {
-                                        R.string.kiyori_onboarding_permissions_clear_all
-                                    } else {
-                                        R.string.kiyori_onboarding_permissions_select_all
-                                    },
+                                    R.string.kiyori_onboarding_permissions_clear_all,
                                 ),
                         )
                     }
                 }
             }
-            items(
-                items = KiyoriPermissionId.entries,
-                key = KiyoriPermissionId::name,
-            ) { permissionId ->
-                PermissionItemCard(
-                    permissionId = permissionId,
-                    status = snapshot.status(permissionId),
-                    selected = permissionId in selectedPermissionIds,
-                    enabled =
-                        !authorizationActive &&
-                            snapshot.canSelect(permissionId),
-                    onClick = { onTogglePermission(permissionId) },
-                )
+            kiyoriPermissionGroups.forEach { group ->
+                item(key = "onboarding_permission_group_${group.id.name}") {
+                    PermissionGroupHeader(group)
+                }
+                items(
+                    items = group.permissionIds,
+                    key = KiyoriPermissionId::name,
+                ) { permissionId ->
+                    PermissionItemCard(
+                        permissionId = permissionId,
+                        status = snapshot.status(permissionId),
+                        selected = permissionId in selectedPermissionIds,
+                        selectable = snapshot.canSelect(permissionId),
+                        interactionEnabled = !authorizationActive,
+                        onClick = { onTogglePermission(permissionId) },
+                    )
+                }
             }
         }
         OnboardingPrimaryButton(
             text =
                 stringResource(
-                    if (selectedCount == 0) {
-                        R.string.kiyori_onboarding_permissions_enter
-                    } else {
-                        R.string.kiyori_onboarding_permissions_authorize_and_enter
+                    when {
+                        authorizationActive ->
+                            R.string.kiyori_onboarding_permissions_processing
+                        selectedCount == 0 ->
+                            R.string.kiyori_onboarding_permissions_enter
+                        else ->
+                            R.string.kiyori_onboarding_permissions_authorize_and_enter
                     },
                 ),
             onClick = onAuthorize,
             enabled = !waitingForExternalSettings && !authorizationActive,
             showArrow = false,
+            loading = authorizationActive,
         )
     }
 }
@@ -1693,6 +1709,7 @@ private fun PermissionOverviewCard(
     snapshot: KiyoriPermissionSnapshot,
     selectedCount: Int,
 ) {
+    val summary = summarizeKiyoriPermissions(snapshot)
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
@@ -1700,18 +1717,33 @@ private fun PermissionOverviewCard(
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
-                text =
-                    stringResource(
-                        R.string.kiyori_onboarding_permissions_overview_count,
-                        snapshot.completedCount,
-                        snapshot.totalCount,
-                    ),
+                text = stringResource(R.string.kiyori_onboarding_permissions_overview_title),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                PermissionOverviewMetric(
+                    label = stringResource(R.string.kiyori_onboarding_permissions_ready),
+                    value = summary.readyCount,
+                    modifier = Modifier.weight(1f),
+                )
+                PermissionOverviewMetric(
+                    label = stringResource(R.string.kiyori_onboarding_permissions_pending),
+                    value = summary.actionRequiredCount,
+                    modifier = Modifier.weight(1f),
+                )
+                PermissionOverviewMetric(
+                    label = stringResource(R.string.kiyori_onboarding_permissions_on_demand),
+                    value = summary.onDemandCount,
+                    modifier = Modifier.weight(1f),
+                )
+            }
             Text(
                 text =
                     stringResource(
@@ -1726,11 +1758,58 @@ private fun PermissionOverviewCard(
 }
 
 @Composable
+private fun PermissionOverviewMetric(
+    label: String,
+    value: Int,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(
+            text = value.toString(),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+private fun PermissionGroupHeader(group: KiyoriPermissionGroupSpec) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        Text(
+            text = group.title,
+            modifier = Modifier.semantics { heading() },
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = group.description,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            lineHeight = 18.sp,
+        )
+    }
+}
+
+@Composable
 private fun PermissionItemCard(
     permissionId: KiyoriPermissionId,
     status: KiyoriPermissionStatus,
     selected: Boolean,
-    enabled: Boolean,
+    selectable: Boolean,
+    interactionEnabled: Boolean,
     onClick: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -1740,16 +1819,16 @@ private fun PermissionItemCard(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clickable(enabled = enabled, onClick = onClick),
+                .clickable(enabled = selectable && interactionEnabled, onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         color =
-            if (selected && enabled) {
+            if (selected && selectable) {
                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.56f)
             } else {
                 MaterialTheme.colorScheme.surfaceContainerLow
             },
         border =
-            if (selected && enabled) {
+            if (selected && selectable) {
                 BorderStroke(
                     width = 1.dp,
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.42f),
@@ -1763,17 +1842,29 @@ private fun PermissionItemCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Checkbox(
-                checked =
-                    status == KiyoriPermissionStatus.GRANTED ||
-                        (enabled && selected),
-                onCheckedChange = {
-                    if (enabled) {
-                        onClick()
-                    }
-                },
-                enabled = enabled,
-            )
+            if (selectable) {
+                Checkbox(
+                    checked = selected,
+                    onCheckedChange = {
+                        if (interactionEnabled) {
+                            onClick()
+                        }
+                    },
+                    enabled = interactionEnabled,
+                )
+            } else {
+                Icon(
+                    imageVector =
+                        if (status == KiyoriPermissionStatus.ON_DEMAND) {
+                            Icons.Default.Visibility
+                        } else {
+                            Icons.Default.CheckCircle
+                        },
+                    contentDescription = kiyoriPermissionStatusLabel(status),
+                    tint = statusColors.icon,
+                    modifier = Modifier.size(24.dp).padding(2.dp),
+                )
+            }
             KiyoriSemanticIconBadge(
                 imageVector = metadata.icon,
                 tone = metadata.tone,

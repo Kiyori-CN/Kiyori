@@ -18,6 +18,11 @@ internal class PlayerSettingsStore private constructor(context: Context) {
     val current: PlayerSettings
         get() = _state.value
 
+    fun setDefaultVideoPlayer(value: PlayerDefaultVideoPlayer) {
+        preferences.edit { putString(KEY_DEFAULT_VIDEO_PLAYER, value.persistedId) }
+        _state.value = _state.value.copy(defaultVideoPlayer = value)
+    }
+
     fun setDecoderBackend(value: PlayerDecoderBackend) {
         preferences.edit { putString(KEY_DECODER_BACKEND, value.persistedId) }
         _state.value = _state.value.copy(decoderBackend = value)
@@ -243,6 +248,15 @@ internal class PlayerSettingsStore private constructor(context: Context) {
             "Invalid persisted remembered player speed: $lastPlaybackSpeed"
         }
         return PlayerSettings(
+            defaultVideoPlayer =
+                PlayerDefaultVideoPlayer.fromPersistedId(
+                    requireNotNull(
+                        preferences.getString(
+                            KEY_DEFAULT_VIDEO_PLAYER,
+                            FRESH_INSTALL_PLAYER_SETTINGS.defaultVideoPlayer.persistedId,
+                        ),
+                    ) { "Default video player preference is null" },
+                ),
             decoderBackend =
                 PlayerDecoderBackend.fromPersistedId(
                     requireNotNull(
@@ -392,6 +406,7 @@ internal class PlayerSettingsStore private constructor(context: Context) {
 
     companion object {
         private const val PREFERENCES_NAME = "kiyori_player_settings"
+        private const val KEY_DEFAULT_VIDEO_PLAYER = "default_video_player"
         private const val KEY_DECODER_BACKEND = "decoder_backend"
         private const val KEY_RENDERING_PROFILE = "rendering_profile"
         private const val KEY_GPU_NEXT_ENABLED = "gpu_next_enabled"

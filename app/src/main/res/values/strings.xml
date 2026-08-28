@@ -625,6 +625,7 @@
 
     <!-- Plugin Loading Screen -->
     <string name="plugin_skip">跳过</string>
+    <string name="plugin_collapse" translatable="false">收起加载详情</string>
     <string name="plugin_app_name">Kiyori</string>
     <string name="plugin_status">已启动: %1$d / %2$d</string>
     <string name="plugin_loading_status_title">插件加载状态</string>
@@ -8265,17 +8266,17 @@
     <string name="kiyori_onboarding_files_card_logs_desc" translatable="false">追踪运行状态、错误与问题线索</string>
     <string name="kiyori_onboarding_files_next" translatable="false">查看协议</string>
 
-    <string name="kiyori_onboarding_agreement_title">用户协议与隐私政策</string>
-    <string name="kiyori_onboarding_agreement_subtitle">使用 Kiyori 前，请确认你已了解服务规则与数据处理方式。两份文档可分别查看。</string>
-    <string name="kiyori_onboarding_agreement_version">协议版本：%1$s</string>
-    <string name="kiyori_onboarding_agreement_read_prompt" translatable="false">查看完整文本</string>
+    <string name="kiyori_onboarding_agreement_title">请阅读并确认</string>
+    <string name="kiyori_onboarding_agreement_subtitle">《用户协议》和《隐私政策》分别说明 Kiyori 的使用规则与数据处理方式。请在同意前阅读当前版本。</string>
+    <string name="kiyori_onboarding_agreement_version">当前协议版本：%1$s</string>
+    <string name="kiyori_onboarding_agreement_read_prompt" translatable="false">当前法律文件</string>
     <string name="kiyori_onboarding_agreement_checkbox">我已阅读并同意《用户协议》和《隐私政策》</string>
     <string name="kiyori_onboarding_agreement_accept">同意并继续</string>
     <string name="kiyori_onboarding_agreement_decline">不同意并退出</string>
     <string name="kiyori_onboarding_user_agreement_title" translatable="false">Kiyori 用户协议</string>
-    <string name="kiyori_onboarding_user_agreement_summary" translatable="false">产品边界、使用规则、高影响操作与开源许可。</string>
+    <string name="kiyori_onboarding_user_agreement_summary" translatable="false">说明产品与第三方服务边界、使用规则、高影响操作、扩展责任、开源许可和责任范围。</string>
     <string name="kiyori_onboarding_user_agreement_content" translatable="false"><![CDATA[
-        <p><b>Kiyori 用户协议</b><br>版本：2026-08-09-r3；拟生效日期：2026 年 8 月 9 日。</p>
+        <p><b>Kiyori 用户协议</b><br>版本：%1$s；生效日期：2026 年 8 月 28 日。</p>
         <p><b>1. 产品定位与适用范围</b><br>本协议适用于 Kiyori Android 客户端及你主动启用的相关功能。Kiyori 是运行在用户设备上的开源 AI 浏览器，网页浏览、内容搜索、下载、视频播放和设备端内容处理是产品中心；Operit AI 是内嵌的 AI 子系统。安装、启动或使用 Kiyori 前，请阅读并理解本协议。</p>
         <p><b>2. 产品与服务边界</b><br>Kiyori 不向用户提供共享模型凭据，也不把第三方模型、语音、搜索、GitHub、MCP、插件或自定义 HTTP 服务包装成由 Kiyori 运营的统一云服务。你选择并使用这些服务时，请自行确认提供方、端点、模型、价格、配额、服务条款和隐私规则。第三方服务的可用性、内容、计费、账号处理和数据保留由相应提供方负责。</p>
         <p><b>3. 高影响操作</b><br>终端、脚本、工作流、插件、AI 工具、文件管理、应用安装、通知读取、屏幕操作、无障碍、Shizuku、ADB 和 Root 可能读取、修改或删除数据，启动服务，安装软件，调用网络，改变系统状态，或对其他应用和账号产生影响。执行前应核对目标、参数、来源和预期结果，并为重要数据保留可恢复备份。不要把高权限能力交给不可信的提示词、网页、文件、插件、脚本或远程服务。</p>
@@ -8283,32 +8284,47 @@
         <p><b>5. 扩展生态</b><br>第三方插件、脚本包、Skill、ToolPkg、MCP、模型、工作流和其他扩展由其作者或提供方负责。市场展示、安装入口或兼容标识不表示 Kiyori 对扩展的安全性、合法性、准确性、持续可用性或许可证作出保证。安装前应检查来源、代码、权限、环境变量、联网行为和许可证，不得上传或公开 API Key、Cookie、Token、私钥、账号密码或他人数据。</p>
         <p><b>6. 合法使用</b><br>你应遵守适用法律法规、网站规则、第三方服务条款、软件许可证和他人合法权益，不得利用 Kiyori 未经授权访问系统或数据、规避安全控制、传播违法有害内容、实施欺诈或骚扰，或从事其他违法侵权活动。将机器人、HTTP 服务、自动回复或工作流开放给他人时，你作为实际部署者负责访问控制、提示、内容安全、数据保护和其他适用义务。</p>
         <p><b>7. 开源许可与免责声明</b><br>Kiyori 源码按仓库 LICENSE 和 NOTICE 中的 GPL-3.0-or-later 边界提供；第三方组件适用各自许可证。开源许可与本协议共同适用，本协议不限制开源许可证和适用法律赋予你的权利。在适用法律允许的范围内，软件按“现状”和“可用”状态提供，不保证第三方服务、扩展、网络、设备兼容性或 AI 输出持续可用、准确、安全或适合特定目的。</p>
-        <p><b>8. 协议更新与联系</b><br>功能、法律或安全边界发生实质变化时，Kiyori 会提高协议版本并要求重新确认。你可以通过应用内反馈入口或项目仓库提出问题。若你不同意当前版本，应停止使用并退出应用；在卸载或清除数据前，请先导出需要保留的内容。</p>
+        <p><b>8. 账号、凭据与第三方服务</b><br>Kiyori 不代替你管理第三方账号。你负责确认 API Key、Cookie、访问令牌、私钥、密码和授权回调的来源、权限范围、有效期与撤销方式。通过自定义端点、代理、MCP 或插件连接服务时，应核对请求目标、证书、域名和数据发送范围，并承担由此产生的账号、费用和合规责任。</p>
+        <p><b>9. 内容、版权与通知</b><br>你对输入、上传、下载、生成、转发和发布的内容承担相应责任。请在复制、转换、抓取或再分发网页、音视频、模型和文档前取得必要授权，并遵守版权、个人信息和平台规则。Kiyori 可能在应用内展示运行状态、错误和安全提示；这些提示用于辅助判断，不替代你的核验义务。</p>
+        <p><b>10. 服务变更、暂停与终止</b><br>Kiyori 的功能、内置组件、第三方接口和系统兼容性会随版本、设备和依赖变化。对于维护、安全事件、系统限制或不可控制的第三方原因，相关功能可能被暂停、限制或移除。你可以随时停止使用、卸载应用或清除数据；停止使用前应完成必要的数据导出和授权撤销。</p>
+        <p><b>11. 责任范围与争议处理</b><br>在适用法律允许的最大范围内，因设备故障、系统限制、网络中断、第三方服务、扩展代码、用户误操作或未按提示核验造成的损失，由相应责任方依法承担。任何条款无意排除或限制适用法律下不得排除的责任或用户权利。对协议有疑问时，请先通过项目仓库或应用内反馈提交可复现信息。</p>
+        <p><b>12. 协议更新与联系</b><br>功能、法律或安全边界发生实质变化时，Kiyori 会提高协议版本并要求重新确认。当前版本为 %1$s。你可以通过应用内反馈入口或项目仓库提出问题。若你不同意当前版本，应停止使用并退出应用；在卸载或清除数据前，请先导出需要保留的内容。</p>
     ]]></string>
     <string name="kiyori_onboarding_privacy_policy_title" translatable="false">Kiyori 隐私政策</string>
-    <string name="kiyori_onboarding_privacy_policy_summary" translatable="false">本地与网站数据、联网场景、权限用途与删除方式。</string>
+    <string name="kiyori_onboarding_privacy_policy_summary" translatable="false">说明设备端与网站数据、第三方联网场景、权限用途、保存期限、安全措施和删除方式。</string>
     <string name="kiyori_onboarding_privacy_policy_content" translatable="false"><![CDATA[
-        <p><b>Kiyori 隐私政策</b><br>版本：2026-08-09-r3；拟生效日期：2026 年 8 月 9 日。</p>
+        <p><b>Kiyori 隐私政策</b><br>版本：%1$s；生效日期：2026 年 8 月 28 日。</p>
         <p><b>1. 适用范围与处理原则</b><br>本政策说明 Kiyori Android 客户端在网页浏览、下载、视频播放、AI、语音、文件、自动化和扩展功能中如何处理数据。Kiyori 优先在设备端保存和处理信息；只有当你主动使用需要联网的功能时，相关数据才会发送给对应网站或服务提供方。</p>
         <p><b>2. 设备端数据</b><br>聊天记录、角色卡、记忆、模型配置、API Key、环境变量、浏览器状态、网站数据、工作流和其他配置通常保存在应用私有数据或你明确选择的本地目录中。下载、备份、日志、媒体、工作区和其他公共文件保存在你选择或功能明确显示的位置。请自行备份重要数据并妥善保护设备、账号和凭据。</p>
         <p><b>3. 浏览器与网站数据</b><br>网页可能使用 Cookie、本地存储、缓存、登录状态、权限和其他站点数据提供服务。你访问的网站负责其内容和隐私规则；Kiyori 作为浏览器在设备上保存相应网站数据，并提供适用的清理入口。网站请求相机、麦克风、位置等能力时，仍需经过 Kiyori 和 Android 的明确授权。</p>
         <p><b>4. 联网与第三方处理</b><br>当你主动发送模型请求、使用联网语音、网页搜索、浏览网站、登录 GitHub、进入插件市场、安装或运行联网扩展、连接 MCP、调用自定义端点、上传文件或分享内容时，相关文字、文件、语音、网页地址、设备信息或请求参数会按功能需要发送给对应服务或网站。发送前请检查内容是否包含个人信息、商业秘密、凭据或其他敏感数据。</p>
-        <p><b>5. 权限与设备能力</b><br>Kiyori 可能请求通知、媒体、相机、麦克风、位置、蓝牙、电话、短信和旧版存储等 Android 运行时权限，也可能引导你授予所有文件访问、悬浮窗、修改系统设置、使用情况访问、未知来源安装、电池优化豁免、通知读取、默认助手、无障碍、Shizuku 或 Root 等特殊能力。每项授权都会说明用途，并由 Android、Shizuku、Root 管理器或其他真实状态 owner 确认；拒绝授权不会被记录成成功。</p>
+        <p><b>5. 权限与设备能力</b><br>Kiyori 可能请求通知、视频与音频、相机、麦克风、位置、蓝牙、电话、短信和旧版存储等 Android 运行时权限；照片和其他文件通过系统文件选择器按次选择。应用也可能引导你授予所有文件访问、悬浮窗、修改系统设置、使用情况访问、未知来源安装、电池优化豁免、通知读取、默认助手、无障碍、Shizuku 或 Root 等特殊能力。每项授权都会说明用途，并由 Android、Shizuku、Root 管理器或其他真实状态 owner 确认；拒绝授权不会被记录成成功。</p>
         <p><b>6. 数据管理与删除</b><br>你可以通过应用内相应页面管理聊天、模型、网站数据、下载、备份、日志、插件和配置，也可以通过 Android 系统设置撤销权限或清除应用数据。卸载 Kiyori 通常会删除 Android 管理的应用私有数据；你主动导出的公共文件、SAF 目录内容和第三方服务中的数据不会被自动删除，需要在对应位置单独管理。</p>
         <p><b>7. 数据安全</b><br>请为设备设置可靠的锁屏保护，妥善保管 API Key、Cookie、Token、私钥、账号密码和备份文件，不要把敏感内容交给不可信的网页、提示词、插件、脚本或远程服务。删除、覆盖、Root、系统清理或第三方文件工具可能造成不可恢复的数据丢失。</p>
-        <p><b>8. 政策更新与联系</b><br>数据处理、功能、法律或安全边界发生实质变化时，Kiyori 会提高协议版本并要求重新确认。你可以通过应用内反馈入口或项目仓库提出隐私问题。若你不同意当前政策，应停止使用相应功能并退出应用。</p>
+        <p><b>8. 保存期限与生命周期</b><br>本地数据通常保留至你主动删除、清除应用数据、卸载应用或覆盖对应配置；浏览器 Cookie、缓存、下载、日志、备份和工作区按照各自页面的清理动作管理。第三方网站、模型、代理、MCP、插件和云端服务的保存期限由其提供方决定，Kiyori 无法替你删除这些服务中的副本。</p>
+        <p><b>9. 数据共享、委托与跨境传输</b><br>当你主动选择第三方服务、上传内容、登录账号或运行联网扩展时，数据可能被传输至该服务使用的服务器所在地区，并按其隐私政策处理。Kiyori 不会为了广告画像出售你的聊天记录或本地文件；但网络请求本身可能包含访问地址、请求头、设备网络信息和你提交的内容。使用前请确认接收方、目的、范围、保存期和跨境安排。</p>
+        <p><b>10. 未成年人和他人信息</b><br>请确保你有权处理上传、分享或输入的个人信息，不要在没有合法依据或必要授权的情况下提交未成年人的敏感信息、他人账号资料、医疗记录、财务资料或企业机密。若你代表组织使用 Kiyori，应由组织负责确定数据处理角色、授权链和内部合规要求。</p>
+        <p><b>11. 安全事件与权利请求</b><br>如果你发现凭据泄露、异常联网、错误授权或疑似安全事件，请立即撤销相关权限、轮换凭据、停止对应扩展并保留必要日志。你可以通过应用内反馈或项目仓库提交问题、删除建议和隐私请求；为便于处理，请提供不包含密钥、Cookie 或个人敏感内容的最小复现信息。</p>
+        <p><b>12. 政策更新与联系</b><br>数据处理、功能、法律或安全边界发生实质变化时，Kiyori 会提高协议版本并要求重新确认。当前版本为 %1$s。你可以通过应用内反馈入口或项目仓库提出隐私问题。若你不同意当前政策，应停止使用相应功能并退出应用。</p>
     ]]></string>
     <string name="kiyori_onboarding_legal_documents_title" translatable="false">用户协议与隐私政策</string>
     <string name="kiyori_onboarding_legal_documents_desc" translatable="false">用户协议与隐私政策是两份独立文档，可分别查看当前完整内容。</string>
+    <string name="kiyori_onboarding_legal_full_text" translatable="false">完整正文</string>
+    <string name="kiyori_onboarding_legal_full_text_note" translatable="false">以下为当前生效的中文版本。正文可选择复制，标题栏会随页面滚动折叠。</string>
+    <string name="kiyori_onboarding_legal_selectable_note" translatable="false">正文可滚动阅读，也可长按选择并复制文字。</string>
 
     <string name="kiyori_onboarding_permissions_title">权限设置</string>
-    <string name="kiyori_onboarding_permissions_desc">按需选择现在启用的权限；未选择不影响进入 Kiyori，之后仍可在设置中管理。</string>
+    <string name="kiyori_onboarding_permissions_desc">不授权也可以直接进入 Kiyori。请选择现在确实需要的项目；电话、短信、无障碍、Shizuku 和 Root 等高影响能力可在使用对应功能时单独配置。</string>
     <string name="kiyori_onboarding_permissions_all_items" translatable="false">权限清单</string>
-    <string name="kiyori_onboarding_permissions_select_all" translatable="false">全选</string>
-    <string name="kiyori_onboarding_permissions_clear_all" translatable="false">清空</string>
+    <string name="kiyori_onboarding_permissions_clear_all" translatable="false">清空已选</string>
     <string name="kiyori_onboarding_permissions_selected_count" translatable="false">已选择 %1$d 项</string>
     <string name="kiyori_onboarding_permissions_authorize_and_enter" translatable="false">授权并进入 Kiyori</string>
     <string name="kiyori_onboarding_permissions_enter" translatable="false">进入 Kiyori</string>
+    <string name="kiyori_onboarding_permissions_processing" translatable="false">正在处理授权</string>
+    <string name="kiyori_onboarding_permissions_overview_title" translatable="false">设备能力概览</string>
+    <string name="kiyori_onboarding_permissions_ready" translatable="false">已就绪</string>
+    <string name="kiyori_onboarding_permissions_pending" translatable="false">待处理</string>
+    <string name="kiyori_onboarding_permissions_on_demand" translatable="false">使用时确认</string>
     <string name="kiyori_onboarding_permissions_overview_count">已就绪 %1$d / %2$d</string>
     <string name="kiyori_onboarding_permission_action_failed">无法打开“%1$s”的授权入口，请检查系统支持情况。</string>
 
@@ -8321,8 +8337,8 @@
 
     <string name="kiyori_onboarding_permission_notifications_title">通知</string>
     <string name="kiyori_onboarding_permission_notifications_desc">显示 AI 回复、下载、后台任务和服务状态。</string>
-    <string name="kiyori_onboarding_permission_media_title">照片、视频与音频</string>
-    <string name="kiyori_onboarding_permission_media_desc">读取你选择处理、播放、上传或分析的媒体内容。</string>
+    <string name="kiyori_onboarding_permission_media_title">视频与音频</string>
+    <string name="kiyori_onboarding_permission_media_desc">读取你选择播放、上传或分析的视频与音频；照片和其他文件通过系统文件选择器按次选择。</string>
     <string name="kiyori_onboarding_permission_camera_title">相机</string>
     <string name="kiyori_onboarding_permission_camera_desc">拍摄附件、网页媒体和视觉输入。</string>
     <string name="kiyori_onboarding_permission_microphone_title">麦克风</string>

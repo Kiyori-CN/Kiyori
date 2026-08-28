@@ -2225,6 +2225,8 @@ class ArchitectureBoundaryTest(unittest.TestCase):
                 "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
                 "KiyoriSettingsHomePage.kt",
                 "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
+                "KiyoriSettingsUi.kt",
+                "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
                 "KiyoriSettingsWorkspacePage.kt",
             },
             "LocalKiyoriSettingsColors": {
@@ -2532,7 +2534,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
         player_path = next(
             iter(M05A2_EXPECTED_QUALIFIED_REFERENCES["KiyoriSemanticColors"])
         )
-        legacy_production_consumer_count = M05A2_PRODUCTION_CONSUMER_COUNT - 3
+        legacy_production_consumer_count = M05A2_PRODUCTION_CONSUMER_COUNT - 4
         assistant_experience_path = (
             "app/src/main/java/com/ai/assistance/operit/ui/features/"
             "semantic/AssistantExperienceSettingsPages.kt"
@@ -2545,11 +2547,20 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
             "KiyoriNetworkProxySettingsPage.kt"
         )
+        more_features_path = (
+            "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
+            "KiyoriMoreFeaturesSettingsPage.kt"
+        )
         production_paths = [player_path] + [
             "app/src/main/java/com/ai/assistance/operit/ui/features/"
             f"semantic/Consumer{index:02d}.kt"
             for index in range(legacy_production_consumer_count - 1)
-        ] + [assistant_experience_path, permission_presentation_path, network_proxy_path]
+        ] + [
+            assistant_experience_path,
+            permission_presentation_path,
+            network_proxy_path,
+            more_features_path,
+        ]
         test_paths = [
             "app/src/test/java/com/ai/assistance/operit/ui/semantic/"
             f"SemanticConsumer{index}.kt"
@@ -2567,12 +2578,14 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             # The final synthetic consumer models WebSessionPageSourceEditor, which uses both
             # the stable semantic tone and its Compose color resolver.
             # The current tree adds WebSessionHistoryDialogs as a two-import consumer and
-            # KiyoriAdBlockSettingsPage, the assistant-experience Settings page, and the
-            # shared onboarding/Settings permission presentation as tone-only consumers.
+            # KiyoriAdBlockSettingsPage, the assistant-experience Settings page, the
+            # shared onboarding/Settings permission presentation, network proxy, and
+            # More Features as tone-only consumers.
             if relative_path in {
                 assistant_experience_path,
                 permission_presentation_path,
                 network_proxy_path,
+                more_features_path,
             }:
                 imports_by_path[relative_path] = ["KiyoriSemanticTone"]
                 continue
@@ -6180,6 +6193,9 @@ class KiyoriPathsTest {
                 "selectedPermissionIds\n"
                 "authorizationActive\n"
                 "KiyoriPermissionId.entries\n"
+                "kiyoriPermissionGroups.forEach\n"
+                "items = group.permissionIds\n"
+                "summarizeKiyoriPermissions(snapshot)\n"
                 "RootAuthorizer.requestRootPermission\n"
                 "KiyoriLegalDocument.USER_AGREEMENT\n"
                 "KiyoriLegalDocument.PRIVACY_POLICY\n"
@@ -6204,6 +6220,9 @@ class KiyoriPathsTest {
                 "KiyoriLegalDocument.PRIVACY_POLICY\n"
                 "canAcceptKiyoriAgreement\n"
                 "KiyoriLegalDocumentsScreen\n"
+                "AgreementPreferences.CURRENT_AGREEMENT_VERSION\n"
+                ".windowInsetsPadding(WindowInsets.safeDrawing)\n"
+                "R.string.kiyori_onboarding_legal_full_text\n"
             ),
             KIYORI_FIRST_RUN_CONTRACT_TEST_PATH: (
                 "KiyoriOnboardingStep resolveInitialKiyoriOnboardingStep "
@@ -6276,6 +6295,8 @@ class KiyoriPathsTest {
                 "Operit AI 是内嵌的 AI 子系统\n"
                 "kiyori_onboarding_permissions_authorize_and_enter\n"
                 "Android 运行时权限\n"
+                "kiyori_onboarding_legal_full_text\n"
+                "系统文件选择器按次选择\n"
                 "Shizuku\nRoot\n"
             ),
         }
@@ -6423,6 +6444,26 @@ class KiyoriPathsTest {
             screen.write_text(
                 screen.read_text(encoding="utf-8")
                 + "LinearProgressIndicator(\n",
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            check_kiyori_first_run_flow(root, errors)
+            self.assertTrue(
+                any(
+                    "obsolete Kiyori onboarding UI contract remains" in error
+                    for error in errors
+                )
+            )
+
+    def test_kiyori_first_run_flow_rejects_global_permission_selection(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self.write_kiyori_first_run_layout(root)
+            screen = root / KIYORI_FIRST_RUN_SCREEN_PATH
+            screen.write_text(
+                screen.read_text(encoding="utf-8") + "onSelectAll\n",
                 encoding="utf-8",
             )
             errors: list[str] = []

@@ -23,8 +23,8 @@ baseline: e42bd44f
 
 帮助、关于、使用手册和 Terminal 不进入抽屉。Terminal 继续只位于 AI 首页右上角；工具箱不迁入小程序首页。权限授予不再显示在抽屉；“设置 - 更多功能 - 权限”通过当前 settings session 进入 `KiyoriSettingsRoute.PERMISSIONS`，与首次启动共享设备权限事实和动作，不新建第二份授权状态。
 文件管理器和用户协议也不再作为 Toolbox host entry 投影。文件管理首页“手机存储”与设置首页
-“文件管理器”共同进入唯一 `KiyoriShellChild.FILE_MANAGER`，协议入口迁入“设置 - 更多功能 -
-用户协议与隐私政策”并复用现行只读法律文档。
+“文件管理器”共同进入唯一 `KiyoriShellChild.FILE_MANAGER`；协议入口由“设置 - 更多功能”的
+开源协议、用户协议和隐私政策三项分别承接，并复用现行只读目录/正文 owner。
 
 ## 模态容器合同
 
@@ -161,8 +161,8 @@ AI Home 保持单一稳定宿主。打开或关闭抽屉、切换 AI 一级页�
 
 - Toolbox 导航目录中的 `toolbox.file_manager` 与 `toolbox.agreement` 已删除；动态 ToolPkg
   Toolbox 条目仍由唯一 `ScreenRouteRegistry` 与 `AppNavigationModel` 投影
-- “设置 → 更多功能 → 用户协议与隐私政策”复用现行
-  `KiyoriLegalDocumentsScreen`、协议版本与正文 owner；文件管理首页“手机存储”和设置首页
+- “设置 → 更多功能”按“权限 / 网络代理 / 开源协议 / 用户协议 / 隐私政策”固定排序；开源协议、
+  用户协议和隐私政策分别复用各自的目录或正文 owner；文件管理首页“手机存储”和设置首页
   “文件管理器”复用唯一 `FILE_MANAGER` child 与原 `FileManagerViewModel`
 - `CharacterSelectorVisualContractTest` `4/4`、`KiyoriSettingsPagesTest` `14/14`、
   `KiyoriShellStateTest` `74/74`、`KiyoriDesignThemeTest` `13/13`，合计 `105/105`

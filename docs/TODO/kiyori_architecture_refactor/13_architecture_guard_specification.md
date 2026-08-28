@@ -244,8 +244,11 @@ M-05A3 封板时 PlayerActivity 的 LF-normalized SHA-256 为
 `AEF88E8F34DD08098D858E4E5D3F36CBF1867AE36E6C44B96346F6A0BC11A756`。QD-04
 在不改变 fullscreen system-bar owner 的前提下，把 Manifest 中重复的固定方向声明收口到
 既有 PlayerActivity policy，并把静态 browser host 访问改为 Application-scoped session
-owner；ARCH042 与 `m05a3-root-theme-sha256.txt` 的当前保护值因此更新为
-`0958C96D76C5C30E98EA84F08AC29CA576FA263C497AD1976BFEF9B4E326B7CA`。
+owner；ARCH042 与 `m05a3-root-theme-sha256.txt` 当时的保护值因此更新为
+`0958C96D76C5C30E98EA84F08AC29CA576FA263C497AD1976BFEF9B4E326B7CA`。2026-08-28 的
+默认视频播放器增量在不改变 fullscreen system-bar owner 的前提下增加外部 `ACTION_VIEW`
+播放器分流；当前保护值同步为
+`61247CB0F9C67385C39574C2F11A48A810AD97A6A119FDF6B851850CF0354CA9`。
 `setDecorFitsSystemWindows(false)`、transient system-bars 与 hide(systemBars) 仍只能由
 PlayerActivity 拥有。LiquidGlass/WaterGlass 算法、CompositionLocal 和 capability 判断保持
 原 owner；A3 与 QD-04 均不新增 alias、facade、旧 style、fallback、第二偏好流或第二

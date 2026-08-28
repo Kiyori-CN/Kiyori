@@ -431,6 +431,8 @@ M05A1_EXPECTED_IMPORT_CONSUMERS = {
         "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
         "KiyoriSettingsHomePage.kt",
         "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
+        "KiyoriSettingsUi.kt",
+        "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
         "KiyoriSettingsWorkspacePage.kt",
     },
     "LocalKiyoriSettingsColors": {
@@ -529,9 +531,9 @@ M05A2_CONSUMER_IMPORT_SNAPSHOT = (
     "m05a2-semantic-consumer-imports.txt"
 )
 M05A2_DESIGN_PACKAGE = "com.kiyori.design.theme"
-M05A2_PRODUCTION_CONSUMER_COUNT = 54
+M05A2_PRODUCTION_CONSUMER_COUNT = 55
 M05A2_EXTERNAL_TEST_CONSUMER_COUNT = 4
-M05A2_CONSUMER_IMPORT_COUNT = 101
+M05A2_CONSUMER_IMPORT_COUNT = 102
 M05A2_MOVED_IMPORT_SYMBOLS = {
     "KiyoriSemanticTone",
     "kiyoriSemanticToneForStableId",
@@ -684,7 +686,7 @@ M05A3_STYLE_DECLARATION_COUNT = 6
 M05A3_MANIFEST_STYLE_REFERENCE_COUNT = 6
 M05A3_CONSUMER_IMPORT_COUNT = 7
 M05A3_PLAYER_BASELINE_HASH = (
-    "0958C96D76C5C30E98EA84F08AC29CA576FA263C497AD1976BFEF9B4E326B7CA"
+    "61247CB0F9C67385C39574C2F11A48A810AD97A6A119FDF6B851850CF0354CA9"
 )
 M05A3_EXPECTED_APP_HOST_PROJECT_IMPORTS = (
     "com.ai.assistance.operit.data.preferences.UserPreferencesManager",
@@ -5653,6 +5655,9 @@ def check_kiyori_first_run_flow(
         "selectedPermissionIds",
         "authorizationActive",
         "KiyoriPermissionId.entries",
+        "kiyoriPermissionGroups.forEach",
+        "items = group.permissionIds",
+        "summarizeKiyoriPermissions(snapshot)",
         "RootAuthorizer.requestRootPermission",
         "HorizontalPager(",
         "rememberPagerState(",
@@ -5689,6 +5694,7 @@ def check_kiyori_first_run_flow(
         "private sealed interface KiyoriOnboardingContent",
         "LinearProgressIndicator(",
         "AnimatedContent(",
+        "onSelectAll",
     ):
         if obsolete_token in screen_code:
             errors.append(
@@ -5723,6 +5729,9 @@ def check_kiyori_first_run_flow(
         "KiyoriLegalDocument.PRIVACY_POLICY",
         "canAcceptKiyoriAgreement",
         "KiyoriLegalDocumentsScreen",
+        "AgreementPreferences.CURRENT_AGREEMENT_VERSION",
+        ".windowInsetsPadding(WindowInsets.safeDrawing)",
+        "R.string.kiyori_onboarding_legal_full_text",
     ):
         if token not in agreement_code:
             errors.append(
@@ -5869,6 +5878,8 @@ def check_kiyori_first_run_flow(
         "Android 运行时权限",
         "Shizuku",
         "Root",
+        "kiyori_onboarding_legal_full_text",
+        "系统文件选择器按次选择",
     ):
         if token not in agreement_text:
             errors.append(
@@ -5879,6 +5890,15 @@ def check_kiyori_first_run_flow(
         errors.append(
             "ARCH037 obsolete welcome eyebrow still present: AI 浏览器 · 内容工作台"
         )
+    for forbidden_copy in (
+        "kiyori_onboarding_permissions_select_all",
+        "照片、视频与音频",
+    ):
+        if forbidden_copy in agreement_text:
+            errors.append(
+                "ARCH037 obsolete or overstated first-run copy remains: "
+                f"{forbidden_copy}"
+            )
     contract_test_code = source_code_mask(
         (root / KIYORI_FIRST_RUN_CONTRACT_TEST_PATH).read_text(
             encoding="utf-8"
