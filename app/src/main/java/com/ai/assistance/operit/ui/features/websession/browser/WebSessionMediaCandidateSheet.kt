@@ -68,6 +68,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
+import com.kiyori.design.theme.KiyoriUiShapes
 import java.util.Locale
 
 private const val ALL_MEDIA_FORMATS = "ALL"
@@ -265,8 +266,8 @@ private fun BrowserMediaFormatChip(
 ) {
     val cyanColors = WebSessionBrowserMenuTone.FLOATING_SNIFFER.resolveColors()
     Surface(
-        modifier = Modifier.height(32.dp).clickable(role = Role.Button, onClick = onClick),
-        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.heightIn(min = 40.dp).clickable(role = Role.Button, onClick = onClick),
+        shape = KiyoriUiShapes.control,
         color =
             if (selected) {
                 cyanColors.container
@@ -386,7 +387,7 @@ private fun BrowserMediaCandidateCard(
                 OutlinedButton(
                     onClick = onDownload,
                     enabled = candidate.downloadReady,
-                    modifier = Modifier.height(34.dp),
+                    modifier = Modifier.heightIn(min = 40.dp),
                     contentPadding = PaddingValues(horizontal = 11.dp),
                 ) {
                     Icon(
@@ -400,7 +401,7 @@ private fun BrowserMediaCandidateCard(
                 Button(
                     onClick = onPlay,
                     enabled = candidate.directPlaybackReady,
-                    modifier = Modifier.height(34.dp),
+                    modifier = Modifier.heightIn(min = 40.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp),
                 ) {
                     Icon(
@@ -621,7 +622,7 @@ private fun BrowserMediaCandidateLinkDialog(
             ) {
                 OutlinedButton(
                     onClick = onDismiss,
-                    modifier = Modifier.height(36.dp),
+                    modifier = Modifier.heightIn(min = 40.dp),
                     contentPadding = PaddingValues(horizontal = 14.dp),
                 ) {
                     Text(text = "关闭", fontSize = 12.sp)
@@ -629,7 +630,7 @@ private fun BrowserMediaCandidateLinkDialog(
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(
                     onClick = onCopy,
-                    modifier = Modifier.height(36.dp),
+                    modifier = Modifier.heightIn(min = 40.dp),
                     contentPadding = PaddingValues(horizontal = 14.dp),
                 ) {
                     Icon(

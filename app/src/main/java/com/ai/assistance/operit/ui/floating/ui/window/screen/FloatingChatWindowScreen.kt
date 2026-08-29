@@ -566,7 +566,7 @@ private fun TitleBarButton(
 ) {
     IconButton(
         onClick = onClick,
-        modifier = Modifier.size(30.dp)
+        modifier = Modifier.size(40.dp)
     ) {
         Icon(
             imageVector = icon,
@@ -587,7 +587,7 @@ private fun MinimizeButton(
     IconButton(
         onClick = onClick,
         modifier = Modifier
-            .size(30.dp)
+            .size(40.dp)
             .background(
                 color = if (viewModel.minimizeHover) primaryColor.copy(alpha = 0.1f) else Color.Transparent,
                 shape = CircleShape
@@ -622,7 +622,7 @@ private fun CloseButton(
     IconButton(
         onClick = onClick,
         modifier = modifier
-            .size(30.dp)
+            .size(40.dp)
             .background(
                 color = if (viewModel.closeHover) errorColor.copy(alpha = 0.1f) else Color.Transparent,
                 shape = CircleShape

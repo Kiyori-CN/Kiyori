@@ -546,7 +546,7 @@ internal fun ChatScrollNavigator(
             Box(
                 modifier =
                     Modifier
-                        .size(24.dp)
+                        .size(40.dp)
                         .align(Alignment.TopStart)
                         .offset(x = 2.5.dp, y = 90.dp)
                         .clip(CircleShape)

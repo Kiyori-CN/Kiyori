@@ -18,6 +18,7 @@ import com.ai.assistance.operit.data.model.ConditionNode
 import com.ai.assistance.operit.data.model.LogicNode
 import com.ai.assistance.operit.data.model.WorkflowNode
 import com.ai.assistance.operit.data.model.WorkflowNodeConnection
+import com.kiyori.design.theme.KiyoriUiShapes
 
 /**
  * 连接菜单对话框
@@ -48,6 +49,7 @@ fun ConnectionMenuDialog(
     
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KiyoriUiShapes.dialog,
         title = {
             Column {
                 Text(stringResource(R.string.workflow_manage_connections))
@@ -185,7 +187,7 @@ private fun ExistingConnectionItem(
                     text = if (targetNode.type == "trigger") "🎯" else "⚙️",
                     style = MaterialTheme.typography.bodyLarge
                 )
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = targetNode.name,
                         style = MaterialTheme.typography.bodyMedium
@@ -205,7 +207,8 @@ private fun ExistingConnectionItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
-                    onClick = onEditCondition
+                    onClick = onEditCondition,
+                    modifier = Modifier.size(40.dp),
                 ) {
                     Icon(
                         Icons.Default.Edit,
@@ -215,6 +218,7 @@ private fun ExistingConnectionItem(
 
                 IconButton(
                     onClick = onDelete,
+                    modifier = Modifier.size(40.dp),
                     colors = IconButtonDefaults.iconButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
                     )
@@ -275,6 +279,7 @@ private fun ConnectionConditionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KiyoriUiShapes.dialog,
         title = {
             Column {
                 Text(text = stringResource(R.string.workflow_edit_connection_condition_title))
@@ -330,7 +335,8 @@ private fun ConnectionConditionDialog(
                     onValueChange = { custom = it },
                     enabled = mode == ConnectionConditionMode.CUSTOM,
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    shape = KiyoriUiShapes.field,
                 )
             }
         },
@@ -386,7 +392,7 @@ private fun AvailableTargetItem(
                     text = if (targetNode.type == "trigger") "🎯" else "⚙️",
                     style = MaterialTheme.typography.bodyLarge
                 )
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = targetNode.name,
                         style = MaterialTheme.typography.bodyMedium

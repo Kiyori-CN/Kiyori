@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.model.ModelOption
 import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
+import com.kiyori.design.theme.KiyoriUiShapes
 
 @Composable
 internal fun UpstreamModelPickerSheet(
@@ -222,7 +223,7 @@ internal fun UpstreamModelPickerSheet(
                     }
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(16.dp)
+                shape = KiyoriUiShapes.field
             )
 
             Row(
@@ -342,7 +343,7 @@ internal fun UpstreamModelPickerSheet(
                                 )
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(14.dp),
+                            shape = KiyoriUiShapes.control,
                             color = containerColor,
                             border =
                                 BorderStroke(

@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.ai.assistance.operit.R
+import com.kiyori.design.theme.KiyoriUiShapes
 
 /** MCP插件部署命令编辑对话框 允许用户在部署前编辑自动生成的部署命令 */
 @Composable
@@ -52,7 +53,7 @@ fun MCPCommandsEditDialog(
     ) {
         Surface(
                 modifier = Modifier.fillMaxWidth().wrapContentHeight(),
-                shape = RoundedCornerShape(16.dp),
+                shape = KiyoriUiShapes.dialog,
                 color = MaterialTheme.colorScheme.surface,
                 tonalElevation = 6.dp
         ) {
@@ -77,7 +78,7 @@ fun MCPCommandsEditDialog(
 
                     Spacer(modifier = Modifier.weight(1f))
 
-                    IconButton(onClick = onDismissRequest, modifier = Modifier.size(32.dp)) {
+                    IconButton(onClick = onDismissRequest, modifier = Modifier.size(40.dp)) {
                         Icon(
                                 imageVector = Icons.Outlined.Close,
                                 contentDescription = stringResource(R.string.mcp_close),

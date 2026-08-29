@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -62,6 +63,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
+import com.kiyori.design.theme.KiyoriUiShapes
 import java.net.URI
 import kotlinx.coroutines.delay
 
@@ -280,7 +282,7 @@ private fun WindowProfileSelector(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().height(30.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
         ) {
@@ -294,9 +296,10 @@ private fun WindowProfileSelector(
                         selected -> colors.icon
                         else -> MaterialTheme.colorScheme.onSurfaceVariant
                     },
+                modifier = Modifier.weight(1f),
                 maxLines = 1,
                 softWrap = false,
-                overflow = TextOverflow.Clip,
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = count.toString(),
@@ -414,7 +417,7 @@ private fun BrowserTabOverviewCard(
 
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onSelect),
-        shape = RoundedCornerShape(8.dp),
+        shape = KiyoriUiShapes.card,
         color =
             if (tab.isActive) {
                 profileColors.container.copy(alpha = 0.42f)
@@ -458,12 +461,12 @@ private fun BrowserTabOverviewCard(
                     }
                 }
                 Surface(
-                    modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).size(34.dp),
+                    modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).size(40.dp),
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.68f),
                     contentColor = Color.White,
                 ) {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = onClose, modifier = Modifier.size(40.dp)) {
                         Icon(
                             imageVector = Icons.Filled.Close,
                             contentDescription = stringResource(R.string.close),

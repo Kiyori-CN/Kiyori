@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.ai.assistance.operit.R
+import com.kiyori.design.theme.KiyoriUiShapes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -37,7 +38,7 @@ fun AutomationFunctionExecutionDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(max = 300.dp),
-            shape = RoundedCornerShape(16.dp),
+            shape = KiyoriUiShapes.dialog,
             color = MaterialTheme.colorScheme.surface
         ) {
             Column(

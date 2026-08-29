@@ -17,6 +17,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
+import com.kiyori.design.theme.KiyoriUiShapes
 
 @Composable
 fun CreateScriptDialog(
@@ -27,6 +28,7 @@ fun CreateScriptDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KiyoriUiShapes.dialog,
         title = { Text(text = stringResource(R.string.create_script)) },
         text = {
             Column(
@@ -53,7 +55,8 @@ fun CreateScriptDialog(
                         .heightIn(min = 120.dp),
                     placeholder = {
                         Text(text = stringResource(R.string.create_script_requirement_hint))
-                    }
+                    },
+                    shape = KiyoriUiShapes.field,
                 )
             }
         },

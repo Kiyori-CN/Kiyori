@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.kiyori.design.theme.KiyoriUiShapes
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.content.pm.PermissionInfoCompat
@@ -336,7 +337,7 @@ fun AppPermissionsScreen(navController: NavController) {
                                             },
                                             singleLine = true,
                                             maxLines = 1,
-                                            shape = RoundedCornerShape(24.dp),
+                                            shape = KiyoriUiShapes.field,
                                             colors =
                                                     OutlinedTextFieldDefaults.colors(
                                                             focusedContainerColor =

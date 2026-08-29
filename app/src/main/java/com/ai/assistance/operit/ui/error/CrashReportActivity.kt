@@ -70,6 +70,7 @@ import com.ai.assistance.operit.util.crash.CrashReportRecord
 import com.ai.assistance.operit.util.crash.CrashReportStore
 import com.ai.assistance.operit.util.crash.CrashReportType
 import com.ai.assistance.operit.util.crash.selectCrashReportPrimaryAction
+import com.kiyori.design.theme.KiyoriUiShapes
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.charset.StandardCharsets
@@ -381,7 +382,7 @@ internal fun CrashReportScreen(
             Spacer(modifier = Modifier.height(8.dp))
             Card(
                 modifier = Modifier.fillMaxWidth().weight(1f),
-                shape = RoundedCornerShape(8.dp),
+                shape = KiyoriUiShapes.card,
                 colors =
                     CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant,

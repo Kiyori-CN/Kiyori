@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.model.AttachmentInfo
+import com.kiyori.design.theme.KiyoriUiShapes
 import java.io.File
 
 @Composable
@@ -42,7 +44,7 @@ fun AttachmentChip(attachmentInfo: AttachmentInfo, onRemove: () -> Unit, onInser
     val context = LocalContext.current
     val isImage = attachmentInfo.mimeType.startsWith("image/")
     val icon: ImageVector = if (isImage) Icons.Default.Image else Icons.Default.Description
-    val chipShape = RoundedCornerShape(13.dp)
+    val chipShape = KiyoriUiShapes.control
     val imageModel =
         remember(attachmentInfo.filePath, isImage) {
             if (isImage) {
@@ -69,7 +71,7 @@ fun AttachmentChip(attachmentInfo: AttachmentInfo, onRemove: () -> Unit, onInser
                 modifier =
                     Modifier.align(Alignment.TopEnd)
                         .padding(3.dp)
-                        .size(18.dp),
+                        .size(40.dp),
                 shape = RoundedCornerShape(999.dp),
                 color = Color.Black.copy(alpha = 0.55f),
             ) {
@@ -86,7 +88,7 @@ fun AttachmentChip(attachmentInfo: AttachmentInfo, onRemove: () -> Unit, onInser
     } else {
         Surface(
             modifier =
-                Modifier.height(26.dp)
+                Modifier.heightIn(min = 40.dp)
                     .border(
                         width = 1.dp,
                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
@@ -118,7 +120,7 @@ fun AttachmentChip(attachmentInfo: AttachmentInfo, onRemove: () -> Unit, onInser
 
                 Spacer(modifier = Modifier.width(2.dp))
 
-                IconButton(onClick = onRemove, modifier = Modifier.size(14.dp)) {
+                IconButton(onClick = onRemove, modifier = Modifier.size(40.dp)) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = context.getString(R.string.remove_attachment),

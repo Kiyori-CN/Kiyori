@@ -53,6 +53,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.
 import com.ai.assistance.operit.util.AppLogger
 import com.kiyori.capability.browser.presentation.KiyoriBrowserWorkspaceRoute
 import com.kiyori.capability.settings.navigation.KiyoriSettingsRoute
+import com.kiyori.design.theme.KiyoriUiShapes
 import kotlinx.coroutines.launch
 
 internal enum class KiyoriBrowserSettingsAction {
@@ -482,6 +483,7 @@ internal fun KiyoriBrowserSettingsPage(
     if (showClearCookieConfirm) {
         AlertDialog(
             onDismissRequest = { showClearCookieConfirm = false },
+            shape = KiyoriUiShapes.dialog,
             title = { Text(stringResource(R.string.clear_cookies_dialog_title)) },
             text = { Text(stringResource(R.string.clear_cookies_dialog_message)) },
             confirmButton = {
@@ -535,6 +537,7 @@ internal fun KiyoriBrowserSettingsPage(
             parseAutomaticFloatingDurationSeconds(customFloatingDurationSeconds)
         AlertDialog(
             onDismissRequest = { showCustomFloatingDurationDialog = false },
+            shape = KiyoriUiShapes.dialog,
             title = { Text("自定义自动悬浮时长") },
             text = {
                 OutlinedTextField(
@@ -563,6 +566,7 @@ internal fun KiyoriBrowserSettingsPage(
                         )
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    shape = KiyoriUiShapes.field,
                 )
             },
             confirmButton = {
@@ -1238,6 +1242,6 @@ private fun KiyoriBrowserHomepageEditDialog(
                 )
             }
         },
-        shape = RoundedCornerShape(22.dp),
+        shape = KiyoriUiShapes.dialog,
     )
 }

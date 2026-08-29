@@ -406,7 +406,7 @@ internal fun PackageCategoryIconBadge(
     modifier: Modifier = Modifier,
     containerSize: Dp = 32.dp,
     iconSize: Dp = 18.dp,
-    shape: Shape = RoundedCornerShape(9.dp),
+    shape: Shape = com.kiyori.design.theme.KiyoriUiShapes.control,
 ) {
     val colors = visual.resolveColors()
     Surface(

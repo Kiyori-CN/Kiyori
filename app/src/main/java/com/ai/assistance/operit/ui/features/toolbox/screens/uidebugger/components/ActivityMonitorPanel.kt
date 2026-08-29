@@ -54,6 +54,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.kiyori.design.theme.KiyoriUiShapes
 import com.ai.assistance.operit.core.tools.system.action.ActionListener
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -109,7 +110,7 @@ fun ActivityMonitorPanel(
         modifier = modifier
             .widthIn(min = 300.dp, max = 400.dp)
             .heightIn(max = 500.dp),
-        shape = RoundedCornerShape(8.dp),
+        shape = KiyoriUiShapes.dialog,
         shadowElevation = 8.dp
     ) {
         Box {

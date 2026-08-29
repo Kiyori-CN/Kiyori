@@ -69,6 +69,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ai.assistance.operit.ui.common.OperitUtilityTheme
+import com.kiyori.design.theme.KiyoriUiShapes
 
 class DataRecoveryActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -136,10 +137,15 @@ private fun DataRecoveryScreen() {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         Button(
                             onClick = { viewModel.exportRawSnapshot() },
-                            enabled = !state.isRunning
+                            enabled = !state.isRunning,
+                            shape = KiyoriUiShapes.control,
                         ) {
                             Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
@@ -147,7 +153,8 @@ private fun DataRecoveryScreen() {
                         }
                         OutlinedButton(
                             onClick = { snapshotPicker.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) },
-                            enabled = !state.isRunning
+                            enabled = !state.isRunning,
+                            shape = KiyoriUiShapes.control,
                         ) {
                             Icon(Icons.Default.Restore, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
@@ -165,7 +172,10 @@ private fun DataRecoveryScreen() {
                     }
                     if (state.restoreCompleted) {
                         Spacer(modifier = Modifier.height(10.dp))
-                        FilledTonalButton(onClick = { restartMainApp(context) }) {
+                        FilledTonalButton(
+                            onClick = { restartMainApp(context) },
+                            shape = KiyoriUiShapes.control,
+                        ) {
                             Icon(Icons.Default.RestartAlt, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("启动主应用")
@@ -218,6 +228,7 @@ private fun DataRecoveryScreen() {
                         value = state.sqlText,
                         onValueChange = viewModel::setSqlText,
                         modifier = Modifier.fillMaxWidth(),
+                        shape = KiyoriUiShapes.field,
                         textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                         label = { Text("SQL") },
                         minLines = 4,
@@ -226,7 +237,8 @@ private fun DataRecoveryScreen() {
                     Spacer(modifier = Modifier.height(10.dp))
                     Button(
                         onClick = { viewModel.runSql() },
-                        enabled = !state.isRunning
+                        enabled = !state.isRunning,
+                        shape = KiyoriUiShapes.control,
                     ) {
                         Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
@@ -248,6 +260,7 @@ private fun DataRecoveryScreen() {
     pendingRestoreUri?.let { uri ->
         AlertDialog(
             onDismissRequest = { pendingRestoreUri = null },
+            shape = KiyoriUiShapes.dialog,
             title = { Text("导入原始快照") },
             text = { Text("导入会覆盖当前应用数据。确认导入这个快照？") },
             confirmButton = {
@@ -279,7 +292,7 @@ private fun StatusPanel(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceVariant,
-        shape = MaterialTheme.shapes.small
+        shape = KiyoriUiShapes.control
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
@@ -319,7 +332,7 @@ private fun RecoverySection(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.small,
+        shape = KiyoriUiShapes.card,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(

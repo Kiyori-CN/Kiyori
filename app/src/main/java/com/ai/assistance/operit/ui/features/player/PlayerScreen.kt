@@ -73,6 +73,7 @@ import com.ai.assistance.operit.core.player.PlayerSettingsStore
 import com.ai.assistance.operit.core.player.PlayerSurfaceRole
 import com.ai.assistance.operit.core.player.buildPlayerDebugLogReport
 import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.KiyoriUiShapes
 import com.kiyori.design.theme.resolveColors
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -226,19 +227,19 @@ internal fun PlayerScreen(
                 modifier =
                     Modifier
                         .align(Alignment.Center)
-                        .clip(RoundedCornerShape(22.dp))
+                        .clip(KiyoriUiShapes.card)
                         .background(Color(0xD91A1D25))
                         .border(
                             1.dp,
                             Color.White.copy(alpha = 0.14f),
-                            RoundedCornerShape(22.dp),
+                            KiyoriUiShapes.card,
                         )
                         .padding(horizontal = 24.dp, vertical = 18.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(34.dp),
-                    color = Color(0xFF7792FF),
+                    color = PlayerAccent,
                     strokeWidth = 3.dp,
                 )
                 Spacer(Modifier.height(10.dp))
@@ -256,12 +257,12 @@ internal fun PlayerScreen(
                     Modifier
                         .align(Alignment.Center)
                         .widthIn(max = 360.dp)
-                        .clip(RoundedCornerShape(22.dp))
+                        .clip(KiyoriUiShapes.card)
                         .background(Color(0xEB1A1D25))
                         .border(
                             1.dp,
                             Color(0xFFFF8A8A).copy(alpha = 0.30f),
-                            RoundedCornerShape(22.dp),
+                            KiyoriUiShapes.card,
                         )
                         .padding(horizontal = 24.dp, vertical = 18.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -395,7 +396,7 @@ private fun PlayerLogDialog(
                         .widthIn(max = 720.dp)
                         .fillMaxHeight(0.9f)
                         .heightIn(max = 680.dp),
-                shape = RoundedCornerShape(12.dp),
+                shape = KiyoriUiShapes.card,
                 color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 8.dp,
             ) {
@@ -426,7 +427,7 @@ private fun PlayerLogDialog(
                         }
                         TextButton(
                             onClick = onDismiss,
-                            modifier = Modifier.height(36.dp),
+                            modifier = Modifier.heightIn(min = 40.dp),
                             contentPadding = PaddingValues(horizontal = 10.dp),
                         ) {
                             Text("关闭", fontSize = 13.sp)
@@ -652,8 +653,8 @@ private fun PlayerLogFilterChip(
     val blueColors = KiyoriSemanticTone.BLUE.resolveColors()
     TextButton(
         onClick = onClick,
-        modifier = Modifier.height(34.dp),
-        shape = RoundedCornerShape(17.dp),
+        modifier = Modifier.heightIn(min = 40.dp),
+        shape = KiyoriUiShapes.control,
         colors =
             ButtonDefaults.textButtonColors(
                 containerColor =

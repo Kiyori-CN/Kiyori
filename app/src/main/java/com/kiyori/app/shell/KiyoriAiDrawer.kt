@@ -69,6 +69,8 @@ import com.ai.assistance.operit.ui.main.navigation.LocalAppNavigationModel
 import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 import com.ai.assistance.operit.ui.main.navigation.NavigationSurface
 import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.KiyoriUiShapes
+import com.kiyori.design.theme.rememberKiyoriUiTokens
 import com.kiyori.design.theme.resolveColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
@@ -174,7 +176,7 @@ internal fun KiyoriModalAiDrawer(
                         bottomStart = 0.dp,
                     ),
                 color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 16.dp,
+                shadowElevation = 8.dp,
             ) {
                 KiyoriAiDrawerContent(
                     isOpen = isOpen,
@@ -199,6 +201,7 @@ private fun KiyoriAiDrawerContent(
     onEntrySelected: (NavigationEntrySpec) -> Unit,
 ) {
     val context = LocalContext.current
+    val uiTokens = rememberKiyoriUiTokens()
     val navigationModel =
         checkNotNull(LocalAppNavigationModel.current) {
             "Kiyori AI drawer requires the AppNavigationModel provider"
@@ -333,6 +336,7 @@ private fun KiyoriAiDrawerStatusHeader(
     isNetworkAvailable: Boolean,
     networkType: String,
 ) {
+    val uiTokens = rememberKiyoriUiTokens()
     val statusColors = KiyoriSemanticTone.CYAN.resolveColors()
     val statusColor = statusColors.icon
     val availabilityIndicatorColor =
@@ -347,7 +351,7 @@ private fun KiyoriAiDrawerStatusHeader(
         Text(
             text = stringResource(R.string.kiyori_ai_drawer_title),
             style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = uiTokens.colors.primaryText,
             fontWeight = FontWeight.Bold,
         )
         Spacer(modifier = Modifier.height(10.dp))
@@ -395,18 +399,19 @@ private fun KiyoriAiDrawerQuickAction(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val uiTokens = rememberKiyoriUiTokens()
     val tone = resolveKiyoriAiDrawerTone(entry)
     val colors = tone.resolveColors()
     Surface(
         onClick = onClick,
         modifier = modifier.height(AI_DRAWER_QUICK_ACTION_HEIGHT_DP.dp),
         enabled = enabled,
-        shape = MaterialTheme.shapes.small,
+        shape = KiyoriUiShapes.control,
         color =
             if (selected) {
                 colors.container
             } else {
-                MaterialTheme.colorScheme.surfaceContainerLow
+                uiTokens.colors.subtleSurface
             },
         border =
             if (selected) {
@@ -468,10 +473,11 @@ private fun KiyoriAiDrawerQuickAction(
 
 @Composable
 private fun KiyoriAiDrawerGroupTitle(title: String) {
+    val uiTokens = rememberKiyoriUiTokens()
     Text(
         text = title,
         style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = uiTokens.colors.secondaryText,
         fontWeight = FontWeight.SemiBold,
         modifier = Modifier.padding(start = 28.dp, end = 20.dp, bottom = 6.dp),
     )
@@ -485,6 +491,7 @@ private fun KiyoriAiDrawerNavigationRow(
     onClick: () -> Unit,
     label: String = entry.title,
 ) {
+    val uiTokens = rememberKiyoriUiTokens()
     val tone = resolveKiyoriAiDrawerTone(entry)
     val colors = tone.resolveColors()
     Surface(
@@ -495,12 +502,12 @@ private fun KiyoriAiDrawerNavigationRow(
                 .padding(horizontal = 12.dp, vertical = 4.dp)
                 .height(40.dp),
         enabled = enabled,
-        shape = MaterialTheme.shapes.small,
+        shape = KiyoriUiShapes.control,
         color =
             if (selected) {
                 colors.container
             } else {
-                MaterialTheme.colorScheme.surfaceContainerLow
+                uiTokens.colors.subtleSurface
             },
         border =
             if (selected) {

@@ -126,7 +126,7 @@ fun FileListPane(
                     if (path != "/sdcard") {
                         IconButton(
                                 onClick = { onPathChange(path.substringBeforeLast("/")) },
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,

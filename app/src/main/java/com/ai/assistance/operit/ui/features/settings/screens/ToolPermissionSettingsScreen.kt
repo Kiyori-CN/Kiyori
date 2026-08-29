@@ -30,6 +30,7 @@ import com.ai.assistance.operit.ui.main.shell.kiyoriSettingsOutlinedTextFieldCol
 import com.ai.assistance.operit.ui.permissions.PermissionLevel
 import com.ai.assistance.operit.ui.permissions.ToolPermissionSystem
 import com.kiyori.design.theme.LocalKiyoriSettingsColors
+import com.kiyori.design.theme.KiyoriUiShapes
 import java.util.Locale
 import kotlinx.coroutines.launch
 
@@ -324,7 +325,7 @@ private fun ToolSelectorDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(max = 500.dp),
-            shape = RoundedCornerShape(24.dp),
+            shape = KiyoriUiShapes.dialog,
             colors = CardDefaults.cardColors(containerColor = settingsColors.cardBackground),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         ) {
@@ -343,7 +344,7 @@ private fun ToolSelectorDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp),
-                    shape = RoundedCornerShape(KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP.dp),
+                    shape = KiyoriUiShapes.field,
                     colors = kiyoriSettingsOutlinedTextFieldColors(),
                 )
                 Spacer(modifier = Modifier.height(16.dp))

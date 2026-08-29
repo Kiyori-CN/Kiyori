@@ -45,6 +45,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
+import com.kiyori.design.theme.KiyoriUiShapes
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
@@ -200,7 +201,7 @@ internal fun KiyoriDraggableBottomDrawer(
                             y = (offsetFraction.value * drawerHeightPx).roundToInt(),
                         )
                     },
-            shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
+            shape = KiyoriUiShapes.sheet,
             color = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface,
             tonalElevation = 0.dp,

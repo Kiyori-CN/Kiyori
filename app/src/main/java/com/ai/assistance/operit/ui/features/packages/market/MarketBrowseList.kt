@@ -522,7 +522,7 @@ private fun MarketBrowseInstallButton(
                     onClick()
                 }
             },
-            modifier = Modifier.size(34.dp)
+            modifier = Modifier.size(40.dp)
         ) {
             if (ui.isLoading) {
                 val progress = ui.progress

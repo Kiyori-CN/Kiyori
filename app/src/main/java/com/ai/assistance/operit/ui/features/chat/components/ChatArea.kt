@@ -797,7 +797,7 @@ private fun MessageItem(
                             modifier = Modifier.size(16.dp)
                         )
                     },
-                    modifier = Modifier.height(36.dp)
+                    modifier = Modifier.heightIn(min = 40.dp)
                 )
 
                 // 朗读消息选项
@@ -821,7 +821,7 @@ private fun MessageItem(
                             modifier = Modifier.size(16.dp)
                         )
                     },
-                    modifier = Modifier.height(36.dp)
+                    modifier = Modifier.heightIn(min = 40.dp)
                 )
             }
 
@@ -849,7 +849,7 @@ private fun MessageItem(
                                 modifier = Modifier.size(16.dp)
                             )
                         },
-                        modifier = Modifier.height(36.dp)
+                        modifier = Modifier.heightIn(min = 40.dp)
                     )
                 }
                 // 回滚到此处
@@ -873,7 +873,7 @@ private fun MessageItem(
                             modifier = Modifier.size(16.dp)
                         )
                     },
-                    modifier = Modifier.height(36.dp)
+                    modifier = Modifier.heightIn(min = 40.dp)
                 )
             } else if (message.sender == "ai") {
                 DropdownMenuItem(
@@ -896,7 +896,7 @@ private fun MessageItem(
                             modifier = Modifier.size(16.dp)
                         )
                     },
-                    modifier = Modifier.height(36.dp)
+                    modifier = Modifier.heightIn(min = 40.dp)
                 )
                 // 编辑当前消息投影；原始内容由对话审计修订链保留。
                 DropdownMenuItem(
@@ -919,7 +919,7 @@ private fun MessageItem(
                             modifier = Modifier.size(16.dp)
                         )
                     },
-                    modifier = Modifier.height(36.dp)
+                    modifier = Modifier.heightIn(min = 40.dp)
                 )
             }
 
@@ -944,7 +944,7 @@ private fun MessageItem(
                             modifier = Modifier.size(16.dp),
                         )
                     },
-                    modifier = Modifier.height(36.dp),
+                    modifier = Modifier.heightIn(min = 40.dp),
                 )
             }
 
@@ -969,7 +969,7 @@ private fun MessageItem(
                         modifier = Modifier.size(16.dp)
                     )
                 },
-                modifier = Modifier.height(36.dp)
+                modifier = Modifier.heightIn(min = 40.dp)
             )
 
             // 回复选项
@@ -994,7 +994,7 @@ private fun MessageItem(
                             modifier = Modifier.size(16.dp)
                         )
                     },
-                    modifier = Modifier.height(36.dp)
+                    modifier = Modifier.heightIn(min = 40.dp)
                 )
             }
 
@@ -1019,7 +1019,7 @@ private fun MessageItem(
                             modifier = Modifier.size(16.dp)
                         )
                     },
-                    modifier = Modifier.height(36.dp)
+                    modifier = Modifier.heightIn(min = 40.dp)
                 )
             }
 
@@ -1044,7 +1044,7 @@ private fun MessageItem(
                         modifier = Modifier.size(16.dp)
                     )
                 },
-                modifier = Modifier.height(36.dp)
+                modifier = Modifier.heightIn(min = 40.dp)
             )
 
             // 信息
@@ -1068,7 +1068,7 @@ private fun MessageItem(
                         modifier = Modifier.size(16.dp)
                     )
                 },
-                modifier = Modifier.height(36.dp)
+                modifier = Modifier.heightIn(min = 40.dp)
             )
 
             DropdownMenuItem(
@@ -1091,7 +1091,7 @@ private fun MessageItem(
                         modifier = Modifier.size(16.dp)
                     )
                 },
-                modifier = Modifier.height(36.dp)
+                modifier = Modifier.heightIn(min = 40.dp)
             )
         }
 

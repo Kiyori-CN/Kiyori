@@ -656,7 +656,7 @@ private fun ApiKeyItem(
         )
         IconButton(
             onClick = { onEdit(keyInfo) },
-            modifier = Modifier.size(32.dp)
+            modifier = Modifier.size(40.dp)
         ) {
             Icon(
                 Icons.Default.Edit, 
@@ -667,7 +667,7 @@ private fun ApiKeyItem(
         }
         IconButton(
             onClick = { onDelete(keyInfo) },
-            modifier = Modifier.size(32.dp)
+            modifier = Modifier.size(40.dp)
         ) {
             Icon(
                 Icons.Default.Delete, 

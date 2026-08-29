@@ -47,6 +47,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.ui.features.chat.components.PackageSelectorDialog
+import com.kiyori.design.theme.KiyoriUiShapes
 
 /**
  * 专为浮动窗口设计的简化附件选择面板
@@ -104,7 +105,7 @@ fun FloatingAttachmentPanel(
         Surface(
             color = MaterialTheme.colorScheme.surface,
             shadowElevation = 1.dp,
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+            shape = KiyoriUiShapes.sheet,
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(

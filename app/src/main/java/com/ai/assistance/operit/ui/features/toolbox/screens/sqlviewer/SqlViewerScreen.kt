@@ -49,6 +49,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import androidx.compose.runtime.withFrameNanos
+import com.kiyori.design.theme.KiyoriUiShapes
 
 private val defaultTables = listOf("chats", "messages")
 
@@ -176,7 +177,8 @@ fun SqlViewerScreen(navController: NavController? = null) {
                     label = { Text(stringResource(R.string.sql_viewer_input_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace),
-                    maxLines = 6
+                    maxLines = 6,
+                    shape = KiyoriUiShapes.field,
                 )
 
                 Column(
@@ -193,7 +195,8 @@ fun SqlViewerScreen(navController: NavController? = null) {
                                 lastExecutedSql = sqlText
                                 viewModel.runQuery(sqlText, pageSize, 0, enablePaging, append = false)
                             },
-                            enabled = !state.isRunning
+                            enabled = !state.isRunning,
+                            shape = KiyoriUiShapes.control,
                         ) {
                             Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
@@ -203,7 +206,8 @@ fun SqlViewerScreen(navController: NavController? = null) {
                             onClick = {
                                 sqlText = ""
                                 lastExecutedSql = ""
-                            }
+                            },
+                            shape = KiyoriUiShapes.control,
                         ) {
                             Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
@@ -221,7 +225,8 @@ fun SqlViewerScreen(navController: NavController? = null) {
                             value = pageSizeText,
                             onValueChange = { pageSizeText = it.filter(Char::isDigit).take(4) },
                             modifier = Modifier.width(80.dp),
-                            singleLine = true
+                            singleLine = true,
+                            shape = KiyoriUiShapes.field,
                         )
                     }
                 }
@@ -240,7 +245,7 @@ fun SqlViewerScreen(navController: NavController? = null) {
 
                 state.error?.let {
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
+                        shape = KiyoriUiShapes.control,
                         color = MaterialTheme.colorScheme.errorContainer,
                         contentColor = MaterialTheme.colorScheme.onErrorContainer,
                     ) {
@@ -254,7 +259,7 @@ fun SqlViewerScreen(navController: NavController? = null) {
 
                 state.message?.let {
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
+                        shape = KiyoriUiShapes.control,
                         color = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                     ) {

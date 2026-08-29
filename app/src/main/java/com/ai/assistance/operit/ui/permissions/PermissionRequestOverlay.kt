@@ -69,6 +69,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kiyori.design.theme.KiyoriUiShapes
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
@@ -117,7 +118,7 @@ private fun PermissionRequestContent(
                         .fillMaxWidth(0.85f)
                         .fillMaxHeight(0.65f)
                         .padding(16.dp),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = KiyoriUiShapes.dialog,
                     colors = CardDefaults.elevatedCardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                     ),
@@ -183,7 +184,7 @@ private fun PermissionRequestContent(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(44.dp),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = KiyoriUiShapes.control,
                                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                             ) {
                                 Text(
@@ -203,7 +204,7 @@ private fun PermissionRequestContent(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(44.dp),
-                                    shape = RoundedCornerShape(12.dp)
+                                    shape = KiyoriUiShapes.control
                                 ) {
                                     Text(
                                         stringResource(R.string.permission_request_allow),

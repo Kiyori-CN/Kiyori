@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -41,6 +40,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmarkDraft
+import com.kiyori.design.theme.KiyoriUiShapes
 
 internal data class WebSessionBookmarkFolderOption(
     val id: Long,
@@ -88,7 +88,7 @@ internal fun WebSessionBookmarkEditorDialog(
                     label = { Text("网站名称") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = KiyoriUiShapes.field,
                 )
                 OutlinedTextField(
                     value = bookmarkUrl,
@@ -97,7 +97,7 @@ internal fun WebSessionBookmarkEditorDialog(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = KiyoriUiShapes.field,
                 )
                 OutlinedTextField(
                     value = bookmarkIconUrl,
@@ -106,7 +106,7 @@ internal fun WebSessionBookmarkEditorDialog(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = KiyoriUiShapes.field,
                 )
                 OutlinedTextField(
                     value = folderText,
@@ -123,7 +123,7 @@ internal fun WebSessionBookmarkEditorDialog(
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = KiyoriUiShapes.field,
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -252,7 +252,7 @@ internal fun WebSessionBookmarkTextDialog(
                     modifier = Modifier.fillMaxWidth(),
                     minLines = if (title == "书签导入") 5 else 1,
                     maxLines = if (title == "书签导入") 10 else 1,
-                    shape = RoundedCornerShape(8.dp),
+                    shape = KiyoriUiShapes.field,
                 )
                 Spacer(modifier = Modifier.height(10.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {

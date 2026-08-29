@@ -25,6 +25,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.rememberAsyncImagePainter
 import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.KiyoriUiShapes
+import com.kiyori.design.theme.rememberKiyoriUiTokens
 import com.kiyori.design.theme.resolveColors
 
 private const val CHAT_HEADER_CHARACTER_NAME_MAX_LENGTH = 12
@@ -51,6 +53,7 @@ fun ChatHeader(
         val historyColors = KiyoriSemanticTone.ORANGE.resolveColors()
         val floatingColors = KiyoriSemanticTone.CYAN.resolveColors()
         val characterColors = KiyoriSemanticTone.BLUE.resolveColors()
+        val uiTokens = rememberKiyoriUiTokens()
 
         Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -60,14 +63,14 @@ fun ChatHeader(
                 if (runningTaskCount >= 2) {
                         Surface(
                                 onClick = onToggleChatHistorySelector,
-                                modifier = Modifier.height(32.dp),
-                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier.height(40.dp),
+                                shape = KiyoriUiShapes.control,
                                 color = historyColors.container,
                                 tonalElevation = 0.dp,
                                 shadowElevation = 0.dp
                         ) {
                                 Row(
-                                        modifier = Modifier.height(32.dp).padding(start = 6.dp, end = 10.dp),
+                                        modifier = Modifier.height(40.dp).padding(start = 8.dp, end = 12.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
@@ -92,18 +95,18 @@ fun ChatHeader(
                 } else {
                         Box(
                                 modifier =
-                                        Modifier.size(32.dp)
+                                        Modifier.size(uiTokens.touchTarget)
                                                 .background(
                                                         color =
                                                                 if (showChatHistorySelector)
                                                                         historyColors.container
                                                                 else Color.Transparent,
-                                                        shape = CircleShape
+                                                        shape = KiyoriUiShapes.control
                                                 )
                         ) {
                                 IconButton(
                                         onClick = onToggleChatHistorySelector,
-                                        modifier = Modifier.matchParentSize()
+                                                modifier = Modifier.matchParentSize()
                                 ) {
                                         Icon(
                                                 imageVector = Icons.Default.History,
@@ -114,8 +117,7 @@ fun ChatHeader(
                                                                 ?: if (showChatHistorySelector)
                                                                         historyColors.icon
                                                                 else
-                                                                        MaterialTheme.colorScheme.onSurface
-                                                                                .copy(alpha = 0.7f),
+                                                                        uiTokens.colors.secondaryText,
                                                 modifier = Modifier.size(20.dp)
                                         )
                                 }
@@ -124,13 +126,13 @@ fun ChatHeader(
 
                 Box(
                         modifier =
-                                Modifier.size(32.dp)
+                                Modifier.size(uiTokens.touchTarget)
                                         .background(
                                                 color =
                                                         if (isFloatingMode)
                                                                 floatingColors.container
                                                         else Color.Transparent,
-                                                shape = CircleShape
+                                                shape = KiyoriUiShapes.control
                                         )
                 ) {
                         IconButton(
@@ -146,8 +148,7 @@ fun ChatHeader(
                                                         ?: if (isFloatingMode)
                                                                 floatingColors.icon
                                                         else
-                                                                MaterialTheme.colorScheme.onSurface
-                                                                        .copy(alpha = 0.7f),
+                                                                uiTokens.colors.secondaryText,
                                         modifier = Modifier.size(20.dp)
                                 )
                         }
@@ -158,7 +159,8 @@ fun ChatHeader(
                         modifier =
                                 Modifier
                                         .widthIn(max = 176.dp)
-                                        .clip(CircleShape)
+                                        .clip(KiyoriUiShapes.control)
+                                        .heightIn(min = uiTokens.touchTarget)
                                         .clickable(onClick = onCharacterClick)
                                         .padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,

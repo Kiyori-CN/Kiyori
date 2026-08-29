@@ -161,7 +161,7 @@ private fun QueueIconAction(
 ) {
     Box(
         modifier = Modifier
-            .size(26.dp)
+            .size(40.dp)
             .clip(RoundedCornerShape(6.dp))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center

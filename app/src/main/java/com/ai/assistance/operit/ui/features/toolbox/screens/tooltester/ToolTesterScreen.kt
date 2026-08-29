@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
 import com.ai.assistance.operit.R
+import com.kiyori.design.theme.KiyoriUiShapes
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.StringResultData
 import com.ai.assistance.operit.data.model.AITool
@@ -179,7 +180,7 @@ fun ToolTesterScreen(navController: NavController) {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth(),
-                shape = MaterialTheme.shapes.large
+                shape = KiyoriUiShapes.dialog
             ) {
                 ToolDetailsSheet(
                     toolTest = selectedTestForDetails!!,
@@ -280,8 +281,8 @@ fun ToolDetailsSheet(
         }
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
-            TextButton(onClick = onDismiss) { Text(context.getString(R.string.close)) }
-            Button(onClick = { onTest(toolTest) }, enabled = testResult?.status != TestStatus.RUNNING) {
+            TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 40.dp)) { Text(context.getString(R.string.close)) }
+            Button(onClick = { onTest(toolTest) }, enabled = testResult?.status != TestStatus.RUNNING, shape = KiyoriUiShapes.control) {
                 Text(context.getString(R.string.retest))
             }
         }

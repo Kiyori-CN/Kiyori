@@ -71,6 +71,7 @@ import com.ai.assistance.operit.util.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.kiyori.design.theme.KiyoriUiShapes
 import org.json.JSONObject
 
 @Composable
@@ -111,7 +112,7 @@ fun MCPPackageDetailsDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.fillMaxWidth().heightIn(max = 620.dp),
-            shape = RoundedCornerShape(16.dp),
+            shape = KiyoriUiShapes.dialog,
             color = MaterialTheme.colorScheme.surface
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
@@ -375,7 +376,7 @@ private fun MCPToolExecutionDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.fillMaxWidth().heightIn(max = 620.dp),
-            shape = RoundedCornerShape(16.dp),
+            shape = KiyoriUiShapes.dialog,
             color = MaterialTheme.colorScheme.surface
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
@@ -673,7 +674,7 @@ private fun MCPEmptyToolsCard(message: String) {
             Icon(
                 imageVector = Icons.Default.Apps,
                 contentDescription = null,
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(40.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
             )
             Spacer(modifier = Modifier.height(8.dp))

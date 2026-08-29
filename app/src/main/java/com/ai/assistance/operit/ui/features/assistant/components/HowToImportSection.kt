@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -31,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
+import com.kiyori.design.theme.KiyoriUiShapes
 
 @Composable
 fun HowToImportSection() {
@@ -45,7 +45,7 @@ fun HowToImportSection() {
             .padding(vertical = 8.dp)
             .background(
                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                RoundedCornerShape(10.dp)
+                KiyoriUiShapes.control
             )
             .padding(10.dp)
     ) {
@@ -123,7 +123,7 @@ fun HowToImportSection() {
 
             Surface(
                 color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
-                shape = RoundedCornerShape(8.dp)
+                shape = KiyoriUiShapes.control
             ) {
                 Text(
                     text = stringResource(R.string.dragonbones_important_tip),

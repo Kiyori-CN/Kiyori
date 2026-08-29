@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.kiyori.design.theme.KiyoriUiShapes
 import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
 import java.util.*
@@ -155,12 +156,12 @@ fun CompactSearchField(
     // 自定义输入框布局
     Row(
             modifier =
-                    modifier.height(36.dp)
-                            .background(color = backgroundColor, shape = RoundedCornerShape(18.dp))
+                    modifier.heightIn(min = 40.dp)
+                            .background(color = backgroundColor, shape = KiyoriUiShapes.field)
                             .border(
                                     width = 1.dp,
                                     color = borderColor,
-                                    shape = RoundedCornerShape(18.dp)
+                                    shape = KiyoriUiShapes.field
                             )
                             .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically

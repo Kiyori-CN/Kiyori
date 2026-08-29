@@ -25,6 +25,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.mcp.InstallProgress
 import com.ai.assistance.operit.data.mcp.InstallResult
+import com.kiyori.design.theme.KiyoriUiShapes
 
 /**
  * MCP 安装/卸载进度对话框
@@ -47,6 +48,7 @@ fun MCPInstallProgressDialog(
     if (installProgress == null && result == null) return
 
     AlertDialog(
+            shape = KiyoriUiShapes.dialog,
             onDismissRequest = {
                 // 操作完成或失败时才允许关闭
                 if (installProgress is InstallProgress.Finished || result != null) {

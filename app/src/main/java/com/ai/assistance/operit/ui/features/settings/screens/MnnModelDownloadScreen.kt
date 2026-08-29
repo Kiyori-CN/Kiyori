@@ -406,7 +406,7 @@ private fun ModelCard(
                             
                             IconButton(
                                 onClick = { onDelete(model.modelName) },
-                                modifier = Modifier.size(32.dp),
+                                modifier = Modifier.size(40.dp),
                                 enabled = canDelete
                             ) {
                                 Icon(
@@ -429,7 +429,7 @@ private fun ModelCard(
                                         downloadManager.downloadModel(model.modelName, downloadUrl)
                                     }
                                 },
-                                modifier = Modifier.height(32.dp),
+                                modifier = Modifier.heightIn(min = 40.dp),
                                 enabled = downloadUrl.isNotEmpty(),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                             ) {
@@ -513,7 +513,7 @@ private fun ModelCard(
                             
                             IconButton(
                                 onClick = { downloadManager.pauseDownload(model.modelName) },
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Pause,
@@ -562,7 +562,7 @@ private fun ModelCard(
                                             downloadManager.downloadModel(model.modelName, downloadUrl)
                                         }
                                     },
-                                    modifier = Modifier.height(32.dp),
+                                    modifier = Modifier.heightIn(min = 40.dp),
                                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                                 ) {
                                     Icon(
@@ -580,7 +580,7 @@ private fun ModelCard(
                                 // 删除按钮
                                 IconButton(
                                     onClick = { onDelete(model.modelName) },
-                                    modifier = Modifier.size(32.dp),
+                                    modifier = Modifier.size(40.dp),
                                     enabled = canDelete
                                 ) {
                                     Icon(
@@ -618,7 +618,7 @@ private fun ModelCard(
                         
                         IconButton(
                             onClick = { onDelete(model.modelName) },
-                            modifier = Modifier.size(32.dp),
+                            modifier = Modifier.size(40.dp),
                             enabled = canDelete
                         ) {
                             Icon(
@@ -656,7 +656,7 @@ private fun ModelCard(
                                         downloadManager.downloadModel(model.modelName, downloadUrl)
                                     }
                                 },
-                                modifier = Modifier.height(32.dp),
+                                modifier = Modifier.heightIn(min = 40.dp),
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                             ) {
                                 Icon(

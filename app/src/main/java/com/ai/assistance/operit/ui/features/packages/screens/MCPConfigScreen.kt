@@ -1715,10 +1715,9 @@ private fun PluginListItem(
                 }
             }
 
-            // 操作按钮区域 
-            if (!isRemote || isRemote) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
+            // 操作按钮区域。远程服务只显示编辑，本地服务额外显示部署；两者共享同一操作行。
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -1726,7 +1725,7 @@ private fun PluginListItem(
                     if (!isRemote) {
                         OutlinedButton(
                             onClick = onDeploy,
-                            modifier = Modifier.weight(1f).height(32.dp),
+                            modifier = Modifier.weight(1f).heightIn(min = 40.dp),
                             contentPadding = PaddingValues(horizontal = 12.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = if (isDeployed) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
@@ -1743,7 +1742,7 @@ private fun PluginListItem(
                     // 编辑按钮
                     OutlinedButton(
                         onClick = onEdit,
-                        modifier = Modifier.weight(1f).height(32.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = 40.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp)
                     ) {
                         Text(
@@ -1753,7 +1752,6 @@ private fun PluginListItem(
                         )
                     }
                 }
-            }
         }
     }
 }

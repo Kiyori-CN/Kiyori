@@ -118,6 +118,7 @@ import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowser
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserSearchScreen
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserTopBar
 import com.kiyori.design.theme.KiyoriBrowserTheme
+import com.kiyori.design.theme.KiyoriUiShapes
 import java.util.Locale
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
@@ -727,7 +728,7 @@ internal fun WebSessionBrowserScreen(
                                 .align(Alignment.TopStart)
                                 .offset { IntOffset(targetX, targetY) }
                                 .widthIn(max = 280.dp),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = KiyoriUiShapes.control,
                         color = MaterialTheme.colorScheme.inverseSurface,
                         tonalElevation = 3.dp,
                         shadowElevation = 8.dp,
@@ -1369,7 +1370,7 @@ private fun BrowserDownloadConfirmationOverlay(
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
-            shape = RoundedCornerShape(20.dp),
+            shape = KiyoriUiShapes.dialog,
             color = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface,
             tonalElevation = 2.dp,
@@ -1450,7 +1451,7 @@ private fun PendingDialogOverlay(
     ) {
         Surface(
             modifier = Modifier.padding(horizontal = 20.dp),
-            shape = RoundedCornerShape(20.dp),
+            shape = KiyoriUiShapes.dialog,
             color = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface,
             tonalElevation = 2.dp,
@@ -1759,7 +1760,7 @@ private fun BrowserDownloadSummaryBar(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(14.dp),
+            shape = KiyoriUiShapes.control,
         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
         tonalElevation = 0.dp,
         shadowElevation = 0.dp

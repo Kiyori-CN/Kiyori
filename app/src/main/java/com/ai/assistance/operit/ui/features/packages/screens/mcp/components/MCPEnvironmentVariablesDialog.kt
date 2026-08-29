@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.window.Dialog
 import com.ai.assistance.operit.R
+import com.kiyori.design.theme.KiyoriUiShapes
 
 /**
  * 环境变量管理对话框
@@ -47,7 +48,7 @@ fun MCPEnvironmentVariablesDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-                shape = RoundedCornerShape(16.dp),
+                shape = KiyoriUiShapes.dialog,
                 color = MaterialTheme.colorScheme.surface,
                 tonalElevation = 6.dp,
                 shadowElevation = 8.dp,

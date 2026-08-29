@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.kiyori.design.theme.KiyoriUiShapes
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -2126,7 +2127,7 @@ private fun ApiProviderSelectionSheet(
                             if (searchQuery.isNotEmpty()) {
                                 IconButton(
                                         onClick = { searchQuery = "" },
-                                        modifier = Modifier.size(36.dp)
+                                        modifier = Modifier.size(40.dp)
                                 ) {
                                     Icon(
                                             Icons.Default.Clear,
@@ -2138,7 +2139,7 @@ private fun ApiProviderSelectionSheet(
                         },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = KiyoriUiShapes.field
                 )
 
                 // 提供商列表

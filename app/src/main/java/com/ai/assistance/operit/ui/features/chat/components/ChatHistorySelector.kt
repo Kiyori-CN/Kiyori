@@ -188,7 +188,7 @@ private fun HistoryQuickScrollButton(
         IconButton(
             onClick = onClick,
             enabled = enabled,
-            modifier = Modifier.size(22.dp)
+            modifier = Modifier.size(40.dp)
         ) {
             Icon(
                 imageVector = icon,
@@ -1888,7 +1888,7 @@ fun ChatHistorySelector(
                 ) {
                     IconButton(
                         onClick = { showSearchBox = !showSearchBox },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             if (showSearchBox) Icons.Default.SearchOff else Icons.Default.Search,
@@ -1899,7 +1899,7 @@ fun ChatHistorySelector(
                     }
                     IconButton(
                         onClick = { showSettingsDialog = true },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             Icons.Default.Tune,
@@ -1911,7 +1911,7 @@ fun ChatHistorySelector(
                     if (onBack != null) {
                         IconButton(
                             onClick = onBack,
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,

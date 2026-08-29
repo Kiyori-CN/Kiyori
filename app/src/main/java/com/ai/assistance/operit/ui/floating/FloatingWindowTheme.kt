@@ -7,6 +7,7 @@ import androidx.compose.material3.Typography
 import androidx.compose.ui.unit.sp
 import com.kiyori.design.theme.KiyoriLightColorScheme
 import com.kiyori.design.theme.KiyoriTypography
+import com.kiyori.design.theme.KiyoriMaterialShapes
 
 /**
  * 为悬浮窗提供的独立主题
@@ -36,6 +37,7 @@ fun FloatingWindowTheme(
     MaterialTheme(
         colorScheme = finalColorScheme,
         typography = finalTypography,
+        shapes = KiyoriMaterialShapes,
         content = content
     )
 }

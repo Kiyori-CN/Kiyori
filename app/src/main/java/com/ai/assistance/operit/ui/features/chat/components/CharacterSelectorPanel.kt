@@ -178,7 +178,7 @@ fun CharacterSelectorPanel(
                             Box {
                                 IconButton(
                                     onClick = { sortMenuExpanded = true },
-                                    modifier = Modifier.size(32.dp)
+                                    modifier = Modifier.size(40.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Filled.Sort,
@@ -244,7 +244,7 @@ fun CharacterSelectorPanel(
                                     onOpenCharacterSettings()
                                     onDismiss()
                                 },
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Edit,

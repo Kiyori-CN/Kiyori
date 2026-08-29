@@ -120,6 +120,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.sp
+import com.kiyori.design.theme.KiyoriUiShapes
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -921,7 +922,7 @@ private fun OnboardingFeatureCardSurface(
             modifier
                 .fillMaxHeight()
                 .defaultMinSize(minHeight = 104.dp),
-        shape = RoundedCornerShape(18.dp),
+        shape = KiyoriUiShapes.card,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(1.dp, colors.container),
     ) {
@@ -1197,7 +1198,7 @@ private fun OnboardingPrimaryButton(
     Button(
         onClick = onClick,
         enabled = enabled,
-        shape = RoundedCornerShape(18.dp),
+        shape = KiyoriUiShapes.control,
         colors =
             ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
@@ -1820,7 +1821,7 @@ private fun PermissionItemCard(
             Modifier
                 .fillMaxWidth()
                 .clickable(enabled = selectable && interactionEnabled, onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
+        shape = KiyoriUiShapes.card,
         color =
             if (selected && selectable) {
                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.56f)

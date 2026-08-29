@@ -85,6 +85,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.Use
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.isUserscriptRuntimePermissionActionEnabled
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
 import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.KiyoriUiShapes
 import com.kiyori.design.theme.resolveColors
 import kotlinx.coroutines.launch
 
@@ -1156,7 +1157,7 @@ private fun UserscriptPermissionSnapshot(
     val metadata = preview.metadata
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
+        shape = KiyoriUiShapes.control,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(

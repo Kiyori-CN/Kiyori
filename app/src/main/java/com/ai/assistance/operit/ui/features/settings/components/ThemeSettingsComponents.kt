@@ -144,10 +144,10 @@ fun ColorSelectionItem(
 @Composable
 fun PresetColorItem(color: Color, onSelect: (Color) -> Unit) {
     Box(
-        modifier = Modifier.size(32.dp)
+        modifier = Modifier.size(40.dp)
             .clip(CircleShape)
             .background(color)
             .border(1.dp, Color.White, CircleShape)
             .clickable { onSelect(color) }
     )
-} 
+}

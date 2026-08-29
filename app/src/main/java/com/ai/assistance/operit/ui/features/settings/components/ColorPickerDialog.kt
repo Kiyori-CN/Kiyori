@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.theme.getTextColorForBackground
 import com.ai.assistance.operit.ui.theme.isHighContrast
+import com.kiyori.design.theme.KiyoriUiShapes
 import com.github.skydoves.colorpicker.compose.*
 import kotlinx.coroutines.launch
 import kotlin.math.*
@@ -253,7 +254,7 @@ fun ColorPickerDialog(
                         .padding(bottom = 16.dp)
                         .background(
                             MaterialTheme.colorScheme.surface.copy(alpha = 1f),
-                            RoundedCornerShape(8.dp)
+                            KiyoriUiShapes.field
                         )
                         .padding(8.dp)
                 ) {
@@ -265,12 +266,12 @@ fun ColorPickerDialog(
                         // Color sample
                         Box(
                             modifier = Modifier.size(80.dp)
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(KiyoriUiShapes.field)
                                 .background(pickedColor)
                                 .border(
                                     1.dp,
                                     MaterialTheme.colorScheme.outline,
-                                    RoundedCornerShape(8.dp)
+                                    KiyoriUiShapes.field
                                 )
                         )
 
@@ -283,7 +284,7 @@ fun ColorPickerDialog(
                             Surface(
                                 modifier = Modifier.width(120.dp).height(40.dp),
                                 color = pickedColor,
-                                shape = RoundedCornerShape(4.dp)
+                                shape = KiyoriUiShapes.control
                             ) {
                                 Box(
                                     modifier = Modifier.fillMaxSize(),
@@ -475,7 +476,7 @@ fun ColorPickerDialog(
                     modifier = Modifier.fillMaxWidth()
                         .height(60.dp)
                         .padding(bottom = 16.dp)
-                        .clip(RoundedCornerShape(8.dp)),
+                        .clip(KiyoriUiShapes.field),
                     controller = pickerController
                 )
 
@@ -607,7 +608,7 @@ fun ColorPickerDialog(
                     }
                     onDismiss()
                 },
-                shape = RoundedCornerShape(8.dp)
+                shape = KiyoriUiShapes.field
             ) { Text(stringResource(R.string.colorpicker_confirm)) }
         },
         dismissButton = {

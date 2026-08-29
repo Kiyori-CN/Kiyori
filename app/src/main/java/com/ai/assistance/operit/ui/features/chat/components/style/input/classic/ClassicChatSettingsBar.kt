@@ -381,7 +381,7 @@ fun ClassicChatSettingsBar(
             },
             modifier = Modifier
                 .padding(vertical = 8.dp, horizontal = 2.dp)
-                .size(28.dp)
+                .size(40.dp)
                 .align(Alignment.BottomEnd)
         ) {
             Icon(
@@ -846,7 +846,7 @@ private fun SettingItem(
                 .clearAndSetSemantics {}
         )
         // 详情按钮（左侧）
-        IconButton(onClick = onInfoClick, modifier = Modifier.size(24.dp)) {
+        IconButton(onClick = onInfoClick, modifier = Modifier.size(40.dp)) {
             Icon(
                 imageVector = Icons.Outlined.Info,
                 contentDescription = stringResource(R.string.details),
@@ -921,7 +921,7 @@ private fun SettingSliderItem(
                 modifier = Modifier.size(16.dp)
             )
             // Info button
-            IconButton(onClick = onInfoClick, modifier = Modifier.size(24.dp)) {
+            IconButton(onClick = onInfoClick, modifier = Modifier.size(40.dp)) {
                 Icon(
                     imageVector = Icons.Outlined.Info,
                     contentDescription = stringResource(R.string.details),
@@ -1169,7 +1169,7 @@ private fun ToolPermissionSettingItem(
                     modifier =
                         Modifier
                             .weight(1f)
-                            .height(28.dp)
+                            .heightIn(min = 40.dp)
                             .clip(RoundedCornerShape(999.dp))
                             .background(
                                 if (isSelected) MaterialTheme.colorScheme.primary
@@ -1216,7 +1216,7 @@ private fun ToolPermissionSettingItem(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(30.dp)
+                .heightIn(min = 40.dp)
                 .clickable(onClick = onManageToolsClick),
             contentAlignment = Alignment.Center
         ) {
@@ -1281,7 +1281,7 @@ private fun ThinkingSettingsItem(
                     tint = iconTint,
                     modifier = Modifier.size(16.dp).clearAndSetSemantics {}
                 )
-                IconButton(onClick = onInfoClick, modifier = Modifier.size(24.dp)) {
+                IconButton(onClick = onInfoClick, modifier = Modifier.size(40.dp)) {
                     Icon(
                         imageVector = Icons.Outlined.Info,
                         contentDescription = stringResource(R.string.details),
@@ -1350,7 +1350,7 @@ private fun ThinkingSettingsItem(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 modifier = Modifier.size(16.dp).clearAndSetSemantics {}
             )
-            IconButton(onClick = onInfoClick, modifier = Modifier.size(24.dp)) {
+            IconButton(onClick = onInfoClick, modifier = Modifier.size(40.dp)) {
                 Icon(
                     imageVector = Icons.Outlined.Info,
                     contentDescription = stringResource(R.string.details),
@@ -1499,7 +1499,7 @@ private fun MemorySelectorItem(
                     .clearAndSetSemantics {}
             )
             // 详情按钮（左侧）
-            IconButton(onClick = onInfoClick, modifier = Modifier.size(24.dp)) {
+            IconButton(onClick = onInfoClick, modifier = Modifier.size(40.dp)) {
                 Icon(
                     imageVector = Icons.Outlined.Info,
                     contentDescription = stringResource(R.string.details),
@@ -1585,7 +1585,7 @@ private fun MemorySelectorItem(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(30.dp)
+                        .heightIn(min = 40.dp)
                         .clickable(onClick = onManageClick),
                     contentAlignment = Alignment.Center
                 ) {
@@ -1650,7 +1650,7 @@ private fun ModelSelectorItem(
                     .clearAndSetSemantics {}
             )
             // 详情按钮（左侧）
-            IconButton(onClick = onInfoClick, modifier = Modifier.size(24.dp)) {
+            IconButton(onClick = onInfoClick, modifier = Modifier.size(40.dp)) {
                 Icon(
                     imageVector = Icons.Outlined.Info,
                     contentDescription = stringResource(R.string.details),
@@ -1848,7 +1848,7 @@ private fun ModelSelectorItem(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(30.dp)
+                        .heightIn(min = 40.dp)
                         .clickable(onClick = onManageClick),
                     contentAlignment = Alignment.Center
                 ) {
@@ -1899,7 +1899,7 @@ private fun ActionSettingItem(
                 .clearAndSetSemantics {}
         )
         // 详情按钮（左侧）
-        IconButton(onClick = onInfoClick, modifier = Modifier.size(24.dp)) {
+        IconButton(onClick = onInfoClick, modifier = Modifier.size(40.dp)) {
             Icon(
                 imageVector = Icons.Outlined.Info,
                 contentDescription = stringResource(R.string.details),

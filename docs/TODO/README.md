@@ -4,6 +4,15 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # Kiyori 开发任务与验证索引
 
+## 当前进行中
+
+- [全软件 UI 风格统一优化](ui_style_unification/index.md)：以设置页风格为基准，统一 AI 对话、
+  抽屉、AI 助手设置、浏览器、播放器和下载器的控件/文案层级，并修复可证实的呈现问题。
+  当前代码层已完成 421 个 Compose 文件的逐文件静态覆盖对账，定向编译、formal readiness、
+  fresh-clone 与差异检查通过；串行 Debug APK 构建和静态产物审计已通过，精确提交与 main 推送
+  是本阶段下一关，真机视觉/触摸/输入法及真实 WebView、播放器、下载任务仍保持
+  `verification_pending`。
+
 ## 2026-08-29 Operit v1.12.1 后续更新与最新插件市场适配
 
 状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / DEVICE AND LIVE MARKET VERIFICATION PENDING`。

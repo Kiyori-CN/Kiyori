@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -80,6 +81,7 @@ import com.ai.assistance.operit.ui.features.chat.webview.workspace.editor.Editor
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.editor.NativeCodeEditor
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
+import com.kiyori.design.theme.KiyoriUiShapes
 
 @Composable
 internal fun WebSessionPageSourceEditor(
@@ -686,7 +688,7 @@ private fun PageSourceEditorMetadata(
                         )
                         IconButton(
                             onClick = onDismissLongLineWarning,
-                            modifier = Modifier.size(34.dp),
+                            modifier = Modifier.size(40.dp),
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Close,
@@ -807,10 +809,10 @@ private fun PageSourceCommandChip(
     Surface(
         modifier =
             Modifier
-                .height(36.dp)
+                .heightIn(min = 40.dp)
                 .alpha(if (enabled) 1f else 0.38f)
                 .clickable(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(10.dp),
+        shape = KiyoriUiShapes.control,
         color =
             if (selected) {
                 selectedColors.container

@@ -101,10 +101,13 @@ import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
 import com.ai.assistance.operit.ui.main.components.LocalSetScreenSoftInputMode
 import com.ai.assistance.operit.ui.main.components.LocalSetUseScreenImePadding
 import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.KiyoriUiShapes
+import com.kiyori.design.theme.rememberKiyoriUiTokens
 import com.kiyori.design.theme.resolveColors
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
@@ -142,6 +145,7 @@ fun AIChatScreen(
     val context = LocalContext.current
     val density = LocalDensity.current
     val colorScheme = MaterialTheme.colorScheme
+    val uiTokens = rememberKiyoriUiTokens()
     val isCurrentScreen = LocalIsCurrentScreen.current
 // Correctly initialize ViewModel using the viewModel() composable function
 val actualViewModel: ChatViewModel =
@@ -442,7 +446,8 @@ val actualViewModel: ChatViewModel =
                 TextButton(onClick = { showModelSuggestionDialog = false }) {
                     Text(stringResource(R.string.ignore))
                 }
-            }
+            },
+            shape = KiyoriUiShapes.dialog,
         )
     }
 
@@ -882,7 +887,7 @@ val actualViewModel: ChatViewModel =
                 val workspaceColors = KiyoriSemanticTone.PURPLE.resolveColors()
                 // 共享浏览器入口：进入 Browser Home 时只转挂现有 WebSession，不创建第二个 WebView。
                 IconButton(
-                        modifier = Modifier.size(40.dp),
+                        modifier = Modifier.size(uiTokens.touchTarget).clip(KiyoriUiShapes.control),
                         enabled = !isWorkspacePreparing,
                         onClick = openBrowser,
                         colors =
@@ -899,7 +904,7 @@ val actualViewModel: ChatViewModel =
 
                 // AI电脑模式切换按钮
                 IconButton(
-                        modifier = Modifier.size(40.dp),
+                        modifier = Modifier.size(uiTokens.touchTarget).clip(KiyoriUiShapes.control),
                         enabled = !isWorkspacePreparing,
                         onClick = {
                             actualViewModel.onAiComputerButtonClick()
@@ -924,7 +929,7 @@ val actualViewModel: ChatViewModel =
                 }
 
                 IconButton(
-                        modifier = Modifier.size(40.dp),
+                        modifier = Modifier.size(uiTokens.touchTarget).clip(KiyoriUiShapes.control),
                         enabled = !isWorkspacePreparing,
                         onClick = {
                             actualViewModel.onConversationDetailsButtonClick()
@@ -959,7 +964,7 @@ val actualViewModel: ChatViewModel =
 
                 // Web开发模式切换按钮
                 IconButton(
-                        modifier = Modifier.size(40.dp),
+                        modifier = Modifier.size(uiTokens.touchTarget).clip(KiyoriUiShapes.control),
                         enabled = !isWorkspacePreparing,
                         onClick = {
                             actualViewModel.onWorkspaceButtonClick()
@@ -1601,7 +1606,8 @@ val actualViewModel: ChatViewModel =
                 text = { Text(message) },
                 confirmButton = {
                     TextButton(onClick = { actualViewModel.clearPopupMessage() }) { Text(stringResource(R.string.ok)) }
-                }
+                },
+                shape = KiyoriUiShapes.dialog,
         )
     }
 

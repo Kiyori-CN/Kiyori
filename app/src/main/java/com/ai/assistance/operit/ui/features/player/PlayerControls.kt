@@ -77,9 +77,10 @@ import com.ai.assistance.operit.core.player.formatPlayerSpeedLabel
 import com.ai.assistance.operit.core.player.parsePlayerSpeedInput
 import java.util.Locale
 import kotlinx.coroutines.delay
+import com.kiyori.design.theme.KiyoriUiShapes
 
-internal val PlayerAccent = Color(0xFF7792FF)
-internal val PlayerAccentSecondary = Color(0xFF9A7BFF)
+internal val PlayerAccent = Color(0xFF90CAF9)
+internal val PlayerAccentSecondary = Color(0xFFB9CBD4)
 private val PlayerPopupBackground = Color(0xF21B1E27)
 private val PlayerPopupText = Color(0xFFF7F8FC)
 private val PlayerPopupMutedText = Color(0xFFAEB5C5)
@@ -701,7 +702,7 @@ private fun BoxScope.PlayerBottomControls(
                             onSeekInteractionChanged(false)
                             onInteraction()
                         },
-                        modifier = Modifier.fillMaxWidth().height(30.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
                     )
                 }
             }
@@ -747,7 +748,7 @@ private fun BoxScope.PlayerBottomControls(
                                 onInteraction()
                                 session.togglePause()
                             },
-                            size = 36.dp,
+                            size = 40.dp,
                         )
                         PortraitImageControlCell(
                             painter = painterResource(R.drawable.ic_forward_new),
@@ -775,7 +776,7 @@ private fun BoxScope.PlayerBottomControls(
                                 session = session,
                                 onInteraction = onInteraction,
                                 onPopupVisibilityChanged = onPopupVisibilityChanged,
-                                size = 32.dp,
+                                size = 40.dp,
                                 padding = 5.dp,
                             )
                         }
@@ -876,7 +877,7 @@ private fun BoxScope.PlayerBottomControls(
                             Modifier
                                 .align(Alignment.BottomStart)
                                 .width(64.dp)
-                                .height(34.dp),
+                                .height(40.dp),
                     )
                     LegacyTextButton(
                         text = if (settings.followGravityRotation) "自动" else "旋转",
@@ -884,7 +885,7 @@ private fun BoxScope.PlayerBottomControls(
                             onInteraction()
                             onRotate()
                         },
-                        modifier = Modifier.align(Alignment.BottomEnd).height(34.dp),
+                        modifier = Modifier.align(Alignment.BottomEnd).height(40.dp),
                         enabled = !settings.followGravityRotation,
                     )
                 }
@@ -1180,6 +1181,7 @@ private fun PlayerCustomSpeedDialog(
                     )
                 },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                shape = KiyoriUiShapes.field,
             )
         },
         confirmButton = {
@@ -1195,7 +1197,7 @@ private fun PlayerCustomSpeedDialog(
                 Text("取消", color = PlayerPopupMutedText)
             }
         },
-        shape = RoundedCornerShape(20.dp),
+        shape = KiyoriUiShapes.dialog,
     )
 }
 
@@ -1215,7 +1217,7 @@ private fun PlayerPopupMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
         modifier = Modifier.widthIn(min = 196.dp, max = 288.dp),
-        shape = RoundedCornerShape(20.dp),
+        shape = KiyoriUiShapes.dialog,
         containerColor = PlayerPopupBackground,
         tonalElevation = 0.dp,
         shadowElevation = 8.dp,
@@ -1246,7 +1248,7 @@ private fun PlayerPopupMenu(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = if (compactItems) 36.dp else 52.dp)
+                                .heightIn(min = if (compactItems) 40.dp else 52.dp)
                                 .clip(RoundedCornerShape(14.dp))
                                 .background(
                                     if (item.selected) {
@@ -1348,7 +1350,7 @@ private fun LegacyImageButton(
     Box(
         modifier =
             modifier
-                .size(size)
+                .size(size.coerceAtLeast(40.dp))
                 .alpha(if (enabled) 1f else 0.42f)
                 // 仅约束点击涟漪范围；按钮静态状态只显示图标，不绘制圆形底色或描边。
                 .clip(CircleShape)
@@ -1376,7 +1378,7 @@ private fun LegacyTextButton(
             modifier
                 .alpha(if (enabled) 1f else 0.42f)
                 // 文本控制保持原点击热区，但不再绘制胶囊底色或描边。
-                .clip(RoundedCornerShape(14.dp))
+                .clip(KiyoriUiShapes.control)
                 .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
                 .padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center,

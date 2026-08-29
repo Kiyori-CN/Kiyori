@@ -33,8 +33,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.kiyori.design.theme.KiyoriUiShapes
 
-internal val WebSessionBrowserPopupShape = RoundedCornerShape(10.dp)
+internal val WebSessionBrowserPopupShape = KiyoriUiShapes.control
 internal val WebSessionBrowserPopupElevation = 8.dp
 internal val WebSessionBrowserPopupItemHeight = 40.dp
 
@@ -56,7 +57,7 @@ internal fun WebSessionBrowserDialogHeader(
             contentDescription = null,
             containerSize = 34.dp,
             iconSize = 18.dp,
-            shape = RoundedCornerShape(10.dp),
+            shape = KiyoriUiShapes.control,
         )
         Text(
             text = title,
@@ -80,7 +81,7 @@ internal fun WebSessionBrowserDialogSurface(
     val colors = tone.resolveColors()
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
+        shape = KiyoriUiShapes.dialog,
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, colors.icon.copy(alpha = 0.2f)),
         tonalElevation = 2.dp,

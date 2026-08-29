@@ -24,6 +24,7 @@ fun KiyoriTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = typography,
+        shapes = KiyoriMaterialShapes,
     ) {
         Box(
             modifier =

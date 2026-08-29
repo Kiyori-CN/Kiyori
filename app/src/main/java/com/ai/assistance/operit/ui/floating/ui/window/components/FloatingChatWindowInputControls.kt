@@ -66,6 +66,7 @@ import com.ai.assistance.operit.ui.features.chat.components.AttachmentChip
 import com.ai.assistance.operit.ui.floating.FloatContext
 import com.ai.assistance.operit.ui.floating.FloatingMode
 import com.ai.assistance.operit.ui.floating.ui.window.viewmodel.FloatingChatWindowModeViewModel
+import com.kiyori.design.theme.KiyoriUiShapes
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -177,7 +178,7 @@ private fun BottomInputBar(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline
                 ),
-                shape = RoundedCornerShape(12.dp)
+                shape = KiyoriUiShapes.field
             )
             
             Spacer(modifier = Modifier.width(8.dp))
@@ -185,7 +186,7 @@ private fun BottomInputBar(
             // 附件按钮 (+)
             Box(
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
                     .background(
                         if (floatContext.showAttachmentPanel)
@@ -217,7 +218,7 @@ private fun BottomInputBar(
             // 发送/取消按钮
             Box(
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
                     .background(
                         when {

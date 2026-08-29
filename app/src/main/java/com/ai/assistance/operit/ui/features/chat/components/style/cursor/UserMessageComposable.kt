@@ -691,8 +691,7 @@ private fun AttachmentTag(
     Surface(
         modifier =
         Modifier
-            .height(24.dp)
-            .padding(vertical = 2.dp)
+            .heightIn(min = 40.dp)
             .clickable(
                 enabled =
                 enabled &&
@@ -705,7 +704,8 @@ private fun AttachmentTag(
                                 attachment.type.startsWith("image/")
                         ),
                 onClick = { onClick(attachment) }
-            ),
+            )
+            .padding(vertical = 2.dp),
         shape = RoundedCornerShape(12.dp),
         color = backgroundColor.copy(alpha = 0.5f)
     ) {

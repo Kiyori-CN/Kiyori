@@ -18,6 +18,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import com.kiyori.design.theme.KiyoriUiShapes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -308,6 +309,7 @@ fun LicenseDialog(onDismiss: () -> Unit) {
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KiyoriUiShapes.dialog,
         title = { Text(stringResource(id = R.string.open_source_licenses)) },
         text = {
             LazyColumn(modifier = Modifier.fillMaxWidth()) {
@@ -365,7 +367,7 @@ fun LicenseDialog(onDismiss: () -> Unit) {
             }
         },
         confirmButton = {
-            Button(onClick = onDismiss) {
+            Button(onClick = onDismiss, shape = KiyoriUiShapes.control) {
                 Text(stringResource(id = R.string.ok))
             }
         }

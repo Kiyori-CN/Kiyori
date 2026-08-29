@@ -14,6 +14,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.KiyoriUiShapes
 import com.kiyori.design.theme.resolveColors
 
 @Composable
@@ -42,7 +43,7 @@ fun PackageItem(
                 contentDescription = null,
                 containerSize = 36.dp,
                 iconSize = 20.dp,
-                shape = RoundedCornerShape(11.dp),
+                shape = KiyoriUiShapes.control,
             )
             
             Spacer(modifier = Modifier.width(8.dp))
@@ -71,7 +72,6 @@ fun PackageItem(
                         Switch(
                                 checked = isImported,
                                 onCheckedChange = onToggleImport,
-                modifier = Modifier.size(width = 32.dp, height = 20.dp),
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = colors.icon,
                     checkedTrackColor = colors.container,

@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.ai.assistance.operit.R
+import com.kiyori.design.theme.KiyoriUiShapes
 import com.ai.assistance.operit.core.tools.PackageTool
 import com.ai.assistance.operit.core.tools.StringResultData
 import com.ai.assistance.operit.core.tools.javascript.JsToolManager
@@ -63,7 +64,7 @@ fun ScriptExecutionDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.fillMaxWidth().heightIn(max = 600.dp),
-            shape = RoundedCornerShape(16.dp),
+            shape = KiyoriUiShapes.dialog,
             color = MaterialTheme.colorScheme.surface
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {

@@ -50,6 +50,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.Browse
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSettings
 import com.ai.assistance.operit.util.AppLogger
 import com.kiyori.design.theme.LocalKiyoriSettingsColors
+import com.kiyori.design.theme.KiyoriUiShapes
 import java.util.Locale
 import kotlinx.coroutines.launch
 
@@ -287,7 +288,7 @@ internal fun KiyoriBrowserPasswordManagerPage(
                     Text("取消")
                 }
             },
-            shape = RoundedCornerShape(22.dp),
+            shape = KiyoriUiShapes.dialog,
         )
     }
 }
@@ -488,7 +489,7 @@ private fun BrowserCredentialDetailDialog(
                 )
             }
         },
-        shape = RoundedCornerShape(22.dp),
+        shape = KiyoriUiShapes.dialog,
     )
 }
 
@@ -631,7 +632,7 @@ private fun BrowserCredentialEditDialog(
                 Text("取消")
             }
         },
-        shape = RoundedCornerShape(22.dp),
+            shape = KiyoriUiShapes.dialog,
     )
 }
 

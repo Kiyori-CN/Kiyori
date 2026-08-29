@@ -122,7 +122,7 @@ private fun AttachmentItem(attachment: AttachmentInfo, onRemove: () -> Unit, onI
             Spacer(modifier = Modifier.width(8.dp))
 
             // Remove button
-            IconButton(onClick = onRemove, modifier = Modifier.size(24.dp)) {
+            IconButton(onClick = onRemove, modifier = Modifier.size(40.dp)) {
                 Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Remove attachment",

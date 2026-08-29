@@ -66,6 +66,7 @@ import com.ai.assistance.operit.data.mcp.MCPLocalServer
 import com.ai.assistance.operit.data.mcp.MCPRepository
 import com.ai.assistance.operit.data.mcp.plugins.MCPStarter
 import com.ai.assistance.operit.ui.features.startup.components.SmoothLinearProgressIndicator
+import com.kiyori.design.theme.KiyoriUiShapes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -233,7 +234,7 @@ private fun ExpandedLoadingView(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(max = 450.dp), // Constrain height
-        shape = MaterialTheme.shapes.large,
+        shape = KiyoriUiShapes.card,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         tonalElevation = 2.dp,
         shadowElevation = 8.dp
@@ -256,9 +257,11 @@ private fun ExpandedLoadingView(
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                     modifier =
-                            Modifier
+                    Modifier
                                 .align(Alignment.TopEnd)
-                                .padding(8.dp)
+                                .padding(4.dp)
+                                .heightIn(min = 40.dp)
+                                .padding(horizontal = 8.dp)
                                 .clickable {
                                     onSkip()
                                 }
@@ -385,12 +388,13 @@ fun PluginStatusItem(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .padding(vertical = 4.dp)
+            .heightIn(min = 40.dp)
             .let { base ->
                 if (onClick != null) base.clickable(onClick = onClick) else base
             }
     ) {
         // 状态图标或加载指示器
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(32.dp)) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(40.dp)) {
             when (plugin.status) {
                 PluginStatus.WAITING -> {
                     Box(
@@ -1021,6 +1025,7 @@ fun PluginLoadingScreenWithState(loadingState: PluginLoadingState, modifier: Mod
         val logText = pluginLogs[pluginId].orEmpty()
         AlertDialog(
             onDismissRequest = { selectedLogPluginId = null },
+            shape = KiyoriUiShapes.dialog,
             title = { Text(text = pluginId) },
             text = {
                 SelectionContainer {

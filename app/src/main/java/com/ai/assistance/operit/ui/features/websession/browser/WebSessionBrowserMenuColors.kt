@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.kiyori.design.theme.KiyoriUiShapes
 
 /**
  * 浏览器菜单使用比全应用状态语义更细的入口身份色。
@@ -216,7 +217,7 @@ internal fun WebSessionBrowserMenuIconBadge(
     modifier: Modifier = Modifier,
     containerSize: Dp = 40.dp,
     iconSize: Dp = 22.dp,
-    shape: Shape = RoundedCornerShape(12.dp),
+    shape: Shape = KiyoriUiShapes.control,
     enabled: Boolean = true,
 ) {
     val colors = tone.resolveColors()
@@ -248,7 +249,7 @@ internal fun WebSessionBrowserMenuIconBadge(
     modifier: Modifier = Modifier,
     containerSize: Dp = 40.dp,
     iconSize: Dp = 22.dp,
-    shape: Shape = RoundedCornerShape(12.dp),
+    shape: Shape = KiyoriUiShapes.control,
     enabled: Boolean = true,
 ) {
     val colors = tone.resolveColors()

@@ -40,6 +40,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveBrowserAdBlockAllowlistedDomain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveWebSessionNetworkProxyDisabledDomain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.siteSettingsRule
+import com.kiyori.design.theme.KiyoriUiShapes
 
 internal enum class WebSessionSiteSettingId {
     NETWORK_PROXY,
@@ -242,7 +243,7 @@ internal fun WebSessionBrowserSiteSettingsSheet(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.web_session_back),
-                            modifier = Modifier.size(22.dp),
+                            modifier = Modifier.size(40.dp),
                         )
                     }
                 },
@@ -307,7 +308,7 @@ private fun WebSessionSiteSettingsContent(
         item(key = "site-settings-summary") {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                shape = KiyoriUiShapes.card,
                 color = toneColors.container.copy(alpha = 0.58f),
                 border = BorderStroke(1.dp, toneColors.icon.copy(alpha = 0.18f)),
                 tonalElevation = 0.dp,
@@ -360,7 +361,7 @@ private fun WebSessionSiteSettingsContent(
         item(key = "userscript-refresh-note") {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+                shape = KiyoriUiShapes.field,
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 border =
                     BorderStroke(
@@ -444,7 +445,7 @@ private fun WebSessionSiteSettingsSectionCard(
         }
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+            shape = KiyoriUiShapes.card,
             color = MaterialTheme.colorScheme.surface,
             border =
                 BorderStroke(

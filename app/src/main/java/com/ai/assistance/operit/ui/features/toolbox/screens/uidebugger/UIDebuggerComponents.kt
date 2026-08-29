@@ -35,6 +35,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import com.kiyori.design.theme.KiyoriUiShapes
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -189,7 +190,7 @@ fun UIDebuggerOverlay(
                                         currentActivityName
                                     )
                                 },
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
                                     Icons.Default.ContentCopy,
@@ -202,7 +203,7 @@ fun UIDebuggerOverlay(
                         // 关闭按钮
                         IconButton(
                             onClick = { showAnalysisPanel = false },
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 Icons.Default.Close,
@@ -241,7 +242,7 @@ fun UIDebuggerOverlay(
                 .align(Alignment.BottomEnd)
                 .padding(12.dp)
                 .zIndex(5f),
-            shape = RoundedCornerShape(20.dp),
+        shape = KiyoriUiShapes.dialog,
             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
         ) {
             Row(
@@ -493,7 +494,7 @@ fun ElementInfoPanel(
         modifier = modifier
             .widthIn(max = 300.dp)
             .heightIn(max = 400.dp),
-        shape = RoundedCornerShape(8.dp),
+        shape = KiyoriUiShapes.control,
         shadowElevation = 8.dp
     ) {
         Column(
@@ -570,7 +571,7 @@ fun ElementInfoPanel(
                                         element.activityName
                                     )
                                 },
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
                                     Icons.Default.ContentCopy,
@@ -641,6 +642,7 @@ fun CreatePackageDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KiyoriUiShapes.dialog,
         title = {
             Text(stringResource(R.string.uidebugger_create_new_package))
         },
@@ -652,20 +654,23 @@ fun CreatePackageDialog(
                     value = appName,
                     onValueChange = { appName = it },
                     label = { Text(stringResource(R.string.uidebugger_app_name)) },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = KiyoriUiShapes.field,
                 )
                 OutlinedTextField(
                     value = packageName,
                     onValueChange = { packageName = it },
                     label = { Text(stringResource(R.string.uidebugger_package_name)) },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = KiyoriUiShapes.field,
                 )
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
                     label = { Text(stringResource(R.string.uidebugger_description_optional)) },
                     modifier = Modifier.fillMaxWidth(),
-                    maxLines = 3
+                    maxLines = 3,
+                    shape = KiyoriUiShapes.field,
                 )
             }
         },

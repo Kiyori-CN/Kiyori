@@ -78,6 +78,8 @@ import com.ai.assistance.operit.ui.theme.isWaterGlassSupported
 import com.ai.assistance.operit.ui.theme.liquidGlass
 import com.ai.assistance.operit.ui.theme.waterGlass
 import com.ai.assistance.operit.util.ChatUtils
+import com.kiyori.design.theme.KiyoriUiShapes
+import com.kiyori.design.theme.rememberKiyoriUiTokens
 import androidx.compose.ui.res.stringResource
 import android.net.Uri
 
@@ -130,6 +132,7 @@ fun ClassicChatInputSection(
     val showTokenLimitDialog = remember { mutableStateOf(false) }
     val showFullscreenInput = remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val uiTokens = rememberKiyoriUiTokens()
     val inputFocusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val isProcessing =
@@ -288,7 +291,7 @@ fun ClassicChatInputSection(
         chatInputTransparent && chatInputLiquidGlass && !chatInputWaterGlass && isLiquidGlassSupported()
     val inputWaterGlassEnabled =
         chatInputTransparent && chatInputWaterGlass && isWaterGlassSupported()
-    val containerShape = if (chatInputFloating) RoundedCornerShape(22.dp) else RoundedCornerShape(0.dp)
+    val containerShape = if (chatInputFloating) KiyoriUiShapes.card else RoundedCornerShape(0.dp)
     val containerModifier =
         if (chatInputFloating) {
             modifier.padding(horizontal = 8.dp, vertical = 6.dp)
@@ -340,7 +343,7 @@ fun ClassicChatInputSection(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(8.dp)
+                    shape = KiyoriUiShapes.control
                 ) {
                     Row(
                         modifier = Modifier
@@ -372,7 +375,7 @@ fun ClassicChatInputSection(
                         
                         IconButton(
                             onClick = { onClearReply?.invoke() },
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
@@ -522,7 +525,7 @@ fun ClassicChatInputSection(
             ) {
                 // Input field (保持原有高度)
 
-                val classicInputShape = RoundedCornerShape(14.dp)
+                val classicInputShape = KiyoriUiShapes.field
                 val classicInputEnabled = !isProcessing || allowTextInputWhileProcessing
                 val classicInputBorderColor =
                     if (userMessage.text.isNotBlank()) {
@@ -611,7 +614,7 @@ fun ClassicChatInputSection(
 
                             IconButton(
                                 onClick = { showFullscreenInput.value = true },
-                                modifier = Modifier.size(30.dp),
+                                modifier = Modifier.size(40.dp),
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Fullscreen,
@@ -631,7 +634,7 @@ fun ClassicChatInputSection(
                 Box(
                     modifier =
                     Modifier
-                        .size(36.dp)
+                        .size(uiTokens.touchTarget)
                         .clip(CircleShape)
                         .background(
                             if (showAttachmentPanel)
@@ -679,7 +682,7 @@ fun ClassicChatInputSection(
                 Box(
                     modifier =
                     Modifier
-                        .size(36.dp)
+                        .size(uiTokens.touchTarget)
                         .then(
                             if (isVoiceAction) {
                                 Modifier

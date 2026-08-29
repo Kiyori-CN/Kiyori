@@ -244,7 +244,7 @@ internal enum class KiyoriSoftwareHomePrimaryTarget {
 
 internal const val KIYORI_SOFTWARE_HOME_GOLDEN_TOP_FRACTION = 0.382f
 internal const val KIYORI_HOME_MODE_SEGMENT_WIDTH_DP = 120
-internal const val KIYORI_HOME_MODE_SEGMENT_HEIGHT_DP = 32
+internal const val KIYORI_HOME_MODE_SEGMENT_HEIGHT_DP = 40
 internal const val KIYORI_HOME_BRAND_ICON_SIZE_DP = 18
 internal const val KIYORI_HOME_REGULAR_SEARCH_FRAME_HEIGHT_DP = 114
 internal const val KIYORI_HOME_SHORT_SEARCH_FRAME_HEIGHT_DP = 96
@@ -592,7 +592,7 @@ private fun KiyoriHomeToolButton(
     Box(
         modifier =
             Modifier
-                .size(38.dp)
+                .size(40.dp)
                 .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {

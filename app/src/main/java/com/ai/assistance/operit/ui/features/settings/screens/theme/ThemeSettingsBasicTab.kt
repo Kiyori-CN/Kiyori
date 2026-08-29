@@ -42,6 +42,7 @@ import com.ai.assistance.operit.ui.features.settings.sections.ThemeSettingsFontS
 import com.ai.assistance.operit.ui.features.settings.sections.ThemeSettingsSectionTitle
 import com.ai.assistance.operit.ui.features.settings.sections.ThemeSettingsThemeModeSection
 import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.KiyoriUiShapes
 import com.kiyori.design.theme.resolveColors
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.FileUtils
@@ -200,8 +201,8 @@ private fun KiyoriFixedThemeInfoCard(cardColors: CardColors) {
             Box(
                 modifier =
                     Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(11.dp))
+                        .size(40.dp)
+                        .clip(KiyoriUiShapes.control)
                         .background(iconColors.container),
                 contentAlignment = Alignment.Center,
             ) {

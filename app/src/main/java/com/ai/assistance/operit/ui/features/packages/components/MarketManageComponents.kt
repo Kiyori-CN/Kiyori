@@ -49,6 +49,7 @@ import com.ai.assistance.operit.ui.components.CustomScaffold
 import com.ai.assistance.operit.ui.features.packages.market.MarketReviewReason
 import com.ai.assistance.operit.ui.features.packages.market.MarketReviewState
 import com.ai.assistance.operit.ui.features.packages.market.labelResId
+import com.kiyori.design.theme.KiyoriUiShapes
 
 @Composable
 fun MarketManageScaffold(
@@ -157,7 +158,7 @@ fun MarketManageItemCard(
                 }
         ),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
-        shape = RoundedCornerShape(8.dp)
+        shape = KiyoriUiShapes.control
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
@@ -416,7 +417,7 @@ fun RowScope.MarketManageSecondaryActionButton(
 ) {
     IconButton(
         onClick = onClick,
-        modifier = Modifier.size(36.dp)
+        modifier = Modifier.size(40.dp)
     ) {
         Icon(
             imageVector = icon,
@@ -435,7 +436,7 @@ fun RowScope.MarketManageDangerActionButton(
 ) {
     IconButton(
         onClick = onClick,
-        modifier = Modifier.size(36.dp)
+        modifier = Modifier.size(40.dp)
     ) {
         Icon(
             imageVector = icon,
@@ -454,7 +455,7 @@ fun RowScope.MarketManagePrimaryActionButton(
 ) {
     IconButton(
         onClick = onClick,
-        modifier = Modifier.size(36.dp)
+        modifier = Modifier.size(40.dp)
     ) {
         Icon(
             imageVector = icon,

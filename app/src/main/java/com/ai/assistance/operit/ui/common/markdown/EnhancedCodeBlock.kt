@@ -172,7 +172,7 @@ fun EnhancedCodeBlock(code: String, language: String = "", modifier: Modifier = 
                     if (isMermaid) {
                         IconButton(
                             onClick = handleToggleMermaid,
-                            modifier = Modifier.size(28.dp),
+                            modifier = Modifier.size(40.dp),
                             enabled = !preferStreamingBody,
                         ) {
                             Icon(
@@ -194,7 +194,7 @@ fun EnhancedCodeBlock(code: String, language: String = "", modifier: Modifier = 
                     if (isHtml) {
                         IconButton(
                             onClick = handleToggleHtml,
-                            modifier = Modifier.size(28.dp),
+                            modifier = Modifier.size(40.dp),
                             enabled = !preferStreamingBody,
                         ) {
                             Icon(
@@ -224,7 +224,7 @@ fun EnhancedCodeBlock(code: String, language: String = "", modifier: Modifier = 
                                     showFullscreenPreview = true
                                 }
                             },
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Fullscreen,
@@ -237,7 +237,7 @@ fun EnhancedCodeBlock(code: String, language: String = "", modifier: Modifier = 
 
                     IconButton(
                         onClick = { autoWrapEnabled = !autoWrapEnabled },
-                        modifier = Modifier.size(28.dp),
+                        modifier = Modifier.size(40.dp),
                         enabled = !isPreviewMode
                     ) {
                         Icon(
@@ -251,7 +251,7 @@ fun EnhancedCodeBlock(code: String, language: String = "", modifier: Modifier = 
                     }
 
                     // 复制按钮
-                    IconButton(onClick = handleCopy, modifier = Modifier.size(28.dp)) {
+                    IconButton(onClick = handleCopy, modifier = Modifier.size(40.dp)) {
                         Icon(
                             imageVector = Icons.Default.ContentCopy,
                             contentDescription = stringResource(R.string.common_copy_code),

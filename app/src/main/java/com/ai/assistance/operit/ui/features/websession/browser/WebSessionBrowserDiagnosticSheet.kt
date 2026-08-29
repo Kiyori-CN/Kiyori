@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -64,6 +65,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.Browse
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.filterBrowserDiagnosticEntries
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.formatBrowserDiagnosticReport
 import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.design.theme.KiyoriUiShapes
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -269,8 +271,8 @@ private fun DiagnosticSelectorRow(
         labels.forEachIndexed { index, label ->
             val selected = selectedIndex == index
             Surface(
-                modifier = Modifier.weight(1f).height(34.dp).clickable { onSelect(index) },
-                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.weight(1f).heightIn(min = 40.dp).clickable { onSelect(index) },
+                shape = KiyoriUiShapes.control,
                 color =
                     if (selected) {
                         WebSessionBrowserMenuTone.DIAGNOSTICS.resolveColors().container
@@ -329,8 +331,8 @@ private fun DiagnosticCategoryChip(
     onClick: () -> Unit,
 ) {
     Surface(
-        modifier = Modifier.height(30.dp).clickable(onClick = onClick),
-        shape = RoundedCornerShape(7.dp),
+        modifier = Modifier.heightIn(min = 40.dp).clickable(onClick = onClick),
+        shape = KiyoriUiShapes.control,
         color =
             if (selected) {
                 WebSessionBrowserMenuTone.DIAGNOSTICS.resolveColors().container
@@ -362,7 +364,7 @@ private fun DiagnosticSearchField(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth().height(40.dp),
-        shape = RoundedCornerShape(8.dp),
+        shape = KiyoriUiShapes.field,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Row(
@@ -396,7 +398,7 @@ private fun DiagnosticSearchField(
                 },
             )
             if (value.isNotBlank()) {
-                IconButton(onClick = onClear, modifier = Modifier.size(32.dp)) {
+                IconButton(onClick = onClear, modifier = Modifier.size(40.dp)) {
                     Icon(
                         imageVector = Icons.Filled.Close,
                         contentDescription = stringResource(R.string.clear),

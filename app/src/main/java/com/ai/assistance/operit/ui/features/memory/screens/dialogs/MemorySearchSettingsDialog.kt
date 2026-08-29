@@ -49,6 +49,7 @@ import com.ai.assistance.operit.data.model.EmbeddingRebuildProgress
 import com.ai.assistance.operit.data.model.MemoryScoreMode
 import com.ai.assistance.operit.data.model.MemorySearchConfig
 import com.ai.assistance.operit.data.preferences.MemorySearchSettingsPreferences
+import com.kiyori.design.theme.KiyoriUiShapes
 import kotlin.math.roundToInt
 
 @Composable
@@ -106,6 +107,7 @@ fun MemorySearchSettingsDialog(
     AlertDialog(
         modifier = Modifier.fillMaxHeight(0.86f),
         onDismissRequest = onDismiss,
+        shape = KiyoriUiShapes.dialog,
         title = {
             Text(
                 text = stringResource(R.string.memory_search_settings_title),
@@ -186,7 +188,8 @@ fun MemorySearchSettingsDialog(
                         placeholder = {
                             Text(stringResource(R.string.memory_extraction_custom_rules_placeholder))
                         },
-                        minLines = 4
+                        minLines = 4,
+                        shape = KiyoriUiShapes.field,
                     )
                 }
 
@@ -226,7 +229,8 @@ fun MemorySearchSettingsDialog(
                             supportingText = cloudEndpointError?.let { errorText ->
                                 { Text(errorText) }
                             },
-                            singleLine = true
+                            singleLine = true,
+                            shape = KiyoriUiShapes.field,
                         )
                         OutlinedTextField(
                             value = apiKey,
@@ -242,14 +246,16 @@ fun MemorySearchSettingsDialog(
                                         contentDescription = null
                                     )
                                 }
-                            }
+                            },
+                            shape = KiyoriUiShapes.field,
                         )
                         OutlinedTextField(
                             value = model,
                             onValueChange = { model = it },
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text(stringResource(R.string.memory_embedding_cloud_model)) },
-                            singleLine = true
+                            singleLine = true,
+                            shape = KiyoriUiShapes.field,
                         )
                     } else {
                         Text(

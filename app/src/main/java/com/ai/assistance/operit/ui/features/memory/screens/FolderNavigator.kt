@@ -86,7 +86,7 @@ private fun ProfileSelector(
             }
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            IconButton(onClick = { showCreateDialog = true }, modifier = Modifier.size(32.dp)) {
+            IconButton(onClick = { showCreateDialog = true }, modifier = Modifier.size(40.dp)) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.memory_space_create))
             }
             IconButton(
@@ -94,12 +94,12 @@ private fun ProfileSelector(
                     editedName = selectedProfileName
                     showRenameDialog = true
                 },
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(40.dp)
             ) {
                 Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.memory_space_rename))
             }
             if (selectedProfileId != "default") {
-                IconButton(onClick = { showDeleteDialog = true }, modifier = Modifier.size(32.dp)) {
+                IconButton(onClick = { showDeleteDialog = true }, modifier = Modifier.size(40.dp)) {
                     Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.memory_space_delete))
                 }
             }
@@ -294,7 +294,7 @@ fun FolderNavigator(
                     if (onRefresh != null) {
                         IconButton(
                             onClick = onRefresh,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Refresh,
@@ -307,7 +307,7 @@ fun FolderNavigator(
                     // 新建文件夹按钮
                     IconButton(
                         onClick = { showCreateDialog = true },
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.CreateNewFolder,
@@ -520,7 +520,7 @@ private fun FolderItem(
         if (hasChildren) {
             IconButton(
                 onClick = onToggleExpand,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(40.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
@@ -533,7 +533,7 @@ private fun FolderItem(
             }
             Spacer(modifier = Modifier.width(4.dp))
         } else {
-            Spacer(modifier = Modifier.width(24.dp))
+            Spacer(modifier = Modifier.width(40.dp))
         }
 
         // 文件夹图标

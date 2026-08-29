@@ -75,6 +75,7 @@ import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.kiyori.design.theme.KiyoriUiShapes
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -283,7 +284,7 @@ fun SkillConfigScreen(
                                     .fillMaxWidth()
                                     .then(
                                         if (isDragging) {
-                                            Modifier.shadow(elevation, RoundedCornerShape(14.dp))
+                                            Modifier.shadow(elevation, KiyoriUiShapes.control)
                                         } else {
                                             Modifier
                                         }
@@ -293,7 +294,7 @@ fun SkillConfigScreen(
                                 } else {
                                     MaterialTheme.colorScheme.surface
                                 },
-                                shape = RoundedCornerShape(14.dp)
+                                shape = KiyoriUiShapes.control
                             ) {
                                 SkillListItem(
                                     skill = skill,
@@ -892,7 +893,7 @@ private fun SkillDetailDialog(
                         Spacer(modifier = Modifier.height(8.dp))
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(14.dp),
+                            shape = KiyoriUiShapes.control,
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
                         ) {
                             Text(
@@ -1027,7 +1028,7 @@ private fun SkillListItem(
     Surface(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = KiyoriUiShapes.control,
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp
     ) {

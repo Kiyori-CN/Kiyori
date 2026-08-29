@@ -85,6 +85,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.imageU
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.isHttpBrowserNetworkUrl
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_BOTTOM_CONTENT_HEIGHT_DP
 import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
+import com.kiyori.design.theme.KiyoriUiShapes
 
 internal const val WEB_SESSION_AD_MARKING_WORKBENCH_HEIGHT_DP = 300
 internal const val WEB_SESSION_AD_MARKING_FOOTER_BUTTON_HEIGHT_DP = 40
@@ -231,7 +232,7 @@ private fun WebElementSummary(
             modifier =
                 Modifier
                     .size(44.dp)
-                    .background(toneColors.container, RoundedCornerShape(14.dp)),
+                    .background(toneColors.container, KiyoriUiShapes.control),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -267,7 +268,7 @@ private fun WebElementSummary(
                     color = toneColors.icon,
                     modifier =
                         Modifier
-                            .background(toneColors.container, RoundedCornerShape(6.dp))
+                            .background(toneColors.container, KiyoriUiShapes.control)
                             .padding(horizontal = 6.dp, vertical = 2.dp),
                 )
             }
@@ -307,7 +308,7 @@ private fun WebElementActionSection(
         )
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
+            shape = KiyoriUiShapes.dialog,
             color = MaterialTheme.colorScheme.surfaceContainerLow,
             border =
                 BorderStroke(
@@ -370,7 +371,7 @@ private fun WebElementActionCard(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Box(
-            modifier = Modifier.size(36.dp).background(colors.first, RoundedCornerShape(12.dp)),
+            modifier = Modifier.size(40.dp).background(colors.first, KiyoriUiShapes.control),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -720,7 +721,7 @@ internal fun WebSessionAdMarkingWorkbench(
                     onClick = { onMove(BrowserAdMarkingMove.FIRST_CHILD) },
                     modifier = Modifier.weight(0.78f),
                 )
-                IconButton(onClick = onExit, modifier = Modifier.size(38.dp)) {
+                IconButton(onClick = onExit, modifier = Modifier.size(40.dp)) {
                     Icon(
                         imageVector = Icons.Filled.Close,
                         contentDescription = "关闭标记广告",
@@ -841,8 +842,8 @@ private fun AdMarkingTopButton(
 ) {
     val toneColors = WebSessionBrowserMenuTone.AD_MARKING.resolveColors()
     Surface(
-        modifier = modifier.height(38.dp).clickable(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(9.dp),
+        modifier = modifier.heightIn(min = 40.dp).clickable(enabled = enabled, onClick = onClick),
+        shape = KiyoriUiShapes.control,
         color =
             if (selected) {
                 toneColors.container
@@ -890,7 +891,7 @@ private fun AdMarkingFooterButton(
             modifier
                 .height(WEB_SESSION_AD_MARKING_FOOTER_BUTTON_HEIGHT_DP.dp)
                 .clickable(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(10.dp),
+        shape = KiyoriUiShapes.control,
         color =
             if (active) {
                 toneColors.container
@@ -1036,7 +1037,7 @@ internal fun WebSessionAdMarkingClearConfirmation(
                             .fillMaxWidth()
                             .background(
                                 MaterialTheme.colorScheme.surfaceVariant,
-                                RoundedCornerShape(10.dp),
+                                KiyoriUiShapes.control,
                             )
                             .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(3.dp),

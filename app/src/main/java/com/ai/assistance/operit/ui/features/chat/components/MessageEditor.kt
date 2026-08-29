@@ -182,7 +182,7 @@ fun MessageEditor(
                         IconButton(
                             onClick = onCancel,
                             modifier = Modifier
-                                .size(32.dp)
+                                .size(40.dp)
                                 .clip(CircleShape)
                         ) {
                             Icon(
@@ -569,7 +569,7 @@ private fun ActionIconButton(
     IconButton(
         onClick = onClick,
         modifier = modifier
-            .size(28.dp)
+            .size(40.dp)
             .clip(CircleShape)
     ) {
         Icon(

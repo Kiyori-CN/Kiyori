@@ -47,6 +47,7 @@ import com.ai.assistance.operit.ui.features.workflow.viewmodel.WorkflowViewModel
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
+import com.kiyori.design.theme.KiyoriUiShapes
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -190,7 +191,7 @@ fun WorkflowListScreen(
                             contentDescription = null,
                             containerSize = 72.dp,
                             iconSize = 38.dp,
-                            shape = RoundedCornerShape(22.dp),
+                            shape = KiyoriUiShapes.field,
                         )
                         
                         Spacer(modifier = Modifier.height(24.dp))

@@ -265,7 +265,7 @@ private fun FolderTreeItem(
         if (hasChildren) {
             IconButton(
                 onClick = onToggleExpanded,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(40.dp)
             ) {
                 Icon(
                     imageVector = if (isExpanded) {

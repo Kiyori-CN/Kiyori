@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Menu
@@ -291,8 +292,12 @@ fun AppContent(
                                         else -> ""
                                     },
                                     fontWeight = FontWeight.SemiBold,
-                                    fontSize = 14.sp,
-                                    color = appBarContentColor
+                                    fontSize =
+                                        if (currentScreen.navItem == NavItem.Settings) 20.sp else 14.sp,
+                                    color = appBarContentColor,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f),
                                 )
 
                                 // 显示当前聊天标题（仅在AI对话页面)
@@ -302,7 +307,8 @@ fun AppContent(
                                         style = MaterialTheme.typography.bodySmall,
                                         color = appBarContentColor.copy(alpha = 0.8f),
                                         maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.widthIn(max = 180.dp),
                                     )
                                 }
                             }

@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileItem
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.utils.getFileIcon
+import com.kiyori.design.theme.KiyoriUiShapes
 
 /**
  * 搜索对话框
@@ -37,6 +38,7 @@ fun SearchDialog(
     if (showDialog) {
         AlertDialog(
             onDismissRequest = onDismiss,
+            shape = KiyoriUiShapes.dialog,
             title = { Text(stringResource(R.string.search_files)) },
             text = {
                 Column(
@@ -48,7 +50,8 @@ fun SearchDialog(
                         onValueChange = onQueryChange,
                         placeholder = { Text(stringResource(R.string.searching)) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = KiyoriUiShapes.field,
                     )
                     
                     // 搜索选项
@@ -76,7 +79,7 @@ fun SearchDialog(
                 }
             },
             confirmButton = {
-                Button(onClick = onSearch) {
+                Button(onClick = onSearch, shape = KiyoriUiShapes.control) {
                     Text(stringResource(R.string.search))
                 }
             },
@@ -102,6 +105,7 @@ fun SearchResultsDialog(
     if (showDialog) {
         AlertDialog(
             onDismissRequest = onDismiss,
+            shape = KiyoriUiShapes.dialog,
             title = { 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -109,7 +113,7 @@ fun SearchResultsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(stringResource(R.string.file_count, searchResults.size))
-                    IconButton(onClick = onDismiss) {
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = stringResource(R.string.cancel)
@@ -137,10 +141,13 @@ fun SearchResultsDialog(
                                         file.fullPath?.let { path -> onNavigateToFileDirectory(path) }
                                     },
                                 color = MaterialTheme.colorScheme.surfaceVariant,
-                                shape = RoundedCornerShape(4.dp)
+                                shape = KiyoriUiShapes.control
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(8.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 40.dp)
+                                        .padding(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
@@ -171,10 +178,10 @@ fun SearchResultsDialog(
                 }
             },
             confirmButton = {
-                TextButton(onClick = onDismiss) {
+                TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 40.dp)) {
                     Text(stringResource(R.string.close_floating_window))
                 }
             }
         )
     }
-} 
+}

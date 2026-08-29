@@ -52,6 +52,7 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.components.CustomScaffold
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.KiyoriUiShapes
 
 private const val PROJECT_URL = "https://github.com/Kiyori-CN/Kiyori"
 private const val ISSUES_URL = "$PROJECT_URL/issues"
@@ -60,7 +61,7 @@ private const val ISSUES_URL = "$PROJECT_URL/issues"
 private fun SettingsGroup(content: @Composable ColumnScope.() -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = KiyoriUiShapes.card,
         color = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column(content = content)

@@ -498,7 +498,7 @@ fun AttachmentSelectorPopupPanel(
                         Row(
                                 modifier =
                                         Modifier.fillMaxWidth()
-                                                .height(36.dp)
+                                                .heightIn(min = 40.dp)
                                                 .clickable(onClick = item.onClick)
                                                 .padding(horizontal = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically

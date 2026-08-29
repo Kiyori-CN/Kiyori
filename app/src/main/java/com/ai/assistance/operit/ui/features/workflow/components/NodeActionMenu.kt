@@ -13,6 +13,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.ai.assistance.operit.R
+import com.kiyori.design.theme.KiyoriUiShapes
 
 /**
  * 节点操作菜单对话框
@@ -32,7 +33,8 @@ fun NodeActionMenuDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            shape = KiyoriUiShapes.dialog,
         ) {
             Column(
                 modifier = Modifier.padding(16.dp)

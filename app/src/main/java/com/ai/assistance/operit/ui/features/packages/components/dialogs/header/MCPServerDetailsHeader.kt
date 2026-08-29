@@ -166,7 +166,7 @@ fun MCPServerDetailsHeader(
                     // 关闭按钮 - 独立成单独的元素
                     IconButton(
                         onClick = onDismiss,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Close,

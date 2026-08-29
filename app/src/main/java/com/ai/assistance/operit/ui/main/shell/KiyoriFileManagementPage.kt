@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -63,6 +64,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.KiyoriUiShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 
@@ -164,9 +166,9 @@ private fun KiyoriFileManagementTopBar() {
             modifier =
                 Modifier
                     .weight(1f)
-                    .height(36.dp)
-                    .clip(RoundedCornerShape(18.dp)),
-            shape = RoundedCornerShape(18.dp),
+                    .heightIn(min = 40.dp)
+                    .clip(KiyoriUiShapes.field),
+            shape = KiyoriUiShapes.field,
             color = MaterialTheme.colorScheme.surfaceContainerLow,
         ) {
             Row(
@@ -195,7 +197,7 @@ private fun KiyoriFileManagementTopBar() {
             }
         }
         Spacer(modifier = Modifier.width(12.dp))
-        Box(modifier = Modifier.size(30.dp), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
             Icon(
                 Icons.Default.MoreVert,
                 null,
@@ -286,7 +288,7 @@ private fun KiyoriFileStorageRow(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
+                .clip(KiyoriUiShapes.card)
                 .clickable(enabled = onClick != null) { onClick?.invoke() }
                 .padding(horizontal = 4.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,

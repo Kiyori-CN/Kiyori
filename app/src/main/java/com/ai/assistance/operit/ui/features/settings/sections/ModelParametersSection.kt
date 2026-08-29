@@ -1188,7 +1188,7 @@ private fun ParameterItem(
                     )
 
                     if (parameter.isCustom) {
-                        IconButton(onClick = onEditClick, modifier = Modifier.size(32.dp)) {
+                        IconButton(onClick = onEditClick, modifier = Modifier.size(40.dp)) {
                             Icon(
                                     imageVector = Icons.Default.Edit,
                                     contentDescription = stringResource(R.string.edit_custom_parameter),
@@ -1198,7 +1198,7 @@ private fun ParameterItem(
                         }
                         IconButton(
                                 onClick = { showDeleteConfirm = true },
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                     imageVector = Icons.Default.Delete,
@@ -1209,7 +1209,7 @@ private fun ParameterItem(
                         }
                     }
 
-                    IconButton(onClick = { expanded = !expanded }, modifier = Modifier.size(32.dp)) {
+                    IconButton(onClick = { expanded = !expanded }, modifier = Modifier.size(40.dp)) {
                         Icon(
                                 imageVector =
                                         if (expanded) Icons.Default.ExpandLess

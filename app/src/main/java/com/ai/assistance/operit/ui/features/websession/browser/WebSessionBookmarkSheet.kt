@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -31,6 +32,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import com.kiyori.design.theme.KiyoriUiShapes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Close
@@ -608,7 +610,7 @@ private fun BookmarkTopMenuItem(title: String, onClick: () -> Unit) {
 private fun BookmarkSearchField(value: String, onValueChange: (String) -> Unit, onClear: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).height(44.dp),
-        shape = RoundedCornerShape(8.dp),
+        shape = KiyoriUiShapes.field,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Row(
@@ -666,7 +668,10 @@ private fun BookmarkBreadcrumbRow(
                 color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 14.sp,
                 maxLines = 1,
-                modifier = Modifier.clickable { onSelect(segment.folderId) }.padding(vertical = 8.dp),
+                modifier = Modifier
+                    .heightIn(min = 40.dp)
+                    .clickable { onSelect(segment.folderId) }
+                    .padding(vertical = 8.dp),
             )
         }
     }

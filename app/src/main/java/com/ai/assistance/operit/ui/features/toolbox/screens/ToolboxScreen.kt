@@ -41,6 +41,7 @@ import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 import com.ai.assistance.operit.ui.main.navigation.NavigationSurface
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.kiyori.design.theme.kiyoriSemanticToneForStableId
+import com.kiyori.design.theme.KiyoriUiShapes
 
 data class Tool(
         val id: String,
@@ -140,7 +141,7 @@ fun ToolCard(tool: Tool) {
                                 pressedElevation = 1.dp
                         ),
                 border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
-                shape = RoundedCornerShape(16.dp)
+                shape = KiyoriUiShapes.card
         ) {
                 // 卡片内容
                 Column(

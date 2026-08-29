@@ -24,6 +24,7 @@ import com.ai.assistance.operit.core.browser.presentation.BrowserPresentationCoo
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebViewHost
 import com.ai.assistance.operit.ui.features.websession.browser.LocalWebSessionBrowserSystemBackEnabled
 import com.kiyori.capability.browser.presentation.KiyoriBrowserExitPresentation
+import com.kiyori.design.theme.KiyoriUiShapes
 
 internal enum class KiyoriBrowserHomeBackSource {
     TOP_BAR,
@@ -204,6 +205,7 @@ internal fun KiyoriBrowserHome(
             launchPrompt?.let { prompt ->
                 AlertDialog(
                     onDismissRequest = { pendingRestoreDecision = false },
+                    shape = KiyoriUiShapes.dialog,
                     title = { Text(prompt.title) },
                     text = { Text(prompt.summary) },
                     confirmButton = {

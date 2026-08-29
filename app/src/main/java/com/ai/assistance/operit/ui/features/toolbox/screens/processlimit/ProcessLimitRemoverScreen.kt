@@ -35,6 +35,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
+import com.kiyori.design.theme.KiyoriUiShapes
 
 /**
  * 进程限制操作记录
@@ -542,7 +543,7 @@ fun ProcessLimitRemoverScreen(navController: NavController? = null) {
                     )
                 ) { Text(context.getString(android.R.string.ok)) }
             },
-            shape = RoundedCornerShape(16.dp),
+            shape = KiyoriUiShapes.dialog,
             containerColor = MaterialTheme.colorScheme.surface
         )
     }
@@ -593,7 +594,7 @@ fun ProcessLimitRemoverScreen(navController: NavController? = null) {
                     )
                 ) { Text(context.getString(android.R.string.ok)) }
             },
-            shape = RoundedCornerShape(16.dp),
+            shape = KiyoriUiShapes.dialog,
             containerColor = MaterialTheme.colorScheme.surface
         )
     }
@@ -616,7 +617,7 @@ fun OperationRecordCard(record: ProcessLimitRecord) {
     
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = KiyoriUiShapes.card,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),

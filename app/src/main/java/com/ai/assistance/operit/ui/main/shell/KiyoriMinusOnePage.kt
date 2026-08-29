@@ -209,7 +209,7 @@ private fun KiyoriMinusOneTopBar(onClose: () -> Unit) {
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        IconButton(onClick = onClose, modifier = Modifier.size(32.dp)) {
+        IconButton(onClick = onClose, modifier = Modifier.size(40.dp)) {
             Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = "关闭负一屏",

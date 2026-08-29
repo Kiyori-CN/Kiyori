@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.kiyori.design.theme.KiyoriUiShapes
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -189,7 +190,7 @@ fun AttachmentViewerDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .compactDialogHeightWhenShort(dialogMetrics, defaultMaxHeight = 520.dp),
-            shape = RoundedCornerShape(12.dp),
+            shape = KiyoriUiShapes.dialog,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 4.dp
         ) {

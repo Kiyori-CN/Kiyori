@@ -54,6 +54,7 @@ import com.ai.assistance.operit.ui.features.packages.components.PackageTab
 import com.ai.assistance.operit.ui.main.components.LocalAppBarContentColor
 import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
 import com.ai.assistance.operit.ui.main.navigation.LocalTopBarActions
+import com.kiyori.design.theme.KiyoriUiShapes
 
 internal enum class PackageManagerTopBarAction {
     ENVIRONMENT,
@@ -454,7 +455,7 @@ internal fun PackageManagerSearchField(
             modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(14.dp),
+        shape = KiyoriUiShapes.field,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
@@ -541,7 +542,7 @@ internal fun PackageLoadErrorsBanner(
             modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 6.dp),
-        shape = RoundedCornerShape(12.dp),
+        shape = KiyoriUiShapes.control,
         color = MaterialTheme.colorScheme.errorContainer,
         contentColor = MaterialTheme.colorScheme.onErrorContainer,
     ) {

@@ -58,7 +58,6 @@ private val DarkSettingsColors =
 fun KiyoriSettingsTheme(content: @Composable () -> Unit) {
     val parentColorScheme = MaterialTheme.colorScheme
     val parentTypography = MaterialTheme.typography
-    val parentShapes = MaterialTheme.shapes
     val isDark = parentColorScheme.background.luminance() < 0.5f
     val settingsColors = resolveKiyoriSettingsColors(isDark)
     val colorScheme =
@@ -96,7 +95,7 @@ fun KiyoriSettingsTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = colorScheme,
         typography = parentTypography,
-        shapes = parentShapes,
+        shapes = KiyoriMaterialShapes,
     ) {
         androidx.compose.runtime.CompositionLocalProvider(
             LocalKiyoriSettingsColors provides settingsColors,

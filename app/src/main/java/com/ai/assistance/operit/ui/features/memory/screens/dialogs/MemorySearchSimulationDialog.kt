@@ -23,6 +23,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.model.MemorySearchDebugInfo
+import com.kiyori.design.theme.KiyoriUiShapes
 
 @Composable
 fun MemorySearchSimulationDialog(
@@ -37,6 +38,7 @@ fun MemorySearchSimulationDialog(
     AlertDialog(
         modifier = Modifier.fillMaxHeight(0.9f),
         onDismissRequest = onDismiss,
+        shape = KiyoriUiShapes.dialog,
         title = { Text(stringResource(R.string.memory_search_simulation_title)) },
         text = {
             Column(
@@ -50,7 +52,8 @@ fun MemorySearchSimulationDialog(
                     onValueChange = onQueryChange,
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text(stringResource(R.string.memory_search_simulation_query)) },
-                    minLines = 3
+                    minLines = 3,
+                    shape = KiyoriUiShapes.field,
                 )
 
                 if (isRunning) {
@@ -77,13 +80,14 @@ fun MemorySearchSimulationDialog(
         confirmButton = {
             Button(
                 onClick = onRun,
-                enabled = !isRunning
+                enabled = !isRunning,
+                shape = KiyoriUiShapes.control,
             ) {
                 Text(stringResource(R.string.memory_search_simulation_run))
             }
         },
         dismissButton = {
-            OutlinedButton(onClick = onDismiss) {
+            OutlinedButton(onClick = onDismiss, shape = KiyoriUiShapes.control) {
                 Text(stringResource(R.string.memory_close))
             }
         }

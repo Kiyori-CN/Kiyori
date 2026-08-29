@@ -32,6 +32,7 @@ import kotlinx.coroutines.launch
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
 import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.design.theme.KiyoriUiShapes
 
 /** 语音识别演示屏幕 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -102,6 +103,7 @@ fun SpeechToTextScreen(navController: NavController) {
             Button(
                 onClick = { requestMicrophonePermission() },
                 modifier = Modifier.fillMaxWidth(0.8f),
+                shape = KiyoriUiShapes.control,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 )
@@ -265,7 +267,8 @@ fun SpeechToTextScreen(navController: NavController) {
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            shape = KiyoriUiShapes.card,
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                 Row(
@@ -301,7 +304,7 @@ fun SpeechToTextScreen(navController: NavController) {
                 Surface(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(8.dp)
+                    shape = KiyoriUiShapes.control
                 ) {
                     Box(
                         modifier = Modifier.padding(16.dp),
@@ -331,7 +334,8 @@ fun SpeechToTextScreen(navController: NavController) {
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            shape = KiyoriUiShapes.card,
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                 Text(
@@ -372,7 +376,7 @@ fun SpeechToTextScreen(navController: NavController) {
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                         ),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = KiyoriUiShapes.control
                     ) {
                         Text(stringResource(R.string.switch_engine))
                 }
@@ -406,6 +410,7 @@ fun SpeechToTextScreen(navController: NavController) {
                             Modifier
                                 .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                                 .fillMaxWidth(),
+                        shape = KiyoriUiShapes.field,
                         colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
                     )
                     
@@ -440,7 +445,7 @@ fun SpeechToTextScreen(navController: NavController) {
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 ),
-                shape = RoundedCornerShape(8.dp)
+                shape = KiyoriUiShapes.control,
             ) {
                 Icon(
                     imageVector = Icons.Default.Mic,
@@ -459,7 +464,7 @@ fun SpeechToTextScreen(navController: NavController) {
                     containerColor = MaterialTheme.colorScheme.error,
                     contentColor = MaterialTheme.colorScheme.onError
                 ),
-                shape = RoundedCornerShape(8.dp)
+                    shape = KiyoriUiShapes.control,
             ) {
                 Icon(
                     imageVector = Icons.Default.Stop,
@@ -479,7 +484,7 @@ fun SpeechToTextScreen(navController: NavController) {
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.secondaryContainer
             ),
-            shape = RoundedCornerShape(8.dp)
+            shape = KiyoriUiShapes.card,
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -531,7 +536,7 @@ fun SpeechToTextScreen(navController: NavController) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.errorContainer,
-                shape = RoundedCornerShape(8.dp)
+                shape = KiyoriUiShapes.control,
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp),
@@ -559,7 +564,8 @@ fun SpeechToTextScreen(navController: NavController) {
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            )
+            ),
+            shape = KiyoriUiShapes.card,
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(

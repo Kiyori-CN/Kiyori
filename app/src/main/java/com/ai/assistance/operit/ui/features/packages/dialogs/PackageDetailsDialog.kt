@@ -33,6 +33,7 @@ import com.ai.assistance.operit.ui.common.icons.rememberLogoPainter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.kiyori.design.theme.KiyoriUiShapes
 
 @Composable
 fun PackageDetailsDialog(
@@ -190,7 +191,7 @@ fun PackageDetailsDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.fillMaxWidth().heightIn(max = 600.dp),
-            shape = RoundedCornerShape(16.dp),
+            shape = KiyoriUiShapes.dialog,
             color = MaterialTheme.colorScheme.surface
         ) {
             val resolvedAuthors =
@@ -658,7 +659,7 @@ fun PackageDetailsDialog(
         ) {
             Surface(
                 modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp),
-                shape = RoundedCornerShape(14.dp),
+                shape = KiyoriUiShapes.dialog,
                 color = MaterialTheme.colorScheme.surface
             ) {
                 Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
@@ -991,7 +992,7 @@ private fun ToolCard(
                 
                 FilledTonalButton(
                     onClick = { onExecute(tool) },
-                    modifier = Modifier.height(32.dp),
+                    modifier = Modifier.heightIn(min = 40.dp),
                     contentPadding = PaddingValues(horizontal = 8.dp)
                 ) {
                     Text(

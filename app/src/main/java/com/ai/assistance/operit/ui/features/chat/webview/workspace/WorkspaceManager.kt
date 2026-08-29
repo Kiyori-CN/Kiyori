@@ -613,7 +613,7 @@ fun WorkspaceManager(
                         IconButton(
                             onClick = { activePreviewWebView?.goBack() },
                             enabled = activePreviewCanGoBack,
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 Icons.Default.ChevronLeft,
@@ -624,7 +624,7 @@ fun WorkspaceManager(
                         IconButton(
                             onClick = { activePreviewWebView?.goForward() },
                             enabled = activePreviewCanGoForward,
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 Icons.Default.ChevronRight,
@@ -634,7 +634,7 @@ fun WorkspaceManager(
                         }
                         IconButton(
                             onClick = { activePreviewWebView?.reload() },
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 Icons.Default.Refresh,
@@ -645,7 +645,7 @@ fun WorkspaceManager(
                         if (isCommandPreviewVisible) {
                             IconButton(
                                 onClick = { showCommandBrowserPreview = false },
-                                modifier = Modifier.size(36.dp)
+                                modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
                                     Icons.Default.Close,
@@ -1558,14 +1558,15 @@ fun VSCodeTab(
                         color = contentColor,
                         style = MaterialTheme.typography.bodyMedium,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
                 )
 
                 if (onClose != null) {
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(
                         onClick = onClose,
-                        modifier = Modifier.size(22.dp).padding(2.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         if (isUnsaved) {
                             Icon(

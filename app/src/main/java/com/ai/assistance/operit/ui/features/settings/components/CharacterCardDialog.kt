@@ -48,6 +48,7 @@ import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
 import com.ai.assistance.operit.data.preferences.ModelConfigManager
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
+import com.kiyori.design.theme.KiyoriUiShapes
 import com.ai.assistance.operit.data.skill.SkillRepository
 import com.ai.assistance.operit.api.chat.EnhancedAIService
 import com.ai.assistance.operit.util.LocaleUtils
@@ -239,7 +240,7 @@ fun CharacterCardDialog(
                 .fillMaxWidth(0.95f)
                 .wrapContentHeight()
                 .imePadding(),
-            shape = RoundedCornerShape(12.dp),
+            shape = KiyoriUiShapes.dialog,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             ),
@@ -1127,7 +1128,7 @@ private fun CharacterCardToolAccessDialog(
             modifier = Modifier
                 .fillMaxWidth(0.94f)
                 .wrapContentHeight(),
-            shape = RoundedCornerShape(12.dp),
+            shape = KiyoriUiShapes.dialog,
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             border = BorderStroke(
                 width = 1.dp,
@@ -1685,7 +1686,7 @@ fun CompactTextFieldWithExpand(
             onClick = onExpandClick,
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .size(28.dp)
+                .size(40.dp)
                 .offset(x = (-2).dp, y = 2.dp)
         ) {
             Icon(
@@ -1720,7 +1721,7 @@ fun FullScreenEditDialog(
                 .fillMaxSize()
                 .padding(8.dp)
                 .imePadding(),
-            shape = RoundedCornerShape(12.dp),
+            shape = KiyoriUiShapes.dialog,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             )
@@ -1759,7 +1760,7 @@ fun FullScreenEditDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = KiyoriUiShapes.field,
                     placeholder = { Text(stringResource(R.string.character_card_fullscreen_edit_placeholder)) }
                 )
                 
@@ -1831,7 +1832,7 @@ fun CompactAvatarPicker(
         if (avatarUri != null) {
             TextButton(
                 onClick = onAvatarReset,
-                modifier = Modifier.height(24.dp),
+                modifier = Modifier.heightIn(min = 40.dp),
                 contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
             ) {
                 Icon(
@@ -1845,7 +1846,7 @@ fun CompactAvatarPicker(
         } else {
             TextButton(
                 onClick = onAvatarChange,
-                modifier = Modifier.height(24.dp),
+                modifier = Modifier.heightIn(min = 40.dp),
                 contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
             ) {
                 Icon(

@@ -52,6 +52,7 @@ import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsGroupCard
 import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsGroupSection
 import com.kiyori.design.theme.LocalKiyoriSettingsColors
 import com.kiyori.design.theme.resolveSettingsIconColors
+import com.kiyori.design.theme.KiyoriUiShapes
 import com.kiyori.platform.logging.KiyoriLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -273,6 +274,7 @@ internal fun KiyoriPermissionsSettingsPage(
             IconButton(
                 onClick = ::requestRefresh,
                 enabled = !refreshing && !operationActive,
+                modifier = Modifier.size(40.dp),
             ) {
                 if (refreshing) {
                     CircularProgressIndicator(
@@ -403,7 +405,7 @@ private fun KiyoriPermissionSummaryCard(
                     onClick = onResolveAll,
                     enabled = !operationActive,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = KiyoriUiShapes.control,
                     colors =
                         ButtonDefaults.buttonColors(
                             containerColor = colors.accent,
@@ -437,7 +439,7 @@ private fun KiyoriPermissionMetric(
             modifier
                 .background(
                     color = colors.pageBackground,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = KiyoriUiShapes.control,
                 )
                 .padding(horizontal = 10.dp, vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -453,7 +455,8 @@ private fun KiyoriPermissionMetric(
             text = label,
             color = colors.secondaryText,
             fontSize = 11.sp,
-            maxLines = 1,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -518,10 +521,10 @@ private fun KiyoriPermissionRow(
         Box(
             modifier =
                 Modifier
-                    .size(38.dp)
+                    .size(40.dp)
                     .background(
                         color = iconColors.container,
-                        shape = RoundedCornerShape(11.dp),
+                        shape = KiyoriUiShapes.control,
                     ),
             contentAlignment = Alignment.Center,
         ) {

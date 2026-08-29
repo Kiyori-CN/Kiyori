@@ -28,6 +28,7 @@ import com.ai.assistance.operit.data.model.ToolResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.kiyori.design.theme.KiyoriUiShapes
 
 /**
  * FFmpeg工具箱主屏幕 - 直接提供自定义命令功能
@@ -97,7 +98,8 @@ fun FFmpegToolboxScreen(navController: NavController) {
                 modifier = Modifier.fillMaxWidth().heightIn(min = 100.dp),
                 placeholder = { Text(context.getString(R.string.ffmpeg_input_placeholder)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                maxLines = 5
+                maxLines = 5,
+                shape = KiyoriUiShapes.field,
             )
 
             Row(
@@ -107,6 +109,7 @@ fun FFmpegToolboxScreen(navController: NavController) {
                 Button(
                     onClick = { showCommandTemplates = !showCommandTemplates },
                     modifier = Modifier.weight(1f).height(48.dp),
+                    shape = KiyoriUiShapes.control,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer
                     )
@@ -156,6 +159,7 @@ fun FFmpegToolboxScreen(navController: NavController) {
                     },
                     enabled = !isProcessing && ffmpegCommand.isNotEmpty(),
                     modifier = Modifier.weight(1f).height(48.dp),
+                    shape = KiyoriUiShapes.control,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary
                     )
@@ -175,7 +179,8 @@ fun FFmpegToolboxScreen(navController: NavController) {
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                )
+                ),
+                shape = KiyoriUiShapes.card,
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -211,7 +216,8 @@ fun FFmpegToolboxScreen(navController: NavController) {
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
-            )
+            ),
+            shape = KiyoriUiShapes.card,
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -271,6 +277,7 @@ fun FFmpegToolboxScreen(navController: NavController) {
                     },
                     enabled = !isProcessing,
                     modifier = Modifier.align(Alignment.End),
+                    shape = KiyoriUiShapes.control,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.secondary
                     )
@@ -299,7 +306,7 @@ fun FFmpegToolboxScreen(navController: NavController) {
                     else
                         MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f)
                 ),
-                shape = RoundedCornerShape(12.dp)
+                shape = KiyoriUiShapes.card
             ) {
                 Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                     Row(
@@ -367,7 +374,7 @@ fun FFmpegToolboxScreen(navController: NavController) {
 
                             Surface(
                                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
-                                shape = RoundedCornerShape(8.dp),
+                                shape = KiyoriUiShapes.control,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
@@ -390,7 +397,8 @@ fun TemplateItem(template: CommandTemplate, onSelect: () -> Unit) {
     Card(
         onClick = onSelect,
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = KiyoriUiShapes.card,
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -417,7 +425,7 @@ fun TemplateItem(template: CommandTemplate, onSelect: () -> Unit) {
                 )
             }
 
-            IconButton(onClick = onSelect) {
+            IconButton(onClick = onSelect, modifier = Modifier.size(40.dp)) {
                 Icon(
                     imageVector = Icons.Default.ContentCopy,
                     contentDescription = stringResource(R.string.ffmpeg_use_template),

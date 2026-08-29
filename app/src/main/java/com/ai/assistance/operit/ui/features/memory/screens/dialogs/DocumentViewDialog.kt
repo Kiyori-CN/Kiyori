@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.model.DocumentChunk
 import com.ai.assistance.operit.data.model.Memory
+import com.kiyori.design.theme.KiyoriUiShapes
 
 @Composable
 fun DocumentViewDialog(
@@ -54,6 +55,7 @@ fun DocumentViewDialog(
     AlertDialog(
         modifier = Modifier.fillMaxHeight(0.85f),
         onDismissRequest = onDismiss,
+        shape = KiyoriUiShapes.dialog,
         title = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 OutlinedTextField(
@@ -62,6 +64,7 @@ fun DocumentViewDialog(
                     label = { Text(stringResource(R.string.memory_document_title)) },
                     modifier = Modifier.fillMaxWidth(),
                     textStyle = MaterialTheme.typography.bodyMedium
+                    , shape = KiyoriUiShapes.field
                 )
                 if (folderPath.isNotEmpty()) {
                     Text(
@@ -97,7 +100,8 @@ fun DocumentViewDialog(
                             onPerformSearch()
                             keyboardController?.hide()
                         }
-                    )
+                    ),
+                    shape = KiyoriUiShapes.field,
                 )
                 if (chunks.isEmpty() && searchQuery.isNotEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -113,7 +117,8 @@ fun DocumentViewDialog(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 4.dp),
-                                label = { Text(stringResource(R.string.document_block_label, chunk.chunkIndex + 1)) }
+                                label = { Text(stringResource(R.string.document_block_label, chunk.chunkIndex + 1)) },
+                                shape = KiyoriUiShapes.field,
                             )
                         }
                     }
@@ -121,7 +126,7 @@ fun DocumentViewDialog(
             }
         },
         dismissButton = {
-             OutlinedButton(onClick = onDismiss) {
+             OutlinedButton(onClick = onDismiss, shape = KiyoriUiShapes.control) {
                 Text(stringResource(R.string.memory_close))
             }
         },
@@ -130,16 +135,17 @@ fun DocumentViewDialog(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start)
             ) {
-                Button(onClick = onSave) {
+                Button(onClick = onSave, shape = KiyoriUiShapes.control) {
                     Text(stringResource(R.string.memory_save_all))
                 }
                 Button(
                     onClick = onDelete,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    , shape = KiyoriUiShapes.control
                 ) {
                     Text(stringResource(R.string.memory_delete_document))
                 }
             }
         }
     )
-} 
+}

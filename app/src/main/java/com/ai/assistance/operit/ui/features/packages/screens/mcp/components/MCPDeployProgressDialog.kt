@@ -24,6 +24,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.mcp.plugins.MCPDeployer.DeploymentStatus
+import com.kiyori.design.theme.KiyoriUiShapes
 
 /** MCP插件部署进度对话框 - 简约风格 */
 @Composable
@@ -55,7 +56,7 @@ fun MCPDeployProgressDialog(
     ) {
         Surface(
                 modifier = Modifier.fillMaxWidth().wrapContentHeight(),
-                shape = RoundedCornerShape(16.dp),
+                shape = KiyoriUiShapes.dialog,
                 color = MaterialTheme.colorScheme.surface,
                 tonalElevation = 6.dp
         ) {
@@ -80,7 +81,7 @@ fun MCPDeployProgressDialog(
                     if (onEnvironmentVariablesChange != null) {
                         IconButton(
                                 onClick = { showEnvVarsDialog = true },
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                     imageVector = Icons.Outlined.Settings,
@@ -94,7 +95,7 @@ fun MCPDeployProgressDialog(
                     if (deploymentStatus !is DeploymentStatus.InProgress) {
                         IconButton(
                                 onClick = onDismissRequest,
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                     imageVector = Icons.Outlined.Close,

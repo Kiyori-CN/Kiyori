@@ -672,7 +672,7 @@ fun ModelConfigExportWarningDialog(
                 imageVector = Icons.Default.Info,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(40.dp)
             )
         },
         title = {

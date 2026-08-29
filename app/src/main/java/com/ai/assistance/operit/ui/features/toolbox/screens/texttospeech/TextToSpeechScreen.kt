@@ -37,6 +37,7 @@ import java.net.UnknownHostException
 import com.ai.assistance.operit.api.voice.TtsException
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
+import com.kiyori.design.theme.KiyoriUiShapes
 
 /** 文本转语音演示屏幕 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -213,6 +214,7 @@ fun TextToSpeechScreen(navController: NavController) {
                                         containerColor = MaterialTheme.colorScheme.surface
                                 ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        , shape = KiyoriUiShapes.card
                 ) {
                         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                                 Text(
@@ -237,6 +239,7 @@ fun TextToSpeechScreen(navController: NavController) {
                                                                 MaterialTheme.colorScheme.outline
                                                 ),
                                         maxLines = 5
+                                        , shape = KiyoriUiShapes.field
                                 )
                         }
                 }
@@ -249,6 +252,7 @@ fun TextToSpeechScreen(navController: NavController) {
                                         containerColor = MaterialTheme.colorScheme.surface
                                 ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        , shape = KiyoriUiShapes.card
                 ) {
                         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                                 Text(
@@ -331,10 +335,11 @@ fun TextToSpeechScreen(navController: NavController) {
                                                                         contentDescription = stringResource(R.string.speech_services_dropdown_expand)
                                                                 )
                                                         },
-                                                        modifier =
+                                                modifier =
                                                                 Modifier
                                                                         .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                                                                         .fillMaxWidth()
+                                                , shape = KiyoriUiShapes.field
                                                 )
                                                 ExposedDropdownMenu(
                                                         expanded = simpleTtsLocaleExpanded,
@@ -378,6 +383,7 @@ fun TextToSpeechScreen(navController: NavController) {
                                                 readOnly = true,
                                                 label = { Text(stringResource(R.string.speech_services_simple_tts_voice)) },
                                                 modifier = Modifier.fillMaxWidth(),
+                                                shape = KiyoriUiShapes.field,
                                                 trailingIcon = {
                                                         Row {
                                                                 if (ttsVoiceIdInput.isNotBlank()) {
@@ -445,7 +451,7 @@ fun TextToSpeechScreen(navController: NavController) {
                                                 containerColor = MaterialTheme.colorScheme.primary,
                                                 contentColor = MaterialTheme.colorScheme.onPrimary
                                         ),
-                                shape = RoundedCornerShape(8.dp)
+                                shape = KiyoriUiShapes.control
                         ) {
                                 Icon(
                                         imageVector = Icons.Default.PlayArrow,
@@ -465,7 +471,7 @@ fun TextToSpeechScreen(navController: NavController) {
                                                 containerColor = MaterialTheme.colorScheme.error,
                                                 contentColor = MaterialTheme.colorScheme.onError
                                         ),
-                                shape = RoundedCornerShape(8.dp)
+                                shape = KiyoriUiShapes.control
                         ) {
                                 Icon(
                                         imageVector = Icons.Default.Stop,
@@ -487,7 +493,7 @@ fun TextToSpeechScreen(navController: NavController) {
                                         containerColor =
                                                 MaterialTheme.colorScheme.secondaryContainer
                                 ),
-                        shape = RoundedCornerShape(8.dp)
+                                        shape = KiyoriUiShapes.card
                 ) {
                         Column(
                                 modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -649,7 +655,8 @@ fun TextToSpeechScreen(navController: NavController) {
                                                 MaterialTheme.colorScheme.surfaceVariant.copy(
                                                         alpha = 0.5f
                                                 )
-                                )
+                                ),
+                        shape = KiyoriUiShapes.card,
                 ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
@@ -680,6 +687,7 @@ fun TextToSpeechScreen(navController: NavController) {
         if (simpleTtsShowVoiceDialog) {
                 AlertDialog(
                         onDismissRequest = { simpleTtsShowVoiceDialog = false },
+                        shape = KiyoriUiShapes.dialog,
                         title = { Text(stringResource(R.string.speech_services_simple_tts_voice_select)) },
                         text = {
                                 LazyColumn(

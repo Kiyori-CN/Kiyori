@@ -32,6 +32,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kiyori.design.theme.KiyoriUiShapes
 import androidx.compose.ui.window.PopupProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -315,10 +316,10 @@ fun ModelConfigScreen(
 
                             OutlinedButton(
                                 onClick = { showAddConfigDialog = true },
-                                shape = RoundedCornerShape(16.dp),
+                                shape = KiyoriUiShapes.control,
                                 border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.primary),
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                                modifier = Modifier.height(28.dp),
+                                modifier = Modifier.heightIn(min = 40.dp),
                                 colors =
                                     ButtonDefaults.outlinedButtonColors(
                                         contentColor = MaterialTheme.colorScheme.primary

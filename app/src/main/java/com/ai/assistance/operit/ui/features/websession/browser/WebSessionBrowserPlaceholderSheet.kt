@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserPlaceholderPage
+import com.kiyori.design.theme.KiyoriUiShapes
 
 @Composable
 internal fun WebSessionBrowserPlaceholderSheet(
@@ -63,7 +64,7 @@ internal fun WebSessionBrowserPlaceholderSheet(
                     contentDescription = null,
                     containerSize = 70.dp,
                     iconSize = 34.dp,
-                    shape = RoundedCornerShape(22.dp),
+                    shape = KiyoriUiShapes.card,
                 )
                 Text(
                     text = stringResource(R.string.web_session_placeholder_status),

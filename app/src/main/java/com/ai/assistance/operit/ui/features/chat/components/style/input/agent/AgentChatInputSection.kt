@@ -159,6 +159,8 @@ import com.ai.assistance.operit.ui.theme.isWaterGlassSupported
 import com.ai.assistance.operit.ui.theme.liquidGlass
 import com.ai.assistance.operit.ui.theme.waterGlass
 import com.ai.assistance.operit.util.ChatUtils
+import com.kiyori.design.theme.KiyoriUiShapes
+import com.kiyori.design.theme.rememberKiyoriUiTokens
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -250,6 +252,7 @@ fun AgentChatInputSection(
     var showCharacterCardMemoryBindingSwitchConfirm by remember { mutableStateOf(false) }
     var pendingCharacterCardMemorySelection by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    val uiTokens = rememberKiyoriUiTokens()
     val inputFocusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
@@ -697,7 +700,7 @@ fun AgentChatInputSection(
                 Surface(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(8.dp),
+                    shape = KiyoriUiShapes.control,
                 ) {
                     Row(
                         modifier = Modifier.padding(8.dp).fillMaxWidth(),
@@ -726,7 +729,7 @@ fun AgentChatInputSection(
                             modifier = Modifier.weight(1f),
                         )
 
-                        IconButton(onClick = { onClearReply?.invoke() }, modifier = Modifier.size(24.dp)) {
+                        IconButton(onClick = { onClearReply?.invoke() }, modifier = Modifier.size(40.dp)) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = context.getString(R.string.cancel_reply),
@@ -791,7 +794,7 @@ fun AgentChatInputSection(
 
             val inputCardShape =
                 if (chatInputFloating) {
-                    RoundedCornerShape(22.dp)
+                    KiyoriUiShapes.card
                 } else {
                     RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
                 }
@@ -909,7 +912,7 @@ fun AgentChatInputSection(
                                 unfocusedContainerColor = Color.Transparent,
                                 disabledContainerColor = Color.Transparent,
                             ),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = KiyoriUiShapes.field,
                         trailingIcon = {
                             IconButton(onClick = { showFullscreenInput.value = true }) {
                                 Icon(
@@ -933,7 +936,7 @@ fun AgentChatInputSection(
                             contentAlignment = Alignment.CenterStart,
                         ) {
                             Surface(
-                                shape = RoundedCornerShape(12.dp),
+                                shape = KiyoriUiShapes.control,
                                 color = Color.Transparent,
                                 modifier =
                                     Modifier
@@ -941,9 +944,9 @@ fun AgentChatInputSection(
                                         .border(
                                             width = 1.dp,
                                             color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
-                                            shape = RoundedCornerShape(12.dp),
+                                            shape = KiyoriUiShapes.control,
                                         )
-                                        .clip(RoundedCornerShape(12.dp))
+                                        .clip(KiyoriUiShapes.control)
                                         .clickable(onClick = onModelSelectorClick),
                             ) {
                                 Row(
@@ -978,7 +981,7 @@ fun AgentChatInputSection(
                             modifier =
                                 Modifier
                                     .padding(start = 6.dp)
-                                    .size(34.dp)
+                                    .size(uiTokens.touchTarget)
                                     .clickable(
                                         enabled = true,
                                         onClick = {
@@ -1005,7 +1008,7 @@ fun AgentChatInputSection(
                             modifier =
                                 Modifier
                                     .padding(start = 8.dp)
-                                    .size(36.dp)
+                                    .size(uiTokens.touchTarget)
                                     .clickable(
                                         enabled = true,
                                         onClick = {
@@ -1076,7 +1079,7 @@ fun AgentChatInputSection(
                             Box(
                                 modifier =
                                     Modifier
-                                        .size(36.dp)
+                                        .size(40.dp)
                                         .then(
                                             if (isVoiceAction) {
                                                 Modifier
@@ -1224,7 +1227,7 @@ fun AgentChatInputSection(
                                     unfocusedContainerColor = Color.Transparent,
                                     disabledContainerColor = Color.Transparent,
                                 ),
-                            shape = RoundedCornerShape(14.dp),
+                            shape = KiyoriUiShapes.field,
                             trailingIcon = {
                                 IconButton(onClick = { showFullscreenInput.value = true }) {
                                     Icon(
@@ -1248,7 +1251,7 @@ fun AgentChatInputSection(
                                 contentAlignment = Alignment.CenterStart,
                             ) {
                                 Surface(
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = KiyoriUiShapes.control,
                                     color = Color.Transparent,
                                     modifier =
                                         Modifier
@@ -1256,9 +1259,9 @@ fun AgentChatInputSection(
                                             .border(
                                                 width = 1.dp,
                                                 color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
-                                                shape = RoundedCornerShape(12.dp),
+                                                shape = KiyoriUiShapes.control,
                                             )
-                                            .clip(RoundedCornerShape(12.dp))
+                                            .clip(KiyoriUiShapes.control)
                                             .clickable(onClick = onModelSelectorClick),
                                 ) {
                                     Row(
@@ -1293,7 +1296,7 @@ fun AgentChatInputSection(
                                     modifier =
                                         Modifier
                                             .padding(start = 6.dp)
-                                            .size(34.dp)
+                                            .size(uiTokens.touchTarget)
                                             .clickable(
                                                 enabled = true,
                                                 onClick = {
@@ -1320,7 +1323,7 @@ fun AgentChatInputSection(
                                     modifier =
                                         Modifier
                                             .padding(start = 8.dp)
-                                            .size(36.dp)
+                                            .size(uiTokens.touchTarget)
                                             .clickable(
                                                 enabled = true,
                                                 onClick = {
@@ -1391,7 +1394,7 @@ fun AgentChatInputSection(
                                 Box(
                                     modifier =
                                         Modifier
-                                            .size(36.dp)
+                                            .size(40.dp)
                                             .then(
                                                 if (isVoiceAction) {
                                                     Modifier
@@ -1624,7 +1627,7 @@ private fun AgentModelSelectorPopup(
                             indication = null,
                             onClick = {},
                         ),
-                shape = RoundedCornerShape(8.dp),
+                shape = KiyoriUiShapes.control,
                 colors =
                     CardDefaults.cardColors(
                         containerColor = popupContainerColor,
@@ -1782,7 +1785,7 @@ private fun AgentThinkingSettingsItem(
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             modifier = Modifier.size(16.dp),
         )
-        IconButton(onClick = onInfoClick, modifier = Modifier.size(24.dp)) {
+        IconButton(onClick = onInfoClick, modifier = Modifier.size(40.dp)) {
             Icon(
                 imageVector = Icons.Outlined.Info,
                 contentDescription = stringResource(R.string.details),
@@ -1887,7 +1890,7 @@ private fun AgentThinkingSliderSettingItem(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 modifier = Modifier.size(16.dp),
             )
-            IconButton(onClick = onInfoClick, modifier = Modifier.size(24.dp)) {
+            IconButton(onClick = onInfoClick, modifier = Modifier.size(40.dp)) {
                 Icon(
                     imageVector = Icons.Outlined.Info,
                     contentDescription = stringResource(R.string.details),
@@ -1977,7 +1980,7 @@ private fun AgentThinkingSubSettingItem(
                 tint = iconTint,
                 modifier = Modifier.size(16.dp),
             )
-            IconButton(onClick = onInfoClick, modifier = Modifier.size(24.dp)) {
+            IconButton(onClick = onInfoClick, modifier = Modifier.size(40.dp)) {
                 Icon(
                     imageVector = Icons.Outlined.Info,
                     contentDescription = stringResource(R.string.details),
@@ -2045,7 +2048,7 @@ private fun AgentMaxContextSettingItem(
                 },
             modifier = Modifier.size(16.dp),
         )
-        IconButton(onClick = onInfoClick, modifier = Modifier.size(24.dp)) {
+        IconButton(onClick = onInfoClick, modifier = Modifier.size(40.dp)) {
             Icon(
                 imageVector = Icons.Outlined.Info,
                 contentDescription = stringResource(R.string.details),
@@ -2127,7 +2130,7 @@ private fun AgentModelSelectorItem(
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             modifier = Modifier.size(16.dp),
         )
-        IconButton(onClick = onInfoClick, modifier = Modifier.size(24.dp)) {
+        IconButton(onClick = onInfoClick, modifier = Modifier.size(40.dp)) {
             Icon(
                 imageVector = Icons.Outlined.Info,
                 contentDescription = stringResource(R.string.details),
@@ -2331,7 +2334,7 @@ private fun AgentModelSelectorItem(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(30.dp)
+                        .heightIn(min = 40.dp)
                         .clickable(onClick = onManageClick),
                 contentAlignment = Alignment.Center,
             ) {
@@ -2448,7 +2451,7 @@ private fun AgentExtraSettingsPopup(
                             indication = null,
                             onClick = {},
                         ),
-                shape = RoundedCornerShape(8.dp),
+                shape = KiyoriUiShapes.control,
                 colors =
                     CardDefaults.cardColors(
                         containerColor = popupContainerColor,
@@ -2631,7 +2634,7 @@ private fun AgentMemorySelectorItem(
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             modifier = Modifier.size(16.dp),
         )
-        IconButton(onClick = onInfoClick, modifier = Modifier.size(24.dp)) {
+        IconButton(onClick = onInfoClick, modifier = Modifier.size(40.dp)) {
             Icon(
                 imageVector = Icons.Outlined.Info,
                 contentDescription = stringResource(R.string.details),
@@ -2710,7 +2713,7 @@ private fun AgentMemorySelectorItem(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(30.dp)
+                        .heightIn(min = 40.dp)
                         .clickable(onClick = onManageClick),
                 contentAlignment = Alignment.Center,
             ) {
@@ -2768,7 +2771,7 @@ private fun AgentSettingsGroupHeader(
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             modifier = Modifier.size(16.dp),
         )
-        IconButton(onClick = onInfoClick, modifier = Modifier.size(24.dp)) {
+        IconButton(onClick = onInfoClick, modifier = Modifier.size(40.dp)) {
             Icon(
                 imageVector = Icons.Outlined.Info,
                 contentDescription = stringResource(R.string.details),
@@ -2852,7 +2855,7 @@ private fun AgentToolsPermissionGroupItem(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(30.dp)
+                        .heightIn(min = 40.dp)
                         .clickable(onClick = onManageTools),
                 contentAlignment = Alignment.Center,
             ) {
@@ -2903,7 +2906,7 @@ private fun AgentPermissionSegmentedControl(
                 modifier =
                     Modifier
                         .weight(1f)
-                        .height(28.dp)
+                        .heightIn(min = 40.dp)
                         .clip(RoundedCornerShape(999.dp))
                         .background(
                             if (isSelected) {
@@ -3080,7 +3083,7 @@ private fun AgentSimpleToggleSettingItem(
                 },
             modifier = Modifier.size(16.dp),
         )
-        IconButton(onClick = onInfoClick, modifier = Modifier.size(24.dp)) {
+        IconButton(onClick = onInfoClick, modifier = Modifier.size(40.dp)) {
             Icon(
                 imageVector = Icons.Outlined.Info,
                 contentDescription = stringResource(R.string.details),
@@ -3165,7 +3168,7 @@ private fun AgentActionSettingItem(
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             modifier = Modifier.size(16.dp),
         )
-        IconButton(onClick = onInfoClick, modifier = Modifier.size(24.dp)) {
+        IconButton(onClick = onInfoClick, modifier = Modifier.size(40.dp)) {
             Icon(
                 imageVector = Icons.Outlined.Info,
                 contentDescription = stringResource(R.string.details),
@@ -3222,7 +3225,7 @@ private fun AgentInfoPopup(
                             indication = null,
                             onClick = {},
                         ),
-                shape = RoundedCornerShape(8.dp),
+                shape = KiyoriUiShapes.control,
                 colors =
                     CardDefaults.cardColors(
                         containerColor = popupContainerColor,

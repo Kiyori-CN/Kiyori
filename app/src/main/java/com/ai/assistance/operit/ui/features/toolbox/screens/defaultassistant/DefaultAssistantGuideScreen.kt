@@ -30,6 +30,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.kiyori.design.theme.KiyoriUiShapes
 import androidx.navigation.NavController
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.components.CustomScaffold
@@ -294,7 +295,7 @@ private fun IntroductionCard() {
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
         ),
-        shape = RoundedCornerShape(16.dp)
+        shape = KiyoriUiShapes.card
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -329,7 +330,7 @@ private fun GuideStepCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = KiyoriUiShapes.card,
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         onClick = onToggleExpanded
     ) {
@@ -408,7 +409,7 @@ private fun GuideStepCard(
                         Button(
                             onClick = onActionClick,
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = KiyoriUiShapes.control
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Launch,
@@ -432,7 +433,7 @@ private fun TroubleshootingCard() {
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
         ),
-        shape = RoundedCornerShape(16.dp)
+        shape = KiyoriUiShapes.card
     ) {
         Column(
             modifier = Modifier.padding(16.dp),

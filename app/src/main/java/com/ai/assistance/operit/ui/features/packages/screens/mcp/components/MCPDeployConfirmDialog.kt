@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.ai.assistance.operit.R
+import com.kiyori.design.theme.KiyoriUiShapes
 
 /** MCP插件部署确认对话框 提供直接部署和自定义部署两个选项 */
 @Composable
@@ -30,7 +31,7 @@ fun MCPDeployConfirmDialog(
     ) {
         Surface(
                 modifier = Modifier.fillMaxWidth().wrapContentHeight(),
-                shape = RoundedCornerShape(16.dp),
+                shape = KiyoriUiShapes.dialog,
                 color = MaterialTheme.colorScheme.surface,
                 tonalElevation = 6.dp
         ) {

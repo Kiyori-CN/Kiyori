@@ -3,7 +3,6 @@ package com.ai.assistance.operit.ui.features.assistant.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -25,6 +24,7 @@ import com.ai.assistance.operit.core.avatar.common.view.AvatarView
 import com.ai.assistance.operit.core.avatar.impl.factory.AvatarRendererFactoryImpl
 import com.ai.assistance.operit.ui.features.assistant.viewmodel.AssistantConfigViewModel
 import com.kiyori.design.theme.LocalKiyoriSettingsColors
+import com.kiyori.design.theme.KiyoriUiShapes
 
 @Composable
 fun AvatarPreviewSection(
@@ -41,7 +41,7 @@ fun AvatarPreviewSection(
 
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
+        shape = KiyoriUiShapes.card,
         color = colors.cardBackground,
         border = BorderStroke(width = 0.8.dp, color = colors.divider),
         tonalElevation = 0.dp,

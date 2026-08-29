@@ -83,6 +83,7 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.hypot
+import com.kiyori.design.theme.KiyoriUiShapes
 
 private data class CropBounds(
     val left: Int,
@@ -832,12 +833,12 @@ fun FloatingScreenOcrScreen(floatContext: FloatContext) {
         }
         
         // 关闭按钮 (Top Left) - 精致化，更小，且带立体感 (Card 风格)
-        val cardShape = RoundedCornerShape(8.dp)
+        val cardShape = KiyoriUiShapes.control
         Surface(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .padding(16.dp)
-                .size(32.dp),
+                .size(40.dp),
             shape = cardShape,
             color = Color.Transparent,
             tonalElevation = 2.dp,

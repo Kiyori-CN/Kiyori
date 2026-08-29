@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -85,6 +86,7 @@ import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
+import com.kiyori.design.theme.KiyoriUiShapes
 import java.text.DateFormat
 import java.util.Date
 
@@ -513,7 +515,7 @@ private fun HistorySearchField(
     val orangeColors = WebSessionBrowserMenuTone.HISTORY.resolveColors()
     Surface(
         modifier = modifier.fillMaxWidth().height(40.dp),
-        shape = RoundedCornerShape(8.dp),
+        shape = KiyoriUiShapes.control,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Row(
@@ -547,7 +549,7 @@ private fun HistorySearchField(
                 },
             )
             if (value.isNotBlank()) {
-                IconButton(onClick = onClear, modifier = Modifier.size(32.dp)) {
+                IconButton(onClick = onClear, modifier = Modifier.size(40.dp)) {
                     Icon(
                         imageVector = Icons.Filled.Close,
                         contentDescription = stringResource(R.string.clear),
@@ -568,8 +570,8 @@ private fun HistoryFilterChip(
 ) {
     val orangeColors = WebSessionBrowserMenuTone.HISTORY.resolveColors()
     Surface(
-        modifier = Modifier.height(36.dp).clickable(role = Role.Button, onClick = onClick),
-        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.heightIn(min = 40.dp).clickable(role = Role.Button, onClick = onClick),
+        shape = KiyoriUiShapes.control,
         color =
             if (selected) {
                 orangeColors.container

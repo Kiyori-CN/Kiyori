@@ -108,6 +108,7 @@ import com.ai.assistance.operit.ui.features.packages.screens.market.viewmodel.Un
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import com.kiyori.design.theme.KiyoriUiShapes
 
 enum class MarketHomeTab(@StringRes val labelRes: Int) {
     ALL(R.string.market_tab_all),
@@ -440,7 +441,7 @@ private fun MarketCategoryCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
+        shape = KiyoriUiShapes.card,
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp,
         shadowElevation = 1.dp
@@ -624,7 +625,7 @@ private fun MarketNotificationCard(notification: MarketV2Notification) {
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        shape = RoundedCornerShape(12.dp)
+        shape = KiyoriUiShapes.control
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
@@ -908,7 +909,7 @@ private fun MarketAccountLoadingCard() {
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
         ),
-        shape = RoundedCornerShape(20.dp)
+        shape = KiyoriUiShapes.card
     ) {
         Row(
             modifier = Modifier
@@ -941,7 +942,7 @@ private fun MarketAccountCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
         ),
-        shape = RoundedCornerShape(20.dp)
+        shape = KiyoriUiShapes.card
     ) {
         if (isLoggedIn && currentUser != null) {
             Row(
@@ -1043,7 +1044,7 @@ private fun MarketMineActionCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
+        shape = KiyoriUiShapes.card,
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp,
         shadowElevation = 1.dp
@@ -1061,7 +1062,7 @@ private fun MarketMineActionCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(40.dp)
                         .padding(8.dp),
                     contentAlignment = Alignment.Center
                 ) {

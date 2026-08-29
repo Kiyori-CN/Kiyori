@@ -1513,6 +1513,11 @@ def _generic_default_value_expr(component: str, param: Param) -> Optional[str]:
     name = param.name
     type_name = param.type
 
+    if component == "MaterialTheme" and name == "shapes":
+        # ToolPkg MaterialTheme nodes must inherit the product control/dialog geometry instead
+        # of silently restoring Material3's default pill-heavy shape scale.
+        return "com.kiyori.design.theme.KiyoriMaterialShapes"
+
     if name == "modifier":
         return "applyScopedCommonModifier(Modifier, props, modifierResolver)"
     if name == "imageVector":

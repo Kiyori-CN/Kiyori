@@ -11,6 +11,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.kiyori.design.theme.KiyoriUiShapes
 
 /**
  * 文件操作按钮组件，显示一个带有图标和文本的按钮
@@ -22,9 +23,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 @Composable
 fun FileActionButton(icon: ImageVector, text: String, onClick: () -> Unit) {
     Surface(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .clickable(onClick = onClick),
         color = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(8.dp),
+        shape = KiyoriUiShapes.control,
         tonalElevation = 1.dp
     ) {
         Row(
@@ -33,8 +37,8 @@ fun FileActionButton(icon: ImageVector, text: String, onClick: () -> Unit) {
         ) {
             // 图标背景
             Surface(
-                modifier = Modifier.size(36.dp),
-                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.size(40.dp),
+                shape = KiyoriUiShapes.control,
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
             ) {
                 Box(
@@ -59,4 +63,4 @@ fun FileActionButton(icon: ImageVector, text: String, onClick: () -> Unit) {
             )
         }
     }
-} 
+}

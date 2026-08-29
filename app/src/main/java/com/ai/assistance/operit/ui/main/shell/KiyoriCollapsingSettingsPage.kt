@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.kiyori.design.theme.KiyoriSettingsTheme
+import com.kiyori.design.theme.KiyoriUiShapes
 import com.kiyori.design.theme.LocalKiyoriSettingsColors
 
 internal enum class KiyoriSettingsNavigationIcon {
@@ -191,7 +192,7 @@ internal fun KiyoriSettingsGroupCard(
 ) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
+        shape = KiyoriUiShapes.card,
         colors =
             CardDefaults.cardColors(
                 containerColor = LocalKiyoriSettingsColors.current.cardBackground,
@@ -252,7 +253,7 @@ private fun KiyoriCollapsingSettingsHeader(
             color = colors.primaryText,
             maxLines = 1,
             softWrap = false,
-            overflow = TextOverflow.Clip,
+            overflow = TextOverflow.Ellipsis,
             modifier =
                 Modifier
                     .fillMaxWidth()

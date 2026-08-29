@@ -44,6 +44,7 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuIconBadge
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone
 import com.ai.assistance.operit.ui.features.websession.browser.resolveColors
+import com.kiyori.design.theme.KiyoriUiShapes
 
 @Composable
 internal fun WebSessionBrowserMenuDrawer(
@@ -100,7 +101,7 @@ internal fun WebSessionBrowserMenuDrawer(
                     .semantics {
                         contentDescription = menuTitle
                     },
-                shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
+                shape = KiyoriUiShapes.sheet,
                 color = MaterialTheme.colorScheme.surface,
                 contentColor = MaterialTheme.colorScheme.onSurface,
                 tonalElevation = 0.dp,
@@ -263,7 +264,7 @@ private fun RowScope.MenuCell(action: MenuAction) {
             contentDescription = null,
             containerSize = WEB_SESSION_BROWSER_MENU_ICON_CONTAINER_SIZE_DP.dp,
             iconSize = WEB_SESSION_BROWSER_MENU_ICON_SIZE_DP.dp,
-            shape = RoundedCornerShape(10.dp),
+            shape = KiyoriUiShapes.control,
             enabled = action.enabled,
         )
         Text(

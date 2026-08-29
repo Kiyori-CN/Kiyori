@@ -2064,7 +2064,7 @@ fun CharacterCardTab(
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         IconButton(
                             onClick = onAddCharacterCard,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
@@ -2075,7 +2075,7 @@ fun CharacterCardTab(
 
                         IconButton(
                             onClick = onNavigateToPersonaGeneration,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.AutoAwesome,
@@ -2087,7 +2087,7 @@ fun CharacterCardTab(
                         Box {
                             IconButton(
                                 onClick = { importMenuExpanded = true },
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.FileDownload,
@@ -2137,7 +2137,7 @@ fun CharacterCardTab(
                     Box {
                         IconButton(
                             onClick = { sortMenuExpanded = true },
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Sort,
@@ -2322,7 +2322,7 @@ fun CharacterCardItem(
                 Box {
                     IconButton(
                         onClick = { showMenu = true },
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             Icons.Outlined.MoreVert,
@@ -2659,7 +2659,7 @@ fun GroupCardTab(
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.weight(1f))
-            IconButton(onClick = onAddGroup, modifier = Modifier.size(32.dp)) {
+            IconButton(onClick = onAddGroup, modifier = Modifier.size(40.dp)) {
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = stringResource(R.string.create),
@@ -2793,7 +2793,7 @@ private fun GroupCardItem(
                 Box {
                     IconButton(
                         onClick = { showMenu = true },
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             Icons.Outlined.MoreVert,
@@ -3072,8 +3072,8 @@ private fun GroupCardDialog(
                                 val next = selectableCards.firstOrNull { it.id != selected }?.id
                                 selectedAddMemberId = next
                             },
-                            modifier = Modifier.height(32.dp),
-                            shape = RoundedCornerShape(6.dp)
+                            modifier = Modifier.heightIn(min = 40.dp),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
@@ -3127,7 +3127,7 @@ private fun GroupCardDialog(
                                                 members = members.toMutableList().also { it.removeAt(index) }
                                                     .mapIndexed { orderIndex, it -> it.copy(orderIndex = orderIndex) }
                                             },
-                                            modifier = Modifier.size(28.dp)
+                                            modifier = Modifier.size(40.dp)
                                         ) {
                                             Icon(
                                                 Icons.Default.Delete,
@@ -3235,14 +3235,14 @@ fun TagItem(
                                     ) {
                 IconButton(
                     onClick = onEdit,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(40.dp)
                 ) {
                     Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit), modifier = Modifier.size(16.dp))
                 }
 
                 IconButton(
                     onClick = onDelete,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(40.dp)
                 ) {
                     Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete), modifier = Modifier.size(16.dp))
                 }

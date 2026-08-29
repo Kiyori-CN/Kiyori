@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -113,6 +114,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.launch
+import com.kiyori.design.theme.KiyoriUiShapes
 
 private val DownloadAccentColor = Color(0xFF27A866)
 private const val DOWNLOAD_DRAWER_TAG = "WebSessionDownloadDrawer"
@@ -667,7 +669,7 @@ private fun DownloadOutlinedActionButton(
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
-        shape = RoundedCornerShape(12.dp),
+        shape = KiyoriUiShapes.control,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         colors =
             ButtonDefaults.outlinedButtonColors(
@@ -677,7 +679,7 @@ private fun DownloadOutlinedActionButton(
                 disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
             ),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp),
-        modifier = Modifier.defaultMinSize(minWidth = 0.dp, minHeight = 0.dp).height(34.dp),
+        modifier = Modifier.defaultMinSize(minWidth = 0.dp).heightIn(min = 40.dp),
     ) {
         Text(text = title, fontSize = 13.sp, fontWeight = FontWeight.Medium)
     }
@@ -711,7 +713,11 @@ private fun DownloadTab(
     onClick: () -> Unit,
 ) {
     Column(
-        modifier = modifier.clickable(onClick = onClick).padding(top = 2.dp, bottom = 6.dp),
+        modifier =
+            modifier
+                .heightIn(min = 40.dp)
+                .clickable(onClick = onClick)
+                .padding(top = 2.dp, bottom = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
@@ -751,7 +757,7 @@ private fun DownloadSearchAndFilterBar(
     ) {
         Surface(
             color = MaterialTheme.colorScheme.surfaceContainer,
-            shape = RoundedCornerShape(12.dp),
+            shape = KiyoriUiShapes.control,
             modifier = Modifier.fillMaxWidth().height(40.dp),
         ) {
             Row(
@@ -788,7 +794,7 @@ private fun DownloadSearchAndFilterBar(
                 }
                 if (query.isNotBlank()) {
                     Box(
-                        modifier = Modifier.size(36.dp).clickable { onQueryChange("") },
+                        modifier = Modifier.size(40.dp).clickable { onQueryChange("") },
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
@@ -816,7 +822,7 @@ private fun DownloadSearchAndFilterBar(
                             } else {
                                 MaterialTheme.colorScheme.surfaceContainer
                             },
-                        shape = RoundedCornerShape(999.dp),
+                        shape = KiyoriUiShapes.control,
                         border =
                             BorderStroke(
                                 1.dp,
@@ -828,7 +834,7 @@ private fun DownloadSearchAndFilterBar(
                             ),
                         modifier =
                             Modifier
-                                .height(32.dp)
+                                .heightIn(min = 40.dp)
                                 .clickable { onStatusFilterChange(filter) },
                     ) {
                         Box(
@@ -1100,7 +1106,7 @@ private fun DownloadInlineAction(title: String, onClick: () -> Unit) {
     Box(
         modifier =
             Modifier
-                .defaultMinSize(minWidth = 48.dp, minHeight = 36.dp)
+                .defaultMinSize(minWidth = 48.dp, minHeight = 40.dp)
                 .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -1237,10 +1243,10 @@ private fun AddBrowserDownloadDialog(
                             imageVector = Icons.Filled.Description,
                             contentDescription = "提取文件后缀",
                             tint = Color(0xFF70B7DE),
-                            modifier =
-                                Modifier
-                                    .size(24.dp)
-                                    .clickable {
+                                modifier =
+                                    Modifier
+                                        .size(40.dp)
+                                        .clickable {
                                         val extracted = extractBrowserDownloadSuffix(fileName, url)
                                         if (extracted == null) {
                                             Toast.makeText(context, "没有可提取的文件后缀", Toast.LENGTH_SHORT).show()
@@ -1277,7 +1283,7 @@ private fun AddBrowserDownloadDialog(
                         imageVector = Icons.Filled.Info,
                         contentDescription = "编辑完整链接",
                         tint = Color(0xFF51BBD4),
-                        modifier = Modifier.size(28.dp).clickable { showFullLinkDialog = true },
+                        modifier = Modifier.size(40.dp).clickable { showFullLinkDialog = true },
                     )
                 }
                 Spacer(modifier = Modifier.height(22.dp))
@@ -1386,7 +1392,7 @@ private fun DownloadEngineToggle(
 ) {
     Button(
         onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
+        shape = KiyoriUiShapes.control,
         colors =
             ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.surface,
@@ -1395,7 +1401,7 @@ private fun DownloadEngineToggle(
         elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp, pressedElevation = 2.dp),
         border = BorderStroke(1.dp, if (selected) DownloadAccentColor else MaterialTheme.colorScheme.outlineVariant),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
-        modifier = Modifier.defaultMinSize(minWidth = 0.dp, minHeight = 0.dp).height(34.dp),
+        modifier = Modifier.defaultMinSize(minWidth = 0.dp).heightIn(min = 40.dp),
     ) {
         Text(title, fontSize = 13.sp, fontWeight = FontWeight.Medium)
     }

@@ -43,6 +43,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.ai.assistance.operit.R
+import com.kiyori.design.theme.KiyoriUiShapes
 
 /**
  * 编辑面板组件
@@ -80,7 +81,7 @@ fun EditPanel(
                 .padding(16.dp)
                 .background(
                     Color.Black.copy(alpha = 0.8f),
-                    RoundedCornerShape(16.dp)
+                    KiyoriUiShapes.card
                 )
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -116,6 +117,7 @@ fun EditPanel(
                 keyboardOptions = KeyboardOptions.Default.copy(
                     imeAction = ImeAction.Send
                 ),
+                shape = KiyoriUiShapes.field,
                 maxLines = 4
             )
             
@@ -134,7 +136,8 @@ fun EditPanel(
                         brush = Brush.horizontalGradient(
                             listOf(Color.White.copy(alpha = 0.5f), Color.White.copy(alpha = 0.5f))
                         )
-                    )
+                    ),
+                    shape = KiyoriUiShapes.control,
                 ) {
                     Icon(
                         imageVector = Icons.Default.Clear,
@@ -150,7 +153,8 @@ fun EditPanel(
                     onClick = onSend,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary
-                    )
+                    ),
+                    shape = KiyoriUiShapes.control,
                 ) {
                     Icon(
                         imageVector = Icons.Default.Check,

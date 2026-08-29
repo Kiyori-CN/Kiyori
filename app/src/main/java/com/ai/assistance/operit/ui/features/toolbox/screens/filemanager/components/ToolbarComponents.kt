@@ -70,7 +70,7 @@ fun FileManagerToolbar(
                     // 移动而无法回到文件管理首页或原设置会话。
                     IconButton(
                         onClick = onNavigateBack,
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -80,7 +80,7 @@ fun FileManagerToolbar(
                     }
 
                     // 前进按钮
-                    IconButton(onClick = { /* 前进功能 */ }, modifier = Modifier.size(36.dp)) {
+                    IconButton(onClick = { /* 前进功能 */ }, modifier = Modifier.size(40.dp)) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = null,
@@ -91,7 +91,7 @@ fun FileManagerToolbar(
                     // 向上按钮
                     IconButton(
                         onClick = onNavigateUp,
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.ArrowUpward,
@@ -103,7 +103,7 @@ fun FileManagerToolbar(
                     // 刷新按钮
                     IconButton(
                         onClick = onRefresh,
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
@@ -125,7 +125,7 @@ fun FileManagerToolbar(
                     // 缩小按钮
                     IconButton(
                         onClick = { onZoomOut(true) },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.ZoomOut,
@@ -137,7 +137,7 @@ fun FileManagerToolbar(
                     // 放大按钮
                     IconButton(
                         onClick = { onZoomIn(true) },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.ZoomIn,
@@ -159,7 +159,7 @@ fun FileManagerToolbar(
                     // 多选模式切换按钮
                     IconButton(
                         onClick = onToggleMultiSelect,
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             imageVector = if (isMultiSelectMode) Icons.Default.CheckBox else Icons.Outlined.CheckBoxOutlineBlank,
@@ -173,7 +173,7 @@ fun FileManagerToolbar(
                     // 粘贴按钮
                     IconButton(
                         onClick = onPaste,
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier.size(40.dp),
                         enabled = !clipboardEmpty
                     ) {
                         Icon(
@@ -196,7 +196,7 @@ fun FileManagerToolbar(
                     // 显示模式选择按钮
                     IconButton(
                         onClick = onChangeDisplayMode,
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             imageVector = when (displayMode) {
@@ -222,7 +222,7 @@ fun FileManagerToolbar(
                     // 搜索按钮
                     IconButton(
                         onClick = onShowSearchDialog,
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Search,
@@ -237,7 +237,7 @@ fun FileManagerToolbar(
                     if (isSearching) {
                         IconButton(
                             onClick = onExitSearch,
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -252,7 +252,7 @@ fun FileManagerToolbar(
                     // 新建文件夹按钮
                     IconButton(
                         onClick = onNewFolder,
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.CreateNewFolder,
@@ -352,7 +352,7 @@ fun PathNavigationBar(
                             onNavigateToPath(editablePath)
                         }
                     },
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Done,
@@ -425,7 +425,7 @@ fun FileManagerTabRow(
                                 if (tabs.size > 1) {
                                     IconButton(
                                         onClick = { onCloseTab(index) },
-                                        modifier = Modifier.size(24.dp)
+                                        modifier = Modifier.size(40.dp)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Close,

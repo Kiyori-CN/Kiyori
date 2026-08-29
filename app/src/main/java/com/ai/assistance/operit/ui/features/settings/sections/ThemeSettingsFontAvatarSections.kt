@@ -478,7 +478,7 @@ internal fun ThemeSettingsAvatarSection(
                             },
                             shape = CircleShape,
                             contentPadding = PaddingValues(0.dp),
-                            modifier = Modifier.size(36.dp),
+                            modifier = Modifier.size(40.dp),
                         ) {
                             Icon(
                                 Icons.Default.Remove,
@@ -507,7 +507,7 @@ internal fun ThemeSettingsAvatarSection(
                             },
                             shape = CircleShape,
                             contentPadding = PaddingValues(0.dp),
-                            modifier = Modifier.size(36.dp),
+                            modifier = Modifier.size(40.dp),
                         ) {
                             Icon(
                                 Icons.Default.Add,

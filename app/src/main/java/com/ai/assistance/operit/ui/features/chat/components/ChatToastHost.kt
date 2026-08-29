@@ -127,7 +127,7 @@ fun ChatToastHost(
                     }
                     IconButton(
                         onClick = { event?.let { onDismiss(it.id) } },
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,

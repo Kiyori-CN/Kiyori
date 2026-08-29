@@ -62,6 +62,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kiyori.design.theme.KiyoriUiShapes
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import com.kiyori.design.theme.KiyoriSettingsHomeIconPalette
@@ -357,7 +358,7 @@ private fun KiyoriSettingsThemeShortcut(
         Box(
             modifier =
                 Modifier
-                    .size(36.dp)
+                    .size(40.dp)
                     .clickable { onExpandedChange(!expanded) }
                     .padding(2.dp),
             contentAlignment = Alignment.Center,
@@ -425,7 +426,7 @@ private fun KiyoriSettingsThemeShortcut(
 @Composable
 private fun KiyoriSettingsHomeBackAction(onBack: () -> Unit) {
     Box(
-        modifier = Modifier.size(36.dp).clickable(onClick = onBack),
+        modifier = Modifier.size(40.dp).clickable(onClick = onBack),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -466,7 +467,7 @@ private fun KiyoriSettingsHeaderAction(
             Modifier.clickable(onClick = onClick)
         }
     Box(
-        modifier = Modifier.size(36.dp).then(interactionModifier).padding(2.dp),
+        modifier = Modifier.size(40.dp).then(interactionModifier).padding(2.dp),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -561,8 +562,8 @@ private fun KiyoriSettingsHomeRow(
         Box(
             modifier =
                 Modifier
-                    .size(34.dp)
-                    .background(iconColors.container, RoundedCornerShape(10.dp)),
+                    .size(40.dp)
+                    .background(iconColors.container, KiyoriUiShapes.control),
             contentAlignment = Alignment.Center,
         ) {
             Icon(

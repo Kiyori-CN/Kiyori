@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -43,6 +44,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
+import com.kiyori.design.theme.KiyoriUiShapes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,7 +74,7 @@ fun MemoryAppBar(
             onValueChange = onQueryChange,
             modifier = Modifier
                 .weight(1f) // 让搜索框占据剩余空间
-                .height(46.dp),
+                .heightIn(min = 40.dp),
             placeholder = { Text(stringResource(R.string.memory_search_hint2), style = MaterialTheme.typography.bodySmall) },
             leadingIcon = {
                 Icon(
@@ -85,7 +87,7 @@ fun MemoryAppBar(
                 if (query.isNotEmpty()) {
                     IconButton(
                         onClick = onClear,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             Icons.Default.Clear,
@@ -103,7 +105,8 @@ fun MemoryAppBar(
                 unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                 unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant
             ),
-            textStyle = MaterialTheme.typography.bodySmall
+            textStyle = MaterialTheme.typography.bodySmall,
+            shape = KiyoriUiShapes.field
         )
 
         Spacer(modifier = Modifier.width(8.dp))

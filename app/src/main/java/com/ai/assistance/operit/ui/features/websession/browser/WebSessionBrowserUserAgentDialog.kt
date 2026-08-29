@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -45,6 +44,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.extractWebSessionUserAgentHost
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.normalizeWebSessionUserAgentDomain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveWebSessionPresetUserAgent
+import com.kiyori.design.theme.KiyoriUiShapes
 
 private enum class UserAgentDialogPage {
     CHOOSER,
@@ -232,7 +232,7 @@ private fun CustomGlobalUserAgentDialog(
                     minLines = 3,
                     maxLines = 6,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = KiyoriUiShapes.field,
                 )
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
@@ -296,7 +296,7 @@ private fun CustomSiteUserAgentDialog(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = KiyoriUiShapes.field,
                     isError = domain.isNotBlank() && !domainIsValid,
                 )
                 OutlinedTextField(
@@ -306,7 +306,7 @@ private fun CustomSiteUserAgentDialog(
                     minLines = 3,
                     maxLines = 6,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = KiyoriUiShapes.field,
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -314,10 +314,12 @@ private fun CustomSiteUserAgentDialog(
                 ) {
                     presets.forEach { (title, preset) ->
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
+                            shape = KiyoriUiShapes.control,
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                             color = MaterialTheme.colorScheme.surface,
-                            modifier = Modifier.clickable { onUserAgentChange(preset) },
+                            modifier = Modifier
+                                .heightIn(min = 40.dp)
+                                .clickable { onUserAgentChange(preset) },
                         ) {
                             Text(
                                 text = title,

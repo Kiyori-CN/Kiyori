@@ -58,6 +58,7 @@ import com.ai.assistance.operit.ui.features.workflow.components.ScheduleConfigDi
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
+import com.kiyori.design.theme.KiyoriUiShapes
 import com.ai.assistance.operit.util.AppLogger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -254,7 +255,7 @@ fun WorkflowDetailScreen(
                             contentDescription = null,
                             containerSize = 64.dp,
                             iconSize = 32.dp,
-                            shape = RoundedCornerShape(20.dp),
+                            shape = KiyoriUiShapes.card,
                         )
                         Text(
                             text = stringResource(R.string.workflow_not_found),
@@ -278,7 +279,7 @@ fun WorkflowDetailScreen(
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                                 ),
-                                shape = RoundedCornerShape(20.dp),
+                            shape = KiyoriUiShapes.card,
                             ) {
                                 Column(
                                     modifier = Modifier
@@ -293,7 +294,7 @@ fun WorkflowDetailScreen(
                                         contentDescription = null,
                                         containerSize = 72.dp,
                                         iconSize = 36.dp,
-                                        shape = RoundedCornerShape(22.dp),
+                                        shape = KiyoriUiShapes.field,
                                     )
                                     Spacer(modifier = Modifier.height(12.dp))
                                     Text(

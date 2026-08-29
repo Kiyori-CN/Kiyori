@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
+import com.kiyori.design.theme.KiyoriUiShapes
 
 @Composable
 fun ToolTestDialog(
@@ -39,6 +40,7 @@ fun ToolTestDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KiyoriUiShapes.dialog,
         title = { Text(stringResource(R.string.memory_test_ai_tool)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -48,6 +50,7 @@ fun ToolTestDialog(
                     onValueChange = { query = it },
                     label = { Text(stringResource(R.string.memory_source)) },
                     modifier = Modifier.fillMaxWidth()
+                    , shape = KiyoriUiShapes.field
                 )
 
                 if (isLoading) {
@@ -69,14 +72,14 @@ fun ToolTestDialog(
             }
         },
         confirmButton = {
-            Button(onClick = { onExecute(query) }, enabled = !isLoading) {
+            Button(onClick = { onExecute(query) }, enabled = !isLoading, shape = KiyoriUiShapes.control) {
                 Text(stringResource(R.string.memory_create_link))
             }
         },
         dismissButton = {
-            OutlinedButton(onClick = onDismiss) {
+            OutlinedButton(onClick = onDismiss, shape = KiyoriUiShapes.control) {
                 Text(stringResource(R.string.memory_close))
             }
         }
     )
-} 
+}

@@ -90,6 +90,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolv
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
+import com.kiyori.design.theme.KiyoriUiShapes
 import com.ai.assistance.operit.util.AppLogger
 import java.text.DateFormat
 import java.util.Date
@@ -376,7 +377,7 @@ private fun BrowserNetworkLogSearchField(
     val cyanColors = WebSessionBrowserMenuTone.NETWORK_LOG.resolveColors()
     Surface(
         modifier = modifier.fillMaxWidth().height(40.dp),
-        shape = RoundedCornerShape(8.dp),
+        shape = KiyoriUiShapes.control,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Row(
@@ -410,7 +411,7 @@ private fun BrowserNetworkLogSearchField(
                 },
             )
             if (value.isNotBlank()) {
-                IconButton(onClick = onClear, modifier = Modifier.size(32.dp)) {
+                IconButton(onClick = onClear, modifier = Modifier.size(40.dp)) {
                     Icon(
                         imageVector = Icons.Filled.Close,
                         contentDescription = stringResource(R.string.clear),
@@ -431,8 +432,8 @@ private fun BrowserNetworkLogFilterChip(
 ) {
     val cyanColors = WebSessionBrowserMenuTone.NETWORK_LOG.resolveColors()
     Surface(
-        modifier = Modifier.height(36.dp).clickable(role = Role.Button, onClick = onClick),
-        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.heightIn(min = 40.dp).clickable(role = Role.Button, onClick = onClick),
+        shape = KiyoriUiShapes.control,
         color =
             if (selected) {
                 cyanColors.container

@@ -71,6 +71,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.ui.res.stringResource
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.features.chat.components.MessageEditor
+import com.kiyori.design.theme.KiyoriUiShapes
 import kotlin.math.roundToInt
 
 @SuppressLint("UnusedBoxWithConstraintsScope")
@@ -439,7 +440,7 @@ fun ChatScreenContent(
         ) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = KiyoriUiShapes.control,
                 tonalElevation = 2.dp,
                 shadowElevation = 4.dp,
                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.97f)
@@ -462,7 +463,7 @@ fun ChatScreenContent(
                                 isMultiSelectMode = false
                                 selectedMessageIndices = emptySet()
                             },
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Close,
@@ -527,7 +528,7 @@ fun ChatScreenContent(
                                 }
                             },
                             enabled = selectedMessageIndices.isNotEmpty(),
-                            modifier = Modifier.size(32.dp),
+                            modifier = Modifier.size(40.dp),
                             colors = IconButtonDefaults.filledIconButtonColors(
                                 containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
@@ -556,7 +557,7 @@ fun ChatScreenContent(
                                 }
                             },
                             enabled = selectedMessageIndices.isNotEmpty() && !isGeneratingImage,
-                            modifier = Modifier.size(32.dp),
+                            modifier = Modifier.size(40.dp),
                             colors = IconButtonDefaults.filledIconButtonColors(
                                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -579,7 +580,7 @@ fun ChatScreenContent(
                                 }
                             },
                             enabled = selectedMessageIndices.isNotEmpty(),
-                            modifier = Modifier.size(32.dp),
+                            modifier = Modifier.size(40.dp),
                             colors = IconButtonDefaults.filledIconButtonColors(
                                 containerColor = MaterialTheme.colorScheme.errorContainer,
                                 contentColor = MaterialTheme.colorScheme.onErrorContainer,
@@ -736,7 +737,8 @@ fun ChatScreenContent(
                     TextButton(onClick = { showDeleteSelectedConfirmDialog = false }) {
                         Text(stringResource(R.string.common_cancel))
                     }
-                }
+                },
+                shape = KiyoriUiShapes.dialog,
             )
         }
 

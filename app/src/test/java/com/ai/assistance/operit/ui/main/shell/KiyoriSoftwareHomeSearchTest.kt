@@ -44,7 +44,7 @@ class KiyoriSoftwareHomeSearchTest {
     @Test
     fun `home visual dimensions keep the compact refinement contract`() {
         assertEquals(120, KIYORI_HOME_MODE_SEGMENT_WIDTH_DP)
-        assertEquals(32, KIYORI_HOME_MODE_SEGMENT_HEIGHT_DP)
+        assertEquals(40, KIYORI_HOME_MODE_SEGMENT_HEIGHT_DP)
         assertEquals(18, KIYORI_HOME_BRAND_ICON_SIZE_DP)
         assertEquals(114, KIYORI_HOME_REGULAR_SEARCH_FRAME_HEIGHT_DP)
         assertEquals(96, KIYORI_HOME_SHORT_SEARCH_FRAME_HEIGHT_DP)

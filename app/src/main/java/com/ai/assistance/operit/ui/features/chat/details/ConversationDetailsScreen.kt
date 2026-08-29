@@ -71,6 +71,7 @@ import com.ai.assistance.operit.data.model.ChatMessage
 import com.ai.assistance.operit.data.model.ConversationAuditEntity
 import com.ai.assistance.operit.data.model.ConversationAuditEventEntity
 import com.kiyori.design.theme.KiyoriSettingsTheme
+import com.kiyori.design.theme.KiyoriUiShapes
 import com.kiyori.design.theme.LocalKiyoriSettingsColors
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -313,7 +314,7 @@ private fun AuditHeader(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Surface(
-                shape = RoundedCornerShape(10.dp),
+                shape = KiyoriUiShapes.control,
                 color = statusColor.copy(alpha = 0.12f),
             ) {
                 Row(
@@ -486,7 +487,7 @@ private fun AuditSearchBar(
     val colors = LocalKiyoriSettingsColors.current
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(14.dp),
+        shape = KiyoriUiShapes.field,
         color = colors.cardBackground,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp,
@@ -522,7 +523,7 @@ private fun AuditSearchBar(
                 },
             )
             if (value.isNotBlank()) {
-                IconButton(onClick = { onValueChange("") }, modifier = Modifier.size(36.dp)) {
+                IconButton(onClick = { onValueChange("") }, modifier = Modifier.size(40.dp)) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = stringResource(R.string.clear),
@@ -696,7 +697,7 @@ private fun AuditTimeline(
                 val colors = LocalKiyoriSettingsColors.current
                 Surface(
                     modifier = Modifier.align(Alignment.BottomCenter).padding(12.dp),
-                    shape = RoundedCornerShape(18.dp),
+                    shape = KiyoriUiShapes.card,
                     color = colors.accent,
                     shadowElevation = 4.dp,
                     onClick = {
@@ -752,7 +753,7 @@ private fun AuditEventRow(
     }
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
+        shape = KiyoriUiShapes.card,
         colors = CardDefaults.cardColors(containerColor = colors.cardBackground),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
@@ -1042,7 +1043,7 @@ private fun AuditMessageRow(
     val colors = LocalKiyoriSettingsColors.current
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
+        shape = KiyoriUiShapes.card,
         colors = CardDefaults.cardColors(containerColor = colors.cardBackground),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
@@ -1334,7 +1335,7 @@ private fun ExportOption(
     val colors = LocalKiyoriSettingsColors.current
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
+        shape = KiyoriUiShapes.field,
         color = colors.pageBackground,
     ) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -1354,7 +1355,7 @@ private fun AuditInputField(
     val colors = LocalKiyoriSettingsColors.current
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(14.dp),
+        shape = KiyoriUiShapes.field,
         color = colors.pageBackground,
     ) {
         BasicTextField(

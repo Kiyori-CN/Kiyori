@@ -843,6 +843,7 @@ internal fun renderMaterialThemeNode(
 ) {
     val props = node.props
     androidx.compose.material3.MaterialTheme(
+        shapes = com.kiyori.design.theme.KiyoriMaterialShapes,
         content = {
             renderSlotChildren(
                 node = node,

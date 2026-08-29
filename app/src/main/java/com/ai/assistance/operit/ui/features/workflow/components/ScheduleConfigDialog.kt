@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import java.text.SimpleDateFormat
 import java.util.*
+import com.kiyori.design.theme.KiyoriUiShapes
 
 /**
  * Schedule Configuration Dialog
@@ -105,6 +106,7 @@ fun ScheduleConfigDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KiyoriUiShapes.dialog,
         title = { Text(stringResource(R.string.workflow_schedule_dialog_title)) },
         text = {
             Column(

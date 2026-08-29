@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -476,7 +477,7 @@ private fun PackageEnvironmentSearchField(
                 },
             )
             if (value.isNotBlank()) {
-                IconButton(onClick = onClear, modifier = Modifier.size(32.dp)) {
+                IconButton(onClick = onClear, modifier = Modifier.size(40.dp)) {
                     Icon(
                         imageVector = Icons.Outlined.Close,
                         contentDescription = stringResource(R.string.clear),
@@ -535,7 +536,7 @@ private fun PackageEnvironmentCategoryChip(
     val accentColor = categoryColors?.icon ?: allColors.icon
     val selectedContainer = categoryColors?.container ?: allColors.container
     Surface(
-        modifier = Modifier.height(34.dp).clickable(role = Role.Button, onClick = onClick),
+        modifier = Modifier.heightIn(min = 40.dp).clickable(role = Role.Button, onClick = onClick),
         shape = RoundedCornerShape(8.dp),
         color = if (selected) selectedContainer else MaterialTheme.colorScheme.surface,
         border =
@@ -919,7 +920,7 @@ private fun PackageEnvironmentValueField(
             if (isPassword) {
                 IconButton(
                     onClick = { passwordVisible = !passwordVisible },
-                    modifier = Modifier.size(36.dp),
+                    modifier = Modifier.size(40.dp),
                 ) {
                     Icon(
                         imageVector =

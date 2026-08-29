@@ -9,7 +9,6 @@ import androidx.compose.ui.graphics.luminance
 fun KiyoriBrowserTheme(content: @Composable () -> Unit) {
     val parentColorScheme = MaterialTheme.colorScheme
     val parentTypography = MaterialTheme.typography
-    val parentShapes = MaterialTheme.shapes
     val browserColorScheme =
         if (parentColorScheme.background.luminance() < 0.5f) {
             KiyoriBrowserDarkColorScheme
@@ -20,7 +19,7 @@ fun KiyoriBrowserTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = browserColorScheme,
         typography = parentTypography,
-        shapes = parentShapes,
+        shapes = KiyoriMaterialShapes,
         content = content,
     )
 }

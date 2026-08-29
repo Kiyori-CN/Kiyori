@@ -89,6 +89,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.ai.assistance.operit.R
 import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.KiyoriUiShapes
 import com.kiyori.design.theme.resolveColors
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionIncognitoAvailability
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
@@ -120,9 +121,9 @@ internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_ACTION_SIZE_SP = 14
 internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_HEADER_HEIGHT_DP = 34
 internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_DELETE_ICON_SIZE_DP = 24
 internal const val WEB_SESSION_SEARCH_SCREEN_TAG_MAX_WIDTH_DP = 250
-internal const val WEB_SESSION_SEARCH_ENGINE_SWITCH_BAR_CHIP_HEIGHT_DP = 28
+internal const val WEB_SESSION_SEARCH_ENGINE_SWITCH_BAR_CHIP_HEIGHT_DP = 40
 internal const val WEB_SESSION_SEARCH_ENGINE_SWITCH_BAR_ICON_SIZE_DP = 12
-internal const val WEB_SESSION_SEARCH_ENGINE_SWITCH_BAR_CLOSE_SIZE_DP = 22
+internal const val WEB_SESSION_SEARCH_ENGINE_SWITCH_BAR_CLOSE_SIZE_DP = 40
 
 @Composable
 internal fun WebSessionBrowserTopBar(
@@ -171,7 +172,7 @@ internal fun WebSessionBrowserTopBar(
                             .weight(1f)
                             .height(WEB_SESSION_BROWSER_TOP_SEARCH_HEIGHT_DP.dp)
                             .clickable(role = Role.Button, onClick = onOpenSearch),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = KiyoriUiShapes.field,
                     color = MaterialTheme.colorScheme.background,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                 ) {
@@ -200,7 +201,7 @@ internal fun WebSessionBrowserTopBar(
                             Box(
                                 modifier =
                                     Modifier
-                                        .size(28.dp)
+                                        .size(40.dp)
                                         .background(detectedVideoColors.container, CircleShape)
                                         .clickable(role = Role.Button, onClick = onShowDetectedVideos),
                                 contentAlignment = Alignment.Center,
@@ -356,7 +357,7 @@ private fun BrowserChromeIconButton(
     Box(
         modifier = Modifier
             .size(actionSizeDp.dp)
-            .clip(CircleShape)
+            .clip(KiyoriUiShapes.control)
             .alpha(if (enabled) 1f else 0.38f)
             .clickable(
                 enabled = enabled,
@@ -524,7 +525,7 @@ internal fun WebSessionBrowserSearchScreen(
                                 .heightIn(
                                     min = WEB_SESSION_BROWSER_TOP_SEARCH_HEIGHT_DP.dp,
                                 ),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = KiyoriUiShapes.field,
                         color = MaterialTheme.colorScheme.background,
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                     ) {
@@ -609,7 +610,7 @@ internal fun WebSessionBrowserSearchScreen(
                             if (draft.isNotBlank()) {
                                 IconButton(
                                     onClick = { onDraftChange("") },
-                                    modifier = Modifier.size(26.dp),
+                                    modifier = Modifier.size(40.dp),
                                 ) {
                                     Icon(
                                         imageVector = Icons.Filled.Close,
@@ -619,7 +620,7 @@ internal fun WebSessionBrowserSearchScreen(
                                     )
                                 }
                             }
-                            IconButton(onClick = ::submitSearch, modifier = Modifier.size(28.dp)) {
+                            IconButton(onClick = ::submitSearch, modifier = Modifier.size(40.dp)) {
                                 Icon(
                                     imageVector = Icons.Filled.Search,
                                     contentDescription =
@@ -700,7 +701,7 @@ internal fun WebSessionBrowserSearchScreen(
                                             pendingDeletionIds = emptySet()
                                             isHistoryEditing = true
                                         },
-                                        modifier = Modifier.size(34.dp),
+                                        modifier = Modifier.size(40.dp),
                                     ) {
                                         Icon(
                                             imageVector = Icons.Filled.DeleteOutline,
@@ -824,7 +825,7 @@ internal fun BoxScope.WebSessionBrowserProfileFeedback(message: String) {
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
                 .padding(bottom = 32.dp),
-        shape = RoundedCornerShape(8.dp),
+        shape = KiyoriUiShapes.control,
         color = MaterialTheme.colorScheme.inverseSurface,
         contentColor = MaterialTheme.colorScheme.inverseOnSurface,
         shadowElevation = 4.dp,
@@ -889,7 +890,7 @@ private fun SearchEnginePanel(
     val blueColors = KiyoriSemanticTone.BLUE.resolveColors()
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = KiyoriUiShapes.card,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         shadowElevation = 4.dp,
     ) {
@@ -920,7 +921,7 @@ private fun SearchEnginePanel(
                                         role = Role.Button,
                                         onClick = { onSelect(engine) },
                                     ),
-                            shape = RoundedCornerShape(14.dp),
+                            shape = KiyoriUiShapes.field,
                             color =
                                 if (selected) {
                                     blueColors.container
@@ -1004,7 +1005,7 @@ private fun CurrentUrlActions(
             modifier =
                 Modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(KiyoriUiShapes.control)
                     .clickable(role = Role.Button, onClick = onOpen)
                     .padding(
                         horizontal = 10.dp,
@@ -1057,7 +1058,7 @@ private fun UrlActionButton(
         modifier =
             Modifier
                 .width(WEB_SESSION_SEARCH_SCREEN_CURRENT_ACTION_WIDTH_DP.dp)
-                .clip(RoundedCornerShape(10.dp))
+                .clip(KiyoriUiShapes.control)
                 .clickable(role = Role.Button, onClick = onClick)
                 .padding(horizontal = 1.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1099,7 +1100,7 @@ private fun CompactHistoryAction(
         fontWeight = FontWeight.Medium,
         modifier =
             Modifier
-                .clip(RoundedCornerShape(8.dp))
+                .clip(KiyoriUiShapes.control)
                 .clickable(role = Role.Button, onClick = onClick)
                 .padding(horizontal = 6.dp, vertical = 3.dp),
     )
@@ -1118,7 +1119,7 @@ private fun SearchHistoryClearConfirmationDialog(
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth().widthIn(max = 420.dp),
-            shape = RoundedCornerShape(28.dp),
+            shape = KiyoriUiShapes.card,
             color = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface,
             shadowElevation = 8.dp,
@@ -1147,7 +1148,7 @@ private fun SearchHistoryClearConfirmationDialog(
                             .fillMaxWidth()
                             .height(46.dp)
                             .clickable(role = Role.Button, onClick = onConfirm),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = KiyoriUiShapes.control,
                     color = destructiveColors.container,
                     border = BorderStroke(1.5.dp, destructiveColors.icon),
                 ) {
@@ -1173,7 +1174,7 @@ private fun SearchHistoryClearConfirmationDialog(
                         Modifier
                             .fillMaxWidth()
                             .height(42.dp)
-                            .clip(RoundedCornerShape(21.dp))
+                            .clip(KiyoriUiShapes.control)
                             .clickable(role = Role.Button, onClick = onDismiss),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -1208,13 +1209,13 @@ private fun SearchHistoryTag(
         Surface(
             modifier =
                 Modifier
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(KiyoriUiShapes.field)
                     .clickable(
                         enabled = !isEditing,
                         role = Role.Button,
                         onClick = onOpen,
                     ),
-            shape = RoundedCornerShape(14.dp),
+            shape = KiyoriUiShapes.field,
             color = MaterialTheme.colorScheme.surfaceContainerLow,
         ) {
             Text(

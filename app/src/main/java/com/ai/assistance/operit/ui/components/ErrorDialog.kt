@@ -24,6 +24,7 @@ import com.ai.assistance.operit.ui.common.copyPlainTextToClipboard
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.ai.assistance.operit.R
+import com.kiyori.design.theme.KiyoriUiShapes
 
 /** 
  * 错误弹窗组件，完整显示错误消息内容，包括堆栈跟踪
@@ -78,7 +79,7 @@ fun ErrorDialog(
             },
             containerColor = MaterialTheme.colorScheme.surface,
             titleContentColor = MaterialTheme.colorScheme.onSurface,
-            shape = RoundedCornerShape(16.dp),
+            shape = KiyoriUiShapes.dialog,
             properties = properties
     )
 }

@@ -21,6 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import com.ai.assistance.operit.R
+import com.kiyori.design.theme.KiyoriUiShapes
 
 @Composable
 fun AvatarPicker(
@@ -69,8 +70,9 @@ fun AvatarPicker(
             onClick = onAvatarReset,
             enabled = avatarUri != null,
             modifier = Modifier
-                .height(32.dp)
-                .padding(horizontal = 4.dp)
+                .heightIn(min = 40.dp)
+                .padding(horizontal = 4.dp),
+            shape = KiyoriUiShapes.control,
         ) {
             Icon(
                 imageVector = Icons.Default.Refresh, 
@@ -84,4 +86,4 @@ fun AvatarPicker(
             )
         }
     }
-} 
+}

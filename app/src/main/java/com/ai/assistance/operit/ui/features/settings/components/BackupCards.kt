@@ -39,6 +39,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
+import com.kiyori.design.theme.KiyoriUiShapes
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -252,7 +253,7 @@ fun StatChip(
     subtitle: String
 ) {
     Surface(
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+        shape = KiyoriUiShapes.control,
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
     ) {
         Row(
@@ -293,7 +294,7 @@ fun SectionHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Surface(
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+            shape = KiyoriUiShapes.field,
             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
         ) {
             Icon(

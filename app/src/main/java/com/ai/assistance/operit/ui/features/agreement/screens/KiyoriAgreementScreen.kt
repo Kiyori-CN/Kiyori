@@ -61,6 +61,7 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.preferences.AgreementPreferences
 import com.ai.assistance.operit.ui.main.shell.KiyoriCollapsingSettingsPage
 import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsGroupSection
+import com.kiyori.design.theme.KiyoriUiShapes
 
 internal enum class KiyoriLegalDocument(
     @StringRes val titleResId: Int,
@@ -189,7 +190,7 @@ internal fun KiyoriAgreementSummary(
                         .clickable(enabled = !agreementAlreadyAccepted) {
                             onCheckedChange(!checked)
                         },
-                shape = RoundedCornerShape(16.dp),
+                shape = KiyoriUiShapes.card,
                 color = MaterialTheme.colorScheme.surfaceContainer,
             ) {
                 Row(
@@ -217,7 +218,7 @@ internal fun KiyoriAgreementSummary(
         Button(
             onClick = onAccept,
             enabled = canAcceptKiyoriAgreement(checked),
-            shape = RoundedCornerShape(18.dp),
+            shape = KiyoriUiShapes.control,
             colors =
                 ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -251,7 +252,7 @@ internal fun KiyoriAgreementSummary(
 @Composable
 private fun AgreementVersionChip() {
     Surface(
-        shape = RoundedCornerShape(10.dp),
+        shape = KiyoriUiShapes.control,
         color = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
     ) {
@@ -564,7 +565,7 @@ private fun LegalDocumentEntry(
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = KiyoriUiShapes.card,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Row(
@@ -574,7 +575,7 @@ private fun LegalDocumentEntry(
         ) {
             Surface(
                 modifier = Modifier.size(42.dp),
-                shape = RoundedCornerShape(14.dp),
+                shape = KiyoriUiShapes.field,
                 color = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             ) {

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
@@ -40,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.KiyoriUiShapes
 import com.kiyori.design.theme.resolveColors
 
 internal const val WEB_SESSION_DRAWER_HEADER_HEIGHT_DP = 52
@@ -47,8 +49,8 @@ internal const val WEB_SESSION_DRAWER_HEADER_START_PADDING_DP = 18
 internal const val WEB_SESSION_DRAWER_HEADER_END_PADDING_DP = 8
 internal const val WEB_SESSION_DRAWER_HEADER_ICON_SIZE_DP = 34
 internal const val WEB_SESSION_DRAWER_HEADER_TITLE_GAP_DP = 8
-internal const val WEB_SESSION_DRAWER_TITLE_ACTION_SIZE_DP = 36
-internal val WebSessionDrawerTitleActionShape = CircleShape
+internal const val WEB_SESSION_DRAWER_TITLE_ACTION_SIZE_DP = 40
+internal val WebSessionDrawerTitleActionShape = KiyoriUiShapes.control
 internal val WebSessionDrawerTitleActionContentAlignment = Alignment.Center
 
 @Composable
@@ -86,7 +88,7 @@ internal fun WebSessionDrawerHeader(
             contentDescription = null,
             containerSize = WEB_SESSION_DRAWER_HEADER_ICON_SIZE_DP.dp,
             iconSize = 18.dp,
-            shape = RoundedCornerShape(10.dp),
+            shape = KiyoriUiShapes.control,
         )
         Text(
             text = title,
@@ -173,7 +175,7 @@ private fun WebSessionSearchFieldContent(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth().height(40.dp),
-        shape = RoundedCornerShape(8.dp),
+        shape = KiyoriUiShapes.control,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Row(
@@ -211,7 +213,7 @@ private fun WebSessionSearchFieldContent(
                 },
             )
             if (value.isNotBlank()) {
-                IconButton(onClick = onClear, modifier = Modifier.size(32.dp)) {
+                IconButton(onClick = onClear, modifier = Modifier.size(40.dp)) {
                     Icon(
                         imageVector = Icons.Filled.Close,
                         contentDescription = null,
@@ -273,9 +275,9 @@ private fun WebSessionFilterChipContent(
     Surface(
         modifier =
             modifier
-                .height(36.dp)
+                .heightIn(min = 40.dp)
                 .clickable(onClick = onClick),
-        shape = RoundedCornerShape(8.dp),
+        shape = KiyoriUiShapes.control,
         color = if (selected) containerColor else MaterialTheme.colorScheme.surface,
         border =
             BorderStroke(
@@ -431,7 +433,7 @@ private fun WebSessionItemCardContent(
     modifier: Modifier,
     content: @Composable () -> Unit,
 ) {
-    val shape = RoundedCornerShape(14.dp)
+    val shape = KiyoriUiShapes.field
     Surface(
         modifier =
             modifier
@@ -532,7 +534,7 @@ private fun WebSessionEmptyStateContent(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = KiyoriUiShapes.card,
         color = MaterialTheme.colorScheme.surface,
         border =
             BorderStroke(

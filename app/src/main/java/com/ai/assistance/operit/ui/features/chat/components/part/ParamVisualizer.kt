@@ -81,7 +81,7 @@ fun ParamVisualizer(xmlContent: String) {
                             modifier = Modifier.weight(1f)
                         )
                         IconButton(
-                            modifier = Modifier.size(24.dp), // 限制IconButton的大小
+                            modifier = Modifier.size(40.dp),
                             onClick = {
                                 context.copyPlainTextToClipboard("Kiyori parameter", param.value)
                             }

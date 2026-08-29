@@ -66,6 +66,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browse
 import com.ai.assistance.operit.util.AppLogger
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.LocalKiyoriSettingsColors
+import com.kiyori.design.theme.KiyoriUiShapes
 import com.kiyori.capability.settings.navigation.KiyoriSettingsRoute
 import java.text.DateFormat
 import java.text.NumberFormat
@@ -820,6 +821,7 @@ internal fun KiyoriAdBlockSettingsPage(
     deleteRequest?.let { request ->
         AlertDialog(
             onDismissRequest = { deleteRequest = null },
+            shape = KiyoriUiShapes.dialog,
             title = { Text(request.title) },
             text = {
                 Text(
@@ -1596,7 +1598,7 @@ private fun AdBlockManagedActionButtons(
 ) {
     val colors = LocalKiyoriSettingsColors.current
     onRefresh?.let { refresh ->
-        IconButton(onClick = refresh, enabled = enabled) {
+        IconButton(onClick = refresh, enabled = enabled, modifier = Modifier.size(40.dp)) {
             if (refreshing) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(18.dp),
@@ -1612,7 +1614,7 @@ private fun AdBlockManagedActionButtons(
         }
     }
     onEdit?.let { edit ->
-        IconButton(onClick = edit, enabled = enabled) {
+        IconButton(onClick = edit, enabled = enabled, modifier = Modifier.size(40.dp)) {
             Icon(
                 imageVector = Icons.Filled.Edit,
                 contentDescription = "编辑",
@@ -1621,7 +1623,7 @@ private fun AdBlockManagedActionButtons(
         }
     }
     onDelete?.let { delete ->
-        IconButton(onClick = delete, enabled = enabled) {
+        IconButton(onClick = delete, enabled = enabled, modifier = Modifier.size(40.dp)) {
             Icon(
                 imageVector = Icons.Filled.Delete,
                 contentDescription = "删除",
@@ -1789,6 +1791,7 @@ private fun AdBlockEditorDialogFrame(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KiyoriUiShapes.dialog,
         title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

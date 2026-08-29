@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Search
@@ -49,6 +48,7 @@ import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.KiyoriSettingsTheme
 import com.kiyori.design.theme.LocalKiyoriSettingsColors
 import com.kiyori.design.theme.resolveSettingsIconColors
+import com.kiyori.design.theme.KiyoriUiShapes
 
 internal const val KIYORI_SETTINGS_ROW_VERTICAL_PADDING_DP = 16
 internal const val KIYORI_SETTINGS_SELECTION_CORNER_RADIUS_DP = 26
@@ -151,8 +151,8 @@ internal fun KiyoriSettingsRow(
             Box(
                 modifier =
                     Modifier
-                        .size(34.dp)
-                        .background(iconColors.container, RoundedCornerShape(10.dp)),
+                        .size(40.dp)
+                        .background(iconColors.container, KiyoriUiShapes.control),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -296,6 +296,7 @@ private fun KiyoriSettingsSelectionSheetContent(
                     placeholder = { Text("搜索名称") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     colors = kiyoriSettingsOutlinedTextFieldColors(),
+                    shape = KiyoriUiShapes.field,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
                 )
             }
@@ -374,6 +375,7 @@ private fun KiyoriSettingsSelectionSheetContent(
                 modifier =
                     Modifier
                         .fillMaxWidth()
+                        .heightIn(min = 40.dp)
                         .clickable(onClick = dismissDrawer)
                         .padding(
                             vertical =

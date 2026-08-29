@@ -787,7 +787,7 @@ class VirtualDisplayOverlay private constructor(private val context: Context, pr
                                                 toggleFullScreen()
                                                 snapToEdge()
                                             },
-                                            modifier = Modifier.size(32.dp),
+                                            modifier = Modifier.size(40.dp),
                                             colors = IconButtonDefaults.iconButtonColors(
                                                 contentColor = Color.White,
                                                 containerColor = Color.Transparent
@@ -803,7 +803,7 @@ class VirtualDisplayOverlay private constructor(private val context: Context, pr
                                         // Restore (退出全屏)
                                         IconButton(
                                             onClick = { toggleFullScreen() },
-                                            modifier = Modifier.size(32.dp),
+                                            modifier = Modifier.size(40.dp),
                                             colors = IconButtonDefaults.iconButtonColors(
                                                 contentColor = Color.White,
                                                 containerColor = Color.Transparent
@@ -819,7 +819,7 @@ class VirtualDisplayOverlay private constructor(private val context: Context, pr
                                         // Close
                                         IconButton(
                                             onClick = { hide(cancelAutomation = true) },
-                                            modifier = Modifier.size(32.dp),
+                                            modifier = Modifier.size(40.dp),
                                             colors = IconButtonDefaults.iconButtonColors(
                                                 contentColor = Color.White,
                                                 containerColor = Color.Transparent
@@ -851,21 +851,21 @@ class VirtualDisplayOverlay private constructor(private val context: Context, pr
                                             Icon(
                                                 imageVector = Icons.Outlined.Minimize,
                                                 contentDescription = stringResource(R.string.vd_overlay_a11y_minimize_to_ball),
-                                                modifier = Modifier.size(32.dp)
+                                                modifier = Modifier.size(40.dp)
                                             )
                                         }
                                         IconButton(onClick = { toggleFullScreen() }) {
                                             Icon(
                                                 imageVector = Icons.Filled.Fullscreen,
                                                 contentDescription = stringResource(R.string.vd_overlay_a11y_toggle_fullscreen),
-                                                modifier = Modifier.size(32.dp)
+                                                modifier = Modifier.size(40.dp)
                                             )
                                         }
                                         IconButton(onClick = { hide(cancelAutomation = true) }) {
                                             Icon(
                                                 imageVector = Icons.Filled.Close,
                                                 contentDescription = stringResource(R.string.vd_overlay_a11y_close),
-                                                modifier = Modifier.size(32.dp)
+                                                modifier = Modifier.size(40.dp)
                                             )
                                         }
                                     }
@@ -1073,7 +1073,7 @@ class VirtualDisplayOverlay private constructor(private val context: Context, pr
                                                 toggleFullScreen()
                                                 snapToEdge()
                                             },
-                                            modifier = Modifier.size(32.dp),
+                                            modifier = Modifier.size(40.dp),
                                             colors = IconButtonDefaults.iconButtonColors(
                                                 contentColor = Color.White,
                                                 containerColor = Color.Transparent
@@ -1088,7 +1088,7 @@ class VirtualDisplayOverlay private constructor(private val context: Context, pr
                                         }
                                         IconButton(
                                             onClick = { toggleFullScreen() },
-                                            modifier = Modifier.size(32.dp),
+                                            modifier = Modifier.size(40.dp),
                                             colors = IconButtonDefaults.iconButtonColors(
                                                 contentColor = Color.White,
                                                 containerColor = Color.Transparent
@@ -1103,7 +1103,7 @@ class VirtualDisplayOverlay private constructor(private val context: Context, pr
                                         }
                                         IconButton(
                                             onClick = { hide(cancelAutomation = true) },
-                                            modifier = Modifier.size(32.dp),
+                                            modifier = Modifier.size(40.dp),
                                             colors = IconButtonDefaults.iconButtonColors(
                                                 contentColor = Color.White,
                                                 containerColor = Color.Transparent
@@ -1134,7 +1134,7 @@ class VirtualDisplayOverlay private constructor(private val context: Context, pr
                                     ) {
                                         IconButton(
                                             onClick = { snapToEdge() },
-                                            modifier = Modifier.size(32.dp),
+                                            modifier = Modifier.size(40.dp),
                                             colors = IconButtonDefaults.iconButtonColors(
                                                 contentColor = Color.White,
                                                 containerColor = Color.Transparent
@@ -1149,7 +1149,7 @@ class VirtualDisplayOverlay private constructor(private val context: Context, pr
                                         }
                                         IconButton(
                                             onClick = { toggleFullScreen() },
-                                            modifier = Modifier.size(32.dp),
+                                            modifier = Modifier.size(40.dp),
                                             colors = IconButtonDefaults.iconButtonColors(
                                                 contentColor = Color.White,
                                                 containerColor = Color.Transparent
@@ -1164,7 +1164,7 @@ class VirtualDisplayOverlay private constructor(private val context: Context, pr
                                         }
                                         IconButton(
                                             onClick = { hide(cancelAutomation = true) },
-                                            modifier = Modifier.size(32.dp),
+                                            modifier = Modifier.size(40.dp),
                                             colors = IconButtonDefaults.iconButtonColors(
                                                 contentColor = Color.White,
                                                 containerColor = Color.Transparent
@@ -1195,21 +1195,21 @@ class VirtualDisplayOverlay private constructor(private val context: Context, pr
                                             Icon(
                                                 imageVector = Icons.Outlined.Minimize,
                                                 contentDescription = stringResource(R.string.vd_overlay_a11y_minimize_to_ball),
-                                                modifier = Modifier.size(32.dp)
+                                                modifier = Modifier.size(40.dp)
                                             )
                                         }
                                         IconButton(onClick = { toggleFullScreen() }) {
                                             Icon(
                                                 imageVector = Icons.Filled.Fullscreen,
                                                 contentDescription = stringResource(R.string.vd_overlay_a11y_toggle_fullscreen),
-                                                modifier = Modifier.size(32.dp)
+                                                modifier = Modifier.size(40.dp)
                                             )
                                         }
                                         IconButton(onClick = { hide(cancelAutomation = true) }) {
                                             Icon(
                                                 imageVector = Icons.Filled.Close,
                                                 contentDescription = stringResource(R.string.vd_overlay_a11y_close),
-                                                modifier = Modifier.size(32.dp)
+                                                modifier = Modifier.size(40.dp)
                                             )
                                         }
                                     }
@@ -1248,7 +1248,7 @@ class VirtualDisplayOverlay private constructor(private val context: Context, pr
             ) {
                 // 只保留简单的步骤进度文案，例如 "3/20"
                 Box(
-                    modifier = Modifier.size(32.dp),
+                                            modifier = Modifier.size(40.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(

@@ -48,6 +48,7 @@ import com.ai.assistance.operit.ui.features.packages.market.BindMarketSearchToTo
 import com.ai.assistance.operit.ui.features.packages.market.MarketStatsType
 import com.ai.assistance.operit.ui.features.packages.market.UnifiedMarketBrowseConfig
 import com.ai.assistance.operit.ui.features.packages.screens.market.viewmodel.UnifiedMarketAuthorViewModel
+import com.kiyori.design.theme.KiyoriUiShapes
 
 @Composable
 fun UnifiedMarketAuthorScreen(
@@ -150,7 +151,7 @@ private fun MarketAuthorHeaderCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
         ),
-        shape = RoundedCornerShape(22.dp)
+        shape = KiyoriUiShapes.card
     ) {
         Row(
             modifier = Modifier
@@ -219,7 +220,7 @@ private fun MarketAuthorEntryCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
+        shape = KiyoriUiShapes.card,
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp,
         shadowElevation = 1.dp
@@ -300,7 +301,7 @@ private fun MarketAuthorLoadingCard() {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)),
-        shape = RoundedCornerShape(20.dp)
+        shape = KiyoriUiShapes.card
     ) {
         Row(
             modifier = Modifier
@@ -324,7 +325,7 @@ private fun MarketAuthorEmptyCard() {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)),
-        shape = RoundedCornerShape(20.dp)
+        shape = KiyoriUiShapes.card
     ) {
         Box(
             modifier = Modifier

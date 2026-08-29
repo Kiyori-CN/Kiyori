@@ -31,6 +31,7 @@ import com.ai.assistance.operit.data.model.Memory
 import com.ai.assistance.operit.ui.features.memory.screens.graph.model.Edge
 import java.text.SimpleDateFormat
 import java.util.Locale
+import com.kiyori.design.theme.KiyoriUiShapes
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -46,6 +47,7 @@ fun MemoryInfoDialog(
 
     AlertDialog(
             onDismissRequest = onDismiss,
+            shape = KiyoriUiShapes.dialog,
             title = { Text(text = stringResource(R.string.memory_details_title)) },
             text = {
                 Column(
@@ -84,15 +86,16 @@ fun MemoryInfoDialog(
                         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                         verticalArrangement = Arrangement.Center
                 ) {
-                    Button(onClick = onEdit) { Text(stringResource(R.string.memory_edit)) }
+                    Button(onClick = onEdit, shape = KiyoriUiShapes.control) { Text(stringResource(R.string.memory_edit)) }
                     Button(
                             onClick = onDelete,
                             colors =
                                     ButtonDefaults.buttonColors(
                                             containerColor = MaterialTheme.colorScheme.error
-                                    )
+                                    ),
+                            shape = KiyoriUiShapes.control,
                     ) { Text(stringResource(R.string.memory_delete)) }
-                    OutlinedButton(onClick = onDismiss) { Text(stringResource(R.string.memory_close)) }
+                    OutlinedButton(onClick = onDismiss, shape = KiyoriUiShapes.control) { Text(stringResource(R.string.memory_close)) }
                 }
             }
     )
@@ -112,6 +115,7 @@ fun EdgeInfoDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KiyoriUiShapes.dialog,
         title = { Text(stringResource(R.string.memory_link_details)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -128,12 +132,13 @@ fun EdgeInfoDialog(
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                 verticalArrangement = Arrangement.Center
             ) {
-                Button(onClick = onEdit) { Text(stringResource(R.string.memory_edit)) }
+                Button(onClick = onEdit, shape = KiyoriUiShapes.control) { Text(stringResource(R.string.memory_edit)) }
                 Button(
                     onClick = onDelete,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    shape = KiyoriUiShapes.control,
                 ) { Text(stringResource(R.string.memory_delete)) }
-                OutlinedButton(onClick = onDismiss) { Text(stringResource(R.string.memory_close)) }
+                OutlinedButton(onClick = onDismiss, shape = KiyoriUiShapes.control) { Text(stringResource(R.string.memory_close)) }
             }
         }
     )
@@ -151,20 +156,21 @@ fun EditEdgeDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KiyoriUiShapes.dialog,
         title = { Text(stringResource(R.string.memory_edit_link)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = type, onValueChange = { type = it }, label = { Text(stringResource(R.string.memory_type)) })
-                OutlinedTextField(value = weight, onValueChange = { weight = it }, label = { Text(stringResource(R.string.memory_weight)) })
-                OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text(stringResource(R.string.memory_description)) })
+                OutlinedTextField(value = type, onValueChange = { type = it }, label = { Text(stringResource(R.string.memory_type)) }, shape = KiyoriUiShapes.field)
+                OutlinedTextField(value = weight, onValueChange = { weight = it }, label = { Text(stringResource(R.string.memory_weight)) }, shape = KiyoriUiShapes.field)
+                OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text(stringResource(R.string.memory_description)) }, shape = KiyoriUiShapes.field)
             }
         },
         confirmButton = {
             Button(onClick = {
                 onSave(type, weight.toFloatOrNull() ?: 1.0f, description)
-            }) { Text(stringResource(R.string.memory_save)) }
+            }, shape = KiyoriUiShapes.control) { Text(stringResource(R.string.memory_save)) }
         },
-        dismissButton = { OutlinedButton(onClick = onDismiss) { Text(stringResource(R.string.memory_cancel)) } }
+        dismissButton = { OutlinedButton(onClick = onDismiss, shape = KiyoriUiShapes.control) { Text(stringResource(R.string.memory_cancel)) } }
     )
 }
 
@@ -180,6 +186,7 @@ fun LinkMemoryDialog(
     var description by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KiyoriUiShapes.dialog,
         title = { Text(stringResource(R.string.memory_link_nodes, sourceNodeLabel, targetNodeLabel)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -187,16 +194,19 @@ fun LinkMemoryDialog(
                     value = type,
                     onValueChange = { type = it },
                     label = { Text(stringResource(R.string.memory_type)) }
+                    , shape = KiyoriUiShapes.field
                 )
                 OutlinedTextField(
                     value = weight,
                     onValueChange = { weight = it },
                     label = { Text(stringResource(R.string.memory_weight)) }
+                    , shape = KiyoriUiShapes.field
                 )
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
                     label = { Text(stringResource(R.string.memory_description)) }
+                    , shape = KiyoriUiShapes.field
                 )
             }
         },
@@ -206,9 +216,9 @@ fun LinkMemoryDialog(
                     val w = weight.toFloatOrNull() ?: 1.0f
                     onLink(type, w, description)
                 }
-            ) { Text(stringResource(R.string.memory_create_link)) }
+            , shape = KiyoriUiShapes.control) { Text(stringResource(R.string.memory_create_link)) }
         },
-        dismissButton = { OutlinedButton(onClick = onDismiss) { Text(stringResource(R.string.memory_cancel)) } }
+        dismissButton = { OutlinedButton(onClick = onDismiss, shape = KiyoriUiShapes.control) { Text(stringResource(R.string.memory_cancel)) } }
     )
 }
 
@@ -220,6 +230,7 @@ fun BatchDeleteConfirmDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KiyoriUiShapes.dialog,
         title = { Text(stringResource(R.string.confirm_delete)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -239,13 +250,14 @@ fun BatchDeleteConfirmDialog(
                 onClick = onConfirm,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error
-                )
+                ),
+                shape = KiyoriUiShapes.control,
             ) {
                 Text(stringResource(R.string.confirm_delete))
             }
         },
         dismissButton = {
-            OutlinedButton(onClick = onDismiss) {
+            OutlinedButton(onClick = onDismiss, shape = KiyoriUiShapes.control) {
                 Text(stringResource(R.string.cancel))
             }
         }

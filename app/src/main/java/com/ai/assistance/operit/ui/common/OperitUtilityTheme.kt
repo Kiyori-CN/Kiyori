@@ -10,6 +10,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import com.ai.assistance.operit.ui.theme.resolveThemeColorScheme
 import com.kiyori.design.theme.KiyoriTypography
+import com.kiyori.design.theme.KiyoriMaterialShapes
 
 @Composable
 fun OperitUtilityTheme(content: @Composable () -> Unit) {
@@ -29,6 +30,7 @@ fun OperitUtilityTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = resolveThemeColorScheme(darkTheme),
         typography = KiyoriTypography,
+        shapes = KiyoriMaterialShapes,
         content = content,
     )
 }

@@ -346,7 +346,10 @@ private fun FullScreenImageDialog(imageUrl: String, imageAlt: String, onDismiss:
                                         .padding(8.dp)
                                         .align(Alignment.TopCenter)
                 ) {
-                    IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.TopStart)) {
+                    IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.align(Alignment.TopStart).size(40.dp),
+                    ) {
                         Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = stringResource(R.string.common_close),
@@ -376,7 +379,7 @@ private fun FullScreenImageDialog(imageUrl: String, imageAlt: String, onDismiss:
                                     }
                                 }
                             },
-                            modifier = Modifier.align(Alignment.TopEnd)
+                            modifier = Modifier.align(Alignment.TopEnd).size(40.dp)
                     ) {
                         if (isSaving) {
                             CircularProgressIndicator(
@@ -418,7 +421,7 @@ private fun FullScreenImageDialog(imageUrl: String, imageAlt: String, onDismiss:
                                 scale = 1f
                                 offset = Offset.Zero
                             },
-                            modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp)
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp).size(40.dp)
                     ) {
                         Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,

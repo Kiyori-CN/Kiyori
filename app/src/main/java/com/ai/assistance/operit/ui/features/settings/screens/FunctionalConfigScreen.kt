@@ -768,7 +768,7 @@ fun FunctionConfigCard(
                                         isTestingConnection = false
                                     }
                                 },
-                                modifier = Modifier.height(32.dp),
+                                modifier = Modifier.heightIn(min = 40.dp),
                                 contentPadding = PaddingValues(horizontal = 8.dp),
                                 shape = RoundedCornerShape(4.dp)
                             ) {

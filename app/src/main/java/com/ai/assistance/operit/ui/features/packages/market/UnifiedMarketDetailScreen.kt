@@ -83,6 +83,7 @@ import com.ai.assistance.operit.ui.main.components.LocalAppBarContentColor
 import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
 import com.ai.assistance.operit.ui.main.navigation.LocalTopBarTitleContent
 import com.ai.assistance.operit.ui.main.navigation.TopBarTitleContent
+import com.kiyori.design.theme.KiyoriUiShapes
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -486,7 +487,7 @@ private fun UnifiedMarketDetailLeadingIcon(
     logoUrl: String?
 ) {
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = KiyoriUiShapes.control,
         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f)
     ) {
         Box(
@@ -702,8 +703,8 @@ private fun UnifiedMarketDetailPrimaryButton(
             } else {
                 ButtonDefaults.buttonColors()
             },
-        modifier = modifier.heightIn(min = if (compact) 36.dp else 42.dp),
-        shape = RoundedCornerShape(999.dp),
+        modifier = modifier.heightIn(min = 40.dp),
+        shape = KiyoriUiShapes.control,
         contentPadding =
             PaddingValues(
                 horizontal = if (compact) 12.dp else 16.dp,
@@ -745,8 +746,8 @@ private fun UnifiedMarketDetailSecondaryButton(
     OutlinedButton(
         onClick = action.onClick,
         enabled = action.enabled,
-        modifier = modifier.heightIn(min = if (compact) 36.dp else 42.dp),
-        shape = RoundedCornerShape(999.dp),
+        modifier = modifier.heightIn(min = 40.dp),
+        shape = KiyoriUiShapes.control,
         contentPadding =
             PaddingValues(
                 horizontal = if (compact) 12.dp else 16.dp,
@@ -965,9 +966,9 @@ private fun UnifiedMarketDetailCommentsSectionHeader(
                         Surface(
                             onClick = option.onClick,
                             enabled = option.enabled && !option.isSelected && !reactions.isMutating,
-                            shape = RoundedCornerShape(8.dp),
+                            shape = KiyoriUiShapes.control,
                             color = if (option.isSelected) option.tint.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                            modifier = Modifier.height(28.dp)
+                            modifier = Modifier.heightIn(min = 40.dp)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -1145,7 +1146,7 @@ private fun UnifiedMarketDetailCommentCard(
                     contentDescription = null,
                     modifier =
                         Modifier
-                            .size(32.dp)
+                            .size(40.dp)
                             .clip(CircleShape),
                     contentScale = ContentScale.Crop
                 )

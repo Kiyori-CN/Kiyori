@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.kiyori.design.theme.KiyoriUiShapes
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.ai.assistance.operit.R
@@ -204,7 +205,7 @@ fun ShellExecutorScreen(navController: NavController? = null) {
                                 onSend = { executeCommand(commandInput) }
                             ),
                             singleLine = true,
-                            shape = RoundedCornerShape(24.dp),
+                            shape = KiyoriUiShapes.field,
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outline
@@ -509,8 +510,10 @@ fun ShellExecutorScreen(navController: NavController? = null) {
 @Composable
 fun PresetCommandChip(presetCommand: PresetCommand, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Surface(
-        modifier = modifier.clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
+        modifier = modifier
+            .heightIn(min = 40.dp)
+            .clickable { onClick() },
+        shape = KiyoriUiShapes.control,
         color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
     ) {
         Row(
