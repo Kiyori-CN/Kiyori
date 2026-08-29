@@ -95,6 +95,7 @@ windows_control.toolpkg (ZIP 压缩包)
     "zh": "Windows 一键配置与控制工具包",
     "en": "Windows one-click setup and control bundle"
   },
+  "logo": "package_logo",
   "subpackages": [
     {
       "id": "windows_control",
@@ -111,6 +112,11 @@ windows_control.toolpkg (ZIP 压缩包)
     }
   ],
   "resources": [
+    {
+      "key": "package_logo",
+      "path": "resources/logo.png",
+      "mime": "image/png"
+    },
     {
       "key": "pc_agent_zip",
       "path": "resources/pc_agent/operit-pc-agent.zip",
@@ -171,6 +177,7 @@ windows_control.toolpkg (ZIP 压缩包)
 | `main` | string | 是 | ToolPkg 主入口脚本路径（相对于 ZIP 根目录），用于执行注册函数 |
 | `display_name` | LocalizedText | 否 | 包的显示名称，支持多语言 |
 | `description` | LocalizedText | 否 | 包的描述信息，支持多语言 |
+| `logo` | string | 否 | 指向 `resources[].key` 的包内图片资源；支持 SVG、PNG、JPEG、WebP |
 | `subpackages` | array | 否 | 子包列表，每个子包是一个独立的工具集 |
 | `resources` | array | 否 | 资源文件列表，可以是任意类型的文件 |
 | `wasm_modules` | array | 否 | 企业核心算法模块列表，当前用于声明和校验 `.wasm` 产物 |
@@ -739,6 +746,12 @@ SHA-256、ToolPkg ID/版本、条目数和总解压大小。`operit_editor` 已�
 - 当 `mime` 是目录类型（如 `inode/directory`、`vnd.android.document/directory`）时，`ToolPkg.readResource(key)` 会先将该目录压缩成 zip，再返回这个 zip 的临时文件路径。
 - 未显式传 `outputFileName` 时，目录资源默认会自动补上 `.zip` 后缀。
 
+包图标说明：
+
+- `manifest.logo` 保存资源 key，不是 ZIP 路径或远程 URL；该 key 必须精确对应一个 `resources[].key`。
+- 对应资源必须是文件，且扩展名或 MIME 表明其为 SVG、PNG、JPEG 或 WebP；目录、缺失资源和其他格式会使包校验失败。
+- 宿主按图片原色渲染本地 ToolPkg logo。Operit Market 列表与详情使用市场响应中的 HTTPS `logoUrl`，不会把本地 logo 内容随发布请求上传。
+
 #### 3.2.7 Workflow Templates（工作流模板）
 
 ToolPkg 现在可以通过 `manifest` 直接注册工作流模板。注册后，模板会出现在宿主当前的“工作流 -> 从模板新建”入口里，也会显示在包管理的详情弹窗中。
@@ -1216,6 +1229,27 @@ const hostRoutes = ctx.getHostRoutes?.() ?? [];
 await ctx.navigate('native.settings', {});
 ctx.reportError(error);
 ```
+
+文件、媒体、目录与相机选择统一使用 `ctx.openFilePicker()`：
+
+```javascript
+const result = await ctx.openFilePicker({
+    picker: 'image',
+    allowMultiple: true
+});
+
+if (!result.cancelled) {
+    for (const file of result.files) {
+        console.log(file.uri, file.path);
+    }
+}
+```
+
+`picker` 支持 `document`、`image`、`video`、`media`、`directory` 和 `camera`，省略时为
+`document`。只有 `document` 接受 `mimeTypes`；只有 `document`、`image`、`video` 和 `media`
+接受 `allowMultiple`；只有 `document` 与 `directory` 接受 `persistPermission`。目录结果只返回
+可持久访问的 `uri`，不伪造本地路径；其余成功结果包含宿主管理的临时 `path`。取消时
+`cancelled=true` 且 `files=[]`，参数、授权或结果处理失败会拒绝 Promise。
 
 `ctx.navigate(route, args?)` 现在会触发真实路由跳转。
 `ctx.listRoutes()` 会返回当前可导航路由列表（包含 `routeId`、`runtime` 等字段）。

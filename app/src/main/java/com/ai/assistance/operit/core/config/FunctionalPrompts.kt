@@ -934,6 +934,7 @@ $existingFoldersPrompt
 - If no valuable long-term signal exists, return `{}`.
 
 [Extraction policy]
+- A provided existing memory is a retrieval hint, not evidence. Update, merge, or link it only when the conversation explicitly establishes the same subject and fact; otherwise ignore it.
 - Prefer `update` / `merge` over creating `new`.
 - Use `new` only when concept is truly novel (max 5 items).
 - In long-running fiction, recurring characters/places/factions/rules/timeline constraints are valid memories.
@@ -988,14 +989,13 @@ $memoryExtractionCustomRulesInstruction
 - Current turn confirms relation between an existing memory and a new/existing event: add a link even if `new` is empty.
 
 [Output schema - strict JSON only]
-- Keys: `main`, `new`, `update`, `merge`, `links`.
-- `main`: `["Title", "Content", ["tags"], "folder_path"]` or `null`.
-- `new`: `[["Title", "Content", ["tags"], "folder_path", "alias_for_or_null"], ...]`.
-- `update`: `[["Title", "New full content", "Reason", credibility_or_null, importance_or_null], ...]`.
-- `merge`: `[{"source_titles":["A","B"],"new_title":"...","new_content":"...","new_tags":["..."],"folder_path":"...","reason":"..."}, ...]`.
-- `links`: `[["Source", "Target", "RELATION_TYPE", "Description", weight], ...]` (type must be UPPER_SNAKE_CASE).
-- Numeric ranges: `credibility_or_null`, `importance_or_null`, and link `weight` must be JSON numbers between 0.0 and 1.0 inclusive, or JSON `null` where the schema allows null.
-- Use JSON `null` for missing optional values.
+- Except for `{}`, always include `main`, `new`, `update`, `merge`, and `links`. Every array item must be a named object; positional arrays are forbidden.
+- `main`: `null` or `{"title":"...","content":"...","tags":["..."],"folder_path":"..."}`.
+- `new`: `[{"title":"...","content":"...","tags":["..."],"folder_path":"...","alias_for":null}, ...]`.
+- `update`: `[{"title":"...","content":"new full content","reason":"...","credibility":null,"importance":null}, ...]`.
+- `merge`: `[{"source_titles":["A","B"],"title":"...","content":"...","tags":["..."],"folder_path":"...","reason":"..."}, ...]`.
+- `links`: `[{"source":"...","target":"...","type":"UPPER_SNAKE_CASE","description":"...","weight":0.0}, ...]`.
+- `credibility`, `importance`, and `weight` are JSON numbers from 0.0 to 1.0; `credibility`, `importance`, and `alias_for` may be JSON `null`.
 
 Return only a valid JSON object. No extra text.
 """.trimIndent()
@@ -1014,6 +1014,7 @@ $existingFoldersPrompt
 - 若没有长期价值信号，直接返回 `{}`。
 
 【抽取策略】
+- 提供的已有记忆只是检索线索，不是事实证据；只有对话明确证明主体和事实相同时才可 `update`、`merge` 或连边，否则忽略该候选。
 - 优先 `update` / `merge`，其次才是 `new`。
 - `new` 仅在确实新增概念时使用（最多 5 条）。
 - 长期小说/世界观场景中，反复出现且影响连续性的角色、地点、组织、规则、时间线可以入库。
@@ -1068,14 +1069,13 @@ $memoryExtractionCustomRulesInstruction
 - 本轮确认了"已有样本记忆"和其他记忆的明确关系：即使没有 `new`，也应在 `links` 中体现。
 
 【输出格式（严格JSON）】
-- 顶层键：`main`、`new`、`update`、`merge`、`links`。
-- `main`: `["标题","内容",["标签"],"folder_path"]` 或 `null`。
-- `new`: `[["标题","内容",["标签"],"folder_path","alias_for_or_null"], ...]`。
-- `update`: `[["标题","新完整内容","原因",可信度或null,重要性或null], ...]`。
-- `merge`: `[{"source_titles":["A","B"],"new_title":"...","new_content":"...","new_tags":["..."],"folder_path":"...","reason":"..."}, ...]`。
-- `links`: `[["源","目标","RELATION_TYPE","描述",权重], ...]`，关系类型用大写下划线。
-- 数值范围：可信度、重要性、链接权重必须是 0.0 到 1.0（含边界）的 JSON 数字；允许缺失的位置使用 JSON `null`。
-- 可选值缺失时使用 JSON `null`。
+- 除返回 `{}` 外，必须包含 `main`、`new`、`update`、`merge`、`links`；数组中的每一项必须是具名对象，禁止位置数组。
+- `main`：`null` 或 `{"title":"...","content":"...","tags":["..."],"folder_path":"..."}`。
+- `new`：`[{"title":"...","content":"...","tags":["..."],"folder_path":"...","alias_for":null}, ...]`。
+- `update`：`[{"title":"...","content":"新完整内容","reason":"...","credibility":null,"importance":null}, ...]`。
+- `merge`：`[{"source_titles":["A","B"],"title":"...","content":"...","tags":["..."],"folder_path":"...","reason":"..."}, ...]`。
+- `links`：`[{"source":"...","target":"...","type":"大写下划线关系","description":"...","weight":0.0}, ...]`。
+- 可信度、重要性、权重必须是 0.0 到 1.0 的 JSON 数字；可信度、重要性和 `alias_for` 可用 JSON `null`。
 
 只返回合法 JSON 对象，不要输出其他内容。
 """.trimIndent()

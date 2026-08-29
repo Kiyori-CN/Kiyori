@@ -94,6 +94,8 @@ internal fun KiyoriAvatarSettingsPage(
             avatarControllerFactory.createController(model)
         }
     val snackbarHostState = remember { SnackbarHostState() }
+    val operationSuccessMessage = stringResource(R.string.operation_success)
+    val errorOccurredMessage = stringResource(R.string.error_occurred_simple)
     var isPreviewCollapsed by rememberSaveable { mutableStateOf(false) }
 
     val zipFileLauncher =
@@ -131,12 +133,12 @@ internal fun KiyoriAvatarSettingsPage(
     LaunchedEffect(uiState.operationSuccess, uiState.errorMessage) {
         when {
             uiState.operationSuccess -> {
-                snackbarHostState.showSnackbar(context.getString(R.string.operation_success))
+                snackbarHostState.showSnackbar(operationSuccessMessage)
                 viewModel.clearOperationSuccess()
             }
             uiState.errorMessage != null -> {
                 snackbarHostState.showSnackbar(
-                    uiState.errorMessage ?: context.getString(R.string.error_occurred_simple),
+                    uiState.errorMessage ?: errorOccurredMessage,
                 )
                 viewModel.clearErrorMessage()
             }
@@ -293,6 +295,8 @@ internal fun KiyoriVoiceWakeupSettingsPage(
         wakePrefs.voiceAutoAttachItemsFlow.collectAsState(
             initial = WakeWordPreferences.getDefaultVoiceAutoAttachItems(context),
         )
+    val voiceWakeupUpdateFailedMessage = stringResource(R.string.voice_wakeup_update_failed)
+    val microphonePermissionDeniedMessage = stringResource(R.string.microphone_permission_denied_toast)
 
     var wakePhraseInput by rememberSaveable { mutableStateOf("") }
     var inactivityTimeoutInput by rememberSaveable { mutableStateOf("") }
@@ -320,7 +324,7 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                     error,
                 )
                 snackbarHostState.showSnackbar(
-                    context.getString(R.string.voice_wakeup_update_failed),
+                    voiceWakeupUpdateFailedMessage,
                 )
             }
         }
@@ -338,7 +342,7 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                 error,
             )
             snackbarHostState.showSnackbar(
-                context.getString(R.string.voice_wakeup_update_failed),
+                voiceWakeupUpdateFailedMessage,
             )
         }
     }
@@ -375,7 +379,7 @@ internal fun KiyoriVoiceWakeupSettingsPage(
             } else {
                 coroutineScope.launch {
                     snackbarHostState.showSnackbar(
-                        context.getString(R.string.microphone_permission_denied_toast),
+                        microphonePermissionDeniedMessage,
                     )
                 }
             }

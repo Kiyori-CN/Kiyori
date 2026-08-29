@@ -247,7 +247,6 @@
     <string name="voice_wakeup_create_new_chat_desc">Secara otomatis membuat percakapan baru setelah dibangunkan masuk ke mode suara</string>
     <string name="voice_wakeup_auto_new_chat_group_label">Grup percakapan baru otomatis</string>
     <string name="voice_wakeup_auto_new_chat_group_supporting">Default: %1$s</string>
-    <string name="voice_keyword_attachments_title">Lampiran kata kunci suara</string>
     <string name="voice_keyword_attachments_enabled_title">Lampiran otomatis</string>
     <string name="voice_keyword_attachments_enabled_desc">Secara otomatis mengambil lampiran saat kata kunci terdeteksi</string>
     <string name="voice_keyword_attachments_screen_title">Layar</string>
@@ -598,7 +597,6 @@
     <string name="yes">Ya</string>
     <string name="no">Tidak</string>
     <string name="authorized">Telah diizinkan</string>
-    <string name="unauthorized">Belum diizinkan</string>
     <string name="install_shizuku">Instal Shizuku</string>
     <string name="open_shizuku">Buka aplikasi Shizuku</string>
     <string name="show_help">Tampilkan bantuan</string>
@@ -857,7 +855,6 @@
     <string name="dragonbones_important_tip">Penting: Di halaman unduhan editor versi lama, tautan unduhan untuk Windows dan Mac tertukar, harap perhatikan untuk memilih tautan yang benar.</string>
     <string name="download_old_editor">Unduh Editor Versi Lama</string>
     <string name="visit_online_editor">Kunjungi Editor Online</string>
-    <string name="voice_wakeup_section_title">Panggilan Suara</string>
     <string name="voice_wakeup_always_listen_title">Selalu Mendengarkan</string>
     <string name="voice_wakeup_always_listen_desc">Mendengarkan kata panggilan secara terus-menerus di latar belakang (memerlukan izin mikrofon)</string>
     <string name="voice_wakeup_phrase_label">Kata Panggilan</string>
@@ -1167,10 +1164,6 @@
     <string name="exit_edit_mode">Keluar dari mode edit</string>
     <string name="enter_edit_mode">Masuk ke mode edit</string>
     <string name="total">Total</string>
-    <string name="total_tokens">Total: %1$s</string>
-    <string name="input_tokens">Masuk kumulatif: %1$s</string>
-    <string name="output_tokens">Keluar kumulatif: %1$s</string>
-    <string name="context_window">Permintaan: %1$s</string>
     <string name="chat_stats_context">Konteks (perkiraan): %1$s / %2$s</string>
     <string name="chat_stats_request_count">Permintaan: %1$s</string>
     <string name="chat_stats_input_tokens">Masuk: %1$s</string>
@@ -1407,8 +1400,6 @@
     <string name="tool_category_system">Alat Sistem</string>
     <string name="tool_test_center">Pusat Pengujian Alat</string>
     <string name="tool_test_center_desc">Uji ketersediaan dan status fungsi alat AI</string>
-    <string name="tool_file_manager">Manajer Berkas</string>
-    <string name="tool_file_manager_desc">Jelajahi dan kelola berkas perangkat, mendukung berbagai operasi</string>
     <string name="tool_tts">Teks ke Ucapan</string>
     <string name="tool_tts_desc">Konversi teks menjadi ucapan, mendukung penyesuaian kecepatan dan nada</string>
     <string name="tts_title">Demo Teks ke Ucapan</string>
@@ -1687,8 +1678,6 @@
     <string name="tool_speech_recognition_desc">Mengonversi ucapan menjadi teks, mendukung berbagai mesin dan bahasa</string>
     <string name="tool_permission_manager">Manajer Izin Aplikasi</string>
     <string name="tool_permission_manager_desc">Kelola izin berbagai aplikasi di ponsel, lindungi keamanan privasi</string>
-    <string name="tool_user_agreement">Perjanjian Pengguna</string>
-    <string name="tool_user_agreement_desc">Lihat perjanjian pengguna dan kebijakan privasi aplikasi</string>
     <string name="tool_default_assistant_guide">Pengaturan Asisten Bawaan</string>
     <string name="tool_default_assistant_guide_desc">Atur Kiyori Voice Floating sebagai asisten bawaan sistem</string>
     <string name="tool_terminal">Terminal Perintah</string>
@@ -2421,7 +2410,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="speech_services_save_success">Pengaturan telah disimpan</string>
     <string name="speech_services_save_error">Gagal menyimpan: %1$s</string>
     <string name="speech_services_test_tts">Uji fungsi TTS</string>
-    <string name="speech_services_info_title">Tentang Layanan Suara</string>
     <string name="speech_services_info_tts_title">Teks ke Ucapan (TTS)</string>
     <string name="speech_services_info_tts_desc">Layanan TTS mengubah teks menjadi ucapan. Anda dapat menggunakan TTS sistem bawaan, atau menghubungkan ke antarmuka suara HTTP / WebSocket jarak jauh.</string>
     <string name="speech_services_info_stt_title">Ucapan ke Teks (STT)</string>
@@ -2466,7 +2454,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="chat_no_active_conversation">Tidak ada percakapan aktif saat ini</string>
     <string name="chat_summarizing_generating">Membuat ringkasan...</string>
     <string name="chat_no_messages_to_summarize">Tidak ada pesan yang dapat diringkas</string>
-    <string name="chat_ai_service_not_initialized">Layanan AI belum diinisialisasi</string>
     <string name="chat_summary_inserted">Ringkasan telah disisipkan</string>
     <string name="chat_summary_generation_failed">Gagal membuat ringkasan</string>
     <string name="chat_insert_summary_failed">Gagal menyisipkan ringkasan: %1$s</string>
@@ -3861,7 +3848,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="mnn_go_download">Pergi unduh</string>
     <string name="mnn_search_models">Cari model...</string>
     <string name="mnn_no_search_results">Tidak ditemukan model yang cocok</string>
-    <string name="persona_card_generation_title">Kartu Karakter yang Dimodifikasi</string>
     <string name="error_unsupported_field">Bidang tidak didukung: %1$s</string>
     <string name="no_character_card">Tidak ada kartu karakter</string>
     <string name="character_card_config">Konfigurasi Kartu Karakter</string>
@@ -4329,7 +4315,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="default_assistant_guide_troubleshooting_content">Jika tidak dapat menemukan Kiyori dalam daftar, pastikan:\n\n• Aplikasi telah diinstal dengan benar dan tidak dinonaktifkan\n• Izin yang diperlukan telah diberikan (mikrofon, jendela mengambang, dll.)\n• Coba restart perangkat dan atur ulang\n\nBeberapa sistem kustom mungkin membatasi aplikasi pihak ketiga sebagai asisten default. Jika mengalami hal ini, Anda masih dapat menggunakan Kiyori melalui fungsi jendela mengambang dalam aplikasi.</string>
     <string name="voice_interaction_service_name">Asisten Kiyori</string>
     <string name="voice_interaction_service_summary">Layanan asisten suara pintar</string>
-    <string name="tool_permissions_title">Izin Alat AI</string>
     <string name="tool_permissions_description">Secara default, semua alat memerlukan "permintaan" dari Anda. Anda dapat menambahkan pengecualian di bawah ini.</string>
     <string name="global_permission_switch">Sakelar Izin Global</string>
 
@@ -4995,7 +4980,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="mcp_server_config_effective_hint">Konfigurasi ini akan berlaku saat server dimulai</string>
     <string name="mcp_server_save_config">Simpan konfigurasi</string>
     <string name="mcp_server_not_installed_cannot_configure">Plugin ini belum terpasang, tidak dapat dikonfigurasi</string>
-    <string name="pkg_manage_env_vars">Kelola variabel lingkungan</string>
     <string name="package_manager_refresh_success">Daftar paket diperbarui</string>
     <string name="package_manager_refresh_failed">Gagal memperbarui daftar paket: %1$s</string>
     <string name="package_manager_load_errors_summary">Beberapa skrip atau plugin gagal dimuat (%1$d)</string>
@@ -5732,7 +5716,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="gemini_connection_success">Koneksi berhasil!</string>
     <string name="gemini_connection_test_failed">Tes koneksi gagal: %1$s</string>
     <string name="provider_error_response_empty">Respons API kosong</string>
-    <string name="provider_error_parsing_failed">Gagal mem-parsing respons</string>
     <string name="provider_error_retry_message">%1$s, sedang melakukan percobaan ulang ke-%2$d...</string>
     <string name="provider_error_timeout">Koneksi timeout</string>
     <string name="provider_error_unknown_host">Tidak dapat mengatasi host</string>
@@ -6687,7 +6670,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="web_session_render_process_crashed">Proses render halaman web saat ini mengalami crash. Tab ini telah ditutup.</string>
     <string name="web_session_render_process_gone">Proses render halaman web saat ini telah direklamasi oleh sistem. Tab ini telah ditutup.</string>
 
-    <string name="sidebar_status_normal">Normal</string>
     <string name="chat_hidden_user_message_placeholder">Pesan pengguna yang dipicu otomatis (konten disembunyikan)</string>
     <string name="chat_only_ai_message_allowed">Hanya dapat melakukan operasi ini pada pesan AI</string>
     <string name="chat_regenerate_single">Hasilkan ulang satu</string>
@@ -7442,7 +7424,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
 
     <string name="kiyori_onboarding_permissions_title">Izin dan kemampuan perangkat</string>
     <string name="kiyori_onboarding_permissions_desc">Selesaikan otorisasi yang didukung Kiyori di sini. Izin runtime Android dapat diminta sekaligus; akses khusus dan kemampuan tingkat lanjut memerlukan konfirmasi di sistem atau pengelola terkait.</string>
-    <string name="kiyori_onboarding_permissions_overview_count">Siap %1$d dari %2$d</string>
     <string name="kiyori_onboarding_permission_action_failed">Jalur otorisasi “%1$s” tidak dapat dibuka. Periksa dukungan perangkat.</string>
 
     <string name="kiyori_onboarding_permission_status_granted">Diizinkan</string>
@@ -7574,7 +7555,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="conversation_audit_load_older_failed">Gagal memuat peristiwa audit sebelumnya: %1$s</string>
     <string name="conversation_audit_open_failed">Gagal membuka detail percakapan: %1$s</string>
     <plurals name="conversation_audit_new_events">
-        <item quantity="one">%1$d peristiwa baru</item>
         <item quantity="other">%1$d peristiwa baru</item>
     </plurals>
     <string name="conversation_audit_no_payload">Peristiwa ini tidak memiliki payload isi</string>
@@ -7680,4 +7660,31 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="provider_section_international">Penyedia internasional</string>
     <string name="provider_section_domestic">Penyedia dari Tiongkok</string>
     <string name="provider_section_local_and_custom">Lokal dan kustom</string>
+    <string name="markdown_link_not_openable">Tautan ini menunjuk ke referensi di dalam dokumen dan tidak dapat dibuka</string>
+    <string name="backup_text_export_progress">Mengekspor: %1$d%% (%2$d / %3$d karakter)</string>
+    <string name="backup_select_chat_records">Pilih chat untuk diekspor</string>
+    <string name="backup_select_chat_records_hint">Pilih riwayat chat yang akan disertakan dalam file cadangan.</string>
+    <string name="backup_clear_selection">Hapus pilihan</string>
+    <string name="speech_services_profiles_title">Profil layanan suara</string>
+    <string name="speech_services_profiles_desc">Simpan dan beralih antara konfigurasi layanan teks-ke-suara dan pengenalan suara yang terpisah.</string>
+    <string name="speech_services_profile_current">Profil saat ini</string>
+    <string name="speech_services_profile_create">Buat profil suara</string>
+    <string name="speech_services_profile_rename">Ganti nama profil suara</string>
+    <string name="speech_services_profile_delete">Hapus profil suara</string>
+    <string name="speech_services_profile_delete_message">Hapus profil suara “%1$s”? Profil aktif tidak dapat dihapus.</string>
+    <string name="speech_services_profile_migrated_tts">Profil TTS yang dimigrasikan</string>
+    <string name="speech_services_profile_migrated_stt">Profil STT yang dimigrasikan</string>
+    <string name="chat_memory_rebuild_action">Bangun ulang memori untuk %1$d chat yang dipilih</string>
+    <string name="chat_memory_rebuild_preparing">Menyiapkan pembangunan ulang memori…</string>
+    <string name="chat_memory_rebuild_progress">Memproses “%1$s”: jendela %2$d/%3$d, pesan %4$d/%5$d, kegagalan %6$d</string>
+    <string name="chat_memory_rebuild_completed">Pembangunan ulang selesai: %1$d chat, %2$d jendela, %3$d kegagalan</string>
+    <string name="chat_memory_rebuild_cancelled">Pembangunan ulang dibatalkan: %1$d/%2$d jendela selesai</string>
+    <string name="chat_memory_rebuild_failed">Pembangunan ulang memori gagal: %1$s</string>
+    <string name="chat_memory_rebuild_cancel">Batalkan pembangunan ulang</string>
+    <string name="chat_memory_rebuild_confirm_title">Bangun ulang memori chat per jendela</string>
+    <string name="chat_memory_rebuild_confirm_message">%1$d chat yang dipilih akan dianalisis secara berurutan. Setiap jendela disimpan secara terpisah ke pustaka memori yang ada; kegagalan satu jendela tidak menghentikan jendela berikutnya.</string>
+    <string name="chat_memory_rebuild_window_size">Pesan per jendela</string>
+    <string name="chat_memory_rebuild_window_size_value">%1$d pesan</string>
+    <string name="chat_memory_rebuild_confirm_action">Mulai pembangunan ulang</string>
+    <string name="script_settings">Setelan skrip</string>
 </resources>

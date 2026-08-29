@@ -17,6 +17,8 @@ import java.util.zip.ZipInputStream
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
 import org.hjson.JsonValue
 
 private val TOOLPKG_DIRECTORY_RESOURCE_MIME_TYPES =
@@ -170,7 +172,8 @@ internal data class ToolPkgContainerRuntime(
     val promptFinalizeHooks: List<ToolPkgFunctionHookRuntime>,
     val promptEstimateFinalizeHooks: List<ToolPkgFunctionHookRuntime>,
     val summaryGenerateHooks: List<ToolPkgFunctionHookRuntime>,
-    val aiProviders: List<ToolPkgAiProviderRuntime>
+    val aiProviders: List<ToolPkgAiProviderRuntime>,
+    val logoResource: ToolPkgResourceRuntime? = null
 )
 
 internal data class ToolPkgLoadResult(
@@ -188,6 +191,7 @@ internal data class ToolPkgManifest(
     val main: String = "",
     @SerialName("display_name") val displayName: LocalizedText = LocalizedText.of(""),
     val description: LocalizedText = LocalizedText.of(""),
+    @SerialName("logo") val logoElement: JsonElement? = null,
     @Serializable(with = StringOrStringListSerializer::class)
     val author: List<String> = emptyList(),
     @SerialName("enabled_by_default") val enabledByDefault: Boolean = true,
@@ -201,7 +205,16 @@ internal data class ToolPkgManifest(
     @SerialName("workspace_templates")
     val workspaceTemplates: List<ToolPkgManifestWorkspaceTemplate> = emptyList(),
     val distribution: ToolPkgManifestDistribution? = null,
-)
+) {
+    val logo: String?
+        get() =
+            logoElement?.let { element ->
+                require(element is JsonPrimitive && element.isString) {
+                    "manifest.logo must be a string resource key"
+                }
+                element.content
+            }
+}
 
 @Serializable
 internal data class ToolPkgManifestDistribution(
@@ -514,6 +527,8 @@ internal object ToolPkgArchiveParser {
                     mime = resource.mime
                 )
             }
+
+        val logoResource = resolveLogoResource(manifest.logo, resources)
 
         val wasmModuleIds = linkedSetOf<String>()
         val wasmModules =
@@ -1343,7 +1358,8 @@ internal object ToolPkgArchiveParser {
                 promptFinalizeHooks = promptFinalizeHooks,
                 promptEstimateFinalizeHooks = promptEstimateFinalizeHooks,
                 summaryGenerateHooks = summaryGenerateHooks,
-                aiProviders = aiProviders
+                aiProviders = aiProviders,
+                logoResource = logoResource
             )
 
         return ToolPkgLoadResult(
@@ -1858,5 +1874,32 @@ internal object ToolPkgArchiveParser {
         return text?.values?.values?.any { it.isNotBlank() } == true
     }
 
+    private fun resolveLogoResource(
+        logoResourceKey: String?,
+        resources: List<ToolPkgResourceRuntime>
+    ): ToolPkgResourceRuntime? {
+        val key = logoResourceKey?.trim().orEmpty()
+        if (key.isBlank()) return null
+
+        val resource =
+            resources.firstOrNull { it.key.equals(key, ignoreCase = true) }
+                ?: throw IllegalArgumentException(
+                    "manifest.logo must reference an existing resource key: $key"
+                )
+        require(!isDirectoryResourceMime(resource.mime)) {
+            "manifest.logo must reference a file resource: $key"
+        }
+
+        val extension = resource.path.substringAfterLast('.', "").lowercase()
+        val mime = resource.mime.trim().lowercase()
+        require(extension in TOOLPKG_LOGO_EXTENSIONS || mime in TOOLPKG_LOGO_MIME_TYPES) {
+            "manifest.logo must reference an SVG, PNG, JPEG or WebP resource: $key"
+        }
+        return resource
+    }
+
     private val WINDOWS_DRIVE_PATH = Regex("""^[A-Za-z]:""", RegexOption.IGNORE_CASE)
+    private val TOOLPKG_LOGO_EXTENSIONS = setOf("svg", "png", "jpg", "jpeg", "webp")
+    private val TOOLPKG_LOGO_MIME_TYPES =
+        setOf("image/svg+xml", "image/png", "image/jpeg", "image/webp")
 }

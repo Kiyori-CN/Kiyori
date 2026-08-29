@@ -166,10 +166,13 @@ class CanvasCodeEditorView @JvmOverloads constructor(
     private var softWrap = false
     private var completionEnabled = true
     private var readOnly = false
+    @Volatile
     private var scrollOffsetX = 0f
+    @Volatile
     private var scrollOffsetY = 0f
     private var viewportBottomPaddingPx = 0f
     private var isReleased = false
+    @Volatile
     private var isDirty = true
     private var renderThread: RenderThread? = null
     private var completionPrefix = ""
@@ -293,6 +296,19 @@ class CanvasCodeEditorView @JvmOverloads constructor(
             }
         )
 
+    // OverScroller may consult Choreographer, so fling progression must stay on the UI thread.
+    // The render thread only consumes the offsets published by this vsync-paced runnable.
+    private val flingRunnable =
+        object : Runnable {
+            override fun run() {
+                if (!scroller.computeScrollOffset()) {
+                    return
+                }
+                setScrollOffsets(scroller.currX.toFloat(), scroller.currY.toFloat())
+                postOnAnimation(this)
+            }
+        }
+
     init {
         setZOrderOnTop(false)
         setZOrderMediaOverlay(false)
@@ -312,6 +328,7 @@ class CanvasCodeEditorView @JvmOverloads constructor(
             return
         }
         isReleased = true
+        removeCallbacks(flingRunnable)
         stopRenderThread()
         actionMode?.finish()
         actionMode = null
@@ -517,6 +534,8 @@ class CanvasCodeEditorView @JvmOverloads constructor(
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
+        removeCallbacks(flingRunnable)
+        scroller.forceFinished(true)
         stopRenderThread()
     }
 
@@ -528,6 +547,8 @@ class CanvasCodeEditorView @JvmOverloads constructor(
     }
 
     override fun onDetachedFromWindow() {
+        removeCallbacks(flingRunnable)
+        scroller.forceFinished(true)
         stopRenderThread()
         actionMode?.finish()
         actionMode = null
@@ -921,7 +942,8 @@ class CanvasCodeEditorView @JvmOverloads constructor(
             0,
             maxScrollY().roundToInt()
         )
-        requestRender()
+        removeCallbacks(flingRunnable)
+        postOnAnimation(flingRunnable)
     }
 
     private fun setScrollOffsets(
@@ -2159,16 +2181,7 @@ class CanvasCodeEditorView @JvmOverloads constructor(
 
         override fun run() {
             while (running) {
-                var needsDraw = false
-                if (scroller.computeScrollOffset()) {
-                    scrollOffsetX = scroller.currX.toFloat()
-                    scrollOffsetY = scroller.currY.toFloat()
-                    needsDraw = true
-                } else if (isDirty) {
-                    needsDraw = true
-                }
-
-                if (!needsDraw) {
+                if (!isDirty) {
                     renderLock.withLock {
                         if (!running && !isDirty) {
                             return
@@ -2203,9 +2216,11 @@ class CanvasCodeEditorView @JvmOverloads constructor(
                     }.getOrNull()
 
                 if (canvas != null) {
+                    // Clear before drawing so a UI-thread fling step arriving mid-frame remains
+                    // dirty and schedules the next frame.
+                    isDirty = false
                     try {
                         drawEditor(canvas)
-                        isDirty = false
                     } finally {
                         runCatching {
                             holder.unlockCanvasAndPost(canvas)
@@ -2213,16 +2228,6 @@ class CanvasCodeEditorView @JvmOverloads constructor(
                     }
                 }
 
-                if (scroller.computeScrollOffset()) {
-                    isDirty = true
-                    try {
-                        sleep(16L)
-                    } catch (_: InterruptedException) {
-                        if (!running) {
-                            return
-                        }
-                    }
-                }
             }
         }
     }

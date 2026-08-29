@@ -635,12 +635,11 @@ class KiyoriApplication :
         try {
             val code = LocaleUtils.getCurrentLanguage(base)
             val locale = LocaleUtils.getLocaleForLanguageCode(code, base)
-            val config = Configuration(base.resources.configuration)
+            val config = LocaleUtils.createLocaleOverrideConfiguration(locale)
 
             // 设置语言配置
             val localeList = LocaleList(locale)
             LocaleList.setDefault(localeList)
-            config.setLocales(localeList)
 
             // 使用createConfigurationContext创建新的上下文
             val context = base.createConfigurationContext(config)

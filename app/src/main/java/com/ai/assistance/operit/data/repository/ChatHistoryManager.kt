@@ -73,6 +73,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
@@ -94,10 +95,88 @@ import org.json.JSONObject
 // 仅保留这个DataStore用于存储当前聊天ID
 private val Context.currentChatIdDataStore by preferencesDataStore(name = "current_chat_id")
 
+data class ChatExportProgress(
+    val isLongText: Boolean,
+    val progress: Float,
+    val processedCharacters: Long,
+    val totalCharacters: Long,
+)
+
+data class ChatExportResult(
+    val filePath: String,
+    val chatCount: Int,
+)
+
+internal fun selectChatHistoriesForExport(
+    chatHistories: List<ChatHistory>,
+    selectedChatIds: Set<String>?,
+): List<ChatHistory> {
+    return if (selectedChatIds == null) {
+        chatHistories
+    } else {
+        chatHistories.filter { it.id in selectedChatIds }
+    }
+}
+
+internal class ChatExportProgressReporter(
+    private val totalCharacters: Long,
+    private val onProgress: ((ChatExportProgress) -> Unit)?,
+    private val updateCharacterCount: Long = 256 * 1024L,
+) {
+    private var processedCharacters = 0L
+    private var lastReportedCharacters = 0L
+    private var hasReported = false
+
+    init {
+        require(totalCharacters >= 0L) { "Total character count must not be negative." }
+        require(updateCharacterCount > 0L) { "Progress update interval must be positive." }
+    }
+
+    fun recordCharacters(characterCount: Long) {
+        require(characterCount >= 0L) { "Written character count must not be negative." }
+        processedCharacters += characterCount.coerceAtMost(totalCharacters - processedCharacters)
+        report()
+    }
+
+    fun report(force: Boolean = false) {
+        val changedCharacters = processedCharacters - lastReportedCharacters
+        if (!force && changedCharacters < updateCharacterCount) {
+            return
+        }
+        if (hasReported && processedCharacters == lastReportedCharacters) {
+            return
+        }
+
+        lastReportedCharacters = processedCharacters
+        hasReported = true
+        val progress =
+            if (totalCharacters == 0L) {
+                1f
+            } else {
+                processedCharacters.toFloat() / totalCharacters.toFloat()
+            }
+        onProgress?.invoke(
+            ChatExportProgress(
+                isLongText = true,
+                progress = progress.coerceIn(0f, 1f),
+                processedCharacters = processedCharacters,
+                totalCharacters = totalCharacters,
+            )
+        )
+    }
+
+    fun complete() {
+        processedCharacters = totalCharacters
+        report(force = true)
+    }
+}
+
 class ChatHistoryManager private constructor(private val context: Context) {
     companion object {
         private const val TAG = "ChatHistoryManager"
         private const val LOCATOR_PREVIEW_CHAR_COUNT = 48
+        private const val TEXT_EXPORT_STREAMING_THRESHOLD_CHARACTER_COUNT = 4_000_000L
+        private const val TEXT_EXPORT_WRITER_BUFFER_SIZE = 64 * 1024
         private const val AUDIT_PACKAGE_MANIFEST_ENTRY = "manifest.json"
         private const val AUDIT_PACKAGE_CHAT_ENTRY = "chat.json"
         private const val AUDIT_PACKAGE_AUDIT_ENTRY = "audit.json"
@@ -2850,10 +2929,62 @@ class ChatHistoryManager private constructor(private val context: Context) {
      * @return 生成的文件绝对路径，失败时返回null
      */
     suspend fun exportChatHistoriesToDownloads(format: ExportFormat): String? =
+        exportChatHistoriesToDownloads(format, null)
+
+    suspend fun exportChatHistoriesToDownloads(
+        format: ExportFormat,
+        onProgress: ((ChatExportProgress) -> Unit)?,
+    ): String? = exportChatHistoriesToDownloadsInternal(null, format, onProgress)?.filePath
+
+    suspend fun exportChatHistoriesToDownloads(
+        selectedChatIds: Set<String>,
+        format: ExportFormat,
+        onProgress: ((ChatExportProgress) -> Unit)?,
+    ): ChatExportResult? {
+        require(selectedChatIds.isNotEmpty()) { "At least one chat must be selected for export." }
+        return exportChatHistoriesToDownloadsInternal(selectedChatIds, format, onProgress)
+    }
+
+    private suspend fun exportChatHistoriesToDownloadsInternal(
+        selectedChatIds: Set<String>?,
+        format: ExportFormat,
+        onProgress: ((ChatExportProgress) -> Unit)?,
+    ): ChatExportResult? =
         withContext(Dispatchers.IO) {
             var pendingExportFile: File? = null
             try {
-                val chatHistoriesBasic = chatHistoriesFlow.first()
+                val allChatHistories = chatHistoriesFlow.first()
+                val chatHistoriesBasic =
+                    selectChatHistoriesForExport(allChatHistories, selectedChatIds)
+                if (chatHistoriesBasic.isEmpty()) {
+                    AppLogger.w(TAG, "所选聊天记录已不存在，取消导出")
+                    return@withContext null
+                }
+                val exportedChatIds = chatHistoriesBasic.map { it.id }.toSet()
+                val isTextExportFormat = format == ExportFormat.HTML || format == ExportFormat.TXT
+                val textCharacterCountsByChat =
+                    if (isTextExportFormat) {
+                        chatContentDao.getSelectedContentCharacterCountsByChat().filter {
+                            it.chatId in exportedChatIds
+                        }
+                    } else {
+                        emptyList()
+                    }
+                val totalTextCharacters = textCharacterCountsByChat.sumOf { it.contentCharacterCount }
+                val useStreamingTextExport =
+                    isTextExportFormat &&
+                        totalTextCharacters >= TEXT_EXPORT_STREAMING_THRESHOLD_CHARACTER_COUNT
+
+                if (useStreamingTextExport) {
+                    onProgress?.invoke(
+                        ChatExportProgress(
+                            isLongText = true,
+                            progress = 0f,
+                            processedCharacters = 0L,
+                            totalCharacters = totalTextCharacters,
+                        )
+                    )
+                }
 
                 val exportDir = KiyoriBackupPaths.chatDir()
 
@@ -2902,18 +3033,44 @@ class ChatHistoryManager private constructor(private val context: Context) {
                     }
 
                     ExportFormat.HTML -> {
-                        val completeHistories = loadDisplayHistories(chatHistoriesBasic)
                         val file = File(exportDir, "chat_backup_$timestamp.html")
                         pendingExportFile = file
-                        file.writeText(HtmlExporter.exportMultiple(context, completeHistories))
+                        if (useStreamingTextExport) {
+                            exportLongTextHistories(
+                                file = file,
+                                format = format,
+                                chatHistories = chatHistoriesBasic,
+                                totalMessageCount = messageDao.getMessageCountsByChatId()
+                                    .filter { it.chatId in exportedChatIds }
+                                    .sumOf { it.count },
+                                totalTextCharacters = totalTextCharacters,
+                                onProgress = onProgress,
+                            )
+                        } else {
+                            val completeHistories = loadDisplayHistories(chatHistoriesBasic)
+                            file.writeText(HtmlExporter.exportMultiple(context, completeHistories))
+                        }
                         file
                     }
 
                     ExportFormat.TXT -> {
-                        val completeHistories = loadDisplayHistories(chatHistoriesBasic)
                         val file = File(exportDir, "chat_backup_$timestamp.txt")
                         pendingExportFile = file
-                        file.writeText(TextExporter.exportMultiple(context, completeHistories))
+                        if (useStreamingTextExport) {
+                            exportLongTextHistories(
+                                file = file,
+                                format = format,
+                                chatHistories = chatHistoriesBasic,
+                                totalMessageCount = messageDao.getMessageCountsByChatId()
+                                    .filter { it.chatId in exportedChatIds }
+                                    .sumOf { it.count },
+                                totalTextCharacters = totalTextCharacters,
+                                onProgress = onProgress,
+                            )
+                        } else {
+                            val completeHistories = loadDisplayHistories(chatHistoriesBasic)
+                            file.writeText(TextExporter.exportMultiple(context, completeHistories))
+                        }
                         file
                     }
 
@@ -2926,7 +3083,10 @@ class ChatHistoryManager private constructor(private val context: Context) {
                 }
 
                 pendingExportFile = null
-                exportFile.absolutePath
+                ChatExportResult(
+                    filePath = exportFile.absolutePath,
+                    chatCount = chatHistoriesBasic.size,
+                )
             } catch (e: Exception) {
                 pendingExportFile?.let { incompleteFile ->
                     if (incompleteFile.exists() && !incompleteFile.delete()) {
@@ -2940,6 +3100,88 @@ class ChatHistoryManager private constructor(private val context: Context) {
                 null
             }
         }
+
+    private suspend fun exportLongTextHistories(
+        file: File,
+        format: ExportFormat,
+        chatHistories: List<ChatHistory>,
+        totalMessageCount: Int,
+        totalTextCharacters: Long,
+        onProgress: ((ChatExportProgress) -> Unit)?,
+    ) {
+        check(format == ExportFormat.HTML || format == ExportFormat.TXT)
+
+        val progressReporter = ChatExportProgressReporter(totalTextCharacters, onProgress)
+        progressReporter.report(force = true)
+
+        BufferedWriter(
+            OutputStreamWriter(FileOutputStream(file), StandardCharsets.UTF_8),
+            TEXT_EXPORT_WRITER_BUFFER_SIZE,
+        ).use { writer ->
+            when (format) {
+                ExportFormat.HTML ->
+                    HtmlExporter.writeMultipleHeader(
+                        context = context,
+                        chatHistories = chatHistories,
+                        totalMessageCount = totalMessageCount,
+                        writer = writer,
+                    )
+
+                ExportFormat.TXT ->
+                    TextExporter.writeMultipleHeader(
+                        context = context,
+                        chatHistories = chatHistories,
+                        totalMessageCount = totalMessageCount,
+                        writer = writer,
+                    )
+
+                ExportFormat.JSON, ExportFormat.MARKDOWN, ExportFormat.CSV -> check(false)
+            }
+
+            chatHistories.forEachIndexed { index, chatHistoryBasic ->
+                when (format) {
+                    ExportFormat.HTML -> HtmlExporter.writeConversationSeparator(writer, index)
+                    ExportFormat.TXT -> TextExporter.writeConversationSeparator(writer, index)
+                    ExportFormat.JSON, ExportFormat.MARKDOWN, ExportFormat.CSV -> check(false)
+                }
+
+                val completeHistory = loadDisplayHistory(chatHistoryBasic)
+                val onContentCharactersWritten: (Long) -> Unit = { characterCount ->
+                    progressReporter.recordCharacters(characterCount)
+                }
+                when (format) {
+                    ExportFormat.HTML ->
+                        HtmlExporter.writeConversationToWriter(
+                            context = context,
+                            writer = writer,
+                            chatHistory = completeHistory,
+                            onContentCharactersWritten = onContentCharactersWritten,
+                        )
+
+                    ExportFormat.TXT ->
+                        TextExporter.writeSingleToWriter(
+                            context = context,
+                            chatHistory = completeHistory,
+                            writer = writer,
+                            onContentCharactersWritten = onContentCharactersWritten,
+                        )
+
+                    ExportFormat.JSON, ExportFormat.MARKDOWN, ExportFormat.CSV -> check(false)
+                }
+                writer.flush()
+                progressReporter.report(force = true)
+                yield()
+            }
+
+            when (format) {
+                ExportFormat.HTML -> HtmlExporter.writeMultipleFooter(context, writer)
+                ExportFormat.TXT -> TextExporter.writeMultipleFooter(context, writer)
+                ExportFormat.JSON, ExportFormat.MARKDOWN, ExportFormat.CSV -> check(false)
+            }
+        }
+
+        progressReporter.complete()
+    }
 
     /**
      * 从指定URI导入聊天记录（指定格式）

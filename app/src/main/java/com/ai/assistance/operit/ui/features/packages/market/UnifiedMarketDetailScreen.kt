@@ -77,6 +77,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.api.MarketV2Comment
+import com.ai.assistance.operit.ui.common.icons.rememberRemoteLogoPainter
 import com.ai.assistance.operit.ui.common.displays.MarkdownTextComposable
 import com.ai.assistance.operit.ui.main.components.LocalAppBarContentColor
 import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
@@ -88,7 +89,8 @@ import java.util.TimeZone
 
 data class UnifiedMarketDetailHeader(
     val title: String,
-    val fallbackAvatarText: String,
+    val avatarText: String,
+    val logoUrl: String? = null,
     val participants: List<UnifiedMarketDetailParticipant> = emptyList(),
     val badges: List<String> = emptyList(),
     val metrics: List<UnifiedMarketDetailMetric> = emptyList(),
@@ -99,7 +101,7 @@ data class UnifiedMarketDetailParticipant(
     val roleLabel: String,
     val name: String,
     val avatarUrl: String? = null,
-    val fallbackAvatarText: String,
+    val avatarText: String,
     val authorId: String? = null,
     val onClick: ((String, String, String) -> Unit)? = null
 )
@@ -351,7 +353,8 @@ private fun UnifiedMarketDetailHeaderCard(
         ) {
             UnifiedMarketDetailLeadingIcon(
                 title = header.title,
-                fallbackAvatarText = header.fallbackAvatarText
+                avatarText = header.avatarText,
+                logoUrl = header.logoUrl
             )
 
             Column(
@@ -479,7 +482,8 @@ private fun UnifiedMarketDetailStickyTabs(
 @Composable
 private fun UnifiedMarketDetailLeadingIcon(
     title: String,
-    fallbackAvatarText: String
+    avatarText: String,
+    logoUrl: String?
 ) {
     Surface(
         shape = RoundedCornerShape(20.dp),
@@ -489,12 +493,22 @@ private fun UnifiedMarketDetailLeadingIcon(
             modifier = Modifier.size(76.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = fallbackAvatarText.ifBlank { marketDetailInitial(title) },
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
+            val logoPainter = rememberRemoteLogoPainter(logoUrl = logoUrl, size = 76.dp)
+            if (logoPainter != null) {
+                Image(
+                    painter = logoPainter,
+                    contentDescription = title,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.size(64.dp)
+                )
+            } else {
+                Text(
+                    text = avatarText,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
         }
     }
 }
@@ -521,7 +535,7 @@ private fun UnifiedMarketDetailParticipantChip(
     ) {
         UnifiedMarketDetailSmallAvatar(
             avatarUrl = participant.avatarUrl,
-            fallbackText = participant.fallbackAvatarText
+            avatarText = participant.avatarText
         )
         Column(
             modifier = Modifier.weight(1f),
@@ -548,7 +562,7 @@ private fun UnifiedMarketDetailParticipantChip(
 @Composable
 private fun UnifiedMarketDetailSmallAvatar(
     avatarUrl: String?,
-    fallbackText: String
+    avatarText: String
 ) {
     if (!avatarUrl.isNullOrBlank()) {
         Image(
@@ -572,7 +586,7 @@ private fun UnifiedMarketDetailSmallAvatar(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = fallbackText.ifBlank { "?" },
+                text = avatarText,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onPrimaryContainer

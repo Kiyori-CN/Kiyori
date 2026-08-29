@@ -49,6 +49,7 @@ import com.ai.assistance.operit.core.tools.packTool.ToolPkgComposeDslNode
 import com.ai.assistance.operit.core.tools.packTool.ToolPkgComposeDslParser
 import com.ai.assistance.operit.ui.features.token.webview.WebViewConfig
 import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.util.RenderProcessSafeWebViewClient
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -1648,7 +1649,7 @@ internal fun renderWebViewNode(
                 )
             }
             webViewClient =
-                object : WebViewClient() {
+                object : RenderProcessSafeWebViewClient(TAG) {
                     override fun shouldOverrideUrlLoading(
                         view: WebView?,
                         request: WebResourceRequest?
@@ -2002,7 +2003,8 @@ internal fun renderWebViewNode(
                                     "rendererPriorityAtExit" to detail?.rendererPriorityAtExit()
                                 )
                         )
-                        return true
+                        disposedRef.set(true)
+                        return super.onRenderProcessGone(view, detail)
                     }
                 }
 

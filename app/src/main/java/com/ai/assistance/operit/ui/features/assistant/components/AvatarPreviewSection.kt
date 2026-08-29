@@ -34,9 +34,10 @@ fun AvatarPreviewSection(
     showPreviewContent: Boolean = true,
     onPreviewError: (String) -> Unit,
 ) {
-    val context = LocalContext.current
     val rendererFactory = remember { AvatarRendererFactoryImpl() }
     val colors = LocalKiyoriSettingsColors.current
+    val avatarPreviewErrorLogTemplate = stringResource(R.string.avatar_preview_error_log)
+    val avatarPreviewFailedMessage = stringResource(R.string.avatar_preview_failed)
 
     Surface(
         modifier = modifier,
@@ -117,10 +118,10 @@ fun AvatarPreviewSection(
                             onError = { error ->
                                 AppLogger.e(
                                     "AvatarPreviewSection",
-                                    context.getString(R.string.avatar_preview_error_log, error)
+                                    avatarPreviewErrorLogTemplate.format(error)
                                 )
                                 onPreviewError(
-                                    context.getString(R.string.avatar_preview_failed),
+                                    avatarPreviewFailedMessage,
                                 )
                             }
                         )

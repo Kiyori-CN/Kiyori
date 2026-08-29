@@ -217,12 +217,12 @@ internal fun WebSessionBrowserSiteSettingsSheet(
     browserSettings: WebSessionBrowserSettings,
     adBlockState: BrowserAdBlockState,
     userScriptsAllowed: Boolean,
-    networkProxyEnabled: Boolean = true,
     onSetFeatureDisabled: (String, WebSessionSiteFeature, Boolean) -> Unit,
     onSetAdBlockingDisabled: (String, Boolean) -> Unit,
     onClearSiteSettings: (String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    networkProxyEnabled: Boolean = true,
 ) {
     Surface(
         modifier = modifier.fillMaxSize(),

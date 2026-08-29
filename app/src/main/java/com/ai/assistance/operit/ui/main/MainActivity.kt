@@ -118,16 +118,14 @@ class MainActivity : ComponentActivity() {
         // 获取当前设置的语言
         val code = LocaleUtils.getCurrentLanguage(newBase)
         val locale = LocaleUtils.getLocaleForLanguageCode(code, newBase)
-        val config = Configuration(newBase.resources.configuration)
+        val config = LocaleUtils.createLocaleOverrideConfiguration(locale)
 
         // 设置语言配置
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             val localeList = LocaleList(locale)
             LocaleList.setDefault(localeList)
-            config.setLocales(localeList)
         } else {
             @Suppress("DEPRECATION")
-            config.locale = locale
             Locale.setDefault(locale)
         }
 

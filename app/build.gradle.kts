@@ -1343,7 +1343,7 @@ android {
         versionName = "0.1.0"
 
         // Marketplace ranges describe the inherited Operit runtime contract, not Kiyori's product version.
-        buildConfigField("String", "OPERIT_MARKET_COMPAT_VERSION", "\"1.12.0+9\"")
+        buildConfigField("String", "OPERIT_MARKET_COMPAT_VERSION", "\"1.12.1+3\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

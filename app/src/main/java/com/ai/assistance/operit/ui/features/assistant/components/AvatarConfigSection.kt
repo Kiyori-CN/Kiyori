@@ -78,7 +78,7 @@ fun AvatarConfigSection(
         val currentAvatarModel = uiState.currentAvatarModel
         val currentSettings = uiState.config
 
-            Row(
+        Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically

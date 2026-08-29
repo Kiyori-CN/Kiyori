@@ -9,6 +9,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Base64
 import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.util.RenderProcessSafeWebViewClient
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
@@ -199,7 +200,7 @@ class WebViewHandler(private val context: Context) {
         tabId: String,
         options: WebViewOptions
     ): WebViewClient {
-        return object : WebViewClient() {
+        return object : RenderProcessSafeWebViewClient("WebViewHandler") {
             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                 super.onPageStarted(view, url, favicon)
                 onPageStarted?.invoke(tabId)

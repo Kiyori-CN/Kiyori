@@ -220,6 +220,13 @@
 - `ChatFindResultData`
 - `AgentStatusResultData`
 
+`ChatInfo` 除聊天、消息数、时间、token 和 `characterCardName` 外，还公开两个可选标识：
+
+- `characterCardId`：由当前绑定的角色卡名称解析出的角色卡 ID；未绑定或无法解析时为空。
+- `characterGroupId`：群聊绑定的角色组 ID；非群聊时为空。
+
+这些字段只补充稳定标识，不改变现有按角色卡名称绑定聊天的持久化合同。
+
 同时也定义了对应的包装结果：
 
 - `ChatServiceStartResult`

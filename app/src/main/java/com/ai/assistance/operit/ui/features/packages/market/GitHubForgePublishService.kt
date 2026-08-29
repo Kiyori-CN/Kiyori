@@ -6,6 +6,7 @@ import com.ai.assistance.operit.data.api.GitHubRelease
 import com.ai.assistance.operit.data.api.GitHubReleaseAsset
 import com.ai.assistance.operit.data.api.MarketStatsApiService
 import com.ai.assistance.operit.data.api.MarketV2Entry
+import com.ai.assistance.operit.data.api.MarketV2NewVersionEntryPatch
 import com.ai.assistance.operit.data.api.MarketV2PublishAsset
 import com.ai.assistance.operit.data.api.MarketV2PublishRequest
 import com.ai.assistance.operit.data.api.MarketV2PublishVersion
@@ -240,6 +241,7 @@ class GitHubForgePublishService(
                     version = descriptor.version,
                     displayName = descriptor.displayName,
                     description = descriptor.description,
+                    detail = descriptor.detail,
                     categoryId = descriptor.categoryId,
                     allowPublicUpdates = descriptor.allowPublicUpdates,
                     sourceFileName = sourceFile.name,
@@ -252,7 +254,7 @@ class GitHubForgePublishService(
                 registerMarketEntry(
                     payload = payload,
                     existingEntryId = request.publishContext?.entryId,
-                    includeEntryPatch = request.publishContext?.canEditEntry ?: true
+                    publishContext = request.publishContext
                 ).getOrElse { error ->
                     // GitHub Release 资产已经完成上传，市场登记失败时保留它，避免用户制品丢失并允许直接重试登记。
                     return@withContext Result.success(
@@ -425,7 +427,7 @@ class GitHubForgePublishService(
     private suspend fun registerMarketEntry(
         payload: MarketRegistrationPayload,
         existingEntryId: String?,
-        includeEntryPatch: Boolean
+        publishContext: ArtifactPublishClusterContext?
     ): Result<MarketV2Entry> {
         val request =
             MarketV2PublishRequest(
@@ -434,7 +436,7 @@ class GitHubForgePublishService(
                 description = payload.description,
                 categoryId = payload.categoryId,
                 allowPublicUpdates = payload.allowPublicUpdates,
-                detail = payload.projectDescription.ifBlank { payload.description },
+                detail = payload.detail.ifBlank { payload.description },
                 version = MarketV2PublishVersion(
                     version = payload.version,
                     formatVer = payload.type.marketFormatVersion(),
@@ -459,14 +461,16 @@ class GitHubForgePublishService(
         return marketStatsApiService.publishNewVersion(
             entryId = resolvedEntryId,
             request = request,
-            includeEntryPatch = includeEntryPatch
+            entryPatch = buildNewVersionEntryPatch(payload, publishContext)
         ).map { response ->
             MarketV2Entry(
                 type = payload.type.wireValue,
                 id = response.entryId,
                 title = payload.displayName,
                 description = payload.description,
-                detail = payload.projectDescription.ifBlank { payload.description },
+                detail = payload.detail.ifBlank { payload.description },
+                categoryId = payload.categoryId,
+                allowPublicUpdates = payload.allowPublicUpdates,
                 stateCode = "pending",
                 latestVersion = MarketV2Version(
                     id = response.versionId,
@@ -494,5 +498,34 @@ class GitHubForgePublishService(
     }
     companion object {
         const val DEFAULT_MAX_SUPPORTED_APP_VERSION = "1.99.99"
+    }
+}
+
+internal fun buildNewVersionEntryPatch(
+    payload: MarketRegistrationPayload,
+    publishContext: ArtifactPublishClusterContext?,
+): MarketV2NewVersionEntryPatch? {
+    val context = publishContext ?: return null
+    val patch =
+        if (context.canEditEntry) {
+            MarketV2NewVersionEntryPatch(
+                title = payload.displayName.takeIf { it != context.lockedDisplayName },
+                description = payload.description.takeIf { it != context.marketDescription },
+                detail = payload.detail.takeIf { it != context.marketDetail },
+                categoryId = payload.categoryId.takeIf { it != context.categoryId },
+                allowPublicUpdates =
+                    payload.allowPublicUpdates.takeIf {
+                        it != context.marketAllowPublicUpdates
+                    },
+            )
+        } else {
+            MarketV2NewVersionEntryPatch(
+                description = payload.description.takeIf { it != context.marketDescription },
+                detail = payload.detail.takeIf { it != context.marketDetail },
+            )
+        }
+    return patch.takeIf {
+        it.title != null || it.description != null || it.detail != null ||
+            it.categoryId != null || it.allowPublicUpdates != null
     }
 }

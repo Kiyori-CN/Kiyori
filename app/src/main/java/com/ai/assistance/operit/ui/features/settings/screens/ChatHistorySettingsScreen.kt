@@ -8,6 +8,8 @@ import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.OperitPaths
 import android.widget.Toast
 import java.io.File
+import com.ai.assistance.operit.api.chat.library.ChatMemoryRebuildManager
+import com.ai.assistance.operit.api.chat.library.ChatMemoryWindowPlanner
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -81,6 +83,8 @@ fun ChatHistorySettingsScreen() {
     val characterCardManager = remember { CharacterCardManager.getInstance(context) }
     val characterGroupCardManager = remember { CharacterGroupCardManager.getInstance(context) }
     val userPreferencesManager = remember { UserPreferencesManager.getInstance(context) }
+    val memoryRebuildManager = remember { ChatMemoryRebuildManager.getInstance(context) }
+    val memoryRebuildProgress by memoryRebuildManager.progress.collectAsState()
     val activeProfileId by userPreferencesManager.activeMemorySpaceIdFlow.collectAsState(initial = "default")
 
     val characterCardStatsState by chatHistoryManager.characterCardStatsFlow
@@ -301,6 +305,8 @@ fun ChatHistorySettingsScreen() {
                     chatHistories = chatHistories,
                     characterCards = availableCharacterCards,
                     characterGroups = availableCharacterGroups,
+                    memoryRebuildManager = memoryRebuildManager,
+                    memoryRebuildProgress = memoryRebuildProgress,
                     onApply = { selectedIds, targetCharacterName, targetCharacterGroupId, targetGroupName, shouldUnbindCharacterCard, shouldUnbindCharacterGroup ->
                         if (selectedIds.isEmpty()) {
                             Toast.makeText(context, context.getString(R.string.please_select_chats_first), Toast.LENGTH_SHORT).show()
@@ -1178,6 +1184,8 @@ private fun ChatHistoryBatchSelectorCard(
     chatHistories: List<ChatHistory>,
     characterCards: List<CharacterCard>,
     characterGroups: List<CharacterGroupCard>,
+    memoryRebuildManager: ChatMemoryRebuildManager,
+    memoryRebuildProgress: ChatMemoryRebuildManager.Progress,
     onApply: suspend (
         selectedChatIds: List<String>,
         targetCharacterCardName: String?,
@@ -1201,6 +1209,10 @@ private fun ChatHistoryBatchSelectorCard(
     var submitting by remember { mutableStateOf(false) }
     var deleteInProgress by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    var selectedMemoryWindowSize by remember {
+        mutableIntStateOf(ChatMemoryWindowPlanner.DEFAULT_WINDOW_MESSAGE_COUNT)
+    }
+    var showMemoryRebuildConfirmDialog by remember { mutableStateOf(false) }
 
     val normalizedQuery = searchQuery.trim()
     val characterGroupNameById = remember(characterGroups) {
@@ -1260,6 +1272,8 @@ private fun ChatHistoryBatchSelectorCard(
     }
 
     val hasSelection = selectedChatIds.isNotEmpty()
+    val memoryRebuildRunning = memoryRebuildProgress.status == ChatMemoryRebuildManager.Status.PREPARING ||
+        memoryRebuildProgress.status == ChatMemoryRebuildManager.Status.RUNNING
     val hasTargetSelection = targetIsUnbind || !selectedTargetName.isNullOrBlank()
     val hasTargetGroupSelection = targetGroupIsUnbind || !selectedTargetGroupId.isNullOrBlank()
     val hasTargetGroup = targetGroupName.isNotBlank()
@@ -1356,7 +1370,7 @@ private fun ChatHistoryBatchSelectorCard(
                             characterGroupName = groupName,
                             selected = selectedChatIds.contains(history.id),
                             onSelectionChange = { selected ->
-                                if (submitting || deleteInProgress) {
+                                if (submitting || deleteInProgress || memoryRebuildRunning) {
                                     return@ChatHistorySelectableRow
                                 }
                                 selectedChatIds = if (selected) {
@@ -1373,9 +1387,85 @@ private fun ChatHistoryBatchSelectorCard(
                 }
             }
 
+            if (memoryRebuildProgress.status != ChatMemoryRebuildManager.Status.IDLE) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    ),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        when (memoryRebuildProgress.status) {
+                            ChatMemoryRebuildManager.Status.PREPARING ->
+                                Text(stringResource(R.string.chat_memory_rebuild_preparing))
+                            ChatMemoryRebuildManager.Status.RUNNING -> {
+                                LinearProgressIndicator(
+                                    progress = { memoryRebuildProgress.fraction.coerceIn(0f, 1f) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                Text(
+                                    context.getString(
+                                        R.string.chat_memory_rebuild_progress,
+                                        memoryRebuildProgress.currentChatTitle,
+                                        memoryRebuildProgress.completedWindows + 1,
+                                        memoryRebuildProgress.totalWindows,
+                                        memoryRebuildProgress.processedSourceMessages,
+                                        memoryRebuildProgress.totalSourceMessages,
+                                        memoryRebuildProgress.failedWindows,
+                                    )
+                                )
+                            }
+                            ChatMemoryRebuildManager.Status.COMPLETED ->
+                                Text(
+                                    context.getString(
+                                        R.string.chat_memory_rebuild_completed,
+                                        memoryRebuildProgress.completedChats,
+                                        memoryRebuildProgress.completedWindows,
+                                        memoryRebuildProgress.failedWindows,
+                                    )
+                                )
+                            ChatMemoryRebuildManager.Status.CANCELLED ->
+                                Text(
+                                    context.getString(
+                                        R.string.chat_memory_rebuild_cancelled,
+                                        memoryRebuildProgress.completedWindows,
+                                        memoryRebuildProgress.totalWindows,
+                                    )
+                                )
+                            ChatMemoryRebuildManager.Status.FAILED ->
+                                Text(
+                                    context.getString(
+                                        R.string.chat_memory_rebuild_failed,
+                                        memoryRebuildProgress.errorMessage,
+                                    )
+                                )
+                            ChatMemoryRebuildManager.Status.IDLE -> Unit
+                        }
+                        if (memoryRebuildRunning) {
+                            TextButton(onClick = memoryRebuildManager::cancel) {
+                                Text(stringResource(R.string.chat_memory_rebuild_cancel))
+                            }
+                        }
+                    }
+                }
+            }
+
+            Button(
+                onClick = { showMemoryRebuildConfirmDialog = true },
+                enabled = hasSelection && !submitting && !deleteInProgress && !memoryRebuildRunning,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(context.getString(R.string.chat_memory_rebuild_action, selectedChatIds.size))
+            }
+
             Button(
                 onClick = { showDeleteConfirmDialog = true },
-                enabled = hasSelection && !submitting && !deleteInProgress,
+                enabled = hasSelection && !submitting && !deleteInProgress && !memoryRebuildRunning,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error,
@@ -1671,6 +1761,80 @@ private fun ChatHistoryBatchSelectorCard(
             }
         )
     }
+
+    if (showMemoryRebuildConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!memoryRebuildRunning) showMemoryRebuildConfirmDialog = false },
+            title = { Text(stringResource(R.string.chat_memory_rebuild_confirm_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        context.getString(
+                            R.string.chat_memory_rebuild_confirm_message,
+                            selectedChatIds.size,
+                        )
+                    )
+                    var expanded by remember { mutableStateOf(false) }
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = it },
+                    ) {
+                        OutlinedTextField(
+                            value = context.getString(
+                                R.string.chat_memory_rebuild_window_size_value,
+                                selectedMemoryWindowSize,
+                            ),
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text(stringResource(R.string.chat_memory_rebuild_window_size)) },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+                            modifier = Modifier
+                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                .fillMaxWidth(),
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false },
+                        ) {
+                            listOf(16, 24, 32, 48).forEach { size ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            context.getString(
+                                                R.string.chat_memory_rebuild_window_size_value,
+                                                size,
+                                            )
+                                        )
+                                    },
+                                    onClick = {
+                                        selectedMemoryWindowSize = size
+                                        expanded = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        memoryRebuildManager.start(selectedChatIds.toList(), selectedMemoryWindowSize)
+                        showMemoryRebuildConfirmDialog = false
+                        selectedChatIds = emptySet()
+                    },
+                    enabled = !memoryRebuildRunning,
+                ) {
+                    Text(stringResource(R.string.chat_memory_rebuild_confirm_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMemoryRebuildConfirmDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
 }
 
 @Composable
@@ -1777,7 +1941,6 @@ private fun UnboundWorkspaceCard(
     unboundWorkspaces: List<UnboundWorkspaceInfo>,
     onDelete: suspend (Set<String>) -> Unit
 ) {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var selectedWorkspaces by remember { mutableStateOf<Set<String>>(emptySet()) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
@@ -1789,14 +1952,14 @@ private fun UnboundWorkspaceCard(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             SectionHeader(
-                title = context.getString(R.string.unbound_workspaces_title),
-                subtitle = context.getString(R.string.unbound_workspaces_subtitle),
+                title = stringResource(R.string.unbound_workspaces_title),
+                subtitle = stringResource(R.string.unbound_workspaces_subtitle),
                 icon = Icons.Default.FolderOff
             )
             
             if (unboundWorkspaces.isEmpty()) {
                 Text(
-                    text = context.getString(R.string.no_unbound_workspaces),
+                    text = stringResource(R.string.no_unbound_workspaces),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1808,7 +1971,7 @@ private fun UnboundWorkspaceCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = context.getString(R.string.selected_workspaces_count, selectedWorkspaces.size, unboundWorkspaces.size),
+                        text = stringResource(R.string.selected_workspaces_count, selectedWorkspaces.size, unboundWorkspaces.size),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -1817,13 +1980,13 @@ private fun UnboundWorkspaceCard(
                             onClick = { selectedWorkspaces = unboundWorkspaces.map { it.fullPath }.toSet() },
                             enabled = unboundWorkspaces.isNotEmpty() && !deleteInProgress
                         ) {
-                            Text(context.getString(R.string.select_all_current_list))
+                            Text(stringResource(R.string.select_all_current_list))
                         }
                         TextButton(
                             onClick = { selectedWorkspaces = emptySet() },
                             enabled = selectedWorkspaces.isNotEmpty() && !deleteInProgress
                         ) {
-                            Text(context.getString(R.string.clear_all))
+                            Text(stringResource(R.string.clear_all))
                         }
                     }
                 }
@@ -1876,7 +2039,7 @@ private fun UnboundWorkspaceCard(
                         Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
                     }
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(context.getString(R.string.delete_selected_workspaces, selectedWorkspaces.size))
+                    Text(stringResource(R.string.delete_selected_workspaces, selectedWorkspaces.size))
                 }
             }
         }
@@ -1890,9 +2053,9 @@ private fun UnboundWorkspaceCard(
                     showDeleteConfirmDialog = false
                 }
             },
-            title = { Text(context.getString(R.string.confirm_delete)) },
+            title = { Text(stringResource(R.string.confirm_delete)) },
             text = { 
-                Text(context.getString(R.string.delete_workspaces_confirmation, selectedWorkspaces.size)) 
+                Text(stringResource(R.string.delete_workspaces_confirmation, selectedWorkspaces.size))
             },
             confirmButton = {
                 TextButton(
@@ -1921,7 +2084,7 @@ private fun UnboundWorkspaceCard(
                             color = MaterialTheme.colorScheme.error
                         )
                     } else {
-                        Text(context.getString(R.string.delete))
+                        Text(stringResource(R.string.delete))
                     }
                 }
             },
@@ -1930,7 +2093,7 @@ private fun UnboundWorkspaceCard(
                     onClick = { showDeleteConfirmDialog = false },
                     enabled = !deleteInProgress
                 ) {
-                    Text(context.getString(R.string.cancel))
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -1946,7 +2109,6 @@ private fun UnboundWorkspaceRow(
     selected: Boolean,
     onSelectionChange: (Boolean) -> Unit
 ) {
-    val context = LocalContext.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1982,14 +2144,14 @@ private fun UnboundWorkspaceRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = context.getString(R.string.not_used_by_any_chat),
+                    text = stringResource(R.string.not_used_by_any_chat),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
         Icon(
-            imageVector = if (workspaceInfo.location == context.getString(R.string.chathistory_internal_storage)) Icons.Default.Folder else Icons.Default.FolderOpen,
+            imageVector = if (workspaceInfo.location == stringResource(R.string.chathistory_internal_storage)) Icons.Default.Folder else Icons.Default.FolderOpen,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(24.dp)

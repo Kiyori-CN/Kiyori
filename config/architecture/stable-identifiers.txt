@@ -4,7 +4,7 @@
 1	namespace = "com.ai.assistance.operit"
 1	versionCode = 45
 1	versionName = "0.1.0"
-3	"app_database"
+5	"app_database"
 1	version = 24
 1	private const val FORMAT_VERSION = 1
 1	"operit_raw_snapshot_"

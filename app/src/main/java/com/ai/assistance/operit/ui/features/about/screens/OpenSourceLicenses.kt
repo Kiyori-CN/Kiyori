@@ -1,7 +1,7 @@
 package com.ai.assistance.operit.ui.features.about.screens
 
 import android.content.Intent
-import android.net.Uri
+import androidx.core.net.toUri
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
@@ -333,7 +333,7 @@ fun LicenseDialog(onDismiss: () -> Unit) {
                             Row {
                                 IconButton(
                                     onClick = {
-                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(library.licenseUrl)).apply {
+                                        val intent = Intent(Intent.ACTION_VIEW, library.licenseUrl.toUri()).apply {
                                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                         }
                                         context.startActivity(intent)
@@ -346,7 +346,7 @@ fun LicenseDialog(onDismiss: () -> Unit) {
                                 }
                                 IconButton(
                                     onClick = {
-                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(library.website)).apply {
+                                        val intent = Intent(Intent.ACTION_VIEW, library.website.toUri()).apply {
                                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                         }
                                         context.startActivity(intent)

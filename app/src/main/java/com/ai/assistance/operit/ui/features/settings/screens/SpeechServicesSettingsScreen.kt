@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Refresh
@@ -39,6 +40,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -72,6 +74,7 @@ import com.ai.assistance.operit.api.speech.SpeechServiceFactory
 import com.ai.assistance.operit.api.voice.HttpTtsResponsePipelineStep
 import com.ai.assistance.operit.api.voice.VoiceServiceFactory
 import com.ai.assistance.operit.data.preferences.SpeechServicesPreferences
+import com.ai.assistance.operit.data.preferences.SpeechServiceProfilesPreferences
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -114,6 +117,13 @@ internal fun SpeechServicesSettingsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val prefs = remember { SpeechServicesPreferences(context) }
+    val profilePrefs = remember { SpeechServiceProfilesPreferences(context) }
+    val ttsProfiles by profilePrefs.ttsProfilesFlow.collectAsState(initial = emptyList())
+    val sttProfiles by profilePrefs.sttProfilesFlow.collectAsState(initial = emptyList())
+    val currentTtsProfile by profilePrefs.currentTtsProfileOrNullFlow.collectAsState(initial = null)
+    val currentSttProfile by profilePrefs.currentSttProfileOrNullFlow.collectAsState(initial = null)
+    var showCreateProfileDialog by remember { mutableStateOf(false) }
+    var profileAction by remember { mutableStateOf<SpeechProfileAction?>(null) }
 
     // --- State for TTS Settings ---
     val ttsServiceType by prefs.ttsServiceTypeFlow.collectAsState(initial = VoiceServiceFactory.VoiceServiceType.SIMPLE_TTS)
@@ -325,6 +335,8 @@ internal fun SpeechServicesSettingsScreen(
                 httpConfig = sttHttpConfigData,
             )
 
+            profilePrefs.syncFromLegacyPreferences()
+
             VoiceServiceFactory.resetInstance()
             SpeechServiceFactory.resetInstance()
             autoSaveFailed = false
@@ -420,6 +432,38 @@ internal fun SpeechServicesSettingsScreen(
                     }
                 }
             }
+        }
+        item(key = "speech_profiles") {
+            SpeechProfileSelector(
+                profiles = if (section == SpeechSettingsSection.TEXT_TO_SPEECH) {
+                    ttsProfiles.map { SpeechProfileOption(it.id, it.name) }
+                } else {
+                    sttProfiles.map { SpeechProfileOption(it.id, it.name) }
+                },
+                activeProfileId = if (section == SpeechSettingsSection.TEXT_TO_SPEECH) {
+                    currentTtsProfile?.id.orEmpty()
+                } else {
+                    currentSttProfile?.id.orEmpty()
+                },
+                onSelect = { id ->
+                    scope.launch {
+                        try {
+                            if (section == SpeechSettingsSection.TEXT_TO_SPEECH) {
+                                profilePrefs.selectTtsProfile(id)
+                            } else {
+                                profilePrefs.selectSttProfile(id)
+                            }
+                            VoiceServiceFactory.resetInstance()
+                            SpeechServiceFactory.resetInstance()
+                        } catch (error: Exception) {
+                            AppLogger.e("SpeechServicesSettings", "Failed to select speech profile", error)
+                        }
+                    }
+                },
+                onCreate = { showCreateProfileDialog = true },
+                onRename = { profileAction = SpeechProfileAction.Rename(it.id, it.name) },
+                onDelete = { profileAction = SpeechProfileAction.Delete(it.id, it.name) },
+            )
         }
         if (section == SpeechSettingsSection.TEXT_TO_SPEECH) {
             item(key = "speech_tts") {
@@ -2653,6 +2697,224 @@ internal fun SpeechServicesSettingsScreen(
                 }
             }
         )
+    }
+
+    if (showCreateProfileDialog) {
+        var profileName by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showCreateProfileDialog = false },
+            title = { Text(stringResource(R.string.speech_services_profile_create)) },
+            text = {
+                OutlinedTextField(
+                    value = profileName,
+                    onValueChange = { profileName = it },
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.profile_name)) },
+                    placeholder = { Text(stringResource(R.string.profile_name_placeholder)) },
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            try {
+                                if (section == SpeechSettingsSection.TEXT_TO_SPEECH) {
+                                    profilePrefs.createTtsProfile(profileName, currentTtsProfile)
+                                } else {
+                                    profilePrefs.createSttProfile(profileName, currentSttProfile)
+                                }
+                                showCreateProfileDialog = false
+                            } catch (error: Exception) {
+                                AppLogger.e("SpeechServicesSettings", "Failed to create speech profile", error)
+                            }
+                        }
+                    },
+                    enabled = profileName.isNotBlank() &&
+                        if (section == SpeechSettingsSection.TEXT_TO_SPEECH) currentTtsProfile != null else currentSttProfile != null,
+                ) {
+                    Text(stringResource(R.string.create))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCreateProfileDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    when (val action = profileAction) {
+        is SpeechProfileAction.Rename -> {
+            var profileName by remember(action.id) { mutableStateOf(action.name) }
+            AlertDialog(
+                onDismissRequest = { profileAction = null },
+                title = { Text(stringResource(R.string.speech_services_profile_rename)) },
+                text = {
+                    OutlinedTextField(
+                        value = profileName,
+                        onValueChange = { profileName = it },
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.profile_name)) },
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            scope.launch {
+                                try {
+                                    if (section == SpeechSettingsSection.TEXT_TO_SPEECH) {
+                                        profilePrefs.renameTtsProfile(action.id, profileName)
+                                    } else {
+                                        profilePrefs.renameSttProfile(action.id, profileName)
+                                    }
+                                    profileAction = null
+                                } catch (error: Exception) {
+                                    AppLogger.e("SpeechServicesSettings", "Failed to rename speech profile", error)
+                                }
+                            }
+                        },
+                        enabled = profileName.isNotBlank(),
+                    ) {
+                        Text(stringResource(R.string.save))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { profileAction = null }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                },
+            )
+        }
+        is SpeechProfileAction.Delete -> {
+            AlertDialog(
+                onDismissRequest = { profileAction = null },
+                title = { Text(stringResource(R.string.speech_services_profile_delete)) },
+                text = {
+                    Text(stringResource(R.string.speech_services_profile_delete_message, action.name))
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            scope.launch {
+                                try {
+                                    if (section == SpeechSettingsSection.TEXT_TO_SPEECH) {
+                                        profilePrefs.deleteTtsProfile(action.id)
+                                    } else {
+                                        profilePrefs.deleteSttProfile(action.id)
+                                    }
+                                    profileAction = null
+                                } catch (error: Exception) {
+                                    AppLogger.e("SpeechServicesSettings", "Failed to delete speech profile", error)
+                                }
+                            }
+                        },
+                    ) {
+                        Text(stringResource(R.string.delete))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { profileAction = null }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                },
+            )
+        }
+        null -> Unit
+    }
+}
+
+private data class SpeechProfileOption(val id: String, val name: String)
+private sealed interface SpeechProfileAction {
+    val id: String
+    val name: String
+
+    data class Rename(override val id: String, override val name: String) : SpeechProfileAction
+    data class Delete(override val id: String, override val name: String) : SpeechProfileAction
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SpeechProfileSelector(
+    profiles: List<SpeechProfileOption>,
+    activeProfileId: String,
+    onSelect: (String) -> Unit,
+    onCreate: () -> Unit,
+    onRename: (SpeechProfileOption) -> Unit,
+    onDelete: (SpeechProfileOption) -> Unit,
+) {
+    if (profiles.isEmpty()) return
+    var expanded by remember { mutableStateOf(false) }
+    val activeName = profiles.firstOrNull { it.id == activeProfileId }?.name.orEmpty()
+    KiyoriSettingsGroupSection(
+        title = stringResource(R.string.speech_services_profiles_title),
+        description = stringResource(R.string.speech_services_profiles_desc),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = it },
+                modifier = Modifier.weight(1f),
+            ) {
+                OutlinedTextField(
+                    value = activeName,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(stringResource(R.string.speech_services_profile_current)) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+                    modifier = Modifier
+                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                        .fillMaxWidth(),
+                )
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                ) {
+                    profiles.forEach { profile ->
+                        DropdownMenuItem(
+                            text = { Text(profile.name) },
+                            onClick = {
+                                onSelect(profile.id)
+                                expanded = false
+                            },
+                        )
+                    }
+                }
+            }
+            IconButton(onClick = onCreate) {
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.speech_services_profile_create))
+            }
+            profiles.firstOrNull { it.id == activeProfileId }?.let { activeProfile ->
+                IconButton(onClick = { onRename(activeProfile) }) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = stringResource(R.string.speech_services_profile_rename),
+                    )
+                }
+            }
+        }
+        profiles.forEach { profile ->
+            if (profile.id == activeProfileId) {
+                return@forEach
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(profile.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                IconButton(onClick = { onRename(profile) }) {
+                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.speech_services_profile_rename))
+                }
+                IconButton(onClick = { onDelete(profile) }) {
+                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.speech_services_profile_delete))
+                }
+            }
+        }
     }
 }
 

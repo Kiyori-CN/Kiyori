@@ -57,6 +57,7 @@ import com.ai.assistance.operit.ui.features.token.model.NavDestination
 import com.ai.assistance.operit.ui.features.token.model.getIconForIndex
 import com.ai.assistance.operit.ui.features.token.preferences.UrlConfigManager
 import com.ai.assistance.operit.ui.features.token.webview.WebViewConfig
+import com.ai.assistance.operit.util.RenderProcessSafeWebViewClient
 import com.kiyori.design.theme.kiyoriSemanticToneForStableId
 import com.kiyori.design.theme.resolveColors
 import kotlinx.coroutines.launch
@@ -101,7 +102,7 @@ fun TokenConfigWebViewScreen(onNavigateBack: () -> Unit) {
 
     // 简化的WebViewClient
     val webViewClient = remember(context, resources, navDestinations, snackbarHostState) {
-        object : WebViewClient() {
+        object : RenderProcessSafeWebViewClient("TokenConfigWebView") {
             override fun shouldOverrideUrlLoading(
                     view: WebView?,
                     request: WebResourceRequest?

@@ -41,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -363,7 +364,7 @@ private fun AuditTimeline(
     val loadingPayloads = remember { mutableStateMapOf<String, Boolean>() }
     val payloadErrors = remember { mutableStateMapOf<String, String>() }
     var expandedEventId by rememberSaveable { mutableStateOf<String?>(null) }
-    var previousLastSequence by remember { mutableStateOf(0L) }
+    var previousLastSequence by remember { mutableLongStateOf(0L) }
     var unreadEventCount by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
 

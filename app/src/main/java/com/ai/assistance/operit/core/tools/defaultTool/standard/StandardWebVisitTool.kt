@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.util.RenderProcessSafeWebViewClient
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
@@ -1310,7 +1311,7 @@ class StandardWebVisitTool(private val context: Context) : ToolExecutor {
 
                                         // Configure WebViewClient
                                         webView.webViewClient =
-                                                object : WebViewClient() {
+                                                object : RenderProcessSafeWebViewClient(TAG) {
                                                     // 追踪上一个URL，用于检测重定向
                                                     private var lastLoadedUrl: String = ""
 

@@ -2,6 +2,7 @@ package com.ai.assistance.operit.ui.features.packages.market
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,11 +51,14 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.ui.common.icons.rememberRemoteLogoPainter
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
 import java.time.Instant
@@ -65,6 +69,7 @@ import java.time.format.DateTimeFormatter
 data class MarketBrowseCardModel(
     val title: String,
     val description: String,
+    val logoUrl: String? = null,
     val ownerUsername: String = "",
     val thumbsUpCount: Int = 0,
     val heartCount: Int = 0,
@@ -352,7 +357,7 @@ fun MarketBrowseCard(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            MarketBrowseLeadingIcon(title = model.title)
+            MarketBrowseLeadingIcon(title = model.title, logoUrl = model.logoUrl)
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -394,7 +399,7 @@ fun MarketBrowseCard(
 }
 
 @Composable
-private fun MarketBrowseLeadingIcon(title: String) {
+private fun MarketBrowseLeadingIcon(title: String, logoUrl: String?) {
     val initial =
         title
             .trim()
@@ -411,12 +416,22 @@ private fun MarketBrowseLeadingIcon(title: String) {
             modifier = Modifier.size(48.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = initial,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
+            val logoPainter = rememberRemoteLogoPainter(logoUrl = logoUrl, size = 48.dp)
+            if (logoPainter != null) {
+                Image(
+                    painter = logoPainter,
+                    contentDescription = title,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.size(40.dp)
+                )
+            } else {
+                Text(
+                    text = initial,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
         }
     }
 }

@@ -9,6 +9,7 @@ import android.location.Location
 import android.location.LocationManager
 import android.os.SystemClock
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.core.location.LocationManagerCompat
 import androidx.core.os.CancellationSignal
 import com.ai.assistance.operit.util.AppLogger
@@ -289,7 +290,7 @@ internal class KiyoriWeatherRepository private constructor(context: Context) {
                     )
                 if (snapshot == null) {
                     AppLogger.w(TAG, "Discarding invalid Kiyori Home weather snapshot")
-                    preferences.edit().remove(SNAPSHOT_KEY).apply()
+                    preferences.edit { remove(SNAPSHOT_KEY) }
                 }
                 snapshot
             } catch (error: CancellationException) {
@@ -303,9 +304,9 @@ internal class KiyoriWeatherRepository private constructor(context: Context) {
     private suspend fun persistSnapshot(snapshot: KiyoriWeatherSnapshot) {
         withContext(Dispatchers.IO) {
             try {
-                preferences.edit()
-                    .putString(SNAPSHOT_KEY, encodeKiyoriWeatherSnapshot(snapshot))
-                    .apply()
+                preferences.edit {
+                    putString(SNAPSHOT_KEY, encodeKiyoriWeatherSnapshot(snapshot))
+                }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: RuntimeException) {

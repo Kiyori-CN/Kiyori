@@ -1,8 +1,7 @@
 package com.ai.assistance.operit.api.voice
 
 import android.content.Context
-import com.ai.assistance.operit.data.preferences.SpeechServicesPreferences
-import kotlinx.coroutines.flow.first
+import com.ai.assistance.operit.data.preferences.SpeechServiceProfilesPreferences
 import kotlinx.coroutines.runBlocking
 
 /** 语音服务工厂，用于创建不同类型的语音服务实例 */
@@ -37,81 +36,71 @@ object VoiceServiceFactory {
     fun createVoiceService(
         context: Context
     ): VoiceService {
-        val prefs = SpeechServicesPreferences(context)
-        // 使用runBlocking同步获取配置，这在工厂方法中是可接受的
+        // 工厂是同步 API，profile 已在 DataStore 迁移后保证存在。
         return runBlocking {
-            val type = prefs.ttsServiceTypeFlow.first()
+            val profile = SpeechServiceProfilesPreferences(context).getCurrentTtsProfile()
             
-            when (type) {
+            when (profile.serviceType) {
                 VoiceServiceType.SIMPLE_TTS -> {
-                    val httpConfig = prefs.ttsHttpConfigFlow.first()
                     SimpleVoiceProvider(
                         context = context,
-                        initialLocaleTag = httpConfig.localeTag,
-                        initialVoiceId = httpConfig.voiceId
+                        initialLocaleTag = profile.httpConfig.localeTag,
+                        initialVoiceId = profile.httpConfig.voiceId
                     )
                 }
                 VoiceServiceType.HTTP_TTS -> {
-                    val httpConfig = prefs.ttsHttpConfigFlow.first()
                     HttpVoiceProvider(context).apply {
-                        setConfiguration(httpConfig)
+                        setConfiguration(profile.httpConfig)
                     }
                 }
                 VoiceServiceType.OPENAI_WS_TTS -> {
-                    val httpConfig = prefs.ttsHttpConfigFlow.first()
                     OpenAIRealtimeVoiceProvider(
                         context = context,
-                        endpointUrl = httpConfig.urlTemplate,
-                        apiKey = httpConfig.apiKey,
-                        model = httpConfig.modelName,
-                        initialVoiceId = httpConfig.voiceId
+                        endpointUrl = profile.httpConfig.urlTemplate,
+                        apiKey = profile.httpConfig.apiKey,
+                        model = profile.httpConfig.modelName,
+                        initialVoiceId = profile.httpConfig.voiceId
                     )
                 }
                 VoiceServiceType.SILICONFLOW_TTS -> {
-                    val httpConfig = prefs.ttsHttpConfigFlow.first()
                     SiliconFlowVoiceProvider(
                         context = context,
-                        apiKey = httpConfig.apiKey,
-                        initialVoiceId = httpConfig.voiceId,
-                        initialModelName = httpConfig.modelName
+                        apiKey = profile.httpConfig.apiKey,
+                        initialVoiceId = profile.httpConfig.voiceId,
+                        initialModelName = profile.httpConfig.modelName
                     )
                 }
                 VoiceServiceType.MINIMAX_TTS -> {
-                    val httpConfig = prefs.ttsHttpConfigFlow.first()
                     MiniMaxVoiceProvider(
                         context = context,
-                        config = httpConfig
+                        config = profile.httpConfig
                     )
                 }
                 VoiceServiceType.MIMO_TTS -> {
-                    val httpConfig = prefs.ttsHttpConfigFlow.first()
                     MimoVoiceProvider(
                         context = context,
-                        config = httpConfig
+                        config = profile.httpConfig
                     )
                 }
                 VoiceServiceType.DOUBAO_TTS -> {
-                    val httpConfig = prefs.ttsHttpConfigFlow.first()
                     DoubaoVoiceProvider(
                         context = context,
-                        config = httpConfig
+                        config = profile.httpConfig
                     )
                 }
                 VoiceServiceType.OPENAI_TTS -> {
-                    val httpConfig = prefs.ttsHttpConfigFlow.first()
                     OpenAIVoiceProvider(
                         context = context,
-                        endpointUrl = httpConfig.urlTemplate,
-                        apiKey = httpConfig.apiKey,
-                        model = httpConfig.modelName,
-                        initialVoiceId = httpConfig.voiceId
+                        endpointUrl = profile.httpConfig.urlTemplate,
+                        apiKey = profile.httpConfig.apiKey,
+                        model = profile.httpConfig.modelName,
+                        initialVoiceId = profile.httpConfig.voiceId
                     )
                 }
                 VoiceServiceType.VITS_TTS -> {
-                    val vitsConfig = prefs.ttsVitsPackageConfigFlow.first()
                     VitsVoiceProvider(
                         context = context,
-                        config = vitsConfig
+                        config = profile.vitsConfig
                     )
                 }
             }
@@ -120,7 +109,7 @@ object VoiceServiceFactory {
 
     // 单例实例缓存
     private var instance: VoiceService? = null
-    private var currentType: VoiceServiceType? = null
+    private var currentProfileId: String? = null
 
     /**
      * 获取语音服务单例实例
@@ -129,13 +118,12 @@ object VoiceServiceFactory {
      * @return VoiceService实例
      */
     fun getInstance(context: Context): VoiceService {
-        val prefs = SpeechServicesPreferences(context)
-        val selectedType = runBlocking { prefs.ttsServiceTypeFlow.first() }
+        val selectedProfileId = runBlocking { SpeechServiceProfilesPreferences(context).getCurrentTtsProfile().id }
 
-        if (instance == null || selectedType != currentType) {
+        if (instance == null || selectedProfileId != currentProfileId) {
             instance?.shutdown()
             instance = createVoiceService(context)
-            currentType = selectedType
+            currentProfileId = selectedProfileId
         }
         return instance!!
     }
@@ -144,6 +132,6 @@ object VoiceServiceFactory {
     fun resetInstance() {
         instance?.shutdown()
         instance = null
-        currentType = null
+        currentProfileId = null
     }
 }

@@ -20,6 +20,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import com.ai.assistance.operit.ui.common.copyPlainTextToClipboard
 import com.ai.assistance.operit.ui.common.gestures.rememberAiContentHorizontalGestureOwner
+import com.ai.assistance.operit.util.RenderProcessSafeWebViewClient
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -625,7 +626,7 @@ fun MermaidRenderer(code: String, modifier: Modifier = Modifier) {
 
             // 设置WebViewClient来拦截事件
             webViewClient =
-                object : android.webkit.WebViewClient() {
+                object : RenderProcessSafeWebViewClient("MermaidRenderer") {
                     override fun shouldOverrideUrlLoading(
                         view: android.webkit.WebView,
                         request: android.webkit.WebResourceRequest
@@ -714,7 +715,7 @@ fun HtmlPreviewRenderer(code: String, modifier: Modifier = Modifier) {
             settings.useWideViewPort = true
 
             webViewClient =
-                object : android.webkit.WebViewClient() {
+                object : RenderProcessSafeWebViewClient("HtmlPreviewRenderer") {
                     override fun shouldOverrideUrlLoading(
                         view: android.webkit.WebView,
                         request: android.webkit.WebResourceRequest

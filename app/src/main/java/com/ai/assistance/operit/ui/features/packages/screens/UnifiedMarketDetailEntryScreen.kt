@@ -185,14 +185,15 @@ fun UnifiedMarketDetailEntryScreen(
         header =
             UnifiedMarketDetailHeader(
                 title = entry.title,
-                fallbackAvatarText = marketDetailInitial(entry.title),
+                avatarText = marketDetailInitial(entry.title),
+                logoUrl = entry.logoUrl,
                 participants =
                     listOf(
                         UnifiedMarketDetailParticipant(
                             roleLabel = stringResource(R.string.market_detail_author_role),
                             name = entry.marketAuthorName(),
                             avatarUrl = entry.marketAuthorAvatar(),
-                            fallbackAvatarText = marketDetailInitial(entry.marketAuthorName()),
+                            avatarText = marketDetailInitial(entry.marketAuthorName()),
                             authorId = entry.marketAuthorId(),
                             onClick = onNavigateToAuthor
                         ),
@@ -200,7 +201,7 @@ fun UnifiedMarketDetailEntryScreen(
                             roleLabel = stringResource(R.string.market_detail_sharer_role),
                             name = entry.marketPublisherName(),
                             avatarUrl = entry.marketPublisherAvatar(),
-                            fallbackAvatarText = marketDetailInitial(entry.marketPublisherName()),
+                            avatarText = marketDetailInitial(entry.marketPublisherName()),
                             authorId = entry.marketPublisherId(),
                             onClick = onNavigateToAuthor
                         )

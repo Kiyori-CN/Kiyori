@@ -33,24 +33,56 @@ import org.json.JSONObject
  */
 object MemoryLibrary {
     private const val TAG = "MemoryLibrary"
+    private const val DEFAULT_ANALYSIS_HISTORY_MESSAGE_COUNT = 10
     private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var apiPreferences: ApiPreferences? = null
     private val mutex = Mutex()
 
     @Volatile private var isInitialized = false
 
-    // --- Data classes for parsing the new structured analysis ---
-    private data class ParsedLink(val sourceTitle: String, val targetTitle: String, val type: String, val description: String, val weight: Float = 1.0f)
-    private data class ParsedEntity(val title: String, val content: String, val tags: List<String>, val aliasFor: String?, val folderPath: String?)
-    private data class ParsedUpdate(val titleToUpdate: String, val newContent: String, val reason: String, val newCredibility: Float?, val newImportance: Float?)
-    private data class ParsedMerge(val sourceTitles: List<String>, val newTitle: String, val newContent: String, val newTags: List<String>, val folderPath: String, val reason: String)
-    private data class ParsedAnalysis(
+    internal data class ParsedLink(
+        val sourceTitle: String,
+        val targetTitle: String,
+        val type: String,
+        val description: String,
+        val weight: Float,
+    )
+    internal data class ParsedEntity(
+        val title: String,
+        val content: String,
+        val tags: List<String>,
+        val aliasFor: String?,
+        val folderPath: String,
+    )
+    internal data class ParsedUpdate(
+        val titleToUpdate: String,
+        val newContent: String,
+        val reason: String,
+        val newCredibility: Float?,
+        val newImportance: Float?,
+    )
+    internal data class ParsedMerge(
+        val sourceTitles: List<String>,
+        val newTitle: String,
+        val newContent: String,
+        val newTags: List<String>,
+        val folderPath: String,
+        val reason: String,
+    )
+    internal data class ParsedAnalysis(
         val mainProblem: ParsedEntity?,
         val extractedEntities: List<ParsedEntity> = emptyList(),
         val links: List<ParsedLink> = emptyList(),
         val updatedEntities: List<ParsedUpdate> = emptyList(),
         val mergedEntities: List<ParsedMerge> = emptyList()
     )
+
+    internal fun hasNoMemoryOperations(analysis: ParsedAnalysis): Boolean =
+        analysis.mainProblem == null &&
+            analysis.extractedEntities.isEmpty() &&
+            analysis.updatedEntities.isEmpty() &&
+            analysis.mergedEntities.isEmpty() &&
+            analysis.links.isEmpty()
 
 
     fun initialize(context: Context) {
@@ -117,15 +149,42 @@ object MemoryLibrary {
         conversationHistory: List<Pair<String, String>>,
         content: String,
         aiService: AIService,
-        profileIdOverride: String? = null
+        profileIdOverride: String? = null,
+        analysisHistoryLimit: Int = DEFAULT_ANALYSIS_HISTORY_MESSAGE_COUNT,
     ) {
+        require(analysisHistoryLimit > 0) { "Analysis history limit must be positive" }
         saveMemory(
             context = context,
             toolHandler = toolHandler,
             conversationHistory = conversationHistory,
             content = content,
             aiService = aiService,
-            profileIdOverride = profileIdOverride
+            profileIdOverride = profileIdOverride,
+            analysisHistoryLimit = analysisHistoryLimit,
+        )
+    }
+
+    /** Rebuild entry point that reports a failed analysis to the caller. */
+    suspend fun saveMemoryWindowNow(
+        context: Context,
+        toolHandler: AIToolHandler,
+        conversationHistory: List<Pair<String, String>>,
+        content: String,
+        aiService: AIService,
+        profileIdOverride: String?,
+        analysisHistoryLimit: Int,
+    ) {
+        require(analysisHistoryLimit > 0) { "Analysis history limit must be positive" }
+        ensureInitialized(context)
+        saveMemory(
+            context = context,
+            toolHandler = toolHandler,
+            conversationHistory = conversationHistory,
+            content = content,
+            aiService = aiService,
+            profileIdOverride = profileIdOverride,
+            analysisHistoryLimit = analysisHistoryLimit,
+            propagateAnalysisFailure = true,
         )
     }
 
@@ -271,16 +330,20 @@ object MemoryLibrary {
             conversationHistory: List<Pair<String, String>>,
             content: String,
             aiService: AIService,
-            profileIdOverride: String? = null
+            profileIdOverride: String? = null,
+            analysisHistoryLimit: Int,
+            propagateAnalysisFailure: Boolean = false,
     ) {
         mutex.withLock {
             val profileId = profileIdOverride ?: preferencesManager.activeMemorySpaceIdFlow.first()
             val memoryRepository = MemoryRepository(context, profileId)
 
-            // Prune tool results to reduce token usage
+            // Tool output and reasoning are execution traces, not durable memory facts.
             val prunedContent =
-                ChatUtils.stripGeminiThoughtSignatureMeta(
-                    pruneToolResultContent(context, content)
+                ChatUtils.removeThinkingContent(
+                    ChatUtils.stripGeminiThoughtSignatureMeta(
+                        pruneToolResultContent(context, content)
+                    )
                 )
 
             // Process conversation history: remove system messages and clean user messages
@@ -292,8 +355,10 @@ object MemoryLibrary {
                     } else {
                         msgContent
                     }
-                    role to ChatUtils.stripGeminiThoughtSignatureMeta(
-                        pruneToolResultContent(context, cleanedContent)
+                    role to ChatUtils.removeThinkingContent(
+                        ChatUtils.stripGeminiThoughtSignatureMeta(
+                            pruneToolResultContent(context, cleanedContent)
+                        )
                     )
                 }
 
@@ -316,11 +381,13 @@ object MemoryLibrary {
                 solution = prunedContent,
                 conversationHistory = processedHistory,
                 memoryRepository = memoryRepository,
-                profileId = profileId
+                profileId = profileId,
+                analysisHistoryLimit = analysisHistoryLimit,
+                propagateFailure = propagateAnalysisFailure,
             )
 
             // If analysis is empty (trivial conversation), abort early.
-            if (analysis.mainProblem == null && analysis.extractedEntities.isEmpty() && analysis.updatedEntities.isEmpty() && analysis.mergedEntities.isEmpty()) {
+            if (hasNoMemoryOperations(analysis)) {
                 AppLogger.d(TAG, "分析结果为空，判断为无需记忆的对话，跳过保存。")
                 return@withLock
             }
@@ -370,18 +437,17 @@ object MemoryLibrary {
             }
 
             // Save the graph structure to the MemoryRepository
-            if (analysis.mainProblem == null) {
-                AppLogger.w(TAG, "分析结果中缺少main_problem，跳过保存记忆图谱")
-                return@withLock
-            }
-
             AppLogger.d(TAG, "开始构建记忆图谱...")
-            AppLogger.d(TAG, "AI分析结果 - 主要问题: '${analysis.mainProblem.title}', 实体: ${analysis.extractedEntities.size}, 链接: ${analysis.links.size}, 文件夹: '${analysis.mainProblem.folderPath}'")
+            AppLogger.d(
+                TAG,
+                "AI分析结果 - 主要事件: '${analysis.mainProblem?.title ?: "无"}', " +
+                    "实体: ${analysis.extractedEntities.size}, 链接: ${analysis.links.size}"
+            )
 
 
             try {
                 // 1. Create main problem memory
-                val mainProblemMemory = analysis.mainProblem.let { mainProblem ->
+                val mainProblemMemory = analysis.mainProblem?.let { mainProblem ->
                     val existingMemory = memoryRepository.findMemoryByTitle(mainProblem.title)
                     if (existingMemory != null) {
                         AppLogger.d(TAG, "1. 发现同名核心记忆，更新内容: '${mainProblem.title}'")
@@ -395,7 +461,7 @@ object MemoryLibrary {
                             content = mainProblem.content,
                             importance = 0.8f, // Main problems are highly important
                             credibility = 1.0f,
-                            folderPath = mainProblem.folderPath ?: ""
+                            folderPath = mainProblem.folderPath
                         )
                         memoryRepository.saveMemory(memory)
                         mainProblem.tags.forEach { tagName ->
@@ -404,7 +470,7 @@ object MemoryLibrary {
                         memory
                     }
                 }
-                mainProblemMemory.let {
+                mainProblemMemory?.let {
                     createdMemories[it.title] = it
                 }
 
@@ -435,7 +501,7 @@ object MemoryLibrary {
                             title = entity.title,
                             content = entity.content,
                             source = "memory_analysis",
-                            folderPath = entity.folderPath ?: analysis.mainProblem.folderPath ?: ""
+                            folderPath = entity.folderPath
                         )
                         memoryRepository.saveMemory(memory)
                         entity.tags.forEach { tagName ->
@@ -471,8 +537,13 @@ object MemoryLibrary {
 
                 AppLogger.d(TAG, "成功从对话中提取并保存了记忆图谱")
 
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 AppLogger.e(TAG, "保存记忆图谱失败", e)
+                if (propagateAnalysisFailure) {
+                    throw e
+                }
             }
         }
     }
@@ -487,13 +558,15 @@ object MemoryLibrary {
         solution: String,
         conversationHistory: List<Pair<String, String>>,
         memoryRepository: MemoryRepository,
-        profileId: String
+        profileId: String,
+        analysisHistoryLimit: Int,
+        propagateFailure: Boolean,
     ): ParsedAnalysis {
         try {
             val useEnglish = LocaleUtils.getCurrentLanguage(context).lowercase().startsWith("en")
             // --- Hybrid Strategy: Local rough search + LLM final decision ---
             // 1. Use a compact search query (question-focused) for rough candidate selection.
-            val contextQuery = buildCandidateSearchQuery(query, solution)
+            val contextQuery = buildCandidateSearchQuery(query, solution, conversationHistory)
             val memorySearchSettings = MemorySearchSettingsPreferences(context, profileId)
             val searchConfig = memorySearchSettings.load()
             val memoryExtractionCustomRules =
@@ -559,7 +632,14 @@ object MemoryLibrary {
                 memoryExtractionCustomRules = memoryExtractionCustomRules
             )
 
-            val analysisMessage = buildAnalysisMessage(context, query, solution, conversationHistory, useEnglish)
+            val analysisMessage = buildAnalysisMessage(
+                context = context,
+                query = query,
+                solution = solution,
+                conversationHistory = conversationHistory,
+                useEnglish = useEnglish,
+                historyLimit = analysisHistoryLimit,
+            )
             val messages = listOf(Pair("system", systemPrompt), Pair("user", analysisMessage)).toPromptTurns()
             val result = StringBuilder()
 
@@ -582,28 +662,37 @@ object MemoryLibrary {
             // Update request count
             apiPreferences?.incrementRequestCountForProviderModel(aiService.providerModel)
 
-            return parseAnalysisResult(context, ChatUtils.removeThinkingContent(result.toString()))
+            return parseAnalysisResult(ChatUtils.removeThinkingContent(result.toString()))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             AppLogger.e(TAG, "生成分析失败", e)
+            if (propagateFailure) {
+                throw e
+            }
             return ParsedAnalysis(null)
         }
     }
 
-    private fun buildCandidateSearchQuery(query: String, solution: String): String {
+    private fun buildCandidateSearchQuery(
+        query: String,
+        solution: String,
+        conversationHistory: List<Pair<String, String>>,
+    ): String {
         val coreQuestion = extractCoreQuestionText(query)
         val fallbackQuestion = normalizeCandidateSearchText(query, maxLen = 800)
 
         val selectedQuestion = if (coreQuestion.isNotBlank()) coreQuestion else fallbackQuestion
-        if (selectedQuestion.isBlank()) return normalizeCandidateSearchText(solution, maxLen = 300)
-
         val conciseSolution = normalizeCandidateSearchText(solution, maxLen = 180)
+        val recentWindowContext = normalizeCandidateSearchText(
+            raw = conversationHistory.takeLast(12).joinToString("\n") { (_, content) -> content },
+            maxLen = 1200,
+        )
 
-        // 优先问题文本，附带少量解答上下文（避免历史记录噪声）。
-        return if (conciseSolution.isNotBlank()) {
-            "$selectedQuestion\n$conciseSolution"
-        } else {
-            selectedQuestion
-        }
+        // Short final questions need bounded window context to retrieve the right memory domain.
+        return listOf(selectedQuestion, conciseSolution, recentWindowContext)
+            .filter(String::isNotBlank)
+            .joinToString("\n")
     }
 
     private fun extractCoreQuestionText(rawQuery: String): String {
@@ -687,7 +776,8 @@ object MemoryLibrary {
             query: String,
             solution: String,
             conversationHistory: List<Pair<String, String>>,
-            useEnglish: Boolean
+            useEnglish: Boolean,
+            historyLimit: Int,
     ): String {
         val messageBuilder = StringBuilder()
         if (useEnglish) {
@@ -705,7 +795,7 @@ object MemoryLibrary {
             messageBuilder.appendLine(solution.take(3000))
             messageBuilder.appendLine()
         }
-        val recentHistory = conversationHistory.takeLast(10)
+        val recentHistory = conversationHistory.takeLast(historyLimit)
         if (recentHistory.isNotEmpty()) {
             messageBuilder.appendLine(if (useEnglish) "History:" else context.getString(R.string.memory_analysis_history))
             recentHistory.forEachIndexed { index, (role, content) ->
@@ -718,111 +808,107 @@ object MemoryLibrary {
     /**
      * Parses the JSON response from the AI into a ParsedAnalysis object.
      */
-    private fun parseAnalysisResult(context: Context, jsonString: String): ParsedAnalysis {
-        return try {
-            val cleanJson = ChatUtils.extractJson(jsonString)
-            if (cleanJson.isEmpty() || !cleanJson.startsWith("{")) return ParsedAnalysis(null)
+    /** Parses the object-based memory graph protocol returned by the AI. */
+    internal fun parseAnalysisResult(jsonString: String): ParsedAnalysis {
+        val cleanJson = ChatUtils.extractJson(jsonString)
+        require(cleanJson.isNotEmpty() && cleanJson.startsWith("{")) {
+            "Memory analysis must return a JSON object"
+        }
+        if (cleanJson == "{}") return ParsedAnalysis(null)
 
-            // Handle the case where AI decides not to extract any knowledge
-            if (cleanJson == "{}") {
-                return ParsedAnalysis(null)
-            }
+        val json = JSONObject(cleanJson)
 
-            val json = JSONObject(cleanJson)
-            
-            // 【新增】输出 AI 返回的完整 JSON 指令
-            AppLogger.d(TAG, "AI 返回的完整 JSON 指令:\n${json.toString(2)}")
+        return ParsedAnalysis(
+            mainProblem = json.requiredNullableObject("main")?.toParsedEntity("main", aliasAllowed = false),
+            extractedEntities = json.requiredObjectArray("new").mapIndexed { index, entity ->
+                entity.toParsedEntity("new[$index]", aliasAllowed = true)
+            },
+            updatedEntities = json.requiredObjectArray("update").mapIndexed { index, update ->
+                update.toParsedUpdate("update[$index]")
+            },
+            mergedEntities = json.requiredObjectArray("merge").mapIndexed { index, merge ->
+                merge.toParsedMerge("merge[$index]")
+            },
+            links = json.requiredObjectArray("links").mapIndexed { index, link ->
+                link.toParsedLink("links[$index]")
+            },
+        )
+    }
 
-            // Parse main_problem from "main" array
-            val mainProblem = json.optJSONArray("main")?.let {
-                val tags = it.optJSONArray(2)?.let { tagsArray -> List(tagsArray.length()) { i -> tagsArray.getString(i) } } ?: emptyList()
-                ParsedEntity(
-                    title = it.getString(0),
-                    content = it.getString(1),
-                    tags = tags,
-                    aliasFor = null,
-                    folderPath = it.optString(3, "")
-                )
-            }
+    private fun JSONObject.requiredNullableObject(key: String): JSONObject? = when {
+        !has(key) -> throw IllegalArgumentException("Missing required field: $key")
+        isNull(key) -> null
+        else -> getJSONObject(key)
+    }
 
-            // Parse extracted_entities from "new" array
-            val extractedEntities = json.optJSONArray("new")?.let { entitiesArray ->
-                List(entitiesArray.length()) { i ->
-                    val entityArr = entitiesArray.getJSONArray(i)
-                    val tags = entityArr.optJSONArray(2)?.let { tagsArray -> List(tagsArray.length()) { j -> tagsArray.getString(j) } } ?: emptyList()
-                    val aliasFor = if (!entityArr.isNull(4)) entityArr.getString(4) else null
-                    ParsedEntity(
-                        title = entityArr.getString(0),
-                        content = entityArr.getString(1),
-                        tags = tags,
-                        aliasFor = aliasFor,
-                        folderPath = entityArr.optString(3, "")
-                    )
-                }
-            } ?: emptyList()
+    private fun JSONObject.requiredObjectArray(key: String): List<JSONObject> {
+        require(has(key)) { "Missing required field: $key" }
+        val values = getJSONArray(key)
+        return List(values.length()) { index -> values.getJSONObject(index) }
+    }
 
-            // Parse links from "links" array
-            val links = json.optJSONArray("links")?.let { linksArray ->
-                List(linksArray.length()) { i ->
-                    val linkArr = linksArray.getJSONArray(i)
-                    ParsedLink(
-                        sourceTitle = linkArr.getString(0),
-                        targetTitle = linkArr.getString(1),
-                        type = linkArr.getString(2),
-                        description = linkArr.optString(3, ""),
-                        weight = linkArr.optDouble(4, 1.0).toFloat()
-                    )
-                }
-            } ?: emptyList()
+    private fun JSONObject.optionalString(key: String): String? = when {
+        !has(key) || isNull(key) -> null
+        else -> getString(key).takeIf { it.isNotBlank() }
+    }
 
-            // Parse updated_entities from "update" array
-            val updatedEntities = json.optJSONArray("update")?.let { updatesArray ->
-                List(updatesArray.length()) { i ->
-                    val updateArr = updatesArray.getJSONArray(i)
-                    val credibility = if (!updateArr.isNull(3)) updateArr.getDouble(3).toFloat() else null
-                    val importance = if (!updateArr.isNull(4)) updateArr.getDouble(4).toFloat() else null
-                    ParsedUpdate(
-                        titleToUpdate = updateArr.getString(0),
-                        newContent = updateArr.getString(1),
-                        reason = updateArr.getString(2),
-                        newCredibility = credibility,
-                        newImportance = importance
-                    )
-                }
-            } ?: emptyList()
+    private fun JSONObject.requiredString(key: String, context: String): String =
+        getString(key).takeIf { it.isNotBlank() }
+            ?: throw IllegalArgumentException("$context.$key must not be blank")
 
-            // Parse merge_entities from "merge" array
-            val mergedEntities = json.optJSONArray("merge")?.let { mergeArray ->
-                List(mergeArray.length()) { i ->
-                    val mergeObj = mergeArray.getJSONObject(i)
-                    val sourceTitles = mergeObj.getJSONArray("source_titles").let { titles ->
-                        List(titles.length()) { j -> titles.getString(j) }
-                    }
-                    ParsedMerge(
-                        sourceTitles = sourceTitles,
-                        newTitle = mergeObj.getString("new_title"),
-                        newContent = mergeObj.getString("new_content"),
-                        newTags = mergeObj.optJSONArray("new_tags")?.let { tags ->
-                            List(tags.length()) { k -> tags.getString(k) }
-                        } ?: emptyList(),
-                        folderPath = mergeObj.optString("folder_path"),
-                        reason = mergeObj.optString("reason")
-                    )
-                }
-            } ?: emptyList()
-
-            ParsedAnalysis(
-                mainProblem = mainProblem,
-                extractedEntities = extractedEntities,
-                links = links,
-                updatedEntities = updatedEntities,
-                mergedEntities = mergedEntities
-            )
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "解析分析结果失败: $jsonString", e)
-            ParsedAnalysis(null)
+    private fun JSONObject.requiredStringArray(key: String, context: String): List<String> {
+        val values = getJSONArray(key)
+        return List(values.length()) { index ->
+            values.getString(index).takeIf { it.isNotBlank() }
+                ?: throw IllegalArgumentException("$context.$key[$index] must not be blank")
         }
     }
+
+    private fun JSONObject.optionalUnitFloat(key: String, context: String): Float? {
+        if (!has(key) || isNull(key)) return null
+        val value = getDouble(key).toFloat()
+        require(value in 0f..1f) { "$context.$key must be between 0.0 and 1.0" }
+        return value
+    }
+
+    private fun JSONObject.toParsedEntity(context: String, aliasAllowed: Boolean): ParsedEntity =
+        ParsedEntity(
+            title = requiredString("title", context),
+            content = requiredString("content", context),
+            tags = requiredStringArray("tags", context),
+            aliasFor = if (aliasAllowed) optionalString("alias_for") else null,
+            folderPath = requiredString("folder_path", context),
+        )
+
+    private fun JSONObject.toParsedUpdate(context: String): ParsedUpdate =
+        ParsedUpdate(
+            titleToUpdate = requiredString("title", context),
+            newContent = requiredString("content", context),
+            reason = requiredString("reason", context),
+            newCredibility = optionalUnitFloat("credibility", context),
+            newImportance = optionalUnitFloat("importance", context),
+        )
+
+    private fun JSONObject.toParsedMerge(context: String): ParsedMerge =
+        ParsedMerge(
+            sourceTitles = requiredStringArray("source_titles", context),
+            newTitle = requiredString("title", context),
+            newContent = requiredString("content", context),
+            newTags = requiredStringArray("tags", context),
+            folderPath = requiredString("folder_path", context),
+            reason = requiredString("reason", context),
+        )
+
+    private fun JSONObject.toParsedLink(context: String): ParsedLink =
+        ParsedLink(
+            sourceTitle = requiredString("source", context),
+            targetTitle = requiredString("target", context),
+            type = requiredString("type", context),
+            description = requiredString("description", context),
+            weight = requireNotNull(optionalUnitFloat("weight", context)) {
+                "$context.weight is required"
+            },
+        )
 
     /**
      * Replaces the content of <tool_result> tags with a placeholder to reduce token count.

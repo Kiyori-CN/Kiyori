@@ -397,11 +397,12 @@ private fun ManagedEntryCard(
     val reviewDetail = entry.reviewDetail?.trim().orEmpty()
     val canSubmitRevision = review.state == MarketReviewState.CHANGES_REQUESTED
     val canOpenPublicEntry = entry.isOpen() && entry.listingState != "pending_listing"
+    val canPublishNewVersion = canOpenPublicEntry || (canManageEntry && entry.isWithdrawn())
     MarketManageItemCard(
         title = entry.title,
         description = entry.manageSummaryText(),
         isOpen = canOpenPublicEntry,
-        showActions = canManageEntry || canOpenPublicEntry || canSubmitRevision,
+        showActions = canPublishNewVersion || canSubmitRevision || (canManageEntry && entry.isOpen()),
         onClick = {
             if (canOpenPublicEntry) {
                 viewModel.openEntryDetail(entry, onNavigateToDetail)
@@ -454,12 +455,12 @@ private fun ManagedEntryCard(
                     }
                 )
             }
-            if (canOpenPublicEntry) {
+            if (canPublishNewVersion) {
                 MarketManageSecondaryActionButton(
                     label = stringResource(R.string.market_publish_new_version),
                     icon = Icons.Outlined.NewReleases,
                     onClick = {
-                        viewModel.openEntryDetail(entry) { fullEntry ->
+                        val openNewVersionScreen = { fullEntry: MarketV2Entry ->
                             when (val type = fullEntry.marketStatsType()) {
                                 MarketStatsType.SCRIPT,
                                 MarketStatsType.PACKAGE ->
@@ -473,6 +474,11 @@ private fun ManagedEntryCard(
                                     )
                                 null -> Unit
                             }
+                        }
+                        if (canOpenPublicEntry) {
+                            viewModel.openEntryDetail(entry, openNewVersionScreen)
+                        } else {
+                            viewModel.openOwnedEntryDetail(entry, openNewVersionScreen)
                         }
                     }
                 )
@@ -604,6 +610,10 @@ private fun MarketManageRelationBadge(relation: String) {
 
 private fun MarketV2PublisherEntrySummary.isOpen(): Boolean {
     return stateCode.equals("approved", ignoreCase = true) || stateCode.equals("open", ignoreCase = true)
+}
+
+private fun MarketV2PublisherEntrySummary.isWithdrawn(): Boolean {
+    return stateCode.equals("withdrawn", ignoreCase = true)
 }
 
 private fun MarketV2PublisherEntrySummary.isOwnerRelation(): Boolean {

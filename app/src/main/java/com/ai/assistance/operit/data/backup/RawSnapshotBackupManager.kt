@@ -30,6 +30,14 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
+private const val KIYORI_SNAPSHOT_PACKAGE_NAME = "com.kiyori"
+private const val OPERIT_SNAPSHOT_PACKAGE_NAME_PREFIX = "com.ai.assistance.operit"
+
+internal fun isSupportedSnapshotPackageName(packageName: String): Boolean =
+    packageName == KIYORI_SNAPSHOT_PACKAGE_NAME ||
+        packageName == OPERIT_SNAPSHOT_PACKAGE_NAME_PREFIX ||
+        packageName.startsWith("$OPERIT_SNAPSHOT_PACKAGE_NAME_PREFIX.")
+
 object RawSnapshotBackupManager {
 
     private const val TAG = "RawSnapshotBackup"
@@ -288,7 +296,7 @@ object RawSnapshotBackupManager {
                 AppLogger.i(TAG, "restore closed databases (room + objectbox)")
 
                 withContext(Dispatchers.Main) { onProgress?.invoke(RestoreProgress.EXTRACTING) }
-                val manifest = extractZipToWorkDir(cacheZip, workDir, expectedPackageName = context.packageName)
+                val manifest = extractZipToWorkDir(cacheZip, workDir)
 
                 val payloadDir = File(workDir, "payload")
                 val externalFilesPayloadDir = File(payloadDir, "external_files")
@@ -343,7 +351,7 @@ object RawSnapshotBackupManager {
         }
     }
 
-    private fun extractZipToWorkDir(zipFile: File, workDir: File, expectedPackageName: String): Manifest {
+    private fun extractZipToWorkDir(zipFile: File, workDir: File): Manifest {
         val payloadRoot = File(workDir, "payload")
         payloadRoot.mkdirs()
 
@@ -407,7 +415,7 @@ object RawSnapshotBackupManager {
             throw IllegalArgumentException("Unsupported backup version: ${manifest.formatVersion}")
         }
 
-        if (manifest.packageName != expectedPackageName) {
+        if (!isSupportedSnapshotPackageName(manifest.packageName)) {
             throw IllegalArgumentException("Backup package mismatch: ${manifest.packageName}")
         }
 

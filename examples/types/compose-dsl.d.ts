@@ -1103,14 +1103,41 @@ export interface ComposeResolveToolNameRequest {
   preferImported?: boolean;
 }
 
+export type ComposeFilePickerMode =
+  | "document"
+  | "image"
+  | "video"
+  | "media"
+  | "directory"
+  | "camera";
+
 export interface ComposeFilePickerOptions {
+  /**
+   * Selection source. Defaults to "document".
+   */
+  picker?: ComposeFilePickerMode;
+  /**
+   * MIME filter for the document picker only.
+   */
   mimeTypes?: string[];
+  /**
+   * Enables multiple selection for document, image, video, and media pickers.
+   */
   allowMultiple?: boolean;
+  /**
+   * Retains URI access for document and directory pickers.
+   */
   persistPermission?: boolean;
 }
 
 export interface ComposePickedFile {
+  /**
+   * Selected content URI. Directory results expose this as their only location.
+   */
   uri: string;
+  /**
+   * Temporary local file for document, visual-media, and camera results.
+   */
   path?: string;
   name?: string;
   mimeType?: string;

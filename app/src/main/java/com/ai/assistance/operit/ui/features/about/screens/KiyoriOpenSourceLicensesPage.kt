@@ -1,7 +1,7 @@
 package com.ai.assistance.operit.ui.features.about.screens
 
 import android.content.Intent
-import android.net.Uri
+import androidx.core.net.toUri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -64,7 +64,7 @@ internal fun KiyoriOpenSourceLicensesPage(
 
     fun openProject(url: String) {
         context.startActivity(
-            Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+            Intent(Intent.ACTION_VIEW, url.toUri()).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             },
         )
@@ -72,7 +72,7 @@ internal fun KiyoriOpenSourceLicensesPage(
 
     fun openLicense(url: String) {
         context.startActivity(
-            Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+            Intent(Intent.ACTION_VIEW, url.toUri()).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             },
         )

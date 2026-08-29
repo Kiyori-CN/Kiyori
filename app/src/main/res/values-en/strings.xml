@@ -470,7 +470,6 @@
     <string name="download_old_editor">Download Old Editor</string>
     <string name="visit_online_editor">Visit Online Editor</string>
 
-    <string name="voice_wakeup_section_title">Voice Wake-up</string>
     <string name="voice_wakeup_always_listen_title">Always Listening</string>
     <string name="voice_wakeup_always_listen_desc">Listen for the wake phrase in the background (microphone permission required)</string>
     <string name="voice_wakeup_phrase_label">Wake phrase</string>
@@ -503,7 +502,6 @@
     <string name="voice_wakeup_auto_new_chat_group_label">Default group for new chats</string>
     <string name="voice_wakeup_auto_new_chat_group_supporting">Default: %1$s</string>
 
-    <string name="voice_keyword_attachments_title">Voice Keyword Attachments</string>
     <string name="voice_keyword_attachments_enabled_title">Auto attach</string>
     <string name="voice_keyword_attachments_enabled_desc">Automatically capture attachments when keywords are detected</string>
     <string name="voice_keyword_attachments_screen_title">Screen</string>
@@ -913,7 +911,6 @@
     <string name="yes">Yes</string>
     <string name="no">No</string>
     <string name="authorized">Authorized</string>
-    <string name="unauthorized">Unauthorized</string>
     <string name="install_shizuku">Install Shizuku</string>
     <string name="open_shizuku">Open Shizuku App</string>
     <string name="show_help">Show help</string>
@@ -1289,10 +1286,6 @@
     <string name="exit_edit_mode">Exit Edit Mode</string>
     <string name="enter_edit_mode">Enter Edit Mode</string>
     <string name="total">Total</string>
-    <string name="total_tokens">Total: %1$s</string>
-    <string name="input_tokens">Input: %1$s</string>
-    <string name="output_tokens">Output: %1$s</string>
-    <string name="context_window">Context: %1$s</string>
     <string name="chat_stats_context">Context (estimated): %1$s / %2$s</string>
     <string name="chat_stats_request_count">Requests: %1$s</string>
     <string name="chat_stats_input_tokens">Input: %1$s</string>
@@ -1791,8 +1784,6 @@
     <!-- Tool Names -->
     <string name="tool_test_center">Tool Test Center</string>
     <string name="tool_test_center_desc">Test the availability and functionality of AI tools</string>
-    <string name="tool_file_manager">File Manager</string>
-    <string name="tool_file_manager_desc">Browse and manage device files with various operations support</string>
     <string name="tool_tts">Text-to-Speech</string>
     <string name="tool_tts_desc">Convert text to speech with adjustable speed and pitch</string>
     <string name="tts_title">Text-to-Speech Demo</string>
@@ -1832,8 +1823,6 @@
     <string name="tool_speech_recognition_desc">Convert speech to text with multiple engines and languages support</string>
     <string name="tool_permission_manager">App Permission Manager</string>
     <string name="tool_permission_manager_desc">Manage permissions for all device applications to protect privacy</string>
-    <string name="tool_user_agreement">User Agreement</string>
-    <string name="tool_user_agreement_desc">View the application\'s user agreement and privacy policy</string>
     <string name="tool_default_assistant_guide">Default Assistant Setup</string>
     <string name="tool_default_assistant_guide_desc">Set Kiyori voice floating as system default assistant</string>
     <string name="tool_terminal">Command Terminal</string>
@@ -2558,7 +2547,6 @@
     <string name="speech_services_test_tts">Test TTS Feature</string>
 
     <!-- Info Card -->
-    <string name="speech_services_info_title">About Speech Services</string>
     <string name="speech_services_info_tts_title">Text-to-Speech (TTS)</string>
     <string name="speech_services_info_tts_desc">TTS service converts text to speech. You can use the built-in system TTS engine or connect to remote HTTP / WebSocket speech APIs.</string>
     <string name="speech_services_info_stt_title">Speech-to-Text (STT)</string>
@@ -3044,7 +3032,6 @@
     <string name="chat_no_active_conversation">No active conversation</string>
     <string name="chat_summarizing_generating">Generating summary...</string>
     <string name="chat_no_messages_to_summarize">No messages to summarize</string>
-    <string name="chat_ai_service_not_initialized">AI service is not initialized</string>
     <string name="chat_summary_inserted">Summary inserted</string>
     <string name="chat_summary_generation_failed">Failed to generate summary</string>
     <string name="chat_insert_summary_failed">Failed to insert summary: %1$s</string>
@@ -4492,7 +4479,6 @@
     <string name="toolpkg_widget_picker_selecting">Configuring…</string>
 
     <!-- Persona Card Generation Screen -->
-    <string name="persona_card_generation_title">Character Card to Edit</string>
     <string name="error_unsupported_field">Unsupported field: %1$s</string>
     <string name="no_character_card">No Character Card</string>
     <string name="character_card_config">Character Card Configuration</string>
@@ -4608,7 +4594,6 @@
     <string name="voice_interaction_service_summary">Intelligent voice assistant service</string>
 
     <!-- Tool Permission Settings -->
-    <string name="tool_permissions_title">AI Tool Permissions</string>
     <string name="tool_permissions_description">By default, all tools require you to \'Ask\'. You can add exceptions below.</string>
     <string name="global_permission_switch">Global Permission Switch</string>
     <string name="global_permission_switch_description">This setting acts as a master control and can override individual tool permissions.</string>
@@ -4886,6 +4871,15 @@
 
     <!-- Chat History Management -->
     <string name="default_profile_name">Default Profile</string>
+    <string name="speech_services_profiles_title">Speech service profiles</string>
+    <string name="speech_services_profiles_desc">Save and switch independent text-to-speech and speech-recognition configurations.</string>
+    <string name="speech_services_profile_current">Current profile</string>
+    <string name="speech_services_profile_migrated_tts">Migrated TTS profile</string>
+    <string name="speech_services_profile_migrated_stt">Migrated STT profile</string>
+    <string name="speech_services_profile_create">Create speech profile</string>
+    <string name="speech_services_profile_rename">Rename speech profile</string>
+    <string name="speech_services_profile_delete">Delete speech profile</string>
+    <string name="speech_services_profile_delete_message">Delete speech profile “%1$s”? The active profile cannot be deleted.</string>
     <string name="removed_character_card_binding">Removed character card binding from %1$d chat(s)</string>
     <string name="assigned_chats_to_character_card">Assigned %1$d chat(s) to \"%2$s\"</string>
     <string name="assigned_chats_to_group">Assigned %1$d chat(s) to group \"%2$s\"</string>
@@ -5751,7 +5745,6 @@
 
     <!-- Package Manager Module -->
     <string name="script_settings">Script settings</string>
-    <string name="pkg_manage_env_vars">Manage Environment Variables</string>
     <string name="package_manager_refresh_success">Package list refreshed</string>
     <string name="package_manager_refresh_failed">Failed to refresh package list: %1$s</string>
     <string name="package_manager_load_errors_summary">Some scripts or plugins failed to load (%1$d)</string>
@@ -6326,7 +6319,6 @@
     <string name="gemini_connection_test_failed">Connection test failed: %1$s</string>
 
     <string name="provider_error_response_empty">API response is empty</string>
-    <string name="provider_error_parsing_failed">Failed to parse response</string>
     <string name="provider_error_retry_message">%1$s, retrying (%2$d)...</string>
     <string name="provider_error_timeout">Connection timeout</string>
     <string name="provider_error_unknown_host">Unknown host</string>
@@ -7657,7 +7649,6 @@
     <string name="screen_title_package_manage">Manage Plugins</string>
     <string name="screen_title_package_publish">Publish Plugin</string>
 
-    <string name="sidebar_status_normal">Normal</string>
     <string name="chat_style_bubble_ai_bubble_liquid_glass">Bubble AI Message Frosted Glass Background</string>
     <string name="chat_style_bubble_ai_bubble_liquid_glass_desc">When enabled, the bubble AI message background will display an iOS-style frosted glass effect</string>
     <string name="chat_style_bubble_ai_bubble_water_glass">Bubble AI Message Water Glass Background</string>
@@ -8224,7 +8215,6 @@
 
     <string name="kiyori_onboarding_permissions_title">Permissions and device capabilities</string>
     <string name="kiyori_onboarding_permissions_desc">Complete Kiyori\'s supported authorization here. Android runtime permissions can be requested together; special access and advanced capabilities require confirmation in the system or corresponding manager.</string>
-    <string name="kiyori_onboarding_permissions_overview_count">Ready %1$d / %2$d</string>
     <string name="kiyori_onboarding_permission_action_failed">Could not open the authorization entry for “%1$s.” Check whether the device supports it.</string>
 
     <string name="kiyori_onboarding_permission_status_granted">Granted</string>
@@ -8397,4 +8387,21 @@
     <string name="provider_section_international">International providers</string>
     <string name="provider_section_domestic">China-based providers</string>
     <string name="provider_section_local_and_custom">Local and custom</string>
+    <string name="markdown_link_not_openable">This link points to a reference inside the document and cannot be opened</string>
+    <string name="backup_text_export_progress">Exporting: %1$d%% (characters: %2$d / %3$d)</string>
+    <string name="backup_select_chat_records">Select chats to export</string>
+    <string name="backup_select_chat_records_hint">Choose the chat records to include in the backup file.</string>
+    <string name="backup_clear_selection">Clear selection</string>
+    <string name="chat_memory_rebuild_action">Rebuild memory (selected chats: %1$d)</string>
+    <string name="chat_memory_rebuild_preparing">Preparing memory rebuild…</string>
+    <string name="chat_memory_rebuild_progress">Processing “%1$s”: window %2$d/%3$d, message %4$d/%5$d, failures %6$d</string>
+    <string name="chat_memory_rebuild_completed">Memory rebuild complete: chats %1$d, windows %2$d, failures %3$d</string>
+    <string name="chat_memory_rebuild_cancelled">Memory rebuild cancelled: completed windows %1$d/%2$d</string>
+    <string name="chat_memory_rebuild_failed">Memory rebuild failed: %1$s</string>
+    <string name="chat_memory_rebuild_cancel">Cancel rebuild</string>
+    <string name="chat_memory_rebuild_confirm_title">Rebuild chat memory by window</string>
+    <string name="chat_memory_rebuild_confirm_message">Chats selected for ordered analysis: %1$d. Each window is saved independently to the existing memory library; one failed window will not stop later windows.</string>
+    <string name="chat_memory_rebuild_window_size">Messages per window</string>
+    <string name="chat_memory_rebuild_window_size_value">Message count: %1$d</string>
+    <string name="chat_memory_rebuild_confirm_action">Start rebuild</string>
 </resources>

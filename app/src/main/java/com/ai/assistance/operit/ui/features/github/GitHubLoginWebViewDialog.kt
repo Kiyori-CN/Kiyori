@@ -57,6 +57,7 @@ import com.ai.assistance.operit.data.preferences.GitHubAuthPreferences
 import com.ai.assistance.operit.ui.components.CustomScaffold
 import com.ai.assistance.operit.ui.features.token.webview.WebViewConfig
 import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.util.RenderProcessSafeWebViewClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -204,7 +205,7 @@ private fun GitHubEmbeddedLoginWebViewDialog(
 
     DisposableEffect(webView) {
         webView.webViewClient =
-            object : WebViewClient() {
+            object : RenderProcessSafeWebViewClient(TAG) {
                 override fun shouldOverrideUrlLoading(
                     view: WebView?,
                     request: WebResourceRequest?

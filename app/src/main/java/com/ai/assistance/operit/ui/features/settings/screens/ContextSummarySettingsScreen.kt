@@ -91,6 +91,7 @@ fun ContextSummarySettingsScreen(onBackPressed: () -> Unit) {
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val scrollState = rememberScrollState()
+    val resetHistoryDoneMessage = stringResource(R.string.context_reset_history_done)
 
     var maxImageHistoryUserTurnsInput by remember { mutableStateOf("") }
     var maxMediaHistoryUserTurnsInput by remember { mutableStateOf("") }
@@ -327,7 +328,7 @@ fun ContextSummarySettingsScreen(onBackPressed: () -> Unit) {
                                 maxMediaHistoryUserTurnsInput =
                                     apiPreferences.maxMediaHistoryUserTurnsFlow.first().toString()
                                 snackbarHostState.showSnackbar(
-                                    context.getString(R.string.context_reset_history_done)
+                                    resetHistoryDoneMessage
                                 )
                             } catch (error: Exception) {
                                 AppLogger.e(

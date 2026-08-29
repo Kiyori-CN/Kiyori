@@ -20,6 +20,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceError
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.features.token.webview.WebViewConfig
+import com.ai.assistance.operit.util.RenderProcessSafeWebViewClient
 
 @Composable
 fun HelpScreen(onBackPressed: () -> Unit = {}) {
@@ -31,7 +32,7 @@ fun HelpScreen(onBackPressed: () -> Unit = {}) {
     // 创建WebView实例
     val webView = remember {
         WebViewConfig.createWebView(context).apply {
-            webViewClient = object : WebViewClient() {
+            webViewClient = object : RenderProcessSafeWebViewClient("HelpScreen") {
                 override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                     super.onPageStarted(view, url, favicon)
                     isLoading = true

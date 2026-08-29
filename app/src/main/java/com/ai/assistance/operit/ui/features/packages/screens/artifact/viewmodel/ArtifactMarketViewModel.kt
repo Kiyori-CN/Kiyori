@@ -459,6 +459,7 @@ class ArtifactMarketViewModel(
             version = versionValue?.version.orEmpty().trim().removePrefix("v").removePrefix("V").ifBlank { "1.0.0" },
             displayName = trimmedDisplayName,
             description = trimmedDescription,
+            detail = trimmedDetail,
             categoryId = entry.categoryId,
             sourceFileName = assetName,
             minSupportedAppVersion = normalizeAppVersionOrNull(minSupportedAppVersion),

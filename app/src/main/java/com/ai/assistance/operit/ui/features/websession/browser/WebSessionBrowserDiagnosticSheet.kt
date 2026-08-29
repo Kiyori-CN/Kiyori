@@ -48,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -76,6 +77,9 @@ internal fun WebSessionBrowserDiagnosticSheet(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val exportSuccessMessage = stringResource(R.string.export_success)
+    val exportFailedMessage = stringResource(R.string.export_failed)
+    val copiedToClipboardMessage = stringResource(R.string.copied_to_clipboard)
     var scope by rememberSaveable { mutableStateOf(BrowserDiagnosticScope.CURRENT_SESSION) }
     var level by rememberSaveable { mutableStateOf<BrowserDiagnosticLevel?>(null) }
     var category by rememberSaveable { mutableStateOf<BrowserDiagnosticCategory?>(null) }
@@ -112,10 +116,10 @@ internal fun WebSessionBrowserDiagnosticSheet(
                         output.writer(Charsets.UTF_8).use { writer -> writer.write(report) }
                     }
                 }.onSuccess {
-                    Toast.makeText(context, context.getString(R.string.export_success), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, exportSuccessMessage, Toast.LENGTH_SHORT).show()
                 }.onFailure { error ->
                     AppLogger.e(DIAGNOSTIC_SHEET_TAG, "Failed to export browser diagnostics", error)
-                    Toast.makeText(context, context.getString(R.string.export_failed), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, exportFailedMessage, Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -139,7 +143,7 @@ internal fun WebSessionBrowserDiagnosticSheet(
                         )
                         Toast.makeText(
                             context,
-                            context.getString(R.string.copied_to_clipboard),
+                            copiedToClipboardMessage,
                             Toast.LENGTH_SHORT,
                         ).show()
                     },
@@ -406,6 +410,7 @@ private fun DiagnosticSearchField(
 
 @Composable
 private fun DiagnosticRow(entry: BrowserDiagnosticEntry) {
+    val locale = LocalConfiguration.current.locales[0]
     val levelColor =
         when (entry.level) {
             BrowserDiagnosticLevel.INFO -> Color(0xFF2563EB)
@@ -445,7 +450,7 @@ private fun DiagnosticRow(entry: BrowserDiagnosticEntry) {
                     modifier = Modifier.weight(1f).padding(start = 7.dp),
                 )
                 Text(
-                    text = DateFormat.getTimeInstance(DateFormat.SHORT, Locale.getDefault()).format(Date(entry.timestamp)),
+                    text = DateFormat.getTimeInstance(DateFormat.SHORT, locale).format(Date(entry.timestamp)),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 10.sp,
                 )

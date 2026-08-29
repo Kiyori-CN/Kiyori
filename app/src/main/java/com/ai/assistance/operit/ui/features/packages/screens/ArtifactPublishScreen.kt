@@ -113,6 +113,9 @@ fun com.ai.assistance.operit.data.api.MarketV2Entry.toArtifactPublishClusterCont
         lockedDisplayName = title,
         projectDisplayName = title,
         projectDescription = detail.ifBlank { description },
+        marketDescription = description,
+        marketDetail = detail,
+        marketAllowPublicUpdates = allowPublicUpdates,
         categoryId = categoryId,
         canEditEntry = canEditEntry
     )
@@ -156,6 +159,7 @@ fun ArtifactPublishScreen(
     val canEditContinuationEntry = activePublishContext?.canEditEntry ?: true
     val isDisplayNameLocked =
         !isEditMode && lockedDisplayName.isNotBlank() && !canEditContinuationEntry
+    val isContinuationCategoryLocked = isContinuationMode && !canEditContinuationEntry
     val continuationDescription =
         stringResource(R.string.artifact_publish_continuation_description)
 
@@ -191,8 +195,15 @@ fun ArtifactPublishScreen(
     var categoryId by rememberSaveable(activePublishContext?.categoryId) {
         mutableStateOf(initialInfo?.categoryId.orEmpty().ifBlank { activePublishContext?.categoryId.orEmpty() })
     }
-    var allowPublicUpdates by rememberSaveable(initialInfo?.allowPublicUpdates) {
-        mutableStateOf(initialInfo?.allowPublicUpdates ?: true)
+    var allowPublicUpdates by rememberSaveable(
+        initialInfo?.allowPublicUpdates,
+        activePublishContext?.marketAllowPublicUpdates,
+    ) {
+        mutableStateOf(
+            initialInfo?.allowPublicUpdates
+                ?: activePublishContext?.marketAllowPublicUpdates
+                ?: true
+        )
     }
     var minifyArtifact by rememberSaveable { mutableStateOf(false) }
     var useGitHubReleaseAsset by rememberSaveable { mutableStateOf(false) }
@@ -703,7 +714,7 @@ fun ArtifactPublishScreen(
         ExposedDropdownMenuBox(
             expanded = categoryExpanded,
             onExpandedChange = {
-                if (categories.isNotEmpty()) {
+                if (categories.isNotEmpty() && !isContinuationCategoryLocked) {
                     categoryExpanded = !categoryExpanded
                 }
             }
@@ -721,7 +732,7 @@ fun ArtifactPublishScreen(
                     .fillMaxWidth()
                     .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
                 readOnly = true,
-                enabled = categories.isNotEmpty(),
+                enabled = categories.isNotEmpty() && !isContinuationCategoryLocked,
                 trailingIcon = {
                     ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded)
                 },
@@ -743,7 +754,7 @@ fun ArtifactPublishScreen(
                 }
             }
         }
-        if (!isContinuationMode) {
+        if (!isContinuationMode || canEditContinuationEntry) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)

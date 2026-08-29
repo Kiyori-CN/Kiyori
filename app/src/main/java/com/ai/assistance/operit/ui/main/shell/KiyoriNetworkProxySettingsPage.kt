@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.ui.main.shell
 
 import android.net.Uri
+import androidx.core.net.toUri
 import android.provider.OpenableColumns
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -1889,7 +1890,7 @@ private fun unexpectedOperationMessage(area: NetworkProxyOperationArea): String 
     }
 
 private fun maskedSubscriptionHost(rawUrl: String): String =
-    runCatching { Uri.parse(rawUrl).host.orEmpty().ifBlank { "远端订阅" } }.getOrDefault("远端订阅")
+    runCatching { rawUrl.toUri().host.orEmpty().ifBlank { "远端订阅" } }.getOrDefault("远端订阅")
 
 private fun formatSubscriptionBytes(bytes: Long): String {
     val units = arrayOf("B", "KB", "MB", "GB", "TB", "PB")

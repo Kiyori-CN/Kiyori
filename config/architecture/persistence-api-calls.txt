@@ -47,6 +47,7 @@ app/src/main/java/com/ai/assistance/operit/data/preferences/SpeechServicesPrefer
 app/src/main/java/com/ai/assistance/operit/api/chat/llmprovider/OpenAIHostedWebSearchCompatibilityRepository.kt	getSharedPreferences	PREFERENCES_NAME
 app/src/main/java/com/ai/assistance/operit/data/preferences/ToolPkgHostEnvironmentRepository.kt	getSharedPreferences	PREFERENCES_NAME
 app/src/main/java/com/ai/assistance/operit/data/preferences/UserPreferencesManager.kt	preferencesDataStore	"user_preferences"
+app/src/main/java/com/ai/assistance/operit/data/preferences/VersionedPreferencesDataStore.kt	preferencesDataStore	name
 app/src/main/java/com/ai/assistance/operit/data/preferences/UserProfileDocumentRepository.kt	getSharedPreferences	MIGRATION_PREFERENCES
 app/src/main/java/com/ai/assistance/operit/data/preferences/WaifuPreferences.kt	preferencesDataStore	"waifu_settings"
 app/src/main/java/com/ai/assistance/operit/data/preferences/WakeWordPreferences.kt	preferencesDataStore	"wake_word_preferences"

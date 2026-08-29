@@ -483,17 +483,6 @@
 
     <issue
         id="GradleDependency"
-        message="A newer version of androidx.navigation:navigation-compose than 2.7.7 is available: 2.9.8"
-        errorLine1="navigation-compose = &quot;2.7.7&quot;"
-        errorLine2="                     ~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="52"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
         message="A newer version of androidx.datastore:datastore-preferences than 1.0.0 is available: 1.2.1"
         errorLine1="datastore = &quot;1.0.0&quot;"
         errorLine2="            ~~~~~~~">
@@ -545,28 +534,6 @@
             file="../gradle/libs.versions.toml"
             line="74"
             column="8"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.glance:glance-appwidget than 1.0.0 is available: 1.1.1"
-        errorLine1="glance = &quot;1.0.0&quot;"
-        errorLine2="         ~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="78"
-            column="10"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.glance:glance-material3 than 1.0.0 is available: 1.1.1"
-        errorLine1="glance = &quot;1.0.0&quot;"
-        errorLine2="         ~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="78"
-            column="10"/>
     </issue>
 
     <issue
@@ -725,28 +692,6 @@
 
     <issue
         id="NewerVersionAvailable"
-        message="A newer version of com.squareup.okhttp3:okhttp than 4.12.0 is available: 5.4.0"
-        errorLine1="okhttp = &quot;4.12.0&quot;"
-        errorLine2="         ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="54"
-            column="10"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of com.squareup.okhttp3:okhttp-sse than 4.12.0 is available: 5.4.0"
-        errorLine1="okhttp = &quot;4.12.0&quot;"
-        errorLine2="         ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="54"
-            column="10"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
         message="A newer version of io.github.oshai:kotlin-logging-jvm than 5.1.0 is available: 8.0.4"
         errorLine1="kotlin-logging = &quot;5.1.0&quot;"
         errorLine2="                 ~~~~~~~">
@@ -787,17 +732,6 @@
             file="../gradle/libs.versions.toml"
             line="60"
             column="15"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of io.github.kyant0:backdrop than 1.0.6 is available: 2.0.0"
-        errorLine1="backdrop = &quot;1.0.6&quot;"
-        errorLine2="           ~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="61"
-            column="12"/>
     </issue>
 
     <issue
@@ -3674,39 +3608,6 @@
     <issue
         id="LocalContextGetResourceValueCall"
         message="Querying resource values using LocalContext.current"
-        errorLine1="                    context.getString(R.string.microphone_permission_denied_toast),"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/assistant/screens/AssistantConfigScreen.kt"
-            line="90"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="    val operationSuccessString = context.getString(R.string.operation_success)"
-        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/assistant/screens/AssistantConfigScreen.kt"
-            line="172"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="    val errorOccurredString = context.getString(R.string.error_occurred_simple)"
-        errorLine2="                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/assistant/screens/AssistantConfigScreen.kt"
-            line="173"
-            column="31"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
         errorLine1="                        contentDescription = context.getString(R.string.remove_attachment),"
         errorLine2="                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -4065,17 +3966,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/autoglm/AutoGlmOneClickToolScreen.kt"
             line="226"
             column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                    context.getString(R.string.avatar_preview_error_log, error)"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/assistant/components/AvatarPreviewSection.kt"
-            line="127"
-            column="37"/>
     </issue>
 
     <issue
@@ -5863,61 +5753,6 @@
     <issue
         id="LocalContextGetResourceValueCall"
         message="Querying resource values using LocalContext.current"
-        errorLine1="                Text(context.getString(R.string.delete_workspaces_confirmation, selectedWorkspaces.size)) "
-        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/ChatHistorySettingsScreen.kt"
-            line="1896"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        Text(context.getString(R.string.delete))"
-        errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/ChatHistorySettingsScreen.kt"
-            line="1925"
-            column="30"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    Text(context.getString(R.string.cancel))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/ChatHistorySettingsScreen.kt"
-            line="1934"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    text = context.getString(R.string.not_used_by_any_chat),"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/ChatHistorySettingsScreen.kt"
-            line="1986"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="            imageVector = if (workspaceInfo.location == context.getString(R.string.chathistory_internal_storage)) Icons.Default.Folder else Icons.Default.FolderOpen,"
-        errorLine2="                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/ChatHistorySettingsScreen.kt"
-            line="1993"
-            column="57"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
         errorLine1="                            context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_selected)))"
         errorLine2="                                                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -6996,17 +6831,6 @@
     <issue
         id="LocalContextGetResourceValueCall"
         message="Querying resource values using LocalContext.current"
-        errorLine1="                            successMessage = context.getString(R.string.external_http_chat_example_copied)"
-        errorLine2="                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/ExternalHttpChatSettingsScreen.kt"
-            line="472"
-            column="46"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
         errorLine1="            name = context.getString(R.string.ffmpeg_video_conversion),"
         errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -7860,28 +7684,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/FunctionalConfigScreen.kt"
             line="596"
             column="80"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                                        context.getString(R.string.functional_config_test_ui_controller_prompt)"
-        errorLine2="                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/FunctionalConfigScreen.kt"
-            line="616"
-            column="57"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                                        context.getString(R.string.functional_config_test_memory_prompt)"
-        errorLine2="                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/FunctionalConfigScreen.kt"
-            line="645"
-            column="57"/>
     </issue>
 
     <issue
@@ -14793,17 +14595,6 @@
     </issue>
 
     <issue
-        id="PluralsCandidate"
-        message="Formatting %d followed by words (&quot;times&quot;): This should probably be a plural rather than a string"
-        errorLine1="    &lt;string name=&quot;ai_message_package_warmup_item&quot;>%1$d. Package %2$s (hit %3$d times)&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="7952"
-            column="5"/>
-    </issue>
-
-    <issue
         id="ChromeOsAbiSupport"
         message="Missing x86_64 ABI support for ChromeOS"
         errorLine1="            abiFilters += listOf(&quot;arm64-v8a&quot;)"
@@ -16693,28 +16484,6 @@
 
     <issue
         id="AutoboxingStateCreation"
-        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
-        errorLine1="    var verticalDrag by remember { mutableStateOf(0f) }"
-        errorLine2="                                   ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/screens/AIChatScreen.kt"
-            line="767"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
-        errorLine1="    var exportProgress by remember { mutableStateOf(0f) }"
-        errorLine2="                                     ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/screens/AIChatScreen.kt"
-            line="895"
-            column="38"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
         message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
         errorLine1="    var bottomBarHeightPx by remember { mutableStateOf(0) }"
         errorLine2="                                        ~~~~~~~~~~~~~~">
@@ -16733,28 +16502,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/chat/components/style/input/agent/AgentChatInputSection.kt"
             line="1799"
             column="35"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="    var selectedConfigTab by rememberSaveable { mutableStateOf(0) }"
-        errorLine2="                                                ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/assistant/screens/AssistantConfigScreen.kt"
-            line="102"
-            column="49"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="                var recordingStep by remember { mutableStateOf(0) }"
-        errorLine2="                                                ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/assistant/screens/AssistantConfigScreen.kt"
-            line="597"
-            column="49"/>
     </issue>
 
     <issue
@@ -17019,39 +16766,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/memory/screens/dialogs/EditMemoryDialog.kt"
             line="49"
             column="34"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
-        errorLine1="    var scrollOffsetPx by remember(tableContent) { mutableStateOf(0f) }"
-        errorLine2="                                                   ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/common/markdown/EnhancedTableBlock.kt"
-            line="111"
-            column="52"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
-        errorLine1="    var dragVelocityPxPerSec by remember(tableContent) { mutableStateOf(0f) }"
-        errorLine2="                                                         ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/common/markdown/EnhancedTableBlock.kt"
-            line="112"
-            column="58"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableLongStateOf` instead of `mutableStateOf`"
-        errorLine1="    var lastDragEventTimeMs by remember(tableContent) { mutableStateOf(0L) }"
-        errorLine2="                                                        ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/common/markdown/EnhancedTableBlock.kt"
-            line="113"
-            column="57"/>
     </issue>
 
     <issue
@@ -24503,17 +24217,6 @@
 
     <issue
         id="UnusedResources"
-        message="The resource `R.string.speech_services_settings` appears to be unused"
-        errorLine1="    &lt;string name=&quot;speech_services_settings&quot;>语音服务设置&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="2272"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
         message="The resource `R.string.wifi` appears to be unused"
         errorLine1="    &lt;string name=&quot;wifi&quot;>WiFi&lt;/string>"
         errorLine2="            ~~~~~~~~~~~">
@@ -28865,28 +28568,6 @@
         <location
             file="src/main/res/values/strings.xml"
             line="3615"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.profile_name` appears to be unused"
-        errorLine1="    &lt;string name=&quot;profile_name&quot;>配置名称&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3616"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.profile_name_placeholder` appears to be unused"
-        errorLine1="    &lt;string name=&quot;profile_name_placeholder&quot;>例如: 工作、学习、娱乐...&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3617"
             column="13"/>
     </issue>
 
@@ -56190,17 +55871,6 @@
             file="src/main/java/com/ai/assistance/operit/api/voice/OpenAIRealtimeVoiceProvider.kt"
             line="348"
             column="19"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(library.website)).apply {"
-        errorLine2="                                                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/OpenSourceLicenses.kt"
-            line="169"
-            column="81"/>
     </issue>
 
     <issue

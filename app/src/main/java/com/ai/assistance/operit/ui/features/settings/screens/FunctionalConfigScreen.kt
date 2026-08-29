@@ -303,6 +303,11 @@ fun FunctionConfigCard(
     var expanded by remember { mutableStateOf(false) }
     var expandedConfigId by remember { mutableStateOf<String?>(null) } // 记录当前展开的配置的模型列表
     val context = LocalContext.current
+    val functionalGrepIntent = stringResource(R.string.functional_config_test_grep_intent)
+    val functionalGrepDisplayPath = stringResource(R.string.functional_config_test_grep_display_path)
+    val functionalGrepCandidatesDigest = stringResource(R.string.functional_config_test_grep_candidates_digest)
+    val functionalUiControllerPrompt = stringResource(R.string.functional_config_test_ui_controller_prompt)
+    val functionalMemoryPrompt = stringResource(R.string.functional_config_test_memory_prompt)
     val scope = rememberCoroutineScope()
     val modelConfigManager = remember { ModelConfigManager(context) }
     var isTestingConnection by remember { mutableStateOf(false) }
@@ -640,9 +645,9 @@ fun FunctionConfigCard(
                                                 FunctionType.GREP -> {
                                                     val prompt =
                                                         FunctionalPrompts.grepContextSelectPrompt(
-                                                            intent = context.getString(R.string.functional_config_test_grep_intent),
-                                                            displayPath = context.getString(R.string.functional_config_test_grep_display_path),
-                                                            candidatesDigest = context.getString(R.string.functional_config_test_grep_candidates_digest),
+                                                            intent = functionalGrepIntent,
+                                                            displayPath = functionalGrepDisplayPath,
+                                                            candidatesDigest = functionalGrepCandidatesDigest,
                                                             maxResults = 1,
                                                             useEnglish = useEnglish
                                                         )
@@ -662,7 +667,7 @@ fun FunctionConfigCard(
                                                 FunctionType.UI_CONTROLLER -> {
                                                     val systemPrompt = FunctionalPrompts.uiControllerPrompt(useEnglish)
                                                     val userPrompt =
-                                                        context.getString(R.string.functional_config_test_ui_controller_prompt)
+                                                        functionalUiControllerPrompt
                                                     val parameters =
                                                         modelConfigManager.getModelParametersForConfig(configWithSelectedModel.id)
                                                     val buffer = StringBuilder()
@@ -692,7 +697,7 @@ fun FunctionConfigCard(
                                                             memoryExtractionCustomRules = ""
                                                         )
                                                     val userPrompt =
-                                                        context.getString(R.string.functional_config_test_memory_prompt)
+                                                        functionalMemoryPrompt
                                                     val parameters =
                                                         modelConfigManager.getModelParametersForConfig(configWithSelectedModel.id)
                                                     val buffer = StringBuilder()

@@ -1779,7 +1779,7 @@ open class OpenAIProvider(
                     providerCallId
                 } else {
                     val toolNamePart = sanitizeToolCallId(toolName)
-            val hashPart = stableIdHashPart("${toolName}:${argumentsJson}")
+                    val hashPart = stableIdHashPart("${toolName}:${argumentsJson}")
                     sanitizeToolCallId("call_${toolNamePart}_${hashPart}_$callIndex")
                 }
             toolCalls.put(JSONObject().apply {

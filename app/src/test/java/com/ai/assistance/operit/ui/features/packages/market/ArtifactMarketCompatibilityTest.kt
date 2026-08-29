@@ -8,19 +8,19 @@ import org.junit.Test
 
 class ArtifactMarketCompatibilityTest {
     @Test
-    fun operitMarketCompatibility_matchesAdoptedPlus9RuntimeContract() {
-        assertEquals("1.12.0+9", BuildConfig.OPERIT_MARKET_COMPAT_VERSION)
+    fun operitMarketCompatibility_matchesAdoptedOneTwelveOnePlusThreeRuntimeContract() {
+        assertEquals("1.12.1+3", BuildConfig.OPERIT_MARKET_COMPAT_VERSION)
         assertTrue(
             isAppVersionSupported(
                 appVersion = BuildConfig.OPERIT_MARKET_COMPAT_VERSION,
-                minSupportedAppVersion = "1.12.0+9",
+                minSupportedAppVersion = "1.12.1+3",
                 maxSupportedAppVersion = null
             )
         )
         assertFalse(
             isAppVersionSupported(
                 appVersion = BuildConfig.OPERIT_MARKET_COMPAT_VERSION,
-                minSupportedAppVersion = "1.12.0+10",
+                minSupportedAppVersion = "1.12.1+4",
                 maxSupportedAppVersion = null
             )
         )

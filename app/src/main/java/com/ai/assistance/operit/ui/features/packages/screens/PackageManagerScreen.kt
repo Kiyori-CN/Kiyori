@@ -853,6 +853,9 @@ fun PackageManagerScreen(
                                     }
                                 }
                             },
+                            loadPluginLogo = { packageName ->
+                                packageManager.readToolPkgLogoBytes(packageName)
+                            },
                             pluginOrder = pluginOrder,
                             onSavePluginOrder = { newOrder ->
                                 pluginOrder = newOrder

@@ -408,7 +408,6 @@
     <string name="dragonbones_important_tip">Nota importante: Na página de download da versão antiga do editor, os links de download para Windows e Mac são colocados de cabeça para baixo. Tenha cuidado ao escolher o link correto para download.</string>
     <string name="download_old_editor">Baixe o editor antigo</string>
     <string name="visit_online_editor">Acesse o editor on-line</string>
-    <string name="voice_wakeup_section_title">Ativação por voz</string>
     <string name="voice_wakeup_always_listen_title">Sempre ouça</string>
     <string name="voice_wakeup_always_listen_desc">Monitore continuamente as palavras de ativação em segundo plano (é necessária permissão do microfone)</string>
     <string name="voice_wakeup_phrase_label">palavra de despertar</string>
@@ -439,7 +438,6 @@
     <string name="voice_wakeup_create_new_chat_desc">Crie automaticamente uma nova conversa depois de acordar e inserir a voz.</string>
     <string name="voice_wakeup_auto_new_chat_group_label">Crie automaticamente novos grupos de conversa</string>
     <string name="voice_wakeup_auto_new_chat_group_supporting">Padrão: %1$s</string>
-    <string name="voice_keyword_attachments_title">Anexo de palavra-chave de voz</string>
     <string name="voice_keyword_attachments_enabled_title">anexar automaticamente</string>
     <string name="voice_keyword_attachments_enabled_desc">Obtenha anexos automaticamente quando palavras-chave forem atingidas</string>
     <string name="voice_keyword_attachments_screen_title">Tela</string>
@@ -748,7 +746,6 @@
     <string name="yes">sim</string>
     <string name="no">não</string>
     <string name="authorized">Autorizado</string>
-    <string name="unauthorized">Não autorizado</string>
     <string name="install_shizuku">Instale Shizuku</string>
     <string name="open_shizuku">Abra o aplicativo Shizuku</string>
     <string name="show_help">mostrar ajuda</string>
@@ -1067,10 +1064,6 @@
     <string name="exit_edit_mode">Sair do modo de edição</string>
     <string name="enter_edit_mode">Entre no modo de edição</string>
     <string name="total">total</string>
-    <string name="total_tokens">Total: %1$s</string>
-    <string name="input_tokens">Ganhos acumulados: %1$s</string>
-    <string name="output_tokens">Pagamento total: %1$s</string>
-    <string name="context_window">Solicitação: %1$s</string>
     <string name="chat_stats_context">Contexto (estimado): %1$s / %2$s</string>
     <string name="chat_stats_request_count">Solicitações: %1$s</string>
     <string name="chat_stats_input_tokens">Entrada: %1$s</string>
@@ -1559,8 +1552,6 @@
     <string name="tool_category_system">ferramentas do sistema</string>
     <string name="tool_test_center">Centro de testes de ferramentas</string>
     <string name="tool_test_center_desc">Teste a usabilidade e o status funcional das ferramentas de IA</string>
-    <string name="tool_file_manager">gerenciador de arquivos</string>
-    <string name="tool_file_manager_desc">Navegue e gerencie arquivos de dispositivos, suportando múltiplas operações</string>
     <string name="tool_tts">texto para fala</string>
     <string name="tool_tts_desc">Converta texto em fala com suporte para ajustar a velocidade e o tom da fala</string>
     <string name="tts_title">Demonstração de conversão de texto em fala</string>
@@ -1600,8 +1591,6 @@
     <string name="tool_speech_recognition_desc">Converta fala em texto, suporta vários mecanismos e idiomas</string>
     <string name="tool_permission_manager">Gerenciamento de permissões de aplicativos</string>
     <string name="tool_permission_manager_desc">Gerencie as permissões de vários aplicativos móveis para proteger a privacidade e a segurança</string>
-    <string name="tool_user_agreement">Contrato do usuário</string>
-    <string name="tool_user_agreement_desc">Veja o contrato do usuário e a política de privacidade do aplicativo</string>
     <string name="tool_default_assistant_guide">Configurações padrão do assistente</string>
     <string name="tool_default_assistant_guide_desc">Defina a suspensão de voz do Kiyori como assistente padrão do sistema</string>
     <string name="tool_terminal">terminal de comando</string>
@@ -2199,7 +2188,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="speech_services_save_success">Configurações salvas</string>
     <string name="speech_services_save_error">Falha ao salvar: %1$s</string>
     <string name="speech_services_test_tts">Teste a funcionalidade TTS</string>
-    <string name="speech_services_info_title">Sobre serviços de voz</string>
     <string name="speech_services_info_tts_title">Conversão de texto para fala (TTS)</string>
     <string name="speech_services_info_tts_desc">O serviço TTS converte texto em fala. Você pode usar o sistema TTS integrado ou conectar uma interface de voz HTTP/WebSocket remota.</string>
     <string name="speech_services_info_stt_title">Fala para texto (STT)</string>
@@ -2473,7 +2461,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="chat_no_active_conversation">Atualmente não há conversas ativas</string>
     <string name="chat_summarizing_generating">Gerando resumo...</string>
     <string name="chat_no_messages_to_summarize">Nenhuma notícia para resumir</string>
-    <string name="chat_ai_service_not_initialized">Serviço de IA não inicializado</string>
     <string name="chat_summary_inserted">resumo inserido</string>
     <string name="chat_summary_generation_failed">Falha ao gerar resumo</string>
     <string name="chat_insert_summary_failed">Falha ao inserir resumo: %1$s</string>
@@ -3777,7 +3764,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="mnn_go_download">Vá para baixar</string>
     <string name="mnn_search_models">Procure modelos...</string>
     <string name="mnn_no_search_results">Nenhum modelo correspondente encontrado</string>
-    <string name="persona_card_generation_title">Cartão de personagem a ser modificado</string>
     <string name="error_unsupported_field">Campos não suportados: %1$s</string>
     <string name="no_character_card">Sem cartão de personagem</string>
     <string name="character_card_config">Configuração do cartão de personagem</string>
@@ -3889,7 +3875,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="default_assistant_guide_troubleshooting_content">Se você não encontrar o Kiyori na lista, verifique se:\n\n• O aplicativo está instalado corretamente e não foi desativado\n• As permissões necessárias (microfone, janela flutuante etc.) foram concedidas\n• Tente reiniciar o dispositivo e configurá-lo novamente\n\n Alguns sistemas de personalização podem restringir aplicativos de terceiros como assistente padrão. Nesse caso, você ainda pode usar o Kiyori por meio da função de janela flutuante dentro do aplicativo.</string>
     <string name="voice_interaction_service_name">Assistente Kiyori</string>
     <string name="voice_interaction_service_summary">Serviço de assistente de voz inteligente</string>
-    <string name="tool_permissions_title">Permissões de ferramentas de IA</string>
     <string name="tool_permissions_description">Por padrão, todas as ferramentas exigem que você “pergunte”. Você pode adicionar exceções abaixo.</string>
     <string name="global_permission_switch">Troca de permissão global</string>
     <string name="global_permission_switch_description">Essa configuração atua como um controle mestre e pode substituir permissões de ferramentas individuais.</string>
@@ -4763,7 +4748,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="mcp_server_config_effective_hint">Esta configuração entrará em vigor quando o servidor for iniciado</string>
     <string name="mcp_server_save_config">Salvar configuração</string>
     <string name="mcp_server_not_installed_cannot_configure">Este plugin não foi instalado e não pode ser configurado</string>
-    <string name="pkg_manage_env_vars">Gerenciar variáveis ​​de ambiente</string>
     <string name="package_manager_refresh_success">Lista de pacotes atualizada</string>
     <string name="package_manager_refresh_failed">Falha ao atualizar a lista de pacotes: %1$s</string>
     <string name="package_manager_load_errors_summary">Alguns scripts ou plugins não foram carregados (%1$d)</string>
@@ -5403,7 +5387,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="gemini_connection_success">Conexão bem-sucedida!</string>
     <string name="gemini_connection_test_failed">Falha no teste de conexão: %1$s</string>
     <string name="provider_error_response_empty">A resposta da API está vazia</string>
-    <string name="provider_error_parsing_failed">Falha ao analisar a resposta</string>
     <string name="provider_error_retry_message">%1$s, tentando novamente %2$d...</string>
     <string name="provider_error_timeout">Tempo limite de conexão</string>
     <string name="provider_error_unknown_host">Não foi possível resolver o host</string>
@@ -6447,7 +6430,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="market_detail_open_page">Abrir página</string>
     <string name="market_detail_post_comment">Publicar comentário</string>
 
-    <string name="sidebar_status_normal">Normal</string>
     <string name="chat_hidden_user_message_placeholder">Mensagem de usuário acionada automaticamente (conteúdo oculto)</string>
     <string name="load_newer_history">Toque para carregar mensagens mais recentes</string>
     <string name="speech_services_simple_tts_settings">Configurações de TTS do sistema</string>
@@ -7319,7 +7301,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
 
     <string name="kiyori_onboarding_permissions_title">Permissões e recursos do dispositivo</string>
     <string name="kiyori_onboarding_permissions_desc">Conclua aqui as autorizações compatíveis com o Kiyori. As permissões de tempo de execução do Android podem ser solicitadas juntas; acessos especiais e recursos avançados exigem confirmação no sistema ou no gerenciador correspondente.</string>
-    <string name="kiyori_onboarding_permissions_overview_count">Prontos %1$d / %2$d</string>
     <string name="kiyori_onboarding_permission_action_failed">Não foi possível abrir a autorização de “%1$s”. Verifique se o dispositivo oferece suporte.</string>
 
     <string name="kiyori_onboarding_permission_status_granted">Autorizado</string>
@@ -7454,6 +7435,7 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="conversation_audit_open_failed">Falha ao abrir os detalhes da conversa: %1$s</string>
     <plurals name="conversation_audit_new_events">
         <item quantity="one">%1$d novo evento</item>
+        <item quantity="many">%1$d novos eventos</item>
         <item quantity="other">%1$d novos eventos</item>
     </plurals>
     <string name="conversation_audit_no_payload">Este evento não tem payload de conteúdo</string>
@@ -7559,4 +7541,31 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="provider_section_international">Provedores internacionais</string>
     <string name="provider_section_domestic">Provedores da China</string>
     <string name="provider_section_local_and_custom">Local e personalizado</string>
+    <string name="markdown_link_not_openable">Este link aponta para uma referência dentro do documento e não pode ser aberto</string>
+    <string name="backup_text_export_progress">Exportando: %1$d%% (%2$d / %3$d caracteres)</string>
+    <string name="backup_select_chat_records">Selecionar chats para exportar</string>
+    <string name="backup_select_chat_records_hint">Escolha os chats que serão incluídos no arquivo de backup.</string>
+    <string name="backup_clear_selection">Limpar seleção</string>
+    <string name="speech_services_profiles_title">Perfis de serviços de voz</string>
+    <string name="speech_services_profiles_desc">Salve e alterne entre configurações independentes de conversão de texto em fala e reconhecimento de voz.</string>
+    <string name="speech_services_profile_current">Perfil atual</string>
+    <string name="speech_services_profile_create">Criar perfil de voz</string>
+    <string name="speech_services_profile_rename">Renomear perfil de voz</string>
+    <string name="speech_services_profile_delete">Excluir perfil de voz</string>
+    <string name="speech_services_profile_delete_message">Excluir o perfil de voz “%1$s”? O perfil ativo não pode ser excluído.</string>
+    <string name="speech_services_profile_migrated_tts">Perfil TTS migrado</string>
+    <string name="speech_services_profile_migrated_stt">Perfil STT migrado</string>
+    <string name="chat_memory_rebuild_action">Reconstruir memória de %1$d chats selecionados</string>
+    <string name="chat_memory_rebuild_preparing">Preparando a reconstrução da memória…</string>
+    <string name="chat_memory_rebuild_progress">Processando “%1$s”: janela %2$d/%3$d, mensagem %4$d/%5$d, falhas %6$d</string>
+    <string name="chat_memory_rebuild_completed">Reconstrução concluída: %1$d chats, %2$d janelas, %3$d falhas</string>
+    <string name="chat_memory_rebuild_cancelled">Reconstrução cancelada: %1$d/%2$d janelas concluídas</string>
+    <string name="chat_memory_rebuild_failed">Falha ao reconstruir a memória: %1$s</string>
+    <string name="chat_memory_rebuild_cancel">Cancelar reconstrução</string>
+    <string name="chat_memory_rebuild_confirm_title">Reconstruir memória do chat por janela</string>
+    <string name="chat_memory_rebuild_confirm_message">Os %1$d chats selecionados serão analisados em ordem. Cada janela é salva separadamente na biblioteca de memória existente; uma janela com falha não interrompe as seguintes.</string>
+    <string name="chat_memory_rebuild_window_size">Mensagens por janela</string>
+    <string name="chat_memory_rebuild_window_size_value">%1$d mensagens</string>
+    <string name="chat_memory_rebuild_confirm_action">Iniciar reconstrução</string>
+    <string name="script_settings">Configurações de scripts</string>
 </resources>

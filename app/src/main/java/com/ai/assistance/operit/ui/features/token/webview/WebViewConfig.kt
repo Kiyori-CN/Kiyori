@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.Build
 import com.ai.assistance.operit.BuildConfig
 import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.util.RenderProcessSafeWebViewClient
 import android.view.MotionEvent
 import android.view.ViewGroup
 import android.webkit.ConsoleMessage
@@ -103,7 +104,7 @@ object WebViewConfig {
                             resultMsg: android.os.Message?
                         ): Boolean {
                             val newWebView = WebView(view?.context ?: return false)
-                            newWebView.webViewClient = object : WebViewClient() {
+                            newWebView.webViewClient = object : RenderProcessSafeWebViewClient("WebViewConfigPopup") {
                                 override fun shouldOverrideUrlLoading(
                                     w: WebView?,
                                     request: WebResourceRequest?

@@ -46,6 +46,8 @@ fun MnnModelDownloadScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val downloadManager = remember { MnnModelDownloadManager.getInstance(context) }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val deleteModelDoneMessage = stringResource(R.string.mnn_delete_model_done)
+    val deleteModelFailedMessage = stringResource(R.string.mnn_delete_model_failed)
     
     var modelList by remember { mutableStateOf<List<MnnModel>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -266,13 +268,7 @@ fun MnnModelDownloadScreen(
                             val deleted = downloadManager.deleteModel(modelName)
                             showDeleteDialog = null
                             snackbarHostState.showSnackbar(
-                                context.getString(
-                                    if (deleted) {
-                                        R.string.mnn_delete_model_done
-                                    } else {
-                                        R.string.mnn_delete_model_failed
-                                    }
-                                )
+                                if (deleted) deleteModelDoneMessage else deleteModelFailedMessage
                             )
                         }
                     }

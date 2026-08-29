@@ -140,6 +140,9 @@ data class ArtifactPublishClusterContext(
     val lockedDisplayName: String,
     val projectDisplayName: String,
     val projectDescription: String,
+    val marketDescription: String = "",
+    val marketDetail: String = "",
+    val marketAllowPublicUpdates: Boolean = true,
     val categoryId: String = "",
     val canEditEntry: Boolean = false
 )
@@ -152,6 +155,7 @@ data class PublishArtifactDescriptor(
     val runtimePackageId: String,
     val displayName: String,
     val description: String,
+    val detail: String,
     val categoryId: String,
     val version: String,
     val allowPublicUpdates: Boolean = true,
@@ -186,6 +190,7 @@ data class MarketRegistrationPayload(
     val version: String,
     val displayName: String,
     val description: String,
+    val detail: String,
     val categoryId: String,
     val allowPublicUpdates: Boolean = true,
     val sourceFileName: String,
@@ -253,6 +258,8 @@ fun ArtifactMarketMetadata.toPublishClusterContext(entryId: String? = null): Art
         lockedDisplayName = displayName.trim().ifBlank { effectiveProjectDisplayName() },
         projectDisplayName = effectiveProjectDisplayName(),
         projectDescription = effectiveProjectDescription(),
+        marketDescription = description,
+        marketDetail = effectiveProjectDescription(),
         categoryId = categoryId
     )
 }
@@ -339,9 +346,12 @@ fun buildPublishArtifactDescriptor(
             "Continuation publish must keep source display name"
         }
     }
+    val isContributorContinuation = publishContext?.canEditEntry == false
     val resolvedDisplayName =
-        lockedDisplayName.ifBlank {
-            displayName.trim().ifBlank { localArtifact.displayName }
+        if (isContributorContinuation) {
+            lockedDisplayName
+        } else {
+            displayName.trim().ifBlank { lockedDisplayName.ifBlank { localArtifact.displayName } }
         }
     val extension = localArtifact.sourceFile.extension.lowercase().ifBlank { "bin" }
     val projectId =
@@ -351,12 +361,15 @@ fun buildPublishArtifactDescriptor(
             ?.let(::normalizeMarketArtifactId)
             ?: normalizeMarketArtifactId(runtimePackageId)
     val projectDisplayName =
-        publishContext?.projectDisplayName
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
-            ?: displayName.trim().ifBlank { localArtifact.displayName }
+        if (isContributorContinuation) {
+            publishContext.projectDisplayName.trim().ifBlank { resolvedDisplayName }
+        } else {
+            resolvedDisplayName
+        }
     val projectDescription = detail.trim().ifBlank { description.trim().ifBlank { localArtifact.description } }
-    val resolvedCategoryId = publishContext?.categoryId?.trim().orEmpty().ifBlank { categoryId.trim() }
+    val resolvedCategoryId =
+        if (isContributorContinuation) publishContext.categoryId.trim()
+        else categoryId.trim().ifBlank { publishContext?.categoryId?.trim().orEmpty() }
     val assetName = "$normalizedRuntimePackageId-v$cleanVersion.$extension"
     val normalizedProtection = protection?.trim()?.takeIf { it.isNotBlank() }
 
@@ -368,6 +381,7 @@ fun buildPublishArtifactDescriptor(
         runtimePackageId = runtimePackageId,
         displayName = resolvedDisplayName,
         description = description.trim().ifBlank { localArtifact.description },
+        detail = detail.trim(),
         categoryId = resolvedCategoryId,
         version = cleanVersion,
         allowPublicUpdates = allowPublicUpdates,

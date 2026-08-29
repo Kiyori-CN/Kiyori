@@ -110,6 +110,10 @@ fun ModelPromptsSettingsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val unknownErrorMessage = stringResource(R.string.unknown_error)
+    val imageLoadFailedMessage = stringResource(R.string.image_load_failed)
+    val imageSavedMessage = stringResource(R.string.image_saved)
+    val saveFailedMessage = stringResource(R.string.save_failed)
     var showTagSavedHighlight by remember { mutableStateOf(false) }
     var showSaveSuccessMessage by remember { mutableStateOf(false) }
     var showDuplicateSuccessMessage by remember { mutableStateOf(false) }
@@ -1808,7 +1812,7 @@ fun ModelPromptsSettingsScreen(
                 exportTavernJson = json
             }.onFailure { e ->
                 AppLogger.e("ModelPromptsSettings", "Failed to prepare Tavern export", e)
-                exportErrorMessage = context.getString(R.string.unknown_error)
+                exportErrorMessage = unknownErrorMessage
             }
             isExportGenerating = false
         }
@@ -1918,14 +1922,14 @@ fun ModelPromptsSettingsScreen(
                     onClick = {
                         val bmp = exportQrBitmap
                         if (bmp == null) {
-                            showMessage(context.getString(R.string.image_load_failed))
+                            showMessage(imageLoadFailedMessage)
                             return@Button
                         }
                         scope.launch {
                             val fileName = "character_card_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.png"
                             val ok = saveBitmapToGallery(context, bmp, fileName)
                             showMessage(
-                                if (ok) context.getString(R.string.image_saved) else context.getString(R.string.save_failed),
+                                if (ok) imageSavedMessage else saveFailedMessage,
                             )
                         }
                     },

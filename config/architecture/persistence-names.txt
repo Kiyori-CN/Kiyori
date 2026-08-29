@@ -38,6 +38,7 @@
 1	"room_db_manual_backup"
 4	"room_db_manual_backup_"
 1	"shell_executor_prefs"
+1	"speech_service_profiles"
 1	"speech_services_preferences"
 9	"tool_permissions"
 1	"toolpkg_desktop_widget_host"

@@ -523,6 +523,17 @@ const jarPath = await ToolPkg.readResource('apktool_lib_jar', 'apktool-lib.jar')
 - `outputFileName` 可选；不传时会使用清单资源原始文件名。
 - 如果资源 `mime` 是目录类型（例如 `inode/directory`、`vnd.android.document/directory`），运行时会先把该目录压成 zip，再返回这个 zip 文件的绝对路径；默认文件名会自动补 `.zip`。
 
+### `manifest.logo` 资源合同
+
+ToolPkg 可在 manifest 顶层声明 `logo: "<resource-key>"`。该值必须引用现有的
+`resources[].key`，不能直接写包内路径或远程 URL。目标资源必须是文件，并且是 SVG、PNG、JPEG
+或 WebP 图片；目录、缺失 key 和非图片资源会在包解析阶段被拒绝。宿主以原色显示包内 logo，市场
+条目的远程图标则由市场响应的 HTTPS `logoUrl` 单独提供。
+
+Compose DSL 的 `ctx.openFilePicker()` 支持 `document`、`image`、`video`、`media`、`directory`
+和 `camera` 六种模式。参数矩阵、返回值以及临时文件/持久 URI 边界见
+[ToolPkg 格式说明文档](../../TOOLPKG_FORMAT_GUIDE.md#64-context-api)。
+
 ## AssemblyScript WASM 模块
 
 企业插件可以在 `manifest.json` 中声明 AssemblyScript 编译得到的 `.wasm` 核心模块：

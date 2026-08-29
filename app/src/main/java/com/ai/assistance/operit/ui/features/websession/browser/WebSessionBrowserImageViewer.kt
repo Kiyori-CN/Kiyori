@@ -24,6 +24,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -74,11 +75,11 @@ internal fun WebSessionBrowserImageViewer(
             initialPage = snapshot.initialPage,
             pageCount = { snapshot.items.size },
         )
-    var verticalOffsetPx by remember { mutableStateOf(0f) }
-    var viewportHeightPx by remember { mutableStateOf(0f) }
+    var verticalOffsetPx by remember { mutableFloatStateOf(0f) }
+    var viewportHeightPx by remember { mutableFloatStateOf(0f) }
     var saveActionVisible by remember { mutableStateOf(false) }
     var imageScale by remember(snapshot.items) {
-        mutableStateOf(BROWSER_IMAGE_VIEWER_MIN_SCALE)
+        mutableFloatStateOf(BROWSER_IMAGE_VIEWER_MIN_SCALE)
     }
 
     LaunchedEffect(pagerState.currentPage) {

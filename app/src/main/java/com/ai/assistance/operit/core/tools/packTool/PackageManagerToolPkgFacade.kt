@@ -319,7 +319,9 @@ internal class PackageManagerToolPkgFacade(
             toolboxUiModules = toolboxUiModules,
             subpackages = subpackages,
             workflowTemplates = workflowTemplates,
-            workspaceTemplates = workspaceTemplates
+            workspaceTemplates = workspaceTemplates,
+            logoResourceKey = container.logoResource?.key,
+            logoMimeType = container.logoResource?.mime
         )
         return result
     }

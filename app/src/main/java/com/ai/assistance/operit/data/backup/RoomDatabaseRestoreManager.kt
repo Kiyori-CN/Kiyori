@@ -10,10 +10,27 @@ import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.IOException
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.util.zip.ZipInputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+
+internal fun atomicallyReplaceDatabaseFile(from: File, to: File) {
+    try {
+        Files.move(
+            from.toPath(),
+            to.toPath(),
+            StandardCopyOption.ATOMIC_MOVE,
+            StandardCopyOption.REPLACE_EXISTING,
+        )
+    } catch (error: AtomicMoveNotSupportedException) {
+        throw IOException("Atomic database replacement is unavailable: ${from.name}", error)
+    }
+}
 
 object RoomDatabaseRestoreManager {
 
@@ -147,23 +164,20 @@ object RoomDatabaseRestoreManager {
                 throw IllegalArgumentException("Invalid backup zip: missing $DB_NAME")
             }
 
-            targetWal.delete()
-            targetShm.delete()
-            targetDb.delete()
+            if (targetWal.exists() && !extractedWal) {
+                throw IOException("Backup does not contain ${targetWal.name}")
+            }
+            if (targetShm.exists() && !extractedShm) {
+                throw IOException("Backup does not contain ${targetShm.name}")
+            }
 
-            replaceFile(tmpDb, targetDb)
+            atomicallyReplaceDatabaseFile(tmpDb, targetDb)
             if (extractedWal) {
-                replaceFile(tmpWal, targetWal)
-            } else {
-                tmpWal.delete()
-                targetWal.delete()
+                atomicallyReplaceDatabaseFile(tmpWal, targetWal)
             }
 
             if (extractedShm) {
-                replaceFile(tmpShm, targetShm)
-            } else {
-                tmpShm.delete()
-                targetShm.delete()
+                atomicallyReplaceDatabaseFile(tmpShm, targetShm)
             }
         } catch (e: Exception) {
             tmpDb.delete()
@@ -184,13 +198,4 @@ object RoomDatabaseRestoreManager {
         }
     }
 
-    private fun replaceFile(from: File, to: File) {
-        if (to.exists()) {
-            to.delete()
-        }
-        if (!from.renameTo(to)) {
-            from.copyTo(to, overwrite = true)
-            from.delete()
-        }
-    }
 }

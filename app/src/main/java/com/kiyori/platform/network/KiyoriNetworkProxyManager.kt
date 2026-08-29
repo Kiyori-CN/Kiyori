@@ -1659,12 +1659,15 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
             "开始安装 processWideOverride=true endpointPort=${endpoint.port} " +
                 "proxyPrivateNetworks=$proxyPrivateNetworks",
         )
-        if (!WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
-            throw KiyoriNetworkException(
-                KiyoriNetworkErrorCode.WEBVIEW_UNSUPPORTED,
-                "The installed Android WebView does not support proxy overrides.",
-            )
-        }
+        val proxyController =
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
+                ProxyController.getInstance()
+            } else {
+                throw KiyoriNetworkException(
+                    KiyoriNetworkErrorCode.WEBVIEW_UNSUPPORTED,
+                    "The installed Android WebView does not support proxy overrides.",
+                )
+            }
         val builder =
             ProxyConfig.Builder()
                 .addProxyRule("http://${endpoint.host}:${endpoint.port}")
@@ -1686,7 +1689,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
         val completed =
             withTimeoutOrNull(WEBVIEW_PROXY_OPERATION_TIMEOUT_MILLIS) {
                 suspendCancellableCoroutine { continuation ->
-                    ProxyController.getInstance().setProxyOverride(
+                    proxyController.setProxyOverride(
                         builder.build(),
                         ContextCompat.getMainExecutor(appContext),
                     ) {
@@ -1713,11 +1716,12 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
 
     private suspend fun clearWebViewProxy() {
         if (!WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) return
+        val proxyController = ProxyController.getInstance()
         val startedAt = System.currentTimeMillis()
         val completed =
             withTimeoutOrNull(WEBVIEW_PROXY_OPERATION_TIMEOUT_MILLIS) {
                 suspendCancellableCoroutine { continuation ->
-                    ProxyController.getInstance().clearProxyOverride(
+                    proxyController.clearProxyOverride(
                         ContextCompat.getMainExecutor(appContext),
                     ) {
                         if (continuation.isActive) continuation.resume(Unit)

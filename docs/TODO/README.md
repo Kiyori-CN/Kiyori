@@ -4,6 +4,27 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # Kiyori 开发任务与验证索引
 
+## 2026-08-29 Operit v1.12.1 后续更新与最新插件市场适配
+
+状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / DEVICE AND LIVE MARKET VERIFICATION PENDING`。
+
+本专项以 `Kiyori main@2e0571b6`、`Operit v1.12.1@4faa5cd2` 和
+`upstream/main@f323d6c5` 为冻结审计基线。最新正式 Release 仍是 `v1.12.1`，但上游主线已在
+标签后增加 211 个提交、触及 480 个路径；整分支合并会覆盖 Kiyori 的产品壳、浏览器、播放器、
+网络代理、存储和正式开发门禁，因此只按功能簇选择性适配。
+
+实时 Operit Market v2 清单于 `2026-08-29T04:08:10Z` 生成，共 1355 项；其中 19 项最新版本
+要求 `1.12.1`，2 项要求 `1.12.1+3`。本轮已对这 22 个资产完成只读、内存内 SHA-256 校验和
+注册/API 静态扫描，不安装或执行第三方代码。Compose DSL 六模式 picker、ToolPkg logo、聊天
+标识和 Market v2 发布协议已接入现有唯一 owner，独立的 Operit 市场兼容版本已提升为
+`1.12.1+3`；Kiyori 的 `com.kiyori / 45 / 0.1.0` 产品身份不变。完整 JVM、TypeScript、Lint、
+正式准备、架构、fresh-clone 和 Debug APK 审计均已通过；Lint 为 `0 errors / 35 warnings / 0 hints`，
+APK 为 Android Debug V2 单 signer、16 KiB ZIP/ELF 对齐、arm64-only，49 项生产 ToolPkg 与白名单
+精确一致。真机 picker、第三方插件 UI、语音 provider、长聊天/大导出和市场动态写入保持待验证。
+
+详细上游矩阵、阶段依赖、非目标、风险和验收条件见
+[`operit_post_1_12_1_sync/index.md`](operit_post_1_12_1_sync/index.md)。
+
 ## 2026-08-29 OpenAI 搜索首次调用不再强制兼容探测
 
 状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND REAL RELAY VERIFIED / DEVICE UI VERIFICATION PENDING`。

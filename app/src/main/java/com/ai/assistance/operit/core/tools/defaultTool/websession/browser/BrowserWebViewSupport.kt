@@ -44,6 +44,8 @@ import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserS
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptInstallSourceType
 import com.ai.assistance.operit.ui.main.MainActivity
 import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.util.RenderProcessSafeWebViewClient
+import com.ai.assistance.operit.util.handleWebViewRenderProcessGone
 import com.kiyori.capability.browser.presentation.KiyoriBrowserSearchSource
 import com.kiyori.platform.network.KiyoriNetworkProxyLogStore
 import com.kiyori.platform.network.KiyoriNetworkProxyManager
@@ -677,7 +679,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
         }
 
     session.webView.webViewClient =
-        object : WebViewClient() {
+        object : RenderProcessSafeWebViewClient(WEBVIEW_SUPPORT_TAG) {
             override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
                 super.onPageStarted(view, url, favicon)
                 val pendingDocumentToken = session.pendingBrowserDocumentStartToken
@@ -981,13 +983,15 @@ internal fun StandardBrowserSessionTools.configureWebView(
             }
 
             override fun onRenderProcessGone(
-                view: WebView,
-                detail: android.webkit.RenderProcessGoneDetail
+                view: WebView?,
+                detail: android.webkit.RenderProcessGoneDetail?,
             ): Boolean {
+                val didCrash = detail?.didCrash() == true
+                val rendererPriorityAtExit = detail?.rendererPriorityAtExit()
                 AppLogger.e(
                     WEBVIEW_SUPPORT_TAG,
                     "web_session render process gone: session=${session.id}, " +
-                        "didCrash=${detail.didCrash()}, priority=${detail.rendererPriorityAtExit()}"
+                        "didCrash=$didCrash, priority=$rendererPriorityAtExit"
                 )
                 recordBrowserDiagnostic(
                     level = BrowserDiagnosticLevel.ERROR,
@@ -997,8 +1001,8 @@ internal fun StandardBrowserSessionTools.configureWebView(
                     message = "WebView renderer process exited",
                     details =
                         mapOf(
-                            "didCrash" to detail.didCrash().toString(),
-                            "priority" to detail.rendererPriorityAtExit().toString(),
+                            "didCrash" to didCrash.toString(),
+                            "priority" to rendererPriorityAtExit.toString(),
                         ),
                 )
                 session.pageLoaded = false
@@ -1013,7 +1017,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 notifySessionStateChanged(session)
                 closeSession(session.id)
                 showToast(
-                    if (detail.didCrash()) {
+                    if (didCrash) {
                         context.getString(R.string.web_session_render_process_crashed)
                     } else {
                         context.getString(R.string.web_session_render_process_gone)
@@ -3290,7 +3294,16 @@ private class BrowserPopupTargetResolver(
             target.settings.allowFileAccess = false
             target.settings.allowContentAccess = false
             target.webViewClient =
-                object : WebViewClient() {
+                object : RenderProcessSafeWebViewClient(WEBVIEW_SUPPORT_TAG) {
+                    override fun onRenderProcessGone(
+                        view: WebView?,
+                        detail: android.webkit.RenderProcessGoneDetail?,
+                    ): Boolean {
+                        val handled = handleWebViewRenderProcessGone(view, detail, WEBVIEW_SUPPORT_TAG)
+                        finish()
+                        return handled
+                    }
+
                     override fun shouldOverrideUrlLoading(
                         view: WebView?,
                         request: WebResourceRequest?,

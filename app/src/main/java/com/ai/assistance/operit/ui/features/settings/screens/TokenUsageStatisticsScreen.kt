@@ -59,6 +59,7 @@ fun TokenUsageStatisticsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val apiPreferences = remember { ApiPreferences.getInstance(context) }
     val chatHistoryManager = remember { ChatHistoryManager.getInstance(context) }
+    val usageHistoryLoadFailedMessage = stringResource(R.string.settings_usage_history_load_failed)
 
     var totalChats by remember { mutableStateOf(0) }
     var totalMessages by remember { mutableStateOf(0) }
@@ -148,7 +149,7 @@ fun TokenUsageStatisticsScreen(
         } catch (error: Exception) {
             AppLogger.e(TOKEN_USAGE_LOG_TAG, "Failed to load chat usage totals", error)
             snackbarHostState.showSnackbar(
-                context.getString(R.string.settings_usage_history_load_failed)
+                usageHistoryLoadFailedMessage
             )
         }
     }
