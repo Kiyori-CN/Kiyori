@@ -1,7 +1,7 @@
 ---
 status: verification_pending
-implementation: local_implementation_complete
-last_updated: 2026-08-28
+implementation: optional_probe_local_and_relay_verified_device_pending
+last_updated: 2026-08-29
 ---
 
 # OpenAI 搜索架构
@@ -21,8 +21,8 @@ Provider 展示、三态 evidence parser 和分层结果卡继续作为基础；
 
 revision `3` 至 `5` 的 relay、parser、ToolPkg 和 APK 数据继续作为历史证据保存在专项 TODO 中。
 revision `6` 的现场矩阵和历史 APK 也只作为问题基线，不能替代 revision `7` 当前工作树、构建、
-设备或用户验收。当前任务不调用
-真实 relay，不安装 APK，不操作设备，因此最终状态仍应区分本地实现、远端 relay、设备和用户验收。
+设备或用户验收。真实 relay 请求、APK 安装和设备操作必须按当前专项授权单独执行，不能由本文档
+或本地测试代替。
 
 ## 2. 产品定义
 
@@ -171,7 +171,7 @@ resultCount
 - 搜索绑定只能由用户或明确的宿主配置改变
 - 配置来源只有 package-scoped `PACKAGE_ENV`
 - official contract 只允许官方 Responses 与 GPT-5.6 family
-- relay contract 必须通过严格兼容探测
+- relay contract 的普通搜索不要求预先探测；显式兼容探测只用于验证证据合同和记录诊断状态
 - compatibility probe 只能由插件设置页的 `ui` runtime 发起
 - 原生配置入口固定为无参数 `ToolPkg.services.openAIWebSearch.openConfiguration()`
 - JavaScript 不能提交任意 package ID 或变量名
@@ -206,7 +206,7 @@ OpenAIHostedWebSearchCapability
 
 - `OFF`：无绑定或插件关闭
 - `RESPONSES_HOSTED_OFFICIAL`：官方 OpenAI Responses
-- `RESPONSES_RELAY_STRICT`：通过付费严格探测的 Responses-compatible 中转站
+- `RESPONSES_RELAY_STRICT`：Responses-compatible 中转站；兼容探测是可选的付费诊断
 - `NATIVE_CHAT_RESPONSES`：后续可选
 - `CODEX_STANDALONE`：等待公开稳定 API
 
@@ -398,7 +398,8 @@ reasoning 和 external web access。任一字段或 Key 改变后必须重新探
 revision `7` 状态。成功与失败按 exact fingerprint digest 保存在最多 16 条的 record-set 中，
 同一 digest 互斥，不同凭据指纹记录互不删除。成功、失败和清理 record-set 在 callback 交付前
 同步提交并检查提交结果，避免设置页关闭后立即进程退出造成相同 fingerprint 的成功证据丢失。
-该持久化修复不绕过 strict relay probe；fingerprint 输入变化后仍必须重新探测。
+该持久化修复不改变显式 compatibility probe 的诊断语义；fingerprint 输入变化后，用户若要更新
+诊断记录仍需重新探测，但普通 search 不因缺少或过期记录而被阻断。
 
 HTTP 非成功响应最多读取 64 KiB，只投影经过控制字符清理、凭据脱敏和长度限制的 provider
 error type、code、message 与 request/trace ID。状态页仅显示短 credential revision 和
@@ -439,7 +440,7 @@ action source 才属于错误。
 ## 12. 安全
 
 - official endpoint 使用 exact match
-- relay endpoint 要求 HTTPS 和有效探测指纹
+- relay endpoint 要求 HTTPS；探测指纹仅用于可选兼容诊断
 - ToolPkg runtime 不能在单次调用中提交或覆盖 header
 - extra headers 使用强类型 JSON object 并拒绝认证冲突和 hop-by-hop header
 - HTTP redirect 直接失败
@@ -515,9 +516,9 @@ OpenAI Responses（兼容端点）
 Provider 使用多行全名与协议/端点摘要，TalkBack 语义包含标题、完整 Provider 名和摘要。
 
 revision `7` 当前 ToolPkg 版本是 `1.0.0`，manifest 声明二十个 host-service 环境变量，response
-schema revision 是 `7`。本地 Hosted Web Search JVM 矩阵为 `26 suites / 142 tests`，失败、错误和
-跳过均为 `0`；Kotlin compile、TypeScript strict、dist hash stability、formal readiness 和
-Debug APK 验证已通过。真实 relay revalidation、设备和用户验收仍未执行。
+schema revision 是 `7`。普通 search 不要求预先兼容探测；探测按钮只用于用户主动验证 relay 证据
+合同。定向 JVM、TypeScript strict、dist hash stability、formal readiness、Debug APK 和真实 relay
+请求的当前证据记录在专项 TODO；设备和用户验收仍需单独执行。
 
 最终仍需分别报告：
 

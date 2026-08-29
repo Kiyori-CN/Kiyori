@@ -420,7 +420,9 @@ internal class ToolPkgOpenAIWebSearchBridge(
             bridgeScope.launch(start = CoroutineStart.LAZY) {
                 val operationResult =
                     try {
-                        val resolved = bindingResolver.resolve(requireRelayProbe = true)
+                        // A compatibility probe is an explicit diagnostic operation. It must not
+                        // block the first ordinary search once the package binding is locally valid.
+                        val resolved = bindingResolver.resolve(requireRelayProbe = false)
                         val effectiveRequest =
                             OpenAIHostedWebSearchPolicy.compileEffectiveRequest(
                                 binding = resolved.binding,

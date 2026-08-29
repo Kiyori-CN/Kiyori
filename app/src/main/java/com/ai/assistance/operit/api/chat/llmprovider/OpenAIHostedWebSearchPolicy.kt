@@ -333,8 +333,14 @@ internal object OpenAIHostedWebSearchPolicy {
         )
     }
 
-    fun validateResponsesEndpoint(endpoint: String): URI {
+    /**
+     * Normalize a user-entered Responses base or complete endpoint to one immutable request URL.
+     * Root and `/v1` relay addresses are common deployment forms; accepting them here keeps the
+     * package environment ergonomic while preserving strict HTTPS and path validation.
+     */
+    fun normalizeResponsesEndpoint(endpoint: String): String {
         val trimmed = endpoint.trim()
+        val trimmedWithoutTrailingSlash = trimmed.removeSuffix("/")
         val uri =
             runCatching { URI(trimmed) }.getOrNull()
                 ?: throw OpenAIHostedWebSearchException(
@@ -360,14 +366,25 @@ internal object OpenAIHostedWebSearchPolicy {
                         "or fragment.",
             )
         }
-        val normalizedPath = uri.path.orEmpty().removeSuffix("/")
-        if (!normalizedPath.endsWith("/responses", ignoreCase = true)) {
-            throw OpenAIHostedWebSearchException(
-                code = OpenAIHostedWebSearchErrorCode.ENDPOINT_INVALID,
-                message = "OpenAI Web Search endpoint must be a complete Responses URL.",
-            )
+        val normalizedPath = uri.rawPath.orEmpty().removeSuffix("/")
+        return when {
+            normalizedPath.isEmpty() -> "$trimmedWithoutTrailingSlash/v1/responses"
+            normalizedPath.endsWith("/v1", ignoreCase = true) ->
+                "$trimmedWithoutTrailingSlash/responses"
+            normalizedPath.endsWith("/responses", ignoreCase = true) ->
+                trimmedWithoutTrailingSlash
+            else ->
+                throw OpenAIHostedWebSearchException(
+                    code = OpenAIHostedWebSearchErrorCode.ENDPOINT_INVALID,
+                    message =
+                        "OpenAI Web Search endpoint must be a base URL, a /v1 URL, or a complete Responses URL.",
+                )
         }
-        return uri
+    }
+
+    fun validateResponsesEndpoint(endpoint: String): URI {
+        val normalized = normalizeResponsesEndpoint(endpoint)
+        return URI(normalized)
     }
 
     fun parseHeadersJson(rawJson: String): Map<String, String> {

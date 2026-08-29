@@ -4,6 +4,16 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # Kiyori 开发任务与验证索引
 
+## 2026-08-29 OpenAI 搜索首次调用不再强制兼容探测
+
+状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND REAL RELAY VERIFIED / DEVICE UI VERIFICATION PENDING`。
+
+用户现场确认 `openai_web_search:openai_search` 在环境变量已经配置完整、但尚未点击“运行可能计费的兼容探测”时，普通搜索被宿主硬编码的 `requireRelayProbe=true` 阻断并返回 `RELAY_PROBE_REQUIRED`。本轮将兼容探测恢复为显式诊断能力：普通搜索只执行本地绑定、认证、参数和请求合同校验，配置有效即可发出一次 Responses 请求；探测成功/失败记录仍用于状态展示和用户主动诊断，不再成为普通搜索的执行前置。中转 endpoint 同时接受安全规范化的根地址（如 `https://speed.ai-pixel.online/`）和完整 `/v1/responses` 地址，最终只生成一个 `/v1/responses` POST。
+
+范围：`ToolPkgOpenAIWebSearchBridge`、`OpenAIHostedWebSearchBindingResolver/Policy`、Responses 请求编译、定向 JVM 合同测试、ToolPkg 源码/dist/资产及相关文档。保留 ToolPkg ID、`openai_search` 工具名、package-scoped host-service Key 隔离、证据解析、域名策略、取消生命周期和 at-most-once 提交边界；不新增 provider 切换、自动重试、降级或第二搜索实现。
+
+验收：无 probe 记录的 relay 配置可直接进入 gateway；缺少/非法环境变量仍在提交前返回结构化错误；根地址和完整 endpoint 规范化测试通过；生成资产与 source 一致；定向/全量 JVM、正式准备、新鲜克隆、`git diff --check` 和串行 `:app:assembleDebug --no-daemon --console=plain` 均通过。已使用用户授权的中转地址、`gpt-5.6-terra` 和 Key 完成一次真实非流式请求：HTTP 200、`completed`、1 个 `web_search_call`、1 个 URL citation；未发生未知提交状态。设备 UI 首次使用和结果卡现场验收仍待完成。
+
 ## 2026-08-29 DeepSeekHarness Responses 提交稳定性与第三方协议边界
 
 状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。

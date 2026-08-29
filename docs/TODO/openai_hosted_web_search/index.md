@@ -1,6 +1,6 @@
 ---
 status: verification_pending
-implementation: revision_7_local_complete_remote_revalidation_pending
+implementation: revision_7_optional_probe_local_and_relay_verified_device_pending
 baseline_branch: main
 baseline_head: 180db686aaeedfa301b3c8a31057ee4940d58649
 last_updated: 2026-08-28
@@ -63,8 +63,9 @@ revision `7` 的结果载荷现在有两个明确消费者：
 `all_sources`、随后又由 UI parser 报告该字段缺失的错位。
 
 compatibility record-set 的成功、失败和清理写入已改为同步提交，并在提交失败时显式暴露错误。
-严格 relay 门禁仍然存在；同步提交只解决相同 fingerprint 的成功证据在进程立即退出时可能尚未
-落盘的问题。fingerprint 输入或 response schema revision 变化后重新探测仍是预期行为。
+兼容探测现在是显式诊断能力，不再作为普通 search 的执行前置；同步提交仍保证相同 fingerprint 的
+成功/失败记录在进程立即退出前落盘。fingerprint 输入或 response schema revision 变化后重新探测
+仍是预期行为，但普通 search 会直接按当前有效环境执行一次请求并返回真实结果或结构化错误。
 
 2026-08-13 用户随后完成 `29` 次真实 relay 顶层调用。日志中的四批
 `5 + 8 + 8 + 8` 与现场测试完全对齐：`23` 次结构化成功、`5` 次预期参数拒绝和 `1` 次非预期

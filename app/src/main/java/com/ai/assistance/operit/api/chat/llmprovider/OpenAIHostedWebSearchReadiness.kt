@@ -145,13 +145,15 @@ internal object OpenAIHostedWebSearchReadinessEvaluator {
                 check(
                     invalidMessage = "Responses endpoint is invalid.",
                 ) {
+                    val normalizedEndpoint =
+                        OpenAIHostedWebSearchPolicy.normalizeResponsesEndpoint(endpointRaw)
                     val contract = providerContract
                     if (contract == null) {
-                        OpenAIHostedWebSearchPolicy.validateResponsesEndpoint(endpointRaw)
+                        OpenAIHostedWebSearchPolicy.validateResponsesEndpoint(normalizedEndpoint)
                     } else {
-                        OpenAIHostedWebSearchPolicy.validateEndpoint(contract, endpointRaw)
+                        OpenAIHostedWebSearchPolicy.validateEndpoint(contract, normalizedEndpoint)
                     }
-                    endpointHost = URI(endpointRaw).host
+                    endpointHost = URI(normalizedEndpoint).host
                 }
             }
 

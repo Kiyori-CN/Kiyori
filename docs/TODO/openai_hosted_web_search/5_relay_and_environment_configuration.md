@@ -93,7 +93,7 @@ AUTH_SCHEME=Bearer
 - official contract 要求精确官方 Responses endpoint
 - official model 必须位于 `gpt-5.6`、`gpt-5.6-sol`、`gpt-5.6-terra`、
   `gpt-5.6-luna` allowlist
-- relay contract 允许自定义模型别名，但必须完成当前指纹的显式 compatibility probe
+- relay contract 允许自定义模型别名；兼容探测是可选的显式诊断，不阻断普通 search
 - API Key 是 package-scoped、sensitive、password、host-service 值
 - ToolPkg JavaScript 的 `getEnv()` 不能读取 host-service 值
 - auth scheme 为空表示直接发送 Key，默认 `Bearer`
@@ -263,8 +263,8 @@ compatibility 结果，不包含 Key、完整 endpoint、Authorization 值或自
 
 ## 5.7 Compatibility probe
 
-`RESPONSES_RELAY_STRICT` 要求用户从插件设置 UI 显式执行可能产生费用的 probe。自动测试不得调用
-真实 endpoint。
+`RESPONSES_RELAY_STRICT` 支持用户从插件设置 UI 显式执行可能产生费用的 probe，但普通 search 在
+环境变量本地校验通过后即可直接调用，不要求预先探测。自动测试不得调用真实 endpoint。
 
 通过条件：
 
@@ -296,10 +296,8 @@ response schema revision
 删除。
 
 record-set 的成功、失败和清理写入使用同步提交，并在探测 callback 交付前确认提交结果。这样
-设置页关闭后立即发生的进程退出不会把已成功的相同 fingerprint 探测留在未落盘状态。该修复
-不改变严格门禁：普通 search 仍要求当前 fingerprint 的成功兼容证据；endpoint、model、认证
-方式、Key、非秘密 Header 名、reasoning、external web access 或 schema revision 改变后仍必须
-重新探测。
+设置页关闭后立即发生的进程退出不会把已成功的相同 fingerprint 探测留在未落盘状态。fingerprint
+变化后用户若要刷新诊断记录仍需重新探测，但普通 search 不因缺少或过期记录而被阻断。
 
 ## 5.8 ToolPkg manifest
 

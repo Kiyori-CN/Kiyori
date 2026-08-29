@@ -72,6 +72,72 @@ class OpenAIHostedWebSearchBindingCompilerTest {
     }
 
     @Test
+    fun relayEndpointAcceptsRootAndV1BaseForms() {
+        val rootBinding =
+            OpenAIHostedWebSearchBindingCompiler.compilePackageEnvironment(
+                baseEnvironment(
+                    OpenAIHostedWebSearchContract.ENV_PROVIDER_CONTRACT to
+                        "RESPONSES_RELAY_STRICT",
+                    OpenAIHostedWebSearchContract.ENV_RESPONSES_ENDPOINT to
+                        "https://speed.ai-pixel.online/",
+                    OpenAIHostedWebSearchContract.ENV_API_KEY to "relay-key",
+                    OpenAIHostedWebSearchContract.ENV_MODEL to "gpt-5.6-terra",
+                )
+            )
+        val v1Binding =
+            OpenAIHostedWebSearchBindingCompiler.compilePackageEnvironment(
+                baseEnvironment(
+                    OpenAIHostedWebSearchContract.ENV_PROVIDER_CONTRACT to
+                        "RESPONSES_RELAY_STRICT",
+                    OpenAIHostedWebSearchContract.ENV_RESPONSES_ENDPOINT to
+                        "https://speed.ai-pixel.online/v1/",
+                    OpenAIHostedWebSearchContract.ENV_API_KEY to "relay-key",
+                    OpenAIHostedWebSearchContract.ENV_MODEL to "gpt-5.6-terra",
+                )
+            )
+
+        assertEquals("https://speed.ai-pixel.online/v1/responses", rootBinding.endpoint)
+        assertEquals(rootBinding.endpoint, v1Binding.endpoint)
+    }
+
+    @Test
+    fun relayEndpointPreservesCompleteResponsesPathWithoutTrailingSlash() {
+        val binding =
+            OpenAIHostedWebSearchBindingCompiler.compilePackageEnvironment(
+                baseEnvironment(
+                    OpenAIHostedWebSearchContract.ENV_PROVIDER_CONTRACT to
+                        "RESPONSES_RELAY_STRICT",
+                    OpenAIHostedWebSearchContract.ENV_RESPONSES_ENDPOINT to
+                        "https://speed.ai-pixel.online/custom/responses/",
+                    OpenAIHostedWebSearchContract.ENV_API_KEY to "relay-key",
+                    OpenAIHostedWebSearchContract.ENV_MODEL to "gpt-5.6-terra",
+                )
+            )
+
+        assertEquals(
+            "https://speed.ai-pixel.online/custom/responses",
+            binding.endpoint,
+        )
+    }
+
+    @Test
+    fun endpointNormalizationRejectsAmbiguousOrUnsafeForms() {
+        listOf(
+            "https://speed.ai-pixel.online/v1/chat/completions",
+            "https://user:pass@speed.ai-pixel.online",
+            "https://speed.ai-pixel.online/v1/responses?proxy=1",
+            "https://speed.ai-pixel.online/v1/responses#fragment",
+        ).forEach { endpoint ->
+            assertError(OpenAIHostedWebSearchErrorCode.ENDPOINT_INVALID) {
+                OpenAIHostedWebSearchPolicy.normalizeResponsesEndpoint(endpoint)
+            }
+        }
+        assertError(OpenAIHostedWebSearchErrorCode.ENDPOINT_NOT_HTTPS) {
+            OpenAIHostedWebSearchPolicy.normalizeResponsesEndpoint("http://speed.ai-pixel.online")
+        }
+    }
+
+    @Test
     fun officialContractStillRequiresTheExactOfficialEndpoint() {
         val binding =
             OpenAIHostedWebSearchBindingCompiler.compilePackageEnvironment(

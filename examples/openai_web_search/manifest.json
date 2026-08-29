@@ -16,8 +16,8 @@
     {
       "name": "OPENAI_WEB_SEARCH_PROVIDER_CONTRACT",
       "description": {
-        "zh": "官方 Responses 合同或经过显式兼容探测的严格中转合同。",
-        "en": "Official Responses contract or strict relay contract verified by an explicit compatibility probe."
+        "zh": "官方 Responses 合同或 Responses 兼容中转合同；兼容探测是可选诊断。",
+        "en": "Official Responses contract or a Responses-compatible relay; compatibility probing is optional diagnostics."
       },
       "required": false,
       "default_value": "RESPONSES_HOSTED_OFFICIAL",
@@ -32,8 +32,8 @@
     {
       "name": "OPENAI_WEB_SEARCH_RESPONSES_ENDPOINT",
       "description": {
-        "zh": "完整 Responses HTTPS 地址，例如官方 https://api.openai.com/v1/responses。",
-        "en": "Complete HTTPS Responses endpoint, such as the official https://api.openai.com/v1/responses."
+        "zh": "Responses HTTPS 根地址或完整地址，例如 https://speed.ai-pixel.online/ 或 https://api.openai.com/v1/responses。",
+        "en": "Responses HTTPS base or complete endpoint, such as https://speed.ai-pixel.online/ or https://api.openai.com/v1/responses."
       },
       "required": false,
       "scope": "package",

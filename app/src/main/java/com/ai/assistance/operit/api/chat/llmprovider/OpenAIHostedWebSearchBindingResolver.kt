@@ -84,9 +84,11 @@ internal object OpenAIHostedWebSearchBindingCompiler {
         )
 
     fun endpoint(environment: Map<String, String>): String =
-        environment.requiredValue(
-            OpenAIHostedWebSearchContract.ENV_RESPONSES_ENDPOINT,
-            OpenAIHostedWebSearchErrorCode.PACKAGE_ENV_MISSING,
+        OpenAIHostedWebSearchPolicy.normalizeResponsesEndpoint(
+            environment.requiredValue(
+                OpenAIHostedWebSearchContract.ENV_RESPONSES_ENDPOINT,
+                OpenAIHostedWebSearchErrorCode.PACKAGE_ENV_MISSING,
+            )
         )
 
     fun modelName(environment: Map<String, String>): String =

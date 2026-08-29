@@ -106,6 +106,20 @@ class OpenAIHostedWebSearchPolicyTest {
     }
 
     @Test
+    fun relayBindingAllowsOrdinarySearchWithoutCompatibilityProbe() {
+        OpenAIHostedWebSearchPolicy.validateBinding(
+            binding =
+                OpenAIHostedWebSearchTestFixtures.binding(
+                    providerContract =
+                        OpenAIHostedWebSearchProviderContract.RESPONSES_RELAY_STRICT,
+                    endpoint = "https://relay.example/v1/responses",
+                ),
+            compatibilityRecord = null,
+            requireRelayProbe = false,
+        )
+    }
+
+    @Test
     fun relayBindingRejectsConfiguredDomainFilters() {
         listOf(
             OpenAIHostedWebSearchTestFixtures.binding(
