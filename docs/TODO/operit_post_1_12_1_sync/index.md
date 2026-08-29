@@ -103,7 +103,7 @@ schema 或第二偏好源。
 
 ### M4：完整验证与交付
 
-状态：`LOCAL VALIDATION COMPLETE / GIT DELIVERY READY`。
+状态：`GIT DELIVERY COMPLETE / DEVICE AND LIVE MARKET VERIFICATION PENDING`。
 
 1. 审阅最终差异、数据库/偏好迁移、并发和错误路径；运行 `git diff --check`。
 2. 运行新增/受影响 JVM 测试、完整 `:app:testDebugUnitTest`、必要 AndroidTest 编译、项目 Python
