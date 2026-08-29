@@ -2,6 +2,7 @@ package com.ai.assistance.operit.services.core
 
 import android.content.Context
 import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.util.ChatUtils
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import com.ai.assistance.operit.R
@@ -34,6 +35,7 @@ import com.ai.assistance.operit.util.stream.TextStreamRevisionTracker
 import com.ai.assistance.operit.util.stream.SecondaryStreamObservation
 import com.ai.assistance.operit.util.stream.claimPrimaryMessageFailureOwner
 import com.ai.assistance.operit.util.stream.collectForMessageFailureOwner
+import com.ai.assistance.operit.util.stream.extractMessageFailureExecutionId
 import com.ai.assistance.operit.util.stream.observeSecondaryStream
 import com.ai.assistance.operit.util.stream.snapshotMessageFailure
 import com.ai.assistance.operit.util.TtsSegmenter
@@ -107,7 +109,9 @@ class MessageProcessingDelegate(
             completedAt: Long,
         ): ChatMessage {
             val replaySafeContent =
-                AssistantReplayHistoryProjector.project(finalContent).content
+                closeInterruptedThinkingMarkup(
+                    AssistantReplayHistoryProjector.project(finalContent).content
+                )
             val messageWithMetrics =
                 snapshot?.let { stats ->
                     streamingMessage.copy(
@@ -124,6 +128,41 @@ class MessageProcessingDelegate(
                 contentStream = null,
                 completedAt = completedAt,
             )
+        }
+
+        /**
+         * 将失败回合的已接收正文转换为可重放的部分消息。
+         *
+         * 空正文不产生消息，避免把只有传输错误的回合投影成一条看似成功的空回答。
+         */
+        internal fun projectFailedAssistantMessage(
+            streamingMessage: ChatMessage,
+            finalContent: String,
+            snapshot: TurnCancellationSnapshot?,
+            completedAt: Long,
+        ): ChatMessage? {
+            val replaySafeContent =
+                closeInterruptedThinkingMarkup(
+                    AssistantReplayHistoryProjector.project(finalContent).content
+                )
+            val (visibleContent, thinkingContent) =
+                ChatUtils.extractThinkingContent(replaySafeContent)
+            if (visibleContent.isBlank() && thinkingContent.isBlank()) {
+                return null
+            }
+            return completeInterruptedMessage(
+                streamingMessage = streamingMessage,
+                finalContent = replaySafeContent,
+                snapshot = snapshot,
+                completedAt = completedAt,
+            )
+        }
+
+        /** Provider 已经发出 `<think>` 时，只补齐本地展示标签；这不代表远端执行完成。 */
+        private fun closeInterruptedThinkingMarkup(content: String): String {
+            val lastOpen = content.lastIndexOf("<think>")
+            val lastClose = content.lastIndexOf("</think>")
+            return if (lastOpen > lastClose) "$content</think>" else content
         }
 
         internal data class TurnFailureTerminal(
@@ -364,7 +403,10 @@ class MessageProcessingDelegate(
         var terminalOutcome: String = "unknown"
         var terminalCancellationSource: AssistantTurnCancellationSource? = null
         var providerRequestContextPresent: Boolean = false
+        var providerRequestContext: ProviderRequestContext? = null
         var terminalFailure: Throwable? = null
+
+        fun hasAiMessage(): Boolean = this::aiMessage.isInitialized
 
         fun visibleContentLength(): Int {
             return if (this::aiMessage.isInitialized) aiMessage.content.length else 0
@@ -583,7 +625,7 @@ class MessageProcessingDelegate(
         chatId: String,
         activeTurn: ActiveStreamingTurn,
         snapshot: TurnCancellationSnapshot? = null,
-    ) {
+    ): ChatMessage {
         val streamingMessage = activeTurn.message
         val finalContent = resolveFinalContent(streamingMessage)
         val completedAt = System.currentTimeMillis()
@@ -595,6 +637,7 @@ class MessageProcessingDelegate(
                 completedAt = completedAt,
             )
         streamingMessage.content = finalMessage.content
+        streamingMessage.contentStream = null
         val messages = getRuntimeChatHistory(chatId)
         withContext(Dispatchers.Main) {
             snapshot?.let { stats ->
@@ -637,6 +680,38 @@ class MessageProcessingDelegate(
                 }
             }
         }
+        return finalMessage
+    }
+
+    /**
+     * 失败回合只保存已经收到且可安全重放的 assistant 正文。
+     *
+     * Responses 正文中断时提交状态仍然未知，不能重发原 POST；消息层必须在清理活动流前固定
+     * 当前共享流内容，并让后续输入从没有未闭合工具事务的历史继续。
+     */
+    private suspend fun persistFailedAssistantProjection(
+        state: SendUserMessageTurnState,
+    ): ChatMessage? {
+        if (!state.effectivePersistTurn || !state.hasAiMessage()) {
+            return null
+        }
+        val activeTurn = state.chatRuntime.activeStreamingTurn ?: return null
+        val finalContent = resolveFinalContent(activeTurn.message)
+        projectFailedAssistantMessage(
+            streamingMessage = activeTurn.message,
+            finalContent = finalContent,
+            snapshot = null,
+            completedAt = System.currentTimeMillis(),
+        ) ?: return null
+        val persistedMessage =
+            detachStreamingAiMessage(
+                chatId = state.chatId,
+                activeTurn = activeTurn,
+                snapshot = readCurrentTurnCancellationSnapshot(state.chatId),
+            )
+        // detachStreamingAiMessage 使用同一 replay 投影；保留其实际返回值作为失败回合的唯一消息快照。
+        state.aiMessage = persistedMessage
+        return persistedMessage
     }
 
     private suspend fun cancelMessageInternal(
@@ -1099,7 +1174,10 @@ class MessageProcessingDelegate(
                 ensureAssistantTurnTerminalOutcome(state)
                 val finalizeMessageStartTime = messageTimingNow()
                 val deferTurnCompleteToAsyncJob =
-                    if (state.cancellationToPropagate == null) {
+                    if (
+                        state.cancellationToPropagate == null &&
+                            state.terminalOutcome == "completed"
+                    ) {
                         finalizeMessageAndNotify(
                             chatId = state.chatId,
                             activeChatId = state.activeChatId,
@@ -1116,7 +1194,8 @@ class MessageProcessingDelegate(
                     } else {
                         AppLogger.d(
                             TAG,
-                            "取消回合不执行消息收尾: chatId=${state.activeChatId}"
+                            "非成功回合不执行 Completed 消息收尾: chatId=${state.activeChatId}, " +
+                                "outcome=${state.terminalOutcome}"
                         )
                         false
                     }
@@ -1666,6 +1745,7 @@ class MessageProcessingDelegate(
             } else {
                 null
             }
+        state.providerRequestContext = providerRequestContext
         state.providerRequestContextPresent = providerRequestContext != null
         val responseStream =
             AIMessageManager.sendMessage(
@@ -2305,11 +2385,33 @@ class MessageProcessingDelegate(
         error: Exception,
     ) {
         val failureKind = AssistantTurnFailurePolicy.classify(error)
+        val failureExecutionId = extractMessageFailureExecutionId(error)
         val causeMessage =
             error.message
                 ?.takeIf { it.isNotBlank() }
                 ?: error::class.java.simpleName
-        val userMessage = context.getString(R.string.message_send_failed, causeMessage)
+        val partialProjection =
+            withContext(NonCancellable) {
+                runCatching { persistFailedAssistantProjection(state) }
+                    .onFailure {
+                        AppLogger.e(TAG, "失败回合的部分 assistant 投影持久化失败", it)
+                    }
+                    .getOrNull()
+            }
+        if (partialProjection == null) {
+            withContext(NonCancellable) {
+                state.chatRuntime.activeStreamingTurn?.message?.contentStream = null
+                if (state.hasAiMessage()) {
+                    state.aiMessage.contentStream = null
+                }
+            }
+        }
+        val userMessage =
+            if (partialProjection != null) {
+                context.getString(R.string.message_send_failed_partial, causeMessage)
+            } else {
+                context.getString(R.string.message_send_failed, causeMessage)
+            }
         val terminal = createTurnFailureTerminal(userMessage, failureKind)
         state.terminalOutcome = terminal.terminalOutcome
         state.finalInputStateAfterSend = terminal.finalInputState
@@ -2332,6 +2434,35 @@ class MessageProcessingDelegate(
         // 执行，最终 UI 就会再次只看到 Idle，因此这里只提交终态和用户提示。
         withContext(NonCancellable) {
             if (state.effectivePersistTurn) {
+                partialProjection?.let { partialMessage ->
+                    runCatching {
+                        conversationAuditRepository.appendEvent(
+                            ConversationAuditEventRequest(
+                                chatId = state.chatId,
+                                category = "ASSISTANT",
+                                eventType = "ASSISTANT_PROJECTION_UPDATED",
+                                actor = "KIYORI",
+                                summary = "传输中断，已保留已收到的部分 AI 回答",
+                                messageTimestamp = partialMessage.timestamp,
+                                variantIndex = partialMessage.selectedVariantIndex,
+                                localExecutionId = failureExecutionId,
+                                terminalState = "FAILED",
+                                completeness = ConversationAuditCompletenessStatus.PARTIAL,
+                                failureCode = "ASSISTANT_PARTIAL_PROJECTION",
+                                payloads =
+                                    listOf(
+                                        ConversationAuditPayloadInput.text(
+                                            label = "assistant_partial_output",
+                                            role = "assistant",
+                                            value = partialMessage.content,
+                                        )
+                                    ),
+                            )
+                        )
+                    }.onFailure { auditError ->
+                        AppLogger.e(TAG, "失败回合的部分 assistant 投影审计写入失败", auditError)
+                    }
+                }
                 runCatching {
                     conversationAuditRepository.appendThrowable(
                         chatId = state.chatId,
@@ -2339,8 +2470,12 @@ class MessageProcessingDelegate(
                         summary = "Provider 回合失败：${failureKind.name}",
                         throwable = error,
                         messageTimestamp =
-                            state.aiMessage.timestamp.takeIf { it > 0L },
+                            state.takeIf { it.hasAiMessage() }
+                                ?.aiMessage
+                                ?.timestamp
+                                ?.takeIf { it > 0L },
                         variantIndex = 0,
+                        localExecutionId = failureExecutionId,
                         completeness = ConversationAuditCompletenessStatus.PARTIAL,
                     )
                     conversationAuditRepository.seal(

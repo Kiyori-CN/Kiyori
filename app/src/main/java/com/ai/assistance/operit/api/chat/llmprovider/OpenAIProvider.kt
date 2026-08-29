@@ -43,6 +43,7 @@ import java.net.UnknownHostException
 import java.security.MessageDigest
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
@@ -164,6 +165,8 @@ open class OpenAIProvider(
 
     protected open val useResponsesApi: Boolean = false
     protected open val supportsResponsesStreamResumption: Boolean = false
+    /** 仅为 JVM 故障注入提供确定的执行边界；生产实现始终使用 IO dispatcher。 */
+    protected open val responseExecutionDispatcher: CoroutineDispatcher = Dispatchers.IO
     protected val modelCapabilityProfile: ModelCapabilityProfile by lazy {
         ModelCapabilityResolver.resolve(
             providerType = capabilityProviderType,
@@ -1919,6 +1922,7 @@ open class OpenAIProvider(
         customHeaders.forEach { (key, value) ->
             builder.addHeader(key, value)
         }
+        applyResponsesAcceptHeader(builder, stream)
 
         val request = builder.post(requestBody).build()
         AppLogger.d(
@@ -1962,12 +1966,12 @@ open class OpenAIProvider(
                 .url(resumeUrl)
                 .get()
                 .tag(LlmRequestTraceContext::class.java, traceContext)
-                .addHeader("Accept", "text/event-stream")
 
         applyAuthenticationHeaders(builder, currentApiKey)
         customHeaders.forEach { (key, value) ->
             builder.addHeader(key, value)
         }
+        applyResponsesAcceptHeader(builder, stream = true)
         val request = builder.build()
         AppLogger.d(
             "AIService",
@@ -1975,6 +1979,23 @@ open class OpenAIProvider(
                 "startingAfter=$startingAfter, attempt=$attemptNumber",
         )
         return request
+    }
+
+    /**
+     * Responses 的默认内容协商必须与 stream wire 一致。显式自定义 Accept 仍由用户持有，避免
+     * 在同一个请求里追加两个相互冲突的值。
+     */
+    private fun applyResponsesAcceptHeader(
+        builder: Request.Builder,
+        stream: Boolean,
+    ) {
+        if (!useResponsesApi || customHeaders.keys.any { it.equals("Accept", ignoreCase = true) }) {
+            return
+        }
+        builder.header(
+            "Accept",
+            if (stream) "text/event-stream" else "application/json",
+        )
     }
 
     private suspend fun cancelResponsesExecution(responseId: String) {
@@ -2051,6 +2072,7 @@ open class OpenAIProvider(
         var lastProcessedToolIndex: Int? = null,
         val imageBuffers: MutableMap<Int, ImageBufferState> = mutableMapOf(),
         var providerResponseId: String? = null,
+        var hasCompletedResponsesTerminal: Boolean = false,
     )
 
     /**
@@ -2725,6 +2747,7 @@ open class OpenAIProvider(
                 reconcileCompletedResponsesOutput(responseObj, state, emitter)
                 closeAllOpenToolCalls(state, emitter)
                 applyUsageToCounters(usage, onTokensUpdated)
+                state.hasCompletedResponsesTerminal = true
             }
 
             "response.failed", "response.error" -> {
@@ -3090,6 +3113,16 @@ open class OpenAIProvider(
                     cause = IOException("Responses stream ended without a terminal event"),
                 )
             }
+            val responsesCompleted =
+                state.hasCompletedResponsesTerminal ||
+                    persistedResponsesState?.status == ProviderExecutionStatus.COMPLETED
+            if (useResponsesApi && !responsesCompleted) {
+                // Responses 没有 Chat Completions 的 [DONE] 成功合同。缺少 response.completed 时
+                // 必须保留未知提交语义，否则干净 EOF 会被消息层错误写成 Completed。
+                throw OpenAIResponsesProtocolException(
+                    "Responses stream ended without response.completed"
+                )
+            }
             
             closeAllOpenToolCalls(state, emitter)
 
@@ -3236,7 +3269,7 @@ open class OpenAIProvider(
                 ?.state
 
             try {
-                withContext(Dispatchers.IO) {
+                withContext(responseExecutionDispatcher) {
                     val response = call.execute()
                     activeResponse = response
                     response.use {
@@ -3672,7 +3705,7 @@ open class OpenAIProvider(
 
                 // 确保在IO线程执行网络请求和响应体读取
                 AppLogger.d("AIService", "[req=$requestTraceId] 【发送消息】切换到IO线程执行网络请求")
-                withContext(Dispatchers.IO) {
+                withContext(responseExecutionDispatcher) {
                     val executeStartNs = System.nanoTime()
                     AppLogger.d("AIService", "[req=$requestTraceId] 【发送消息】进入 call.execute()，开始等待响应头")
                     responsesSubmissionStarted = true
@@ -3875,7 +3908,13 @@ open class OpenAIProvider(
                             enableRetry = enableRetry,
                             onNonFatalError = onNonFatalError,
                             providerRequestContext = providerRequestContext,
-                            transportDiagnostics = transportTraceState?.snapshot(e),
+                            transportDiagnostics =
+                                transportTraceState
+                                    ?.takeUnless {
+                                        e is OpenAIResponsesProtocolException ||
+                                            e is OpenAIResponsesEventProcessingException
+                                    }
+                                    ?.snapshot(e),
                         )
                 } else {
                     emitter.emitRollback(requestSavepointId)

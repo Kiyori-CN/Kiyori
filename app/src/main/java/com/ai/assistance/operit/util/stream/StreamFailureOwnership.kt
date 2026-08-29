@@ -24,6 +24,20 @@ internal interface MessageFailureDiagnosticSource {
     val messageFailurePhase: String
 }
 
+/**
+ * 从包装异常链中取得真正产生失败的 Provider execution。
+ *
+ * 多工具 hop 共用一个消息回合，但每个 Provider 请求有独立 execution ID。失败审计若使用回合
+ * 初始 context，会把最后 hop 的错误错误关联到首个 hop；没有受控诊断身份时保持 null，不能猜测。
+ */
+internal fun extractMessageFailureExecutionId(failure: Throwable): String? =
+    generateSequence(failure) { it.cause }
+        .filterIsInstance<MessageFailureDiagnosticSource>()
+        .mapNotNull { source ->
+            source.messageFailureExecutionId?.takeIf { it.isNotBlank() }
+        }
+        .firstOrNull()
+
 internal data class MessageFailureDiagnostics(
     val executionRef: String,
     val diagnosticCode: String,

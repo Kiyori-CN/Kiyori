@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.Dispatchers
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
@@ -44,6 +45,7 @@ import org.mockito.kotlin.eq
 import org.mockito.kotlin.isNull
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.verifyNoInteractions
 import org.mockito.kotlin.verifyNoMoreInteractions
 import org.mockito.kotlin.whenever
 
@@ -136,6 +138,214 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
         assertEquals(null, failure.localExecutionId)
         assertTrue(failure.message?.contains("502") == true)
         assertTrue(failure.message?.contains("openai_error") == true)
+    }
+
+    @Test
+    fun deepSeekResponsesStream_sendsSseAcceptAndCompletesOnSemanticTerminal() = runTest {
+        Mockito.mockStatic(AppLogger::class.java).use {
+            MockWebServer().use { server ->
+                server.start()
+                server.enqueue(
+                    MockResponse()
+                        .setHeader("Content-Type", "text/event-stream")
+                        .setBody(completedResponsesSse("semantic terminal"))
+                )
+                val repository = mock<ProviderExecutionRepository>()
+                val provider = createDeepSeekResponsesProvider(server, repository)
+                val received = StringBuilder()
+
+                provider.sendMessage(
+                    context = createContext(),
+                    chatHistory = testHistory("complete with response.completed"),
+                    modelParameters = emptyList(),
+                    enableThinking = true,
+                    stream = true,
+                    availableTools = null,
+                    preserveThinkInHistory = false,
+                    providerRequestContext = requestContext("local-deepseek-completed"),
+                    onTokensUpdated = { _, _, _ -> },
+                    onNonFatalError = {},
+                    enableRetry = true,
+                ).collect(received::append)
+
+                val request = requireNotNull(server.takeRequest(5, TimeUnit.SECONDS))
+                assertEquals("text/event-stream", request.getHeader("Accept"))
+                assertEquals(1, server.requestCount)
+                assertEquals("semantic terminal", received.toString())
+                verifyNoInteractions(repository)
+            }
+        }
+    }
+
+    @Test
+    fun deepSeekResponsesNonStreaming_sendsJsonAccept() = runTest {
+        Mockito.mockStatic(AppLogger::class.java).use {
+            MockWebServer().use { server ->
+                server.start()
+                server.enqueue(
+                    MockResponse()
+                        .setHeader("Content-Type", "application/json")
+                        .setBody(completedResponsesJson("non-stream response"))
+                )
+                val repository = mock<ProviderExecutionRepository>()
+                val provider = createDeepSeekResponsesProvider(server, repository)
+                val received = StringBuilder()
+
+                provider.sendMessage(
+                    context = createContext(),
+                    chatHistory = testHistory("complete without streaming"),
+                    modelParameters = emptyList(),
+                    enableThinking = true,
+                    stream = false,
+                    availableTools = null,
+                    preserveThinkInHistory = false,
+                    providerRequestContext = requestContext("local-deepseek-json"),
+                    onTokensUpdated = { _, _, _ -> },
+                    onNonFatalError = {},
+                    enableRetry = true,
+                ).collect(received::append)
+
+                val request = requireNotNull(server.takeRequest(5, TimeUnit.SECONDS))
+                assertEquals("application/json", request.getHeader("Accept"))
+                assertEquals(1, server.requestCount)
+                assertEquals("non-stream response", received.toString())
+                verifyNoInteractions(repository)
+            }
+        }
+    }
+
+    @Test
+    fun deepSeekResponsesCleanEofWithoutTerminal_postsOnceAndFailsUnknown() = runTest {
+        Mockito.mockStatic(AppLogger::class.java).use {
+            MockWebServer().use { server ->
+                server.start()
+                server.enqueue(
+                    MockResponse()
+                        .setHeader("Content-Type", "text/event-stream")
+                        .setBody(responsesTextDeltaSse("partial before clean eof"))
+                )
+                val repository = mock<ProviderExecutionRepository>()
+                val provider = createDeepSeekResponsesProvider(server, repository)
+                val received = StringBuilder()
+
+                val failure =
+                    runCatching {
+                        provider.sendMessage(
+                            context = createContext(),
+                            chatHistory = testHistory("end without terminal"),
+                            modelParameters = emptyList(),
+                            enableThinking = true,
+                            stream = true,
+                            availableTools = null,
+                            preserveThinkInHistory = false,
+                            providerRequestContext = requestContext("local-deepseek-clean-eof"),
+                            onTokensUpdated = { _, _, _ -> },
+                            onNonFatalError = {},
+                            enableRetry = true,
+                        ).collect(received::append)
+                    }.exceptionOrNull()
+
+                assertTrue("failure=$failure cause=${failure?.cause}", failure is OpenAIResponsesSubmissionUnknownException)
+                val unknown = failure as OpenAIResponsesSubmissionUnknownException
+                assertEquals("local-deepseek-clean-eof", unknown.localExecutionId)
+                assertTrue(unknown.cause?.message?.contains("response.completed") == true)
+                assertEquals(null, unknown.transportDiagnostics)
+                assertEquals("partial before clean eof", received.toString())
+                val request = requireNotNull(server.takeRequest(5, TimeUnit.SECONDS))
+                assertEquals("text/event-stream", request.getHeader("Accept"))
+                assertEquals(1, server.requestCount)
+                verifyNoInteractions(repository)
+            }
+        }
+    }
+
+    @Test
+    fun deepSeekResponsesBodyDisconnect_preservesPartialAndPostsOnce() = runTest {
+        Mockito.mockStatic(AppLogger::class.java).use {
+            MockWebServer().use { server ->
+                server.start()
+                val firstEvent = responsesTextDeltaSse("partial before body disconnect")
+                server.enqueue(
+                    MockResponse()
+                        .setHeader("Content-Type", "text/event-stream")
+                        .setBody(firstEvent + "data: " + "x".repeat(64 * 1024))
+                        .throttleBody(1024, 1, TimeUnit.MILLISECONDS)
+                        .setSocketPolicy(SocketPolicy.DISCONNECT_DURING_RESPONSE_BODY)
+                )
+                val repository = mock<ProviderExecutionRepository>()
+                val provider = createDeepSeekResponsesProvider(server, repository)
+                val received = StringBuilder()
+
+                val failure =
+                    runCatching {
+                        provider.sendMessage(
+                            context = createContext(),
+                            chatHistory = testHistory("disconnect response body"),
+                            modelParameters = emptyList(),
+                            enableThinking = true,
+                            stream = true,
+                            availableTools = null,
+                            preserveThinkInHistory = false,
+                            providerRequestContext = requestContext("local-deepseek-body-eof"),
+                            onTokensUpdated = { _, _, _ -> },
+                            onNonFatalError = {},
+                            enableRetry = true,
+                        ).collect(received::append)
+                    }.exceptionOrNull()
+
+                assertTrue("failure=$failure cause=${failure?.cause}", failure is OpenAIResponsesSubmissionUnknownException)
+                val unknown = failure as OpenAIResponsesSubmissionUnknownException
+                assertEquals("local-deepseek-body-eof", unknown.localExecutionId)
+                assertEquals(
+                    "LLM_TRANSPORT_RESPONSE_BODY_INTERRUPTED",
+                    unknown.transportDiagnostics?.diagnosticCode,
+                )
+                assertEquals("partial before body disconnect", received.toString())
+                assertEquals(1, server.requestCount)
+                verifyNoInteractions(repository)
+            }
+        }
+    }
+
+    @Test
+    fun deepSeekResponsesHeaderDisconnect_postsOnceWithActualExecutionId() = runTest {
+        Mockito.mockStatic(AppLogger::class.java).use {
+            MockWebServer().use { server ->
+                server.start()
+                server.enqueue(
+                    MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AFTER_REQUEST)
+                )
+                val repository = mock<ProviderExecutionRepository>()
+                val provider = createDeepSeekResponsesProvider(server, repository)
+
+                val failure =
+                    runCatching {
+                        provider.sendMessage(
+                            context = createContext(),
+                            chatHistory = testHistory("disconnect before response headers"),
+                            modelParameters = emptyList(),
+                            enableThinking = true,
+                            stream = true,
+                            availableTools = null,
+                            preserveThinkInHistory = false,
+                            providerRequestContext = requestContext("local-deepseek-last-hop"),
+                            onTokensUpdated = { _, _, _ -> },
+                            onNonFatalError = {},
+                            enableRetry = true,
+                        ).collect { error("header disconnect must not emit content") }
+                    }.exceptionOrNull()
+
+                assertTrue("failure=$failure cause=${failure?.cause}", failure is OpenAIResponsesSubmissionUnknownException)
+                val unknown = failure as OpenAIResponsesSubmissionUnknownException
+                assertEquals("local-deepseek-last-hop", unknown.localExecutionId)
+                assertEquals(
+                    "LLM_TRANSPORT_RESPONSE_HEADERS_NOT_RECEIVED",
+                    unknown.transportDiagnostics?.diagnosticCode,
+                )
+                assertEquals(1, server.requestCount)
+                verifyNoInteractions(repository)
+            }
+        }
     }
 
     @Test
@@ -425,11 +635,74 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
         return context
     }
 
+    private fun createDeepSeekResponsesProvider(
+        server: MockWebServer,
+        repository: ProviderExecutionRepository,
+    ): FaultInjectionResponsesProvider =
+        FaultInjectionResponsesProvider(
+            endpoint = server.url("/v1/responses").toString(),
+            persistence = RepositoryOpenAIResponsesExecutionPersistence(repository),
+            providerType = ApiProviderType.DEEPSEEK,
+            capabilityProviderType = ApiProviderType.OPENAI_RESPONSES_GENERIC,
+            supportsStreamResumption = false,
+        )
+
+    private fun requestContext(localExecutionId: String): ProviderRequestContext =
+        ProviderRequestContext(
+            localExecutionId = localExecutionId,
+            chatId = "chat-deepseek",
+            messageTimestamp = 4L,
+            variantIndex = 0,
+            hopOrdinal = 6,
+        )
+
+    private fun testHistory(content: String): List<PromptTurn> =
+        listOf(PromptTurn(kind = PromptTurnKind.USER, content = content))
+
+    private fun responsesTextDeltaSse(text: String): String =
+        "data: " +
+            org.json.JSONObject()
+                .put("type", "response.output_text.delta")
+                .put("delta", text)
+                .toString() +
+            "\n\n"
+
+    private fun completedResponsesSse(text: String): String =
+        "data: " + completedResponsesEventJson(text) + "\n\n"
+
+    private fun completedResponsesJson(text: String): String =
+        org.json.JSONObject()
+            .put("id", "resp-deepseek-test")
+            .put("status", "completed")
+            .put("output", responseOutput(text))
+            .toString()
+
+    private fun completedResponsesEventJson(text: String): String =
+        org.json.JSONObject()
+            .put("type", "response.completed")
+            .put("response", org.json.JSONObject(completedResponsesJson(text)))
+            .toString()
+
+    private fun responseOutput(text: String): org.json.JSONArray =
+        org.json.JSONArray().put(
+            org.json.JSONObject()
+                .put("type", "message")
+                .put(
+                    "content",
+                    org.json.JSONArray().put(
+                        org.json.JSONObject()
+                            .put("type", "output_text")
+                            .put("text", text)
+                    )
+                )
+        )
+
     private class FaultInjectionResponsesProvider(
         endpoint: String,
         private val persistence: OpenAIResponsesExecutionPersistence,
         providerType: ApiProviderType = ApiProviderType.OPENAI_RESPONSES,
         capabilityProviderType: ApiProviderType = providerType,
+        private val supportsStreamResumption: Boolean = true,
     ) : OpenAIProvider(
         apiEndpoint = endpoint,
         apiKeyProvider =
@@ -454,7 +727,8 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
         endpointProtocol = com.ai.assistance.operit.data.model.ApiProtocol.OPENAI_RESPONSES,
     ) {
         override val useResponsesApi: Boolean = true
-        override val supportsResponsesStreamResumption: Boolean = true
+        override val supportsResponsesStreamResumption: Boolean = supportsStreamResumption
+        override val responseExecutionDispatcher = Dispatchers.Unconfined
 
         internal override fun createResponsesExecutionPersistence(
             context: Context,
@@ -469,7 +743,7 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
             availableTools: List<ToolPrompt>?,
             preserveThinkInHistory: Boolean,
         ): RequestBody =
-            """{"model":"gpt-5.6-sol","stream":true}"""
+            """{"model":"gpt-5.6-sol","stream":$stream}"""
                 .toRequestBody("application/json".toMediaType())
     }
 

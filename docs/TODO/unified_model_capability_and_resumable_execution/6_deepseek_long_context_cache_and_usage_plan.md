@@ -750,7 +750,7 @@ Flow 的 start/chunk 等结果标为 `provider_result_terminal=false`，正常�
 | 周期流式快照 | 每 1 秒把 `contentSnapshot` 原样 upsert 到 `ChatMessage` | 工具组执行期间进程终止会留下 call-only 历史 |
 | 手动停止 | `detachStreamingAiMessage()` 原样保存 replay cache | call 已到达而 result 未全部到达时污染下一轮 |
 | 非手动取消 | `CancellationException` 跳过 `finalizeMessageAndNotify()` | 最后一次中间快照继续留在数据库 |
-| 普通 Provider/工具失败 | 错误可见，但普通消息收尾仍保存原始部分正文 | 失败回合可携带未闭合工具事务 |
+| 普通 Provider/工具失败 | 失败 owner 先保存 replay-safe 部分正文，再写错误终态 | 未闭合工具事务不会进入下一轮 replay |
 | 正常完成 | 只检查非空正文，没有检查工具事务闭合 | 上游误报完成时可写入协议不完整消息 |
 | 多结果 follow-up 总长度 | 超过 64000 字符后停止追加，外层仍可直接截断 | 无取消也会只提交部分结果并在 user boundary 失败 |
 | 自动上下文压缩 | `ConversationCompactionContract` 正确拒绝非法工具历史 | 拒绝后发送仍使用原历史，并在 Provider 边界失败 |
@@ -1066,6 +1066,164 @@ formal readiness、architecture/Markdown、`git diff --check`；规定 Debug 构
 - 上述证据不调用真实 DeepSeek，也不能证明目标设备上的官方服务、网络代理或中间链路不再关闭
   新连接。目标设备仍需使用本 APK 复测同类多跳工具会话，并核对每个 Provider hop 的连接、响应头
   与最终回合终态；在此之前保持 `verification_pending`。
+
+### M10 2026-08-29 Responses 正文中断的部分回答安全收口
+
+状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / TARGET DEVICE VERIFICATION PENDING`。
+
+#### 现场证据与根因边界
+
+- 最新归档的失败链为 `OpenAIResponsesSubmissionUnknownException <- EOFException <-
+  Http1ExchangeCodec.ChunkedSource.readChunkSize`，并且在异常前已经收到 `response.created` 之后
+  的可见 `<think>` 片段。响应没有 `response.completed`、`response.incomplete` 或
+  `response.failed`，所以远端执行仍是未知状态；M9 的连接策略不能把正文 EOF 转成 provider
+  成功。
+- `collectAssistantResponseStream` 的 revision collector 在其 `finally` 中已经把当前正文写回
+  `state.aiMessage`，但 `handleAssistantTurnFailure` 只写错误审计和 Error 输入状态。普通失败随后
+  进入通用消息收尾，缺少一个显式的“部分 assistant 投影”合同；最后一个尚未达到 1 秒快照间隔的
+  片段可能没有稳定地写入聊天历史，工具调用后缀也可能再次进入 replay history。
+- DeepSeek Responses 仍没有可证明的同一 response 续接入口。任何修复都不能重发未知提交、补写
+  provider 终态或根据 EOF 改变协议路由。
+
+#### 实施合同
+
+1. 失败消息 owner 在写入 `PROVIDER_TERMINAL_ERROR` 前读取当前共享流/revision cache，调用
+   `AssistantReplayHistoryProjector` 生成 replay-safe 正文；未闭合工具调用、孤立结果和不完整
+   markup 不能进入下一次 provider 请求。
+2. 只有 replay-safe 正文非空时才把活动流消息转换为 `contentStream=null` 的部分 assistant 投影，
+   写入聊天历史并追加 `ASSISTANT_PROJECTION_UPDATED`，其 `terminalState=FAILED`、
+   `completeness=PARTIAL`，payload 明确标注传输中断后保留的正文。该事件不是 provider 完成事件，
+   不改变 `SUBMISSION_UNKNOWN` 或原始异常审计。
+3. 没有可安全投影的正文时不新增空的 completed assistant 消息；仍显示真实失败并清理
+   `InputProcessingState`、活动流和发送 Job。普通 Chat Completions、用户取消和已有同 response
+   GET 续接路径保持原行为。
+4. 失败回合跳过 `finalizeMessageAndNotify` 的正常 Completed 投影，避免错误回合再次写入成功式
+   收尾；唯一失败 owner 仍负责审计、用户提示和 runtime cleanup。
+
+#### 影响、风险与验证
+
+- 影响文件：`MessageProcessingDelegate.kt`、`MessageProcessingDelegateTest.kt`、
+  `strings.xml`、本文件与 `docs/TODO/README.md`；不修改 Responses POST/GET 状态机或普通 client。
+- 主要风险是部分正文与工具事务边界不一致、失败路径重复持久化或空正文被误标记成功；通过纯投影
+  测试、消息 owner 测试和原有 Responses 单 POST/状态测试共同约束。
+- 定向验收必须覆盖：正文 EOF 后最后片段持久化、未闭合工具事务移除、PARTIAL assistant 事件、
+  原始 `OpenAIResponsesSubmissionUnknownException`/`SUBMISSION_UNKNOWN` 保留、失败不写
+  `COMPLETED`、无正文不写空成功、下一回合状态可重新开始、二次观察器和用户取消不回归。
+- 验证顺序：消息/投影/Responses 定向 JVM -> 完整 `:app:testDebugUnitTest` -> formal readiness
+  -> fresh-clone -> `git diff --check` -> 串行 Debug APK 构建与产物审计 -> staged/sensitive/
+  artifact/submodule 审计 -> 提交、推送和三方 ref 对账。真实 DeepSeek endpoint、设备中断交互和
+  现场“下一回合可继续”仍保持 `verification_pending`。
+
+#### 回滚点
+
+本轮为独立 M10 提交。回滚仅恢复消息失败收口与文档/测试，不改变 M9 的 Responses HTTP/1.1、
+连接池和 `retryOnConnectionFailure=false` 策略；不得通过恢复重复 POST、自动切换协议或吞掉 EOF
+替代本轮修复。
+
+#### M10 当前本地证据
+
+- `:app:testDebugUnitTest --no-daemon --console=plain` 于 2026-08-29 通过；定向消息/投影/Responses
+  故障注入套件和完整 JVM 均为 `BUILD SUCCESSFUL`，失败、错误、跳过均为 `0`。
+- `check_formal_readiness.py --repository . --require-main` 通过；`check_fresh_clone.py --repository .`
+  通过，基线为 `main@8cc4541ae`；`git diff --check` 与 Markdown link 检查通过。
+- 规定的 `:app:assembleDebug --no-daemon --console=plain` 于 2026-08-29 通过，`235` 个任务中
+  `23` 个 executed、`212` 个 up-to-date；唯一 Debug launcher、脚本代理和播放器 runtime packaging
+  门禁通过。APK 为 `app/build/outputs/apk/debug/app-debug.apk`，`503687293` bytes，SHA-256
+  `313DF80C23D9AB5FE6EFF27A982BF310152C9B0447CD618E8A33B051EDEA1513`；包身份为
+  `com.kiyori / 45 / 0.1.0 / minSdk 26 / targetSdk 34`，Android Debug V2 单 signer、16 KiB
+  ZIP alignment、`5512` entries、`44` 个 DEX、`53` 个 `arm64-v8a` native library 且 basename 无重复。
+- 上述本地证据不替代真实 DeepSeek endpoint、目标设备正文 EOF 交互或失败后下一回合现场验收；这些
+  继续保持 `verification_pending`。
+
+### M11 2026-08-29 DeepSeek Responses 内容协商、语义终态与真实 hop 诊断
+
+状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / TARGET DEVICE VERIFICATION PENDING`。
+
+#### 新增现场矩阵
+
+| 场景 | Provider hop | 请求快照 | 失败阶段 | 已收到正文 |
+| --- | ---: | ---: | --- | ---: |
+| 联网搜索 | `3 / 3` | `116375` bytes | `WAITING_FOR_RESPONSE_HEADERS`，响应头前 EOF | `0` |
+| 日常工具 | `7 / 7` | `40727` bytes | `WAITING_FOR_RESPONSE_HEADERS`，响应头前 EOF | `0` |
+| 天气 | `7 / 7` | `47096` bytes | `RESPONSE_BODY`，HTTP/1.1 chunked EOF | `7` 字符 |
+
+- 三组失败都发生在最后一个 Provider hop，前置工具调用与 follow-up 可以正常完成；这排除了
+  “DeepSeek Responses 工具历史从第一个请求起就完全不兼容”的解释。`40-47 KiB` 的请求也会
+  失败，因此现有证据不支持单一请求大小阈值。
+- `ASSISTANT_PROJECTION_UPDATED` 和 `PROVIDER_TERMINAL_ERROR` 当前都使用回合初始
+  `providerRequestContext.localExecutionId`，三组归档因而错误关联到第一个 hop。真实失败 hop ID
+  已由 `OpenAIResponsesSubmissionUnknownException` 通过 `MessageFailureDiagnosticSource` 写入异常
+  cause chain；审计层应读取该诊断身份，而不是复用首跳 context。
+- `KiyoriNetworkProxyManager` 的动态失败日志只记录并重新抛出 `IOException`。归档没有保存设备
+  当时的实际 route，当前不能把该栈帧解释为代理根因，也不能据此增加直连旁路。
+
+#### DeepSeekHarness 对照与协议结论
+
+- 固定对照为 `@deepseek-ai/dsh 0.1.2-alpha.1`、源码提交
+  `cd5ef8148158c3a752a658978873241fdf8e2bbc`。其 DeepSeek adapter 使用
+  `/chat/completions`，不是 `/responses`，因此只能对照 DeepSeek 的内容协商、SSE 关闭与传输错误
+  边界，不能把 Chat Completions 的五次重试移植到 Responses。
+- Harness 明确发送 `Accept: text/event-stream`；缺少 `[DONE]` 时抛 `STREAM_CLOSED`，socket 中途
+  关闭时归类为 `TRANSPORT`，不会把部分正文伪装成成功。Responses 没有 `[DONE]` 合同，对应的
+  成功证据必须是 `response.completed`；`response.failed`、`response.incomplete`、
+  `response.cancelled` 和无终态 EOF 都不是成功。
+- Kiyori 当前普通 Responses POST 只固定 `Content-Type: application/json`，没有根据 `stream`
+  写入默认 `Accept`。同时，普通兼容 Responses 没有 `ResponsesPersistenceSession`，现有 EOF
+  检查只覆盖可续接流；如果 SSE 干净结束但缺少语义终态，可能错误进入成功收尾。
+
+#### 实施合同
+
+1. `OpenAIProvider.createRequest` 对 Responses 流式 POST 默认写入
+   `Accept: text/event-stream`，非流式 POST 默认写入 `Accept: application/json`。用户显式配置的
+   自定义 `Accept` 保持其原有覆盖能力；默认请求不得产生重复 `Accept` 值。官方 sequence-resume
+   GET 继续使用 `text/event-stream`。
+2. `StreamingState` 记录是否成功处理 `response.completed`。所有 Responses 流在退出读取循环后
+   统一检查语义终态；只有已处理的 `response.completed`，或持久化执行状态明确为
+   `COMPLETED`，才允许成功返回。缺少终态时抛出协议/传输失败，并由原 at-most-once 边界转换为
+   `OpenAIResponsesSubmissionUnknownException`；不得补写 provider 终态。
+3. `StreamFailureOwnership` 提供只读 cause-chain helper，返回第一个非空
+   `MessageFailureDiagnosticSource.messageFailureExecutionId`。消息失败 owner 在本次失败审计中只使用
+   该真实 ID；异常没有诊断身份时写 `null`，不得回退到回合初始 hop。
+4. M10 的 replay-safe 部分回答持久化、错误 UI、runtime cleanup 和下一回合恢复保持原 owner；
+   M11 不新增第二状态源，也不把部分回答升级成 `COMPLETED`。
+
+#### 非目标、风险与回滚点
+
+- 不设置 `Accept-Encoding: identity`：正文失败栈没有 `GzipSource`，现有证据不支持压缩归因。
+- 不设置 `Connection: close`：M9 已验证每个 Responses hop 使用新的 HTTP/1.1 连接，该请求头还
+  可能把缺少语义终态的 EOF 伪装成表面正常关闭。
+- 不重发未知 POST，不切换到 Chat Completions、其他 provider、endpoint 或代理路径，不吞掉 EOF，
+  不伪造 `response.completed`。Harness 的 Chat Completions 重试不是 Responses 安全合同。
+- “对话详情”后续应按用户回合和 Provider hop 分组展示真实 execution ID、阶段、终态和安全动作，
+  但必须在本轮先修正 hop 关联；UI 深化不进入 M11 代码范围。
+- 回滚点是 M10 已验证树。若 M11 回滚，应只移除默认 `Accept`、统一终态检查、真实 hop helper 及
+  对应测试/文档，不能恢复错误的重复 POST、协议切换或 EOF 成功语义。
+
+#### 验收矩阵
+
+1. 实际请求：流式 Responses 只有一个 POST 且 `Accept=text/event-stream`；非流式为
+   `Accept=application/json`；普通 Chat Completions 不受影响。
+2. 故障注入：响应头前断开、部分 SSE 后 chunked body 断开、完整 body 干净 EOF 但缺少终态，
+   都只产生一个 POST并保留 `SUBMISSION_UNKNOWN`；已收到正文仍由 M10 安全收口。
+3. 终态：`response.completed` 正常成功；`response.failed` / `response.incomplete` /
+   `response.cancelled` 继续失败；官方持久化 sequence resume 不回归。
+4. 审计：包装异常的 cause chain 能提取真实最后 hop ID；部分 assistant 与 Provider 失败事件使用
+   同一真实 ID，无诊断 ID 时保持空值。
+5. 验证顺序：DeepSeek/Responses/消息 owner 定向 JVM -> 完整 `:app:testDebugUnitTest` -> formal
+   readiness -> fresh-clone -> Markdown/`git diff --check` -> 串行 Debug APK 与产物审计 -> staged/
+   sensitive/artifact/submodule/remote 审计 -> 提交与推送。真实 endpoint 和目标设备仍为
+   `verification_pending`。
+
+#### M11 当前本地证据
+
+- `OpenAIResponsesSubmissionFaultInjectionTest`、`HotStreamFailurePropagationTest` 定向矩阵与完整
+  `:app:testDebugUnitTest --no-daemon --console=plain` 均通过；最终 JVM 报告为 `315 suites / 1884
+  tests`，失败、错误和跳过均为 `0`。
+- `check_formal_readiness.py --repository . --require-main` 通过；`check_fresh_clone.py --repository .`
+  对最终候选提交返回 `Fresh clone: PASS`。
+- `check_markdown_links.py --base 8cc4541ae1bf4573c48b6d6aa99bbcf1d50e5aee --candidate HEAD` 返回
+  `errors=0 warnings=0`；最终 Debug APK 审计也已通过。真实 DeepSeek endpoint、多 hop 现场和目标设备
+  正文中断/下一回合验收继续保持 `verification_pending`。
 
 ## 可恢复开发与上下文压缩合同
 

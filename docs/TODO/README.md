@@ -52,6 +52,48 @@ HTTP/2、连接池和重试策略不变。详细证据、实施与验证状态�
 [`unified_model_capability_and_resumable_execution/6_deepseek_long_context_cache_and_usage_plan.md`](unified_model_capability_and_resumable_execution/6_deepseek_long_context_cache_and_usage_plan.md)
 的 M9。
 
+## 2026-08-29 Responses 正文中断的部分回答安全收口
+
+状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / TARGET DEVICE VERIFICATION PENDING`。
+
+目标设备归档进一步确认，DeepSeek Responses 在已经收到可见 `<think>` 片段后，HTTP/1.1
+chunked response body 仍可能以 `EOFException` 截断。M9 的独立 HTTP/1.1、零 idle connection
+和关闭 OkHttp 自动连接恢复只改变连接生命周期，不能让没有终态事件的远端执行变成成功；本专项
+因此修复消息层的失败收口：从共享流和修订跟踪器取得最后可见文本，经
+`AssistantReplayHistoryProjector` 移除未闭合工具事务后，只有非空 replay-safe 正文才写入部分
+assistant 投影，并记录 `ASSISTANT_PROJECTION_UPDATED / PARTIAL`。原始
+`OpenAIResponsesSubmissionUnknownException`、`SUBMISSION_UNKNOWN` 和失败审计终态保持不变，
+不重发未知 POST、不伪造 `response.completed`、不切换 provider/协议/endpoint。
+
+无可安全投影的正文时只保留真实失败与运行态清理，不把空消息标记为成功；失败回合跳过正常
+`Completed` 收尾，下一次用户输入复用同一聊天历史但不会继承已结束的流或错误状态。定向测试、
+正式门禁、Debug APK 和提交推送完成前，本专项保持 `verification_pending`。
+
+详细根因、影响文件、验收矩阵和证据见
+[`unified_model_capability_and_resumable_execution/6_deepseek_long_context_cache_and_usage_plan.md`](unified_model_capability_and_resumable_execution/6_deepseek_long_context_cache_and_usage_plan.md)
+的 M10。
+
+## 2026-08-29 DeepSeek Responses 内容协商、语义终态与真实 hop 诊断
+
+状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / TARGET DEVICE VERIFICATION PENDING`。
+
+三组新增目标设备归档确认，DeepSeek Responses 的联网搜索、日常工具和天气会话分别在最后第
+`3 / 7 / 7` 个 Provider hop 失败；前两组在请求体提交后、响应头返回前 EOF，天气组在收到
+`7` 个可见字符后发生 HTTP/1.1 chunked body EOF。三组请求快照约为 `116375 / 40727 /
+47096` bytes，较小请求同样失败，不能把问题归结为单一请求大小阈值。前置工具 hop 均能完成，
+也不能把 DeepSeek 工具历史描述为从第一跳起就不兼容。
+
+本轮 M11 补齐三个已证实的客户端合同：Responses 流式 POST 默认发送
+`Accept: text/event-stream`，非流式 POST 默认发送 `Accept: application/json`；所有 Responses
+流只有观察到 `response.completed` 才能成功返回；失败审计从异常 cause chain 取得真实最后 hop
+的 `localExecutionId`，不存在诊断 ID 时保持空值，不再错误沿用回合首 hop。现有 at-most-once、
+`SUBMISSION_UNKNOWN` 和 M10 部分回答收口保持不变，不重发未知 POST、不把 EOF 当成功，也不增加
+协议/端点切换、压缩或连接头猜测。真实 DeepSeek endpoint 与目标设备复测继续保持待验证。
+
+详细现场矩阵、DeepSeekHarness 对照、实施合同、风险与故障注入验收见
+[`unified_model_capability_and_resumable_execution/6_deepseek_long_context_cache_and_usage_plan.md`](unified_model_capability_and_resumable_execution/6_deepseek_long_context_cache_and_usage_plan.md)
+的 M11。“对话详情”诊断中心的信息架构优化是独立 UI 专项，不混入本轮传输协议补丁。
+
 ## 2026-08-29 DeepSeekHarness Responses 提交稳定性与第三方协议边界
 
 状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。

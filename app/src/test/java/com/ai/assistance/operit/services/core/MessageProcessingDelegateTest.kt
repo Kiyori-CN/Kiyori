@@ -9,6 +9,7 @@ import com.ai.assistance.operit.data.model.withProviderUsageAggregate
 import com.ai.assistance.operit.util.stream.emptyStream
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -75,6 +76,62 @@ class MessageProcessingDelegateTest {
 
         assertEquals("visible prefix\n", result.content)
         assertNull(result.contentStream)
+        assertEquals(5_000L, result.completedAt)
+    }
+
+    @Test
+    fun failedAssistantProjection_preservesReplaySafePrefixAndNeverKeepsOpenToolCall() {
+        val message =
+            ChatMessage(
+                sender = "ai",
+                contentStream = emptyStream(),
+                timestamp = 10L,
+            )
+        val result =
+            MessageProcessingDelegate.projectFailedAssistantMessage(
+                streamingMessage = message,
+                finalContent =
+                    "received\n" +
+                        "<tool_exec name=\"run\" provider_call_id=\"call-1\"><param name=\"command\">pwd</param></tool_exec>",
+                snapshot = null,
+                completedAt = 5_000L,
+            )
+
+        assertNotNull(result)
+        assertEquals("received\n", result!!.content)
+        assertNull(result.contentStream)
+        assertEquals(5_000L, result.completedAt)
+    }
+
+    @Test
+    fun failedAssistantProjection_doesNotCreateEmptySuccessMessage() {
+        val message = ChatMessage(sender = "ai", contentStream = emptyStream(), timestamp = 10L)
+
+        val result =
+            MessageProcessingDelegate.projectFailedAssistantMessage(
+                streamingMessage = message,
+                finalContent = "<tool_exec name=\"run\" provider_call_id=\"call-1\"><param name=\"command\">pwd</param></tool_exec>",
+                snapshot = null,
+                completedAt = 5_000L,
+            )
+
+        assertNull(result)
+    }
+
+    @Test
+    fun failedAssistantProjection_closesInterruptedThinkingMarkupWithoutClaimingProviderCompletion() {
+        val message = ChatMessage(sender = "ai", contentStream = emptyStream(), timestamp = 10L)
+
+        val result =
+            MessageProcessingDelegate.projectFailedAssistantMessage(
+                streamingMessage = message,
+                finalContent = "<think>already received reasoning",
+                snapshot = null,
+                completedAt = 5_000L,
+            )
+
+        assertNotNull(result)
+        assertEquals("<think>already received reasoning</think>", result!!.content)
         assertEquals(5_000L, result.completedAt)
     }
 

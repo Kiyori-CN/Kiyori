@@ -305,6 +305,34 @@ class HotStreamFailurePropagationTest {
     }
 
     @Test
+    fun executionIdExtractor_usesNestedDiagnosticSourceWithoutGuessing() {
+        val diagnosticFailure =
+            DiagnosticFailure(
+                message = "private provider failure",
+                messageFailureExecutionId = "execution-last-provider-hop",
+            )
+        val wrapped = IllegalArgumentException("message owner wrapper", diagnosticFailure)
+
+        assertEquals(
+            "execution-last-provider-hop",
+            extractMessageFailureExecutionId(wrapped),
+        )
+        assertEquals(
+            null,
+            extractMessageFailureExecutionId(IllegalStateException("no diagnostic identity")),
+        )
+        assertEquals(
+            null,
+            extractMessageFailureExecutionId(
+                DiagnosticFailure(
+                    message = "blank diagnostic identity",
+                    messageFailureExecutionId = " ",
+                )
+            ),
+        )
+    }
+
+    @Test
     fun logicalFailureKey_mergesDifferentWrappersWithTheSameExecutionAndPhase() {
         val source =
             DiagnosticFailure(

@@ -14,7 +14,7 @@ Provider。统一架构必须把用户意图、模型能力、请求编译、传
 4. provider event 只应用一次
 5. 已确认事件的游标只增不减
 6. 传输 EOF 不等于 provider 执行完成
-7. 网络中断不撤回已确认内容
+7. 网络中断不撤回已确认内容；正文阶段失败时只投影 replay-safe 的已收到前缀，不把它当作 provider 成功
 8. provider `call_id` 是工具稳定身份，不从 XML 标签、工具名称或数组位置重新生成
 9. 同一 provider `call_id` 只能对应同一工具名和语义一致的参数，并且只投影、执行和重放一次
 10. 用户设置不直接等同 provider wire 参数
@@ -67,6 +67,19 @@ Responses 兼容 endpoint 不自动声明这项能力，也不自动加入 Promp
 5xx 和传输异常直接投影为 `OpenAIResponsesSubmissionUnknownException`，外层消息携带安全的
 HTTP 或传输摘要。
 
+Responses 的内容协商和成功终态由协议 owner 明确控制：流式 POST 默认发送
+`Accept: text/event-stream`，非流式 POST 默认发送 `Accept: application/json`；显式自定义
+`Accept` 仍按用户配置发送。SSE 流只有在成功处理 `response.completed`，或持久化执行状态明确为
+`COMPLETED` 时才能返回成功。`[DONE]` 不能替代 Responses 语义终态；干净 EOF、
+`response.failed`、`response.incomplete` 或 `response.cancelled` 都不能进入正常消息收尾。
+
+正文阶段的 EOF、socket reset 或 chunked body 截断仍然属于传输失败，不是 provider 完成。消息层
+失败 owner 在错误收口前从共享流/revision cache 固定已收到正文，并通过
+`AssistantReplayHistoryProjector` 移除未闭合工具事务；仅非空 replay-safe 前缀会写入
+`ASSISTANT_PROJECTION_UPDATED` 的 `PARTIAL/FAILED` 投影。该 assistant 投影用于保留用户已经看到的
+内容和后续 replay 边界，不写 `COMPLETED`，也不改变 Responses execution 的
+`SUBMISSION_UNKNOWN`/失败终态。没有可安全投影的正文时只保留真实错误和运行态清理，不能生成空成功消息。
+
 `OpenAIResponsesExecutionPersistence` 是生产 Responses 协调器到持久化层的窄依赖端口。
 应用运行时只有 `RepositoryOpenAIResponsesExecutionPersistence` 这一实现，并直接委托唯一
 `ProviderExecutionRepository`；端口本身不缓存、不复制执行状态。JVM 故障注入通过该边界
@@ -93,6 +106,10 @@ Responses 工具流使用原始 `response.output` 位置作为流式投影坐标
 `streamCollectionResult` 后正常完成，主任务再从同一结果抛入自己的消息错误处理。次级
 观察器以及 Compose 的首包探测、可修订文本流只记录并结束非取消失败，不能把同一 Provider
 异常重新交给线程默认未捕获异常处理器。用户取消仍以 `CancellationException` 传播。
+
+多 hop 失败审计使用异常 cause chain 中的 `MessageFailureDiagnosticSource` 作为执行身份来源。
+`ASSISTANT_PROJECTION_UPDATED` 的失败投影和 `PROVIDER_TERMINAL_ERROR` 必须关联同一个真实失败
+`localExecutionId`；没有受控诊断身份时保持空值，不能用回合首 hop 的 request context 代替。
 
 工具执行使用长期 `SupervisorJob` scope 隔离不同消息任务。每个工具任务仍由当前调用链创建
 `Deferred` 并 `await`，因此当前 follow-up 的原始 Provider 异常继续到达消息 owner；子任务
