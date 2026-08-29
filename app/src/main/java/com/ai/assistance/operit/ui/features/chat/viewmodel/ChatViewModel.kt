@@ -21,6 +21,7 @@ import com.ai.assistance.operit.api.chat.ChatRuntimeHolder
 import com.ai.assistance.operit.api.chat.ChatRuntimeSlot
 import com.ai.assistance.operit.api.chat.EnhancedAIService
 import com.ai.assistance.operit.data.audit.ConversationAuditRepository
+import com.ai.assistance.operit.data.audit.ConversationAuditExportFormat
 import com.ai.assistance.operit.data.audit.ConversationAuditExporter
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.FileOperationData
@@ -3074,16 +3075,19 @@ class ChatViewModel(
         }
     }
 
-    fun exportCurrentConversationAudit() {
+    fun exportCurrentConversationAudit(
+        format: ConversationAuditExportFormat =
+            ConversationAuditExportFormat.AI_DIAGNOSTICS_MARKDOWN,
+    ) {
         val chatId = currentChatId.value ?: return
         viewModelScope.launch {
             try {
-                val result = conversationAuditExporter.export(chatId)
+                val result = conversationAuditExporter.export(chatId, format)
                 uiStateDelegate.showToast(
                     context.getString(
                         R.string.conversation_audit_exported,
                         result.eventCount,
-                        result.completePackage.name,
+                        result.file.name,
                     )
                 )
             } catch (e: Exception) {

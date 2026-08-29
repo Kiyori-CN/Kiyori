@@ -5484,6 +5484,22 @@
     <string name="conversation_audit_annotation_append">追加注释</string>
     <string name="conversation_audit_export_content_description">导出对话审计</string>
     <string name="conversation_audit_annotation_content_description">添加审计注释</string>
+    <string name="conversation_audit_header_subtitle">可读、可搜索的执行诊断</string>
+    <string name="conversation_audit_header_counts">事件 %1$d · 消息 %2$d · payload %3$s</string>
+    <string name="conversation_audit_header_runtime_compact">运行环境：%1$s · 链头：%2$s</string>
+    <string name="conversation_audit_match_count">匹配 %1$d / %2$d</string>
+    <string name="conversation_audit_expand_all">全部展开</string>
+    <string name="conversation_audit_collapse_all">全部收起</string>
+    <string name="conversation_audit_search_timeline">搜索事件类型、类别、摘要或 ID</string>
+    <string name="conversation_audit_search_conversation">搜索消息、角色、Provider 或模型</string>
+    <string name="conversation_audit_conversation_empty">当前对话还没有可显示的消息</string>
+    <string name="conversation_audit_message_index">消息 timestamp=%1$d</string>
+    <string name="conversation_audit_export_title">导出对话详情</string>
+    <string name="conversation_audit_export_description">导出范围始终是已验证的一致性快照，不受当前搜索和分页影响。</string>
+    <string name="conversation_audit_export_ai_title">导出 AI 诊断（明文 Markdown）</string>
+    <string name="conversation_audit_export_ai_description">UTF-8 明文，包含消息、事件和可读 payload，适合直接交给 AI 分析；内容已脱敏，不加密。</string>
+    <string name="conversation_audit_export_package_title">导出完整审计包（签名 ZIP）</string>
+    <string name="conversation_audit_export_package_description">保留事件链、修订、投影、封印和二进制 payload，用于本机复现和导入。</string>
     <string name="conversation_audit_header_summary">事件：%1$d · 已加载：%2$d · 链头：%3$s</string>
     <string name="conversation_audit_chain_empty">尚无事件</string>
     <string name="conversation_audit_chain_pending">历史待重建</string>

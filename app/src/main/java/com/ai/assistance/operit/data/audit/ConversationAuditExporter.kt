@@ -22,13 +22,18 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 data class ConversationAuditExportResult(
-    val completePackage: File,
-    val aiReviewMarkdown: File,
+    val file: File,
+    val format: ConversationAuditExportFormat,
     val cutoffEventId: String?,
     val eventCount: Int,
 )
 
-/** 完整 `.kiyori-audit` 与 AI 审阅 Markdown 的唯一导出实现。 */
+enum class ConversationAuditExportFormat {
+    AI_DIAGNOSTICS_MARKDOWN,
+    COMPLETE_AUDIT_PACKAGE,
+}
+
+/** 明文 AI 诊断 Markdown 与完整 `.kiyori-audit` 的唯一导出实现。 */
 class ConversationAuditExporter(context: Context) {
     private val applicationContext = context.applicationContext
     private val repository = ConversationAuditRepository.from(applicationContext)
@@ -39,7 +44,11 @@ class ConversationAuditExporter(context: Context) {
             ignoreUnknownKeys = false
         }
 
-    suspend fun export(chatId: String): ConversationAuditExportResult =
+    suspend fun export(
+        chatId: String,
+        format: ConversationAuditExportFormat =
+            ConversationAuditExportFormat.AI_DIAGNOSTICS_MARKDOWN,
+    ): ConversationAuditExportResult =
         exportMutex.withLock {
             withContext(Dispatchers.IO) {
             val snapshot =
@@ -58,17 +67,32 @@ class ConversationAuditExporter(context: Context) {
                     .take(48)
                     .ifBlank { "conversation" }
             val baseName = "$timestamp-$safeTitle-${snapshot.chat.id.take(8)}"
-            val packageFile = File(exportDir, "$baseName.kiyori-audit")
-            val markdownFile = File(exportDir, "$baseName-ai-review.md")
-            writePackage(snapshot, packageFile)
-            writeMarkdown(snapshot, markdownFile)
+            val target =
+                when (format) {
+                    ConversationAuditExportFormat.AI_DIAGNOSTICS_MARKDOWN ->
+                        File(exportDir, "$baseName-ai-diagnostics.md")
+                    ConversationAuditExportFormat.COMPLETE_AUDIT_PACKAGE ->
+                        File(exportDir, "$baseName-complete-audit.kiyori-audit")
+                }
+            when (format) {
+                ConversationAuditExportFormat.AI_DIAGNOSTICS_MARKDOWN ->
+                    writeMarkdown(snapshot, target)
+                ConversationAuditExportFormat.COMPLETE_AUDIT_PACKAGE ->
+                    writePackage(snapshot, target)
+            }
             repository.appendEvent(
                 ConversationAuditEventRequest(
                     chatId = chatId,
                     category = "IMPORT_EXPORT",
                     eventType = "AUDIT_EXPORTED",
                     actor = "USER",
-                    summary = "已导出完整审计包与 AI 审阅文档",
+                    summary =
+                        when (format) {
+                            ConversationAuditExportFormat.AI_DIAGNOSTICS_MARKDOWN ->
+                                "已导出明文 AI 诊断 Markdown"
+                            ConversationAuditExportFormat.COMPLETE_AUDIT_PACKAGE ->
+                                "已导出完整签名审计包"
+                        },
                     completeness =
                         ConversationAuditCompletenessStatus.valueOf(
                             snapshot.audit.completenessStatus
@@ -80,8 +104,8 @@ class ConversationAuditExporter(context: Context) {
                                 role = "metadata",
                                 value =
                                     JSONObject()
-                                        .put("completePackage", packageFile.name)
-                                        .put("aiReviewMarkdown", markdownFile.name)
+                                        .put("file", target.name)
+                                        .put("format", format.name)
                                         .put(
                                             "cutoffEventId",
                                             snapshot.cutoffEventId ?: JSONObject.NULL,
@@ -95,8 +119,8 @@ class ConversationAuditExporter(context: Context) {
             )
             repository.seal(chatId, reason = "AUDIT_EXPORTED")
             ConversationAuditExportResult(
-                completePackage = packageFile,
-                aiReviewMarkdown = markdownFile,
+                file = target,
+                format = format,
                 cutoffEventId = snapshot.cutoffEventId,
                 eventCount = snapshot.events.size,
             )
@@ -305,7 +329,7 @@ class ConversationAuditExporter(context: Context) {
             )
             .put(
                 "aiReviewMarkdown",
-                "The separate AI review Markdown additionally pseudonymizes private paths and identity fields.",
+                "The AI diagnostics Markdown is UTF-8 plaintext, additionally pseudonymizes private paths and identity fields, and is not encrypted.",
             )
 
     private fun timelineMarkdown(
@@ -329,6 +353,9 @@ class ConversationAuditExporter(context: Context) {
             appendLine("- 导出时间: `${snapshot.exportedAt}`")
             appendLine("- cutoffEventId: `${snapshot.cutoffEventId ?: "none"}`")
             appendLine("- 事件数: ${snapshot.events.size}")
+            if (inlinePayloads) {
+                appendLine("- 导出格式: 明文 UTF-8 Markdown（未加密）")
+            }
             appendLine("- 链头: `${snapshot.audit.chainHeadSha256}`")
             appendLine()
             appendLine("> 此文档只描述 Kiyori 实际可观察并持久化的事实，不包含 Provider 未返回的内部推理。")
@@ -338,9 +365,107 @@ class ConversationAuditExporter(context: Context) {
                 )
             }
             appendLine()
+            appendLine("## 当前对话")
+            appendLine()
+            appendLine(
+                "消息数：${snapshot.messages.size}；历史 AI variant：${snapshot.variants.size}。" +
+                    if (externalShare) {
+                        "正文对应导出快照中的当前投影，已按外部 AI 审阅规则处理。"
+                    } else {
+                        "正文对应导出快照中的当前投影。"
+                    }
+            )
+            appendLine()
+            snapshot.messages.sortedBy { it.orderIndex }.forEachIndexed { index, message ->
+                appendLine(
+                    "### ${index + 1}. ${message.sender} · timestamp=${message.timestamp}"
+                )
+                appendLine()
+                appendLine(
+                    "- provider: " +
+                        redactForReview(
+                            value = message.provider.ifBlank { "not_recorded" },
+                            mediaType = "text/plain",
+                            externalShare = externalShare,
+                        )
+                )
+                appendLine(
+                    "- model: " +
+                        redactForReview(
+                            value = message.modelName.ifBlank { "not_recorded" },
+                            mediaType = "text/plain",
+                            externalShare = externalShare,
+                        )
+                )
+                appendLine(
+                    "- tokens: input=${message.inputTokens}, output=${message.outputTokens}, " +
+                        "cachedInput=${message.cachedInputTokens}"
+                )
+                val messageText =
+                    redactForReview(
+                        value = message.content,
+                        mediaType = "text/markdown",
+                        externalShare = externalShare,
+                    )
+                val messageFence = markdownFence(messageText)
+                appendLine("${messageFence}text")
+                appendLine(messageText)
+                appendLine(messageFence)
+                appendLine()
+            }
+            if (snapshot.variants.isNotEmpty()) {
+                appendLine("### 历史 AI variant")
+                appendLine()
+                snapshot.variants
+                    .sortedWith(compareBy({ it.messageTimestamp }, { it.variantIndex }))
+                    .forEach { variant ->
+                        appendLine(
+                            "- timestamp=${variant.messageTimestamp}, variant=${variant.variantIndex}, " +
+                                "provider=" +
+                                redactForReview(
+                                    value = variant.provider.ifBlank { "not_recorded" },
+                                    mediaType = "text/plain",
+                                    externalShare = externalShare,
+                                ) +
+                                ", model=" +
+                                redactForReview(
+                                    value = variant.modelName.ifBlank { "not_recorded" },
+                                    mediaType = "text/plain",
+                                    externalShare = externalShare,
+                                )
+                        )
+                        val variantText =
+                            redactForReview(
+                                value = variant.content,
+                                mediaType = "text/markdown",
+                                externalShare = externalShare,
+                            )
+                        val variantFence = markdownFence(variantText)
+                        appendLine("${variantFence}text")
+                        appendLine(variantText)
+                        appendLine(variantFence)
+                        appendLine()
+                    }
+            }
+            if (snapshot.revisions.isNotEmpty() || snapshot.projections.isNotEmpty()) {
+                appendLine("## 修订与当前投影")
+                appendLine()
+                appendLine("- revisions: ${snapshot.revisions.size}")
+                appendLine("- projections: ${snapshot.projections.size}")
+                snapshot.revisions.forEach { revision ->
+                    appendLine(
+                        "- revision=${revision.revisionId}, timestamp=${revision.messageTimestamp}, " +
+                            "variant=${revision.variantIndex}, sender=${revision.sender}, " +
+                            "source=${revision.source}, auditEvent=${revision.auditEventId}"
+                    )
+                }
+                appendLine()
+            }
+            appendLine("## 审计事件时间线")
+            appendLine()
             snapshot.events.forEach { event ->
                 appendLine(
-                    "## ${event.sequenceNumber}. ${event.category} / ${event.eventType}"
+                    "### ${event.sequenceNumber}. ${event.category} / ${event.eventType}"
                 )
                 appendLine()
                 appendLine("- eventId: `${event.eventId}`")
@@ -364,7 +489,7 @@ class ConversationAuditExporter(context: Context) {
                 snapshot.eventPayloads[event.eventId].orEmpty().forEach { ref ->
                     val payload = requireNotNull(snapshot.payloads[ref.payloadSha256])
                     appendLine(
-                        "### payload `${ref.label}` (${ref.role}, ${payload.entity.mediaType})"
+                        "#### payload `${ref.label}` (${ref.role}, ${payload.entity.mediaType})"
                     )
                     appendLine()
                     if (inlinePayloads && payload.entity.encoding == "utf-8") {
@@ -388,6 +513,26 @@ class ConversationAuditExporter(context: Context) {
                     appendLine()
                 }
             }
+            appendLine("## 机器可读事件 JSONL")
+            appendLine()
+            appendLine("每行对应一个已封印事件；payload 正文在上方按关联关系展开。")
+            appendLine()
+            val eventJsonLines =
+                snapshot.events.joinToString("\n") { event ->
+                    redactForReview(
+                        value =
+                            eventJson(
+                                event = event,
+                                refs = snapshot.eventPayloads[event.eventId].orEmpty(),
+                            ).toString(),
+                        mediaType = "application/json",
+                        externalShare = externalShare,
+                    )
+                }
+            val jsonlFence = markdownFence(eventJsonLines)
+            appendLine("${jsonlFence}jsonl")
+            appendLine(eventJsonLines)
+            appendLine(jsonlFence)
         }
 
     private fun redactForReview(
