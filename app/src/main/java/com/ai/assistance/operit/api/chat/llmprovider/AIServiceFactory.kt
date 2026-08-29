@@ -18,9 +18,9 @@ import java.net.Proxy
 import java.util.concurrent.TimeUnit
 import okhttp3.Call
 import okhttp3.Connection
+import okhttp3.ConnectionPool
 import okhttp3.EventListener
 import okhttp3.Handshake
-import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
@@ -255,9 +255,30 @@ private class LlmNetworkEventListener(
     }
 }
 
+internal data class LlmHttpClientTransportPolicy(
+    val protocols: List<Protocol>,
+    val maxIdleConnections: Int,
+    val keepAliveDuration: Long,
+    val keepAliveTimeUnit: TimeUnit,
+    val retryOnConnectionFailure: Boolean,
+) {
+    fun applyTo(builder: OkHttpClient.Builder): OkHttpClient.Builder =
+        builder
+            .connectionPool(
+                ConnectionPool(
+                    maxIdleConnections,
+                    keepAliveDuration,
+                    keepAliveTimeUnit,
+                )
+            )
+            .retryOnConnectionFailure(retryOnConnectionFailure)
+            .protocols(protocols)
+}
+
 internal object SharedHttpClient {
-    val instance: OkHttpClient by lazy {
-        OkHttpClient.Builder()
+    private fun build(policy: LlmHttpClientTransportPolicy): OkHttpClient {
+        val builder =
+            OkHttpClient.Builder()
                 .applyKiyoriNetworkProxy(KiyoriNetworkModule.AI_SERVICES)
                 // Increase the connection timeout to handle slow networks better.
                 .connectTimeout(60, TimeUnit.SECONDS)
@@ -265,14 +286,64 @@ internal object SharedHttpClient {
                 .readTimeout(1000, TimeUnit.SECONDS)
                 .writeTimeout(1000, TimeUnit.SECONDS)
                 .eventListenerFactory(LlmNetworkEventListenerFactory)
-                // Use a connection pool to reuse connections, improving latency and reducing resource usage.
-                // Increased idle connections to 10 from the default of 5.
-                .connectionPool(ConnectionPool(10, 5, TimeUnit.MINUTES))
-                // Explicitly enable HTTP/2, which is the default but good to have declared.
-                // OkHttp will use HTTP/2 if the server supports it, falling back to HTTP/1.1.
-                .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
-            .build()
+        return policy.applyTo(builder).build()
     }
+
+    val instance: OkHttpClient by lazy {
+        build(LlmHttpClientProtocolPolicy.defaultPolicy)
+    }
+
+    /**
+     * DeepSeek reproduced the same response-header abort over HTTP/2 and HTTP/1.1 after earlier
+     * tool hops completed. Responses therefore closes each released HTTP/1.1 connection instead
+     * of carrying connection-scoped failure state into the next hop. Disabling OkHttp recovery is
+     * also required because a request body sent before an EOF cannot be retried at-most-once.
+     */
+    private val responsesInstance: OkHttpClient by lazy {
+        build(LlmHttpClientProtocolPolicy.responsesPolicy)
+    }
+
+    fun forServiceKind(serviceKind: ProtocolServiceKind): OkHttpClient =
+        if (LlmHttpClientProtocolPolicy.usesResponsesClient(serviceKind)) {
+            responsesInstance
+        } else {
+            instance
+        }
+}
+
+internal object LlmHttpClientProtocolPolicy {
+    val defaultPolicy =
+        LlmHttpClientTransportPolicy(
+            protocols = listOf(Protocol.HTTP_2, Protocol.HTTP_1_1),
+            maxIdleConnections = 10,
+            keepAliveDuration = 5,
+            keepAliveTimeUnit = TimeUnit.MINUTES,
+            retryOnConnectionFailure = true,
+        )
+    val responsesPolicy =
+        LlmHttpClientTransportPolicy(
+            protocols = listOf(Protocol.HTTP_1_1),
+            maxIdleConnections = 0,
+            keepAliveDuration = 5,
+            keepAliveTimeUnit = TimeUnit.MINUTES,
+            retryOnConnectionFailure = false,
+        )
+
+    val defaultProtocols: List<Protocol> = defaultPolicy.protocols
+    val responsesProtocols: List<Protocol> = responsesPolicy.protocols
+
+    fun usesResponsesClient(serviceKind: ProtocolServiceKind): Boolean =
+        serviceKind == ProtocolServiceKind.OPENAI_RESPONSES
+
+    fun policyFor(serviceKind: ProtocolServiceKind): LlmHttpClientTransportPolicy =
+        if (usesResponsesClient(serviceKind)) {
+            responsesPolicy
+        } else {
+            defaultPolicy
+        }
+
+    fun protocolsFor(serviceKind: ProtocolServiceKind): List<Protocol> =
+        policyFor(serviceKind).protocols
 }
 
 /** AI服务工厂，根据提供商类型创建相应的AIService实例 */
@@ -335,7 +406,6 @@ object AIServiceFactory {
             )
         }
 
-        val httpClient = SharedHttpClient.instance
         val customHeaders = parseCustomHeaders(config.customHeaders)
         val providerType =
             ApiProviderType.fromProviderTypeId(providerTypeId)
@@ -363,6 +433,7 @@ object AIServiceFactory {
                 providerType = providerType,
                 apiProtocol = config.apiProtocol,
             )
+        val httpClient = SharedHttpClient.forServiceKind(protocolRoute.serviceKind)
 
         if (protocolRoute.serviceKind == ProtocolServiceKind.OPENAI_RESPONSES) {
             return OpenAIResponsesProvider(

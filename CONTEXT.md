@@ -515,6 +515,11 @@ First-run onboarding and Settings permissions consume the same ordered 21-item c
   标记远端状态已 `EXPIRED`。没有声明官方 sequence resume 的兼容 Responses 仍使用同一
   at-most-once 提交边界：未知提交状态不执行普通流式整轮回滚或重新 POST，已经确认的部分内容
   保持原样，当前回合以可见错误结束。
+- Responses 请求使用独立的 OkHttp client 并固定为 HTTP/1.1；该 client 不保留空闲连接，且关闭
+  OkHttp 的连接失败重试，因此每个串行工具 hop 在上一个流释放后新建连接，一次 Provider 语义
+  提交也只对应一个 POST。Chat Completions、Anthropic Messages 和其他 AI 请求继续使用原有的
+  `HTTP_2 + HTTP_1_1`、10 条空闲连接与连接失败重试。该传输选择不改变序列化 `ApiProtocol`、
+  endpoint、provider、model、key 或 at-most-once 提交状态机；未知提交状态仍不重新 POST。
 - `OpenAIResponsesExecutionPersistence` 是可恢复 Responses 协调器的持久化依赖边界；生产
   唯一实现直接委托 `ProviderExecutionRepository`，不持有第二份执行状态。本地 JVM 故障注入
   从公开 `sendMessage` 流进入同一生产协调器，通过 loopback HTTP 返回首个

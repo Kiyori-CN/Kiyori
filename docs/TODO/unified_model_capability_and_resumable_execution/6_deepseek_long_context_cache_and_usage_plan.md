@@ -953,6 +953,120 @@ formal readiness、architecture/Markdown、`git diff --check`；规定 Debug 构
   `12` 个 `.toolpkg`，不包含 `libsudo.so`；上述产物检查不替代真实 Provider、缓存命中、设备
   交互或进程中断验收。
 
+### M9 2026-08-29 DeepSeek Responses 响应头前断流与连接生命周期修复
+
+状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND DEBUG APK VERIFIED / TARGET DEVICE VERIFICATION PENDING`。
+
+#### 现场证据与根因边界
+
+- 目标设备导出的结构化审计归档包含且只包含一次
+  `localExecutionId=35445331-1fa7-4390-b5ff-0a418ddd29cd` 的 Provider 语义请求。该请求是第 4 个
+  hop，provider/model 为 `DEEPSEEK:deepseek-v4-flash-vision-exp`，endpoint 为
+  `https://api.deepseek.com/v1/responses`，随后立即进入 `PROVIDER_FAILURE`。
+- 完整异常链的底层错误为 OkHttp
+  `okhttp3.internal.http2.StreamResetException: stream was reset: CANCEL`，抛出位置为
+  `Http2Stream.takeHeaders()`；诊断阶段为 `WAITING_FOR_RESPONSE_HEADERS`，说明请求体已经发送完成，
+  但客户端未收到响应头。
+- 审计序列中没有该回合的用户停止事件；下一次 `USER_INPUT_SUBMITTED` 发生在失败约 52 秒后。
+  `OpenAIProvider.cancelStreaming()` 会先设置手动取消状态，并把随后 IOException 转换为
+  `UserCancellationException`，因此本次 `OpenAIResponsesSubmissionUnknownException` 不属于已知的
+  用户停止路径。
+- 第一版候选把 Responses 固定到 HTTP/1.1。目标设备使用包含该候选的 Debug APK 复测时，第 1、
+  第 2 个 Provider hop 正常完成并分别进入下一轮工具执行；第 3 个 hop
+  `localExecutionId=71763f58-baba-415b-ac1b-b869eca13145` 在约 `5.8s` 后、收到任何响应头前失败。
+  底层异常已经是 `Http1ExchangeCodec.readResponseHeaders()` 抛出的
+  `java.io.EOFException: \n not found: limit=0`，证明 HTTP/1.1 策略确实生效，也证明故障不是
+  HTTP/2 专属问题。
+- 两份失败审计的 Provider 语义快照分别为 `164941` 和 `145731` bytes；但旧失败后用户约
+  `52s` 后提交的下一条消息携带同一完整历史，其快照达到 `289710` bytes，仍正常收到流式响应并
+  以 `PROVIDER_TERMINAL / COMPLETED` 结束。因此不能把接近 `128 KiB` 的请求体积相关性当作硬限制，
+  也不能通过削减工具结果掩盖连接故障。
+- DeepSeek 官方 Responses 文档于本轮核对为无状态合同：客户端每次必须提交完整历史，且
+  `previous_response_id`、`conversation`、`store` 和 `background` 均不受支持。响应头前拿不到
+  response ID 时不存在可证明安全的同 response 续接入口；自动重发 POST 会违反 at-most-once。
+- 两份归档都没有保存完整 `AIHttpTrace`，不能证明连接由官方服务、网络代理还是中间链路关闭，
+  也不能从审计包直接观察连接是否复用。当前可证边界是：同一 Responses client 的多跳请求先成功，
+  随后的复用候选连接在响应头前断开，而错误后的后续用户请求可以重新建立传输并正常完成。
+
+#### 实施合同
+
+1. `AIServiceFactory` 在解析 `ProtocolServiceKind.OPENAI_RESPONSES` 后选择独立 OkHttp client。该
+   client 只声明 `Protocol.HTTP_1_1`、使用 `maxIdleConnections=0` 的专用连接池，并设置
+   `retryOnConnectionFailure=false`；上一个流完成并释放连接后立即关闭，下一 Provider hop 新建
+   TCP/TLS 连接。
+2. 传输选择只依赖已持久化协议解析出的 service kind，不根据异常文本、模型名或 endpoint 在请求
+   失败后改变行为。`ApiProtocol.OPENAI_RESPONSES`、provider identity、endpoint、model、API key、
+   请求编译和响应解析均保持原合同。
+3. at-most-once 状态机保持不变：响应头前中断仍进入 `SUBMISSION_UNKNOWN`。关闭 OkHttp 隐式连接
+   重试，保证一次 Provider 语义提交只对应一个 POST；官方 OpenAI 已知 response ID 后的同 response
+   GET 续接语义保持不变。
+4. 不新增第二 Provider、代理核心、静默直连或错误吞并；Chat Completions、Anthropic Messages、
+   Browser、Download 和其他网络模块继续使用原共享 client，不受 Responses 连接生命周期修改影响。
+
+#### 影响、风险与验证
+
+- 影响文件：`AIServiceFactory.kt`、`OpenAIResponsesSubmissionFaultInjectionTest.kt`、`CONTEXT.md`、
+  本文件和 `docs/TODO/README.md`。
+- 回滚点：恢复第一版候选的 Responses HTTP/1.1 独立 client；不得恢复共享 HTTP/2 pool、用重复
+  POST、运行时自动改协议或削减工具结果替代。
+- 本地 keep-alive loopback 测试必须连续完成两个 Responses 请求，观察两个不同 TCP accept 且每条
+  请求行都是 `POST /v1/responses HTTP/1.1`。同时保留 502、404 和响应头中断的精确单 POST 断言、
+  repository 状态断言，并锁定 Responses `retryOnConnectionFailure=false`。
+- 验证顺序：Responses 定向 JVM -> 完整 `:app:testDebugUnitTest` -> formal readiness ->
+  fresh-clone -> `git diff --check` -> 串行 Debug APK 构建与产物审计。真实 DeepSeek endpoint、目标
+  设备长工具链和新连接策略的现场效果继续保持 `verification_pending`。
+
+#### 第一版候选的历史本地证据
+
+- `OpenAIResponsesSubmissionFaultInjectionTest` 最终通过；loopback 服务实际接收到
+  `POST /v1/responses HTTP/1.1`。同套件继续验证 502、404 和响应头中断均只有一个 POST，未知提交
+  状态继续写入原 repository owner。
+- 完整 `:app:testDebugUnitTest` 为 `305 suites / 1822 tests`，
+  `failures/errors/skipped = 0/0/0`；formal readiness、fresh-clone、定向 Markdown 链接和
+  `git diff --check` 均通过。
+- 规定的 `:app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL in 3m 58s`，
+  `235` 个任务中 `23` 个 executed、`212` 个 up-to-date；唯一 launcher、脚本代理 runtime 和播放器
+  runtime packaging 门禁通过。
+- `app/build/outputs/apk/debug/app-debug.apk` 于 `2026-08-29 02:47:15 +08:00` 写入，大小
+  `503676753` bytes，SHA-256 为
+  `39DE05018A346F0605D49D17DC21164590D2783621E219289FD8E0587575991D`；身份为
+  `com.kiyori / 45 / 0.1.0 / minSdk 26 / targetSdk 34 / compileSdk 37`，Android Debug V2 单 signer
+  与 16 KiB ZIP alignment 通过。
+- APK 共 `5512` 个 entry、`44` 个 DEX、仅含 `arm64-v8a` 的 `53` 个 `.so`；shell launcher、native
+  ripgrep 和 `12` 个生成式 ToolPkg 存在，不含 `libsudo.so`。`classes29.dex` 包含
+  `LlmHttpClientProtocolPolicy`、`responsesProtocols`、`usesResponsesClient` 和 `HTTP_1_1`，证明最终
+  产物包含本轮 Responses 传输策略。
+- 上述第一版本地证据已经被新的 HTTP/1.1 现场 EOF 反例否定为最终修复证据；APK 哈希仅保留为
+  归因基线。连接生命周期修订必须重新完成定向/完整 JVM、正式门禁、Debug APK 与产物审计，随后
+  再由目标设备复测同类多跳工具会话。
+
+#### 连接生命周期修订的当前本地证据
+
+- `OpenAIResponsesSubmissionFaultInjectionTest` 为 `6 tests`，失败、错误和跳过均为 `0`。其中
+  keep-alive loopback 连续收到两条 `POST /v1/responses HTTP/1.1`，两条
+  `RecordedRequest.sequenceNumber` 都是 `0`，证明上一个响应释放后没有复用空闲 TCP 连接；同套件
+  继续验证 502、404 和响应头中断只产生一个 POST，未知提交状态仍写入原 repository owner。
+- Responses、路由与传输诊断扩展矩阵为 `8 suites / 49 tests`，完整
+  `:app:testDebugUnitTest` 为 `305 suites / 1827 tests`，两者的
+  `failures/errors/skipped = 0/0/0`。
+- formal readiness、fresh clone、`git diff --check`、新增相对链接存在性和 Markdown checker 的
+  `7 tests` 均通过；fresh-clone 基线为 `8f04197f775a7a2eee8961df1c419cc2854e0408`。
+- 规定的 `:app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL in 3m 18s`，
+  `235` 个任务中 `23` 个 executed、`212` 个 up-to-date；唯一 launcher、脚本代理 runtime 和播放器
+  runtime packaging 门禁通过。
+- `app/build/outputs/apk/debug/app-debug.apk` 于 `2026-08-29 13:32:25 +08:00` 写入，大小
+  `503676753` bytes，SHA-256 为
+  `F624FF1736D1960963C4369307371606A7AA772B3E49A707A480727B4F59047A`；身份为
+  `com.kiyori / 45 / 0.1.0 / minSdk 26 / targetSdk 34 / compileSdk 37`，Android Debug V2 单 signer
+  与 16 KiB ZIP alignment 通过。
+- APK 共 `5512` 个 entry、`44` 个 DEX、仅含 `arm64-v8a` 的 `53` 个无重名 `.so`；包含 native
+  ripgrep 和 `12` 个 `.toolpkg`，不包含 `libsudo.so`。最终 DEX 包含
+  `LlmHttpClientTransportPolicy`、`maxIdleConnections`、`responsesPolicy`、
+  `retryOnConnectionFailure` 和 `HTTP_1_1`，证明产物包含本轮连接生命周期修订。
+- 上述证据不调用真实 DeepSeek，也不能证明目标设备上的官方服务、网络代理或中间链路不再关闭
+  新连接。目标设备仍需使用本 APK 复测同类多跳工具会话，并核对每个 Provider hop 的连接、响应头
+  与最终回合终态；在此之前保持 `verification_pending`。
+
 ## 可恢复开发与上下文压缩合同
 
 本任务允许跨多轮继续，但每一轮必须从以下持久状态恢复，不依赖模型记忆：

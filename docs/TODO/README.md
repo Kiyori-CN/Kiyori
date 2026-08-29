@@ -14,6 +14,23 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 验收：无 probe 记录的 relay 配置可直接进入 gateway；缺少/非法环境变量仍在提交前返回结构化错误；根地址和完整 endpoint 规范化测试通过；生成资产与 source 一致；定向/全量 JVM、正式准备、新鲜克隆、`git diff --check` 和串行 `:app:assembleDebug --no-daemon --console=plain` 均通过。已使用用户授权的中转地址、`gpt-5.6-terra` 和 Key 完成一次真实非流式请求：HTTP 200、`completed`、1 个 `web_search_call`、1 个 URL citation；未发生未知提交状态。设备 UI 首次使用和结果卡现场验收仍待完成。
 
+## 2026-08-29 DeepSeek Responses 响应头前断流修复
+
+状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND DEBUG APK VERIFIED / TARGET DEVICE VERIFICATION PENDING`。
+
+目标设备审计确认官方 `https://api.deepseek.com/v1/responses` 的第 4 个 Provider hop 在请求体
+提交后、响应头返回前由 OkHttp `Http2Stream.takeHeaders()` 抛出
+`StreamResetException: stream was reset: CANCEL`；同一回合没有用户停止审计事件，失败后约 52 秒
+才出现下一次用户输入。第一版候选将 Responses 固定到 HTTP/1.1；新审计随后确认该策略已生效，
+但第 3 个 Provider hop 又在 `Http1ExchangeCodec.readResponseHeaders()` 以
+`EOFException: \n not found` 断开。故障并非 HTTP/2 专属，第一版候选不能作为最终修复。
+
+修订实现继续保持 HTTP/1.1，但 Responses client 不再保留空闲连接，并显式关闭 OkHttp 的连接失败
+重试；每个串行工具 hop 都使用新连接，未知提交状态仍不发送第二个 POST。普通 AI client 的
+HTTP/2、连接池和重试策略不变。详细证据、实施与验证状态见
+[`unified_model_capability_and_resumable_execution/6_deepseek_long_context_cache_and_usage_plan.md`](unified_model_capability_and_resumable_execution/6_deepseek_long_context_cache_and_usage_plan.md)
+的 M9。
+
 ## 2026-08-29 DeepSeekHarness Responses 提交稳定性与第三方协议边界
 
 状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。

@@ -26,6 +26,8 @@ import kotlin.concurrent.thread
 import kotlinx.coroutines.test.runTest
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.mockwebserver.MockResponse
@@ -46,6 +48,83 @@ import org.mockito.kotlin.verifyNoMoreInteractions
 import org.mockito.kotlin.whenever
 
 class OpenAIResponsesSubmissionFaultInjectionTest {
+    @Test
+    fun httpClientTransportPolicy_keepsDefaultPoolingAndIsolatesResponsesConnections() {
+        val defaultPolicy =
+            LlmHttpClientProtocolPolicy.policyFor(
+                ProtocolServiceKind.OPENAI_CHAT_GENERIC
+            )
+        val responsesPolicy =
+            LlmHttpClientProtocolPolicy.policyFor(
+                ProtocolServiceKind.OPENAI_RESPONSES
+            )
+
+        assertEquals(
+            listOf(Protocol.HTTP_2, Protocol.HTTP_1_1),
+            defaultPolicy.protocols,
+        )
+        assertEquals(10, defaultPolicy.maxIdleConnections)
+        assertEquals(true, defaultPolicy.retryOnConnectionFailure)
+        assertEquals(
+            listOf(Protocol.HTTP_1_1),
+            responsesPolicy.protocols,
+        )
+        assertEquals(0, responsesPolicy.maxIdleConnections)
+        assertEquals(false, responsesPolicy.retryOnConnectionFailure)
+    }
+
+    @Test
+    fun responsesTransportPolicy_opensANewConnectionForEachSequentialHop() {
+        MockWebServer().use { server ->
+            repeat(2) {
+                server.enqueue(
+                    MockResponse()
+                        .setHeader("Connection", "keep-alive")
+                        .setBody("ok")
+                )
+            }
+            server.start()
+            val client =
+                LlmHttpClientProtocolPolicy.responsesPolicy
+                    .applyTo(
+                        OkHttpClient.Builder()
+                            .connectTimeout(5, TimeUnit.SECONDS)
+                            .readTimeout(5, TimeUnit.SECONDS)
+                            .writeTimeout(5, TimeUnit.SECONDS)
+                    )
+                    .build()
+
+            repeat(2) {
+                val request =
+                    Request.Builder()
+                        .url(server.url("/v1/responses"))
+                        .post("{}".toRequestBody("application/json".toMediaType()))
+                        .build()
+                client.newCall(request).execute().use { response ->
+                    assertEquals(200, response.code)
+                    assertEquals("ok", response.body?.string())
+                }
+            }
+
+            val recordedRequests =
+                List(2) {
+                    requireNotNull(server.takeRequest(5, TimeUnit.SECONDS))
+                }
+            assertEquals(
+                listOf(
+                    "POST /v1/responses HTTP/1.1",
+                    "POST /v1/responses HTTP/1.1",
+                ),
+                recordedRequests.map { it.requestLine },
+            )
+            assertEquals(
+                "A sequence number of zero proves each hop used a newly accepted connection",
+                listOf(0, 0),
+                recordedRequests.map { it.sequenceNumber },
+            )
+        }
+    }
+
     @Test
     fun submissionUnknownMessage_includesHttpDetailWithoutExecutionContext() {
         val failure =
@@ -132,6 +211,10 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
                             ?.diagnosticCode,
                     )
                     assertEquals(listOf("POST /v1/responses"), server.requests.toList())
+                    assertEquals(
+                        listOf("POST /v1/responses HTTP/1.1"),
+                        server.requestLines.toList(),
+                    )
 
                     val executionCaptor = argumentCaptor<ProviderExecutionEntity>()
                     val messageStateCaptor = argumentCaptor<MessageProviderStateEntity>()
@@ -357,12 +440,14 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
             },
         modelName = "gpt-5.6-sol",
         client =
-            OkHttpClient.Builder()
-                .connectTimeout(5, TimeUnit.SECONDS)
-                .readTimeout(5, TimeUnit.SECONDS)
-                .writeTimeout(5, TimeUnit.SECONDS)
-                .retryOnConnectionFailure(false)
-                .eventListenerFactory(LlmNetworkEventListenerFactory.silent())
+            LlmHttpClientProtocolPolicy.responsesPolicy
+                .applyTo(
+                    OkHttpClient.Builder()
+                        .connectTimeout(5, TimeUnit.SECONDS)
+                        .readTimeout(5, TimeUnit.SECONDS)
+                        .writeTimeout(5, TimeUnit.SECONDS)
+                        .eventListenerFactory(LlmNetworkEventListenerFactory.silent())
+                )
                 .build(),
         providerType = providerType,
         capabilityProviderType = capabilityProviderType,
@@ -420,6 +505,8 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
 
         val requests: MutableList<String> =
             Collections.synchronizedList(mutableListOf())
+        val requestLines: MutableList<String> =
+            Collections.synchronizedList(mutableListOf())
         val responsesEndpoint: String =
             "http://127.0.0.1:${serverSocket.localPort}/v1/responses#"
 
@@ -436,6 +523,7 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
                 val requestLine = requireNotNull(reader.readLine())
                 val requestParts = requestLine.split(' ')
                 require(requestParts.size >= 2) { "Malformed request line: $requestLine" }
+                requestLines += requestLine
                 requests += "${requestParts[0]} ${requestParts[1]}"
 
                 var contentLength = 0
