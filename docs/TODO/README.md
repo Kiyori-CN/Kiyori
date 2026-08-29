@@ -1636,7 +1636,7 @@ payload、完整性链和审计导出的唯一 owner。现有聊天消息继续�
 
 ### 2026-08-30 对话详情诊断中心增量
 
-状态：`in_progress`。在既有审计 owner、三视图和一致性快照合同上，重新设计详情页为设置页
+状态：`verification_pending`。在既有审计 owner、三视图和一致性快照合同上，重新设计详情页为设置页
 同款诊断中心：压缩顶部信息、统一三视图搜索、逐条展开/收起、增加对话搜索，并把导出动作
 明确拆分为可直接交给 AI 的明文 Markdown 与保留签名链的 `.kiyori-audit` 完整包。详细设计、
 验收清单和设备边界见 [`ai_conversation_audit/index.md`](ai_conversation_audit/index.md) 的
