@@ -47,7 +47,6 @@ import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.KiyoriSettingsTheme
 import com.kiyori.design.theme.LocalKiyoriSettingsColors
-import com.kiyori.design.theme.resolveSettingsIconColors
 import com.kiyori.design.theme.KiyoriUiShapes
 
 internal const val KIYORI_SETTINGS_ROW_VERTICAL_PADDING_DP = 16
@@ -120,6 +119,7 @@ internal fun KiyoriSettingsGroupSection(
 }
 
 @Composable
+@Suppress("UNUSED_PARAMETER")
 internal fun KiyoriSettingsRow(
     title: String,
     description: String,
@@ -146,24 +146,7 @@ internal fun KiyoriSettingsRow(
                 ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        icon?.let { imageVector ->
-            val iconColors = iconTone.resolveSettingsIconColors()
-            Box(
-                modifier =
-                    Modifier
-                        .size(40.dp)
-                        .background(iconColors.container, KiyoriUiShapes.control),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = imageVector,
-                    contentDescription = null,
-                    tint = iconColors.icon,
-                    modifier = Modifier.size(19.dp),
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-        }
+        // 子页面统一采用“网页浏览器”式无 leading icon 行；根设置页的 12 个入口由独立 owner 保留图标。
 
         Column(modifier = Modifier.weight(1f)) {
             Text(

@@ -506,13 +506,14 @@ private fun KiyoriSettingsHomeRow(
                         disabled()
                     }
                 }
-                .padding(start = 16.dp, end = 14.dp, top = 14.dp, bottom = 14.dp),
+                // 根设置页保持 40dp 以上的整体触摸高度，同时给 12 个入口让出更多纵向空间。
+                .padding(start = 16.dp, end = 14.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier =
                 Modifier
-                    .size(40.dp)
+                    .size(34.dp)
                     .background(iconColors.container, KiyoriUiShapes.control),
             contentAlignment = Alignment.Center,
         ) {
@@ -520,7 +521,7 @@ private fun KiyoriSettingsHomeRow(
                 imageVector = entry.icon,
                 contentDescription = entry.title,
                 tint = iconColors.icon,
-                modifier = Modifier.size(19.dp),
+                modifier = Modifier.size(17.dp),
             )
         }
         Spacer(modifier = Modifier.width(13.dp))

@@ -72,7 +72,6 @@ import java.io.InputStreamReader
 import android.net.Uri
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -110,6 +109,9 @@ fun ModelPromptsSettingsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val cropToolbarColor = MaterialTheme.colorScheme.primary.toArgb()
+    val cropOnToolbarColor = MaterialTheme.colorScheme.onPrimary.toArgb()
+    val cropSurfaceColor = MaterialTheme.colorScheme.surface.toArgb()
     val unknownErrorMessage = stringResource(R.string.unknown_error)
     val imageLoadFailedMessage = stringResource(R.string.image_load_failed)
     val imageSavedMessage = stringResource(R.string.image_saved)
@@ -258,8 +260,14 @@ fun ModelPromptsSettingsScreen(
                 aspectRatioY = 1
                 cropMenuCropButtonTitle = context.getString(R.string.theme_crop_done)
                 activityTitle = context.getString(R.string.crop_avatar)
-                toolbarColor = Color.Gray.toArgb()
-                toolbarTitleColor = Color.White.toArgb()
+                toolbarColor = cropToolbarColor
+                toolbarTitleColor = cropOnToolbarColor
+                toolbarBackButtonColor = cropOnToolbarColor
+                toolbarTintColor = cropOnToolbarColor
+                activityMenuIconColor = cropOnToolbarColor
+                activityMenuTextColor = cropOnToolbarColor
+                activityBackgroundColor = cropSurfaceColor
+                backgroundColor = cropSurfaceColor
             }
         )
         cropAvatarLauncher.launch(cropOptions)
@@ -277,8 +285,14 @@ fun ModelPromptsSettingsScreen(
                 aspectRatioY = 1
                 cropMenuCropButtonTitle = context.getString(R.string.theme_crop_done)
                 activityTitle = context.getString(R.string.crop_avatar)
-                toolbarColor = Color.Gray.toArgb()
-                toolbarTitleColor = Color.White.toArgb()
+                toolbarColor = cropToolbarColor
+                toolbarTitleColor = cropOnToolbarColor
+                toolbarBackButtonColor = cropOnToolbarColor
+                toolbarTintColor = cropOnToolbarColor
+                activityMenuIconColor = cropOnToolbarColor
+                activityMenuTextColor = cropOnToolbarColor
+                activityBackgroundColor = cropSurfaceColor
+                backgroundColor = cropSurfaceColor
             }
         )
         cropGroupAvatarLauncher.launch(cropOptions)

@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -42,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -58,20 +58,26 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import android.view.WindowManager
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.preferences.UserProfileDocumentRepository
 import com.ai.assistance.operit.ui.common.displays.MarkdownTextComposable
 import com.ai.assistance.operit.ui.features.settings.components.rememberMarkdownSyntaxOutputTransformation
 import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
+import com.ai.assistance.operit.ui.main.components.LocalSetScreenSoftInputMode
+import com.ai.assistance.operit.ui.main.components.LocalSetUseScreenImePadding
 import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsWorkspacePage
 import com.kiyori.design.theme.LocalKiyoriSettingsColors
 import kotlinx.coroutines.launch
 
+@Suppress("DEPRECATION")
 @Composable
 fun UserPreferencesSettingsScreen(onNavigateBack: () -> Unit) {
     val context = LocalContext.current
     val isCurrentScreen = LocalIsCurrentScreen.current
+    val setScreenSoftInputMode = LocalSetScreenSoftInputMode.current
+    val setUseScreenImePadding = LocalSetUseScreenImePadding.current
     val settingsColors = LocalKiyoriSettingsColors.current
     val repository = remember(context) { UserProfileDocumentRepository.getInstance(context) }
     val scope = rememberCoroutineScope()
@@ -95,6 +101,15 @@ fun UserPreferencesSettingsScreen(onNavigateBack: () -> Unit) {
     val draftMarkdown = draftEditorState.text.toString()
     val hasUnsavedChanges = draftMarkdown != savedMarkdown
     val exceedsLimit = draftMarkdown.length > UserProfileDocumentRepository.MAX_CONTENT_CHARS
+
+    SideEffect {
+        if (isCurrentScreen) {
+            // 用户资料是长文本编辑页，交给 AppContent 的唯一 IME owner 调整窗口并消费 inset，
+            // 避免 adjustPan 与局部 imePadding 叠加后留下空白且让编辑器底部被键盘覆盖。
+            setScreenSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+            setUseScreenImePadding(true)
+        }
+    }
 
     LaunchedEffect(repository) {
         try {
@@ -138,8 +153,7 @@ fun UserPreferencesSettingsScreen(onNavigateBack: () -> Unit) {
                 modifier =
                     Modifier.align(Alignment.TopCenter)
                         .fillMaxHeight()
-                        .widthIn(max = 840.dp)
-                        .imePadding(),
+                        .widthIn(max = 840.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Row(

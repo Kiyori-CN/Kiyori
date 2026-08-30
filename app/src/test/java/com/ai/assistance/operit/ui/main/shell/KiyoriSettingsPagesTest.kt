@@ -359,6 +359,61 @@ class KiyoriSettingsPagesTest {
     }
 
     @Test
+    fun `settings density and child-page presentation follow the compact visual contract`() {
+        val settingsHomeSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/main/shell/" +
+                    "KiyoriSettingsHomePage.kt",
+            ).readText()
+        assertTrue(settingsHomeSource.contains("top = 10.dp, bottom = 10.dp"))
+        assertTrue(settingsHomeSource.contains(".size(34.dp)"))
+        assertTrue(settingsHomeSource.contains("modifier = Modifier.size(17.dp)"))
+
+        val chatHeaderSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/features/chat/components/" +
+                    "ChatScreenHeader.kt",
+            ).readText()
+        assertTrue(chatHeaderSource.contains("padding(horizontal = 16.dp, vertical = 2.dp)"))
+
+        val settingsUiSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/main/shell/KiyoriSettingsUi.kt",
+            ).readText()
+        assertFalse(settingsUiSource.contains("icon?.let"))
+        assertTrue(
+            settingsUiSource.contains(
+                "子页面统一采用“网页浏览器”式无 leading icon 行",
+            ),
+        )
+
+        val userPreferencesSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/features/settings/screens/" +
+                    "UserPreferencesSettingsScreen.kt",
+            ).readText()
+        assertTrue(userPreferencesSource.contains("SOFT_INPUT_ADJUST_RESIZE"))
+        assertTrue(userPreferencesSource.contains("setUseScreenImePadding(true)"))
+        assertFalse(userPreferencesSource.contains(".imePadding()"))
+
+        val modelPromptsSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/features/settings/screens/" +
+                    "ModelPromptsSettingsScreen.kt",
+            ).readText()
+        listOf(
+            "toolbarBackButtonColor = cropOnToolbarColor",
+            "toolbarTintColor = cropOnToolbarColor",
+            "activityMenuIconColor = cropOnToolbarColor",
+            "activityMenuTextColor = cropOnToolbarColor",
+            "activityBackgroundColor = cropSurfaceColor",
+            "backgroundColor = cropSurfaceColor",
+        ).forEach { contract ->
+            assertEquals(2, modelPromptsSource.split(contract).size - 1)
+        }
+    }
+
+    @Test
     fun `more features exposes legal documents and the native permission center`() {
         assertEquals(
             listOf("系统能力", "网络能力", "开源与法律"),

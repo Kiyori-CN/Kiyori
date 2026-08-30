@@ -111,3 +111,59 @@
 合同测试、`compileDebugKotlin`、
 正式开发准备门禁、`git diff --check`、串行 Debug APK 构建与产物审计；真实设备的浅深色、窄屏、
 大字体、旋转、输入法和系统返回仍保持 `verification_pending`。
+
+## 2026-08-30 AI 与设置界面密度及输入交互增量
+
+状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。
+本增量继续按未发布版本的现有 UI 方案迭代，范围是设置根页 12 个入口、设置
+子页面共享行、AI 对话次栏、AI 助手用户资料编辑器和提示词与角色的头像裁剪入口；不改变导航、持久化、
+Provider、ToolPkg、浏览器/播放器 runtime 或兼容标识。
+
+### 已确认的现象与根因
+
+- AI 对话次栏由 `ChatScreenHeader` 统一承载，外层上下 `6dp` 加上 40dp 触摸控件使整栏高度偏大；
+  只需收紧外层垂直 padding，保留内部控件的可操作尺寸。
+- 设置根页 12 项由 `KiyoriSettingsHomeRow` 统一承载，当前每项使用 `14dp` 上下留白和 40dp 图标
+  容器；该页是唯一需要保留入口图标的设置层，行高和图标容器可同时缩小而不触碰路由。
+- 设置子页面共享 `KiyoriSettingsRow`，其 `icon` 参数会在所有调用处绘制 leading 图标；网页浏览器页
+  已经不传图标。子页面应统一采用该无图标契约，保留参数仅为兼容已有调用点，避免逐页重复改动。
+- 用户资料页当前只在自身内容列调用 `imePadding()`，主 Activity 默认是 `adjustPan`，页面没有通过
+  `LocalSetScreenSoftInputMode`/`LocalSetUseScreenImePadding` 向 Shell 声明可调整窗口；键盘出现时编辑
+  工作区仍按未收缩窗口测量，底部内容被 IME 覆盖。修复应把窗口模式和全局 IME inset 交给 `AppContent`
+  的既有 owner，并移除局部重复 padding。
+- 角色卡头像使用 CanHub `CropImageContract`。该入口只设置 toolbar 背景和标题色，没有设置返回箭头、
+  菜单图标、菜单文字和裁剪页背景色；在当前主题/设备组合中确认与取消动作可能与工具栏背景混色而不可见。
+  通过现有 `CropImageOptions` 的完整对比色字段修复，不新建第二个裁剪器。
+
+### 实施与验收顺序
+
+1. 修改 `ChatScreenHeader`、`KiyoriSettingsHomePage`、`KiyoriSettingsUi`、
+   `UserPreferencesSettingsScreen` 和 `ModelPromptsSettingsScreen`，只触碰布局 modifier、共享行呈现、
+   页面级 IME 声明和裁剪颜色配置。
+2. 增补设置行密度、子页无图标、用户资料 IME 声明和裁剪按钮可见性的源代码合同测试；运行相关 JVM
+   定向套件与 Kotlin 编译，检查 `git diff --check`。
+3. 串行执行正式开发准备门禁和 `./gradlew :app:assembleDebug --no-daemon --console=plain`，核验
+   `app/build/outputs/apk/debug/app-debug.apk` 的存在、大小、SHA-256、application ID、版本和签名/对齐门禁。
+4. 审阅最终差异、敏感/构建产物、子模块和精确暂存内容后提交 `main`，推送 `origin/main`，并独立对账本地
+   HEAD、tracking ref 与远端 `refs/heads/main`。
+
+### 非目标、风险与待验证
+
+- 不把子页面 `KiyoriSettingsRow` 的 `icon` 参数删除，避免扩大 API/调用点变更；运行时统一不绘制 leading
+  图标即可满足视觉契约。
+- 不修改 `adjustPan` 的全局默认，避免影响 Browser、浮窗和其他未声明 IME 策略的页面；只让用户资料页
+  通过现有屏幕级 owner 请求 `ADJUST_RESIZE`。
+- 真实设备的软键盘动画、OEM insets、裁剪 Activity 的浅深色按钮以及大字体/旋转仍需用户现场复测，
+  在此之前任务状态保持 `verification_pending`。
+
+### 本增量验证结果
+
+- `KiyoriSettingsPagesTest` 定向回归与完整 `:app:testDebugUnitTest` 均通过；完整套件为
+  `1889 tests / 0 failures / 0 errors / 0 skipped`。
+- `python -B ci/script/check_formal_readiness.py --repository . --require-main`、
+  `python -B ci/script/check_fresh_clone.py --repository .` 和候选 Markdown 链接检查均通过；一次并发
+  Gradle 的 Kotlin 缓存注册错误已通过串行重跑确认是环境竞争，不是源码回归。
+- `./gradlew :app:assembleDebug --no-daemon --console=plain` 串行通过，单 launcher、脚本代理 runtime 和
+  播放器 runtime packaging 门禁通过。Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，
+  `com.kiyori / versionCode 45 / versionName 0.1.0`，V2 单 signer；真实设备 IME、根页密度和 cropper
+  按钮可见性仍待现场验收。
