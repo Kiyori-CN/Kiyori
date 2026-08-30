@@ -618,7 +618,7 @@ payload、签名链、Room owner、分页边界或 Provider 兼容合同。Kiyor
 
 ## 17. 2026-08-30 无引用 payload 回收并发修复
 
-状态：`LOCAL IMPLEMENTATION / AUTOMATED VALIDATION PENDING / DEVICE VERIFICATION PENDING`。
+状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。
 
 现场崩溃报告 `d72705aa-dc9c-4668-9bc9-1a6d237b997f` 在
 `ConversationAuditRepository.cleanupUnreferencedPayloads` 的元数据删除断言处失败。根因是
@@ -632,5 +632,13 @@ payload、签名链、Room owner、分页边界或 Provider 兼容合同。Kiyor
 `deletePayloadMetadata == 1` 完整性断言保留，用于发现真正的数据库不变量破坏；正常的重复回收不再
 能够并发到达该断言。事件、revision、导入链和 payload 内容/哈希合同不变，也不捕获或吞掉异常。
 
-待完成验证：定向审计回归/编译、`git diff --check`、formal readiness、串行 Debug APK 构建与
-产物审计；目标设备仍需在删除聊天、导入失败和分支失败的真实并发场景复测。
+本轮本地证据：定向 payload 生命周期契约测试、完整 `:app:testDebugUnitTest`、
+`:app:compileDebugKotlin`、`git diff --check`、formal readiness、fresh clone、Markdown 链接和
+仓库卫生检查均通过；串行 `:app:assembleDebug --no-daemon --console=plain` 在 `45s` 内完成，
+`235` 个任务中 `23` 个实际执行。Debug APK 为
+`app/build/outputs/apk/debug/app-debug.apk`，大小 `503694977` bytes，SHA-256
+`0BC0EB8EAEC2C887DDFF0D1E0B419EFA5ECCC842B3310E5664070B64D97D7F1E`；包身份
+`com.kiyori / 45 / 0.1.0 / min 26 / target 34 / compile 37`，仅 `arm64-v8a`、53 个
+native basename 无重复，Android Debug V2 单 signer 与 `zipalign -c -P 16 -v 4` 均通过。
+架构边界脚本仍报告当前主线既有的 ARCH024/025/026/027/040/042 快照漂移，本轮未修改相关文件。
+目标设备仍需在删除聊天、导入失败和分支失败的真实并发场景复测。
