@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
@@ -275,7 +274,7 @@ private fun WebSessionFilterChipContent(
     Surface(
         modifier =
             modifier
-                .heightIn(min = 40.dp)
+                .height(36.dp)
                 .clickable(onClick = onClick),
         shape = KiyoriUiShapes.control,
         color = if (selected) containerColor else MaterialTheme.colorScheme.surface,

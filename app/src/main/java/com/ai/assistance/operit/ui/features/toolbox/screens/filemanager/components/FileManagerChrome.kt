@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowUpward
@@ -48,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -87,8 +90,8 @@ fun FileManagerTopBar(
     ) {
         Column(modifier = Modifier.fillMaxWidth().statusBarsPadding()) {
             Row(
-                // 退出键保持原位；右侧溢出键贴齐右端与左侧形成对称，路径统计获得完整宽度。
-                modifier = Modifier.fillMaxWidth().height(56.dp),
+                // 退出键保持原位；右侧溢出键贴齐右端与左侧形成对称，路径独占剩余宽度。
+                modifier = Modifier.fillMaxWidth().height(40.dp).offset(y = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(
@@ -124,16 +127,6 @@ fun FileManagerTopBar(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         color = fileManagerChromeTextColor,
-                    )
-                    Text(
-                        text = buildString {
-                            if (selectedCount > 0) append("已选：$selectedCount  ")
-                            append("文件夹：$folderCount  文件：$fileCount  $storageLabel")
-                        },
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 14.sp),
-                        maxLines = 1,
-                        overflow = TextOverflow.Clip,
-                        color = fileManagerChromeTextColor.copy(alpha = 0.76f),
                     )
                 }
                 IconButton(
@@ -179,6 +172,28 @@ fun FileManagerTopBar(
                         onNewFolder()
                     }
                 }
+            }
+            // 统计信息独占全宽行，避免被左右操作按钮压缩；字号与文件项时间保持一致。
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(16.dp)
+                    .offset(y = (-2).dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = buildString {
+                        if (selectedCount > 0) append("已选：$selectedCount  ")
+                        append("文件夹：$folderCount  文件：$fileCount  $storageLabel")
+                    },
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp, lineHeight = 12.sp),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Clip,
+                    color = fileManagerChromeTextColor.copy(alpha = 0.76f),
+                )
             }
             if (isSearching) {
                 HorizontalDivider(color = fileManagerChromeTextColor.copy(alpha = 0.16f))
@@ -245,14 +260,14 @@ fun FileManagerBottomBar(
         ) {
             IconButton(onClick = onBack, enabled = canGoBack, modifier = Modifier.size(48.dp)) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                     contentDescription = "活动窗格后退",
                     tint = if (canGoBack) Color(0xFF646464) else Color(0xFFC8C8C8),
                 )
             }
             IconButton(onClick = onForward, enabled = canGoForward, modifier = Modifier.size(48.dp)) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = "活动窗格前进",
                     tint = if (canGoForward) Color(0xFF646464) else Color(0xFFC8C8C8),
                 )
@@ -261,8 +276,9 @@ fun FileManagerBottomBar(
                 Icon(Icons.Default.Add, contentDescription = "新建", tint = Color(0xFF646464))
             }
             IconButton(onClick = onMirrorPath, modifier = Modifier.size(48.dp)) {
-                val activeArrowColor = Color(0xFF2B2B2B)
-                val inactiveArrowColor = Color(0xFF9E9E9E)
+                // 当前栏使用灰色箭头，另一栏使用深黑箭头，点击后由当前栏同步路径。
+                val activeArrowColor = Color(0xFFBEBEBE)
+                val inactiveArrowColor = Color(0xFF646464)
                 val leftArrowColor = if (activePane == FileManagerPane.LEFT) activeArrowColor else inactiveArrowColor
                 val rightArrowColor = if (activePane == FileManagerPane.RIGHT) activeArrowColor else inactiveArrowColor
                 Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
@@ -270,13 +286,15 @@ fun FileManagerBottomBar(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "同步活动路径到另一栏",
                         tint = leftArrowColor,
-                        modifier = Modifier.size(16.dp).offset(x = (-10).dp, y = 4.dp),
+                        // 图片样式：左箭头位于下方，尾部靠近中心。
+                        modifier = Modifier.size(16.dp).offset(x = (-9).dp, y = 4.dp),
                     )
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = null,
                         tint = rightArrowColor,
-                        modifier = Modifier.size(16.dp).offset(x = 10.dp, y = (-4).dp),
+                        // 图片样式：右箭头位于上方，尾部靠近中心。
+                        modifier = Modifier.size(16.dp).offset(x = 9.dp, y = (-4).dp),
                     )
                 }
             }

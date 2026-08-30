@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -272,7 +271,7 @@ internal fun WebSessionHistorySheet(
                 Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             WebSessionHistoryFilter.entries.forEach { filter ->
@@ -570,7 +569,7 @@ private fun HistoryFilterChip(
 ) {
     val orangeColors = WebSessionBrowserMenuTone.HISTORY.resolveColors()
     Surface(
-        modifier = Modifier.heightIn(min = 40.dp).clickable(role = Role.Button, onClick = onClick),
+        modifier = Modifier.height(36.dp).clickable(role = Role.Button, onClick = onClick),
         shape = KiyoriUiShapes.control,
         color =
             if (selected) {

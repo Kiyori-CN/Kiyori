@@ -501,7 +501,7 @@ private fun PackageEnvironmentCategoryRow(
             Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 14.dp, vertical = 7.dp),
+                .padding(horizontal = 14.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
         PackageEnvironmentCategoryChip(
@@ -536,7 +536,7 @@ private fun PackageEnvironmentCategoryChip(
     val accentColor = categoryColors?.icon ?: allColors.icon
     val selectedContainer = categoryColors?.container ?: allColors.container
     Surface(
-        modifier = Modifier.heightIn(min = 40.dp).clickable(role = Role.Button, onClick = onClick),
+        modifier = Modifier.height(34.dp).clickable(role = Role.Button, onClick = onClick),
         shape = RoundedCornerShape(8.dp),
         color = if (selected) selectedContainer else MaterialTheme.colorScheme.surface,
         border =
@@ -994,7 +994,7 @@ private fun PackageEnvironmentChoiceField(
                     fontSize = 11.5.sp,
                     lineHeight = 15.sp,
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
+                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
                     maxLines = 1,
                 )
             }

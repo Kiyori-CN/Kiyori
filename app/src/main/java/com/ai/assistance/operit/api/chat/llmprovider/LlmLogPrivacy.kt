@@ -220,7 +220,7 @@ internal object LlmLogPrivacy {
         return count
     }
 
-    private fun sanitizeDiagnostic(
+    internal fun sanitizeDiagnostic(
         value: String?,
         maxCharacters: Int,
     ): String? {

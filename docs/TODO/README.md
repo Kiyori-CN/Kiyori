@@ -6,6 +6,12 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 ## 当前进行中
 
+- [AI 对话 HTTP attempt 审计与稳定性收口](unified_model_capability_and_resumable_execution/6_deepseek_long_context_cache_and_usage_plan.md)：补齐
+  `stream was reset: CANCEL` 等流式传输故障的 attempt、阶段、提交状态、重试决定与取消因果审计，
+  并收紧普通 Chat Completions 的未知提交重试边界；M12 本地实现与完整 JVM 验证已完成，正式门禁、
+  Debug APK 已验证；真实 Provider 与设备验收保持 `verification_pending`，本轮全部工作树修改将随
+  `main` 提交并推送。
+
 - [MT 管理器手机存储复刻](mt_file_manager_replica/index.md)：在共享文件管理器中复刻 MT 管理器
   的双窗格手机存储工作台，保留现有 AITool/SAF 文件能力，明确左上绝对退出按钮和目录级系统 Back
   顺序。本轮按四张 `1260x2800` 真实截图做像素级对齐：状态栏/顶栏 `#303030`、内容/底栏
@@ -15,6 +21,8 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 - [全软件 UI 风格统一优化](ui_style_unification/index.md)：以设置页风格为基准，统一 AI 对话、
   抽屉、AI 助手设置、浏览器、播放器和下载器的控件/文案层级，并修复可证实的呈现问题。
+  最新增量恢复浏览器资源嗅探徽标、AI 对话统计球和各页面横向筛选/切换条的紧凑高度，独立高频
+  操作按钮仍保持原有触摸策略。
   设置页标题 owner 收口和文件管理器空动作已在 main 完成；本次修正已补齐根/能力页及 Workspace
   页面与“AI助手-文本转语音”一致的滚动收缩标题，设置根页“设置”保留固定顶栏，并通过本地测试、
   正式门禁和 Debug 构建。

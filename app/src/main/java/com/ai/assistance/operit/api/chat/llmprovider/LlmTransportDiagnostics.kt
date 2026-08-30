@@ -45,6 +45,10 @@ internal class LlmRequestTraceState {
         private set
 
     @Volatile
+    var requestBodyStarted: Boolean = false
+        private set
+
+    @Volatile
     var responseHeadersReceived: Boolean = false
         private set
 
@@ -110,6 +114,7 @@ internal class LlmRequestTraceState {
     }
 
     fun markRequestBody() {
+        requestBodyStarted = true
         stage = LlmTransportStage.REQUEST_BODY
     }
 
@@ -172,10 +177,12 @@ internal class LlmRequestTraceState {
             tlsVersion = tlsVersion,
             cipherSuite = cipherSuite,
             requestBodyBytes = requestBodyBytes,
+            requestBodyStarted = requestBodyStarted,
             responseHeadersReceived = responseHeadersReceived,
             responseBodyStarted = responseBodyStarted,
             responseStatusCode = responseStatusCode,
             connectionReused = connectionReused,
+            connectionFailed = connectionFailed,
             failureType = failure?.javaClass?.simpleName,
             responseCorrelationId = responseCorrelationId,
         )
@@ -198,10 +205,12 @@ internal data class LlmTransportDiagnostics(
     val tlsVersion: String?,
     val cipherSuite: String?,
     val requestBodyBytes: Long,
+    val requestBodyStarted: Boolean,
     val responseHeadersReceived: Boolean,
     val responseBodyStarted: Boolean,
     val responseStatusCode: Int?,
     val connectionReused: Boolean?,
+    val connectionFailed: Boolean,
     val failureType: String?,
     val responseCorrelationId: String?,
 ) {
@@ -212,10 +221,12 @@ internal data class LlmTransportDiagnostics(
             append(", protocol=").append(protocol ?: "unknown")
             append(", tls=").append(tlsVersion ?: "unknown")
             append(", bodyBytes=").append(requestBodyBytes)
+            append(", requestBodyStarted=").append(requestBodyStarted)
             append(", responseHeadersReceived=").append(responseHeadersReceived)
             append(", responseBodyStarted=").append(responseBodyStarted)
             append(", status=").append(responseStatusCode ?: "none")
             append(", connectionReused=").append(connectionReused ?: "unknown")
+            append(", connectionFailed=").append(connectionFailed)
             failureType?.let { append(", failureType=").append(it) }
             responseCorrelationId?.let { append(", responseCorrelationId=").append(it) }
         }

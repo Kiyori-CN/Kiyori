@@ -59,7 +59,6 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import com.kiyori.design.theme.KiyoriUiShapes
 
 private enum class PlayerGestureMode {
     SEEK,
@@ -504,12 +503,12 @@ private fun PlayerCenterGestureFeedback(
         modifier =
             modifier
                 .width(178.dp)
-                .clip(KiyoriUiShapes.card)
+                .clip(RoundedCornerShape(22.dp))
                 .background(Color(0xD91A1D25))
                 .border(
                     width = 1.dp,
                     color = Color.White.copy(alpha = 0.14f),
-                    shape = KiyoriUiShapes.card,
+                    shape = RoundedCornerShape(22.dp),
                 )
                 .padding(horizontal = 18.dp, vertical = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -547,7 +546,7 @@ private fun PlayerCenterGestureFeedback(
                             .fillMaxHeight()
                             .background(
                                 Brush.horizontalGradient(
-                                    listOf(PlayerAccent, PlayerAccentSecondary),
+                                    listOf(Color(0xFF6F8CFF), Color(0xFF8B6CFF)),
                                 ),
                             ),
                 )
@@ -568,12 +567,12 @@ private fun PlayerVerticalIndicator(
             modifier
                 .width(64.dp)
                 .height(184.dp)
-                .clip(KiyoriUiShapes.card)
+                .clip(RoundedCornerShape(24.dp))
                 .background(Color(0xD91A1D25))
                 .border(
                     width = 1.dp,
                     color = Color.White.copy(alpha = 0.14f),
-                    shape = KiyoriUiShapes.card,
+                    shape = RoundedCornerShape(24.dp),
                 )
                 .padding(horizontal = 12.dp, vertical = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -611,7 +610,7 @@ private fun PlayerVerticalIndicator(
                         .fillMaxHeight(value.coerceIn(0f, 1f))
                         .background(
                             Brush.verticalGradient(
-                                listOf(PlayerAccentSecondary, PlayerAccent),
+                                listOf(Color(0xFF8B6CFF), Color(0xFF6F8CFF)),
                             ),
                         ),
             )

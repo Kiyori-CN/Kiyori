@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -186,7 +185,7 @@ internal fun WebSessionBrowserDiagnosticSheet(
                 ),
             selectedIndex = scope.ordinal,
             onSelect = { index -> scope = BrowserDiagnosticScope.entries[index] },
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
         )
         DiagnosticSelectorRow(
             labels =
@@ -215,7 +214,7 @@ internal fun WebSessionBrowserDiagnosticSheet(
         DiagnosticCategoryRow(
             selected = category,
             onSelect = { category = it },
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
         )
         DiagnosticSearchField(
             value = query,
@@ -271,7 +270,7 @@ private fun DiagnosticSelectorRow(
         labels.forEachIndexed { index, label ->
             val selected = selectedIndex == index
             Surface(
-                modifier = Modifier.weight(1f).heightIn(min = 40.dp).clickable { onSelect(index) },
+                modifier = Modifier.weight(1f).height(34.dp).clickable { onSelect(index) },
                 shape = KiyoriUiShapes.control,
                 color =
                     if (selected) {
@@ -331,7 +330,7 @@ private fun DiagnosticCategoryChip(
     onClick: () -> Unit,
 ) {
     Surface(
-        modifier = Modifier.heightIn(min = 40.dp).clickable(onClick = onClick),
+        modifier = Modifier.height(30.dp).clickable(onClick = onClick),
         shape = KiyoriUiShapes.control,
         color =
             if (selected) {

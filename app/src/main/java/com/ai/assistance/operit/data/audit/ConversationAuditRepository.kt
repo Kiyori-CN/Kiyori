@@ -79,6 +79,36 @@ class ConversationAuditRepository private constructor(
     }
 
     /**
+     * Persist a recording gap when an audit append itself fails.
+     *
+     * This deliberately changes only the existing audit root: creating a synthetic event would
+     * require the same failing payload/transaction path and could falsely claim that the missing
+     * event was captured. A later append keeps the interrupted completeness because the merge
+     * policy treats RECORDING_INTERRUPTED as monotonic.
+     */
+    suspend fun markRecordingInterrupted(
+        chatId: String,
+        failureCode: String = "RECORDING_INTERRUPTED",
+        updatedAt: Long = System.currentTimeMillis(),
+    ): Boolean =
+        chatMutex(chatId).withLock {
+            val audit = dao.getAudit(chatId) ?: return@withLock false
+            val currentStatus =
+                ConversationAuditCompletenessStatus.valueOf(audit.completenessStatus)
+            val mergedStatus =
+                ConversationAuditCompletenessPolicy.merge(
+                    current = currentStatus,
+                    requested = ConversationAuditCompletenessStatus.RECORDING_INTERRUPTED,
+                )
+            dao.updateCompleteness(
+                chatId = chatId,
+                completenessStatus = mergedStatus.name,
+                lastFailureCode = failureCode,
+                updatedAt = maxOf(updatedAt, audit.updatedAt),
+            ) == 1
+        }
+
+    /**
      * 在固定锁序下原子提交业务投影变更与审计事件。
      *
      * mutation 先在 Room 事务内执行，随后追加事件；任一步失败都会回滚数据库事务。payload 文件

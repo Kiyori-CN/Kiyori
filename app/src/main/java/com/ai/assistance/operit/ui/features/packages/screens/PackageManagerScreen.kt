@@ -707,7 +707,7 @@ fun PackageManagerScreen(
 
             PrimaryTabRow(
                 selectedTabIndex = selectedTabIndex,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(40.dp),
                 divider = {
                     HorizontalDivider(
                         thickness = 1.dp,
@@ -728,7 +728,7 @@ fun PackageManagerScreen(
                 Tab(
                     selected = selectedTab == PackageTab.PACKAGES,
                     onClick = { selectedTab = PackageTab.PACKAGES },
-                    modifier = Modifier.height(48.dp)
+                    modifier = Modifier.height(40.dp)
                 ) {
                     PackageManagerTabLabel(
                         tab = PackageTab.PACKAGES,
@@ -742,7 +742,7 @@ fun PackageManagerScreen(
                 Tab(
                     selected = selectedTab == PackageTab.PLUGINS,
                     onClick = { selectedTab = PackageTab.PLUGINS },
-                    modifier = Modifier.height(48.dp)
+                    modifier = Modifier.height(40.dp)
                 ) {
                     PackageManagerTabLabel(
                         tab = PackageTab.PLUGINS,
@@ -756,7 +756,7 @@ fun PackageManagerScreen(
                 Tab(
                     selected = selectedTab == PackageTab.SKILLS,
                     onClick = { selectedTab = PackageTab.SKILLS },
-                    modifier = Modifier.height(48.dp)
+                    modifier = Modifier.height(40.dp)
                 ) {
                     PackageManagerTabLabel(
                         tab = PackageTab.SKILLS,
@@ -770,7 +770,7 @@ fun PackageManagerScreen(
                 Tab(
                     selected = selectedTab == PackageTab.MCP,
                     onClick = { selectedTab = PackageTab.MCP },
-                    modifier = Modifier.height(48.dp)
+                    modifier = Modifier.height(40.dp)
                 ) {
                     PackageManagerTabLabel(
                         tab = PackageTab.MCP,

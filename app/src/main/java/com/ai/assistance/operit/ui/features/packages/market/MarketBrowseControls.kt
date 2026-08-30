@@ -5,6 +5,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -40,7 +41,7 @@ fun MarketBrowseControls(
         modifier =
             modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .padding(horizontal = 12.dp, vertical = 4.dp)
                 .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -55,12 +56,14 @@ fun MarketBrowseControls(
             FilterChip(
                 selected = sortOption == option,
                 onClick = { onSortOptionChanged(option) },
+                modifier = Modifier.height(34.dp),
                 label = { Text(stringResource(option.labelRes)) }
             )
         }
         FilterChip(
             selected = featuredOnly,
             onClick = { onFeaturedOnlyChanged(!featuredOnly) },
+            modifier = Modifier.height(34.dp),
             leadingIcon = {
                 if (featuredOnly) {
                     Icon(

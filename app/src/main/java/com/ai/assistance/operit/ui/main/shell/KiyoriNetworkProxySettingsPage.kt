@@ -2179,7 +2179,7 @@ private fun NetworkProxyGroupTabs(
                 Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 8.dp),
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             groups.forEach { group ->
@@ -2188,7 +2188,7 @@ private fun NetworkProxyGroupTabs(
                     modifier =
                         Modifier
                             .clickable(enabled = enabled) { onSelect(group) }
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
@@ -2198,7 +2198,7 @@ private fun NetworkProxyGroupTabs(
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                         maxLines = 1,
                     )
-                    Spacer(Modifier.height(7.dp))
+                    Spacer(Modifier.height(4.dp))
                     Box(
                         modifier =
                             Modifier
@@ -2227,7 +2227,7 @@ private fun NetworkProxySegmentedMode(
             selected
         }
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         listOf(
@@ -2244,7 +2244,7 @@ private fun NetworkProxySegmentedMode(
                             if (isSelected) colors.accent else colors.pageBackground,
                             RoundedCornerShape(12.dp),
                         ).clickable(enabled = enabled) { onSelect(mode) }
-                        .padding(vertical = 12.dp),
+                        .padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {

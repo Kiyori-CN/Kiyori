@@ -218,7 +218,7 @@ internal fun WebSessionBrowserNetworkLog(
                 Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             BrowserNetworkLogFilter.entries.forEach { filter ->
@@ -432,7 +432,7 @@ private fun BrowserNetworkLogFilterChip(
 ) {
     val cyanColors = WebSessionBrowserMenuTone.NETWORK_LOG.resolveColors()
     Surface(
-        modifier = Modifier.heightIn(min = 40.dp).clickable(role = Role.Button, onClick = onClick),
+        modifier = Modifier.height(36.dp).clickable(role = Role.Button, onClick = onClick),
         shape = KiyoriUiShapes.control,
         color =
             if (selected) {

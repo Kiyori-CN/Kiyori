@@ -3,6 +3,7 @@ package com.ai.assistance.operit.ui.features.settings.screens.theme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.ScrollState
@@ -86,13 +87,14 @@ internal fun ThemeSettingsTabbedContent(
             edgePadding = 0.dp,
             containerColor = Color.Transparent,
             contentColor = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().height(56.dp),
         ) {
             ThemeSettingsTab.values().forEach { tab ->
                 val iconColors = tab.iconTone.resolveColors()
                 Tab(
                     selected = selectedTab == tab,
                     onClick = { onSelectedTabChange(tab) },
+                    modifier = Modifier.height(56.dp),
                     icon = {
                         Icon(
                             imageVector = tab.icon,

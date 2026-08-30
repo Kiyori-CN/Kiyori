@@ -217,9 +217,9 @@ fun ChatScreenHeader(
                 Box(
                     modifier = Modifier
                         .clickable { setShowDetailedStats(!showDetailedStats) }
-                        // The indicator remains compact visually while its action keeps the
-                        // product-wide minimum touch target.
-                        .size(40.dp)
+                        // The statistics indicator is intentionally compact to keep the second
+                        // header row from consuming message space.
+                        .size(32.dp)
                         .padding(3.dp),
                     contentAlignment = Alignment.Center
                 ) {

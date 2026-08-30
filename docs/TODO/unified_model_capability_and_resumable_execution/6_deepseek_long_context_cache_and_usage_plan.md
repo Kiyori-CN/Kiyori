@@ -1268,6 +1268,79 @@ formal readiness、architecture/Markdown、`git diff --check`；规定 Debug 构
   `errors=0 warnings=0`；最终 Debug APK 审计也已通过。真实 DeepSeek endpoint、多 hop 现场和目标设备
   正文中断/下一回合验收继续保持 `verification_pending`。
 
+### M12 2026-08-31 AI 对话 HTTP attempt 审计与取消因果收口
+
+状态：`LOCAL IMPLEMENTATION, JVM, FORMAL READINESS AND DEBUG APK VERIFIED / ARCHITECTURE BASELINE SNAPSHOT DRIFT / REAL PROVIDER AND DEVICE VERIFICATION PENDING`。
+
+本轮由 `stream was reset: CANCEL` 现场复盘触发。现有 `.kiyori-audit` 能记录语义 Provider
+hop、工具事件和最终 `USER_STOP`，但不能还原真实 HTTP attempt、传输阶段、重试决定、回滚边界，
+也不能保留“用户停止前已经发生的网络失败”。M12 不创建第二套执行状态；在现有
+`ConversationAuditRepository` 链中增加受控的 attempt/transport 事件和稳定关联字段，并让普通
+Chat Completions 在提交状态未知时停止整轮重复 POST。Responses 真实 response ID 的续接合同、
+Provider/ToolPkg 兼容标识和现有隐私边界保持不变。
+
+#### 完成标准
+
+- 每个真实 HTTP attempt 都有唯一 `requestTraceId`、`localExecutionId`、hop 序号、attempt 序号、
+  方法和终态；语义 hop 数与 HTTP attempt 数可以独立统计。
+- 请求体已发送但响应头未知、响应体中断、HTTP 明确拒绝、用户停止、生命周期取消和审计写入失败
+  分别保留结构化失败事实；最终用户操作不能覆盖此前已记录的 Provider 失败。
+- 普通不可续接 Chat Completions 不因响应体/响应头未知而整轮 rollback 后重新 POST；已收到的安全
+  前缀和工具事务边界可审计，已完成工具不会重复执行。
+- `.kiyori-audit` 导出可以仅凭自身事件链回答失败阶段、提交状态、重试/不重试原因、已收内容计数和
+  最终终态，不依赖临时 Toast 或 logcat。
+- 审计写入失败本身被标记为 `RECORDING_INTERRUPTED`，不能继续生成看似完整的成功记录。
+
+#### 实施顺序
+
+1. 为 `ConversationAuditEventRequest` 增加 attempt/transport 元数据的稳定编码与脱敏校验，接入
+   `LlmRequestTraceState` 的阶段快照和错误分类；不记录凭据、完整 headers、prompt 或响应正文。
+2. 在 OpenAI/DeepSeek 普通流的请求创建、请求体完成、响应头、响应体、retry decision、rollback 和
+   terminal 边界追加审计事件；用户停止与传输失败按发生顺序分别入链。
+3. 把 Chat Completions 的 retry 判定改为提交状态驱动；未知提交状态不自动重新提交，明确拒绝才按
+   Provider 合同处理；Responses 已知 response ID 只走同一 response 的 GET 续接。
+4. 将正文/思考计数、chunk 计数、工具调用 ID 和部分投影绑定到真实 hop/attempt；导出 manifest 增加
+   capture watermark、attempt 数和失败摘要。
+5. 使用 MockWebServer 故障注入覆盖 headers 前中断、body 中断、HTTP 状态、`CANCEL`、用户停止竞态、
+   审计写入失败、工具 exactly-once 和导出完整性，再执行正式门禁、完整 JVM、Debug APK 和目标设备
+   真实 Provider 验收。
+
+#### 非目标与交付边界
+
+- 不新增 Provider、代理核心、协议自动切换、静默直连、重复 POST 或伪造 resume。
+- 不修改用户已有聊天正文和 ToolPkg/MCP 协议标识；历史审计缺失信息显式标记为未知。
+- 目标设备、真实 DeepSeek/relay 和网络中间链路仍需独立验收；本地测试和 APK 不替代现场证据。
+
+#### 本轮实现与自动化证据
+
+- `OpenAIProvider` 为普通 Chat Completions 和可恢复 Responses 分离记录真实 HTTP attempt：
+  `requestTraceId`、hop/attempt 序号、请求指纹、请求体/响应头/响应体阶段、协议/TLS、响应状态、
+  已接收 chunk/字符计数、provider response ID、失败 cause chain、重试决定和回滚边界均进入现有
+  `ConversationAuditRepository`，payload 只保存有界、脱敏的元数据，不保存 prompt、完整 headers、
+  API Key 或响应正文。
+- 普通 Chat Completions 的重试由提交边界驱动：请求体编译失败、响应头/响应体已开始或提交状态未知时
+  不回滚、不重复 POST；仅明确连接阶段未提交失败和明确 5xx 响应保留显式重试合同。AI 专用 OkHttp
+  client 关闭透明 `retryOnConnectionFailure`，消除底层不可见重复提交。
+- 用户停止/生命周期取消单独写入 `PROVIDER_ATTEMPT_CANCELLED`，不会覆盖先前的 transport failure；
+  审计 append 失败会把现有审计根标记为 `RECORDING_INTERRUPTED`，后续事件通过完整性策略保持该事实。
+  `ConversationAuditDao` 的历史 failure code 采用保留语义，普通事件不会清除既有失败。
+- MockWebServer 已覆盖响应体中断“不产生第二个 Chat Completions POST”、明确 5xx 保留一次显式重试、
+  请求体后断开/响应体中断/HTTP 状态/响应指纹脱敏等边界；完整 JVM 为 `319` 个测试套、`1905` 个
+  测试，失败与错误均为 `0`。
+
+本轮自动化收尾证据：完整 JVM `319` 个测试套、`1905` 个测试通过；
+`check_formal_readiness.py --repository . --require-main` 通过；Debug APK
+`app/build/outputs/apk/debug/app-debug.apk` 为 `503694977` bytes，SHA-256
+`547FF56EC26F5F5AA224E0AB3DCC63018A7EA0EA6EE089D94131B4ACFA0611FD`，包名/版本为
+`com.kiyori / 45 / 0.1.0`，单一 Android Debug V2 signer、仅 `arm64-v8a`、
+`zipalign -c -P 16 -v 4` 和消息处理 DEX 门禁均通过；Fresh clone 检查已通过基线
+`156342479d58491a99bb6d5678e6a07d2066ff81`，提交后将再次对候选提交复核。
+
+当前架构边界检查仍报告 M04/M05 历史 hash/import snapshot 与仓库当前基线漂移（ARCH024、
+ARCH025、ARCH026、ARCH027、ARCH040、ARCH042），这些文件在本轮前已存在差异，未由 M12
+回退或篡改；该检查结果作为交付风险单独保留。真实 DeepSeek/relay、多 hop 工具执行、用户停止
+竞态和目标设备仍标记 `verification_pending`。
+
 ## 可恢复开发与上下文压缩合同
 
 本任务允许跨多轮继续，但每一轮必须从以下持久状态恢复，不依赖模型记忆：

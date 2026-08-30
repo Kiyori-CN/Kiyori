@@ -293,7 +293,7 @@ internal fun WebSessionUserscriptSheet(
                 Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             WebSessionUserscriptWorkbenchTab.entries.forEach { tab ->
@@ -1338,7 +1338,7 @@ private fun UserscriptLogFilters(
     onSelected: (UserscriptLogFilter) -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         UserscriptLogFilter.entries.forEach { filter ->

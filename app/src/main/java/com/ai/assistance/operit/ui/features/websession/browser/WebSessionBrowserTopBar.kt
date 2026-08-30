@@ -121,9 +121,9 @@ internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_ACTION_SIZE_SP = 14
 internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_HEADER_HEIGHT_DP = 34
 internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_DELETE_ICON_SIZE_DP = 24
 internal const val WEB_SESSION_SEARCH_SCREEN_TAG_MAX_WIDTH_DP = 250
-internal const val WEB_SESSION_SEARCH_ENGINE_SWITCH_BAR_CHIP_HEIGHT_DP = 40
+internal const val WEB_SESSION_SEARCH_ENGINE_SWITCH_BAR_CHIP_HEIGHT_DP = 28
 internal const val WEB_SESSION_SEARCH_ENGINE_SWITCH_BAR_ICON_SIZE_DP = 12
-internal const val WEB_SESSION_SEARCH_ENGINE_SWITCH_BAR_CLOSE_SIZE_DP = 40
+internal const val WEB_SESSION_SEARCH_ENGINE_SWITCH_BAR_CLOSE_SIZE_DP = 22
 
 @Composable
 internal fun WebSessionBrowserTopBar(
@@ -201,7 +201,7 @@ internal fun WebSessionBrowserTopBar(
                             Box(
                                 modifier =
                                     Modifier
-                                        .size(40.dp)
+                                        .size(28.dp)
                                         .background(detectedVideoColors.container, CircleShape)
                                         .clickable(role = Role.Button, onClick = onShowDetectedVideos),
                                 contentAlignment = Alignment.Center,

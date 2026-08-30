@@ -610,6 +610,7 @@ fun MCPConfigScreen(
                             containerColor = Color.Transparent,
                             contentColor = MaterialTheme.colorScheme.onSurface,
                             edgePadding = 8.dp,
+                            modifier = Modifier.height(40.dp),
                             divider = {},
                             indicator = {
                                 if (importTabIndex in mcpImportTabIndices()) {
@@ -622,6 +623,7 @@ fun MCPConfigScreen(
                         Tab(
                             selected = importTabIndex == 0,
                             onClick = { importTabIndex = 0 },
+                            modifier = Modifier.height(40.dp),
                             text = { 
                                 Text(
                                     stringResource(R.string.import_from_repo),
@@ -633,6 +635,7 @@ fun MCPConfigScreen(
                         Tab(
                             selected = importTabIndex == 1,
                             onClick = { importTabIndex = 1 },
+                            modifier = Modifier.height(40.dp),
                             text = { 
                                 Text(
                                     stringResource(R.string.import_from_zip),
@@ -644,6 +647,7 @@ fun MCPConfigScreen(
                         Tab(
                             selected = importTabIndex == 2,
                             onClick = { importTabIndex = 2 },
+                            modifier = Modifier.height(40.dp),
                             text = { 
                                 Text(
                                     stringResource(R.string.connect_remote_service),

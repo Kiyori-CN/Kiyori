@@ -66,6 +66,7 @@ class FileManagerSourceContractTest {
         assertTrue(dualPane.contains("elevation = if (isActive) 8.dp"))
         assertTrue(dualPane.contains("PaddingValues(0.dp)"))
         assertTrue(dualPane.contains("pane == activePane && if (isMultiSelectMode)"))
+        assertTrue(dualPane.contains("postClickFeedbackDurationMillis = 80L"))
         assertFalse(dualPane.contains(".clickable("))
         assertFalse(dualPane.contains("Modifier.border"))
     }
@@ -80,11 +81,20 @@ class FileManagerSourceContractTest {
         assertTrue(item.contains("val selectionThreshold = if (isCompactTwoColumn)"))
         assertTrue(item.contains("val maxOffset = if (isCompactTwoColumn)"))
         assertTrue(item.contains("(baseIconSize * itemSize).toPx()"))
-        assertTrue(item.contains("if (dragOffset >= selectionThreshold) onSwipeRight()"))
+        assertTrue(item.contains("if (abs(dragOffset) >= selectionThreshold) onSwipeRight()"))
+        assertTrue(item.contains("((basePadding + baseIconSize) * itemSize).toPx()"))
+        assertTrue(item.contains("coerceIn(-maxOffset, maxOffset)"))
         assertTrue(item.contains("graphicsLayer { translationX = dragOffset }"))
         assertTrue(item.contains("onSwipeRight"))
         assertTrue(item.contains("selectedFileRowColor = Color(0xFF7DBEDC)"))
         assertTrue(item.contains("unselectedFileRowColor = Color(0xFFFAFAFA)"))
+        assertTrue(item.contains("pressedFileRowColor = Color(0xFFE0E0E0)"))
+        assertTrue(item.contains("collectIsPressedAsState()"))
+        assertTrue(item.contains("isPressed || clickFeedback -> pressedFileRowColor"))
+        assertTrue(item.contains("postClickFeedbackDurationMillis: Long = 0L"))
+        assertTrue(item.contains("delay(postClickFeedbackDurationMillis)"))
+        assertTrue(item.contains("clickFeedback = true"))
+        assertTrue(item.contains("shadowElevation = if (isPressed || clickFeedback) 2.dp else 0.dp"))
         assertTrue(item.contains("baseHeight = if (isCompactTwoColumn) 40.dp"))
         assertTrue(item.contains("baseIconSize = if (isCompactTwoColumn) 28.dp"))
         assertTrue(item.contains("titleLineHeight = if (isCompactTwoColumn) 17.sp"))
@@ -110,10 +120,12 @@ class FileManagerSourceContractTest {
         assertTrue(chrome.contains("fileManagerChromeColor = Color(0xFF303030)"))
         assertTrue(chrome.contains("fileManagerContentColor = Color(0xFFFAFAFA)"))
         assertTrue(chrome.contains("padding(horizontal = 0.dp, vertical = 2.dp)"))
-        assertTrue(chrome.contains("activeArrowColor = Color(0xFF2B2B2B)"))
-        assertTrue(chrome.contains("inactiveArrowColor = Color(0xFF9E9E9E)"))
-        assertTrue(chrome.contains("size(16.dp).offset(x = (-10).dp"))
-        assertTrue(chrome.contains("size(16.dp).offset(x = 10.dp"))
+        assertTrue(chrome.contains("activeArrowColor = Color(0xFFBEBEBE)"))
+        assertTrue(chrome.contains("inactiveArrowColor = Color(0xFF646464)"))
+        assertTrue(chrome.contains("size(16.dp).offset(x = (-9).dp, y = 4.dp)"))
+        assertTrue(chrome.contains("size(16.dp).offset(x = 9.dp, y = (-4).dp)"))
+        assertTrue(chrome.contains("KeyboardArrowLeft"))
+        assertTrue(chrome.contains("KeyboardArrowRight"))
         assertFalse(chrome.contains("onSwap"))
         assertTrue(viewModel.contains("fun mirrorActivePaneToOther()"))
         assertTrue(viewModel.contains("navigatePaneTo(targetPane, source.path, source.environment"))
@@ -125,5 +137,21 @@ class FileManagerSourceContractTest {
         assertTrue(viewModel.contains("clearSelection()\n            return true"))
         assertTrue(viewModel.contains("fun navigateBackDirectory(): Boolean"))
         assertFalse(viewModel.contains("fun swapPanes()"))
+    }
+
+    @Test
+    fun `top bar keeps path row and centered statistics row independent`() {
+        val chrome = source(
+            "java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileManagerChrome.kt",
+        )
+
+        assertTrue(chrome.contains("modifier = Modifier.fillMaxWidth().height(40.dp).offset(y = 2.dp)"))
+        assertTrue(chrome.contains(".fillMaxWidth()\n                    .height(16.dp)\n                    .offset(y = (-2).dp)"))
+        assertTrue(chrome.contains("horizontalArrangement = Arrangement.Center"))
+        assertTrue(chrome.contains("verticalAlignment = Alignment.CenterVertically"))
+        assertTrue(chrome.contains("fontSize = 10.sp, lineHeight = 12.sp"))
+        assertTrue(chrome.contains("textAlign = TextAlign.Center"))
+        assertTrue(chrome.contains("softWrap = false"))
+        assertTrue(chrome.contains("append(\"文件夹：${'$'}folderCount  文件：${'$'}fileCount  ${'$'}storageLabel\")"))
     }
 }

@@ -357,6 +357,7 @@ fun SkillConfigScreen(
                     SecondaryScrollableTabRow(
                         selectedTabIndex = importTabIndex,
                         edgePadding = 8.dp,
+                        modifier = Modifier.height(40.dp),
                         divider = {},
                         indicator = {
                             if (importTabIndex in skillImportTabIndices()) {
@@ -369,16 +370,19 @@ fun SkillConfigScreen(
                         Tab(
                             selected = importTabIndex == 0,
                             onClick = { importTabIndex = 0 },
+                            modifier = Modifier.height(40.dp),
                             text = { Text(stringResource(R.string.import_from_repo), maxLines = 1) }
                         )
                         Tab(
                             selected = importTabIndex == 1,
                             onClick = { importTabIndex = 1 },
+                            modifier = Modifier.height(40.dp),
                             text = { Text(stringResource(R.string.import_from_zip), maxLines = 1) }
                         )
                         Tab(
                             selected = importTabIndex == 2,
                             onClick = { importTabIndex = 2 },
+                            modifier = Modifier.height(40.dp),
                             text = { Text(stringResource(R.string.import_from_direct), maxLines = 1) }
                         )
                     }

@@ -3,6 +3,8 @@ package com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.compone
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,7 +23,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +42,9 @@ import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.utils.ge
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.abs
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 enum class DisplayMode {
     SINGLE_COLUMN,
@@ -47,6 +54,7 @@ enum class DisplayMode {
 
 private val unselectedFileRowColor = Color(0xFFFAFAFA)
 private val selectedFileRowColor = Color(0xFF7DBEDC)
+private val pressedFileRowColor = Color(0xFFE0E0E0)
 
 /**
  * MT 风格的文件项：行本身是连续的浅色带状区域，水平滑动负责多选。
@@ -63,6 +71,7 @@ fun FileListItem(
     itemSize: Float = 1f,
     displayMode: DisplayMode = DisplayMode.SINGLE_COLUMN,
     compact: Boolean = false,
+    postClickFeedbackDurationMillis: Long = 0L,
 ) {
     val isCompactTwoColumn = compact && displayMode == DisplayMode.TWO_COLUMNS
     val baseHeight = if (isCompactTwoColumn) 40.dp else 72.dp
@@ -100,6 +109,10 @@ fun FileListItem(
     val dateLabel = formatDate(file)
     val hasMetadata = file.name != ".." && dateLabel.isNotBlank()
     var dragOffset by remember { mutableFloatStateOf(0f) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val clickFeedbackScope = rememberCoroutineScope()
+    var clickFeedback by remember { mutableStateOf(false) }
 
     Surface(
         modifier = Modifier
@@ -112,9 +125,9 @@ fun FileListItem(
                         dragOffset = 0f
                     },
                     onHorizontalDrag = { change, dragAmount ->
-                        // 紧凑双栏最多只移动一个图标距离，继续拖动保持边界不再位移。
+                        // 两个方向统一使用左滑隐藏左侧图标所需的距离作为最大位移。
                         val maxOffset = if (isCompactTwoColumn) {
-                            (baseIconSize * itemSize).toPx()
+                            ((basePadding + baseIconSize) * itemSize).toPx()
                         } else {
                             160.dp.toPx()
                         }
@@ -127,21 +140,39 @@ fun FileListItem(
                         } else {
                             48.dp.toPx()
                         }
-                        // 只有从左向右的正向滑动建立选择，反向滑动只恢复原位。
-                        if (dragOffset >= selectionThreshold) onSwipeRight()
+                        // 左右滑动均建立同一选择语义，松手后由状态层处理连续范围。
+                        if (abs(dragOffset) >= selectionThreshold) onSwipeRight()
                         dragOffset = 0f
                     },
                     onDragCancel = { dragOffset = 0f },
                 )
             }
             .combinedClickable(
-                onClick = onItemClick,
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = {
+                    if (postClickFeedbackDurationMillis > 0L) {
+                        clickFeedback = true
+                        clickFeedbackScope.launch {
+                            delay(postClickFeedbackDurationMillis)
+                            onItemClick()
+                            clickFeedback = false
+                        }
+                    } else {
+                        onItemClick()
+                    }
+                },
                 onLongClick = onItemLongClick,
             ),
-        color = if (isSelected) selectedFileRowColor else unselectedFileRowColor,
+        color = when {
+            isPressed || clickFeedback -> pressedFileRowColor
+            isSelected -> selectedFileRowColor
+            else -> unselectedFileRowColor
+        },
         contentColor = Color.Black,
         shape = RectangleShape,
         tonalElevation = 0.dp,
+        shadowElevation = if (isPressed || clickFeedback) 2.dp else 0.dp,
     ) {
         Row(
             modifier = Modifier

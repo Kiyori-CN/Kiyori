@@ -153,7 +153,7 @@ interface ConversationAuditDao {
             lastSequenceNumber = :newSequenceNumber,
             chainHeadSha256 = :newChainHeadSha256,
             updatedAt = :updatedAt,
-            lastFailureCode = :lastFailureCode
+            lastFailureCode = COALESCE(:lastFailureCode, lastFailureCode)
         WHERE chatId = :chatId
             AND lastSequenceNumber = :expectedSequenceNumber
             AND chainHeadSha256 = :expectedChainHeadSha256
@@ -174,7 +174,7 @@ interface ConversationAuditDao {
         """
         UPDATE conversation_audits
         SET completenessStatus = :completenessStatus,
-            lastFailureCode = :lastFailureCode,
+            lastFailureCode = COALESCE(:lastFailureCode, lastFailureCode),
             updatedAt = :updatedAt
         WHERE chatId = :chatId
         """

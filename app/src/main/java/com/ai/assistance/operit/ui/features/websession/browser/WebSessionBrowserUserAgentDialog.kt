@@ -318,7 +318,7 @@ private fun CustomSiteUserAgentDialog(
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                             color = MaterialTheme.colorScheme.surface,
                             modifier = Modifier
-                                .heightIn(min = 40.dp)
+                                .height(36.dp)
                                 .clickable { onUserAgentChange(preset) },
                         ) {
                             Text(

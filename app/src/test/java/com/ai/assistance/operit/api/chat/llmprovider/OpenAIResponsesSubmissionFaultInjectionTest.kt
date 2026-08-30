@@ -66,7 +66,7 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
             defaultPolicy.protocols,
         )
         assertEquals(10, defaultPolicy.maxIdleConnections)
-        assertEquals(true, defaultPolicy.retryOnConnectionFailure)
+        assertEquals(false, defaultPolicy.retryOnConnectionFailure)
         assertEquals(
             listOf(Protocol.HTTP_1_1),
             responsesPolicy.protocols,

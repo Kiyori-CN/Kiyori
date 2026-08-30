@@ -852,20 +852,20 @@ fun ModelPromptsSettingsScreen(
                 modifier = Modifier.fillMaxSize()
             ) {
                 // 标签栏（移除旧配置选项）
-                PrimaryTabRow(selectedTabIndex = currentTab) {
+                PrimaryTabRow(selectedTabIndex = currentTab, modifier = Modifier.height(40.dp)) {
                     Tab(
                         selected = currentTab == 0,
                         onClick = { currentTab = 0 }
                     ) {
                         Column(
-                            modifier = Modifier.padding(vertical = 10.dp),
+                            modifier = Modifier.padding(vertical = 3.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             Icon(
                                 Icons.Default.Person,
                                 contentDescription = null,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                             Text(stringResource(R.string.character_cards), fontSize = 12.sp)
                         }
@@ -875,14 +875,14 @@ fun ModelPromptsSettingsScreen(
                         onClick = { currentTab = 1 }
                     ) {
                         Column(
-                            modifier = Modifier.padding(vertical = 10.dp),
+                            modifier = Modifier.padding(vertical = 3.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.Label,
                                 contentDescription = null,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                             Text(stringResource(R.string.tags), fontSize = 12.sp)
                         }
@@ -892,14 +892,14 @@ fun ModelPromptsSettingsScreen(
                         onClick = { currentTab = 2 }
                     ) {
                         Column(
-                            modifier = Modifier.padding(vertical = 10.dp),
+                            modifier = Modifier.padding(vertical = 3.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             Icon(
                                 Icons.Default.People,
                                 contentDescription = null,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                             Text(stringResource(R.string.character_groups), fontSize = 12.sp)
                         }

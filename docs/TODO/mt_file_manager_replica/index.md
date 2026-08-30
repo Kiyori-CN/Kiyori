@@ -133,8 +133,8 @@ Toolbox 路由，页面不创建第二个导航 owner。
 5. 文件项横向拖动保留实时位移，抬手后建立选择；再次点击取消。拖动同一窗格的另一项时，
    按列表索引选中锚点与目标之间的连续区间；普通点击不同项追加选择、点击已选项才取消；系统
    Back 清空当前会话全部选择；选择集合按窗格隔离，另一栏同名项始终保持未选中。
-6. 底栏第四键显示分离的黑灰方向箭头：活动方向为深黑、另一方向为灰色；左栏活动时左箭头
-   为黑、右箭头为灰，右栏活动时反向；点击只把活动栏路径/环境同步到另一栏，焦点和历史语义保持不变。
+6. 底栏第四键显示分离的黑灰方向箭头：活动方向为灰色、另一方向为深黑；左栏活动时左箭头
+   为灰、右箭头为黑，右栏活动时反向；点击只把活动栏路径/环境同步到另一栏，焦点和历史语义保持不变。
 
 ### 实施顺序与影响面
 
@@ -205,10 +205,10 @@ Toolbox 路由，页面不创建第二个导航 owner。
   不同文件点击追加、已选文件点击移除、系统 Back 清空两栏选择，跨栏同名项不共享选中态。
 - `FileManagerScreen` 移除全屏 `LoadingOverlay`，仅保留窗格内空列表加载提示，并将
   `ModalNavigationDrawer.gesturesEnabled` 设为 `false`，抽屉只由顶栏汉堡按钮打开。
-- `FileListItem` 紧凑双栏仅允许从左向右的正向拖动建立选择，最大位移改为一个图标距离（`28dp`），超过约半个
-  图标即选中，反向拖动松手后只恢复原位，元数据字号收紧为 `10sp`；底栏第四键使用两个分离的 `16dp`
-  方向箭头，活动方向为 `#2B2B2B`、另一方向为 `#9E9E9E`。
-- `FileManagerTopBar` 左侧汉堡图标仅视觉左移 `6dp`，右侧溢出键贴齐屏幕右端；统计字号为 `12sp`，文案统一为
+- `FileListItem` 紧凑双栏左右拖动均可建立选择，最大位移按左滑完全隐藏左侧图标的距离计算，超过约半个
+  图标即选中，元数据字号收紧为 `10sp`；底栏第四键使用两个分离的 `16dp`
+  方向箭头，活动方向为 `#BEBEBE`、另一方向为 `#646464`。
+- `FileManagerTopBar` 左侧汉堡图标仅视觉左移 `6dp`，右侧溢出键贴齐屏幕右端；统计字号为 `10sp`，文案统一为
   `文件夹：… 文件：… 储存：已用/总量`，容量使用 `totalBytes - availableBytes` 并保留两位小数。
 - 定向验证：`:app:testDebugUnitTest` 的文件管理器 suite 与 `KiyoriSettingsPagesTest` 均 `BUILD SUCCESSFUL`；
   `:app:compileDebugKotlin` 已通过。正式门禁和新鲜克隆检查均 `PASS`。
@@ -232,8 +232,8 @@ Toolbox 路由，页面不创建第二个导航 owner。
   空白区域轻触只切换焦点，不绘制整栏灰色按压背景。
 - 普通点击不同文件追加当前窗格选择，点击已选文件移除；系统 Back 首先清空左右两栏全部选择，底栏后退继续只处理
   目录历史；左右栏的选择集合、单项状态和连续滑动锚点彼此隔离。
-- 紧凑文件行元数据字号收紧到 `10sp`，横向拖动正向最大位移限制为一个 `28dp` 图标距离，约半个图标达到阈值后选中，
-  反向滑动只回弹；活动栏阴影提升到 `8dp`，底栏路径同步按钮使用分离的 `16dp` 黑灰箭头。
+- 紧凑文件行元数据字号收紧到 `10sp`，横向拖动左右均可选择，最大位移统一按左滑完全隐藏左侧图标的距离计算，
+  约半个图标达到阈值后选中；活动栏阴影提升到 `8dp`，底栏路径同步按钮使用分离的 `16dp` 黑灰箭头。
 - 顶栏汉堡图标视觉左移 `6dp`，溢出按钮贴右端；统计使用 `文件夹：… 文件：… 储存：已用/总量`，容量按
   `totalBytes - availableBytes` 计算并显示两位小数。
 
@@ -247,3 +247,37 @@ Toolbox 路由，页面不创建第二个导航 owner。
   唯一 launcher `com.ai.assistance.operit.ui.main.MainActivity`；Android Debug V2 单 signer、16 KiB zipalign 通过。
 - 正式开发准备门禁与新鲜克隆检查通过；架构边界检查仍报告提交基线既有的 App Shell/AI Drawer/主题哈希漂移，未涉及本轮文件管理器文件。
 - `adb devices` 无目标设备；真实设备密度、拖动动画、阴影采样、SAF、长按和系统 Back 现场验收继续保持 `verification_pending`。
+
+## 2026-08-31 顶栏统计与双向滑动点击反馈增量
+
+### 本轮实现
+
+- `FileManagerTopBar` 保持顶栏内容总高度 `56dp`：文件夹路径与退出、汉堡、溢出按钮位于同一
+  `40dp` 行并视觉下移 `2dp`；统计文案的 `16dp` 全宽居中行位置保持不变，字号收紧为 `10sp/12sp`，
+  内容视觉上移 `2dp` 以缩短两行间距并增加下方留白，不再受到左右按钮槽位限制。
+- 底栏第 4 个路径同步按钮保持“当前栏路径复制到另一栏”的单向来源语义，箭头间距收紧为
+  `16dp` 图标配 `-9dp/+9dp` 横向偏移和上下 `4dp` 错位，恢复截图中的右上/左下图片样式；
+  颜色按截图采样为当前栏浅灰 `#BEBEBE`、另一栏深灰 `#646464`。
+- 文件项点击通过独立 `MutableInteractionSource` 绘制 `#E0E0E0` 灰色按压背景和 `2dp` 阴影，
+  未按压时继续保持白色或已选蓝色；双栏目录点击会先保持 `80ms` 行级灰色反馈，再执行目录跳转，
+  避免路径状态立即替换旧行导致按压效果不可见。
+- 底栏第一、第二个按钮使用无横杆的 `KeyboardArrowLeft`/`KeyboardArrowRight` 方向箭头，第四键使用
+  上下错位的 `ArrowBack`/`ArrowForward` 图片样式，保留
+  原有活动栏后退/前进能力和禁用态颜色。
+- 紧凑双栏左右滑动均可建立选择。两个方向统一以“左滑时左侧图标刚好完全隐藏”的位移作为最大值，
+  该位移包含左侧内边距；两种方向使用相同的选择阈值与连续选择状态。
+
+### 本轮验证
+
+- `./gradlew.bat :app:testDebugUnitTest --no-daemon --console=plain --tests
+  "com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.*"`：`BUILD SUCCESSFUL`；
+  源码合同覆盖统计独占行、统计字号、居中布局、灰色按压/阴影、箭头颜色方向、箭头间距以及
+  双向滑动和左侧图标隐藏边界。
+- `./gradlew.bat :app:assembleDebug --no-daemon --console=plain`：`BUILD SUCCESSFUL`，并通过
+  `verifySingleDebugLauncher`、`verifyDebugScriptProxyRuntimePackaging`、
+  `verifyDebugPlayerRuntimePackaging`。
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，`503,694,977` bytes，SHA-256
+  `904C0F23A91D45D9B84F7B8044FC321F96D049682FCF03ECFE2CF0E4D3ABEDA6`；包名 `com.kiyori`，
+  versionCode `45`，versionName `0.1.0`；Android Debug V2 单 signer、16 KiB zipalign 通过。
+- `adb devices` 无目标设备；真实设备密度、按压动画、双向拖动边界和系统 Back 仍需现场复测，状态保持
+  `verification_pending`。

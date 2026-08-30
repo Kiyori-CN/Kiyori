@@ -526,11 +526,13 @@ fun PackageDetailsDialog(
                         Column(modifier = Modifier.fillMaxWidth()) {
                             SecondaryScrollableTabRow(
                                 selectedTabIndex = selectedTabIndex,
-                                edgePadding = 0.dp
+                                edgePadding = 0.dp,
+                                modifier = Modifier.height(40.dp)
                             ) {
                                 Tab(
                                     selected = selectedTabIndex == 0,
-                                    onClick = { selectedTabIndex = 0 }
+                                    onClick = { selectedTabIndex = 0 },
+                                    modifier = Modifier.height(40.dp)
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -553,7 +555,8 @@ fun PackageDetailsDialog(
                                     val isActive = activeStateId == state.id
                                     Tab(
                                         selected = selectedTabIndex == tabIndex,
-                                        onClick = { selectedTabIndex = tabIndex }
+                                        onClick = { selectedTabIndex = tabIndex },
+                                        modifier = Modifier.height(40.dp)
                                     ) {
                                         Row(
                                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),

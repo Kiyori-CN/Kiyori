@@ -791,6 +791,7 @@ private fun QuickPathChip(
     FilterChip(
         selected = isActive,
         onClick = onClick,
+        modifier = Modifier.height(36.dp),
         label = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

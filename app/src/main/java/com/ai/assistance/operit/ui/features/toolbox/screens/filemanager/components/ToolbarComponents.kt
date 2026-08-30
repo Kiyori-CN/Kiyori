@@ -388,7 +388,7 @@ fun FileManagerTabRow(
             SecondaryScrollableTabRow(
                 selectedTabIndex = activeTabIndex,
                 edgePadding = 0.dp,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).height(36.dp),
                 indicator = {
                     if (activeTabIndex in tabs.indices) {
                         TabRowDefaults.SecondaryIndicator(
@@ -404,6 +404,7 @@ fun FileManagerTabRow(
                     Tab(
                         selected = index == activeTabIndex,
                         onClick = { onSwitchTab(index) },
+                        modifier = Modifier.height(36.dp),
                         text = {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -425,7 +426,7 @@ fun FileManagerTabRow(
                                 if (tabs.size > 1) {
                                     IconButton(
                                         onClick = { onCloseTab(index) },
-                                        modifier = Modifier.size(40.dp)
+                                        modifier = Modifier.size(24.dp)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Close,
@@ -442,7 +443,7 @@ fun FileManagerTabRow(
             }
 
             // 添加新标签按钮
-            IconButton(onClick = onAddTab, modifier = Modifier.padding(end = 8.dp)) {
+            IconButton(onClick = onAddTab, modifier = Modifier.size(40.dp).padding(end = 8.dp)) {
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = null,

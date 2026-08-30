@@ -436,7 +436,7 @@ private fun UnifiedMarketDetailStickyTabs(
 
             SecondaryTabRow(
                 selectedTabIndex = selectedTabIndex,
-                modifier = Modifier.widthIn(max = 240.dp),
+                modifier = Modifier.widthIn(max = 240.dp).height(36.dp),
                 containerColor = MaterialTheme.colorScheme.surface,
                 divider = {},
                 indicator = {
@@ -454,7 +454,7 @@ private fun UnifiedMarketDetailStickyTabs(
                     Tab(
                         selected = selected,
                         onClick = { onTabSelected(index) },
-                        modifier = Modifier.height(44.dp),
+                        modifier = Modifier.height(36.dp),
                         text = {
                             Box(
                                 modifier = Modifier.padding(horizontal = 4.dp),

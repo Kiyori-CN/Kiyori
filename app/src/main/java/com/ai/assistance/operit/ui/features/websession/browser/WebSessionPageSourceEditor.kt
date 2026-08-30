@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -726,7 +725,7 @@ private fun PageSourceEditorCommandBar(
                 Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 8.dp, vertical = 5.dp),
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -809,7 +808,7 @@ private fun PageSourceCommandChip(
     Surface(
         modifier =
             Modifier
-                .heightIn(min = 40.dp)
+                .height(36.dp)
                 .alpha(if (enabled) 1f else 0.38f)
                 .clickable(enabled = enabled, onClick = onClick),
         shape = KiyoriUiShapes.control,

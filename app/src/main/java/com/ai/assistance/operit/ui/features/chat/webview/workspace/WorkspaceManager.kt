@@ -1529,7 +1529,7 @@ fun VSCodeTab(
 
     Box(
             modifier =
-                    Modifier.height(40.dp) // 增加高度
+                    Modifier.height(36.dp)
                             .background(
                                     backgroundColor,
                                     shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
@@ -1566,7 +1566,7 @@ fun VSCodeTab(
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(
                         onClick = onClose,
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(24.dp)
                     ) {
                         if (isUnsaved) {
                             Icon(

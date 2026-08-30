@@ -139,12 +139,14 @@ fun UnifiedMarketManageScreen(
         topContent = {
             SecondaryScrollableTabRow(
                 selectedTabIndex = selectedTab.ordinal,
-                edgePadding = 0.dp
+                edgePadding = 0.dp,
+                modifier = Modifier.height(40.dp)
             ) {
                 ManageTypeTab.entries.forEach { tab ->
                     Tab(
                         selected = selectedTab == tab,
                         onClick = { selectedTab = tab },
+                        modifier = Modifier.height(40.dp),
                         text = {
                             androidx.compose.material3.Text(
                                 text = stringResource(tab.labelRes),

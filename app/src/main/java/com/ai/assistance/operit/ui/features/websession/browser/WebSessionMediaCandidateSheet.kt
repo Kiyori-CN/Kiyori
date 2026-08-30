@@ -228,7 +228,7 @@ private fun BrowserMediaFormatFilters(
             Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 12.dp, vertical = 9.dp),
+                .padding(horizontal = 12.dp, vertical = 5.dp),
         horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
         BrowserMediaFormatChip(
@@ -266,7 +266,7 @@ private fun BrowserMediaFormatChip(
 ) {
     val cyanColors = WebSessionBrowserMenuTone.FLOATING_SNIFFER.resolveColors()
     Surface(
-        modifier = Modifier.heightIn(min = 40.dp).clickable(role = Role.Button, onClick = onClick),
+        modifier = Modifier.height(32.dp).clickable(role = Role.Button, onClick = onClick),
         shape = KiyoriUiShapes.control,
         color =
             if (selected) {

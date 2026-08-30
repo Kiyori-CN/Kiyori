@@ -175,6 +175,7 @@ private fun FileManagerPaneColumn(
                             itemSize = itemSize,
                             displayMode = DisplayMode.TWO_COLUMNS,
                             compact = true,
+                            postClickFeedbackDurationMillis = 80L,
                         )
                     }
                 }

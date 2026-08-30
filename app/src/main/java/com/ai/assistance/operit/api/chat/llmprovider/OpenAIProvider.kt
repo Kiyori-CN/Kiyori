@@ -16,6 +16,8 @@ import com.ai.assistance.operit.data.model.ProviderTransportKind
 import com.ai.assistance.operit.data.model.ToolPrompt
 import com.ai.assistance.operit.data.preferences.ApiPreferences
 import com.ai.assistance.operit.data.dao.ProviderEventAppendOutcome
+import com.ai.assistance.operit.data.audit.ConversationAuditProviderAttemptRecorder
+import com.ai.assistance.operit.data.model.ConversationAuditCompletenessStatus
 import com.ai.assistance.operit.data.repository.ProviderExecutionRepository
 import com.ai.assistance.operit.api.chat.llmprovider.EndpointCompleter
 import com.ai.assistance.operit.util.AppLogger
@@ -128,9 +130,11 @@ open class OpenAIProvider(
     protected val JSON = "application/json".toMediaType()
 
     // 当前活跃的Call对象，用于取消流式传输
+    @Volatile
     private var activeCall: Call? = null
 
     // 当前活跃的Response对象，用于强制关闭流
+    @Volatile
     private var activeResponse: Response? = null
 
     @Volatile
@@ -1453,14 +1457,22 @@ open class OpenAIProvider(
         private val receivedContent: StringBuilder,
         private val emit: suspend (String) -> Unit,
         private val eventChannel: com.ai.assistance.operit.util.stream.MutableSharedStream<TextStreamEvent>,
-        private val onTokensUpdated: suspend (Int, Int, Int) -> Unit
+        private val onTokensUpdated: suspend (Int, Int, Int) -> Unit,
+        private var streamingState: StreamingState? = null,
     ) {
         private val savepointLengths = mutableMapOf<String, Int>()
+
+        fun bindStreamingState(state: StreamingState) {
+            streamingState = state
+        }
 
         suspend fun emitContent(content: String) {
             if (content.isNotNullOrEmpty()) {
                 emit(content)
                 receivedContent.append(content)
+                streamingState?.let { state ->
+                    state.visibleCharacterCount += content.length
+                }
                 tokenCacheManager.addOutputTokens(ChatUtils.estimateTokenCount(content))
                 onTokensUpdated(
                     tokenCacheManager.totalInputTokenCount,
@@ -1475,6 +1487,9 @@ open class OpenAIProvider(
                 val wrapped = "<$tag>$thinkContent</$tag>"
                 emit(wrapped)
                 receivedContent.append(wrapped)
+                streamingState?.let { state ->
+                    state.reasoningCharacterCount += thinkContent.length
+                }
                 tokenCacheManager.addOutputTokens(ChatUtils.estimateTokenCount(thinkContent))
                 onTokensUpdated(
                     tokenCacheManager.totalInputTokenCount,
@@ -2052,6 +2067,119 @@ open class OpenAIProvider(
             .joinToString("") { byte -> "%02x".format(byte) }
     }
 
+    private suspend fun recordProviderAttemptAudit(
+        context: Context,
+        request: Request,
+        providerRequestContext: ProviderRequestContext?,
+        eventType: String,
+        summary: String,
+        attemptNumber: Int,
+        requestFingerprint: String?,
+        submissionState: String? = null,
+        retrySafety: String? = null,
+        transport: LlmTransportDiagnostics? = null,
+        providerCallId: String? = null,
+        streamingState: StreamingState? = null,
+        rollbackCharacters: Int? = null,
+        failureCode: String? = null,
+        throwable: Throwable? = null,
+        terminalState: String? = null,
+        completeness: ConversationAuditCompletenessStatus =
+            ConversationAuditCompletenessStatus.IN_PROGRESS,
+    ) {
+        withContext(NonCancellable) {
+            try {
+                ConversationAuditProviderAttemptRecorder.record(
+                    context = context,
+                    requestContext = providerRequestContext,
+                    eventType = eventType,
+                    summary = summary,
+                    provider = providerType.name,
+                    model = modelName,
+                    requestTraceId =
+                        request.tag(LlmRequestTraceContext::class.java)?.requestId
+                            ?: "unknown",
+                    endpointLabel =
+                        request.url.newBuilder().query(null).build().toString(),
+                    method = request.method,
+                    stream = request.tag(LlmRequestTraceContext::class.java)?.stream ?: false,
+                    attemptNumber = attemptNumber,
+                    requestFingerprint = requestFingerprint,
+                    submissionState = submissionState,
+                    retrySafety = retrySafety,
+                    transport = transport,
+                    providerCallId = providerCallId,
+                    chunkCount = streamingState?.chunkCount,
+                    receivedCharacters = streamingState?.let { state ->
+                        state.reasoningCharacterCount + state.visibleCharacterCount
+                    },
+                    reasoningCharacters = streamingState?.reasoningCharacterCount,
+                    visibleCharacters = streamingState?.visibleCharacterCount,
+                    rollbackCharacters = rollbackCharacters,
+                    failureCode = failureCode,
+                    throwable = throwable,
+                    terminalState = terminalState,
+                    completeness = completeness,
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (auditError: Exception) {
+                AppLogger.e(
+                    "AIService",
+                    "Provider attempt 审计写入失败: eventType=$eventType",
+                    auditError,
+                )
+            }
+        }
+    }
+
+    private fun submissionStateFor(
+        diagnostics: LlmTransportDiagnostics?,
+    ): String =
+        when {
+            diagnostics == null -> "UNKNOWN"
+            diagnostics.responseBodyStarted -> "RESPONSE_BODY_STARTED"
+            diagnostics.responseHeadersReceived -> "RESPONSE_HEADERS_RECEIVED"
+            diagnostics.requestBodyStarted || diagnostics.requestBodyBytes >= 0L ->
+                "REQUEST_BODY_SENT"
+            diagnostics.stage == LlmTransportStage.DNS_LOOKUP ||
+                diagnostics.stage == LlmTransportStage.CONNECTING ||
+                diagnostics.stage == LlmTransportStage.TLS_HANDSHAKE -> "NOT_SUBMITTED"
+            else -> "SUBMISSION_UNKNOWN"
+        }
+
+    private fun isSafePreSubmissionRetry(
+        diagnostics: LlmTransportDiagnostics?,
+    ): Boolean =
+        diagnostics != null &&
+            !diagnostics.requestBodyStarted &&
+            !diagnostics.responseHeadersReceived &&
+            !diagnostics.responseBodyStarted &&
+            (
+                diagnostics.stage in
+                    setOf(
+                        LlmTransportStage.DNS_LOOKUP,
+                        LlmTransportStage.CONNECTING,
+                        LlmTransportStage.TLS_HANDSHAKE,
+                    ) || diagnostics.connectionFailed
+            )
+
+    private fun retrySafetyForFailure(
+        diagnostics: LlmTransportDiagnostics?,
+        exception: Exception,
+    ): String =
+        when {
+            exception is OpenAiHttpResponseException && exception.statusCode >= 500 ->
+                "EXPLICIT_PROVIDER_5XX_RETRY"
+            diagnostics == null -> "NO_RETRY_DIAGNOSTICS_UNAVAILABLE"
+            diagnostics.responseBodyStarted || diagnostics.responseHeadersReceived ->
+                "NO_RETRY_AFTER_SUBMISSION"
+            diagnostics.requestBodyStarted || diagnostics.requestBodyBytes >= 0L ->
+                "NO_RETRY_REQUEST_BODY_SENT"
+            isSafePreSubmissionRetry(diagnostics) -> "SAFE_PRE_SUBMISSION_RETRY"
+            else -> "NO_RETRY_SUBMISSION_UNKNOWN"
+        }
+
     private data class ResponsesPersistenceSession(
         val repository: OpenAIResponsesExecutionPersistence,
         val executionState: OpenAIResponsesExecutionState,
@@ -2062,6 +2190,8 @@ open class OpenAIProvider(
      */
     private data class StreamingState(
         var chunkCount: Int = 0,
+        var reasoningCharacterCount: Int = 0,
+        var visibleCharacterCount: Int = 0,
         var lastLogTime: Long = System.currentTimeMillis(),
         var isInReasoningMode: Boolean = false,
         var hasEmittedThinkStart: Boolean = false,
@@ -3144,8 +3274,8 @@ open class OpenAIProvider(
                 AppLogger.d("AIService", "【发送消息】流式传输已被用户取消")
                 throw UserCancellationException(context.getString(R.string.openai_error_request_cancelled), e)
             } else {
-                // 网络中断，准备重试
-                AppLogger.e("AIService", "【发送消息】流式读取时发生IO异常，准备重试", e)
+                // 最终是否允许重试由外层 attempt 提交边界决定，避免在读取已提交响应后重复 POST。
+                AppLogger.e("AIService", "【发送消息】流式读取时发生 IO 异常，交由 attempt 边界判定", e)
                 throw e
             }
         } finally {
@@ -3222,14 +3352,15 @@ open class OpenAIProvider(
         )
 
         val receivedContent = StringBuilder()
+        val streamingState = StreamingState()
         val emitter =
             StreamEmitter(
                 receivedContent = receivedContent,
                 emit = emitChunk,
                 eventChannel = eventChannel,
                 onTokensUpdated = onTokensUpdated,
+                streamingState = streamingState,
             )
-        val streamingState = StreamingState()
         val persistenceSession =
             ResponsesPersistenceSession(
                 repository = repository,
@@ -3271,12 +3402,51 @@ open class OpenAIProvider(
             val transportDiagnostics = request
                 .tag(LlmRequestTraceContext::class.java)
                 ?.state
+            recordProviderAttemptAudit(
+                context = context,
+                request = request,
+                providerRequestContext = providerRequestContext,
+                eventType = "PROVIDER_ATTEMPT_CREATED",
+                summary =
+                    if (responseId == null) {
+                        "已创建 Responses 提交 attempt"
+                    } else {
+                        "已创建 Responses 续接 attempt"
+                    },
+                attemptNumber = attemptNumber,
+                requestFingerprint =
+                    request.tag(LlmRequestTraceContext::class.java)
+                        ?.requestSummary
+                        ?.requestDigest,
+                submissionState = if (responseId == null) "NOT_STARTED" else "RESUME_REQUEST",
+                retrySafety = if (responseId == null) "UNDECIDED" else "RESUME_SAME_RESPONSE",
+                transport = transportDiagnostics?.snapshot(),
+                providerCallId = responseId,
+                streamingState = streamingState,
+            )
 
             try {
                 withContext(responseExecutionDispatcher) {
                     val response = call.execute()
                     activeResponse = response
                     response.use {
+                        recordProviderAttemptAudit(
+                            context = context,
+                            request = request,
+                            providerRequestContext = providerRequestContext,
+                            eventType = "PROVIDER_RESPONSE_HEADERS_RECEIVED",
+                            summary = "Responses attempt 已收到响应头",
+                            attemptNumber = attemptNumber,
+                            requestFingerprint =
+                                request.tag(LlmRequestTraceContext::class.java)
+                                    ?.requestSummary
+                                    ?.requestDigest,
+                            submissionState = "RESPONSE_HEADERS_RECEIVED",
+                            retrySafety = "NO_RETRY_AFTER_SUBMISSION",
+                            transport = transportDiagnostics?.snapshotForHttpStatus(response.code),
+                            providerCallId = executionState.remoteResponseId,
+                            streamingState = streamingState,
+                        )
                         if (!response.isSuccessful) {
                             val errorBody =
                                 response.body?.string()
@@ -3298,6 +3468,23 @@ open class OpenAIProvider(
                                 ?: throw IOException(
                                     context.getString(R.string.openai_error_response_empty)
                                 )
+                        recordProviderAttemptAudit(
+                            context = context,
+                            request = request,
+                            providerRequestContext = providerRequestContext,
+                            eventType = "PROVIDER_RESPONSE_BODY_STARTED",
+                            summary = "Responses attempt 开始读取响应体",
+                            attemptNumber = attemptNumber,
+                            requestFingerprint =
+                                request.tag(LlmRequestTraceContext::class.java)
+                                    ?.requestSummary
+                                    ?.requestDigest,
+                            submissionState = "RESPONSE_BODY_STARTED",
+                            retrySafety = "NO_RETRY_AFTER_SUBMISSION",
+                            transport = transportDiagnostics?.snapshot(),
+                            providerCallId = executionState.remoteResponseId,
+                            streamingState = streamingState,
+                        )
                         processStreamingResponse(
                             reader = responseBody.charStream().buffered(),
                             emitter = emitter,
@@ -3311,6 +3498,25 @@ open class OpenAIProvider(
 
                 when (executionState.status) {
                     ProviderExecutionStatus.COMPLETED -> {
+                        recordProviderAttemptAudit(
+                            context = context,
+                            request = request,
+                            providerRequestContext = providerRequestContext,
+                            eventType = "PROVIDER_ATTEMPT_COMPLETED",
+                            summary = "Responses attempt 完成并收到明确终态",
+                            attemptNumber = attemptNumber,
+                            requestFingerprint =
+                                request.tag(LlmRequestTraceContext::class.java)
+                                    ?.requestSummary
+                                    ?.requestDigest,
+                            submissionState = "COMPLETED",
+                            retrySafety = "NO_RETRY",
+                            transport = transportDiagnostics?.snapshot(),
+                            providerCallId = executionState.remoteResponseId,
+                            streamingState = streamingState,
+                            terminalState = "COMPLETED",
+                            completeness = ConversationAuditCompletenessStatus.IN_PROGRESS,
+                        )
                         logFinalOutput(
                             "AIService",
                             receivedContent,
@@ -3333,6 +3539,27 @@ open class OpenAIProvider(
                     )
                 }
             } catch (error: UserCancellationException) {
+                recordProviderAttemptAudit(
+                    context = context,
+                    request = request,
+                    providerRequestContext = providerRequestContext,
+                    eventType = "PROVIDER_ATTEMPT_CANCELLED",
+                    summary = "Responses attempt 被用户取消",
+                    attemptNumber = attemptNumber,
+                    requestFingerprint =
+                        request.tag(LlmRequestTraceContext::class.java)
+                            ?.requestSummary
+                            ?.requestDigest,
+                    submissionState = submissionStateFor(transportDiagnostics?.snapshot(error)),
+                    retrySafety = "NO_RETRY_USER_CANCELLED",
+                    transport = transportDiagnostics?.snapshot(error),
+                    providerCallId = executionState.remoteResponseId,
+                    streamingState = streamingState,
+                    failureCode = "USER_STOP",
+                    throwable = error,
+                    terminalState = "CANCELLED",
+                    completeness = ConversationAuditCompletenessStatus.PARTIAL,
+                )
                 withContext(NonCancellable) {
                     finalizeResponsesCancellation(
                         context = context,
@@ -3342,6 +3569,27 @@ open class OpenAIProvider(
                 }
                 throw error
             } catch (error: CancellationException) {
+                recordProviderAttemptAudit(
+                    context = context,
+                    request = request,
+                    providerRequestContext = providerRequestContext,
+                    eventType = "PROVIDER_ATTEMPT_CANCELLED",
+                    summary = "Responses attempt 收到取消信号",
+                    attemptNumber = attemptNumber,
+                    requestFingerprint =
+                        request.tag(LlmRequestTraceContext::class.java)
+                            ?.requestSummary
+                            ?.requestDigest,
+                    submissionState = submissionStateFor(transportDiagnostics?.snapshot(error)),
+                    retrySafety = "NO_RETRY_CANCELLATION",
+                    transport = transportDiagnostics?.snapshot(error),
+                    providerCallId = executionState.remoteResponseId,
+                    streamingState = streamingState,
+                    failureCode = if (isManuallyCancelled) "USER_STOP" else "CANCELLATION",
+                    throwable = error,
+                    terminalState = "CANCELLED",
+                    completeness = ConversationAuditCompletenessStatus.PARTIAL,
+                )
                 if (isManuallyCancelled) {
                     withContext(NonCancellable) {
                         finalizeResponsesCancellation(
@@ -3353,6 +3601,35 @@ open class OpenAIProvider(
                 }
                 throw error
             } catch (error: Exception) {
+                val attemptDiagnosticsSnapshot = transportDiagnostics?.snapshot(error)
+                recordProviderAttemptAudit(
+                    context = context,
+                    request = request,
+                    providerRequestContext = providerRequestContext,
+                    eventType = "PROVIDER_ATTEMPT_FAILED",
+                    summary = "Responses attempt 失败",
+                    attemptNumber = attemptNumber,
+                    requestFingerprint =
+                        request.tag(LlmRequestTraceContext::class.java)
+                            ?.requestSummary
+                            ?.requestDigest,
+                    submissionState = submissionStateFor(attemptDiagnosticsSnapshot),
+                    retrySafety =
+                        if (executionState.remoteResponseId != null) {
+                            "RESUME_SAME_RESPONSE"
+                        } else {
+                            "NO_RETRY_SUBMISSION_UNKNOWN"
+                        },
+                    transport = attemptDiagnosticsSnapshot,
+                    providerCallId = executionState.remoteResponseId,
+                    streamingState = streamingState,
+                    failureCode =
+                        attemptDiagnosticsSnapshot?.diagnosticCode
+                            ?: error.javaClass.simpleName,
+                    throwable = error,
+                    terminalState = "FAILED",
+                    completeness = ConversationAuditCompletenessStatus.PARTIAL,
+                )
                 if (executionState.isTerminal) {
                     throw error
                 }
@@ -3436,6 +3713,25 @@ open class OpenAIProvider(
                             ) { errorText, retryNumber ->
                                 "【Responses连接中断，正在续接同一响应（第${retryNumber}次）：$errorText】"
                             }
+                        recordProviderAttemptAudit(
+                            context = context,
+                            request = request,
+                            providerRequestContext = providerRequestContext,
+                            eventType = "PROVIDER_RETRY_SCHEDULED",
+                            summary = "Responses 将续接同一 response",
+                            attemptNumber = attemptNumber,
+                            requestFingerprint =
+                                request.tag(LlmRequestTraceContext::class.java)
+                                    ?.requestSummary
+                                    ?.requestDigest,
+                            submissionState = "RESPONSE_BODY_INTERRUPTED",
+                            retrySafety = "RESUME_SAME_RESPONSE",
+                            transport = attemptDiagnosticsSnapshot,
+                            providerCallId = executionState.remoteResponseId,
+                            streamingState = streamingState,
+                            failureCode = "STREAM_INTERRUPTED",
+                            completeness = ConversationAuditCompletenessStatus.PARTIAL,
+                        )
                         repository.beginResume(providerRequestContext.localExecutionId)
                     }
 
@@ -3457,6 +3753,24 @@ open class OpenAIProvider(
                                     ) { errorText, retryNumber ->
                                         "【Responses提交被明确拒绝，正在进行第${retryNumber}次重试：$errorText】"
                                     }
+                                recordProviderAttemptAudit(
+                                    context = context,
+                                    request = request,
+                                    providerRequestContext = providerRequestContext,
+                                    eventType = "PROVIDER_RETRY_SCHEDULED",
+                                    summary = "Responses 收到明确拒绝，按策略重新提交",
+                                    attemptNumber = attemptNumber,
+                                    requestFingerprint =
+                                        request.tag(LlmRequestTraceContext::class.java)
+                                            ?.requestSummary
+                                            ?.requestDigest,
+                                    submissionState = "PROVIDER_REJECTED",
+                                    retrySafety = "EXPLICIT_PROVIDER_REJECTION",
+                                    transport = attemptDiagnosticsSnapshot,
+                                    streamingState = streamingState,
+                                    failureCode = "HTTP_${error.statusCode}",
+                                    completeness = ConversationAuditCompletenessStatus.PARTIAL,
+                                )
                             }
 
                             OpenAIResponsesHttpFailurePolicy.SubmissionAction.FAIL -> {
@@ -3650,8 +3964,11 @@ open class OpenAIProvider(
             while (retryCount <= maxRetries) {
                 // 在循环开始时检查是否已被取消
                 checkCancellation(context)
+                val attemptStreamingState = StreamingState()
+                emitter.bindStreamingState(attemptStreamingState)
                 var responsesSubmissionStarted = false
                 var transportTraceState: LlmRequestTraceState? = null
+                var attemptRequest: Request? = null
 
                 try {
                     if (retryCount > 0) {
@@ -3692,8 +4009,25 @@ open class OpenAIProvider(
                         attemptNumber = attemptNumber,
                         localExecutionId = providerRequestContext?.localExecutionId,
                     )
+                attemptRequest = request
                 transportTraceState =
                     request.tag(LlmRequestTraceContext::class.java)?.state
+                recordProviderAttemptAudit(
+                    context = context,
+                    request = request,
+                    providerRequestContext = providerRequestContext,
+                    eventType = "PROVIDER_ATTEMPT_CREATED",
+                    summary = "已创建第 ${attemptNumber} 次 Provider HTTP attempt",
+                    attemptNumber = attemptNumber,
+                    requestFingerprint =
+                        request.tag(LlmRequestTraceContext::class.java)
+                            ?.requestSummary
+                            ?.requestDigest,
+                    submissionState = "NOT_STARTED",
+                    retrySafety = "UNDECIDED",
+                    transport = transportTraceState?.snapshot(),
+                    streamingState = attemptStreamingState,
+                )
                 AppLogger.d(
                     "AIService",
                     "[req=$requestTraceId] 【发送消息】请求体构建完成，目标模型: $modelName，API端点: $apiEndpoint"
@@ -3719,6 +4053,22 @@ open class OpenAIProvider(
 
                     // 保存response引用，以便取消时能强制关闭
                     activeResponse = response
+                    recordProviderAttemptAudit(
+                        context = context,
+                        request = request,
+                        providerRequestContext = providerRequestContext,
+                        eventType = "PROVIDER_RESPONSE_HEADERS_RECEIVED",
+                        summary = "第 ${attemptNumber} 次 Provider attempt 已收到响应头",
+                        attemptNumber = attemptNumber,
+                        requestFingerprint =
+                            request.tag(LlmRequestTraceContext::class.java)
+                                ?.requestSummary
+                                ?.requestDigest,
+                        submissionState = "RESPONSE_HEADERS_RECEIVED",
+                        retrySafety = "NO_RETRY_AFTER_SUBMISSION",
+                        transport = transportTraceState?.snapshotForHttpStatus(response.code),
+                        streamingState = attemptStreamingState,
+                    )
 
                     try {
                         if (!response.isSuccessful) {
@@ -3751,13 +4101,14 @@ open class OpenAIProvider(
                                     statusCode = response.code
                                 )
                             }
-                            // 对于5xx等服务端错误，允许重试
-                            throw IOException(
+                            // 明确的5xx响应沿用既有服务端错误重试合同；传输中断则由提交边界单独判定。
+                            throw OpenAiHttpResponseException(
                                 context.getString(
                                     R.string.openai_error_api_request_failed_with_status,
                                     response.code,
                                     errorSummary.exceptionDetail(),
-                                )
+                                ),
+                                statusCode = response.code,
                             )
                         }
 
@@ -3771,11 +4122,28 @@ open class OpenAIProvider(
                         if (stream) {
                             AppLogger.d("AIService", "[req=$requestTraceId] 【发送消息】开始读取流式响应")
                             val reader = responseBody.charStream().buffered()
+                            recordProviderAttemptAudit(
+                                context = context,
+                                request = request,
+                                providerRequestContext = providerRequestContext,
+                                eventType = "PROVIDER_RESPONSE_BODY_STARTED",
+                                summary = "第 ${attemptNumber} 次 Provider attempt 开始读取响应体",
+                                attemptNumber = attemptNumber,
+                                requestFingerprint =
+                                    request.tag(LlmRequestTraceContext::class.java)
+                                        ?.requestSummary
+                                        ?.requestDigest,
+                                submissionState = "RESPONSE_BODY_STARTED",
+                                retrySafety = "NO_RETRY_AFTER_SUBMISSION",
+                                transport = transportTraceState?.snapshot(),
+                                streamingState = attemptStreamingState,
+                            )
                             processStreamingResponse(
                                 reader,
                                 emitter,
                                 onTokensUpdated,
-                                context
+                                context,
+                                state = attemptStreamingState,
                             )
                         } else {
                             AppLogger.d("AIService", "[req=$requestTraceId] 【发送消息】开始读取非流式响应")
@@ -3880,6 +4248,25 @@ open class OpenAIProvider(
                     }
                 }
 
+                recordProviderAttemptAudit(
+                    context = context,
+                    request = request,
+                    providerRequestContext = providerRequestContext,
+                    eventType = "PROVIDER_ATTEMPT_COMPLETED",
+                    summary = "第 ${attemptNumber} 次 Provider HTTP attempt 完成",
+                    attemptNumber = attemptNumber,
+                    requestFingerprint =
+                        request.tag(LlmRequestTraceContext::class.java)
+                            ?.requestSummary
+                            ?.requestDigest,
+                    submissionState = "COMPLETED",
+                    retrySafety = "NO_RETRY",
+                    transport = transportTraceState?.snapshot(),
+                    streamingState = attemptStreamingState,
+                    terminalState = "COMPLETED",
+                    completeness = ConversationAuditCompletenessStatus.IN_PROGRESS,
+                )
+
                 // 清理活跃引用
                 activeCall = null
                 activeResponse = null
@@ -3897,6 +4284,56 @@ open class OpenAIProvider(
                 // 请求已经失败并离开当前传输边界；保留旧引用会让后续取消误指向已结束的 Call。
                 activeCall = null
                 activeResponse = null
+                if (e is CancellationException) {
+                    attemptRequest?.let { request ->
+                        val cancellationDiagnostics = transportTraceState?.snapshot(e)
+                        recordProviderAttemptAudit(
+                            context = context,
+                            request = request,
+                            providerRequestContext = providerRequestContext,
+                            eventType = "PROVIDER_ATTEMPT_CANCELLED",
+                            summary = "Provider HTTP attempt 收到取消信号",
+                            attemptNumber =
+                                request.tag(LlmRequestTraceContext::class.java)?.attempt
+                                    ?: retryCount + 1,
+                            requestFingerprint =
+                                request.tag(LlmRequestTraceContext::class.java)
+                                    ?.requestSummary
+                                    ?.requestDigest,
+                            submissionState = submissionStateFor(cancellationDiagnostics),
+                            retrySafety = "NO_RETRY_CANCELLATION",
+                            transport = cancellationDiagnostics,
+                            streamingState = attemptStreamingState,
+                            failureCode = if (isManuallyCancelled) "USER_STOP" else "CANCELLATION",
+                            throwable = e,
+                            terminalState = "CANCELLED",
+                            completeness = ConversationAuditCompletenessStatus.PARTIAL,
+                        )
+                    }
+                    throw e
+                }
+                val request = attemptRequest ?: throw e
+                val attemptDiagnostics = transportTraceState?.snapshot(e)
+                recordProviderAttemptAudit(
+                    context = context,
+                    request = request,
+                    providerRequestContext = providerRequestContext,
+                    eventType = "PROVIDER_ATTEMPT_FAILED",
+                    summary = "第 ${request.tag(LlmRequestTraceContext::class.java)?.attempt ?: retryCount + 1} 次 Provider HTTP attempt 失败",
+                    attemptNumber = request.tag(LlmRequestTraceContext::class.java)?.attempt ?: retryCount + 1,
+                    requestFingerprint =
+                        request.tag(LlmRequestTraceContext::class.java)
+                            ?.requestSummary
+                            ?.requestDigest,
+                    submissionState = submissionStateFor(attemptDiagnostics),
+                    retrySafety = retrySafetyForFailure(attemptDiagnostics, e),
+                    transport = attemptDiagnostics,
+                    streamingState = attemptStreamingState,
+                    failureCode = attemptDiagnostics?.diagnosticCode ?: e.javaClass.simpleName,
+                    throwable = e,
+                    terminalState = "FAILED",
+                    completeness = ConversationAuditCompletenessStatus.PARTIAL,
+                )
                 // 请求体编译和本地协议校验发生在任何 HTTP 提交之前。相同输入不会因网络重试
                 // 变得合法，且包装成“连接超时”会掩盖真正的工具历史错误。
                 if (!responsesSubmissionStarted) {
@@ -3921,7 +4358,122 @@ open class OpenAIProvider(
                                     ?.snapshot(e),
                         )
                 } else {
+                    val explicitlyRetryableProviderStatus =
+                        e is OpenAiHttpResponseException && e.statusCode >= 500
+                    val canRetry =
+                        explicitlyRetryableProviderStatus ||
+                            isSafePreSubmissionRetry(attemptDiagnostics)
+                    if (!canRetry) {
+                        recordProviderAttemptAudit(
+                            context = context,
+                            request = request,
+                            providerRequestContext = providerRequestContext,
+                            eventType = "PROVIDER_RETRY_SUPPRESSED",
+                            summary =
+                                "第 ${request.tag(LlmRequestTraceContext::class.java)?.attempt ?: retryCount + 1} 次 attempt 提交状态未知，停止自动重试",
+                            attemptNumber =
+                                request.tag(LlmRequestTraceContext::class.java)?.attempt
+                                    ?: retryCount + 1,
+                            requestFingerprint =
+                                request.tag(LlmRequestTraceContext::class.java)
+                                    ?.requestSummary
+                                    ?.requestDigest,
+                            submissionState = submissionStateFor(attemptDiagnostics),
+                            retrySafety = "NO_RETRY_SUBMISSION_UNKNOWN",
+                            transport = attemptDiagnostics,
+                            streamingState = attemptStreamingState,
+                            failureCode =
+                                attemptDiagnostics?.diagnosticCode
+                                    ?: "SUBMISSION_UNKNOWN",
+                            completeness = ConversationAuditCompletenessStatus.PARTIAL,
+                        )
+                        throw e
+                    }
+
+                    val willRetry = enableRetry && retryCount < maxRetries
+                    if (!willRetry) {
+                        recordProviderAttemptAudit(
+                            context = context,
+                            request = request,
+                            providerRequestContext = providerRequestContext,
+                            eventType = "PROVIDER_RETRY_SUPPRESSED",
+                            summary = "未提交 attempt 不再继续重试",
+                            attemptNumber =
+                                request.tag(LlmRequestTraceContext::class.java)?.attempt
+                                    ?: retryCount + 1,
+                            requestFingerprint =
+                                request.tag(LlmRequestTraceContext::class.java)
+                                    ?.requestSummary
+                                    ?.requestDigest,
+                            submissionState = submissionStateFor(attemptDiagnostics),
+                            retrySafety = "RETRY_DISABLED_OR_EXHAUSTED",
+                            transport = attemptDiagnostics,
+                            streamingState = attemptStreamingState,
+                            completeness = ConversationAuditCompletenessStatus.PARTIAL,
+                        )
+                        throw e
+                    }
+                    recordProviderAttemptAudit(
+                        context = context,
+                        request = request,
+                        providerRequestContext = providerRequestContext,
+                        eventType = "PROVIDER_RETRY_SCHEDULED",
+                        summary =
+                            if (explicitlyRetryableProviderStatus) {
+                                "第 ${request.tag(LlmRequestTraceContext::class.java)?.attempt ?: retryCount + 1} 次 attempt 收到明确 5xx，允许重试"
+                            } else {
+                                "第 ${request.tag(LlmRequestTraceContext::class.java)?.attempt ?: retryCount + 1} 次 attempt 尚未提交，允许重试"
+                            },
+                        attemptNumber =
+                            request.tag(LlmRequestTraceContext::class.java)?.attempt
+                                ?: retryCount + 1,
+                        requestFingerprint =
+                            request.tag(LlmRequestTraceContext::class.java)
+                                ?.requestSummary
+                                ?.requestDigest,
+                        submissionState = submissionStateFor(attemptDiagnostics),
+                        retrySafety =
+                            if (explicitlyRetryableProviderStatus) {
+                                "EXPLICIT_PROVIDER_5XX_RETRY"
+                            } else {
+                                "SAFE_PRE_SUBMISSION_RETRY"
+                            },
+                        transport = attemptDiagnostics,
+                        streamingState = attemptStreamingState,
+                        completeness = ConversationAuditCompletenessStatus.PARTIAL,
+                    )
+                    val beforeRollbackCharacters = receivedContent.length
                     emitter.emitRollback(requestSavepointId)
+                    recordProviderAttemptAudit(
+                        context = context,
+                        request = request,
+                        providerRequestContext = providerRequestContext,
+                        eventType = "PROVIDER_ROLLBACK_APPLIED",
+                        summary =
+                            if (explicitlyRetryableProviderStatus) {
+                                "已回滚明确 5xx attempt 的暂存输出"
+                            } else {
+                                "已回滚未提交 attempt 的暂存输出"
+                            },
+                        attemptNumber =
+                            request.tag(LlmRequestTraceContext::class.java)?.attempt
+                                ?: retryCount,
+                        requestFingerprint =
+                            request.tag(LlmRequestTraceContext::class.java)
+                                ?.requestSummary
+                                ?.requestDigest,
+                        submissionState = submissionStateFor(attemptDiagnostics),
+                        retrySafety =
+                            if (explicitlyRetryableProviderStatus) {
+                                "EXPLICIT_PROVIDER_5XX_RETRY"
+                            } else {
+                                "SAFE_PRE_SUBMISSION_RETRY"
+                            },
+                        transport = attemptDiagnostics,
+                        streamingState = attemptStreamingState,
+                        rollbackCharacters = beforeRollbackCharacters,
+                        completeness = ConversationAuditCompletenessStatus.PARTIAL,
+                    )
                     retryCount = handleRetryableError(
                         context,
                         e,

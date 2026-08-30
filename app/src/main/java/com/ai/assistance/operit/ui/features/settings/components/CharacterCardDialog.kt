@@ -1150,7 +1150,8 @@ private fun CharacterCardToolAccessDialog(
 
                 SecondaryScrollableTabRow(
                     selectedTabIndex = selectedTabIndex,
-                    edgePadding = 0.dp
+                    edgePadding = 0.dp,
+                    modifier = Modifier.height(40.dp)
                 ) {
                     tabTitles.forEachIndexed { index, title ->
                         Tab(
@@ -1159,6 +1160,7 @@ private fun CharacterCardToolAccessDialog(
                                 selectedTabIndex = index
                                 searchQuery = ""
                             },
+                            modifier = Modifier.height(40.dp),
                             text = { Text(title, fontSize = 12.sp) }
                         )
                     }

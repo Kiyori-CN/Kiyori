@@ -452,6 +452,7 @@ private fun PermissionLevelSelector(
     SecondaryScrollableTabRow(
             selectedTabIndex = currentLevel.ordinal,
             edgePadding = 0.dp,
+            modifier = Modifier.height(36.dp),
             divider = {},
             contentColor = currentColors.icon,
             containerColor = Color.Transparent,

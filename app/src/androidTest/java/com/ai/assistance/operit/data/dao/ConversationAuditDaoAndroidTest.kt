@@ -190,6 +190,43 @@ class ConversationAuditDaoAndroidTest {
     }
 
     @Test
+    fun nonFailureEventDoesNotErasePreviousFailureCode() = runBlocking {
+        val firstHash = "a".repeat(64)
+        val secondHash = "b".repeat(64)
+        assertEquals(
+            1,
+            dao.advanceAudit(
+                chatId = "chat-1",
+                expectedSequenceNumber = 0L,
+                expectedChainHeadSha256 = "",
+                newSequenceNumber = 1L,
+                newChainHeadSha256 = firstHash,
+                completenessStatus = "PARTIAL",
+                updatedAt = 2L,
+                lastFailureCode = "LLM_TRANSPORT_RESPONSE_BODY_INTERRUPTED",
+            )
+        )
+        assertEquals(
+            1,
+            dao.advanceAudit(
+                chatId = "chat-1",
+                expectedSequenceNumber = 1L,
+                expectedChainHeadSha256 = firstHash,
+                newSequenceNumber = 2L,
+                newChainHeadSha256 = secondHash,
+                completenessStatus = "PARTIAL",
+                updatedAt = 3L,
+                lastFailureCode = null,
+            )
+        )
+
+        assertEquals(
+            "LLM_TRANSPORT_RESPONSE_BODY_INTERRUPTED",
+            dao.getAudit("chat-1")?.lastFailureCode,
+        )
+    }
+
+    @Test
     fun eventPagesAndStoredBytesUseStableSequenceCursors() = runBlocking {
         val payloadOne = "3".repeat(64)
         val payloadTwo = "4".repeat(64)

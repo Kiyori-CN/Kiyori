@@ -318,7 +318,10 @@ internal object LlmHttpClientProtocolPolicy {
             maxIdleConnections = 10,
             keepAliveDuration = 5,
             keepAliveTimeUnit = TimeUnit.MINUTES,
-            retryOnConnectionFailure = true,
+            // Provider retry policy must observe the request-body/response boundary. OkHttp's
+            // transparent recovery can resend a POST after bytes have left the process, making
+            // an otherwise unknown submission non-auditable and potentially duplicating a hop.
+            retryOnConnectionFailure = false,
         )
     val responsesPolicy =
         LlmHttpClientTransportPolicy(

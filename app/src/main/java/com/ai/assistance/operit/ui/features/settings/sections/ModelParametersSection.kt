@@ -437,7 +437,8 @@ fun ModelParametersSection(
                             contentColor = MaterialTheme.colorScheme.primary,
                             modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
+                                    .height(40.dp)
+                                    .padding(vertical = 2.dp),
                             indicator = {
                                 TabRowDefaults.SecondaryIndicator(
                                         Modifier.tabIndicatorOffset(selectedTabIndex),
@@ -449,6 +450,7 @@ fun ModelParametersSection(
                             Tab(
                                     selected = selectedTabIndex == index,
                                     onClick = { selectedTabIndex = index },
+                                    modifier = Modifier.height(40.dp),
                                     text = {
                                         Row(
                                                 verticalAlignment = Alignment.CenterVertically,

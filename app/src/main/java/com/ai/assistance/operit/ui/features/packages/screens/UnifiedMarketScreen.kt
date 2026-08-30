@@ -534,12 +534,14 @@ private fun MarketTypedListPane(
     Column(modifier = Modifier.fillMaxSize()) {
         SecondaryScrollableTabRow(
             selectedTabIndex = selectedType.ordinal,
-            edgePadding = 12.dp
+            edgePadding = 12.dp,
+            modifier = Modifier.height(40.dp)
         ) {
             MarketCategoryTypeFilter.entries.forEach { filter ->
                 Tab(
                     selected = selectedType == filter,
                     onClick = { selectedType = filter },
+                    modifier = Modifier.height(40.dp),
                     text = {
                         Text(
                             text = stringResource(filter.labelRes),

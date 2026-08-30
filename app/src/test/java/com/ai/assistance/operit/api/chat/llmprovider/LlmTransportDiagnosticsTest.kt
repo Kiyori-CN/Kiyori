@@ -61,6 +61,7 @@ class LlmTransportDiagnosticsTest {
             )
             assertEquals(LlmTransportStage.WAITING_FOR_RESPONSE_HEADERS, diagnostics.stage)
             assertTrue(diagnostics.requestBodyBytes >= 0L)
+            assertTrue(diagnostics.requestBodyStarted)
             assertFalse(diagnostics.responseHeadersReceived)
             assertFalse(diagnostics.responseBodyStarted)
             assertNull(diagnostics.responseStatusCode)

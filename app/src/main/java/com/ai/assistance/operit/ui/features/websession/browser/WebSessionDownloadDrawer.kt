@@ -715,7 +715,7 @@ private fun DownloadTab(
     Column(
         modifier =
             modifier
-                .heightIn(min = 40.dp)
+                .height(32.dp)
                 .clickable(onClick = onClick)
                 .padding(top = 2.dp, bottom = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -753,7 +753,7 @@ private fun DownloadSearchAndFilterBar(
             Modifier
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surface)
-                .padding(horizontal = 12.dp, vertical = 7.dp),
+                .padding(horizontal = 12.dp, vertical = 4.dp),
     ) {
         Surface(
             color = MaterialTheme.colorScheme.surfaceContainer,
@@ -834,7 +834,7 @@ private fun DownloadSearchAndFilterBar(
                             ),
                         modifier =
                             Modifier
-                                .heightIn(min = 40.dp)
+                                .height(32.dp)
                                 .clickable { onStatusFilterChange(filter) },
                     ) {
                         Box(

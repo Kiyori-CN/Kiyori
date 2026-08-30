@@ -63,14 +63,14 @@ fun ChatHeader(
                 if (runningTaskCount >= 2) {
                         Surface(
                                 onClick = onToggleChatHistorySelector,
-                                modifier = Modifier.height(40.dp),
+                                modifier = Modifier.height(32.dp),
                                 shape = KiyoriUiShapes.control,
                                 color = historyColors.container,
                                 tonalElevation = 0.dp,
                                 shadowElevation = 0.dp
                         ) {
                                 Row(
-                                        modifier = Modifier.height(40.dp).padding(start = 8.dp, end = 12.dp),
+                                        modifier = Modifier.height(32.dp).padding(start = 6.dp, end = 10.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
@@ -95,7 +95,7 @@ fun ChatHeader(
                 } else {
                         Box(
                                 modifier =
-                                        Modifier.size(uiTokens.touchTarget)
+                                        Modifier.size(32.dp)
                                                 .background(
                                                         color =
                                                                 if (showChatHistorySelector)
@@ -126,7 +126,7 @@ fun ChatHeader(
 
                 Box(
                         modifier =
-                                Modifier.size(uiTokens.touchTarget)
+                                Modifier.size(32.dp)
                                         .background(
                                                 color =
                                                         if (isFloatingMode)
@@ -160,7 +160,6 @@ fun ChatHeader(
                                 Modifier
                                         .widthIn(max = 176.dp)
                                         .clip(KiyoriUiShapes.control)
-                                        .heightIn(min = uiTokens.touchTarget)
                                         .clickable(onClick = onCharacterClick)
                                         .padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
