@@ -7,6 +7,56 @@ date: 2026-08-23
 
 # Kiyori 应用级网络代理与内嵌 Mihomo
 
+## 2026-08-30 runtime 指纹内存溢出修复
+
+状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。
+
+### 崩溃证据与根因
+
+崩溃报告 `5f93fd3f-e65f-4649-8bc6-ec5bab1885bb` 的栈顶为
+`AbstractStringBuilder.append -> KiyoriMihomoRuntime.startOrReuseLocked:546`。该位置在每次
+`ensureReady()` 调用中先用 `+` 和 `joinToString()` 拼接订阅 ID、最大 4 MiB 的
+`sanitizedYaml`、测试 URL、路由模式及最多 1000 条自定义规则，再由 `sha256(String)` 对完整
+字符串执行 `toByteArray(UTF_8)`。因此即使 Mihomo 已运行、请求只需要复用现有端点，也会短暂持有
+订阅原文、完整拼接字符串和完整 UTF-8 数组三种表示；堆接近上限时，任何一次普通 HTTP 工具路由
+解析都可能在进入健康检查前因连续大对象分配失败。
+
+Mihomo stdout/stderr 已合流到固定 32 行 collector，`KiyoriNetworkProxyLogStore` 也固定为最近
+1000 条脱敏事件；本次栈证据不支持扩大到日志泄漏、第二代理核心或上游节点故障。
+
+### 修复合同
+
+1. 主 runtime 和隔离 probe 的 fingerprint 都按既有字段顺序、分隔符和 UTF-8 编码直接增量写入
+   SHA-256，只使用固定大小编码缓冲，不再创建与订阅大小成比例的拼接 `String` 或 `ByteArray`。
+2. fingerprint 内容与旧实现保持字节级一致；配置、测试 URL、路由模式、规则类型、pattern、动作、
+   启用状态或规则顺序任一变化仍会建立新的 runtime，不改变复用和替换判定。
+3. 不捕获 `OutOfMemoryError`，不缩小 4 MiB 合法订阅边界、不丢规则、不改变 32/1000 条有界日志
+   合同，也不增加自动直连、节点切换、VPN/TUN、第二 Mihomo 或静默恢复路径。
+
+### 验收矩阵
+
+- JVM：主 runtime 与 probe 的增量哈希分别等于旧算法对 Unicode 小样本 payload 的 SHA-256；
+  自定义规则顺序、类型和启用状态继续进入指纹。
+- 静态/构建：确认 runtime 文件不再对完整 `sanitizedYaml` 做 `+`/`joinToString()` 指纹拼接或完整
+  UTF-8 `toByteArray()`；执行定向测试、`git diff --check`、formal readiness、必要编译检查与串行
+  Debug APK 构建和产物核验。
+- 设备：在 512 MiB heap 的目标设备上复现原 AI HTTP 工具路径，确认 runtime 启动/复用不再产生该
+  OOM，代理端点、规则命中与日志仍正确；完成前保持 `verification_pending`。
+
+### 本轮本地验证证据
+
+- `KiyoriMihomoRuntimeProcessPolicyTest` 为 `11/11`，完整 `com.kiyori.platform.network` 包回归为
+  `41/41`；均为零失败、零错误、零跳过。formal readiness 和 `git diff --check` 通过。
+- `./gradlew :app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL in 51s`，
+  `235` 个任务中 `23` 个实际执行；唯一 launcher、Mihomo/脚本代理 runtime 与播放器 runtime
+  packaging 门禁通过。
+- Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，`503694977` 字节，SHA-256
+  `9CC35A159642698F2B145F2F24CB2AECCEC67C4AE9DF2110AE2D083E5CE86700`。独立核验确认
+  `com.kiyori / 45 / 0.1.0 / minSdk 26 / targetSdk 34 / compileSdk 37`、仅 `arm64-v8a`、Android
+  Debug V2 单 signer 与 16 KiB ZIP 对齐。
+- 未安装 APK、未操作目标设备；512 MiB Android heap 下的原 AI HTTP 工具路径、真实代理端点和
+  规则命中仍需现场复测，状态保持 `verification_pending`。
+
 ## 2026-08-28 Mihomo Geo* 规则回归修复
 
 状态：`IMPLEMENTED LOCALLY / AUTOMATED VALIDATION PENDING / DEVICE VERIFICATION PENDING`。

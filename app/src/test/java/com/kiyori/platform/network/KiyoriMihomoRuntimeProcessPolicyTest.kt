@@ -2,6 +2,7 @@ package com.kiyori.platform.network
 
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -9,6 +10,60 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class KiyoriMihomoRuntimeProcessPolicyTest {
+    @Test
+    fun `incremental probe fingerprint preserves legacy utf8 payload`() {
+        val subscriptionId = "subscription-1"
+        val sanitizedYaml = "proxies:\n  - name: 节点一\n    type: direct\n"
+        val testUrl = "https://example.com/连通性"
+        val legacyPayload = subscriptionId + '\u0000' + sanitizedYaml + '\u0000' + testUrl
+
+        assertEquals(
+            legacySha256(legacyPayload),
+            computeMihomoProbeFingerprint(subscriptionId, sanitizedYaml, testUrl),
+        )
+    }
+
+    @Test
+    fun `incremental runtime fingerprint preserves rule order type and state`() {
+        val subscriptionId = "subscription-2"
+        val sanitizedYaml = "proxy-groups:\n  - name: 手动选择\n    type: select\n"
+        val testUrl = "https://example.com/generate_204"
+        val routingMode = KiyoriNetworkConnectionMode.RULE
+        val customRules =
+            listOf(
+                KiyoriNetworkProxyRule(
+                    id = "rule-1",
+                    type = KiyoriNetworkRuleType.DOMAIN_SUFFIX,
+                    pattern = "例子.测试",
+                    mode = KiyoriNetworkRuleMode.PROXY,
+                ),
+                KiyoriNetworkProxyRule(
+                    id = "rule-2",
+                    type = KiyoriNetworkRuleType.DOMAIN_KEYWORD,
+                    pattern = "media",
+                    mode = KiyoriNetworkRuleMode.DIRECT,
+                    enabled = false,
+                ),
+            )
+        val legacyPayload =
+            subscriptionId + '\u0000' + sanitizedYaml + '\u0000' + testUrl +
+                '\u0000' + routingMode.name + '\u0000' +
+                customRules.joinToString("\u0001") { rule ->
+                    "${rule.id}:${rule.type.name}:${rule.pattern}:${rule.mode.name}:${rule.enabled}"
+                }
+
+        assertEquals(
+            legacySha256(legacyPayload),
+            computeMihomoRuntimeFingerprint(
+                subscriptionId = subscriptionId,
+                sanitizedYaml = sanitizedYaml,
+                testUrl = testUrl,
+                routingMode = routingMode,
+                customRules = customRules,
+            ),
+        )
+    }
+
     @Test
     fun `expected stop with zero exit is stopped and informational`() {
         val outcome = classifyMihomoProcessExit(expectedStop = true, exitCode = 0)
@@ -164,6 +219,11 @@ class KiyoriMihomoRuntimeProcessPolicyTest {
             ),
         )
     }
+
+    private fun legacySha256(payload: String): String =
+        MessageDigest.getInstance("SHA-256")
+            .digest(payload.toByteArray(Charsets.UTF_8))
+            .joinToString("") { byte -> "%02x".format(byte) }
 
     private class TestProcess : Process() {
         override fun getOutputStream() = ByteArrayOutputStream()

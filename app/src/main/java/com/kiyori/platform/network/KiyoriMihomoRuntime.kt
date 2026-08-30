@@ -5,6 +5,8 @@ import com.kiyori.platform.android.KiyoriProcessIdentity
 import com.kiyori.platform.logging.KiyoriLogger
 import android.os.Process as AndroidProcess
 import java.io.File
+import java.io.OutputStream
+import java.io.OutputStreamWriter
 import java.net.InetSocketAddress
 import java.net.Proxy
 import java.net.ServerSocket
@@ -78,6 +80,71 @@ internal fun isCurrentMihomoProcess(
     activeProcess: Process?,
     observedProcess: Process,
 ): Boolean = activeProcess === observedProcess
+
+internal fun computeMihomoProbeFingerprint(
+    subscriptionId: String,
+    sanitizedYaml: String,
+    testUrl: String,
+): String =
+    sha256Utf8 {
+        append(subscriptionId)
+        append('\u0000')
+        append(sanitizedYaml)
+        append('\u0000')
+        append(testUrl)
+    }
+
+internal fun computeMihomoRuntimeFingerprint(
+    subscriptionId: String,
+    sanitizedYaml: String,
+    testUrl: String,
+    routingMode: KiyoriNetworkConnectionMode,
+    customRules: List<KiyoriNetworkProxyRule>,
+): String =
+    sha256Utf8 {
+        append(subscriptionId)
+        append('\u0000')
+        append(sanitizedYaml)
+        append('\u0000')
+        append(testUrl)
+        append('\u0000')
+        append(routingMode.name)
+        append('\u0000')
+        customRules.forEachIndexed { index, rule ->
+            if (index > 0) append('\u0001')
+            append(rule.id)
+            append(':')
+            append(rule.type.name)
+            append(':')
+            append(rule.pattern)
+            append(':')
+            append(rule.mode.name)
+            append(':')
+            append(rule.enabled.toString())
+        }
+    }
+
+private fun sha256Utf8(writePayload: Appendable.() -> Unit): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+    val digestSink =
+        object : OutputStream() {
+            override fun write(byte: Int) {
+                digest.update(byte.toByte())
+            }
+
+            override fun write(
+                bytes: ByteArray,
+                offset: Int,
+                length: Int,
+            ) {
+                digest.update(bytes, offset, length)
+            }
+        }
+    OutputStreamWriter(digestSink, Charsets.UTF_8).use { writer ->
+        writer.writePayload()
+    }
+    return digest.digest().joinToString("") { byte -> "%02x".format(byte) }
+}
 
 data class MihomoRuntimeGroupState(
     val name: String,
@@ -461,7 +528,12 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                         startProcess(
                             config = config,
                             testUrl = testUrl,
-                            fingerprint = sha256(config.id + '\u0000' + config.sanitizedYaml + '\u0000' + testUrl),
+                            fingerprint =
+                                computeMihomoProbeFingerprint(
+                                    subscriptionId = config.id,
+                                    sanitizedYaml = config.sanitizedYaml,
+                                    testUrl = testUrl,
+                                ),
                             workDirectory = probeDirectory,
                             directoryLabel = "probe",
                         )
@@ -539,13 +611,14 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                 "No Clash or Mihomo subscription has been imported.",
             )
         }
+        // 每个被代理请求都会经过复用检查；增量哈希避免为大订阅再复制完整 String 和 UTF-8 数组。
         val fingerprint =
-            sha256(
-                config.id + '\u0000' + config.sanitizedYaml + '\u0000' + testUrl +
-                    '\u0000' + routingMode.name + '\u0000' +
-                    customRules.joinToString("\u0001") { rule ->
-                        "${rule.id}:${rule.type.name}:${rule.pattern}:${rule.mode.name}:${rule.enabled}"
-                    },
+            computeMihomoRuntimeFingerprint(
+                subscriptionId = config.id,
+                sanitizedYaml = config.sanitizedYaml,
+                testUrl = testUrl,
+                routingMode = routingMode,
+                customRules = customRules,
             )
         activeRuntime?.let { active ->
             if (active.process.isAlive && active.fingerprint == fingerprint) {
@@ -1444,10 +1517,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
             .also(random::nextBytes)
             .joinToString("") { byte -> "%02x".format(byte) }
 
-    private fun sha256(value: String): String =
-        MessageDigest.getInstance("SHA-256")
-            .digest(value.toByteArray(Charsets.UTF_8))
-            .joinToString("") { byte -> "%02x".format(byte) }
+    private fun sha256(value: String): String = sha256Utf8 { append(value) }
 
     private val CONTROLLER_GROUP_TYPES =
         setOf("Selector", "URLTest", "Fallback", "LoadBalance")
