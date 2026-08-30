@@ -87,8 +87,8 @@ fun FileManagerTopBar(
     ) {
         Column(modifier = Modifier.fillMaxWidth().statusBarsPadding()) {
             Row(
-                // 18dp 右侧留白把溢出键中心稳定在参考图约 1175px 的位置，同时给路径统计留宽度。
-                modifier = Modifier.fillMaxWidth().height(56.dp).padding(end = 18.dp),
+                // 退出键保持原位；右侧溢出键贴齐右端与左侧形成对称，路径统计获得完整宽度。
+                modifier = Modifier.fillMaxWidth().height(56.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(
@@ -103,7 +103,8 @@ fun FileManagerTopBar(
                 }
                 IconButton(
                     onClick = onOpenStorageDrawer,
-                    modifier = Modifier.size(40.dp),
+                    // 只移动图标绘制位置，不缩小触摸槽，避免左上两个按钮互相抢占点击区域。
+                    modifier = Modifier.size(40.dp).offset(x = (-6).dp),
                 ) {
                     Icon(
                         imageVector = Icons.Default.Menu,
@@ -126,12 +127,12 @@ fun FileManagerTopBar(
                     )
                     Text(
                         text = buildString {
-                            if (selectedCount > 0) append("已选: $selectedCount  ")
-                            append("文件夹: $folderCount  文件: $fileCount  $storageLabel")
+                            if (selectedCount > 0) append("已选：$selectedCount  ")
+                            append("文件夹：$folderCount  文件：$fileCount  $storageLabel")
                         },
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 14.sp),
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                        overflow = TextOverflow.Clip,
                         color = fileManagerChromeTextColor.copy(alpha = 0.76f),
                     )
                 }
@@ -260,8 +261,8 @@ fun FileManagerBottomBar(
                 Icon(Icons.Default.Add, contentDescription = "新建", tint = Color(0xFF646464))
             }
             IconButton(onClick = onMirrorPath, modifier = Modifier.size(48.dp)) {
-                val activeArrowColor = Color.White
-                val inactiveArrowColor = Color.Black
+                val activeArrowColor = Color(0xFF2B2B2B)
+                val inactiveArrowColor = Color(0xFF9E9E9E)
                 val leftArrowColor = if (activePane == FileManagerPane.LEFT) activeArrowColor else inactiveArrowColor
                 val rightArrowColor = if (activePane == FileManagerPane.RIGHT) activeArrowColor else inactiveArrowColor
                 Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
@@ -269,13 +270,13 @@ fun FileManagerBottomBar(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "同步活动路径到另一栏",
                         tint = leftArrowColor,
-                        modifier = Modifier.size(24.dp).offset(x = (-5).dp, y = 4.dp),
+                        modifier = Modifier.size(16.dp).offset(x = (-10).dp, y = 4.dp),
                     )
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = null,
                         tint = rightArrowColor,
-                        modifier = Modifier.size(24.dp).offset(x = 5.dp, y = (-4).dp),
+                        modifier = Modifier.size(16.dp).offset(x = 10.dp, y = (-4).dp),
                     )
                 }
             }

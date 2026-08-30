@@ -38,7 +38,6 @@ import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.utils.ge
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.math.abs
 
 enum class DisplayMode {
     SINGLE_COLUMN,
@@ -96,7 +95,8 @@ fun FileListItem(
         }
     }
     val titleLineHeight = if (isCompactTwoColumn) 17.sp else MaterialTheme.typography.bodyLarge.lineHeight
-    val metadataLineHeight = if (isCompactTwoColumn) 14.sp else MaterialTheme.typography.bodySmall.lineHeight
+    val metadataLineHeight = if (isCompactTwoColumn) 12.sp else MaterialTheme.typography.bodySmall.lineHeight
+    val metadataTextSize = if (isCompactTwoColumn) 10.sp else baseTextSize * 0.82f
     val dateLabel = formatDate(file)
     val hasMetadata = file.name != ".." && dateLabel.isNotBlank()
     var dragOffset by remember { mutableFloatStateOf(0f) }
@@ -109,15 +109,26 @@ fun FileListItem(
             .pointerInput(file.name) {
                 detectHorizontalDragGestures(
                     onDragStart = {
-                        dragOffset = dragOffset.coerceAtLeast(0f)
+                        dragOffset = 0f
                     },
                     onHorizontalDrag = { change, dragAmount ->
-                        val maxOffset = 160.dp.toPx()
+                        // 紧凑双栏最多只移动一个图标距离，继续拖动保持边界不再位移。
+                        val maxOffset = if (isCompactTwoColumn) {
+                            (baseIconSize * itemSize).toPx()
+                        } else {
+                            160.dp.toPx()
+                        }
                         dragOffset = (dragOffset + dragAmount).coerceIn(-maxOffset, maxOffset)
                         change.consume()
                     },
                     onDragEnd = {
-                        if (abs(dragOffset) >= 48.dp.toPx()) onSwipeRight()
+                        val selectionThreshold = if (isCompactTwoColumn) {
+                            (baseIconSize * itemSize).toPx() * 0.55f
+                        } else {
+                            48.dp.toPx()
+                        }
+                        // 只有从左向右的正向滑动建立选择，反向滑动只恢复原位。
+                        if (dragOffset >= selectionThreshold) onSwipeRight()
                         dragOffset = 0f
                     },
                     onDragCancel = { dragOffset = 0f },
@@ -178,7 +189,7 @@ fun FileListItem(
                         Text(
                             text = dateLabel,
                             style = MaterialTheme.typography.bodySmall.copy(
-                                fontSize = baseTextSize * 0.82f * itemSize,
+                                fontSize = metadataTextSize * itemSize,
                                 lineHeight = metadataLineHeight * itemSize,
                             ),
                             color = Color(0xFF757575),
@@ -190,7 +201,7 @@ fun FileListItem(
                             Text(
                                 text = formatFileSize(file.size),
                                 style = MaterialTheme.typography.bodySmall.copy(
-                                    fontSize = baseTextSize * 0.82f * itemSize,
+                                    fontSize = metadataTextSize * itemSize,
                                     lineHeight = metadataLineHeight * itemSize,
                                 ),
                                 color = Color(0xFF757575),

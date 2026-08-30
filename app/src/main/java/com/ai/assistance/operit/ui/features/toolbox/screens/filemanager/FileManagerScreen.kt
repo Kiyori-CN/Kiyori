@@ -5,7 +5,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Environment
 import android.os.StatFs
-import android.text.format.Formatter
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -15,7 +14,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.runtime.Composable
@@ -162,11 +160,12 @@ fun FileManagerScreen(
     val activeFiles = viewModel.files
     val folderCount = activeFiles.count { file -> file.isDirectory && file.name != ".." }
     val fileCount = activeFiles.count { file -> !file.isDirectory }
-    val storageLabel = remember(context) { readStorageLabel(context) }
-    val selectedCount = viewModel.selectedFiles.size + if (viewModel.selectedFile != null) 1 else 0
+    val storageLabel = readStorageLabel()
+    val selectedCount = viewModel.selectedFiles.size
 
     ModalNavigationDrawer(
         drawerState = drawerState,
+        gesturesEnabled = false,
         drawerContent = {
             ModalDrawerSheet {
                 FileManagerStorageDrawer(
@@ -259,18 +258,13 @@ fun FileManagerScreen(
                         onPaneClick = viewModel::activatePane,
                         onItemClick = { pane, file ->
                             viewModel.activatePane(pane)
-                            if (viewModel.isMultiSelectMode) {
-                                if (file.name == "..") {
-                                    viewModel.navigateUp()
-                                } else {
-                                    viewModel.toggleSelection(file)
-                                }
-                            } else if (file.isDirectory) {
+                            if (file.name == "..") {
                                 viewModel.navigateToDirectory(file)
-                            } else if (viewModel.selectedFile == file) {
-                                viewModel.selectedFile = null
+                            } else if (file.isDirectory && !viewModel.isMultiSelectMode) {
+                                viewModel.navigateToDirectory(file)
                             } else {
-                                viewModel.selectedFile = file
+                                // 不同文件的点击只追加选择；只有再次点击同一项或系统 Back 才取消。
+                                viewModel.toggleSelection(file)
                             }
                         },
                         onItemLongClick = { pane, file ->
@@ -297,7 +291,7 @@ fun FileManagerScreen(
                     canGoBack = viewModel.paneCanGoBack(),
                     canGoForward = viewModel.paneCanGoForward(),
                     activePane = viewModel.activePane,
-                    onBack = { viewModel.navigateBack() },
+                    onBack = { viewModel.navigateBackDirectory() },
                     onForward = { viewModel.navigateForward() },
                     onNew = {
                         viewModel.newFolderName = ""
@@ -307,7 +301,6 @@ fun FileManagerScreen(
                     onNavigateUp = { viewModel.navigateUp() },
                 )
             }
-            LoadingOverlay(isLoading = viewModel.isLoading)
         }
     }
 
@@ -479,21 +472,23 @@ fun FileManagerScreen(
     )
 }
 
-@Composable
-private fun LoadingOverlay(isLoading: Boolean) {
-    if (isLoading) {
-        androidx.compose.foundation.layout.Box(
-            modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)),
-        )
-    }
+private fun readStorageLabel(): String {
+    val storage = StatFs(Environment.getExternalStorageDirectory().absolutePath)
+    val usedBytes = (storage.totalBytes - storage.availableBytes).coerceAtLeast(0L)
+    return "储存：${compactStorageSize(usedBytes)}/${compactStorageSize(storage.totalBytes)}"
 }
 
-private fun readStorageLabel(context: Context): String {
-    val storage = StatFs(Environment.getExternalStorageDirectory().absolutePath)
-    fun compactSize(bytes: Long): String =
-        Formatter.formatFileSize(context, bytes)
-            .replace(" GB", "G")
-            .replace(" MB", "M")
-            .replace(" KB", "K")
-    return "存储: ${compactSize(storage.availableBytes)}/${compactSize(storage.totalBytes)}"
+private fun compactStorageSize(bytes: Long): String {
+    val units = arrayOf("B", "K", "M", "G", "T")
+    var value = bytes.toDouble()
+    var unitIndex = 0
+    while (value >= 1024.0 && unitIndex < units.lastIndex) {
+        value /= 1024.0
+        unitIndex++
+    }
+    return if (unitIndex == 0) {
+        "${value.toLong()}B"
+    } else {
+        String.format(java.util.Locale.US, "%.2f%s", value, units[unitIndex])
+    }
 }

@@ -59,13 +59,21 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
     val error: String?
         get() = paneState(activePane).error
 
-    // 选择状态属于文件管理器会话，并由活动窗格的长按菜单消费。
-    var selectedFile by mutableStateOf<FileItem?>(null)
-    var selectedFiles = mutableStateListOf<FileItem>()
+    // 选择状态按窗格隔离；否则两栏中同名 FileItem 会因 data class 相等而同时高亮。
+    private var leftSelectedFiles by mutableStateOf<List<FileItem>>(emptyList())
+    private var rightSelectedFiles by mutableStateOf<List<FileItem>>(emptyList())
+    private var leftSelectedFile by mutableStateOf<FileItem?>(null)
+    private var rightSelectedFile by mutableStateOf<FileItem?>(null)
     var isMultiSelectMode by mutableStateOf(false)
     // 连续范围只由同一窗格内的连续水平滑动建立；普通点击会清除锚点。
     // 记录名称而不是列表索引，刷新或排序后仍能定位同一项，不会产生越界范围。
-    private var selectionAnchorName: String? = null
+    private var leftSelectionAnchorName by mutableStateOf<String?>(null)
+    private var rightSelectionAnchorName by mutableStateOf<String?>(null)
+
+    val selectedFiles: List<FileItem>
+        get() = selectedFilesFor(activePane)
+    val selectedFile: FileItem?
+        get() = selectedFileFor(activePane)
 
     // 剪贴板状态
     var clipboardFiles = mutableStateListOf<FileItem>()
@@ -115,6 +123,39 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
     private fun paneState(pane: FileManagerPane): FileManagerPaneState =
         if (pane == FileManagerPane.LEFT) leftPane else rightPane
 
+    private fun selectedFilesFor(pane: FileManagerPane): List<FileItem> =
+        if (pane == FileManagerPane.LEFT) leftSelectedFiles else rightSelectedFiles
+
+    private fun setSelectedFiles(pane: FileManagerPane, files: List<FileItem>) {
+        if (pane == FileManagerPane.LEFT) {
+            leftSelectedFiles = files
+        } else {
+            rightSelectedFiles = files
+        }
+    }
+
+    private fun selectedFileFor(pane: FileManagerPane): FileItem? =
+        if (pane == FileManagerPane.LEFT) leftSelectedFile else rightSelectedFile
+
+    private fun setSelectedFile(pane: FileManagerPane, file: FileItem?) {
+        if (pane == FileManagerPane.LEFT) {
+            leftSelectedFile = file
+        } else {
+            rightSelectedFile = file
+        }
+    }
+
+    private fun selectionAnchorFor(pane: FileManagerPane): String? =
+        if (pane == FileManagerPane.LEFT) leftSelectionAnchorName else rightSelectionAnchorName
+
+    private fun setSelectionAnchor(pane: FileManagerPane, name: String?) {
+        if (pane == FileManagerPane.LEFT) {
+            leftSelectionAnchorName = name
+        } else {
+            rightSelectionAnchorName = name
+        }
+    }
+
     private fun updatePane(
         pane: FileManagerPane,
         transform: (FileManagerPaneState) -> FileManagerPaneState,
@@ -153,57 +194,75 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
     fun activatePane(pane: FileManagerPane) {
         if (activePane != pane) {
             activePane = pane
-            clearSelection()
+            // 切换焦点只改变投影，不自动取消另一栏已有的选择。
+            isMultiSelectMode = selectedFilesFor(pane).isNotEmpty()
         }
     }
 
     fun clearSelection() {
-        selectedFile = null
-        selectedFiles.clear()
+        clearPaneSelection(FileManagerPane.LEFT)
+        clearPaneSelection(FileManagerPane.RIGHT)
         isMultiSelectMode = false
-        selectionAnchorName = null
+    }
+
+    private fun clearPaneSelection(pane: FileManagerPane) {
+        setSelectedFile(pane, null)
+        setSelectedFiles(pane, emptyList())
+        setSelectionAnchor(pane, null)
     }
 
     fun toggleSelection(file: FileItem) {
         if (file.name == "..") return
-        selectionAnchorName = null
-        if (selectedFiles.contains(file)) {
-            selectedFiles.remove(file)
+        val pane = activePane
+        setSelectionAnchor(pane, null)
+        val current = selectedFilesFor(pane)
+        val updated = if (current.any { selected -> selected.name == file.name }) {
+            current.filterNot { selected -> selected.name == file.name }
         } else {
-            selectedFiles.add(file)
+            current + file
         }
-        selectedFile = null
-        isMultiSelectMode = selectedFiles.isNotEmpty()
+        setSelectedFiles(pane, updated)
+        setSelectedFile(pane, null)
+        isMultiSelectMode = updated.isNotEmpty()
     }
 
     /** 水平滑动建立选择；第二次及后续滑动会选中锚点与目标之间的连续项。 */
     fun selectFile(file: FileItem) {
         if (file.name == "..") return
-        val targetIndex = files.indexOfFirst { candidate -> candidate == file }
+        val pane = activePane
+        val paneFiles = paneState(pane).files
+        val targetIndex = paneFiles.indexOfFirst { candidate -> candidate.name == file.name }
         if (targetIndex < 0) return
-        val anchorIndex = selectionAnchorName?.let { anchorName ->
-            files.indexOfFirst { candidate -> candidate.name == anchorName }
+        val anchorIndex = selectionAnchorFor(pane)?.let { anchorName ->
+            paneFiles.indexOfFirst { candidate -> candidate.name == anchorName }
         }
         if (anchorIndex == null || anchorIndex < 0) {
-            selectionAnchorName = file.name
-            if (!selectedFiles.contains(file)) selectedFiles.add(file)
+            setSelectionAnchor(pane, file.name)
+            val current = selectedFilesFor(pane)
+            if (current.none { selected -> selected.name == file.name }) {
+                setSelectedFiles(pane, current + file)
+            }
         } else {
             val rangeStart = minOf(anchorIndex, targetIndex)
             val rangeEnd = maxOf(anchorIndex, targetIndex)
-            selectedFiles.clear()
-            selectedFiles.addAll(
-                files.subList(rangeStart, rangeEnd + 1).filter { candidate -> candidate.name != ".." },
+            val range = paneFiles.subList(rangeStart, rangeEnd + 1)
+                .filter { candidate -> candidate.name != ".." }
+            val current = selectedFilesFor(pane)
+            setSelectedFiles(
+                pane,
+                current + range.filterNot { candidate -> current.any { selected -> selected.name == candidate.name } },
             )
         }
-        selectedFile = null
+        setSelectedFile(pane, null)
         isMultiSelectMode = true
     }
 
     fun selectAll() {
-        selectionAnchorName = null
-        selectedFiles.clear()
-        selectedFiles.addAll(files.filter { file -> file.name != ".." })
-        isMultiSelectMode = selectedFiles.isNotEmpty()
+        val pane = activePane
+        setSelectionAnchor(pane, null)
+        setSelectedFiles(pane, paneState(pane).files.filter { file -> file.name != ".." })
+        setSelectedFile(pane, null)
+        isMultiSelectMode = selectedFilesFor(pane).isNotEmpty()
     }
 
     fun toggleHiddenFiles() {
@@ -350,7 +409,8 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
             loadPaneDirectory(pane, path, environment)
             return
         }
-        if (pane == activePane) clearSelection()
+        clearPaneSelection(pane)
+        if (pane == activePane) isMultiSelectMode = false
         val location = FileManagerLocation(current.path, current.environment)
         updatePane(pane) {
             it.copy(
@@ -389,6 +449,18 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
     }
 
     fun navigateBack(): Boolean {
+        if (leftSelectedFiles.isNotEmpty() || rightSelectedFiles.isNotEmpty() ||
+            leftSelectedFile != null || rightSelectedFile != null
+        ) {
+            // 系统 Back 的第一职责是取消当前会话的全部选择，避免误退出文件管理器。
+            clearSelection()
+            return true
+        }
+        return navigateBackDirectory()
+    }
+
+    /** 底栏方向键只负责目录历史，不改变系统 Back 的选择取消语义。 */
+    fun navigateBackDirectory(): Boolean {
         val pane = activePane
         val state = paneState(pane)
         when (fileManagerBackAction(state, initialStoragePath)) {

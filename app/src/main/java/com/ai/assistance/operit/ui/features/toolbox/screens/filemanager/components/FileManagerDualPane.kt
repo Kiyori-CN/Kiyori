@@ -1,6 +1,5 @@
 package com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -109,7 +108,8 @@ private fun FileManagerPaneColumn(
             // 阴影和 zIndex 表示当前栏位于另一栏上方，同时保留两栏的完整点击区域。
             .zIndex(if (isActive) 1f else 0f)
             .shadow(
-                elevation = if (isActive) 4.dp else 0.dp,
+                // 顶/底/中间三条边都需要清晰的层级分隔，避免当前栏与另一栏融成一整片。
+                elevation = if (isActive) 8.dp else 0.dp,
                 shape = RectangleShape,
                 clip = false,
             )
@@ -119,8 +119,7 @@ private fun FileManagerPaneColumn(
                     awaitFirstDown(requireUnconsumed = false)
                     onPaneClick(pane)
                 }
-            }
-            .clickable(onClick = { onPaneClick(pane) }),
+            },
         color = androidx.compose.ui.graphics.Color(0xFFFAFAFA),
         tonalElevation = 0.dp,
     ) {

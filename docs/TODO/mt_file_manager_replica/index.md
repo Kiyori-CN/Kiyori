@@ -131,10 +131,10 @@ Toolbox 路由，页面不创建第二个导航 owner。
 4. 窗格任意按下或水平滑动即激活该窗格；活动窗格使用与参考图一致的窄阴影叠层，
    不引入粗边框，也不缩小另一栏的测量宽度。
 5. 文件项横向拖动保留实时位移，抬手后建立选择；再次点击取消。拖动同一窗格的另一项时，
-   按列表索引选中锚点与目标之间的连续区间；普通点击只切换单项，不扩展区间；选择集合
-   按窗格隔离，另一栏同名项始终保持未选中。
-6. 底栏第四键显示“一黑一白”的方向箭头：左栏活动时左箭头为白、右箭头为黑，右栏
-   活动时反向；点击只把活动栏路径/环境同步到另一栏，焦点和历史语义保持不变。
+   按列表索引选中锚点与目标之间的连续区间；普通点击不同项追加选择、点击已选项才取消；系统
+   Back 清空当前会话全部选择；选择集合按窗格隔离，另一栏同名项始终保持未选中。
+6. 底栏第四键显示分离的黑灰方向箭头：活动方向为深黑、另一方向为灰色；左栏活动时左箭头
+   为黑、右箭头为灰，右栏活动时反向；点击只把活动栏路径/环境同步到另一栏，焦点和历史语义保持不变。
 
 ### 实施顺序与影响面
 
@@ -143,7 +143,7 @@ Toolbox 路由，页面不创建第二个导航 owner。
    阴影参数。
 3. 在 `FileManagerViewModel` 中增加按窗格的选择锚点/连续范围计算，保持
    `FileContextMenu` 消费活动窗格的既有列表接口。
-4. 更新源码合同与 JVM 测试，覆盖颜色、尺寸 token、范围选择、跨栏隔离和底栏方向色。
+4. 更新源码合同与 JVM 测试，覆盖颜色、尺寸 token、范围选择、跨栏隔离、Back 清选和底栏方向色。
 5. 串行执行定向测试、`compileDebugKotlin`、`git diff --check`、正式门禁和
    `:app:assembleDebug`，核验最终 APK；提交前审阅精确变更清单并推送 `main`。
 
@@ -200,10 +200,16 @@ Toolbox 路由，页面不创建第二个导航 owner。
   消费导航栏 inset；顶栏左右槽位与路径统计宽度按截图重新分配。
 - `FileListItem` 紧凑双栏固定为 `40dp` 行高、`28dp` 图标、`5dp` 内边距、`4dp` 间距和
   `4dp` 圆角；未选中 `#FAFAFA`，拖动实时平移，抬手选中 `#7DBEDC`，目录图标底色为 `#2B2B2B`。
-- `FileManagerDualPane` 在栏位按下瞬间激活焦点，活动栏阴影调整为 `4dp`，选中判断限定在活动栏；
-  `FileManagerViewModel` 以文件名锚点计算同栏连续滑动范围，普通点击清除锚点，跨栏同名项不共享选中态。
-- 底栏第四键改用两个方向箭头叠加，活动方向为白色、另一方向为黑色；路径同步仍复用既有
-  `navigatePaneTo`，不交换焦点或文件操作 owner。
+- `FileManagerDualPane` 在栏位按下瞬间激活焦点，活动栏阴影调整为 `8dp`，移除父级整栏 ripple，
+  选中判断限定在活动栏；`FileManagerViewModel` 以文件名锚点计算同栏连续滑动范围，普通点击清除锚点，
+  不同文件点击追加、已选文件点击移除、系统 Back 清空两栏选择，跨栏同名项不共享选中态。
+- `FileManagerScreen` 移除全屏 `LoadingOverlay`，仅保留窗格内空列表加载提示，并将
+  `ModalNavigationDrawer.gesturesEnabled` 设为 `false`，抽屉只由顶栏汉堡按钮打开。
+- `FileListItem` 紧凑双栏仅允许从左向右的正向拖动建立选择，最大位移改为一个图标距离（`28dp`），超过约半个
+  图标即选中，反向拖动松手后只恢复原位，元数据字号收紧为 `10sp`；底栏第四键使用两个分离的 `16dp`
+  方向箭头，活动方向为 `#2B2B2B`、另一方向为 `#9E9E9E`。
+- `FileManagerTopBar` 左侧汉堡图标仅视觉左移 `6dp`，右侧溢出键贴齐屏幕右端；统计字号为 `12sp`，文案统一为
+  `文件夹：… 文件：… 储存：已用/总量`，容量使用 `totalBytes - availableBytes` 并保留两位小数。
 - 定向验证：`:app:testDebugUnitTest` 的文件管理器 suite 与 `KiyoriSettingsPagesTest` 均 `BUILD SUCCESSFUL`；
   `:app:compileDebugKotlin` 已通过。正式门禁和新鲜克隆检查均 `PASS`。
 - 串行 `:app:assembleDebug --no-daemon --console=plain` `BUILD SUCCESSFUL`，并通过
@@ -215,3 +221,29 @@ Toolbox 路由，页面不创建第二个导航 owner。
   `5512` ZIP entries、`44` DEX、`arm64-v8a` 的 `53` 个 `.so` 且 basename 无重复。
 - `adb devices` 当前无目标设备；状态栏图标明暗、真实密度、拖动/长按/滚动、SAF 和系统 Back 仍保持
   `verification_pending`。
+
+## 2026-08-30 点击闪白与交互边界修正
+
+### 本轮实现
+
+- 移除 `FileManagerScreen` 的页面级 `LoadingOverlay`；目录加载只保留窗格内空列表提示，点击文件或切换目录不再用
+  半透明层覆盖整个文件管理器，避免屏幕闪白。
+- `ModalNavigationDrawer` 关闭边缘拖动，文件管理器左抽屉只由顶栏汉堡按钮打开；窗格父层移除整栏 `clickable` ripple，
+  空白区域轻触只切换焦点，不绘制整栏灰色按压背景。
+- 普通点击不同文件追加当前窗格选择，点击已选文件移除；系统 Back 首先清空左右两栏全部选择，底栏后退继续只处理
+  目录历史；左右栏的选择集合、单项状态和连续滑动锚点彼此隔离。
+- 紧凑文件行元数据字号收紧到 `10sp`，横向拖动正向最大位移限制为一个 `28dp` 图标距离，约半个图标达到阈值后选中，
+  反向滑动只回弹；活动栏阴影提升到 `8dp`，底栏路径同步按钮使用分离的 `16dp` 黑灰箭头。
+- 顶栏汉堡图标视觉左移 `6dp`，溢出按钮贴右端；统计使用 `文件夹：… 文件：… 储存：已用/总量`，容量按
+  `totalBytes - availableBytes` 计算并显示两位小数。
+
+### 本轮验证
+
+- `./gradlew.bat :app:testDebugUnitTest --no-daemon --console=plain --tests "com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.*" --tests "com.ai.assistance.operit.ui.main.shell.KiyoriSettingsPagesTest"`：通过。
+- `./gradlew.bat :app:compileDebugKotlin --no-daemon --console=plain`：通过。
+- `./gradlew.bat :app:assembleDebug --no-daemon --console=plain`：通过，并通过单 launcher、脚本代理和播放器运行时打包检查。
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，`503,694,977` bytes，SHA-256
+  `299DA5B29196E1AC7F17B0E20EC5767727A1194DEEC819400A3886824405B67E`；包名 `com.kiyori`，versionCode `45`，
+  唯一 launcher `com.ai.assistance.operit.ui.main.MainActivity`；Android Debug V2 单 signer、16 KiB zipalign 通过。
+- 正式开发准备门禁与新鲜克隆检查通过；架构边界检查仍报告提交基线既有的 App Shell/AI Drawer/主题哈希漂移，未涉及本轮文件管理器文件。
+- `adb devices` 无目标设备；真实设备密度、拖动动画、阴影采样、SAF、长按和系统 Back 现场验收继续保持 `verification_pending`。
