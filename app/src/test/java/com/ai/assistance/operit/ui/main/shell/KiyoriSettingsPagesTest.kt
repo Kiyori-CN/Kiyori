@@ -1456,7 +1456,7 @@ class KiyoriSettingsPagesTest {
     }
 
     @Test
-    fun `legal documents and file manager own opaque safe drawing roots`() {
+    fun `legal documents and file manager own opaque inset-aware roots`() {
         val legalDocumentsSource =
             repositoryFile(
                 "app/src/main/java/com/ai/assistance/operit/ui/features/agreement/screens/" +
@@ -1496,10 +1496,16 @@ class KiyoriSettingsPagesTest {
                 .substringBefore("// 标签栏")
         assertTrue(
             fileManagerRoot.contains(
-                ".background(MaterialTheme.colorScheme.background)",
+                ".background(androidx.compose.ui.graphics.Color(0xFFFAFAFA))",
             ),
         )
-        assertTrue(
+        val fileManagerChromeSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/" +
+                    "filemanager/components/FileManagerChrome.kt",
+            ).readText()
+        assertTrue(fileManagerChromeSource.contains(".statusBarsPadding()"))
+        assertFalse(
             fileManagerRoot.contains(
                 ".windowInsetsPadding(WindowInsets.safeDrawing)",
             ),

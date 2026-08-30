@@ -59,7 +59,7 @@ fun getFileIcon(file: FileItem): ImageVector {
 
 /** MT 风格的文件类型色，图标形状和底色同时表达常见扩展名。 */
 fun getFileIconColor(file: FileItem): Color {
-    if (file.isDirectory || file.name == "..") return Color(0xFF242424)
+    if (file.isDirectory || file.name == "..") return Color(0xFF2B2B2B)
     return when {
         file.name.endsWith(".pdf", ignoreCase = true) -> Color(0xFFE51C23)
         file.name.endsWith(".mp3", ignoreCase = true) ||

@@ -1,6 +1,6 @@
 # MT 管理器手机存储复刻
 
-状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。
+状态：`LOCAL PIXEL ALIGNMENT COMPLETE / DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。
 
 ## 目标与范围
 
@@ -27,7 +27,8 @@ MT 管理器双窗格工作台。目标是保留既有 AITool/SAF 文件能力�
 
 ### 页面结构
 
-1. 根页面消费 `WindowInsets.safeDrawing`，背景使用 Kiyori `background`/`surface` 语义色。
+1. 根页面绘制全屏不透明 `#FAFAFA` 背景；顶栏单独消费 `statusBarsPadding` 以把 `#303030`
+   延伸到状态栏，底栏单独消费 `navigationBarsPadding`，内容区不再被根级顶部 inset 推离。
 2. 顶部工具栏使用 Kiyori 中性深色表面和高对比文字；左上角固定放置“退出文件管理器”图标按钮，
    点击直接调用页面 `onBack`，不读取当前目录、不改变窗格路径。
 3. 顶栏路径显示活动窗格路径、文件夹/文件统计和存储占用；汉堡按钮打开存储抽屉，溢出按钮打开
@@ -105,6 +106,55 @@ Toolbox 路由，页面不创建第二个导航 owner。
 - 验收证据分为源码/单元测试、Debug 构建/APK 静态审计和目标设备实测；未完成设备实测时状态为
   `verification_pending`。
 
+## 2026-08-30 像素级 UI 对齐计划
+
+### 证据基线
+
+- 参考图固定为 `D:\03_Default\图片\Kiyori\Kiyori.jpg`、`MT管理器.jpg`、
+  `左滑某个选项不松手.jpg`、`左滑某个选项松手后.jpg`，均为 `1260x2800`。
+- `MT管理器.jpg` 的物理屏幕顶部 `0..328` 行为 `#303030`，内容与底栏主体为 `#FAFAFA`；
+  列表图标外框约 `98px`，相邻行起点间隔约 `140px`。
+- 当前 `Kiyori.jpg` 的状态栏为白色，顶部黑色表面从约 `134px` 才开始；当前紧凑行周期约
+  `217px`、图标约 `149px`，与 MT 参考图存在可观察的密度偏差。
+- 参考图的拖动中行会沿手指产生水平位移，抬手后选中行填充浅蓝色；两栏同名文件不能
+  因 `FileItem` 值相等而同时显示选中。
+
+### 本轮目标
+
+1. 以 `#303030` 顶部表面绘制到状态栏物理顶边，并通过既有 system-bar owner 请求浅色状态栏图标；内容和底栏使用
+   `#FAFAFA`，不改变 Shell 的唯一 system-bar owner。
+2. 将双栏文件行收紧到参考图的物理密度：约 `40dp` 行高、`28dp` 图标、`5dp` 内边距和
+   `4dp` 图标文字间距，保留完整的文件名、时间和大小排版，并让字体使用 Kiyori 现有
+   Material typography。
+3. 顶栏重新分配水平空间：退出键与汉堡键靠近左侧，路径/统计文本获得可用宽度，右侧
+   溢出键贴近右边缘；不得因按钮槽位挤压掉路径统计的可见信息。
+4. 窗格任意按下或水平滑动即激活该窗格；活动窗格使用与参考图一致的窄阴影叠层，
+   不引入粗边框，也不缩小另一栏的测量宽度。
+5. 文件项横向拖动保留实时位移，抬手后建立选择；再次点击取消。拖动同一窗格的另一项时，
+   按列表索引选中锚点与目标之间的连续区间；普通点击只切换单项，不扩展区间；选择集合
+   按窗格隔离，另一栏同名项始终保持未选中。
+6. 底栏第四键显示“一黑一白”的方向箭头：左栏活动时左箭头为白、右箭头为黑，右栏
+   活动时反向；点击只把活动栏路径/环境同步到另一栏，焦点和历史语义保持不变。
+
+### 实施顺序与影响面
+
+1. 先修改 `FileManagerScreen` 的 Insets/背景边界和 `FileManagerChrome` 顶/底栏几何。
+2. 再修改 `FileListItem`、`FileManagerDualPane` 的行密度、拖动位移、窗格激活监听与
+   阴影参数。
+3. 在 `FileManagerViewModel` 中增加按窗格的选择锚点/连续范围计算，保持
+   `FileContextMenu` 消费活动窗格的既有列表接口。
+4. 更新源码合同与 JVM 测试，覆盖颜色、尺寸 token、范围选择、跨栏隔离和底栏方向色。
+5. 串行执行定向测试、`compileDebugKotlin`、`git diff --check`、正式门禁和
+   `:app:assembleDebug`，核验最终 APK；提交前审阅精确变更清单并推送 `main`。
+
+### 非目标与风险边界
+
+- 不新增文件后端、路由、ViewModel、系统栏 owner 或文件操作协议，不复制 MT 私有实现。
+- 不把本地构建或截图静态分析描述为真机视觉/触摸证明；目标设备缺失时专项保持
+  `verification_pending`。
+- Android 字体栅格、系统密度、状态栏高度和阴影采样仍需在目标设备逐项复测；若设备实测
+  与截图存在差异，只调整本轮明确的视觉 token，不改变文件导航和 Back 合同。
+
 ## 上一轮本地验收证据（基线提交）
 
 - `./gradlew.bat :app:compileDebugKotlin --no-daemon --console=plain`：`BUILD SUCCESSFUL`。
@@ -137,4 +187,31 @@ Toolbox 路由，页面不创建第二个导航 owner。
   launcher 为 `com.ai.assistance.operit.ui.main.MainActivity`；Android Debug V2 单 signer、16 KiB zipalign、
   5512 ZIP entries、仅 `arm64-v8a`、53 个 `.so` 且 basename 无重复。
 - `adb devices` 未发现目标设备；视觉密度、滑动/点击/长按、滚动、SAF 授权和系统 Back 仍需真机验收，状态保持
+  `verification_pending`。
+
+## 本轮像素级对齐实现证据（2026-08-30）
+
+- 读取并逐像素抽样四张 `1260x2800` 参考图：MT 顶部 `#303030`、内容/底栏 `#FAFAFA`、
+  图标外框约 `98px`、列表行周期约 `140px`、选中填充约 `#7DBEDC`、活动栏阴影在分栏边界
+  形成约 `16px` 的灰度渐变。
+- `FileManagerScreen` 移除根级 `safeDrawing` 顶部推移，使用全屏 `#FAFAFA` 背景；
+  `FileManagerTopBar` 消费 `statusBarsPadding` 并使用 `56dp` 工具栏，同时通过
+  `KiyoriStatusBarAppearanceOverride` 让统一 system-bar owner 使用浅色状态栏图标；`FileManagerBottomBar`
+  消费导航栏 inset；顶栏左右槽位与路径统计宽度按截图重新分配。
+- `FileListItem` 紧凑双栏固定为 `40dp` 行高、`28dp` 图标、`5dp` 内边距、`4dp` 间距和
+  `4dp` 圆角；未选中 `#FAFAFA`，拖动实时平移，抬手选中 `#7DBEDC`，目录图标底色为 `#2B2B2B`。
+- `FileManagerDualPane` 在栏位按下瞬间激活焦点，活动栏阴影调整为 `4dp`，选中判断限定在活动栏；
+  `FileManagerViewModel` 以文件名锚点计算同栏连续滑动范围，普通点击清除锚点，跨栏同名项不共享选中态。
+- 底栏第四键改用两个方向箭头叠加，活动方向为白色、另一方向为黑色；路径同步仍复用既有
+  `navigatePaneTo`，不交换焦点或文件操作 owner。
+- 定向验证：`:app:testDebugUnitTest` 的文件管理器 suite 与 `KiyoriSettingsPagesTest` 均 `BUILD SUCCESSFUL`；
+  `:app:compileDebugKotlin` 已通过。正式门禁和新鲜克隆检查均 `PASS`。
+- 串行 `:app:assembleDebug --no-daemon --console=plain` `BUILD SUCCESSFUL`，并通过
+  `verifySingleDebugLauncher`、`verifyDebugScriptProxyRuntimePackaging`、
+  `verifyDebugPlayerRuntimePackaging`。最终 APK 为 `app/build/outputs/apk/debug/app-debug.apk`，
+  `503,694,977` bytes，SHA-256 `3A39636375F933864B0EE74FB9C8686E44923C5DECFD3FDA084C7F2E50F4BCCC`；
+  `com.kiyori / 45 / 0.1.0 / compileSdk 37`，唯一 launcher 为
+  `com.ai.assistance.operit.ui.main.MainActivity`；Android Debug V2 单 signer、16 KiB zipalign、
+  `5512` ZIP entries、`44` DEX、`arm64-v8a` 的 `53` 个 `.so` 且 basename 无重复。
+- `adb devices` 当前无目标设备；状态栏图标明暗、真实密度、拖动/长按/滚动、SAF 和系统 Back 仍保持
   `verification_pending`。

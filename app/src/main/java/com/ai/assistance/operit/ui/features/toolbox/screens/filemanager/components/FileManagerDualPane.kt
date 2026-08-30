@@ -22,6 +22,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.RectangleShape
@@ -106,12 +109,19 @@ private fun FileManagerPaneColumn(
             // 阴影和 zIndex 表示当前栏位于另一栏上方，同时保留两栏的完整点击区域。
             .zIndex(if (isActive) 1f else 0f)
             .shadow(
-                elevation = if (isActive) 8.dp else 0.dp,
+                elevation = if (isActive) 4.dp else 0.dp,
                 shape = RectangleShape,
                 clip = false,
             )
+            // 在子项处理点击/滑动前记录按下，保证轻触或滑动栏位空白区也能切换焦点。
+            .pointerInput(pane) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    onPaneClick(pane)
+                }
+            }
             .clickable(onClick = { onPaneClick(pane) }),
-        color = MaterialTheme.colorScheme.surface,
+        color = androidx.compose.ui.graphics.Color(0xFFFAFAFA),
         tonalElevation = 0.dp,
     ) {
         when {
@@ -155,7 +165,7 @@ private fun FileManagerPaneColumn(
                     items(state.files, key = { file -> "${state.path}:${file.name}" }) { file ->
                         FileListItem(
                             file = file,
-                            isSelected = if (isMultiSelectMode) {
+                            isSelected = pane == activePane && if (isMultiSelectMode) {
                                 selectedFiles.contains(file)
                             } else {
                                 selectedFile == file

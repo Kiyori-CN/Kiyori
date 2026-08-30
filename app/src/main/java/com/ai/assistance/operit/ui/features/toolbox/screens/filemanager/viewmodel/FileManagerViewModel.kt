@@ -63,6 +63,9 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
     var selectedFile by mutableStateOf<FileItem?>(null)
     var selectedFiles = mutableStateListOf<FileItem>()
     var isMultiSelectMode by mutableStateOf(false)
+    // 连续范围只由同一窗格内的连续水平滑动建立；普通点击会清除锚点。
+    // 记录名称而不是列表索引，刷新或排序后仍能定位同一项，不会产生越界范围。
+    private var selectionAnchorName: String? = null
 
     // 剪贴板状态
     var clipboardFiles = mutableStateListOf<FileItem>()
@@ -158,10 +161,12 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
         selectedFile = null
         selectedFiles.clear()
         isMultiSelectMode = false
+        selectionAnchorName = null
     }
 
     fun toggleSelection(file: FileItem) {
         if (file.name == "..") return
+        selectionAnchorName = null
         if (selectedFiles.contains(file)) {
             selectedFiles.remove(file)
         } else {
@@ -171,15 +176,31 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
         isMultiSelectMode = selectedFiles.isNotEmpty()
     }
 
-    /** 水平向右滑动只建立选择，不会把已选择项误切换为未选择。 */
+    /** 水平滑动建立选择；第二次及后续滑动会选中锚点与目标之间的连续项。 */
     fun selectFile(file: FileItem) {
         if (file.name == "..") return
-        if (!selectedFiles.contains(file)) selectedFiles.add(file)
+        val targetIndex = files.indexOfFirst { candidate -> candidate == file }
+        if (targetIndex < 0) return
+        val anchorIndex = selectionAnchorName?.let { anchorName ->
+            files.indexOfFirst { candidate -> candidate.name == anchorName }
+        }
+        if (anchorIndex == null || anchorIndex < 0) {
+            selectionAnchorName = file.name
+            if (!selectedFiles.contains(file)) selectedFiles.add(file)
+        } else {
+            val rangeStart = minOf(anchorIndex, targetIndex)
+            val rangeEnd = maxOf(anchorIndex, targetIndex)
+            selectedFiles.clear()
+            selectedFiles.addAll(
+                files.subList(rangeStart, rangeEnd + 1).filter { candidate -> candidate.name != ".." },
+            )
+        }
         selectedFile = null
         isMultiSelectMode = true
     }
 
     fun selectAll() {
+        selectionAnchorName = null
         selectedFiles.clear()
         selectedFiles.addAll(files.filter { file -> file.name != ".." })
         isMultiSelectMode = selectedFiles.isNotEmpty()

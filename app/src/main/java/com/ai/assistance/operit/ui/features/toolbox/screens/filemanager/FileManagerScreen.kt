@@ -12,10 +12,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.MaterialTheme
@@ -55,6 +52,7 @@ import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.componen
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerPane
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.viewmodel.FileManagerViewModel
 import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.platform.window.KiyoriStatusBarAppearanceOverride
 import kotlinx.coroutines.launch
 import NewFolderDialog
 
@@ -65,6 +63,7 @@ fun FileManagerScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    KiyoriStatusBarAppearanceOverride(darkIcons = false)
     val context = LocalContext.current
     val viewModel = remember { FileManagerViewModel(context) }
     val toolHandler = AIToolHandler.getInstance(context)
@@ -164,6 +163,7 @@ fun FileManagerScreen(
     val folderCount = activeFiles.count { file -> file.isDirectory && file.name != ".." }
     val fileCount = activeFiles.count { file -> !file.isDirectory }
     val storageLabel = remember(context) { readStorageLabel(context) }
+    val selectedCount = viewModel.selectedFiles.size + if (viewModel.selectedFile != null) 1 else 0
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -206,14 +206,15 @@ fun FileManagerScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .windowInsetsPadding(WindowInsets.safeDrawing),
+                // 文件管理器顶栏需要绘制到状态栏物理顶边，内容和底栏各自消费安全区。
+                .background(androidx.compose.ui.graphics.Color(0xFFFAFAFA)),
         ) {
             androidx.compose.foundation.layout.Column(modifier = Modifier.fillMaxSize()) {
                 FileManagerTopBar(
                     currentPath = viewModel.currentPath,
                     folderCount = folderCount,
                     fileCount = fileCount,
+                    selectedCount = selectedCount,
                     storageLabel = storageLabel,
                     isSearching = viewModel.isSearching,
                     onExitFileManager = onBack,
@@ -295,6 +296,7 @@ fun FileManagerScreen(
                 FileManagerBottomBar(
                     canGoBack = viewModel.paneCanGoBack(),
                     canGoForward = viewModel.paneCanGoForward(),
+                    activePane = viewModel.activePane,
                     onBack = { viewModel.navigateBack() },
                     onForward = { viewModel.navigateForward() },
                     onNew = {
@@ -488,7 +490,10 @@ private fun LoadingOverlay(isLoading: Boolean) {
 
 private fun readStorageLabel(context: Context): String {
     val storage = StatFs(Environment.getExternalStorageDirectory().absolutePath)
-    val available = Formatter.formatFileSize(context, storage.availableBytes)
-    val total = Formatter.formatFileSize(context, storage.totalBytes)
-    return "$available / $total"
+    fun compactSize(bytes: Long): String =
+        Formatter.formatFileSize(context, bytes)
+            .replace(" GB", "G")
+            .replace(" MB", "M")
+            .replace(" KB", "K")
+    return "存储: ${compactSize(storage.availableBytes)}/${compactSize(storage.totalBytes)}"
 }

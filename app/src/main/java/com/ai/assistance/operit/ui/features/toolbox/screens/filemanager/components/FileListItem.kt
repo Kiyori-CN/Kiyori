@@ -19,10 +19,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -33,6 +38,7 @@ import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.utils.ge
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.abs
 
 enum class DisplayMode {
     SINGLE_COLUMN,
@@ -40,11 +46,11 @@ enum class DisplayMode {
     THREE_COLUMNS,
 }
 
-private val unselectedFileRowColor = Color.White
-private val selectedFileRowColor = Color(0xFFE0E0E0)
+private val unselectedFileRowColor = Color(0xFFFAFAFA)
+private val selectedFileRowColor = Color(0xFF7DBEDC)
 
 /**
- * MT 风格的文件项：行本身是连续的白色带状区域，水平向右滑动负责多选。
+ * MT 风格的文件项：行本身是连续的浅色带状区域，水平滑动负责多选。
  * 点击和长按仍由 combinedClickable 处理，三类手势不会改变既有打开/菜单入口。
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -60,22 +66,22 @@ fun FileListItem(
     compact: Boolean = false,
 ) {
     val isCompactTwoColumn = compact && displayMode == DisplayMode.TWO_COLUMNS
-    val baseHeight = if (isCompactTwoColumn) 62.dp else 72.dp
-    val baseIconSize = if (isCompactTwoColumn) 42.dp else {
+    val baseHeight = if (isCompactTwoColumn) 40.dp else 72.dp
+    val baseIconSize = if (isCompactTwoColumn) 28.dp else {
         when (displayMode) {
             DisplayMode.SINGLE_COLUMN -> 40.dp
             DisplayMode.TWO_COLUMNS -> 36.dp
             DisplayMode.THREE_COLUMNS -> 32.dp
         }
     }
-    val basePadding = if (isCompactTwoColumn) 8.dp else {
+    val basePadding = if (isCompactTwoColumn) 5.dp else {
         when (displayMode) {
             DisplayMode.SINGLE_COLUMN -> 12.dp
             DisplayMode.TWO_COLUMNS -> 8.dp
             DisplayMode.THREE_COLUMNS -> 6.dp
         }
     }
-    val baseSpacing = if (isCompactTwoColumn) 6.dp else {
+    val baseSpacing = if (isCompactTwoColumn) 4.dp else {
         when (displayMode) {
             DisplayMode.SINGLE_COLUMN -> 8.dp
             DisplayMode.TWO_COLUMNS -> 6.dp
@@ -89,24 +95,32 @@ fun FileListItem(
             DisplayMode.THREE_COLUMNS -> 12.sp
         }
     }
+    val titleLineHeight = if (isCompactTwoColumn) 17.sp else MaterialTheme.typography.bodyLarge.lineHeight
+    val metadataLineHeight = if (isCompactTwoColumn) 14.sp else MaterialTheme.typography.bodySmall.lineHeight
     val dateLabel = formatDate(file)
     val hasMetadata = file.name != ".." && dateLabel.isNotBlank()
+    var dragOffset by remember { mutableFloatStateOf(0f) }
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .height(baseHeight * itemSize)
-            .pointerInput(file.name, isSelected) {
-                var horizontalDistance = 0f
+            .graphicsLayer { translationX = dragOffset }
+            .pointerInput(file.name) {
                 detectHorizontalDragGestures(
+                    onDragStart = {
+                        dragOffset = dragOffset.coerceAtLeast(0f)
+                    },
                     onHorizontalDrag = { change, dragAmount ->
-                        horizontalDistance += dragAmount
+                        val maxOffset = 160.dp.toPx()
+                        dragOffset = (dragOffset + dragAmount).coerceIn(-maxOffset, maxOffset)
                         change.consume()
                     },
                     onDragEnd = {
-                        if (horizontalDistance >= 48.dp.toPx()) onSwipeRight()
+                        if (abs(dragOffset) >= 48.dp.toPx()) onSwipeRight()
+                        dragOffset = 0f
                     },
-                    onDragCancel = {},
+                    onDragCancel = { dragOffset = 0f },
                 )
             }
             .combinedClickable(
@@ -128,7 +142,7 @@ fun FileListItem(
                 modifier = Modifier.size(baseIconSize * itemSize),
                 color = getFileIconColor(file),
                 contentColor = Color.White,
-                shape = RoundedCornerShape(if (isCompactTwoColumn) 9.dp else 8.dp),
+                shape = RoundedCornerShape(if (isCompactTwoColumn) 4.dp else 8.dp),
                 tonalElevation = 0.dp,
             ) {
                 Icon(
@@ -146,7 +160,10 @@ fun FileListItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = file.name,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = baseTextSize * itemSize),
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontSize = baseTextSize * itemSize,
+                        lineHeight = titleLineHeight * itemSize,
+                    ),
                     color = Color.Black,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -160,7 +177,10 @@ fun FileListItem(
                     ) {
                         Text(
                             text = dateLabel,
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = baseTextSize * 0.82f * itemSize),
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = baseTextSize * 0.82f * itemSize,
+                                lineHeight = metadataLineHeight * itemSize,
+                            ),
                             color = Color(0xFF757575),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -169,7 +189,10 @@ fun FileListItem(
                             Spacer(modifier = Modifier.width(6.dp * itemSize))
                             Text(
                                 text = formatFileSize(file.size),
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = baseTextSize * 0.82f * itemSize),
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = baseTextSize * 0.82f * itemSize,
+                                    lineHeight = metadataLineHeight * itemSize,
+                                ),
                                 color = Color(0xFF757575),
                                 maxLines = 1,
                             )

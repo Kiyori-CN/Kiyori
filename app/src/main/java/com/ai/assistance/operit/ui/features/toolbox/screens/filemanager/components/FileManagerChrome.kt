@@ -2,12 +2,15 @@ package com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.compone
 
 import android.os.Environment
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -26,7 +29,6 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.DropdownMenu
@@ -50,12 +52,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerPane
+
+private val fileManagerChromeColor = Color(0xFF303030)
+private val fileManagerChromeTextColor = Color.White
+private val fileManagerContentColor = Color(0xFFFAFAFA)
 
 @Composable
 fun FileManagerTopBar(
     currentPath: String,
     folderCount: Int,
     fileCount: Int,
+    selectedCount: Int,
     storageLabel: String,
     isSearching: Boolean,
     onExitFileManager: () -> Unit,
@@ -71,68 +79,70 @@ fun FileManagerTopBar(
     onExitSearch: () -> Unit,
 ) {
     var overflowExpanded by remember { mutableStateOf(false) }
-    val chromeColor = MaterialTheme.colorScheme.inverseSurface
-    val chromeContentColor = MaterialTheme.colorScheme.inverseOnSurface
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = chromeColor,
-        contentColor = chromeContentColor,
+        color = fileManagerChromeColor,
+        contentColor = fileManagerChromeTextColor,
         tonalElevation = 0.dp,
     ) {
         Column(modifier = Modifier.fillMaxWidth().statusBarsPadding()) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
+                // 18dp 右侧留白把溢出键中心稳定在参考图约 1175px 的位置，同时给路径统计留宽度。
+                modifier = Modifier.fillMaxWidth().height(56.dp).padding(end = 18.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(
                     onClick = onExitFileManager,
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(40.dp),
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "退出文件管理器",
-                        tint = chromeContentColor,
+                        tint = fileManagerChromeTextColor,
                     )
                 }
                 IconButton(
                     onClick = onOpenStorageDrawer,
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(40.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Default.Menu,
                         contentDescription = "打开存储位置",
-                        tint = chromeContentColor,
+                        tint = fileManagerChromeTextColor,
                     )
                 }
                 Column(
                     modifier = Modifier
                         .weight(1f)
                         .clickable(onClick = onPathClick)
-                        .padding(horizontal = 6.dp),
+                        .padding(horizontal = 4.dp),
                 ) {
                     Text(
-                        text = currentPath,
+                        text = if (currentPath == "/") "/" else "${currentPath.trimEnd('/')}/",
                         style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = chromeContentColor,
+                        color = fileManagerChromeTextColor,
                     )
                     Text(
-                        text = "文件夹: $folderCount  文件: $fileCount  $storageLabel",
+                        text = buildString {
+                            if (selectedCount > 0) append("已选: $selectedCount  ")
+                            append("文件夹: $folderCount  文件: $fileCount  $storageLabel")
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = chromeContentColor.copy(alpha = 0.76f),
+                        color = fileManagerChromeTextColor.copy(alpha = 0.76f),
                     )
                 }
                 IconButton(
                     onClick = { overflowExpanded = true },
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(40.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = "更多文件管理操作",
-                        tint = chromeContentColor,
+                        tint = fileManagerChromeTextColor,
                     )
                 }
                 DropdownMenu(
@@ -170,24 +180,24 @@ fun FileManagerTopBar(
                 }
             }
             if (isSearching) {
-                HorizontalDivider(color = chromeContentColor.copy(alpha = 0.16f))
+                HorizontalDivider(color = fileManagerChromeTextColor.copy(alpha = 0.16f))
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Default.Search, contentDescription = null, tint = chromeContentColor)
+                    Icon(Icons.Default.Search, contentDescription = null, tint = fileManagerChromeTextColor)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = stringResource(R.string.searching),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = chromeContentColor,
+                        color = fileManagerChromeTextColor,
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     IconButton(onClick = onExitSearch, modifier = Modifier.size(40.dp)) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.back),
-                            tint = chromeContentColor,
+                            tint = fileManagerChromeTextColor,
                         )
                     }
                 }
@@ -213,22 +223,22 @@ private fun FileManagerMenuItem(
 fun FileManagerBottomBar(
     canGoBack: Boolean,
     canGoForward: Boolean,
+    activePane: FileManagerPane,
     onBack: () -> Unit,
     onForward: () -> Unit,
     onNew: () -> Unit,
     onMirrorPath: () -> Unit,
     onNavigateUp: () -> Unit,
 ) {
-    val bottomBarIconColor = Color.Black
-    val disabledBottomBarIconColor = Color(0xFFBDBDBD)
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = Color.White,
+        color = fileManagerContentColor,
         contentColor = Color.Black,
         tonalElevation = 0.dp,
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 2.dp),
+            // 去掉左右内缩后五个中心点按参考图约 252px 等距分布，右侧操作自然向右展开。
+            modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 0.dp, vertical = 2.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -236,31 +246,44 @@ fun FileManagerBottomBar(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "活动窗格后退",
-                    tint = if (canGoBack) bottomBarIconColor else disabledBottomBarIconColor,
+                    tint = if (canGoBack) Color(0xFF646464) else Color(0xFFC8C8C8),
                 )
             }
             IconButton(onClick = onForward, enabled = canGoForward, modifier = Modifier.size(48.dp)) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = "活动窗格前进",
-                    tint = if (canGoForward) bottomBarIconColor else disabledBottomBarIconColor,
+                    tint = if (canGoForward) Color(0xFF646464) else Color(0xFFC8C8C8),
                 )
             }
             IconButton(onClick = onNew, modifier = Modifier.size(48.dp)) {
-                Icon(Icons.Default.Add, contentDescription = "新建", tint = bottomBarIconColor)
+                Icon(Icons.Default.Add, contentDescription = "新建", tint = Color(0xFF646464))
             }
             IconButton(onClick = onMirrorPath, modifier = Modifier.size(48.dp)) {
-                Icon(
-                    Icons.Default.SwapHoriz,
-                    contentDescription = "同步活动路径到另一栏",
-                    tint = bottomBarIconColor,
-                )
+                val activeArrowColor = Color.White
+                val inactiveArrowColor = Color.Black
+                val leftArrowColor = if (activePane == FileManagerPane.LEFT) activeArrowColor else inactiveArrowColor
+                val rightArrowColor = if (activePane == FileManagerPane.RIGHT) activeArrowColor else inactiveArrowColor
+                Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "同步活动路径到另一栏",
+                        tint = leftArrowColor,
+                        modifier = Modifier.size(24.dp).offset(x = (-5).dp, y = 4.dp),
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = rightArrowColor,
+                        modifier = Modifier.size(24.dp).offset(x = 5.dp, y = (-4).dp),
+                    )
+                }
             }
             IconButton(onClick = onNavigateUp, modifier = Modifier.size(48.dp)) {
                 Icon(
                     Icons.Default.ArrowUpward,
                     contentDescription = stringResource(R.string.file_manager_navigate_up),
-                    tint = bottomBarIconColor,
+                    tint = Color(0xFF646464),
                 )
             }
         }
