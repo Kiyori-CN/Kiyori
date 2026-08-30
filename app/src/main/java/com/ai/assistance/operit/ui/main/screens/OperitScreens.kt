@@ -720,7 +720,13 @@ sealed class Screen(
         }
     }
 
-    data object GitHubAccount : Screen(navItem = NavItem.Settings, titleRes = R.string.github_account) {
+    data object GitHubAccount :
+        Screen(
+            navItem = NavItem.Settings,
+            titleRes = R.string.github_account,
+            participatesInCrossfadeTransition = false,
+            usesEmbeddedSettingsTopBar = true,
+        ) {
         @Composable
         override fun Content(
             navController: NavController,
@@ -731,7 +737,7 @@ sealed class Screen(
             onError: (String) -> Unit,
             onGestureConsumed: (Boolean) -> Unit
         ) {
-            GitHubAccountScreen()
+            GitHubAccountScreen(onBackPressed = onGoBack)
         }
     }
 
@@ -1184,7 +1190,12 @@ sealed class Screen(
     }
 
     data object ThemeSettings :
-            Screen(navItem = NavItem.Settings, titleRes = R.string.screen_title_theme_settings) {
+            Screen(
+                navItem = NavItem.Settings,
+                titleRes = R.string.screen_title_theme_settings,
+                participatesInCrossfadeTransition = false,
+                usesEmbeddedSettingsTopBar = true,
+            ) {
         @Composable
         override fun Content(
                 navController: NavController,
@@ -1195,12 +1206,17 @@ sealed class Screen(
                 onError: (String) -> Unit,
                 onGestureConsumed: (Boolean) -> Unit
         ) {
-            ThemeSettingsScreen()
+            ThemeSettingsScreen(onBackPressed = onGoBack)
         }
     }
 
     data object GlobalDisplaySettings :
-            Screen(navItem = NavItem.Settings, titleRes = R.string.screen_title_global_display_settings) {
+            Screen(
+                navItem = NavItem.Settings,
+                titleRes = R.string.screen_title_global_display_settings,
+                participatesInCrossfadeTransition = false,
+                usesEmbeddedSettingsTopBar = true,
+            ) {
         @Composable
         override fun Content(
                 navController: NavController,
@@ -1216,7 +1232,12 @@ sealed class Screen(
     }
 
     data object LayoutAdjustmentSettings :
-            Screen(navItem = NavItem.Settings, titleRes = R.string.screen_title_layout_adjustment) {
+            Screen(
+                navItem = NavItem.Settings,
+                titleRes = R.string.screen_title_layout_adjustment,
+                participatesInCrossfadeTransition = false,
+                usesEmbeddedSettingsTopBar = true,
+            ) {
         @Composable
         override fun Content(
                 navController: NavController,
@@ -1232,7 +1253,12 @@ sealed class Screen(
     }
 
     data object ChatHistorySettings :
-            Screen(navItem = NavItem.Settings, titleRes = R.string.screen_title_chat_history_settings) {
+            Screen(
+                navItem = NavItem.Settings,
+                titleRes = R.string.screen_title_chat_history_settings,
+                participatesInCrossfadeTransition = false,
+                usesEmbeddedSettingsTopBar = true,
+            ) {
         @Composable
         override fun Content(
                 navController: NavController,
@@ -1243,12 +1269,17 @@ sealed class Screen(
                 onError: (String) -> Unit,
                 onGestureConsumed: (Boolean) -> Unit
         ) {
-            ChatHistorySettingsScreen()
+            ChatHistorySettingsScreen(onBackPressed = onGoBack)
         }
     }
 
     data object ChatBackupSettings :
-            Screen(navItem = NavItem.Settings, titleRes = R.string.screen_title_chat_backup_settings) {
+            Screen(
+                navItem = NavItem.Settings,
+                titleRes = R.string.screen_title_chat_backup_settings,
+                participatesInCrossfadeTransition = false,
+                usesEmbeddedSettingsTopBar = true,
+            ) {
         @Composable
         override fun Content(
                 navController: NavController,
@@ -1259,12 +1290,17 @@ sealed class Screen(
                 onError: (String) -> Unit,
                 onGestureConsumed: (Boolean) -> Unit
         ) {
-            ChatBackupSettingsScreen()
+            ChatBackupSettingsScreen(onBackPressed = onGoBack)
         }
     }
 
     data object LanguageSettings :
-            Screen(navItem = NavItem.Settings, titleRes = R.string.screen_title_language_settings) {
+            Screen(
+                navItem = NavItem.Settings,
+                titleRes = R.string.screen_title_language_settings,
+                participatesInCrossfadeTransition = false,
+                usesEmbeddedSettingsTopBar = true,
+            ) {
         @Composable
         override fun Content(
                 navController: NavController,

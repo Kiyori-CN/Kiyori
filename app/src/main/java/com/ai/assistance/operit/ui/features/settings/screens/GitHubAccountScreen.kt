@@ -4,7 +4,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,12 +41,12 @@ import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.preferences.GitHubAuthPreferences
-import com.ai.assistance.operit.ui.components.CustomScaffold
 import com.ai.assistance.operit.ui.features.github.GitHubLoginWebViewDialog
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsWorkspacePage
 import kotlinx.coroutines.launch
 
 @Composable
-fun GitHubAccountScreen() {
+fun GitHubAccountScreen(onBackPressed: () -> Unit) {
     val context = LocalContext.current
     val githubAuth = remember { GitHubAuthPreferences.getInstance(context) }
     val scope = rememberCoroutineScope()
@@ -56,7 +55,10 @@ fun GitHubAccountScreen() {
     val isLoggedIn by githubAuth.isLoggedInFlow.collectAsState(initial = false)
     val userInfo by githubAuth.userInfoFlow.collectAsState(initial = null)
 
-    CustomScaffold { paddingValues: PaddingValues ->
+    KiyoriSettingsWorkspacePage(
+        title = stringResource(R.string.github_account),
+        onBack = onBackPressed,
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()

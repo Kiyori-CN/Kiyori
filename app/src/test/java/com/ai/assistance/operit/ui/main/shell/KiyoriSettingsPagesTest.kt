@@ -144,6 +144,9 @@ class KiyoriSettingsPagesTest {
         assertEquals(17, KIYORI_SETTINGS_SELECTION_CANCEL_VERTICAL_PADDING_DP)
         assertEquals(14, KIYORI_SETTINGS_FIELD_CORNER_RADIUS_DP)
         assertEquals(18, KIYORI_SETTINGS_FIELD_HORIZONTAL_PADDING_DP)
+        assertEquals(56, KIYORI_SETTINGS_WORKSPACE_TOP_BAR_HEIGHT_DP)
+        assertEquals(16, KIYORI_SETTINGS_WORKSPACE_HORIZONTAL_PADDING_DP)
+        assertEquals(12, KIYORI_SETTINGS_WORKSPACE_VERTICAL_PADDING_DP)
     }
 
     @Test
@@ -218,10 +221,18 @@ class KiyoriSettingsPagesTest {
             kiyoriSettingsHomeGroups
                 .flatten()
                 .filter { entry ->
-                    entry.action == KiyoriSettingsHomeAction.OPEN_FILE_MANAGER
+                    entry.title == "文件管理器" &&
+                        entry.action == KiyoriSettingsHomeAction.NONE
                 }
                 .map(KiyoriSettingsHomeEntry::title),
         )
+        val settingsHomeSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/main/shell/" +
+                    "KiyoriSettingsHomePage.kt",
+            ).readText()
+        assertFalse(settingsHomeSource.contains("OPEN_FILE_MANAGER"))
+        assertFalse(settingsHomeSource.contains("onOpenFileManager"))
         assertEquals(
             listOf("视频播放器"),
             kiyoriSettingsHomeGroups
@@ -571,8 +582,13 @@ class KiyoriSettingsPagesTest {
     }
 
     @Test
-    fun `AI settings workspaces own their top bar and skip route crossfade`() {
+    fun `all settings surfaces own their embedded settings top bar`() {
         listOf(
+            Screen.Settings,
+            Screen.AccountConnectionsSettings,
+            Screen.AppearanceSettings,
+            Screen.DataManagementSettings,
+            Screen.GitHubAccount,
             Screen.UserPreferencesSettings,
             Screen.ToolPermission,
             Screen.TokenUsageStatistics,
@@ -586,9 +602,30 @@ class KiyoriSettingsPagesTest {
             Screen.WaifuModeSettings,
             Screen.CustomEmojiManagement,
             Screen.TagMarket,
+            Screen.ThemeSettings,
+            Screen.GlobalDisplaySettings,
+            Screen.LayoutAdjustmentSettings,
+            Screen.ChatHistorySettings,
+            Screen.ChatBackupSettings,
+            Screen.LanguageSettings,
         ).forEach { screen ->
             assertTrue(screen.usesEmbeddedSettingsTopBar)
-            assertFalse(screen.participatesInCrossfadeTransition)
+        }
+        listOf(
+            "GitHubAccountScreen.kt",
+            "ThemeSettingsScreen.kt",
+            "GlobalDisplaySettingsScreen.kt",
+            "LayoutAdjustmentSettingsScreen.kt",
+            "ChatHistorySettingsScreen.kt",
+            "ChatBackupSettingsScreen.kt",
+            "LanguageSettingsScreen.kt",
+        ).forEach { fileName ->
+            assertTrue(
+                repositoryFile(
+                    "app/src/main/java/com/ai/assistance/operit/ui/features/settings/screens/" +
+                        fileName,
+                ).readText().contains("KiyoriSettingsWorkspacePage("),
+            )
         }
     }
 

@@ -161,7 +161,6 @@ internal fun KiyoriPrimaryRootPage(
                 onOpenAiAssistant = onOpenAiAssistant,
                 onOpenBrowserSettings = onOpenBrowserSettings,
                 onOpenDownloadSettings = onOpenDownloadSettings,
-                onOpenFileManager = onOpenFileManager,
                 onOpenPlayerSettings = onOpenPlayerSettings,
                 onOpenAppearanceSettings = onOpenAppearanceSettings,
                 onOpenDataSettings = onOpenDataSettings,

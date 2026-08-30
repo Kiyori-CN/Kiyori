@@ -458,9 +458,6 @@ internal fun KiyoriAppShell(
                                         state.openSettingsRoute(KiyoriSettingsRoute.BROWSER),
                                     )
                                 },
-                                onOpenFileManager = {
-                                    onStateChange(state.openFileManager())
-                                },
                                 onOpenDownloadSettings = {
                                     onStateChange(
                                         state.openSettingsRoute(KiyoriSettingsRoute.DOWNLOAD),

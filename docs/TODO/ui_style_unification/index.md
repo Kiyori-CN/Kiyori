@@ -1,6 +1,6 @@
 # 全软件 UI 风格统一优化
 
-状态：`LOCAL UI AUDIT COMPLETE / DEBUG BUILD VERIFIED / DEVICE VERIFICATION PENDING`。本专项针对 Kiyori 未发布版本，统一现有用户界面的视觉语言和高频交互表达，
+状态：`LOCAL SETTINGS TITLE IMPLEMENTATION VERIFIED / DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。本专项针对 Kiyori 未发布版本，统一现有用户界面的视觉语言和高频交互表达，
 不改变协议、数据格式、导航兼容标识或既有状态所有权。
 
 ## 目标与非目标
@@ -88,3 +88,20 @@
 - AI 输入区、播放器控制层包含较多本地状态和手势；只调整 modifier/颜色/语义，不改变事件
   顺序，发现行为回归时撤销对应呈现改动，保留业务状态和事件顺序。
 - 全量设备尺寸和 OEM 视觉尚未可用；最终状态即使本地验证通过仍保留 `verification_pending`。
+
+## 2026-08-30 设置页标题与文件管理器入口增量
+
+本增量继续沿用上一轮的 Kiyori 设置视觉合同，专项收口设置首页及“我的账号”到“更多功能”之间
+全部设置子页面的顶部标题 owner。当前发现设置页同时存在折叠标题、固定工作台标题、外层通用
+`TopAppBar` 和无标题 `CustomScaffold` 四种呈现，导致 AI 助手子页与浏览器/下载器的标题格式不一致。
+本轮将所有旧设置页面改为显式使用 `KiyoriSettingsWorkspacePage` 并传入唯一 `onBack`，固定态统一
+为 56dp 高、48dp 返回触摸目标、20sp 半粗标题、设置页背景和细分隔线；滚动型页面继续使用
+`KiyoriCollapsingSettingsPage` 的同一固定态合同。
+
+设置首页的“文件管理器”仅保留展示项，不再拥有 `openFileManager()` 回调或设置路由跳转；点击
+保持无动作，文件管理主页自身的“手机存储”入口仍由 Shell 文件管理状态 owner 处理。未改变协议、
+设置键、数据库、唯一 WebView/播放器/下载 runtime 或返回链。
+
+本增量的自动验收结果：设置页面标题/返回链结构测试、文件管理器空动作回归测试、`compileDebugKotlin`、
+正式开发准备门禁、`git diff --check`、串行 Debug APK 构建与产物审计；真实设备的浅深色、窄屏、
+大字体、旋转、输入法和系统返回仍保持 `verification_pending`。

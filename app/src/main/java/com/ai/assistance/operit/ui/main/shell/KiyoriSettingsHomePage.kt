@@ -85,7 +85,6 @@ internal enum class KiyoriSettingsHomeAction {
     OPEN_AI_ASSISTANT,
     OPEN_BROWSER_SETTINGS,
     OPEN_DOWNLOAD_SETTINGS,
-    OPEN_FILE_MANAGER,
     OPEN_PLAYER_SETTINGS,
     OPEN_APPEARANCE_SETTINGS,
     OPEN_DATA_SETTINGS,
@@ -167,7 +166,6 @@ internal val kiyoriSettingsHomeGroups =
                 "文件管理器",
                 Icons.Default.Folder,
                 KiyoriSettingsHomeIconPalette.FILE_MANAGER,
-                KiyoriSettingsHomeAction.OPEN_FILE_MANAGER,
             ),
         ),
         listOf(
@@ -216,7 +214,6 @@ internal fun KiyoriSettingsHomePage(
     onOpenAiAssistant: () -> Unit,
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
-    onOpenFileManager: () -> Unit,
     onOpenPlayerSettings: () -> Unit,
     onOpenAppearanceSettings: () -> Unit,
     onOpenDataSettings: () -> Unit,
@@ -286,7 +283,6 @@ internal fun KiyoriSettingsHomePage(
                     onOpenAiAssistant = onOpenAiAssistant,
                     onOpenBrowserSettings = onOpenBrowserSettings,
                     onOpenDownloadSettings = onOpenDownloadSettings,
-                    onOpenFileManager = onOpenFileManager,
                     onOpenPlayerSettings = onOpenPlayerSettings,
                     onOpenAppearanceSettings = onOpenAppearanceSettings,
                     onOpenDataSettings = onOpenDataSettings,
@@ -486,7 +482,6 @@ private fun KiyoriSettingsHomeGroupCard(
     onOpenAiAssistant: () -> Unit,
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
-    onOpenFileManager: () -> Unit,
     onOpenPlayerSettings: () -> Unit,
     onOpenAppearanceSettings: () -> Unit,
     onOpenDataSettings: () -> Unit,
@@ -502,7 +497,6 @@ private fun KiyoriSettingsHomeGroupCard(
                 onOpenAiAssistant = onOpenAiAssistant,
                 onOpenBrowserSettings = onOpenBrowserSettings,
                 onOpenDownloadSettings = onOpenDownloadSettings,
-                onOpenFileManager = onOpenFileManager,
                 onOpenPlayerSettings = onOpenPlayerSettings,
                 onOpenAppearanceSettings = onOpenAppearanceSettings,
                 onOpenDataSettings = onOpenDataSettings,
@@ -528,7 +522,6 @@ private fun KiyoriSettingsHomeRow(
     onOpenAiAssistant: () -> Unit,
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
-    onOpenFileManager: () -> Unit,
     onOpenPlayerSettings: () -> Unit,
     onOpenAppearanceSettings: () -> Unit,
     onOpenDataSettings: () -> Unit,
@@ -536,11 +529,13 @@ private fun KiyoriSettingsHomeRow(
 ) {
     val colors = LocalKiyoriSettingsColors.current
     val iconColors = entry.iconPalette.resolveSettingsHomeIconColors()
+    val isInteractive = entry.action != KiyoriSettingsHomeAction.NONE
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clickable {
+                .alpha(if (isInteractive) 1f else 0.58f)
+                .clickable(enabled = isInteractive) {
                     when (entry.action) {
                         KiyoriSettingsHomeAction.NONE -> Unit
                         KiyoriSettingsHomeAction.OPEN_ACCOUNT_CONNECTIONS ->
@@ -548,12 +543,16 @@ private fun KiyoriSettingsHomeRow(
                         KiyoriSettingsHomeAction.OPEN_AI_ASSISTANT -> onOpenAiAssistant()
                         KiyoriSettingsHomeAction.OPEN_BROWSER_SETTINGS -> onOpenBrowserSettings()
                         KiyoriSettingsHomeAction.OPEN_DOWNLOAD_SETTINGS -> onOpenDownloadSettings()
-                        KiyoriSettingsHomeAction.OPEN_FILE_MANAGER -> onOpenFileManager()
                         KiyoriSettingsHomeAction.OPEN_PLAYER_SETTINGS -> onOpenPlayerSettings()
                         KiyoriSettingsHomeAction.OPEN_APPEARANCE_SETTINGS ->
                             onOpenAppearanceSettings()
                         KiyoriSettingsHomeAction.OPEN_DATA_SETTINGS -> onOpenDataSettings()
                         KiyoriSettingsHomeAction.OPEN_MORE_FEATURES -> onOpenMoreFeatures()
+                    }
+                }
+                .semantics {
+                    if (!isInteractive) {
+                        disabled()
                     }
                 }
                 .padding(start = 16.dp, end = 14.dp, top = 14.dp, bottom = 14.dp),
@@ -583,11 +582,13 @@ private fun KiyoriSettingsHomeRow(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = null,
-            tint = colors.mutedIcon,
-            modifier = Modifier.size(18.dp),
-        )
+        if (isInteractive) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = colors.mutedIcon,
+                modifier = Modifier.size(18.dp),
+            )
+        }
     }
 }

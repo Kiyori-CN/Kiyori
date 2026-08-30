@@ -57,6 +57,7 @@ import com.ai.assistance.operit.data.repository.ChatHistoryManager
 import com.ai.assistance.operit.data.repository.MemoryRepository
 import com.ai.assistance.operit.ui.features.settings.components.CharacterCardAssignDialog
 import com.ai.assistance.operit.ui.features.settings.components.CharacterGroupAssignDialog
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsWorkspacePage
 import java.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -75,7 +76,7 @@ data class UnboundWorkspaceInfo(
 )
 
 @Composable
-fun ChatHistorySettingsScreen() {
+fun ChatHistorySettingsScreen(onBackPressed: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -266,8 +267,12 @@ fun ChatHistorySettingsScreen() {
             isCharacterGroupStatsLoading ||
             characterGroupsLoading
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
+    KiyoriSettingsWorkspacePage(
+        title = stringResource(R.string.screen_title_chat_history_settings),
+        onBack = onBackPressed,
+    ) { paddingValues ->
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -435,6 +440,7 @@ fun ChatHistorySettingsScreen() {
                 }
             }
         }
+    }
     }
 
     if (showMissingActionDialog && pendingMissingStat != null) {

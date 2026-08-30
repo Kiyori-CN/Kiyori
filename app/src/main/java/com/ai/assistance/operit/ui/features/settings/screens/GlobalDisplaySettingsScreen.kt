@@ -30,7 +30,7 @@ import com.ai.assistance.operit.data.preferences.ToolCollapseMode
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import com.ai.assistance.operit.data.preferences.androidPermissionPreferences
 import com.ai.assistance.operit.services.floating.StatusIndicatorStyle
-import com.ai.assistance.operit.ui.components.CustomScaffold
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsWorkspacePage
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -181,7 +181,10 @@ fun GlobalDisplaySettingsScreen(
     val selectedCollapseMode =
         collapseModeOptions[collapseModeSliderValue.roundToInt().coerceIn(0, collapseModeOptions.lastIndex)]
 
-    CustomScaffold() { paddingValues ->
+    KiyoriSettingsWorkspacePage(
+        title = stringResource(R.string.screen_title_global_display_settings),
+        onBack = onBackPressed,
+    ) { paddingValues ->
         Box(
             modifier = Modifier
                 .padding(paddingValues)

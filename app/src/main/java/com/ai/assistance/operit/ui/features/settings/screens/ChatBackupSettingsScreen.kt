@@ -113,6 +113,7 @@ import com.ai.assistance.operit.ui.features.settings.components.RoomDbBackupList
 import com.ai.assistance.operit.ui.features.settings.components.SectionHeader
 import com.ai.assistance.operit.ui.features.settings.components.CharacterCardOperation
 import com.ai.assistance.operit.ui.main.MainActivity
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsWorkspacePage
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -148,7 +149,7 @@ enum class RawSnapshotOperation {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ChatBackupSettingsScreen() {
+fun ChatBackupSettingsScreen(onBackPressed: () -> Unit) {
     val context = LocalContext.current
     val resources = LocalResources.current
     val scope = rememberCoroutineScope()
@@ -491,12 +492,17 @@ fun ChatBackupSettingsScreen() {
         allProfiles.find { it.id == activeProfileId }?.name
             ?: stringResource(R.string.default_profile_name)
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+    KiyoriSettingsWorkspacePage(
+        title = stringResource(R.string.screen_title_chat_backup_settings),
+        onBack = onBackPressed,
+    ) { paddingValues ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
         item {
             OverviewCard(
                 totalChatCount = totalChatCount,
@@ -1156,6 +1162,7 @@ fun ChatBackupSettingsScreen() {
                 }
             }
         }
+    }
     }
 
     if (showDeleteConfirmDialog) {

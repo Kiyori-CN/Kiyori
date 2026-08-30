@@ -53,7 +53,7 @@ import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import com.ai.assistance.operit.ui.common.displays.MarkdownTextComposable
-import com.ai.assistance.operit.ui.components.CustomScaffold
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsWorkspacePage
 import com.ai.assistance.operit.ui.theme.ProvideAiMarkdownTextLayoutSettings
 import java.text.DecimalFormat
 import kotlinx.coroutines.launch
@@ -76,7 +76,10 @@ fun LayoutAdjustmentSettingsScreen(
     val sectionContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)
     val itemBackgroundColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
 
-    CustomScaffold { paddingValues ->
+    KiyoriSettingsWorkspacePage(
+        title = stringResource(R.string.screen_title_layout_adjustment),
+        onBack = onNavigateBack,
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
