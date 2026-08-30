@@ -1333,8 +1333,9 @@ Provider/ToolPkg 兼容标识和现有隐私边界保持不变。
 `app/build/outputs/apk/debug/app-debug.apk` 为 `503694977` bytes，SHA-256
 `547FF56EC26F5F5AA224E0AB3DCC63018A7EA0EA6EE089D94131B4ACFA0611FD`，包名/版本为
 `com.kiyori / 45 / 0.1.0`，单一 Android Debug V2 signer、仅 `arm64-v8a`、
-`zipalign -c -P 16 -v 4` 和消息处理 DEX 门禁均通过；Fresh clone 检查已通过基线
-`156342479d58491a99bb6d5678e6a07d2066ff81`，提交后将再次对候选提交复核。
+`zipalign -c -P 16 -v 4` 和消息处理 DEX 门禁均通过；提交候选
+`33a560254e9e5221f6f80d7002c33b14c2ca4f7f` 的 Fresh clone 检查已通过，仓库卫生与 Markdown
+链接检查分别为 `errors=0`、`errors=0 warnings=0`。
 
 当前架构边界检查仍报告 M04/M05 历史 hash/import snapshot 与仓库当前基线漂移（ARCH024、
 ARCH025、ARCH026、ARCH027、ARCH040、ARCH042），这些文件在本轮前已存在差异，未由 M12

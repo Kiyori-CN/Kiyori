@@ -9,7 +9,7 @@ For_Agent: 对项目大规模动工前按本规范协作
 - [AI 对话 HTTP attempt 审计与稳定性收口](unified_model_capability_and_resumable_execution/6_deepseek_long_context_cache_and_usage_plan.md)：补齐
   `stream was reset: CANCEL` 等流式传输故障的 attempt、阶段、提交状态、重试决定与取消因果审计，
   并收紧普通 Chat Completions 的未知提交重试边界；M12 本地实现与完整 JVM 验证已完成，正式门禁、
-  Debug APK 已验证；真实 Provider 与设备验收保持 `verification_pending`，本轮全部工作树修改将随
+  Debug APK 已验证；真实 Provider 与设备验收保持 `verification_pending`，本轮全部工作树修改已随
   `main` 提交并推送。
 
 - [MT 管理器手机存储复刻](mt_file_manager_replica/index.md)：在共享文件管理器中复刻 MT 管理器
