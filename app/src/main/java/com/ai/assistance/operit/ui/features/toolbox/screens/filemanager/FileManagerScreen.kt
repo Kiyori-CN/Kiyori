@@ -114,6 +114,8 @@ fun FileManagerScreen(
     var bookmarkName by remember { mutableStateOf("") }
     var bookmarkNameError by remember { mutableStateOf<String?>(null) }
     var showBookmarkDialog by remember { mutableStateOf(false) }
+    var showPathDialog by remember { mutableStateOf(false) }
+    var pathInput by remember { mutableStateOf("") }
 
     fun queryRepoBookmarkName(uri: Uri): String {
         fun normalizeName(raw: String): String = raw.trim()
@@ -215,6 +217,10 @@ fun FileManagerScreen(
                     storageLabel = storageLabel,
                     isSearching = viewModel.isSearching,
                     onExitFileManager = onBack,
+                    onPathClick = {
+                        pathInput = viewModel.currentPath
+                        showPathDialog = true
+                    },
                     onOpenStorageDrawer = { showStorageDrawer = true },
                     onRefresh = {
                         viewModel.loadPaneDirectory(FileManagerPane.LEFT)
@@ -260,6 +266,8 @@ fun FileManagerScreen(
                                 }
                             } else if (file.isDirectory) {
                                 viewModel.navigateToDirectory(file)
+                            } else if (viewModel.selectedFile == file) {
+                                viewModel.selectedFile = null
                             } else {
                                 viewModel.selectedFile = file
                             }
@@ -273,10 +281,14 @@ fun FileManagerScreen(
                                 } else if (file.name != "..") {
                                     viewModel.toggleSelection(file)
                                 }
-                            } else {
+                            } else if (file.name != "..") {
                                 viewModel.contextMenuFile = file
                                 viewModel.showBottomActionMenu = true
                             }
+                        },
+                        onItemSwipeRight = { pane, file ->
+                            viewModel.activatePane(pane)
+                            viewModel.selectFile(file)
                         },
                     )
                 }
@@ -289,9 +301,8 @@ fun FileManagerScreen(
                         viewModel.newFolderName = ""
                         viewModel.showNewFolderDialog = true
                     },
-                    onSwap = viewModel::swapPanes,
+                    onMirrorPath = viewModel::mirrorActivePaneToOther,
                     onNavigateUp = { viewModel.navigateUp() },
-                    activePane = viewModel.activePane,
                 )
             }
             LoadingOverlay(isLoading = viewModel.isLoading)
@@ -349,6 +360,47 @@ fun FileManagerScreen(
                     pendingBookmarkUri = null
                     bookmarkNameError = null
                 }) { Text(stringResource(android.R.string.cancel)) }
+            },
+        )
+    }
+
+    if (showPathDialog) {
+        AlertDialog(
+            onDismissRequest = { showPathDialog = false },
+            title = { Text("跳转") },
+            text = {
+                TextField(
+                    value = pathInput,
+                    onValueChange = { pathInput = it },
+                    singleLine = true,
+                    label = { Text("路径") },
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val path = pathInput.trim()
+                        if (path.isNotEmpty()) viewModel.navigateToPath(path)
+                        showPathDialog = false
+                    },
+                ) { Text("确定") }
+            },
+            dismissButton = {
+                androidx.compose.foundation.layout.Row {
+                    TextButton(
+                        onClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE)
+                                as? android.content.ClipboardManager
+                            val clipText = clipboard?.primaryClip
+                                ?.takeIf { it.itemCount > 0 }
+                                ?.getItemAt(0)
+                                ?.coerceToText(context)
+                                ?.toString()
+                            if (!clipText.isNullOrBlank()) pathInput = clipText
+                        },
+                    ) { Text("粘贴") }
+                    TextButton(onClick = { showPathDialog = false }) { Text("取消") }
+                }
             },
         )
     }

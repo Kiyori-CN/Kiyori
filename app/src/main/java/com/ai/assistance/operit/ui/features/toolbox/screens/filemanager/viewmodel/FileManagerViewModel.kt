@@ -30,6 +30,7 @@ import com.ai.assistance.operit.util.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 class FileManagerViewModel(private val context: Context) : ViewModel() {
     private val initialStoragePath = Environment.getExternalStorageDirectory().absolutePath
@@ -149,10 +150,14 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
     fun activatePane(pane: FileManagerPane) {
         if (activePane != pane) {
             activePane = pane
-            selectedFile = null
-            selectedFiles.clear()
-            isMultiSelectMode = false
+            clearSelection()
         }
+    }
+
+    fun clearSelection() {
+        selectedFile = null
+        selectedFiles.clear()
+        isMultiSelectMode = false
     }
 
     fun toggleSelection(file: FileItem) {
@@ -163,13 +168,21 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
             selectedFiles.add(file)
         }
         selectedFile = null
+        isMultiSelectMode = selectedFiles.isNotEmpty()
+    }
+
+    /** 水平向右滑动只建立选择，不会把已选择项误切换为未选择。 */
+    fun selectFile(file: FileItem) {
+        if (file.name == "..") return
+        if (!selectedFiles.contains(file)) selectedFiles.add(file)
+        selectedFile = null
         isMultiSelectMode = true
     }
 
     fun selectAll() {
         selectedFiles.clear()
         selectedFiles.addAll(files.filter { file -> file.name != ".." })
-        isMultiSelectMode = true
+        isMultiSelectMode = selectedFiles.isNotEmpty()
     }
 
     fun toggleHiddenFiles() {
@@ -188,14 +201,12 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
         loadPaneDirectory(FileManagerPane.RIGHT)
     }
 
-    fun swapPanes() {
-        val previousLeft = leftPane
-        leftPane = rightPane
-        rightPane = previousLeft
-        activePane = if (activePane == FileManagerPane.LEFT) FileManagerPane.RIGHT else FileManagerPane.LEFT
-        selectedFile = null
-        selectedFiles.clear()
-        isMultiSelectMode = false
+    /** 将活动窗格的位置复制给另一栏；焦点和两栏既有内容不交换。 */
+    fun mirrorActivePaneToOther() {
+        val sourcePane = activePane
+        val targetPane = if (sourcePane == FileManagerPane.LEFT) FileManagerPane.RIGHT else FileManagerPane.LEFT
+        val source = paneState(sourcePane)
+        navigatePaneTo(targetPane, source.path, source.environment, recordHistory = true)
     }
 
     // 加载任意一个窗格的目录。结果只写回发起请求时的 pane/path，避免切换窗格后旧请求覆盖新目录。
@@ -229,11 +240,20 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
                         if (result.success) {
                             val directoryListing = result.result as DirectoryListingData
                             val fileList = directoryListing.entries.map { entry ->
+                                val localTimestamp = if (environment == null) {
+                                    File(path, entry.name).lastModified()
+                                } else {
+                                    0L
+                                }
+                                val rawTimestamp = entry.lastModified.toLongOrNull()?.let { raw ->
+                                    if (raw in 1L..10_000_000_000L) raw * 1000L else raw
+                                } ?: 0L
                                 FileItem(
                                     name = entry.name,
                                     isDirectory = entry.isDirectory,
                                     size = entry.size,
-                                    lastModified = entry.lastModified.toLongOrNull() ?: 0,
+                                    lastModified = localTimestamp.takeIf { it > 0L } ?: rawTimestamp,
+                                    lastModifiedLabel = entry.lastModified,
                                 )
                             }
                             val visibleFiles = fileList
@@ -309,6 +329,7 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
             loadPaneDirectory(pane, path, environment)
             return
         }
+        if (pane == activePane) clearSelection()
         val location = FileManagerLocation(current.path, current.environment)
         updatePane(pane) {
             it.copy(
@@ -349,7 +370,14 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
     fun navigateBack(): Boolean {
         val pane = activePane
         val state = paneState(pane)
-        if (fileManagerBackAction(state, initialStoragePath) == FileManagerBackAction.EXIT) return false
+        when (fileManagerBackAction(state, initialStoragePath)) {
+            FileManagerBackAction.EXIT -> return false
+            FileManagerBackAction.INITIAL_STORAGE -> {
+                navigatePaneTo(pane, initialStoragePath, null, recordHistory = false)
+                return true
+            }
+            else -> Unit
+        }
         val previous = state.backStack.lastOrNull()
         if (previous == null) {
             return navigateUp()

@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components
 
 import android.os.Environment
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -43,12 +44,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.R
-import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerPane
 
 @Composable
 fun FileManagerTopBar(
@@ -58,6 +59,7 @@ fun FileManagerTopBar(
     storageLabel: String,
     isSearching: Boolean,
     onExitFileManager: () -> Unit,
+    onPathClick: () -> Unit,
     onOpenStorageDrawer: () -> Unit,
     onRefresh: () -> Unit,
     onShowSearchDialog: () -> Unit,
@@ -102,7 +104,12 @@ fun FileManagerTopBar(
                         tint = chromeContentColor,
                     )
                 }
-                Column(modifier = Modifier.weight(1f).padding(horizontal = 6.dp)) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable(onClick = onPathClick)
+                        .padding(horizontal = 6.dp),
+                ) {
                     Text(
                         text = currentPath,
                         style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
@@ -209,15 +216,16 @@ fun FileManagerBottomBar(
     onBack: () -> Unit,
     onForward: () -> Unit,
     onNew: () -> Unit,
-    onSwap: () -> Unit,
+    onMirrorPath: () -> Unit,
     onNavigateUp: () -> Unit,
-    activePane: FileManagerPane,
 ) {
+    val bottomBarIconColor = Color.Black
+    val disabledBottomBarIconColor = Color(0xFFBDBDBD)
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        tonalElevation = 3.dp,
+        color = Color.White,
+        contentColor = Color.Black,
+        tonalElevation = 0.dp,
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 2.dp),
@@ -228,27 +236,32 @@ fun FileManagerBottomBar(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "活动窗格后退",
-                    tint = if (canGoBack) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.32f),
+                    tint = if (canGoBack) bottomBarIconColor else disabledBottomBarIconColor,
                 )
             }
             IconButton(onClick = onForward, enabled = canGoForward, modifier = Modifier.size(48.dp)) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = "活动窗格前进",
-                    tint = if (canGoForward) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.32f),
+                    tint = if (canGoForward) bottomBarIconColor else disabledBottomBarIconColor,
                 )
             }
             IconButton(onClick = onNew, modifier = Modifier.size(48.dp)) {
-                Icon(Icons.Default.Add, contentDescription = "新建")
+                Icon(Icons.Default.Add, contentDescription = "新建", tint = bottomBarIconColor)
             }
-            IconButton(onClick = onSwap, modifier = Modifier.size(48.dp)) {
+            IconButton(onClick = onMirrorPath, modifier = Modifier.size(48.dp)) {
                 Icon(
                     Icons.Default.SwapHoriz,
-                    contentDescription = if (activePane == FileManagerPane.LEFT) "交换到右侧窗格" else "交换到左侧窗格",
+                    contentDescription = "同步活动路径到另一栏",
+                    tint = bottomBarIconColor,
                 )
             }
             IconButton(onClick = onNavigateUp, modifier = Modifier.size(48.dp)) {
-                Icon(Icons.Default.ArrowUpward, contentDescription = stringResource(R.string.file_manager_navigate_up))
+                Icon(
+                    Icons.Default.ArrowUpward,
+                    contentDescription = stringResource(R.string.file_manager_navigate_up),
+                    tint = bottomBarIconColor,
+                )
             }
         }
     }

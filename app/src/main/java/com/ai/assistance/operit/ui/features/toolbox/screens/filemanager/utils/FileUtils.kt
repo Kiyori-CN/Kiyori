@@ -8,6 +8,7 @@ import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.automirrored.filled.TextSnippet
 import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Color
 import com.ai.assistance.operit.core.tools.DirectoryListingData
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileItem
 import java.text.SimpleDateFormat
@@ -45,9 +46,53 @@ fun getFileIcon(file: FileItem): ImageVector {
             file.name.endsWith(".xls", ignoreCase = true) ||
                     file.name.endsWith(".xlsx", ignoreCase = true) -> Icons.Default.TableChart
             file.name.endsWith(".ppt", ignoreCase = true) ||
-                    file.name.endsWith(".pptx", ignoreCase = true) -> Icons.Default.PictureAsPdf
+                    file.name.endsWith(".pptx", ignoreCase = true) -> Icons.Default.Description
+            file.name.endsWith(".js", ignoreCase = true) ||
+                    file.name.endsWith(".py", ignoreCase = true) ||
+                    file.name.endsWith(".html", ignoreCase = true) ||
+                    file.name.endsWith(".css", ignoreCase = true) ||
+                    file.name.endsWith(".xml", ignoreCase = true) -> Icons.Default.Code
             else -> Icons.AutoMirrored.Filled.InsertDriveFile
         }
+    }
+}
+
+/** MT 风格的文件类型色，图标形状和底色同时表达常见扩展名。 */
+fun getFileIconColor(file: FileItem): Color {
+    if (file.isDirectory || file.name == "..") return Color(0xFF242424)
+    return when {
+        file.name.endsWith(".pdf", ignoreCase = true) -> Color(0xFFE51C23)
+        file.name.endsWith(".mp3", ignoreCase = true) ||
+            file.name.endsWith(".wav", ignoreCase = true) ||
+            file.name.endsWith(".ogg", ignoreCase = true) -> Color(0xFFE8323B)
+        file.name.endsWith(".mp4", ignoreCase = true) ||
+            file.name.endsWith(".avi", ignoreCase = true) ||
+            file.name.endsWith(".mkv", ignoreCase = true) ||
+            file.name.endsWith(".mov", ignoreCase = true) -> Color(0xFF858585)
+        file.name.endsWith(".jpg", ignoreCase = true) ||
+            file.name.endsWith(".jpeg", ignoreCase = true) ||
+            file.name.endsWith(".png", ignoreCase = true) ||
+            file.name.endsWith(".gif", ignoreCase = true) ||
+            file.name.endsWith(".bmp", ignoreCase = true) -> Color(0xFF858585)
+        file.name.endsWith(".doc", ignoreCase = true) ||
+            file.name.endsWith(".docx", ignoreCase = true) -> Color(0xFF3769BD)
+        file.name.endsWith(".ppt", ignoreCase = true) ||
+            file.name.endsWith(".pptx", ignoreCase = true) -> Color(0xFFD8665B)
+        file.name.endsWith(".xls", ignoreCase = true) ||
+            file.name.endsWith(".xlsx", ignoreCase = true) -> Color(0xFF64A900)
+        file.name.endsWith(".zip", ignoreCase = true) ||
+            file.name.endsWith(".rar", ignoreCase = true) ||
+            file.name.endsWith(".7z", ignoreCase = true) ||
+            file.name.endsWith(".tar", ignoreCase = true) -> Color(0xFF7D5A4E)
+        file.name.endsWith(".js", ignoreCase = true) ||
+            file.name.endsWith(".md", ignoreCase = true) ||
+            file.name.endsWith(".txt", ignoreCase = true) ||
+            file.name.endsWith(".json", ignoreCase = true) ||
+            file.name.endsWith(".xml", ignoreCase = true) ||
+            file.name.endsWith(".html", ignoreCase = true) ||
+            file.name.endsWith(".css", ignoreCase = true) -> Color(0xFF3769BD)
+        file.name.endsWith(".py", ignoreCase = true) -> Color(0xFF3769BD)
+        else -> Color(0xFF607D8B)
     }
 }
 

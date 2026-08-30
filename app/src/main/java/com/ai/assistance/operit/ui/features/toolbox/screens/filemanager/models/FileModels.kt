@@ -13,7 +13,9 @@ data class FileItem(
     val isDirectory: Boolean,
     val size: Long = 0,
     val lastModified: Long = 0,
-    val fullPath: String? = null
+    val fullPath: String? = null,
+    /** 原始后端时间标签；当后端不能提供 epoch millis 时仍可显示真实信息。 */
+    val lastModifiedLabel: String = "",
 )
 
 enum class FileManagerPane {
@@ -30,6 +32,7 @@ enum class FileManagerSortMode {
 enum class FileManagerBackAction {
     HISTORY,
     PARENT,
+    INITIAL_STORAGE,
     EXIT,
 }
 
@@ -53,9 +56,9 @@ internal fun fileManagerBackAction(
     initialStoragePath: String,
 ): FileManagerBackAction = when {
     state.backStack.isNotEmpty() -> FileManagerBackAction.HISTORY
-    state.path != initialStoragePath || state.environment != null ->
-        if (state.path == "/") FileManagerBackAction.EXIT else FileManagerBackAction.PARENT
-    else -> FileManagerBackAction.EXIT
+    state.path == initialStoragePath && state.environment == null -> FileManagerBackAction.EXIT
+    fileManagerParentPath(state.path) != null -> FileManagerBackAction.PARENT
+    else -> FileManagerBackAction.INITIAL_STORAGE
 }
 
 internal fun fileManagerParentPath(path: String): String? {

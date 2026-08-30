@@ -8,8 +8,8 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 - [MT 管理器手机存储复刻](mt_file_manager_replica/index.md)：在共享文件管理器中复刻 MT 管理器
   的双窗格手机存储工作台，保留现有 AITool/SAF 文件能力，明确左上绝对退出按钮和目录级系统 Back
-  顺序。本轮实现、定向自动化验证和 Debug APK 审计已完成；设备视觉/触摸/系统 Back 保持
-  `verification_pending`。
+  顺序。本轮继续收紧为连续纯白列表、灰底选择、右滑选中、扩展名图标色、活动栏阴影和活动路径
+  同步按钮；实现与自动化验证完成后，设备视觉/触摸/系统 Back 仍保持 `verification_pending`。
 
 - [全软件 UI 风格统一优化](ui_style_unification/index.md)：以设置页风格为基准，统一 AI 对话、
   抽屉、AI 助手设置、浏览器、播放器和下载器的控件/文案层级，并修复可证实的呈现问题。

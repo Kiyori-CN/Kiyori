@@ -1,6 +1,5 @@
 package com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components
 
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material3.Icon
@@ -25,6 +23,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.zIndex
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileItem
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerPane
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerPaneState
@@ -43,10 +44,11 @@ fun FileManagerDualPane(
     onPaneClick: (FileManagerPane) -> Unit,
     onItemClick: (FileManagerPane, FileItem) -> Unit,
     onItemLongClick: (FileManagerPane, FileItem) -> Unit,
+    onItemSwipeRight: (FileManagerPane, FileItem) -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxSize(),
-        horizontalArrangement = Arrangement.spacedBy(1.dp),
+        horizontalArrangement = Arrangement.Start,
     ) {
         FileManagerPaneColumn(
             pane = FileManagerPane.LEFT,
@@ -60,6 +62,7 @@ fun FileManagerDualPane(
             onPaneClick = onPaneClick,
             onItemClick = onItemClick,
             onItemLongClick = onItemLongClick,
+            onItemSwipeRight = onItemSwipeRight,
             modifier = Modifier.weight(1f),
         )
         FileManagerPaneColumn(
@@ -74,6 +77,7 @@ fun FileManagerDualPane(
             onPaneClick = onPaneClick,
             onItemClick = onItemClick,
             onItemLongClick = onItemLongClick,
+            onItemSwipeRight = onItemSwipeRight,
             modifier = Modifier.weight(1f),
         )
     }
@@ -92,26 +96,23 @@ private fun FileManagerPaneColumn(
     onPaneClick: (FileManagerPane) -> Unit,
     onItemClick: (FileManagerPane, FileItem) -> Unit,
     onItemLongClick: (FileManagerPane, FileItem) -> Unit,
+    onItemSwipeRight: (FileManagerPane, FileItem) -> Unit,
     modifier: Modifier,
 ) {
     val isActive = pane == activePane
     Surface(
         modifier = modifier
             .fillMaxHeight()
-            .then(
-                if (isActive) {
-                    Modifier.border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.primary,
-                        shape = RoundedCornerShape(0.dp),
-                    )
-                } else {
-                    Modifier
-                },
+            // 阴影和 zIndex 表示当前栏位于另一栏上方，同时保留两栏的完整点击区域。
+            .zIndex(if (isActive) 1f else 0f)
+            .shadow(
+                elevation = if (isActive) 8.dp else 0.dp,
+                shape = RectangleShape,
+                clip = false,
             )
             .clickable(onClick = { onPaneClick(pane) }),
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = if (isActive) 1.dp else 0.dp,
+        tonalElevation = 0.dp,
     ) {
         when {
             state.error != null -> {
@@ -138,8 +139,8 @@ private fun FileManagerPaneColumn(
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    contentPadding = PaddingValues(0.dp),
+                    verticalArrangement = Arrangement.spacedBy(0.dp),
                 ) {
                     if (state.isLoading && state.files.isEmpty()) {
                         item {
@@ -161,6 +162,7 @@ private fun FileManagerPaneColumn(
                             },
                             onItemClick = { onItemClick(pane, file) },
                             onItemLongClick = { onItemLongClick(pane, file) },
+                            onSwipeRight = { onItemSwipeRight(pane, file) },
                             itemSize = itemSize,
                             displayMode = DisplayMode.TWO_COLUMNS,
                             compact = true,

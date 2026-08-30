@@ -50,4 +50,11 @@ class FileManagerNavigationPolicyTest {
 
         assertEquals(FileManagerBackAction.HISTORY, fileManagerBackAction(state, initialPath))
     }
+
+    @Test
+    fun `non-storage root returns to initial storage before exit`() {
+        val state = FileManagerPaneState(path = "/", environment = "linux")
+
+        assertEquals(FileManagerBackAction.INITIAL_STORAGE, fileManagerBackAction(state, initialPath))
+    }
 }
