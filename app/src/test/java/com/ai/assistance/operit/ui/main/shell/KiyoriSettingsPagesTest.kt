@@ -150,6 +150,86 @@ class KiyoriSettingsPagesTest {
     }
 
     @Test
+    fun `workspace header consumes upward scroll and only expands from unconsumed downward scroll`() {
+        assertEquals(
+            36f,
+            calculateKiyoriSettingsWorkspaceHeaderOffset(0f, -36f, 72f),
+            0.0001f,
+        )
+        assertEquals(
+            72f,
+            calculateKiyoriSettingsWorkspaceHeaderOffset(36f, -60f, 72f),
+            0.0001f,
+        )
+        assertEquals(
+            52f,
+            calculateKiyoriSettingsWorkspaceHeaderOffset(72f, 20f, 72f),
+            0.0001f,
+        )
+        assertEquals(
+            0f,
+            calculateKiyoriSettingsWorkspaceHeaderOffset(0f, 20f, 72f),
+            0.0001f,
+        )
+        assertEquals(72, KIYORI_SETTINGS_WORKSPACE_COLLAPSE_DISTANCE_DP)
+
+        val workspaceSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/main/shell/" +
+                    "KiyoriSettingsWorkspacePage.kt",
+            ).readText()
+        assertTrue(workspaceSource.contains("nestedScroll(nestedScrollConnection)"))
+        assertTrue(workspaceSource.contains("override fun onPostScroll("))
+        assertTrue(workspaceSource.contains("KiyoriCollapsingSettingsHeader("))
+        listOf("ModelConfigScreen.kt", "FunctionalConfigScreen.kt").forEach { fileName ->
+            assertTrue(
+                repositoryFile(
+                    "app/src/main/java/com/ai/assistance/operit/ui/features/settings/screens/" +
+                        fileName,
+                ).readText().contains("KiyoriSettingsWorkspacePage("),
+            )
+        }
+    }
+
+    @Test
+    fun `all settings root and capability pages use the shared collapsing title host`() {
+        listOf(
+            "KiyoriSettingsHomePage.kt",
+            "KiyoriApplicationSettingsPages.kt",
+            "KiyoriMoreFeaturesSettingsPage.kt",
+            "KiyoriBrowserSettingsPage.kt",
+            "KiyoriDownloadSettingsPage.kt",
+            "KiyoriPlayerSettingsPage.kt",
+            "KiyoriAdBlockSettingsPage.kt",
+            "KiyoriNetworkProxySettingsPage.kt",
+            "KiyoriBrowserPasswordManagerPage.kt",
+            "KiyoriBrowserTextSizePage.kt",
+        ).forEach { fileName ->
+            val source =
+                repositoryFile(
+                    "app/src/main/java/com/ai/assistance/operit/ui/main/shell/" +
+                        fileName,
+                ).readText()
+            assertTrue(
+                "$fileName must use the shared collapsing title host",
+                source.contains("KiyoriCollapsingSettingsPage("),
+            )
+        }
+        val settingsHomeSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/main/shell/" +
+                    "KiyoriSettingsHomePage.kt",
+            ).readText()
+        assertTrue(settingsHomeSource.contains("collapseOnScroll = false"))
+        val permissionSource =
+            repositoryFile(
+                "app/src/main/java/com/kiyori/integration/operit/onboarding/" +
+                    "KiyoriPermissionsSettingsPage.kt",
+            ).readText()
+        assertTrue(permissionSource.contains("KiyoriCollapsingSettingsPage("))
+    }
+
+    @Test
     fun `settings home keeps four three-item groups and exposes real settings actions`() {
         assertEquals(
             listOf(3, 3, 3, 3),
@@ -612,6 +692,19 @@ class KiyoriSettingsPagesTest {
             assertTrue(screen.usesEmbeddedSettingsTopBar)
         }
         listOf(
+            "ModelConfigScreen.kt",
+            "FunctionalConfigScreen.kt",
+            "ContextSummarySettingsScreen.kt",
+            "MnnModelDownloadScreen.kt",
+            "ModelPromptsSettingsScreen.kt",
+            "PersonaCardGenerationScreen.kt",
+            "TagMarketScreen.kt",
+            "TokenUsageStatisticsScreen.kt",
+            "ToolPermissionSettingsScreen.kt",
+            "UserPreferencesSettingsScreen.kt",
+            "WaifuModeSettingsScreen.kt",
+            "CustomEmojiManagementScreen.kt",
+            "ExternalHttpChatSettingsScreen.kt",
             "GitHubAccountScreen.kt",
             "ThemeSettingsScreen.kt",
             "GlobalDisplaySettingsScreen.kt",

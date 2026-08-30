@@ -94,14 +94,20 @@
 本增量继续沿用上一轮的 Kiyori 设置视觉合同，专项收口设置首页及“我的账号”到“更多功能”之间
 全部设置子页面的顶部标题 owner。当前发现设置页同时存在折叠标题、固定工作台标题、外层通用
 `TopAppBar` 和无标题 `CustomScaffold` 四种呈现，导致 AI 助手子页与浏览器/下载器的标题格式不一致。
-本轮将所有旧设置页面改为显式使用 `KiyoriSettingsWorkspacePage` 并传入唯一 `onBack`，固定态统一
-为 56dp 高、48dp 返回触摸目标、20sp 半粗标题、设置页背景和细分隔线；滚动型页面继续使用
-`KiyoriCollapsingSettingsPage` 的同一固定态合同。
+本轮将所有旧设置页面改为显式使用设置内嵌标题；设置根页面“设置”保留原固定顶栏，
+我的账号、AI助手、界面定制、数据备份、更多功能、网页浏览器、文件下载器、视频播放器及其权限/代理/协议
+子页统一使用折叠标题；
+`KiyoriSettingsWorkspacePage` 通过页面自身
+的 `LazyColumn`/`verticalScroll` 嵌套滚动复用 `KiyoriCollapsingSettingsPage` 的真实折叠行为：初始
+标题空间 128dp，随上滑收缩至 56dp，标题字号 26sp 收缩至 20sp；固定态仍使用 48dp 返回触摸目标、
+20sp 半粗标题、设置页背景和细分隔线。这样模型与 API、功能模型分配、提示词、聊天历史、备份、
+布局等长页面不再显示始终固定的顶栏。
 
 设置首页的“文件管理器”仅保留展示项，不再拥有 `openFileManager()` 回调或设置路由跳转；点击
 保持无动作，文件管理主页自身的“手机存储”入口仍由 Shell 文件管理状态 owner 处理。未改变协议、
 设置键、数据库、唯一 WebView/播放器/下载 runtime 或返回链。
 
-本增量的自动验收结果：设置页面标题/返回链结构测试、文件管理器空动作回归测试、`compileDebugKotlin`、
+本增量的自动验收结果：设置页面标题/返回链结构测试、文件管理器空动作回归测试、Workspace 折叠位移
+合同测试、`compileDebugKotlin`、
 正式开发准备门禁、`git diff --check`、串行 Debug APK 构建与产物审计；真实设备的浅深色、窄屏、
 大字体、旋转、输入法和系统返回仍保持 `verification_pending`。

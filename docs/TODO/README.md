@@ -8,9 +8,10 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 - [全软件 UI 风格统一优化](ui_style_unification/index.md)：以设置页风格为基准，统一 AI 对话、
   抽屉、AI 助手设置、浏览器、播放器和下载器的控件/文案层级，并修复可证实的呈现问题。
-  当前设置页标题 owner 收口、文件管理器空动作回归、Debug 构建和自动化审计已完成，待 main
-  提交推送；真机视觉/触摸/输入法及真实 WebView、播放器、下载任务仍保持
-  `verification_pending`。
+  设置页标题 owner 收口和文件管理器空动作已在 main 完成；本次修正已补齐根/能力页及 Workspace
+  页面与“AI助手-文本转语音”一致的滚动收缩标题，设置根页“设置”保留固定顶栏，并通过本地测试、
+  正式门禁和 Debug 构建。
+  真机视觉/触摸/输入法及真实 WebView、播放器、下载任务仍保持 `verification_pending`。
 
 ## 2026-08-29 Operit v1.12.1 后续更新与最新插件市场适配
 
@@ -582,10 +583,11 @@ AI助手根页按用户决策频率固定为五组十三项：
 
 ### 页面与弹层合同
 
-- 简单设置页继续使用 `KiyoriCollapsingSettingsPage`。
+- 设置根页“设置”使用同一标题组件的固定模式；其他简单设置页继续使用 `KiyoriCollapsingSettingsPage`。
 - 模型管理、角色编辑、统计、外部接口和其他长表单/工作台页面使用新的 Kiyori 紧凑设置工作台：
-  页面自己持有不透明安全区顶栏、统一 Settings 背景、`16dp` 卡片、无阴影层级、底部安全区、
-  Snackbar 与可选页面操作；不再显示外层 Operit 设置 TopAppBar。
+  页面自己持有与简单设置页相同的折叠标题，页面滚动时标题从 `128dp` 收缩到 `56dp`；同时统一
+  Settings 背景、`16dp` 卡片、无阴影层级、底部安全区、Snackbar 与可选页面操作，不再显示外层
+  Operit 设置 TopAppBar。
 - 普通导航、开关、选择和值展示继续复用 `KiyoriSettingsRow`、`KiyoriSettingsSelectionSheet`
   和 `KiyoriSettingsTheme`；复杂表单复用同一字段、信息提示、空状态、按钮和对话框 token。
 - 普通主操作使用 Filled/Tonal 层级，次操作使用 Outlined/Text；删除、重置、清空历史、重置令牌等
@@ -621,8 +623,9 @@ AI助手根页按用户决策频率固定为五组十三项：
 
 - 根页已固定为五组十三项；根入口、分组、说明和页面标题全部使用 Android 资源，七个语言目录
   保持同一键集合；“人设生成”只保留在“提示词与角色”内部。
-- 新增 `KiyoriSettingsWorkspacePage`，统一长表单/编辑器/统计页的不透明安全区顶栏、页面背景、
-  Snackbar、底部安全区和可选页面操作；相关 Operit route 继续使用原 route ID 和唯一状态 owner。
+- 新增 `KiyoriSettingsWorkspacePage`，统一长表单/编辑器/统计页的不透明安全区折叠标题、页面背景、
+  Snackbar、底部安全区和可选页面操作；标题通过页面自身滚动容器的嵌套滚动从 128dp 收缩到 56dp，
+  与文本转语音页面使用同一标题帧，相关 Operit route 继续使用原 route ID 和唯一状态 owner。
 - 用户资料、模型/API、功能模型、上下文、工具授权、用量、局域网服务、提示词/角色、人设生成、
   回复/表情、自定义表情、标签模板和本地模型下载已迁入统一 Settings Surface。
 - 模型配置删除、功能模型全部重置、历史媒体重置、令牌重置、个人唤醒模板清除、自动附件删除、

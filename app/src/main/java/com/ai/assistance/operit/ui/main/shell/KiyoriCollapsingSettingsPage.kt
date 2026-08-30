@@ -58,6 +58,8 @@ internal data class KiyoriCollapsingSettingsHeaderFrame(
     val titleFontSizeSp: Float,
 )
 
+internal const val KIYORI_SETTINGS_HEADER_COLLAPSE_DISTANCE_DP = 72
+
 internal fun calculateKiyoriSettingsHeaderCollapseProgress(
     firstVisibleItemIndex: Int,
     firstVisibleItemScrollOffset: Int,
@@ -102,6 +104,8 @@ internal fun KiyoriCollapsingSettingsPage(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     navigationIcon: KiyoriSettingsNavigationIcon = KiyoriSettingsNavigationIcon.BACK,
+    navigationIconVisible: Boolean = true,
+    collapseOnScroll: Boolean = true,
     headerAction: (@Composable () -> Unit)? = null,
     headerActionWidth: Dp = 48.dp,
     content: LazyListScope.() -> Unit,
@@ -111,6 +115,8 @@ internal fun KiyoriCollapsingSettingsPage(
             title = title,
             onBack = onBack,
             navigationIcon = navigationIcon,
+            navigationIconVisible = navigationIconVisible,
+            collapseOnScroll = collapseOnScroll,
             headerAction = headerAction,
             headerActionWidth = headerActionWidth,
             modifier = modifier,
@@ -124,6 +130,8 @@ private fun KiyoriCollapsingSettingsPageContent(
     title: String,
     onBack: () -> Unit,
     navigationIcon: KiyoriSettingsNavigationIcon,
+    navigationIconVisible: Boolean,
+    collapseOnScroll: Boolean,
     headerAction: (@Composable () -> Unit)?,
     headerActionWidth: Dp,
     modifier: Modifier,
@@ -132,20 +140,26 @@ private fun KiyoriCollapsingSettingsPageContent(
     val colors = LocalKiyoriSettingsColors.current
     val density = LocalDensity.current
     val statusBarHeight = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
-    val collapseDistancePx = with(density) { 72.dp.toPx() }
+    val collapseDistancePx = with(density) {
+        KIYORI_SETTINGS_HEADER_COLLAPSE_DISTANCE_DP.dp.toPx()
+    }
     val listState = rememberLazyListState()
     val collapseProgress by
-        remember(listState, collapseDistancePx) {
+        remember(listState, collapseDistancePx, collapseOnScroll) {
             derivedStateOf {
-                calculateKiyoriSettingsHeaderCollapseProgress(
-                    firstVisibleItemIndex = listState.firstVisibleItemIndex,
-                    firstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset,
-                    collapseDistancePx = collapseDistancePx,
-                )
+                if (collapseOnScroll) {
+                    calculateKiyoriSettingsHeaderCollapseProgress(
+                        firstVisibleItemIndex = listState.firstVisibleItemIndex,
+                        firstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset,
+                        collapseDistancePx = collapseDistancePx,
+                    )
+                } else {
+                    1f
+                }
             }
         }
     val headerFrame = calculateKiyoriSettingsHeaderFrame(collapseProgress)
-    val expandedHeaderFrame = calculateKiyoriSettingsHeaderFrame(0f)
+    val expandedHeaderFrame = calculateKiyoriSettingsHeaderFrame(if (collapseOnScroll) 0f else 1f)
 
     Box(
         modifier =
@@ -176,6 +190,7 @@ private fun KiyoriCollapsingSettingsPageContent(
             title = title,
             onBack = onBack,
             navigationIcon = navigationIcon,
+            navigationIconVisible = navigationIconVisible,
             headerAction = headerAction,
             headerActionWidth = headerActionWidth,
             statusBarHeight = statusBarHeight,
@@ -204,10 +219,11 @@ internal fun KiyoriSettingsGroupCard(
 }
 
 @Composable
-private fun KiyoriCollapsingSettingsHeader(
+internal fun KiyoriCollapsingSettingsHeader(
     title: String,
     onBack: () -> Unit,
     navigationIcon: KiyoriSettingsNavigationIcon,
+    navigationIconVisible: Boolean = true,
     headerAction: (@Composable () -> Unit)?,
     headerActionWidth: Dp,
     statusBarHeight: androidx.compose.ui.unit.Dp,
@@ -223,28 +239,30 @@ private fun KiyoriCollapsingSettingsHeader(
                 .background(colors.pageBackground)
                 .clipToBounds(),
     ) {
-        IconButton(
-            onClick = onBack,
-            modifier =
-                Modifier
-                    .offset(x = 8.dp, y = statusBarHeight + 4.dp)
-                    .size(48.dp),
-        ) {
-            Icon(
-                imageVector =
-                    when (navigationIcon) {
-                        KiyoriSettingsNavigationIcon.BACK ->
-                            Icons.AutoMirrored.Filled.ArrowBack
-                        KiyoriSettingsNavigationIcon.MENU -> Icons.Default.Menu
-                    },
-                contentDescription =
-                    when (navigationIcon) {
-                        KiyoriSettingsNavigationIcon.BACK -> "返回"
-                        KiyoriSettingsNavigationIcon.MENU -> "菜单"
-                    },
-                tint = colors.primaryText,
-                modifier = Modifier.size(24.dp),
-            )
+        if (navigationIconVisible) {
+            IconButton(
+                onClick = onBack,
+                modifier =
+                    Modifier
+                        .offset(x = 8.dp, y = statusBarHeight + 4.dp)
+                        .size(48.dp),
+            ) {
+                Icon(
+                    imageVector =
+                        when (navigationIcon) {
+                            KiyoriSettingsNavigationIcon.BACK ->
+                                Icons.AutoMirrored.Filled.ArrowBack
+                            KiyoriSettingsNavigationIcon.MENU -> Icons.Default.Menu
+                        },
+                    contentDescription =
+                        when (navigationIcon) {
+                            KiyoriSettingsNavigationIcon.BACK -> "返回"
+                            KiyoriSettingsNavigationIcon.MENU -> "菜单"
+                        },
+                    tint = colors.primaryText,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
         }
         Text(
             text = title,
@@ -258,7 +276,12 @@ private fun KiyoriCollapsingSettingsHeader(
                 Modifier
                     .fillMaxWidth()
                     .padding(
-                        start = frame.titleStartDp.dp,
+                        start =
+                            if (navigationIconVisible) {
+                                frame.titleStartDp.dp
+                            } else {
+                                16.dp
+                            },
                         end =
                             calculateKiyoriSettingsHeaderTitleEndPadding(
                                 headerActionWidth.takeIf { headerAction != null },

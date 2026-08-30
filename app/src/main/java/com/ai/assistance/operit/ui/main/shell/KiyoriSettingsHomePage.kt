@@ -8,19 +8,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.AccountCircle
@@ -246,36 +242,51 @@ internal fun KiyoriSettingsHomePage(
                 themeMode = themeMode,
             )
         val scope = rememberCoroutineScope()
-        val colors = LocalKiyoriSettingsColors.current
-        LazyColumn(
-            modifier = modifier.fillMaxSize().background(colors.pageBackground),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            item {
-                KiyoriSettingsHomeHeader(
-                    effectiveDarkTheme = effectiveDarkTheme,
-                    selectedQuickTheme = selectedQuickTheme,
-                    onBack = onBack,
-                    onSelectQuickTheme = { selection ->
-                        scope.launch {
-                            when (selection) {
-                                KiyoriSettingsQuickTheme.FOLLOW_SYSTEM ->
-                                    preferencesManager.saveThemeSettings(useSystemTheme = true)
-                                KiyoriSettingsQuickTheme.LIGHT ->
-                                    preferencesManager.saveThemeSettings(
-                                        themeMode = UserPreferencesManager.THEME_MODE_LIGHT,
-                                        useSystemTheme = false,
-                                    )
-                                KiyoriSettingsQuickTheme.DARK ->
-                                    preferencesManager.saveThemeSettings(
-                                        themeMode = UserPreferencesManager.THEME_MODE_DARK,
-                                        useSystemTheme = false,
-                                    )
+        var showThemeMenu by remember { mutableStateOf(false) }
+        KiyoriCollapsingSettingsPage(
+            title = "设置",
+            onBack = onBack ?: {},
+            navigationIconVisible = onBack != null,
+            collapseOnScroll = false,
+            headerActionWidth = 160.dp,
+            headerAction = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    KiyoriSettingsHeaderAction(R.drawable.ic_kiyori_settings_header_top_search, "搜索")
+                    KiyoriSettingsHeaderAction(R.drawable.ic_kiyori_settings_header_scan, "扫描")
+                    KiyoriSettingsHeaderAction(R.drawable.ic_kiyori_settings_header_top_refresh, "刷新")
+                    KiyoriSettingsThemeShortcut(
+                        effectiveDarkTheme = effectiveDarkTheme,
+                        selectedQuickTheme = selectedQuickTheme,
+                        expanded = showThemeMenu,
+                        onExpandedChange = { showThemeMenu = it },
+                        onSelect = { selection ->
+                            showThemeMenu = false
+                            scope.launch {
+                                when (selection) {
+                                    KiyoriSettingsQuickTheme.FOLLOW_SYSTEM ->
+                                        preferencesManager.saveThemeSettings(useSystemTheme = true)
+                                    KiyoriSettingsQuickTheme.LIGHT ->
+                                        preferencesManager.saveThemeSettings(
+                                            themeMode = UserPreferencesManager.THEME_MODE_LIGHT,
+                                            useSystemTheme = false,
+                                        )
+                                    KiyoriSettingsQuickTheme.DARK ->
+                                        preferencesManager.saveThemeSettings(
+                                            themeMode = UserPreferencesManager.THEME_MODE_DARK,
+                                            useSystemTheme = false,
+                                        )
+                                }
                             }
-                        }
-                    },
-                )
-            }
+                        },
+                    )
+                }
+            },
+            modifier = modifier,
+        ) {
             itemsIndexed(kiyoriSettingsHomeGroups) { _, group ->
                 KiyoriSettingsHomeGroupCard(
                     entries = group,
@@ -291,52 +302,6 @@ internal fun KiyoriSettingsHomePage(
             }
             item { Spacer(modifier = Modifier.height(96.dp)) }
         }
-    }
-}
-
-@Composable
-private fun KiyoriSettingsHomeHeader(
-    effectiveDarkTheme: Boolean,
-    selectedQuickTheme: KiyoriSettingsQuickTheme,
-    onBack: (() -> Unit)?,
-    onSelectQuickTheme: (KiyoriSettingsQuickTheme) -> Unit,
-) {
-    val colors = LocalKiyoriSettingsColors.current
-    var showThemeMenu by remember { mutableStateOf(false) }
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .background(colors.pageBackground)
-                .statusBarsPadding()
-                .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (onBack == null) {
-            Spacer(modifier = Modifier.width(10.dp))
-        } else {
-            KiyoriSettingsHomeBackAction(onBack)
-        }
-        Text(
-            text = "设置",
-            fontSize = 21.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = colors.primaryText,
-            modifier = Modifier.weight(1f),
-        )
-        KiyoriSettingsHeaderAction(R.drawable.ic_kiyori_settings_header_top_search, "搜索")
-        KiyoriSettingsHeaderAction(R.drawable.ic_kiyori_settings_header_scan, "扫描")
-        KiyoriSettingsHeaderAction(R.drawable.ic_kiyori_settings_header_top_refresh, "刷新")
-        KiyoriSettingsThemeShortcut(
-            effectiveDarkTheme = effectiveDarkTheme,
-            selectedQuickTheme = selectedQuickTheme,
-            expanded = showThemeMenu,
-            onExpandedChange = { showThemeMenu = it },
-            onSelect = { selection ->
-                showThemeMenu = false
-                onSelectQuickTheme(selection)
-            },
-        )
     }
 }
 
@@ -419,20 +384,6 @@ private fun KiyoriSettingsThemeShortcut(
     }
 }
 
-@Composable
-private fun KiyoriSettingsHomeBackAction(onBack: () -> Unit) {
-    Box(
-        modifier = Modifier.size(40.dp).clickable(onClick = onBack),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-            contentDescription = stringResource(R.string.back),
-            tint = LocalKiyoriSettingsColors.current.secondaryText,
-            modifier = Modifier.size(22.dp),
-        )
-    }
-}
 
 private val KiyoriSettingsQuickTheme.label: String
     get() =

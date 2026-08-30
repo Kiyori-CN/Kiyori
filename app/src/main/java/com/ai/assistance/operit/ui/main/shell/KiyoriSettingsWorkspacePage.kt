@@ -2,54 +2,55 @@ package com.ai.assistance.operit.ui.main.shell
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.kiyori.design.theme.KiyoriSettingsTheme
 import com.kiyori.design.theme.LocalKiyoriSettingsColors
 
 internal const val KIYORI_SETTINGS_WORKSPACE_TOP_BAR_HEIGHT_DP = 56
 internal const val KIYORI_SETTINGS_WORKSPACE_HORIZONTAL_PADDING_DP = 16
 internal const val KIYORI_SETTINGS_WORKSPACE_VERTICAL_PADDING_DP = 12
+internal const val KIYORI_SETTINGS_WORKSPACE_COLLAPSE_DISTANCE_DP =
+    KIYORI_SETTINGS_HEADER_COLLAPSE_DISTANCE_DP
+
+internal fun calculateKiyoriSettingsWorkspaceHeaderOffset(
+    currentOffsetPx: Float,
+    availableDeltaY: Float,
+    collapseDistancePx: Float,
+): Float {
+    require(currentOffsetPx >= 0f) { "currentOffsetPx must not be negative" }
+    require(collapseDistancePx > 0f) { "collapseDistancePx must be positive" }
+    return (currentOffsetPx - availableDeltaY).coerceIn(0f, collapseDistancePx)
+}
 
 /**
  * 长表单、编辑器、统计和多标签页面使用的设置工作台。
  *
- * 这些页面需要保留自己的滚动与输入状态，不能再嵌套一层 LazyColumn；工作台只统一安全区顶栏、
- * Settings 主题、页面背景、Snackbar/FAB 宿主和底部系统栏边界。若继续依赖外层 Operit TopAppBar，
- * 同一设置会同时存在两套标题与背景所有者，来源切换时也更容易出现透明首帧和视觉跳变。
+ * 页面继续持有自己的滚动与输入状态；工作台通过嵌套滚动读取真实的纵向滚动增量，复用
+ * KiyoriCollapsingSettingsPage 的标题帧。这样不会再出现固定顶栏，也不需要给每个页面套第二个列表。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,102 +66,91 @@ internal fun KiyoriSettingsWorkspacePage(
 ) {
     KiyoriSettingsTheme {
         val colors = LocalKiyoriSettingsColors.current
-        Scaffold(
-            modifier = modifier.fillMaxSize(),
-            topBar = {
-                KiyoriSettingsWorkspaceTopBar(
-                    title = title,
-                    onBack = onBack,
-                    navigationIcon = navigationIcon,
-                    headerAction = headerAction,
-                )
-            },
-            snackbarHost = {
-                snackbarHostState?.let { state ->
-                    SnackbarHost(hostState = state)
+        val density = LocalDensity.current
+        val statusBarHeight = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
+        val collapseDistancePx = with(density) {
+            KIYORI_SETTINGS_WORKSPACE_COLLAPSE_DISTANCE_DP.dp.toPx()
+        }
+        var headerOffsetPx by remember { mutableFloatStateOf(0f) }
+        val nestedScrollConnection = remember(collapseDistancePx) {
+            object : NestedScrollConnection {
+                override fun onPreScroll(
+                    available: Offset,
+                    source: NestedScrollSource,
+                ): Offset {
+                    if (available.y >= 0f) return Offset.Zero
+                    val previousOffset = headerOffsetPx
+                    val nextOffset = calculateKiyoriSettingsWorkspaceHeaderOffset(
+                        currentOffsetPx = previousOffset,
+                        availableDeltaY = available.y,
+                        collapseDistancePx = collapseDistancePx,
+                    )
+                    headerOffsetPx = nextOffset
+                    return Offset(x = 0f, y = previousOffset - nextOffset)
                 }
-            },
-            floatingActionButton = {
-                floatingActionButton?.invoke()
-            },
-            containerColor = colors.pageBackground,
-            contentColor = colors.primaryText,
-            contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom),
-            content = content,
-        )
-    }
-}
 
-@Composable
-private fun KiyoriSettingsWorkspaceTopBar(
-    title: String,
-    onBack: () -> Unit,
-    navigationIcon: KiyoriSettingsNavigationIcon,
-    headerAction: (@Composable () -> Unit)?,
-) {
-    val colors = LocalKiyoriSettingsColors.current
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .background(colors.pageBackground)
-                .windowInsetsPadding(WindowInsets.statusBars),
-    ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(KIYORI_SETTINGS_WORKSPACE_TOP_BAR_HEIGHT_DP.dp)
-                    .padding(horizontal = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier.size(48.dp),
-            ) {
-                Icon(
-                    imageVector =
-                        when (navigationIcon) {
-                            KiyoriSettingsNavigationIcon.BACK ->
-                                Icons.AutoMirrored.Filled.ArrowBack
-                            KiyoriSettingsNavigationIcon.MENU -> Icons.Default.Menu
-                        },
-                    contentDescription =
-                        when (navigationIcon) {
-                            KiyoriSettingsNavigationIcon.BACK -> "返回"
-                            KiyoriSettingsNavigationIcon.MENU -> "菜单"
-                        },
-                    tint = colors.primaryText,
-                    modifier = Modifier.size(24.dp),
-                )
-            }
-            Text(
-                text = title,
-                color = colors.primaryText,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .padding(horizontal = 4.dp)
-                        .semantics { heading() },
-            )
-            if (headerAction == null) {
-                Spacer(modifier = Modifier.size(48.dp))
-            } else {
-                Box(
-                    modifier = Modifier.size(48.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    headerAction()
+                override fun onPostScroll(
+                    consumed: Offset,
+                    available: Offset,
+                    source: NestedScrollSource,
+                ): Offset {
+                    if (available.y <= 0f) return Offset.Zero
+                    val previousOffset = headerOffsetPx
+                    val nextOffset = calculateKiyoriSettingsWorkspaceHeaderOffset(
+                        currentOffsetPx = previousOffset,
+                        availableDeltaY = available.y,
+                        collapseDistancePx = collapseDistancePx,
+                    )
+                    headerOffsetPx = nextOffset
+                    return Offset(x = 0f, y = previousOffset - nextOffset)
                 }
             }
         }
-        HorizontalDivider(
-            color = colors.divider,
-            thickness = 0.6.dp,
-        )
+        val collapseProgress by remember(headerOffsetPx, collapseDistancePx) {
+            derivedStateOf {
+                (headerOffsetPx / collapseDistancePx).coerceIn(0f, 1f)
+            }
+        }
+        val headerFrame = calculateKiyoriSettingsHeaderFrame(collapseProgress)
+        Box(
+            modifier =
+                modifier
+                    .fillMaxSize()
+                    .background(colors.pageBackground)
+                    .nestedScroll(nestedScrollConnection),
+        ) {
+            Scaffold(
+                modifier = Modifier.fillMaxSize(),
+                topBar = {},
+                snackbarHost = {
+                    snackbarHostState?.let { state ->
+                        SnackbarHost(hostState = state)
+                    }
+                },
+                floatingActionButton = {
+                    floatingActionButton?.invoke()
+                },
+                containerColor = colors.pageBackground,
+                contentColor = colors.primaryText,
+                contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom),
+            ) { innerPadding ->
+                content(
+                    PaddingValues(
+                        top = statusBarHeight + headerFrame.contentHeightDp.dp,
+                        bottom = innerPadding.calculateBottomPadding(),
+                    ),
+                )
+            }
+            KiyoriCollapsingSettingsHeader(
+                title = title,
+                onBack = onBack,
+                navigationIcon = navigationIcon,
+                headerAction = headerAction,
+                headerActionWidth = 48.dp,
+                statusBarHeight = statusBarHeight,
+                frame = headerFrame,
+                modifier = Modifier.zIndex(1f),
+            )
+        }
     }
 }
