@@ -38,28 +38,46 @@ fun FileListItem(
     onItemClick: () -> Unit,
     onItemLongClick: () -> Unit,
     itemSize: Float = 1f,
-    displayMode: DisplayMode = DisplayMode.SINGLE_COLUMN
+    displayMode: DisplayMode = DisplayMode.SINGLE_COLUMN,
+    compact: Boolean = false,
 ) {
-    val baseHeight = 72.dp  // 所有模式使用相同的高度
-    val baseIconSize = when (displayMode) {
-        DisplayMode.SINGLE_COLUMN -> 40.dp
-        DisplayMode.TWO_COLUMNS -> 36.dp
-        DisplayMode.THREE_COLUMNS -> 32.dp
+    val isCompactTwoColumn = compact && displayMode == DisplayMode.TWO_COLUMNS
+    val baseHeight = if (isCompactTwoColumn) 56.dp else 72.dp
+    val baseIconSize = if (isCompactTwoColumn) {
+        30.dp
+    } else {
+        when (displayMode) {
+            DisplayMode.SINGLE_COLUMN -> 40.dp
+            DisplayMode.TWO_COLUMNS -> 36.dp
+            DisplayMode.THREE_COLUMNS -> 32.dp
+        }
     }
-    val basePadding = when (displayMode) {
-        DisplayMode.SINGLE_COLUMN -> 12.dp
-        DisplayMode.TWO_COLUMNS -> 8.dp
-        DisplayMode.THREE_COLUMNS -> 6.dp
+    val basePadding = if (isCompactTwoColumn) {
+        6.dp
+    } else {
+        when (displayMode) {
+            DisplayMode.SINGLE_COLUMN -> 12.dp
+            DisplayMode.TWO_COLUMNS -> 8.dp
+            DisplayMode.THREE_COLUMNS -> 6.dp
+        }
     }
-    val baseSpacing = when (displayMode) {
-        DisplayMode.SINGLE_COLUMN -> 8.dp
-        DisplayMode.TWO_COLUMNS -> 6.dp
-        DisplayMode.THREE_COLUMNS -> 4.dp
+    val baseSpacing = if (isCompactTwoColumn) {
+        4.dp
+    } else {
+        when (displayMode) {
+            DisplayMode.SINGLE_COLUMN -> 8.dp
+            DisplayMode.TWO_COLUMNS -> 6.dp
+            DisplayMode.THREE_COLUMNS -> 4.dp
+        }
     }
-    val baseTextSize = when (displayMode) {
-        DisplayMode.SINGLE_COLUMN -> 16.sp
-        DisplayMode.TWO_COLUMNS -> 14.sp
-        DisplayMode.THREE_COLUMNS -> 12.sp
+    val baseTextSize = if (isCompactTwoColumn) {
+        13.sp
+    } else {
+        when (displayMode) {
+            DisplayMode.SINGLE_COLUMN -> 16.sp
+            DisplayMode.TWO_COLUMNS -> 14.sp
+            DisplayMode.THREE_COLUMNS -> 12.sp
+        }
     }
 
     Surface(
@@ -73,7 +91,7 @@ fun FileListItem(
         color = if (isSelected) MaterialTheme.colorScheme.primaryContainer
                 else MaterialTheme.colorScheme.surface,
         tonalElevation = if (isSelected) 2.dp else 1.dp,
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(if (isCompactTwoColumn) 4.dp else 12.dp),
     ) {
         when (displayMode) {
             DisplayMode.SINGLE_COLUMN -> {

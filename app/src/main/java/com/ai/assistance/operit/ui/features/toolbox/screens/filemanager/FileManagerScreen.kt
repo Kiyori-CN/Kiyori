@@ -1,54 +1,65 @@
 package com.ai.assistance.operit.ui.features.toolbox.screens.filemanager
 
-import NewFolderDialog
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Environment
+import android.os.StatFs
+import android.text.format.Formatter
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.SdCard
-import androidx.compose.material.icons.filled.Terminal
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.res.stringResource
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolParameter
-import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.*
-import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.DisplayMode
-import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileItem
-import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.viewmodel.FileManagerViewModel
 import com.ai.assistance.operit.data.preferences.ApiPreferences
-import java.io.File
-import android.content.Intent
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import android.provider.DocumentsContract
-import android.widget.Toast
-import androidx.activity.compose.BackHandler
-import kotlinx.coroutines.launch
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.FileContextMenu
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.FileManagerBottomBar
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.FileManagerDualPane
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.FileManagerStorageDrawer
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.FileManagerStorageEntry
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.FileManagerTopBar
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.SearchDialog
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.SearchResultsDialog
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.defaultFileManagerStorageEntries
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerPane
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.viewmodel.FileManagerViewModel
 import com.ai.assistance.operit.util.AppLogger
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.launch
+import NewFolderDialog
 
 private const val FILE_MANAGER_TAG = "ToolboxFileManager"
 
-/** 文件管理器屏幕 */
 @Composable
 fun FileManagerScreen(
     onBack: () -> Unit,
@@ -57,583 +68,375 @@ fun FileManagerScreen(
     val context = LocalContext.current
     val viewModel = remember { FileManagerViewModel(context) }
     val toolHandler = AIToolHandler.getInstance(context)
-
     val scope = rememberCoroutineScope()
-
-    BackHandler(onBack = onBack)
-
-    var pendingRepoBookmarkUri by remember { mutableStateOf<Uri?>(null) }
-    var repoBookmarkNameInput by remember { mutableStateOf("") }
-    var showRepoBookmarkNameDialog by remember { mutableStateOf(false) }
-    var repoBookmarkNameError by remember { mutableStateOf<String?>(null) }
-
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    var showStorageDrawer by remember { mutableStateOf(false) }
+    val leftListState = rememberLazyListState()
+    val rightListState = rememberLazyListState()
     val apiPreferences = remember { ApiPreferences.getInstance(context) }
     val safBookmarks by apiPreferences.safBookmarksFlow.collectAsState(initial = emptyList())
 
-    fun querySafBookmarkDisplayName(uri: Uri): String {
-        return try {
-            val treeDocId = DocumentsContract.getTreeDocumentId(uri)
-            val docUri = DocumentsContract.buildDocumentUriUsingTree(uri, treeDocId)
-            context.contentResolver.query(
-                docUri,
-                arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                val idx = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
-                if (cursor.moveToFirst() && idx >= 0 && !cursor.isNull(idx)) {
-                    cursor.getString(idx)
-                } else {
-                    null
-                }
-            } ?: uri.toString()
-        } catch (_: Exception) {
-            uri.toString()
+    // 页面 Back 只在弹层 owner 之后取得优先级；目录层级耗尽才交还 Shell/Router。
+    BackHandler {
+        if (!viewModel.navigateBack()) {
+            onBack()
         }
     }
 
-    fun queryRepoBookmarkName(uri: Uri): String {
-        fun normalizeName(raw: String): String {
-            return raw.trim()
-                .lowercase(java.util.Locale.ROOT)
-                .replace(Regex("\\s+"), "_")
-                .ifBlank { "repo" }
-        }
-
-        val providerLabel =
-            runCatching {
-                val authority = uri.authority ?: return@runCatching null
-                val provider = context.packageManager.resolveContentProvider(authority, 0)
-                provider?.applicationInfo?.loadLabel(context.packageManager)?.toString()?.trim()
-            }.getOrNull()
-
-        val raw = providerLabel?.takeIf { it.isNotBlank() } ?: uri.authority ?: "repo"
-        return normalizeName(raw)
+    LaunchedEffect(showStorageDrawer) {
+        if (showStorageDrawer) drawerState.open() else drawerState.close()
     }
-
-    val addSafLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocumentTree()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-            try {
-                context.contentResolver.takePersistableUriPermission(uri, flags)
-            } catch (error: Exception) {
-                AppLogger.e(FILE_MANAGER_TAG, "持久化仓库目录访问权限失败", error)
-                Toast.makeText(
-                    context,
-                    context.getString(R.string.file_manager_permission_denied),
-                    Toast.LENGTH_SHORT,
-                ).show()
-                return@rememberLauncherForActivityResult
-            }
-            pendingRepoBookmarkUri = uri
-            repoBookmarkNameInput = queryRepoBookmarkName(uri)
-            showRepoBookmarkNameDialog = true
-        }
+    LaunchedEffect(drawerState.currentValue) {
+        if (drawerState.currentValue == DrawerValue.Closed) showStorageDrawer = false
     }
-
-    if (showRepoBookmarkNameDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showRepoBookmarkNameDialog = false
-                pendingRepoBookmarkUri = null
-                repoBookmarkNameError = null
-            },
-            title = { Text(stringResource(R.string.repo_bookmark_name)) },
-            text = {
-                TextField(
-                    value = repoBookmarkNameInput,
-                    onValueChange = {
-                        repoBookmarkNameInput = it
-                        repoBookmarkNameError = null
-                    },
-                    label = { Text(stringResource(R.string.repo_bookmark_name_label)) },
-                    singleLine = true,
-                    isError = repoBookmarkNameError != null,
-                    supportingText = {
-                        repoBookmarkNameError?.let { Text(it) }
-                    }
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val uri = pendingRepoBookmarkUri
-                        val name = repoBookmarkNameInput.trim()
-                        if (uri == null) {
-                            showRepoBookmarkNameDialog = false
-                            pendingRepoBookmarkUri = null
-                            repoBookmarkNameError = null
-                            return@TextButton
-                        }
-
-                        if (name.isEmpty()) {
-                            repoBookmarkNameError = context.getString(R.string.repo_bookmark_name_empty)
-                            return@TextButton
-                        }
-
-                        val nameExists = safBookmarks.any {
-                            it.uri != uri.toString() && it.name.equals(name, ignoreCase = true)
-                        }
-                        if (nameExists) {
-                            repoBookmarkNameError = context.getString(R.string.repo_bookmark_name_exists)
-                            return@TextButton
-                        }
-
-                        scope.launch {
-                            apiPreferences.addSafBookmark(uri.toString(), name)
-                        }
-
-                        showRepoBookmarkNameDialog = false
-                        pendingRepoBookmarkUri = null
-                        repoBookmarkNameError = null
-                    }
-                ) { Text(stringResource(android.R.string.ok)) }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showRepoBookmarkNameDialog = false
-                        pendingRepoBookmarkUri = null
-                        repoBookmarkNameError = null
-                    }
-                ) { Text(stringResource(android.R.string.cancel)) }
-            }
+    LaunchedEffect(viewModel.leftPaneState.path) {
+        leftListState.scrollToItem(viewModel.scrollPosition(FileManagerPane.LEFT, viewModel.leftPaneState.path))
+    }
+    LaunchedEffect(viewModel.rightPaneState.path) {
+        rightListState.scrollToItem(viewModel.scrollPosition(FileManagerPane.RIGHT, viewModel.rightPaneState.path))
+    }
+    LaunchedEffect(leftListState.firstVisibleItemIndex, viewModel.leftPaneState.path) {
+        viewModel.saveScrollPosition(
+            FileManagerPane.LEFT,
+            viewModel.leftPaneState.path,
+            leftListState.firstVisibleItemIndex,
+        )
+    }
+    LaunchedEffect(rightListState.firstVisibleItemIndex, viewModel.rightPaneState.path) {
+        viewModel.saveScrollPosition(
+            FileManagerPane.RIGHT,
+            viewModel.rightPaneState.path,
+            rightListState.firstVisibleItemIndex,
         )
     }
 
-    // 为当前目录创建LazyListState
-    val listState = rememberLazyListState()
+    var pendingBookmarkUri by remember { mutableStateOf<Uri?>(null) }
+    var bookmarkName by remember { mutableStateOf("") }
+    var bookmarkNameError by remember { mutableStateOf<String?>(null) }
+    var showBookmarkDialog by remember { mutableStateOf(false) }
 
-    // 当前可见的第一个项目的索引
-    val firstVisibleItemIndex by remember { derivedStateOf { listState.firstVisibleItemIndex } }
+    fun queryRepoBookmarkName(uri: Uri): String {
+        fun normalizeName(raw: String): String = raw.trim()
+            .lowercase(java.util.Locale.ROOT)
+            .replace(Regex("\\s+"), "_")
+            .ifBlank { "repo" }
 
-    // 文件列表项处理函数
-    val onItemClick: (FileItem) -> Unit = { file ->
-        if (viewModel.isMultiSelectMode) {
-            // 多选模式下，切换文件选择状态
-            if (viewModel.selectedFiles.contains(file)) {
-                viewModel.selectedFiles.remove(file)
-            } else {
-                viewModel.selectedFiles.add(file)
-            }
-        } else {
-            // 单选模式下，如果是目录则导航到该目录，否则选中文件
-            if (file.isDirectory) {
-                viewModel.navigateToDirectory(file)
-            } else {
-                viewModel.selectedFile = file
-            }
+        val providerLabel = runCatching {
+            val authority = uri.authority ?: return@runCatching null
+            val provider = context.packageManager.resolveContentProvider(authority, 0)
+            provider?.applicationInfo?.loadLabel(context.packageManager)?.toString()?.trim()
+        }.getOrNull()
+        return normalizeName(providerLabel?.takeIf { it.isNotBlank() } ?: uri.authority ?: "repo")
+    }
+
+    val addBookmarkLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        try {
+            context.contentResolver.takePersistableUriPermission(uri, flags)
+            pendingBookmarkUri = uri
+            bookmarkName = queryRepoBookmarkName(uri)
+            bookmarkNameError = null
+            showBookmarkDialog = true
+        } catch (e: Exception) {
+            AppLogger.e(FILE_MANAGER_TAG, "持久化 SAF 书签权限失败", e)
+            Toast.makeText(context, R.string.file_manager_permission_denied, Toast.LENGTH_SHORT).show()
         }
     }
 
-    val onItemLongClick: (FileItem) -> Unit = { file ->
-        if (viewModel.isMultiSelectMode) {
-            if (viewModel.selectedFiles.contains(file)) {
-                viewModel.showBottomActionMenu = true
-            } else {
-                viewModel.selectedFiles.add(file)
+    val workspacePath = context.filesDir.resolve("workspace").absolutePath
+    val storageEntries = remember(safBookmarks, workspacePath) {
+        defaultFileManagerStorageEntries(workspacePath) + safBookmarks.map { bookmark ->
+            FileManagerStorageEntry(
+                title = bookmark.name,
+                path = "/",
+                environment = "repo:${bookmark.name}",
+                subtitle = bookmark.uri,
+                bookmarkUri = bookmark.uri,
+            )
+        }
+    }
+    val activeFiles = viewModel.files
+    val folderCount = activeFiles.count { file -> file.isDirectory && file.name != ".." }
+    val fileCount = activeFiles.count { file -> !file.isDirectory }
+    val storageLabel = remember(context) { readStorageLabel(context) }
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet {
+                FileManagerStorageDrawer(
+                    entries = storageEntries,
+                    onSelect = { entry ->
+                        showStorageDrawer = false
+                        viewModel.navigateToPath(entry.path, entry.environment)
+                    },
+                    onAddBookmark = {
+                        showStorageDrawer = false
+                        addBookmarkLauncher.launch(null)
+                    },
+                    onDeleteBookmark = { entry ->
+                        entry.bookmarkUri?.let { bookmarkUri ->
+                            val uri = runCatching { Uri.parse(bookmarkUri) }.getOrNull()
+                            if (uri != null) {
+                                val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                                try {
+                                    context.contentResolver.releasePersistableUriPermission(uri, flags)
+                                } catch (e: Exception) {
+                                    AppLogger.w(FILE_MANAGER_TAG, "释放 SAF 书签权限失败", e)
+                                }
+                            }
+                            scope.launch {
+                                apiPreferences.removeSafBookmark(bookmarkUri)
+                                if (viewModel.currentEnvironment == entry.environment) {
+                                    viewModel.navigateToPath(viewModel.initialPath, null)
+                                }
+                            }
+                        }
+                    },
+                )
             }
-        } else {
-            viewModel.contextMenuFile = file
-            viewModel.showBottomActionMenu = true
-        }
-    }
-
-    // 监听滚动位置变化，保存到scrollPositions
-    LaunchedEffect(firstVisibleItemIndex) {
-        if (viewModel.files.isNotEmpty() && viewModel.pendingScrollPosition == null) {
-            viewModel.scrollPositions[viewModel.currentPath] = firstVisibleItemIndex
-        }
-    }
-
-    // 加载当前目录内容
-    LaunchedEffect(viewModel.currentPath) {
-        val currentPath = viewModel.currentPath
-        viewModel.loadCurrentDirectory(currentPath)
-    }
-
-    // 主界面
-    Box(
-        modifier =
-            modifier
+        },
+        modifier = modifier,
+    ) {
+        Box(
+            modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
                 .windowInsetsPadding(WindowInsets.safeDrawing),
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // 顶部工具栏
-            FileManagerToolbar(
+        ) {
+            androidx.compose.foundation.layout.Column(modifier = Modifier.fillMaxSize()) {
+                FileManagerTopBar(
                     currentPath = viewModel.currentPath,
-                    onNavigateUp = { viewModel.navigateUp() },
-                    onRefresh = { viewModel.loadCurrentDirectory() },
-                    onZoomIn = { canZoom: Boolean ->
-                        if (canZoom && viewModel.itemSize < viewModel.maxItemSize) {
-                            viewModel.itemSize += viewModel.itemSizeStep
-                            true
-                        } else false
-                    },
-                    onZoomOut = { canZoom: Boolean ->
-                        if (canZoom && viewModel.itemSize > viewModel.minItemSize) {
-                            viewModel.itemSize -= viewModel.itemSizeStep
-                            true
-                        } else false
-                    },
-                    onToggleMultiSelect = {
-                        if (viewModel.isMultiSelectMode) {
-                            viewModel.isMultiSelectMode = false
-                            viewModel.selectedFiles.clear()
-                        } else {
-                            viewModel.isMultiSelectMode = true
-                            viewModel.selectedFiles.clear()
-                        }
-                    },
-                    onPaste = { viewModel.pasteFiles() },
-                    clipboardEmpty = viewModel.clipboardFiles.isEmpty(),
-                    displayMode = viewModel.displayMode,
-                    onChangeDisplayMode = {
-                        viewModel.displayMode =
-                                when (viewModel.displayMode) {
-                                    DisplayMode.SINGLE_COLUMN -> DisplayMode.TWO_COLUMNS
-                                    DisplayMode.TWO_COLUMNS -> DisplayMode.THREE_COLUMNS
-                                    DisplayMode.THREE_COLUMNS -> DisplayMode.SINGLE_COLUMN
-                                }
+                    folderCount = folderCount,
+                    fileCount = fileCount,
+                    storageLabel = storageLabel,
+                    isSearching = viewModel.isSearching,
+                    onExitFileManager = onBack,
+                    onOpenStorageDrawer = { showStorageDrawer = true },
+                    onRefresh = {
+                        viewModel.loadPaneDirectory(FileManagerPane.LEFT)
+                        viewModel.loadPaneDirectory(FileManagerPane.RIGHT)
                     },
                     onShowSearchDialog = {
                         viewModel.searchDialogQuery = ""
                         viewModel.showSearchDialog = true
                     },
-                    isSearching = viewModel.isSearching,
+                    onSelectAll = { viewModel.selectAll() },
+                    onToggleHiddenFiles = { viewModel.toggleHiddenFiles() },
+                    onSelectSort = { viewModel.cycleSortMode() },
+                    onOpenLinux = { viewModel.navigateToPath("/", "linux") },
+                    onNewFolder = {
+                        viewModel.newFolderName = ""
+                        viewModel.showNewFolderDialog = true
+                    },
                     onExitSearch = {
                         viewModel.searchQuery = ""
                         viewModel.isSearching = false
                         viewModel.searchResults.clear()
                     },
-                    onNewFolder = {
-                        viewModel.newFolderName = ""
-                        viewModel.showNewFolderDialog = true
-                    },
-                    isMultiSelectMode = viewModel.isMultiSelectMode,
-                    onNavigateBack = onBack,
-            )
-
-            // 标签栏
-            FileManagerTabRow(
-                    tabs = viewModel.tabs,
-                    activeTabIndex = viewModel.activeTabIndex,
-                    onSwitchTab = { viewModel.switchTab(it) },
-                    onCloseTab = { viewModel.closeTab(it) },
-                    onAddTab = { viewModel.addTab() }
-            )
-
-            // 路径导航栏 - 添加点击事件处理
-            PathNavigationBar(
-                    currentPath = viewModel.currentPath,
-                    onNavigateToPath = { path -> viewModel.navigateToPath(path) }
-            )
-            
-            // 快速访问栏
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                item {
-                    QuickAccessChip(
-                        name = "Linux",
-                        icon = Icons.Default.Terminal,
-                        isActive = viewModel.currentEnvironment == "linux" && viewModel.currentPath.startsWith("/"),
-                        onClick = {
-                            viewModel.navigateToPath("/", "linux")
-                        }
-                    )
-                }
-                item {
-                    QuickAccessChip(
-                        name = "SDCard",
-                        icon = Icons.Default.SdCard,
-                        isActive = viewModel.currentEnvironment == null && viewModel.currentPath.startsWith(Environment.getExternalStorageDirectory().absolutePath),
-                        onClick = {
-                            val sdcardPath = Environment.getExternalStorageDirectory().absolutePath
-                            if (File(sdcardPath).exists()) {
-                                viewModel.navigateToPath(sdcardPath, null)
-                            }
-                        }
-                    )
-                }
-                item {
-                    QuickAccessChip(
-                        name = "Workspace",
-                        icon = Icons.Default.Folder,
-                        isActive = viewModel.currentEnvironment == null && viewModel.currentPath.startsWith(File(context.filesDir, "workspace").absolutePath),
-                        onClick = {
-                            val workspacePath = File(context.filesDir, "workspace").absolutePath
-                            if (File(workspacePath).exists()) {
-                                viewModel.navigateToPath(workspacePath, null)
-                            }
-                        }
-                    )
-                }
-
-                items(safBookmarks) { bookmark ->
-                    var menuExpanded by remember(bookmark.uri) { mutableStateOf(false) }
-                    val repoEnv = remember(bookmark.name) { "repo:${bookmark.name}" }
-                    Box {
-                        QuickAccessChipWithLongPress(
-                            name = bookmark.name,
-                            icon = Icons.Default.Folder,
-                            isActive = viewModel.currentEnvironment == repoEnv,
-                            onClick = {
-                                AppLogger.d(FILE_MANAGER_TAG, "switch to repository name=${bookmark.name} env=$repoEnv")
-                                viewModel.navigateToPath("/", repoEnv)
-                            },
-                            onLongPress = { menuExpanded = true }
-                        )
-                        DropdownMenu(
-                            expanded = menuExpanded,
-                            onDismissRequest = { menuExpanded = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.repo_bookmark_delete)) },
-                                onClick = {
-                                    menuExpanded = false
-                                    val uri = runCatching { Uri.parse(bookmark.uri) }.getOrNull()
-                                    if (uri != null) {
-                                        val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                                        try {
-                                            context.contentResolver.releasePersistableUriPermission(uri, flags)
-                                        } catch (error: Exception) {
-                                            AppLogger.w(FILE_MANAGER_TAG, "释放仓库目录访问权限失败", error)
-                                        }
-                                    }
-                                    scope.launch {
-                                        apiPreferences.removeSafBookmark(bookmark.uri)
-                                        if (viewModel.currentEnvironment == repoEnv) {
-                                            val fallbackPath = File(context.filesDir, "workspace").absolutePath
-                                            viewModel.navigateToPath(fallbackPath, null)
-                                        }
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
-
-                item {
-                    QuickAccessChip(
-                        name = "+",
-                        icon = Icons.Default.Add,
-                        isActive = false,
-                        onClick = { addSafLauncher.launch(null) }
-                    )
-                }
-            }
-
-            // 主内容区域
-            Surface(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 1.dp
-            ) {
-                FileListContent(
-                        error = viewModel.error,
-                        files = viewModel.files,
-                        listState = listState,
-                        isSearching = viewModel.isSearching,
-                        searchResults = viewModel.searchResults,
-                        displayMode = viewModel.displayMode,
+                )
+                Box(modifier = Modifier.weight(1f).fillMaxSize()) {
+                    FileManagerDualPane(
+                        left = viewModel.leftPaneState,
+                        right = viewModel.rightPaneState,
+                        activePane = viewModel.activePane,
+                        leftListState = leftListState,
+                        rightListState = rightListState,
                         itemSize = viewModel.itemSize,
                         isMultiSelectMode = viewModel.isMultiSelectMode,
                         selectedFiles = viewModel.selectedFiles,
                         selectedFile = viewModel.selectedFile,
-                        onItemClick = onItemClick,
-                        onItemLongClick = onItemLongClick,
-                        onShowBottomActionMenu = { viewModel.showBottomActionMenu = true }
-                )
-            }
-
-            // 状态栏
-            StatusBar(
-                    fileCount = viewModel.files.size,
-                    selectedFiles = viewModel.selectedFiles,
-                    selectedFile = viewModel.selectedFile,
-                    isMultiSelectMode = viewModel.isMultiSelectMode,
-                    onExitMultiSelect = {
-                        viewModel.isMultiSelectMode = false
-                        viewModel.selectedFiles.clear()
-                    }
-            )
-        }
-
-        // 加载中覆盖层
-        LoadingOverlay(isLoading = viewModel.isLoading)
-    }
-
-    // 对话框
-    // 搜索对话框
-    SearchDialog(
-            showDialog = viewModel.showSearchDialog,
-            searchQuery = viewModel.searchDialogQuery,
-            onQueryChange = { viewModel.searchDialogQuery = it },
-            isCaseSensitive = viewModel.isCaseSensitive,
-            onCaseSensitiveChange = { viewModel.isCaseSensitive = it },
-            useWildcard = viewModel.useWildcard,
-            onWildcardChange = { viewModel.useWildcard = it },
-            onSearch = {
-                viewModel.searchQuery = viewModel.searchDialogQuery
-                viewModel.showSearchDialog = false
-                if (viewModel.searchDialogQuery.isNotBlank()) {
-                    viewModel.searchFiles(viewModel.searchDialogQuery)
-                }
-            },
-            onDismiss = { viewModel.showSearchDialog = false }
-    )
-
-    // 搜索结果对话框
-    SearchResultsDialog(
-            showDialog = viewModel.showSearchResultsDialog,
-            searchResults = viewModel.searchResults,
-            onNavigateToFileDirectory = { path -> viewModel.navigateToFileDirectory(path) },
-            onDismiss = { viewModel.showSearchResultsDialog = false }
-    )
-
-    // 新建文件夹对话框
-    NewFolderDialog(
-            showDialog = viewModel.showNewFolderDialog,
-            folderName = viewModel.newFolderName,
-            onFolderNameChange = { name -> viewModel.newFolderName = name },
-            onCreateFolder = {
-                if (viewModel.newFolderName.isNotBlank()) {
-                    viewModel.createNewFolder(viewModel.newFolderName)
-                    viewModel.showNewFolderDialog = false
-                }
-            },
-            onDismiss = { viewModel.showNewFolderDialog = false }
-    )
-
-    // 文件上下文菜单
-    FileContextMenu(
-            showMenu = viewModel.showBottomActionMenu,
-            onDismissRequest = { viewModel.showBottomActionMenu = false },
-            contextMenuFile = viewModel.contextMenuFile,
-            isMultiSelectMode = viewModel.isMultiSelectMode,
-            selectedFiles = viewModel.selectedFiles,
-            currentPath = viewModel.currentPath,
-            currentEnvironment = viewModel.currentEnvironment,
-            onFilesUpdated = { viewModel.loadCurrentDirectory() },
-            toolHandler = toolHandler,
-            onPaste = { viewModel.pasteFiles() },
-            onCopy = { files -> viewModel.setClipboard(files, false) },
-            onCut = { files -> viewModel.setClipboard(files, true) },
-            onOpen = { file ->
-                val fullPath = "${viewModel.currentPath}/${file.name}"
-                val openTool =
-                        AITool(
-                                name = "open_file",
-                                parameters = listOf(ToolParameter("path", fullPath)) +
-                                        (viewModel.currentEnvironment?.let { listOf(ToolParameter("environment", it)) }
-                                                ?: emptyList())
-                        )
-                toolHandler.executeTool(openTool)
-            },
-            onShare = { file ->
-                val fullPath = "${viewModel.currentPath}/${file.name}"
-                val shareTool =
-                        AITool(
-                                name = "share_file",
-                                parameters = listOf(ToolParameter("path", fullPath)) +
-                                        (viewModel.currentEnvironment?.let { listOf(ToolParameter("environment", it)) }
-                                                ?: emptyList())
-                        )
-                toolHandler.executeTool(shareTool)
-            }
-    )
-}
-
-@Composable
-private fun QuickAccessChipWithLongPress(
-    name: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    isActive: Boolean,
-    onClick: () -> Unit,
-    onLongPress: () -> Unit
-) {
-    var suppressClickOnce by remember(name) { mutableStateOf(false) }
-    Box(
-        modifier = Modifier.pointerInput(onLongPress) {
-            awaitEachGesture {
-                awaitFirstDown(requireUnconsumed = false)
-                val longPressed = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
-                    waitForUpOrCancellation()
-                    false
-                } ?: true
-
-                if (longPressed) {
-                    suppressClickOnce = true
-                    onLongPress()
-                    waitForUpOrCancellation()
-                }
-            }
-        }
-    ) {
-        QuickAccessChip(
-            name = name,
-            icon = icon,
-            isActive = isActive,
-            onClick = {
-                if (suppressClickOnce) {
-                    suppressClickOnce = false
-                    return@QuickAccessChip
-                }
-                onClick()
-            }
-        )
-    }
-}
-
-/**
- * 快速访问芯片组件
- */
-@Composable
-private fun QuickAccessChip(
-    name: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    isActive: Boolean,
-    onClick: () -> Unit
-) {
-    FilterChip(
-        selected = isActive,
-        onClick = onClick,
-        label = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp)
-                )
-                if (name.isNotBlank() && name != "+") {
-                    Text(
-                        text = name,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal
+                        onPaneClick = viewModel::activatePane,
+                        onItemClick = { pane, file ->
+                            viewModel.activatePane(pane)
+                            if (viewModel.isMultiSelectMode) {
+                                if (file.name == "..") {
+                                    viewModel.navigateUp()
+                                } else {
+                                    viewModel.toggleSelection(file)
+                                }
+                            } else if (file.isDirectory) {
+                                viewModel.navigateToDirectory(file)
+                            } else {
+                                viewModel.selectedFile = file
+                            }
+                        },
+                        onItemLongClick = { pane, file ->
+                            viewModel.activatePane(pane)
+                            if (viewModel.isMultiSelectMode) {
+                                if (file.name != ".." && viewModel.selectedFiles.contains(file)) {
+                                    viewModel.contextMenuFile = file
+                                    viewModel.showBottomActionMenu = true
+                                } else if (file.name != "..") {
+                                    viewModel.toggleSelection(file)
+                                }
+                            } else {
+                                viewModel.contextMenuFile = file
+                                viewModel.showBottomActionMenu = true
+                            }
+                        },
                     )
                 }
+                FileManagerBottomBar(
+                    canGoBack = viewModel.paneCanGoBack(),
+                    canGoForward = viewModel.paneCanGoForward(),
+                    onBack = { viewModel.navigateBack() },
+                    onForward = { viewModel.navigateForward() },
+                    onNew = {
+                        viewModel.newFolderName = ""
+                        viewModel.showNewFolderDialog = true
+                    },
+                    onSwap = viewModel::swapPanes,
+                    onNavigateUp = { viewModel.navigateUp() },
+                    activePane = viewModel.activePane,
+                )
+            }
+            LoadingOverlay(isLoading = viewModel.isLoading)
+        }
+    }
+
+    if (showBookmarkDialog && pendingBookmarkUri != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showBookmarkDialog = false
+                pendingBookmarkUri = null
+                bookmarkNameError = null
+            },
+            title = { Text("添加本地存储") },
+            text = {
+                TextField(
+                    value = bookmarkName,
+                    onValueChange = {
+                        bookmarkName = it
+                        bookmarkNameError = null
+                    },
+                    singleLine = true,
+                    label = { Text("名称") },
+                    isError = bookmarkNameError != null,
+                    supportingText = { bookmarkNameError?.let { error -> Text(error) } },
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val uri = pendingBookmarkUri ?: return@TextButton
+                        val name = bookmarkName.trim()
+                        if (name.isEmpty()) {
+                            bookmarkNameError = context.getString(R.string.repo_bookmark_name_empty)
+                            return@TextButton
+                        }
+                        if (safBookmarks.any { bookmark ->
+                                bookmark.uri != uri.toString() && bookmark.name.equals(name, ignoreCase = true)
+                            }) {
+                            bookmarkNameError = context.getString(R.string.repo_bookmark_name_exists)
+                            return@TextButton
+                        }
+                        scope.launch {
+                            apiPreferences.addSafBookmark(uri.toString(), name)
+                            showBookmarkDialog = false
+                            pendingBookmarkUri = null
+                            bookmarkNameError = null
+                        }
+                    },
+                ) { Text(stringResource(android.R.string.ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showBookmarkDialog = false
+                    pendingBookmarkUri = null
+                    bookmarkNameError = null
+                }) { Text(stringResource(android.R.string.cancel)) }
+            },
+        )
+    }
+
+    SearchDialog(
+        showDialog = viewModel.showSearchDialog,
+        searchQuery = viewModel.searchDialogQuery,
+        onQueryChange = { viewModel.searchDialogQuery = it },
+        isCaseSensitive = viewModel.isCaseSensitive,
+        onCaseSensitiveChange = { viewModel.isCaseSensitive = it },
+        useWildcard = viewModel.useWildcard,
+        onWildcardChange = { viewModel.useWildcard = it },
+        onSearch = {
+            viewModel.searchQuery = viewModel.searchDialogQuery
+            viewModel.showSearchDialog = false
+            viewModel.searchFiles(viewModel.searchDialogQuery)
+        },
+        onDismiss = { viewModel.showSearchDialog = false },
+    )
+    SearchResultsDialog(
+        showDialog = viewModel.showSearchResultsDialog,
+        searchResults = viewModel.searchResults,
+        onNavigateToFileDirectory = viewModel::navigateToFileDirectory,
+        onDismiss = { viewModel.showSearchResultsDialog = false },
+    )
+    NewFolderDialog(
+        showDialog = viewModel.showNewFolderDialog,
+        folderName = viewModel.newFolderName,
+        onFolderNameChange = { viewModel.newFolderName = it },
+        onCreateFolder = {
+            if (viewModel.newFolderName.isNotBlank()) {
+                viewModel.createNewFolder(viewModel.newFolderName)
+                viewModel.showNewFolderDialog = false
             }
         },
-        colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-        ),
-        border = FilterChipDefaults.filterChipBorder(
-            enabled = true,
-            selected = isActive,
-            borderColor = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-        )
+        onDismiss = { viewModel.showNewFolderDialog = false },
     )
+    FileContextMenu(
+        showMenu = viewModel.showBottomActionMenu,
+        onDismissRequest = { viewModel.showBottomActionMenu = false },
+        contextMenuFile = viewModel.contextMenuFile,
+        isMultiSelectMode = viewModel.isMultiSelectMode,
+        selectedFiles = viewModel.selectedFiles,
+        currentPath = viewModel.currentPath,
+        currentEnvironment = viewModel.currentEnvironment,
+        onFilesUpdated = {
+            viewModel.loadPaneDirectory(FileManagerPane.LEFT)
+            viewModel.loadPaneDirectory(FileManagerPane.RIGHT)
+        },
+        toolHandler = toolHandler,
+        onPaste = viewModel::pasteFiles,
+        onCopy = { files -> viewModel.setClipboard(files, false) },
+        onCut = { files -> viewModel.setClipboard(files, true) },
+        onOpen = { file ->
+            toolHandler.executeTool(
+                AITool(
+                    name = "open_file",
+                    parameters = listOf(ToolParameter("path", viewModel.currentPath + "/" + file.name)) +
+                        (viewModel.currentEnvironment?.let { environment -> listOf(ToolParameter("environment", environment)) }
+                            ?: emptyList()),
+                ),
+            )
+        },
+        onShare = { file ->
+            toolHandler.executeTool(
+                AITool(
+                    name = "share_file",
+                    parameters = listOf(ToolParameter("path", viewModel.currentPath + "/" + file.name)) +
+                        (viewModel.currentEnvironment?.let { environment -> listOf(ToolParameter("environment", environment)) }
+                            ?: emptyList()),
+                ),
+            )
+        },
+    )
+}
+
+@Composable
+private fun LoadingOverlay(isLoading: Boolean) {
+    if (isLoading) {
+        androidx.compose.foundation.layout.Box(
+            modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)),
+        )
+    }
+}
+
+private fun readStorageLabel(context: Context): String {
+    val storage = StatFs(Environment.getExternalStorageDirectory().absolutePath)
+    val available = Formatter.formatFileSize(context, storage.availableBytes)
+    val total = Formatter.formatFileSize(context, storage.totalBytes)
+    return "$available / $total"
 }
