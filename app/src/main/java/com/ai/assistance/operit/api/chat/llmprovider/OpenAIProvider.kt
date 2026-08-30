@@ -1838,7 +1838,11 @@ open class OpenAIProvider(
             val contentMatch = ChatMarkupRegex.contentTag.find(fullContent)
             val resultContent = contentMatch?.groupValues?.get(1)?.trim() ?: fullContent
             val callId = extractXmlAttribute(attributes, "provider_call_id")
-            val toolName = extractXmlAttribute(attributes, "name")
+            // `name` is the display name of a proxied invocation. The provider protocol identity
+            // is persisted separately so DeepSeek can match package_proxy results before submit.
+            val toolName =
+                extractXmlAttribute(attributes, "provider_tool_name")
+                    ?: extractXmlAttribute(attributes, "name")
             results +=
                 ProviderToolResultRecord(
                     callId = callId,

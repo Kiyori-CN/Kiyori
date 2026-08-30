@@ -1,6 +1,5 @@
 package com.ai.assistance.operit.ui.features.websession.browser.chrome
 
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.Alignment
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
 import com.ai.assistance.operit.ui.features.websession.browser.WEB_SESSION_DRAWER_HEADER_END_PADDING_DP
@@ -12,6 +11,7 @@ import com.ai.assistance.operit.ui.features.websession.browser.WEB_SESSION_DRAWE
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionDrawerTitleActionContentAlignment
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionDrawerTitleActionShape
 import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.KiyoriUiShapes
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -38,9 +38,9 @@ class WebSessionBrowserVisualPolicyTest {
     }
 
     @Test
-    fun `drawer title action uses circular press feedback`() {
-        assertEquals(36, WEB_SESSION_DRAWER_TITLE_ACTION_SIZE_DP)
-        assertEquals(CircleShape, WebSessionDrawerTitleActionShape)
+    fun `drawer title action uses shared control feedback geometry`() {
+        assertEquals(40, WEB_SESSION_DRAWER_TITLE_ACTION_SIZE_DP)
+        assertEquals(KiyoriUiShapes.control, WebSessionDrawerTitleActionShape)
         assertEquals(Alignment.Center, WebSessionDrawerTitleActionContentAlignment)
     }
 }

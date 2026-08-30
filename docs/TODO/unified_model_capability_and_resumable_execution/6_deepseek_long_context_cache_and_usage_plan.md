@@ -2,7 +2,50 @@
 
 ## 状态与适用范围
 
-状态：`M1-M5 LOCAL VERIFIED / M6 LOCAL VALIDATION COMPLETE / ENDPOINT AND DEVICE VERIFICATION PENDING`。
+状态：`M1-M5 LOCAL VERIFIED / M6 LOCAL VALIDATION COMPLETE / 2026-08-30 INCREMENT VERIFIED / ENDPOINT AND DEVICE VERIFICATION PENDING`。
+
+### 2026-08-30 现场增量：DeepSeek `package_proxy` 结果身份错配
+
+本增量承接 M7 的严格工具历史合同，目标是修复一次已经由附件审计复现的编译前协议拒绝：
+`name="tavily_search:search"` 是代理目标的展示名，而 `provider_tool_name="package_proxy"`
+才是与 assistant tool call 对应的协议名。`DeepseekProvider` 通过共享
+`OpenAIProvider.parseXmlToolResultRecords()` 读取结果记录；当前实现只读取 `name`，导致
+`ProviderToolHistoryState` 将合法结果误判为 `TOOL_RESULT_NAME_MISMATCH`。
+
+#### 目标、非目标与决策
+
+- 目标：在 DeepSeek Chat 的带身份工具结果编译路径中使用 `provider_tool_name` 进行协议匹配，
+  保留 `name` 的 UI 展示语义及 `provider_call_id` 的稳定关联；旧结果缺少协议属性时仍按现有
+  `name` 读取，以兼容已有 durable history。
+- 非目标：不改工具执行并发/顺序、不改变 replay projector 的修复资格、不伪造 tool result，
+  不添加 Provider/endpoint 切换、网络重试、第二历史 owner 或设备操作。
+- 决策：只在共享 `ProviderToolResultRecord` 解析边界补齐协议身份优先级，并用 DeepSeek
+  canonical request 测试锁定展示名与协议名分离；Gemini 和 `StructuredToolCallBridge` 已使用
+  同一协议优先规则，其他 Provider 不做无关重构。
+
+#### 影响链与验收矩阵
+
+```text
+tool result XML
+  ├─ name=tavily_search:search              (展示身份，原样保留)
+  ├─ provider_tool_name=package_proxy       (协议匹配身份)
+  └─ provider_call_id=call_*                (稳定调用关联)
+        ↓
+OpenAIProvider.parseXmlToolResultRecords
+        ↓
+DeepseekProvider.acceptNamedToolResults
+        ↓
+DeepSeek messages[].tool_call_id / pre-submit protocol gate
+```
+
+自动化验收至少覆盖：单个代理结果带协议名、代理结果带 call ID、多个结果保持 call ID 顺序、
+缺少 `provider_tool_name` 的旧结果继续可编译、真正的协议名冲突仍然失败；并运行 formal readiness、
+差异检查、Debug APK 构建与 APK 元数据核验。真实 endpoint、目标设备和进程终止恢复属于独立
+现场验收，交付时继续标记 `verification_pending`。
+
+本增量已完成：`parseXmlToolResultRecords()` 读取协议属性优先级已接入，DeepSeek canonical request
+回归覆盖通过；完整 JVM `1888/1888` 通过，formal readiness 与差异检查通过，Debug APK 已由
+`:app:assembleDebug --no-daemon --console=plain` 生成并通过 launcher/runtime packaging 门禁。
 
 本专项承接 `1_resumable_responses_execution.md`、`2_model_capability_and_request_compiler.md`、
 `3_cache_tools_and_metrics.md` 和 `5_post_regression_development_plan.md`，不创建第二套

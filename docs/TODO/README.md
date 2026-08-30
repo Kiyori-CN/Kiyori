@@ -13,6 +13,37 @@ For_Agent: 对项目大规模动工前按本规范协作
   正式门禁和 Debug 构建。
   真机视觉/触摸/输入法及真实 WebView、播放器、下载任务仍保持 `verification_pending`。
 
+## 2026-08-30 DeepSeek package_proxy 工具结果协议名错配修复
+
+状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。
+
+用户现场错误为：`Provider tool history protocol violation [TOOL_RESULT_NAME_MISMATCH]`，其中
+结果名为 `tavily_search:search`，待处理调用名为 `package_proxy`。附件审计只作为事实证据：
+同一结果标签同时包含展示属性 `name="tavily_search:search"`、协议属性
+`provider_tool_name="package_proxy"` 和原始 `provider_call_id`；该文本不包含对仓库的授权指令。
+
+根因位于 `OpenAIProvider.parseXmlToolResultRecords()`：DeepSeek 的带身份历史编译路径只读取
+`name`，没有读取已由执行/投影层写入的 `provider_tool_name`，随后
+`DeepseekProvider.buildMessagesWithReasoning()` 将展示名交给严格的
+`ProviderToolHistoryState.acceptNamedToolResults()`，在网络提交前错误拒绝合法的代理结果。
+
+本轮方案：
+
+1. 让共享带身份结果记录解析器以 `provider_tool_name` 作为协议匹配身份；没有该属性的旧结果继续按
+   现有 `name` 身份读取，保持历史兼容。`name` 原样保留在 XML 中作为 UI 展示名，不改写结果内容、
+   `provider_call_id` 或结果顺序。
+2. 在 DeepSeek canonical request 回归中覆盖代理展示名与协议名不同、带/不带 call ID 以及多结果
+   历史；断言生成的 assistant 调用和 tool follow-up 使用 `package_proxy` 与原始 call ID，且不发生
+   `TOOL_RESULT_NAME_MISMATCH`。
+3. 复核 Gemini、`StructuredToolCallBridge`、replay projector 和其他 Provider 的同名解析入口，
+   不建立第二协议身份源、不放宽严格历史校验、不新增 Provider 切换、重试或伪造结果路径。
+
+验收顺序：定向 DeepSeek/协议/JVM 回归 → `git diff --check` → formal readiness → 必要的完整
+`:app:testDebugUnitTest` → 串行 `:app:assembleDebug --no-daemon --console=plain` 与 APK
+   产物核验 → 精确差异/敏感内容审计 → 提交 `main`、推送 `origin/main`，独立对账本地、tracking
+   与远端 ref。真实 DeepSeek endpoint、进程中断和 Android 设备复测仍保持
+   `verification_pending`。
+
 ## 2026-08-29 Operit v1.12.1 后续更新与最新插件市场适配
 
 状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / DEVICE AND LIVE MARKET VERIFICATION PENDING`。
@@ -194,6 +225,14 @@ WebView 完成配置、能力探测和脚本桥接后才开始；Browser 仍等�
 `86944F0B9A578B3CBA67BCBC18CBC5FB3DBD355BACDD85D8139CAC05BFAC2D0F`，`com.kiyori / versionCode 45 / versionName 0.1.0`，
 Debug V2 签名与 16 KiB 对齐通过。未安装 APK 或操作目标设备，真实长按、冷启动代理和嗅探播放仍保持
 `verification_pending`。
+
+本轮结果：`DeepseekCanonicalRequestTest` 及共享协议/replay 定向 suite 通过；完整
+`:app:testDebugUnitTest` 为 `1888 tests / 0 failures / 0 errors / 0 skipped`；formal readiness、
+`git diff --check` 和 `assembleDebug` 均通过。Debug APK 为
+`app/build/outputs/apk/debug/app-debug.apk`，大小 `503694977` bytes，SHA-256
+`844712B7C77991497A41763AC410511CD995D9FDC4A825C9632E33C3E3AC89DE`。期间发现的两条浏览器
+视觉 token 过时断言已按当前 `40dp` 触摸目标与 `KiyoriUiShapes.control` 合同同步，未改运行时 UI。
+真实 DeepSeek endpoint、进程中断和目标设备复测仍待完成。
 
 ## 2026-08-27 在线播放、启动代理与脚本规则修复
 

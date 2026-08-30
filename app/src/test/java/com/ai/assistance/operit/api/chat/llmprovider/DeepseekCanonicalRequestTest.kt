@@ -111,6 +111,86 @@ class DeepseekCanonicalRequestTest {
     }
 
     @Test
+    fun `proxy result uses provider tool name instead of display name`() {
+        val request =
+            provider()
+                .requestJson(
+                    context = context,
+                    history =
+                        listOf(
+                            PromptTurn(
+                                PromptTurnKind.ASSISTANT,
+                                toolCallXml("tavily_search:search", "call_proxy_1", "query", "鼠标推荐") +
+                                    toolCallXml("brave_search:web_search", "call_proxy_2", "query", "鼠标推荐"),
+                            ),
+                            PromptTurn(
+                                PromptTurnKind.TOOL_RESULT,
+                                toolResultXml(
+                                    name = "tavily_search:search",
+                                    content = "tavily result",
+                                    callId = "call_proxy_1",
+                                    providerToolName = "package_proxy",
+                                ) +
+                                    toolResultXml(
+                                        name = "brave_search:web_search",
+                                        content = "brave result",
+                                        callId = "call_proxy_2",
+                                        providerToolName = "package_proxy",
+                                    ),
+                            ),
+                        ),
+                    stream = true,
+                    tools = listOf(readFileTool()),
+                )
+
+        val messages = JSONObject(request).getJSONArray("messages")
+        val toolCalls = messages.getJSONObject(0).getJSONArray("tool_calls")
+        assertEquals(
+            "package_proxy",
+            toolCalls.getJSONObject(0).getJSONObject("function").getString("name"),
+        )
+        assertEquals(
+            "package_proxy",
+            toolCalls.getJSONObject(1).getJSONObject("function").getString("name"),
+        )
+        assertEquals("call_proxy_1", messages.getJSONObject(1).getString("tool_call_id"))
+        assertEquals("call_proxy_2", messages.getJSONObject(2).getString("tool_call_id"))
+        assertEquals("tavily result", messages.getJSONObject(1).getString("content"))
+        assertEquals("brave result", messages.getJSONObject(2).getString("content"))
+    }
+
+    @Test
+    fun `proxy result with a conflicting provider tool name still fails`() {
+        val error =
+            assertThrows<ProviderToolHistoryProtocolException> {
+                provider()
+                    .requestJson(
+                        context = context,
+                        history =
+                            listOf(
+                                PromptTurn(
+                                    PromptTurnKind.ASSISTANT,
+                                    toolCallXml("tavily_search:search", "call_proxy", "query", "鼠标推荐"),
+                                ),
+                                PromptTurn(
+                                    PromptTurnKind.TOOL_RESULT,
+                                    toolResultXml(
+                                        name = "tavily_search:search",
+                                        content = "wrong protocol identity",
+                                        callId = "call_proxy",
+                                        providerToolName = "tavily_search:search",
+                                    ),
+                                ),
+                            ),
+                        stream = true,
+                        tools = listOf(readFileTool()),
+                    )
+            }
+
+        assertEquals(ProviderToolHistoryViolation.TOOL_RESULT_NAME_MISMATCH, error.violation)
+    }
+
+    @Test
     fun `tool result provider call ID mismatch fails before DeepSeek submission`() {
         val error =
             assertThrows<ProviderToolHistoryProtocolException> {
@@ -418,9 +498,16 @@ class DeepseekCanonicalRequestTest {
         </tool_A1>
         """.trimIndent()
 
-    private fun toolResultXml(name: String, content: String, callId: String? = null): String {
+    private fun toolResultXml(
+        name: String,
+        content: String,
+        callId: String? = null,
+        providerToolName: String? = null,
+    ): String {
         val callIdAttribute = callId?.let { " provider_call_id=\"$it\"" }.orEmpty()
-        return """<tool_result_A1 name="$name"$callIdAttribute status="success"><content>$content</content></tool_result_A1>"""
+        val providerToolNameAttribute =
+            providerToolName?.let { " provider_tool_name=\"$it\"" }.orEmpty()
+        return """<tool_result_A1 name="$name"$providerToolNameAttribute$callIdAttribute status="success"><content>$content</content></tool_result_A1>"""
     }
 
     private inline fun <reified T : Throwable> assertThrows(block: () -> Unit): T {
