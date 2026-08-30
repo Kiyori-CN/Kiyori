@@ -615,3 +615,22 @@ payload、签名链、Room owner、分页边界或 Provider 兼容合同。Kiyor
 - 定向 Kotlin 编译/测试、`git diff --check`、正式门禁和串行 Debug 构建通过；提交前完成
   staged allowlist、敏感内容、构建产物和远端 `main` 对账；目标设备视觉和触摸验收仍单独
   记录为 `verification_pending`。
+
+## 17. 2026-08-30 无引用 payload 回收并发修复
+
+状态：`LOCAL IMPLEMENTATION / AUTOMATED VALIDATION PENDING / DEVICE VERIFICATION PENDING`。
+
+现场崩溃报告 `d72705aa-dc9c-4668-9bc9-1a6d237b997f` 在
+`ConversationAuditRepository.cleanupUnreferencedPayloads` 的元数据删除断言处失败。根因是
+聊天删除、分组删除、导入失败和分支创建失败等入口可以并发触发回收；回收器先读取无引用列表，
+随后删除文件和 Room 元数据，第二个回收器会对同一 payload 得到 `0` 行删除并被错误提升为致命
+异常。相同窗口还可能发生在 payload 文件已原子写入、但引用事务尚未提交时，导致回收器删除
+即将被引用的文件。
+
+实现将 `ConversationAuditRepository` 的 payload 文件写入、Room 引用提交、失败清理和无引用回收
+统一置于一个仓储级生命周期互斥区，锁顺序固定为“payload 生命周期锁 → chat 锁”。原有
+`deletePayloadMetadata == 1` 完整性断言保留，用于发现真正的数据库不变量破坏；正常的重复回收不再
+能够并发到达该断言。事件、revision、导入链和 payload 内容/哈希合同不变，也不捕获或吞掉异常。
+
+待完成验证：定向审计回归/编译、`git diff --check`、formal readiness、串行 Debug APK 构建与
+产物审计；目标设备仍需在删除聊天、导入失败和分支失败的真实并发场景复测。

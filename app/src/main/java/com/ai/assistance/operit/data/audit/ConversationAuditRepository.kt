@@ -37,6 +37,13 @@ class ConversationAuditRepository private constructor(
 ) {
     private val dao = database.conversationAuditDao()
     private val chatMutexes = ConcurrentHashMap<String, Mutex>()
+    /**
+     * Serializes payload file writes, Room reference commits, failure cleanup, and collection.
+     * Without one lifecycle lock, cleanup can delete a file between its atomic write and the
+     * transaction that records its reference, or a second cleanup can observe already-deleted
+     * metadata and turn an idempotent operation into a fatal exception.
+     */
+    private val payloadLifecycleMutex = Mutex()
 
     suspend fun ensureAudit(
         chatId: String,
@@ -64,8 +71,10 @@ class ConversationAuditRepository private constructor(
     }
 
     suspend fun appendEvent(request: ConversationAuditEventRequest): ConversationAuditEventEntity {
-        return chatMutex(request.chatId).withLock {
-            appendEventLocked(request)
+        return payloadLifecycleMutex.withLock {
+            chatMutex(request.chatId).withLock {
+                appendEventLocked(request)
+            }
         }
     }
 
@@ -79,12 +88,14 @@ class ConversationAuditRepository private constructor(
         request: ConversationAuditEventRequest,
         mutation: suspend () -> T,
     ): ConversationAuditMutationResult<T> {
-        val storedPayloads = storePayloads(request)
-        return chatMutex(request.chatId).withLock {
-            database.withTransaction {
-                val value = mutation()
-                val event = appendEventInsideTransaction(request, storedPayloads)
-                ConversationAuditMutationResult(value = value, event = event)
+        return payloadLifecycleMutex.withLock {
+            val storedPayloads = storePayloads(request)
+            chatMutex(request.chatId).withLock {
+                database.withTransaction {
+                    val value = mutation()
+                    val event = appendEventInsideTransaction(request, storedPayloads)
+                    ConversationAuditMutationResult(value = value, event = event)
+                }
             }
         }
     }
@@ -98,7 +109,8 @@ class ConversationAuditRepository private constructor(
     suspend fun reviseMessage(
         request: ConversationMessageRevisionRequest,
     ): ConversationMessageRevisionResult =
-        chatMutex(request.chatId).withLock {
+        payloadLifecycleMutex.withLock {
+            chatMutex(request.chatId).withLock {
             val baseMessage =
                 requireNotNull(
                     database
@@ -261,6 +273,7 @@ class ConversationAuditRepository private constructor(
                         ),
                     seal = seal,
                 )
+            }
             }
         }
 
@@ -684,9 +697,10 @@ class ConversationAuditRepository private constructor(
         archive: OperitArchivedConversationAudit,
     ): ConversationAuditImportResult {
         val validated = validatePortableAudit(chatId, archive)
-        val importedPayloads = mutableListOf<ConversationAuditPayloadEntity>()
-        val continuationRequest =
-            ConversationAuditEventRequest(
+        return payloadLifecycleMutex.withLock {
+            val importedPayloads = mutableListOf<ConversationAuditPayloadEntity>()
+            val continuationRequest =
+                ConversationAuditEventRequest(
                 chatId = chatId,
                 category = "IMPORT_EXPORT",
                 eventType = "IMPORTED_CONTINUATION",
@@ -711,10 +725,10 @@ class ConversationAuditRepository private constructor(
                             mediaType = "application/json",
                         )
                     ),
-            )
-        var continuationPayloads = emptyList<StoredPayload>()
-        try {
-            archive.payloads.forEach { payload ->
+                )
+            var continuationPayloads = emptyList<StoredPayload>()
+            try {
+                archive.payloads.forEach { payload ->
                 val bytes = validated.payloadBytes.getValue(payload.payloadSha256)
                 val stored =
                     payloadStore.write(
@@ -729,11 +743,11 @@ class ConversationAuditRepository private constructor(
                 payloadStore.read(stored)
                 importedPayloads += stored
             }
-            continuationPayloads = storePayloads(continuationRequest)
+                continuationPayloads = storePayloads(continuationRequest)
 
-            val (continuation, localSeal) =
-                chatMutex(chatId).withLock {
-                database.withTransaction {
+                val (continuation, localSeal) =
+                    chatMutex(chatId).withLock {
+                    database.withTransaction {
                     require(database.chatDao().getChatById(chatId) != null) {
                         "Chat does not exist: $chatId"
                     }
@@ -912,22 +926,23 @@ class ConversationAuditRepository private constructor(
                     continuation to localSeal
                 }
             }
-            return ConversationAuditImportResult(
-                importedEventCount = archive.events.size,
-                importedPayloadCount = archive.payloads.size,
-                importedSealCount = archive.seals.size,
-                continuationEvent = continuation,
-                localSeal = localSeal,
-            )
-        } catch (error: Exception) {
-            (importedPayloads + continuationPayloads.map { stored -> stored.entity })
-                .distinctBy { payload -> payload.payloadSha256 }
-                .forEach { payload ->
-                if (dao.getPayload(payload.payloadSha256) == null) {
-                    payloadStore.delete(payload)
+            ConversationAuditImportResult(
+                    importedEventCount = archive.events.size,
+                    importedPayloadCount = archive.payloads.size,
+                    importedSealCount = archive.seals.size,
+                    continuationEvent = continuation,
+                    localSeal = localSeal,
+                )
+            } catch (error: Exception) {
+                (importedPayloads + continuationPayloads.map { stored -> stored.entity })
+                    .distinctBy { payload -> payload.payloadSha256 }
+                    .forEach { payload ->
+                    if (dao.getPayload(payload.payloadSha256) == null) {
+                        payloadStore.delete(payload)
+                    }
                 }
+                throw error
             }
-            throw error
         }
     }
 
@@ -1303,13 +1318,14 @@ class ConversationAuditRepository private constructor(
     }
 
     suspend fun reconstructLegacyAuditIfNeeded(chatId: String): ConversationAuditEntity =
-        chatMutex(chatId).withLock {
+        payloadLifecycleMutex.withLock {
+            chatMutex(chatId).withLock chatLock@{
             val chat = requireNotNull(database.chatDao().getChatById(chatId)) {
                 "Chat does not exist: $chatId"
             }
             val existingAudit = dao.getAudit(chatId)
             if (existingAudit != null && existingAudit.eventCount > 0L) {
-                return@withLock existingAudit
+                return@chatLock existingAudit
             }
             val completeness =
                 existingAudit
@@ -1450,6 +1466,7 @@ class ConversationAuditRepository private constructor(
                 throw error
             }
             return@withLock requireNotNull(dao.getAudit(chatId))
+            }
         }
 
     suspend fun getTotalStoredPayloadBytes(): Long = dao.getTotalStoredPayloadBytes()
@@ -1465,16 +1482,17 @@ class ConversationAuditRepository private constructor(
         )
     }
 
-    suspend fun cleanupUnreferencedPayloads(): Int {
-        val unreferenced = dao.getUnreferencedPayloads()
-        unreferenced.forEach { payload ->
-            payloadStore.delete(payload)
-            check(dao.deletePayloadMetadata(payload.payloadSha256) == 1) {
-                "Unreferenced conversation audit payload metadata disappeared"
+    suspend fun cleanupUnreferencedPayloads(): Int =
+        payloadLifecycleMutex.withLock {
+            val unreferenced = dao.getUnreferencedPayloads()
+            unreferenced.forEach { payload ->
+                payloadStore.delete(payload)
+                check(dao.deletePayloadMetadata(payload.payloadSha256) == 1) {
+                    "Unreferenced conversation audit payload metadata disappeared"
+                }
             }
+            unreferenced.size
         }
-        return unreferenced.size
-    }
 
     private suspend fun ensureAuditInsideTransaction(
         chatId: String,
