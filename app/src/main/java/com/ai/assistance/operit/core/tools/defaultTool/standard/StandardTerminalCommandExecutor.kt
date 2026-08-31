@@ -13,6 +13,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
 
 /** 终端命令执行工具 - 非流式输出版本 执行终端命令并一次性收集全部输出后返回 */
@@ -23,6 +25,9 @@ class StandardTerminalCommandExecutor(private val context: Context) {
     companion object {
         // 用于将会话名称映射到会话ID
         private val sessionNameToIdMap = ConcurrentHashMap<String, String>()
+        // Terminal state is observed before creation; serialize that check/create
+        // pair so concurrent tool calls cannot create duplicate named sessions.
+        private val sessionCreationMutex = Mutex()
         private const val COMMAND_CANCEL_SETTLE_TIMEOUT_MS = 3_000L
     }
 
@@ -43,35 +48,37 @@ class StandardTerminalCommandExecutor(private val context: Context) {
 
                 val terminal = Terminal.getInstance(context)
 
-                // 修正：直接检查 Terminal 单例中是否已存在同名会话，而不是依赖本地缓存
-                val existingSession = terminal.terminalState.value.sessions.find { it.title == sessionName }
-                if (existingSession != null) {
-                    // 如果存在，更新本地缓存并返回该会话
-                    sessionNameToIdMap[sessionName] = existingSession.id
-                    return@runBlocking ToolResult(
+                sessionCreationMutex.withLock {
+                    // 修正：直接检查 Terminal 单例中是否已存在同名会话，而不是依赖本地缓存
+                    val existingSession = terminal.terminalState.value.sessions.find { it.title == sessionName }
+                    if (existingSession != null) {
+                        // 如果存在，更新本地缓存并返回该会话
+                        sessionNameToIdMap[sessionName] = existingSession.id
+                        return@withLock ToolResult(
+                            toolName = tool.name,
+                            success = true,
+                            result = TerminalSessionCreationResultData(
+                                sessionId = existingSession.id,
+                                sessionName = sessionName,
+                                isNewSession = false
+                            )
+                        )
+                    }
+
+                    // 如果 Terminal 中不存在，则创建新会话
+                    val newSessionId = terminal.createSession(sessionName)
+                    sessionNameToIdMap[sessionName] = newSessionId
+
+                    ToolResult(
                         toolName = tool.name,
                         success = true,
                         result = TerminalSessionCreationResultData(
-                            sessionId = existingSession.id,
+                            sessionId = newSessionId,
                             sessionName = sessionName,
-                            isNewSession = false
+                            isNewSession = true
                         )
                     )
                 }
-
-                // 如果 Terminal 中不存在，则创建新会话
-                val newSessionId = terminal.createSession(sessionName)
-                sessionNameToIdMap[sessionName] = newSessionId
-
-                ToolResult(
-                    toolName = tool.name,
-                    success = true,
-                    result = TerminalSessionCreationResultData(
-                        sessionId = newSessionId,
-                        sessionName = sessionName,
-                        isNewSession = true
-                    )
-                )
             } catch (e: Exception) {
                 AppLogger.e(TAG, "创建或获取终端会话时出错", e)
                 ToolResult(
@@ -125,7 +132,7 @@ class StandardTerminalCommandExecutor(private val context: Context) {
 
                     val events = mutableListOf<String>()
                     var completionOutput: String? = null
-                    var exitCode = 0
+                    var exitCode = -1
                     var hasCompleted = false
                     var didTimeout = false
 
@@ -134,11 +141,11 @@ class StandardTerminalCommandExecutor(private val context: Context) {
                             outputFlow.collect { event ->
                                 if (event.isCompleted) {
                                     completionOutput = event.outputChunk
+                                    exitCode = event.exitCode ?: -1
                                 } else if (event.outputChunk.isNotEmpty()) {
                                     events.add(event.outputChunk)
                                 }
                                 if (event.isCompleted) {
-                                    exitCode = 0
                                     hasCompleted = true
                                 }
                             }
@@ -243,7 +250,7 @@ class StandardTerminalCommandExecutor(private val context: Context) {
             val outputFlow = terminal.executeCommandFlow(sessionId, command)
             val events = mutableListOf<String>()
             var completionOutput: String? = null
-            var exitCode = 0
+            var exitCode = -1
             var hasCompleted = false
             var didTimeout = false
             var chunkIndex = 0
@@ -254,7 +261,7 @@ class StandardTerminalCommandExecutor(private val context: Context) {
                     outputFlow.collect { event ->
                         if (event.isCompleted) {
                             completionOutput = event.outputChunk
-                            exitCode = 0
+                            exitCode = event.exitCode ?: -1
                             hasCompleted = true
                             return@collect
                         }
@@ -386,7 +393,10 @@ class StandardTerminalCommandExecutor(private val context: Context) {
                             output = output,
                             exitCode = hiddenResult.exitCode,
                             executorKey = executorKey,
-                            timedOut = didTimeout
+                            timedOut = didTimeout,
+                            outputTruncated = hiddenResult.outputTruncated,
+                            durationMs = hiddenResult.durationMs,
+                            processId = hiddenResult.processId
                         ),
                     error = errorMessage
                 )

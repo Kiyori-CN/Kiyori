@@ -191,8 +191,7 @@ class Terminal private constructor(private val context: Context) {
      * 发送中断信号 (Ctrl+C)
      */
     fun sendInterruptSignal(sessionId: String) {
-        terminalManager.switchToSession(sessionId)
-        terminalManager.sendInterruptSignal()
+        terminalManager.sendInterruptSignal(sessionId)
     }
 
     /**

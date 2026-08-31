@@ -335,6 +335,11 @@
           required: false
         }
       ]
+    },
+    {
+      name: get_environment_info
+      description: { zh: "报告 code_runner 当前终端、Ubuntu/proot、Python 虚拟环境、Node 工作区和 PATH。", en: "Report the code_runner terminal, Ubuntu/proot, Python virtual environment, Node workspace, and PATH." }
+      parameters: []
     }
   ]
 }*/
@@ -342,18 +347,21 @@
 const codeRunner = (function () {
 
   const CARGO_MIRROR_ENV = 'export CARGO_REGISTRIES_CRATES_IO_REPLACE_WITH="ustc" && export CARGO_REGISTRIES_USTC_INDEX="https://mirrors.ustc.edu.cn/crates.io-index"';
-  const CODE_RUNNER_HIDDEN_EXECUTOR_KEY = "code_runner_hidden_executor";
+  const CODE_RUNNER_SESSION_NAME = "code_runner_session";
+  const DEFAULT_COMMAND_TIMEOUT_MS = 120000;
   const NODE_WORKSPACE_DIR = "$HOME/.code_runner/node";
+  let writeFileSequence = 0;
+  let tempPathSequence = 0;
 
-  // Use a persistent hidden executor so commands share one login context without shell wrapping.
-  async function executeTerminalCommand(command: string, timeoutMs?: number): Promise<import("./types/results").HiddenTerminalCommandResultData> {
-    const options: { executorKey: string; timeoutMs?: number } = {
-      executorKey: CODE_RUNNER_HIDDEN_EXECUTOR_KEY
-    };
-    if (timeoutMs !== undefined) {
-      options.timeoutMs = timeoutMs;
-    }
-    return await Tools.System.terminal.hiddenExec(command, options);
+  function createTempToken(prefix: string): string {
+    tempPathSequence += 1;
+    return `${prefix}_${Date.now()}_${tempPathSequence}`;
+  }
+
+  // Keep one real PTY session so the software terminal can show code_runner commands and output.
+  async function executeTerminalCommand(command: string, timeoutMs: number = DEFAULT_COMMAND_TIMEOUT_MS): Promise<import("./types/results").TerminalCommandResultData> {
+    const session = await Tools.System.terminal.create(CODE_RUNNER_SESSION_NAME);
+    return await Tools.System.terminal.exec(session.sessionId, command, timeoutMs);
   }
 
   // Ensure a persistent Python venv under ~/.code_runner/py and return python/pip paths
@@ -362,16 +370,53 @@ const codeRunner = (function () {
     const pythonBin = `${venvDir}/bin/python`;
     const pipBin = `${venvDir}/bin/pip`;
 
-    const exists = await executeTerminalCommand(`[ -x ${pythonBin} ] && echo OK || echo NO`);
-    if (exists.output.includes("OK")) {
+    const exists = await executeTerminalCommand(`[ -x ${pythonBin} ] && ${pythonBin} -m pip --version`);
+    if (exists.exitCode === 0) {
       return { pythonBin, pipBin };
     }
 
+    const directoryState = await executeTerminalCommand(`[ -e ${venvDir} ] && printf PRESENT || printf ABSENT`);
+    if (directoryState.exitCode !== 0) {
+      throw new Error(`检查持久 venv 目录失败：\n${directoryState.output}`);
+    }
+    if (directoryState.output.trim() === "PRESENT") {
+      throw new Error(`持久 venv 不完整：${venvDir}。请修复或移除该目录后重试。`);
+    }
+
     const setup = await executeTerminalCommand(`python3 -m venv ${venvDir}`);
-    if (setup.exitCode !== 0 || hasError(setup.output)) {
+    if (setup.exitCode !== 0) {
       throw new Error(`创建持久 venv 失败：\n${setup.output}`);
     }
+    const verify = await executeTerminalCommand(`[ -x ${pythonBin} ] && ${pythonBin} -m pip --version`);
+    if (verify.exitCode !== 0) {
+      throw new Error(`持久 venv 创建后校验失败：\n${verify.output}`);
+    }
     return { pythonBin, pipBin };
+  }
+
+  async function get_environment_info() {
+    const { pythonBin } = await ensurePersistentVenv();
+    const probeCommand = [
+      `printf 'session_name=${CODE_RUNNER_SESSION_NAME}\\n'`,
+      "printf 'cwd='; pwd",
+      `printf 'python_bin=${pythonBin}\\n'`,
+      `${pythonBin} -c 'import json,os,sys; print("python_runtime=" + json.dumps({"executable":sys.executable,"prefix":sys.prefix,"base_prefix":sys.base_prefix,"virtualenv":sys.prefix != sys.base_prefix}, sort_keys=True))'`,
+      "printf 'python3_bin='; command -v python3",
+      `printf 'pip='; ${pythonBin} -m pip --version`,
+      "printf 'node_bin='; command -v node",
+      "printf 'node_version='; node --version",
+      "printf 'npm_prefix='; npm prefix -g",
+      "printf 'path=%s\\n' \"$PATH\"",
+      "printf 'ubuntu='; . /etc/os-release; printf '%s %s\\n' \"$ID\" \"$VERSION_ID\""
+    ].join("; ");
+    const result = await executeTerminalCommand(probeCommand);
+    if (result.exitCode !== 0) {
+      throw new Error(`读取 code_runner 环境失败：\\n${result.output}`);
+    }
+    return {
+      sessionId: result.sessionId,
+      output: result.output.trim()
+    };
   }
 
   // Install Python packages into the persistent venv using pip
@@ -386,17 +431,17 @@ const codeRunner = (function () {
     const upgradeFlag = params.upgrade ? "-U" : "";
     const { pythonBin } = await ensurePersistentVenv();
 
-    // Fallback: use python -m pip to avoid missing pip executable shims
-    const r2 = await executeTerminalCommand(`${pythonBin} -m pip install ${upgradeFlag} ${pkgs.join(" ")}`.trim());
-    if (r2.exitCode !== 0 || hasError(r2.output)) {
+    const packageArgs = pkgs.map(p => `'${escapeForShell(p)}'`).join(" ");
+    const r2 = await executeTerminalCommand(`${pythonBin} -m pip install ${upgradeFlag} ${packageArgs}`.trim());
+    if (r2.exitCode !== 0) {
       throw new Error(`安装依赖失败：\n${r2.output}`);
     }
-    return `Installed with pip:\n${r2.output}`.trim();
+    return `Python environment: ${pythonBin}\nInstalled with pip:\n${r2.output}`.trim();
   }
 
   async function ensureNodeAvailable() {
     const nodeCheckResult = await executeTerminalCommand("node --version");
-    if (nodeCheckResult.exitCode !== 0 || hasError(nodeCheckResult.output)) {
+    if (nodeCheckResult.exitCode !== 0) {
       throw new Error("Node.js 不可用，请确保已安装 Node.js");
     }
   }
@@ -405,23 +450,22 @@ const codeRunner = (function () {
     await ensureNodeAvailable();
 
     const createDirResult = await executeTerminalCommand(`mkdir -p ${NODE_WORKSPACE_DIR}`);
-    if (createDirResult.exitCode !== 0 || hasError(createDirResult.output)) {
+    if (createDirResult.exitCode !== 0) {
       throw new Error(`创建 Node 工作目录失败:\n${createDirResult.output}`);
     }
 
     const hasPackageJson = await executeTerminalCommand(`[ -f ${NODE_WORKSPACE_DIR}/package.json ] && echo OK || echo NO`);
+    if (hasPackageJson.exitCode !== 0) {
+      throw new Error(`检查 Node 工作目录失败:\n${hasPackageJson.output}`);
+    }
     if (!hasPackageJson.output.includes("OK")) {
-      const initResult = await executeTerminalCommand(
-        `cat <<'EOF' > ${NODE_WORKSPACE_DIR}/package.json
-{
+      await writeTextFile(
+        `${NODE_WORKSPACE_DIR}/package.json`,
+        `{
   "name": "code-runner-node-workspace",
   "private": true
-}
-EOF`
+}`
       );
-      if (initResult.exitCode !== 0 || hasError(initResult.output)) {
-        throw new Error(`初始化 Node 工作目录失败:\n${initResult.output}`);
-      }
     }
 
     return { workspaceDir: NODE_WORKSPACE_DIR };
@@ -439,7 +483,7 @@ EOF`
     const saveFlag = params.save_dev ? "-D" : "--save";
     const packageArgs = pkgs.map(p => `'${escapeForShell(p)}'`).join(" ");
     const result = await executeTerminalCommand(`cd ${workspaceDir} && pnpm add ${saveFlag} ${packageArgs}`);
-    if (result.exitCode !== 0 || hasError(result.output)) {
+    if (result.exitCode !== 0) {
       throw new Error(`安装 pnpm 依赖失败:\n${result.output}`);
     }
     return `Installed with pnpm in ${workspaceDir}:\n${result.output}`.trim();
@@ -448,6 +492,32 @@ EOF`
   // Helper function to safely escape strings for shell commands
   function escapeForShell(str: string): string {
     return str.replace(/'/g, "'\\''");
+  }
+
+  function createHereDocMarker(content: string): string {
+    let marker = `__CODE_RUNNER_FILE_${Date.now()}_${writeFileSequence++}__`;
+    while (content.includes(marker)) {
+      marker += "_";
+    }
+    return marker;
+  }
+
+  function buildWriteFileCommand(filePath: string, content: string): string {
+    const marker = createHereDocMarker(content);
+    const normalizedContent = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    const body = normalizedContent.endsWith("\n") ? normalizedContent : `${normalizedContent}\n`;
+    // Internal workspace paths may intentionally use $HOME; double quotes expand it while keeping the path literal.
+    const pathArgument = filePath.startsWith("$HOME/")
+      ? `"${filePath.replace(/["\\`]/g, "\\$&")}"`
+      : `'${escapeForShell(filePath)}'`;
+    return `cat > ${pathArgument} <<'${marker}'\n${body}${marker}`;
+  }
+
+  async function writeTextFile(filePath: string, content: string): Promise<void> {
+    const result = await executeTerminalCommand(buildWriteFileCommand(filePath, content));
+    if (result.exitCode !== 0) {
+      throw new Error(`写入临时文件失败：${filePath}\n${result.output}`);
+    }
   }
 
   function buildPipeSeparatedShellArgs(raw?: string): string {
@@ -541,6 +611,7 @@ EOF`
       return output || "(No output from console.log or return value)";
 
     } catch (e: any) {
+      console.error("JavaScript execution failed", e);
       const errorOutput = logs.join('\n');
       if (errorOutput) {
         throw new Error(`Script execution failed: ${e.message}\n\nLogs before error:\n${errorOutput}`);
@@ -550,25 +621,17 @@ EOF`
     }
   }
 
-  // Helper function to check for errors in command output when exit code is unreliable
+  // Exit codes are authoritative; only detect launcher diagnostics that can be emitted with rc=0.
   function hasError(output: string): boolean {
-    const errorPatterns = [
-      "command not found",
-      "No such file or directory",
-      "error:",
-      "Error:",
-      "failed",
-      "Failed",
-      "unable",
-      "Unable"
-    ];
-    const lowercasedOutput = output.toLowerCase();
-    return errorPatterns.some(pattern => lowercasedOutput.includes(pattern));
+    return /(?:^|\n)(?:bash|sh|busybox): .*?(?:command not found|No such file or directory)(?:\n|$)/i.test(output);
   }
 
   async function main() {
     // Ensure /tmp exists
-    await executeTerminalCommand("mkdir -p /tmp");
+    const tmpResult = await executeTerminalCommand("mkdir -p /tmp");
+    if (tmpResult.exitCode !== 0) {
+      throw new Error(`创建临时目录失败：\n${tmpResult.output}`);
+    }
 
     const results = {
       javascript: await testJavaScript(),
@@ -602,6 +665,7 @@ EOF`
       }
       return { success: true, message: "JavaScript执行器测试成功" };
     } catch (error) {
+      console.error("JavaScript executor self-test failed", error);
       return { success: false, message: `JavaScript执行器测试失败: ${error.message}` };
     }
   }
@@ -609,17 +673,18 @@ EOF`
   // 测试Python执行功能  
   async function testPython() {
     try {
-      // 检查Python是否可用
-      const pythonCheckResult = await executeTerminalCommand("python3 --version");
+      // Validate the same persistent venv used by run_python and package installs.
+      const { pythonBin } = await ensurePersistentVenv();
+      const pythonCheckResult = await executeTerminalCommand(`${pythonBin} --version`);
       if (pythonCheckResult.exitCode !== 0 || hasError(pythonCheckResult.output)) {
-        return { success: false, message: "Python不可用，请确保已安装Python" };
+        return { success: false, message: "Python venv 不可用，请检查 ~/.code_runner/py" };
       }
 
       // 测试简单的Python代码
       const script = "print('Python运行正常')";
-      const tempPyFile = "/tmp/test_python.py";
-      await executeTerminalCommand(`cat <<'EOF' > ${tempPyFile}\n${script}\nEOF`);
-      const runResult = await executeTerminalCommand(`python3 ${tempPyFile}`);
+      const tempPyFile = `/tmp/code_runner_${createTempToken("python")}.py`;
+      await writeTextFile(tempPyFile, script);
+      const runResult = await executeTerminalCommand(`${pythonBin} ${tempPyFile}`);
       await executeTerminalCommand(`rm -f ${tempPyFile}`);
 
       if (runResult.exitCode !== 0 || hasError(runResult.output) || !runResult.output.includes("Python运行正常")) {
@@ -627,6 +692,7 @@ EOF`
       }
       return { success: true, message: "Python执行器测试成功" };
     } catch (error) {
+      console.error("Python executor self-test failed", error);
       return { success: false, message: `Python执行器测试失败: ${error.message}` };
     }
   }
@@ -642,8 +708,8 @@ EOF`
 
       // 测试简单的Ruby代码
       const script = "puts 'Ruby运行正常'";
-      const tempRbFile = "/tmp/test_ruby.rb";
-      await executeTerminalCommand(`cat <<'EOF' > ${tempRbFile}\n${script}\nEOF`);
+      const tempRbFile = `/tmp/code_runner_${createTempToken("ruby")}.rb`;
+      await writeTextFile(tempRbFile, script);
       const runResult = await executeTerminalCommand(`ruby ${tempRbFile}`);
       await executeTerminalCommand(`rm -f ${tempRbFile}`);
 
@@ -652,6 +718,7 @@ EOF`
       }
       return { success: true, message: "Ruby执行器测试成功" };
     } catch (error) {
+      console.error("Ruby executor self-test failed", error);
       return { success: false, message: `Ruby执行器测试失败: ${error.message}` };
     }
   }
@@ -672,11 +739,11 @@ import "fmt"
 func main() {
   fmt.Println("Go运行正常")
 }`;
-      const tempGoDir = "/tmp/test_go_project";
+      const tempGoDir = `/tmp/code_runner_${createTempToken("go")}`;
       const tempGoFile = `${tempGoDir}/main.go`;
       const tempGoExec = `${tempGoDir}/main`;
       await executeTerminalCommand(`mkdir -p ${tempGoDir}`);
-      await executeTerminalCommand(`cat <<'EOF' > ${tempGoFile}\n${script}\nEOF`);
+      await writeTextFile(tempGoFile, script);
 
       const compileResult = await executeTerminalCommand(`cd ${tempGoDir} && go build -o main main.go`);
       if (compileResult.exitCode !== 0 || hasError(compileResult.output)) {
@@ -693,6 +760,7 @@ func main() {
 
       return { success: true, message: "Go执行器测试成功" };
     } catch (error) {
+      console.error("Go executor self-test failed", error);
       return { success: false, message: `Go执行器测试失败: ${error.message}` };
     }
   }
@@ -736,7 +804,7 @@ func main() {
 fn main() {
   println!("Rust运行正常");
 }`;
-      const tempRustDir = "/tmp/test_rust_project";
+      const tempRustDir = `/tmp/code_runner_${createTempToken("rust")}`;
       const tempRustSrcDir = `${tempRustDir}/src`;
       const tempRustFile = `${tempRustSrcDir}/main.rs`;
       const cargoToml = `
@@ -747,8 +815,8 @@ edition = "2021"
 [dependencies]
 `;
       await executeTerminalCommand(`mkdir -p ${tempRustSrcDir}`);
-      await executeTerminalCommand(`cat <<'EOF' > ${tempRustDir}/Cargo.toml\n${cargoToml}\nEOF`);
-      await executeTerminalCommand(`cat <<'EOF' > ${tempRustFile}\n${script}\nEOF`);
+      await writeTextFile(`${tempRustDir}/Cargo.toml`, cargoToml);
+      await writeTextFile(tempRustFile, script);
 
       // 在有效目录中运行 cargo
       const compileResult = await executeTerminalCommand(`cd ${tempRustDir} && ${CARGO_MIRROR_ENV} && cargo build --release`);
@@ -767,6 +835,7 @@ edition = "2021"
 
       return { success: true, message: "Rust执行器测试成功" };
     } catch (error) {
+      console.error("Rust executor self-test failed", error);
       return { success: false, message: `Rust执行器测试失败: ${error.message}` };
     }
   }
@@ -787,9 +856,9 @@ int main() {
   printf("C运行正常\\n");
   return 0;
 }`;
-      const tempCFile = "/tmp/test_c.c";
-      const tempCExec = "/tmp/test_c";
-      await executeTerminalCommand(`cat <<'EOF' > ${tempCFile}\n${script}\nEOF`);
+      const tempCFile = `/tmp/code_runner_${createTempToken("c")}.c`;
+      const tempCExec = `/tmp/code_runner_${createTempToken("c_exec")}`;
+      await writeTextFile(tempCFile, script);
 
       const compileResult = await executeTerminalCommand(`gcc -O3 -march=native -fopenmp ${tempCFile} -o ${tempCExec}`);
       if (compileResult.exitCode !== 0 || hasError(compileResult.output)) {
@@ -806,6 +875,7 @@ int main() {
 
       return { success: true, message: "C执行器测试成功" };
     } catch (error) {
+      console.error("C executor self-test failed", error);
       return { success: false, message: `C执行器测试失败: ${error.message}` };
     }
   }
@@ -826,9 +896,9 @@ int main() {
   std::cout << "C++运行正常" << std::endl;
   return 0;
 }`;
-      const tempCppFile = "/tmp/test_cpp.cpp";
-      const tempCppExec = "/tmp/test_cpp";
-      await executeTerminalCommand(`cat <<'EOF' > ${tempCppFile}\n${script}\nEOF`);
+      const tempCppFile = `/tmp/code_runner_${createTempToken("cpp")}.cpp`;
+      const tempCppExec = `/tmp/code_runner_${createTempToken("cpp_exec")}`;
+      await writeTextFile(tempCppFile, script);
 
       const compileResult = await executeTerminalCommand(`g++ -O3 -march=native -fopenmp ${tempCppFile} -o ${tempCppExec}`);
       if (compileResult.exitCode !== 0 || hasError(compileResult.output)) {
@@ -845,6 +915,7 @@ int main() {
 
       return { success: true, message: "C++执行器测试成功" };
     } catch (error) {
+      console.error("C++ executor self-test failed", error);
       return { success: false, message: `C++执行器测试失败: ${error.message}` };
     }
   }
@@ -881,10 +952,10 @@ int main() {
 
     const { workspaceDir } = await ensurePersistentNodeWorkspace();
     const nodeFlags = params.node_flags || "";
-    const tempFileName = `temp_script_node_${Date.now()}.js`;
+    const tempFileName = `temp_script_node_${createTempToken("node")}.js`;
     const tempFilePath = `${workspaceDir}/${tempFileName}`;
     try {
-      await executeTerminalCommand(`cat <<'EOF' > ${tempFilePath}\n${script}\nEOF`);
+      await writeTextFile(tempFilePath, script);
       const result = await executeTerminalCommand(`cd ${workspaceDir} && NODE_PATH=${workspaceDir}/node_modules node ${nodeFlags} ${tempFileName}`.trim());
       if (result.exitCode === 0 && !hasError(result.output)) {
         return result.output.trim();
@@ -929,10 +1000,10 @@ int main() {
     const { pythonBin } = await ensurePersistentVenv();
     const pythonFlags = params.python_flags || "";
     const scriptArgs = buildPipeSeparatedShellArgs(params.script_args);
-    const tempFilePath = "/tmp/temp_script.py";
+    const tempFilePath = `/tmp/code_runner_${createTempToken("python")}.py`;
     const escapedTempFilePath = escapeForShell(tempFilePath);
     try {
-      await executeTerminalCommand(`cat <<'EOF' > ${tempFilePath}\n${script}\nEOF`);
+      await writeTextFile(tempFilePath, script);
       const result = await executeTerminalCommand(`${pythonBin} ${pythonFlags} '${escapedTempFilePath}' ${scriptArgs}`.trim());
       if (result.exitCode === 0 && !hasError(result.output)) {
         return result.output.trim();
@@ -976,9 +1047,9 @@ int main() {
     }
 
     const rubyFlags = params.ruby_flags || "";
-    const tempFilePath = "/tmp/temp_script.rb";
+    const tempFilePath = `/tmp/code_runner_${createTempToken("ruby")}.rb`;
     try {
-      await executeTerminalCommand(`cat <<'EOF' > ${tempFilePath}\n${script}\nEOF`);
+      await writeTextFile(tempFilePath, script);
       const result = await executeTerminalCommand(`ruby ${rubyFlags} ${tempFilePath}`);
       if (result.exitCode === 0 && !hasError(result.output)) {
         return result.output.trim();
@@ -996,13 +1067,14 @@ int main() {
       throw new Error("请提供要执行的 Ruby 文件路径");
     }
 
-    const fileExistsResult = await executeTerminalCommand(`test -f ${filePath}`);
+    const escapedPath = escapeForShell(filePath);
+    const fileExistsResult = await executeTerminalCommand(`test -f '${escapedPath}'`);
     if (fileExistsResult.exitCode !== 0 || hasError(fileExistsResult.output)) {
       throw new Error(`Ruby 文件不存在或路径错误: ${filePath}`);
     }
 
     const rubyFlags = params.ruby_flags || "";
-    const result = await executeTerminalCommand(`ruby ${rubyFlags} ${filePath}`);
+    const result = await executeTerminalCommand(`ruby ${rubyFlags} '${escapedPath}'`);
     if (result.exitCode === 0 && !hasError(result.output)) {
       return result.output.trim();
     } else {
@@ -1018,12 +1090,12 @@ int main() {
     }
 
     const buildFlags = params.build_flags || "";
-    const tempDirPath = "/tmp/temp_go";
+    const tempDirPath = `/tmp/code_runner_${createTempToken("go")}`;
     const tempFilePath = `${tempDirPath}/main.go`;
 
     try {
       await executeTerminalCommand(`mkdir -p ${tempDirPath}`);
-      await executeTerminalCommand(`cat <<'EOF' > ${tempFilePath}\n${script}\nEOF`);
+      await writeTextFile(tempFilePath, script);
 
       const compileResult = await executeTerminalCommand(`cd ${tempDirPath} && go build ${buildFlags} -o main main.go`);
       if (compileResult.exitCode !== 0 || hasError(compileResult.output)) {
@@ -1048,20 +1120,22 @@ int main() {
       throw new Error("请提供要执行的 Go 文件路径");
     }
 
-    const fileExistsResult = await executeTerminalCommand(`test -f ${filePath}`);
+    const escapedPath = escapeForShell(filePath);
+    const tempExecPath = `/tmp/code_runner_${createTempToken("go_exec")}`;
+    const escapedTempExecPath = escapeForShell(tempExecPath);
+    const fileExistsResult = await executeTerminalCommand(`test -f '${escapedPath}'`);
     if (fileExistsResult.exitCode !== 0 || hasError(fileExistsResult.output)) {
       throw new Error(`Go 文件不存在或路径错误: ${filePath}`);
     }
 
     const buildFlags = params.build_flags || "";
-    const tempExecPath = "/tmp/temp_go_exec";
     try {
-      const compileResult = await executeTerminalCommand(`go build ${buildFlags} -o ${tempExecPath} ${filePath}`);
+      const compileResult = await executeTerminalCommand(`go build ${buildFlags} -o '${escapedTempExecPath}' '${escapedPath}'`);
       if (compileResult.exitCode !== 0 || hasError(compileResult.output)) {
         throw new Error(`Go 文件编译失败:\n${compileResult.output}`);
       }
 
-      const result = await executeTerminalCommand(tempExecPath);
+      const result = await executeTerminalCommand(`'${escapedTempExecPath}'`);
 
       if (result.exitCode === 0 && !hasError(result.output)) {
         return result.output.trim();
@@ -1069,7 +1143,7 @@ int main() {
         throw new Error(`Go 文件执行失败:\n${result.output}`);
       }
     } finally {
-      await executeTerminalCommand(`rm -f ${tempExecPath}`).catch(err => console.error(`删除临时文件失败: ${err.message}`));
+      await executeTerminalCommand(`rm -f '${escapedTempExecPath}'`).catch(err => console.error(`删除临时文件失败: ${err.message}`));
     }
   }
 
@@ -1086,7 +1160,7 @@ int main() {
 
     const cargoFlags = params.cargo_flags || "--release";
     const buildMode = cargoFlags.includes("--release") ? "release" : "debug";
-    const tempDirPath = "/tmp/temp_rust_project";
+    const tempDirPath = `/tmp/code_runner_${createTempToken("rust")}`;
     try {
       const cargoToml = `
 [package]
@@ -1097,8 +1171,8 @@ edition = "2021"
 [dependencies]
       `;
       await executeTerminalCommand(`mkdir -p ${tempDirPath}/src`, 10000);
-      await executeTerminalCommand(`cat <<'EOF' > ${tempDirPath}/Cargo.toml\n${cargoToml}\nEOF`);
-      await executeTerminalCommand(`cat <<'EOF' > ${tempDirPath}/src/main.rs\n${script}\nEOF`);
+      await writeTextFile(`${tempDirPath}/Cargo.toml`, cargoToml);
+      await writeTextFile(`${tempDirPath}/src/main.rs`, script);
 
       const compileResult = await executeTerminalCommand(`cd ${tempDirPath} && ${CARGO_MIRROR_ENV} && cargo build ${cargoFlags}`);
       if (compileResult.exitCode !== 0 || hasError(compileResult.output)) {
@@ -1122,7 +1196,8 @@ edition = "2021"
     if (!filePath || filePath.trim() === "") {
       throw new Error("请提供要执行的 Rust 文件路径");
     }
-    const fileExistsResult = await executeTerminalCommand(`test -f ${filePath}`);
+    const escapedPath = escapeForShell(filePath);
+    const fileExistsResult = await executeTerminalCommand(`test -f '${escapedPath}'`);
     if (fileExistsResult.exitCode !== 0 || hasError(fileExistsResult.output)) {
       throw new Error(`Rust 文件不存在或路径错误: ${filePath}`);
     }
@@ -1134,7 +1209,7 @@ edition = "2021"
 
     const cargoFlags = params.cargo_flags || "--release";
     const buildMode = cargoFlags.includes("--release") ? "release" : "debug";
-    const tempDirPath = "/tmp/temp_rust_project";
+    const tempDirPath = `/tmp/code_runner_${createTempToken("rust")}`;
     try {
       const cargoToml = `
 [package]
@@ -1145,14 +1220,14 @@ edition = "2021"
 [dependencies]
       `;
       await executeTerminalCommand(`mkdir -p ${tempDirPath}/src`, 10000);
-      await executeTerminalCommand(`cat <<'EOF' > ${tempDirPath}/Cargo.toml\n${cargoToml}\nEOF`);
+      await writeTextFile(`${tempDirPath}/Cargo.toml`, cargoToml);
 
-      const readResult = await executeTerminalCommand(`cat ${filePath}`);
+      const readResult = await executeTerminalCommand(`cat '${escapedPath}'`);
       if (readResult.exitCode !== 0 || hasError(readResult.output)) {
         throw new Error(`无法读取文件: ${filePath}`);
       }
       const fileContent = readResult.output;
-      await executeTerminalCommand(`cat <<'EOF' > ${tempDirPath}/src/main.rs\n${fileContent}\nEOF`);
+      await writeTextFile(`${tempDirPath}/src/main.rs`, fileContent);
 
       const compileResult = await executeTerminalCommand(`cd ${tempDirPath} && ${CARGO_MIRROR_ENV} && cargo build ${cargoFlags}`);
       if (compileResult.exitCode !== 0 || hasError(compileResult.output)) {
@@ -1178,10 +1253,10 @@ edition = "2021"
     }
 
     const compileFlags = params.compile_flags || "-O3 -march=native -fopenmp";
-    const tempFilePath = "/tmp/temp_script.c";
-    const tempExecPath = "/tmp/temp_script_c_exec";
+    const tempFilePath = `/tmp/code_runner_${createTempToken("c")}.c`;
+    const tempExecPath = `/tmp/code_runner_${createTempToken("c_exec")}`;
     try {
-      await executeTerminalCommand(`cat <<'EOF' > ${tempFilePath}\n${script}\nEOF`);
+      await writeTextFile(tempFilePath, script);
 
       const compileResult = await executeTerminalCommand(`gcc ${compileFlags} ${tempFilePath} -o ${tempExecPath}`);
       if (compileResult.exitCode !== 0 || hasError(compileResult.output)) {
@@ -1205,27 +1280,29 @@ edition = "2021"
       throw new Error("请提供要执行的 C 文件路径");
     }
 
-    const fileExistsResult = await executeTerminalCommand(`test -f ${filePath}`);
+    const escapedPath = escapeForShell(filePath);
+    const tempExecPath = `/tmp/code_runner_${createTempToken("c_exec")}`;
+    const escapedTempExecPath = escapeForShell(tempExecPath);
+    const fileExistsResult = await executeTerminalCommand(`test -f '${escapedPath}'`);
     if (fileExistsResult.exitCode !== 0 || hasError(fileExistsResult.output)) {
       throw new Error(`C 文件不存在或路径错误: ${filePath}`);
     }
 
     const compileFlags = params.compile_flags || "-O3 -march=native -fopenmp";
-    const tempExecPath = "/tmp/temp_c_exec";
     try {
-      const compileResult = await executeTerminalCommand(`gcc ${compileFlags} ${filePath} -o ${tempExecPath}`);
+      const compileResult = await executeTerminalCommand(`gcc ${compileFlags} '${escapedPath}' -o '${escapedTempExecPath}'`);
       if (compileResult.exitCode !== 0 || hasError(compileResult.output)) {
         throw new Error(`C 文件编译失败:\n${compileResult.output}`);
       }
 
-      const result = await executeTerminalCommand(tempExecPath);
+      const result = await executeTerminalCommand(`'${escapedTempExecPath}'`);
       if (result.exitCode === 0 && !hasError(result.output)) {
         return result.output.trim();
       } else {
         throw new Error(`C 文件执行失败:\n${result.output}`);
       }
     } finally {
-      await executeTerminalCommand(`rm -f ${tempExecPath}`).catch(err => console.error(`删除临时文件失败: ${err.message}`));
+      await executeTerminalCommand(`rm -f '${escapedTempExecPath}'`).catch(err => console.error(`删除临时文件失败: ${err.message}`));
     }
   }
 
@@ -1236,10 +1313,10 @@ edition = "2021"
     }
 
     const compileFlags = params.compile_flags || "-O3 -march=native -fopenmp";
-    const tempFilePath = "/tmp/temp_script.cpp";
-    const tempExecPath = "/tmp/temp_script_cpp_exec";
+    const tempFilePath = `/tmp/code_runner_${createTempToken("cpp")}.cpp`;
+    const tempExecPath = `/tmp/code_runner_${createTempToken("cpp_exec")}`;
     try {
-      await executeTerminalCommand(`cat <<'EOF' > ${tempFilePath}\n${script}\nEOF`);
+      await writeTextFile(tempFilePath, script);
 
       const compileResult = await executeTerminalCommand(`g++ ${compileFlags} ${tempFilePath} -o ${tempExecPath}`);
       if (compileResult.exitCode !== 0 || hasError(compileResult.output)) {
@@ -1263,27 +1340,29 @@ edition = "2021"
       throw new Error("请提供要执行的 C++ 文件路径");
     }
 
-    const fileExistsResult = await executeTerminalCommand(`test -f ${filePath}`);
+    const escapedPath = escapeForShell(filePath);
+    const tempExecPath = `/tmp/code_runner_${createTempToken("cpp_exec")}`;
+    const escapedTempExecPath = escapeForShell(tempExecPath);
+    const fileExistsResult = await executeTerminalCommand(`test -f '${escapedPath}'`);
     if (fileExistsResult.exitCode !== 0 || hasError(fileExistsResult.output)) {
       throw new Error(`C++ 文件不存在或路径错误: ${filePath}`);
     }
 
     const compileFlags = params.compile_flags || "-O3 -march=native -fopenmp";
-    const tempExecPath = "/tmp/temp_cpp_exec";
     try {
-      const compileResult = await executeTerminalCommand(`g++ ${compileFlags} ${filePath} -o ${tempExecPath}`);
+      const compileResult = await executeTerminalCommand(`g++ ${compileFlags} '${escapedPath}' -o '${escapedTempExecPath}'`);
       if (compileResult.exitCode !== 0 || hasError(compileResult.output)) {
         throw new Error(`C++ 文件编译失败:\n${compileResult.output}`);
       }
 
-      const result = await executeTerminalCommand(tempExecPath);
+      const result = await executeTerminalCommand(`'${escapedTempExecPath}'`);
       if (result.exitCode === 0 && !hasError(result.output)) {
         return result.output.trim();
       } else {
         throw new Error(`C++ 文件执行失败:\n${result.output}`);
       }
     } finally {
-      await executeTerminalCommand(`rm -f ${tempExecPath}`).catch(err => console.error(`删除临时文件失败: ${err.message}`));
+      await executeTerminalCommand(`rm -f '${escapedTempExecPath}'`).catch(err => console.error(`删除临时文件失败: ${err.message}`));
     }
   }
 
@@ -1296,6 +1375,7 @@ edition = "2021"
           data: result,
         });
       } catch (error: any) {
+        console.error("code_runner tool failed", error);
         complete({
           success: false,
           message: error.message,
@@ -1311,6 +1391,7 @@ edition = "2021"
     run_javascript_file,
     run_javascript_node,
     run_javascript_node_file,
+    get_environment_info,
     install_node_packages,
     install_python_packages,
     run_python,
@@ -1335,6 +1416,7 @@ exports.run_javascript_es5 = codeRunner.wrap(codeRunner.run_javascript_es5);
 exports.run_javascript_file = codeRunner.wrap(codeRunner.run_javascript_file);
 exports.run_javascript_node = codeRunner.wrap(codeRunner.run_javascript_node);
 exports.run_javascript_node_file = codeRunner.wrap(codeRunner.run_javascript_node_file);
+exports.get_environment_info = codeRunner.wrap(codeRunner.get_environment_info);
 exports.install_node_packages = codeRunner.wrap(codeRunner.install_node_packages);
 exports.install_python_packages = codeRunner.wrap(codeRunner.install_python_packages);
 exports.run_python = codeRunner.wrap(codeRunner.run_python);

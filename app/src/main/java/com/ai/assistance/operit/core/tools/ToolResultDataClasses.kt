@@ -309,7 +309,10 @@ data class HiddenTerminalCommandResultData(
         val output: String,
         val exitCode: Int,
         val executorKey: String,
-        val timedOut: Boolean = false
+        val timedOut: Boolean = false,
+        val outputTruncated: Boolean = false,
+        val durationMs: Long = 0L,
+        val processId: Long? = null
 ) : ToolResultData() {
     override fun toString(): String {
         val sb = StringBuilder()
@@ -320,6 +323,13 @@ data class HiddenTerminalCommandResultData(
         if (timedOut) {
             sb.appendLine("Timed Out: true")
         }
+        if (outputTruncated) {
+            sb.appendLine("Output Truncated: true")
+        }
+        if (durationMs > 0) {
+            sb.appendLine("Duration: ${durationMs}ms")
+        }
+        processId?.let { sb.appendLine("Process ID: $it") }
         sb.appendLine("\nOutput:")
         sb.appendLine(output)
         return sb.toString()

@@ -6,6 +6,12 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 ## 当前进行中
 
+- [code_runner 与终端工具链收口](code_runner_terminal_toolchain/index.md)：已完成 code_runner、
+  super_admin、可见 PTY、hidden executor、Ubuntu/proot、Python venv、Node workspace 与
+  `package_proxy` 参数协议的调用链研究和本地实现；已补齐 hidden shell 失败回收、可见会话
+  并发创建锁、真实 exit code、唯一临时路径、venv 自检，以及环境配置页的 hidden probe、
+  单次提交和逐步安装。长命令/进程回收、真实终端 UI、包安装与设备验收仍需单独复测。
+
 - [AI 对话 HTTP attempt 审计与稳定性收口](unified_model_capability_and_resumable_execution/6_deepseek_long_context_cache_and_usage_plan.md)：补齐
   `stream was reset: CANCEL` 等流式传输故障的 attempt、阶段、提交状态、重试决定与取消因果审计，
   并收紧普通 Chat Completions 的未知提交重试边界；M12 本地实现与完整 JVM 验证已完成，正式门禁、

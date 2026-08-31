@@ -21,7 +21,6 @@ import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
-import org.json.JSONObject
 
 /**
  * This file contains all tool registrations centralized for easier maintenance and integration It
@@ -144,30 +143,16 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
         }
         val paramsRaw = paramsParams.first().value.trim()
         if (paramsRaw.isBlank()) {
-            return null to buildToolErrorResult(tool, "params must be a JSON object")
-        }
-
-        val paramsObject = try {
-            JSONObject(paramsRaw)
-        } catch (_: Exception) {
             return null to buildToolErrorResult(tool, "params must be a valid JSON object")
         }
 
-        val forwardedParameters = mutableListOf<ToolParameter>()
-        val keys = paramsObject.keys()
-        while (keys.hasNext()) {
-            val key = keys.next()
-            val value = paramsObject.opt(key)
-            val valueString =
-                if (value == null || value === JSONObject.NULL) {
-                    "null"
-                } else if (value is String) {
-                    value
-                } else {
-                    value.toString()
-                }
-            forwardedParameters.add(ToolParameter(name = key, value = valueString))
+        val paramsObject = try {
+            PackageProxyParams.parse(paramsRaw)
+        } catch (error: IllegalArgumentException) {
+            return null to buildToolErrorResult(tool, error.message ?: "params must be a valid JSON object")
         }
+
+        val forwardedParameters = PackageProxyParams.toToolParameters(paramsObject)
 
         packageContextParamNames.forEach { paramName ->
             val value = tool.parameters

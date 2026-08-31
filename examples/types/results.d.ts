@@ -680,6 +680,15 @@ export interface HiddenTerminalCommandResultData {
     /** Whether this execution ended due to timeout. On timeout, the current command is cancelled and the terminal session is kept. */
     timedOut?: boolean;
 
+    /** Whether the bounded result omitted the middle of a very large output. */
+    outputTruncated?: boolean;
+
+    /** Wall-clock duration of the command in milliseconds. */
+    durationMs?: number;
+
+    /** Process group leader PID when timeout cancellation identified one. */
+    processId?: number | null;
+
     /** Returns a formatted string representation of the hidden terminal execution result */
     toString(): string;
 }

@@ -9,6 +9,7 @@ import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.AIToolHookDecision
 import com.ai.assistance.operit.core.tools.StringResultData
+import com.ai.assistance.operit.core.tools.PackageProxyParams
 import com.ai.assistance.operit.core.tools.ToolExecutor
 import com.ai.assistance.operit.core.tools.climode.CliToolModeSupport
 import com.ai.assistance.operit.core.tools.climode.ToolExposureMode
@@ -338,23 +339,8 @@ object ToolExecutionManager {
             return emptyList()
         }
 
-        val paramsObject = runCatching { JSONObject(paramsRaw) }.getOrNull() ?: return emptyList()
-        val forwardedParameters = mutableListOf<ToolParameter>()
-        val keys = paramsObject.keys()
-        while (keys.hasNext()) {
-            val key = keys.next()
-            val value = paramsObject.opt(key)
-            val valueString =
-                if (value == null || value === JSONObject.NULL) {
-                    "null"
-                } else if (value is String) {
-                    value
-                } else {
-                    value.toString()
-                }
-            forwardedParameters.add(ToolParameter(name = key, value = valueString))
-        }
-        return forwardedParameters
+        val paramsObject = runCatching { PackageProxyParams.parse(paramsRaw) }.getOrNull() ?: return emptyList()
+        return PackageProxyParams.toToolParameters(paramsObject)
     }
 
     /**

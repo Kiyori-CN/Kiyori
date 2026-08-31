@@ -302,7 +302,7 @@ export namespace System {
          * Commands using the same executorKey reuse the same hidden login context and are not shown in the visible terminal UI.
          * @param command The command to execute.
          * @param options Optional hidden executor options.
-         * @returns Promise resolving to the hidden command execution result. On timeout, the current command is cancelled, the hidden executor session is kept, and the returned result has `timedOut === true`.
+         * @returns Promise resolving to the hidden command execution result. On timeout, the current process group is cancelled; the hidden shell is kept when its protocol settles and may be recreated when it cannot settle. The returned result has `timedOut === true`.
          */
         function hiddenExec(command: string, options?: {
             executorKey?: string;
