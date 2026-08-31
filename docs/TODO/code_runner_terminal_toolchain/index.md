@@ -1,6 +1,6 @@
 # code_runner 与终端工具链收口
 
-状态：环境配置回归修复的本地实现、自动化验证与 Debug APK 静态审计已完成；真机验收仍为 `verification_pending`。
+状态：环境配置回归修复的本地实现、自动化验证与 Debug APK 静态审计已完成；2026-08-31 现场回归发现 hidden shell 启动协议问题，修复后需重新完成自动化验证；真机验收仍为 `verification_pending`。
 目标是让 Agent 能准确区分 code_runner、super_admin、可见终端、Ubuntu/proot、
 Android Shell、Python venv 和 Node 工作区，并消除隐藏执行器超时后遗留进程、输出失控和
 `params must be a valid JSON object` 这组三类现场问题。
@@ -90,6 +90,19 @@ Ubuntu `/root/.local`，code_runner Python 包只写入 `/root/.code_runner/py`�
   当前 tab。
 - 环境配置命令逐步出现在目标终端历史，失败步骤可定位，重新打开页面能通过 hidden probe 识别
   已安装状态。
+
+### 现场回归修复（2026-08-31）
+
+现场输出显示环境页探针和安装流程均没有可见进展，首次进入还把 Ubuntu 判定为未安装。根因是
+hidden executor 通过 `login_ubuntu '/bin/bash --noprofile --norc'` 启动了一个没有 `-s`/`-i` 的
+非交互 Bash；它在管道中立即退出，后续探针只能得到空结果。该启动路径也没有先执行
+`install_ubuntu`，因此首次 rootfs 尚未完成时所有包检测都会失败。
+
+现行契约是：hidden executor 先复用 `install_ubuntu`、`configure_sources` 和 `fix_permissions`，
+再以 `/bin/bash --noprofile --norc -s` 进入 Ubuntu。`-s` 保证 shell 持续读取同一 stdin 管道，且
+不产生交互提示符噪声；启动阶段确认进程仍存活后才接受后续命令。可见 PTY 的退出标记以显式
+CRLF 结束，避免 marker 与下一条提示符粘连而丢失真实退出码。首次 rootfs 解压和会话 READY 等待
+上限统一为 180 秒，防止慢速 Android 存储在 30 秒时被永久关闭。
 
 ## 验收矩阵
 
