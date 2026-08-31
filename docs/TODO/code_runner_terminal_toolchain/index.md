@@ -1,6 +1,6 @@
 # code_runner 与终端工具链收口
 
-状态：环境配置回归修复的本地实现、自动化验证与 Debug APK 静态审计已完成；2026-08-31 现场回归发现 hidden shell 启动协议问题，修复后需重新完成自动化验证；真机验收仍为 `verification_pending`。
+状态：2026-08-31 现场回归修复的本地实现、自动化验证与 Debug APK 静态审计已完成；真机验收仍为 `verification_pending`。
 目标是让 Agent 能准确区分 code_runner、super_admin、可见终端、Ubuntu/proot、
 Android Shell、Python venv 和 Node 工作区，并消除隐藏执行器超时后遗留进程、输出失控和
 `params must be a valid JSON object` 这组三类现场问题。
