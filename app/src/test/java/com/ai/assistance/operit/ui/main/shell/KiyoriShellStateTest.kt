@@ -47,6 +47,7 @@ import com.kiyori.app.shell.shouldAnimateKiyoriShellChildOverlay
 import com.kiyori.app.shell.shouldComposeKiyoriAiHost
 import com.kiyori.app.shell.shouldElevateKiyoriAiHost
 import com.kiyori.app.shell.shouldEnableKiyoriBrowserHostBackHandler
+import com.kiyori.app.shell.shouldEnableKiyoriAiHostSystemBack
 import com.kiyori.app.shell.shouldEnableKiyoriShellBackHandler
 import com.kiyori.app.shell.shouldEnableKiyoriSettingsHostBackHandler
 import com.kiyori.app.shell.shouldNotifyKiyoriAiHomeSettledForInitialPage
@@ -1100,6 +1101,40 @@ class KiyoriShellStateTest {
                         exitPresentation = KiyoriBrowserExitPresentation.CLOSE,
                     ),
                 aiHostIsRoot = true,
+            ),
+        )
+    }
+
+    @Test
+    fun `retained AI host owns system Back only while AI Home is settled and visible`() {
+        val aiHome = KiyoriShellState().showSoftwareHomePage(SoftwareHomePage.AI_HOME)
+
+        assertTrue(
+            shouldEnableKiyoriAiHostSystemBack(
+                state = aiHome,
+                aiHostIsRoot = true,
+                settledPagerPage = SoftwareHomePage.AI_HOME,
+            ),
+        )
+        assertFalse(
+            shouldEnableKiyoriAiHostSystemBack(
+                state = aiHome,
+                aiHostIsRoot = true,
+                settledPagerPage = SoftwareHomePage.HOME,
+            ),
+        )
+        assertFalse(
+            shouldEnableKiyoriAiHostSystemBack(
+                state = aiHome.showSoftwareHomePage(SoftwareHomePage.HOME),
+                aiHostIsRoot = true,
+                settledPagerPage = SoftwareHomePage.HOME,
+            ),
+        )
+        assertFalse(
+            shouldEnableKiyoriAiHostSystemBack(
+                state = aiHome.openAiDrawer(),
+                aiHostIsRoot = true,
+                settledPagerPage = SoftwareHomePage.AI_HOME,
             ),
         )
     }

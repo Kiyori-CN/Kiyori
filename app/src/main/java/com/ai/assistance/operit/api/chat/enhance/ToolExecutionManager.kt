@@ -64,7 +64,8 @@ object ToolExecutionManager {
 
     private data class ResolvedToolTarget(
         val tool: AITool,
-        val displayName: String
+        val displayName: String,
+        val resolutionError: String? = null,
     )
 
     private fun ensureEndsWithNewline(content: String): String {
@@ -137,10 +138,11 @@ object ToolExecutionManager {
             return ResolvedToolTarget(tool = tool, displayName = tool.name)
         }
 
-        val forwardedParameters = resolveProxyParameters(tool)
+        val (forwardedParameters, resolutionError) = resolveProxyParameters(tool)
         return ResolvedToolTarget(
             tool = AITool(name = targetToolName, parameters = forwardedParameters),
-            displayName = targetToolName
+            displayName = targetToolName,
+            resolutionError = resolutionError,
         )
     }
 
@@ -208,13 +210,15 @@ object ToolExecutionManager {
         roleCardToolAccess: com.ai.assistance.operit.data.preferences.ResolvedCharacterCardToolAccess
     ): Boolean {
         val toolName = invocation.tool.name.trim()
-        val resolvedTarget = resolveToolTarget(invocation.tool).tool
+        val resolvedTarget = resolveToolTarget(invocation.tool)
+        val resolvedTargetTool = resolvedTarget.tool
 
         return when {
             toolName == CliToolModeSupport.SEARCH_TOOL_NAME -> true
 
             toolName == CliToolModeSupport.PROXY_TOOL_NAME -> {
-                isResolvedTargetAllowedForRoleCard(resolvedTarget, roleCardToolAccess)
+                resolvedTarget.resolutionError != null ||
+                    isResolvedTargetAllowedForRoleCard(resolvedTargetTool, roleCardToolAccess)
             }
 
             toolName == "use_package" -> {
@@ -230,11 +234,12 @@ object ToolExecutionManager {
                 if (!roleCardToolAccess.isBuiltinToolAllowed("package_proxy")) {
                     false
                 } else {
-                    val resolvedTargetName = resolvedTarget.name.trim()
+                    val resolvedTargetName = resolvedTargetTool.name.trim()
                     if (resolvedTargetName.isBlank() || !resolvedTargetName.contains(':')) {
                         true
                     } else {
-                        isResolvedTargetAllowedForRoleCard(resolvedTarget, roleCardToolAccess)
+                        resolvedTarget.resolutionError != null ||
+                            isResolvedTargetAllowedForRoleCard(resolvedTargetTool, roleCardToolAccess)
                     }
                 }
             }
@@ -329,18 +334,23 @@ object ToolExecutionManager {
         )
     }
 
-    private fun resolveProxyParameters(tool: AITool): List<ToolParameter> {
+    private fun resolveProxyParameters(tool: AITool): Pair<List<ToolParameter>, String?> {
         val paramsRaw = tool.parameters
             .firstOrNull { it.name == "params" }
             ?.value
             ?.trim()
             .orEmpty()
         if (paramsRaw.isBlank()) {
-            return emptyList()
+            return emptyList<ToolParameter>() to "params must be a valid JSON object"
         }
 
-        val paramsObject = runCatching { PackageProxyParams.parse(paramsRaw) }.getOrNull() ?: return emptyList()
-        return PackageProxyParams.toToolParameters(paramsObject)
+        return try {
+            val paramsObject = PackageProxyParams.parse(paramsRaw)
+            PackageProxyParams.toToolParameters(paramsObject) to null
+        } catch (error: IllegalArgumentException) {
+            AppLogger.e(TAG, "package_proxy params parsing failed", error)
+            emptyList<ToolParameter>() to (error.message ?: "params must be a valid JSON object")
+        }
     }
 
     /**
@@ -540,6 +550,21 @@ object ToolExecutionManager {
         toolExposureMode: ToolExposureMode = ToolExposureMode.FULL
     ): Pair<Boolean, ToolResult?> {
         val resolvedTarget = resolveToolTarget(invocation.tool)
+        resolvedTarget.resolutionError?.let { errorMessage ->
+            val errorResult =
+                ToolResult(
+                    toolName = resolvedTarget.displayName,
+                    success = false,
+                    result = StringResultData(""),
+                    error = errorMessage,
+                )
+            toolHandler.notifyToolPermissionChecked(
+                resolvedTarget.tool,
+                granted = false,
+                reason = errorMessage,
+            )
+            return Pair(false, errorResult)
+        }
         val permissionTool =
             if (toolExposureMode == ToolExposureMode.CLI &&
                 invocation.tool.name == CliToolModeSupport.PROXY_TOOL_NAME

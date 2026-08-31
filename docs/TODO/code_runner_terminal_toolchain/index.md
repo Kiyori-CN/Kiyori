@@ -1,6 +1,6 @@
 # code_runner 与终端工具链收口
 
-状态：2026-08-31 现场回归修复的本地实现、自动化验证与 Debug APK 静态审计已完成；真机验收仍为 `verification_pending`。
+状态：2026-09-01 现场回归增量的本地实现、自动化验证与 Debug APK 已完成；真机验收仍为 `verification_pending`。
 目标是让 Agent 能准确区分 code_runner、super_admin、可见终端、Ubuntu/proot、
 Android Shell、Python venv 和 Node 工作区，并消除隐藏执行器超时后遗留进程、输出失控和
 `params must be a valid JSON object` 这组三类现场问题。
@@ -101,8 +101,86 @@ hidden executor 通过 `login_ubuntu '/bin/bash --noprofile --norc'` 启动了�
 现行契约是：hidden executor 先复用 `install_ubuntu`、`configure_sources` 和 `fix_permissions`，
 再以 `/bin/bash --noprofile --norc -s` 进入 Ubuntu。`-s` 保证 shell 持续读取同一 stdin 管道，且
 不产生交互提示符噪声；启动阶段确认进程仍存活后才接受后续命令。可见 PTY 的退出标记以显式
-CRLF 结束，避免 marker 与下一条提示符粘连而丢失真实退出码。首次 rootfs 解压和会话 READY 等待
+`marker + $?` 两段格式参数输出，并以显式换行结束；此前只有一个 `%s` 时 `$?` 会被
+`printf` 丢弃，现场只显示 UUID 冒号而没有退出码，导致安装步骤被判定为未完成。首次 rootfs 解压和会话 READY 等待
 上限统一为 180 秒，防止慢速 Android 存储在 30 秒时被永久关闭。
+
+命令退出标记随后改为 ANSI OSC `1337` 隐形载荷：新包络传输
+`__KIYORI_COMMAND_EXIT__:<uuid>:<exit-code>`，Canvas/ANSI 解析器消费该控制序列，不再把
+`OPERIT` 或 Kiyori 协议文本绘制到用户终端；解析器仍接受旧版 `__OPERIT_COMMAND_EXIT__` 文本，
+用于已存在会话的兼容。标记在原始缓冲区层先解析，因此跨读取 chunk 仍能得到真实退出码；会话级
+显示过滤器同时跨 chunk 吞掉未闭合 OSC，防止 ANSI 扫描器把标记尾巴绘制到 Canvas。
+
+同一现场还暴露了首帧路由竞态：`TerminalScreen` 不能先以终端主页组合，再由异步 effect
+纠正到环境页；用户首个点击可能在纠正前打开 `setup`，随后被 effect 导航回主页。现行实现
+在组合阶段一次性读取 `terminal_prefs` 决定起始路由，并只允许当前路由不是目标页时执行环境/设置导航，
+因此不会重放或抢占用户已经开始的导航。
+
+### 输入法与环境页现场增量（2026-08-31）
+
+AI 电脑模式原先把终端嵌在 AI 对话浮层中，却让宿主窗口回落到 `ADJUST_PAN` 并启用全局
+`imePadding`；终端输入框获得焦点时 Android 会平移整个窗口，造成顶栏和终端内容“上移再恢复”。
+现行策略由终端独占：AI 电脑模式请求 `ADJUST_NOTHING`、关闭宿主全局 IME padding，
+`TerminalHome` 本地把 IME 高度作为布局底部 padding，终端 `SurfaceView` 与工具栏因此保持
+互不重叠，不再用仅移动像素的 `graphicsLayer` 平移底部输入/工具栏区域。环境/设置按钮在导航前
+取消延迟弹键盘、隐藏 IME、强制清除焦点；AI 顶栏终端开关在打开和关闭时也释放当前输入连接，
+并在终端浮层销毁时再次清理原生输入连接，避免环境页在转场中闪退或返回后聊天输入框残留
+终端 IME 位移。
+启动权限修复仍执行原有 group 校正，但仅在实际追加 group 时显示进度，已修复的 Ubuntu 会话
+重新打开时不再反复显示 `Fixing permissions`。同步安装入口还会检查目标会话存在、READY 且不处于
+交互输入态，避免命令未接受时静默等待超时；环境初始化完成标记在 hidden probe 与可见 PTY 并发
+访问下保持可见。
+
+自动配置命令另有独立的非交互合同：`dpkg`、`apt-get install/update/upgrade` 与 NodeSource
+安装均显式设置 `DEBIAN_FRONTEND=noninteractive`；脚本安装使用 `apt-get`，防止 debconf 或维护
+脚本等待不存在的键盘输入。源设置的 selected ID 在读取时校验当前目录，历史上已删除或损坏的
+自定义源会原子修复到对应内置默认源，并记录警告，不再把异常延迟到环境页点击时的空指针。
+
+本次现场回归又确认 AI 电脑模式的宿主层存在点击与合成竞争：外层空操作 `detectTapGestures`
+会在 `SurfaceView` 与 Compose 工具栏之间争夺指针，默认 `NavHost` 转场还会让旧终端 surface
+在 setup 页面进入期间继续参与合成。宿主因此保持黑色不透明背景，工具栏使用布局级 inset 与
+native surface 分离，并关闭 setup/home/settings 的内部转场动画。后续纵向滚动复测证明
+Final-pass 位移消费仍会干扰 sub-slop 累积，现行实现只保留被命中的前景 pointer node，不消费
+未决方向事件；这样既隔离下层 AI 对话 sibling，又保留子页纵向滚动和祖先 pager 横向导航。
+
+### 环境/设置页滚动、Pager 与系统 Back 增量（2026-09-01）
+
+最新安装包复测仍能在 AI 电脑的环境页和终端设置页触发三类问题：纵向拖动偶发没有响应，
+用户需要的右滑返回软件首页被禁用；通过系统 Back 返回软件首页后，首页也无法再横向进入负一屏
+或 AI 对话页。同时首次安装后的包状态会长时间保持旋转，Python 链接、虚拟环境和 pip 即使
+已安装也不打勾。
+
+根因已分别落实到代码合同：终端宿主在 Final pass 消费子控件尚未认领的 sub-slop 移动，导致
+`LazyColumn`/`verticalScroll` 偶发无法积累到纵向拖动阈值；上一增量又把 `showAiComputer`
+直接映射为 Shell pager 全程锁定，因而取消了产品要求的右滑返回。终端内部 `NavHost` 没有自己的
+系统 Back owner，事件会先改写外层 Shell 页面，而 `ChatPanelMode.TERMINAL` 仍保持打开，最终把
+手势锁带回软件首页。环境探针另外曾逐包提交 hidden 命令，并把 `dpkg-query -f='${Status}'`
+真实输出 `install ok installed` 错判成带 `Status:` 前缀。
+
+现行单一路径方案：终端宿主只建立前景 sibling 的命中路径，不消费方向尚未决出的移动；环境页
+`LazyColumn`、设置页 `verticalScroll` 与唯一 Shell pager 分别持有纵向和横向手势。终端显示时
+忽略底层聊天内容的旧 gesture owner，但不禁用 pager。终端 `NavHost` 按“环境/设置 -> 终端主页
+-> 关闭 AI 电脑”逐级持有系统 Back，并只在 AI Home 真正 settled 且可见时启用，滑到软件首页后
+不能从屏外抢 Back。环境和齿轮入口使用稳定的 40dp 触控目标。探针合并为单次结构化 hidden
+command，返回每个包的明确 `0/1`；Python 项目按 `python`/`python3` 实际链接、
+`python3 -m venv` 和 `python3 -m pip` 能力检查，uv 在规范化的 `$HOME/.local/bin` 路径下校验
+版本；探针协议缺失或执行失败显示“无法识别”，不伪装为“未安装”。
+
+实施与验收计划：
+
+1. [DONE] 保留唯一 `PagerState`、AI Host、Terminal `NavController` 和 `ChatPanelMode` owner，移除
+   终端面板全生命周期 pager 锁与 Final-pass 位移消费；
+2. [DONE] 增加可见性受控的终端系统 Back 链，关闭面板时同步释放 IME 与聊天手势状态；
+3. [DONE] 扩大环境/齿轮入口触控区域，保留现有功能、路由名、AIDL 和持久化目录；
+4. [DONE] 保留单次环境探针与 Python/DPKG 能力识别，并覆盖路由、pager owner 和识别回归；
+5. [DONE] `LocalKiyoriAiHostSystemBackEnabled` 位于 Operit UI 宿主组件包，由 Kiyori Shell 只提供
+   可见性值，避免 Operit UI 反向依赖 Shell；ARCH024 App Shell 规范化哈希从
+   `1EC7AF44BD739009519193F9BE9AE986F5958CB7663A26CDEA736E12061EF17D` 更新为
+   `2D785F8C7C2C54219BCE3FB1A53E5A0AEA952C2E7E3B28162A997072D5D6DBE2`，完整 import 快照只新增
+   该宿主 Local；
+6. [DONE] 完成父/子仓库测试、正式门禁、ARCH024、Debug APK 与最终差异审计；Git 提交和远端
+   ref 状态由本次交付核对单独记录；
+7. [PENDING] 真机连续上下拖动、左右回首页/AI Home、系统 Back、输入法、首次识别耗时与安装后勾选。
 
 ## 验收矩阵
 
@@ -115,6 +193,44 @@ CRLF 结束，避免 marker 与下一条提示符粘连而丢失真实退出码�
 - 工程：`git diff --check`、相关 JVM/Terminal 测试、formal readiness、串行
   `:app:assembleDebug --no-daemon --console=plain` 已完成，并核验 Debug APK 元数据、签名和 16 KiB
   对齐；目标设备上的会话可见性、包安装、进程回收和高输出表现仍待现场验收。
+
+### 2026-09-01 现场回归增量验证
+
+- 修复首路由竞态、源 ID 修复、非交互安装合同、命令 ID 绑定以及 AI 电脑层 SurfaceView 点击竞争后，Terminal 全套 `37/37` JVM 测试通过；父仓库
+  `AiChatImePolicyTest`、`ToolExecutionManagerTest`、`PackageProxyParamsTest` 定向测试共 `12/12`
+  通过。
+- `npm exec -- tsc -p examples/tsconfig.json --pretty false` 与
+  `check_formal_readiness.py --repository . --require-main` 通过。
+- `:app:assembleDebug --no-daemon --console=plain` 串行成功；Debug APK 为
+  `app/build/outputs/apk/debug/app-debug.apk`，`503695441` bytes，SHA-256
+  `827910FC5AF01D50C7133ACEF2D891C2D5A41EEAA5AD08EE4B758EA03EA84A73`。
+- 本轮后续增量将非全屏终端的 IME 处理改为布局级 bottom padding，移除工具栏的
+  `graphicsLayer` 平移，释放 AndroidView 前先隐藏 `SurfaceView`，并在终端浮层销毁时清理
+  原生输入连接；同时为 Ubuntu 注入 `USER/LOGNAME/SHELL`，APT 源补齐 `noble-security`。
+- 本轮增量后的 Terminal JVM、父仓库定向 JVM、formal readiness、`git diff --check` 与
+  `:app:assembleDebug` 均通过；真机首次启动、环境页重复进入/反复点击、Node.js 安装、真实
+  PTY marker 画面、SurfaceView 合成与点击消费、超时进程回收和 code_runner 环境探针仍未在设备
+  上复测，状态保持 `verification_pending`。
+
+### 2026-09-01 手势与 Back 最终本地证据
+
+- Terminal 全套为 `9 suites / 38 tests`，App 最终全量为 `321 suites / 1915 tests`，均为零
+  failure、error 和 skip；手势、Back、ToolExecution 与代理参数四个定向 App 套件为 `89/89`。
+- formal readiness、父/子仓库 `git diff --check` 与本轮触及的 ARCH024 精确 hash/import 检查
+  通过。完整 architecture `phase=m03` 仍报告 `origin/main` 已记录的 ARCH025/026/027/040/042
+  AI Drawer、主导航、Software Home 与主题快照漂移；本轮没有修改或批量批准这些文件。
+- 规定的 `:app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL in 2m 47s`，
+  `235` 个任务中 `26 executed / 209 up-to-date`；唯一 launcher、脚本代理 runtime 与播放器
+  runtime packaging 门禁通过。
+- 最终 APK 为 `app/build/outputs/apk/debug/app-debug.apk`，写入时间
+  `2026-09-01 05:55:04 +08:00`，`503695441` bytes，SHA-256
+  `57602FA925B1C5E37E3EFB3C36DDEB8A103A2CB188DF7261E8AB81A11F070C5C`；包/版本/SDK 为
+  `com.kiyori / 45 / 0.1.0 / min 26 / target 34 / compile 37`，唯一 launcher 为
+  `com.ai.assistance.operit.ui.main.MainActivity`，仅 `arm64-v8a`，Android Debug V2 单 signer 与
+  `zipalign -c -P 16 4` 通过。
+- 未安装或操作设备，因此环境/设置页连续纵向拖动、右滑返回软件首页、首页再次左右切换、三层
+  系统 Back、IME、首次 rootfs 探针耗时和 Python/venv/pip/uv 安装后勾选仍为
+  `verification_pending`。
 
 ## 非目标
 

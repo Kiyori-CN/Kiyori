@@ -10,7 +10,14 @@ For_Agent: 对项目大规模动工前按本规范协作
   super_admin、可见 PTY、hidden executor、Ubuntu/proot、Python venv、Node workspace 与
   `package_proxy` 参数协议的调用链研究和本地实现；已补齐 hidden shell 失败回收、可见会话
   并发创建锁、真实 exit code、唯一临时路径、venv 自检，以及环境配置页的 hidden probe、
-  单次提交和逐步安装。长命令/进程回收、真实终端 UI、包安装与设备验收仍需单独复测。
+  单次提交和逐步安装；当前增量又修复首路由竞态、PTY `printf` 丢失 `$?`、AI 电脑终端 IME
+  owner 分裂、权限修复重复噪声，以及分块 OSC 标记显示泄漏；同步执行入口会拒绝缺失或交互态
+  会话，源选择会修复已删除/损坏的持久化 ID，自动 apt/dpkg 使用非交互合同，避免安装流程表现为
+  无反应。旧 Operit 标记仅保留兼容解析，当前协议为 Kiyori OSC；本轮继续收敛 AI 电脑层的
+  SurfaceView 点击隔离、黑色不透明宿主、布局级 IME inset、原生焦点清理和无动画环境路由，消除环境配置按钮的闪退/穿透窗口；最新增量让环境/设置页纵向滚动与唯一 Shell pager 按方向仲裁，
+  终端内部逐级持有系统 Back，回到软件首页后不再残留手势锁；同时合并环境包 hidden probe，
+  修正 Python/DPKG 能力识别与失败状态。长命令/进程回收、真实终端 UI、包安装与设备验收仍需
+  单独复测；本轮在验证后按父仓库与 Terminal 子模块顺序提交推送。
 
 - [AI 对话 HTTP attempt 审计与稳定性收口](unified_model_capability_and_resumable_execution/6_deepseek_long_context_cache_and_usage_plan.md)：补齐
   `stream was reset: CANCEL` 等流式传输故障的 attempt、阶段、提交状态、重试决定与取消因果审计，

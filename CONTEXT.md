@@ -653,6 +653,8 @@ First-run onboarding and Settings permissions consume the same ordered 21-item c
 - Permission Center groups High-Impact Action policy and AI Operation Records under one AI Security section. Neither entry is shown until its complete policy or record page exists.
 - Backup, conversation-data management, token statistics, and the Toolbox utility that changes permissions of other installed applications are not Permission Center domains.
 
+| **AI Home Terminal Gesture Boundary** | The retained terminal overlay isolates pointer hit testing from the underlying chat without consuming undecided movement. Environment/setup content owns vertical scrolling, while the single Shell pager continues to own horizontal navigation back to Software Home. Terminal routes own system Back only while AI Home is settled and visible; setup/settings return to Terminal Home, then Terminal Home closes the panel and releases IME/gesture ownership. |
+
 ## AI action authorization
 
 - Risk is assigned to a concrete command and its target, scope, reversibility, data sensitivity, and external impact. A tool name alone never determines risk.

@@ -40,6 +40,7 @@ import androidx.compose.ui.zIndex
 import com.ai.assistance.operit.ui.main.AiHomeQuickAction
 import com.ai.assistance.operit.ui.common.gestures.AiContentHorizontalGestureOwnership
 import com.ai.assistance.operit.ui.common.gestures.LocalAiContentHorizontalGestureOwnership
+import com.ai.assistance.operit.ui.main.components.LocalKiyoriAiHostSystemBackEnabled
 import com.ai.assistance.operit.ui.features.agreement.screens.KiyoriLegalDocument
 import com.ai.assistance.operit.ui.features.agreement.screens.KiyoriLegalDocumentScreen
 import com.ai.assistance.operit.ui.features.agreement.screens.KiyoriLegalDocumentsScreen
@@ -226,10 +227,11 @@ internal fun KiyoriAppShell(
         val layoutDirection = LocalLayoutDirection.current
         val pagerReverseDirection = shouldReverseKiyoriPagerDrag(layoutDirection)
         val pagerAcceptsInput =
-            shouldAcceptKiyoriHomePagerInput(
-                state = state,
-                aiHostIsRoot = aiHostIsRoot,
-            )
+            !aiHomeGestureBlocked &&
+                shouldAcceptKiyoriHomePagerInput(
+                    state = state,
+                    aiHostIsRoot = aiHostIsRoot,
+                )
         val aiHomePagerGestureEnabled =
             pagerAcceptsInput &&
                 pagerState.layoutInfo.pageSize > 0
@@ -395,6 +397,13 @@ internal fun KiyoriAppShell(
                 CompositionLocalProvider(
                     LocalAiContentHorizontalGestureOwnership provides
                         aiContentHorizontalGestureOwnership,
+                    LocalKiyoriAiHostSystemBackEnabled provides
+                        shouldEnableKiyoriAiHostSystemBack(
+                            state = state,
+                            aiHostIsRoot = aiHostIsRoot,
+                            settledPagerPage =
+                                SoftwareHomePage.fromPagerIndex(pagerState.settledPage),
+                        ),
                 ) {
                     aiHost()
                 }
@@ -810,6 +819,18 @@ internal fun shouldAcceptKiyoriHomePagerInput(
         !state.isBookmarkDrawerOpen &&
         !state.isHistoryDrawerOpen &&
         !state.isDownloadDrawerOpen
+
+internal fun shouldEnableKiyoriAiHostSystemBack(
+    state: KiyoriShellState,
+    aiHostIsRoot: Boolean,
+    settledPagerPage: SoftwareHomePage,
+): Boolean =
+    shouldAcceptKiyoriHomePagerInput(
+        state = state,
+        aiHostIsRoot = aiHostIsRoot,
+    ) &&
+        state.softwareHomePage == SoftwareHomePage.AI_HOME &&
+        settledPagerPage == SoftwareHomePage.AI_HOME
 
 internal fun calculateKiyoriAiHostTranslation(
     pageOffset: Float,

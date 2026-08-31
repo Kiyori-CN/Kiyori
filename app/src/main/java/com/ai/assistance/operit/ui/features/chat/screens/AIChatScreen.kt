@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -104,6 +105,7 @@ import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.KiyoriUiShapes
 import com.kiyori.design.theme.rememberKiyoriUiTokens
 import com.kiyori.design.theme.resolveColors
+import com.ai.assistance.operit.ui.main.components.LocalKiyoriAiHostSystemBackEnabled
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import androidx.compose.ui.draw.clipToBounds
@@ -147,6 +149,9 @@ fun AIChatScreen(
     val colorScheme = MaterialTheme.colorScheme
     val uiTokens = rememberKiyoriUiTokens()
     val isCurrentScreen = LocalIsCurrentScreen.current
+    val aiHostSystemBackEnabled = LocalKiyoriAiHostSystemBackEnabled.current
+    val screenFocusManager = LocalFocusManager.current
+    val screenKeyboardController = LocalSoftwareKeyboardController.current
 // Correctly initialize ViewModel using the viewModel() composable function
 val actualViewModel: ChatViewModel =
     viewModel
@@ -822,8 +827,16 @@ val actualViewModel: ChatViewModel =
         }
     }
     val latestOnGestureConsumed by rememberUpdatedState(onGestureConsumed)
-    LaunchedEffect(chatScreenGestureConsumed) {
-        latestOnGestureConsumed(chatScreenGestureConsumed)
+    SideEffect {
+        // The terminal overlay replaces chat content, so stale chat-content ownership must not
+        // disable the Shell pager. Setup/settings keep vertical scrolling locally while a
+        // horizontal drag remains the product-level route back to Software Home.
+        latestOnGestureConsumed(
+            resolveAiChatExternalGestureBlocked(
+                chatScreenGestureConsumed = chatScreenGestureConsumed,
+                showAiComputer = showAiComputer,
+            )
+        )
     }
     DisposableEffect(Unit) {
         onDispose { latestOnGestureConsumed(false) }
@@ -851,13 +864,15 @@ val actualViewModel: ChatViewModel =
     val openBrowser = LocalOpenBrowser.current
     val setScreenSoftInputMode = LocalSetScreenSoftInputMode.current
     val setUseScreenImePadding = LocalSetUseScreenImePadding.current
-    val requestedSoftInputMode =
-        if (shouldUseChatLocalImeHandling) {
-            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
-        } else {
-            null
-        }
-    val shouldUseGlobalImePadding = !shouldUseChatLocalImeHandling
+    // The embedded terminal owns its viewport resize. Keeping the host window in ADJUST_NOTHING
+    // prevents Android from moving the whole chat window (including the app bar) when the
+    // terminal input receives focus, while global imePadding would resize the terminal twice.
+    val imePolicy = resolveAiChatImePolicy(
+        shouldUseChatLocalImeHandling = shouldUseChatLocalImeHandling,
+        showAiComputer = showAiComputer,
+    )
+    val requestedSoftInputMode = imePolicy.requestedSoftInputMode
+    val shouldUseGlobalImePadding = imePolicy.useGlobalImePadding
     val hasBoundWorkspace = !currentChatView?.workspace.isNullOrBlank()
 
     SideEffect {
@@ -907,6 +922,11 @@ val actualViewModel: ChatViewModel =
                         modifier = Modifier.size(uiTokens.touchTarget).clip(KiyoriUiShapes.control),
                         enabled = !isWorkspacePreparing,
                         onClick = {
+                            // The terminal is an overlay in this same composition. Release any
+                            // chat/terminal input connection before changing panels, otherwise
+                            // the next chat IME frame can retain the terminal's inset translation.
+                            screenFocusManager.clearFocus(force = true)
+                            screenKeyboardController?.hide()
                             actualViewModel.onAiComputerButtonClick()
                         },
                         colors =
@@ -1400,7 +1420,10 @@ val actualViewModel: ChatViewModel =
                     .fillMaxSize()
                     .clipToBounds()
             ) {
-                ComputerScreen()
+                ComputerScreen(
+                    systemBackEnabled = aiHostSystemBackEnabled,
+                    onClose = { actualViewModel.closeActiveChatPanel() },
+                )
             }
         }
 
@@ -1636,6 +1659,29 @@ val actualViewModel: ChatViewModel =
         }
     )
 }
+
+internal data class AiChatImePolicy(
+    val requestedSoftInputMode: Int?,
+    val useGlobalImePadding: Boolean,
+)
+
+internal fun resolveAiChatExternalGestureBlocked(
+    chatScreenGestureConsumed: Boolean,
+    showAiComputer: Boolean,
+): Boolean = chatScreenGestureConsumed && !showAiComputer
+
+internal fun resolveAiChatImePolicy(
+    shouldUseChatLocalImeHandling: Boolean,
+    showAiComputer: Boolean,
+): AiChatImePolicy = AiChatImePolicy(
+    requestedSoftInputMode =
+        if (shouldUseChatLocalImeHandling || showAiComputer) {
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
+        } else {
+            null
+        },
+    useGlobalImePadding = !shouldUseChatLocalImeHandling && !showAiComputer,
+)
 
 @Composable
 private fun ChatInputBottomBar(

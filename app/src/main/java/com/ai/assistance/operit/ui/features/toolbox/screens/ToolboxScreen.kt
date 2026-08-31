@@ -206,7 +206,12 @@ fun TerminalToolScreen(navController: NavController, forceShowSetup: Boolean = f
         val terminalManager = remember { TerminalManager.getInstance(context) }
         val terminalEnv = rememberTerminalEnv(terminalManager = terminalManager, forceShowSetup = forceShowSetup)
         CustomScaffold() { paddingValues ->
-                Box(modifier = Modifier.padding(paddingValues)) { TerminalViewScreen(env = terminalEnv) }
+                Box(modifier = Modifier.padding(paddingValues)) {
+                        TerminalViewScreen(
+                                env = terminalEnv,
+                                onClose = { navController.popBackStack() },
+                        )
+                }
         }
 }
 
