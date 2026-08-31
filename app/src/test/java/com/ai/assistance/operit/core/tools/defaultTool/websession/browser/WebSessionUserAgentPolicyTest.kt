@@ -53,6 +53,20 @@ class WebSessionUserAgentPolicyTest {
     }
 
     @Test
+    fun `host matching ignores repeated fragment delimiters`() {
+        val targetUrl = "https://www.gov.cn/gongbao/2026/issue_12846/202607/content_7074813.html#1#1#1"
+
+        assertEquals("www.gov.cn", extractWebSessionUserAgentHost(targetUrl))
+        assertEquals(
+            "gov-cn-ua",
+            resolveWebSessionSiteUserAgentRule(
+                rules = listOf(WebSessionSiteUserAgentRule("gov.cn", "gov-cn-ua")),
+                targetUrl = targetUrl,
+            )?.userAgent,
+        )
+    }
+
+    @Test
     fun `session then site then global precedence is deterministic`() {
         val settings =
             WebSessionBrowserSettings(

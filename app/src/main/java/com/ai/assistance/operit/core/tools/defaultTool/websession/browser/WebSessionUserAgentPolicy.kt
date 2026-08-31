@@ -114,7 +114,9 @@ internal fun normalizeWebSessionUserAgentDomain(input: String): String? {
 }
 
 internal fun extractWebSessionUserAgentHost(url: String): String? {
-    val uri = URI(url.trim())
+    // Fragment text is irrelevant to host matching. Strip it before URI parsing because
+    // browser URLs can contain repeated '#' delimiters even though java.net.URI rejects them.
+    val uri = URI(url.trim().substringBefore('#'))
     val host =
         (uri.host ?: uri.rawAuthority?.let(::extractHostFromWebSessionAuthority))
             ?.trimEnd('.')

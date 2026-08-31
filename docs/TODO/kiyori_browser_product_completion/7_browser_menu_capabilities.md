@@ -127,6 +127,7 @@ Activity、LitePal 或 native ABP 架构。
 - Android、PC 桌面、iPhone 和塞班 Wap 使用固定 UA 预设；自定义全局只有在非空 UA 保存成功后才能成为全局模式
 - 自定义网站弹窗提供域名与 UA 两个字段、`默认 / Android / PC桌面 / IPhone / 塞班Wap` 快捷填充和“完整域名”动作；“默认”清空 UA，确认后删除该域名规则
 - 域名规则使用规范化 host，规则域名同时匹配自身和其子域；“完整域名”把当前页面的完整 host 写回域名字段，不猜测公共后缀
+- Host 匹配只解析 URL 的 scheme/authority；fragment 不参与域名规则，即使网页地址包含重复 `#` 分隔符也不会阻断 UA 解析或原始导航
 - UA 解析优先级固定为显式 WebSession UA、命中的站点规则、全局 UA 模式。它们只修改现有 WebSession 的 WebView 设置，不创建新的 session、WebView 或导航状态
 - UA 变化立即更新所有没有显式 session UA 的现有窗口；只重载当前活动窗口，避免后台标签被无提示刷新
 - `WebSessionBrowserSettingsStore` 是 UA 模式、自定义全局 UA 和站点规则的唯一持久化 owner；旧 `desktop_mode` 布尔状态、UA 子抽屉页面和切换按钮在本里程碑删除
