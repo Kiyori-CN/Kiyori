@@ -286,8 +286,10 @@ command，返回每个包的明确 `0/1`；Python 项目按 `python`/`python3` �
    App 全量 `321 suites / 1915 tests` 均为零失败、零错误、零跳过。
 5. [DONE] formal readiness、父/子 `git diff --check`、候选树 Markdown 链接检查和规定的串行
    `:app:assembleDebug --no-daemon --console=plain` 已通过；APK 身份、哈希、签名与 16 KiB 对齐已核验。
-6. [PENDING] 审计并依次提交推送 Terminal 子模块和父仓库 `main`，独立核对本地、tracking 与 GitHub
-   远端 ref；真机首次 rootfs、已安装/未安装混合状态、安装后立即重进页面和实际命令可用性保持
+6. [DONE] 审计并依次提交推送 Terminal 子模块和父仓库 `main`：Terminal 实现提交为
+   `ea3d4f01a15f2babf0fad00962871525bdbce606`，父仓库实现/gitlink 提交为
+   `ec39598a4a7b4f757a56b9f3b6c22d47933e2b8f`；最终父仓库文档 ref 由本轮交付核对记录。真机首次
+   rootfs、已安装/未安装混合状态、安装后立即重进页面和实际命令可用性保持
    `verification_pending`。
 
 #### 本地验证证据
