@@ -3766,7 +3766,7 @@
     <string name="screen_title_persona_card_generation">人设生成</string>
     <string name="screen_title_waifu_mode_settings">回复与表情</string>
     <string name="screen_title_tag_market">标签模板</string>
-    <string name="screen_title_model_prompts_settings">提示词与角色</string>
+    <string name="screen_title_model_prompts_settings">@string/kiyori_ai_settings_prompts_roles</string>
     <string name="persona_generation_intro">告诉我你想创建的角色方向，例如姓名与身份、性格、外观、能力和关系。我会逐步提问，并把确认后的信息写入当前角色卡。</string>
     <string name="screen_title_functional_config">功能模型分配</string>
     <string name="screen_title_theme_settings">主题设置</string>
@@ -8445,8 +8445,8 @@
     <string name="kiyori_ai_settings_model_api_desc">管理提供方、密钥、端点、模型列表、请求参数和连接测试</string>
     <string name="kiyori_ai_settings_function_models">功能模型分配</string>
     <string name="kiyori_ai_settings_function_models_desc">为对话、总结、记忆和多媒体识别分别指定模型</string>
-    <string name="kiyori_ai_settings_prompts_roles">提示词与角色</string>
-    <string name="kiyori_ai_settings_prompts_roles_desc">管理角色卡、群组、标签、提示词以及人设卡生成</string>
+    <string name="kiyori_ai_settings_prompts_roles">角色卡和提示词</string>
+    <string name="kiyori_ai_settings_prompts_roles_desc">管理角色卡、提示词、群组、标签以及人设卡生成</string>
     <string name="kiyori_ai_settings_group_personalization">个性化与交互</string>
     <string name="kiyori_ai_settings_group_personalization_desc">定义助手如何理解你、呈现形象并组织回复</string>
     <string name="kiyori_ai_settings_user_profile">用户资料</string>

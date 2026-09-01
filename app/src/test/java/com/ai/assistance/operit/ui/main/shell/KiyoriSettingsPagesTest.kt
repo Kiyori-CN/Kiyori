@@ -407,10 +407,34 @@ class KiyoriSettingsPagesTest {
             "activityMenuIconColor = cropOnToolbarColor",
             "activityMenuTextColor = cropOnToolbarColor",
             "activityBackgroundColor = cropSurfaceColor",
-            "backgroundColor = cropSurfaceColor",
+            "backgroundColor = cropOverlayColor",
         ).forEach { contract ->
             assertEquals(2, modelPromptsSource.split(contract).size - 1)
         }
+        assertTrue(modelPromptsSource.contains("Surface(") && modelPromptsSource.contains("primaryContainer"))
+        assertFalse(modelPromptsSource.contains("PrimaryTabRow"))
+
+        val appManifestSource = repositoryFile("app/src/main/AndroidManifest.xml").readText()
+        assertTrue(appManifestSource.contains("com.canhub.cropper.CropImageActivity"))
+        assertTrue(appManifestSource.contains("@style/Theme.Kiyori.Cropper"))
+
+        val cropperThemeSource = repositoryFile("app/src/main/res/values/themes.xml").readText()
+        val cropperNightThemeSource = repositoryFile("app/src/main/res/values-night/themes.xml").readText()
+        listOf(cropperThemeSource, cropperNightThemeSource).forEach { themeSource ->
+            assertTrue(themeSource.contains("name=\"Theme.Kiyori.Cropper\" parent=\"Theme.MaterialComponents.DayNight.DarkActionBar\""))
+        }
+
+        val chineseStringsSource = repositoryFile("app/src/main/res/values/strings.xml").readText()
+        assertTrue(
+            chineseStringsSource.contains(
+                "<string name=\"kiyori_ai_settings_prompts_roles\">角色卡和提示词</string>",
+            ),
+        )
+        assertTrue(
+            chineseStringsSource.contains(
+                "<string name=\"screen_title_model_prompts_settings\">@string/kiyori_ai_settings_prompts_roles</string>",
+            ),
+        )
     }
 
     @Test

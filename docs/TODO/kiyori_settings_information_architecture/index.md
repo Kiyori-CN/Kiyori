@@ -19,7 +19,7 @@ baseline: c036a03e
 | --- | --- | --- | --- | --- |
 | 模型与生成 | 模型与 API | `ModelConfigScreen`、`MnnModelDownloadScreen`、Provider/模型/请求头/参数/上下文面板 | `ModelConfigManager`、`ModelConfigSaveCoordinator` | 配置选择、创建/重命名/删除、敏感字段、连接测试、折叠参数与错误反馈 |
 | 模型与生成 | 功能模型分配 | `FunctionalConfigScreen` | `FunctionalConfigManager` | 按功能分配、模型能力提示、连接测试、批量重置确认 |
-| 模型与生成 | 提示词与角色 | `ModelPromptsSettingsScreen`、`TagMarketScreen`、角色/群组/标签编辑弹窗 | `CharacterCardManager`、`CharacterGroupCardManager`、`PromptTagManager`、`ActivePromptManager` | 三标签工作台、排序、导入导出、市场、角色生成入口、确认与反馈 |
+| 模型与生成 | 角色卡和提示词 | `ModelPromptsSettingsScreen`、`TagMarketScreen`、角色/群组/标签编辑弹窗 | `CharacterCardManager`、`CharacterGroupCardManager`、`PromptTagManager`、`ActivePromptManager` | 三标签工作台、排序、导入导出、市场、角色生成入口、确认与反馈 |
 | 个性化与交互 | 用户资料 | `UserPreferencesSettingsScreen`、旧档案底部面板 | `UserProfileDocumentRepository` | 编辑/预览、字符限制、保存、未保存 Back、重置与旧档案 |
 | 个性化与交互 | 虚拟形象 | `KiyoriAvatarSettingsPage`、Avatar 导入、动作/情绪映射弹窗 | `AssistantConfigViewModel`、`AvatarRepository` | 预览、导入、模型类型、动作映射、字段和弹窗一致性 |
 | 个性化与交互 | 回复与表情 | `WaifuModeSettingsScreen`、`CustomEmojiManagementScreen` | `WaifuPreferences`、自定义表情 repository | 去除用户可见旧 Waifu 标题，按回复节奏/文本/表情/自拍分类，统一自动保存反馈 |
@@ -32,13 +32,13 @@ baseline: c036a03e
 | 服务与用量 | 局域网与自动化 | `ExternalHttpChatSettingsScreen` | `ExternalHttpApiPreferences`、`AIForegroundService` | 服务状态、端口、令牌遮蔽/复制/重置、Web/API 地址、示例和风险提示 |
 
 “人设卡生成”作为 `PersonaCardGenerationScreen` 继续存在，但不再是根页重复入口；它由
-“提示词与角色”的主操作进入，并继续使用 `PersonaCardChatHistoryManager` 和现有模型调用链。
+“角色卡和提示词”的主操作进入，并继续使用 `PersonaCardChatHistoryManager` 和现有模型调用链。
 
 ### 新根页排序与文案
 
 从上到下固定为：
 
-1. `模型与生成`：`模型与 API / 功能模型分配 / 提示词与角色`
+1. `模型与生成`：`模型与 API / 功能模型分配 / 角色卡和提示词`
 2. `个性化与交互`：`用户资料 / 虚拟形象 / 回复与表情`
 3. `语音`：`文本转语音 / 语音转文本 / 语音唤醒`
 4. `上下文与工具`：`上下文与总结 / AI 工具授权`
@@ -100,7 +100,7 @@ baseline: c036a03e
 1. [DONE] 根页本地化、五组十三项、共享紧凑工作台、路由标题与静态测试。
 2. [DONE] 用户资料、工具授权、用量统计、局域网与自动化。
 3. [DONE] 模型/API、功能模型、上下文、MNN。
-4. [DONE] 提示词与角色、角色生成、回复与表情、自定义表情、标签模板。
+4. [DONE] 角色卡和提示词、角色生成、回复与表情、自定义表情、标签模板。
 5. [DONE] 虚拟形象、语音唤醒、TTS、STT 的最小弹层复核。
 6. [DONE] `CONTEXT.md`、资源、测试和反向零引用检查。
 7. [DONE] 定向 JVM/Kotlin、architecture、formal readiness、Markdown/XML/localization、

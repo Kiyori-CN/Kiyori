@@ -3216,7 +3216,7 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="screen_title_persona_card_generation">Creador de personajes</string>
     <string name="screen_title_waifu_mode_settings">Respuestas y emojis</string>
     <string name="screen_title_tag_market">Plantillas de etiquetas</string>
-    <string name="screen_title_model_prompts_settings">Prompts y personajes</string>
+    <string name="screen_title_model_prompts_settings">@string/kiyori_ai_settings_prompts_roles</string>
     <string name="persona_generation_intro">Describe el personaje que quieres crear: nombre e identidad, personalidad, aspecto, habilidades y relaciones. Haré preguntas concretas y guardaré los detalles confirmados en la tarjeta actual.</string>
     <string name="screen_title_functional_config">Asignación de modelos funcionales</string>
     <string name="screen_title_theme_settings">Ajustes de tema</string>

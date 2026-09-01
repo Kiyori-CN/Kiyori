@@ -124,7 +124,7 @@
 
 状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。
 本增量继续按未发布版本的现有 UI 方案迭代，范围是设置根页 12 个入口、设置
-子页面共享行、AI 对话次栏、AI 助手用户资料编辑器和提示词与角色的头像裁剪入口；不改变导航、持久化、
+子页面共享行、AI 对话次栏、AI 助手用户资料编辑器和角色卡和提示词的头像裁剪入口；不改变导航、持久化、
 Provider、ToolPkg、浏览器/播放器 runtime 或兼容标识。
 
 ### 已确认的现象与根因

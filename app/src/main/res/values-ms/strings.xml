@@ -3341,7 +3341,7 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="screen_title_persona_card_generation">Pembina Persona</string>
     <string name="screen_title_waifu_mode_settings">Balasan &amp; Emoji</string>
     <string name="screen_title_tag_market">Templat Tag</string>
-    <string name="screen_title_model_prompts_settings">Prom dan Watak</string>
+    <string name="screen_title_model_prompts_settings">@string/kiyori_ai_settings_prompts_roles</string>
     <string name="persona_generation_intro">Terangkan watak yang ingin dicipta, termasuk nama dan peranan, personaliti, rupa, kebolehan dan hubungan. Saya akan bertanya secara terarah dan menyimpan butiran yang disahkan pada kad semasa.</string>
     <string name="screen_title_functional_config">Penetapan Model Fungsian</string>
     <string name="screen_title_theme_settings">Tetapan Tema</string>

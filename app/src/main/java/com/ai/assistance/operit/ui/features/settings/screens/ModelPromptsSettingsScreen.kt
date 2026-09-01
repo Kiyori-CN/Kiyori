@@ -112,6 +112,9 @@ fun ModelPromptsSettingsScreen(
     val cropToolbarColor = MaterialTheme.colorScheme.primary.toArgb()
     val cropOnToolbarColor = MaterialTheme.colorScheme.onPrimary.toArgb()
     val cropSurfaceColor = MaterialTheme.colorScheme.surface.toArgb()
+    // CropImageView draws this color outside the crop window. Keep alpha so the full source image
+    // remains visible while the square selection stays visually prominent.
+    val cropOverlayColor = android.graphics.Color.argb(170, 0, 0, 0)
     val unknownErrorMessage = stringResource(R.string.unknown_error)
     val imageLoadFailedMessage = stringResource(R.string.image_load_failed)
     val imageSavedMessage = stringResource(R.string.image_saved)
@@ -267,7 +270,7 @@ fun ModelPromptsSettingsScreen(
                 activityMenuIconColor = cropOnToolbarColor
                 activityMenuTextColor = cropOnToolbarColor
                 activityBackgroundColor = cropSurfaceColor
-                backgroundColor = cropSurfaceColor
+                backgroundColor = cropOverlayColor
             }
         )
         cropAvatarLauncher.launch(cropOptions)
@@ -292,7 +295,7 @@ fun ModelPromptsSettingsScreen(
                 activityMenuIconColor = cropOnToolbarColor
                 activityMenuTextColor = cropOnToolbarColor
                 activityBackgroundColor = cropSurfaceColor
-                backgroundColor = cropSurfaceColor
+                backgroundColor = cropOverlayColor
             }
         )
         cropGroupAvatarLauncher.launch(cropOptions)
@@ -851,58 +854,45 @@ fun ModelPromptsSettingsScreen(
             Column(
                 modifier = Modifier.fillMaxSize()
             ) {
-                // 标签栏（移除旧配置选项）
-                PrimaryTabRow(selectedTabIndex = currentTab, modifier = Modifier.height(40.dp)) {
-                    Tab(
-                        selected = currentTab == 0,
-                        onClick = { currentTab = 0 }
+                // 三项目标切换使用中性表面承载，选中态仅通过蓝色语义容器表达，避免旧白底
+                // 旧标签容器与页面背景形成突兀色块；这里保留稳定的 42dp 触摸高度。
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(4.dp)
+                            .height(42.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Column(
-                            modifier = Modifier.padding(vertical = 3.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Person,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Text(stringResource(R.string.character_cards), fontSize = 12.sp)
-                        }
-                    }
-                    Tab(
-                        selected = currentTab == 1,
-                        onClick = { currentTab = 1 }
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(vertical = 3.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.Label,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Text(stringResource(R.string.tags), fontSize = 12.sp)
-                        }
-                    }
-                    Tab(
-                        selected = currentTab == 2,
-                        onClick = { currentTab = 2 }
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(vertical = 3.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.People,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Text(stringResource(R.string.character_groups), fontSize = 12.sp)
-                        }
+                        PromptTargetTab(
+                            selected = currentTab == 0,
+                            icon = Icons.Default.Person,
+                            label = stringResource(R.string.character_cards),
+                            onClick = { currentTab = 0 },
+                            modifier = Modifier.weight(1f),
+                        )
+                        PromptTargetTab(
+                            selected = currentTab == 1,
+                            icon = Icons.AutoMirrored.Filled.Label,
+                            label = stringResource(R.string.tags),
+                            onClick = { currentTab = 1 },
+                            modifier = Modifier.weight(1f),
+                        )
+                        PromptTargetTab(
+                            selected = currentTab == 2,
+                            icon = Icons.Default.People,
+                            label = stringResource(R.string.character_groups),
+                            onClick = { currentTab = 2 },
+                            modifier = Modifier.weight(1f),
+                        )
                     }
                 }
 
@@ -2003,6 +1993,60 @@ enum class ExportMode {
     TAVERN_JSON,
     TAVERN_PNG,
     COLOR_QR
+}
+
+@Composable
+private fun PromptTargetTab(
+    selected: Boolean,
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val containerColor =
+        if (selected) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            androidx.compose.ui.graphics.Color.Transparent
+        }
+    val contentColor =
+        if (selected) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        }
+
+    Surface(
+        modifier = modifier
+            .fillMaxHeight()
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(8.dp),
+        color = containerColor,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(modifier = Modifier.width(5.dp))
+            Text(
+                text = label,
+                color = contentColor,
+                fontSize = 12.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                maxLines = 1,
+            )
+        }
+    }
 }
 
 // 角色卡标签页

@@ -3317,7 +3317,7 @@
     <string name="screen_title_persona_card_generation">페르소나 만들기</string>
     <string name="screen_title_waifu_mode_settings">답변 및 이모지</string>
     <string name="screen_title_tag_market">태그 템플릿</string>
-    <string name="screen_title_model_prompts_settings">프롬프트 및 캐릭터</string>
+    <string name="screen_title_model_prompts_settings">@string/kiyori_ai_settings_prompts_roles</string>
     <string name="persona_generation_intro">이름과 역할, 성격, 외모, 능력, 관계 등 만들고 싶은 캐릭터를 설명해 주세요. 필요한 내용을 차례로 질문하고 확인된 정보를 현재 캐릭터 카드에 저장합니다.</string>
     <string name="screen_title_functional_config">기능 모델 할당</string>
     <string name="screen_title_theme_settings">테마 설정</string>

@@ -3891,7 +3891,7 @@
     <string name="screen_title_persona_card_generation">Persona Builder</string>
     <string name="screen_title_waifu_mode_settings">Replies &amp; Emojis</string>
     <string name="screen_title_tag_market">Tag Templates</string>
-    <string name="screen_title_model_prompts_settings">Prompts &amp; Characters</string>
+    <string name="screen_title_model_prompts_settings">@string/kiyori_ai_settings_prompts_roles</string>
     <string name="persona_generation_intro">Describe the character you want to create, including their name and role, personality, appearance, abilities, and relationships. I will ask focused questions and write confirmed details to the current character card.</string>
     <string name="screen_title_functional_config">Functional Model Assignment</string>
     <string name="screen_title_theme_settings">Theme Settings</string>
