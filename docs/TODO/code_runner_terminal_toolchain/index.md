@@ -368,3 +368,62 @@ end-of-file`。根因不是脚本中的单引号，而是 `buildWriteFileCommand
 允许 subshell 的闭合括号；delimiter 仍由进程内序列和内容碰撞检查生成，脚本内容保持 quoted
 heredoc 原样写入。静态合同测试锁定该换行边界；生产资产必须重新由 TypeScript 编译同步，不能
 只改 APK 内生成文件。该修复不改变用户文件模式的 cwd 语义，也不增加第二写入器或 shell 兜底。
+
+### 2026-09-02 Rust 文件模式长输出截断复核
+
+状态：根因修复与本地自动化验证完成；目标设备复测仍为 `verification_pending`。
+
+#### 现场事实与根因
+
+- 最新安装包中 `run_rust_file` 对约 255 字节以上的文件报告 Rust `unclosed delimiter`，而同一文件
+  直接由 `rustc` 编译成功；短 Rust 文件以及 Python/Go/C/C++/Ruby 大文件均正常，排除了 Rust
+  编译器、FUSE 挂载和统一的文件大小限制。
+- `run_rust_file` 通过 `executeTerminalCommand("cat <path>")` 取得源文件，再写入临时 Cargo 工程。
+  `OutputProcessor` 按行累积命令输出并在完成时生成完整历史；每个输出事件却由
+  `TerminalManager` 的 callback 单独 `launch` 后再 emit 到共享流。完成事件可能先于仍在调度的正文
+  事件到达 `Terminal.executeCommandFlow`，收集器看到完成后立即停止，于是只拿到前约 10 行（约 255B）
+  的内容，最终把截断源交给 `cargo`。
+- 终端历史分页上限为每命令 100 页、每页 10 行，原始缓冲上限为 256KiB；这些上限不会在本现场
+  规模下截断 800B Rust 文件，问题属于事件发布顺序而非存储容量。
+
+#### 冻结方案
+
+1. 在 `TerminalManager` 内建立单一有序事件通道；开始、正文和完成事件全部按 callback 入队顺序由
+   一个 dispatcher 发布到现有 `commandExecutionEvents`，移除逐事件独立协程造成的竞态。
+2. 保持 `CommandExecutionEvent` 字段、OSC 退出标记、唯一可见 PTY、会话队列和输出分页协议不变；
+   不引入第二结果源、额外执行器或改变用户可见终端历史。
+3. 增加终端回归测试：构造超过 10 行的连续正文事件，断言完成事件最后到达且收集到的输出字节完整；
+   增加 code_runner 静态合同，确保 `run_rust_file` 仍使用完整 `cat` 结果写入临时工程。
+4. 复核环境探针、Python venv/pip、Node workspace、uv/rust PATH 和安装后勾选的既有合同；只有
+   发现当前源码可重现的缺陷才在本轮一并修复，设备权限失败继续按真实权限展示。
+
+#### 实施与验证计划
+
+1. [DONE] 核对现场复测矩阵、终端输出模型、历史上限和当前 Git 基线，确认事件乱序根因。
+2. [DONE] 冻结有序事件分发和测试边界，更新本专项 TODO 与任务日记。
+3. [DONE] 修改 `TerminalManager` 事件发布并补齐终端顺序回归测试；terminal `45/45`、ToolPkg `11/11` 通过。
+4. [DONE] 运行 TypeScript 编译、终端与父仓库相关测试、正式开发准备检查和 `git diff --check`。
+5. [DONE] 串行构建 `:app:assembleDebug --no-daemon --console=plain`，核验 APK 内容、签名和 16 KiB 对齐。
+6. [DONE] 审计精确差异、敏感内容、子模块和远端状态，提交并推送 `main`；真机长 Rust 文件、七类
+   字符串模式及环境安装/识别仍单独保持 `verification_pending`。
+
+#### 本地实现证据
+
+- 新增 `OrderedCommandExecutionEventDispatcher`，以单一 FIFO Channel 串行发布终端命令开始、正文和
+  完成事件；`TerminalManager` 清理时关闭队列，未改变 `CommandExecutionEvent`、OSC 退出标记、AIDL
+  或可见 PTY 协议。
+- 新增 `OrderedCommandExecutionEventDispatcherTest`，发送开始事件、25 行正文和完成事件，确认完成
+  事件最后到达且退出码保留为 `0`；terminal 定向构建与测试共 `45/45` 通过。
+- code_runner 源码与生产资产仍保持字节同步，heredoc、稳定 venv/cwd、Rust PATH、环境探针和
+  super_admin 参数合同测试 `12/12` 通过；CI 全量为 `239/239`，父仓库 `:app:testDebugUnitTest`
+  与 TypeScript 编译均通过。
+- 本轮串行 `:app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL`（235 tasks，
+  26 executed / 209 up-to-date）。Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，
+  503695485 bytes，SHA-256 `3A48EA39FBFC13A8A05D416381D3C965A3C2FE2A5FEFF88486031FA728807C8F`；
+  `aapt` 确认 `com.kiyori`、`45/0.1.0`、compile/target SDK `37/34`、唯一 launcher
+  `com.ai.assistance.operit.ui.main.MainActivity`、ABI `arm64-v8a`，`apksigner` V2 单 signer
+  与 `zipalign -P 16` 均通过。APK 内 `code_runner.js`/`super_admin.js` 与源码 SHA-256 分别为
+  `5127A7C4A97E42CCE68FBAB9C95E5D60530B1E889CC4A202DA02FBD7F8992A14` 和
+  `DB0452BCE24C5F75F4BB8182903FEC60674EE1B3CB90397DA2813861C1047F2F`，逐字节一致。
+- 真实 Android 设备上的长 Rust 文件、七类字符串模式、环境安装后立即重进页面和工具可用性仍需
+  现场复测，状态保持 `verification_pending`。

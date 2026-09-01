@@ -59,7 +59,7 @@ class ToolPkgRuntimeFilesTest(unittest.TestCase):
 
         self.assertIn('return `(cd ${directoryArgument} && ${command})`;', source)
         self.assertIn('executeTerminalCommand(buildSubshellCommand(tempDirPath, `go build ${buildFlags} -o main main.go`))', source)
-        self.assertIn('executeTerminalCommand(buildSubshellCommand(tempDirPath, `${CARGO_MIRROR_ENV} && cargo build ${cargoFlags}`))', source)
+        self.assertIn('executeTerminalCommand(buildSubshellCommand(tempDirPath, `${RUST_TOOLCHAIN_ENV} && ${CARGO_MIRROR_ENV} && cargo build ${cargoFlags}`))', source)
         self.assertNotRegex(source, r'executeTerminalCommand\(`cd \$\{temp(?:DirPath|GoDir|RustDir)\}')
 
     def test_code_runner_python_environment_commands_use_stable_home(self) -> None:
@@ -73,6 +73,13 @@ class ToolPkgRuntimeFilesTest(unittest.TestCase):
         self.assertIn("const result = await executeFromHome(`${pythonBin}", source)
         self.assertIn("const result = await executeFromHome(buildWriteFileCommand", source)
         self.assertNotIn("executeTerminalCommand(`${pythonBin} ${pythonFlags} '${escapedTempFilePath}'", source)
+
+    def test_code_runner_rust_requires_rustc_and_cargo_from_one_explicit_path(self) -> None:
+        source = (REPO_ROOT / "examples" / "code_runner.ts").read_text(encoding="utf-8")
+
+        self.assertIn('const RUST_TOOLCHAIN_ENV = \'export PATH="$HOME/.cargo/bin:$PATH"\';', source)
+        self.assertIn("rustc --version && cargo --version", source)
+        self.assertGreaterEqual(source.count("${RUST_TOOLCHAIN_ENV} && ${CARGO_MIRROR_ENV} && cargo build"), 3)
 
     def test_code_runner_heredoc_delimiter_is_standalone_before_subshell_close(self) -> None:
         source = (REPO_ROOT / "examples" / "code_runner.ts").read_text(encoding="utf-8")

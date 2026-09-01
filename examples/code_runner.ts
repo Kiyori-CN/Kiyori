@@ -347,6 +347,7 @@
 const codeRunner = (function () {
 
   const CARGO_MIRROR_ENV = 'export CARGO_REGISTRIES_CRATES_IO_REPLACE_WITH="ustc" && export CARGO_REGISTRIES_USTC_INDEX="https://mirrors.ustc.edu.cn/crates.io-index"';
+  const RUST_TOOLCHAIN_ENV = 'export PATH="$HOME/.cargo/bin:$PATH"';
   const CODE_RUNNER_SESSION_NAME = "code_runner_session";
   const DEFAULT_COMMAND_TIMEOUT_MS = 120000;
   const NODE_WORKSPACE_DIR = "$HOME/.code_runner/node";
@@ -782,7 +783,9 @@ func main() {
   // 检查并配置Rust环境
   async function ensureRustConfigured(): Promise<{ success: boolean; message: string }> {
     // 在有效目录中运行，避免 "Could not locate working directory" 错误
-    let rustCheckResult = await executeTerminalCommand(buildSubshellCommand("/tmp", "rustc --version"));
+    let rustCheckResult = await executeTerminalCommand(
+      buildSubshellCommand("/tmp", `${RUST_TOOLCHAIN_ENV} && rustc --version && cargo --version`)
+    );
 
     if (rustCheckResult.exitCode === 0 && !hasError(rustCheckResult.output)) {
       return { success: true, message: "Rust环境已配置" };
@@ -790,13 +793,15 @@ func main() {
 
     // 如果未配置默认工具链，则尝试设置
     if (rustCheckResult.output.includes("no default is configured")) {
-      const setupResult = await executeFromHome('export RUSTUP_DIST_SERVER="https://mirrors.ustc.edu.cn/rust-static" && export RUSTUP_UPDATE_ROOT="https://mirrors.ustc.edu.cn/rust-static/rustup" && rustup default stable');
+      const setupResult = await executeFromHome(`${RUST_TOOLCHAIN_ENV} && export RUSTUP_DIST_SERVER="https://mirrors.ustc.edu.cn/rust-static" && export RUSTUP_UPDATE_ROOT="https://mirrors.ustc.edu.cn/rust-static/rustup" && rustup default stable`);
       if (setupResult.exitCode !== 0 || hasError(setupResult.output)) {
         return { success: false, message: `运行 'rustup default stable' 失败: ${setupResult.output}` };
       }
 
       // 再次检查
-      rustCheckResult = await executeTerminalCommand(buildSubshellCommand("/tmp", "rustc --version"));
+      rustCheckResult = await executeTerminalCommand(
+        buildSubshellCommand("/tmp", `${RUST_TOOLCHAIN_ENV} && rustc --version && cargo --version`)
+      );
       if (rustCheckResult.exitCode === 0 && !hasError(rustCheckResult.output)) {
         return { success: true, message: "Rust环境已自动配置" };
       }
@@ -833,7 +838,7 @@ edition = "2021"
       await writeTextFile(tempRustFile, script);
 
       // 在有效目录中运行 cargo
-      const compileResult = await executeTerminalCommand(buildSubshellCommand(tempRustDir, `${CARGO_MIRROR_ENV} && cargo build --release`));
+      const compileResult = await executeTerminalCommand(buildSubshellCommand(tempRustDir, `${RUST_TOOLCHAIN_ENV} && ${CARGO_MIRROR_ENV} && cargo build --release`));
       if (compileResult.exitCode !== 0 || hasError(compileResult.output)) {
         await executeFromHome(`rm -rf ${tempRustDir}`);
         return { success: false, message: `Rust 编译失败: ${compileResult.output}` };
@@ -1188,7 +1193,7 @@ edition = "2021"
       await writeTextFile(`${tempDirPath}/Cargo.toml`, cargoToml);
       await writeTextFile(`${tempDirPath}/src/main.rs`, script);
 
-      const compileResult = await executeTerminalCommand(buildSubshellCommand(tempDirPath, `${CARGO_MIRROR_ENV} && cargo build ${cargoFlags}`));
+      const compileResult = await executeTerminalCommand(buildSubshellCommand(tempDirPath, `${RUST_TOOLCHAIN_ENV} && ${CARGO_MIRROR_ENV} && cargo build ${cargoFlags}`));
       if (compileResult.exitCode !== 0 || hasError(compileResult.output)) {
         throw new Error(`Rust 代码编译失败:\n${compileResult.output}`);
       }
@@ -1243,7 +1248,7 @@ edition = "2021"
       const fileContent = readResult.output;
       await writeTextFile(`${tempDirPath}/src/main.rs`, fileContent);
 
-      const compileResult = await executeTerminalCommand(buildSubshellCommand(tempDirPath, `${CARGO_MIRROR_ENV} && cargo build ${cargoFlags}`));
+      const compileResult = await executeTerminalCommand(buildSubshellCommand(tempDirPath, `${RUST_TOOLCHAIN_ENV} && ${CARGO_MIRROR_ENV} && cargo build ${cargoFlags}`));
       if (compileResult.exitCode !== 0 || hasError(compileResult.output)) {
         throw new Error(`Rust 文件编译失败:\n${compileResult.output}`);
       }
