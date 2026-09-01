@@ -16,7 +16,10 @@ For_Agent: 对项目大规模动工前按本规范协作
   无反应。旧 Operit 标记仅保留兼容解析，当前协议为 Kiyori OSC；本轮继续收敛 AI 电脑层的
   SurfaceView 点击隔离、黑色不透明宿主、布局级 IME inset、原生焦点清理和无动画环境路由，消除环境配置按钮的闪退/穿透窗口；最新增量让环境/设置页纵向滚动与唯一 Shell pager 按方向仲裁，
   终端内部逐级持有系统 Back，回到软件首页后不再残留手势锁；同时合并环境包 hidden probe，
-  修正 Python/DPKG 能力识别与失败状态。长命令/进程回收、真实终端 UI、包安装与设备验收仍需
+  修正 Python/DPKG 能力识别与失败状态。本次继续修复批量探针把字面量 `\\n` 当作 Bash 语句边界
+  导致所有包显示“无法识别”的问题，协议改用真实 LF 和显式包 ID/状态字段；pipx 与 rustup 的
+  安装后 PATH 激活及 hidden probe 也统一到 Ubuntu `$HOME` 下的规范目录。长命令/进程回收、
+  真实终端 UI、包安装与设备验收仍需
   单独复测；本轮在验证后按父仓库与 Terminal 子模块顺序提交推送。
 
 - [AI 对话 HTTP attempt 审计与稳定性收口](unified_model_capability_and_resumable_execution/6_deepseek_long_context_cache_and_usage_plan.md)：补齐

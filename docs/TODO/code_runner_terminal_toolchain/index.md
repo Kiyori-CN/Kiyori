@@ -232,6 +232,84 @@ command，返回每个包的明确 `0/1`；Python 项目按 `python`/`python3` �
   系统 Back、IME、首次 rootfs 探针耗时和 Python/venv/pip/uv 安装后勾选仍为
   `verification_pending`。
 
+### 环境探针脚本与安装后环境变量修复（2026-09-01）
+
+状态：根因修复、环境路径修复、Terminal/App 全量 JVM 测试、formal readiness 与 Debug APK 审计
+已完成；Git 交付状态以本轮最终 ref 核对为准，真机验收仍为 `verification_pending`。
+
+#### 现场事实与根因
+
+- 环境配置页的唯一批量探针由 `SetupScreen.packageProbeCommand()` 生成，再由
+  `LocalTerminalProvider` 原样写入临时 Bash 脚本。生成器用 `"\\n"` 拼接脚本语句，产物包含的
+  是反斜杠和字母 `n`，不是物理换行。Bash 因而无法把 begin marker、各包 `if` 和 end marker
+  解析为独立语句，整段脚本以非零状态结束。
+- `packageProbeStatuses()` 对 hidden command 非零、缺少完整 begin/end frame 的结果统一返回
+  `UNKNOWN`，这是正确的失败语义，也与“所有选项始终显示无法识别”的现场表现完全一致；问题位于
+  上游脚本生成，不应通过把 `UNKNOWN` 改成“未安装”掩盖。
+- 现有 `SetupEnvironmentProbeTest` 只解析手写 marker，并明确断言生成命令以字面量 `"\\n"`
+  结尾，因此 `8/8` 测试通过仍没有覆盖实际 Bash 的物理行合同。
+- hidden shell 使用 `/bin/bash --noprofile --norc -s`，Ubuntu 内 `HOME=/root` 且基础 `PATH` 不读取
+  profile。uv 探针已经显式加入 `$HOME/.local/bin`，但 rust 探针仍只依赖继承的 `PATH`；rustup
+  安装成功后，当前 hidden shell 仍可能找不到 `$HOME/.cargo/bin/rustc`。
+- 可见安装命令通过 `eval` 在同一个交互 shell 中逐步执行，环境变量修改能够保留。uv 当前以
+  `source ~/.profile` 激活 PATH，会执行与本次安装无关的 profile 内容；rust 安装后没有显式激活
+  `$HOME/.cargo/env`。
+
+#### 冻结方案
+
+1. 保留唯一的 `executeHiddenCommand(executorKey = "environment-setup-check")` 和一次批量探针，不新增
+   逐包命令、第二状态源或失败回退路径。
+2. 生成的 Bash 脚本使用真实 `LF` 分隔 begin、每个包检查和 end；每条结果采用显式
+   `__KIYORI_ENV_PROBE__:<package-id>:<0|1>` 字段，避免把状态位黏在包 ID 末尾。
+3. 解析器只接受完整 frame 内、已知包 ID、字段数和值均正确的记录。hidden command 失败或 frame
+   不完整时全部保持 `UNKNOWN`；单个记录缺失、重复或损坏时只把对应包保持 `UNKNOWN`，不得误报
+   `INSTALLED` 或 `NOT_INSTALLED`。
+4. Python 继续按能力识别：`python`/`python3` 的最终链接一致、`python3 -m venv` 可用、
+   `python3 -m pip` 可用；Node 继续解析 `npm prefix -g` 的唯一全局 bin。uv 与 rust 分别在
+   `$HOME/.local/bin`、`$HOME/.cargo/bin` 的规范路径上执行真实版本命令，识别不依赖 profile 是否
+   被 non-interactive shell 加载。
+5. 自动安装保持逐步、非交互和遇错停止。uv 用 `pipx ensurepath` 持久化后，直接向当前 shell
+   `export PATH="$HOME/.local/bin:$PATH"`；rustup 成功后显式 `source "$HOME/.cargo/env"`，使当前
+   终端和后续探针使用相同安装位置，不执行整份 profile 作为安装步骤。
+6. 不改变包 ID、AIDL、namespace、rootfs 路径、安装源持久化或 UI 路由。该增量没有数据迁移；
+   回滚点是 terminal 子模块修复提交及父仓库对应 gitlink 提交。
+
+#### 实施与验证计划
+
+1. [DONE] 核对父/子仓库、正式准备文档、hidden executor、安装队列、环境注入和现有测试，确认统一
+   根因与测试缺口。
+2. [DONE] 冻结真实换行、显式字段、严格失败语义和规范安装路径方案。
+3. [DONE] 修改探针生成/解析、rust/uv 环境激活并补齐源码意图注释；同步 terminal `CONTEXT.md`
+   和本 TODO 的实际状态。
+4. [DONE] 增加生成脚本物理行、完整/缺失/重复/损坏 frame、hidden result 失败、
+   Python/uv/rust 路径及安装命令顺序测试；定向 `19/19`、Terminal 全量 `9 suites / 42 tests` 和
+   App 全量 `321 suites / 1915 tests` 均为零失败、零错误、零跳过。
+5. [DONE] formal readiness、父/子 `git diff --check`、候选树 Markdown 链接检查和规定的串行
+   `:app:assembleDebug --no-daemon --console=plain` 已通过；APK 身份、哈希、签名与 16 KiB 对齐已核验。
+6. [PENDING] 审计并依次提交推送 Terminal 子模块和父仓库 `main`，独立核对本地、tracking 与 GitHub
+   远端 ref；真机首次 rootfs、已安装/未安装混合状态、安装后立即重进页面和实际命令可用性保持
+   `verification_pending`。
+
+#### 本地验证证据
+
+- 定向环境探针与共享环境合同为 `19/19`；Terminal 全量为 `9 suites / 42 tests`，App 全量为
+  `321 suites / 1915 tests`，均为零 failure、error 和 skip。
+- `check_formal_readiness.py --repository . --require-main`、父/子 `git diff --check` 与候选树
+  `check_markdown_links.py` 通过。Markdown 检查首次未传必需的 `--base/--candidate` 而退出；按脚本
+  合同重跑后的实际结果为 `0 errors / 0 warnings`。
+- 规定的 `:app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL in 35s`，`235` 个
+  tasks 中 `23 executed / 212 up-to-date`；唯一 Launcher、脚本代理 runtime 与播放器 runtime
+  packaging 门禁通过。
+- Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，写入时间
+  `2026-09-01 13:04:54 +08:00`，`503695441` bytes，SHA-256
+  `FE483805D93431A4D9D230612C14516FFA02BE346E0734394961380657FDA900`；包/版本/SDK 为
+  `com.kiyori / 45 / 0.1.0 / min 26 / target 34 / compile 37`，唯一 Launcher 是
+  `com.ai.assistance.operit.ui.main.MainActivity`，仅 `arm64-v8a`，包含 `53` 个无重复 basename 的
+  `.so`，Android Debug V2 单 signer 与 `zipalign -c -P 16 4` 通过。
+- 未安装或操作设备，因此首次 rootfs 初始化耗时、已安装/未安装混合结果、Python 链接/venv/pip/uv
+  勾选、rust/uv 当前终端 PATH、安装完成后立即重进页面和系统/手势回归仍为
+  `verification_pending`。
+
 ## 非目标
 
 - 不启用 Android VPN、第二代理核心、自动 provider 切换或无声直连旁路。
