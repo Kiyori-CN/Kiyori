@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -52,6 +53,51 @@ class ToolPkgRuntimeFilesTest(unittest.TestCase):
                     destination.read_bytes(),
                     f"Production ToolPkg asset drifted from its source: {plan.destination_name}",
                 )
+
+    def test_code_runner_keeps_persistent_terminal_cwd_valid(self) -> None:
+        source = (REPO_ROOT / "examples" / "code_runner.ts").read_text(encoding="utf-8")
+
+        self.assertIn('return `(cd ${directoryArgument} && ${command})`;', source)
+        self.assertIn('executeTerminalCommand(buildSubshellCommand(tempDirPath, `go build ${buildFlags} -o main main.go`))', source)
+        self.assertIn('executeTerminalCommand(buildSubshellCommand(tempDirPath, `${CARGO_MIRROR_ENV} && cargo build ${cargoFlags}`))', source)
+        self.assertNotRegex(source, r'executeTerminalCommand\(`cd \$\{temp(?:DirPath|GoDir|RustDir)\}')
+
+    def test_code_runner_python_environment_commands_use_stable_home(self) -> None:
+        source = (REPO_ROOT / "examples" / "code_runner.ts").read_text(encoding="utf-8")
+
+        self.assertGreaterEqual(source.count("executeFromHome("), 8)
+        self.assertIn("const exists = await executeFromHome", source)
+        self.assertIn("const setup = await executeFromHome", source)
+        self.assertIn("const r2 = await executeFromHome", source)
+        self.assertIn("const result = await executeFromHome", source)
+        self.assertIn("const result = await executeFromHome(`${pythonBin}", source)
+        self.assertIn("const result = await executeFromHome(buildWriteFileCommand", source)
+        self.assertNotIn("executeTerminalCommand(`${pythonBin} ${pythonFlags} '${escapedTempFilePath}'", source)
+
+    def test_code_runner_heredoc_delimiter_is_standalone_before_subshell_close(self) -> None:
+        source = (REPO_ROOT / "examples" / "code_runner.ts").read_text(encoding="utf-8")
+
+        self.assertIn(
+            "return `cat > ${pathArgument} <<'${marker}'\\n${body}${marker}\\n`;",
+            source,
+        )
+        self.assertNotIn(
+            "return `cat > ${pathArgument} <<'${marker}'\\n${body}${marker}`;",
+            source,
+        )
+
+    def test_super_admin_uses_typed_timeouts_and_unique_background_sessions(self) -> None:
+        source = (REPO_ROOT / "examples" / "super_admin.ts").read_text(encoding="utf-8")
+
+        self.assertRegex(source, r'"name": "background"[\s\S]*?"type": "boolean"')
+        self.assertRegex(source, r'"name": "timeoutMs"[\s\S]*?"type": "number"')
+        self.assertIn("function parseTimeout(timeoutMs: number | undefined, defaultTimeoutMs: number): number", source)
+        self.assertIn("Number.isInteger(timeoutMs)", source)
+        self.assertIn("backgroundSessionSequence += 1", source)
+        self.assertIn("background !== undefined && typeof background !== \"boolean\"", source)
+        self.assertIn("isBackground && timeoutMs !== undefined", source)
+        self.assertIn("Tools.System.terminal.exec(sessionId, command, timeout)", source)
+        self.assertIn("params.input.length === 0", source)
 
     def test_ignored_runtime_files_are_included_in_archive(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

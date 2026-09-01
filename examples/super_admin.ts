@@ -23,14 +23,14 @@ METADATA
                 },
                 {
                     "name": "background",
-                    "description": { "zh": "是否在后台运行命令,\"true\" 表示后台执行并立即返回,适合启动服务器等长时间运行的任务（AI 不会收到该命令的输出结果），\"false\" 或未提供则前台执行并等待并返回命令结果", "en": "Run command in background. 'true' runs in background and returns immediately (good for long-running tasks like servers; AI will not receive output). 'false' or omitted runs in foreground and returns the command result." },
-                    "type": "string",
+                    "description": { "zh": "是否在后台运行命令。true 表示后台执行并立即返回，适合启动服务器等长时间运行的任务；false 或未提供则前台执行并等待命令结果。", "en": "Run the command in the background. true returns immediately for long-running tasks; false or omitted waits for the command result." },
+                    "type": "boolean",
                     "required": false
                 },
                 {
                     "name": "timeoutMs",
-                    "description": { "zh": "可选超时（毫秒，最低3000ms）。强烈建议显式传入；未传时前台默认15000ms，background=true时不使用默认超时。", "en": "Optional timeout (ms, minimum 3000ms). Strongly recommended to pass explicitly; if omitted, foreground defaults to 15000ms, and background=true does not use the default timeout." },
-                    "type": "string",
+                    "description": { "zh": "可选超时（毫秒，最低3000ms）。强烈建议显式传入；未传时前台默认15000ms，后台模式不使用该默认值。", "en": "Optional timeout in milliseconds (minimum 3000). Foreground defaults to 15 seconds when omitted; background mode has no default timeout." },
+                    "type": "number",
                     "required": false
                 }
             ]
@@ -47,8 +47,8 @@ METADATA
                 },
                 {
                     "name": "timeoutMs",
-                    "description": { "zh": "可选超时（毫秒，最低3000ms）。未传时默认300000ms（5分钟）。", "en": "Optional timeout (ms, minimum 3000ms). Defaults to 300000ms (5 minutes) if omitted." },
-                    "type": "string",
+                    "description": { "zh": "可选超时（毫秒，最低3000ms）。未传时默认300000ms（5分钟）。", "en": "Optional timeout in milliseconds (minimum 3000). Defaults to 300000ms (5 minutes) when omitted." },
+                    "type": "number",
                     "required": false
                 }
             ]
@@ -111,6 +111,17 @@ const superAdmin = (function () {
     const MIN_TIMEOUT_MS = 3_000;
     const DEFAULT_TERMINAL_SESSION_NAME = "super_admin_default_session";
     const BACKGROUND_TERMINAL_SESSION_PREFIX = "super_admin_background";
+    let backgroundSessionSequence = 0;
+
+    function parseTimeout(timeoutMs: number | undefined, defaultTimeoutMs: number): number {
+        if (timeoutMs === undefined) {
+            return defaultTimeoutMs;
+        }
+        if (!Number.isInteger(timeoutMs) || timeoutMs < MIN_TIMEOUT_MS) {
+            throw new Error(`timeoutMs必须是整数且不少于${MIN_TIMEOUT_MS}毫秒`);
+        }
+        return timeoutMs;
+    }
 
     function getCurrentChatSessionSuffix(): string {
         const chatId = getChatId();
@@ -136,7 +147,8 @@ const superAdmin = (function () {
         const prefix = chatSuffix
             ? `${BACKGROUND_TERMINAL_SESSION_PREFIX}_${chatSuffix}`
             : BACKGROUND_TERMINAL_SESSION_PREFIX;
-        return `${prefix}_${Date.now()}`;
+        backgroundSessionSequence += 1;
+        return `${prefix}_${Date.now()}_${backgroundSessionSequence}`;
     }
 
     async function persistTerminalOutputIfTooLong(command: string, result: any): Promise<any | null> {
@@ -175,12 +187,12 @@ const superAdmin = (function () {
      * 运行环境：完整的Ubuntu系统，已正确挂载sdcard和storage目录
      * 禁止使用 set -e / set -o errexit 等会改变 shell 退出行为的命令，否则可能导致终端会话退出并卡死
      * @param command - 要执行的命令
-     * @param background - 是否后台运行（"true" 为后台执行并立即返回，适合启动服务器等长时间运行任务，AI 不会收到该命令的输出结果）
+     * @param background - 是否后台运行（true 为后台执行并立即返回，适合启动服务器等长时间运行任务，AI 不会收到该命令的输出结果）
      * @param timeoutMs - 可选的超时时间（毫秒，最低 3000ms）。强烈建议显式传入；前台未传时默认 15000ms，后台模式不应用该默认值。
      */
-    async function terminal(params: { command: string, background?: string, timeoutMs?: string }): Promise<any> {
+    async function terminal(params: { command: string, background?: boolean, timeoutMs?: number }): Promise<any> {
         try {
-            if (!params.command) {
+            if (typeof params.command !== "string" || params.command.trim() === "") {
                 throw new Error("命令不能为空");
             }
 
@@ -188,20 +200,18 @@ const superAdmin = (function () {
             const background = params.background;
             const timeoutMs = params.timeoutMs;
 
+            if (background !== undefined && typeof background !== "boolean") {
+                throw new Error("background必须是布尔值");
+            }
+
             console.log(`执行终端命令: ${command}`);
 
-            const isBackground = background === "true";
+            const isBackground = background === true;
             let timeout: number | undefined;
-            if (!isBackground) {
-                if (timeoutMs !== undefined) {
-                    const parsedTimeout = parseInt(timeoutMs, 10);
-                    if (!Number.isFinite(parsedTimeout) || parsedTimeout < MIN_TIMEOUT_MS) {
-                        throw new Error(`timeoutMs必须是整数且不少于${MIN_TIMEOUT_MS}毫秒`);
-                    }
-                    timeout = parsedTimeout;
-                } else {
-                    timeout = DEFAULT_FOREGROUND_TIMEOUT_MS;
-                }
+            if (isBackground && timeoutMs !== undefined) {
+                timeout = parseTimeout(timeoutMs, MIN_TIMEOUT_MS);
+            } else if (!isBackground) {
+                timeout = parseTimeout(timeoutMs, DEFAULT_FOREGROUND_TIMEOUT_MS);
             }
 
             if (isBackground) {
@@ -211,7 +221,7 @@ const superAdmin = (function () {
                 // 调用系统工具执行终端命令
                 (async () => {
                     try {
-                        await Tools.System.terminal.exec(sessionId, command);
+                        await Tools.System.terminal.exec(sessionId, command, timeout);
                     } catch (error) {
                         console.error(`[terminal/background] 错误: ${error.message}`);
                         console.error(error.stack);
@@ -257,7 +267,7 @@ const superAdmin = (function () {
         }
     }
 
-    async function bash(params: { command: string, background?: string, timeoutMs?: string }): Promise<any> {
+    async function bash(params: { command: string, background?: boolean, timeoutMs?: number }): Promise<any> {
         return terminal(params);
     }
 
@@ -267,17 +277,10 @@ const superAdmin = (function () {
      * @param sessionId - 可选会话ID；不传时使用当前对话的默认会话，无 chatId 时为 super_admin_default_session
      * @param timeoutMs - 可选超时（毫秒，最低 3000ms）；未传默认 300000ms
      */
-    async function terminal_wait(params: { sessionId?: string, timeoutMs?: string } = {}): Promise<any> {
+    async function terminal_wait(params: { sessionId?: string, timeoutMs?: number } = {}): Promise<any> {
         try {
             const timeoutMs = params.timeoutMs;
-            let timeout = DEFAULT_WAIT_TIMEOUT_MS;
-            if (timeoutMs !== undefined) {
-                const parsedTimeout = parseInt(timeoutMs, 10);
-                if (!Number.isFinite(parsedTimeout) || parsedTimeout < MIN_TIMEOUT_MS) {
-                    throw new Error(`timeoutMs必须是整数且不少于${MIN_TIMEOUT_MS}毫秒`);
-                }
-                timeout = parsedTimeout;
-            }
+            const timeout = parseTimeout(timeoutMs, DEFAULT_WAIT_TIMEOUT_MS);
 
             const session =
                 params.sessionId
@@ -379,6 +382,9 @@ const superAdmin = (function () {
         try {
             if (params.input === undefined && params.control === undefined) {
                 throw new Error("input和control至少需要提供一个");
+            }
+            if (params.control === undefined && params.input !== undefined && params.input.length === 0) {
+                throw new Error("input不能为空");
             }
 
             const session =

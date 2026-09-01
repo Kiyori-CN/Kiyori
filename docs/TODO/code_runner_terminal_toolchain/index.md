@@ -318,3 +318,53 @@ command，返回每个包的明确 `0/1`；Python 项目按 `python`/`python3` �
 - 不把 Android 全局 Python、Ubuntu 系统 Python 与 code_runner venv 合并。
 - 不修改产品 application ID、兼容 namespace、ToolPkg ID、终端 AIDL 或 Ubuntu 发行版身份。
 - 不启用 GitHub Actions 总开关，不安装 APK，不代替真机验收。
+
+### 2026-09-01 code_runner / super_admin 现场测试复核
+
+状态：本地实现与自动化验证已完成；真机验收仍保持 `verification_pending`。
+
+#### 复核结论
+
+- code_runner 的 Python venv、pip 和解释器本身没有损坏。Go/Rust 临时工程使用 `cd <tmp>`
+  修改了持久 `code_runner_session` 的 cwd，随后清理该目录，导致下一次 Python/pip 启动在已删除
+  cwd 中调用 `os.getcwd()` 失败；旧检查把这个执行上下文错误误判为“持久 venv 不完整”。
+- Rust 首次文件测试的 `unclosed delimiter` 来自测试文件同步到 Android 存储时的内容损坏，重写同一
+  文件后工具链通过；代码仍需保证自身所有临时构建目录不会留下失效 cwd，避免再次制造同类假象。
+- super_admin 的 Ubuntu PTY、后台等待、屏幕读取和交互输入在报告中均通过。复核发现参数 metadata
+  仍把 `background`/`timeoutMs` 声明为字符串，超时使用 `parseInt` 会接受尾随垃圾字符，且后台会话
+  名仅使用毫秒时间戳，存在并发碰撞窗口；这些属于可确定修复的输入与会话隔离问题。
+- Android Shell 的普通应用权限限制是设备授权边界，不把 `settings`/`su` 失败改写为工具故障，
+  也不添加 Root、Shizuku 或静默直连兜底。
+
+#### 本轮修复合同
+
+1. 所有 code_runner 临时 Go/Rust 构建命令使用带明确工作目录的子 shell；父 PTY 的 cwd 和环境保持
+   不变，清理目录后下一条命令仍可启动 Python/pip。
+2. Python venv 的存在性、创建后校验、包安装、环境信息探针和内置 Python 自检在 `$HOME` 稳定工作
+   目录中执行；用户提供的文件路径命令继续由调用方当前 cwd 解析，不改变公开文件运行语义。
+3. super_admin metadata 与 TypeScript 参数改用 `background: boolean`、`timeoutMs: number`；只接受
+   有限整数且不低于 3000ms，输入至少包含非空文本或控制键；后台 session 名加入进程内单调序列。
+   后台命令不设置默认截止时间，但显式传入的 `timeoutMs` 会按同一严格规则交给终端执行器。
+4. 保持唯一 code_runner 可见 PTY、唯一 super_admin 默认/后台会话 owner、既有 ToolPkg ID、AIDL、
+   Ubuntu/Android Shell 边界和 `UNKNOWN` 环境探针语义，不新增并行执行器或状态源。
+
+#### 验收补充
+
+- TypeScript 编译必须通过，源码与生产 `app/src/main/assets/packages` 字节一致。
+- 增加静态合同测试，覆盖临时构建子 shell、稳定 Python 工作目录、严格 super_admin 参数和后台
+  会话唯一性；随后执行 Terminal/App 相关测试、formal readiness、`git diff --check` 与串行
+  `:app:assembleDebug --no-daemon --console=plain`。
+
+### 2026-09-02 字符串模式 heredoc 回归复核
+
+最新安装包复测发现，venv 完整性和 pip 安装已经恢复，但所有需要先写临时文件的字符串模式
+（Python、Node、Go、Rust、C、C++、Ruby）统一返回 Bash 的 `here-document ... delimited by
+end-of-file`。根因不是脚本中的单引号，而是 `buildWriteFileCommand()` 生成的 delimiter 行没有
+结尾 LF；`executeFromHome()` 随后把命令包进 `(cd "$HOME" && ... )`，使实际文本成为
+`__CODE_RUNNER_FILE_xxx__)`，delimiter 不再是独立行。文件模式和直接求值的 ES5 模式不经过该
+写入路径，因此没有受到影响。
+
+修复合同：正文统一为 LF 并至少保留一个正文换行，delimiter 必须单独占一行且后跟 LF，之后才
+允许 subshell 的闭合括号；delimiter 仍由进程内序列和内容碰撞检查生成，脚本内容保持 quoted
+heredoc 原样写入。静态合同测试锁定该换行边界；生产资产必须重新由 TypeScript 编译同步，不能
+只改 APK 内生成文件。该修复不改变用户文件模式的 cwd 语义，也不增加第二写入器或 shell 兜底。
