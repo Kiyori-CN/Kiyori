@@ -401,7 +401,7 @@ heredoc 原样写入。静态合同测试锁定该换行边界；生产资产必
 
 1. [DONE] 核对现场复测矩阵、终端输出模型、历史上限和当前 Git 基线，确认事件乱序根因。
 2. [DONE] 冻结有序事件分发和测试边界，更新本专项 TODO 与任务日记。
-3. [DONE] 修改 `TerminalManager` 事件发布并补齐终端顺序回归测试；terminal `45/45`、ToolPkg `11/11` 通过。
+3. [DONE] 修改 `TerminalManager` 事件发布并补齐终端顺序回归测试；terminal `45/45`、ToolPkg `12/12` 通过。
 4. [DONE] 运行 TypeScript 编译、终端与父仓库相关测试、正式开发准备检查和 `git diff --check`。
 5. [DONE] 串行构建 `:app:assembleDebug --no-daemon --console=plain`，核验 APK 内容、签名和 16 KiB 对齐。
 6. [DONE] 审计精确差异、敏感内容、子模块和远端状态，提交并推送 `main`；真机长 Rust 文件、七类
