@@ -50,6 +50,7 @@ observed_at: 2026-09-03 Asia/Shanghai
 - 定向 JVM：`./gradlew.bat :app:testDebugUnitTest --tests "com.ai.assistance.operit.ui.common.markdown.*" --tests "com.ai.assistance.operit.ui.common.displays.LatexFormulaSupportTest" --no-daemon --console=plain`，`BUILD SUCCESSFUL`。
 - 正式门禁：`check_formal_readiness.py --require-main` 与 `check_fresh_clone.py` 均通过；`git diff --check` 通过。
 - Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，`496156261` bytes，SHA-256 `DBDF11171083FDF1AAED537EB3413D5B58A8FA48F3C3A7090B92891555DF4516`；`com.kiyori / 45 / 0.1.0`，仅 `arm64-v8a`，Android Debug V2 单 signer，`zipalign -c -P 16 -v 4` 通过。
+- 提交 `4de8770c770ceeed091314797c025ca711928219` 已推送 `origin/main`；`git rev-parse HEAD`、`git rev-parse origin/main` 和 `git ls-remote origin refs/heads/main` 三方结果一致。
 - 目标设备当前未连接；真实 Provider 流式思考/回复、工具结果、Mermaid WebView/CDN、公式编号/长公式、深浅色/窄屏/旋转、IME 和 TalkBack 保持 `verification_pending`。
 
 ## 目标与范围

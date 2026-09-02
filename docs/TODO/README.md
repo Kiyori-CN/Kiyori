@@ -9,7 +9,8 @@ For_Agent: 对项目大规模动工前按本规范协作
 - [AI 对话渲染可靠性与工具内容边界](ai_chat_rendering_reliability/index.md)：已收敛工具 XML/JSON，
   代码围栏、`$$`/`\[\]` 与行首 `\begin{…}…\end{…}` 公式环境、Mermaid/HTML 载荷边界专项正在
   继续收口；本轮已完成 native/legacy 环境块识别、公式消费与复制路径统一、定向 JVM/native 编译、
-  formal readiness、fresh-clone 和 Debug APK 审计，设备验收保持 `verification_pending`；提交推送待收口。
+  formal readiness、fresh-clone 和 Debug APK 审计，设备验收保持 `verification_pending`；提交
+  `4de8770c7` 已推送 `origin/main`，三方 ref 已对账一致。
 
 - [全屏搜索与浏览器交互续接修复](kiyori_browser_product_completion/2_software_home_and_fullscreen_search.md)：
   正在收口全屏搜索三行输入的固定行距、搜索引擎切换条全局开关与回退清理、网页边缘滑动前进后退，
