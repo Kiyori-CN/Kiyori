@@ -101,10 +101,11 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
     // 上下文菜单状态
     var showBottomActionMenu by mutableStateOf(false)
     var contextMenuFile by mutableStateOf<FileItem?>(null)
+    var contextMenuPane by mutableStateOf(FileManagerPane.LEFT)
 
     // 对话框状态
-    var showNewFolderDialog by mutableStateOf(false)
-    var newFolderName by mutableStateOf("")
+    var showNewEntryDialog by mutableStateOf(false)
+    var newEntryName by mutableStateOf("")
     var showCompressDialog by mutableStateOf(false)
     var compressFileName by mutableStateOf("")
 
@@ -583,6 +584,42 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
                 }
             } catch (e: Exception) {
                 AppLogger.e("FileManagerViewModel", "Error creating folder", e)
+                setPaneError(operationPane, "Error: ${e.message}")
+            }
+        }
+    }
+
+    fun createNewFile(fileName: String) {
+        val operationPane = activePane
+        val operationPath = currentPath
+        val operationEnvironment = currentEnvironment
+        viewModelScope.launch {
+            try {
+                val fullPath = buildPath(operationPath, fileName)
+                val createFileTool =
+                    AITool(
+                        name = "create_file",
+                        parameters = withEnvParams(
+                            listOf(
+                                ToolParameter("path", fullPath),
+                                ToolParameter("new", ""),
+                            ),
+                            operationEnvironment,
+                        ),
+                    )
+                AppLogger.d("ToolboxFileManager", "execute create_file path=$fullPath env=$operationEnvironment")
+                val result = toolHandler.executeTool(createFileTool)
+                AppLogger.d(
+                    "ToolboxFileManager",
+                    "result create_file success=${result.success} error=${result.error}",
+                )
+                if (result.success) {
+                    loadPaneDirectory(operationPane, operationPath, operationEnvironment)
+                } else {
+                    setPaneError(operationPane, result.error ?: context.getString(R.string.file_manager_operation_failed))
+                }
+            } catch (e: Exception) {
+                AppLogger.e("FileManagerViewModel", "Error creating file", e)
                 setPaneError(operationPane, "Error: ${e.message}")
             }
         }

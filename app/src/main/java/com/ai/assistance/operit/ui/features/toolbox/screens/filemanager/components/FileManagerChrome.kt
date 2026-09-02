@@ -78,7 +78,7 @@ fun FileManagerTopBar(
     onToggleHiddenFiles: () -> Unit,
     onSelectSort: () -> Unit,
     onOpenLinux: () -> Unit,
-    onNewFolder: () -> Unit,
+    onNew: () -> Unit,
     onExitSearch: () -> Unit,
 ) {
     var overflowExpanded by remember { mutableStateOf(false) }
@@ -169,7 +169,7 @@ fun FileManagerTopBar(
                     }
                     FileManagerMenuItem(Icons.Default.CreateNewFolder, stringResource(R.string.file_manager_new)) {
                         overflowExpanded = false
-                        onNewFolder()
+                        onNew()
                     }
                 }
             }
@@ -178,7 +178,7 @@ fun FileManagerTopBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(16.dp)
-                    .offset(y = (-2).dp),
+                    .offset(y = (-8).dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {

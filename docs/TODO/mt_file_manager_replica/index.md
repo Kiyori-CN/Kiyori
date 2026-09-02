@@ -1,6 +1,6 @@
 # MT 管理器手机存储复刻
 
-状态：`LOCAL PIXEL ALIGNMENT COMPLETE / DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。
+状态：`LOCAL IMPLEMENTATION COMPLETE / DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。
 
 ## 目标与范围
 
@@ -65,7 +65,10 @@ Toolbox 路由，页面不创建第二个导航 owner。
 
 - 双窗格加载继续调用 `list_files`，保留 `environment` 参数和结构化错误。
 - 单击目录进入当前活动窗格；单击文件保留既有选中语义；长按继续打开 `FileContextMenu`。
-- 复制、剪切、粘贴、重命名、压缩、解压、删除、分享、打开和新建沿用现有 AITool 调用及日志。
+- 新建弹窗区分“文件”和“文件夹”：文件名原样作为路径交给 `create_file`（扩展名仅由名称决定，
+  不带扩展名时保持无格式文件），文件夹交给 `make_directory`；创建成功后只刷新发起操作的窗格。
+- 长按菜单暂时只复刻 MT 管理器的中间弹窗，复制、移动、删除、重命名、工具、压缩、属性、分享、
+  打开方式和添加书签按钮均为空点击；后续增量再接回既有 AITool 能力，避免在 UI 复刻阶段混入旧抽屉行为。
 - 搜索、排序、隐藏文件和终端入口通过页面溢出菜单进入；未实现的 MT 专有动作不伪造结果。
 
 ### 本轮细节验收矩阵
@@ -92,6 +95,35 @@ Toolbox 路由，页面不创建第二个导航 owner。
 6. [DONE] 串行构建 `:app:assembleDebug --no-daemon --console=plain`，核验 APK 元数据/签名/对齐。
 7. [DONE] 审计精确提交树后提交 `main` 并推送 `origin/main`；真机视觉、触摸和系统 Back 复测
    单独保持 `verification_pending`。
+
+## 2026-09-02 新建与长按中间弹窗计划
+
+### 目标
+
+1. 底栏第三个“新建”以及顶栏溢出菜单的“新建”统一打开 MT 风格白色居中弹窗；单行输入框下方
+   使用蓝色指示线，底部按截图顺序保留“取消 / 文件 / 文件夹”三个动作。
+2. 点击“文件”调用唯一文件创建能力 `create_file`，名称中的后缀不做推断或改写；点击“文件夹”
+   只调用 `make_directory`，两者不能互相替代。
+3. 长按文件或文件夹统一显示中间双列五行弹窗，移除 `KiyoriModalBottomDrawer`；文件夹的分享、
+   打开方式固定置灰；当源栏与目标栏路径/环境相同，文件夹的移动也置灰。
+4. 复制/移动行的方向箭头由长按源窗格决定：左栏朝右，右栏朝左；按钮点击保持空动作且不关闭弹窗。
+
+### 实施范围
+
+- `FileManagerViewModel.kt`：新增建项状态、长按源窗格状态和 `createNewFile`，复用现有目录加载与
+  `make_directory` 处理；不新增 Router 或 ViewModel。
+- `FileManagerScreen.kt`：统一新建入口与弹窗参数，记录长按源栏，移除长按旧操作回调。
+- `components/NewFolderDialog.kt`：改为 MT 风格文件/文件夹建项弹窗，保留文件名输入状态。
+- `components/FileContextMenu.kt`：重写为居中双列菜单的纯 UI，按文件类型和双栏路径计算置灰状态及箭头方向。
+- `FileManagerSourceContractTest.kt`：覆盖建项动作区分、`create_file` 参数、居中弹窗、置灰规则和左右箭头。
+
+### 非目标与验收
+
+- 本轮不接回长按菜单的文件操作业务，不新增复制/移动后端，不改变双窗格导航、选择、Back 或 SAF 合同。
+- 定向文件管理器 JVM 源码合同、`git diff --check`、正式开发准备门禁和串行
+  `./gradlew.bat :app:assembleDebug --no-daemon --console=plain` 必须通过并核验 Debug APK；不提交、不推送。
+- 目标设备未连接时，弹窗宽度、字体栅格、系统 dim、长按触摸和真实文件创建仍标记为
+  `verification_pending`。
 
 ## 风险与验收
 
@@ -281,3 +313,73 @@ Toolbox 路由，页面不创建第二个导航 owner。
   versionCode `45`，versionName `0.1.0`；Android Debug V2 单 signer、16 KiB zipalign 通过。
 - `adb devices` 无目标设备；真实设备密度、按压动画、双向拖动边界和系统 Back 仍需现场复测，状态保持
   `verification_pending`。
+
+## 2026-09-02 新建与长按中间弹窗实现证据
+
+### 本轮实现
+
+- 底栏第三个“新建”和顶栏溢出菜单统一打开 `FileManagerNewEntryDialog`；输入框使用透明容器和蓝色
+  下划线，底部按截图顺序提供“取消 / 文件 / 文件夹”，空输入时按钮仍保持 MT 的蓝色视觉。
+- “文件”调用 `FileManagerViewModel.createNewFile`，向 `create_file` 传入原始名称拼接的路径和空 `new`
+  内容；名称是否带 `.txt` 等后缀完全由用户输入决定，不做隐式格式改写。“文件夹”继续只调用
+  `make_directory`。
+- `FileContextMenu` 从 `KiyoriModalBottomDrawer` 改为白色居中 `Dialog`，按参考图排列头部提示、关闭键和
+  双列五行操作；所有操作行点击体为空，关闭键是唯一会关闭弹窗的动作。
+- 文件夹的“分享”和“打开方式…”使用禁用灰色；文件夹在左右栏路径与环境相同的情况下“移动”也使用
+  禁用灰色。复制/移动箭头由 `contextMenuPane` 决定，长按左栏朝右、长按右栏朝左。
+- ViewModel 新增建项状态和长按源窗格状态，未新增导航、ViewModel 或文件系统后端；既有双窗格选择、目录
+  历史、Back 和 SAF 路径保持不变。
+
+### 本轮验证
+
+- `./gradlew.bat :app:testDebugUnitTest --no-daemon --console=plain --tests
+  "com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.*"`：`BUILD SUCCESSFUL`，13 项文件管理器
+  测试通过，新增源码合同覆盖建项动作、`create_file` 参数、居中菜单、置灰规则和左右箭头。
+- `./gradlew.bat :app:compileDebugKotlin --no-daemon --console=plain`：`BUILD SUCCESSFUL`。
+- `.venv\Scripts\python.exe -B ci/script/check_formal_readiness.py --repository . --require-main`：`PASS`。
+- `.venv\Scripts\python.exe -B ci/script/check_fresh_clone.py --repository .`：`PASS`（基线
+  `3ec7f39fa6431bc5cb85ef44fa318d4423daf077`）。
+- `./gradlew.bat :app:assembleDebug --no-daemon --console=plain`：`BUILD SUCCESSFUL`；唯一 launcher、脚本代理和
+  播放器运行时打包检查通过。
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，`503,705,425` bytes，SHA-256
+  `6B83750E17DB0958CF183CAFA10ADBA33117F62C507802A471F4E86DC9969079`；`com.kiyori / 45 / 0.1.0 / compileSdk 37`，
+  launcher 为 `com.ai.assistance.operit.ui.main.MainActivity`；Android Debug V2 单 signer、16 KiB zipalign 通过。
+- `adb devices` 未发现目标设备；弹窗宽度/字体栅格、系统 dim、长按触摸、箭头方向现场效果和真实文件创建仍为
+  `verification_pending`。本轮未提交、未推送。
+
+## 2026-09-02 对比图像素级弹窗几何校正
+
+### 本轮实现
+
+- 新建弹窗固定为 `310dp × 151dp`，保留 `24dp` 内容边距；标题调整为 `20sp/24sp`，输入区改为
+  无额外 Material 最小高度的 `BasicTextField`，以 `32dp` 编辑区和 `2dp` 蓝色下划线对齐 MT 截图。
+- 新建按钮栏固定为 `48dp`：左侧“取消”，右侧“文件”和“文件夹”之间保留 `32dp` 间距，文案统一
+  `14sp/20sp`；文件/文件夹创建回调和空输入校验保持上一轮状态。
+- 长按菜单固定为 `320dp × 269dp`，表头 `28dp`、分隔线 `1dp`、正文 `5 × 48dp`；正文图标收紧为
+  `24dp`、文案为 `16sp/20sp`，压缩使用下载箭头图标，添加书签使用集合书签图标。
+- 长按菜单窗口清除系统 `FLAG_DIM_BEHIND` 并保留 `8dp` 阴影，匹配 MT2/MT3 中“背景不变暗、弹窗有阴影”
+  的像素关系；新建弹窗继续使用默认 dim，匹配 MT1。
+- 左栏长按显示“复制 -> • / 移动 -> •”，右栏长按显示“<- 复制 • / <- 移动 •”；蓝点始终位于
+  文案末尾，文件夹禁用“移动”（同路径同环境）、“分享”和“打开方式…”的灰色规则不变，所有动作仍为空点击。
+
+## 2026-09-02 对比图更新后的第二轮微调
+
+- 顶栏总高度保持不变，仅将第二行“文件夹 / 文件 / 储存”统计信息的绘制偏移上移到 `-8dp`，贴近
+  `/storage/emulated/0/` 路径行；路径行、状态栏和底栏布局不变。
+- 长按菜单表头按更新后的 MT 截图缩小为 `12sp/16sp`，左侧内容边距调整为 `10dp`；正文五行仍为
+  `16sp/20sp`，菜单底色保持 `#FAFAFA`，窗口上移 `65px` 以匹配 MT2/MT3 的居中位置。
+- 本轮只改变像素几何和视觉 token，不恢复长按操作业务；源码合同、Kotlin 编译和文件管理器定向测试
+  继续作为自动化验收，真实设备字体栅格、阴影和触摸仍为 `verification_pending`。
+
+### 验收边界
+
+- 已按 `D:\03_Default\图片\Kiyori\对比图\Kiyori1.jpg`、`MT1.jpg`、`Kiyori2.jpg`、`MT2.jpg`、
+  `Kiyori3.jpg`、`MT3.jpg` 的原始 `1260×2800` 像素测得弹窗边界、行周期、图标与文字投影，并将尺寸
+  token 固化到源码合同测试。
+- 文件管理器定向 JVM 测试 `13/13`、Kotlin 编译、正式开发准备门禁和 `git diff --check` 均通过。
+- `./gradlew.bat :app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL`；唯一 Launcher、脚本
+  代理和播放器运行时打包检查通过。最终 APK 为 `app/build/outputs/apk/debug/app-debug.apk`，
+  `487,740,940` bytes，SHA-256 `6DBCF6ACBF7650F511473EEB721C571003A733721598F2633F1DF9E5B8C14663`；
+  `com.kiyori / 45 / 0.1.0`、Android Debug V2 单 signer 和 16 KiB zipalign 均通过。
+- 未连接目标 Android 设备；系统 dim、字体栅格、阴影、触摸命中、左右箭头现场效果和真实文件创建继续
+  保持 `verification_pending`。本轮不提交、不推送。

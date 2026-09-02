@@ -146,12 +146,80 @@ class FileManagerSourceContractTest {
         )
 
         assertTrue(chrome.contains("modifier = Modifier.fillMaxWidth().height(40.dp).offset(y = 2.dp)"))
-        assertTrue(chrome.contains(".fillMaxWidth()\n                    .height(16.dp)\n                    .offset(y = (-2).dp)"))
+        assertTrue(chrome.contains(".fillMaxWidth()\n                    .height(16.dp)\n                    .offset(y = (-8).dp)"))
         assertTrue(chrome.contains("horizontalArrangement = Arrangement.Center"))
         assertTrue(chrome.contains("verticalAlignment = Alignment.CenterVertically"))
         assertTrue(chrome.contains("fontSize = 10.sp, lineHeight = 12.sp"))
         assertTrue(chrome.contains("textAlign = TextAlign.Center"))
         assertTrue(chrome.contains("softWrap = false"))
         assertTrue(chrome.contains("append(\"文件夹：${'$'}folderCount  文件：${'$'}fileCount  ${'$'}storageLabel\")"))
+    }
+
+    @Test
+    fun `new entry dialog separates file and folder creation`() {
+        val screen = source(
+            "java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/FileManagerScreen.kt",
+        )
+        val dialog = source(
+            "java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/NewFolderDialog.kt",
+        )
+        val viewModel = source(
+            "java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/viewmodel/FileManagerViewModel.kt",
+        )
+
+        assertTrue(screen.contains("FileManagerNewEntryDialog("))
+        assertTrue(screen.contains("onCreateFile ="))
+        assertTrue(screen.contains("onCreateFolder ="))
+        assertTrue(dialog.contains("text = \"新建\""))
+        assertTrue(dialog.contains("Text(\"文件\""))
+        assertTrue(dialog.contains("Text(\"文件夹\""))
+        assertTrue(dialog.contains("Modifier.width(310.dp).height(151.dp)"))
+        assertTrue(dialog.contains("BasicTextField("))
+        assertTrue(dialog.contains("height(32.dp)"))
+        assertTrue(dialog.contains("background(Color(0xFF42A5F5))"))
+        assertTrue(dialog.contains("padding(start = 24.dp, top = 21.dp, end = 24.dp)"))
+        assertTrue(dialog.contains("height(48.dp).offset(x = (-12.5).dp)"))
+        assertTrue(dialog.contains("height(48.dp).offset(x = 33.dp)"))
+        assertTrue(dialog.contains("height(48.dp).offset(x = 8.dp)"))
+        assertTrue(dialog.contains("fontSize = 14.sp"))
+        assertTrue(viewModel.contains("name = \"create_file\""))
+        assertTrue(viewModel.contains("ToolParameter(\"new\", \"\")"))
+        assertTrue(viewModel.contains("fun createNewFile(fileName: String)"))
+    }
+
+    @Test
+    fun `long press menu is centered and projects folder disabled actions`() {
+        val menu = source(
+            "java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileContextMenu.kt",
+        )
+        val screen = source(
+            "java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/FileManagerScreen.kt",
+        )
+
+        assertTrue(menu.contains("DialogProperties(usePlatformDefaultWidth = false)"))
+        assertTrue(menu.contains("FLAG_DIM_BEHIND"))
+        assertTrue(menu.contains("setDimAmount(0f)"))
+        assertTrue(menu.contains("setGravity(Gravity.CENTER)"))
+        assertTrue(menu.contains("(-18.5).dp.roundToPx()"))
+        assertTrue(menu.contains("shadowElevation = 8.dp"))
+        assertTrue(menu.contains("color = Color(0xFFFAFAFA)"))
+        assertTrue(menu.contains("modifier = Modifier.padding(start = 10.dp)"))
+        assertTrue(menu.contains("TextStyle(fontSize = 12.sp, lineHeight = 16.sp)"))
+        assertFalse(menu.contains("KiyoriModalBottomDrawer"))
+        assertTrue(menu.contains("val isFolder = contextMenuFile.isDirectory"))
+        assertTrue(menu.contains("enabled = !isFolder"))
+        assertTrue(menu.contains("val moveEnabled = !isFolder || sourcePath != targetPath || sourceEnvironment != targetEnvironment"))
+        assertTrue(menu.contains("Modifier.width(320.dp).height(269.dp)"))
+        assertTrue(menu.contains("height(28.dp)"))
+        assertTrue(menu.contains("height(48.dp)"))
+        assertTrue(menu.contains("Modifier.size(24.dp)"))
+        assertTrue(menu.contains("val copyMoveArrow = if (sourcePane == FileManagerPane.LEFT) \"->\" else \"<-\""))
+        assertTrue(menu.contains("val copyMoveArrowBeforeLabel = sourcePane == FileManagerPane.RIGHT"))
+        assertTrue(menu.contains("arrowBeforeLabel = copyMoveArrowBeforeLabel"))
+        assertTrue(menu.contains("Icons.Default.FileDownload"))
+        assertTrue(menu.contains("Icons.Default.CollectionsBookmark"))
+        assertTrue(menu.contains("sourcePane: FileManagerPane"))
+        assertTrue(screen.contains("sourcePane = viewModel.contextMenuPane"))
+        assertTrue(screen.contains("viewModel.contextMenuPane = pane"))
     }
 }

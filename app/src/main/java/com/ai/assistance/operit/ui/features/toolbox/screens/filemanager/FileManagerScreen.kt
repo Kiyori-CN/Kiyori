@@ -34,9 +34,6 @@ import androidx.compose.material3.TextField
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.res.stringResource
 import com.ai.assistance.operit.R
-import com.ai.assistance.operit.core.tools.AIToolHandler
-import com.ai.assistance.operit.data.model.AITool
-import com.ai.assistance.operit.data.model.ToolParameter
 import com.ai.assistance.operit.data.preferences.ApiPreferences
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.FileContextMenu
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.FileManagerBottomBar
@@ -52,7 +49,7 @@ import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.viewmode
 import com.ai.assistance.operit.util.AppLogger
 import com.kiyori.platform.window.KiyoriStatusBarAppearanceOverride
 import kotlinx.coroutines.launch
-import NewFolderDialog
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.FileManagerNewEntryDialog
 
 private const val FILE_MANAGER_TAG = "ToolboxFileManager"
 
@@ -64,7 +61,6 @@ fun FileManagerScreen(
     KiyoriStatusBarAppearanceOverride(darkIcons = false)
     val context = LocalContext.current
     val viewModel = remember { FileManagerViewModel(context) }
-    val toolHandler = AIToolHandler.getInstance(context)
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     var showStorageDrawer by remember { mutableStateOf(false) }
@@ -234,9 +230,9 @@ fun FileManagerScreen(
                     onToggleHiddenFiles = { viewModel.toggleHiddenFiles() },
                     onSelectSort = { viewModel.cycleSortMode() },
                     onOpenLinux = { viewModel.navigateToPath("/", "linux") },
-                    onNewFolder = {
-                        viewModel.newFolderName = ""
-                        viewModel.showNewFolderDialog = true
+                    onNew = {
+                        viewModel.newEntryName = ""
+                        viewModel.showNewEntryDialog = true
                     },
                     onExitSearch = {
                         viewModel.searchQuery = ""
@@ -269,14 +265,8 @@ fun FileManagerScreen(
                         },
                         onItemLongClick = { pane, file ->
                             viewModel.activatePane(pane)
-                            if (viewModel.isMultiSelectMode) {
-                                if (file.name != ".." && viewModel.selectedFiles.contains(file)) {
-                                    viewModel.contextMenuFile = file
-                                    viewModel.showBottomActionMenu = true
-                                } else if (file.name != "..") {
-                                    viewModel.toggleSelection(file)
-                                }
-                            } else if (file.name != "..") {
+                            if (file.name != "..") {
+                                viewModel.contextMenuPane = pane
                                 viewModel.contextMenuFile = file
                                 viewModel.showBottomActionMenu = true
                             }
@@ -294,8 +284,8 @@ fun FileManagerScreen(
                     onBack = { viewModel.navigateBackDirectory() },
                     onForward = { viewModel.navigateForward() },
                     onNew = {
-                        viewModel.newFolderName = ""
-                        viewModel.showNewFolderDialog = true
+                        viewModel.newEntryName = ""
+                        viewModel.showNewEntryDialog = true
                     },
                     onMirrorPath = viewModel::mirrorActivePaneToOther,
                     onNavigateUp = { viewModel.navigateUp() },
@@ -421,54 +411,33 @@ fun FileManagerScreen(
         onNavigateToFileDirectory = viewModel::navigateToFileDirectory,
         onDismiss = { viewModel.showSearchResultsDialog = false },
     )
-    NewFolderDialog(
-        showDialog = viewModel.showNewFolderDialog,
-        folderName = viewModel.newFolderName,
-        onFolderNameChange = { viewModel.newFolderName = it },
-        onCreateFolder = {
-            if (viewModel.newFolderName.isNotBlank()) {
-                viewModel.createNewFolder(viewModel.newFolderName)
-                viewModel.showNewFolderDialog = false
+    FileManagerNewEntryDialog(
+        showDialog = viewModel.showNewEntryDialog,
+        entryName = viewModel.newEntryName,
+        onEntryNameChange = { viewModel.newEntryName = it },
+        onCreateFile = {
+            if (viewModel.newEntryName.isNotBlank()) {
+                viewModel.createNewFile(viewModel.newEntryName)
+                viewModel.showNewEntryDialog = false
             }
         },
-        onDismiss = { viewModel.showNewFolderDialog = false },
+        onCreateFolder = {
+            if (viewModel.newEntryName.isNotBlank()) {
+                viewModel.createNewFolder(viewModel.newEntryName)
+                viewModel.showNewEntryDialog = false
+            }
+        },
+        onDismiss = { viewModel.showNewEntryDialog = false },
     )
     FileContextMenu(
         showMenu = viewModel.showBottomActionMenu,
         onDismissRequest = { viewModel.showBottomActionMenu = false },
         contextMenuFile = viewModel.contextMenuFile,
-        isMultiSelectMode = viewModel.isMultiSelectMode,
-        selectedFiles = viewModel.selectedFiles,
-        currentPath = viewModel.currentPath,
-        currentEnvironment = viewModel.currentEnvironment,
-        onFilesUpdated = {
-            viewModel.loadPaneDirectory(FileManagerPane.LEFT)
-            viewModel.loadPaneDirectory(FileManagerPane.RIGHT)
-        },
-        toolHandler = toolHandler,
-        onPaste = viewModel::pasteFiles,
-        onCopy = { files -> viewModel.setClipboard(files, false) },
-        onCut = { files -> viewModel.setClipboard(files, true) },
-        onOpen = { file ->
-            toolHandler.executeTool(
-                AITool(
-                    name = "open_file",
-                    parameters = listOf(ToolParameter("path", viewModel.currentPath + "/" + file.name)) +
-                        (viewModel.currentEnvironment?.let { environment -> listOf(ToolParameter("environment", environment)) }
-                            ?: emptyList()),
-                ),
-            )
-        },
-        onShare = { file ->
-            toolHandler.executeTool(
-                AITool(
-                    name = "share_file",
-                    parameters = listOf(ToolParameter("path", viewModel.currentPath + "/" + file.name)) +
-                        (viewModel.currentEnvironment?.let { environment -> listOf(ToolParameter("environment", environment)) }
-                            ?: emptyList()),
-                ),
-            )
-        },
+        sourcePane = viewModel.contextMenuPane,
+        leftPath = viewModel.leftPaneState.path,
+        rightPath = viewModel.rightPaneState.path,
+        leftEnvironment = viewModel.leftPaneState.environment,
+        rightEnvironment = viewModel.rightPaneState.environment,
     )
 }
 
