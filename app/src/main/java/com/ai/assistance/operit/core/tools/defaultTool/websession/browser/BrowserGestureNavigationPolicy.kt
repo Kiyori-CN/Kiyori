@@ -37,6 +37,7 @@ internal class BrowserGestureNavigationTracker(
     private var edge: Edge? = null
     private var startX = 0f
     private var startY = 0f
+    private var viewportWidthPx = 0f
     private var cancelled = false
 
     fun onDown(
@@ -47,6 +48,7 @@ internal class BrowserGestureNavigationTracker(
         pointerCount: Int,
     ) {
         require(viewportWidthPx > 0f) { "Gesture viewport width must be positive" }
+        this.viewportWidthPx = viewportWidthPx
         edge =
             when {
                 !enabled || pointerCount != 1 -> null
@@ -56,7 +58,7 @@ internal class BrowserGestureNavigationTracker(
             }
         startX = x
         startY = y
-        cancelled = edge == null
+        cancelled = !enabled || pointerCount != 1
     }
 
     fun onPointerCountChanged(pointerCount: Int) {
@@ -77,19 +79,32 @@ internal class BrowserGestureNavigationTracker(
     ): BrowserGestureNavigationAction {
         val activeEdge = edge
         edge = null
-        if (cancelled || activeEdge == null) {
+        if (cancelled) {
             cancelled = false
             return BrowserGestureNavigationAction.NONE
         }
         cancelled = false
         val deltaX = x - startX
         val deltaY = y - startY
-        val directionMatches =
-            when (activeEdge) {
-                Edge.LEFT -> deltaX > 0f
-                Edge.RIGHT -> deltaX < 0f
+        val reachedLeftEdge = x <= configuration.edgeWidthPx
+        val reachedRightEdge = x >= viewportWidthPx - configuration.edgeWidthPx
+        val direction =
+            when {
+                deltaX > 0f -> BrowserGestureNavigationAction.BACK
+                deltaX < 0f -> BrowserGestureNavigationAction.FORWARD
+                else -> BrowserGestureNavigationAction.NONE
             }
-        if (!directionMatches) {
+        val edgeBoundaryInvolved =
+            when (direction) {
+                // A rightward swipe is a Back gesture when it starts at the left edge or
+                // finishes at the right edge. The inverse applies to Forward.
+                BrowserGestureNavigationAction.BACK ->
+                    activeEdge == Edge.LEFT || (activeEdge == null && reachedRightEdge)
+                BrowserGestureNavigationAction.FORWARD ->
+                    activeEdge == Edge.RIGHT || (activeEdge == null && reachedLeftEdge)
+                BrowserGestureNavigationAction.NONE -> false
+            }
+        if (!edgeBoundaryInvolved) {
             return BrowserGestureNavigationAction.NONE
         }
         val horizontalDominates =
@@ -103,9 +118,6 @@ internal class BrowserGestureNavigationTracker(
         if (!distanceCommitted && !velocityCommitted) {
             return BrowserGestureNavigationAction.NONE
         }
-        return when (activeEdge) {
-            Edge.LEFT -> BrowserGestureNavigationAction.BACK
-            Edge.RIGHT -> BrowserGestureNavigationAction.FORWARD
-        }
+        return direction
     }
 }

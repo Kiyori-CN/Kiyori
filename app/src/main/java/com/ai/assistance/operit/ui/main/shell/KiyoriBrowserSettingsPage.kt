@@ -66,6 +66,7 @@ internal enum class KiyoriBrowserSettingsAction {
     OPEN_HOME_CUSTOMIZATION,
     TOGGLE_RETURN_WITHOUT_RELOAD,
     TOGGLE_SWIPE_HISTORY_NAVIGATION,
+    TOGGLE_SEARCH_ENGINE_QUICK_SWITCH_BAR,
     TOGGLE_RESTORE_LAST_SEARCH_RESULT,
     TOGGLE_ASK_BEFORE_RESTORING_PAGES,
     TOGGLE_RETAIN_MULTIPLE_WINDOWS,
@@ -163,6 +164,12 @@ internal val kiyoriBrowserSettingsGroups =
                         description = "开启后从屏幕左右边缘滑动可在当前网页历史中前进或后退",
                         action =
                             KiyoriBrowserSettingsAction.TOGGLE_SWIPE_HISTORY_NAVIGATION,
+                    ),
+                    browserToggle(
+                        title = "搜索引擎切换条",
+                        description = "在搜索结果页顶栏下方显示搜索引擎快速切换条",
+                        action =
+                            KiyoriBrowserSettingsAction.TOGGLE_SEARCH_ENGINE_QUICK_SWITCH_BAR,
                     ),
                 ),
         ),
@@ -375,6 +382,8 @@ internal fun KiyoriBrowserSettingsPage(
                     coordinator::setReturnWithoutReloadEnabled,
                 onSetSwipeHistoryNavigationEnabled =
                     coordinator::setSwipeHistoryNavigationEnabled,
+                onSetSearchEngineQuickSwitchBarEnabled =
+                    coordinator::setSearchEngineQuickSwitchBarEnabled,
                 onSetRestoreLastSearchResultEnabled =
                     coordinator::setRestoreLastSearchResultEnabled,
                 onSetAskBeforeRestoringPagesEnabled =
@@ -606,6 +615,7 @@ private fun KiyoriBrowserSettingsDetailPage(
     onOpenHomeCustomization: () -> Unit,
     onSetReturnWithoutReloadEnabled: (Boolean) -> Unit,
     onSetSwipeHistoryNavigationEnabled: (Boolean) -> Unit,
+    onSetSearchEngineQuickSwitchBarEnabled: (Boolean) -> Unit,
     onSetRestoreLastSearchResultEnabled: (Boolean) -> Unit,
     onSetAskBeforeRestoringPagesEnabled: (Boolean) -> Unit,
     onSetRetainMultipleWindowsEnabled: (Boolean) -> Unit,
@@ -685,6 +695,8 @@ private fun KiyoriBrowserSettingsDetailPage(
                                     onSetReturnWithoutReloadEnabled(!checked)
                                 KiyoriBrowserSettingsAction.TOGGLE_SWIPE_HISTORY_NAVIGATION ->
                                     onSetSwipeHistoryNavigationEnabled(!checked)
+                                KiyoriBrowserSettingsAction.TOGGLE_SEARCH_ENGINE_QUICK_SWITCH_BAR ->
+                                    onSetSearchEngineQuickSwitchBarEnabled(!checked)
                                 KiyoriBrowserSettingsAction.TOGGLE_RESTORE_LAST_SEARCH_RESULT ->
                                     onSetRestoreLastSearchResultEnabled(!checked)
                                 KiyoriBrowserSettingsAction.TOGGLE_ASK_BEFORE_RESTORING_PAGES ->
@@ -812,6 +824,7 @@ internal fun browserSettingValue(
             KiyoriBrowserSettingsAction.TOGGLE_USER_SCRIPTS_ALLOWED,
             KiyoriBrowserSettingsAction.TOGGLE_RETURN_WITHOUT_RELOAD,
             KiyoriBrowserSettingsAction.TOGGLE_SWIPE_HISTORY_NAVIGATION,
+            KiyoriBrowserSettingsAction.TOGGLE_SEARCH_ENGINE_QUICK_SWITCH_BAR,
             KiyoriBrowserSettingsAction.TOGGLE_RESTORE_LAST_SEARCH_RESULT,
             KiyoriBrowserSettingsAction.TOGGLE_ASK_BEFORE_RESTORING_PAGES,
             KiyoriBrowserSettingsAction.TOGGLE_RETAIN_MULTIPLE_WINDOWS,
@@ -840,6 +853,8 @@ internal fun browserSettingToggleValue(
             settings.returnWithoutReloadEnabled
         KiyoriBrowserSettingsAction.TOGGLE_SWIPE_HISTORY_NAVIGATION ->
             settings.swipeHistoryNavigationEnabled
+        KiyoriBrowserSettingsAction.TOGGLE_SEARCH_ENGINE_QUICK_SWITCH_BAR ->
+            settings.searchEngineQuickSwitchBarEnabled
         KiyoriBrowserSettingsAction.TOGGLE_RESTORE_LAST_SEARCH_RESULT ->
             settings.restoreLastSearchResultEnabled
         KiyoriBrowserSettingsAction.TOGGLE_ASK_BEFORE_RESTORING_PAGES ->

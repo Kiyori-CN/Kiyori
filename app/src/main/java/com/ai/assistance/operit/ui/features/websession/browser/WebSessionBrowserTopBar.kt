@@ -105,6 +105,7 @@ import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSIO
 internal const val WEB_SESSION_SEARCH_SCREEN_INPUT_MAX_LINES = 3
 internal const val WEB_SESSION_SEARCH_SCREEN_INPUT_LINE_HEIGHT_SP = 18
 internal const val WEB_SESSION_SEARCH_SCREEN_CLEAR_ACTION_SIZE_DP = 32
+internal const val WEB_SESSION_SEARCH_SCREEN_SUBMIT_ICON_SIZE_DP = 21
 internal const val WEB_SESSION_SEARCH_SCREEN_ENGINE_ICON_SIZE_DP = 18
 internal const val WEB_SESSION_SEARCH_SCREEN_ENGINE_CARD_HEIGHT_DP = 42
 internal const val WEB_SESSION_SEARCH_SCREEN_ENGINE_CARD_ICON_SIZE_DP = 19
@@ -416,6 +417,13 @@ internal fun WebSessionBrowserSearchScreen(
     var isHistoryEditing by remember { mutableStateOf(false) }
     var showClearHistoryConfirmation by remember { mutableStateOf(false) }
     var pendingDeletionIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    var inputLineCount by remember { mutableStateOf(1) }
+    val inputLineHeightDp = with(density) {
+        WEB_SESSION_SEARCH_SCREEN_INPUT_LINE_HEIGHT_SP.sp.toDp()
+    }
+    val inputMinHeight =
+        WEB_SESSION_BROWSER_TOP_SEARCH_HEIGHT_DP.dp +
+            inputLineHeightDp * (inputLineCount - 1)
     var searchHeaderHeight by
         remember {
             mutableStateOf(
@@ -528,7 +536,7 @@ internal fun WebSessionBrowserSearchScreen(
                                     alignment = Alignment.TopCenter,
                                 )
                                 .heightIn(
-                                    min = WEB_SESSION_BROWSER_TOP_SEARCH_HEIGHT_DP.dp,
+                                    min = inputMinHeight,
                                 ),
                         shape = KiyoriUiShapes.field,
                         color = MaterialTheme.colorScheme.background,
@@ -538,7 +546,7 @@ internal fun WebSessionBrowserSearchScreen(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .heightIn(min = WEB_SESSION_BROWSER_TOP_SEARCH_HEIGHT_DP.dp)
+                                    .heightIn(min = inputMinHeight)
                                     .padding(
                                         start = 8.dp,
                                         end = 0.dp,
@@ -591,6 +599,16 @@ internal fun WebSessionBrowserSearchScreen(
                                         lineHeight =
                                             WEB_SESSION_SEARCH_SCREEN_INPUT_LINE_HEIGHT_SP.sp,
                                     ),
+                                onTextLayout = { layoutResult ->
+                                    val measuredLineCount =
+                                        layoutResult.lineCount.coerceIn(
+                                            1,
+                                            WEB_SESSION_SEARCH_SCREEN_INPUT_MAX_LINES,
+                                        )
+                                    if (inputLineCount != measuredLineCount) {
+                                        inputLineCount = measuredLineCount
+                                    }
+                                },
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                                 keyboardActions = KeyboardActions(onSearch = { submitSearch() }),
                                 decorationBox = { innerTextField ->
@@ -632,7 +650,7 @@ internal fun WebSessionBrowserSearchScreen(
                         icon = Icons.Filled.Search,
                         contentDescription = stringResource(R.string.web_session_search_submit),
                         onClick = ::submitSearch,
-                        iconSizeDp = 17,
+                        iconSizeDp = WEB_SESSION_SEARCH_SCREEN_SUBMIT_ICON_SIZE_DP,
                         modifier = Modifier.offset(y = 1.dp),
                     )
                 }

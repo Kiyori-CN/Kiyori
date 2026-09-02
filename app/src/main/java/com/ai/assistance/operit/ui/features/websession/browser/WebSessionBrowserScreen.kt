@@ -508,7 +508,8 @@ internal fun WebSessionBrowserScreen(
                 searchEngine = searchEngine,
                 lastSearchQuery = hostState.lastSearchQuery,
                 isSearchEngineQuickSwitchBarVisible =
-                    hostState.isSearchEngineQuickSwitchBarVisible,
+                    hostState.isSearchEngineQuickSwitchBarVisible &&
+                        browserSettings.searchEngineQuickSwitchBarEnabled,
                 onBack = onTopBarBack,
                 onOpenSearch = {
                     profileFeedback = null

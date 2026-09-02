@@ -85,6 +85,29 @@ class BrowserSearchRecoveryProjectionTest {
             )
 
         assertFalse(childPage.isSearchEngineQuickSwitchBarVisible)
+        assertEquals("", childPage.lastSearchQuery)
+    }
+
+    @Test
+    fun `returning to custom home clears query when recovery identity is unchanged`() {
+        val recovery = searchRecovery()
+        val resultPage =
+            WebSessionBrowserHostState()
+                .hydrateProjectedSearchRecovery(
+                    activeSessionId = "search-session",
+                    currentPageUrl = recovery.resolvedResultUrl,
+                    searchRecovery = recovery,
+                )
+
+        val homePage =
+            resultPage.hydrateProjectedSearchRecovery(
+                activeSessionId = "search-session",
+                currentPageUrl = "https://home.example/",
+                searchRecovery = recovery,
+            )
+
+        assertEquals("", homePage.lastSearchQuery)
+        assertFalse(homePage.isSearchEngineQuickSwitchBarVisible)
     }
 
     @Test

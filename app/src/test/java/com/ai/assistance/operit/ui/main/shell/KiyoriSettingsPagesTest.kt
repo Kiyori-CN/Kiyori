@@ -1106,7 +1106,7 @@ class KiyoriSettingsPagesTest {
     @Test
     fun `browser settings expose only verified capabilities`() {
         assertEquals(
-            listOf(2, 4, 3, 3, 2, 1, 5, 3),
+            listOf(2, 4, 4, 3, 2, 1, 5, 3),
             kiyoriBrowserSettingsGroups.map { group -> group.entries.size },
         )
         assertEquals(
@@ -1120,6 +1120,7 @@ class KiyoriSettingsPagesTest {
                 "网页主页自定义",
                 "返回不重载",
                 "滑屏前进后退",
+                "搜索引擎切换条",
                 "恢复上次的搜索结果",
                 "询问是否恢复页面",
                 "保留多窗口",
@@ -1159,6 +1160,8 @@ class KiyoriSettingsPagesTest {
                     KiyoriBrowserSettingsAction.TOGGLE_RETURN_WITHOUT_RELOAD,
                 "滑屏前进后退" to
                     KiyoriBrowserSettingsAction.TOGGLE_SWIPE_HISTORY_NAVIGATION,
+                "搜索引擎切换条" to
+                    KiyoriBrowserSettingsAction.TOGGLE_SEARCH_ENGINE_QUICK_SWITCH_BAR,
                 "恢复上次的搜索结果" to
                     KiyoriBrowserSettingsAction.TOGGLE_RESTORE_LAST_SEARCH_RESULT,
                 "询问是否恢复页面" to
@@ -1219,6 +1222,7 @@ class KiyoriSettingsPagesTest {
         assertTrue(initialBrowserSettings.websitePasswordSavingEnabled)
         assertTrue(initialBrowserSettings.webElementLongPressMenuEnabled)
         assertFalse(initialBrowserSettings.swipeHistoryNavigationEnabled)
+        assertTrue(initialBrowserSettings.searchEngineQuickSwitchBarEnabled)
         assertFalse(initialBrowserSettings.restoreLastSearchResultEnabled)
         assertFalse(initialBrowserSettings.askBeforeRestoringPagesEnabled)
         assertFalse(initialBrowserSettings.retainMultipleWindowsEnabled)
@@ -1226,9 +1230,9 @@ class KiyoriSettingsPagesTest {
         val browserSettings = WebSessionBrowserSettings(homeUrl = "https://example.com/home")
         val entries =
             kiyoriBrowserSettingsGroups.flatMap(KiyoriBrowserSettingsGroupSpec::entries)
-        assertEquals(23, entries.size)
+        assertEquals(24, entries.size)
         assertEquals(
-            listOf(2, 4, 3, 3, 2, 1, 5, 3),
+            listOf(2, 4, 4, 3, 2, 1, 5, 3),
             kiyoriBrowserSettingsGroups.map { group -> group.entries.size },
         )
         assertTrue(
@@ -1270,6 +1274,13 @@ class KiyoriSettingsPagesTest {
                 ),
             )
         }
+        assertTrue(
+            browserSettingToggleValue(
+                entry = entries.single { entry -> entry.title == "搜索引擎切换条" },
+                settings = browserSettings,
+                userscriptState = WebSessionUserscriptUiState(),
+            ),
+        )
         assertEquals(
             "https://example.com/home",
             browserSettingValue(

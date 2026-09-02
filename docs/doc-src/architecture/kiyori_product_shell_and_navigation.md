@@ -193,7 +193,7 @@ Browser、Mini App 与 Files 使用 `0.42` 阻尼扩大黄色填充的动画峰�
 
 旧 `kiyori-android` 的 `HomeLandingSearch.kt` 只作为交互结构参考。当前 Search/AI 是同一个搜索框内的两种入口语义，不共享结果页：选项只切换模式，主框再按模式进入网页搜索或 AI 首页；两项在同一个圆角边框内严格等宽，不分别绘制外部按钮轮廓。
 
-软件首页或天气提交不会覆盖正在浏览的活动窗口，由 `BrowserPresentationCoordinator.openSearchResultInNewSession` 在唯一 Browser Runtime 中创建并激活带明确搜索来源的 WebSession，随后进入 Browser Home。软件首页和浏览器顶栏共用强制显示的浏览 Profile 控件，睁眼表示普通、闭眼表示无痕；控件不绘制边框、底色或阴影，切换后只显示短时 `inverseSurface/inverseOnSurface` 反馈，随亮暗主题保持反相高对比。浏览器顶栏搜索在所选 Profile 与活动窗口一致时继续当前窗口，不一致时创建对应 Profile 的新 WebSession；两条路径都记录 `BROWSER_HOME` 来源，搜索历史重开记录 `SEARCH_HISTORY` 来源。全屏搜索首行直接复用 Browser Home 的 `8dp` 横纵边距、`6dp` 三槽间距、`40dp` 两侧动作区和搜索框宽度；输入框单行基准高 `42dp`，保持顶部与宽度不变，在一至三行内自动换行并平滑向下增高，超过三行后只纵向滚动。全屏搜索首行顶部对齐并固定为返回、输入框、搜索三槽，返回与搜索动作保持与浏览器顶栏相同的绝对槽位，只有输入框下缘随行数向下移动。输入卡内部的引擎按钮、条件清除叉号、占位符和输入文本在当前卡高内垂直居中，清除动作使用 `32dp` 槽以释放横向输入空间；真实 Profile 动作移动到“搜索历史”标题右侧的固定 `34dp` 标题槽。全屏搜索框只显示选中引擎图标。引擎面板覆盖搜索页内容，当前网页区显示标题和网址并提供复制/编辑动作，搜索历史以 `FlowRow` 标签展示。垃圾桶进入编辑模式后，标签叉号只暂存单条删除并由“完成”提交；“清空”显示底部确认框，确认后直接清空共享历史并退出编辑模式。普通搜索记录写入共享 `WebSessionHistoryStore`，无痕搜索与网页访问、标题更新均不写入共享历史；AI `browser_tabs list` 可立即发现两类窗口。
+软件首页或天气提交不会覆盖正在浏览的活动窗口，由 `BrowserPresentationCoordinator.openSearchResultInNewSession` 在唯一 Browser Runtime 中创建并激活带明确搜索来源的 WebSession，随后进入 Browser Home。软件首页和浏览器顶栏共用强制显示的浏览 Profile 控件，睁眼表示普通、闭眼表示无痕；控件不绘制边框、底色或阴影，切换后只显示短时 `inverseSurface/inverseOnSurface` 反馈，随亮暗主题保持反相高对比。浏览器顶栏搜索在所选 Profile 与活动窗口一致时继续当前窗口，不一致时创建对应 Profile 的新 WebSession；两条路径都记录 `BROWSER_HOME` 来源，搜索历史重开记录 `SEARCH_HISTORY` 来源。全屏搜索首行直接复用 Browser Home 的 `8dp` 横纵边距、`6dp` 三槽间距、`40dp` 两侧动作区和搜索框宽度；输入框单行基准高 `42dp`，保持顶部与宽度不变，在一至三行内按实际布局行数自动换行并平滑向下增高，超过三行后只纵向滚动。全屏搜索首行顶部对齐并固定为返回、输入框、搜索三槽，返回与搜索动作保持与浏览器顶栏相同的绝对槽位，只有输入框下缘随行数向下移动。输入卡内部的引擎按钮、条件清除叉号、占位符和输入文本在当前卡高内垂直居中，清除动作使用 `32dp` 槽以释放横向输入空间；真实 Profile 动作移动到“搜索历史”标题右侧的固定 `34dp` 标题槽。全屏搜索框只显示选中引擎图标。引擎面板覆盖搜索页内容，当前网页区显示标题和网址并提供复制/编辑动作，搜索历史以 `FlowRow` 标签展示。垃圾桶进入编辑模式后，标签叉号只暂存单条删除并由“完成”提交；“清空”显示底部确认框，确认后直接清空共享历史并退出编辑模式。普通搜索记录写入共享 `WebSessionHistoryStore`，无痕搜索与网页访问、标题更新均不写入共享历史；AI `browser_tabs list` 可立即发现两类窗口。
 
 `WebSessionBrowserSearchScreen` 的系统 Back owner 是每个宿主必须显式传入的参数。软件首页
 Full-Screen Web Search 是当前可见 Shell child，固定传入 `true`；Browser Home 内的搜索页
@@ -211,10 +211,11 @@ Browser Home 右侧动作固定为刷新：加载期间仍显示刷新图标，�
 加载语义。返回、刷新和全屏搜索 Profile 动作共用 `BrowserChromeIconButton` 的裁剪按压反馈，
 不绘制正方形水波区域；Profile 在全屏搜索历史标题行中使用标题行专用的 `34dp` 槽位。
 
-Browser Home 在文本搜索提交后保存最后一次 query 的 presentation 状态，并在顶栏下方显示可横向滚动
-的九引擎切换条。点击其他引擎会更新 `WebSessionHistoryStore` 的当前引擎，并在活动 Profile 中用同一
-query 重新导航；网址提交或右侧关闭动作隐藏切换条。浏览器菜单第 4 行使用 `2:1:2` 三槽权重，使两侧
-按钮向上方五列之间的中心线内收。
+Browser Home 在文本搜索提交后保存最后一次 query 的 presentation 状态，并在顶栏下方按“网页浏览器”
+设置中的“搜索引擎切换条”开关显示可横向滚动的九引擎切换条。点击其他引擎会更新
+`WebSessionHistoryStore` 的当前引擎，并在活动 Profile 中用同一 query 重新导航；网址提交、离开精确结果
+URL 或右侧关闭动作隐藏切换条并清理投影 query，避免返回自定义主页或普通子页时残留。浏览器菜单第 4 行
+使用 `2:1:2` 三槽权重，使两侧按钮向上方五列之间的中心线内收。
 
 `WebSessionBrowserSettingsStore.allowWebPageOpenApp` 是网页外部应用导航的唯一授权 owner。运行时不再
 创建一次性外部打开请求或 Browser Home/indicator 提示；只有设置开启、主框架且带明确用户手势时才直接
@@ -487,7 +488,8 @@ Operit AI 通过 Kiyori Capability API 操作产品能力，不能直接依赖�
 
 产品窗口创建由不可变 `BrowserWindowCreationReason` 约束。非主页普通网页的同站、跨站、`target="_blank"` 和用户 `window.open()` 都在当前 WebSession 中导航；自动 popup、dialog popup 和没有稳定 HTTP(S) 目标的请求明确拒绝。`onCreateWindow()` 只创建同 Profile 的临时目标解析 WebView，该解析器不进入窗口 registry，不安装 Kiyori bridge、用户脚本、下载器或凭据能力，捕获首个稳定目标后立即销毁。唯一自动保留原窗口的例外是已确认配置主页根上的真实用户跨站跳转：创建同 Profile 子窗口并记录 opener 主页。子窗口历史耗尽时关闭并激活仍有效的 opener；其他窗口回到最新配置主页。
 
-网页浏览器设置中的“滑屏前进后退”默认关闭，开启后左边缘向右请求 Back、右边缘向左请求 Forward，并在抽屉、搜索、源码确认、文本选择、网页元素动作、广告标记、下载确认、JavaScript 对话框和无障碍触摸探索期间停用。“长按网页元素菜单”默认开启，设置变化由 `WebSessionBrowserSettingsStore` 持久化并即时同步所有现有 WebView，不触发导航或重载；关闭只禁止普通元素打开 Kiyori 菜单，不改变编辑控件的 Android WebView 原生选区。Browser Runtime 只为普通窗口维护最小启动恢复投影：`保留多窗口` 恢复全部普通窗口，`恢复上次的搜索结果` 恢复最近仍未关闭且仍停留在结果页的明确搜索窗口，`询问是否恢复页面` 把可用自动恢复改为一次性确认或单独询问活动普通页。恢复文件位于 `noBackupFilesDir/kiyori/browser_session_recovery.json`，不包含无痕 Profile/窗口、Cookie、请求头、DOM、表单、正文、截图、密码或网络日志；三个恢复开关全关时删除该文件。
+网页浏览器设置中的“滑屏前进后退”默认关闭，开启后左边缘向右请求 Back、右边缘向左请求 Forward；从网页中部开始的单指水平滑动，只有滑到对应边缘（右滑到右边缘请求 Back、左滑到左边缘请求 Forward）才触发同一历史动作，未到边缘的横向移动继续由网页处理。手势在抽屉、搜索、源码确认、文本选择、网页元素动作、广告标记、下载确认、JavaScript 对话框和无障碍触摸探索期间停用，配置主页根页面不会通过手势退出 Browser Home。“长按网页元素菜单”默认开启，设置变化由 `WebSessionBrowserSettingsStore` 持久化并即时同步所有现有 WebView，不触发导航或重载；关闭只禁止普通元素打开 Kiyori 菜单，不改变编辑控件的 Android WebView 原生选区。Browser Runtime 只为普通窗口维护最小启动恢复投影：`保留多窗口` 恢复全部普通窗口，`恢复上次的搜索结果` 恢复最近仍未关闭且仍停留在结果页的明确搜索窗口，`询问是否恢复页面` 把可用自动恢复改为一次性确认或单独询问活动普通页。恢复文件位于 `noBackupFilesDir/kiyori/browser_session_recovery.json`，不包含无痕 Profile/窗口、Cookie、请求头、DOM、表单、正文、截图、密码或网络日志；三个恢复开关全关时删除该文件。
+浏览器菜单的内置“网页 Cookie”插件复用活动 WebSession 的 Profile CookieManager，只对当前 HTTP(S) 页面读取并在既有 IO scope 发布。进入 Cookie 子页自动触发一次读取；页面重组或 URL 状态更新不会重复触发，用户可通过标题栏刷新动作显式重读。结果发布前必须再次确认 session、URL 与独立 Cookie 开关仍匹配，Cookie Header 只保留在进程内，不写入历史、诊断、下载、脚本或磁盘。
 
 Browser Home 可见时，AI 浏览器工具直接操作当前共享标签，不依赖悬浮窗权限。Browser Home 不可见时，AI 仍操作同一 session 和 WebView：已有 overlay 权限时挂到后台 anchor；缺少权限时返回明确权限错误，不创建 headless WebView、第二个 session 或覆盖人工页面。最小 indicator 点击后通过显式 action 打开现有 Browser Home。关闭最后标签时，可见的 Browser Home 保留无标签页面；后台 anchor 和 indicator 不拥有会话状态。
 

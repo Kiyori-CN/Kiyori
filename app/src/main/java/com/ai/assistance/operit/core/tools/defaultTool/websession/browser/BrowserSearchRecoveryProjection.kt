@@ -32,7 +32,7 @@ internal fun WebSessionBrowserHostState.hydrateProjectedSearchRecovery(
             if (currentPageIsSearchResult) {
                 searchRecovery.query
             } else {
-                lastSearchQuery
+                ""
             },
         isSearchEngineQuickSwitchBarVisible = currentPageIsSearchResult,
         projectedSearchRecoveryPageIsResult = currentPageIsSearchResult,

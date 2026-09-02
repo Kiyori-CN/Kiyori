@@ -35,6 +35,33 @@ class BrowserGestureNavigationPolicyTest {
     }
 
     @Test
+    fun `swiping toward the matching edge commits the same history action`() {
+        val back = tracker()
+        back.onDown(x = 220f, y = 100f, viewportWidthPx = 500f, enabled = true, pointerCount = 1)
+        assertEquals(
+            BrowserGestureNavigationAction.BACK,
+            back.onUp(x = 470f, y = 105f, velocityXPxPerSecond = 100f),
+        )
+
+        val forward = tracker()
+        forward.onDown(x = 280f, y = 100f, viewportWidthPx = 500f, enabled = true, pointerCount = 1)
+        assertEquals(
+            BrowserGestureNavigationAction.FORWARD,
+            forward.onUp(x = 30f, y = 104f, velocityXPxPerSecond = -100f),
+        )
+    }
+
+    @Test
+    fun `interior horizontal swipes that do not reach an edge stay page owned`() {
+        val tracker = tracker()
+        tracker.onDown(x = 220f, y = 100f, viewportWidthPx = 500f, enabled = true, pointerCount = 1)
+        assertEquals(
+            BrowserGestureNavigationAction.NONE,
+            tracker.onUp(x = 360f, y = 104f, velocityXPxPerSecond = 100f),
+        )
+    }
+
+    @Test
     fun `distance velocity direction and vertical dominance gate gestures`() {
         val short = tracker()
         short.onDown(x = 10f, y = 100f, viewportWidthPx = 500f, enabled = true, pointerCount = 1)

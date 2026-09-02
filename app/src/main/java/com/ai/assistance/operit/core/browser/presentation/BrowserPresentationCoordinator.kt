@@ -294,6 +294,10 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
         tools.browserSettingsStore.setSwipeHistoryNavigationEnabled(enabled)
     }
 
+    fun setSearchEngineQuickSwitchBarEnabled(enabled: Boolean) {
+        tools.browserSettingsStore.setSearchEngineQuickSwitchBarEnabled(enabled)
+    }
+
     fun setRestoreLastSearchResultEnabled(enabled: Boolean) {
         tools.browserSettingsStore.setRestoreLastSearchResultEnabled(enabled)
         tools.scheduleBrowserRecoverySnapshotWrite()

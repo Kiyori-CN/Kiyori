@@ -1,6 +1,28 @@
 # 软件首页与全屏网页搜索
 
-> 状态：本地实现、定向 JVM 测试、正式开发门禁与 Debug APK 已验证；本轮修改将随当前工作树提交并推送，真机视觉、输入法和转场保持待验收。
+> 状态：本地实现与定向 JVM 测试已验证，正式门禁和 Debug APK 正在本轮收口；本轮修改将随当前工作树提交并推送，真机视觉、输入法和转场保持待验收。
+
+## 2026-09-02 全屏搜索与浏览器交互续接修复计划
+
+状态：`IMPLEMENTED / AUTOMATED VALIDATION IN PROGRESS / DEVICE VERIFICATION PENDING`。
+
+本轮范围限定为四个相互独立但共享 Browser Runtime 投影的用户行为：
+
+- 全屏搜索提交图标提升到与返回图标同级；输入文本按真实布局行数保持 `42dp` 单行基准和 `18sp`
+  行增量，最多三行，顶边、两侧动作和内部引擎/清除控件的位置合同不变。
+- 在“网页浏览器”设置中新增搜索引擎切换条总开关。切换条继续只由搜索 recovery 与当前结果 URL
+  精确匹配投影；关闭开关只隐藏呈现，不创建第二份状态。结果页回退到自定义主页时同时清理旧 query
+  和可见状态，消除异步投影残留。
+- “滑屏前进后退”策略同时识别从左右边缘滑入和滑动终点抵达对应边缘的单指水平手势，仍由唯一
+  `BrowserGestureNavigationFrameLayout` 调用现有 Back/Forward owner；抽屉、搜索层、对话框和无障碍
+  触摸探索期间继续阻断，不改变 WebView 历史合同。
+- 网页 Cookie 子页进入时自动触发一次读取；读取继续由唯一 WebSession `CookieManager` 在 IO scope
+  执行，按 session、URL 和开关校验结果，不因页面 URL 变化循环刷新，手动刷新保留为显式重读动作。
+
+非目标：不改变搜索引擎 URL 协议、Browser Runtime/session/Cookie 所有权、网站 Cookie 数据边界、
+网页导航历史、无痕 Profile 语义或其他浏览器设置。通过定向 JVM 回归、`git diff --check`、formal
+readiness 和串行 Debug APK 构建后，真实设备上的像素、输入法、边缘触摸、旋转和 WebView Cookie
+现场验证仍保持 `verification_pending`。
 
 ## 2026-09-02 全屏搜索顶栏首行几何修正
 

@@ -22,6 +22,7 @@ internal data class WebSessionBrowserSettings(
         DEFAULT_AUTOMATIC_FLOATING_MINIMUM_DURATION_MILLIS,
     val webElementLongPressMenuEnabled: Boolean = true,
     val swipeHistoryNavigationEnabled: Boolean = false,
+    val searchEngineQuickSwitchBarEnabled: Boolean = true,
     val restoreLastSearchResultEnabled: Boolean = false,
     val askBeforeRestoringPagesEnabled: Boolean = false,
     val retainMultipleWindowsEnabled: Boolean = false,
@@ -124,6 +125,11 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
     fun setSwipeHistoryNavigationEnabled(enabled: Boolean) {
         preferences.edit { putBoolean(KEY_SWIPE_HISTORY_NAVIGATION, enabled) }
         _state.value = _state.value.copy(swipeHistoryNavigationEnabled = enabled)
+    }
+
+    fun setSearchEngineQuickSwitchBarEnabled(enabled: Boolean) {
+        preferences.edit { putBoolean(KEY_SEARCH_ENGINE_QUICK_SWITCH_BAR, enabled) }
+        _state.value = _state.value.copy(searchEngineQuickSwitchBarEnabled = enabled)
     }
 
     fun setRestoreLastSearchResultEnabled(enabled: Boolean) {
@@ -290,6 +296,8 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
                 preferences.getBoolean(KEY_WEB_ELEMENT_LONG_PRESS_MENU, true),
             swipeHistoryNavigationEnabled =
                 preferences.getBoolean(KEY_SWIPE_HISTORY_NAVIGATION, false),
+            searchEngineQuickSwitchBarEnabled =
+                preferences.getBoolean(KEY_SEARCH_ENGINE_QUICK_SWITCH_BAR, true),
             restoreLastSearchResultEnabled =
                 preferences.getBoolean(KEY_RESTORE_LAST_SEARCH_RESULT, false),
             askBeforeRestoringPagesEnabled =
@@ -364,6 +372,7 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
         private const val KEY_WEB_ELEMENT_LONG_PRESS_MENU =
             "web_element_long_press_menu"
         private const val KEY_SWIPE_HISTORY_NAVIGATION = "swipe_history_navigation"
+        private const val KEY_SEARCH_ENGINE_QUICK_SWITCH_BAR = "search_engine_quick_switch_bar"
         private const val KEY_RESTORE_LAST_SEARCH_RESULT = "restore_last_search_result"
         private const val KEY_ASK_BEFORE_RESTORING_PAGES = "ask_before_restoring_pages"
         private const val KEY_RETAIN_MULTIPLE_WINDOWS = "retain_multiple_windows"

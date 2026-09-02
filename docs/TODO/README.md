@@ -6,6 +6,11 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 ## 当前进行中
 
+- [全屏搜索与浏览器交互续接修复](kiyori_browser_product_completion/2_software_home_and_fullscreen_search.md)：
+  正在收口全屏搜索三行输入的固定行距、搜索引擎切换条全局开关与回退清理、网页边缘滑动前进后退，
+  以及网页 Cookie 子页进入时的一次性自动读取；自动化验证与 Debug APK 完成前保持本地开发状态，
+  真机验收待执行。
+
 - [角色卡和提示词页面与环境识别修复](character_card_prompt_ui/index.md)：统一 AI 助手设置与角色卡子页面标题，重做角色卡/标签/群组切换栏，修复头像裁剪 ActionBar 按钮和选框外图片遮罩，并复核终端环境自动安装与识别合同。
 
 - [code_runner 与终端工具链收口](code_runner_terminal_toolchain/index.md)：已完成 code_runner、

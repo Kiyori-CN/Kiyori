@@ -61,9 +61,11 @@ internal class BrowserGestureNavigationFrameLayout(
                     val deltaY = event.y - downY
                     val startsFromLeft = downX <= 48f * density && deltaX > 0f
                     val startsFromRight = downX >= width - 48f * density && deltaX < 0f
+                    val reachesLeftEdge = event.x <= 48f * density && deltaX < 0f
+                    val reachesRightEdge = event.x >= width - 48f * density && deltaX > 0f
                     intercepting =
                         canStartGesture() &&
-                            (startsFromLeft || startsFromRight) &&
+                            (startsFromLeft || startsFromRight || reachesLeftEdge || reachesRightEdge) &&
                             abs(deltaX) > viewConfiguration.scaledTouchSlop &&
                             abs(deltaX) >= abs(deltaY) * 1.5f
                 }
