@@ -706,7 +706,9 @@ fun HtmlPreviewRenderer(code: String, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val horizontalGestureOwner = rememberAiContentHorizontalGestureOwner()
 
-    val htmlContent = remember(code) { code.trim() }
+    // Keep the same payload used by the code card and copy action; HTML
+    // whitespace is part of the caller's already-normalized source.
+    val htmlContent = remember(code) { code }
 
     val webView = remember(context, horizontalGestureOwner) {
         WebView(context).apply {
