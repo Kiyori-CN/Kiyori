@@ -29,8 +29,8 @@ private const val GROUP_URL = 3
 
 /**
  * A stream plugin for identifying Markdown fenced code blocks. This plugin identifies a block
- * starting with three or more backticks and ending with a matching fence. It does not currently
- * parse language identifiers.
+ * starting with three or more backticks and ending with a fence at least as long as the opener.
+ * The parser is line-anchored and keeps the first info-string token available to the renderer.
  * @param includeFences If true, the fences are included in the output.
  */
 class StreamMarkdownFencedCodeBlockPlugin(private val includeFences: Boolean = true) :
@@ -38,83 +38,139 @@ class StreamMarkdownFencedCodeBlockPlugin(private val includeFences: Boolean = t
     override var state: PluginState = PluginState.IDLE
         private set
 
-    // Pattern to find the start of a fenced code block (3 or more backticks).
-    private var startMatcher: StreamKmpGraph =
-            StreamKmpGraphBuilder()
-                    .build(
-                            kmpPattern {
-                                group(GROUP_DELIMITER) {
-                                    repeat(3) { char('`') }
-                                    greedyStar { char('`') }
-                                }
-                                greedyStar { notChar('\n') }
-                            }
-                    )
-    private var endMatcher: StreamKmpGraph? = null
-    private var isMatchingEndFence = false
-    private var hasStartedMatchingFence = false
+    // A fenced block is a line-oriented construct.  Keeping the state explicit is
+    // important here: a three-backtick prefix must win over INLINE_CODE before the
+    // language token arrives, while a shorter/indented run must remain plain text.
+    private var openingIndent = 0
+    private var openingFenceLength = 0
+    private var openingRunLength = 0
+    private var openingLine = false
+    private var closingCandidate = false
+    private var closingIndent = 0
+    private var closingRunLength = 0
+    private var closingTrailingOnly = true
 
     override fun processChar(c: Char, atStartOfLine: Boolean): Boolean {
         if (state == PluginState.PROCESSING) {
-            // 只有在行首时才开始尝试匹配结束符
-            if (atStartOfLine) {
-                isMatchingEndFence = true
-                hasStartedMatchingFence = false
-                endMatcher!!.reset()
+            // Consume the info string as part of the opening line.  The block is
+            // already PROCESSING from the third backtick, so INLINE_CODE cannot
+            // steal the prefix while the language token is still streaming.
+            if (openingLine) {
+                if (c == '\n') {
+                    openingLine = false
+                    closingCandidate = false
+                }
+                return includeFences
             }
 
-            if (isMatchingEndFence) {
-                if (!hasStartedMatchingFence) {
-                    if (c == ' ') {
-                        return includeFences
-                    }
-                    hasStartedMatchingFence = true
-                }
+            // A closing fence can only start at a physical line boundary.  The
+            // candidate stays buffered in the plugin state until LF/CRLF proves
+            // that the remainder contains spaces/tabs only.
+            if (atStartOfLine) {
+                closingCandidate = true
+                closingIndent = 0
+                closingRunLength = 0
+                closingTrailingOnly = true
+            }
 
-                val matcher = endMatcher!!
-                when (matcher.processChar(c)) {
-                    is StreamKmpMatchResult.Match -> {
-                        reset()
-                        return includeFences
-                    }
-                    is StreamKmpMatchResult.InProgress -> return includeFences
-                    is StreamKmpMatchResult.NoMatch -> {
-                        // 匹配失败，说明这一行不是结束符
-                        // 禁用后续字符的匹配，直到下一行
-                        isMatchingEndFence = false
-                        return true
-                    }
-                }
-            } else {
-                // 这一行已经确定不是结束符，直接作为内容
+            if (!closingCandidate) {
                 return true
             }
-        } else { // IDLE or TRYING
-            when (val result = startMatcher.processChar(c)) {
-                is StreamKmpMatchResult.Match -> {
-                    val fence = result.groups[GROUP_DELIMITER]
-                    if (fence != null) {
-                        state = PluginState.PROCESSING
-                        // Dynamically build the end matcher for the exact opening fence
-                        endMatcher = StreamKmpGraphBuilder().build(kmpPattern { literal(fence) })
-                        startMatcher.reset()
-                    } else {
-                        reset()
-                    }
+
+            if (c == '\n') {
+                val closes =
+                        closingRunLength >= openingFenceLength &&
+                                closingRunLength >= 3 &&
+                                closingTrailingOnly
+                closingCandidate = false
+                closingIndent = 0
+                closingRunLength = 0
+                closingTrailingOnly = true
+                if (closes) {
+                    reset()
+                }
+                return if (closes) includeFences else true
+            }
+
+            if (closingRunLength == 0 && c == ' ' && closingIndent < 3) {
+                closingIndent++
+                return includeFences
+            }
+
+            if (c == '`') {
+                closingRunLength++
+                return includeFences
+            }
+
+            if (closingRunLength > 0 && (c == ' ' || c == '\t')) {
+                return includeFences
+            }
+
+            // Keep CR pending until the following LF confirms a CRLF line end.
+            // The splitter may deliver the pair in separate pushes.
+            if (closingRunLength > 0 && c == '\r') {
+                return includeFences
+            }
+
+            // Any other character makes this a normal code line.  The already
+            // emitted candidate characters remain opaque code content.
+            closingCandidate = false
+            closingTrailingOnly = false
+            return true
+        }
+
+        // IDLE/TRYING: only a line-start run with at most three ASCII spaces can
+        // open a block.  Inline triple backticks are intentionally ignored here.
+        if (state == PluginState.IDLE) {
+            if (!atStartOfLine) {
+                return true
+            }
+            if (c == ' ') {
+                openingIndent = 1
+                state = PluginState.TRYING
+                return includeFences
+            }
+            if (c == '`') {
+                openingRunLength = 1
+                state = PluginState.TRYING
+                return includeFences
+            }
+            return true
+        }
+
+        if (state == PluginState.TRYING) {
+            if (openingRunLength == 0) {
+                if (c == ' ' && openingIndent < 3) {
+                    openingIndent++
                     return includeFences
                 }
-                is StreamKmpMatchResult.InProgress -> {
-                    state = PluginState.TRYING
+                if (c == '`') {
+                    openingRunLength = 1
+                    return includeFences
                 }
-                is StreamKmpMatchResult.NoMatch -> {
-                    if (state == PluginState.TRYING) {
-                        reset()
-                    }
-                }
+                reset()
+                return true
             }
-            return includeFences
+
+            if (c == '`') {
+                openingRunLength++
+                if (openingRunLength >= 3) {
+                    openingFenceLength = openingRunLength
+                    openingLine = true
+                    closingCandidate = false
+                    state = PluginState.PROCESSING
+                }
+                return includeFences
+            }
+
+            // A run shorter than three ticks is not a block opener.  Once three
+            // ticks have been seen the state is PROCESSING and this branch is not
+            // reached; the rest of the opening line is handled above.
+            reset()
+            return true
         }
-        return true // Should be unreachable
+
+        return true
     }
 
     override fun initPlugin(): Boolean {
@@ -126,10 +182,14 @@ class StreamMarkdownFencedCodeBlockPlugin(private val includeFences: Boolean = t
 
     override fun reset() {
         state = PluginState.IDLE
-        startMatcher.reset()
-        endMatcher = null
-        isMatchingEndFence = false
-        hasStartedMatchingFence = false
+        openingIndent = 0
+        openingFenceLength = 0
+        openingRunLength = 0
+        openingLine = false
+        closingCandidate = false
+        closingIndent = 0
+        closingRunLength = 0
+        closingTrailingOnly = true
     }
 }
 

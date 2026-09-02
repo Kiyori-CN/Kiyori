@@ -85,6 +85,42 @@ class LatexFormulaSupportTest {
     }
 
     @Test
+    fun prepare_unwrapsSupportedDisplayEnvironmentsAndKeepsTag() {
+        val source = "\\begin{equation}\n x^2 + y^2 = 1 \\tag{1}\n\\end{equation}"
+
+        val prepared = prepareLatexForJLatexMath(source)
+
+        assertEquals("\n x^2 + y^2 = 1 \\tag{1}\n", prepared.rendered)
+        assertEquals("environment:equation@0", prepared.transformations.single())
+    }
+
+    @Test
+    fun prepare_unwrapsEquationStarDisplaymathAndAlign() {
+        val cases = listOf(
+            "\\begin{equation*}x=1\\end{equation*}" to "x=1",
+            "\\begin{displaymath}x=1\\end{displaymath}" to "x=1",
+            "\\begin{align}x&=1\\\\y&=2\\end{align}" to "x&=1\\\\y&=2",
+        )
+
+        cases.forEach { (source, expected) ->
+            val prepared = prepareLatexForJLatexMath(source)
+            assertEquals(expected, prepared.rendered)
+            assertTrue(prepared.transformations.single().startsWith("environment:"))
+        }
+    }
+
+    @Test
+    fun prepare_leavesUnknownOrIncompleteEnvironmentObservable() {
+        val unknown = "\\begin{gather}x=1\\end{gather}"
+        val incomplete = "\\begin{equation}x=1"
+
+        assertEquals(unknown, prepareLatexForJLatexMath(unknown).rendered)
+        assertTrue(prepareLatexForJLatexMath(unknown).transformations.isEmpty())
+        assertEquals(incomplete, prepareLatexForJLatexMath(incomplete).rendered)
+        assertTrue(prepareLatexForJLatexMath(incomplete).transformations.isEmpty())
+    }
+
+    @Test
     fun prepare_preservesSupportedSpecialSymbolsAfterWhitespaceNormalization() {
         val source =
             """

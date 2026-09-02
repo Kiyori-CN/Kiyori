@@ -520,8 +520,10 @@ private fun renderNodeContent(
     fillMaxWidth: Boolean,
     isLastNode: Boolean = false
 ) {
-    // 【关键优化】只要节点内容不变，就记住原始节点实例，防止不必要的重组
-    val stableNode = remember(content) { node }
+    // MarkdownNodeStable already is immutable and carries the source identity.
+    // Do not remember it by content alone: an equal-length type/child replacement
+    // must immediately switch away from a stale code/math component.
+    val stableNode = node
 
     when (stableNode.type) {
         // ========== 简单文本类型：使用单个大 Canvas 绘制 ==========
@@ -580,22 +582,16 @@ private fun renderNodeContent(
         
         // ========== 代码块：保留原组件 ==========
         MarkdownProcessorType.CODE_BLOCK -> {
-            val codeLines = content.trimAll().lines()
-            val firstLine = codeLines.firstOrNull() ?: ""
-            val language = if (firstLine.startsWith("```")) {
-                firstLine.removePrefix("```").trim()
-            } else ""
-            
-            val codeContent = codeLines
-                .dropWhile { it.startsWith("```") }
-                .dropLastWhile { it.endsWith("```") }
-                .joinToString("\n")
-            
-            // 不使用 key()，让 Compose 根据位置自然识别组件
-            // 这样可以保留内部状态（如"已复制"提示、Mermaid 渲染状态）
+            val payload = remember(nodeKey, content) {
+                extractFencedCodeBlockPayload(content)
+            }
+
+            // The component identity includes the stable node key.  A node can
+            // change from prose to code (or Mermaid to ordinary code) without
+            // allowing Compose to reuse the previous component state.
             EnhancedCodeBlock(
-                code = codeContent,
-                language = language,
+                code = payload.code,
+                language = payload.language,
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -631,7 +627,7 @@ private fun renderNodeContent(
                         Column(modifier = Modifier.fillMaxWidth()) {
                             stableNode.children.forEachIndexed { childIndex, child ->
                                 CanvasMarkdownNodeRenderer(
-                                    nodeKey = "$nodeKey-quote-$childIndex",
+                                    nodeKey = "$nodeKey-quote-${child.stableId}",
                                     node = child,
                                     textColor = textColor,
                                     fontSize = fontSizes.bodyMedium,
@@ -1203,7 +1199,7 @@ private fun calculateLayout(
                 val modifiedChildren = node.children.toMutableList()
                 val firstChild = modifiedChildren[0]
                 val newContent = firstChild.content.trimStart('#', ' ')
-                val newFirstChild = MarkdownNodeStable(firstChild.type, content = newContent, children = firstChild.children)
+                val newFirstChild = MarkdownNodeStable(firstChild.type, content = newContent, children = firstChild.children, stableId = firstChild.stableId)
                 modifiedChildren[0] = newFirstChild
 
                 createSafeInlineStaticLayout(
@@ -1286,7 +1282,7 @@ private fun calculateLayout(
                 val startIndex = (it.range.last + 1).coerceAtMost(firstChild.content.length)
                 firstChild.content.substring(startIndex)
             } ?: firstChild.content
-                val newFirstChild = MarkdownNodeStable(firstChild.type, content = newContent, children = firstChild.children)
+                val newFirstChild = MarkdownNodeStable(firstChild.type, content = newContent, children = firstChild.children, stableId = firstChild.stableId)
                 modifiedChildren[0] = newFirstChild
 
                 createSafeInlineStaticLayout(
@@ -1363,7 +1359,7 @@ private fun calculateLayout(
                 val startIndex = (it.range.last + 1).coerceAtMost(firstChild.content.length)
                 firstChild.content.substring(startIndex)
             } ?: firstChild.content
-                val newFirstChild = MarkdownNodeStable(firstChild.type, content = newContent, children = firstChild.children)
+                val newFirstChild = MarkdownNodeStable(firstChild.type, content = newContent, children = firstChild.children, stableId = firstChild.stableId)
                 modifiedChildren[0] = newFirstChild
 
                 createSafeInlineStaticLayout(

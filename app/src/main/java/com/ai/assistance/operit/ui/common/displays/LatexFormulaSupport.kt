@@ -29,30 +29,54 @@ internal data class LatexFailureDetails(
     val sourceIndex: Int?,
 )
 
+private val SUPPORTED_DISPLAY_ENVIRONMENT_PATTERN =
+    Regex("\\\\begin\\u007b(equation\\*?|displaymath|align\\*?)\\u007d")
+
+private fun unwrapSupportedDisplayEnvironment(source: String): Pair<String, List<String>> {
+    val firstContent = source.indexOfFirst { !it.isWhitespace() }
+    if (firstContent < 0) return source to emptyList()
+    val lastContent = source.indexOfLast { !it.isWhitespace() }
+    val core = source.substring(firstContent, lastContent + 1)
+    val begin = SUPPORTED_DISPLAY_ENVIRONMENT_PATTERN.matchAt(core, 0) ?: return source to emptyList()
+    val environment = begin.groupValues[1]
+    val endToken = "\\end{$environment}"
+    val endStart = core.lastIndexOf(endToken)
+    if (endStart < begin.range.last + 1 || core.substring(endStart + endToken.length).any { !it.isWhitespace() }) {
+        // Leave incomplete or non-wrapper environments untouched so the backend
+        // can report the original failure instead of silently dropping content.
+        return source to emptyList()
+    }
+
+    val body = core.substring(begin.range.last + 1, endStart)
+    val unwrapped = source.substring(0, firstContent) + body + source.substring(lastContent + 1)
+    return unwrapped to listOf("environment:$environment@$firstContent")
+}
+
 /**
  * 将当前 JLaTeXMath 缺失的命令和受限语法转换为同一后端可解析的标准 LaTeX。
  *
  * 这里按字符扫描公式主体，避免全局删除反斜杠或误改代码区以外的 Markdown 内容。
  */
 internal fun prepareLatexForJLatexMath(source: String): PreparedLatexFormula {
-    val rendered = StringBuilder(source.length)
-    val transformations = mutableListOf<String>()
+    val (environmentPreparedSource, environmentTransformations) = unwrapSupportedDisplayEnvironment(source)
+    val rendered = StringBuilder(environmentPreparedSource.length)
+    val transformations = environmentTransformations.toMutableList()
     var index = 0
 
-    while (index < source.length) {
-        if (source[index] != '\\') {
-            rendered.append(source[index])
+    while (index < environmentPreparedSource.length) {
+        if (environmentPreparedSource[index] != '\\') {
+            rendered.append(environmentPreparedSource[index])
             index++
             continue
         }
 
-        if (index + 1 >= source.length) {
+        if (index + 1 >= environmentPreparedSource.length) {
             rendered.append('\\')
             index++
             continue
         }
 
-        when (source[index + 1]) {
+        when (environmentPreparedSource[index + 1]) {
             ' ', '\t' -> {
                 // JLaTeXMath 1.0.3 会把反斜杠后的空白读成未知单字符命令。
                 // 改为后端已支持的标准数学间距，既保留可见空白，也避免整块公式失败。
@@ -72,7 +96,7 @@ internal fun prepareLatexForJLatexMath(source: String): PreparedLatexFormula {
             }
 
             '\r' -> {
-                val consumed = if (index + 2 < source.length && source[index + 2] == '\n') 3 else 2
+                val consumed = if (index + 2 < environmentPreparedSource.length && environmentPreparedSource[index + 2] == '\n') 3 else 2
                 rendered.append("\\;\n")
                 transformations += "control-line-break@$index"
                 index += consumed
@@ -80,17 +104,17 @@ internal fun prepareLatexForJLatexMath(source: String): PreparedLatexFormula {
             }
         }
 
-        if (!source[index + 1].isAsciiLetter()) {
-            rendered.append('\\').append(source[index + 1])
+        if (!environmentPreparedSource[index + 1].isAsciiLetter()) {
+            rendered.append('\\').append(environmentPreparedSource[index + 1])
             index += 2
             continue
         }
 
         var commandEnd = index + 2
-        while (commandEnd < source.length && source[commandEnd].isAsciiLetter()) {
+        while (commandEnd < environmentPreparedSource.length && environmentPreparedSource[commandEnd].isAsciiLetter()) {
             commandEnd++
         }
-        val command = source.substring(index + 1, commandEnd)
+        val command = environmentPreparedSource.substring(index + 1, commandEnd)
 
         val delimiterExpansion =
             when (command) {
@@ -109,10 +133,10 @@ internal fun prepareLatexForJLatexMath(source: String): PreparedLatexFormula {
 
         if (command == "ce") {
             var argumentStart = commandEnd
-            while (argumentStart < source.length && source[argumentStart].isWhitespace()) {
+            while (argumentStart < environmentPreparedSource.length && environmentPreparedSource[argumentStart].isWhitespace()) {
                 argumentStart++
             }
-            if (argumentStart >= source.length || source[argumentStart] != '{') {
+            if (argumentStart >= environmentPreparedSource.length || environmentPreparedSource[argumentStart] != '{') {
                 throw LatexCompatibilityException(
                     message = "\\ce must be followed by a braced chemical expression",
                     sourceIndex = index,
@@ -122,7 +146,7 @@ internal fun prepareLatexForJLatexMath(source: String): PreparedLatexFormula {
 
             val group =
                 readBalancedGroup(
-                    source = source,
+                    source = environmentPreparedSource,
                     openingIndex = argumentStart,
                     opening = '{',
                     closing = '}',
@@ -139,7 +163,7 @@ internal fun prepareLatexForJLatexMath(source: String): PreparedLatexFormula {
             continue
         }
 
-        rendered.append(source, index, commandEnd)
+        rendered.append(environmentPreparedSource, index, commandEnd)
         index = commandEnd
     }
 

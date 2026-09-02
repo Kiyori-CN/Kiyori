@@ -10,6 +10,7 @@ import com.ai.assistance.operit.util.stream.plugins.*
 import com.ai.assistance.operit.util.stream.plugins.StreamXmlPlugin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicLong
 
 /** 字符串收集处理器 - 简单地将流收集为字符串 */
 class StringCollectorProcessor : StreamProcessor<String, String> {
@@ -52,7 +53,17 @@ enum class MarkdownProcessorType {
  * Markdown数据模型 
  * 
  */
-class MarkdownNode(val type: MarkdownProcessorType, initialContent: String = "") {
+private object MarkdownNodeIdentity {
+    private val nextId = AtomicLong(1L)
+
+    fun next(): Long = nextId.getAndIncrement()
+}
+
+class MarkdownNode(
+    val type: MarkdownProcessorType,
+    initialContent: String = "",
+    val stableId: Long = MarkdownNodeIdentity.next(),
+) {
     val content: SmartString = SmartString(initialContent)
     val children: SnapshotStateList<MarkdownNode> = mutableStateListOf()
 }
@@ -61,7 +72,8 @@ class MarkdownNode(val type: MarkdownProcessorType, initialContent: String = "")
 data class MarkdownNodeStable(
     val type: MarkdownProcessorType,
     val content: String,
-    val children: List<MarkdownNodeStable>
+    val children: List<MarkdownNodeStable>,
+    val stableId: Long = MarkdownNodeIdentity.next(),
 )
 
 /** 将字符串转换为字符流 */

@@ -194,13 +194,14 @@ class ThinkToolsXmlNodeGrouper(
         fillMaxWidth: Boolean,
         fontSize: TextUnit
     ) {
+        val groupIdentity = "${group.stableKey}-${nodes.getOrNull(group.startIndex)?.stableId ?: group.startIndex}"
         val alpha = if (forceExpandGroups) {
             1f
         } else {
             animateFloatAsState(
                 targetValue = if (isVisible) 1f else 0f,
                 animationSpec = tween(durationMillis = 800),
-                label = "fadeIn-think-tools-$rendererId"
+                label = "fadeIn-think-tools-$rendererId-$groupIdentity"
             ).value
         }
         val sliceEndExclusive = (group.endIndexInclusive + 1).coerceAtMost(nodes.size)
@@ -263,13 +264,13 @@ class ThinkToolsXmlNodeGrouper(
         // 流结束（包括用户取消后落为静态消息）默认自动收起。
         val shouldAutoExpand = hasLiveXmlStream && !hasNonConformingAfterGroup
 
-        var expanded by remember(rendererId, group.stableKey, forceExpandGroups) {
+        var expanded by remember(rendererId, groupIdentity, forceExpandGroups) {
             mutableStateOf(forceExpandGroups || shouldAutoExpand)
         }
-        var userOverride by remember(rendererId, group.stableKey, forceExpandGroups) {
+        var userOverride by remember(rendererId, groupIdentity, forceExpandGroups) {
             mutableStateOf<Boolean?>(null)
         }
-        val appearedKeys = remember(rendererId, group.stableKey) { mutableStateMapOf<String, Boolean>() }
+        val appearedKeys = remember(rendererId, groupIdentity) { mutableStateMapOf<String, Boolean>() }
 
         LaunchedEffect(forceExpandGroups, shouldAutoExpand, userOverride) {
             when {
@@ -321,7 +322,7 @@ class ThinkToolsXmlNodeGrouper(
                     Column(modifier = Modifier.fillMaxWidth()) {
                         slice.forEachIndexed { idx, node ->
                             val absoluteIndex = group.startIndex + idx
-                            val innerKey = "think-tools-$rendererId-${group.stableKey}-$absoluteIndex"
+                            val innerKey = "think-tools-$rendererId-${group.stableKey}-${node.stableId}"
                             androidx.compose.runtime.key(innerKey) {
                                 if (node.type == MarkdownProcessorType.XML_BLOCK) {
                                     if (forceExpandGroups) {

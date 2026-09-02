@@ -163,6 +163,43 @@ class NativeMarkdownSplitterAndroidTest {
     }
 
     @Test
+    fun fencedCodeWinsBeforeLanguageAndKeepsSpecialSymbolsOpaque() = runBlocking {
+        val content =
+            "```mermaid\ngraph TD\nA-->B\n**正文** ${'$'}${'$'}x${'$'}${'$'} \\[not-math\\]\n```\n尾"
+        val groups = splitBlock(content)
+
+        val code = groups.single { it.first == MarkdownProcessorType.CODE_BLOCK }.second
+        assertTrue(code.contains("```mermaid"))
+        assertTrue(code.contains("**正文**"))
+        assertTrue(code.contains("${'$'}${'$'}x${'$'}${'$'}"))
+        assertTrue(code.contains("\\[not-math\\]"))
+        assertEquals(content, groups.joinToString("") { it.second })
+    }
+
+    @Test
+    fun fencedCodeRequiresLineStartAndMatchingOpeningLength() = runBlocking {
+        val content =
+            "    ```not-a-block\nplain\n````python\r\nprint(1)\r\n  ```\r\nstill code\r\n  ````\r\n尾"
+        val groups = splitBlock(content)
+
+        assertTrue(groups.none { it.first == MarkdownProcessorType.CODE_BLOCK && it.second.contains("not-a-block") })
+        val code = groups.single { it.first == MarkdownProcessorType.CODE_BLOCK }.second
+        assertTrue(code.contains("````python\r\n"))
+        assertTrue(code.contains("  ```\r\nstill code"))
+        assertEquals("尾", groups.last().second)
+        assertEquals(content, groups.joinToString("") { it.second })
+    }
+
+    @Test
+    fun unfinishedFencedCodeRemainsOneOpaqueBlockAtEof() = runBlocking {
+        val content = "```bash\r\necho ${'$'}${'$'}\r\n<xml> **markdown**"
+        val groups = splitBlock(content)
+
+        val code = groups.single { it.first == MarkdownProcessorType.CODE_BLOCK }.second
+        assertEquals(content, code)
+    }
+
+    @Test
     fun blockQuoteRemovesOneMarkerFromEveryQuotedLine() = runBlocking {
         val groups =
             splitBlock(

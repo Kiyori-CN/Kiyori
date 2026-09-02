@@ -525,7 +525,7 @@ markdownStream.splitBy(blockPlugins).collect { blockGroup ->
 | 插件类 | 功能 | 主要构造参数 |
 | :--- | :--- | :--- |
 | `StreamMarkdownHeaderPlugin` | 识别ATX风格的标题 (`# ...`) | `includeMarker: Boolean` - 是否包含`#` |
-| `StreamMarkdownFencedCodeBlockPlugin` | 识别代码块 (```...```) | `includeFences: Boolean` - 是否包含 ``` |
+| `StreamMarkdownFencedCodeBlockPlugin` | 识别行首代码块 (```...```) 并保持围栏长度/语言信息 | `includeFences: Boolean` - 是否包含围栏 |
 | `StreamMarkdownBlockQuotePlugin` | 识别引用块 (`> ...`) | `includeMarker: Boolean` - 是否包含 `>` |
 | `StreamMarkdownOrderedListPlugin` | 识别有序列表 (`1. ...`) | `includeMarker: Boolean` - 是否包含 `1.` |
 | `StreamMarkdownUnorderedListPlugin`| 识别无序列表 (`- ...` 或 `* ...`) | `includeMarker: Boolean` - 是否包含 `-` |
@@ -558,4 +558,4 @@ markdownStream.splitBy(blockPlugins).collect { blockGroup ->
 -   **生命周期管理**: 在 Android 等具有生命周期的组件中，使用 `viewModelScope` 或 `lifecycleScope` 并结合 `launchIn` 来自动管理流的收集，避免内存泄漏。
 -   **利用 `onEach` 调试**: 当流的行为不符合预期时，`onEach { ... }` 是一个极佳的调试工具，可以在不影响流的情况下观察每个阶段的数据。
 
-希望这份指南能帮助您充分利用 `Stream` 库的强大功能！ 
+希望这份指南能帮助您充分利用 `Stream` 库的强大功能！

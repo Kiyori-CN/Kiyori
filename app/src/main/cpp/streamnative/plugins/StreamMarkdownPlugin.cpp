@@ -46,9 +46,14 @@ inline bool isDigit(char16_t c) { return c >= u'0' && c <= u'9'; }
 StreamMarkdownFencedCodeBlockPlugin::StreamMarkdownFencedCodeBlockPlugin(bool includeFences)
         : includeFences_(includeFences),
           state_(PluginState::IDLE),
-          fenceLen_(0),
-          isMatchingEndFence_(false),
-          hasStartedMatchingFence_(false) {
+          openingIndent_(0),
+          openingFenceLength_(0),
+          openingRunLength_(0),
+          openingLine_(false),
+          closingCandidate_(false),
+          closingIndent_(0),
+          closingRunLength_(0),
+          closingTrailingOnly_(true) {
     reset();
 }
 
@@ -61,95 +66,128 @@ bool StreamMarkdownFencedCodeBlockPlugin::initPlugin() {
 
 void StreamMarkdownFencedCodeBlockPlugin::reset() {
     state_ = PluginState::IDLE;
-    fenceLen_ = 0;
-    isMatchingEndFence_ = false;
-    hasStartedMatchingFence_ = false;
+    openingIndent_ = 0;
+    openingFenceLength_ = 0;
+    openingRunLength_ = 0;
+    openingLine_ = false;
+    closingCandidate_ = false;
+    closingIndent_ = 0;
+    closingRunLength_ = 0;
+    closingTrailingOnly_ = true;
 }
 
 bool StreamMarkdownFencedCodeBlockPlugin::processChar(char16_t c, bool atStartOfLine) {
     if (state_ == PluginState::PROCESSING) {
-        if (atStartOfLine) {
-            isMatchingEndFence_ = true;
-            hasStartedMatchingFence_ = false;
+        // The block becomes PROCESSING on the third opening tick.  Keeping the
+        // remainder of that line in this state prevents INLINE_CODE, LaTeX and
+        // XML plugins from claiming the language token or first content chunk.
+        if (openingLine_) {
+            if (c == u'\n') {
+                openingLine_ = false;
+                closingCandidate_ = false;
+            }
+            return includeFences_;
         }
 
-        if (isMatchingEndFence_) {
-            if (!hasStartedMatchingFence_) {
-                if (c == u' ') {
-                    return includeFences_;
-                }
-                hasStartedMatchingFence_ = true;
-            }
+        // A closing fence is valid only at a physical line boundary, with at
+        // most three spaces of indentation and only spaces/tabs after the run.
+        // We keep the candidate state until LF/CRLF confirms the whole line.
+        if (atStartOfLine) {
+            closingCandidate_ = true;
+            closingIndent_ = 0;
+            closingRunLength_ = 0;
+            closingTrailingOnly_ = true;
+        }
 
-            if (c == u'`') {
-                fenceLen_ += 1;
-                return includeFences_;
-            }
-
-            if (c == u'\n') {
-                // line ended; only close if we matched at least 3 backticks
-                if (fenceLen_ >= 3) {
-                    reset();
-                    return includeFences_;
-                }
-                // not end fence
-                isMatchingEndFence_ = false;
-                fenceLen_ = 0;
-                return true;
-            }
-
-            // non-backtick breaks end fence attempt
-            isMatchingEndFence_ = false;
-            fenceLen_ = 0;
+        if (!closingCandidate_) {
             return true;
         }
 
+        if (c == u'\n') {
+            const bool closes =
+                    closingRunLength_ >= openingFenceLength_ &&
+                    closingRunLength_ >= 3 &&
+                    closingTrailingOnly_;
+            closingCandidate_ = false;
+            closingIndent_ = 0;
+            closingRunLength_ = 0;
+            closingTrailingOnly_ = true;
+            if (closes) {
+                reset();
+            }
+            return closes ? includeFences_ : true;
+        }
+
+        if (closingRunLength_ == 0 && c == u' ' && closingIndent_ < 3) {
+            closingIndent_ += 1;
+            return includeFences_;
+        }
+
+        if (c == u'`') {
+            closingRunLength_ += 1;
+            return includeFences_;
+        }
+
+        if (closingRunLength_ > 0 && (c == u' ' || c == u'\t' || c == u'\r')) {
+            return includeFences_;
+        }
+
+        // This is an ordinary code line; candidate characters already emitted
+        // remain opaque code content and the rest of the line passes through.
+        closingCandidate_ = false;
+        closingTrailingOnly_ = false;
         return true;
     }
 
-    // IDLE/TRYING: detect opening fence of 3+ backticks (doesn't require SOL in Kotlin)
+    // IDLE/TRYING: only a line-start run with at most three ASCII spaces opens a
+    // block.  Inline triple-backtick spans are intentionally left to INLINE_CODE.
     if (state_ == PluginState::IDLE) {
-        if (c == u'`') {
+        if (!atStartOfLine) {
+            return true;
+        }
+        if (c == u' ') {
+            openingIndent_ = 1;
             state_ = PluginState::TRYING;
-            fenceLen_ = 1;
             return includeFences_;
         }
-        (void)atStartOfLine;
+        if (c == u'`') {
+            openingRunLength_ = 1;
+            state_ = PluginState::TRYING;
+            return includeFences_;
+        }
         return true;
     }
 
     if (state_ == PluginState::TRYING) {
-        if (c == u'`') {
-            fenceLen_ += 1;
-            return includeFences_;
-        }
-
-        // We only keep TRYING across the rest of the opening line after we have
-        // already seen 3+ consecutive backticks. This matches the Kotlin KMP pattern.
-        if (c == u'\n') {
-            if (fenceLen_ >= 3) {
-                state_ = PluginState::PROCESSING;
-                isMatchingEndFence_ = false;
-                hasStartedMatchingFence_ = false;
-                fenceLen_ = 0;
+        if (openingRunLength_ == 0) {
+            if (c == u' ' && openingIndent_ < 3) {
+                openingIndent_ += 1;
+                return includeFences_;
+            }
+            if (c == u'`') {
+                openingRunLength_ = 1;
                 return includeFences_;
             }
             reset();
             return true;
         }
 
-        if (fenceLen_ < 3) {
-            // Not a fenced code block; stop trying immediately so inline/backtick runs
-            // don't accidentally accumulate into a fake 3+ fence.
-            reset();
-            return true;
+        if (c == u'`') {
+            openingRunLength_ += 1;
+            if (openingRunLength_ >= 3) {
+                openingFenceLength_ = openingRunLength_;
+                openingLine_ = true;
+                closingCandidate_ = false;
+                state_ = PluginState::PROCESSING;
+            }
+            return includeFences_;
         }
 
-        // still in opening line (language id etc)
-        return includeFences_;
+        // A run shorter than three ticks is not a block opener.
+        reset();
+        return true;
     }
 
-    (void)atStartOfLine;
     return true;
 }
 

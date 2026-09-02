@@ -369,7 +369,10 @@ internal fun quoteMermaidSourceForJavaScript(source: String): String {
 }
 
 internal fun buildMermaidPreviewHtml(code: String): String {
-    val quotedSource = quoteMermaidSourceForJavaScript(code.trim())
+    // The caller supplies the already-normalized fenced payload.  Preserve its
+    // leading/trailing whitespace so Mermaid receives exactly the same source as
+    // the code card and copy action.
+    val quotedSource = quoteMermaidSourceForJavaScript(code)
     return """
         <!DOCTYPE html>
         <html>

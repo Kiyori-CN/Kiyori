@@ -114,6 +114,44 @@ class StreamMarkdownPluginTest {
         assertTrue(groups[2].content.contains("后置文本"))
     }
 
+    @Test
+    fun fencedCodeWinsBeforeLanguageTokenAndKeepsMarkdownOpaque() = runBlocking {
+        val source = "```mermaid\ngraph TD\nA-->B\n\n**正文** ${'$'}${'$'}x${'$'}${'$'}\n```\n正文"
+        val fenced = StreamMarkdownFencedCodeBlockPlugin()
+        val inline = StreamMarkdownInlineCodePlugin()
+        val blockMath = StreamMarkdownBlockLaTeXPlugin()
+
+        val groups = mutableListOf<GroupInfo>()
+        source.asCharStream().splitBy(listOf(fenced, inline, blockMath)).collect { group ->
+            val content = StringBuilder()
+            group.stream.collect(content::append)
+            groups += GroupInfo(group.tag, content.toString())
+        }
+
+        val code = groups.single { it.tag === fenced }
+        assertTrue(code.content.startsWith("```mermaid\n"))
+        assertTrue(code.content.contains("**正文**"))
+        assertTrue(code.content.contains("${'$'}${'$'}x${'$'}${'$'}"))
+        assertEquals("正文", groups.last().content)
+    }
+
+    @Test
+    fun lineStartAndFenceLengthAreStrict() = runBlocking {
+        val invalidIndentPlugin = StreamMarkdownFencedCodeBlockPlugin()
+        val invalidIndentGroups = collectGroups("    ```no-block\n正文".asCharStream(), invalidIndentPlugin)
+        assertTrue(invalidIndentGroups.none { it.tag === invalidIndentPlugin })
+
+        val source = "````python\r\nprint(1)\r\n  ```\r\nstill\r\n  ````\r\n尾"
+        val plugin = StreamMarkdownFencedCodeBlockPlugin()
+        val groups = collectGroups(source.asCharStream(), plugin)
+
+        val code = groups.single { it.tag === plugin }
+        assertTrue(code.content.startsWith("````python\r\n"))
+        assertTrue(code.content.contains("print(1)"))
+        assertTrue(code.content.contains("  ```\r\n"))
+        assertEquals("尾", groups.last().content)
+    }
+
     // --- 测试标题插件 ---
     @Test
     fun testHeaderPlugin() = runBlocking {

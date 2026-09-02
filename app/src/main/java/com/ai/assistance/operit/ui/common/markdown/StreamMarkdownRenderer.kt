@@ -193,14 +193,15 @@ internal fun MarkdownNode.toStableNode(): MarkdownNodeStable {
     return MarkdownNodeStable(
         type = this.type,
         content = this.content.toString(),
-        children = this.children.map { it.toStableNode() }
+        children = this.children.map { it.toStableNode() },
+        stableId = this.stableId,
     )
 }
 
 private fun areRenderNodesSynchronized(
     nodes: SnapshotStateList<MarkdownNode>,
     renderNodes: SnapshotStateList<MarkdownNodeStable>,
-    conversionCache: MutableMap<Int, Pair<Int, MarkdownNodeStable>>,
+    conversionCache: MutableMap<Long, Pair<Int, MarkdownNodeStable>>,
 ): Boolean {
     if (nodes.isEmpty() || nodes.size != renderNodes.size) {
         return false
@@ -208,14 +209,14 @@ private fun areRenderNodesSynchronized(
 
     nodes.forEachIndexed { index, sourceNode ->
         val contentLength = sourceNode.content.length
-        val cached = conversionCache[index]
+        val cached = conversionCache[sourceNode.stableId]
         val freshStableNode = sourceNode.toStableNode()
         val stableNode =
             if (cached != null && cached.first == contentLength && cached.second == freshStableNode) {
                 cached.second
             } else {
                 freshStableNode.also {
-                    conversionCache[index] = contentLength to it
+                    conversionCache[sourceNode.stableId] = contentLength to it
                 }
             }
 
@@ -322,7 +323,7 @@ class StreamMarkdownRendererState {
     // 节点动画状态映射表
     val nodeAnimationStates = mutableStateMapOf<String, Boolean>()
     // 缓存转换后的稳定节点，避免不必要的对象创建
-    val conversionCache = mutableStateMapOf<Int, Pair<Int, MarkdownNodeStable>>()
+    val conversionCache = mutableStateMapOf<Long, Pair<Int, MarkdownNodeStable>>()
     // 保存流式渲染收集的完整内容，用于切换时判断是否需要重新解析
     val collectedContent = SmartString()
     // XML 节点对应的子流（仅流式渲染有效）
@@ -1022,8 +1023,8 @@ fun StreamMarkdownRenderer(
             renderNodes.addAll(cachedNodes.map { it.toStableNode() })
             // 确保动画状态也被设置
             val newStates = mutableMapOf<String, Boolean>()
-            cachedNodes.forEachIndexed { index, node ->
-                val nodeKey = "static-node-$rendererId-$index"
+            cachedNodes.forEach { node ->
+                val nodeKey = "static-node-$rendererId-${node.stableId}"
                 newStates[nodeKey] = true
             }
             nodeAnimationStates.putAll(newStates)
@@ -1052,8 +1053,8 @@ fun StreamMarkdownRenderer(
 
                     // 更新所有节点的动画状态为可见
                     val newStates = mutableMapOf<String, Boolean>()
-                    parsedNodes.forEachIndexed { index, node ->
-                        val nodeKey = "static-node-$rendererId-$index"
+                    parsedNodes.forEach { node ->
+                        val nodeKey = "static-node-$rendererId-${node.stableId}"
                         newStates[nodeKey] = true
                     }
                     nodeAnimationStates.putAll(newStates)
@@ -1174,10 +1175,11 @@ private fun UnifiedMarkdownCanvas(
     }
 
     fun nodeKeyForIndex(index: Int): String {
+        val stableId = nodes.getOrNull(index)?.stableId ?: index.toLong()
         return if (rendererId.startsWith("static-")) {
-            "static-node-$rendererId-$index"
+            "static-node-$rendererId-$stableId"
         } else {
-            "node-$rendererId-$index"
+            "node-$rendererId-$stableId"
         }
     }
 
@@ -1216,7 +1218,8 @@ private fun UnifiedMarkdownCanvas(
                 }
 
                 is MarkdownGroupedItem.Group -> {
-                    val groupKey = "group-$rendererId-${item.stableKey}"
+                    val groupStableId = nodes.getOrNull(item.startIndex)?.stableId ?: item.startIndex.toLong()
+                    val groupKey = "group-$rendererId-${item.stableKey}-$groupStableId"
                     val firstNodeKey = nodeKeyForIndex(item.startIndex)
                     key(groupKey) {
                         nodeGrouper.RenderGroup(
@@ -1244,7 +1247,7 @@ private fun UnifiedMarkdownCanvas(
 internal class BatchNodeUpdater(
         private val nodes: SnapshotStateList<MarkdownNode>,
         private val renderNodes: SnapshotStateList<MarkdownNodeStable>,
-        private val conversionCache: MutableMap<Int, Pair<Int, MarkdownNodeStable>>,
+        private val conversionCache: MutableMap<Long, Pair<Int, MarkdownNodeStable>>,
         private val nodeAnimationStates: MutableMap<String, Boolean>,
         private val xmlNodeStreams: MutableMap<Int, Stream<String>>,
         private val rendererId: String,
@@ -1261,7 +1264,7 @@ internal class BatchNodeUpdater(
 
     fun requestStructuralUpdate(nodeIndex: Int) {
         // 类型或子节点变化可能保持相同内容长度，必须主动清理这一节点的稳定对象缓存。
-        conversionCache.remove(nodeIndex)
+        nodes.getOrNull(nodeIndex)?.stableId?.let(conversionCache::remove)
         requestUpdate()
     }
 
@@ -1287,7 +1290,7 @@ internal class BatchNodeUpdater(
 private fun synchronizeRenderNodes(
     nodes: SnapshotStateList<MarkdownNode>,
     renderNodes: SnapshotStateList<MarkdownNodeStable>,
-    conversionCache: MutableMap<Int, Pair<Int, MarkdownNodeStable>>,
+    conversionCache: MutableMap<Long, Pair<Int, MarkdownNodeStable>>,
     nodeAnimationStates: MutableMap<String, Boolean>,
     xmlNodeStreams: MutableMap<Int, Stream<String>>,
     rendererId: String,
@@ -1298,13 +1301,18 @@ private fun synchronizeRenderNodes(
     // 1. 更新现有节点并添加新节点
     nodes.forEachIndexed { i, sourceNode ->
         val contentLength = sourceNode.content.length
-        val cached = conversionCache[i]
+        val cached = conversionCache[sourceNode.stableId]
 
-        val stableNode = if (cached != null && cached.first == contentLength) {
+        val freshStableNode = sourceNode.toStableNode()
+        val stableNode = if (
+            cached != null &&
+                cached.first == contentLength &&
+                cached.second == freshStableNode
+        ) {
             cached.second
         } else {
-            sourceNode.toStableNode().also {
-                conversionCache[i] = contentLength to it
+            freshStableNode.also {
+                conversionCache[sourceNode.stableId] = contentLength to it
             }
         }
 
@@ -1317,7 +1325,7 @@ private fun synchronizeRenderNodes(
         } else {
             // 添加新节点
             renderNodes.add(stableNode)
-            val nodeKey = "node-$rendererId-$i"
+            val nodeKey = "node-$rendererId-${sourceNode.stableId}"
             nodeAnimationStates[nodeKey] = false // 准备播放动画
             keysToAnimate.add(nodeKey)
         }
@@ -1329,11 +1337,10 @@ private fun synchronizeRenderNodes(
     }
 
     // 3. 清理多余的缓存条目
-    if (nodes.size < conversionCache.size) {
-        (nodes.size until conversionCache.size).forEach {
-            conversionCache.remove(it)
-        }
-    }
+    val liveStableIds = nodes.mapTo(mutableSetOf()) { it.stableId }
+    conversionCache.keys
+        .filterNot(liveStableIds::contains)
+        .forEach(conversionCache::remove)
 
     // 4. 清理已被移除节点的 XML 子流
     val keysToRemove = xmlNodeStreams.keys.filter { it !in nodes.indices }

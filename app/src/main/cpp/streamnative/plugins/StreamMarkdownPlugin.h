@@ -18,9 +18,14 @@ public:
 private:
     bool includeFences_;
     PluginState state_;
-    int fenceLen_;
-    bool isMatchingEndFence_;
-    bool hasStartedMatchingFence_;
+    int openingIndent_;
+    int openingFenceLength_;
+    int openingRunLength_;
+    bool openingLine_;
+    bool closingCandidate_;
+    int closingIndent_;
+    int closingRunLength_;
+    bool closingTrailingOnly_;
 };
 
 class StreamMarkdownInlineCodePlugin final : public StreamPlugin {
