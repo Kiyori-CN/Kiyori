@@ -15,6 +15,7 @@ internal data class WebSessionBrowserSettings(
     val allowWebPageOpenApp: Boolean = true,
     val allowWebPageGeolocation: Boolean = true,
     val websitePasswordSavingEnabled: Boolean = false,
+    val cookieReaderEnabled: Boolean = true,
     val showMediaCandidateBadge: Boolean = true,
     val automaticFloatingPlaybackEnabled: Boolean = true,
     val automaticFloatingMinimumDurationMillis: Long =
@@ -87,6 +88,11 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
     fun setWebsitePasswordSavingEnabled(enabled: Boolean) {
         preferences.edit { putBoolean(KEY_WEBSITE_PASSWORD_SAVING, enabled) }
         _state.value = _state.value.copy(websitePasswordSavingEnabled = enabled)
+    }
+
+    fun setCookieReaderEnabled(enabled: Boolean) {
+        preferences.edit { putBoolean(KEY_COOKIE_READER_ENABLED, enabled) }
+        _state.value = _state.value.copy(cookieReaderEnabled = enabled)
     }
 
     fun setShowMediaCandidateBadge(enabled: Boolean) {
@@ -260,6 +266,11 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
                     KEY_WEBSITE_PASSWORD_SAVING,
                     FRESH_INSTALL_BROWSER_SETTINGS.websitePasswordSavingEnabled,
                 ),
+            cookieReaderEnabled =
+                preferences.getBoolean(
+                    KEY_COOKIE_READER_ENABLED,
+                    FRESH_INSTALL_BROWSER_SETTINGS.cookieReaderEnabled,
+                ),
             showMediaCandidateBadge =
                 preferences.getBoolean(KEY_SHOW_MEDIA_CANDIDATE_BADGE, true),
             automaticFloatingPlaybackEnabled =
@@ -345,6 +356,7 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
         private const val KEY_ALLOW_WEB_PAGE_OPEN_APP = "allow_web_page_open_app"
         private const val KEY_ALLOW_WEB_PAGE_GEOLOCATION = "allow_web_page_geolocation"
         private const val KEY_WEBSITE_PASSWORD_SAVING = "website_password_saving"
+        private const val KEY_COOKIE_READER_ENABLED = "cookie_reader_enabled"
         private const val KEY_SHOW_MEDIA_CANDIDATE_BADGE = "show_media_candidate_badge"
         private const val KEY_AUTOMATIC_FLOATING_PLAYBACK = "automatic_floating_playback"
         private const val KEY_AUTOMATIC_FLOATING_MINIMUM_DURATION =

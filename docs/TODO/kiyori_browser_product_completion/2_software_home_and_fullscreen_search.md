@@ -1,6 +1,36 @@
 # 软件首页与全屏网页搜索
 
-> 状态：本地实现、定向 JVM 测试、正式开发门禁与 Debug APK 已验证；本轮不提交、不推送，真机视觉、输入法和转场保持待验收。
+> 状态：本地实现、定向 JVM 测试、正式开发门禁与 Debug APK 已验证；本轮修改将随当前工作树提交并推送，真机视觉、输入法和转场保持待验收。
+
+## 2026-09-02 全屏搜索顶栏首行几何修正
+
+状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。
+
+- 根因是全屏搜索输入卡内部的 `7dp` 对称垂直内边距叠加 `40dp` Material 按钮，空输入时把卡片
+  撑高到浏览器顶栏 `42dp` 基准之上；外层 `CenterVertically` 又会让多行输入时返回与 Profile
+  动作一起向下移动。
+- 全屏搜索首行继续复用 Browser Home 的 `8dp` 横纵外边距、`6dp` 槽距、`40dp` 两侧动作区和
+  `42dp` 搜索卡基准。首行使用顶部对齐，返回和外置搜索动作以 `1dp` 视觉偏移保持和浏览器
+  顶栏相同的绝对中心线；搜索卡上缘固定，新增行只把下缘向下推，最多三行，超出后由
+  `BasicTextField` 纵向滚动。
+- 搜索提交动作移到输入卡外，替换原顶行无痕槽；输入卡内右侧只保留条件显示的清除叉号，使用
+  固定 `32dp` 槽，比 `40dp` 提交槽缩小 `8dp`，释放横向输入空间。
+- 输入卡内部使用至少 `42dp` 的垂直居中 Row。引擎按钮、清除按钮、占位符和输入文本都在卡内
+  随实际一至三行高度居中，文本不再固定在顶部；外层返回和搜索动作不会随输入增高而下移。
+- 无痕 Profile 动作移动到“搜索历史”标题右侧，使用标题行内固定 `34dp` 槽并保留真实
+  Multi-Profile 可用性和原有 toggle owner。搜索提交、引擎选择、Profile 切换、历史/当前网址
+  动作和 Browser Runtime 状态所有权不变；未发布搜索页不保留并行几何方案或兼容开关。
+- 定向证据：`WebSessionSearchUiPolicyTest` 与 `WebSessionBrowserChromeLayoutTest`、
+  `:app:compileDebugKotlin`、`git diff --check` 与 formal readiness 已通过。
+- `./gradlew :app:assembleDebug --no-daemon --console=plain`：`BUILD SUCCESSFUL in 47s`，
+  `235` 个任务中 `23` 个执行；APK 为 `app/build/outputs/apk/debug/app-debug.apk`，生成于
+  `2026-09-02 14:32:45 +08:00`，大小 `503705425` bytes，SHA-256
+  `517D041EAEA31EAE9ABEFA1980B03712601E508515F5718287B30C22786F5624`。
+  `aapt`、Android Debug V2 单 signer、唯一 launcher、`arm64-v8a` 和
+  `zipalign -c -P 16 -v 4` 均已核验。
+- 本轮用户已授权把当前工作树全部未提交修改一次性提交并推送到 `origin/main`；真机视觉、输入法、
+  长文本滚动和触控仍需现场复测。
+- 真机视觉、输入法、长文本滚动和触控仍需现场复测。
 
 ## 2026-08-20 全屏搜索页网址行去底色与操作尺寸微调
 

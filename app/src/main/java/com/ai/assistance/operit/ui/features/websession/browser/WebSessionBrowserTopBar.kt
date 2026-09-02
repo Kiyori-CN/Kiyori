@@ -104,7 +104,7 @@ import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSIO
 
 internal const val WEB_SESSION_SEARCH_SCREEN_INPUT_MAX_LINES = 3
 internal const val WEB_SESSION_SEARCH_SCREEN_INPUT_LINE_HEIGHT_SP = 18
-internal const val WEB_SESSION_SEARCH_SCREEN_INPUT_VERTICAL_PADDING_DP = 7
+internal const val WEB_SESSION_SEARCH_SCREEN_CLEAR_ACTION_SIZE_DP = 32
 internal const val WEB_SESSION_SEARCH_SCREEN_ENGINE_ICON_SIZE_DP = 18
 internal const val WEB_SESSION_SEARCH_SCREEN_ENGINE_CARD_HEIGHT_DP = 42
 internal const val WEB_SESSION_SEARCH_SCREEN_ENGINE_CARD_ICON_SIZE_DP = 19
@@ -119,6 +119,8 @@ internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_TITLE_SIZE_SP = 18
 internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_EMPTY_SIZE_SP = 14
 internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_ACTION_SIZE_SP = 14
 internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_HEADER_HEIGHT_DP = 34
+internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_PROFILE_ACTION_SIZE_DP = 34
+internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_PROFILE_GAP_DP = 4
 internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_DELETE_ICON_SIZE_DP = 24
 internal const val WEB_SESSION_SEARCH_SCREEN_TAG_MAX_WIDTH_DP = 250
 internal const val WEB_SESSION_SEARCH_ENGINE_SWITCH_BAR_CHIP_HEIGHT_DP = 28
@@ -351,11 +353,12 @@ private fun BrowserChromeIconButton(
     enabled: Boolean = true,
     actionSizeDp: Int = WEB_SESSION_BROWSER_TOP_ACTION_SIZE_DP,
     iconSizeDp: Int = 21,
+    modifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .size(actionSizeDp.dp)
             .clip(KiyoriUiShapes.control)
             .alpha(if (enabled) 1f else 0.38f)
@@ -504,7 +507,8 @@ internal fun WebSessionBrowserSearchScreen(
                                 horizontal = WEB_SESSION_BROWSER_TOP_HORIZONTAL_PADDING_DP.dp,
                                 vertical = WEB_SESSION_BROWSER_TOP_VERTICAL_PADDING_DP.dp,
                             ),
-                    verticalAlignment = Alignment.CenterVertically,
+                    // 两侧动作沿用浏览器顶栏槽位，否则多行输入会把它们随行高一起向下推。
+                    verticalAlignment = Alignment.Top,
                     horizontalArrangement =
                         Arrangement.spacedBy(WEB_SESSION_BROWSER_TOP_GAP_DP.dp),
                 ) {
@@ -512,6 +516,7 @@ internal fun WebSessionBrowserSearchScreen(
                         icon = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = stringResource(R.string.web_session_back),
                         onClick = ::closeSearch,
+                        modifier = Modifier.offset(y = 1.dp),
                     )
                     Surface(
                         modifier =
@@ -533,13 +538,10 @@ internal fun WebSessionBrowserSearchScreen(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
+                                    .heightIn(min = WEB_SESSION_BROWSER_TOP_SEARCH_HEIGHT_DP.dp)
                                     .padding(
                                         start = 8.dp,
-                                        top =
-                                            WEB_SESSION_SEARCH_SCREEN_INPUT_VERTICAL_PADDING_DP.dp,
-                                        end = 2.dp,
-                                        bottom =
-                                            WEB_SESSION_SEARCH_SCREEN_INPUT_VERTICAL_PADDING_DP.dp,
+                                        end = 0.dp,
                                     ),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -576,7 +578,10 @@ internal fun WebSessionBrowserSearchScreen(
                             BasicTextField(
                                 value = draft,
                                 onValueChange = onDraftChange,
-                                modifier = Modifier.weight(1f).focusRequester(focusRequester),
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .focusRequester(focusRequester),
                                 singleLine = false,
                                 minLines = 1,
                                 maxLines = WEB_SESSION_SEARCH_SCREEN_INPUT_MAX_LINES,
@@ -599,7 +604,11 @@ internal fun WebSessionBrowserSearchScreen(
                                                     stringResource(
                                                         R.string.web_session_search_placeholder,
                                                     ),
-                                                style = MaterialTheme.typography.bodySmall,
+                                                style =
+                                                    MaterialTheme.typography.bodySmall.copy(
+                                                        lineHeight =
+                                                            WEB_SESSION_SEARCH_SCREEN_INPUT_LINE_HEIGHT_SP.sp,
+                                                    ),
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
                                         }
@@ -608,32 +617,23 @@ internal fun WebSessionBrowserSearchScreen(
                                 },
                             )
                             if (draft.isNotBlank()) {
-                                IconButton(
-                                    onClick = { onDraftChange("") },
-                                    modifier = Modifier.size(40.dp),
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Close,
-                                        contentDescription =
-                                            stringResource(R.string.web_session_clear_search),
-                                        modifier = Modifier.size(15.dp),
-                                    )
-                                }
-                            }
-                            IconButton(onClick = ::submitSearch, modifier = Modifier.size(40.dp)) {
-                                Icon(
-                                    imageVector = Icons.Filled.Search,
+                                BrowserChromeIconButton(
+                                    icon = Icons.Filled.Close,
                                     contentDescription =
-                                        stringResource(R.string.web_session_search_submit),
-                                    modifier = Modifier.size(17.dp),
+                                        stringResource(R.string.web_session_clear_search),
+                                    onClick = { onDraftChange("") },
+                                    actionSizeDp = WEB_SESSION_SEARCH_SCREEN_CLEAR_ACTION_SIZE_DP,
+                                    iconSizeDp = 15,
                                 )
                             }
                         }
                     }
-                    WebSessionSearchProfileAction(
-                        selectedProfile = selectedProfile,
-                        incognitoAvailability = incognitoAvailability,
-                        onToggle = onToggleProfile,
+                    BrowserChromeIconButton(
+                        icon = Icons.Filled.Search,
+                        contentDescription = stringResource(R.string.web_session_search_submit),
+                        onClick = ::submitSearch,
+                        iconSizeDp = 17,
+                        modifier = Modifier.offset(y = 1.dp),
                     )
                 }
 
@@ -672,8 +672,21 @@ internal fun WebSessionBrowserSearchScreen(
                                 fontSize = WEB_SESSION_SEARCH_SCREEN_HISTORY_TITLE_SIZE_SP.sp,
                                 lineHeight = 22.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.weight(1f),
                             )
+                            Spacer(
+                                modifier =
+                                    Modifier.width(
+                                        WEB_SESSION_SEARCH_SCREEN_HISTORY_PROFILE_GAP_DP.dp,
+                                    ),
+                            )
+                            WebSessionSearchProfileAction(
+                                selectedProfile = selectedProfile,
+                                incognitoAvailability = incognitoAvailability,
+                                onToggle = onToggleProfile,
+                                actionSizeDp =
+                                    WEB_SESSION_SEARCH_SCREEN_HISTORY_PROFILE_ACTION_SIZE_DP,
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
                             if (searchHistory.isNotEmpty()) {
                                 if (isHistoryEditing) {
                                     CompactHistoryAction(
@@ -860,6 +873,8 @@ private fun WebSessionSearchProfileAction(
     selectedProfile: WebSessionProfile,
     incognitoAvailability: WebSessionIncognitoAvailability,
     onToggle: () -> Unit,
+    actionSizeDp: Int = WEB_SESSION_BROWSER_TOP_ACTION_SIZE_DP,
+    modifier: Modifier = Modifier,
 ) {
     val enabled = incognitoAvailability.isAvailable
     val incognitoSelected = selectedProfile == WebSessionProfile.INCOGNITO
@@ -879,6 +894,8 @@ private fun WebSessionSearchProfileAction(
         contentDescription = contentDescription,
         onClick = onToggle,
         enabled = enabled,
+        actionSizeDp = actionSizeDp,
+        modifier = modifier,
     )
 }
 

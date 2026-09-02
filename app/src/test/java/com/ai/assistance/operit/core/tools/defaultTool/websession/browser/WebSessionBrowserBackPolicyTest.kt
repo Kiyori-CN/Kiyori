@@ -296,6 +296,14 @@ class WebSessionBrowserBackPolicyTest {
                 ),
             ),
         )
+
+        assertEquals(
+            listOf(
+                WebSessionBrowserPluginRoute.Overview,
+                WebSessionBrowserPluginRoute.CookieReader,
+            ),
+            browserPluginRouteStackFor(WebSessionBrowserPluginRoute.CookieReader),
+        )
     }
 
     @Test

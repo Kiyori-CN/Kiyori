@@ -64,6 +64,12 @@ private const val WEBVIEW_SUPPORT_TAG = "BrowserSessionTools"
 private const val TAB_THUMBNAIL_MIN_REFRESH_MS = 1_000L
 private const val BROWSER_AD_BLOCK_CSS_CHUNK_CHAR_LIMIT = 64 * 1024
 
+private data class BrowserCookieReadRequest(
+    val sessionId: String,
+    val pageUrl: String,
+    val cookieManager: CookieManager,
+)
+
 internal enum class BrowserSessionBackResult {
     WEB_HISTORY,
     BROWSER_HOME,
@@ -1684,6 +1690,89 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
         override fun onOpenPlugins() {
             runOnMainSync<Unit> {
                 openPluginCenterOnMain()
+            }
+        }
+
+        override fun onRefreshCookies() {
+            val request =
+                runOnMainSync<BrowserCookieReadRequest?> {
+                    val session = getActiveSessionOnMain()
+                    val pageUrl = session?.currentUrl?.trim().orEmpty()
+                    if (
+                        !browserSettingsStore.current.cookieReaderEnabled ||
+                            session == null ||
+                            !isSupportedBrowserCookieUrl(pageUrl)
+                    ) {
+                        browserHost?.updateBrowserCookieState(
+                            BrowserCookieUiState(targetUrl = pageUrl),
+                        )
+                        return@runOnMainSync null
+                    }
+                    browserHost?.updateBrowserCookieState(
+                        BrowserCookieUiState(targetUrl = pageUrl),
+                    )
+                    BrowserCookieReadRequest(
+                        sessionId = session.id,
+                        pageUrl = pageUrl,
+                        cookieManager = session.cookieManager,
+                    )
+                } ?: return
+
+            ioScope.launch {
+                try {
+                    val header = request.cookieManager.getCookie(request.pageUrl).orEmpty()
+                    StandardBrowserSessionTools.mainHandler.post {
+                        val currentSession = getActiveSessionOnMain()
+                        if (
+                            !browserSettingsStore.current.cookieReaderEnabled ||
+                                currentSession == null ||
+                                currentSession.id != request.sessionId ||
+                                currentSession.currentUrl.trim() != request.pageUrl
+                        ) {
+                            return@post
+                        }
+                        browserHost?.updateBrowserCookieState(
+                            BrowserCookieUiState(
+                                targetUrl = request.pageUrl,
+                                header = header,
+                                updatedAt = System.currentTimeMillis(),
+                            ),
+                        )
+                    }
+                } catch (error: Exception) {
+                    AppLogger.e(
+                        WEBVIEW_SUPPORT_TAG,
+                        "Failed to read browser cookies for Cookie Reader",
+                        error,
+                    )
+                    StandardBrowserSessionTools.mainHandler.post {
+                        val currentSession = getActiveSessionOnMain()
+                        if (
+                            !browserSettingsStore.current.cookieReaderEnabled ||
+                                currentSession == null ||
+                                currentSession.id != request.sessionId ||
+                                currentSession.currentUrl.trim() != request.pageUrl
+                        ) {
+                            return@post
+                        }
+                        browserHost?.updateBrowserCookieState(
+                            BrowserCookieUiState(
+                                targetUrl = request.pageUrl,
+                                errorMessage = "读取 Cookie 时发生错误",
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+
+        override fun onSetCookieReaderEnabled(enabled: Boolean) {
+            runOnMainSync<Unit> {
+                browserSettingsStore.setCookieReaderEnabled(enabled)
+                if (!enabled) {
+                    browserHost?.updateBrowserCookieState(BrowserCookieUiState())
+                }
+                refreshSessionUiOnMain()
             }
         }
 

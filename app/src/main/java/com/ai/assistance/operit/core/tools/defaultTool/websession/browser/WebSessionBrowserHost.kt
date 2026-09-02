@@ -121,6 +121,8 @@ internal class WebSessionBrowserHost(
         fun onCopyCurrentUrl()
         fun onPageSourceApplied(sessionId: String)
         fun onOpenPlugins()
+        fun onRefreshCookies()
+        fun onSetCookieReaderEnabled(enabled: Boolean)
         fun onImportUserscript()
         fun onInstallUserscriptFromUrl(url: String)
         fun onConfirmUserscriptInstall()
@@ -355,6 +357,8 @@ internal class WebSessionBrowserHost(
             onDiscardPageSourceDraftAndClose = ::discardPageSourceDraftAndClose,
             onDismissPageSourceExitPrompt = ::dismissPageSourceExitPrompt,
             onOpenPlugins = callbacks::onOpenPlugins,
+            onRefreshCookies = callbacks::onRefreshCookies,
+            onSetCookieReaderEnabled = callbacks::onSetCookieReaderEnabled,
             onImportUserscript = callbacks::onImportUserscript,
             onInstallUserscriptFromUrl = callbacks::onInstallUserscriptFromUrl,
             onConfirmUserscriptInstall = callbacks::onConfirmUserscriptInstall,
@@ -465,10 +469,10 @@ internal class WebSessionBrowserHost(
         downloadPrompt: BrowserDownloadPromptState?,
         searchRecovery: BrowserSessionSearchRecovery?,
     ) {
-        if (
+        val activePageChanged =
             hostState.browserState.activeSessionId != browserState.activeSessionId ||
                 hostState.browserState.currentUrl != browserState.currentUrl
-        ) {
+        if (activePageChanged) {
             clearWebElementTransientState()
         }
         if (downloadPrompt != null) {
@@ -485,6 +489,12 @@ internal class WebSessionBrowserHost(
                 browserState = browserState,
                 downloadUiState = downloadUiState,
                 downloadPrompt = downloadPrompt,
+                cookieState =
+                    if (activePageChanged) {
+                        BrowserCookieUiState()
+                    } else {
+                        hostState.cookieState
+                    },
             )
         updateIndicatorLayoutForCurrentState()
     }
@@ -2220,6 +2230,10 @@ internal class WebSessionBrowserHost(
         }
         val clipboard = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText("page_source", content))
+    }
+
+    fun updateBrowserCookieState(state: BrowserCookieUiState) {
+        updateHostState { current -> current.copy(cookieState = state) }
     }
 
     private fun updateHostState(transform: (WebSessionBrowserHostState) -> WebSessionBrowserHostState) {

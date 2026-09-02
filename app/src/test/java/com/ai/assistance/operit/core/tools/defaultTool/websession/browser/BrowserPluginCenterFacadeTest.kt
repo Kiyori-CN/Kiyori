@@ -45,7 +45,7 @@ class BrowserPluginCenterFacadeTest {
             )
 
         val snapshot = BrowserPluginCenterFacade.project(state, menuCommands)
-        val plugin = snapshot.installedPlugins.single()
+        val plugin = snapshot.installedPlugins.userscriptPlugin()
         val currentPageProvider = snapshot.currentPageProviders.single()
 
         assertEquals(BUILT_IN_USERSCRIPT_PLUGIN_ID, plugin.id)
@@ -90,13 +90,13 @@ class BrowserPluginCenterFacadeTest {
         assertTrue(snapshot.currentPageProviders.isEmpty())
         assertEquals(
             BrowserPluginAvailability.UNSUPPORTED,
-            snapshot.installedPlugins.single().availability,
+            snapshot.installedPlugins.userscriptPlugin().availability,
         )
         assertEquals(
             setOf(BrowserPluginAction.OPEN_MANAGER),
-            snapshot.installedPlugins.single().supportedActions,
+            snapshot.installedPlugins.userscriptPlugin().supportedActions,
         )
-        assertFalse(snapshot.installedPlugins.single().runtimeAllowed)
+        assertFalse(snapshot.installedPlugins.userscriptPlugin().runtimeAllowed)
     }
 
     @Test
@@ -110,7 +110,7 @@ class BrowserPluginCenterFacadeTest {
                     ),
                 currentPageMenuCommands = emptyList(),
             )
-        val plugin = snapshot.installedPlugins.single()
+        val plugin = snapshot.installedPlugins.userscriptPlugin()
 
         assertFalse(plugin.runtimeAllowed)
         assertTrue(BrowserPluginAction.SET_PLUGIN_PERMISSION in plugin.supportedActions)
@@ -274,7 +274,7 @@ class BrowserPluginCenterFacadeTest {
             )
 
         assertTrue(snapshot.currentPageProviders.isEmpty())
-        assertEquals(0, snapshot.installedPlugins.single().currentPageMenuCommandCount)
+        assertEquals(0, snapshot.installedPlugins.userscriptPlugin().currentPageMenuCommandCount)
     }
 
     private fun userscript(
@@ -319,4 +319,7 @@ class BrowserPluginCenterFacadeTest {
             installedAt = 1L,
             updatedAt = 1L,
         )
+
+    private fun List<BrowserPluginSummary>.userscriptPlugin(): BrowserPluginSummary =
+        single { plugin -> plugin.id == BUILT_IN_USERSCRIPT_PLUGIN_ID }
 }

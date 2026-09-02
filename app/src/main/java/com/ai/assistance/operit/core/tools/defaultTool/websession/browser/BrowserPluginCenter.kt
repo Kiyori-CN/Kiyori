@@ -10,9 +10,11 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.
 import java.util.Locale
 
 internal const val BUILT_IN_USERSCRIPT_PLUGIN_ID = "kiyori.browser.userscript"
+internal const val BUILT_IN_COOKIE_PLUGIN_ID = "kiyori.browser.cookie"
 
 internal enum class BrowserPluginKind {
     USERSCRIPT_MANAGER,
+    COOKIE_READER,
 }
 
 internal enum class BrowserPluginAvailability {
@@ -113,6 +115,8 @@ internal data class BrowserPluginLibrarySource(
 internal data class BrowserPluginProjectionInput(
     val userscriptState: WebSessionUserscriptUiState,
     val currentPageMenuCommands: List<UserscriptPageMenuCommand>,
+    val currentPageUrl: String,
+    val cookieReaderEnabled: Boolean,
 )
 
 internal interface BrowserPluginProvider {
@@ -214,9 +218,56 @@ private object UserscriptBrowserPluginProvider : BrowserPluginProvider {
     }
 }
 
+private object CookieBrowserPluginProvider : BrowserPluginProvider {
+    override val id: String = BUILT_IN_COOKIE_PLUGIN_ID
+
+    override fun project(input: BrowserPluginProjectionInput): BrowserPluginProviderProjection {
+        val pageUrl = input.currentPageUrl
+        val currentPageEntries =
+            if (input.cookieReaderEnabled && isSupportedBrowserCookieUrl(pageUrl)) {
+                listOf(
+                    BrowserPluginPageEntry(
+                        id = "cookie:current",
+                        providerId = id,
+                        sourceItemId = null,
+                        title = "网页 Cookie",
+                        subtitle = browserCookieHost(pageUrl),
+                        status = BrowserPluginPageStatus.MATCHED,
+                        statusDetail = null,
+                        commands = emptyList(),
+                        searchTerms = listOf("Cookie", "cookie", browserCookieHost(pageUrl)),
+                    ),
+                )
+            } else {
+                emptyList()
+            }
+        return BrowserPluginProviderProjection(
+            summary =
+                BrowserPluginSummary(
+                    id = id,
+                    kind = BrowserPluginKind.COOKIE_READER,
+                    installationKind = BrowserPluginInstallationKind.BUILT_IN,
+                    availability = BrowserPluginAvailability.AVAILABLE,
+                    runtimeAllowed = input.cookieReaderEnabled,
+                    supportedActions =
+                        setOf(
+                            BrowserPluginAction.OPEN_MANAGER,
+                            BrowserPluginAction.SET_PLUGIN_PERMISSION,
+                        ),
+                    installedItemCount = 0,
+                    enabledItemCount = 0,
+                    currentPageItemCount = currentPageEntries.size,
+                    currentPageMenuCommandCount = 0,
+                    hasPendingInstall = false,
+                ),
+            currentPageEntries = currentPageEntries,
+        )
+    }
+}
+
 internal object BrowserPluginCenterFacade {
     private val providers: List<BrowserPluginProvider> =
-        listOf(UserscriptBrowserPluginProvider)
+        listOf(UserscriptBrowserPluginProvider, CookieBrowserPluginProvider)
 
     val librarySources: List<BrowserPluginLibrarySource> =
         listOf(
@@ -250,11 +301,15 @@ internal object BrowserPluginCenterFacade {
     fun project(
         userscriptState: WebSessionUserscriptUiState,
         currentPageMenuCommands: List<UserscriptPageMenuCommand>,
+        currentPageUrl: String = "",
+        cookieReaderEnabled: Boolean = true,
     ): BrowserPluginCenterSnapshot {
         val input =
             BrowserPluginProjectionInput(
                 userscriptState = userscriptState,
                 currentPageMenuCommands = currentPageMenuCommands,
+                currentPageUrl = currentPageUrl,
+                cookieReaderEnabled = cookieReaderEnabled,
             )
         val projections = providers.map { provider -> provider.project(input) }
         return BrowserPluginCenterSnapshot(

@@ -52,6 +52,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.Browse
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserPluginPageStatus
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserPluginProviderOverview
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserPluginSummary
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserCookieUiState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserPluginRoute
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionUserscriptWorkbenchTab
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageMenuCommand
@@ -69,7 +70,12 @@ internal fun WebSessionBrowserPluginSheet(
     route: WebSessionBrowserPluginRoute,
     userscriptState: WebSessionUserscriptUiState,
     currentPageMenuCommands: List<UserscriptPageMenuCommand>,
-    onOpenUserscriptManager: (WebSessionUserscriptWorkbenchTab, String) -> Unit,
+    currentPageUrl: String,
+    cookieState: BrowserCookieUiState,
+    cookieReaderEnabled: Boolean,
+    onOpenPlugin: (BrowserPluginKind, WebSessionUserscriptWorkbenchTab, String) -> Unit,
+    onRefreshCookies: () -> Unit,
+    onSetCookieReaderEnabled: (Boolean) -> Unit,
     onOpenPluginLibrarySource: (String) -> Unit,
     onNavigateToOverview: () -> Unit,
     onInstallUserscriptFromUrl: (String) -> Unit,
@@ -98,12 +104,15 @@ internal fun WebSessionBrowserPluginSheet(
             BrowserPluginCenterOverview(
                 userscriptState = userscriptState,
                 currentPageMenuCommands = currentPageMenuCommands,
-                onOpenUserscriptManager = onOpenUserscriptManager,
+                currentPageUrl = currentPageUrl,
+                cookieReaderEnabled = cookieReaderEnabled,
+                onOpenPlugin = onOpenPlugin,
                 onOpenPluginLibrarySource = onOpenPluginLibrarySource,
                 onOpenNewUserscriptEditor = onOpenNewUserscriptEditor,
                 onInstallUserscriptFromUrl = onInstallUserscriptFromUrl,
                 onImportUserscript = onImportUserscript,
                 onSetUserScriptsAllowed = onSetUserScriptsAllowed,
+                onSetCookieReaderEnabled = onSetCookieReaderEnabled,
                 modifier = modifier,
             )
 
@@ -150,6 +159,16 @@ internal fun WebSessionBrowserPluginSheet(
             )
 
         is WebSessionBrowserPluginRoute.UserscriptEditor -> Unit
+
+        WebSessionBrowserPluginRoute.CookieReader ->
+            WebSessionBrowserCookieSheet(
+                state = cookieState,
+                currentPageUrl = currentPageUrl,
+                cookieReaderEnabled = cookieReaderEnabled,
+                onRefresh = onRefreshCookies,
+                onNavigateBack = onNavigateToOverview,
+                modifier = modifier,
+            )
     }
 }
 
@@ -157,17 +176,25 @@ internal fun WebSessionBrowserPluginSheet(
 private fun BrowserPluginCenterOverview(
     userscriptState: WebSessionUserscriptUiState,
     currentPageMenuCommands: List<UserscriptPageMenuCommand>,
-    onOpenUserscriptManager: (WebSessionUserscriptWorkbenchTab, String) -> Unit,
+    currentPageUrl: String,
+    cookieReaderEnabled: Boolean,
+    onOpenPlugin: (BrowserPluginKind, WebSessionUserscriptWorkbenchTab, String) -> Unit,
     onOpenPluginLibrarySource: (String) -> Unit,
     onOpenNewUserscriptEditor: () -> Unit,
     onInstallUserscriptFromUrl: (String) -> Unit,
     onImportUserscript: () -> Unit,
     onSetUserScriptsAllowed: (Boolean) -> Unit,
+    onSetCookieReaderEnabled: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val snapshot =
-        remember(userscriptState, currentPageMenuCommands) {
-            BrowserPluginCenterFacade.project(userscriptState, currentPageMenuCommands)
+        remember(userscriptState, currentPageMenuCommands, currentPageUrl, cookieReaderEnabled) {
+            BrowserPluginCenterFacade.project(
+                userscriptState = userscriptState,
+                currentPageMenuCommands = currentPageMenuCommands,
+                currentPageUrl = currentPageUrl,
+                cookieReaderEnabled = cookieReaderEnabled,
+            )
         }
     var selectedTab by rememberSaveable { mutableStateOf(BrowserPluginCenterTab.CURRENT_PAGE) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
@@ -176,6 +203,8 @@ private fun BrowserPluginCenterOverview(
     val normalizedQuery = searchQuery.trim()
     val userscriptTitle = stringResource(R.string.web_session_userscript_manager_title)
     val userscriptSubtitle = stringResource(R.string.web_session_userscript_plugin_subtitle)
+    val cookieTitle = stringResource(R.string.web_session_cookie_reader_title)
+    val cookieSubtitle = stringResource(R.string.web_session_cookie_reader_subtitle)
     val installedScriptCount = snapshot.installedPlugins.sumOf(BrowserPluginSummary::installedItemCount)
     val currentPageProviders =
         remember(snapshot, normalizedQuery) {
@@ -188,18 +217,23 @@ private fun BrowserPluginCenterOverview(
             normalizedQuery,
             userscriptTitle,
             userscriptSubtitle,
+            cookieTitle,
+            cookieSubtitle,
         ) {
-            if (
+            snapshot.installedPlugins.filter { plugin ->
                 normalizedQuery.isBlank() ||
-                    userscriptTitle.contains(normalizedQuery, ignoreCase = true) ||
-                    userscriptSubtitle.contains(normalizedQuery, ignoreCase = true) ||
-                    userscriptState.installedScripts.any { script ->
-                        BrowserPluginCenterFacade.matchesUserscriptSearch(script, normalizedQuery)
+                    when (plugin.kind) {
+                        BrowserPluginKind.USERSCRIPT_MANAGER ->
+                            userscriptTitle.contains(normalizedQuery, ignoreCase = true) ||
+                                userscriptSubtitle.contains(normalizedQuery, ignoreCase = true) ||
+                                userscriptState.installedScripts.any { script ->
+                                    BrowserPluginCenterFacade.matchesUserscriptSearch(script, normalizedQuery)
+                                }
+                        BrowserPluginKind.COOKIE_READER ->
+                            cookieTitle.contains(normalizedQuery, ignoreCase = true) ||
+                                cookieSubtitle.contains(normalizedQuery, ignoreCase = true) ||
+                                "cookie".contains(normalizedQuery, ignoreCase = true)
                     }
-            ) {
-                snapshot.installedPlugins
-            } else {
-                emptyList()
             }
         }
     Column(
@@ -284,8 +318,9 @@ private fun BrowserPluginCenterOverview(
                         currentPageProviders.forEach { projection ->
                             BrowserPluginCurrentPageProviderSection(
                                 projection = projection,
-                                onOpenManager = {
-                                    onOpenUserscriptManager(
+                                onOpenProvider = {
+                                    onOpenPlugin(
+                                        projection.summary.kind,
                                         WebSessionUserscriptWorkbenchTab.CURRENT_PAGE,
                                         normalizedQuery,
                                     )
@@ -306,12 +341,20 @@ private fun BrowserPluginCenterOverview(
                             BrowserPluginCard(
                                 plugin = plugin,
                                 onClick = {
-                                    onOpenUserscriptManager(
+                                    onOpenPlugin(
+                                        plugin.kind,
                                         WebSessionUserscriptWorkbenchTab.INSTALLED,
                                         normalizedQuery,
                                     )
                                 },
-                                onSetRuntimeAllowed = onSetUserScriptsAllowed,
+                                onSetRuntimeAllowed = { enabled ->
+                                    when (plugin.kind) {
+                                        BrowserPluginKind.USERSCRIPT_MANAGER ->
+                                            onSetUserScriptsAllowed(enabled)
+                                        BrowserPluginKind.COOKIE_READER ->
+                                            onSetCookieReaderEnabled(enabled)
+                                    }
+                                },
                             )
                         }
                     }
@@ -360,10 +403,10 @@ private fun BrowserPluginCenterEmptyState(
 @Composable
 private fun BrowserPluginCurrentPageProviderSection(
     projection: BrowserPluginProviderOverview,
-    onOpenManager: () -> Unit,
+    onOpenProvider: () -> Unit,
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenManager),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenProvider),
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surface,
     ) {
@@ -722,7 +765,7 @@ private fun BrowserPluginCard(
                     )
                 }
                 Text(
-                    text = stringResource(R.string.web_session_userscript_plugin_subtitle),
+                    text = pluginSubtitle(plugin.kind),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -730,46 +773,55 @@ private fun BrowserPluginCard(
                 )
                 Text(
                     text =
-                        buildList {
-                            add(
-                                pluralStringResource(
-                                    R.plurals.web_session_plugins_script_count,
-                                    plugin.installedItemCount,
-                                    plugin.installedItemCount,
-                                ),
-                            )
-                            add(
-                                pluralStringResource(
-                                    R.plurals.web_session_plugins_enabled_count,
-                                    plugin.enabledItemCount,
-                                    plugin.enabledItemCount,
-                                ),
-                            )
-                            if (plugin.currentPageItemCount > 0) {
+                        if (plugin.kind == BrowserPluginKind.COOKIE_READER) {
+                            stringResource(R.string.web_session_cookie_reader_card_summary)
+                        } else {
+                            buildList {
                                 add(
-                                    stringResource(
-                                        R.string.web_session_plugins_page_count,
-                                        plugin.currentPageItemCount,
+                                    pluralStringResource(
+                                        R.plurals.web_session_plugins_script_count,
+                                        plugin.installedItemCount,
+                                        plugin.installedItemCount,
                                     ),
                                 )
-                            }
-                            if (plugin.hasPendingInstall) {
-                                add(stringResource(R.string.web_session_plugins_pending_install))
-                            }
-                        }.joinToString(" · "),
+                                add(
+                                    pluralStringResource(
+                                        R.plurals.web_session_plugins_enabled_count,
+                                        plugin.enabledItemCount,
+                                        plugin.enabledItemCount,
+                                    ),
+                                )
+                                if (plugin.currentPageItemCount > 0) {
+                                    add(
+                                        stringResource(
+                                            R.string.web_session_plugins_page_count,
+                                            plugin.currentPageItemCount,
+                                        ),
+                                    )
+                                }
+                                if (plugin.hasPendingInstall) {
+                                    add(stringResource(R.string.web_session_plugins_pending_install))
+                                }
+                            }.joinToString(" · ")
+                        },
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Switch(
-                checked = plugin.runtimeAllowed,
-                onCheckedChange = onSetRuntimeAllowed,
-                enabled =
-                    plugin.availability == BrowserPluginAvailability.AVAILABLE &&
-                        BrowserPluginAction.SET_PLUGIN_PERMISSION in plugin.supportedActions,
-            )
+            if (
+                plugin.kind == BrowserPluginKind.USERSCRIPT_MANAGER ||
+                    plugin.kind == BrowserPluginKind.COOKIE_READER
+            ) {
+                Switch(
+                    checked = plugin.runtimeAllowed,
+                    onCheckedChange = onSetRuntimeAllowed,
+                    enabled =
+                        plugin.availability == BrowserPluginAvailability.AVAILABLE &&
+                            BrowserPluginAction.SET_PLUGIN_PERMISSION in plugin.supportedActions,
+                )
+            }
         }
     }
 }
@@ -779,4 +831,15 @@ private fun pluginTitle(kind: BrowserPluginKind): String =
     when (kind) {
         BrowserPluginKind.USERSCRIPT_MANAGER ->
             stringResource(R.string.web_session_userscript_manager_title)
+        BrowserPluginKind.COOKIE_READER ->
+            stringResource(R.string.web_session_cookie_reader_title)
+    }
+
+@Composable
+private fun pluginSubtitle(kind: BrowserPluginKind): String =
+    when (kind) {
+        BrowserPluginKind.USERSCRIPT_MANAGER ->
+            stringResource(R.string.web_session_userscript_plugin_subtitle)
+        BrowserPluginKind.COOKIE_READER ->
+            stringResource(R.string.web_session_cookie_reader_subtitle)
     }

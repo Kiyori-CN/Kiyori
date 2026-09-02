@@ -193,7 +193,7 @@ Browser、Mini App 与 Files 使用 `0.42` 阻尼扩大黄色填充的动画峰�
 
 旧 `kiyori-android` 的 `HomeLandingSearch.kt` 只作为交互结构参考。当前 Search/AI 是同一个搜索框内的两种入口语义，不共享结果页：选项只切换模式，主框再按模式进入网页搜索或 AI 首页；两项在同一个圆角边框内严格等宽，不分别绘制外部按钮轮廓。
 
-软件首页或天气提交不会覆盖正在浏览的活动窗口，由 `BrowserPresentationCoordinator.openSearchResultInNewSession` 在唯一 Browser Runtime 中创建并激活带明确搜索来源的 WebSession，随后进入 Browser Home。软件首页和浏览器顶栏共用强制显示的浏览 Profile 控件，睁眼表示普通、闭眼表示无痕；控件不绘制边框、底色或阴影，切换后只显示短时 `inverseSurface/inverseOnSurface` 反馈，随亮暗主题保持反相高对比。浏览器顶栏搜索在所选 Profile 与活动窗口一致时继续当前窗口，不一致时创建对应 Profile 的新 WebSession；两条路径都记录 `BROWSER_HOME` 来源，搜索历史重开记录 `SEARCH_HISTORY` 来源。全屏搜索首行直接复用 Browser Home 的 `8dp` 横纵边距、`6dp` 三槽间距、`40dp` 两侧动作区和搜索框宽度；输入框单行基准高 `42dp`，保持顶部与宽度不变，在一至三行内自动换行并平滑向下增高，超过三行后只纵向滚动。全屏搜索框只显示选中引擎图标；左右动作和引擎按钮始终沿输入框垂直中心同步移动。引擎面板覆盖搜索页内容，当前网页区显示标题和网址并提供复制/编辑动作，搜索历史以 `FlowRow` 标签展示。垃圾桶进入编辑模式后，标签叉号只暂存单条删除并由“完成”提交；“清空”显示底部确认框，确认后直接清空共享历史并退出编辑模式。普通搜索记录写入共享 `WebSessionHistoryStore`，无痕搜索与网页访问、标题更新均不写入共享历史；AI `browser_tabs list` 可立即发现两类窗口。
+软件首页或天气提交不会覆盖正在浏览的活动窗口，由 `BrowserPresentationCoordinator.openSearchResultInNewSession` 在唯一 Browser Runtime 中创建并激活带明确搜索来源的 WebSession，随后进入 Browser Home。软件首页和浏览器顶栏共用强制显示的浏览 Profile 控件，睁眼表示普通、闭眼表示无痕；控件不绘制边框、底色或阴影，切换后只显示短时 `inverseSurface/inverseOnSurface` 反馈，随亮暗主题保持反相高对比。浏览器顶栏搜索在所选 Profile 与活动窗口一致时继续当前窗口，不一致时创建对应 Profile 的新 WebSession；两条路径都记录 `BROWSER_HOME` 来源，搜索历史重开记录 `SEARCH_HISTORY` 来源。全屏搜索首行直接复用 Browser Home 的 `8dp` 横纵边距、`6dp` 三槽间距、`40dp` 两侧动作区和搜索框宽度；输入框单行基准高 `42dp`，保持顶部与宽度不变，在一至三行内自动换行并平滑向下增高，超过三行后只纵向滚动。全屏搜索首行顶部对齐并固定为返回、输入框、搜索三槽，返回与搜索动作保持与浏览器顶栏相同的绝对槽位，只有输入框下缘随行数向下移动。输入卡内部的引擎按钮、条件清除叉号、占位符和输入文本在当前卡高内垂直居中，清除动作使用 `32dp` 槽以释放横向输入空间；真实 Profile 动作移动到“搜索历史”标题右侧的固定 `34dp` 标题槽。全屏搜索框只显示选中引擎图标。引擎面板覆盖搜索页内容，当前网页区显示标题和网址并提供复制/编辑动作，搜索历史以 `FlowRow` 标签展示。垃圾桶进入编辑模式后，标签叉号只暂存单条删除并由“完成”提交；“清空”显示底部确认框，确认后直接清空共享历史并退出编辑模式。普通搜索记录写入共享 `WebSessionHistoryStore`，无痕搜索与网页访问、标题更新均不写入共享历史；AI `browser_tabs list` 可立即发现两类窗口。
 
 `WebSessionBrowserSearchScreen` 的系统 Back owner 是每个宿主必须显式传入的参数。软件首页
 Full-Screen Web Search 是当前可见 Shell child，固定传入 `true`；Browser Home 内的搜索页
@@ -208,7 +208,8 @@ Full-Screen Web Search 是当前可见 Shell child，固定传入 `true`；Brows
 关闭搜索页并返回已挂载的活动 WebView，不调用 `loadUrl` 或 `reload`。
 
 Browser Home 右侧动作固定为刷新：加载期间仍显示刷新图标，点击始终重新加载活动 WebView，不复用停止
-加载语义。返回、刷新和全屏搜索 Profile 动作共用圆形裁剪的按压反馈，不绘制正方形水波区域。
+加载语义。返回、刷新和全屏搜索 Profile 动作共用 `BrowserChromeIconButton` 的裁剪按压反馈，
+不绘制正方形水波区域；Profile 在全屏搜索历史标题行中使用标题行专用的 `34dp` 槽位。
 
 Browser Home 在文本搜索提交后保存最后一次 query 的 presentation 状态，并在顶栏下方显示可横向滚动
 的九引擎切换条。点击其他引擎会更新 `WebSessionHistoryStore` 的当前引擎，并在活动 Profile 中用同一

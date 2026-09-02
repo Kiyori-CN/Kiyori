@@ -106,8 +106,11 @@ Phase 0 的 Android 真机验收继续保持待验证。Provider、UI、私有�
 - 编辑器复用 `NativeCodeEditor`，作为浏览器内全屏子页面提供查找替换、撤销重做、结构化 metadata、
   Terser 语法与格式化、权限检查、统一源码差异和显式“应用更改”
 
-当前 Browser Plugin Center 的顶层 Provider 仍只有内置 userscript provider。`.kbx`、catalog、
-WebExtension 与 QuickJS background worker 仍属于后续阶段，不能从当前管理 UI 推断为已支持。
+当前 Browser Plugin Center 的顶层 Provider 包含内置 userscript provider 和只读 Cookie Reader
+provider。Cookie Reader 只复用活动 `BrowserToolSession` 的 Profile-bound `CookieManager`，按当前
+`http(s)` 页面读取 WebView 返回的 Cookie Header，不持久化 Cookie 内容，也不提供 Chromium
+`cookies` API 的逐条域/路径、HttpOnly 或分区字段。`.kbx`、catalog、WebExtension 与 QuickJS
+background worker 仍属于后续阶段，不能从当前管理 UI 推断为已支持。
 
 ### 3.2 hikerView 参考边界
 
@@ -1362,6 +1365,16 @@ worker 在事件完成且无 pending job、timer 或 host call 后进入 IDLE，
 - 最近错误
 
 页面导航后旧 document 的状态立即失效。
+
+Cookie Reader 是内置的只读 Provider，默认开启并拥有独立的持久化运行开关：活动页面使用
+`http://` 或 `https://` 且开关开启时显示一个 Provider 级入口，点击后进入 Cookie 子路由。
+子路由读取同一活动 `BrowserToolSession.cookieManager` 的 `getCookie(currentUrl)` 结果，按 Header
+的 `name=value` 项展示并提供用户主动复制和重新读取。关闭开关会移除“本页”投影、清空进程内
+Cookie UI 状态并阻止读取；Cookie 子路由显示关闭状态，刷新按钮不可用。Cookie 查询在现有 IO
+scope 执行，回写前校验请求时的 Session、URL 和开关仍然有效，因此不会阻塞浏览器主线程，
+也不会触发页面导航或 reload；Cookie 内容只存在于 Host 的进程内 UI 状态。`about:`、文件页和
+其他非 HTTP(S) 页面明确显示不支持。Cookie 不进入 registry、诊断、历史或磁盘。因为 Android
+WebView 没有 Chromium `cookies` API 的完整逐条元数据，UI 不伪造 HttpOnly、分区、域名或路径字段。
 
 ### 20.5 已安装
 

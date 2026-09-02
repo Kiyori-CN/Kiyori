@@ -63,6 +63,7 @@ import com.ai.assistance.operit.core.player.PlayerPresentation
 import com.ai.assistance.operit.core.player.PlayerSession
 import com.ai.assistance.operit.core.player.PlayerSessionState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserPluginKind
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDiagnosticScope
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadPromptState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadRenameMode
@@ -197,6 +198,8 @@ internal fun WebSessionBrowserScreen(
     onDiscardPageSourceDraftAndClose: () -> Unit,
     onDismissPageSourceExitPrompt: () -> Unit,
     onOpenPlugins: () -> Unit,
+    onRefreshCookies: () -> Unit,
+    onSetCookieReaderEnabled: (Boolean) -> Unit,
     onImportUserscript: () -> Unit,
     onInstallUserscriptFromUrl: (String) -> Unit,
     onConfirmUserscriptInstall: () -> Unit,
@@ -1072,6 +1075,8 @@ internal fun WebSessionBrowserScreen(
                             onHostStateChange = onHostStateChange,
                             hostState = hostState,
                             onImportUserscript = onImportUserscript,
+                            onRefreshCookies = onRefreshCookies,
+                            onSetCookieReaderEnabled = onSetCookieReaderEnabled,
                             onInstallUserscriptFromUrl = onInstallUserscriptFromUrl,
                             onConfirmUserscriptInstall = onConfirmUserscriptInstall,
                             onCancelUserscriptInstall = onCancelUserscriptInstall,
@@ -1524,6 +1529,8 @@ private fun WebSessionBrowserDrawerContent(
     onHostStateChange: ((WebSessionBrowserHostState) -> WebSessionBrowserHostState) -> Unit,
     hostState: WebSessionBrowserHostState,
     onImportUserscript: () -> Unit,
+    onRefreshCookies: () -> Unit,
+    onSetCookieReaderEnabled: (Boolean) -> Unit,
     onInstallUserscriptFromUrl: (String) -> Unit,
     onConfirmUserscriptInstall: () -> Unit,
     onCancelUserscriptInstall: () -> Unit,
@@ -1632,20 +1639,29 @@ private fun WebSessionBrowserDrawerContent(
                 route = hostState.currentPluginRoute,
                 userscriptState = userscriptUiState,
                 currentPageMenuCommands = browserState.userscriptMenuCommands,
-                onOpenUserscriptManager = { initialTab, initialSearchQuery ->
+                currentPageUrl = browserState.currentUrl,
+                cookieState = hostState.cookieState,
+                cookieReaderEnabled = browserSettings.cookieReaderEnabled,
+                onOpenPlugin = { kind, initialTab, initialSearchQuery ->
                     onHostStateChange { current ->
-                        current.copy(
-                            pluginRouteStack =
-                                pushBrowserPluginRoute(
-                                    current.pluginRouteStack,
+                        val route =
+                            when (kind) {
+                                BrowserPluginKind.USERSCRIPT_MANAGER ->
                                     WebSessionBrowserPluginRoute.Userscripts(
                                         initialTab = initialTab,
                                         initialSearchQuery = initialSearchQuery,
-                                    ),
-                                ),
+                                    )
+                                BrowserPluginKind.COOKIE_READER ->
+                                    WebSessionBrowserPluginRoute.CookieReader
+                            }
+                        current.copy(
+                            pluginRouteStack =
+                                pushBrowserPluginRoute(current.pluginRouteStack, route),
                         )
                     }
                 },
+                onRefreshCookies = onRefreshCookies,
+                onSetCookieReaderEnabled = onSetCookieReaderEnabled,
                 onOpenUserscriptDetail = { scriptId ->
                     onHostStateChange { current ->
                         current.copy(

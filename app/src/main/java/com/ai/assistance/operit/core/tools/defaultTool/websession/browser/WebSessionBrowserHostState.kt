@@ -39,6 +39,9 @@ internal sealed interface WebSessionBrowserPluginRoute {
     data object Overview : WebSessionBrowserPluginRoute
 
     @Immutable
+    data object CookieReader : WebSessionBrowserPluginRoute
+
+    @Immutable
     data class Userscripts(
         val initialTab: WebSessionUserscriptWorkbenchTab = WebSessionUserscriptWorkbenchTab.CURRENT_PAGE,
         val initialSearchQuery: String = "",
@@ -57,6 +60,14 @@ internal sealed interface WebSessionBrowserPluginRoute {
         val scriptId: Long?,
     ) : WebSessionBrowserPluginRoute
 }
+
+@Immutable
+internal data class BrowserCookieUiState(
+    val targetUrl: String = "",
+    val header: String? = null,
+    val errorMessage: String? = null,
+    val updatedAt: Long? = null,
+)
 
 internal enum class WebSessionBrowserPlaceholderPage {
     TOOLBOX,
@@ -446,6 +457,7 @@ internal data class WebSessionBrowserHostState(
     val pluginRouteStack: List<WebSessionBrowserPluginRoute> =
         listOf(WebSessionBrowserPluginRoute.Overview),
     val pluginEditorExitPromptDraftId: String? = null,
+    val cookieState: BrowserCookieUiState = BrowserCookieUiState(),
     val selectedProfile: WebSessionProfile = WebSessionProfile.NORMAL,
     val placeholderPage: WebSessionBrowserPlaceholderPage? = null,
     val siteConfigDomain: String? = null,
@@ -550,6 +562,11 @@ internal fun browserPluginRouteStackFor(
     when (route) {
         WebSessionBrowserPluginRoute.Overview ->
             listOf(WebSessionBrowserPluginRoute.Overview)
+        WebSessionBrowserPluginRoute.CookieReader ->
+            listOf(
+                WebSessionBrowserPluginRoute.Overview,
+                WebSessionBrowserPluginRoute.CookieReader,
+            )
         is WebSessionBrowserPluginRoute.Userscripts ->
             listOf(
                 WebSessionBrowserPluginRoute.Overview,

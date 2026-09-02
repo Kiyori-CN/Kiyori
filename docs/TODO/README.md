@@ -1072,6 +1072,42 @@ Kiyori 尚未发布，本轮删除 Toolbox 中的文件管理器与协议可见 
   `com.ai.assistance.operit.ui.main.MainActivity`，`arm64-v8a`，Android Debug V2 单签名，
   `zipalign -c -P 16 -v 4` 通过。
 
+## 2026-09-02 全屏搜索顶栏动作位置与首行几何修正
+
+状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。
+本轮继续复用 [`软件首页与全屏网页搜索`](kiyori_browser_product_completion/2_software_home_and_fullscreen_search.md)
+作为唯一状态载体，只修正未发布全屏搜索顶行和历史标题动作的 Compose 几何，不改变搜索、Profile、
+历史或 Browser Runtime 语义。
+
+细化计划：
+
+1. [DONE] 对照 Browser Home 顶栏冻结 `8dp / 6dp / 40dp / 42dp` 外层几何并定位空输入被撑高根因
+2. [DONE] 顶行改为顶部锚定，固定返回/搜索绝对槽位，输入卡只向下扩展至最多三行
+3. [DONE] 将搜索动作移到输入卡外，输入卡内仅保留引擎与清除动作；无痕动作紧邻“搜索历史”标题
+4. [DONE] 让输入卡内部引擎、清除和文本在一至三行高度内垂直居中，清除动作保持 `32dp` 槽
+5. [DONE] 更新搜索 policy 回归、架构说明、`CONTEXT.md` 与专项 TODO
+6. [DONE] 定向 JVM、Kotlin 编译、`git diff --check` 与 formal readiness
+7. [DONE] 串行 Debug APK 构建、产物审计、完整工作树提交与 `origin/main` 对账
+8. [PENDING DEVICE] 真机视觉、输入法、长文本滚动和触控保持 `verification_pending`
+
+本轮本地交付证据：
+
+- `WebSessionSearchUiPolicyTest` 与 `WebSessionBrowserChromeLayoutTest` 定向测试通过，
+  `:app:compileDebugKotlin` 通过；`git diff --check` 与
+  `python -B ci/script/check_formal_readiness.py --repository . --require-main` 通过。
+- `./gradlew :app:assembleDebug --no-daemon --console=plain`：`BUILD SUCCESSFUL in 47s`，
+  `235` 个任务中 `23` 个实际执行、`212` 个为最新状态；唯一 launcher、脚本代理 runtime 和
+  播放器 runtime packaging 校验通过。
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，生成于
+  `2026-09-02 14:32:45 +08:00`，大小 `503705425` bytes，SHA-256
+  `517D041EAEA31EAE9ABEFA1980B03712601E508515F5718287B30C22786F5624`。
+  `aapt` 核验为 `com.kiyori / 45 / 0.1.0 / minSdk 26 / targetSdk 34 / compileSdk 37`、
+  唯一 launcher `com.ai.assistance.operit.ui.main.MainActivity`、仅 `arm64-v8a`；
+  `apksigner` 为 Android Debug V2 单 signer，`zipalign -c -P 16 -v 4` 为
+  `Verification successful`。
+- 本轮已获授权将当前工作树中此前未提交的 Cookie Reader/插件中心改动及本轮搜索顶栏改动一并
+  提交并推送到 `origin/main`；未安装 APK 或操作设备，真机视觉、输入法、长文本滚动和触控仍待验收。
+
 ## 2026-08-20 全屏搜索页网址行与历史操作尺寸微调
 
 状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEVICE VERIFICATION PENDING`。本轮继续复用

@@ -115,6 +115,33 @@ Android Debug V2 签名与 16 KiB page-size 对齐检查均通过。
   网站范围、诊断与日志四项，工作台的已安装/更新/日志页签不再重复成为设置入口；权限列表的脚本条目
   直达对应 userscript 详情
 
+## 2.5 网页 Cookie 内置插件（2026-09-02）
+
+状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。
+
+- 插件中心新增内置 `kiyori.browser.cookie` Provider 和“网页 Cookie”子路由；Cookie Reader 默认开启，
+  拥有独立持久化开关。“本页”仅在开关开启且活动页面为 `http://` 或 `https://` 时显示，已安装列表
+  始终显示该内置插件并显示开关状态。
+- Cookie Reader 复用活动 `BrowserToolSession.cookieManager`，普通 Profile 与无痕 Profile 的 Cookie
+  数据保持 WebView Profile 隔离；读取结果只保存在进程内 Host UI 状态，不进入 userscript registry、
+  浏览器诊断日志、历史、下载或任何磁盘文件。
+- 工作区按 Android WebView `CookieManager.getCookie(url)` 返回的 Header 展示 `name=value` 条目，
+  只通过用户主动刷新读取并支持复制整段 Header；Cookie 值不会写入日志。关闭开关后不读取并清空
+  进程内 Cookie UI 状态。读取在现有 IO scope 执行，回写前校验 Session、URL 与开关，且不调用
+  `loadUrl()`、`reload()` 或其他网页导航动作，因此不会因页面 URL 变化反复读取或阻塞 WebView 主线程。
+  Android WebView 不提供 Chromium `cookies` API 的 HttpOnly、分区和逐条域/路径枚举信息，因此 UI
+  不伪造这些字段。
+- `BrowserCookieReaderTest`（4 tests，0 failures）覆盖 http(s) 页面策略、关闭开关后的 Provider
+  投影和值中包含 `=` 的 Header 解析；插件 Provider 与 Cookie 路由 Back 栈纳入现有定向回归。
+- 本轮不提供 Cookie 写入、删除、导入、跨域读取或第二 Cookie 状态源；真实 WebView Cookie、无痕
+  Profile 和设备触摸验收仍需在目标 Android 设备执行。
+- Debug 构建命令 `./gradlew.bat :app:assembleDebug --no-daemon --console=plain` 于 2026-09-02
+  通过（`BUILD SUCCESSFUL in 1m 32s`，`235 actionable tasks: 23 executed, 212 up-to-date`）。产物为
+  `app/build/outputs/apk/debug/app-debug.apk`，大小 `503705425` bytes，SHA-256
+  `1F97F140DA18C51C7873EAC564C72D363FD25D7547E2D801D22B4EFE425FED90`；包名/版本为
+  `com.kiyori / 45 / 0.1.0`，`minSdk 26`、`targetSdk 34`、仅包含 `arm64-v8a`，Android Debug
+  V2 单 signer 与 16 KiB zipalign 核验通过。
+
 ## 3. 全局不变量
 
 - [x] 不创建第二个 Browser Runtime、WebSession registry 或 active session owner
