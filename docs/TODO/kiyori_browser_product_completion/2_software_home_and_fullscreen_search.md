@@ -1,10 +1,10 @@
 # 软件首页与全屏网页搜索
 
-> 状态：本地实现与定向 JVM 测试已验证，正式门禁和 Debug APK 正在本轮收口；本轮修改将随当前工作树提交并推送，真机视觉、输入法和转场保持待验收。
+> 状态：本地实现、定向 JVM 测试、正式开发门禁与 Debug APK 已验证；本轮修改已提交并推送，真机视觉、输入法和转场保持待验收。
 
 ## 2026-09-02 全屏搜索与浏览器交互续接修复计划
 
-状态：`IMPLEMENTED / AUTOMATED VALIDATION IN PROGRESS / DEVICE VERIFICATION PENDING`。
+状态：`IMPLEMENTED / AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。
 
 本轮范围限定为四个相互独立但共享 Browser Runtime 投影的用户行为：
 
@@ -23,6 +23,13 @@
 网页导航历史、无痕 Profile 语义或其他浏览器设置。通过定向 JVM 回归、`git diff --check`、formal
 readiness 和串行 Debug APK 构建后，真实设备上的像素、输入法、边缘触摸、旋转和 WebView Cookie
 现场验证仍保持 `verification_pending`。
+
+本轮最终验证与交付证据：
+
+- 定向 `:app:testDebugUnitTest` 覆盖全屏搜索几何、切换条 recovery、浏览器边缘手势和网页 Cookie/浏览器设置相关套件，`BUILD SUCCESSFUL`；正式开发门禁 `check_formal_readiness.py --require-main` 通过，`git diff --check` 通过。
+- `./gradlew :app:assembleDebug --no-daemon --console=plain` 通过（235 tasks，23 executed）；Gradle 内置的唯一 Debug launcher、脚本代理 runtime 和播放器 runtime packaging 检查均通过。
+- Debug APK `app/build/outputs/apk/debug/app-debug.apk`：503705425 bytes，SHA-256 `FE7F67FE2606ED58F7487F2A365FAB871352DA9CDE0BC02A9A84747F5C43880B`；包 `com.kiyori`，versionCode/versionName `45 / 0.1.0`，min/target SDK `26 / 34`，仅 `arm64-v8a` 的 53 个 native 库，唯一 launcher `com.ai.assistance.operit.ui.main.MainActivity`，Android Debug V2 单 signer，`zipalign -c -P 16 -v 4` 通过。
+- 提交 `79e14b234` 已推送到 `origin/main`；工作树保持干净。真实设备上的像素、IME、多行滚动、边缘触摸、旋转、Cookie 普通/无痕 Profile 行为仍需现场验收。
 
 ## 2026-09-02 全屏搜索顶栏首行几何修正
 
