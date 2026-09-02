@@ -392,7 +392,9 @@ MarkdownSession* createMarkdownBlockSession() {
     plugins.push_back({std::make_unique<StreamMarkdownBlockBracketLaTeXPlugin>(true), MD_BLOCK_LATEX});
     plugins.push_back({std::make_unique<StreamMarkdownTablePlugin>(true), MD_TABLE});
     plugins.push_back({std::make_unique<StreamMarkdownImagePlugin>(true), MD_IMAGE});
-    plugins.push_back({std::make_unique<StreamXmlPlugin>(true), MD_XML_BLOCK});
+    // Chat protocol tags may follow prose without a newline. Unknown
+    // XML-looking prose remains anchored so it is not stolen from Markdown.
+    plugins.push_back({std::make_unique<StreamXmlPlugin>(true, true), MD_XML_BLOCK});
     return new MarkdownSession(std::move(plugins));
 }
 
@@ -428,7 +430,9 @@ std::vector<Segment> splitByXml(const jchar* chars, int len) {
     std::vector<Segment> segments;
     segments.reserve(32);
 
-    StreamXmlPlugin xmlPlugin(true);
+    // Structured assistant content can place known protocol tags directly after prose.
+    // Keep unknown XML-looking text anchored inside the plugin itself.
+    StreamXmlPlugin xmlPlugin(true, true);
     xmlPlugin.initPlugin();
 
     StreamPlugin* activePlugin = nullptr;

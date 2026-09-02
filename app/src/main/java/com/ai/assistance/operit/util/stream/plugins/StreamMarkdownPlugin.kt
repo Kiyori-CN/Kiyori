@@ -1253,23 +1253,42 @@ class StreamMarkdownBlockLaTeXPlugin(private val includeDelimiters: Boolean = tr
             StreamKmpGraphBuilder().build(kmpPattern { literal("$$") })
     private var endMatcher: StreamKmpGraph =
             StreamKmpGraphBuilder().build(kmpPattern { literal("$$") })
+    private var linePrefixOnly = true
+
+    private fun advanceLinePrefix(c: Char) {
+        linePrefixOnly = when {
+            c == '\n' -> true
+            linePrefixOnly && (c == ' ' || c == '\t') -> true
+            else -> false
+        }
+    }
 
     override fun processChar(c: Char, atStartOfLine: Boolean): Boolean {
+        if (atStartOfLine) {
+            linePrefixOnly = true
+        }
         if (state == PluginState.PROCESSING) {
             // 处理结束匹配符
             when (endMatcher.processChar(c)) {
                 is StreamKmpMatchResult.Match -> {
                     reset()
+                    linePrefixOnly = false
                     return includeDelimiters
                 }
                 is StreamKmpMatchResult.InProgress -> return includeDelimiters
                 is StreamKmpMatchResult.NoMatch -> return true
             }
         } else { // IDLE或TRYING
+            if (state == PluginState.IDLE && !linePrefixOnly) {
+                advanceLinePrefix(c)
+                startMatcher.reset()
+                return true
+            }
             // 处理开始匹配符
             when (startMatcher.processChar(c)) {
                 is StreamKmpMatchResult.Match -> {
                     state = PluginState.PROCESSING
+                    linePrefixOnly = false
                     endMatcher.reset()
                     startMatcher.reset()
                     return includeDelimiters
@@ -1282,6 +1301,7 @@ class StreamMarkdownBlockLaTeXPlugin(private val includeDelimiters: Boolean = tr
                     if (state == PluginState.TRYING) {
                         reset()
                     }
+                    advanceLinePrefix(c)
                     return true
                 }
             }
@@ -1300,6 +1320,7 @@ class StreamMarkdownBlockLaTeXPlugin(private val includeDelimiters: Boolean = tr
         state = PluginState.IDLE
         startMatcher.reset()
         endMatcher.reset()
+        linePrefixOnly = true
     }
 }
 
@@ -1316,23 +1337,42 @@ class StreamMarkdownBlockBracketLaTeXPlugin(private val includeDelimiters: Boole
             StreamKmpGraphBuilder().build(kmpPattern { literal("\\[") })
     private var endMatcher: StreamKmpGraph =
             StreamKmpGraphBuilder().build(kmpPattern { literal("\\]") })
+    private var linePrefixOnly = true
+
+    private fun advanceLinePrefix(c: Char) {
+        linePrefixOnly = when {
+            c == '\n' -> true
+            linePrefixOnly && (c == ' ' || c == '\t') -> true
+            else -> false
+        }
+    }
 
     override fun processChar(c: Char, atStartOfLine: Boolean): Boolean {
+        if (atStartOfLine) {
+            linePrefixOnly = true
+        }
         if (state == PluginState.PROCESSING) {
             // 处理结束匹配符
             when (endMatcher.processChar(c)) {
                 is StreamKmpMatchResult.Match -> {
                     reset()
+                    linePrefixOnly = false
                     return includeDelimiters
                 }
                 is StreamKmpMatchResult.InProgress -> return includeDelimiters
                 is StreamKmpMatchResult.NoMatch -> return true
             }
         } else { // IDLE或TRYING
+            if (state == PluginState.IDLE && !linePrefixOnly) {
+                advanceLinePrefix(c)
+                startMatcher.reset()
+                return true
+            }
             // 处理开始匹配符
             when (startMatcher.processChar(c)) {
                 is StreamKmpMatchResult.Match -> {
                     state = PluginState.PROCESSING
+                    linePrefixOnly = false
                     endMatcher.reset()
                     startMatcher.reset()
                     return includeDelimiters
@@ -1345,6 +1385,7 @@ class StreamMarkdownBlockBracketLaTeXPlugin(private val includeDelimiters: Boole
                     if (state == PluginState.TRYING) {
                         reset()
                     }
+                    advanceLinePrefix(c)
                     return true
                 }
             }
@@ -1363,6 +1404,7 @@ class StreamMarkdownBlockBracketLaTeXPlugin(private val includeDelimiters: Boole
         state = PluginState.IDLE
         startMatcher.reset()
         endMatcher.reset()
+        linePrefixOnly = true
     }
 }
 

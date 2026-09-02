@@ -226,15 +226,62 @@ class CustomXmlRenderer(
     /** 检查XML标签是否完全闭合。 支持标准配对标签 (<tag>...</tag>) 和自闭合标签 (<tag/>)。 */
     private fun isXmlFullyClosed(content: String): Boolean {
         val tagName = extractRawTagName(content) ?: return false
+        val trimmedContent = content.trimEnd()
+        val openingTagStart = content.indexOf('<')
+        val openingTagEnd =
+            if (openingTagStart >= 0) {
+                findXmlOpeningTagEnd(content, openingTagStart)
+            } else {
+                -1
+            }
 
-        // 处理自闭合标签，例如 <status type="completion"/>
-        if (content.endsWith("/>")) {
+        // 只把起始标签自身的 "/>" 视为自闭合。若仅检查整个片段的尾部，工具
+        // JSON/命令文本里偶然出现的 "/>" 会把未闭合 XML 错判为完成态。
+        if (
+            openingTagEnd >= 0 &&
+                content.substring(openingTagStart, openingTagEnd + 1).trimEnd().endsWith("/>")
+        ) {
             return true
         }
 
-        // 处理标准配对标签
+        // 只把位于整个片段末尾的配对标签视为闭合。此前使用 contains()
+        // 会把工具参数/JSON 中偶然出现的同名字符串当成闭合边界，导致流式
+        // 内容过早进入完成态并把后续特殊字符送入错误的渲染路径。
         val closeTag = "</$tagName>"
-        return content.contains(closeTag)
+        return trimmedContent.endsWith(closeTag, ignoreCase = true)
+    }
+
+    /** 查找起始标签结束位置，忽略属性引号内部的 `>`。 */
+    private fun findXmlOpeningTagEnd(content: String, startIndex: Int): Int {
+        var quote: Char? = null
+        for (index in startIndex until content.length) {
+            val character = content[index]
+            if (quote != null) {
+                if (character == quote) {
+                    quote = null
+                }
+            } else {
+                when (character) {
+                    '\"', '\'' -> quote = character
+                    '>' -> return index
+                }
+            }
+        }
+        return -1
+    }
+
+    private fun findLastIgnoreCase(content: String, value: String): Int {
+        var result = -1
+        var searchStart = 0
+        while (searchStart <= content.length - value.length) {
+            val match = content.indexOf(value, searchStart, ignoreCase = true)
+            if (match < 0) {
+                break
+            }
+            result = match
+            searchStart = match + 1
+        }
+        return result
     }
 
     /** 从XML内容中提取纯文本内容 */
@@ -248,19 +295,20 @@ class CustomXmlRenderer(
                 rawTagName
             }
         val startTag = "<$effectiveTagName"
-        val startTagIndex = content.indexOf(startTag)
+        val startTagIndex = content.indexOf(startTag, ignoreCase = true)
         if (startTagIndex < 0) {
             return content
         }
 
-        // 起始标签本身必须完整；如果连 '>' 都没有，保留原始内容以等待后续片段。
-        val startTagEnd = content.indexOf('>', startTagIndex)
+        // 起始标签本身必须完整；属性引号中的 `>` 不是标签边界。如果连真正的
+        // `>` 都没有，保留原始内容以等待后续片段。
+        val startTagEnd = findXmlOpeningTagEnd(content, startTagIndex)
         if (startTagEnd < 0) {
             return content
         }
 
         val endTag = "</$effectiveTagName>"
-        val endIndex = content.lastIndexOf(endTag)
+        val endIndex = findLastIgnoreCase(content, endTag)
         val contentEndExclusive =
             if (endIndex > startTagEnd) {
                 endIndex
@@ -304,19 +352,9 @@ class CustomXmlRenderer(
     /** 渲染 <search> 标签内容 (Google Search Grounding 来源) */
     @Composable
     private fun renderSearchContent(content: String, modifier: Modifier, textColor: Color) {
-        val startTag = "<search>"
-        val endTag = "</search>"
-        val startIndex = content.indexOf(startTag) + startTag.length
-
-        // 提取搜索来源内容
-        val searchText =
-                if (content.contains(endTag)) {
-                    val endIndex = content.lastIndexOf(endTag)
-                    content.substring(startIndex, endIndex).trim()
-                } else {
-                    // 没有结束标签，直接使用startIndex后的所有内容
-                    content.substring(startIndex).trim()
-                }
+        // 统一走带属性引号感知的 XML 内容提取，避免 `<search query="a > b">`
+        // 把 `>` 误当成起始标签边界并丢失搜索正文。
+        val searchText = extractContentFromXml(content, "search").trim()
 
         var expanded by remember { mutableStateOf(false) }  // 默认收起
 
@@ -371,7 +409,7 @@ class CustomXmlRenderer(
         xmlStream: Stream<String>?
     ) {
         val tagName =
-            if (content.contains("<thinking")) "thinking" else "think"
+            if (content.contains("<thinking", ignoreCase = true)) "thinking" else "think"
 
         var expandThinkingProcess by rememberLocal(key = "expand_thinking_process_default", defaultValue = false)
         // 仅在"流仍然存在"且标签未闭合时，才判定为进行中。
@@ -673,6 +711,7 @@ class CustomXmlRenderer(
     ): Stream<Char> = stream {
         val endTag = "</$tagName>"
         var startTagClosed = false
+        var openingTagQuote: Char? = null
         var reachedEndTag = false
         val tailBuffer = StringBuilder()
 
@@ -681,8 +720,15 @@ class CustomXmlRenderer(
                 if (reachedEndTag) return@forEach
 
                 if (!startTagClosed) {
-                    if (ch == '>') {
-                        startTagClosed = true
+                    if (openingTagQuote != null) {
+                        if (ch == openingTagQuote) {
+                            openingTagQuote = null
+                        }
+                    } else {
+                        when (ch) {
+                            '\"', '\'' -> openingTagQuote = ch
+                            '>' -> startTagClosed = true
+                        }
                     }
                     return@forEach
                 }
@@ -694,7 +740,9 @@ class CustomXmlRenderer(
                     tailBuffer.deleteCharAt(0)
                 }
 
-                if (tailBuffer.length == endTag.length && tailBuffer.toString() == endTag) {
+                if (tailBuffer.length == endTag.length &&
+                    tailBuffer.toString().equals(endTag, ignoreCase = true)
+                ) {
                     tailBuffer.setLength(0)
                     reachedEndTag = true
                 }

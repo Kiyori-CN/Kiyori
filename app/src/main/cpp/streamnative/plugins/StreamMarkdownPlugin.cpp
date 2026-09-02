@@ -1054,9 +1054,22 @@ void StreamMarkdownBlockLaTeXPlugin::reset() {
     state_ = PluginState::IDLE;
     startState_ = 0;
     endState_ = 0;
+    linePrefixOnly_ = true;
 }
 
-bool StreamMarkdownBlockLaTeXPlugin::processChar(char16_t c, bool /*atStartOfLine*/) {
+void StreamMarkdownBlockLaTeXPlugin::advanceLinePrefix(char16_t c) {
+    if (c == u'\n') {
+        linePrefixOnly_ = true;
+    } else if (!(linePrefixOnly_ && (c == u' ' || c == u'\t'))) {
+        linePrefixOnly_ = false;
+    }
+}
+
+bool StreamMarkdownBlockLaTeXPlugin::processChar(char16_t c, bool atStartOfLine) {
+    if (atStartOfLine) {
+        linePrefixOnly_ = true;
+    }
+
     if (state_ == PluginState::PROCESSING) {
         if (endState_ == 0) {
             if (c == u'$') {
@@ -1068,6 +1081,7 @@ bool StreamMarkdownBlockLaTeXPlugin::processChar(char16_t c, bool /*atStartOfLin
         if (endState_ == 1) {
             if (c == u'$') {
                 reset();
+                linePrefixOnly_ = false;
                 return includeDelimiters_;
             }
             endState_ = 0;
@@ -1078,11 +1092,15 @@ bool StreamMarkdownBlockLaTeXPlugin::processChar(char16_t c, bool /*atStartOfLin
     }
 
     if (startState_ == 0) {
-        if (c == u'$') {
+        // $$ is a block delimiter. Restrict its opening edge to the current
+        // line prefix so shell snippets such as "kill -9 $$" stay plain text.
+        if (c == u'$' && linePrefixOnly_) {
             startState_ = 1;
             state_ = PluginState::TRYING;
+            linePrefixOnly_ = false;
             return includeDelimiters_;
         }
+        advanceLinePrefix(c);
         return true;
     }
     if (startState_ == 1) {
@@ -1093,6 +1111,7 @@ bool StreamMarkdownBlockLaTeXPlugin::processChar(char16_t c, bool /*atStartOfLin
             return includeDelimiters_;
         }
         reset();
+        advanceLinePrefix(c);
         return true;
     }
 
@@ -1117,9 +1136,22 @@ void StreamMarkdownBlockBracketLaTeXPlugin::reset() {
     state_ = PluginState::IDLE;
     startState_ = 0;
     endState_ = 0;
+    linePrefixOnly_ = true;
 }
 
-bool StreamMarkdownBlockBracketLaTeXPlugin::processChar(char16_t c, bool /*atStartOfLine*/) {
+void StreamMarkdownBlockBracketLaTeXPlugin::advanceLinePrefix(char16_t c) {
+    if (c == u'\n') {
+        linePrefixOnly_ = true;
+    } else if (!(linePrefixOnly_ && (c == u' ' || c == u'\t'))) {
+        linePrefixOnly_ = false;
+    }
+}
+
+bool StreamMarkdownBlockBracketLaTeXPlugin::processChar(char16_t c, bool atStartOfLine) {
+    if (atStartOfLine) {
+        linePrefixOnly_ = true;
+    }
+
     if (state_ == PluginState::PROCESSING) {
         if (endState_ == 0) {
             if (c == u'\\') {
@@ -1131,6 +1163,7 @@ bool StreamMarkdownBlockBracketLaTeXPlugin::processChar(char16_t c, bool /*atSta
         if (endState_ == 1) {
             if (c == u']') {
                 reset();
+                linePrefixOnly_ = false;
                 return includeDelimiters_;
             }
             endState_ = 0;
@@ -1141,11 +1174,15 @@ bool StreamMarkdownBlockBracketLaTeXPlugin::processChar(char16_t c, bool /*atSta
     }
 
     if (startState_ == 0) {
-        if (c == u'\\') {
+        // Like $$, \\[ opens a display block only at a line boundary. This
+        // prevents escaped shell/path text in tool payloads from becoming math.
+        if (c == u'\\' && linePrefixOnly_) {
             startState_ = 1;
             state_ = PluginState::TRYING;
+            linePrefixOnly_ = false;
             return includeDelimiters_;
         }
+        advanceLinePrefix(c);
         return true;
     }
     if (startState_ == 1) {
@@ -1156,6 +1193,7 @@ bool StreamMarkdownBlockBracketLaTeXPlugin::processChar(char16_t c, bool /*atSta
             return includeDelimiters_;
         }
         reset();
+        advanceLinePrefix(c);
         return true;
     }
 

@@ -50,11 +50,26 @@ class StreamXmlPluginTest {
     }
 
     @Test
+    fun testTagWithQuotedAngleBrackets() {
+        val xmlTag = "<status title=\"a > b < c\">"
+        xmlTag.forEach { plugin.processChar(it, false) }
+        assertEquals("Quoted angle brackets must not end the opening tag", PluginState.PROCESSING, plugin.state)
+    }
+
+    @Test
     fun testEndTagRecognition() {
         val fullXml = "<test>content</test>"
         fullXml.forEach { plugin.processChar(it, false) }
 
         assertEquals("Should be in IDLE state after the end tag is found", PluginState.IDLE, plugin.state)
+    }
+
+    @Test
+    fun testEndTagRecognitionIsCaseInsensitive() {
+        val fullXml = "<TEST>content</test>"
+        fullXml.forEach { plugin.processChar(it, false) }
+
+        assertEquals("Closing tag matching should be case insensitive", PluginState.IDLE, plugin.state)
     }
 
     @Test

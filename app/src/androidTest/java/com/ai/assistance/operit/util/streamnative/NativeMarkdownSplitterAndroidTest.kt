@@ -50,6 +50,88 @@ class NativeMarkdownSplitterAndroidTest {
     }
 
     @Test
+    fun shellPidExpansionInsideProseDoesNotOpenBlockMath() = runBlocking {
+        val content =
+            "回归 shell 崩溃恢复（exit / kill -9 ${'$'}${'$'} 自动重建）后继续显示正文"
+        val groups = splitBlock(content)
+
+        assertFalse(groups.any { it.first == MarkdownProcessorType.BLOCK_LATEX })
+        assertEquals(content, groups.joinToString("") { it.second })
+    }
+
+    @Test
+    fun indentedDisplayMathStillUsesBlockMath() = runBlocking {
+        val groups =
+            splitBlock(
+                """
+                    ${'$'}${'$'}
+                    x^2+y^2=1
+                    ${'$'}${'$'}
+                """.trimIndent()
+            )
+
+        assertTrue(groups.any { it.first == MarkdownProcessorType.BLOCK_LATEX })
+    }
+
+    @Test
+    fun protocolToolBlocksStayXmlWhenAttachedToProseAndContainSpecialSymbols() = runBlocking {
+        val content =
+            """|结果紧贴标签<tool_A1 name="package_proxy">
+               |  <param name="params">{&quot;command&quot;:&quot;echo PID=${'$'}${'$'}; printf '\"&lt;&amp;&gt;' &gt; /tmp/out&quot;}</param>
+               |</tool_A1><tool_result_A1 name="super_admin:terminal" status="success">
+               |  <content>{"command":"echo PID=${'$'}${'$'}","output":"&lt;ok&gt;\\n","exitCode":0}</content>
+               |</tool_result_A1>尾部正文
+            """.trimMargin()
+        val groups = splitBlock(content)
+        val xmlGroups = groups.filter { it.first == MarkdownProcessorType.XML_BLOCK }
+
+        assertEquals(2, xmlGroups.size)
+        assertTrue(xmlGroups[0].second.startsWith("<tool_A1"))
+        assertTrue(xmlGroups[1].second.startsWith("<tool_result_A1"))
+        assertFalse(groups.any { it.first == MarkdownProcessorType.BLOCK_LATEX })
+        assertEquals(content, groups.joinToString("") { it.second })
+    }
+
+    @Test
+    fun protocolAttributesMayContainQuotedAngleBrackets() = runBlocking {
+        val content =
+            "前缀<status\ttitle=\"a > b < c\">ready</status>后缀"
+        val groups = splitBlock(content)
+
+        val xmlGroup = groups.single { it.first == MarkdownProcessorType.XML_BLOCK }
+        assertEquals("<status\ttitle=\"a > b < c\">ready</status>", xmlGroup.second)
+        assertEquals(content, groups.joinToString("") { it.second })
+    }
+
+    @Test
+    fun protocolClosingTagIsCaseInsensitive() = runBlocking {
+        val content = "前缀<TOOL_RESULT_A1 name=\"terminal\">ok</tool_result_a1>后缀"
+        val groups = splitBlock(content)
+
+        val xmlGroup = groups.single { it.first == MarkdownProcessorType.XML_BLOCK }
+        assertEquals(content.substringAfter("前缀").substringBefore("后缀"), xmlGroup.second)
+        assertEquals(content, groups.joinToString("") { it.second })
+    }
+
+    @Test
+    fun unknownXmlLikeTextAttachedToProseRemainsPlainText() = runBlocking {
+        val content = "比较 a<sample>value</sample> 与 b，随后正文不应变成 XML 卡片"
+        val groups = splitBlock(content)
+
+        assertFalse(groups.any { it.first == MarkdownProcessorType.XML_BLOCK })
+        assertEquals(content, groups.joinToString("") { it.second })
+    }
+
+    @Test
+    fun malformedToolSuffixDoesNotBecomeProtocolXml() = runBlocking {
+        val content = "文本<tool_>x</tool_>以及<tool_result_>y</tool_result_>"
+        val groups = splitBlock(content)
+
+        assertFalse(groups.any { it.first == MarkdownProcessorType.XML_BLOCK })
+        assertEquals(content, groups.joinToString("") { it.second })
+    }
+
+    @Test
     fun realDisplayMathStillUsesBlockMath() = runBlocking {
         val groups =
             splitBlock(

@@ -231,6 +231,9 @@ private:
     PluginState state_;
     int startState_;
     int endState_;
+    bool linePrefixOnly_;
+
+    void advanceLinePrefix(char16_t c);
 };
 
 class StreamMarkdownBlockBracketLaTeXPlugin final : public StreamPlugin {
@@ -246,6 +249,9 @@ private:
     PluginState state_;
     int startState_;
     int endState_;
+    bool linePrefixOnly_;
+
+    void advanceLinePrefix(char16_t c);
 };
 
 class StreamMarkdownImagePlugin final : public StreamPlugin {

@@ -2,8 +2,9 @@
 
 namespace streamnative {
 
-StreamXmlPlugin::StreamXmlPlugin(bool includeTagsInOutput)
+StreamXmlPlugin::StreamXmlPlugin(bool includeTagsInOutput, bool allowProtocolTagsAnywhere)
         : includeTagsInOutput_(includeTagsInOutput),
+          allowProtocolTagsAnywhere_(allowProtocolTagsAnywhere),
           state_(PluginState::IDLE),
           startState_(StartState::WAIT_LT),
           allowStartAfterEndTag_(false),
@@ -29,6 +30,8 @@ void StreamXmlPlugin::reset() {
     endPattern_.clear();
     haveEndPattern_ = false;
     lastChar_ = 0;
+    unanchoredStartCandidate_ = false;
+    attributeQuote_ = 0;
 }
 
 bool StreamXmlPlugin::isAsciiLetter(char16_t c) {
@@ -93,6 +96,43 @@ bool StreamXmlPlugin::isEmojiContinuationChar(char16_t c) {
     }
 }
 
+bool StreamXmlPlugin::isProtocolTagName(const std::u16string& tagName) {
+    std::u16string lower;
+    lower.reserve(tagName.size());
+    for (char16_t c : tagName) {
+        if (c >= u'A' && c <= u'Z') {
+            lower.push_back(static_cast<char16_t>(c - u'A' + u'a'));
+        } else {
+            lower.push_back(c);
+        }
+    }
+
+    if (lower == u"tool" || lower == u"tool_result") {
+        return true;
+    }
+
+    if (lower.rfind(u"tool_result_", 0) == 0) {
+        return lower.size() > std::u16string(u"tool_result_").size();
+    }
+
+    if (lower.rfind(u"tool_", 0) == 0) {
+        const std::u16string suffix = lower.substr(std::u16string(u"tool_").size());
+        // Match ChatMarkupRegex: a generic tool suffix may contain "result" only
+        // when it is not the reserved `result` token or its underscored form.
+        return !suffix.empty() &&
+               !(suffix == u"result" || suffix.rfind(u"result_", 0) == 0);
+    }
+
+    // These are the protocol tags consumed by the chat projection/rendering
+    // layer. Unknown XML-like prose stays anchored and therefore remains text.
+    return lower == u"think" || lower == u"thinking" || lower == u"search" ||
+           lower == u"status" || lower == u"html" || lower == u"mood" ||
+           lower == u"font" || lower == u"details" || lower == u"detail" ||
+           lower == u"meta" || lower == u"plan" || lower == u"emotion" ||
+           lower == u"memory" || lower == u"reply_to" || lower == u"attachment" ||
+           lower == u"workspace_attachment" || lower == u"proxy_sender";
+}
+
 bool StreamXmlPlugin::handleDefaultCharacter(char16_t c) {
     updatePunctuationAllowance(c);
     return true;
@@ -130,12 +170,16 @@ bool StreamXmlPlugin::processStartMatcher(char16_t c) {
             return false;
         }
         case StartState::IN_TAG_NAME: {
-            if (c == u' ') {
+            if (c == u' ' || c == u'\t' || c == u'\r' || c == u'\n') {
                 startState_ = StartState::IN_ATTRS;
                 state_ = PluginState::TRYING;
                 return false;
             }
             if (c == u'>') {
+                if (unanchoredStartCandidate_ && !isProtocolTagName(tagName_)) {
+                    reset();
+                    return false;
+                }
                 startState_ = StartState::WAIT_LT;
                 state_ = PluginState::TRYING;
                 return true;
@@ -151,7 +195,21 @@ bool StreamXmlPlugin::processStartMatcher(char16_t c) {
             return false;
         }
         case StartState::IN_ATTRS: {
+            if (attributeQuote_ != 0) {
+                if (c == attributeQuote_) {
+                    attributeQuote_ = 0;
+                }
+                return false;
+            }
+            if (c == u'"' || c == u'\'') {
+                attributeQuote_ = c;
+                return false;
+            }
             if (c == u'>') {
+                if (unanchoredStartCandidate_ && !isProtocolTagName(tagName_)) {
+                    reset();
+                    return false;
+                }
                 startState_ = StartState::WAIT_LT;
                 state_ = PluginState::TRYING;
                 return true;
@@ -168,7 +226,13 @@ void StreamXmlPlugin::buildEndPattern() {
     endPattern_.reserve(tagName_.size() + 3);
     endPattern_.push_back(u'<');
     endPattern_.push_back(u'/');
-    endPattern_.append(tagName_);
+    for (const char16_t c : tagName_) {
+        if (c >= u'A' && c <= u'Z') {
+            endPattern_.push_back(static_cast<char16_t>(c - u'A' + u'a'));
+        } else {
+            endPattern_.push_back(c);
+        }
+    }
     endPattern_.push_back(u'>');
     endMatcher_.setPattern(endPattern_);
     haveEndPattern_ = true;
@@ -183,7 +247,11 @@ bool StreamXmlPlugin::processChar(char16_t c, bool atStartOfLine) {
 
     if (state_ == PluginState::PROCESSING) {
         if (haveEndPattern_) {
-            if (endMatcher_.process(c)) {
+            char16_t endMatchChar = c;
+            if (endMatchChar >= u'A' && endMatchChar <= u'Z') {
+                endMatchChar = static_cast<char16_t>(endMatchChar - u'A' + u'a');
+            }
+            if (endMatcher_.process(endMatchChar)) {
                 allowStartAfterEndTag_ = true;
                 allowStartAfterPunctuation_ = false;
                 reset();
@@ -196,7 +264,14 @@ bool StreamXmlPlugin::processChar(char16_t c, bool atStartOfLine) {
     if (state_ == PluginState::IDLE && !atStartOfLine) {
         const bool allowStart = allowStartAfterEndTag_ || allowStartAfterPunctuation_;
         if (!allowStart) {
-            return finish(handleDefaultCharacter(c));
+            if (allowProtocolTagsAnywhere_ && c == u'<') {
+                // Defer the decision until the complete opening tag is known;
+                // this avoids turning ordinary comparisons such as "a < b"
+                // into XML while still protecting protocol tags in prose.
+                unanchoredStartCandidate_ = true;
+            } else {
+                return finish(handleDefaultCharacter(c));
+            }
         }
         if (c == u' ' || c == u'\t' || isEmojiContinuationChar(c)) {
             return finish(handleDefaultCharacter(c));

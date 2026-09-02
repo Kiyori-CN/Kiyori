@@ -83,13 +83,13 @@ object StructuredAssistantContentParser {
             return xml
         }
 
-        val startTagEnd = xml.indexOf('>', startTagIndex)
+        val startTagEnd = findXmlOpeningTagEnd(xml, startTagIndex)
         if (startTagEnd < 0) {
             return xml
         }
 
         val endTag = "</$effectiveTagName>"
-        val endIndex = xml.lastIndexOf(endTag)
+        val endIndex = findLastIgnoreCase(xml, endTag)
         val contentEndExclusive =
             if (endIndex > startTagEnd) {
                 endIndex
@@ -101,7 +101,7 @@ object StructuredAssistantContentParser {
 
     private fun extractXmlAttributes(xml: String): Map<String, String> {
         val trimmed = xml.trim()
-        val startTagEnd = trimmed.indexOf('>')
+        val startTagEnd = findXmlOpeningTagEnd(trimmed, 0)
         if (startTagEnd <= 0) {
             return emptyMap()
         }
@@ -122,11 +122,47 @@ object StructuredAssistantContentParser {
 
     private fun isXmlFullyClosed(xml: String, rawTagName: String?): Boolean {
         val trimmed = xml.trim()
-        if (trimmed.endsWith("/>")) {
+        val openingTagEnd = findXmlOpeningTagEnd(trimmed, 0)
+        if (
+            openingTagEnd >= 0 &&
+                trimmed.substring(0, openingTagEnd + 1).trimEnd().endsWith("/>")
+        ) {
             return true
         }
 
         val effectiveTagName = rawTagName ?: ChatMarkupRegex.extractOpeningTagName(trimmed) ?: return false
-        return trimmed.contains("</$effectiveTagName>")
+        return trimmed.endsWith("</$effectiveTagName>", ignoreCase = true)
+    }
+
+    private fun findXmlOpeningTagEnd(content: String, startIndex: Int): Int {
+        var quote: Char? = null
+        for (index in startIndex until content.length) {
+            val character = content[index]
+            if (quote != null) {
+                if (character == quote) {
+                    quote = null
+                }
+            } else {
+                when (character) {
+                    '\"', '\'' -> quote = character
+                    '>' -> return index
+                }
+            }
+        }
+        return -1
+    }
+
+    private fun findLastIgnoreCase(content: String, value: String): Int {
+        var result = -1
+        var searchStart = 0
+        while (searchStart <= content.length - value.length) {
+            val match = content.indexOf(value, searchStart, ignoreCase = true)
+            if (match < 0) {
+                break
+            }
+            result = match
+            searchStart = match + 1
+        }
+        return result
     }
 }

@@ -905,6 +905,11 @@ fun AgentChatInputSection(
                             },
                         colors =
                             OutlinedTextFieldDefaults.colors(
+                                // Tool execution temporarily disables editing by default, but the
+                                // existing draft must remain readable while the turn is running.
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                 focusedBorderColor = Color.Transparent,
                                 unfocusedBorderColor = Color.Transparent,
                                 disabledBorderColor = Color.Transparent,
@@ -1220,6 +1225,11 @@ fun AgentChatInputSection(
                                 },
                             colors =
                                 OutlinedTextFieldDefaults.colors(
+                                    // Keep the draft and fullscreen action legible during tool
+                                    // calls; disabled state controls editing, not visibility.
+                                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                    disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                     focusedBorderColor = Color.Transparent,
                                     unfocusedBorderColor = Color.Transparent,
                                     disabledBorderColor = Color.Transparent,
