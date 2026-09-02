@@ -95,6 +95,58 @@ class BrowserNavigationPolicyTest {
     }
 
     @Test
+    fun `search-created sessions skip their synthetic about blank history entry`() {
+        assertFalse(
+            shouldUseBrowserHistoryBack(
+                creationReason = BrowserWindowCreationReason.SOFTWARE_HOME_SEARCH,
+                canGoBack = true,
+                backTargetUrl = "about:blank",
+                backTargetIsInitialSyntheticEntry = true,
+            ),
+        )
+        assertFalse(
+            shouldUseBrowserHistoryBack(
+                creationReason = BrowserWindowCreationReason.PROFILE_BOUNDARY_SEARCH,
+                canGoBack = true,
+                backTargetUrl = "ABOUT:BLANK",
+                backTargetIsInitialSyntheticEntry = true,
+            ),
+        )
+        assertTrue(
+            shouldUseBrowserHistoryBack(
+                creationReason = BrowserWindowCreationReason.SOFTWARE_HOME_SEARCH,
+                canGoBack = true,
+                backTargetUrl = "https://example.com/home",
+                backTargetIsInitialSyntheticEntry = true,
+            ),
+        )
+        assertTrue(
+            shouldUseBrowserHistoryBack(
+                creationReason = BrowserWindowCreationReason.MANUAL_NEW_WINDOW,
+                canGoBack = true,
+                backTargetUrl = "about:blank",
+                backTargetIsInitialSyntheticEntry = true,
+            ),
+        )
+        assertFalse(
+            shouldUseBrowserHistoryBack(
+                creationReason = BrowserWindowCreationReason.SOFTWARE_HOME_SEARCH,
+                canGoBack = false,
+                backTargetUrl = "https://example.com/home",
+                backTargetIsInitialSyntheticEntry = true,
+            ),
+        )
+        assertTrue(
+            shouldUseBrowserHistoryBack(
+                creationReason = BrowserWindowCreationReason.SOFTWARE_HOME_SEARCH,
+                canGoBack = true,
+                backTargetUrl = "about:blank",
+                backTargetIsInitialSyntheticEntry = false,
+            ),
+        )
+    }
+
+    @Test
     fun `ordinary same-site and cross-site navigation stays in the current session`() {
         listOf(
             "https://example.com/next",

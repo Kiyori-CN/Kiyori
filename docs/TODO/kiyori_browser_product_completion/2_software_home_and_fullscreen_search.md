@@ -2,6 +2,48 @@
 
 > 状态：本地实现、定向 JVM 测试、正式开发门禁与 Debug APK 已验证；本轮修改已提交并推送，真机视觉、输入法和转场保持待验收。
 
+## 2026-09-02 搜索结果回退时序与滑屏导航续接修复计划
+
+状态：`IMPLEMENTED / AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。
+
+本轮针对上一轮现场反馈的两个独立根因进行收口：
+
+- 全屏搜索新建会话的 WebView 历史首项 `about:blank` 是创建时的合成入口，不属于用户可回退的网页；
+  搜索结果回退必须在一次 Back 中直接进入当前配置主页。发起 Back 时先清除该会话的搜索 recovery、
+  query 和切换条投影，再执行根主页导航，避免中间 URL 的异步回调把旧切换条带回自定义主页。
+- 滑屏设置值已经由设置页持久化并传入 Browser Host；失效点位于 WebView 在 MOVE 阶段调用
+  `requestDisallowInterceptTouchEvent(true)` 后，父级容器失去继续观察边缘手势的机会。本轮在唯一
+  `BrowserGestureNavigationFrameLayout` 中增加候选手势阶段的父级仲裁，只有确认不是本功能手势后才把
+  禁止拦截请求交给 WebView；中部开始的主导水平手势会一直保留到对应边缘，确认有效后仍调用现有
+  Back/Forward owner。
+
+实施边界：不改变搜索 URL、Profile/Cookie 所有权、网页历史中真实页面的前进后退、站点级禁用规则、
+无障碍触摸探索和其他 WebView 手势；不新增第二套导航状态或对外兼容入口。验证顺序为：纯策略/时序
+JVM 回归、Kotlin 编译、`git diff --check`、formal readiness、串行 `:app:assembleDebug --no-daemon
+--console=plain` 与 Debug APK 核验，最后审阅精确差异并提交推送。真实 WebView 回调时序、设备边缘
+触摸和横向网页控件冲突仍需真机验收。
+
+本轮实现补充：`BrowserGestureNavigationFrameLayout` 不再因中部手势尚未到达边缘而提前释放候选，
+并由 `shouldCancelBrowserGestureCandidate` 纯策略函数锁定“保持候选 / 垂直主导时释放 / 设置变化时释放”
+三个分支；搜索回退仍在 WebView 导航前清理 recovery/query，搜索会话的合成 `about:blank` 历史项由
+`shouldUseBrowserHistoryBack` 明确跳过。相关策略回归测试已补充。
+
+本轮验证证据：
+
+- 定向 `:app:testDebugUnitTest` 覆盖 `BrowserNavigationPolicyTest`、
+  `BrowserGestureNavigationPolicyTest` 和 `BrowserSearchRecoveryProjectionTest`，`BUILD SUCCESSFUL`；随后完整
+  `:app:testDebugUnitTest` 生成 `322` 个 suite、`1924` 个测试，`0` 失败、`0` 跳过。
+- `python -B ci/script/check_formal_readiness.py --repository . --require-main` 与 `git diff --check` 通过。
+- `:app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL in 1m 21s`，`235` 个任务中
+  `24` 个执行；唯一 Debug launcher、脚本代理 runtime 和播放器 runtime packaging 检查通过。
+- Debug APK `app/build/outputs/apk/debug/app-debug.apk`：`503705425` bytes，SHA-256
+  `7A12C320D9E050B090867CB20DC151987E6BD20B603482266EB86725382342AD`；包 `com.kiyori`，
+  versionCode/versionName `45 / 0.1.0`，min/target SDK `26 / 34`，仅 `arm64-v8a` 的 `53` 个 native 库，
+  唯一 launcher `com.ai.assistance.operit.ui.main.MainActivity`，Android Debug V2 单 signer，
+  `zipalign -c -P 16 -v 4` 通过。
+- 真实设备上的一次 Back 到自定义主页、切换条异步残留、左右边缘手势、页面内横向控件冲突、旋转、
+  不同 WebView provider 与无障碍触摸探索仍保持 `verification_pending`。
+
 ## 2026-09-02 全屏搜索与浏览器交互续接修复计划
 
 状态：`IMPLEMENTED / AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。

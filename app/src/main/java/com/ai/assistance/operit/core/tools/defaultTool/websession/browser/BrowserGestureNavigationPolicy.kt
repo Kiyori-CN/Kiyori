@@ -8,6 +8,16 @@ internal enum class BrowserGestureNavigationAction {
     FORWARD,
 }
 
+internal fun shouldCancelBrowserGestureCandidate(
+    gestureCandidate: Boolean,
+    canStart: Boolean,
+    movedPastTouchSlop: Boolean,
+    horizontalDominates: Boolean,
+): Boolean =
+    gestureCandidate &&
+        (!canStart ||
+            (movedPastTouchSlop && !horizontalDominates))
+
 internal data class BrowserGestureNavigationConfiguration(
     val edgeWidthPx: Float,
     val commitDistancePx: Float,

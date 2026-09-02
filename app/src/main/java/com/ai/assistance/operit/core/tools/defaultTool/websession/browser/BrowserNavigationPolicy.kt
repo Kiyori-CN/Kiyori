@@ -61,6 +61,26 @@ internal fun shouldClearBrowserSearchRecoveryOnNavigation(
         resolvedResultUrl != null &&
         !areBrowserHomeUrlsEquivalent(resolvedResultUrl, targetUrl)
 
+internal fun shouldUseBrowserHistoryBack(
+    creationReason: BrowserWindowCreationReason,
+    canGoBack: Boolean,
+    backTargetUrl: String?,
+    backTargetIsInitialSyntheticEntry: Boolean,
+): Boolean {
+    if (!canGoBack) {
+        return false
+    }
+    val syntheticSearchEntry =
+        creationReason in
+            setOf(
+                BrowserWindowCreationReason.SOFTWARE_HOME_SEARCH,
+                BrowserWindowCreationReason.PROFILE_BOUNDARY_SEARCH,
+            ) &&
+            backTargetIsInitialSyntheticEntry &&
+            backTargetUrl?.equals("about:blank", ignoreCase = true) == true
+    return !syntheticSearchEntry
+}
+
 private fun isIpAddress(host: String): Boolean {
     if (host.contains(':')) {
         return host.all { character ->

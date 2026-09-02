@@ -26,6 +26,8 @@ internal class BrowserGestureNavigationFrameLayout(
     private var downX = 0f
     private var downY = 0f
     private var intercepting = false
+    private var gestureCandidate = false
+    private var childDisallowIntercept = false
 
     var gestureNavigationEnabled: Boolean = false
     var gestureNavigationBlocked: Boolean = false
@@ -40,18 +42,24 @@ internal class BrowserGestureNavigationFrameLayout(
                 intercepting = false
                 downX = event.x
                 downY = event.y
+                gestureCandidate = canStartGesture()
+                childDisallowIntercept = false
                 velocityTracker?.recycle()
                 velocityTracker = VelocityTracker.obtain().also { it.addMovement(event) }
                 tracker.onDown(
                     x = event.x,
                     y = event.y,
                     viewportWidthPx = width.coerceAtLeast(1).toFloat(),
-                    enabled = canStartGesture(),
+                    enabled = gestureCandidate,
                     pointerCount = event.pointerCount,
                 )
             }
             MotionEvent.ACTION_POINTER_DOWN -> {
                 tracker.onPointerCountChanged(event.pointerCount)
+                if (event.pointerCount != 1) {
+                    gestureCandidate = false
+                    releaseChildDisallowIntercept()
+                }
                 velocityTracker?.addMovement(event)
             }
             MotionEvent.ACTION_MOVE -> {
@@ -59,15 +67,39 @@ internal class BrowserGestureNavigationFrameLayout(
                 if (!intercepting && event.pointerCount == 1) {
                     val deltaX = event.x - downX
                     val deltaY = event.y - downY
-                    val startsFromLeft = downX <= 48f * density && deltaX > 0f
-                    val startsFromRight = downX >= width - 48f * density && deltaX < 0f
-                    val reachesLeftEdge = event.x <= 48f * density && deltaX < 0f
-                    val reachesRightEdge = event.x >= width - 48f * density && deltaX > 0f
+                    val edgeWidthPx = 48f * density
+                    val movingRight = deltaX > 0f
+                    val movingLeft = deltaX < 0f
+                    val reachesLeftEdge = event.x <= edgeWidthPx
+                    val reachesRightEdge = event.x >= width - edgeWidthPx
+                    val reachesNavigationBoundary =
+                        (movingRight &&
+                            (downX <= edgeWidthPx || reachesRightEdge)) ||
+                            (movingLeft &&
+                                (downX >= width - edgeWidthPx || reachesLeftEdge))
+                    val movedPastTouchSlop = abs(deltaX) > viewConfiguration.scaledTouchSlop
+                    val horizontalDominates = abs(deltaX) >= abs(deltaY) * 1.5f
+                    val canStart = canStartGesture()
                     intercepting =
-                        canStartGesture() &&
-                            (startsFromLeft || startsFromRight || reachesLeftEdge || reachesRightEdge) &&
-                            abs(deltaX) > viewConfiguration.scaledTouchSlop &&
-                            abs(deltaX) >= abs(deltaY) * 1.5f
+                        gestureCandidate &&
+                            canStart &&
+                            reachesNavigationBoundary &&
+                            movedPastTouchSlop &&
+                            horizontalDominates
+                    if (
+                        shouldCancelBrowserGestureCandidate(
+                            gestureCandidate = gestureCandidate,
+                            canStart = canStart,
+                            movedPastTouchSlop = movedPastTouchSlop,
+                            horizontalDominates = horizontalDominates,
+                        )
+                    ) {
+                        // A vertical-dominant gesture is page-owned. A horizontal gesture that
+                        // has not reached an edge must remain a candidate: users may begin in the
+                        // page body and continue to the matching edge before we can promote it.
+                        gestureCandidate = false
+                        releaseChildDisallowIntercept()
+                    }
                 }
             }
             MotionEvent.ACTION_UP -> {
@@ -95,6 +127,18 @@ internal class BrowserGestureNavigationFrameLayout(
             MotionEvent.ACTION_CANCEL -> cancelGesture()
         }
         return wasIntercepting || intercepting || super.onTouchEvent(event)
+    }
+
+    override fun requestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {
+        if (disallowIntercept && gestureCandidate && !intercepting) {
+            // WebView requests this while it starts scrolling. Keep observing the current
+            // single-finger candidate so an edge-reaching swipe can still be promoted to the
+            // parent before the child owns the remainder of the gesture.
+            childDisallowIntercept = true
+            return
+        }
+        childDisallowIntercept = false
+        super.requestDisallowInterceptTouchEvent(disallowIntercept)
     }
 
     override fun performClick(): Boolean {
@@ -133,6 +177,9 @@ internal class BrowserGestureNavigationFrameLayout(
         velocityTracker?.recycle()
         velocityTracker = null
         intercepting = false
+        gestureCandidate = false
+        childDisallowIntercept = false
+        super.requestDisallowInterceptTouchEvent(false)
     }
 
     private fun cancelGesture() {
@@ -140,5 +187,16 @@ internal class BrowserGestureNavigationFrameLayout(
         velocityTracker?.recycle()
         velocityTracker = null
         intercepting = false
+        gestureCandidate = false
+        childDisallowIntercept = false
+        super.requestDisallowInterceptTouchEvent(false)
+    }
+
+    private fun releaseChildDisallowIntercept() {
+        if (!childDisallowIntercept) {
+            return
+        }
+        childDisallowIntercept = false
+        super.requestDisallowInterceptTouchEvent(true)
     }
 }

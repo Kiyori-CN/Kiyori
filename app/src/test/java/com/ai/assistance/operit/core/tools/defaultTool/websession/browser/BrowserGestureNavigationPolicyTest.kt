@@ -14,6 +14,37 @@ class BrowserGestureNavigationPolicyTest {
         )
 
     @Test
+    fun `horizontal body candidate stays alive until it reaches an edge`() {
+        assertEquals(
+            false,
+            shouldCancelBrowserGestureCandidate(
+                gestureCandidate = true,
+                canStart = true,
+                movedPastTouchSlop = true,
+                horizontalDominates = true,
+            ),
+        )
+        assertEquals(
+            true,
+            shouldCancelBrowserGestureCandidate(
+                gestureCandidate = true,
+                canStart = true,
+                movedPastTouchSlop = true,
+                horizontalDominates = false,
+            ),
+        )
+        assertEquals(
+            true,
+            shouldCancelBrowserGestureCandidate(
+                gestureCandidate = true,
+                canStart = false,
+                movedPastTouchSlop = false,
+                horizontalDominates = true,
+            ),
+        )
+    }
+
+    @Test
     fun `left and right edges commit Back and Forward once`() {
         val back = tracker()
         back.onDown(x = 20f, y = 100f, viewportWidthPx = 500f, enabled = true, pointerCount = 1)

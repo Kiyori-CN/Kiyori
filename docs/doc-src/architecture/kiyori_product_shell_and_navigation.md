@@ -207,6 +207,10 @@ Full-Screen Web Search 是当前可见 Shell child，固定传入 `true`；Brows
 引擎面板的透明后置点击层负责周围区域收起，面板本身仍覆盖内容而不改变下方布局。当前网页信息区只
 关闭搜索页并返回已挂载的活动 WebView，不调用 `loadUrl` 或 `reload`。
 
+搜索结果由全屏搜索新建的 WebSession 会保留 WebView 初始化时的合成 `about:blank` 历史首项；该项
+不属于用户可见网页，首次 Back 直接进入当前配置主页。Back 在开始任何网页导航前清除该 session 的
+search recovery、query 和切换条投影，并使旧文档的异步完成回调失效，避免切换条残留到自定义主页。
+
 Browser Home 右侧动作固定为刷新：加载期间仍显示刷新图标，点击始终重新加载活动 WebView，不复用停止
 加载语义。返回、刷新和全屏搜索 Profile 动作共用 `BrowserChromeIconButton` 的裁剪按压反馈，
 不绘制正方形水波区域；Profile 在全屏搜索历史标题行中使用标题行专用的 `34dp` 槽位。
@@ -489,6 +493,9 @@ Operit AI 通过 Kiyori Capability API 操作产品能力，不能直接依赖�
 产品窗口创建由不可变 `BrowserWindowCreationReason` 约束。非主页普通网页的同站、跨站、`target="_blank"` 和用户 `window.open()` 都在当前 WebSession 中导航；自动 popup、dialog popup 和没有稳定 HTTP(S) 目标的请求明确拒绝。`onCreateWindow()` 只创建同 Profile 的临时目标解析 WebView，该解析器不进入窗口 registry，不安装 Kiyori bridge、用户脚本、下载器或凭据能力，捕获首个稳定目标后立即销毁。唯一自动保留原窗口的例外是已确认配置主页根上的真实用户跨站跳转：创建同 Profile 子窗口并记录 opener 主页。子窗口历史耗尽时关闭并激活仍有效的 opener；其他窗口回到最新配置主页。
 
 网页浏览器设置中的“滑屏前进后退”默认关闭，开启后左边缘向右请求 Back、右边缘向左请求 Forward；从网页中部开始的单指水平滑动，只有滑到对应边缘（右滑到右边缘请求 Back、左滑到左边缘请求 Forward）才触发同一历史动作，未到边缘的横向移动继续由网页处理。手势在抽屉、搜索、源码确认、文本选择、网页元素动作、广告标记、下载确认、JavaScript 对话框和无障碍触摸探索期间停用，配置主页根页面不会通过手势退出 Browser Home。“长按网页元素菜单”默认开启，设置变化由 `WebSessionBrowserSettingsStore` 持久化并即时同步所有现有 WebView，不触发导航或重载；关闭只禁止普通元素打开 Kiyori 菜单，不改变编辑控件的 Android WebView 原生选区。Browser Runtime 只为普通窗口维护最小启动恢复投影：`保留多窗口` 恢复全部普通窗口，`恢复上次的搜索结果` 恢复最近仍未关闭且仍停留在结果页的明确搜索窗口，`询问是否恢复页面` 把可用自动恢复改为一次性确认或单独询问活动普通页。恢复文件位于 `noBackupFilesDir/kiyori/browser_session_recovery.json`，不包含无痕 Profile/窗口、Cookie、请求头、DOM、表单、正文、截图、密码或网络日志；三个恢复开关全关时删除该文件。
+
+`BrowserGestureNavigationFrameLayout` 在单指候选阶段暂不把 WebView 的 `requestDisallowInterceptTouchEvent(true)` 交给上层；中部开始的水平移动可继续到达目标边缘后升级为一次 Back/Forward。确认垂直主导、设置关闭、遮罩阻断或多指后，候选立即结束并恢复 WebView 的正常仲裁；非目标水平移动不会被父级消费。
+
 浏览器菜单的内置“网页 Cookie”插件复用活动 WebSession 的 Profile CookieManager，只对当前 HTTP(S) 页面读取并在既有 IO scope 发布。进入 Cookie 子页自动触发一次读取；页面重组或 URL 状态更新不会重复触发，用户可通过标题栏刷新动作显式重读。结果发布前必须再次确认 session、URL 与独立 Cookie 开关仍匹配，Cookie Header 只保留在进程内，不写入历史、诊断、下载、脚本或磁盘。
 
 Browser Home 可见时，AI 浏览器工具直接操作当前共享标签，不依赖悬浮窗权限。Browser Home 不可见时，AI 仍操作同一 session 和 WebView：已有 overlay 权限时挂到后台 anchor；缺少权限时返回明确权限错误，不创建 headless WebView、第二个 session 或覆盖人工页面。最小 indicator 点击后通过显式 action 打开现有 Browser Home。关闭最后标签时，可见的 Browser Home 保留无标签页面；后台 anchor 和 indicator 不拥有会话状态。

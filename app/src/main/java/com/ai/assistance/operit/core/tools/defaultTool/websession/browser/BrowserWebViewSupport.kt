@@ -2468,10 +2468,32 @@ internal fun StandardBrowserSessionTools.navigateSessionBackOnMain(
 ): BrowserSessionBackResult {
     ensureSessionAttachedOnMain(session.id)
     updateNavigationState(session)
+    val history = session.webView.copyBackForwardList()
+    val backTargetUrl =
+        history
+            .takeIf { it.currentIndex > 0 }
+            ?.getItemAtIndex(history.currentIndex - 1)
+            ?.url
+    val useWebHistory =
+        shouldUseBrowserHistoryBack(
+            creationReason = session.creationReason,
+            canGoBack = session.canGoBack,
+            backTargetUrl = backTargetUrl,
+            backTargetIsInitialSyntheticEntry = history.currentIndex == 1,
+        )
+    if (session.lastSearchRecovery != null || session.searchRecoveryPending) {
+        // Back is the explicit boundary that ends the search-result chrome. Clear it before
+        // WebView callbacks begin; otherwise an intermediate history callback can re-project the
+        // old query while the configured home is loading.
+        session.lastSearchRecovery = null
+        session.searchRecoveryPending = false
+        scheduleBrowserRecoverySnapshotWrite()
+        refreshSessionUiOnMain(session.id)
+    }
     var shouldRefreshNavigation = true
     val result =
         when {
-            session.canGoBack -> {
+            useWebHistory -> {
                 navigateSessionHistoryOnMain(session, delta = -1)
                 BrowserSessionBackResult.WEB_HISTORY
             }
