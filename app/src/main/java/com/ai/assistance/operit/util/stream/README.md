@@ -526,6 +526,7 @@ markdownStream.splitBy(blockPlugins).collect { blockGroup ->
 | :--- | :--- | :--- |
 | `StreamMarkdownHeaderPlugin` | 识别ATX风格的标题 (`# ...`) | `includeMarker: Boolean` - 是否包含`#` |
 | `StreamMarkdownFencedCodeBlockPlugin` | 识别行首代码块 (```...```) 并保持围栏长度/语言信息 | `includeFences: Boolean` - 是否包含围栏 |
+| `StreamMarkdownBlockEnvironmentLaTeXPlugin` | 识别行首 LaTeX 显示环境 (`\\begin{...}...\\end{...}`) 并跨分片保持完整包装 | `includeDelimiters: Boolean` - 是否包含环境包装 |
 | `StreamMarkdownBlockQuotePlugin` | 识别引用块 (`> ...`) | `includeMarker: Boolean` - 是否包含 `>` |
 | `StreamMarkdownOrderedListPlugin` | 识别有序列表 (`1. ...`) | `includeMarker: Boolean` - 是否包含 `1.` |
 | `StreamMarkdownUnorderedListPlugin`| 识别无序列表 (`- ...` 或 `* ...`) | `includeMarker: Boolean` - 是否包含 `-` |

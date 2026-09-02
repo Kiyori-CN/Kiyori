@@ -1300,6 +1300,125 @@ class StreamMarkdownInlineParenLaTeXPlugin(private val includeDelimiters: Boolea
 }
 
 /**
+ * Identifies line-start LaTeX display environments such as
+ * `\\begin{equation}...\\end{equation}`. The wrapper is preserved so the
+ * existing LaTeX compatibility layer can remove only verified environments.
+ */
+class StreamMarkdownBlockEnvironmentLaTeXPlugin(
+    private val includeDelimiters: Boolean = true,
+) : StreamPlugin {
+    override var state: PluginState = PluginState.IDLE
+        private set
+
+    private var openingPhase = 0
+    private var linePrefixOnly = true
+    private val environmentName = StringBuilder()
+    private var closingToken = ""
+    private var closingIndex = 0
+
+    private fun advanceLinePrefix(c: Char) {
+        linePrefixOnly = when {
+            c == '\n' -> true
+            linePrefixOnly && (c == ' ' || c == '\t') -> true
+            else -> false
+        }
+    }
+
+    override fun processChar(c: Char, atStartOfLine: Boolean): Boolean {
+        if (atStartOfLine) {
+            linePrefixOnly = true
+        }
+
+        if (state == PluginState.PROCESSING) {
+            if (closingIndex < closingToken.length && c == closingToken[closingIndex]) {
+                closingIndex++
+                if (closingIndex == closingToken.length) {
+                    resetInternal()
+                    // The closing token does not contain a line break. Keep
+                    // the following character on this physical line from
+                    // starting another display environment.
+                    linePrefixOnly = false
+                }
+                return includeDelimiters
+            }
+
+            // A failed partial end token is ordinary formula text. Preserve a
+            // new backslash as the possible beginning of the next end token.
+            closingIndex = if (c == '\\') 1 else 0
+            return true
+        }
+
+        if (state == PluginState.IDLE) {
+            if (linePrefixOnly && c == '\\') {
+                state = PluginState.TRYING
+                openingPhase = 1 // matched the initial backslash
+                environmentName.clear()
+                return includeDelimiters
+            }
+            advanceLinePrefix(c)
+            return true
+        }
+
+        // TRYING: match "\\begin{" and then a non-empty environment name.
+        // splitBy replays the buffered characters as plain text on mismatch.
+        if (openingPhase in 1..6) {
+            val openPrefix = "\\begin{"
+            val expected = openPrefix[openingPhase]
+            if (c != expected) {
+                resetInternal()
+                advanceLinePrefix(c)
+                return true
+            }
+            openingPhase++
+            return includeDelimiters
+        }
+
+        if (openingPhase == 7) {
+            when {
+                c == '}' && environmentName.isNotEmpty() -> {
+                    closingToken = "\\end{${environmentName}}"
+                    closingIndex = 0
+                    state = PluginState.PROCESSING
+                    return includeDelimiters
+                }
+                c == '}' || c == '\n' || c == '\r' || c == '{' || c == '\\' ||
+                    c == ' ' || c == '\t' -> {
+                    resetInternal()
+                    return true
+                }
+                else -> {
+                    environmentName.append(c)
+                    return includeDelimiters
+                }
+            }
+        }
+
+        resetInternal()
+        return true
+    }
+
+    override fun initPlugin(): Boolean {
+        reset()
+        return true
+    }
+
+    override fun destroy() = Unit
+
+    override fun reset() {
+        resetInternal()
+    }
+
+    private fun resetInternal() {
+        state = PluginState.IDLE
+        openingPhase = 0
+        linePrefixOnly = true
+        environmentName.clear()
+        closingToken = ""
+        closingIndex = 0
+    }
+}
+
+/**
  * A stream plugin for identifying LaTeX block math expressions using double dollar signs ($$...$$).
  *
  * @param includeDelimiters If true, the $$ delimiters are included in the output.

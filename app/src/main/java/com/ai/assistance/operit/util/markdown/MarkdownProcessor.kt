@@ -124,6 +124,9 @@ object NestedMarkdownProcessor {
                     // block 解析先保护行内代码，Kotlin AST 组装阶段再把它并回段落子节点；
                     // 否则代码 span 里的显示公式定界符会抢先进入 BLOCK_LATEX。
                     StreamMarkdownInlineCodePlugin(includeTicks = true),
+                    // 标准 LaTeX 显示环境（\\begin{equation}...\\end{equation}）在行首属于块公式；
+                    // 放在美元/方括号公式之前，并由 fenced code 优先级保护代码与工具载荷。
+                    StreamMarkdownBlockEnvironmentLaTeXPlugin(includeDelimiters = true),
                     // LaTeX 块级公式：同时支持 $$...$$ 和 \\[...\\]
                     StreamMarkdownBlockLaTeXPlugin(includeDelimiters = false),
                     // 对 \[...\] 保留分隔符，避免在结束匹配失败分支吞掉反斜杠；
@@ -170,6 +173,7 @@ object NestedMarkdownProcessor {
             is StreamMarkdownInlineParenLaTeXPlugin -> MarkdownProcessorType.INLINE_LATEX
             is StreamMarkdownBlockLaTeXPlugin -> MarkdownProcessorType.BLOCK_LATEX
             is StreamMarkdownBlockBracketLaTeXPlugin -> MarkdownProcessorType.BLOCK_LATEX
+            is StreamMarkdownBlockEnvironmentLaTeXPlugin -> MarkdownProcessorType.BLOCK_LATEX
             is StreamMarkdownTablePlugin -> MarkdownProcessorType.TABLE
             is StreamXmlPlugin -> MarkdownProcessorType.XML_BLOCK
             else -> MarkdownProcessorType.PLAIN_TEXT

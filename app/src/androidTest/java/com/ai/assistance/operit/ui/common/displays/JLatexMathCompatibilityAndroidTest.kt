@@ -112,6 +112,17 @@ class JLatexMathCompatibilityAndroidTest {
         ).forEach(::assertFormulaRenders)
     }
 
+    @Test
+    fun backendRendersDisplayEnvironmentExamplesAfterPreparation() {
+        assertFormulaRenders(
+            "\\begin{equation}\n\\nabla \\cdot \\vec{E} = \\frac{\\rho}{\\varepsilon_0}\n\\end{equation}"
+        )
+        assertFormulaRenders("\\begin{equation*}x=1\\end{equation*}")
+        assertFormulaRenders("\\begin{displaymath}x=1\\end{displaymath}")
+        assertFormulaRenders("\\begin{align}x&=1\\\\y&=2\\end{align}")
+        assertFormulaRenders("\\begin{align*}x&=1\\\\y&=2\\end{align*}")
+    }
+
     private fun assertFormulaRenders(source: String) {
         val prepared = prepareLatexForJLatexMath(source)
         val drawable =

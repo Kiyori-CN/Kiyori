@@ -307,13 +307,7 @@ private fun stripUnderlineDelimiters(content: String): String {
 }
 
 private fun extractInlineLatexContent(content: String): String {
-    return when {
-        content.startsWith("$$") && content.endsWith("$$") -> content.removeSurrounding("$$")
-        content.startsWith("\\[") && content.endsWith("\\]") -> content.removeSurrounding("\\[", "\\]")
-        content.startsWith("$") && content.endsWith("$") -> content.removeSurrounding("$")
-        content.startsWith("\\(") && content.endsWith("\\)") -> content.removeSurrounding("\\(", "\\)")
-        else -> content
-    }
+    return extractLatexContent(content)
 }
 
 private fun appendInlineLatexFailureText(
@@ -477,7 +471,7 @@ private fun appendInlineNode(
         }
 
         MarkdownProcessorType.INLINE_LATEX -> {
-            val latexContent = extractInlineLatexContent(content.trim())
+            val latexContent = extractInlineLatexContent(content)
 
             if (density != null && fontSize != null) {
                 var preparedFormula: PreparedLatexFormula? = null

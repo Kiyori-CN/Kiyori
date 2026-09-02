@@ -722,7 +722,10 @@ private fun renderNodeContent(
                         .padding(vertical = 0.dp, horizontal = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    val latexContent = extractLatexContent(content.trimAll())
+                    // Only strip whitespace that surrounds a confirmed delimiter. Keep the
+                    // formula body untouched so line breaks, indentation and CRLF survive into
+                    // the backend and its diagnostics.
+                    val latexContent = extractLatexContent(content)
                     DisplayMathBlock(
                         latexContent = latexContent,
                         textSizePx = formulaTextSizePx,
@@ -1657,11 +1660,20 @@ private fun determineHeaderLevel(content: String): Int {
  */
 /** 提取LaTeX内容，移除各种分隔符 */
 internal fun extractLatexContent(content: String): String {
+    val firstContent = content.indexOfFirst { !it.isWhitespace() }
+    if (firstContent < 0) return ""
+    val lastContent = content.indexOfLast { !it.isWhitespace() }
+    val structural = content.substring(firstContent, lastContent + 1)
     return when {
-        content.startsWith("$$") && content.endsWith("$$") -> content.removeSurrounding("$$")
-        content.startsWith("\\[") && content.endsWith("\\]") -> content.removeSurrounding("\\[", "\\]")
-        content.startsWith("$") && content.endsWith("$") -> content.removeSurrounding("$")
-        content.startsWith("\\(") && content.endsWith("\\)") -> content.removeSurrounding("\\(", "\\)")
+        structural.startsWith("$$") && structural.endsWith("$$") && structural.length >= 4 ->
+            structural.substring(2, structural.length - 2)
+        structural.startsWith("\\[") && structural.endsWith("\\]") && structural.length >= 4 ->
+            structural.substring(2, structural.length - 2)
+        structural.startsWith("$") && structural.endsWith("$") &&
+            structural.length >= 2 && !structural.startsWith("$$") && !structural.endsWith("$$") ->
+            structural.substring(1, structural.length - 1)
+        structural.startsWith("\\(") && structural.endsWith("\\)") && structural.length >= 4 ->
+            structural.substring(2, structural.length - 2)
         else -> content
     }
 }

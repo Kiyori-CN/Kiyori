@@ -66,7 +66,7 @@ private fun renderBlockNode(node: MarkdownNodeStable, latexRegistry: LatexCopyRe
         MarkdownProcessorType.CODE_BLOCK -> renderCodeBlock(node.content)
         MarkdownProcessorType.TABLE -> renderTable(node.content, latexRegistry)
         MarkdownProcessorType.BLOCK_LATEX ->
-            latexRegistry.registerBlock(extractLatexContent(node.content.trim()).trim())
+            latexRegistry.registerBlock(extractLatexContent(node.content).trim())
         MarkdownProcessorType.XML_BLOCK -> node.content
         MarkdownProcessorType.IMAGE -> extractLinkText(node.content)
         MarkdownProcessorType.HEADER -> renderInlineBlock(node, latexRegistry).trimStart('#', ' ')
@@ -83,9 +83,9 @@ private fun renderInlineBlock(node: MarkdownNodeStable, latexRegistry: LatexCopy
 private fun MarkdownNodeStable.plainInlineText(latexRegistry: LatexCopyRegistry): String {
     return when (type) {
         MarkdownProcessorType.INLINE_LATEX ->
-            latexRegistry.registerInline(extractLatexContent(content.trim()).trim())
+            latexRegistry.registerInline(extractLatexContent(content).trim())
         MarkdownProcessorType.BLOCK_LATEX ->
-            latexRegistry.registerBlock(extractLatexContent(content.trim()).trim())
+            latexRegistry.registerBlock(extractLatexContent(content).trim())
         MarkdownProcessorType.LINK -> {
             val text = resolvedChildrenText(this, latexRegistry)
             val url = extractLinkUrl(content)
@@ -102,14 +102,12 @@ private fun resolvedChildrenText(node: MarkdownNodeStable, latexRegistry: LatexC
 }
 
 private fun renderCodeBlock(content: String): String {
-    val codeLines = content.trim().lines()
-    val firstLine = codeLines.firstOrNull().orEmpty()
-    val language = if (firstLine.startsWith("```")) firstLine.removePrefix("```").trim() else ""
-    val codeContent = codeLines
-        .dropWhile { it.startsWith("```") }
-        .dropLastWhile { it.endsWith("```") }
-        .joinToString("\n")
-    return if (language.isNotBlank()) "----$language-----\n$codeContent" else codeContent
+    val payload = extractFencedCodeBlockPayload(content)
+    return if (payload.language.isNotBlank()) {
+        "----${payload.language}-----\n${payload.code}"
+    } else {
+        payload.code
+    }
 }
 
 private fun renderTable(content: String, latexRegistry: LatexCopyRegistry): String {

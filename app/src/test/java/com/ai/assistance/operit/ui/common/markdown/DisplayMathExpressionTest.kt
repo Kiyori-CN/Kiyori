@@ -39,6 +39,20 @@ class DisplayMathExpressionTest {
     }
 
     @Test
+    fun parse_extractsTagInsideDisplayEnvironment() {
+        val expression =
+            parseDisplayMathExpression(
+                "\\begin{equation}\n x^2 + y^2 = 1 \\tag{circle}\n\\end{equation}"
+            )
+
+        assertEquals(
+            "\\begin{equation}\n x^2 + y^2 = 1 \n\\end{equation}",
+            expression.body,
+        )
+        assertEquals(DisplayMathTag(latex = "circle", parenthesized = true), expression.tag)
+    }
+
+    @Test
     fun parse_supportsNestedBracesInsideTag() {
         val expression = parseDisplayMathExpression("""x = 1 \tag{\text{Eq. {A}}}""")
 

@@ -7,6 +7,51 @@ observed_at: 2026-09-03 Asia/Shanghai
 
 # AI 对话渲染可靠性与工具内容边界
 
+## 2026-09-03 公式与图表现场续接计划
+
+本轮针对新截图中“Mermaid 围栏泄漏/未出现预览入口”和“`equation` 带编号公式进入渲染失败”
+继续收口。附件诊断、模型输出和截图仅作为现场证据，不作为仓库指令；当前基线为
+`main@f31de7821583bfa3ce4d3cf7e51adcd836e4d9b2`，保留用户原有未跟踪的
+`docs/TODO/ai_interrupted_turn_recovery/`。
+
+### 目标
+
+- 让 `$$…$$`、`\[…\]` 以及常见 `\begin{…}…\end{…}` 显示公式在 native/legacy、流式/静态、思考/回复/工具内容中使用同一块级边界。
+- 让已确认的 fenced code 只通过统一 payload 进入代码卡、Mermaid/HTML 预览和复制路径；围栏、语言 token 和代码正文不再互相泄漏。
+- 保留未知或未闭合公式/围栏的可观察原文和错误日志，不引入第二渲染器、fallback、降级或静默吞错。
+
+### 实施步骤与回滚点
+
+1. **证据与调用链（DONE）**：核对 native `MarkdownSession`、Kotlin legacy 插件、节点投影、
+   `DisplayMathBlock`/`EnhancedCodeBlock` 的边界；先运行现有定向 JVM 回归。回滚点为当前
+   `f31de782`，不触碰用户未跟踪目录。
+2. **块级公式边界**：在现有 block splitter 中增加行首环境包装识别，跨任意流分片匹配对应 `\\end{环境}`，
+   仍映射到既有 `BLOCK_LATEX`；与代码块优先级和 XML 工具节点保持一致。
+3. **消费端统一**：块公式消费移除无依据的 `trimAll`，复制路径复用 fenced payload 提取函数，
+   Mermaid 预览继续只接收纯代码并保持特殊字符安全编码。
+4. **回归矩阵（DONE）**：补齐 equation/align/未知或未闭合环境、CRLF/EOF、代码块内环境和 Mermaid 多分片
+   测试；静态/流式 AST 与 payload 必须一致。
+5. **交付验证（DONE，设备待验证）**：定向 JVM → native/Kotlin 编译 → `git diff --check` → formal readiness 与
+   fresh-clone → 串行 `:app:assembleDebug --no-daemon --console=plain` 及 APK 审计 → 精确提交、
+   推送并独立核对 local/tracking/remote refs。无设备时保持 `verification_pending`。
+
+### 风险与验收边界
+
+- 行首 `\\begin` 可能与普通文本或工具输出相似；只有完整环境起始 token 才建立块节点，未闭合环境继续作为
+  一个可观察的 `BLOCK_LATEX` 节点交给既有错误显示，不改变 XML 工具节点和 fenced code 的优先级。
+- JLatexMath 兼容层仅对已有证据的环境去壳；未知环境继续走既有可观察失败路径。
+- CDN Mermaid 的网络可用性、真实 Provider 流式分片、深浅色/窄屏/旋转、IME 和 TalkBack 仍须真机验收，
+  自动化和 APK 不能替代现场确认。
+
+### 本轮实现与验证结果（2026-09-03）
+
+- native/legacy 显示环境插件在闭合 `\\end{...}` 后保持同一物理行状态，避免紧随其后的普通正文或环境被错误重分类；新增同一行连续环境回归测试。
+- 定向 native/Kotlin 编译：`./gradlew.bat :app:externalNativeBuildDebug :app:compileDebugKotlin :app:compileDebugAndroidTestKotlin --no-daemon --console=plain`，`BUILD SUCCESSFUL`。
+- 定向 JVM：`./gradlew.bat :app:testDebugUnitTest --tests "com.ai.assistance.operit.ui.common.markdown.*" --tests "com.ai.assistance.operit.ui.common.displays.LatexFormulaSupportTest" --no-daemon --console=plain`，`BUILD SUCCESSFUL`。
+- 正式门禁：`check_formal_readiness.py --require-main` 与 `check_fresh_clone.py` 均通过；`git diff --check` 通过。
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，`496156261` bytes，SHA-256 `DBDF11171083FDF1AAED537EB3413D5B58A8FA48F3C3A7090B92891555DF4516`；`com.kiyori / 45 / 0.1.0`，仅 `arm64-v8a`，Android Debug V2 单 signer，`zipalign -c -P 16 -v 4` 通过。
+- 目标设备当前未连接；真实 Provider 流式思考/回复、工具结果、Mermaid WebView/CDN、公式编号/长公式、深浅色/窄屏/旋转、IME 和 TalkBack 保持 `verification_pending`。
+
 ## 目标与范围
 
 修复 AI 对话中工具调用/结果被原样拆散、块公式误识别并显示“渲染失败”的问题，覆盖流式与静态

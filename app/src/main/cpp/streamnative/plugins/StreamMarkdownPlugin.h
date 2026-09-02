@@ -223,6 +223,30 @@ private:
     int endState_;
 };
 
+// Display-math environments such as \\begin{equation}...\\end{equation}.
+// The parser keeps the wrapper in the group so the existing LaTeX compatibility
+// layer can remove only environments it has verified and leave unknown ones
+// observable to the renderer.
+class StreamMarkdownBlockEnvironmentLaTeXPlugin final : public StreamPlugin {
+public:
+    explicit StreamMarkdownBlockEnvironmentLaTeXPlugin(bool includeDelimiters = true);
+    PluginState state() const override;
+    bool processChar(char16_t c, bool atStartOfLine) override;
+    bool initPlugin() override;
+    void reset() override;
+
+private:
+    bool includeDelimiters_;
+    PluginState state_;
+    int openingPhase_;
+    bool linePrefixOnly_;
+    std::u16string environmentName_;
+    std::u16string closingToken_;
+    size_t closingIndex_;
+
+    void advanceLinePrefix(char16_t c);
+};
+
 class StreamMarkdownBlockLaTeXPlugin final : public StreamPlugin {
 public:
     explicit StreamMarkdownBlockLaTeXPlugin(bool includeDelimiters = true);

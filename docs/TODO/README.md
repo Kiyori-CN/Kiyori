@@ -7,10 +7,9 @@ For_Agent: 对项目大规模动工前按本规范协作
 ## 当前进行中
 
 - [AI 对话渲染可靠性与工具内容边界](ai_chat_rendering_reliability/index.md)：已收敛工具 XML/JSON，
-  当前增量追加代码围栏、公式环境与 Mermaid 载荷边界专项
-  中的 `$`、`$$`、反斜杠、引号和重定向被块 LaTeX 抢占后产生的“渲染失败”，并完成流式/静态节点、
-  工具错误结果、思考段以及 Agent/Classic/Fullscreen 输入框禁用态的代码复核与回归源码；完整 JVM
-  仍有一个既有文件管理器抽屉契约失败，Debug APK、设备验收及提交推送待收口。
+  代码围栏、`$$`/`\[\]` 与行首 `\begin{…}…\end{…}` 公式环境、Mermaid/HTML 载荷边界专项正在
+  继续收口；本轮已完成 native/legacy 环境块识别、公式消费与复制路径统一、定向 JVM/native 编译、
+  formal readiness、fresh-clone 和 Debug APK 审计，设备验收保持 `verification_pending`；提交推送待收口。
 
 - [全屏搜索与浏览器交互续接修复](kiyori_browser_product_completion/2_software_home_and_fullscreen_search.md)：
   正在收口全屏搜索三行输入的固定行距、搜索引擎切换条全局开关与回退清理、网页边缘滑动前进后退，

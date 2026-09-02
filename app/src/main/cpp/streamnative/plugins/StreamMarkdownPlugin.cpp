@@ -1075,6 +1075,121 @@ bool StreamMarkdownInlineParenLaTeXPlugin::processChar(char16_t c, bool /*atStar
     return true;
 }
 
+// --- Block LaTeX environments (\\begin{...}...\\end{...}) ---
+StreamMarkdownBlockEnvironmentLaTeXPlugin::StreamMarkdownBlockEnvironmentLaTeXPlugin(
+        bool includeDelimiters)
+        : includeDelimiters_(includeDelimiters),
+          state_(PluginState::IDLE),
+          openingPhase_(0),
+          linePrefixOnly_(true),
+          environmentName_(),
+          closingToken_(),
+          closingIndex_(0) {
+    reset();
+}
+
+PluginState StreamMarkdownBlockEnvironmentLaTeXPlugin::state() const { return state_; }
+
+bool StreamMarkdownBlockEnvironmentLaTeXPlugin::initPlugin() {
+    reset();
+    return true;
+}
+
+void StreamMarkdownBlockEnvironmentLaTeXPlugin::reset() {
+    state_ = PluginState::IDLE;
+    openingPhase_ = 0;
+    linePrefixOnly_ = true;
+    environmentName_.clear();
+    closingToken_.clear();
+    closingIndex_ = 0;
+}
+
+void StreamMarkdownBlockEnvironmentLaTeXPlugin::advanceLinePrefix(char16_t c) {
+    if (c == u'\n') {
+        linePrefixOnly_ = true;
+    } else if (!(linePrefixOnly_ && (c == u' ' || c == u'\t'))) {
+        linePrefixOnly_ = false;
+    }
+}
+
+bool StreamMarkdownBlockEnvironmentLaTeXPlugin::processChar(char16_t c, bool atStartOfLine) {
+    if (atStartOfLine) {
+        linePrefixOnly_ = true;
+    }
+
+    if (state_ == PluginState::PROCESSING) {
+        if (closingIndex_ < closingToken_.size() &&
+            c == closingToken_[closingIndex_]) {
+            closingIndex_ += 1;
+            if (closingIndex_ == closingToken_.size()) {
+                reset();
+                // The closing token is not a line break.  Keep the next
+                // character on this physical line from being treated as a
+                // new line-start environment (otherwise a second
+                // `\\begin{...}` immediately after the end token could be
+                // misclassified as another block).
+                linePrefixOnly_ = false;
+            }
+            return includeDelimiters_;
+        }
+
+        // A failed partial end token is ordinary formula text. Preserve a new
+        // backslash as the possible beginning of the next end token.
+        closingIndex_ = (c == u'\\') ? 1u : 0u;
+        return true;
+    }
+
+    if (state_ == PluginState::IDLE) {
+        if (linePrefixOnly_ && c == u'\\') {
+            state_ = PluginState::TRYING;
+            openingPhase_ = 1; // matched the initial backslash
+            environmentName_.clear();
+            return includeDelimiters_;
+        }
+        advanceLinePrefix(c);
+        return true;
+    }
+
+    // TRYING: match "\\begin{" and then a non-empty environment name. A
+    // mismatch is replayed by MarkdownSession as plain text.
+    if (openingPhase_ >= 1 && openingPhase_ <= 6) {
+        static constexpr char16_t OPEN_PREFIX[] = u"\\begin{";
+        const int expectedIndex = openingPhase_;
+        if (c != OPEN_PREFIX[expectedIndex]) {
+            reset();
+            advanceLinePrefix(c);
+            return true;
+        }
+        openingPhase_ += 1;
+        return includeDelimiters_;
+    }
+
+    if (openingPhase_ == 7) {
+        if (c == u'}') {
+            if (environmentName_.empty()) {
+                reset();
+                return true;
+            }
+            closingToken_ = u"\\end{";
+            closingToken_ += environmentName_;
+            closingToken_ += u'}';
+            closingIndex_ = 0;
+            state_ = PluginState::PROCESSING;
+            return includeDelimiters_;
+        }
+        if (c == u'\n' || c == u'\r' || c == u'{' || c == u'\\' ||
+            c == u' ' || c == u'\t') {
+            reset();
+            return true;
+        }
+        environmentName_.push_back(c);
+        return includeDelimiters_;
+    }
+
+    reset();
+    return true;
+}
+
 // --- Block LaTeX ($$...$$) ---
 StreamMarkdownBlockLaTeXPlugin::StreamMarkdownBlockLaTeXPlugin(bool includeDelimiters)
         : includeDelimiters_(includeDelimiters), state_(PluginState::IDLE), startState_(0), endState_(0) {

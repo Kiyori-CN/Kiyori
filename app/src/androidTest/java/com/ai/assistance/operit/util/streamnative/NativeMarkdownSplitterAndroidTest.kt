@@ -146,6 +146,58 @@ class NativeMarkdownSplitterAndroidTest {
     }
 
     @Test
+    fun displayEnvironmentStillUsesBlockMathAndPreservesWrapper() = runBlocking {
+        val content =
+            "说明\n\\begin{equation}\n\\nabla \\cdot \\vec{E} = \\frac{\\rho}{\\varepsilon_0}\n\\tag{1}\n\\end{equation}\n后续"
+        val groups = splitBlock(content)
+
+        val formula = groups.single { it.first == MarkdownProcessorType.BLOCK_LATEX }
+        assertEquals(
+            "\\begin{equation}\n\\nabla \\cdot \\vec{E} = \\frac{\\rho}{\\varepsilon_0}\n\\tag{1}\n\\end{equation}",
+            formula.second,
+        )
+        assertEquals("后续", groups.last().second)
+    }
+
+    @Test
+    fun displayEnvironmentInsideFenceRemainsOpaqueCode() = runBlocking {
+        val content = "```latex\n\\begin{equation}\nx=1\n\\end{equation}\n```"
+        val groups = splitBlock(content)
+
+        val code = groups.single { it.first == MarkdownProcessorType.CODE_BLOCK }.second
+        assertTrue(code.contains("\\begin{equation}"))
+        assertFalse(groups.any { it.first == MarkdownProcessorType.BLOCK_LATEX })
+    }
+
+    @Test
+    fun displayEnvironmentCloseDoesNotReopenOnSamePhysicalLine() = runBlocking {
+        val content =
+            "\\begin{equation}x=1\\end{equation}\\begin{equation}y=2\\end{equation}"
+        val groups = splitBlock(content)
+
+        assertEquals(1, groups.count { it.first == MarkdownProcessorType.BLOCK_LATEX })
+        assertEquals(
+            "\\begin{equation}x=1\\end{equation}",
+            groups.single { it.first == MarkdownProcessorType.BLOCK_LATEX }.second,
+        )
+        assertTrue(groups.last { it.first == MarkdownProcessorType.PLAIN_TEXT }.second.contains(
+            "\\begin{equation}y=2\\end{equation}"
+        ))
+    }
+
+    @Test
+    fun unknownDisplayEnvironmentRemainsObservableAsOneFormulaBlock() = runBlocking {
+        val content = "\\begin{gather}\nx=1\n\\end{gather}\n后续"
+        val groups = splitBlock(content)
+
+        assertEquals(
+            "\\begin{gather}\nx=1\n\\end{gather}",
+            groups.single { it.first == MarkdownProcessorType.BLOCK_LATEX }.second,
+        )
+        assertEquals("后续", groups.last().second)
+    }
+
+    @Test
     fun fencedCodeStillOwnsItsDisplayDelimiters() = runBlocking {
         val groups =
             splitBlock(

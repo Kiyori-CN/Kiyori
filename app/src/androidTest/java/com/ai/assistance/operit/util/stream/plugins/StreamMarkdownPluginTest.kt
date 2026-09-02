@@ -136,6 +136,65 @@ class StreamMarkdownPluginTest {
     }
 
     @Test
+    fun displayEnvironmentIsOneBlockAndPreservesWrapper() = runBlocking {
+        val source =
+            "说明\n\\begin{equation}\n\\nabla \\cdot \\vec{E} = \\frac{\\rho}{\\varepsilon_0}\n\\tag{1}\n\\end{equation}\n后续"
+        val environment = StreamMarkdownBlockEnvironmentLaTeXPlugin()
+        val fenced = StreamMarkdownFencedCodeBlockPlugin()
+        val blockMath = StreamMarkdownBlockLaTeXPlugin()
+
+        val groups = mutableListOf<GroupInfo>()
+        source.asCharStream().splitBy(listOf(fenced, environment, blockMath)).collect { group ->
+            val content = StringBuilder()
+            group.stream.collect(content::append)
+            groups += GroupInfo(group.tag, content.toString())
+        }
+
+        val formula = groups.single { it.tag === environment }
+        assertEquals(
+            "\\begin{equation}\n\\nabla \\cdot \\vec{E} = \\frac{\\rho}{\\varepsilon_0}\n\\tag{1}\n\\end{equation}",
+            formula.content,
+        )
+        assertEquals("后续", groups.last().content)
+    }
+
+    @Test
+    fun displayEnvironmentInsideFenceRemainsCode() = runBlocking {
+        val source = "```latex\n\\begin{equation}\nx=1\n\\end{equation}\n```"
+        val fenced = StreamMarkdownFencedCodeBlockPlugin()
+        val environment = StreamMarkdownBlockEnvironmentLaTeXPlugin()
+
+        val groups = mutableListOf<GroupInfo>()
+        source.asCharStream().splitBy(listOf(fenced, environment)).collect { group ->
+            val content = StringBuilder()
+            group.stream.collect(content::append)
+            groups += GroupInfo(group.tag, content.toString())
+        }
+
+        assertTrue(groups.single { it.tag === fenced }.content.contains("\\begin{equation}"))
+        assertTrue(groups.none { it.tag === environment })
+    }
+
+    @Test
+    fun displayEnvironmentCloseDoesNotReopenOnSamePhysicalLine() = runBlocking {
+        val source =
+            "\\begin{equation}x=1\\end{equation}\\begin{equation}y=2\\end{equation}"
+        val environment = StreamMarkdownBlockEnvironmentLaTeXPlugin()
+        val groups = collectGroups(source.asCharStream(), environment)
+
+        assertEquals(1, groups.count { it.tag === environment })
+        assertEquals(
+            "\\begin{equation}x=1\\end{equation}",
+            groups.single { it.tag === environment }.content,
+        )
+        assertTrue(
+            groups.last { it.tag == null }.content.contains(
+                "\\begin{equation}y=2\\end{equation}"
+            )
+        )
+    }
+
+    @Test
     fun lineStartAndFenceLengthAreStrict() = runBlocking {
         val invalidIndentPlugin = StreamMarkdownFencedCodeBlockPlugin()
         val invalidIndentGroups = collectGroups("    ```no-block\n正文".asCharStream(), invalidIndentPlugin)

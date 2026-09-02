@@ -386,6 +386,10 @@ MarkdownSession* createMarkdownBlockSession() {
     // Inline code is a block-layer shield: it must win before display-math plugins, then Kotlin
     // merges the fragment back into the surrounding paragraph as an INLINE_CODE child node.
     plugins.push_back({std::make_unique<StreamMarkdownInlineCodePlugin>(true), MD_INLINE_CODE});
+    // Standard LaTeX display environments are block-level when they begin a line. Keep this
+    // ahead of the dollar/bracket delimiters and below fenced code so tool/code payloads remain
+    // opaque while `\\begin{equation}` and `\\begin{align}` can render as formulas.
+    plugins.push_back({std::make_unique<StreamMarkdownBlockEnvironmentLaTeXPlugin>(true), MD_BLOCK_LATEX});
     plugins.push_back({std::make_unique<StreamMarkdownBlockLaTeXPlugin>(false), MD_BLOCK_LATEX});
     // Keep delimiters for \[...\] to avoid swallowing '\' in failed end-matcher branches.
     // Delimiters are removed later by extractLatexContent().
