@@ -12,7 +12,8 @@ import com.ai.assistance.operit.terminal.view.domain.ansi.TerminalChar
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
@@ -29,7 +30,16 @@ class StandardTerminalCommandExecutor(private val context: Context) {
         // pair so concurrent tool calls cannot create duplicate named sessions.
         private val sessionCreationMutex = Mutex()
         private const val COMMAND_CANCEL_SETTLE_TIMEOUT_MS = 3_000L
+        private const val COMMAND_EVENT_DRAIN_TIMEOUT_MS = 1_000L
     }
+
+    private data class TerminalCommandCollection(
+        val capture: TerminalCommandCaptureSnapshot,
+        val timedOut: Boolean,
+        val sessionHealthy: Boolean,
+        val sessionRecovered: Boolean,
+        val contextPreserved: Boolean,
+    )
 
 
     /** 创建或获取一个终端会话 */
@@ -52,6 +62,9 @@ class StandardTerminalCommandExecutor(private val context: Context) {
                     // 修正：直接检查 Terminal 单例中是否已存在同名会话，而不是依赖本地缓存
                     val existingSession = terminal.terminalState.value.sessions.find { it.title == sessionName }
                     if (existingSession != null) {
+                        if (!terminal.ensureSessionReady(existingSession.id)) {
+                            throw IllegalStateException("Terminal session is not ready: ${existingSession.id}")
+                        }
                         // 如果存在，更新本地缓存并返回该会话
                         sessionNameToIdMap[sessionName] = existingSession.id
                         return@withLock ToolResult(
@@ -107,12 +120,7 @@ class StandardTerminalCommandExecutor(private val context: Context) {
                     )
                 }
 
-                val timeout =
-                        tool.parameters
-                                .find { param -> param.name == "timeout_ms" }
-                                ?.value
-                                ?.toLongOrNull()
-                                ?: 1800000L // 30 分钟
+                val timeout = resolveCommandTimeout(tool)
 
                 val terminal = Terminal.getInstance(context)
 
@@ -128,57 +136,42 @@ class StandardTerminalCommandExecutor(private val context: Context) {
                     )
                 }
 
-                val outputFlow = terminal.executeCommandFlow(sessionId, command)
-
-                    val events = mutableListOf<String>()
-                    var completionOutput: String? = null
-                    var exitCode = -1
-                    var hasCompleted = false
-                    var didTimeout = false
-
-                    try {
-                        withTimeout(timeout) {
-                            outputFlow.collect { event ->
-                                if (event.isCompleted) {
-                                    completionOutput = event.outputChunk
-                                    exitCode = event.exitCode ?: -1
-                                } else if (event.outputChunk.isNotEmpty()) {
-                                    events.add(event.outputChunk)
-                                }
-                                if (event.isCompleted) {
-                                    hasCompleted = true
-                                }
-                            }
-                        }
-                    } catch (e: TimeoutCancellationException) {
-                        AppLogger.w(TAG, "Command execution timed out after ${timeout}ms")
-                        cancelTimedOutCommand(terminal, sessionId)
-                        hasCompleted = true
-                        exitCode = -1
-                        didTimeout = true
+                val collection = collectTerminalCommand(
+                    terminal = terminal,
+                    sessionId = sessionId,
+                    command = command,
+                    timeoutMs = timeout,
+                )
+                AppLogger.d(
+                    TAG,
+                    "Command output collected: ${collection.capture.originalChars} chars, " +
+                        "exitCode: ${collection.capture.exitCode}"
+                )
+                val errorMessage =
+                    when {
+                        collection.timedOut -> null
+                        !collection.capture.hasCompleted ->
+                            context.getString(R.string.terminal_error_command_failed)
+                        else -> null
                     }
 
-                    val fullOutput = completionOutput?.takeIf { it.isNotEmpty() } ?: events.joinToString("")
-                    AppLogger.d(TAG, "Command output collected: '$fullOutput', exitCode: $exitCode")
-                    val errorMessage =
-                            when {
-                                didTimeout -> null
-                                !hasCompleted -> context.getString(R.string.terminal_error_command_failed)
-                                else -> null
-                            }
-
-                    ToolResult(
-                            toolName = tool.name,
-                            success = errorMessage == null,
-                            result = TerminalCommandResultData(
-                                    command = command,
-                                    output = fullOutput,
-                                    exitCode = exitCode,
-                                    sessionId = sessionId,
-                                    timedOut = didTimeout
-                            ),
-                            error = errorMessage
-                    )
+                ToolResult(
+                    toolName = tool.name,
+                    success = errorMessage == null,
+                    result = TerminalCommandResultData(
+                        command = command,
+                        output = collection.capture.output,
+                        exitCode = if (collection.timedOut) -1 else collection.capture.exitCode,
+                        sessionId = sessionId,
+                        timedOut = collection.timedOut,
+                        outputTruncated = collection.capture.truncated,
+                        originalOutputChars = collection.capture.originalChars,
+                        sessionHealthy = collection.sessionHealthy,
+                        sessionRecovered = collection.sessionRecovered,
+                        contextPreserved = collection.contextPreserved,
+                    ),
+                    error = errorMessage
+                )
             } catch (e: Exception) {
                 AppLogger.e(TAG, "执行终端命令时出错", e)
                 ToolResult(
@@ -192,13 +185,13 @@ class StandardTerminalCommandExecutor(private val context: Context) {
     }
 
     /** 在指定的终端会话中执行命令并流式返回输出 */
-    fun executeCommandInSessionStream(tool: AITool): Flow<ToolResult> = flow {
+    fun executeCommandInSessionStream(tool: AITool): Flow<ToolResult> = channelFlow {
         try {
             val command = tool.parameters.find { param -> param.name == "command" }?.value ?: ""
             val sessionId = tool.parameters.find { param -> param.name == "session_id" }?.value
 
             if (sessionId.isNullOrBlank()) {
-                emit(
+                send(
                     ToolResult(
                         toolName = tool.name,
                         success = false,
@@ -206,21 +199,16 @@ class StandardTerminalCommandExecutor(private val context: Context) {
                         error = context.getString(R.string.terminal_error_missing_session_id)
                     )
                 )
-                return@flow
+                return@channelFlow
             }
 
-            val timeout =
-                tool.parameters
-                    .find { param -> param.name == "timeout_ms" }
-                    ?.value
-                    ?.toLongOrNull()
-                    ?: 1800000L
+            val timeout = resolveCommandTimeout(tool)
 
             val terminal = Terminal.getInstance(context)
 
             if (terminal.terminalState.value.sessions.none { it.id == sessionId }) {
                 sessionNameToIdMap.entries.removeIf { it.value == sessionId }
-                emit(
+                send(
                     ToolResult(
                         toolName = tool.name,
                         success = false,
@@ -228,10 +216,10 @@ class StandardTerminalCommandExecutor(private val context: Context) {
                         error = context.getString(R.string.terminal_error_session_not_exist, sessionId)
                     )
                 )
-                return@flow
+                return@channelFlow
             }
 
-            emit(
+            send(
                 ToolResult(
                     toolName = tool.name,
                     success = true,
@@ -247,85 +235,61 @@ class StandardTerminalCommandExecutor(private val context: Context) {
                 )
             )
 
-            val outputFlow = terminal.executeCommandFlow(sessionId, command)
-            val events = mutableListOf<String>()
-            var completionOutput: String? = null
-            var exitCode = -1
-            var hasCompleted = false
-            var didTimeout = false
             var chunkIndex = 0
-            var receivedChars = 0
-
-            try {
-                withTimeout(timeout) {
-                    outputFlow.collect { event ->
-                        if (event.isCompleted) {
-                            completionOutput = event.outputChunk
-                            exitCode = event.exitCode ?: -1
-                            hasCompleted = true
-                            return@collect
-                        }
-
-                        val chunk = event.outputChunk
-                        if (chunk.isEmpty()) {
-                            return@collect
-                        }
-
-                        events.add(chunk)
-                        receivedChars += chunk.length
-                        emit(
-                            ToolResult(
-                                toolName = tool.name,
-                                success = true,
-                                result =
-                                    TerminalStreamEventData(
-                                        type = "chunk",
-                                        command = command,
-                                        sessionId = sessionId,
-                                        chunk = chunk,
-                                        chunkIndex = chunkIndex,
-                                        receivedChars = receivedChars
-                                    ),
-                                error = ""
-                            )
-                        )
-                        chunkIndex += 1
-                    }
-                }
-            } catch (e: TimeoutCancellationException) {
-                AppLogger.w(TAG, "Command execution timed out after ${timeout}ms")
-                cancelTimedOutCommand(terminal, sessionId)
-                hasCompleted = true
-                exitCode = -1
-                didTimeout = true
+            val collection = collectTerminalCommand(
+                terminal = terminal,
+                sessionId = sessionId,
+                command = command,
+                timeoutMs = timeout,
+            ) { chunk ->
+                send(
+                    ToolResult(
+                        toolName = tool.name,
+                        success = true,
+                        result = TerminalStreamEventData(
+                            type = "chunk",
+                            command = command,
+                            sessionId = sessionId,
+                            chunk = chunk.output,
+                            chunkIndex = chunkIndex,
+                            receivedChars = chunk.receivedChars.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+                        ),
+                        error = ""
+                    )
+                )
+                chunkIndex += 1
             }
-
-            val fullOutput = completionOutput?.takeIf { it.isNotEmpty() } ?: events.joinToString("")
             val errorMessage =
                 when {
-                    didTimeout -> null
-                    !hasCompleted -> context.getString(R.string.terminal_error_command_failed)
+                    collection.timedOut -> null
+                    !collection.capture.hasCompleted ->
+                        context.getString(R.string.terminal_error_command_failed)
                     else -> null
                 }
 
-            emit(
+            send(
                 ToolResult(
                     toolName = tool.name,
                     success = errorMessage == null,
                     result =
                         TerminalCommandResultData(
                             command = command,
-                            output = fullOutput,
-                            exitCode = exitCode,
+                            output = collection.capture.output,
+                            exitCode = if (collection.timedOut) -1 else collection.capture.exitCode,
                             sessionId = sessionId,
-                            timedOut = didTimeout
+                            timedOut = collection.timedOut,
+                            outputTruncated = collection.capture.truncated,
+                            originalOutputChars = collection.capture.originalChars,
+                            sessionHealthy = collection.sessionHealthy,
+                            sessionRecovered = collection.sessionRecovered,
+                            contextPreserved = collection.contextPreserved,
                         ),
                     error = errorMessage
                 )
             )
         } catch (e: Exception) {
             AppLogger.e(TAG, "流式执行终端命令时出错", e)
-            emit(
+            send(
                 ToolResult(
                     toolName = tool.name,
                     success = false,
@@ -334,6 +298,93 @@ class StandardTerminalCommandExecutor(private val context: Context) {
                 )
             )
         }
+    }
+
+    private suspend fun collectTerminalCommand(
+        terminal: Terminal,
+        sessionId: String,
+        command: String,
+        timeoutMs: Long?,
+        onChunk: suspend (CapturedTerminalChunk) -> Unit = {},
+    ): TerminalCommandCollection = coroutineScope {
+        val commandId = java.util.UUID.randomUUID().toString()
+        val startingGeneration = terminal.getSessionShellGeneration(sessionId)
+        val capture = TerminalCommandEventCapture()
+        val collectorJob = launch {
+            terminal.executeCommandFlow(sessionId, command, commandId).collect { event ->
+                capture.accept(event)?.let { chunk -> onChunk(chunk) }
+            }
+        }
+
+        val completedWithinDeadline = if (timeoutMs == null) {
+            collectorJob.join()
+            true
+        } else {
+            withTimeoutOrNull(timeoutMs) {
+                collectorJob.join()
+                true
+            } ?: false
+        }
+
+        var cancellationContextPreserved = true
+        var cancellationRecovered = false
+        val completionObservedAtDeadline = capture.snapshot().hasCompleted
+        var cancellationCommandFound: Boolean? = null
+        if (timeoutMs != null && !completedWithinDeadline) {
+            AppLogger.w(TAG, "Command execution timed out after ${timeoutMs}ms")
+            if (!completionObservedAtDeadline) {
+                val cancellation = terminal.cancelCommand(
+                    sessionId = sessionId,
+                    commandId = commandId,
+                    settleTimeoutMs = COMMAND_CANCEL_SETTLE_TIMEOUT_MS,
+                )
+                cancellationCommandFound = cancellation.commandFound
+                cancellationContextPreserved = cancellation.contextPreserved
+                cancellationRecovered = cancellation.sessionRecovered
+                withTimeoutOrNull(COMMAND_EVENT_DRAIN_TIMEOUT_MS) {
+                    collectorJob.join()
+                }
+            }
+        }
+
+        if (collectorJob.isActive) {
+            collectorJob.cancelAndJoin()
+        }
+
+        val sessionReady = terminal.ensureSessionReady(sessionId)
+        val endingGeneration = terminal.getSessionShellGeneration(sessionId)
+        val generationChanged = startingGeneration != null && endingGeneration != null &&
+            endingGeneration != startingGeneration
+        val sessionHealthy = sessionReady && terminal.isSessionHealthy(sessionId)
+        val sessionRecovered = sessionHealthy && (cancellationRecovered || generationChanged)
+
+        val finalCapture = capture.snapshot()
+        val timedOut = shouldReportCommandTimeout(
+            deadlineExpired = !completedWithinDeadline,
+            completionObservedAtDeadline = completionObservedAtDeadline,
+            cancellationCommandFound = cancellationCommandFound,
+            completionObservedAfterDrain = finalCapture.hasCompleted,
+        )
+
+        TerminalCommandCollection(
+            capture = finalCapture,
+            timedOut = timedOut,
+            sessionHealthy = sessionHealthy,
+            sessionRecovered = sessionRecovered,
+            contextPreserved = sessionHealthy && cancellationContextPreserved && !generationChanged,
+        )
+    }
+
+    /**
+     * Resolves the command deadline without conflating an explicitly unbounded execution with
+     * the normal 30-minute default used by direct foreground callers. The no-timeout policy is
+     * internal to the same terminal executor and is used only by detached super_admin jobs.
+     */
+    private fun resolveCommandTimeout(tool: AITool): Long? {
+        return resolveTerminalCommandTimeout(
+            timeoutPolicy = tool.parameters.find { it.name == "timeout_policy" }?.value,
+            timeoutValue = tool.parameters.find { it.name == "timeout_ms" }?.value,
+        )
     }
 
     /** 在隐藏终端执行器中执行命令 */
@@ -603,20 +654,6 @@ class StandardTerminalCommandExecutor(private val context: Context) {
         return lines.joinToString("\n")
     }
 
-    private suspend fun cancelTimedOutCommand(terminal: Terminal, sessionId: String) {
-        terminal.sendInterruptSignal(sessionId)
-        val settled =
-            withTimeoutOrNull(COMMAND_CANCEL_SETTLE_TIMEOUT_MS) {
-                terminal.terminalState.first { state ->
-                    val session = state.sessions.find { it.id == sessionId }
-                    session?.currentExecutingCommand?.isExecuting != true
-                }
-            }
-        if (settled == null) {
-            AppLogger.w(TAG, "Timed-out command cancellation did not settle within ${COMMAND_CANCEL_SETTLE_TIMEOUT_MS}ms")
-        }
-    }
-
     private fun extractHiddenExecOutput(result: HiddenExecResult): String {
         return result.output.ifBlank { result.rawOutputPreview }
     }
@@ -768,4 +805,26 @@ class StandardTerminalCommandExecutor(private val context: Context) {
             else -> null
         }
     }
+}
+
+internal fun shouldReportCommandTimeout(
+    deadlineExpired: Boolean,
+    completionObservedAtDeadline: Boolean,
+    cancellationCommandFound: Boolean?,
+    completionObservedAfterDrain: Boolean,
+): Boolean = deadlineExpired && !completionObservedAtDeadline &&
+    (cancellationCommandFound == true || !completionObservedAfterDrain)
+
+/**
+ * Resolves the terminal executor deadline from its serialized tool parameters.
+ * `none` is an explicit unbounded policy for detached jobs; missing/default policy retains the
+ * historical 30-minute deadline used by direct foreground executor callers.
+ */
+internal fun resolveTerminalCommandTimeout(
+    timeoutPolicy: String?,
+    timeoutValue: String?,
+): Long? = when (timeoutPolicy) {
+    null, "default" -> timeoutValue?.toLongOrNull() ?: 1_800_000L
+    "none" -> null
+    else -> throw IllegalArgumentException("Unsupported terminal timeout policy: $timeoutPolicy")
 }

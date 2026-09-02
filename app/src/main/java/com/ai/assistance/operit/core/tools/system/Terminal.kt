@@ -5,11 +5,14 @@ import android.os.Build
 import com.ai.assistance.operit.util.AppLogger
 import androidx.annotation.RequiresApi
 import com.ai.assistance.operit.terminal.CommandExecutionEvent
+import com.ai.assistance.operit.terminal.CommandCancellationResult
 import com.ai.assistance.operit.terminal.SessionDirectoryEvent
 import com.ai.assistance.operit.terminal.TerminalManager
 import com.ai.assistance.operit.terminal.data.TerminalState
+import com.ai.assistance.operit.terminal.data.SessionInitState
 import com.ai.assistance.operit.terminal.provider.type.HiddenExecResult
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -17,7 +20,6 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.transformWhile
-import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.collect
@@ -101,41 +103,35 @@ class Terminal private constructor(private val context: Context) {
     suspend fun executeCommand(sessionId: String, command: String): String? {
         val deferred = CompletableDeferred<String>()
         val output = StringBuilder()
-        var completionOutput: String? = null
         
         // 生成命令ID
         val commandId = java.util.UUID.randomUUID().toString()
         
-        val collectorReady = CompletableDeferred<Unit>()
-        
         // 先开始订阅事件流，然后再发送命令
-        val job = scope.launch {
+        // SharedFlow has no replay. UNDISPATCHED reaches its real subscription point before a fast
+        // command can publish any event.
+        val job = scope.launch(start = CoroutineStart.UNDISPATCHED) {
             commandEvents
                 .filter { it.sessionId == sessionId && it.commandId == commandId }
-                .onStart { collectorReady.complete(Unit) } // 发出信号，表示已准备好收集
                 .collect { event ->
-                    if (event.isCompleted) {
-                        completionOutput = event.outputChunk
-                    } else {
+                    if (!event.isCompleted) {
                         output.append(event.outputChunk)
                     }
                     if (event.isCompleted) {
-                        deferred.complete(completionOutput?.takeIf { it.isNotEmpty() } ?: output.toString())
+                        deferred.complete(output.toString())
                     }
                 }
         }
 
-        // 等待收集器准备就绪
-        collectorReady.await()
-        
-        // 直接向指定会话发送命令，不切换当前会话
-        terminalManager.sendCommandToSession(sessionId, command, commandId)
-
-        val result = deferred.await()
-        
-        job.cancel()
-        
-        return result
+        return try {
+            // 直接向指定会话发送命令，不切换当前会话
+            terminalManager.sendCommandToSession(sessionId, command, commandId)
+            deferred.await()
+        } finally {
+            // This collector belongs to a singleton scope rather than the caller. Always stop it
+            // when submission, waiting, or the caller itself fails or is cancelled.
+            job.cancel()
+        }
     }
 
     suspend fun executeHiddenCommand(
@@ -154,15 +150,16 @@ class Terminal private constructor(private val context: Context) {
      * 执行命令 - Flow版本
      * 返回命令执行过程中的所有事件，直到命令完成
      */
-    fun executeCommandFlow(sessionId: String, command: String): Flow<CommandExecutionEvent> {
+    fun executeCommandFlow(
+        sessionId: String,
+        command: String,
+        commandId: String = UUID.randomUUID().toString(),
+    ): Flow<CommandExecutionEvent> {
         return channelFlow {
-            val commandId = UUID.randomUUID().toString()
-            val collectorReady = CompletableDeferred<Unit>()
-
-            val collectorJob = launch {
+            // Start undispatched so the zero-replay SharedFlow subscription is active before send.
+            val collectorJob = launch(start = CoroutineStart.UNDISPATCHED) {
                 commandEvents
                     .filter { it.sessionId == sessionId && it.commandId == commandId }
-                    .onStart { collectorReady.complete(Unit) }
                     .transformWhile { event ->
                         emit(event)
                         !event.isCompleted
@@ -172,11 +169,35 @@ class Terminal private constructor(private val context: Context) {
                     }
             }
 
-            // 先确保事件收集器就绪，再发送命令，避免快命令输出在订阅前丢失。
-            collectorReady.await()
-            terminalManager.sendCommandToSession(sessionId, command, commandId)
-            collectorJob.join()
+            try {
+                terminalManager.sendCommandToSession(sessionId, command, commandId)
+                collectorJob.join()
+            } finally {
+                // A timeout cancels the downstream collector. Stop this subscription immediately;
+                // the caller keeps a separate collector alive while command cancellation settles.
+                collectorJob.cancel()
+            }
         }
+    }
+
+    suspend fun cancelCommand(
+        sessionId: String,
+        commandId: String,
+        settleTimeoutMs: Long,
+    ): CommandCancellationResult =
+        terminalManager.cancelCommand(sessionId, commandId, settleTimeoutMs)
+
+    suspend fun ensureSessionReady(sessionId: String): Boolean =
+        terminalManager.ensureSessionReady(sessionId)
+
+    fun getSessionShellGeneration(sessionId: String): Long? =
+        terminalState.value.sessions.find { it.id == sessionId }?.shellGeneration
+
+    fun isSessionHealthy(sessionId: String): Boolean {
+        val session = terminalState.value.sessions.find { it.id == sessionId } ?: return false
+        return session.initState == SessionInitState.READY &&
+            session.sessionWriter != null &&
+            session.terminalSession?.process?.isAlive == true
     }
     
     /**

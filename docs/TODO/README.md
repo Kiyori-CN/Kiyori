@@ -26,14 +26,23 @@ For_Agent: 对项目大规模动工前按本规范协作
   修正 Python/DPKG 能力识别与失败状态。本次继续修复批量探针把字面量 `\\n` 当作 Bash 语句边界
   导致所有包显示“无法识别”的问题，协议改用真实 LF 和显式包 ID/状态字段；pipx 与 rustup 的
   安装后 PATH 激活及 hidden probe 也统一到 Ubuntu `$HOME` 下的规范目录。长命令/进程回收、
-  真实终端 UI、包安装与设备验收仍需
-  单独复测；本轮在验证后按父仓库与 Terminal 子模块顺序提交推送。
+  `super_admin:terminal` 完成快照只保留尾部约 1000 行、超时部分输出丢失/换行粘连、Ctrl+C 后命令
+  状态无法收敛，以及 shell 退出后逻辑会话继续绑定死 PTY 的共享根因已完成本地修复；
+  实现保留唯一会话 owner，完成事件不再携带 UI 尾部快照，超限输出明确标记，取消/writer 失败/PTY EOF
+  统一在同 `sessionId` 下恢复。Terminal 全量、App 定向、ToolPkg、TypeScript、formal readiness、
+  fresh-clone 和 Debug APK 已通过；App 全量 1936 项中另1 项因 `HEAD` 已存在的 FileContextMenu
+  抽屉迁移合同不一致失败，本轮未越界修改。真实终端 UI、包安装、超时取消、大输出与设备验收仍需
+  单独复测；后台模式通过同一执行器的 `timeout_policy=none` 真正取消工具截止时间，显式 `timeoutMs`
+  只校验后忽略，`terminal_wait` 明确为 shell-idle 边界等待，
+  大输出落盘结果补齐路径/字符/字节/行数/预览字段；本轮不提交、不推送。
 
 - [AI 对话 HTTP attempt 审计与稳定性收口](unified_model_capability_and_resumable_execution/6_deepseek_long_context_cache_and_usage_plan.md)：补齐
   `stream was reset: CANCEL` 等流式传输故障的 attempt、阶段、提交状态、重试决定与取消因果审计，
   并收紧普通 Chat Completions 的未知提交重试边界；M12 本地实现与完整 JVM 验证已完成，正式门禁、
   Debug APK 已验证；真实 Provider 与设备验收保持 `verification_pending`，本轮全部工作树修改已随
   `main` 提交并推送。
+
+- [AI 中断回合收口与会话历史合法性](ai_interrupted_turn_recovery/index.md)：已完成首包前停止产生空 assistant、reasoning-only replay 和旧回合异步污染的源码根因分析与初步设计；当前仅保留方案，尚未实现、构建、测试或进行设备/Provider 验收。
 
 - [MT 管理器手机存储复刻](mt_file_manager_replica/index.md)：在共享文件管理器中复刻 MT 管理器
   的双窗格手机存储工作台，保留现有 AITool/SAF 文件能力，明确左上绝对退出按钮和目录级系统 Back

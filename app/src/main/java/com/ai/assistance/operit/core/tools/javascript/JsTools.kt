@@ -826,10 +826,13 @@ fun getJsToolsDefinition(): String {
                 // 执行终端命令 - 一次性收集输出
                 terminal: {
                     create: (sessionName) => toolCall("create_terminal_session", { session_name: sessionName }),
-                    exec: (sessionId, command, timeoutMs) => {
+                    exec: (sessionId, command, timeoutMs, options = {}) => {
                         const params = { session_id: sessionId, command };
                         if (timeoutMs !== undefined && timeoutMs !== null) {
                             params.timeout_ms = String(timeoutMs);
+                        }
+                        if (options && typeof options === "object" && options.timeoutPolicy === "none") {
+                            params.timeout_policy = "none";
                         }
                         return toolCall("execute_in_terminal_session", params);
                     },

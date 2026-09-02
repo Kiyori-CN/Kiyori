@@ -103,7 +103,17 @@ class ToolPkgRuntimeFilesTest(unittest.TestCase):
         self.assertIn("backgroundSessionSequence += 1", source)
         self.assertIn("background !== undefined && typeof background !== \"boolean\"", source)
         self.assertIn("isBackground && timeoutMs !== undefined", source)
-        self.assertIn("Tools.System.terminal.exec(sessionId, command, timeout)", source)
+        self.assertIn("timeoutMsIgnored = parseTimeout(timeoutMs, MIN_TIMEOUT_MS)", source)
+        self.assertIn(
+            'await Tools.System.terminal.exec(sessionId, command, undefined, { timeoutPolicy: "none" });',
+            source,
+        )
+        self.assertEqual(source.count("await Tools.System.terminal.exec(sessionId, command, timeout);"), 1)
+        self.assertIn('timeoutPolicy: timeoutMsIgnored === undefined ? "none" : "ignored"', source)
+        self.assertIn("waitScope: \"shell_idle\"", source)
+        self.assertIn("output_bytes", source)
+        self.assertIn("output_lines", source)
+        self.assertIn("output_is_preview", source)
         self.assertIn("params.input.length === 0", source)
 
     def test_ignored_runtime_files_are_included_in_archive(self) -> None:

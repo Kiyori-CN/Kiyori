@@ -344,7 +344,8 @@ command，返回每个包的明确 `0/1`；Python 项目按 `python`/`python3` �
    目录中执行；用户提供的文件路径命令继续由调用方当前 cwd 解析，不改变公开文件运行语义。
 3. super_admin metadata 与 TypeScript 参数改用 `background: boolean`、`timeoutMs: number`；只接受
    有限整数且不低于 3000ms，输入至少包含非空文本或控制键；后台 session 名加入进程内单调序列。
-   后台命令不设置默认截止时间，但显式传入的 `timeoutMs` 会按同一严格规则交给终端执行器。
+   后台命令不设置工具截止时间；显式传入的 `timeoutMs` 只按同一严格规则校验后忽略，并在启动结果
+   中以 `timeoutPolicy="ignored"`/`timeoutMsIgnored` 明确报告，不能静默杀掉已脱离调用方等待的任务。
 4. 保持唯一 code_runner 可见 PTY、唯一 super_admin 默认/后台会话 owner、既有 ToolPkg ID、AIDL、
    Ubuntu/Android Shell 边界和 `UNKNOWN` 环境探针语义，不新增并行执行器或状态源。
 
@@ -427,3 +428,109 @@ heredoc 原样写入。静态合同测试锁定该换行边界；生产资产必
   `DB0452BCE24C5F75F4BB8182903FEC60674EE1B3CB90397DA2813861C1047F2F`，逐字节一致。
 - 真实 Android 设备上的长 Rust 文件、七类字符串模式、环境安装后立即重进页面和工具可用性仍需
   现场复测，状态保持 `verification_pending`。
+
+### 2026-09-03 super_admin 现场反馈收口（本轮）
+
+现场复测确认前台大输出、前台超时取消、连续超时恢复、`exit`/`kill` 后同一 `sessionId` 重建均
+正常；新增问题集中在后台工具语义和文档表达：
+
+- `background=true` 已改为使用同一终端执行器的显式 `timeout_policy="none"`，因此真正不设置工具
+  截止时间；普通前台调用仍保留执行器缺省的 30 分钟截止时间。显式 `timeoutMs` 仍严格校验
+  （保持输入合同），但启动结果现在返回 `timeoutPolicy="ignored"` 与 `timeoutMsIgnored`；未传值
+  返回 `timeoutPolicy="none"`。这样后台 `sleep`、批处理和常驻服务不会在调用方已经收到
+  `started=true` 后被无声取消。
+- `terminal_wait` 的唯一状态源仍是同一会话的 shell 队列 marker。结果增加 `waitScope="shell_idle"`，
+  文案明确它只确认 shell 已回到可接收命令的边界，不跟踪 detached/background 进程；后台任务必须
+  使用自身副作用或完成标记验证。
+- 完成事件正文仍固定为空，正文唯一来自增量事件。OSC 标记现在在原始缓冲中被精确消费，保留与
+  标记同一物理行上的无换行正文，避免边界字符被状态解析吞掉；不对真实命令输出做引号过滤。
+- `OutputProcessor` 对单次大块 PTY 读取先消费完整行和 OSC，再施加 256 KiB 未终止缓冲上限，避免
+  许多完整行在进入工具捕获器前被提前丢弃；工作区增量消费者只去掉分隔符产生的末尾空项，真实
+  空行仍保留。
+- clean-on-exit 大输出阈值固定为 `12,000` 个 JavaScript 字符（UTF-16 code units）。落盘结果同时
+  返回 `output_saved_to`、`output_chars`、`output_bytes`、`output_lines` 和 `output_is_preview`；
+  底层 4 MiB 捕获上限触发时，文件明确是首尾预览而非完整输出。文件本身仍随 clean-on-exit 生命周期
+  清理，完整结果应由命令自行重定向后分段读取。
+
+本轮新增/修正的自动化合同覆盖后台超时忽略、shell-idle wait 语义、UTF-8 字节/换行统计，以及
+OSC 标记与无换行正文相邻的消费边界。源码与生产 asset 必须继续通过字节同步检查；真实 Android/
+proot 设备仍保持 `verification_pending`。
+
+### 2026-09-02 super_admin 终端输出与会话恢复
+
+状态：本地实现、相关自动化、formal readiness 与 Debug APK 审计已完成；Android/proot 现场验收保持
+`verification_pending`。
+
+#### 已确认根因
+
+- `OutputProcessor` 每页保留 10 行、每条命令最多保留 100 页；完成事件因此只携带尾部
+  约 1000 行。`StandardTerminalCommandExecutor` 又优先使用这个完成快照，覆盖了订阅期间
+  已收到的完整增量行，形成无提示的头部丢失。
+- 正文事件的 `outputChunk` 不包含行分隔符，超时分支以空字符串拼接，因此已捕获的多行
+  输出会粘连。超时还会先取消 Flow 订阅，再发送 Ctrl+C，使取消过程中的尾部事件无法
+  进入结果。
+- Ctrl+C 可中断整条交互式 Bash 输入，因而 `eval` 后的 OSC 退出标记可能不再执行。
+  现行提示符处理依然要求先看到标记，会把真实的 shell 提示符当作中间输出忽略，让
+  `currentExecutingCommand` 或交互态永久残留。
+- PTY EOF/进程退出只结束当前命令状态，既不重建底层 shell，也不移除逻辑会话。同名
+  `terminal.create` 因此会继续返回已失效的 sessionId。
+
+#### 冻结方案
+
+1. 保留唯一 `TerminalManager` / PTY / OSC / sessionId owner。超时取消必须绑定精确 commandId；
+   发送 Ctrl+C 前把该命令标记为取消，使随后的真实 shell 提示符能够以 `exitCode=-1`
+   收敛同一命令；不将后续新命令当作裸输入。
+2. 超时期间保持事件收集直到取消完成事件，返回已捕获的真实输出并按事件边界恢复
+   换行。工具输出使用明确容量上限；超限时保留首尾、返回 `outputTruncated=true`，并在结果中
+   说明重定向至文件后分段读取。
+3. 命令取消在规定时间内不能收敛时，终止该 PTY 并在同一逻辑 sessionId 内重建 shell；
+   该路径是会话生命周期的显式失败恢复，不创建第二执行器或伪造命令成功。重建会保留逻辑
+   标题/sessionId，但应明确报告 shell cwd/导出变量等上下文已重置。
+4. shell 自然 `exit`/崩溃时也执行同 sessionId 的生命周期重建；新命令在会话重新
+   `READY` 前不得写入旧 writer。正常命令、超时取消与自然退出都使用同一状态机。
+5. 同步 `TerminalCommandResultData`、TypeScript 类型与 `super_admin` 结果投影；保留现有工具名、
+   AIDL、namespace、Ubuntu/rootfs 路径和 chatId 会话命名协议。
+
+#### 实施与验证计划
+
+1. [DONE] 核对父/子仓库基线、正式开发门禁、ToolPkg 调用链、事件顺序、输出分页、取消与
+   PTY EOF 生命周期，确认上述共享根因。
+2. [DONE] 冻结唯一会话 owner、命令级取消、同 sessionId 重建、有界完整输出与显式截断合同。
+3. [DONE] 实施 Terminal 子模块状态机、App 工具收集器、类型与 `super_admin` 投影，
+   补齐大输出、换行、超时取消、同 commandId 收敛和死会话重建回归。
+4. [DONE] 运行 Terminal/App/ToolPkg 定向测试、TypeScript 编译与源码/生产资产同步检查。
+5. [DONE] 运行父/子 `git diff --check`、formal readiness 与规定的串行 `:app:assembleDebug`，
+   核验 APK 身份、签名、16 KiB 对齐及内置 `super_admin.js`。
+6. [DONE] 反向审查最终差异、用户现有改动、敏感内容和 Git 状态；不提交、不推送。
+7. [PENDING] 在 Android 40×60 Ubuntu/proot 现场执行简单命令、3000/5000 行、超时长命令、
+   超时后紧接简单命令和 shell exit 后自动重建验收。
+
+#### 本地实现与验证证据（2026-09-03）
+
+- 完成事件现在只携带命令边界和真实 `exitCode`，`outputChunk` 固定为空；工具、工作区、
+  MCP 和环境等待入口均从非完成增量事件组装正文，不再用最多约 1000 行的 UI 历史尾部
+  快照覆盖已收到的完整输出。MCP 部署命令同时以完成事件的 `exitCode` 判定成败。
+- 前台与流式工具共用一个 commandId 捕获器；超时后 collector 保持到精确取消收敛和事件排空，
+  截止边界已观察到完成事件时不误报超时。输出默认上限为 4 MiB，超限保留 head/tail 并返回
+  `outputTruncated/originalOutputChars`；`super_admin` 写文件时会明确说明底层已截断的内容仅是预览。
+- Ctrl+C 先标记精确命令，允许真实提示符在 OSC 被中断时收敛；无法收敛、writer 写失败或
+  PTY EOF 均通过同一 `TerminalManager` 在同一逻辑 `sessionId` 下重建 shell。旧 reader 按 PTY 实例校验，
+  并发恢复按 shell generation 去重；队列只在新 shell `READY` 后按 FIFO 继续，重建时显式报告
+  `sessionRecovered=true/contextPreserved=false`。
+- `:terminal:testDebugUnitTest`（52 项）通过；App `TerminalOutputCaptureTest`（8 项）与工作区
+  增量换行回归（2 项）定向通过；ToolPkg `12/12`、TypeScript、两份 JS `node --check`、资产
+  SHA-256 一致、formal readiness 通过；fresh-clone 仅验证当前 `HEAD` 的可克隆性，不包含本地
+  未提交修改。App 全量运行 1936 项，1935 通过；唯一失败是 `KiyoriBottomDrawerMigrationContractTest` 要求
+  `FileContextMenu.kt` 使用共享抽屉，而两个文件的工作树 blob 都与当前 `HEAD` 完全一致；该已存在
+  UI 基线不一致与本专项无关，本轮未越界修改。
+- 串行 `:app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL in 44s`，235 个任务中
+  `28 executed / 207 up-to-date`。APK 为 `493547606` bytes，SHA-256
+  `CB435BF6752C608E1F4C737A32D94A663809E1B4233C5A917763B2784696AFC9`；包/版本/SDK 为
+  `com.kiyori / 45 / 0.1.0 / min 26 / target 34 / compile 37`，唯一 launcher 为
+  `com.ai.assistance.operit.ui.main.MainActivity`，仅 `arm64-v8a` 的 53 个 `.so`（basename 无重复），
+  加 shell launcher 共 54 个 ELF64/AArch64，161 个 `PT_LOAD` 为 `0x4000 × 159 + 0x10000 × 2`；
+  Android Debug V2 单签名与 `zipalign -c -P 16 4` 通过。APK 内 `super_admin.js` 与源码 SHA-256
+  均为 `C6AE12CD3EF331E37B801B024AED03701446B17F77FF7C557D958593F65474F5`，并确认新
+  `timeoutPolicy`/`waitScope` 字段已进入 asset。
+- 未安装 APK、未操作 Android 设备。简单命令、3000/5000 行、超时取消后立即执行、shell `exit`
+  后同 sessionId 重建、Ubuntu/proot 实际输出与状态展示仍为 `verification_pending`。

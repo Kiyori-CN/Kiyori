@@ -44,6 +44,10 @@ class MCPDeployer(private val context: Context) {
         data class Error(val message: String) : DeploymentStatus()
     }
 
+    private data class DeploymentCommandResult(
+        val exitCode: Int,
+    )
+
     private fun emitCommandOutput(output: String, statusCallback: (DeploymentStatus) -> Unit) {
         if (output.isBlank()) return
 
@@ -63,20 +67,25 @@ class MCPDeployer(private val context: Context) {
         sessionId: String,
         command: String,
         statusCallback: (DeploymentStatus) -> Unit
-    ): String? {
+    ): DeploymentCommandResult? {
         return try {
-            val outputBuilder = StringBuilder()
-            var hasEvent = false
+            var completionObserved = false
+            var exitCode = -1
 
             terminal.executeCommandFlow(sessionId, command).collect { event ->
-                hasEvent = true
-                if (event.outputChunk.isNotEmpty()) {
-                    outputBuilder.append(event.outputChunk)
+                if (event.isCompleted) {
+                    completionObserved = true
+                    exitCode = event.exitCode ?: -1
+                } else if (event.outputChunk.isNotEmpty()) {
                     emitCommandOutput(event.outputChunk, statusCallback)
                 }
             }
 
-            if (hasEvent) outputBuilder.toString() else null
+            if (completionObserved) {
+                DeploymentCommandResult(exitCode = exitCode)
+            } else {
+                null
+            }
         } catch (e: Exception) {
             AppLogger.e(TAG, "流式执行命令失败: $command", e)
             null
@@ -363,7 +372,7 @@ class MCPDeployer(private val context: Context) {
                 )
                 AppLogger.d(TAG, "执行命令 (${index + 1}/${deployCommands.size}): $cleanCommand")
 
-                val commandExecuted = executeCommandWithStreaming(
+                val commandResult = executeCommandWithStreaming(
                     terminal = terminal,
                     sessionId = sessionId,
                     command = cleanCommand,
@@ -371,10 +380,10 @@ class MCPDeployer(private val context: Context) {
                 )
 
                 // 如果命令失败
-                if (commandExecuted == null) {
+                if (commandResult == null || commandResult.exitCode != 0) {
                     if (isNonCriticalCommand) {
                         // 对于非关键命令，即使失败也继续
-                        AppLogger.w(TAG, "非关键命令执行失败，但将继续部署: $cleanCommand")
+                        AppLogger.w(TAG, "非关键命令执行失败，但将继续部署: $cleanCommand (exitCode=${commandResult?.exitCode})")
                         statusCallback(
                                 DeploymentStatus.InProgress(
                                         context.getString(R.string.mcp_deployment_non_critical_failed, cleanCommand)
@@ -382,7 +391,7 @@ class MCPDeployer(private val context: Context) {
                         )
                     } else {
                         // 关键命令失败，中止部署
-                        AppLogger.e(TAG, "命令执行失败: $cleanCommand")
+                        AppLogger.e(TAG, "命令执行失败: $cleanCommand (exitCode=${commandResult?.exitCode})")
                         statusCallback(DeploymentStatus.Error(context.getString(R.string.mcp_deployment_command_failed, cleanCommand)))
                         return@withContext false
                     }

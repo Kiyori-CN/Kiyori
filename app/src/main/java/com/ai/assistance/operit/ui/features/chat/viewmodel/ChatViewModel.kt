@@ -2660,12 +2660,8 @@ class ChatViewModel(
                     }
 
                     if (event.isCompleted) {
-                        val finalEntries = event.outputChunk.toWorkspaceCommandOutputEntries()
                         _workspaceCommandExecutionState.value =
                             currentState.copy(
-                                outputEntries =
-                                    finalEntries.takeIf { it.isNotEmpty() }
-                                        ?: currentState.outputEntries,
                                 isRunning = false,
                                 isCancelling = false
                             )

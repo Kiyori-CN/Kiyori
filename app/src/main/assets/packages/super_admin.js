@@ -13,7 +13,7 @@ METADATA
     "tools": [
         {
             "name": "terminal",
-            "description": { "zh": "在Ubuntu环境中执行命令并收集输出结果。运行环境：完整的Ubuntu系统，已正确挂载sdcard和storage目录，可访问Android存储空间。所有命令将会在相同的会话执行且上下文连贯。强烈建议每次都显式传 timeoutMs，避免命令卡住。禁止使用 `set -e`、`set -o errexit` 等会改变 shell 退出行为的命令，这会导致终端会话直接退出并卡死。若未传，前台默认15秒超时；background=true 时不使用该默认超时。命令超时时会取消当前命令并保留终端会话。", "en": "Execute commands in an Ubuntu environment and collect output. Environment: full Ubuntu system with sdcard/storage mounted, allowing access to Android storage. Automatically preserves working-directory context. Strongly recommend explicitly passing timeoutMs every time to avoid hangs. Do not use commands such as `set -e` or `set -o errexit` that change shell exit behavior, because they can cause the terminal session to exit and hang. If omitted, foreground mode defaults to 15s timeout; background=true does not use this default timeout. When a command times out, the current command is cancelled and the terminal session is kept." },
+            "description": { "zh": "在Ubuntu环境中执行命令并收集输出结果。运行环境：完整的Ubuntu系统，已正确挂载sdcard和storage目录，可访问Android存储空间。所有命令使用同一逻辑会话；正常时保留 cwd 和 export 等 shell 上下文。前台未传 timeoutMs 时默认15秒；background=true 始终不设工具超时，显式传入的 timeoutMs 仅做参数校验后会被忽略，并在返回体中标记。前台超时或 shell 退出时会在同一 sessionId 下恢复；如果必须重建 shell，sessionRecovered/contextPreserved 会明确表示上下文是否保留。", "en": "Execute commands in a full Ubuntu environment with sdcard/storage mounted. Commands use one logical session and normally preserve shell state such as cwd and exported variables. Foreground mode defaults to a 15-second timeout when timeoutMs is omitted. background=true never applies a tool timeout; an explicit timeoutMs is validated and then ignored, with that policy reported in the result. Foreground timeout or shell exit is recovered under the same sessionId. If the shell had to be rebuilt, sessionRecovered/contextPreserved explicitly report whether shell context was retained." },
             "parameters": [
                 {
                     "name": "command",
@@ -23,13 +23,13 @@ METADATA
                 },
                 {
                     "name": "background",
-                    "description": { "zh": "是否在后台运行命令。true 表示后台执行并立即返回，适合启动服务器等长时间运行的任务；false 或未提供则前台执行并等待命令结果。", "en": "Run the command in the background. true returns immediately for long-running tasks; false or omitted waits for the command result." },
+                    "description": { "zh": "是否在后台运行命令。true 表示提交后立即返回，适合启动服务器等长时间运行的任务；后台不设置工具超时，显式 timeoutMs 会被忽略并在返回体中说明；false 或未提供则前台执行并等待命令结果。", "en": "Run the command in the background. true returns immediately for long-running tasks and never applies a tool timeout; an explicit timeoutMs is ignored and reported in the result. false or omitted waits for the foreground command result." },
                     "type": "boolean",
                     "required": false
                 },
                 {
                     "name": "timeoutMs",
-                    "description": { "zh": "可选超时（毫秒，最低3000ms）。强烈建议显式传入；未传时前台默认15000ms，后台模式不使用该默认值。", "en": "Optional timeout in milliseconds (minimum 3000). Foreground defaults to 15 seconds when omitted; background mode has no default timeout." },
+                    "description": { "zh": "前台命令可选超时（毫秒，最低3000ms）。未传时前台默认15000ms；background=true 时不设置工具超时，显式值只校验后忽略，并返回 timeoutMsIgnored。", "en": "Optional foreground timeout in milliseconds (minimum 3000). Foreground defaults to 15 seconds when omitted; background=true never applies a tool timeout, and an explicit value is validated then reported as timeoutMsIgnored." },
                     "type": "number",
                     "required": false
                 }
@@ -37,7 +37,7 @@ METADATA
         },
         {
             "name": "terminal_wait",
-            "description": { "zh": "等待同一终端会话中的上一条命令执行完成。与 sleep 不同，本工具会在命令实际完成时提前返回，而不是固定睡眠。超时时会取消当前执行中的命令并保留终端会话。", "en": "Wait until the previous command in the same terminal session finishes. Unlike sleep, this tool can return early as soon as the command actually completes. On timeout, the currently executing command is cancelled and the terminal session is kept." },
+            "description": { "zh": "等待同一终端会话回到 shell 空闲边界（通过队列末尾 marker 确认提示符可用）。它不跟踪 detached/background 任务的进程完成状态；后台任务请自行轮询副作用或使用命令内的完成标记。超时时会取消当前前台命令；如果 shell 无法在取消后回到提示符，会在同一 sessionId 下重建，并通过 sessionRecovered/contextPreserved 报告上下文状态。", "en": "Wait for the same terminal session to reach a shell-idle boundary (a queue-tail marker confirms that the prompt is usable). It does not track detached/background process completion; poll an explicit side effect or completion marker for those tasks. On timeout, the current foreground command is cancelled. If the shell cannot return to a prompt, it is rebuilt under the same sessionId and sessionRecovered/contextPreserved report the shell-context state." },
             "parameters": [
                 {
                     "name": "sessionId",
@@ -47,7 +47,7 @@ METADATA
                 },
                 {
                     "name": "timeoutMs",
-                    "description": { "zh": "可选超时（毫秒，最低3000ms）。未传时默认300000ms（5分钟）。", "en": "Optional timeout in milliseconds (minimum 3000). Defaults to 300000ms (5 minutes) when omitted." },
+                    "description": { "zh": "等待 shell 空闲边界的超时（毫秒，最低3000ms）。未传时默认300000ms（5分钟）；不代表后台进程的执行时长。", "en": "Timeout for reaching the shell-idle boundary (minimum 3000ms). Defaults to 300000ms (5 minutes) when omitted; it is not a background-process lifetime limit." },
                     "type": "number",
                     "required": false
                 }
@@ -145,10 +145,44 @@ const superAdmin = (function () {
         backgroundSessionSequence += 1;
         return `${prefix}_${Date.now()}_${backgroundSessionSequence}`;
     }
+    function utf8ByteLength(value) {
+        let bytes = 0;
+        for (let index = 0; index < value.length; index += 1) {
+            const code = value.charCodeAt(index);
+            if (code >= 0xd800 && code <= 0xdbff && index + 1 < value.length) {
+                const low = value.charCodeAt(index + 1);
+                if (low >= 0xdc00 && low <= 0xdfff) {
+                    bytes += 4;
+                    index += 1;
+                    continue;
+                }
+            }
+            if (code <= 0x7f) {
+                bytes += 1;
+            }
+            else if (code <= 0x7ff) {
+                bytes += 2;
+            }
+            else {
+                bytes += 3;
+            }
+        }
+        return bytes;
+    }
+    function lineCount(value) {
+        if (value.length === 0) {
+            return 0;
+        }
+        let count = 0;
+        for (const character of value) {
+            if (character === "\n") {
+                count += 1;
+            }
+        }
+        return value.endsWith("\n") ? count : count + 1;
+    }
     async function persistTerminalOutputIfTooLong(command, result) {
-        const outputStr = typeof result?.output === "string"
-            ? result.output
-            : String(result?.output ?? "");
+        const outputStr = result.output;
         if (outputStr.length <= MAX_INLINE_TERMINAL_OUTPUT_CHARS) {
             return null;
         }
@@ -157,26 +191,37 @@ const superAdmin = (function () {
         const rand = Math.floor(Math.random() * 1000000);
         const filePath = `${OPERIT_CLEAN_ON_EXIT_DIR}/terminal_output_${timestamp}_${rand}.log`;
         await Tools.Files.write(filePath, outputStr, false);
+        const outputTruncated = result.outputTruncated === true;
         return {
             command,
             output: "(saved_to_file)",
-            exitCode: result?.exitCode,
-            sessionId: result?.sessionId,
-            timedOut: result?.timedOut === true,
-            context_preserved: result?.timedOut !== true,
+            exitCode: result.exitCode,
+            sessionId: result.sessionId,
+            timedOut: result.timedOut === true,
+            outputTruncated,
+            originalOutputChars: result.originalOutputChars ?? outputStr.length,
+            sessionHealthy: result.sessionHealthy === true,
+            sessionRecovered: result.sessionRecovered === true,
+            contextPreserved: result.contextPreserved !== false,
+            context_preserved: result.contextPreserved !== false,
             output_saved_to: filePath,
             output_chars: outputStr.length,
+            output_bytes: utf8ByteLength(outputStr),
+            output_lines: lineCount(outputStr),
+            output_is_preview: outputTruncated,
             operit_clean_on_exit_dir: OPERIT_CLEAN_ON_EXIT_DIR,
-            hint: "Output is large and saved to file. Use read_file_part or grep_code to inspect it.",
+            hint: outputTruncated
+                ? "Output exceeded the 4 MiB terminal capture limit; this clean-on-exit file contains only the explicit head/tail preview. Redirect the command to a file and use read_file_part or grep_code for the complete output."
+                : "Output exceeded 12,000 JavaScript characters and is saved in this clean-on-exit file. Use read_file_part or grep_code to inspect it; the file contains the complete captured output.",
         };
     }
     /**
      * 在Ubuntu环境中执行终端命令并收集输出结果
      * 运行环境：完整的Ubuntu系统，已正确挂载sdcard和storage目录
-     * 禁止使用 set -e / set -o errexit 等会改变 shell 退出行为的命令，否则可能导致终端会话退出并卡死
+     * shell 退出后保留逻辑 sessionId；底层 shell 重建时通过结果字段报告上下文已重置
      * @param command - 要执行的命令
-     * @param background - 是否后台运行（true 为后台执行并立即返回，适合启动服务器等长时间运行任务，AI 不会收到该命令的输出结果）
-     * @param timeoutMs - 可选的超时时间（毫秒，最低 3000ms）。强烈建议显式传入；前台未传时默认 15000ms，后台模式不应用该默认值。
+     * @param background - 是否后台运行（true 为提交后立即返回，适合启动服务器等长时间运行任务，AI 不会收到该命令的输出结果）
+     * @param timeoutMs - 前台可选超时时间（毫秒，最低 3000ms）；前台未传时默认 15000ms，后台模式只校验显式值后忽略。
      */
     async function terminal(params) {
         try {
@@ -192,8 +237,9 @@ const superAdmin = (function () {
             console.log(`执行终端命令: ${command}`);
             const isBackground = background === true;
             let timeout;
+            let timeoutMsIgnored;
             if (isBackground && timeoutMs !== undefined) {
-                timeout = parseTimeout(timeoutMs, MIN_TIMEOUT_MS);
+                timeoutMsIgnored = parseTimeout(timeoutMs, MIN_TIMEOUT_MS);
             }
             else if (!isBackground) {
                 timeout = parseTimeout(timeoutMs, DEFAULT_FOREGROUND_TIMEOUT_MS);
@@ -204,7 +250,10 @@ const superAdmin = (function () {
                 // 调用系统工具执行终端命令
                 (async () => {
                     try {
-                        await Tools.System.terminal.exec(sessionId, command, timeout);
+                        // Detached mode has no tool deadline. Passing an explicit timeout here
+                        // would kill a still-valid background job while its caller already holds
+                        // only the started response and cannot observe the failure.
+                        await Tools.System.terminal.exec(sessionId, command, undefined, { timeoutPolicy: "none" });
                     }
                     catch (error) {
                         console.error(`[terminal/background] 错误: ${error.message}`);
@@ -215,7 +264,9 @@ const superAdmin = (function () {
                     command: command,
                     background: true,
                     sessionId: sessionId,
-                    started: true
+                    started: true,
+                    timeoutPolicy: timeoutMsIgnored === undefined ? "none" : "ignored",
+                    ...(timeoutMsIgnored === undefined ? {} : { timeoutMsIgnored }),
                 };
             }
             // 创建或获取一个默认会话
@@ -235,8 +286,13 @@ const superAdmin = (function () {
                 exitCode: result.exitCode,
                 sessionId: result.sessionId,
                 timedOut: timedOut,
+                outputTruncated: result.outputTruncated === true,
+                originalOutputChars: result.originalOutputChars ?? result.output.length,
+                sessionHealthy: result.sessionHealthy === true,
+                sessionRecovered: result.sessionRecovered === true,
+                contextPreserved: result.contextPreserved !== false,
                 timeoutMsUsed: timeout,
-                context_preserved: !timedOut
+                context_preserved: result.contextPreserved !== false,
             };
         }
         catch (error) {
@@ -249,8 +305,8 @@ const superAdmin = (function () {
         return terminal(params);
     }
     /**
-     * 等待同一终端会话中的上一条命令执行完成
-     * 原理：向同会话追加一个内部 marker 命令。由于会话按序执行，marker 开始执行即代表前序命令已完成。
+     * 等待同一终端会话回到 shell 空闲边界
+     * 原理：向同会话追加一个内部 marker 命令。它确认的是 shell 队列边界，不跟踪 detached/background 进程。
      * @param sessionId - 可选会话ID；不传时使用当前对话的默认会话，无 chatId 时为 super_admin_default_session
      * @param timeoutMs - 可选超时（毫秒，最低 3000ms）；未传默认 300000ms
      */
@@ -268,19 +324,23 @@ const superAdmin = (function () {
             const result = await Tools.System.terminal.exec(sessionId, waitCommand, timeout);
             const elapsedMs = Date.now() - startedAt;
             const timedOut = result?.timedOut === true;
-            const outputStr = typeof result?.output === "string"
-                ? result.output
-                : String(result?.output ?? "");
+            const outputStr = result.output;
             const markerSeen = outputStr.includes(marker);
             return {
                 sessionId,
                 timedOut,
                 timeoutMsUsed: timeout,
                 elapsedMs,
-                waitCompleted: !timedOut && markerSeen,
+                waitCompleted: !timedOut && markerSeen && result.exitCode === 0,
+                waitScope: "shell_idle",
                 markerSeen,
-                exitCode: result?.exitCode,
-                context_preserved: !timedOut
+                exitCode: result.exitCode,
+                outputTruncated: result.outputTruncated === true,
+                originalOutputChars: result.originalOutputChars ?? outputStr.length,
+                sessionHealthy: result.sessionHealthy === true,
+                sessionRecovered: result.sessionRecovered === true,
+                contextPreserved: result.contextPreserved !== false,
+                context_preserved: result.contextPreserved !== false,
             };
         }
         catch (error) {

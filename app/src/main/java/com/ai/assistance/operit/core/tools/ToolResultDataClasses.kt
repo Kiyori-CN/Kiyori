@@ -261,12 +261,24 @@ data class ADBResultData(val command: String, val output: String, val exitCode: 
 
 /** 终端命令执行结果数据 */
 @Serializable
+@OptIn(ExperimentalSerializationApi::class)
 data class TerminalCommandResultData(
         val command: String,
         val output: String,
         val exitCode: Int,
         val sessionId: String,
-        val timedOut: Boolean = false
+        @EncodeDefault
+        val timedOut: Boolean = false,
+        @EncodeDefault
+        val outputTruncated: Boolean = false,
+        @EncodeDefault
+        val originalOutputChars: Long = output.length.toLong(),
+        @EncodeDefault
+        val sessionHealthy: Boolean = true,
+        @EncodeDefault
+        val sessionRecovered: Boolean = false,
+        @EncodeDefault
+        val contextPreserved: Boolean = true,
 ) : ToolResultData() {
     override fun toString(): String {
         val sb = StringBuilder()
@@ -277,6 +289,15 @@ data class TerminalCommandResultData(
         if (timedOut) {
             sb.appendLine("Timed Out: true")
         }
+        if (outputTruncated) {
+            sb.appendLine("Output Truncated: true")
+            sb.appendLine("Original Output: $originalOutputChars chars")
+        }
+        sb.appendLine("Session Healthy: $sessionHealthy")
+        if (sessionRecovered) {
+            sb.appendLine("Session Recovered: true")
+        }
+        sb.appendLine("Context Preserved: $contextPreserved")
         sb.appendLine("\nOutput:")
         sb.appendLine(output)
         return sb.toString()

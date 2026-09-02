@@ -14,7 +14,11 @@ data class WorkspaceCommandExecutionState(
 
 fun String.toWorkspaceCommandOutputEntries(): List<String> {
     if (isEmpty()) return emptyList()
-    return replace("\r\n", "\n")
+    val normalized = replace("\r\n", "\n")
         .replace('\r', '\n')
-        .split('\n')
+    val entries = normalized.split('\n')
+    // Incremental terminal events carry the delimiter so adjacent chunks cannot be glued
+    // together. Do not turn that delimiter into a spurious blank workspace row; an actual blank
+    // line remains represented by the empty entry before the final delimiter.
+    return if (normalized.endsWith('\n')) entries.dropLast(1) else entries
 }

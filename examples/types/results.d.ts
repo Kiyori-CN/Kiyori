@@ -631,6 +631,21 @@ export interface TerminalCommandResultData {
     /** Whether this execution ended due to timeout. On timeout, the current command is cancelled and the terminal session is kept. */
     timedOut?: boolean;
 
+    /** Whether the returned output is an explicit head/tail preview rather than the complete output. */
+    outputTruncated?: boolean;
+
+    /** Character count observed before any explicit safety truncation. */
+    originalOutputChars?: number;
+
+    /** Whether the logical session has a live READY shell when this result returns. */
+    sessionHealthy?: boolean;
+
+    /** Whether the shell process was rebuilt under the same logical session ID. */
+    sessionRecovered?: boolean;
+
+    /** Whether shell-local cwd and exported variables are still preserved. */
+    contextPreserved?: boolean;
+
     /** Returns a formatted string representation of the terminal execution result */
     toString(): string;
 }

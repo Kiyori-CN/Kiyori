@@ -279,10 +279,15 @@ export namespace System {
          * Execute a command in a terminal session.
          * @param sessionId The ID of the session.
          * @param command The command to execute.
-         * @param timeoutMs Optional timeout in milliseconds. Strongly recommended to always pass explicitly.
-         * @returns Promise resolving to the command execution result. On timeout, the current command is cancelled, the terminal session is kept, and the returned result has `timedOut === true`.
+         * @param timeoutMs Optional foreground timeout in milliseconds. The super_admin package
+         *                  uses timeoutPolicy="none" for background jobs so the executor applies
+         *                  no deadline.
+         * @returns Promise resolving to the command execution result. On timeout, already captured output is returned, the exact command is cancelled, and session health/recovery/context fields describe the resulting shell. Very large output is explicitly marked and should be redirected to a file for complete retrieval.
          */
-        function exec(sessionId: string, command: string, timeoutMs?: number | string): Promise<TerminalCommandResultData>;
+        function exec(sessionId: string, command: string, timeoutMs?: number | string, options?: {
+            /** Internal execution policy used by detached jobs; omits the executor deadline. */
+            timeoutPolicy?: 'default' | 'none';
+        }): Promise<TerminalCommandResultData>;
 
         /**
          * Execute a command in a terminal session and receive incremental output chunks.
