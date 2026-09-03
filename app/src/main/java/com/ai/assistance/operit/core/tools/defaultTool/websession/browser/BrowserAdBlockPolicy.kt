@@ -78,6 +78,16 @@ internal data class BrowserAdBlockSubscriptionCompilationResult(
     val counts: BrowserAdBlockSubscriptionRuleCounts,
 )
 
+/**
+ * 单条订阅的域表达式会重复引用相同站点数十万次。驻留表必须局限于一次编译/解码，
+ * 否则逐规则复制会耗尽 Android heap，而进程级池又会让已替换订阅无法释放。
+ */
+internal class BrowserAdBlockDomainInterner {
+    private val domains = HashMap<String, String>()
+
+    fun intern(domain: String): String = domains.getOrPut(domain) { domain }
+}
+
 internal data class BrowserAdBlockDecision(
     val blocked: Boolean,
     val ruleId: String,
@@ -167,6 +177,7 @@ internal class BrowserAdBlockCompiledRuleSet private constructor(
             elementRules: List<BrowserAdBlockElementRuleSpec>,
         ): BrowserAdBlockCompiledRuleSet {
             val enabledNetworkRules = networkRules.filter(BrowserAdBlockNetworkRuleSpec::enabled)
+            val domainInterner = BrowserAdBlockDomainInterner()
             return BrowserAdBlockCompiledRuleSet(
                 id = id,
                 networkRules =
@@ -177,6 +188,7 @@ internal class BrowserAdBlockCompiledRuleSet private constructor(
                             compileBrowserAdBlockNetworkRule(
                                 spec = spec,
                                 ruleSetId = id,
+                                domainInterner = domainInterner,
                             )
                         }
                         .toList(),
@@ -188,6 +200,7 @@ internal class BrowserAdBlockCompiledRuleSet private constructor(
                             compileBrowserAdBlockElementRule(
                                 spec = spec,
                                 ruleSetId = id,
+                                domainInterner = domainInterner,
                             )
                         }
                         .toList(),
@@ -634,6 +647,7 @@ internal fun compileBrowserAdBlockSubscription(
     var elementBlockingRuleCount = 0
     var elementExceptionRuleCount = 0
     var lineIndex = 0
+    val domainInterner = BrowserAdBlockDomainInterner()
 
     while (true) {
         val rawLine = reader.readLine() ?: break
@@ -644,6 +658,7 @@ internal fun compileBrowserAdBlockSubscription(
                     lineIndex = lineIndex,
                     subscriptionId = subscriptionId,
                     subscriptionName = subscriptionName,
+                    domainInterner = domainInterner,
                 )
         ) {
             BrowserAdBlockSubscriptionCompiledLine.Ignored -> ignoredLineCount += 1
@@ -727,6 +742,7 @@ private fun compileBrowserAdBlockSubscriptionLine(
     lineIndex: Int,
     subscriptionId: String,
     subscriptionName: String,
+    domainInterner: BrowserAdBlockDomainInterner? = null,
 ): BrowserAdBlockSubscriptionCompiledLine {
     val line = rawLine.trim().removePrefix("\uFEFF")
     if (
@@ -766,6 +782,7 @@ private fun compileBrowserAdBlockSubscriptionLine(
             compileBrowserAdBlockElementRule(
                 spec = spec,
                 ruleSetId = subscriptionId,
+                domainInterner = domainInterner,
             ) ?: return BrowserAdBlockSubscriptionCompiledLine.Ignored
         return BrowserAdBlockSubscriptionCompiledLine.Element(
             spec = spec,
@@ -787,6 +804,7 @@ private fun compileBrowserAdBlockSubscriptionLine(
         compileBrowserAdBlockNetworkRule(
             spec = spec,
             ruleSetId = subscriptionId,
+            domainInterner = domainInterner,
         ) ?: return BrowserAdBlockSubscriptionCompiledLine.Ignored
     val badFilterRule = browserAdBlockRuleHasOption(spec.rule, "badfilter")
     val badFilter =
@@ -809,7 +827,10 @@ private fun compileBrowserAdBlockSubscriptionLine(
     )
 }
 
-internal fun normalizeBrowserAdBlockDomainInput(value: String): String? {
+internal fun normalizeBrowserAdBlockDomainInput(
+    value: String,
+    domainInterner: BrowserAdBlockDomainInterner? = null,
+): String? {
     val trimmed = value.trim().lowercase(Locale.ROOT).trim('.')
     if (trimmed.isBlank()) {
         return null
@@ -820,22 +841,44 @@ internal fun normalizeBrowserAdBlockDomainInput(value: String): String? {
         } else {
             trimmed.substringBefore('/').substringBefore(':')
         }?.lowercase(Locale.ROOT)?.trim('.')
-    if (
-        host.isNullOrBlank() ||
-            host.length > 253 ||
-            host.split('.').any { label ->
-                label.isBlank() ||
-                    label.length > 63 ||
-                    label.first() == '-' ||
-                    label.last() == '-' ||
-                    label.any { character ->
-                        !character.isLetterOrDigit() && character != '-'
-                    }
-            }
-    ) {
+    if (host.isNullOrBlank() || host.length > 253 || !isValidBrowserAdBlockHost(host)) {
         return null
     }
-    return host
+    return domainInterner?.intern(host) ?: host
+}
+
+private fun isValidBrowserAdBlockHost(host: String): Boolean {
+    var labelLength = 0
+    var firstCharacter = '\u0000'
+    var lastCharacter = '\u0000'
+    for (character in host) {
+        if (character == '.') {
+            if (
+                labelLength == 0 ||
+                    labelLength > 63 ||
+                    firstCharacter == '-' ||
+                    lastCharacter == '-'
+            ) {
+                return false
+            }
+            labelLength = 0
+            firstCharacter = '\u0000'
+            lastCharacter = '\u0000'
+            continue
+        }
+        if (!character.isLetterOrDigit() && character != '-') {
+            return false
+        }
+        if (labelLength == 0) {
+            firstCharacter = character
+        }
+        labelLength += 1
+        if (labelLength > 63) {
+            return false
+        }
+        lastCharacter = character
+    }
+    return labelLength > 0 && firstCharacter != '-' && lastCharacter != '-'
 }
 
 internal fun normalizeBrowserAdBlockDomain(url: String): String =
@@ -1184,12 +1227,12 @@ internal data class CompiledBrowserAdBlockNetworkRule(
     val spec: BrowserAdBlockNetworkRuleSpec,
     val exception: Boolean,
     val hostAnchor: String?,
-    val domainIncludes: Set<String>,
-    val domainExcludes: Set<String>,
+    val domainIncludes: List<String>,
+    val domainExcludes: List<String>,
     val resourceIncludes: Set<BrowserAdBlockResourceType>,
     val resourceExcludes: Set<BrowserAdBlockResourceType>,
     val thirdParty: Boolean?,
-    val denyAllowDomains: Set<String>,
+    val denyAllowDomains: List<String>,
     val matchCase: Boolean,
     val important: Boolean,
     val generic: Boolean,
@@ -1466,8 +1509,8 @@ internal data class CompiledBrowserAdBlockElementRule(
     val spec: BrowserAdBlockElementRuleSpec,
     val selector: String,
     val exception: Boolean,
-    val domainIncludes: Set<String>,
-    val domainExcludes: Set<String>,
+    val domainIncludes: List<String>,
+    val domainExcludes: List<String>,
     val generic: Boolean,
 ) {
     val decision =
@@ -1490,6 +1533,7 @@ internal data class CompiledBrowserAdBlockElementRule(
 private fun compileBrowserAdBlockNetworkRule(
     spec: BrowserAdBlockNetworkRuleSpec,
     ruleSetId: String = BROWSER_AD_BLOCK_DEFAULT_RULE_SET_ID,
+    domainInterner: BrowserAdBlockDomainInterner? = null,
 ): CompiledBrowserAdBlockNetworkRule? {
     val raw = spec.rule.trim()
     if (
@@ -1510,6 +1554,7 @@ private fun compileBrowserAdBlockNetworkRule(
         parseBrowserAdBlockNetworkOptions(
             rawOptions = patternAndOptions.options,
             exception = exception,
+            domainInterner = domainInterner,
         ) ?: return null
     if (
         pattern.isBlank() &&
@@ -1579,7 +1624,8 @@ private fun compileBrowserAdBlockNetworkRule(
                 .takeWhile { character ->
                     character.isLetterOrDigit() || character == '.' || character == '-'
                 }
-        val normalizedHost = normalizeBrowserAdBlockDomainInput(rawHost) ?: return null
+        val normalizedHost =
+            normalizeBrowserAdBlockDomainInput(rawHost, domainInterner) ?: return null
         val suffixPattern = pattern.removePrefix("||").removePrefix(rawHost)
         return compiled(
             hostAnchor = normalizedHost,
@@ -1713,18 +1759,35 @@ private fun isBrowserAdBlockSeparator(character: Char): Boolean =
         character != '%' &&
         character != '-'
 
+private inline fun forEachBrowserAdBlockDelimitedSegment(
+    value: String,
+    delimiter: Char,
+    action: (String) -> Unit,
+) {
+    var startIndex = 0
+    while (startIndex <= value.length) {
+        val delimiterIndex = value.indexOf(delimiter, startIndex)
+        val endIndex = if (delimiterIndex >= 0) delimiterIndex else value.length
+        action(value.substring(startIndex, endIndex))
+        if (delimiterIndex < 0) {
+            return
+        }
+        startIndex = delimiterIndex + 1
+    }
+}
+
 private data class BrowserAdBlockPatternAndOptions(
     val pattern: String,
     val options: String,
 )
 
 private data class BrowserAdBlockNetworkOptions(
-    val domainIncludes: Set<String> = emptySet(),
-    val domainExcludes: Set<String> = emptySet(),
+    val domainIncludes: List<String> = emptyList(),
+    val domainExcludes: List<String> = emptyList(),
     val resourceIncludes: Set<BrowserAdBlockResourceType> = emptySet(),
     val resourceExcludes: Set<BrowserAdBlockResourceType> = emptySet(),
     val thirdParty: Boolean? = null,
-    val denyAllowDomains: Set<String> = emptySet(),
+    val denyAllowDomains: List<String> = emptyList(),
     val matchCase: Boolean = false,
     val important: Boolean = false,
     val pagePolicy: BrowserAdBlockPagePolicy = BrowserAdBlockPagePolicy(),
@@ -1760,6 +1823,7 @@ private fun splitBrowserAdBlockPatternAndOptions(
 private fun parseBrowserAdBlockNetworkOptions(
     rawOptions: String,
     exception: Boolean,
+    domainInterner: BrowserAdBlockDomainInterner? = null,
 ): BrowserAdBlockNetworkOptions? {
     if (rawOptions.isBlank()) {
         return BrowserAdBlockNetworkOptions()
@@ -1774,10 +1838,10 @@ private fun parseBrowserAdBlockNetworkOptions(
     var important = false
     var pagePolicy = BrowserAdBlockPagePolicy()
 
-    rawOptions.split(',').forEach { rawOption ->
+    forEachBrowserAdBlockDelimitedSegment(rawOptions, ',') { rawOption ->
         val normalizedOption = rawOption.trim()
         if (normalizedOption.isBlank()) {
-            return@forEach
+            return@forEachBrowserAdBlockDelimitedSegment
         }
         val excluded = normalizedOption.startsWith('~')
         val option = normalizedOption.removePrefix("~")
@@ -1788,14 +1852,17 @@ private fun parseBrowserAdBlockNetworkOptions(
                 if (excluded || value.isBlank()) {
                     return null
                 }
-                for (rawDomain in value.split('|')) {
+                forEachBrowserAdBlockDelimitedSegment(value, '|') { rawDomain ->
                     val domainToken = rawDomain.trim()
                     if (domainToken.isBlank()) {
                         return null
                     }
                     val domainExcluded = domainToken.startsWith('~')
                     val domain =
-                        normalizeBrowserAdBlockDomainInput(domainToken.removePrefix("~"))
+                        normalizeBrowserAdBlockDomainInput(
+                            domainToken.removePrefix("~"),
+                            domainInterner,
+                        )
                             ?: return null
                     if (domainExcluded) {
                         domainExcludes += domain
@@ -1808,10 +1875,10 @@ private fun parseBrowserAdBlockNetworkOptions(
                 if (excluded || value.isBlank()) {
                     return null
                 }
-                for (rawDomain in value.split('|')) {
+                forEachBrowserAdBlockDelimitedSegment(value, '|') { rawDomain ->
                     val domainToken = rawDomain.trim()
                     val domain =
-                        normalizeBrowserAdBlockDomainInput(domainToken)
+                        normalizeBrowserAdBlockDomainInput(domainToken, domainInterner)
                             ?: return null
                     denyAllowDomains += domain
                 }
@@ -1868,12 +1935,12 @@ private fun parseBrowserAdBlockNetworkOptions(
         }
     }
     return BrowserAdBlockNetworkOptions(
-        domainIncludes = domainIncludes,
-        domainExcludes = domainExcludes,
+        domainIncludes = domainIncludes.sorted(),
+        domainExcludes = domainExcludes.sorted(),
         resourceIncludes = resourceIncludes,
         resourceExcludes = resourceExcludes,
         thirdParty = thirdParty,
-        denyAllowDomains = denyAllowDomains,
+        denyAllowDomains = denyAllowDomains.sorted(),
         matchCase = matchCase,
         important = important,
         pagePolicy = pagePolicy,
@@ -1984,6 +2051,7 @@ private fun Map<String, String>.browserAdBlockHeader(name: String): String =
 private fun compileBrowserAdBlockElementRule(
     spec: BrowserAdBlockElementRuleSpec,
     ruleSetId: String = BROWSER_AD_BLOCK_DEFAULT_RULE_SET_ID,
+    domainInterner: BrowserAdBlockDomainInterner? = null,
 ): CompiledBrowserAdBlockElementRule? {
     if (!isValidBrowserAdBlockSelector(spec.selector)) {
         return null
@@ -1991,14 +2059,17 @@ private fun compileBrowserAdBlockElementRule(
     val includes = mutableSetOf<String>()
     val excludes = mutableSetOf<String>()
     if (spec.domainExpression.isNotBlank()) {
-        for (rawDomain in spec.domainExpression.split(',')) {
+        forEachBrowserAdBlockDelimitedSegment(spec.domainExpression, ',') { rawDomain ->
             val domainToken = rawDomain.trim()
             if (domainToken.isBlank()) {
                 return null
             }
             val excluded = domainToken.startsWith('~')
             val normalized =
-                normalizeBrowserAdBlockDomainInput(domainToken.removePrefix("~"))
+                normalizeBrowserAdBlockDomainInput(
+                    domainToken.removePrefix("~"),
+                    domainInterner,
+                )
                     ?: return null
             if (excluded) {
                 excludes += normalized
@@ -2012,8 +2083,8 @@ private fun compileBrowserAdBlockElementRule(
         spec = spec,
         selector = spec.selector.trim(),
         exception = spec.exception,
-        domainIncludes = includes,
-        domainExcludes = excludes,
+        domainIncludes = includes.sorted(),
+        domainExcludes = excludes.sorted(),
         generic = includes.isEmpty(),
     )
 }

@@ -55,6 +55,12 @@ class BrowserAdBlockCompiledCacheTest {
                 fixture.partition.ruleSet.badFilters,
                 restored.ruleSet.badFilters,
             )
+            val restoredNewsDomains =
+                restored.partitionElementDomains("news.example")
+            assertTrue(restoredNewsDomains.size >= 2)
+            restoredNewsDomains.drop(1).forEach { domain ->
+                assertTrue(restoredNewsDomains.first() === domain)
+            }
             val originalMatcher =
                 fixture.partition.engine.createMatcher(
                     enabled = true,
@@ -163,6 +169,53 @@ class BrowserAdBlockCompiledCacheTest {
     }
 
     @Test
+    fun `compiled cache refuses unsorted or duplicate compact domain lists`() {
+        val fixture = fixture()
+        val directory = Files.createTempDirectory("kiyori-adblock-domain-order").toFile()
+        val invalid = directory.resolve("invalid.bin")
+        try {
+            val targetRule =
+                fixture.partition.ruleSet.networkRules.first { rule ->
+                    rule.domainIncludes.isNotEmpty()
+                }
+            val invalidRuleSet =
+                BrowserAdBlockCompiledRuleSet.fromCompiled(
+                    id = fixture.partition.ruleSet.id,
+                    networkRules =
+                        fixture.partition.ruleSet.networkRules.map { rule ->
+                            if (rule === targetRule) {
+                                rule.copy(
+                                    domainIncludes =
+                                        listOf(
+                                            targetRule.domainIncludes.first(),
+                                            targetRule.domainIncludes.first(),
+                                        ),
+                                )
+                            } else {
+                                rule
+                            }
+                        },
+                    elementRules = fixture.partition.ruleSet.elementRules,
+                    badFilters = fixture.partition.ruleSet.badFilters,
+                )
+            val invalidPartition = compileBrowserAdBlockCompiledPartition(invalidRuleSet)
+
+            val error =
+                assertThrows(BrowserAdBlockCompiledCacheException::class.java) {
+                    BrowserAdBlockCompiledCacheCodec.write(
+                        target = invalid,
+                        identity = fixture.identity,
+                        partition = invalidPartition,
+                    )
+                }
+            assertEquals("network_domain_order", error.invalidReason)
+        } finally {
+            invalid.delete()
+            directory.delete()
+        }
+    }
+
+    @Test
     fun `compiled cache keeps explicit regex and cross rule decisions`() {
         val fixture = fixture()
         val directory = Files.createTempDirectory("kiyori-adblock-regex").toFile()
@@ -256,6 +309,13 @@ class BrowserAdBlockCompiledCacheTest {
             partition = partition,
         )
     }
+
+    private fun BrowserAdBlockCompiledPartition.partitionElementDomains(
+        expectedDomain: String,
+    ): List<String> =
+        ruleSet.elementRules.mapNotNull { rule ->
+            rule.domainIncludes.singleOrNull { domain -> domain == expectedDomain }
+        }
 
     private data class CacheFixture(
         val identity: BrowserAdBlockCompiledCacheIdentity,

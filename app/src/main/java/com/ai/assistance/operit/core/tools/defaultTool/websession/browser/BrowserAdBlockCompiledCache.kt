@@ -351,17 +351,18 @@ internal object BrowserAdBlockCompiledCacheCodec {
         input: DataInputStream,
         expectedRuleSetId: String,
     ): BrowserAdBlockCompiledPartition {
+        val domainInterner = BrowserAdBlockDomainInterner()
         val ruleSetId = readString(input, BROWSER_AD_BLOCK_CACHE_MAX_ID_BYTES)
         if (ruleSetId != expectedRuleSetId) {
             throw BrowserAdBlockCompiledCacheException("body_rule_set_id")
         }
         val networkRules =
             List(readCount(input, BROWSER_AD_BLOCK_CACHE_MAX_NETWORK_RULES)) {
-                readNetworkRule(input, ruleSetId)
+                readNetworkRule(input, ruleSetId, domainInterner)
             }
         val elementRules =
             List(readCount(input, BROWSER_AD_BLOCK_CACHE_MAX_ELEMENT_RULES)) {
-                readElementRule(input, ruleSetId)
+                readElementRule(input, ruleSetId, domainInterner)
             }
         val badFilters =
             LinkedHashSet<BrowserAdBlockBadFilter>().apply {
@@ -376,8 +377,8 @@ internal object BrowserAdBlockCompiledCacheCodec {
                     )
                 }
             }
-        val networkIndex = readNetworkIndex(input)
-        val elementIndex = readElementIndex(input)
+        val networkIndex = readNetworkIndex(input, domainInterner)
+        val elementIndex = readElementIndex(input, domainInterner)
         val ruleSet =
             BrowserAdBlockCompiledRuleSet.fromCompiled(
                 id = ruleSetId,
@@ -403,13 +404,13 @@ internal object BrowserAdBlockCompiledCacheCodec {
         output.writeBoolean(rule.spec.enabled)
         output.writeBoolean(rule.exception)
         writeNullableString(output, rule.hostAnchor, BROWSER_AD_BLOCK_CACHE_MAX_DOMAIN_BYTES)
-        writeStringSet(
+        writeStringCollection(
             output,
             rule.domainIncludes,
             BROWSER_AD_BLOCK_CACHE_MAX_DOMAINS_PER_RULE,
             BROWSER_AD_BLOCK_CACHE_MAX_DOMAIN_BYTES,
         )
-        writeStringSet(
+        writeStringCollection(
             output,
             rule.domainExcludes,
             BROWSER_AD_BLOCK_CACHE_MAX_DOMAINS_PER_RULE,
@@ -424,7 +425,7 @@ internal object BrowserAdBlockCompiledCacheCodec {
                 true -> 2
             },
         )
-        writeStringSet(
+        writeStringCollection(
             output,
             rule.denyAllowDomains,
             BROWSER_AD_BLOCK_CACHE_MAX_DOMAINS_PER_RULE,
@@ -448,6 +449,7 @@ internal object BrowserAdBlockCompiledCacheCodec {
     private fun readNetworkRule(
         input: DataInputStream,
         ruleSetId: String,
+        domainInterner: BrowserAdBlockDomainInterner,
     ): CompiledBrowserAdBlockNetworkRule {
         val spec =
             BrowserAdBlockNetworkRuleSpec(
@@ -458,18 +460,22 @@ internal object BrowserAdBlockCompiledCacheCodec {
                 enabled = input.readBoolean(),
             )
         val exception = input.readBoolean()
-        val hostAnchor = readNullableString(input, BROWSER_AD_BLOCK_CACHE_MAX_DOMAIN_BYTES)
+        val hostAnchor =
+            readNullableString(input, BROWSER_AD_BLOCK_CACHE_MAX_DOMAIN_BYTES)
+                ?.let(domainInterner::intern)
         val domainIncludes =
-            readStringSet(
+            readStringList(
                 input,
                 BROWSER_AD_BLOCK_CACHE_MAX_DOMAINS_PER_RULE,
                 BROWSER_AD_BLOCK_CACHE_MAX_DOMAIN_BYTES,
+                domainInterner,
             )
         val domainExcludes =
-            readStringSet(
+            readStringList(
                 input,
                 BROWSER_AD_BLOCK_CACHE_MAX_DOMAINS_PER_RULE,
                 BROWSER_AD_BLOCK_CACHE_MAX_DOMAIN_BYTES,
+                domainInterner,
             )
         val resourceIncludes = resourceTypesFromBits(input.readInt())
         val resourceExcludes = resourceTypesFromBits(input.readInt())
@@ -481,10 +487,11 @@ internal object BrowserAdBlockCompiledCacheCodec {
                 else -> throw BrowserAdBlockCompiledCacheException("third_party")
             }
         val denyAllowDomains =
-            readStringSet(
+            readStringList(
                 input,
                 BROWSER_AD_BLOCK_CACHE_MAX_DOMAINS_PER_RULE,
                 BROWSER_AD_BLOCK_CACHE_MAX_DOMAIN_BYTES,
+                domainInterner,
             )
         val matchCase = input.readBoolean()
         val important = input.readBoolean()
@@ -549,13 +556,13 @@ internal object BrowserAdBlockCompiledCacheCodec {
         output.writeBoolean(rule.spec.enabled)
         writeString(output, rule.selector, BROWSER_AD_BLOCK_CACHE_MAX_SELECTOR_BYTES)
         output.writeBoolean(rule.exception)
-        writeStringSet(
+        writeStringCollection(
             output,
             rule.domainIncludes,
             BROWSER_AD_BLOCK_CACHE_MAX_DOMAINS_PER_RULE,
             BROWSER_AD_BLOCK_CACHE_MAX_DOMAIN_BYTES,
         )
-        writeStringSet(
+        writeStringCollection(
             output,
             rule.domainExcludes,
             BROWSER_AD_BLOCK_CACHE_MAX_DOMAINS_PER_RULE,
@@ -567,6 +574,7 @@ internal object BrowserAdBlockCompiledCacheCodec {
     private fun readElementRule(
         input: DataInputStream,
         ruleSetId: String,
+        domainInterner: BrowserAdBlockDomainInterner,
     ): CompiledBrowserAdBlockElementRule {
         val spec =
             BrowserAdBlockElementRuleSpec(
@@ -585,16 +593,18 @@ internal object BrowserAdBlockCompiledCacheCodec {
             selector = readString(input, BROWSER_AD_BLOCK_CACHE_MAX_SELECTOR_BYTES),
             exception = input.readBoolean(),
             domainIncludes =
-                readStringSet(
+                readStringList(
                     input,
                     BROWSER_AD_BLOCK_CACHE_MAX_DOMAINS_PER_RULE,
                     BROWSER_AD_BLOCK_CACHE_MAX_DOMAIN_BYTES,
+                    domainInterner,
                 ),
             domainExcludes =
-                readStringSet(
+                readStringList(
                     input,
                     BROWSER_AD_BLOCK_CACHE_MAX_DOMAINS_PER_RULE,
                     BROWSER_AD_BLOCK_CACHE_MAX_DOMAIN_BYTES,
+                    domainInterner,
                 ),
             generic = input.readBoolean(),
         )
@@ -627,12 +637,16 @@ internal object BrowserAdBlockCompiledCacheCodec {
 
     private fun readNetworkIndex(
         input: DataInputStream,
+        domainInterner: BrowserAdBlockDomainInterner,
     ): BrowserAdBlockNetworkIndexSnapshot {
         val requiresPartyClassification = input.readBoolean()
         val hostRuleIndexes =
             LinkedHashMap<String, List<Int>>().apply {
                 repeat(readCount(input, BROWSER_AD_BLOCK_CACHE_MAX_INDEX_BUCKETS)) {
-                    val host = readString(input, BROWSER_AD_BLOCK_CACHE_MAX_DOMAIN_BYTES)
+                    val host =
+                        domainInterner.intern(
+                            readString(input, BROWSER_AD_BLOCK_CACHE_MAX_DOMAIN_BYTES),
+                        )
                     if (put(host, readRuleIndexes(input)) != null) {
                         throw BrowserAdBlockCompiledCacheException("duplicate_host_bucket")
                     }
@@ -698,12 +712,16 @@ internal object BrowserAdBlockCompiledCacheCodec {
 
     private fun readElementIndex(
         input: DataInputStream,
+        domainInterner: BrowserAdBlockDomainInterner,
     ): BrowserAdBlockElementIndexSnapshot {
         val genericRuleIndexes = readRuleIndexes(input)
         val domainRuleIndexes =
             LinkedHashMap<String, List<Int>>().apply {
                 repeat(readCount(input, BROWSER_AD_BLOCK_CACHE_MAX_INDEX_BUCKETS)) {
-                    val domain = readString(input, BROWSER_AD_BLOCK_CACHE_MAX_DOMAIN_BYTES)
+                    val domain =
+                        domainInterner.intern(
+                            readString(input, BROWSER_AD_BLOCK_CACHE_MAX_DOMAIN_BYTES),
+                        )
                     if (put(domain, readRuleIndexes(input)) != null) {
                         throw BrowserAdBlockCompiledCacheException("duplicate_element_bucket")
                     }
@@ -732,6 +750,15 @@ internal object BrowserAdBlockCompiledCacheCodec {
 
     private fun validateCompiledPartition(partition: BrowserAdBlockCompiledPartition) {
         val networkRules = partition.ruleSet.networkRules
+        networkRules.forEach { rule ->
+            if (
+                !rule.domainIncludes.isStrictlyIncreasing() ||
+                    !rule.domainExcludes.isStrictlyIncreasing() ||
+                    !rule.denyAllowDomains.isStrictlyIncreasing()
+            ) {
+                throw BrowserAdBlockCompiledCacheException("network_domain_order")
+            }
+        }
         val networkSeen = BooleanArray(networkRules.size)
         var networkReferenceCount = 0
         fun validateNetworkReference(
@@ -801,6 +828,14 @@ internal object BrowserAdBlockCompiledCacheCodec {
         }
 
         val elementRules = partition.ruleSet.elementRules
+        elementRules.forEach { rule ->
+            if (
+                !rule.domainIncludes.isStrictlyIncreasing() ||
+                    !rule.domainExcludes.isStrictlyIncreasing()
+            ) {
+                throw BrowserAdBlockCompiledCacheException("element_domain_order")
+            }
+        }
         val elementReferenceCounts = IntArray(elementRules.size)
         partition.elementIndexSnapshot.genericRuleIndexes.forEach { index ->
             if (index !in elementRules.indices || !elementRules[index].generic) {
@@ -811,9 +846,9 @@ internal object BrowserAdBlockCompiledCacheCodec {
         partition.elementIndexSnapshot.domainRuleIndexes.forEach { (domain, indexes) ->
             indexes.forEach { index ->
                 if (
-                    index !in elementRules.indices ||
+                        index !in elementRules.indices ||
                         elementRules[index].generic ||
-                        domain !in elementRules[index].domainIncludes
+                        elementRules[index].domainIncludes.binarySearch(domain) < 0
                 ) {
                     throw BrowserAdBlockCompiledCacheException("domain_element_index")
                 }
@@ -826,6 +861,15 @@ internal object BrowserAdBlockCompiledCacheCodec {
                 throw BrowserAdBlockCompiledCacheException("element_index_coverage")
             }
         }
+    }
+
+    private fun List<String>.isStrictlyIncreasing(): Boolean {
+        for (index in 1 until size) {
+            if (this[index - 1] >= this[index]) {
+                return false
+            }
+        }
+        return true
     }
 }
 
@@ -906,9 +950,9 @@ private fun readNullableString(
         null
     }
 
-private fun writeStringSet(
+private fun writeStringCollection(
     output: DataOutputStream,
-    values: Set<String>,
+    values: Collection<String>,
     maximumEntries: Int,
     maximumStringBytes: Int,
 ) {
@@ -919,19 +963,29 @@ private fun writeStringSet(
     }
 }
 
-private fun readStringSet(
+private fun readStringList(
     input: DataInputStream,
     maximumEntries: Int,
     maximumStringBytes: Int,
-): Set<String> =
-    LinkedHashSet<String>().apply {
-        repeat(readCount(input, maximumEntries)) {
-            val value = readString(input, maximumStringBytes)
-            if (!add(value)) {
-                throw BrowserAdBlockCompiledCacheException("duplicate_set_value")
+    domainInterner: BrowserAdBlockDomainInterner,
+): List<String> {
+    val count = readCount(input, maximumEntries)
+    var previousValue: String? = null
+    return ArrayList<String>(count).apply {
+        repeat(count) {
+            val decodedValue = readString(input, maximumStringBytes)
+            val previous = previousValue
+            // 写入端固定排序，因此相邻比较即可同时验证顺序与重复值，无需在解码峰值上再建 HashSet。
+            if (previous != null && decodedValue <= previous) {
+                throw BrowserAdBlockCompiledCacheException(
+                    if (decodedValue == previous) "duplicate_set_value" else "set_order",
+                )
             }
+            previousValue = decodedValue
+            add(domainInterner.intern(decodedValue))
         }
     }
+}
 
 private fun ruleSourceCode(source: BrowserAdBlockRuleSource): Int =
     when (source) {

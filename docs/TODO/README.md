@@ -69,6 +69,53 @@ For_Agent: 对项目大规模动工前按本规范协作
   正式门禁和 Debug 构建。
   真机视觉/触摸/输入法及真实 WebView、播放器、下载任务仍保持 `verification_pending`。
 
+## 2026-09-03 广告订阅自动刷新编译内存溢出修复
+
+状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。
+
+Crash Report `ef5ed670-bcbd-4e8a-bf58-0a2a368062f5` 显示，广告拦截运行时完成初始化后执行内置
+订阅自动刷新，在 `compileBrowserAdBlockElementRule()` 规范化元素规则域名时耗尽 512 MiB Java
+heap。2026-09-03 对当前内置 `exceptionrules.txt` 的只读核对显示，载荷为 `18817348` bytes、
+`16727` 行；其中元素规则域名出现 `612478` 次、网络选项域名出现 `474606` 次，而两类各自只有
+约 4.7 万至 4.9 万个唯一域名。现有单遍编译虽然已经消除完整 UTF-8 `String` 和 parsed spec
+列表，仍会为大量重复域名保留独立 `String` 与 `LinkedHashSet` 节点，同时长期保存既含
+`ruleSet`、`engine` 又含 boxed-index snapshot 的完整 subscription partition。初始化函数还在
+这些局部编译对象离开调用帧前直接进入自动刷新，使旧运行时、新下载 `ByteArray` 和新编译分区
+同时驻留；栈顶 `split('.')` 的 24-byte 分配只是堆已耗尽后的最后失败点。
+
+本轮计划：
+
+1. 将域名合法性校验和逗号/竖线域表达式遍历改为索引扫描，不为校验构造 `split` 列表；在单条
+   订阅编译和缓存解码期间共享域名驻留表，相同规范化域名只保留一个 `String` 实例。
+2. 将网络与元素规则的大型域集合改为保持去重语义的紧凑 `List`；缓存继续写入同一确定性排序字段，
+   不改变 schema v3、cache format、compiler contract、规则优先级或匹配结果。
+3. `BrowserAdBlockStore` 的长期订阅映射只保留请求匹配需要的 `BrowserAdBlockEngine`，编码所需的
+   `ruleSet` 与 index snapshot 在快照写完后释放；启动自动刷新改为在 `initializeRuntime()` 调用帧
+   返回后开始，避免初始化临时引用跨入刷新峰值。
+4. 增加重复域高基数、缓存 round-trip、启动源码合同和现有规则语义回归；依次执行广告拦截定向
+   JVM 测试、`git diff --check`、formal readiness、必要编译检查、串行 Debug APK 构建和 APK
+   元数据/签名/16 KiB 对齐核验。
+
+非目标：不捕获 `OutOfMemoryError`，不裁剪规则、限制订阅、关闭自动更新或改变广告拦截开关；
+不增加第二 Store/Engine/matcher owner，不新增回退或降级路径。真实 512 MiB Android heap 下的
+自动刷新和长期浏览仍需目标设备复测，本地 JVM 与 Debug APK 不能替代现场验收。
+
+本轮已按计划完成实现：编译和缓存解码对规范化域名进行单订阅作用域驻留，规则域集合使用排序去重
+的紧凑列表，域名与分隔表达式不再构造 `split` 列表；Store 长期映射只保存 Engine，自动刷新在
+初始化调用帧返回后开始。磁盘 schema、cache format、compiler contract、订阅身份、更新周期和
+匹配语义未改变。四个广告拦截 suite 共 `44/44` 通过，其中高重复域 fixture 覆盖 `5000` 条网络
+例外、`5000` 条元素规则和约 `1000000` 个域引用；formal readiness 与 `git diff --check` 通过。
+架构边界检查仍报告当前基线已有的 Manifest、AI Drawer、导航、主题与历史例外清单漂移，本轮九个
+源/测试/文档文件均未出现在失败项中，因此没有越界重写架构基线。
+
+规定的串行 `:app:assembleDebug --no-daemon --console=plain` 在 `1m 29s` 内通过，`235` 个任务中
+`26` 个实际执行、`209` 个 up-to-date。`app/build/outputs/apk/debug/app-debug.apk` 生成于
+`2026-09-03 17:40:16 +08:00`，大小为 `496156261` bytes，SHA-256
+`AB52CF1E4CC1FD700332FE15EACCE24EBE2C80CB4D25CE1262AEB869A9A52927`；核验结果为
+`com.kiyori / 45 / 0.1.0 / minSdk 26 / targetSdk 34 / compileSdk 37`、仅 `arm64-v8a`、Android
+Debug V2 单 signer 和 16 KiB ZIP 对齐。未安装 APK、未操作设备，原崩溃场景仍为
+`verification_pending`。
+
 ## 2026-08-30 Mihomo 运行时指纹内存溢出修复
 
 状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。

@@ -290,6 +290,56 @@ class BrowserAdBlockPolicyTest {
     }
 
     @Test
+    fun `single pass compilation shares repeated domains across compact rule lists`() {
+        val ruleCount = 5_000
+        val domains = List(100) { index -> "domain-${index.toString().padStart(3, '0')}.example" }
+        val networkDomains = domains.joinToString("|")
+        val elementDomains = domains.joinToString(",")
+        val text =
+            buildString {
+                repeat(ruleCount) { index ->
+                    append("@@||ads-")
+                    append(index)
+                    append(".example^")
+                    append("${'$'}domain=")
+                    append(networkDomains)
+                    append('\n')
+                    append(elementDomains)
+                    append("##.sponsored-")
+                    append(index)
+                    append('\n')
+                }
+            }
+
+        val compiled =
+            text
+                .reader()
+                .buffered()
+                .use { reader ->
+                    compileBrowserAdBlockSubscription(
+                        reader = reader,
+                        subscriptionId = "repeated-domains",
+                        subscriptionName = "Repeated domains",
+                    )
+                }
+
+        assertEquals(ruleCount, compiled.counts.networkExceptionRuleCount)
+        assertEquals(ruleCount, compiled.counts.elementBlockingRuleCount)
+        val canonicalDomains = compiled.ruleSet.networkRules.first().domainIncludes
+        assertEquals(domains, canonicalDomains)
+        compiled.ruleSet.networkRules.forEach { rule ->
+            rule.domainIncludes.forEachIndexed { index, domain ->
+                assertSame(canonicalDomains[index], domain)
+            }
+        }
+        compiled.ruleSet.elementRules.forEach { rule ->
+            rule.domainIncludes.forEachIndexed { index, domain ->
+                assertSame(canonicalDomains[index], domain)
+            }
+        }
+    }
+
+    @Test
     fun `resource and third party options constrain request blocking`() {
         val matcher =
             matcher(
@@ -746,6 +796,9 @@ class BrowserAdBlockPolicyTest {
         assertEquals("example.org", normalizeBrowserAdBlockDomainInput("https://Example.org/path"))
         assertEquals("sub.example.org", normalizeBrowserAdBlockDomainInput("sub.example.org:443"))
         assertNull(normalizeBrowserAdBlockDomainInput("-invalid.example.org"))
+        assertNull(normalizeBrowserAdBlockDomainInput("invalid-.example.org"))
+        assertNull(normalizeBrowserAdBlockDomainInput("invalid..example.org"))
+        assertNull(normalizeBrowserAdBlockDomainInput("a".repeat(64) + ".example.org"))
         assertNull(normalizeBrowserAdBlockDomainInput("not a domain"))
     }
 

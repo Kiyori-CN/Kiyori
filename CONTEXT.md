@@ -56,6 +56,12 @@ Current work status and implementation notes belong in `docs/TODO/`.
   has changed, one buffered UTF-8 line pass validates and directly emits compiled network rules, compiled
   element rules, `badfilter` records and metadata counts. That runtime path does not construct a complete
   subscription `String`, retain complete parsed spec lists or compile every accepted rule a second time.
+  One subscription compile or cache decode interns normalized domains within that operation and stores each
+  rule's deduplicated domains as compact sorted lists; the pool is not process-global. After cache validation
+  or persistence, `BrowserAdBlockStore` retains only each subscription's request-matching Engine, not the
+  serialization rule set or boxed index snapshot. Due built-in refresh begins only after the initialization
+  call frame has returned, so initialization temporaries do not overlap the old Engine, downloaded payload
+  and replacement Engine peak.
   `BrowserAdBlockEngine.combine()` joins the
   partitions inside the same immutable matcher and one global candidate decision, preserving cross-source
   exceptions, `important`, `badfilter` and element exceptions. One changed subscription rebuilds only its

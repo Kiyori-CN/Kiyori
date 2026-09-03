@@ -1,7 +1,7 @@
 ---
 document_type: implementation-plan
 status: verification_pending
-last_updated: 2026-08-18
+last_updated: 2026-09-03
 source_baseline: main@4926f7a81b67f35225eea37991e108c9d8825056
 ---
 
@@ -965,3 +965,115 @@ subscription partition。缓存缺失启动路径具有同样的完整文本、s
   readiness、Debug APK 和 native 静态审计通过。
 - 目标设备上的真实自动刷新、512 MiB 堆压力与长期内存证据仍待复测；完成前继续保持
   `verification_pending`。
+
+## 23. 2026-09-03 自动刷新域集合内存峰值修复计划
+
+### 23.1 新现场证据与旧修复边界
+
+Crash Report `ef5ed670-bcbd-4e8a-bf58-0a2a368062f5` 的调用链为：
+
+```text
+initializeRuntime
+-> refreshDueBuiltInSubscriptions
+-> refreshSubscriptionLocked
+-> compileSubscriptionPayload
+-> compileBrowserAdBlockSubscription
+-> compileBrowserAdBlockElementRule
+-> normalizeBrowserAdBlockDomainInput
+-> split('.')
+```
+
+进程在 512 MiB growth limit 下只剩约 2.5 MiB，GC 后空闲低于 1%，最终连 24-byte 分配也无法
+完成。第 22 节的 `BufferedReader` 单遍编译仍然有效：当前刷新路径没有恢复完整 payload
+`String`、parsed spec 列表或第二轮规则编译。本次必须继续收敛单遍编译器和运行时表示，不能回退
+第 22 节，也不能把最后一次 `split` 当成唯一根因。
+
+2026-09-03 对当前内置 `exceptionrules.txt` 的只读采样得到：
+
+- 响应正文 `18817348` bytes、`16727` 行，最大行长 `20000`；
+- `5552` 条 cosmetic 规则包含 `612478` 个域名出现位置、约 `46673` 个唯一域名；
+- network `domain/from/denyallow` 选项包含 `474606` 个域名出现位置、约 `48818` 个唯一域名；
+- 单条 cosmetic 规则最多包含 `1353` 个逗号分隔域名。
+
+当前实现为每个出现位置生成规范化域名 `String`，再放入每条规则的 `LinkedHashSet`；缓存解码也会
+为相同文本重复创建对象。`BrowserAdBlockCompiledPartition` 同时持有 rule set、运行时 Engine、
+boxed `Int` index snapshot，而 `BrowserAdBlockStore.subscriptionRuntimePartitions` 在整个进程期间
+保留完整 partition。初始化完成后还在 `initializeRuntime()` 的调用帧内直接刷新到期订阅，导致
+初始化局部对象、旧运行时、新下载 `ByteArray` 和新分区共同抬高峰值。
+
+### 23.2 冻结实现方案
+
+1. `normalizeBrowserAdBlockDomainInput()` 以单次字符扫描校验 label 长度、连字符和合法字符，不再
+   使用 `split('.')`；domain expression 和 network option domain list 以分隔符索引逐项消费，
+   不创建包含全部 token 的临时 `List`。
+2. 每次 subscription compile 建立作用域内 domain interner；缓存 read 也为整条 partition 建立
+   同类 interner。规范化结果相同时复用同一个 `String`，interner 在 partition 建立后释放，
+   Engine 中保留的引用继续共享实例。
+3. `CompiledBrowserAdBlockNetworkRule`、`CompiledBrowserAdBlockElementRule` 和 network option 中的
+   domain include/exclude/denyallow 改为已去重的紧凑 `List<String>`。匹配仍按现有顺序执行
+   `any/none`，元素域索引仍逐项建立，语义不依赖 Set 的公开接口。
+4. 二进制缓存继续写入相同的 count + sorted UTF-8 字符串序列；读取时校验重复项后返回紧凑列表。
+   schema v3、`CACHE_FORMAT_VERSION=1`、`COMPILER_CONTRACT_ID=kiyori-adblock-compiled-v1` 和既有
+   cache identity 均不改变，因为磁盘字段布局与匹配语义不变，旧快照可以直接读取。
+5. Store 的长期映射改为 `subscription id -> BrowserAdBlockEngine`。首次编译或缓存读取产生的完整
+   partition 仅用于校验和快照编码，写完即只投影 Engine；刷新提交仍在同一锁内原子替换目标
+   Engine、组合总 Engine、发布 matcher 和 state，不发布部分规则。
+6. 初始化 coroutine 在 `initializeRuntime()` 返回后才调用 `refreshDueBuiltInSubscriptions()`；这只
+   缩短临时对象生命周期，不改变 READY 后自动刷新、刷新顺序、错误状态或手动刷新入口。
+
+### 23.3 风险、回滚点与验证
+
+- 风险：紧凑列表必须保留每条规则的去重语义。编译和缓存读取均在转换前拒绝或消除重复值，现有
+  domain match、element index coverage 和 cache corruption 校验继续覆盖。
+- 风险：字符串驻留不能成为进程级永久池。interner 只属于一次订阅编译或一次缓存解码，不进入
+  Store 字段；其生命周期结束后只剩 Engine 实际引用的唯一文本。
+- 风险：释放 rule set/snapshot 不能影响缓存写入。流程固定为 compile/read partition -> 完成缓存
+  校验/写入 -> 投影 Engine -> Store 原子提交，不能提前丢弃序列化状态。
+- 回滚点：改动不迁移用户状态、不改磁盘格式、不写第二份配置；回退单个代码提交即可恢复旧内存
+  表示，已有 schema v3 payload 和 compiled cache 仍可读取。
+- 自动验收：重复域高基数 fixture 证明共享引用和紧凑集合；既有 parse/compile 等价、cache
+  deterministic round-trip、跨分区 `badfilter`/important/元素例外、启动非阻塞与无 OOM 捕获合同
+  全部通过。
+- 交付验收：formal readiness、`git diff --check`、相关 Kotlin/JVM 编译、串行
+  `:app:assembleDebug --no-daemon --console=plain`、Debug APK package/version/V2 signer/16 KiB
+  zipalign、精确 staged allowlist 和远端三方 ref 对账通过。
+- 设备边界：目标设备用同一内置订阅完成到期自动刷新，并采集 heap/PSS/GC；完成前保持
+  `verification_pending`。
+
+### 23.4 本地实施与验证结果
+
+实现已完成：
+
+1. `BrowserAdBlockDomainInterner` 只在一次 subscription compile 或 cache decode 内存活；网络与
+   元素规则共享规范化域名实例，Store 不持有驻留表。
+2. domain include/exclude/denyallow 使用排序去重的 `List<String>`；缓存 writer 继续生成与旧版
+   相同的排序字符串序列，reader 通过严格递增校验拒绝乱序/重复字段，并以二分查找验证元素索引，
+   避免紧凑列表带来平方级覆盖检查。
+3. 域名 label、逗号 cosmetic domain expression、网络 option 及竖线 domain value 都按索引扫描，
+   不创建包含整行 token 的 `split` 列表。
+4. `BrowserAdBlockStore.subscriptionRuntimeEngines` 只保留 `id -> Engine`；完整 partition 完成 cache
+   校验或写入后不进入长期 Store 字段。初始化 coroutine 在 `initializeRuntime()` 返回且状态为
+   `READY` 后才调用到期刷新。
+5. schema v3、`CACHE_FORMAT_VERSION=1`、`COMPILER_CONTRACT_ID=kiyori-adblock-compiled-v1`、内容
+   寻址 payload、快照身份、自动/手动刷新、原子 matcher 发布和全部规则语义保持不变。
+
+自动证据：
+
+- `BrowserAdBlockPolicyTest`、`BrowserAdBlockCompiledCacheTest`、
+  `BrowserAdBlockStartupContractTest`、`BrowserAdBlockSubscriptionCatalogTest` 共 `44/44` 通过，
+  failures/errors/skipped 均为 `0`；
+- 高重复域回归包含 `5000` 条网络例外、`5000` 条元素规则和约 `1000000` 个域引用，单项测试约
+  `1.4s`；它验证编译结果跨规则及网络/元素类型共享同一域名实例；
+- `check_formal_readiness.py --repository . --require-main` 与 `git diff --check` 通过；
+- `check_architecture_boundaries.py --repository . --require-main` 仍因当前基线的 Manifest、AI Drawer、
+  主导航、Software Home、主题及旧 exception 清单漂移失败；失败项不包含本专项修改文件，本轮未
+  越界修改这些架构资产或批准其新摘要；
+- 串行 `:app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL in 1m 29s`，`235`
+  个任务中 `26` 个执行、`209` 个 up-to-date；
+- Debug APK 生成于 `2026-09-03 17:40:16 +08:00`，大小为 `496156261` bytes、SHA-256
+  `AB52CF1E4CC1FD700332FE15EACCE24EBE2C80CB4D25CE1262AEB869A9A52927`，包/版本/SDK 为
+  `com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`，仅 `arm64-v8a`，Android Debug V2 单 signer，
+  16 KiB ZIP 对齐通过。
+
+未安装 APK、未运行 ADB/模拟器/真机。目标设备的原到期自动刷新、512 MiB heap、PSS/GC 和长期
+浏览验收仍为 `verification_pending`。

@@ -287,8 +287,7 @@ internal class BrowserAdBlockStore private constructor(
     private val _subscriptionRefreshProgress =
         MutableStateFlow<BrowserAdBlockSubscriptionRefreshProgress?>(null)
     private var customRuleSet = BrowserAdBlockCompiledRuleSet.EMPTY
-    private var subscriptionRuntimePartitions =
-        emptyMap<String, BrowserAdBlockCompiledPartition>()
+    private var subscriptionRuntimeEngines = emptyMap<String, BrowserAdBlockEngine>()
     private var customRuntimeEngine = BrowserAdBlockEngine.EMPTY
     private var subscriptionRuntimeEngine = BrowserAdBlockEngine.EMPTY
     private var runtimeEngine = BrowserAdBlockEngine.EMPTY
@@ -309,6 +308,11 @@ internal class BrowserAdBlockStore private constructor(
     init {
         ioScope.launch {
             initializeRuntime()
+            // 自动刷新必须等初始化调用帧释放编译/解码临时对象后再开始；否则旧运行时、
+            // 下载载荷与新分区会共同进入 512 MiB Android heap 的同一个峰值。
+            if (_runtimeStatus.value.phase == BrowserAdBlockRuntimePhase.READY) {
+                refreshDueBuiltInSubscriptions()
+            }
         }
     }
 
@@ -851,7 +855,7 @@ internal class BrowserAdBlockStore private constructor(
                         expectedUrl = subscription.url,
                         expectedName = subscription.name,
                         subscription = refreshedSubscription,
-                        partition = partition,
+                        engine = partition.engine,
                     )
                 pruneSubscriptionArtifacts(committed)
                 Result.success(committed)
@@ -976,7 +980,7 @@ internal class BrowserAdBlockStore private constructor(
             var compiledSubscriptionCount = 0
             var cacheWarning: String? = null
             val compiledSubscriptions =
-                buildMap<String, BrowserAdBlockCompiledPartition> {
+                buildMap<String, BrowserAdBlockEngine> {
                     subscriptionsToCompile.forEachIndexed { index, originalSubscription ->
                         var subscription = originalSubscription
                         val cacheResult =
@@ -989,7 +993,7 @@ internal class BrowserAdBlockStore private constructor(
                         cacheResult.fold(
                             onSuccess = { partition ->
                                 cacheHitCount += 1
-                                put(subscription.id, partition)
+                                put(subscription.id, partition.engine)
                             },
                             onFailure = { cacheError ->
                                 val invalidReason =
@@ -1054,12 +1058,12 @@ internal class BrowserAdBlockStore private constructor(
                                             cacheWarning =
                                                 "部分本地编译快照未保存，下次启动会重新编译"
                                         }
-                                        partition
+                                        partition.engine
                                     }
                                 compiledResult.fold(
-                                    onSuccess = { partition ->
+                                    onSuccess = { engine ->
                                         compiledSubscriptionCount += 1
-                                        put(subscription.id, partition)
+                                        put(subscription.id, engine)
                                         loadedState =
                                             loadedState.updateSubscriptionMetadata(subscription)
                                     },
@@ -1133,7 +1137,7 @@ internal class BrowserAdBlockStore private constructor(
                     writePersistedState(revisionedState)
                 }
                 customRuleSet = compiledCustomRules
-                subscriptionRuntimePartitions = compiledSubscriptions
+                subscriptionRuntimeEngines = compiledSubscriptions
                 customRuntimeEngine = compiledCustomEngine
                 subscriptionRuntimeEngine = compiledSubscriptionEngine
                 runtimeEngine = compiledEngine
@@ -1161,7 +1165,6 @@ internal class BrowserAdBlockStore private constructor(
                 BROWSER_AD_BLOCK_TAG,
                 "Runtime ready subscriptions=${subscriptionsToCompile.size} cacheHits=$cacheHitCount cacheMisses=$cacheMissCount cacheInvalid=$cacheInvalidCount compiled=$compiledSubscriptionCount elapsedMillis=${(System.nanoTime() - initializationStartedAt) / 1_000_000L}",
             )
-            refreshDueBuiltInSubscriptions()
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
@@ -1217,14 +1220,14 @@ internal class BrowserAdBlockStore private constructor(
                 } else {
                     customRuleSet
                 }
-            val retainedSubscriptionPartitions =
-                subscriptionRuntimePartitions.filterKeys { id ->
+            val retainedSubscriptionEngines =
+                subscriptionRuntimeEngines.filterKeys { id ->
                     transformed.subscriptions.any { subscription ->
                         subscription.id == id && subscription.hasLocalRules
                     }
                 }
             val subscriptionRulesChanged =
-                retainedSubscriptionPartitions.keys != subscriptionRuntimePartitions.keys
+                retainedSubscriptionEngines.keys != subscriptionRuntimeEngines.keys
             val nextCustomRuntimeEngine =
                 if (customRulesChanged) {
                     compileCustomRuntimeEngine(nextCustomRuleSet)
@@ -1233,7 +1236,7 @@ internal class BrowserAdBlockStore private constructor(
                 }
             val nextSubscriptionRuntimeEngine =
                 if (subscriptionRulesChanged) {
-                    compileSubscriptionRuntimeEngine(retainedSubscriptionPartitions)
+                    compileSubscriptionRuntimeEngine(retainedSubscriptionEngines)
                 } else {
                     subscriptionRuntimeEngine
                 }
@@ -1264,7 +1267,7 @@ internal class BrowserAdBlockStore private constructor(
             )
             writePersistedState(updated)
             customRuleSet = nextCustomRuleSet
-            subscriptionRuntimePartitions = retainedSubscriptionPartitions
+            subscriptionRuntimeEngines = retainedSubscriptionEngines
             customRuntimeEngine = nextCustomRuntimeEngine
             subscriptionRuntimeEngine = nextSubscriptionRuntimeEngine
             runtimeEngine = nextRuntimeEngine
@@ -1342,10 +1345,10 @@ internal class BrowserAdBlockStore private constructor(
         )
 
     private fun compileSubscriptionRuntimeEngine(
-        subscriptionPartitions: Map<String, BrowserAdBlockCompiledPartition>,
+        subscriptionEngines: Map<String, BrowserAdBlockEngine>,
     ): BrowserAdBlockEngine =
         BrowserAdBlockEngine.combine(
-            subscriptionPartitions.values.map(BrowserAdBlockCompiledPartition::engine),
+            subscriptionEngines.values,
         )
 
     private fun combineRuntimeEngines(
@@ -1372,7 +1375,7 @@ internal class BrowserAdBlockStore private constructor(
                     state.subscriptions
                         .filter { subscription ->
                             subscription.enabled &&
-                                subscription.id in subscriptionRuntimePartitions
+                                subscription.id in subscriptionRuntimeEngines
                         }
                         .forEach { subscription ->
                             add(subscription.id)
@@ -1419,7 +1422,7 @@ internal class BrowserAdBlockStore private constructor(
         expectedUrl: String,
         expectedName: String,
         subscription: BrowserAdBlockSubscription,
-        partition: BrowserAdBlockCompiledPartition,
+        engine: BrowserAdBlockEngine,
     ): BrowserAdBlockSubscription =
         synchronized(lock) {
             val currentState = _state.value
@@ -1460,17 +1463,17 @@ internal class BrowserAdBlockStore private constructor(
                 updatedState.copy(
                     ruleRevision = currentState.ruleRevision + 1L,
                 )
-            val updatedSubscriptionPartitions =
-                subscriptionRuntimePartitions + (committedSubscription.id to partition)
+            val updatedSubscriptionEngines =
+                subscriptionRuntimeEngines + (committedSubscription.id to engine)
             val updatedSubscriptionRuntimeEngine =
-                compileSubscriptionRuntimeEngine(updatedSubscriptionPartitions)
+                compileSubscriptionRuntimeEngine(updatedSubscriptionEngines)
             val updatedRuntimeEngine =
                 combineRuntimeEngines(
                     customEngine = customRuntimeEngine,
                     subscriptionEngine = updatedSubscriptionRuntimeEngine,
                 )
             writePersistedState(revisionedState)
-            subscriptionRuntimePartitions = updatedSubscriptionPartitions
+            subscriptionRuntimeEngines = updatedSubscriptionEngines
             subscriptionRuntimeEngine = updatedSubscriptionRuntimeEngine
             runtimeEngine = updatedRuntimeEngine
             matcher = compileMatcher(revisionedState, updatedRuntimeEngine)

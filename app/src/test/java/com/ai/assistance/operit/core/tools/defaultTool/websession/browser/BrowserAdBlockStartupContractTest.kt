@@ -26,7 +26,10 @@ class BrowserAdBlockStartupContractTest {
         assertTrue(source.contains("compiledSubscriptionCount += 1"))
         assertTrue(source.contains("matcher = compileMatcher(revisionedState, compiledEngine)"))
         assertTrue(source.contains("private var customRuntimeEngine"))
+        assertTrue(source.contains("private var subscriptionRuntimeEngines"))
         assertTrue(source.contains("private var subscriptionRuntimeEngine"))
+        assertTrue(source.contains("put(subscription.id, partition.engine)"))
+        assertTrue(source.contains("if (_runtimeStatus.value.phase == BrowserAdBlockRuntimePhase.READY)"))
         assertTrue(source.contains("combineRuntimeEngines("))
         assertTrue(source.contains("compileBrowserAdBlockSubscription("))
         assertTrue(source.contains(".bufferedReader(StandardCharsets.UTF_8)"))
@@ -34,6 +37,29 @@ class BrowserAdBlockStartupContractTest {
         assertFalse(source.contains("bytes.toString(StandardCharsets.UTF_8)"))
         assertFalse(source.contains("payload.toString(StandardCharsets.UTF_8)"))
         assertFalse(source.contains("OutOfMemoryError"))
+    }
+
+    @Test
+    fun `subscription compiler avoids split domain lists and retained set partitions`() {
+        val policySource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/BrowserAdBlockPolicy.kt",
+            ).readText()
+        val cacheSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/BrowserAdBlockCompiledCache.kt",
+            ).readText()
+
+        assertTrue(policySource.contains("class BrowserAdBlockDomainInterner"))
+        assertTrue(policySource.contains("forEachBrowserAdBlockDelimitedSegment"))
+        assertTrue(policySource.contains("val domainIncludes: List<String>"))
+        assertTrue(policySource.contains("val domainExcludes: List<String>"))
+        assertTrue(policySource.contains("val denyAllowDomains: List<String>"))
+        assertFalse(policySource.contains("host.split('.')"))
+        assertFalse(policySource.contains("domainExpression.split(',')"))
+        assertFalse(policySource.contains("value.split('|')"))
+        assertTrue(cacheSource.contains("readStringList("))
+        assertFalse(cacheSource.contains("readStringSet("))
     }
 
     @Test
