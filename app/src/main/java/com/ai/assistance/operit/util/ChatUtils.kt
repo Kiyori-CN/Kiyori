@@ -85,8 +85,9 @@ object ChatUtils {
         // 5. <search>...</search> (正常闭合的标签)
         // 6. <search>... (未闭合，直到字符串末尾)
         // \\z 匹配字符串的绝对末尾
-        val thinkPattern = "<think(?:ing)?>.*?(</think(?:ing)?>|\\z)".toRegex(RegexOption.DOT_MATCHES_ALL)
-        val searchPattern = "<search>.*?(</search>|\\z)".toRegex(RegexOption.DOT_MATCHES_ALL)
+        val options = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
+        val thinkPattern = "<think(?:ing)?>.*?(</think(?:ing)?>|\\z)".toRegex(options)
+        val searchPattern = "<search>.*?(</search>|\\z)".toRegex(options)
         return content.replace(thinkPattern, "").replace(searchPattern, "").trim()
     }
 

@@ -9,6 +9,105 @@ import org.junit.Test
 
 class AssistantReplayHistoryProjectionTest {
     @Test
+    fun emptyAssistant_isNotReplayable() {
+        assertEquals(
+            AssistantReplayEligibility.NONE,
+            AssistantReplayHistoryProjector.eligibility(""),
+        )
+        assertFalse(AssistantReplayHistoryProjector.isDurable("   \n\t"))
+    }
+
+    @Test
+    fun reasoningOnlyAssistant_isLocalOnlyAndNotReplayable() {
+        assertEquals(
+            AssistantReplayEligibility.LOCAL_ONLY_REASONING,
+            AssistantReplayHistoryProjector.eligibility("<think>reasoning</think>"),
+        )
+        assertFalse(AssistantReplayHistoryProjector.isReplayable("<think>reasoning</think>"))
+        assertTrue(AssistantReplayHistoryProjector.isDurable("<think>reasoning</think>"))
+        assertEquals(
+            AssistantReplayEligibility.LOCAL_ONLY_REASONING,
+            AssistantReplayHistoryProjector.eligibility(
+                "<THINKING>reasoning</THINKING><meta provider=\"anthropic_content_blocks\">state</meta>"
+            ),
+        )
+    }
+
+    @Test
+    fun reasoningWithVisibleAnswer_isReplayable() {
+        assertEquals(
+            AssistantReplayEligibility.REPLAYABLE,
+            AssistantReplayHistoryProjector.eligibility(
+                "<think>reasoning</think>\nvisible answer"
+            ),
+        )
+    }
+
+    @Test
+    fun statusOnlyAssistant_isNotReplayable() {
+        assertEquals(
+            AssistantReplayEligibility.NONE,
+            AssistantReplayHistoryProjector.eligibility("<status>working</status>"),
+        )
+    }
+
+    @Test
+    fun completeToolTransaction_isReplayableWithoutVisibleProse() {
+        val content = call("run", "call-1") + result("run", "call-1")
+
+        assertEquals(
+            AssistantReplayEligibility.REPLAYABLE,
+            AssistantReplayHistoryProjector.eligibility(content),
+        )
+    }
+
+    @Test
+    fun incompleteToolTransaction_isNotReplayableWhenItHasNoSafePrefix() {
+        assertEquals(
+            AssistantReplayEligibility.NONE,
+            AssistantReplayHistoryProjector.eligibility(call("run", "call-1")),
+        )
+    }
+
+    @Test
+    fun incompleteToolTransaction_replaysOnlyItsSafePrefix() {
+        val projection =
+            AssistantReplayHistoryProjector.project("safe prefix\n" + call("run", "call-1"))
+
+        assertEquals("safe prefix\n", projection.content)
+        assertEquals(
+            AssistantReplayEligibility.REPLAYABLE,
+            AssistantReplayHistoryProjector.eligibility(projection.content),
+        )
+    }
+
+    @Test
+    fun repairPolicy_excludesOnlyUnversionedEmptyAssistantRows() {
+        val empty = ChatMessage(sender = "ai", content = "", timestamp = 1L)
+        val statusOnly =
+            ChatMessage(sender = "ai", content = "<status>working</status>", timestamp = 2L)
+        val reasoningOnly =
+            ChatMessage(sender = "ai", content = "<think>reasoning</think>", timestamp = 3L)
+        val emptyWithVariant =
+            ChatMessage(sender = "ai", content = "", timestamp = 4L, variantCount = 2)
+        val user = ChatMessage(sender = "user", content = "", timestamp = 5L)
+        val nonBaseSelection =
+            ChatMessage(
+                sender = "ai",
+                content = "",
+                timestamp = 6L,
+                selectedVariantIndex = 1,
+            )
+
+        assertEquals(
+            listOf(empty, statusOnly),
+            AssistantReplayHistoryRepairPolicy.excludedMessages(
+                listOf(empty, statusOnly, reasoningOnly, emptyWithVariant, user, nonBaseSelection)
+            ),
+        )
+    }
+
+    @Test
     fun plainText_isUnchanged() {
         assertUnchanged("answer")
     }

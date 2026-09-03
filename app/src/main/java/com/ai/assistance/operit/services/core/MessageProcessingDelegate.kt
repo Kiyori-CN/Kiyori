@@ -131,9 +131,10 @@ class MessageProcessingDelegate(
         }
 
         /**
-         * 将失败回合的已接收正文转换为可重放的部分消息。
+         * 将失败回合的已接收内容转换为可持久化的本地投影。
          *
-         * 空正文不产生消息，避免把只有传输错误的回合投影成一条看似成功的空回答。
+         * 思考-only 内容只保留为本地中断事实，不进入 Provider 历史；空内容不产生消息，
+         * 避免把只有传输错误的回合投影成一条看似成功的空回答。
          */
         internal fun projectFailedAssistantMessage(
             streamingMessage: ChatMessage,
@@ -638,6 +639,7 @@ class MessageProcessingDelegate(
             )
         streamingMessage.content = finalMessage.content
         streamingMessage.contentStream = null
+        val shouldPersistMessage = AssistantReplayHistoryProjector.isDurable(finalMessage.content)
         val messages = getRuntimeChatHistory(chatId)
         withContext(Dispatchers.Main) {
             snapshot?.let { stats ->
@@ -662,21 +664,27 @@ class MessageProcessingDelegate(
             }
             val segmentedMessages = activeTurn.segmentedMessages
             if (segmentedMessages == null) {
-                addMessageToChat(chatId, finalMessage)
+                if (shouldPersistMessage) {
+                    addMessageToChat(chatId, finalMessage)
+                }
             } else {
                 segmentedMessages.forEach { segmentMessage ->
-                    addMessageToChat(
-                        chatId,
-                        segmentMessage.copy(
-                            inputTokens = finalMessage.inputTokens,
-                            outputTokens = finalMessage.outputTokens,
-                            cachedInputTokens = finalMessage.cachedInputTokens,
-                            sentAt = finalMessage.sentAt,
-                            outputDurationMs = finalMessage.outputDurationMs,
-                            waitDurationMs = finalMessage.waitDurationMs,
-                            completedAt = completedAt,
-                        ),
-                    )
+                    if (
+                        AssistantReplayHistoryProjector.isDurable(segmentMessage.content)
+                    ) {
+                        addMessageToChat(
+                            chatId,
+                            segmentMessage.copy(
+                                inputTokens = finalMessage.inputTokens,
+                                outputTokens = finalMessage.outputTokens,
+                                cachedInputTokens = finalMessage.cachedInputTokens,
+                                sentAt = finalMessage.sentAt,
+                                outputDurationMs = finalMessage.outputDurationMs,
+                                waitDurationMs = finalMessage.waitDurationMs,
+                                completedAt = completedAt,
+                            ),
+                        )
+                    }
                 }
             }
         }
@@ -684,10 +692,11 @@ class MessageProcessingDelegate(
     }
 
     /**
-     * 失败回合只保存已经收到且可安全重放的 assistant 正文。
+     * 失败回合只保存已经收到且可持久化的 assistant 本地投影。
      *
      * Responses 正文中断时提交状态仍然未知，不能重发原 POST；消息层必须在清理活动流前固定
-     * 当前共享流内容，并让后续输入从没有未闭合工具事务的历史继续。
+     * 当前共享流内容，并让后续输入从没有未闭合工具事务的历史继续。reasoning-only 投影只用于
+     * 本地呈现和审计，不进入下一次 Provider 请求。
      */
     private suspend fun persistFailedAssistantProjection(
         state: SendUserMessageTurnState,
@@ -1834,13 +1843,8 @@ class MessageProcessingDelegate(
             "创建带流的AI消息, stream is null: ${state.aiMessage.contentStream == null}, timestamp: ${state.aiMessage.timestamp}"
         )
 
-        if (!state.isWaifuModeEnabled) {
-            withContext(Dispatchers.Main) {
-                if (state.effectivePersistTurn) {
-                    addMessageToChat(state.chatId, state.aiMessage)
-                }
-            }
-        }
+        // 首个有意义快照前只由 ChatRuntime 持有活动流；提前写入空占位会让首包前停止
+        // 留下一条 Provider 无法接受的 assistant 历史。
     }
 
     private suspend fun emitWaifuSegment(
@@ -1864,7 +1868,10 @@ class MessageProcessingDelegate(
 
         withContext(Dispatchers.Main) {
             state.waifuEmittedMessages += segmentMessage
-            if (state.effectivePersistTurn) {
+            if (
+                state.effectivePersistTurn &&
+                    AssistantReplayHistoryProjector.isDurable(segmentMessage.content)
+            ) {
                 addMessageToChat(state.chatId, segmentMessage)
             }
             if (getIsAutoReadEnabled()) {
@@ -1893,7 +1900,9 @@ class MessageProcessingDelegate(
                 )
             updatedMessages.forEachIndexed { index, updatedMessage ->
                 state.waifuEmittedMessages[index] = updatedMessage
-                addMessageToChat(state.chatId, updatedMessage)
+                if (AssistantReplayHistoryProjector.isDurable(updatedMessage.content)) {
+                    addMessageToChat(state.chatId, updatedMessage)
+                }
             }
         }
     }
@@ -2203,12 +2212,13 @@ class MessageProcessingDelegate(
                 state.lastAuditedContent = contentSnapshot
             }
         }
-        addMessageToChat(
-            state.chatId,
-            state.aiMessage.copy(
-                content = AssistantReplayHistoryProjector.project(contentSnapshot).content
+        val projectedContent = AssistantReplayHistoryProjector.project(contentSnapshot).content
+        if (AssistantReplayHistoryProjector.isDurable(projectedContent)) {
+            addMessageToChat(
+                state.chatId,
+                state.aiMessage.copy(content = projectedContent)
             )
-        )
+        }
     }
 
     private suspend fun completeAssistantResponse(

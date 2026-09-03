@@ -96,20 +96,13 @@ class OpenAIProviderAttemptBoundaryTest {
     }
 
     @Test
-    fun explicitServerFailureKeepsProviderRetryContract() = runTest {
+    fun explicitServerFailureDoesNotCreateSecondChatCompletionPost() = runTest {
         Mockito.mockStatic(Log::class.java).use {
             MockWebServer().use { server ->
                 server.enqueue(
                     MockResponse()
                         .setResponseCode(503)
                         .setBody("{\"error\":{\"message\":\"temporary outage\"}}")
-                )
-                server.enqueue(
-                    MockResponse()
-                        .setBody(
-                            "data: {\"choices\":[{\"delta\":{\"content\":\"ok\"}}]}\n\n" +
-                                "data: [DONE]\n\n"
-                        )
                 )
                 server.start()
 
@@ -128,31 +121,31 @@ class OpenAIProviderAttemptBoundaryTest {
                                 .build(),
                     )
 
-                val output = buildString {
-                    provider
-                        .sendMessage(
-                            context = context,
-                            chatHistory =
-                                listOf(
-                                    PromptTurn(
-                                        kind = PromptTurnKind.USER,
-                                        content = "retry after explicit server failure",
-                                    )
-                                ),
-                            modelParameters = emptyList<ModelParameter<*>>(),
-                            enableThinking = false,
-                            stream = true,
-                            availableTools = null,
-                            providerRequestContext = null,
-                            onNonFatalError = { retryNotifications.incrementAndGet() },
-                        )
-                        .collect { append(it) }
-                }
+                val failure =
+                    runCatching {
+                        provider
+                            .sendMessage(
+                                context = context,
+                                chatHistory =
+                                    listOf(
+                                        PromptTurn(
+                                            kind = PromptTurnKind.USER,
+                                            content = "do not retry explicit server failure",
+                                        )
+                                    ),
+                                modelParameters = emptyList<ModelParameter<*>>(),
+                                enableThinking = false,
+                                stream = true,
+                                availableTools = null,
+                                providerRequestContext = null,
+                                onNonFatalError = { retryNotifications.incrementAndGet() },
+                            )
+                            .collect { }
+                    }.exceptionOrNull()
 
-                assertEquals("ok", output)
-                assertEquals(1, retryNotifications.get())
-                assertEquals(2, server.requestCount)
-                assertNotNull(server.takeRequest(5, TimeUnit.SECONDS))
+                assertNotNull(failure)
+                assertEquals(0, retryNotifications.get())
+                assertEquals(1, server.requestCount)
                 assertNotNull(server.takeRequest(5, TimeUnit.SECONDS))
             }
         }

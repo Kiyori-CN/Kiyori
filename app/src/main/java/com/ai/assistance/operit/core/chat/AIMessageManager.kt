@@ -1298,15 +1298,25 @@ object AIMessageManager {
         targetRoleName: String,
         removeStatusTags: (String) -> String
     ): PromptTurn? {
+        val replayProjection = AssistantReplayHistoryProjector.project(message.content)
+        if (!AssistantReplayHistoryProjector.isReplayable(replayProjection.content)) {
+            AppLogger.d(
+                TAG,
+                "排除不可重放的 assistant 历史: timestamp=${message.timestamp}, " +
+                    "eligibility=${AssistantReplayHistoryProjector.eligibility(replayProjection.content)}"
+            )
+            return null
+        }
+
         // 清理思考内容
-        val cleanedContent = ChatUtils.removeThinkingContent(message.content).trim()
+        val cleanedContent = ChatUtils.removeThinkingContent(replayProjection.content).trim()
         val contentWithoutStatus = removeStatusTags(cleanedContent)
 
         // 非角色隔离模式：直接返回 assistant 消息
         if (!isRoleScopedMode) {
             return PromptTurn(
                 kind = PromptTurnKind.ASSISTANT,
-                content = message.content
+                content = replayProjection.content
             )
         }
 
@@ -1316,7 +1326,7 @@ object AIMessageManager {
             // 当前角色的消息：作为 assistant 返回
             PromptTurn(
                 kind = PromptTurnKind.ASSISTANT,
-                content = message.content
+                content = replayProjection.content
             )
         } else {
             // 其他角色的消息：转换为 user 消息，添加角色标签

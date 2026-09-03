@@ -4,6 +4,7 @@ import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.core.chat.hooks.PromptTurn
 import com.ai.assistance.operit.core.chat.hooks.PromptTurnKind
 import com.ai.assistance.operit.core.chat.hooks.toPromptTurns
+import com.ai.assistance.operit.core.chat.AssistantReplayHistoryProjector
 import com.ai.assistance.operit.data.model.ApiProviderType
 import com.ai.assistance.operit.data.model.ModelOption
 import com.ai.assistance.operit.data.model.ModelParameter
@@ -141,10 +142,7 @@ class GeminiProvider(
 
     private val JSON = "application/json".toMediaType()
 
-    // 活跃请求，用于取消流式请求
-    private var activeCall: Call? = null
-    private var activeResponse: Response? = null
-    @Volatile private var isManuallyCancelled = false
+    private val streamSessionGate = ProviderStreamSessionGate()
 
     /**
      * 由客户端错误（如4xx状态码）触发的API异常，是否重试由统一策略决定
@@ -181,29 +179,9 @@ class GeminiProvider(
 
     // 取消当前流式传输
     override fun cancelStreaming() {
-        isManuallyCancelled = true
-
-        // 1. 强制关闭 Response（这会立即中断流读取操作）
-        activeResponse?.let {
-            try {
-                it.close()
-                AppLogger.d(TAG, "已强制关闭Response流")
-            } catch (e: Exception) {
-                AppLogger.w(TAG, "关闭Response时出错: ${e.message}")
-            }
+        if (streamSessionGate.cancelActive()) {
+            AppLogger.d(TAG, "已取消当前 Gemini 流式会话")
         }
-        activeResponse = null
-
-        // 2. 取消 Call
-        activeCall?.let {
-            if (!it.isCanceled()) {
-                it.cancel()
-                AppLogger.d(TAG, "已取消当前流式传输，Call已中断")
-            }
-        }
-        activeCall = null
-
-        AppLogger.d(TAG, "取消标志已设置，流读取将立即被中断")
     }
 
     // 重置Token计数
@@ -218,9 +196,14 @@ class GeminiProvider(
     ): Int {
         // 构建工具定义的JSON字符串
         val toolsJson = buildToolsJson(availableTools)
+        val replaySafeHistory =
+            AssistantReplayHistoryProjector.replaySafeHistory(
+                history = chatHistory,
+                allowTypedToolHistory = enableToolCall,
+            )
         val comparableHistory =
             ChatUtils.stripGeminiThoughtSignatureMeta(
-                chatHistory.map { turn ->
+                replaySafeHistory.map { turn ->
                     val comparableRole =
                         when (turn.kind) {
                             PromptTurnKind.SYSTEM -> "system"
@@ -646,9 +629,14 @@ class GeminiProvider(
         val contentsArray = JSONArray()
         var systemInstruction: JSONObject? = null
 
+        val replaySafeHistory =
+            AssistantReplayHistoryProjector.replaySafeHistory(
+                history = chatHistory,
+                allowTypedToolHistory = enableToolCall,
+            )
         val providerReadyHistory =
             StructuredToolCallBridge.compileHistoryForProvider(
-                chatHistory,
+                replaySafeHistory,
                 useToolCall = enableToolCall
             )
 
@@ -1068,6 +1056,7 @@ class GeminiProvider(
 
     private suspend fun handleRetryableError(
         context: Context,
+        session: ProviderStreamSessionGate.Session,
         exception: Exception,
         retryCount: Int,
         maxRetries: Int,
@@ -1078,9 +1067,17 @@ class GeminiProvider(
         if (exception is UserCancellationException || exception is kotlinx.coroutines.CancellationException) {
             throw exception
         }
-        if (isManuallyCancelled) {
+        if (streamSessionGate.isCancelled(session)) {
             logError("请求被用户取消，停止重试。", exception)
             throw UserCancellationException(context.getString(R.string.gemini_error_request_cancelled), exception)
+        }
+
+        val explicitlyRejected =
+            exception is HttpStatusCodeException &&
+                OpenAIResponsesHttpFailurePolicy.classifySubmission(exception.statusCode) ==
+                    OpenAIResponsesHttpFailurePolicy.SubmissionAction.RETRY_EXPLICIT_REJECTION
+        if (!explicitlyRejected) {
+            throw exception
         }
 
         val errorText = resolveRetryErrorText(context, exception)
@@ -1123,7 +1120,8 @@ class GeminiProvider(
     ): Stream<String> {
         val eventChannel = MutableSharedStream<TextStreamEvent>(replay = Int.MAX_VALUE)
         val responseStream = stream {
-        isManuallyCancelled = false
+        val session = streamSessionGate.begin()
+        try {
         latestProviderUsageSnapshot = null
         val requestId = System.currentTimeMillis().toString()
         // 重置输出token计数（保留输入历史缓存）
@@ -1170,11 +1168,12 @@ class GeminiProvider(
 
         while (retryCount <= maxRetries) {
             // 在循环开始时检查是否已被取消
-            if (isManuallyCancelled) {
+            if (streamSessionGate.isCancelled(session)) {
                 logError("请求被用户取消，停止重试。")
                 throw UserCancellationException(context.getString(R.string.gemini_error_request_cancelled))
             }
             val responseAttemptState = GeminiResponseAttemptState(modelName)
+            var attemptCall: Call? = null
             
             try {
                 if (retryCount > 0) {
@@ -1193,14 +1192,17 @@ class GeminiProvider(
                 val request = createRequest(context, requestBody, stream, requestId) // 根据stream参数决定使用流式还是非流式
 
                 val call = client.newCall(request)
-                activeCall = call
+                attemptCall = call
+                streamSessionGate.bindCall(session, call) {
+                    if (!call.isCanceled()) call.cancel()
+                }
 
                 emitConnectionStatus(context.getString(R.string.gemini_connecting))
 
                 val startTime = System.currentTimeMillis()
                 withContext(kotlinx.coroutines.Dispatchers.IO) {
                     val response = call.execute()
-                    activeResponse = response
+                    streamSessionGate.bindResponse(session, response) { response.close() }
                     try {
                         val duration = System.currentTimeMillis() - startTime
                         AppLogger.d(TAG, "收到初始响应, 耗时: ${duration}ms, 状态码: ${response.code}")
@@ -1222,7 +1224,7 @@ class GeminiProvider(
                                     statusCode = response.code
                                 )
                             }
-                            // 对于5xx等服务端错误，允许重试
+                            // 5xx 只能证明服务端失败，不能证明请求未被接受；不得重复 POST。
                             throw IOException(
                                 context.getString(
                                     R.string.gemini_error_api_request_failed,
@@ -1237,6 +1239,7 @@ class GeminiProvider(
                             // 处理流式响应
                             processStreamingResponse(
                                 context = context,
+                                session = session,
                                 response = response,
                                 streamCollector = streamCollector,
                                 requestId = requestId,
@@ -1258,13 +1261,11 @@ class GeminiProvider(
                         }
                     } finally {
                         response.close()
+                        streamSessionGate.clearResponse(session, response)
                         AppLogger.d(TAG, "关闭响应连接")
                     }
                 }
 
-                // 清理活跃引用
-                activeCall = null
-                activeResponse = null
                 logFinalOutput(receivedContent, "Gemini final output summary: ")
                 return@stream
             } catch (e: Exception) {
@@ -1272,6 +1273,7 @@ class GeminiProvider(
                 emitRollback(requestSavepointId)
                 retryCount = handleRetryableError(
                     context,
+                    session,
                     e,
                     retryCount,
                     maxRetries,
@@ -1280,6 +1282,8 @@ class GeminiProvider(
                 ) { errorText, retryNumber ->
                     context.getString(R.string.provider_error_retry_message, errorText, retryNumber)
                 }
+            } finally {
+                attemptCall?.let { call -> streamSessionGate.clearCall(session, call) }
             }
         }
 
@@ -1291,6 +1295,9 @@ class GeminiProvider(
                 lastException?.message ?: context.getString(R.string.provider_error_network_interrupted)
             )
         )
+        } finally {
+            streamSessionGate.complete(session)
+        }
         }
         return responseStream.withEventChannel(eventChannel)
     }
@@ -1508,6 +1515,7 @@ class GeminiProvider(
     /** 处理API流式响应 */
     private suspend fun processStreamingResponse(
             context: Context,
+            session: ProviderStreamSessionGate.Session,
             response: Response,
             streamCollector: StreamCollector<String>,
             requestId: String,
@@ -1536,8 +1544,10 @@ class GeminiProvider(
                 lines.forEach { line ->
                     lineCount++
                     // 检查是否已取消
-                    if (activeCall?.isCanceled() == true) {
-                        return@forEach
+                    if (streamSessionGate.isCancelled(session)) {
+                        throw UserCancellationException(
+                            context.getString(R.string.gemini_error_request_cancelled)
+                        )
                     }
 
                     // 处理SSE数据
@@ -1752,8 +1762,6 @@ class GeminiProvider(
         } catch (e: Exception) {
             logError("处理响应时发生异常: ${e.message}", e)
             throw e
-        } finally {
-            activeCall = null
         }
     }
 
@@ -1806,8 +1814,6 @@ class GeminiProvider(
         } catch (e: Exception) {
             logError("处理非流式响应时发生异常: ${e.message}", e)
             throw e
-        } finally {
-            activeCall = null
         }
     }
 

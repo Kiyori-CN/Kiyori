@@ -585,6 +585,16 @@ First-run onboarding and Settings permissions consume the same ordered 21-item c
   `contentStream` 与 conversation audit 继续保存原始完成顺序；
   每秒消息快照、普通失败收尾、手动停止和非预期取消只把 replay-safe projection 写入
   `messages / message_variants`。
+- 活动 assistant 在首个有意义快照前只由 `ChatRuntime.activeStreamingTurn` 持有，不提前写入
+  `messages`。投影 eligibility 固定为 `NONE / LOCAL_ONLY_REASONING / REPLAYABLE`：空白、仅状态、
+  仅 Provider metadata 和没有安全前缀的未闭合工具事务不形成 durable assistant；仅思考内容可以
+  作为本地中断事实保留，但永不进入 Provider replay。发送前修复会对没有 variant 的旧 `NONE`
+  assistant 写审计 tombstone 后移除，复杂 variant 仍在请求编译边界重新验证。
+- OpenAI-compatible Chat、Anthropic Messages 和 Gemini 的每个流式请求都绑定一个单调 Provider
+  session generation。Call、Response、取消状态和清理操作同时校验 session 与句柄 identity；旧流的
+  late bind/finally 不能清除或取消新流。未知提交的传输失败、408、409 和 5xx 不创建第二个 POST，
+  只有明确 429 拒绝可按既有重试策略重新提交；官方 Responses 已知 response ID 后仍只续接同一
+  response。
 - 下一次发送在读取自动 compaction snapshot 和添加新用户轮次之前检查旧历史；通用自动压缩
   入口先等待当前活动回合完成安全终态持久化，再执行同一检查，不能把仍在运行的工具事务当成
   中断残留。恢复读取采用严格失败语义，数据库读取失败时不得以空历史继续请求。截断或未闭合

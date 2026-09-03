@@ -37,6 +37,33 @@ class ClaudeCanonicalRequestTest {
     }
 
     @Test
+    fun excludesAssistantsWithoutVisibleContentOrCompleteTools() {
+        val request =
+            provider(enableToolCall = false)
+                .createRequestJson(
+                    context = context,
+                    chatHistory =
+                        listOf(
+                            PromptTurn(PromptTurnKind.USER, "question"),
+                            PromptTurn(PromptTurnKind.ASSISTANT, ""),
+                            PromptTurn(PromptTurnKind.ASSISTANT, "<THINK>reasoning</THINK>"),
+                            PromptTurn(PromptTurnKind.ASSISTANT, "<status>working</status>"),
+                            PromptTurn(PromptTurnKind.ASSISTANT, "answer"),
+                        ),
+                    enableThinking = false,
+                    availableTools = null,
+                    preserveThinkInHistory = true,
+                )
+
+        val messages = request.getJSONArray("messages")
+        assertEquals(2, messages.length())
+        assertEquals("user", messages.getJSONObject(0).getString("role"))
+        val assistant = messages.getJSONObject(1)
+        assertEquals("assistant", assistant.getString("role"))
+        assertEquals("answer", assistant.getJSONArray("content").getJSONObject(0).getString("text"))
+    }
+
+    @Test
     fun replaysOriginalThinkingAndToolBlocksWithProviderCallId() {
         val metadataTag =
             contentBlockMetadata(

@@ -6,6 +6,7 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.chat.hooks.PromptTurn
 import com.ai.assistance.operit.core.chat.hooks.PromptTurnKind
 import com.ai.assistance.operit.core.chat.hooks.toPromptTurns
+import com.ai.assistance.operit.core.chat.AssistantReplayHistoryProjector
 import com.ai.assistance.operit.data.model.ApiProviderType
 import com.ai.assistance.operit.data.model.ApiProtocol
 import com.ai.assistance.operit.data.model.ModelOption
@@ -184,10 +185,7 @@ class ClaudeProvider(
     private val PROMPT_CACHE_CONTROL_TYPE = "ephemeral"
     private val DEFAULT_MAX_TOKENS = 4096
 
-    // 当前活跃的Call对象，用于取消流式传输
-    private var activeCall: Call? = null
-    private var activeResponse: Response? = null
-    @Volatile private var isManuallyCancelled = false
+    private val streamSessionGate = ProviderStreamSessionGate()
 
     /**
      * Thinking 格式模式。
@@ -249,29 +247,9 @@ class ClaudeProvider(
 
     // 取消当前流式传输
     override fun cancelStreaming() {
-        isManuallyCancelled = true
-
-        // 1. 强制关闭 Response（这会立即中断流读取操作）
-        activeResponse?.let {
-            try {
-                it.close()
-                AppLogger.d("AIService", "已强制关闭Response流")
-            } catch (e: Exception) {
-                AppLogger.w("AIService", "关闭Response时出错: ${e.message}")
-            }
+        if (streamSessionGate.cancelActive()) {
+            AppLogger.d("AIService", "已取消当前 Claude 流式会话")
         }
-        activeResponse = null
-
-        // 2. 取消 Call
-        activeCall?.let {
-            if (!it.isCanceled()) {
-                it.cancel()
-                AppLogger.d("AIService", "已取消当前流式传输，Call已中断")
-            }
-        }
-        activeCall = null
-
-        AppLogger.d("AIService", "取消标志已设置，流读取将立即被中断")
     }
 
     private suspend fun applyAnthropicUsage(
@@ -850,9 +828,14 @@ class ClaudeProvider(
         preserveThinkInHistory: Boolean
     ): ClaudeSerializedHistory {
         val messagesArray = JSONArray()
+        val replaySafeHistory =
+            AssistantReplayHistoryProjector.replaySafeHistory(
+                history = chatHistory,
+                allowTypedToolHistory = enableToolCall,
+            )
         val effectiveHistory =
             StructuredToolCallBridge.compileHistoryForProvider(
-                chatHistory,
+                replaySafeHistory,
                 useToolCall = enableToolCall
             )
 
@@ -1602,6 +1585,7 @@ class ClaudeProvider(
 
     private suspend fun handleRetryableError(
         context: Context,
+        session: ProviderStreamSessionGate.Session,
         exception: Exception,
         retryCount: Int,
         maxRetries: Int,
@@ -1612,9 +1596,17 @@ class ClaudeProvider(
         if (exception is UserCancellationException || exception is CancellationException) {
             throw exception
         }
-        if (isManuallyCancelled) {
+        if (streamSessionGate.isCancelled(session)) {
             AppLogger.d("AIService", "【Claude】请求被用户取消，停止重试。")
             throw UserCancellationException(context.getString(R.string.openai_error_request_cancelled), exception)
+        }
+
+        val explicitlyRejected =
+            exception is HttpStatusCodeException &&
+                OpenAIResponsesHttpFailurePolicy.classifySubmission(exception.statusCode) ==
+                    OpenAIResponsesHttpFailurePolicy.SubmissionAction.RETRY_EXPLICIT_REJECTION
+        if (!explicitlyRejected) {
+            throw exception
         }
 
         val errorText = resolveRetryErrorText(context, exception)
@@ -1656,7 +1648,8 @@ class ClaudeProvider(
     ): Stream<String> {
         val eventChannel = MutableSharedStream<TextStreamEvent>(replay = Int.MAX_VALUE)
         val responseStream = stream {
-        isManuallyCancelled = false
+        val session = streamSessionGate.begin()
+        try {
         latestProviderUsageSnapshot = null
         tokenCacheManager.setOutputTokens(0)
 
@@ -1681,7 +1674,7 @@ class ClaudeProvider(
 
         AppLogger.d("AIService", "准备连接到Claude AI服务...")
         while (retryCount <= maxRetries) {
-            if (isManuallyCancelled) {
+            if (streamSessionGate.isCancelled(session)) {
                 AppLogger.d("AIService", "【Claude】请求被用户取消，停止重试。")
                 throw UserCancellationException(context.getString(R.string.openai_error_request_cancelled))
             }
@@ -1714,12 +1707,14 @@ class ClaudeProvider(
                 throw e
             }
 
-            activeCall = call
+            streamSessionGate.bindCall(session, call) {
+                if (!call.isCanceled()) call.cancel()
+            }
             try {
                 AppLogger.d("AIService", "正在建立连接...")
                 withContext(Dispatchers.IO) {
                     val response = call.execute()
-                    activeResponse = response
+                    streamSessionGate.bindResponse(session, response) { response.close() }
                     try {
                         if (!response.isSuccessful) {
                             val errorBody = response.body?.string() ?: context.getString(R.string.openai_error_no_error_details)
@@ -1807,9 +1802,11 @@ class ClaudeProvider(
                         while (true) {
                             val rawLine = reader.readLine() ?: break
                             val line = rawLine.trim()
-                            if (activeCall?.isCanceled() == true) {
+                            if (streamSessionGate.isCancelled(session)) {
                                 AppLogger.d("AIService", "流式传输已被取消，提前退出处理")
-                                break
+                                throw UserCancellationException(
+                                    context.getString(R.string.openai_error_request_cancelled)
+                                )
                             }
                             if (!line.startsWith("data:")) {
                                 continue
@@ -2129,6 +2126,7 @@ class ClaudeProvider(
                         }
                     } finally {
                         response.close()
+                        streamSessionGate.clearResponse(session, response)
                         AppLogger.d("AIService", "【Claude】关闭响应连接")
                     }
                 }
@@ -2141,6 +2139,7 @@ class ClaudeProvider(
                 emitRollback(requestSavepointId)
                 retryCount = handleRetryableError(
                     context,
+                    session,
                     e,
                     retryCount,
                     maxRetries,
@@ -2150,8 +2149,7 @@ class ClaudeProvider(
                     context.getString(R.string.provider_error_retry_message, errorText, retryNumber)
                 }
             } finally {
-                activeCall = null
-                activeResponse = null
+                streamSessionGate.clearCall(session, call)
             }
         }
 
@@ -2165,6 +2163,9 @@ class ClaudeProvider(
                 lastException?.message ?: context.getString(R.string.provider_error_network_interrupted)
             )
         )
+        } finally {
+            streamSessionGate.complete(session)
+        }
         }
         return responseStream.withEventChannel(eventChannel)
     }

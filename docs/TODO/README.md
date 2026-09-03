@@ -48,7 +48,7 @@ For_Agent: 对项目大规模动工前按本规范协作
   Debug APK 已验证；真实 Provider 与设备验收保持 `verification_pending`，本轮全部工作树修改已随
   `main` 提交并推送。
 
-- [AI 中断回合收口与会话历史合法性](ai_interrupted_turn_recovery/index.md)：已完成首包前停止产生空 assistant、reasoning-only replay 和旧回合异步污染的源码根因分析与初步设计；当前仅保留方案，尚未实现、构建、测试或进行设备/Provider 验收。
+- [AI 中断回合收口与会话历史合法性](ai_interrupted_turn_recovery/index.md)：已完成首包前空 assistant、reasoning-only replay、旧污染历史和 Provider 跨 generation 句柄竞争的根因修复；专项 JVM、正式门禁与 Debug APK 审计已通过，候选 revision 和最终 ref 由任务日记与交付报告记录，真实设备和 Provider 验收保持 `verification_pending`。
 
 - [MT 管理器手机存储复刻](mt_file_manager_replica/index.md)：在共享文件管理器中复刻 MT 管理器
   的双窗格手机存储工作台，保留现有 AITool/SAF 文件能力，明确左上绝对退出按钮和目录级系统 Back

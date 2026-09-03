@@ -40,6 +40,36 @@ class DeepseekCanonicalRequestTest {
     }
 
     @Test
+    fun `request excludes assistants without content or tool calls`() {
+        val request =
+            provider(enableToolCall = false)
+                .requestJson(
+                    context = context,
+                    history =
+                        listOf(
+                            PromptTurn(PromptTurnKind.USER, "question"),
+                            PromptTurn(PromptTurnKind.ASSISTANT, ""),
+                            PromptTurn(PromptTurnKind.ASSISTANT, "   "),
+                            PromptTurn(PromptTurnKind.ASSISTANT, "<think>reasoning</think>"),
+                            PromptTurn(PromptTurnKind.ASSISTANT, "<status>working</status>"),
+                            PromptTurn(PromptTurnKind.ASSISTANT, "answer"),
+                        ),
+                    stream = true,
+                    tools = null,
+                )
+
+        val messages = JSONObject(request).getJSONArray("messages")
+        val assistants =
+            (0 until messages.length())
+                .map(messages::getJSONObject)
+                .filter { message -> message.getString("role") == "assistant" }
+
+        assertEquals(1, assistants.size)
+        assertEquals("answer", assistants.single().getString("content"))
+        assertFalse(assistants.single().isNull("content"))
+    }
+
+    @Test
     fun `stream request includes usage and preserves reasoning call IDs and result order`() {
         val request =
             provider()

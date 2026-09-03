@@ -6,6 +6,7 @@ import android.util.Base64
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.chat.hooks.PromptTurn
 import com.ai.assistance.operit.core.chat.hooks.PromptTurnKind
+import com.ai.assistance.operit.core.chat.AssistantReplayHistoryProjector
 import com.ai.assistance.operit.data.model.ApiProviderType
 import com.ai.assistance.operit.data.model.ApiProtocol
 import com.ai.assistance.operit.data.model.ModelOption
@@ -129,16 +130,7 @@ open class OpenAIProvider(
 
     protected val JSON = "application/json".toMediaType()
 
-    // 当前活跃的Call对象，用于取消流式传输
-    @Volatile
-    private var activeCall: Call? = null
-
-    // 当前活跃的Response对象，用于强制关闭流
-    @Volatile
-    private var activeResponse: Response? = null
-
-    @Volatile
-    private var isManuallyCancelled = false
+    private val streamSessionGate = ProviderStreamSessionGate()
 
     /**
      * 由客户端错误（如4xx状态码）触发的API异常，是否重试由统一策略决定
@@ -300,15 +292,7 @@ open class OpenAIProvider(
     }
 
      override fun cancelStreaming() {
-         isManuallyCancelled = true
-         runCatching { activeResponse?.close() }
-         activeResponse = null
-         activeCall?.let {
-             if (!it.isCanceled()) {
-                 runCatching { it.cancel() }
-             }
-         }
-         activeCall = null
+         streamSessionGate.cancelActive()
      }
 
      override suspend fun getModelsList(context: Context): Result<List<ModelOption>> {
@@ -789,8 +773,13 @@ open class OpenAIProvider(
         chatHistory: List<PromptTurn>,
         useToolCall: Boolean
     ): List<PromptTurn> {
+        val replaySafeHistory =
+            AssistantReplayHistoryProjector.replaySafeHistory(
+                history = buildEffectiveHistory(chatHistory),
+                allowTypedToolHistory = useToolCall,
+            )
         return StructuredToolCallBridge.compileHistoryForProvider(
-            buildEffectiveHistory(chatHistory),
+            replaySafeHistory,
             useToolCall = useToolCall
         )
     }
@@ -1551,8 +1540,12 @@ open class OpenAIProvider(
     /**
      * 检查是否已被取消，如果是则抛出异常
      */
-    private fun checkCancellation(context: Context, exception: Exception? = null) {
-        if (isManuallyCancelled) {
+    private fun checkCancellation(
+        context: Context,
+        session: ProviderStreamSessionGate.Session,
+        exception: Exception? = null,
+    ) {
+        if (streamSessionGate.isCancelled(session)) {
             AppLogger.d("AIService", "请求被用户取消，停止重试。")
             throw UserCancellationException(context.getString(R.string.openai_error_request_cancelled), exception)
         }
@@ -1572,6 +1565,7 @@ open class OpenAIProvider(
      */
     private suspend fun handleRetryableError(
         context: Context,
+        session: ProviderStreamSessionGate.Session,
         exception: Exception,
         retryCount: Int,
         maxRetries: Int,
@@ -1582,7 +1576,7 @@ open class OpenAIProvider(
         if (exception is UserCancellationException || exception is CancellationException) {
             throw exception
         }
-        checkCancellation(context, exception)
+        checkCancellation(context, session, exception)
 
         val errorText = resolveRetryErrorText(context, exception)
 
@@ -1617,6 +1611,7 @@ open class OpenAIProvider(
      */
     private suspend fun handleAtMostOnceResponsesFailure(
         context: Context,
+        session: ProviderStreamSessionGate.Session,
         exception: Exception,
         retryCount: Int,
         maxRetries: Int,
@@ -1628,7 +1623,7 @@ open class OpenAIProvider(
         if (exception is UserCancellationException || exception is CancellationException) {
             throw exception
         }
-        checkCancellation(context, exception)
+        checkCancellation(context, session, exception)
 
         val action =
             if (exception is HttpStatusCodeException) {
@@ -1640,6 +1635,7 @@ open class OpenAIProvider(
             OpenAIResponsesHttpFailurePolicy.SubmissionAction.RETRY_EXPLICIT_REJECTION ->
                 handleRetryableError(
                     context = context,
+                    session = session,
                     exception = exception,
                     retryCount = retryCount,
                     maxRetries = maxRetries,
@@ -2040,7 +2036,6 @@ open class OpenAIProvider(
         }
 
         val cancelCall = client.newCall(builder.build())
-        activeCall = cancelCall
         withContext(Dispatchers.IO) {
             cancelCall.execute().use { response ->
                 if (!response.isSuccessful) {
@@ -2055,7 +2050,6 @@ open class OpenAIProvider(
                 }
             }
         }
-        activeCall = null
     }
 
     private fun requestBodySha256(requestBody: RequestBody): String {
@@ -2166,11 +2160,8 @@ open class OpenAIProvider(
 
     private fun retrySafetyForFailure(
         diagnostics: LlmTransportDiagnostics?,
-        exception: Exception,
     ): String =
         when {
-            exception is OpenAiHttpResponseException && exception.statusCode >= 500 ->
-                "EXPLICIT_PROVIDER_5XX_RETRY"
             diagnostics == null -> "NO_RETRY_DIAGNOSTICS_UNAVAILABLE"
             diagnostics.responseBodyStarted || diagnostics.responseHeadersReceived ->
                 "NO_RETRY_AFTER_SUBMISSION"
@@ -3156,6 +3147,7 @@ open class OpenAIProvider(
         emitter: StreamEmitter,
         onTokensUpdated: suspend (input: Int, cachedInput: Int, output: Int) -> Unit,
         context: Context,
+        session: ProviderStreamSessionGate.Session,
         state: StreamingState = StreamingState(),
         responsesPersistenceSession: ResponsesPersistenceSession? = null,
     ) {
@@ -3270,7 +3262,7 @@ open class OpenAIProvider(
             throw e
         } catch (e: IOException) {
             // 捕获IO异常，可能是由于 response.close() 导致的取消，也可能是网络中断
-            if (isManuallyCancelled) {
+            if (streamSessionGate.isCancelled(session)) {
                 AppLogger.d("AIService", "【发送消息】流式传输已被用户取消")
                 throw UserCancellationException(context.getString(R.string.openai_error_request_cancelled), e)
             } else {
@@ -3290,6 +3282,7 @@ open class OpenAIProvider(
 
     private suspend fun executeResumableResponsesStream(
         context: Context,
+        session: ProviderStreamSessionGate.Session,
         chatHistory: List<PromptTurn>,
         modelParameters: List<ModelParameter<*>>,
         enableThinking: Boolean,
@@ -3370,7 +3363,7 @@ open class OpenAIProvider(
         var retryCount = 0
 
         while (true) {
-            checkCancellation(context)
+            checkCancellation(context, session)
             val responseId = executionState.remoteResponseId
             val attemptNumber = retryCount + 1
             val requestTraceId =
@@ -3398,7 +3391,9 @@ open class OpenAIProvider(
                     )
             }
             val call = client.newCall(request)
-            activeCall = call
+            streamSessionGate.bindCall(session, call) {
+                if (!call.isCanceled()) call.cancel()
+            }
             val transportDiagnostics = request
                 .tag(LlmRequestTraceContext::class.java)
                 ?.state
@@ -3428,9 +3423,10 @@ open class OpenAIProvider(
             try {
                 withContext(responseExecutionDispatcher) {
                     val response = call.execute()
-                    activeResponse = response
-                    response.use {
-                        recordProviderAttemptAudit(
+                    streamSessionGate.bindResponse(session, response) { response.close() }
+                    try {
+                        response.use {
+                            recordProviderAttemptAudit(
                             context = context,
                             request = request,
                             providerRequestContext = providerRequestContext,
@@ -3485,14 +3481,18 @@ open class OpenAIProvider(
                             providerCallId = executionState.remoteResponseId,
                             streamingState = streamingState,
                         )
-                        processStreamingResponse(
-                            reader = responseBody.charStream().buffered(),
-                            emitter = emitter,
-                            onTokensUpdated = onTokensUpdated,
-                            context = context,
-                            state = streamingState,
-                            responsesPersistenceSession = persistenceSession,
-                        )
+                            processStreamingResponse(
+                                reader = responseBody.charStream().buffered(),
+                                emitter = emitter,
+                                onTokensUpdated = onTokensUpdated,
+                                context = context,
+                                session = session,
+                                state = streamingState,
+                                responsesPersistenceSession = persistenceSession,
+                            )
+                        }
+                    } finally {
+                        streamSessionGate.clearResponse(session, response)
                     }
                 }
 
@@ -3585,12 +3585,13 @@ open class OpenAIProvider(
                     transport = transportDiagnostics?.snapshot(error),
                     providerCallId = executionState.remoteResponseId,
                     streamingState = streamingState,
-                    failureCode = if (isManuallyCancelled) "USER_STOP" else "CANCELLATION",
+                    failureCode =
+                        if (streamSessionGate.isCancelled(session)) "USER_STOP" else "CANCELLATION",
                     throwable = error,
                     terminalState = "CANCELLED",
                     completeness = ConversationAuditCompletenessStatus.PARTIAL,
                 )
-                if (isManuallyCancelled) {
+                if (streamSessionGate.isCancelled(session)) {
                     withContext(NonCancellable) {
                         finalizeResponsesCancellation(
                             context = context,
@@ -3705,6 +3706,7 @@ open class OpenAIProvider(
                         retryCount =
                             handleRetryableError(
                                 context = context,
+                                session = session,
                                 exception = interrupted,
                                 retryCount = retryCount,
                                 maxRetries = maxRetries,
@@ -3745,6 +3747,7 @@ open class OpenAIProvider(
                                 retryCount =
                                     handleRetryableError(
                                         context = context,
+                                        session = session,
                                         exception = error,
                                         retryCount = retryCount,
                                         maxRetries = maxRetries,
@@ -3834,8 +3837,7 @@ open class OpenAIProvider(
                     }
                 }
             } finally {
-                activeResponse = null
-                activeCall = null
+                streamSessionGate.clearCall(session, call)
             }
         }
     }
@@ -3901,7 +3903,8 @@ open class OpenAIProvider(
     ): Stream<String> {
         val eventChannel = MutableSharedStream<TextStreamEvent>(replay = Int.MAX_VALUE)
         val responseStream = stream {
-            isManuallyCancelled = false
+            val session = streamSessionGate.begin()
+            try {
             latestProviderUsageSnapshot = null
             // 重置输出token计数（输入token由TokenCacheManager管理）
             tokenCacheManager.addOutputTokens(-tokenCacheManager.outputTokenCount)
@@ -3936,6 +3939,7 @@ open class OpenAIProvider(
             if (useResumableResponses) {
                 executeResumableResponsesStream(
                     context = context,
+                    session = session,
                     chatHistory = chatHistory,
                     modelParameters = modelParameters,
                     enableThinking = enableThinking,
@@ -3963,7 +3967,7 @@ open class OpenAIProvider(
 
             while (retryCount <= maxRetries) {
                 // 在循环开始时检查是否已被取消
-                checkCancellation(context)
+                checkCancellation(context, session)
                 val attemptStreamingState = StreamingState()
                 emitter.bindStreamingState(attemptStreamingState)
                 var responsesSubmissionStarted = false
@@ -4035,9 +4039,11 @@ open class OpenAIProvider(
 
                 AppLogger.d("AIService", "[req=$requestTraceId] 【发送消息】准备连接到AI服务...")
 
-                // 创建Call对象并保存到activeCall中，以便可以取消
+                // Call 绑定到本轮 session；旧回合的 finally 不能清除或取消新回合句柄。
                 val call = client.newCall(request)
-                activeCall = call
+                streamSessionGate.bindCall(session, call) {
+                    if (!call.isCanceled()) call.cancel()
+                }
 
                 AppLogger.d("AIService", "[req=$requestTraceId] 【发送消息】正在建立连接到服务器...")
 
@@ -4051,8 +4057,8 @@ open class OpenAIProvider(
                     val executeElapsedMs = (System.nanoTime() - executeStartNs) / 1_000_000
                     AppLogger.d("AIService", "[req=$requestTraceId] 【发送消息】call.execute() 返回，耗时=${executeElapsedMs}ms")
 
-                    // 保存response引用，以便取消时能强制关闭
-                    activeResponse = response
+                    // Response 与同一 session 绑定，停止时同时关闭响应体并取消 Call。
+                    streamSessionGate.bindResponse(session, response) { response.close() }
                     recordProviderAttemptAudit(
                         context = context,
                         request = request,
@@ -4143,6 +4149,7 @@ open class OpenAIProvider(
                                 emitter,
                                 onTokensUpdated,
                                 context,
+                                session,
                                 state = attemptStreamingState,
                             )
                         } else {
@@ -4244,6 +4251,7 @@ open class OpenAIProvider(
                         }
                     } finally {
                         response.close()
+                        streamSessionGate.clearResponse(session, response)
                         AppLogger.d("AIService", "[req=$requestTraceId] 【发送消息】关闭响应连接")
                     }
                 }
@@ -4268,8 +4276,7 @@ open class OpenAIProvider(
                 )
 
                 // 清理活跃引用
-                activeCall = null
-                activeResponse = null
+                streamSessionGate.clearCall(session, call)
                 AppLogger.d("AIService", "【发送消息】响应处理完成，已清理活跃引用")
                 logFinalOutput("AIService", receivedContent, "Final output summary: ")
 
@@ -4281,9 +4288,6 @@ open class OpenAIProvider(
                 return@stream
             } catch (e: Exception) {
                 lastException = e
-                // 请求已经失败并离开当前传输边界；保留旧引用会让后续取消误指向已结束的 Call。
-                activeCall = null
-                activeResponse = null
                 if (e is CancellationException) {
                     attemptRequest?.let { request ->
                         val cancellationDiagnostics = transportTraceState?.snapshot(e)
@@ -4304,7 +4308,8 @@ open class OpenAIProvider(
                             retrySafety = "NO_RETRY_CANCELLATION",
                             transport = cancellationDiagnostics,
                             streamingState = attemptStreamingState,
-                            failureCode = if (isManuallyCancelled) "USER_STOP" else "CANCELLATION",
+                            failureCode =
+                                if (streamSessionGate.isCancelled(session)) "USER_STOP" else "CANCELLATION",
                             throwable = e,
                             terminalState = "CANCELLED",
                             completeness = ConversationAuditCompletenessStatus.PARTIAL,
@@ -4326,7 +4331,7 @@ open class OpenAIProvider(
                             ?.requestSummary
                             ?.requestDigest,
                     submissionState = submissionStateFor(attemptDiagnostics),
-                    retrySafety = retrySafetyForFailure(attemptDiagnostics, e),
+                    retrySafety = retrySafetyForFailure(attemptDiagnostics),
                     transport = attemptDiagnostics,
                     streamingState = attemptStreamingState,
                     failureCode = attemptDiagnostics?.diagnosticCode ?: e.javaClass.simpleName,
@@ -4343,6 +4348,7 @@ open class OpenAIProvider(
                     retryCount =
                         handleAtMostOnceResponsesFailure(
                             context = context,
+                            session = session,
                             exception = e,
                             retryCount = retryCount,
                             maxRetries = maxRetries,
@@ -4358,11 +4364,7 @@ open class OpenAIProvider(
                                     ?.snapshot(e),
                         )
                 } else {
-                    val explicitlyRetryableProviderStatus =
-                        e is OpenAiHttpResponseException && e.statusCode >= 500
-                    val canRetry =
-                        explicitlyRetryableProviderStatus ||
-                            isSafePreSubmissionRetry(attemptDiagnostics)
+                    val canRetry = isSafePreSubmissionRetry(attemptDiagnostics)
                     if (!canRetry) {
                         recordProviderAttemptAudit(
                             context = context,
@@ -4419,11 +4421,7 @@ open class OpenAIProvider(
                         providerRequestContext = providerRequestContext,
                         eventType = "PROVIDER_RETRY_SCHEDULED",
                         summary =
-                            if (explicitlyRetryableProviderStatus) {
-                                "第 ${request.tag(LlmRequestTraceContext::class.java)?.attempt ?: retryCount + 1} 次 attempt 收到明确 5xx，允许重试"
-                            } else {
-                                "第 ${request.tag(LlmRequestTraceContext::class.java)?.attempt ?: retryCount + 1} 次 attempt 尚未提交，允许重试"
-                            },
+                            "第 ${request.tag(LlmRequestTraceContext::class.java)?.attempt ?: retryCount + 1} 次 attempt 尚未提交，允许重试",
                         attemptNumber =
                             request.tag(LlmRequestTraceContext::class.java)?.attempt
                                 ?: retryCount + 1,
@@ -4432,12 +4430,7 @@ open class OpenAIProvider(
                                 ?.requestSummary
                                 ?.requestDigest,
                         submissionState = submissionStateFor(attemptDiagnostics),
-                        retrySafety =
-                            if (explicitlyRetryableProviderStatus) {
-                                "EXPLICIT_PROVIDER_5XX_RETRY"
-                            } else {
-                                "SAFE_PRE_SUBMISSION_RETRY"
-                            },
+                        retrySafety = "SAFE_PRE_SUBMISSION_RETRY",
                         transport = attemptDiagnostics,
                         streamingState = attemptStreamingState,
                         completeness = ConversationAuditCompletenessStatus.PARTIAL,
@@ -4450,11 +4443,7 @@ open class OpenAIProvider(
                         providerRequestContext = providerRequestContext,
                         eventType = "PROVIDER_ROLLBACK_APPLIED",
                         summary =
-                            if (explicitlyRetryableProviderStatus) {
-                                "已回滚明确 5xx attempt 的暂存输出"
-                            } else {
-                                "已回滚未提交 attempt 的暂存输出"
-                            },
+                            "已回滚未提交 attempt 的暂存输出",
                         attemptNumber =
                             request.tag(LlmRequestTraceContext::class.java)?.attempt
                                 ?: retryCount,
@@ -4463,12 +4452,7 @@ open class OpenAIProvider(
                                 ?.requestSummary
                                 ?.requestDigest,
                         submissionState = submissionStateFor(attemptDiagnostics),
-                        retrySafety =
-                            if (explicitlyRetryableProviderStatus) {
-                                "EXPLICIT_PROVIDER_5XX_RETRY"
-                            } else {
-                                "SAFE_PRE_SUBMISSION_RETRY"
-                            },
+                        retrySafety = "SAFE_PRE_SUBMISSION_RETRY",
                         transport = attemptDiagnostics,
                         streamingState = attemptStreamingState,
                         rollbackCharacters = beforeRollbackCharacters,
@@ -4476,6 +4460,7 @@ open class OpenAIProvider(
                     )
                     retryCount = handleRetryableError(
                         context,
+                        session,
                         e,
                         retryCount,
                         maxRetries,
@@ -4506,6 +4491,9 @@ open class OpenAIProvider(
                     lastException?.message ?: context.getString(R.string.openai_error_network_interrupted)
                 )
             )
+            } finally {
+                streamSessionGate.complete(session)
+            }
         }
         return responseStream.withEventChannel(eventChannel)
     }

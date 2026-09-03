@@ -1,7 +1,10 @@
 package com.ai.assistance.operit.core.chat
 
 import com.ai.assistance.operit.data.model.ChatMessage
+import com.ai.assistance.operit.core.chat.hooks.PromptTurn
+import com.ai.assistance.operit.core.chat.hooks.PromptTurnKind
 import com.ai.assistance.operit.util.ChatMarkupRegex
+import com.ai.assistance.operit.util.ChatUtils
 
 enum class AssistantReplayHistoryProjectionReason {
     INCOMPLETE_TOOL_MARKUP,
@@ -13,6 +16,13 @@ enum class AssistantReplayHistoryProjectionReason {
     TOOL_RESULT_NAME_MISMATCH,
     TOOL_RESULT_CALL_ID_MISMATCH,
     MISSING_TOOL_RESULT,
+}
+
+/** Provider replay classification for a durable assistant projection. */
+enum class AssistantReplayEligibility {
+    NONE,
+    LOCAL_ONLY_REASONING,
+    REPLAYABLE,
 }
 
 data class AssistantReplayHistoryProjection(
@@ -71,6 +81,55 @@ data class AssistantReplayHistoryRepairReport(
  * open calls as a protocol violation. The projector never invents results or retries tools.
  */
 object AssistantReplayHistoryProjector {
+    /**
+     * Classifies a projected assistant without inventing content. Thinking-only output is retained
+     * as local evidence but must never become the next provider assistant turn.
+     */
+    fun eligibility(content: String): AssistantReplayEligibility {
+        val projection = project(content)
+        val contentWithoutThinking =
+            ChatUtils.removeThinkingContent(projection.content)
+                .replace(ChatMarkupRegex.metaTag, " ")
+                .replace(ChatMarkupRegex.statusTag, " ")
+                .replace(ChatMarkupRegex.statusSelfClosingTag, " ")
+                .trim()
+        if (contentWithoutThinking.isNotBlank()) {
+            return AssistantReplayEligibility.REPLAYABLE
+        }
+        if (content.contains("<think", ignoreCase = true) && projection.content.isNotBlank()) {
+            return AssistantReplayEligibility.LOCAL_ONLY_REASONING
+        }
+        return AssistantReplayEligibility.NONE
+    }
+
+    fun isReplayable(content: String): Boolean =
+        eligibility(content) == AssistantReplayEligibility.REPLAYABLE
+
+    fun isDurable(content: String): Boolean = eligibility(content) != AssistantReplayEligibility.NONE
+
+    fun replaySafeHistory(
+        history: List<PromptTurn>,
+        allowTypedToolHistory: Boolean,
+    ): List<PromptTurn> =
+        history.mapNotNull { turn ->
+            if (turn.kind != PromptTurnKind.ASSISTANT) {
+                turn
+            } else {
+                val contentWithoutCompleteCalls =
+                    ChatMarkupRegex.toolCallPattern.replace(turn.content, "")
+                val hasCompleteTypedToolCall =
+                    allowTypedToolHistory &&
+                        contentWithoutCompleteCalls != turn.content &&
+                        !ChatMarkupRegex.containsToolTag(contentWithoutCompleteCalls)
+                if (hasCompleteTypedToolCall) {
+                    return@mapNotNull turn
+                }
+                val projection = project(turn.content)
+                projection.content.takeIf(::isReplayable)
+                    ?.let { safeContent -> turn.copy(content = safeContent) }
+            }
+        }
+
     fun project(content: String): AssistantReplayHistoryProjection {
         val transactionCalls = mutableListOf<TransactionCall>()
         val resultRanges = mutableListOf<IntRange>()
@@ -486,6 +545,17 @@ object AssistantReplayHistoryProjector {
 }
 
 object AssistantReplayHistoryRepairPolicy {
+    fun excludedMessages(
+        messages: List<ChatMessage>,
+    ): List<ChatMessage> =
+        messages.filter { message ->
+            message.sender == "ai" &&
+                message.variantCount == 1 &&
+                message.selectedVariantIndex == 0 &&
+                AssistantReplayHistoryProjector.eligibility(message.content) ==
+                    AssistantReplayEligibility.NONE
+        }
+
     fun plan(
         messages: List<ChatMessage>,
     ): List<AssistantReplayHistoryRepair> {

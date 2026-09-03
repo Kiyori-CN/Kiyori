@@ -23,6 +23,7 @@ import com.ai.assistance.operit.core.chat.ConversationCompactionRouteIdentity
 import com.ai.assistance.operit.core.chat.ConversationCompactionSnapshot
 import com.ai.assistance.operit.core.chat.ConversationCompactionUsage
 import com.ai.assistance.operit.core.chat.ConversationToolResultPruningReport
+import com.ai.assistance.operit.core.chat.AssistantReplayEligibility
 import com.ai.assistance.operit.core.chat.AssistantReplayHistoryProjector
 import com.ai.assistance.operit.core.chat.AssistantReplayHistoryRepairPolicy
 import com.ai.assistance.operit.core.chat.AssistantReplayHistoryRepairReport
@@ -32,6 +33,7 @@ import com.ai.assistance.operit.data.model.ChatHistory
 import com.ai.assistance.operit.data.model.ChatMessage
 import com.ai.assistance.operit.data.model.ChatMessageLocatorPreview
 import com.ai.assistance.operit.data.model.ConversationAuditCompletenessStatus
+import com.ai.assistance.operit.data.model.ConversationAuditVisibility
 import com.ai.assistance.operit.data.model.CharacterCardChatStats
 import com.ai.assistance.operit.data.model.CharacterGroupChatStats
 import com.ai.assistance.operit.data.model.MessageEntity
@@ -1533,12 +1535,13 @@ class ChatHistoryManager private constructor(private val context: Context) {
         // 恢复边界不能使用会把数据库异常转换为空历史的普通读取入口；否则修复失败后仍会
         // 继续提交下一轮请求，并再次把原始协议缺口暴露给 Provider。
         val messages = loadRuntimeChatMessagesForCompaction(chatId)
+        val excludedMessages = AssistantReplayHistoryRepairPolicy.excludedMessages(messages)
         val projectedCandidates =
             messages.filter { message ->
                 message.sender == "ai" &&
                     AssistantReplayHistoryProjector.project(message.content).changed
             }
-        if (projectedCandidates.isEmpty()) {
+        if (projectedCandidates.isEmpty() && excludedMessages.isEmpty()) {
             return AssistantReplayHistoryRepairReport(
                 inspectedMessageCount = messages.size,
                 candidateCount = 0,
@@ -1552,10 +1555,10 @@ class ChatHistoryManager private constructor(private val context: Context) {
             AssistantReplayHistoryRepairPolicy.plan(
                 messages = messages,
             )
-        if (plannedRepairs.isEmpty()) {
+        if (plannedRepairs.isEmpty() && excludedMessages.isEmpty()) {
             return AssistantReplayHistoryRepairReport(
                 inspectedMessageCount = messages.size,
-                candidateCount = projectedCandidates.size,
+                candidateCount = projectedCandidates.size + excludedMessages.size,
                 repairedMessageCount = 0,
                 removedCharacterCount = 0,
                 reorderedTransactionCount = 0,
@@ -1566,6 +1569,56 @@ class ChatHistoryManager private constructor(private val context: Context) {
         var removedCharacterCount = 0
         var reorderedTransactionCount = 0
         chatMutex(chatId).withLock {
+            excludedMessages.forEach { message ->
+                val currentMessage =
+                    chatContentDao.getMessageByTimestamp(chatId, message.timestamp)
+                        ?: return@forEach
+                if (
+                    currentMessage.sender != "ai" ||
+                        currentMessage.content != message.content ||
+                        currentMessage.selectedVariantIndex != 0 ||
+                        chatContentDao.getVariantsForMessage(chatId, message.timestamp).isNotEmpty() ||
+                        AssistantReplayHistoryProjector.eligibility(currentMessage.content) !=
+                            AssistantReplayEligibility.NONE
+                ) {
+                    return@forEach
+                }
+                val exclusionProjection =
+                    AssistantReplayHistoryProjector.project(currentMessage.content)
+                val exclusionFailureCode =
+                    when {
+                        currentMessage.content.isBlank() -> "ASSISTANT_REPLAY_EMPTY"
+                        exclusionProjection.reason != null -> exclusionProjection.reason.name
+                        else -> "ASSISTANT_REPLAY_NON_CONTENT"
+                    }
+                conversationAuditRepository.mutateAndAppendEvent(
+                    ConversationAuditEventRequest(
+                        chatId = chatId,
+                        category = "RECOVERY",
+                        eventType = "ASSISTANT_REPLAY_HISTORY_EXCLUDED",
+                        actor = "KIYORI",
+                        summary = "已从当前对话投影移除不可重放的 assistant 消息",
+                        messageTimestamp = message.timestamp,
+                        variantIndex = 0,
+                        visibility = ConversationAuditVisibility.TOMBSTONE,
+                        terminalState = "EXCLUDED",
+                        completeness = ConversationAuditCompletenessStatus.PARTIAL,
+                        failureCode = exclusionFailureCode,
+                        payloads =
+                            listOf(
+                                ConversationAuditPayloadInput.text(
+                                    label = "excluded_message",
+                                    role = "assistant",
+                                    value = currentMessage.content,
+                                )
+                            ),
+                    )
+                ) {
+                    messageDao.deleteMessageByTimestamp(chatId, message.timestamp)
+                }
+                repairedMessageCount += 1
+                removedCharacterCount += currentMessage.content.length
+            }
             plannedRepairs.forEach { repair ->
                 val message = repair.message
                 val currentContent =
@@ -1647,7 +1700,9 @@ class ChatHistoryManager private constructor(private val context: Context) {
         }
         return AssistantReplayHistoryRepairReport(
             inspectedMessageCount = messages.size,
-            candidateCount = projectedCandidates.size,
+            candidateCount =
+                (projectedCandidates.map { it.timestamp } +
+                    excludedMessages.map { it.timestamp }).distinct().size,
             repairedMessageCount = repairedMessageCount,
             removedCharacterCount = removedCharacterCount,
             reorderedTransactionCount = reorderedTransactionCount,

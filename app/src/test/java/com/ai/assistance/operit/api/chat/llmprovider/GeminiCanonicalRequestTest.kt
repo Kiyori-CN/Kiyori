@@ -51,6 +51,34 @@ class GeminiCanonicalRequestTest {
     }
 
     @Test
+    fun excludesAssistantsWithoutVisibleContentOrCompleteTools() {
+        val request =
+            provider()
+                .createRequestJson(
+                    context = context,
+                    chatHistory =
+                        listOf(
+                            PromptTurn(PromptTurnKind.USER, "question"),
+                            PromptTurn(PromptTurnKind.ASSISTANT, ""),
+                            PromptTurn(PromptTurnKind.ASSISTANT, "<thinking>reasoning</thinking>"),
+                            PromptTurn(PromptTurnKind.ASSISTANT, "<status/>"),
+                            PromptTurn(PromptTurnKind.ASSISTANT, "answer"),
+                        ),
+                    modelParameters = emptyList(),
+                    enableThinking = false,
+                    availableTools = null,
+                    preserveThinkInHistory = true,
+                )
+
+        val contents = request.getJSONArray("contents")
+        assertEquals(2, contents.length())
+        assertEquals("user", contents.getJSONObject(0).getString("role"))
+        val assistant = contents.getJSONObject(1)
+        assertEquals("model", assistant.getString("role"))
+        assertEquals("answer", assistant.getJSONArray("parts").getJSONObject(0).getString("text"))
+    }
+
+    @Test
     fun replaysParallelFunctionCallsAndResponsesWithoutSyntheticCancellation() {
         val request =
             provider()
