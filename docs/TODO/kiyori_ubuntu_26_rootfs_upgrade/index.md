@@ -18,8 +18,8 @@ owner: Kiyori terminal / rootfs migration
   `P3_USER_DATA_MIGRATION`、完整 `P5_DEVICE_ACCEPTANCE` 继续为 `verification_pending`。
 - 本轮补充开始前父仓库基线：`main@e4d8f0c2d80a38e03fff9fca1a3a6a28a1319c03`，与
   `origin/main` 一致；`terminal` 子模块基线：`main@5cb5371081253384552af661653dae34663debb9`，
-  与 `origin/main` 一致。本轮最终提交为 `ee5ab0001c886f5ca9dc0c3feba16a2f7f5f7767`，已推送并完成
-  local/tracking/remote 三方 ref 对账。
+  与 `origin/main` 一致。本轮工具链实现提交为 `ee5ab0001c886f5ca9dc0c3feba16a2f7f5f7767`，其后续
+  文档一致性提交也均已推送，并完成 local/tracking/remote 三方 ref 对账。
 - 正式开发准备：`check_formal_readiness.py --repository . --require-main` 通过。
 - 旧资产：`ubuntu-noble-aarch64-pd-v4.18.0.tar.xz`，Canonical/上游历史资产，SHA-256
   `91ACAA786B8E2FBBA56A9FD0F8A1188CEE482B5C7BAEED707B29DDAA9A294DAA`，压缩约 61.16 MiB，
