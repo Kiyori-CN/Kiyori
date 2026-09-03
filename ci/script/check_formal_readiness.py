@@ -35,7 +35,8 @@ RUNTIME_ARTIFACT_PATTERNS = (
     "local.properties",
 )
 LEGACY_TERMINAL_BANNER_MARKER = "| |_| | |_) |  __/ |   | | |_"
-EXPECTED_TERMINAL_BANNER_TEXT = "Kiyori Ubuntu environment on Android"
+LEGACY_TERMINAL_BANNER_TEXT = "Kiyori Ubuntu environment on Android"
+TERMINAL_RESET_MARKER = "INITIAL_SCREEN_RESET_SEQUENCE"
 
 
 def git(root: Path, *args: str) -> str:
@@ -142,14 +143,20 @@ def check_visible_branding(root: Path, errors: list[str]) -> None:
     if terminal_output.is_file():
         text = terminal_output.read_text(encoding="utf-8")
         legacy_index = text.find(LEGACY_TERMINAL_BANNER_MARKER)
-        if legacy_index >= 0:
-            errors.append(
-                f"{terminal_output.relative_to(root)}:{line_number(text, legacy_index)} "
-                "contains the visible legacy Operit ASCII banner"
+        branded_index = text.find(LEGACY_TERMINAL_BANNER_TEXT)
+        welcome_owner_index = text.find("KIYORI_WELCOME_MESSAGE")
+        welcome_method_index = text.find("sendWelcomeMessage(")
+        if legacy_index >= 0 or branded_index >= 0 or welcome_owner_index >= 0 or welcome_method_index >= 0:
+            first_index = min(
+                index for index in (legacy_index, branded_index, welcome_owner_index, welcome_method_index) if index >= 0
             )
-        if EXPECTED_TERMINAL_BANNER_TEXT not in text:
             errors.append(
-                f"{terminal_output.relative_to(root)} must identify the visible Ubuntu environment as Kiyori"
+                f"{terminal_output.relative_to(root)}:{line_number(text, first_index)} "
+                "contains a product banner that must not be injected into the terminal READY frame"
+            )
+        if TERMINAL_RESET_MARKER not in text:
+            errors.append(
+                f"{terminal_output.relative_to(root)} must keep an explicit READY-frame screen reset"
             )
 
 

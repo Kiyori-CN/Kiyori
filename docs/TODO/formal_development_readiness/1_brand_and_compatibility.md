@@ -20,7 +20,7 @@ Kiyori 是用户可见的产品品牌、仓库名、Gradle 根项目名和 Andro
 - 应用名称、启动图标、About、帮助、反馈和项目链接
 - Android 系统界面、默认角色、文件选择器根标题、通知和快捷方式的当前宿主引用
 - WebChat、工作区模板展示文字以及 Kiyori 自有 companion 的界面标题
-- 用户可见的终端产品名称、Ubuntu 欢迎横幅和示例命令输出
+- 用户可见的终端产品名称和示例命令输出；READY 首帧不注入产品横幅
 - 当前应用沙箱 `/data/data/com.kiyori`；源码 namespace、action、provider 与 ToolPkg ID 不随之改名
 - Kiyori 新建公共数据的 `Download/Kiyori` 根目录
 - CI 产物名称、仓库工具包元数据和新建的开发文档
@@ -33,8 +33,8 @@ Kiyori `versionName` 标识产品发布，不能代替 Operit 插件运行时兼
 
 ## 门禁规则
 
-`ci/script/check_formal_readiness.py` 对用户可见终端文案、Ubuntu 欢迎横幅、Kiyori application ID、根项目名、子模块来源和敏感/运行产物路径进行检查。它不以“搜索结果中不应出现 Operit”作为通过条件；允许列表由本文件定义。
+`ci/script/check_formal_readiness.py` 对用户可见终端文案、终端首帧 banner、Kiyori application ID、根项目名、子模块来源和敏感/运行产物路径进行检查。它不以“搜索结果中不应出现 Operit”作为通过条件；允许列表由本文件定义。
 
 新增用户可见文案或链接时，必须同时更新本文件、`CONTEXT.md` 和对应语言资源，并说明是否为兼容标识。内部标识迁移不得混入品牌文案变更。
 
-默认角色直接引用现有 Kiyori drawable，WebChat favicon 复用仓库 Kiyori logo。旧 Operit 角色图片在零引用后删除，不保留并行品牌资产。Terminal 的 Ubuntu rootfs、发行版文件、`installed-rootfs/ubuntu`、安装标记与内部挂载路径不属于产品品牌路径，继续保持稳定。
+默认角色直接引用现有 Kiyori drawable，WebChat favicon 复用仓库 Kiyori logo。旧 Operit 角色图片在零引用后删除，不保留并行品牌资产。Terminal 的 Ubuntu rootfs、发行版文件、`installed-rootfs/ubuntu`、内部挂载路径和互操作命名不属于产品品牌路径，继续保持稳定。活动安装标记使用 `.kiyori_installed_ok`；`.operit_installed_ok` 只作为未发布版本迁移时的一次性历史输入，验证新标记后删除，不再新写入。

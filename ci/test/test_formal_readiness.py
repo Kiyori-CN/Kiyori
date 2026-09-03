@@ -109,10 +109,10 @@ private fun installSudoShim() {
             check_visible_branding(root, errors)
 
             self.assertEqual(len(errors), 2)
-            self.assertTrue(any("legacy Operit ASCII banner" in error for error in errors))
-            self.assertTrue(any("must identify" in error for error in errors))
+            self.assertTrue(any("product banner" in error for error in errors))
+            self.assertTrue(any("screen reset" in error for error in errors))
 
-    def test_kiyori_terminal_banner_is_accepted(self) -> None:
+    def test_terminal_without_product_banner_is_accepted(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source = (
@@ -121,7 +121,7 @@ private fun installSudoShim() {
             )
             source.parent.mkdir(parents=True)
             source.write_text(
-                'val banner = "Kiyori Ubuntu environment on Android"\n',
+                'const val INITIAL_SCREEN_RESET_SEQUENCE = "\\u001B[2J\\u001B[H"\n',
                 encoding="utf-8",
             )
             errors: list[str] = []

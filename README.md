@@ -160,6 +160,11 @@ KiyoriTerminalCore 子模块；`tools/hotbuild/OperitNightlyRelease` 是独立�
 - Node.js 22 与 npm
 - Python 与项目 `.venv`
 
+上面是 Android 主工程的构建机基线；它与应用内 Terminal 的 Ubuntu 环境是两套独立合同。Terminal
+随包提供 Ubuntu 26.04.1 Resolute 的可复现核心用户空间，环境配置按需安装 Node.js 24.20.0 LTS、
+pnpm 11.25.0、TypeScript 7.0.2、OpenJDK 25 和 Gradle 9.7.1（Gradle 使用官方 SHA-256 校验的
+发行版，不使用 Ubuntu 4.4.1 旧包）。详见 [KiyoriTerminalCore Ubuntu environment](terminal/README.md)。
+
 仓库不会直接提交全部大型模型和本地运行库。`app/libs/`、`app/src/main/assets/models/`、`app/src/main/assets/subpack/` 和 `app/src/main/jniLibs/` 可能包含本机准备的构建输入，不能作为普通缓存批量删除。完整环境准备、依赖来源和故障排查见 [构建指南](docs/doc-src/dev-core/BUILDING.md)。
 
 ## 构建 Debug APK
