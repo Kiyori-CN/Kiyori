@@ -39,5 +39,7 @@
 
 - Kotlin 2.4.10 与 compile SDK 37 已在独立债务批次完成迁移和编译验证；后续版本继续按独立兼容评审处理
 - Build Tools 37 涉及新的工具链策略，不因版本提示机械升级
-- Flutter 模板仍使用其已验证的 AGP 8.11.1 与 Kotlin 2.2.20；本机没有 Flutter SDK，不能把未验证迁移并入 Android 原生工具链收尾
+- Flutter 模板不与根工程强行共用版本；Ubuntu 26.04 工具链补充已按 Flutter `3.47.2` stable
+  对齐独立的 Gradle `9.3.1`、AGP `9.1.0` 和 Kotlin `2.4.0` 合同，并由模板脚本校验 Gradle SHA-256。
+  根工程仍保持本表的 Gradle `9.5.0` / AGP `9.3.1` / Kotlin `2.4.10` 基线。
 - CMake 3.22.1 已满足当前工程；除非 native 模块提出明确需求，不为追逐版本号单独升级

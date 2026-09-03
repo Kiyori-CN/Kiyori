@@ -163,4 +163,6 @@ Lint 最终报告为 0 errors、29 warnings 和 1 个 baseline 已应用提示�
 
 - AGP 9.3.1、Gradle 9.5.0、Kotlin 2.4.10、compile SDK 37 与 Build Tools 36.0.0 已完成迁移；`apksig` 同步为 9.3.1；CI 实际执行仍取决于重新启用仓库级 GitHub Actions
 - Build Tools 37 与更高 CMake 版本仍需要独立兼容性和产品策略验证，不因版本提示机械升级
-- Flutter 模板仍处于 AGP 8.11.1/Kotlin 2.2.20 基线；本机无 Flutter SDK，本轮不声称完成其迁移
+- Flutter 模板已在 Ubuntu 26.04 工具链补充中按 Flutter `3.47.2` stable 对齐 Gradle `9.3.1`、
+  AGP `9.1.0` 与 Kotlin `2.4.0`，并带固定 Gradle SHA-256；其实际 Flutter/Android 编译仍需设备或
+  工作区现场验收，不能用根工程的 Gradle `9.5.0` 基线替代。
