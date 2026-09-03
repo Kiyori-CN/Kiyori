@@ -27,13 +27,13 @@ operit-java-project/
 
 ### 1️⃣ 安装依赖（首次使用）
 前往 **终端 → 环境配置**，安装以下工具：
-- ✅ OpenJDK 17
-- ✅ Gradle
+- ✅ OpenJDK 25 LTS
+- ✅ Gradle 9.7.1（由终端环境配置提供）
 
 ### 2️⃣ 初始化项目
 1. 点击 **"🔧 初始化 Gradle Wrapper"** 按钮
    - 这会生成 `gradlew` 和 `gradle/` 目录
-   - 首次运行会自动下载 Gradle 8.5
+   - 首次运行会自动生成使用 Gradle 9.7.1 的 Wrapper
 
 ### 3️⃣ 构建和运行
 - **构建项目**: 点击 "🔨 构建项目"

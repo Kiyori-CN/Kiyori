@@ -43,8 +43,12 @@ android-project/
 
 ### 1. 环境要求
 - ✅ **JDK 17+**（必需）
-- ✅ **Gradle** (已包含 Wrapper)
+- ✅ **Gradle 9.7.1**（已包含 Wrapper；初始化脚本会校验官方 SHA-256）
 - ✅ **Android SDK** (可选，用于完整编译)
+
+`setup_android_env.sh` 会按当前 Android 模板合同准备 Gradle 9.7.1、Android SDK 36 和
+Build Tools 36.0.0。JDK 17 是 Android Gradle Plugin 的官方默认运行基线；终端 Ubuntu
+环境的 OpenJDK 25 属于另一套工具链合同，不在此处强行替换。
 
 ### 2. 构建项目
 
@@ -81,8 +85,8 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ```toml
 [versions]
-agp = "9.0.0"
-kotlin = "2.3.10"
+agp = "9.3.0"
+kotlin = "2.4.10"
 composeBom = "2026.01.01"
 
 [libraries]

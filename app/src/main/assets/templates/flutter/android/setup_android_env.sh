@@ -27,7 +27,8 @@ speed_to_int() {
   echo "$speed_int"
 }
 
-GRADLE_VERSION="8.14"
+GRADLE_VERSION="9.3.1"
+GRADLE_SHA256="b266d5ff6b90eada6dc3b20cb090e3731302e553a27c5d3e4df1f0d76beaff06"
 GRADLE_ROOT="${GRADLE_ROOT:-$HOME/gradle}"
 GRADLE_DIST="gradle-${GRADLE_VERSION}"
 GRADLE_ZIP="${GRADLE_ROOT}/${GRADLE_DIST}-bin.zip"
@@ -210,6 +211,18 @@ download_file() {
 
   log "Failed to download file after $max_retries attempts: $url"
   return 1
+}
+
+verify_gradle_archive() {
+  local archive="$1"
+  if ! command_exists sha256sum; then
+    fail "sha256sum is required to verify the Gradle distribution."
+  fi
+  local actual_sha256
+  actual_sha256=$(sha256sum "$archive" | awk '{print $1}')
+  if [[ "$actual_sha256" != "$GRADLE_SHA256" ]]; then
+    fail "Gradle checksum mismatch: expected $GRADLE_SHA256, got $actual_sha256"
+  fi
 }
 
 download_text() {
@@ -863,8 +876,8 @@ EOF
   fi
 
   # quick compile+link self-check
-  local test_src="/tmp/operit_ndk_test.c"
-  local test_bin="/tmp/operit_ndk_test"
+  local test_src="/tmp/kiyori_ndk_test.c"
+  local test_bin="/tmp/kiyori_ndk_test"
   echo 'int main(){return 0;}' > "$test_src"
   if ! "$ndk_bin/clang" --target=aarch64-none-linux-android24 --sysroot="$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION/toolchains/llvm/prebuilt/linux-x86_64/sysroot" "$test_src" -o "$test_bin" >/dev/null 2>&1; then
     log "ARM64 NDK emulation self-check failed (clang link test)"
@@ -945,6 +958,7 @@ ensure_gradle() {
   else
     log "Gradle zip already present: $GRADLE_ZIP"
   fi
+  verify_gradle_archive "$GRADLE_ZIP"
 
   if [[ ! -d "$GRADLE_ROOT/$GRADLE_DIST" ]]; then
     log "Extracting Gradle ${GRADLE_VERSION}"
@@ -977,6 +991,11 @@ update_gradle_wrapper_properties() {
     sed -i "s|^distributionUrl=.*|distributionUrl=$file_url|" "$wrapper_file"
   else
     echo "distributionUrl=$file_url" >> "$wrapper_file"
+  fi
+  if grep -q '^distributionSha256Sum=' "$wrapper_file"; then
+    sed -i "s|^distributionSha256Sum=.*|distributionSha256Sum=$GRADLE_SHA256|" "$wrapper_file"
+  else
+    echo "distributionSha256Sum=$GRADLE_SHA256" >> "$wrapper_file"
   fi
   log "Wrapper distributionUrl set to local file: $gradle_zip_abs"
 }
@@ -1127,12 +1146,12 @@ configure_env_persistence() {
   local tmp_file
   tmp_file=$(mktemp)
   awk '
-    /^# >>> operit flutter android env >>>$/ { skip = 1; next }
-    /^# <<< operit flutter android env <<<$/ { skip = 0; next }
+    /^# >>> (operit|kiyori) flutter android env >>>$/ { skip = 1; next }
+    /^# <<< (operit|kiyori) flutter android env <<<$/ { skip = 0; next }
     skip != 1 { print }
   ' "$bashrc" > "$tmp_file"
   cat >> "$tmp_file" <<EOF
-# >>> operit flutter android env >>>
+# >>> kiyori flutter android env >>>
 export FLUTTER_ROOT=$FLUTTER_SDK
 export FLUTTER_STORAGE_BASE_URL=$FLUTTER_STORAGE_BASE_URL
 export PUB_HOSTED_URL=$PUB_HOSTED_URL
@@ -1141,10 +1160,10 @@ export ANDROID_HOME=$ANDROID_HOME
 export ANDROID_SDK_ROOT=$ANDROID_HOME
 export PATH=\$FLUTTER_ROOT/bin:\$ANDROID_HOME/cmdline-tools/latest/bin:\$ANDROID_HOME/platform-tools:\$JAVA_HOME/bin:\$PATH
 export GRADLE_USER_HOME=$GRADLE_USER_HOME
-export GRADLE_HOME=${GRADLE_HOME:-$HOME/gradle/gradle-8.14}
+export GRADLE_HOME=${GRADLE_HOME:-$HOME/gradle/gradle-9.3.1}
 export PATH=\$GRADLE_HOME/bin:\$PATH
 export ENABLE_ARM64_NDK_EMULATION=$ENABLE_ARM64_NDK_EMULATION
-# <<< operit flutter android env <<<
+# <<< kiyori flutter android env <<<
 EOF
   mv "$tmp_file" "$bashrc"
   log "Environment variables updated in ~/.bashrc"

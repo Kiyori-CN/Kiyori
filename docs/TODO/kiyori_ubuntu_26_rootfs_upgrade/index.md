@@ -16,8 +16,9 @@ owner: Kiyori terminal / rootfs migration
 - 阶段：`P0_BASELINE_AND_DESIGN`、`P1_ASSET_BUILD` 已完成（新候选已消除 Android tar 硬链接），
   `P2_RUNTIME_CONTRACT` 已通过首次 Android 解包/staging/activation 现场门槛但仍在运行时收口；
   `P3_USER_DATA_MIGRATION`、完整 `P5_DEVICE_ACCEPTANCE` 继续为 `verification_pending`。
-- 父仓库：`main@be20b24e5`，与 `origin/main` 一致；`terminal` 子模块：`main@c9a8cebe6`，与
-  `origin/main` 一致。
+- 本轮补充开始前父仓库基线：`main@e4d8f0c2d80a38e03fff9fca1a3a6a28a1319c03`，与
+  `origin/main` 一致；`terminal` 子模块基线：`main@5cb5371081253384552af661653dae34663debb9`，
+  与 `origin/main` 一致。最终提交号在交付后回填并核对。
 - 正式开发准备：`check_formal_readiness.py --repository . --require-main` 通过。
 - 旧资产：`ubuntu-noble-aarch64-pd-v4.18.0.tar.xz`，Canonical/上游历史资产，SHA-256
   `91ACAA786B8E2FBBA56A9FD0F8A1188CEE482B5C7BAEED707B29DDAA9A294DAA`，压缩约 61.16 MiB，
@@ -50,11 +51,11 @@ owner: Kiyori terminal / rootfs migration
   模式位正反例）、Terminal JVM、正式开发准备、签名、重复 entry 和 16 KiB 对齐均通过；APK 内
   Resolute 资产为单份且与 manifest SHA-256 一致。该候选已在用户设备上完成首次覆盖安装和 rootfs
   activation，但尚未取得完整 Android 运行时矩阵结果，不能据此标记 P2/P5 完成。
-- 当前交付候选于 2026-09-04 05:59 由最新源码重新构建：`app/build/outputs/apk/debug/app-debug.apk`，
-  大小 `475,527,632` 字节，SHA-256 为
-  `840D2E13C745186BC9F40B611526F32B41B0FCC8067E37CD4EBA99BC89585AB7`。该 APK 通过 V2 签名、
-  16 KiB `zipalign`、Resolute 单份/Noble 零份与 payload hash 对账；它尚未在设备上安装，因此
-  无 banner、marker 迁移、完整工具链和长期稳定性仍为 `verification_pending`。
+- 当前交付候选于 2026-09-04 07:29:36 由本轮最终源码重新构建：
+  `app/build/outputs/apk/debug/app-debug.apk`，大小 `476,215,605` 字节，SHA-256 为
+  `308B26E4BCC627EB2ED397DBF8CCC4C8A14322960162C1BA0B683241385AD4D8`。该 APK 通过 V2 签名、
+  16 KiB `zipalign`、Resolute 单份/Noble 零份、模板资产与源文件逐字节 hash 对账；它尚未在设备上安装，
+  因此无 banner、marker 迁移、完整工具链和长期稳定性仍为 `verification_pending`。
 - 2026-09-04 02:45 的设备诊断显示 `bin/bash` 与 `usr/bin/gnuenv` 为 `0700`、`usr/lib/os-release`
   为 `0600`，目录层级和三个关键符号链接均存在。结合独立 BusyBox 复现实验（`umask 077` 会将
   归档 `0755/0644` 变为 `0700/0600`），根因锁定为 Android 应用进程 umask 参与解包；安装脚本已
@@ -162,10 +163,12 @@ owner: Kiyori terminal / rootfs migration
 一键安装合同收口到可审计的稳定版本；每个小切片先跑 terminal 定向测试，再串行构建 Debug APK。
 
 当前进度：O1、O2、O3 已在源码层完成，O4 已完成版本合同、精确探针和 Gradle-JDK 依赖闭环；
-最新源码已完成 Debug 构建和本地审计。当前 APK 为 `475,527,632` B，较 O1 初始候选
-`549,958,365` B 减少 `74,430,733` B，较 2026-07-31 基线 `494,148,842` B 减少 `18,621,210` B。
-APK 内 Resolute 成员 1 份、Noble 成员 0 份，Resolute 源 hash 与 manifest 一致；terminal 定向测试、
-规定 Debug 构建、V2 签名、16 KiB 对齐和 fresh-clone 检查均通过。O2/O3/O4 的真机复测仍待完成。
+最新源码已完成 Debug 构建和本地审计。当前 APK 为 `476,215,605` B，SHA-256 为
+`308B26E4BCC627EB2ED397DBF8CCC4C8A14322960162C1BA0B683241385AD4D8`，较 O1 初始候选
+`549,958,365` B 减少 `73,742,760` B，较 2026-07-31 基线 `494,148,842` B 减少 `17,933,237` B。
+APK 内 Resolute 成员 1 份、Noble 成员 0 份，Resolute 源 hash 与 manifest 一致；版本合同测试、terminal
+定向测试、正式门禁、规定 Debug 构建、V2 签名、16 KiB 对齐和最终模板资产对账均通过。候选尚未安装到设备，
+O2/O3/O4 的真机复测仍待完成。
 
 ### 版本证据与更新策略
 
@@ -177,6 +180,22 @@ APK 内 Resolute 成员 1 份、Noble 成员 0 份，Resolute 源 hash 与 manif
 软件包页显示 `gradle=4.4.1-22ubuntu1`（明显落后），所以一键安装不再使用该包。
 这些是本次安装合同的观察点，不代表永远不更新；后续更新必须重新核验官方版本、兼容矩阵、SHA、arm64
 设备表现和磁盘/内存预算，再修改合同常量与文档。
+
+### O4.1 — 工作区一键工具链对齐（本次补充）
+
+- 版本审计发现，Ubuntu Terminal 的通用环境合同已经是 Gradle `9.7.1`，但三个工作区入口仍有
+  独立旧值：Java 初始化命令为 `8.5`，Android 模板为 `9.5.0`，Flutter 模板为 `8.14`，且
+  Flutter 模板的 AGP/Kotlin 仍为 `8.11.1/2.2.20`。
+- 已按生态边界收口：Java 初始化与通用 Android 模板使用 Gradle `9.7.1`；Android 模板保留
+  JDK 17（AGP 官方默认/最低运行基线），并对官方 Gradle binary 做 SHA-256 校验。Flutter 当前
+  stable `3.47.2` 的官方 `gradle_utils.dart` 明确给出 Gradle `9.3.1`、AGP `9.1.0`、Kotlin
+  `2.4.0`，因此 Flutter 模板按该组合更新，不强行使用 Ubuntu 通用的 `9.7.1`。
+- Android/Flutter 的 Wrapper 及持久化环境标记同步更新为对应版本与 Kiyori 文案；写入新标记前会
+  一次性移除同一脚本旧的 `operit` 环境块，避免升级后重复注入 PATH。旧下载归档不会被复用为新版本，
+  校验失败会停止并暴露错误。根项目 Wrapper、`tools/shower` 和其他独立构建
+  工具不在本补充切片内，避免改变既有主工程构建基线。
+- 验收：模板/命令版本合同测试、两个 shell 脚本语法检查、Wrapper URL/SHA 对账、相关 App JVM
+  测试、正式门禁和 Debug APK 构建；设备上的实际 Flutter/Android/Java 编译仍需现场验证。
 
 ## 不可破坏的兼容边界
 

@@ -9,9 +9,12 @@ For_Agent: 对项目大规模动工前按本规范协作
 - [Ubuntu 26.04 内置环境升级](kiyori_ubuntu_26_rootfs_upgrade/index.md)：只读基线、无 hardlink Resolute 资产双构建、
   `stat` 模式位 staging 合同、正式开发准备门禁、terminal JVM 和 Debug APK 均已通过；旧 Noble 归档已移出
   Android `assets`（保留在 `terminal/tools/rootfs/legacy`），全新 APK 物理体积已降至约 475.5 MB；终端不再注入
-  首屏 banner，活动 marker 迁移到 `.kiyori_installed_ok`，Node/JDK/Gradle 一键安装版本合同已固定。设备首次
-  解包/staging/activation 已通过；最新 Debug APK 已完成本地构建与资产审计，但仍等待该 APK 的 PRoot 启动、
-  legacy 数据迁移、完整工具链与长期稳定性验收；旧 Noble 资产与 rootfs/backup 在 Android 运行时验收完成前继续保留。
+  首屏 banner，活动 marker 迁移到 `.kiyori_installed_ok`，Node/JDK/Gradle 一键安装版本合同已固定；通用
+  Android/Java 工作区与 Flutter 3.47.2 stable 模板的一键 Gradle/插件合同也已对齐并带 SHA-256 校验。
+  设备首次解包/staging/activation 已通过；最终 Debug APK（2026-09-04 07:29:36，476,215,605 B，
+  SHA-256 `308B26E4BCC627EB2ED397DBF8CCC4C8A14322960162C1BA0B683241385AD4D8`）已完成本地构建、签名、
+  对齐和资产审计，但仍等待该 APK 的 PRoot 启动、legacy 数据迁移、完整工具链与长期稳定性验收；旧 Noble
+  资产与 rootfs/backup 在 Android 运行时验收完成前继续保留。
 
 - [AI 对话渲染可靠性与工具内容边界](ai_chat_rendering_reliability/index.md)：已收敛工具 XML/JSON，
   代码围栏、`$$`/`\[\]` 与行首 `\begin{…}…\end{…}` 公式环境、Mermaid/HTML 载荷边界专项正在

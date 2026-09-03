@@ -27,7 +27,8 @@ speed_to_int() {
   echo "$speed_int"
 }
 
-GRADLE_VERSION="9.5.0"
+GRADLE_VERSION="9.7.1"
+GRADLE_SHA256="acd53f1edaf02f1a8ff99879f8a34b302661a057d9b063ae9e35b552f804d20a"
 GRADLE_ROOT="${GRADLE_ROOT:-$HOME/gradle}"
 GRADLE_DIST="gradle-${GRADLE_VERSION}"
 GRADLE_ZIP="${GRADLE_ROOT}/${GRADLE_DIST}-bin.zip"
@@ -182,6 +183,18 @@ download_file() {
   return 1
 }
 
+verify_gradle_archive() {
+  local archive="$1"
+  if ! command_exists sha256sum; then
+    fail "sha256sum is required to verify the Gradle distribution."
+  fi
+  local actual_sha256
+  actual_sha256=$(sha256sum "$archive" | awk '{print $1}')
+  if [[ "$actual_sha256" != "$GRADLE_SHA256" ]]; then
+    fail "Gradle checksum mismatch: expected $GRADLE_SHA256, got $actual_sha256"
+  fi
+}
+
 install_packages() {
   local packages=("$@")
   if command_exists apt-get; then
@@ -301,6 +314,7 @@ ensure_gradle() {
   else
     log "Gradle zip already present: $GRADLE_ZIP"
   fi
+  verify_gradle_archive "$GRADLE_ZIP"
 
   if [[ ! -d "$GRADLE_ROOT/$GRADLE_DIST" ]]; then
     log "Extracting Gradle ${GRADLE_VERSION}"
@@ -333,6 +347,11 @@ update_gradle_wrapper_properties() {
     sed -i "s|^distributionUrl=.*|distributionUrl=$file_url|" "$wrapper_file"
   else
     echo "distributionUrl=$file_url" >> "$wrapper_file"
+  fi
+  if grep -q '^distributionSha256Sum=' "$wrapper_file"; then
+    sed -i "s|^distributionSha256Sum=.*|distributionSha256Sum=$GRADLE_SHA256|" "$wrapper_file"
+  else
+    echo "distributionSha256Sum=$GRADLE_SHA256" >> "$wrapper_file"
   fi
   log "Wrapper distributionUrl set to local file: $gradle_zip_abs"
 }
@@ -498,22 +517,26 @@ EOF
 configure_env_persistence() {
   local bashrc="$HOME/.bashrc"
   touch "$bashrc"
-  if ! grep -q "operit android env" "$bashrc"; then
-    cat >> "$bashrc" <<EOF
-# >>> operit android env >>>
+  local tmp_file
+  tmp_file=$(mktemp)
+  awk '
+    /^# >>> (operit|kiyori) android env >>>$/ { skip = 1; next }
+    /^# <<< (operit|kiyori) android env <<<$/ { skip = 0; next }
+    skip != 1 { print }
+  ' "$bashrc" > "$tmp_file"
+  cat >> "$tmp_file" <<EOF
+# >>> kiyori android env >>>
 export JAVA_HOME=$JAVA_HOME
 export ANDROID_HOME=$ANDROID_HOME
 export ANDROID_SDK_ROOT=$ANDROID_HOME
 export PATH=\$ANDROID_HOME/cmdline-tools/latest/bin:\$ANDROID_HOME/platform-tools:\$JAVA_HOME/bin:\$PATH
 export GRADLE_USER_HOME=$GRADLE_USER_HOME
-export GRADLE_HOME=${GRADLE_HOME:-$HOME/gradle/gradle-9.5.0}
+export GRADLE_HOME=${GRADLE_HOME:-$HOME/gradle/gradle-9.7.1}
 export PATH=\$GRADLE_HOME/bin:\$PATH
-# <<< operit android env <<<
+# <<< kiyori android env <<<
 EOF
-    log "Environment variables appended to ~/.bashrc"
-  else
-    log "Environment variables already configured in ~/.bashrc"
-  fi
+  mv "$tmp_file" "$bashrc"
+  log "Environment variables updated in ~/.bashrc"
 }
 
 warmup_gradle_cache_for_aapt2() {

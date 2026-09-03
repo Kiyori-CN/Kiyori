@@ -165,6 +165,11 @@ KiyoriTerminalCore 子模块；`tools/hotbuild/OperitNightlyRelease` 是独立�
 pnpm 11.25.0、TypeScript 7.0.2、OpenJDK 25 和 Gradle 9.7.1（Gradle 使用官方 SHA-256 校验的
 发行版，不使用 Ubuntu 4.4.1 旧包）。详见 [KiyoriTerminalCore Ubuntu environment](terminal/README.md)。
 
+工作区模板的一键初始化也按生态分别锁定稳定合同：通用 Android 模板使用 Gradle 9.7.1（保留
+Android 官方 JDK 17 基线），Java 模板的 Wrapper 初始化使用 Gradle 9.7.1；Flutter 模板跟随
+Flutter 3.47.2 stable 使用 Gradle 9.3.1、AGP 9.1.0 和 Kotlin 2.4.0。模板版本不会通过运行时
+自动漂移，更新前必须重新核对官方兼容矩阵、下载哈希和实际构建结果。
+
 仓库不会直接提交全部大型模型和本地运行库。`app/libs/`、`app/src/main/assets/models/`、`app/src/main/assets/subpack/` 和 `app/src/main/jniLibs/` 可能包含本机准备的构建输入，不能作为普通缓存批量删除。完整环境准备、依赖来源和故障排查见 [构建指南](docs/doc-src/dev-core/BUILDING.md)。
 
 ## 构建 Debug APK

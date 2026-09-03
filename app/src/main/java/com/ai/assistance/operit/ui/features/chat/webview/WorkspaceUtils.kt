@@ -6,6 +6,11 @@ import com.ai.assistance.operit.util.OperitPaths
 import java.io.File
 import java.io.IOException
 
+// Keep the generic Java workspace initializer aligned with the stable Gradle contract used by
+// the Ubuntu environment. Flutter and Android templates carry their own ecosystem-specific
+// versions because forcing one Gradle line across those toolchains can break their plugins.
+private const val JAVA_WORKSPACE_GRADLE_VERSION = "9.7.1"
+
 fun createAndGetDefaultWorkspace(context: Context, chatId: String): File {
     return createAndGetDefaultWorkspace(context, chatId, null)
 }
@@ -562,7 +567,7 @@ private fun generateJavaProjectConfig(context: Context): String {
         {
             "id": "gradle_init",
             "label": "${context.getString(R.string.workspace_cmd_java_gradle_init)}",
-            "command": "gradle wrapper --gradle-version 8.5",
+            "command": "gradle wrapper --gradle-version $JAVA_WORKSPACE_GRADLE_VERSION",
             "workingDir": ".",
             "shell": true
         },

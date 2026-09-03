@@ -15,6 +15,7 @@
 - `test/widget_test.dart` 保留了默认 widget smoke test。
 - `android/local.properties` 是占位文件，若要直接运行 Android Gradle 任务，请先改成你本机的 Flutter SDK 和 Android SDK 路径。
 - `android/setup_android_env.sh` 复制并适配了 Android 模板的初始化脚本，包含通过 Flutter 官方 `cn/com` storage 自动安装 Flutter、自动预拉取 Linux / Android 所需 artifacts、Java / Android SDK / Gradle 准备，以及 ARM64 `aapt2` 替换。
+- 当前模板跟随 Flutter `3.47.2` stable 的 Android 构建合同：Gradle `9.3.1`、AGP `9.1.0`、Kotlin Gradle Plugin `2.4.0`。脚本下载的 Gradle binary 以官方 SHA-256 校验，不能把这组版本与 Kiyori Ubuntu 通用环境的 Gradle `9.7.1` 机械混用。
 - Linux ARM64 也走 Flutter 官方源：脚本会先安装官方 Linux SDK 包，再通过 Flutter 自己的官方下载逻辑补齐 ARM64 的 Dart SDK 和 host artifacts。
 - `.metadata`、`.idea` 这类强依赖本机环境的文件没有固化进模板；如果你希望按当前机器的 Flutter 环境补齐它们，可以在项目根目录执行 `flutter create .`。
 
