@@ -3,7 +3,7 @@ package com.ai.assistance.operit.data.api
 import android.os.SystemClock
 import com.ai.assistance.operit.data.preferences.GitHubAuthPreferences
 import com.ai.assistance.operit.data.preferences.GitHubUser
-import com.ai.assistance.operit.ui.features.packages.market.normalizeMarketArtifactId
+import com.kiyori.capability.extensions.market.normalizeMarketArtifactId
 import com.ai.assistance.operit.util.AppLogger
 import com.kiyori.platform.android.ApplicationContextAccess
 import com.kiyori.platform.network.KiyoriNetworkModule

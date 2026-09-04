@@ -3,6 +3,8 @@ package com.ai.assistance.operit.ui.features.packages.market
 import com.ai.assistance.operit.BuildConfig
 import com.ai.assistance.operit.data.api.GitHubRelease
 import com.ai.assistance.operit.data.api.MarketV2Entry
+import com.kiyori.capability.extensions.market.normalizeMarketArtifactId
+import com.kiyori.capability.extensions.market.validateStandaloneArtifactRuntimePackageId
 import java.io.File
 import kotlinx.serialization.Serializable
 
@@ -11,7 +13,6 @@ const val OPERIT_FORGE_REPO_NAME = "OperitForge"
 
 private const val SCRIPT_MARKET_LABEL = "script-artifact"
 private const val PACKAGE_MARKET_LABEL = "package-artifact"
-private const val PLACEHOLDER_MARKET_ARTIFACT_ID = "artifact"
 private val APP_VERSION_REGEX = Regex("""^(\d+)\.(\d+)\.(\d+)(?:\+(\d+))?$""")
 private data class AppVersion(
     val major: Int,
@@ -262,49 +263,6 @@ fun ArtifactMarketMetadata.toPublishClusterContext(entryId: String? = null): Art
         marketDetail = effectiveProjectDescription(),
         categoryId = categoryId
     )
-}
-
-private val NON_ALPHANUMERIC_RX = Regex("[^a-z0-9]+")
-private val MULTI_DASH_RX = Regex("-+")
-
-fun normalizeMarketArtifactId(raw: String): String {
-    val normalized =
-        raw.trim()
-            .lowercase()
-            .replace(NON_ALPHANUMERIC_RX, "-")
-            .replace(MULTI_DASH_RX, "-")
-            .trim('-')
-    return normalized.ifBlank { PLACEHOLDER_MARKET_ARTIFACT_ID }
-}
-
-fun isPlaceholderMarketArtifactId(raw: String): Boolean {
-    return normalizeMarketArtifactId(raw) == PLACEHOLDER_MARKET_ARTIFACT_ID
-}
-
-fun requiresStandaloneArtifactIdUpgrade(runtimePackageId: String): Boolean {
-    val trimmed = runtimePackageId.trim()
-    return trimmed.isNotBlank() &&
-        isPlaceholderMarketArtifactId(trimmed) &&
-        !trimmed.equals(PLACEHOLDER_MARKET_ARTIFACT_ID, ignoreCase = true)
-}
-
-fun validateStandaloneArtifactRuntimePackageId(runtimePackageId: String) {
-    require(!requiresStandaloneArtifactIdUpgrade(runtimePackageId)) {
-        "当前包 ID「$runtimePackageId」无法生成稳定的市场项目 ID。请改用包含英文字母或数字的包 ID（可含 -、_、.），再重新发布。"
-    }
-}
-
-fun sameArtifactRuntimePackageId(
-    left: String,
-    right: String
-): Boolean {
-    val trimmedLeft = left.trim()
-    val trimmedRight = right.trim()
-    if (trimmedLeft.isBlank() || trimmedRight.isBlank()) {
-        return false
-    }
-    return trimmedLeft.equals(trimmedRight, ignoreCase = true) ||
-        normalizeMarketArtifactId(trimmedLeft) == normalizeMarketArtifactId(trimmedRight)
 }
 
 fun buildPublishArtifactDescriptor(

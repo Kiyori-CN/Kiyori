@@ -60,7 +60,7 @@ import com.ai.assistance.operit.ui.features.packages.market.PublishArtifactSourc
 import com.ai.assistance.operit.ui.features.packages.market.PublishArtifactType
 import com.ai.assistance.operit.ui.features.packages.market.PublishProgressStage
 import com.ai.assistance.operit.ui.features.packages.market.isOperit2VersionAllowed
-import com.ai.assistance.operit.ui.features.packages.market.sameArtifactRuntimePackageId
+import com.kiyori.capability.extensions.market.sameArtifactRuntimePackageId
 import com.ai.assistance.operit.ui.features.packages.screens.artifact.viewmodel.ArtifactMarketViewModel
 import com.ai.assistance.operit.util.AppLogger
 import kotlinx.coroutines.launch

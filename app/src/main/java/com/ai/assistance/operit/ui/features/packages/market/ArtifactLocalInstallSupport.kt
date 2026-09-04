@@ -4,6 +4,7 @@ import android.content.Context
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
 import com.ai.assistance.operit.data.api.ArtifactProjectVersionResponse
 import com.ai.assistance.operit.data.api.MarketV2Entry
+import com.kiyori.capability.extensions.market.sameArtifactRuntimePackageId
 import com.kiyori.platform.network.KiyoriNetworkModule
 import com.kiyori.platform.network.KiyoriNetworkProxyManager
 import java.io.File

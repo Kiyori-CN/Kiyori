@@ -1,7 +1,6 @@
 package com.ai.assistance.operit.data.repository
 
 import android.content.Context
-import androidx.compose.ui.graphics.Color
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.db.ObjectBoxManager
 import com.ai.assistance.operit.data.model.Memory
@@ -17,9 +16,10 @@ import com.ai.assistance.operit.data.model.EmbeddingDimensionUsage
 import com.ai.assistance.operit.data.model.EmbeddingRebuildProgress
 import com.ai.assistance.operit.data.preferences.MemorySearchSettingsPreferences
 import com.ai.assistance.operit.services.CloudEmbeddingService
-import com.ai.assistance.operit.ui.features.memory.screens.graph.model.Edge
-import com.ai.assistance.operit.ui.features.memory.screens.graph.model.Graph
-import com.ai.assistance.operit.ui.features.memory.screens.graph.model.Node
+import com.kiyori.capability.ai.memory.MemoryGraph
+import com.kiyori.capability.ai.memory.MemoryGraphEdge
+import com.kiyori.capability.ai.memory.MemoryGraphNode
+import com.kiyori.capability.ai.memory.MemoryGraphNodeType
 import io.objectbox.Box
 import io.objectbox.kotlin.boxFor
 import io.objectbox.kotlin.query
@@ -2031,12 +2031,12 @@ class MemoryRepository(private val context: Context, profileId: String) {
     }
 
     /**
-     * Builds a Graph object from a given list of memories. This is used to display a subset of the
+     * Builds a memory graph from a given list of memories. This is used to display a subset of the
      * entire memory graph, e.g., after a search.
      * @param memories The list of memories to include in the graph.
-     * @return A Graph object.
+     * @return A graph of memory facts, independent of presentation.
      */
-    suspend fun getGraphForMemories(memories: List<Memory>): Graph = withContext(Dispatchers.IO) {
+    suspend fun getGraphForMemories(memories: List<Memory>): MemoryGraph = withContext(Dispatchers.IO) {
         // Expand the initial list of memories to include direct neighbors
         val expandedMemories = mutableSetOf<Memory>()
         expandedMemories.addAll(memories)
@@ -2052,7 +2052,7 @@ class MemoryRepository(private val context: Context, profileId: String) {
                 "MemoryRepo",
                 "Initial memories: ${memories.size}, Expanded memories: ${expandedMemories.size}"
         )
-        buildGraphFromMemories(expandedMemories.toList(), null)
+        buildGraphFromMemories(expandedMemories.toList())
     }
 
     /** Retrieves a single memory by its UUID. */
@@ -2098,9 +2098,9 @@ class MemoryRepository(private val context: Context, profileId: String) {
      * @param folderPath 文件夹路径。
      * @return 该文件夹的图谱对象。
      */
-    suspend fun getGraphForFolder(folderPath: String): Graph = withContext(Dispatchers.IO) {
+    suspend fun getGraphForFolder(folderPath: String): MemoryGraph = withContext(Dispatchers.IO) {
         val memories = getMemoriesByFolderPath(folderPath)
-        buildGraphFromMemories(memories, folderPath)
+        buildGraphFromMemories(memories)
     }
 
     /**
@@ -2480,40 +2480,39 @@ class MemoryRepository(private val context: Context, profileId: String) {
 
     // --- Graph Export ---
 
-    /** Fetches all memories and their links, and converts them into a Graph data structure. */
-    suspend fun getMemoryGraph(): Graph = withContext(Dispatchers.IO) {
+    /** Fetches all memories and their links without constructing UI presentation objects. */
+    suspend fun getMemoryGraph(): MemoryGraph = withContext(Dispatchers.IO) {
         cleanupDanglingLinksIfNeeded()
-        buildGraphFromMemories(memoryBox.all, null)
+        buildGraphFromMemories(memoryBox.all)
     }
 
     /**
      * Private helper to construct a graph from a specific list of memories. Ensures that edges are
      * only created if both source and target nodes are in the list.
      * @param memories 要构建图谱的记忆列表
-     * @param currentFolderPath 当前选中的文件夹路径（用于判断跨文件夹连接），null表示显示全部
      */
-    private fun buildGraphFromMemories(memories: List<Memory>, currentFolderPath: String? = null): Graph {
+    private fun buildGraphFromMemories(memories: List<Memory>): MemoryGraph {
         val memoryUuids = memories.map { it.uuid }.toSet()
 
         val nodes =
                 memories.map { memory ->
-                    Node(
+                    MemoryGraphNode(
                             id = memory.uuid,
-                            label = memory.title,
-                            color =
+                            title = memory.title,
+                            type =
                                     if (memory.isDocumentNode) {
-                                        Color(0xFF9575CD) // Purple for documents
+                                        MemoryGraphNodeType.DOCUMENT
                                     } else {
-                                    when (memory.tags.firstOrNull()?.name) {
-                                        "Person" -> Color(0xFF81C784) // Green
-                                        "Concept" -> Color(0xFF64B5F6) // Blue
-                                        else -> Color.LightGray
+                                        when (memory.tags.firstOrNull()?.name) {
+                                            "Person" -> MemoryGraphNodeType.PERSON
+                                            "Concept" -> MemoryGraphNodeType.CONCEPT
+                                            else -> MemoryGraphNodeType.OTHER
                                         }
                                     }
                     )
                 }
 
-        val edges = mutableListOf<Edge>()
+        val edges = mutableListOf<MemoryGraphEdge>()
         memories.forEach { memory ->
             // 关键：重置关系缓存，确保获取最新的连接信息
             memory.links.reset()
@@ -2536,7 +2535,7 @@ class MemoryRepository(private val context: Context, profileId: String) {
                     val isCrossFolder = sourcePath != targetPath
                     
                     edges.add(
-                        Edge(
+                        MemoryGraphEdge(
                             id = link.id,
                             sourceId = sourceId,
                             targetId = targetId,
@@ -2545,18 +2544,15 @@ class MemoryRepository(private val context: Context, profileId: String) {
                             isCrossFolderLink = isCrossFolder
                         )
                     )
-                } else if (sourceId != null && targetId != null) {
-                    // Log discarded edges for debugging
-                    // com.ai.assistance.operit.util.AppLogger.d("MemoryRepo", "Discarding edge: $sourceId -> $targetId
-                    // (Not in filtered list)")
                 }
             }
         }
+        val distinctEdges = edges.distinct()
         com.ai.assistance.operit.util.AppLogger.d(
                 "MemoryRepo",
-                "Built graph with ${nodes.size} nodes and ${edges.distinct().size} edges."
+                "Built graph with ${nodes.size} nodes and ${distinctEdges.size} edges."
         )
-        return Graph(nodes = nodes, edges = edges.distinct())
+        return MemoryGraph(nodes = nodes, edges = distinctEdges)
     }
 
     /**

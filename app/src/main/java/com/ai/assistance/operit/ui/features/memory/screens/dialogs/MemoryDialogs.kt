@@ -28,7 +28,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.model.Memory
-import com.ai.assistance.operit.ui.features.memory.screens.graph.model.Edge
+import com.kiyori.capability.ai.memory.MemoryGraphEdge
 import java.text.SimpleDateFormat
 import java.util.Locale
 import com.kiyori.design.theme.KiyoriUiShapes
@@ -104,7 +104,7 @@ fun MemoryInfoDialog(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EdgeInfoDialog(
-    edge: Edge,
+    edge: MemoryGraphEdge,
     graph: com.ai.assistance.operit.ui.features.memory.screens.graph.model.Graph,
     onDismiss: () -> Unit,
     onEdit: () -> Unit,
@@ -146,7 +146,7 @@ fun EdgeInfoDialog(
 
 @Composable
 fun EditEdgeDialog(
-    edge: Edge,
+    edge: MemoryGraphEdge,
     onDismiss: () -> Unit,
     onSave: (type: String, weight: Float, description: String) -> Unit
 ) {

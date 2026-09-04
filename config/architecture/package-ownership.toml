@@ -79,6 +79,42 @@ forbidden_import_roots = [
 ]
 
 [[ownership]]
+id = "memory-repository-data"
+path = "app/src/main/java/com/ai/assistance/operit/data/repository/MemoryRepository.kt"
+owner = "kiyori-memory-data"
+sync_zone = "B"
+phase = "c03"
+allowed_import_roots = [
+  "com.ai.assistance.operit",
+  "com.kiyori.capability.ai.memory",
+  "com.kiyori.platform",
+]
+forbidden_import_roots = [
+  "com.ai.assistance.operit.ui",
+  "androidx.compose",
+  "com.kiyori.app",
+  "com.kiyori.feature",
+]
+
+[[ownership]]
+id = "market-api-data"
+path = "app/src/main/java/com/ai/assistance/operit/data/api/MarketStatsApiService.kt"
+owner = "kiyori-market-data"
+sync_zone = "B"
+phase = "c03"
+allowed_import_roots = [
+  "com.ai.assistance.operit",
+  "com.kiyori.capability.extensions.market",
+  "com.kiyori.platform",
+]
+forbidden_import_roots = [
+  "com.ai.assistance.operit.ui",
+  "androidx.compose",
+  "com.kiyori.app",
+  "com.kiyori.feature",
+]
+
+[[ownership]]
 id = "operit-integrations"
 path = "app/src/main/java/com/ai/assistance/operit/integrations/**"
 owner = "mixed-current"
@@ -328,6 +364,28 @@ phase = "m04b"
 allowed_import_roots = [
   "com.kiyori.capability.browser",
 ]
+
+[[ownership]]
+id = "kiyori-capability-ai"
+path = "app/src/main/java/com/kiyori/capability/ai/**"
+owner = "kiyori-ai-contracts"
+sync_zone = "C"
+phase = "c03"
+allowed_import_roots = [
+  "com.kiyori.capability.ai",
+]
+forbidden_import_roots = ["android", "androidx"]
+
+[[ownership]]
+id = "kiyori-capability-extensions"
+path = "app/src/main/java/com/kiyori/capability/extensions/**"
+owner = "kiyori-extension-contracts"
+sync_zone = "C"
+phase = "c03"
+allowed_import_roots = [
+  "com.kiyori.capability.extensions",
+]
+forbidden_import_roots = ["android", "androidx"]
 
 [[ownership]]
 id = "kiyori-capability-settings"

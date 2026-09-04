@@ -14,9 +14,10 @@ import com.ai.assistance.operit.data.model.MemorySearchConfig
 import com.ai.assistance.operit.data.model.MemorySearchDebugInfo
 import com.ai.assistance.operit.data.preferences.MemorySearchSettingsPreferences
 import com.ai.assistance.operit.data.repository.MemoryRepository
-import com.ai.assistance.operit.ui.features.memory.screens.graph.model.Edge
+import com.kiyori.capability.ai.memory.MemoryGraphEdge
 import com.ai.assistance.operit.ui.features.memory.screens.graph.model.Graph
 import com.ai.assistance.operit.ui.features.memory.screens.graph.model.Node
+import com.ai.assistance.operit.ui.features.memory.screens.graph.model.toPresentationGraph
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolParameter
@@ -28,6 +29,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Memory UI State Represents the current state of the Memory screen. */
 data class MemoryUiState(
@@ -42,8 +44,8 @@ data class MemoryUiState(
         val isEditing: Boolean = false, // 新增：是否处于编辑/新建状态
         val isLinkingMode: Boolean = false, // 是否处于连接模式
         val linkingNodeIds: List<String> = emptyList(), // 已选择的连接节点
-        val selectedEdge: Edge? = null,
-        val editingEdge: Edge? = null,
+        val selectedEdge: MemoryGraphEdge? = null,
+        val editingEdge: MemoryGraphEdge? = null,
         val isEditingEdge: Boolean = false,
         val isBoxSelectionMode: Boolean = false, // 新增：是否处于框选模式
         val boxSelectedNodeIds: Set<String> = emptySet(), // 新增：框选中的节点ID
@@ -112,11 +114,12 @@ class MemoryViewModel(
 
     private suspend fun refreshGraph(): Graph {
         val selectedFolder = _uiState.value.selectedFolderPath
-        return if (selectedFolder.isEmpty()) {
+        val graph = if (selectedFolder.isEmpty()) {
             repository.getMemoryGraph()
         } else {
             repository.getGraphForFolder(selectedFolder)
         }
+        return withContext(Dispatchers.Default) { graph.toPresentationGraph() }
     }
 
     /** Loads the entire memory graph from the repository. */
@@ -164,7 +167,8 @@ class MemoryViewModel(
                             edgeWeight = config.edgeWeight
                         )
                     }
-                val graphData = repository.getGraphForMemories(memories)
+                val graph = repository.getGraphForMemories(memories)
+                val graphData = withContext(Dispatchers.Default) { graph.toPresentationGraph() }
                 _uiState.update { it.copy(graph = graphData, isLoading = false) }
             } catch (e: Exception) {
                 _uiState.update {
@@ -521,7 +525,7 @@ class MemoryViewModel(
     }
 
     /** Selects an edge in the graph. */
-    fun selectEdge(edge: Edge) {
+    fun selectEdge(edge: MemoryGraphEdge) {
         _uiState.update { it.copy(selectedEdge = edge, selectedNodeId = null, selectedMemory = null) }
     }
 
@@ -782,7 +786,7 @@ class MemoryViewModel(
     }
 
     /** 进入/退出边的编辑状态 */
-    fun startEditingEdge(edge: Edge) {
+    fun startEditingEdge(edge: MemoryGraphEdge) {
         _uiState.update { it.copy(isEditingEdge = true, editingEdge = edge) }
     }
     fun cancelEditingEdge() {
@@ -790,7 +794,7 @@ class MemoryViewModel(
     }
 
     /** 更新边的信息 */
-    fun updateEdge(edge: Edge, type: String, weight: Float, description: String) {
+    fun updateEdge(edge: MemoryGraphEdge, type: String, weight: Float, description: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, isEditingEdge = false, editingEdge = null) }
             try {

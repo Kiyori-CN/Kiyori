@@ -765,6 +765,18 @@ Changing one of these identifiers requires a separate compatibility design and m
 
 Kiyori's user-visible `versionName` and the **Operit Market Compatibility Version** are independent version axes. `versionName` identifies the Kiyori product release. `BuildConfig.OPERIT_MARKET_COMPAT_VERSION` is a non-user-facing semantic version that identifies the inherited Operit script and ToolPkg runtime contract used for market `minAppVer` and `maxAppVer` checks. Its current value is `1.12.1+3`; in addition to the earlier persisted-message Hooks, shared pre-send Hook deadlines, character-card SoftwareSettings operations, address-aware location queries, market revision workflow, and bundled extra-info injection deadline, this contract includes resource-backed ToolPkg logos, Market v2 owner/contributor revision rules, isolated corrupt install markers, the six-mode Compose DSL picker, and character-card/group IDs in `ChatInfo`. It changes only when Kiyori adopts and verifies a different market runtime contract. Kiyori remains `com.kiyori` with product `versionCode=45` and `versionName=0.1.0`. GitHub Release assets are durable publisher artifacts: a later Operit Market registration failure reports `RegistrationFailed` but must not delete the created Release or uploaded asset, so the publisher can inspect or retry the registration without rebuilding the artifact.
 
+Market artifact identity rules are owned by `com.kiyori.capability.extensions.market`.
+The API, publication descriptors and local installation matching share its normalization and
+standalone-ID validation. The existing `artifact` wire placeholder, separator/case normalization,
+and invalid standalone-publication behavior remain unchanged; UI models do not own these rules.
+
+Memory graph facts are owned by `com.kiyori.capability.ai.memory`: stable memory UUIDs, titles,
+document/primary-tag node classification, and link IDs/endpoints/weights/cross-folder markers.
+`MemoryRepository` remains the sole ObjectBox and graph-selection owner. The memory UI maps node
+classification to its established colors off the main thread and shares the same edge snapshot;
+backup statistics consume graph facts without constructing Compose presentation objects.
+This boundary does not change ObjectBox schema, search expansion or backup formats.
+
 ## Development identity and migration
 
 - The continuous-development branch is `main`; parent and `terminal` remotes publish Kiyori changes only to their respective `main` branches.

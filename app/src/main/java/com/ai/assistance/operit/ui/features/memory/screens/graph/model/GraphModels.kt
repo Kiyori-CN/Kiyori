@@ -1,10 +1,13 @@
 package com.ai.assistance.operit.ui.features.memory.screens.graph.model
 
 import androidx.compose.ui.graphics.Color
+import com.kiyori.capability.ai.memory.MemoryGraph
+import com.kiyori.capability.ai.memory.MemoryGraphEdge
+import com.kiyori.capability.ai.memory.MemoryGraphNodeType
 
 data class Graph(
     val nodes: List<Node>,
-    val edges: List<Edge>
+    val edges: List<MemoryGraphEdge>
 )
 
 data class Node(
@@ -14,12 +17,19 @@ data class Node(
     val metadata: Map<String, String> = emptyMap()
 )
 
-data class Edge(
-    val id: Long,
-    val sourceId: String,
-    val targetId: String,
-    val label: String? = null,
-    val weight: Float = 1.0f,
-    val metadata: Map<String, String> = emptyMap(),
-    val isCrossFolderLink: Boolean = false // 标记是否为跨文件夹连接
-) 
+// 颜色只属于展示层；边直接引用事实快照，避免备份统计也构造 Compose 对象。
+fun MemoryGraph.toPresentationGraph(): Graph = Graph(
+    nodes = nodes.map { node ->
+        Node(
+            id = node.id,
+            label = node.title,
+            color = when (node.type) {
+                MemoryGraphNodeType.DOCUMENT -> Color(0xFF9575CD)
+                MemoryGraphNodeType.PERSON -> Color(0xFF81C784)
+                MemoryGraphNodeType.CONCEPT -> Color(0xFF64B5F6)
+                MemoryGraphNodeType.OTHER -> Color.LightGray
+            }
+        )
+    },
+    edges = edges
+)

@@ -188,6 +188,35 @@ proxy/player 打包检查通过，ZIP 无重名；包内 Bilibili manifest 无 a
 消费变更。本批字节数与基线相同，不宣称包体或运行速度提升。其余基线架构/Lint 问题和设备
 验收继续保留。
 
+### C-03 市场身份与记忆图实施契约
+
+本批以前一验证提交 `af2a2a969` 为源码恢复点，处理 P-04/P-05。目标是消除数据层对 UI 的
+依赖；非目标是改变市场 wire ID、发布/安装匹配、记忆持久化、搜索邻居范围或图谱展示。
+
+- 市场的 `normalizeMarketArtifactId`、占位识别、独立发布校验和 runtime ID 比较从
+  `ArtifactMarketModels.kt` 提到 `com.kiyori.capability.extensions.market`。API、发布描述、
+  发布 ViewModel/Screen 和本地安装匹配改用唯一规则；旧定义删除，不保留转发 facade。
+  保持原 `artifact` 占位、大小写/分隔符和非法独立发布判断，特征测试固定边界。
+- `MemoryRepository` 的全部/文件夹/搜索图出口改为无 Compose 的记忆图事实。ObjectBox
+  关系读取、缓存 reset、端点过滤、ID/权重/跨文件夹判断保持。UI 在自身映射中选择颜色，
+  备份统计直接消费图的边；边模型不增加第二套副本。取消未使用的私有 folder 参数和
+  重复的 `distinct()` 分配，不改变外部文件格式与 schema。
+- 新能力目录加入机器可读 ownership；领域测试覆盖 ID、节点颜色优先级、边事实与空图，
+  现有市场发布合同继续执行。通过定向 JVM、ownership、文档链接及 diff 后串行构建 Debug，
+  检查新 APK 身份/签名/ABI/对齐。Graph 页面搜索/文件夹/编辑及备份设备验收保持待验证。
+
+实现保留文档节点高于首标签的分类优先级，图的 UUID/边字段与去重顺序不变。颜色映射在
+`Dispatchers.Default` 执行；UI 会新增短生命周期的 O(N) 节点投影，边列表直接共享，备份
+计数不创建展示节点。删除重复边去重不等于已经测得总内存下降，运行代价继续等待设备测量。
+
+2026-09-05 本批验证：市场与图谱 5 suites / 19 JVM tests 全部通过，6m20s；Python 250
+项通过，68.713s；真实 ownership、formal readiness、变更 Markdown 链接与 diff 通过。
+完整架构检查仍为 19 条已有失配，本批没有新增；C-01 继续负责语义修复。
+Debug 构建 3m37s，235 tasks，24 executed。APK 生成于 07:22:51 +08:00，483709823 bytes，
+SHA-256 `E0275444592BF0C01763FF20F6398CD47D2B92693DEF75FDE329F4C7A5D831A8`。
+身份/版本/SDK/launcher/ABI 与基线一致，v2 单签名、16 KB ZIP 对齐及内置 proxy/player
+检查通过；5514 ZIP 项无重名，44 DEX、53 `.so`。字节数与基线相同，不宣称包体提升。
+
 ## 兼容与上游维护
 
 继续使用 [稳定标识清单](8_compatibility_contract_inventory.md)，逐项校正消费者和状态。

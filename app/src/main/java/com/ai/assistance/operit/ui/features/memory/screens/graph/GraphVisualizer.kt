@@ -21,7 +21,7 @@ import androidx.compose.ui.text.*
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.geometry.Size
-import com.ai.assistance.operit.ui.features.memory.screens.graph.model.Edge
+import com.kiyori.capability.ai.memory.MemoryGraphEdge
 import com.ai.assistance.operit.ui.features.memory.screens.graph.model.Graph
 import com.ai.assistance.operit.ui.features.memory.screens.graph.model.Node
 import kotlinx.coroutines.Dispatchers
@@ -72,7 +72,7 @@ private data class NodePalette(
 
 private const val NODE_HIT_PADDING_PX = 12f
 
-private fun edgeSignature(edge: Edge): String {
+private fun edgeSignature(edge: MemoryGraphEdge): String {
     val scaledWeight = (edge.weight * 1000f).toInt()
     val labelPart = edge.label ?: ""
     return "${edge.id}|${edge.sourceId}|${edge.targetId}|$scaledWeight|${edge.isCrossFolderLink}|$labelPart"
@@ -218,7 +218,7 @@ fun GraphVisualizer(
     linkingNodeIds: List<String> = emptyList(),
     selectedEdgeId: Long? = null,
     onNodeClick: (Node) -> Unit,
-    onEdgeClick: (Edge) -> Unit,
+    onEdgeClick: (MemoryGraphEdge) -> Unit,
     onNodesSelected: (Set<String>) -> Unit // 新增：框选完成后的回调
 ) {
     AppLogger.d("GraphVisualizer", "Recomposing. isBoxSelectionMode: $isBoxSelectionMode")

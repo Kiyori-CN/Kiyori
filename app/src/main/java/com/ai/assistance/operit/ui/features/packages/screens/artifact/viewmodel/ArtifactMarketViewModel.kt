@@ -27,12 +27,12 @@ import com.ai.assistance.operit.ui.features.packages.market.PublishArtifactType
 import com.ai.assistance.operit.ui.features.packages.market.PublishAttemptResult
 import com.ai.assistance.operit.ui.features.packages.market.PublishProgressStage
 import com.ai.assistance.operit.ui.features.packages.market.formatSupportedAppVersions
-import com.ai.assistance.operit.ui.features.packages.market.normalizeMarketArtifactId
+import com.kiyori.capability.extensions.market.normalizeMarketArtifactId
 import com.ai.assistance.operit.ui.features.packages.market.normalizeAppVersionOrNull
-import com.ai.assistance.operit.ui.features.packages.market.sameArtifactRuntimePackageId
+import com.kiyori.capability.extensions.market.sameArtifactRuntimePackageId
 import com.ai.assistance.operit.ui.features.packages.market.toMarketStatsType
 import com.ai.assistance.operit.ui.features.packages.market.toRankMetric
-import com.ai.assistance.operit.ui.features.packages.market.validateStandaloneArtifactRuntimePackageId
+import com.kiyori.capability.extensions.market.validateStandaloneArtifactRuntimePackageId
 import com.ai.assistance.operit.ui.features.packages.market.validateSupportedAppVersions
 import com.ai.assistance.operit.ui.features.github.GitHubOAuthCoordinator
 import com.ai.assistance.operit.util.AppLogger

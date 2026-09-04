@@ -17,6 +17,12 @@ v4 当前进度见 [总计划](index.md)。ARCH047 为 Browser Runtime 增加构
 `ci/test/test_browser_runtime_ownership.py` 覆盖合法共享调用、额外 factory、公开构造、
 缺少同步/发布、注释与字符串伪造、缺失 owner；实际 Android/WebView 生命周期仍须设备验收。
 
+C-03 复用 ARCH003/ARCH005 ownership 规则约束市场与记忆数据边界：
+`MemoryRepository.kt` 和 `MarketStatsApiService.kt` 的精确 owner 禁止 UI/Compose 依赖；
+`capability/ai` 与 `capability/extensions` 仅允许自身领域项目依赖并禁止 Android/AndroidX。
+`ci/test/test_data_capability_ownership.py` 从实际 TOML 读取这四条记录，验证合法能力调用、
+重新导入 UI/Compose 以及纯能力导入平台类均得到正确结果，不额外建立一套规则配置。
+
 方案 v3 把该实现定义为 G-00，已经在 M-01 前完成首版实现：
 
 ```text
