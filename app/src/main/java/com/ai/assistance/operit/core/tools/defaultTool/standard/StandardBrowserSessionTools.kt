@@ -98,13 +98,12 @@ class StandardBrowserSessionTools private constructor(
 
         @Volatile private var sharedInstance: StandardBrowserSessionTools? = null
 
-        internal fun create(context: Context): StandardBrowserSessionTools =
-            StandardBrowserSessionTools(context.applicationContext as Application)
-
+        // Session records and runtime resources must share one lifetime. A page-local instance
+        // would replace download listeners and retain another adblock collector after disposal.
         fun getSharedInstance(context: Context): StandardBrowserSessionTools =
             sharedInstance ?: synchronized(this) {
                 sharedInstance
-                    ?: create(context).also { instance ->
+                    ?: StandardBrowserSessionTools(context.applicationContext as Application).also { instance ->
                         sharedInstance = instance
                     }
             }

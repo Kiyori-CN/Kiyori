@@ -53,7 +53,7 @@ internal fun KiyoriDownloadDrawerHost(
     val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val manager = remember(context) { BrowserDownloadManager.getInstance(context) }
-    val browserTools = remember(context) { StandardBrowserSessionTools.create(context) }
+    val browserTools = remember(context) { StandardBrowserSessionTools.getSharedInstance(context) }
     val taskRecords by manager.taskSnapshots.collectAsState()
     val uiState = remember(taskRecords) { buildBrowserDownloadUiState(taskRecords) }
 

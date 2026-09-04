@@ -1,7 +1,7 @@
 ---
 status: implemented
-plan_version: 3
-last_reviewed: 2026-08-01
+plan_version: 4
+last_reviewed: 2026-09-05
 ---
 
 # 架构门禁与机器可读所有权规范
@@ -9,6 +9,13 @@ last_reviewed: 2026-08-01
 ## 目的
 
 文档只能解释架构，自动门禁负责阻止新代码重新越过边界。
+
+v4 当前进度见 [总计划](index.md)。ARCH047 为 Browser Runtime 增加构造边界检查：
+私有 constructor、唯一 `getSharedInstance` factory、volatile/synchronized 单实例发布，
+以及禁止其他生产页面调用非共享 `create`。它保护实例级 profile、host、下载监听器和规则
+订阅与静态会话注册表的一致生命周期，不使用源码哈希限制领域正常演进。
+`ci/test/test_browser_runtime_ownership.py` 覆盖合法共享调用、额外 factory、公开构造、
+缺少同步/发布、注释与字符串伪造、缺失 owner；实际 Android/WebView 生命周期仍须设备验收。
 
 方案 v3 把该实现定义为 G-00，已经在 M-01 前完成首版实现：
 
@@ -518,8 +525,9 @@ owner = "..."
 - 使用 exception 隐藏第二状态 owner
 - 在完成里程碑后留下过期 exception
 
-当前基线有 6 条 ARCH012 文件级例外，分别记录历史 package/path
-错位或 vendored UUID 来源；每条都绑定责任 owner 和 M-05 后续清债里程碑。
+G-00 历史基线有 6 条 ARCH012 文件级例外，记录当时的 package/path
+错位或 vendored UUID 来源。v4 已移除修正 package 后的 NewFolderDialog 失效例外；当前
+有效项以 `package-ownership.toml` 和 unused-exception 检查为准。
 
 ## G-00 验收证据
 

@@ -4136,7 +4136,13 @@ runtime packaging 校验。Debug APK 为 `app/build/outputs/apk/debug/app-debug.
 真机上的系统 Back、顶栏/底栏按钮、普通/无痕多窗口切换、主页重定向和旋转恢复仍需设备验收，
 本地实现与 Debug APK 不能替代这些交互证据。
 
-## 2026-07-31 Kiyori 项目架构与 Operit 命名重构方案 v3
+## 2026-09-05 Kiyori 全项目架构与命名重构 v4
+
+本专项已扩展为全项目 A-G 重构，包含全部产品域、AI 集成、terminal、构建、性能、包体及
+文档交付。[总计划与当前状态](kiyori_architecture_refactor/index.md) 是唯一进度权威；
+[v4 全域设计与实施契约](kiyori_architecture_refactor/22_full_project_design_and_execution.md)
+记录源码地图、依赖决策、迁移工作项及验收条件。下列 v3/QD 叙述为历史完成记录，不能复用
+为当前测试或交付结论。
 
 方案 v3 已于 2026-07-31 获得实施授权。当前方案让 Kiyori 产品代码与
 Operit AI 兼容代码形成两个明确包根，先建立依赖边界和数据保护门禁，再按小里程碑迁移。

@@ -24,6 +24,8 @@ class KiyoriBottomDrawerMigrationContractTest {
             )
         }
 
+        // The file context menu became a centered Dialog in 5580c23f9. Its own source contract
+        // protects that presentation; only actual bottom drawers belong in this consumer list.
         val requiredConsumers =
             listOf(
                 "app/src/main/java/com/ai/assistance/operit/ui/features/chat/components/ChatArea.kt",
@@ -31,7 +33,6 @@ class KiyoriBottomDrawerMigrationContractTest {
                 "app/src/main/java/com/ai/assistance/operit/ui/features/settings/components/UpstreamModelPickerSheet.kt",
                 "app/src/main/java/com/ai/assistance/operit/ui/features/settings/screens/UserPreferencesSettingsScreen.kt",
                 "app/src/main/java/com/ai/assistance/operit/ui/features/settings/sections/ModelApiSettingsSection.kt",
-                "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileContextMenu.kt",
                 "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/sqlviewer/SqlViewerScreen.kt",
                 "app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionHistorySheet.kt",
                 "app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionWebElementOverlays.kt",

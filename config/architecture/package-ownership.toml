@@ -615,13 +615,6 @@ owner = "operit-packages"
 
 [[exception]]
 rule = "ARCH012"
-path = "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/NewFolderDialog.kt"
-reason = "Historical default-package source is imported by FileManagerScreen without a package qualifier."
-expires_after = "M-05-toolbox"
-owner = "operit-toolbox"
-
-[[exception]]
-rule = "ARCH012"
 path = "app/src/main/java/kotlin/uuid/Uuid.kt"
 reason = "Vendored MCP UUID compatibility source retains its upstream package in a legacy source location."
 expires_after = "M-05-vendored-compat"

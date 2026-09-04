@@ -1,18 +1,64 @@
 ---
 fork: https://github.com/Kiyori-CN/Kiyori
 upstream: https://github.com/AAswordman/Operit
-status: accepted_design
+status: in_progress
 document_type: architecture-refactor-plan
-plan_version: 3
-baseline: 62464b054f6de00b70c5596295bc216eb8edf63d
-local_upstream_snapshot: 0921f749a087c4a52a2202abdf32491ae335dd41
+plan_version: 4
+baseline: 65d12a65dd7cb350b7589a7dbf99ede4e450280d
+local_upstream_snapshot: f323d6c50fa661837fad06d4618462861779b562
 backup_scope: repository_only
 device_scope: excluded
 approved_at: 2026-07-31
-last_reviewed: 2026-08-02
+last_reviewed: 2026-09-05
 ---
 
 # Kiyori 项目架构与 Operit 命名重构
+
+## v4 全项目重构当前计划
+
+2026-09-05 起，本入口是全项目 A-G 重构的唯一进度权威。具体设计、全域源码地图、问题与
+工作项追踪见 [v4 全域设计与实施契约](22_full_project_design_and_execution.md)。旧 M-00 至
+QD 系列记录保留为历史证据，不能把旧测试数量、APK、终端 gitlink 或阶段状态当作当前结果。
+
+本次覆盖 Kiyori 全部功能及 `terminal`，在 `main` 上执行经验证的阶段提交，最终交付到
+Kiyori 自有父子仓库 `origin/main`。旧版“不推送”“terminal 暂不纳入”“安全分支”和
+“迁移前后必须同步上游”不再适用。保留选择性上游维护，功能同步不与本次重构混合。
+应用未发布，但 `com.kiyori` 身份、签名、当前数据、备份、外部协议和离线功能保持不变。
+
+| ID | 目标与退出条件 | 状态 / 当前证据 |
+| --- | --- | --- |
+| A-01 | 父子源码可恢复；功能、依赖、APK、检查及运行指标有同口径基线 | 本地基线已建立；父子 bundle 和恢复克隆 fsck 通过；运行性能待设备 |
+| A-02 | 全领域入口、状态、数据、失败路径和五条跨域链有源码证据 | 入口及关键链已盘点；各领域深入审查随 D 工作项继续，不能据此封板 |
+| B-01 | 目标边界、迁移矩阵、兼容分类、风险和验收闭合 | v4 设计已形成；重大外部契约变更不在内部迁移中隐含执行 |
+| C-01 | 修复基线契约失配，恢复可信架构/JVM/Lint检查 | 两项 JVM 失败及失效例外已修复；其余架构诊断、Lint 55 errors / 78 warnings 继续治理 |
+| C-02 | 人工/AI 共用唯一 Browser Runtime，去除非共享构造与下载反向依赖 | 构造边界本地验证通过：ARCH047、App JVM、Python、Debug/APK；下载命令边界待实施，设备待验证 |
+| C-03 | 数据/工具不依赖具体 UI；状态和错误边界有测试 | 待实施；记忆图、市场 ID、workspace、工具解析/权限依赖已定位 |
+| D-01 | 应用壳、首启、设置、权限、设计系统边界及恢复 | 待实施 / 全面审查 |
+| D-02 | 浏览器、搜索/历史/书签、广告/脚本及下载/播放完整链 | 待实施，依赖 C-02 |
+| D-03 | AI 协议/流、会话、工具、角色、记忆、工作流完整链 | 待实施，依赖 C-03；保留请求至多一次与工具终态合同 |
+| D-04 | ToolPkg/MCP/Skill/市场、WebChat/Mini App 注册与调用完整链 | 待实施；连接发布竞争与 workspace 边界需验证 |
+| D-05 | 文件/SAF/备份、网络/代理/DNS、终端/Ubuntu/PTY完整链 | 待实施；保持数据事务、唯一代理、终端会话和 IPC |
+| D-06 | 语音/本地推理/虚拟角色生命周期和 native 边界 | 待实施；语音工厂阻塞与资源状态需治理 |
+| E-01 | 构建输入/生成出口唯一，可复现；必要模块隔离有收益依据 | 已有输入与包体盘点；任务实现及各工具链待治理 |
+| F-01 | 资源/并发/缓存缺陷闭环，性能与包体同口径对比 | 基线 APK 483709823 bytes；运行性能待设备，不以构建时间代替 |
+| G-01 | 文档权威收束、兼容/依赖对账、全项目检查及最终 APK | 待全域实施后总回归；各阶段同步维护 |
+| G-02 | 精确交付审计、父子 main 推送、local/tracking/remote ref 一致 | 待 G-01；terminal 有修改先交付子仓库 |
+| G-03 | 设备/性能/数据恢复验收 | verification_pending；无设备操作授权 |
+
+当前执行顺序：完成 A/B 设计记录，解决 C-01/C-02 代表链，然后依赖拓扑推进 C-03 与全部 D
+领域。E/F 在受影响领域同步执行，G 汇总验收。某领域无须修改必须留下实际实现、依赖和
+测试依据；范围内已确认缺陷不能移到“以后优化”以关闭工作项。
+
+基线观察：父 `65d12a65dd7cb350b7589a7dbf99ede4e450280d`，terminal
+`7ec4cfb10c94992adb79e6e281ba61878d7bcd8c`，父子干净。Debug 构建与正式准备检查通过，
+Python 242 项通过；App JVM 2025 项中 2 失败、1 显式 live-media 测试跳过。
+独立全项目 Lint 于 2026-09-05 06:49 结束，26m31s，App 有 55 errors / 78 warnings /
+1 hint，另有 20 条失效 baseline 项。设备指标与设备兼容验收尚未采集。
+
+## v3 历史设计与实施记录
+
+以下章节及旧分项中的“当前”只表示其记录时点。有效实现和兼容合同继续保留，状态与本次
+范围由上面的 v4 总计划裁定；首启通知/权限尤其遵守以下取代关系。
 
 > 首启相关的旧 M-04D/M-05D 通知权限与 PermissionGuide 记录已被
 > `docs/TODO/kiyori_first_run_experience/` 的 Kiyori 首启权限中心取代。历史章节中的

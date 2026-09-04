@@ -1304,6 +1304,51 @@ def source_package(path: Path) -> str | None:
     return None
 
 
+def check_browser_runtime_owner(root: Path, errors: list[str]) -> None:
+    """Keep process resources behind the same factory as the session registry."""
+    source_root = root / "app/src/main/java"
+    runtime_path = source_root / (
+        "com/ai/assistance/operit/core/tools/defaultTool/standard/"
+        "StandardBrowserSessionTools.kt"
+    )
+    if not runtime_path.is_file():
+        errors.append("ARCH047 Browser Runtime owner is missing")
+        return
+    code = source_code_mask(runtime_path.read_text(encoding="utf-8"))
+    if not re.search(r"class\s+StandardBrowserSessionTools\s+private\s+constructor\s*\(", code):
+        errors.append("ARCH047 Browser Runtime constructor must be private")
+    factories = re.findall(
+        r"\bfun\s+(\w+)\s*\([^)]*\)\s*:\s*StandardBrowserSessionTools\b",
+        code,
+    )
+    if factories != ["getSharedInstance"]:
+        errors.append("ARCH047 Browser Runtime must expose only getSharedInstance")
+    if len(re.findall(r"\bStandardBrowserSessionTools\s*\(", code)) != 1:
+        errors.append("ARCH047 Browser Runtime must have one construction site")
+    shared_factory = re.compile(
+        r"fun\s+getSharedInstance\s*\([^)]*\)\s*:\s*StandardBrowserSessionTools\s*="
+        r"\s*sharedInstance\s*\?:\s*synchronized\s*\(this\)\s*\{"
+        r"\s*sharedInstance\s*\?:\s*StandardBrowserSessionTools\s*\(",
+    )
+    if (
+        not shared_factory.search(code)
+        or not re.search(r"@Volatile\s+private\s+var\s+sharedInstance\s*:", code)
+        or not re.search(
+            r"\.also\s*\{\s*instance\s*->\s*sharedInstance\s*=\s*instance\s*\}", code,
+        )
+    ):
+        errors.append("ARCH047 Browser Runtime must publish one synchronized volatile instance")
+    for path in source_files(source_root, MANAGED_SOURCE_SUFFIXES):
+        if path == runtime_path:
+            continue
+        consumer = source_code_mask(path.read_text(encoding="utf-8"))
+        if re.search(r"\bStandardBrowserSessionTools\s*\.\s*create\s*\(", consumer):
+            errors.append(
+                "ARCH047 non-shared Browser Runtime factory consumer: "
+                + path.relative_to(root).as_posix()
+            )
+
+
 def dependency_rule(identifier: str, imported: str) -> str:
     if identifier.startswith("operit-"):
         return "ARCH001" if import_matches_root(imported, "com.kiyori.app") else "ARCH002"
@@ -11125,6 +11170,7 @@ def main() -> int:
             ownership_path,
             errors,
         ),
+        lambda: check_browser_runtime_owner(root, errors),
         lambda: check_tracked_artifacts(root, errors),
         lambda: check_terminal_unchanged(root, args.base, errors),
     )

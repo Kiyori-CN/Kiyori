@@ -11,9 +11,6 @@
     "zh": "面向 AI 对话的 Bilibili 只读检索、内容导出、媒体下载与内置 FFmpeg 处理工具。",
     "en": "Read-only Bilibili research, export, media download, and built-in FFmpeg tools for AI chat."
   },
-  "author": [
-    "Kiyori"
-  ],
   "enabled_by_default": false,
   "environment": [
     {
