@@ -1,6 +1,6 @@
 import { contextRoot, ensureDirectory, removeTemporaryPath, writeTextArtifact } from "./artifacts";
 import { BilibiliClient } from "./client";
-import { BilibiliError } from "./errors";
+import { BilibiliError, failureDetails } from "./errors";
 import {
   arrayAt,
   booleanAt,
@@ -22,8 +22,8 @@ import type {
 const MEDIA_HEADERS = {
   Referer: "https://www.bilibili.com/",
   "User-Agent":
-    "Mozilla/5.0 (Linux; Android 14; Kiyori) AppleWebKit/537.36 " +
-    "(KHTML, like Gecko) Chrome/132.0.0.0 Mobile Safari/537.36"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+    "(KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36"
 };
 
 const QUALITY_BY_NAME: Record<string, number> = {
@@ -520,9 +520,17 @@ function deduplicateAudio(streams: MediaStream[]): MediaStream[] {
 }
 
 async function downloadUrl(url: string, destination: string): Promise<void> {
-  const result = await Tools.Files.download(url, destination, "android", MEDIA_HEADERS);
-  if (!result.successful) {
-    throw new Error("Media segment download failed: " + result.details);
+  try {
+    const result = await Tools.Files.download(url, destination, "android", MEDIA_HEADERS);
+    if (!result.successful) throw new Error(result.details);
+  } catch (error) {
+    const detail = failureDetails(error);
+    const message = typeof detail.message === "string" ? detail.message.replace(/https?:\/\/[^\s"'<>]+/g, value => value.split("?", 1)[0]) : "Media download failed.";
+    console.error("Bilibili media transfer failed: " + message);
+    throw new BilibiliError("MEDIA_DOWNLOAD_FAILED", message, {
+      phase: "media_download", endpoint: url.split("?", 1)[0],
+      referer_present: true, user_agent_present: true, cookie_sent: false
+    });
   }
 }
 

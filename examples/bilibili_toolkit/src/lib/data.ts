@@ -269,6 +269,9 @@ export async function publicUser(
   const label = vip === null ? null : recordAt(vip, "label");
   return {
     success: true,
+    full_requested: full,
+    profile_source: full ? "/x/space/wbi/acc/info" : "/x/web-interface/card",
+    profile: full ? profile : null,
     user: {
       mid: firstInteger(profile, card, "mid") === null ? mid : firstInteger(profile, card, "mid"),
       name: firstString(profile, card, "name"),

@@ -337,7 +337,7 @@ async function danmakuForContext(client: BilibiliClient, context: VideoContext, 
     historical_complete: false,
     platform_cumulative_count: platformStat === null ? null : integerAt(platformStat, "danmaku"),
     completeness_note:
-      "仅导出当前可播放弹幕；平台累计计数不是当前接口条数。达到条数或50段上限时明确标记 truncated。",
+      "仅导出当前可播放弹幕；XML也是当前快照，不是历史全集。平台累计计数不是当前接口条数。达到条数或50段上限时明确标记 truncated。",
     outputs,
     danmaku: params.inline === true ? entries : []
   };

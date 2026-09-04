@@ -30,12 +30,14 @@ let cookie = line.slice(line.indexOf("=") + 1).trim();
 if (cookie.startsWith('"')) cookie = JSON.parse(cookie);
 else if (cookie.startsWith("'") && cookie.endsWith("'")) cookie = cookie.slice(1, -1);
 if (!cookie || /[\r\n]/.test(cookie)) throw new Error("Invalid Cookie header");
-const headers = { "User-Agent": "Mozilla/5.0 (Linux; Android 14; Kiyori) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Mobile Safari/537.36", Referer: "https://www.bilibili.com/" };
+const headers = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36", Referer: "https://www.bilibili.com/" };
 const bridgeSource = await fs.readFile(path.join(repository, "app/src/main/java/com/ai/assistance/operit/core/tools/javascript/ToolPkgBilibiliBridge.kt"), "utf8");
 const allowedPaths = new Set([...bridgeSource.matchAll(/"(\/(?:x|pgc)\/[^"?]+)"/g)].map(match => match[1]));
 let riskBlocked = null;
 let lastRequest = 0;
 const requests = [];
+const mediaRequests = [];
+const authorizedMediaUrls = new Set();
 const services = {
   async get(request) {
     if (riskBlocked) throw riskBlocked;
@@ -74,6 +76,20 @@ const services = {
           if (code === "RISK_CONTROL") riskBlocked = error;
           throw error;
         }
+        if (url.pathname.endsWith("/playurl")) {
+          const collect = value => {
+            if (Array.isArray(value)) value.forEach(collect);
+            else if (value && typeof value === "object") {
+              for (const [key, child] of Object.entries(value)) {
+                if (["baseUrl", "base_url", "url"].includes(key) && typeof child === "string" && child.startsWith("https://")) {
+                  const media = new URL(child);
+                  if (!media.username && !media.password && /^\/(v1\/resource\/)?upgcxcode\//.test(media.pathname)) authorizedMediaUrls.add(media.href);
+                } else collect(child);
+              }
+            }
+          };
+          collect(payload);
+        }
       }
       return { success: true, body: binary ? bytes.toString("base64") : body, body_encoding: binary ? "base64" : "utf8", final_url: url.href, cookie_configured: true, http_status: response.status };
     }
@@ -102,9 +118,18 @@ const tools = {
     deleteFile: async (name, recursive) => { await fs.rm(local(name), { recursive, force: false }); return ok; },
     download: async (url, destination, _environment, downloadHeaders) => {
       const parsed = new URL(url);
-      if (parsed.protocol !== "https:" || ![".bilivideo.com", ".bilivideo.cn"].some(suffix => parsed.hostname.endsWith(suffix))) throw new Error("Unexpected media CDN host");
+      if (!authorizedMediaUrls.has(parsed.href)) throw new Error("Media URL was not returned by the authorized playurl API");
+      if (!downloadHeaders?.Referer || !downloadHeaders?.["User-Agent"] || downloadHeaders.Cookie) throw new Error("Invalid media request identity");
+      if (args.includes("--native-samples")) {
+        mediaRequests.push({ url, headers: downloadHeaders });
+        await fs.writeFile(path.join(output, "native-media-input.json"), JSON.stringify(mediaRequests));
+      }
       const response = await fetch(url, { headers: downloadHeaders, redirect: "error", signal: AbortSignal.timeout(180000) });
-      if (!response.ok) throw hostError("HTTP_ERROR", "Media HTTP " + response.status, parsed.origin + parsed.pathname);
+      if (!response.ok) {
+        const error = hostError([412, 429].includes(response.status) ? "RISK_CONTROL" : "HTTP_ERROR", "Media HTTP " + response.status, parsed.origin + parsed.pathname);
+        if ([412, 429].includes(response.status)) riskBlocked = error;
+        throw error;
+      }
       const file = await fs.open(local(destination), "wx");
       let bytes = 0;
       try { for await (const chunk of response.body) { bytes += chunk.length; if (bytes > 200 * 1024 * 1024) throw new Error("Live download exceeds 200 MiB bound"); await file.write(chunk); } } finally { await file.close(); }
@@ -120,20 +145,44 @@ const tools = {
 const api = await loadHostToolkit(services, tools);
 const report = { evidence_level: "packaged-dist-host-js-runtime-real-network-desktop-media-not-android", started_at: new Date().toISOString(), output, results: [], requests };
 async function run(name, params, label = name) {
+  if (riskBlocked) throw new Error("Live regression stopped after risk control");
   const started = Date.now();
   const result = await api["bilibili_" + name](params);
   const safe = { label, success: result.success, elapsed_ms: Date.now() - started, error: result.error ?? null, count: result.count ?? result.track_count ?? result.root_count ?? result.node_count ?? null, bytes: result.bytes ?? null, available: result.available ?? null, failed_steps: result.failed_steps ?? null };
   if (name === "doctor") safe.logged_in = result.logged_in;
   if (name === "search") safe.contains_target = result.results?.some(item => item.bvid === target) ?? false;
   if (name === "formats") safe.qualities = result.formats?.accept_qualities ?? [];
+  if (name === "download") safe.duration_seconds = result.duration_seconds ?? null;
+  if (name === "frames") safe.actual_count = result.actual_count ?? null;
   if (name === "capture") safe.steps = result.steps?.map(step => ({ name: step.name, success: step.success, error: step.error ?? null }));
+  if (name === "user") { safe.full_requested = result.full_requested; safe.profile_source = result.profile_source; safe.profile_fields = Object.keys(result.profile ?? {}); }
+  if (name === "danmaku") { safe.historical_complete = result.historical_complete; safe.completeness_note = result.completeness_note; }
   report.results.push(safe);
   console.log(JSON.stringify(safe));
   await fs.writeFile(path.join(output, "report.json"), JSON.stringify(report, null, 2));
   return result;
 }
 await run("doctor", {});
-if (!args.includes("--extended-only")) {
+if (args.includes("--diagnostics-only")) {
+  const basic = await run("user", { user: "2" }, "user-basic");
+  const full = await run("user", { user: "2", full: true }, "user-full");
+  if (basic.success && full.success && (basic.profile !== null || !full.profile || !full.full_requested || full.profile_source !== "/x/space/wbi/acc/info")) throw new Error("Full profile contract failed");
+  const danmaku = await run("danmaku", { target, source: "xml", limit: 20, inline: true });
+  if (danmaku.success && (danmaku.historical_complete !== false || !danmaku.completeness_note.includes("XML"))) throw new Error("XML snapshot contract failed");
+  const capture = await run("capture", { target, media: false, subtitles: false, danmaku: false, comments: false, summary: false });
+  if (capture.success && (await tools.Files.exists(capture.root + "/media")).exists) throw new Error("Disabled media unexpectedly created a directory");
+} else if (args.includes("--media-matrix")) {
+  for (const mediaTarget of args.includes("--target") ? [argument("--target")] : ["BV1GJ411x7h7", "BV1dS421Q7mS", "BV1mfuV6kE4U", "ep5137672"]) {
+    const options = { target: mediaTarget, quality: mediaTarget.startsWith("ep") ? "480p" : "360p" };
+    const media = await run("download", options, mediaTarget + "-full");
+    if (media.success) {
+      await run("download", options, mediaTarget + "-conflict");
+      await run("frames", { input_path: media.output, count: 4 }, mediaTarget + "-frames");
+    }
+    await run("download", { ...options, clip_start: 0, clip_end: 8 }, mediaTarget + "-clip");
+    await run("download", { ...options, audio_only: true, audio_format: "mp3" }, mediaTarget + "-mp3");
+  }
+} else if (!args.includes("--extended-only")) {
 await run("resolve", { target: "https://b23.tv/NYbi1B4" });
 for (let index = 1; index <= 10; index++) await run("info", { target }, "info-" + index);
 await run("search", { keyword: "转到人工智能是我这辈子做过的最正确的决定", limit: 20 });
@@ -162,7 +211,7 @@ await run("capture", { target, output_root: captureRoot }, "capture-conflict");
   await run("download", { target, quality: "360p", clip_start: 2, clip_end: 6 }, "clip-mp4");
 }
 report.finished_at = new Date().toISOString();
-report.passed = report.results.every(result => result.label === "capture-conflict" ? result.error?.code === "OUTPUT_EXISTS" : result.success === true);
+report.passed = report.results.every(result => result.label.endsWith("-conflict") ? result.error?.code === "OUTPUT_EXISTS" : result.success === true);
 await fs.writeFile(path.join(output, "report.json"), JSON.stringify(report, null, 2));
 console.log(JSON.stringify({ report: path.join(output, "report.json"), passed: report.passed, requests: requests.length }));
 if (!report.passed) process.exitCode = 1;

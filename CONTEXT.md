@@ -188,7 +188,16 @@ Current work status and implementation notes belong in `docs/TODO/`.
   Capture reuses one video context and client, returns per-step results, and includes nonempty
   `message` plus `data` on failure for the shared JavaScript execution protocol. Existing output
   requires explicit `overwrite=true`. Media processing uses only the existing Files/FFmpeg services,
-  stages output before publishing, and checks each requested frame. Detailed acceptance is maintained
+  stages output before publishing, and checks each requested frame. The API bridge and media transfers
+  use matching desktop Web request identities; media requests never include Cookie. The shared HTTP
+  downloader probes with GET Range, validates response ranges and byte counts, and retries only
+  identified transient transport errors or HTTP 500/502/503/504, at most three attempts with the same
+  URL, headers and route. HTTP 403/412/429 and certificate failures do not retry. Safe diagnostics
+  retain endpoint, phase, attempts and failure category without URL queries or raw exception messages.
+  `user.full=true` retains the normalized `user` fields and exposes WBI account data as `profile`,
+  with explicit `full_requested` and `profile_source`; absent upstream values are not synthesized.
+  XML danmaku is a current snapshot, not a historical archive. `capture.media=false` creates no
+  media directory and preserves any existing directory. Detailed acceptance is maintained
   in `docs/TODO/bilibili_toolkit/index.md`.
 - **JavaScript module factories** keep host runtime aliases in an outer lexical scope and execute each
   CommonJS source in its own function scope. Bundled/minified local names (including `_`, `Tools` and

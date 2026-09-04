@@ -4,6 +4,17 @@ import { fixtureService, target, video, memoryTools, hostError, readMetadata } f
 import { hostRuntime } from "./bilibili_host_runtime_support.mjs";
 
 test("packaged tools run through host bootstrap, module factory and native callbacks", async () => {
+  const { tools } = memoryTools();
+  const download = tools.Files.download;
+  let mediaCalls = 0;
+  tools.Files.download = async (url, destination, environment, headers) => {
+    mediaCalls++;
+    assert.equal(environment, "android");
+    assert.equal(headers.Referer, "https://www.bilibili.com/");
+    assert.equal(headers["User-Agent"], "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36");
+    assert.equal(Object.keys(headers).some(name => name.toLowerCase() === "cookie"), false);
+    return download(url, destination, environment, headers);
+  };
   const host = await hostRuntime(fixtureService({
     "/x/web-interface/wbi/search/type": () => ({ code: 0, data: { result: [video], numResults: 1, numPages: 1 } }),
     "/pgc/view/web/season": () => ({ code: 0, result: { season_id: 1, title: "Season", episodes: [{ id: 1, bvid: target, aid: video.aid, cid: video.cid }] } }),
@@ -14,7 +25,7 @@ test("packaged tools run through host bootstrap, module factory and native callb
       video: [{ id: 16, codecid: 7, codecs: "avc1", baseUrl: "https://test.bilivideo.com/video", mimeType: "video/mp4" }],
       audio: [{ id: 30280, codecs: "mp4a", baseUrl: "https://test.bilivideo.com/audio", mimeType: "audio/mp4" }]
     } } })
-  }));
+  }), tools);
   const cases = [
     ["bilibili_resolve", { target }],
     ["bilibili_info", { target }],
@@ -41,6 +52,7 @@ test("packaged tools run through host bootstrap, module factory and native callb
   }
   assert.ok(host.calls.some(call => call.method === "bilibiliRequest"));
   assert.ok(host.calls.some(call => call.method === "callToolAsyncForExecution"));
+  assert.equal(mediaCalls, 2);
 });
 
 test("module locals cannot collide with runtime aliases; cached calls retain context", async () => {
@@ -101,4 +113,19 @@ test("native file errors preserve the host plain-object message", async () => {
   const { result } = await host.execute("bilibili_subtitles", { target });
   assert.equal(result.success, false);
   assert.equal(result.message, "Storage permission denied");
+});
+
+test("actual Tools bridge forwards desktop media headers without any Cookie", async () => {
+  const { tools } = memoryTools();
+  let observed = null;
+  tools.Files.download = async (_url, _destination, environment, headers) => {
+    observed = { environment, headers };
+    return { successful: true, details: "ok" };
+  };
+  const host = await hostRuntime(fixtureService(), tools);
+  await host.execute("run", {}, 'exports.run = async () => { await Tools.Files.download("https://test.bilivideo.com/file", "/sdcard/file", "android", { Referer: "https://www.bilibili.com/", "User-Agent": "Web test" }); return { success: true }; };');
+  assert.equal(observed.environment, "android");
+  assert.equal(observed.headers.Referer, "https://www.bilibili.com/");
+  assert.equal(observed.headers["User-Agent"], "Web test");
+  assert.equal(observed.headers.Cookie, undefined);
 });

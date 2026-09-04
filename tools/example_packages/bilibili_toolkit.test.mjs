@@ -247,3 +247,42 @@ test("resolve honors explicit part", async () => {
   assert.equal(result.target.part, 2);
   assert.ok(result.target.url.endsWith("?p=2"));
 });
+
+test("full user profile exposes the additional endpoint payload without changing summary fields", async () => {
+  const service = fixtureService({
+    "/x/web-interface/card": () => ({ code: 0, data: { card: { name: "User", level_info: { current_level: 6 } } } }),
+    "/x/relation/stat": () => ({ code: 0, data: { follower: 10 } }),
+    "/x/space/wbi/acc/info": () => ({ code: 0, data: { name: "User", level: 6, live_room: { roomid: 123 }, school: { name: "School" } } })
+  });
+  const api = await loadToolkit(service, memoryTools().tools);
+  const basic = await api.bilibili_user({ user: "2" });
+  assert.equal(basic.profile, null);
+  assert.equal(service.requests.length, 2);
+  const full = await api.bilibili_user({ user: "2", full: true });
+  assert.equal(full.success, true);
+  assert.equal(full.profile.live_room.roomid, 123);
+  assert.equal(full.profile_source, "/x/space/wbi/acc/info");
+  assert.equal(full.user.level, basic.user.level);
+});
+
+test("capture without media creates no media directory and preserves earlier directories", async () => {
+  const { tools, directories } = memoryTools();
+  const api = await loadToolkit(fixtureService(), tools);
+  const result = await api.bilibili_capture({ target, media: false });
+  assert.equal(result.success, true);
+  assert.equal([...directories].some(name => name.endsWith("/media")), false);
+  directories.add(result.root + "/media");
+  await api.bilibili_capture({ target, media: false, overwrite: true });
+  assert.equal(directories.has(result.root + "/media"), true);
+});
+
+test("media failure keeps endpoint and header presence but removes signed queries", async () => {
+  const { tools } = memoryTools();
+  tools.Files.download = async () => { throw new Error("HTTP 403 https://test.bilivideo.com/video?secret=value"); };
+  const api = await loadToolkit(fixtureService({ "/x/player/wbi/playurl": () => playback() }), tools);
+  const result = await api.bilibili_download({ target, quality: "360p" });
+  assert.equal(result.error.code, "MEDIA_DOWNLOAD_FAILED");
+  assert.equal(result.error.endpoint, "https://test.bilivideo.com/video");
+  assert.equal(result.error.cookie_sent, false);
+  assert.equal(JSON.stringify(result).includes("secret"), false);
+});

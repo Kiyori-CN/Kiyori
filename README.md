@@ -27,7 +27,10 @@ Kiyori 是一款以浏览器为产品中心、以内置 Operit AI 为智能子�
 内置“哔哩哔哩工具包”提供 16 项只读检索、内容导出和媒体处理工具。在“扩展 → 插件”配置
 `BILIBILI_COOKIE`，再在 AI 抽屉 Media 分组启用 `bilibili`；Cookie 仅由宿主使用，不交给脚本。
 默认产物位于 `Download/Kiyori/Bilibili`，重跑覆盖需显式指定 `overwrite=true`。
-当前分段弹幕不代表完整历史，实时风控和会员权限不会被绕过；详见
+`bilibili_user full=true` 在保留 `user` 摘要的同时返回 `profile` 原始扩展资料，字段取决于上游公开状态。
+分段弹幕和 XML 都不代表完整历史；`capture media=false` 不新建媒体目录，也不删除以前的下载。
+下载使用与 Web 播放接口一致的请求头，不向 CDN 发送 Cookie；网络错误会区分 HTTP 拒绝、连接、超时
+和 TLS 阶段，证书错误及风控不会被绕过。详见
 [工具包使用合同与验收状态](docs/TODO/bilibili_toolkit/index.md)。
 
 | 项目 | 当前状态 |

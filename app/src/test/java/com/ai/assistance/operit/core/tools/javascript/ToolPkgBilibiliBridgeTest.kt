@@ -153,6 +153,9 @@ class ToolPkgBilibiliBridgeTest {
                 )
             assertTrue(success.getBoolean("success"))
             assertEquals("""{"code":0,"data":{"ok":true}}""", success.getString("body"))
+            val observed = server.takeRequest()
+            assertEquals("https://www.bilibili.com/", observed.getHeader("Referer"))
+            assertEquals("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36", observed.getHeader("User-Agent"))
 
             assertBilibiliFailure(BilibiliToolPkgErrorCode.RISK_CONTROL) {
                 gateway.execute(
@@ -304,6 +307,26 @@ class ToolPkgBilibiliBridgeTest {
             assertTrue(cancelled)
             assertEquals(1, server.requestCount)
         }
+    }
+
+    @Test
+    fun tlsCertificateDiagnosticsExposeEndpointWithoutRetryOrSecrets() {
+        val client = OkHttpClient.Builder().addInterceptor {
+            throw javax.net.ssl.SSLHandshakeException("private-token").apply {
+                initCause(java.security.cert.CertificateExpiredException("private-certificate"))
+            }
+        }.build()
+        val gateway = BilibiliToolPkgGateway(client, retryPause = { throw AssertionError("Certificate failures must not retry") })
+        val error = assertBilibiliFailure(BilibiliToolPkgErrorCode.HTTP_ERROR) {
+            gateway.execute(BilibiliToolPkgRequest(BilibiliToolPkgRequestMode.API, "https://api.bilibili.com/x/web-interface/nav?private=token".toHttpUrl()), null, "tls", {})
+        }
+        val detail = error.toJson("tls").getJSONObject("error")
+        assertEquals("TLS_CERTIFICATE_FAILED", detail.getString("transport_code"))
+        assertEquals("tls_handshake", detail.getString("phase"))
+        assertEquals("https://api.bilibili.com/x/web-interface/nav", detail.getString("url"))
+        assertTrue(detail.getString("message").contains("api.bilibili.com/x/web-interface/nav"))
+        assertFalse(detail.toString().contains("private"))
+        assertEquals(1, detail.getInt("attempts"))
     }
 
     private fun assertBilibiliFailure(

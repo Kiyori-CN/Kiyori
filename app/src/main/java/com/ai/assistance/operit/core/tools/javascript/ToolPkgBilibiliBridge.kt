@@ -7,6 +7,7 @@ import com.kiyori.platform.network.KiyoriNetworkModule
 import com.kiyori.platform.network.applyKiyoriNetworkProxy
 import java.io.IOException
 import java.net.SocketTimeoutException
+import com.ai.assistance.operit.util.HttpTransferException
 import java.util.UUID
 import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
@@ -290,6 +291,8 @@ internal class BilibiliToolPkgException(
     var endpoint: String? = null,
     var attempts: Int = 1,
     val causeType: String? = null,
+    val transportCode: String? = null,
+    val phase: String? = null,
     cause: Throwable? = null,
 ) : RuntimeException(message, cause) {
     fun toJson(requestId: String?): JSONObject =
@@ -306,7 +309,9 @@ internal class BilibiliToolPkgException(
                     .put("api_message", apiMessage ?: JSONObject.NULL)
                     .put("url", endpoint ?: JSONObject.NULL)
                     .put("attempts", attempts)
-                    .put("cause_type", causeType ?: JSONObject.NULL),
+                    .put("cause_type", causeType ?: JSONObject.NULL)
+                    .put("transport_code", transportCode ?: JSONObject.NULL)
+                    .put("phase", phase ?: JSONObject.NULL),
             )
 }
 
@@ -345,21 +350,26 @@ internal class BilibiliToolPkgGateway(
                 if (error is CancellationException || currentCall?.isCanceled() == true) {
                     throw CancellationException("Bilibili 请求已取消。", error)
                 }
+                val failedUrl = currentCall?.request()?.url ?: request.url
+                val transport = if (error is IOException) {
+                    HttpTransferException.from(error, failedUrl.toUrl(), "api_request", attempt)
+                } else null
                 val failure = when (error) {
                     is BilibiliToolPkgException -> error
                     is IOException -> BilibiliToolPkgException(
                         code = BilibiliToolPkgErrorCode.HTTP_ERROR,
-                        message = "Bilibili 网络请求失败：" + error::class.java.simpleName,
-                        causeType = error::class.java.simpleName,
+                        message = requireNotNull(transport).message.orEmpty(),
+                        causeType = transport.causeType,
+                        transportCode = transport.code,
+                        phase = transport.phase,
                         cause = error,
                     )
                     else -> throw error
                 }
                 // 查询串可能含签名，诊断只记录端点；重试不改变账号、接口或网络路由。
-                val failedUrl = currentCall?.request()?.url ?: request.url
                 failure.endpoint = failedUrl.newBuilder().query(null).fragment(null).build().toString()
                 failure.attempts = attempt
-                val transient = error is SocketTimeoutException ||
+                val transient = transport?.retryable == true ||
                     failure.httpStatus in setOf(500, 502, 503, 504)
                 if (!transient || attempt == 3) throw failure
                 retryPause(350L * attempt)
@@ -670,8 +680,8 @@ internal class BilibiliToolPkgGateway(
         private const val MAX_RESPONSE_BYTES = 16 * 1024 * 1024
         private const val BILIBILI_REFERER = "https://www.bilibili.com/"
         private const val BILIBILI_USER_AGENT =
-            "Mozilla/5.0 (Linux; Android 14; Kiyori) AppleWebKit/537.36 " +
-                "(KHTML, like Gecko) Chrome/132.0.0.0 Mobile Safari/537.36"
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+                "(KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36"
     }
 }
 

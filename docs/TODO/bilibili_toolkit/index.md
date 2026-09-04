@@ -350,6 +350,64 @@ node examples/bilibili_toolkit/build.mjs
 node --test tools/example_packages/bilibili_toolkit.test.mjs tools/example_packages/bilibili_host_runtime.test.mjs
 ```
 
+## 最新现场报告优化（2026-09-05）
+
+- 基线 `main@fe8e5c1a5`，工作树干净；已有宿主作用域修复和 16 工具接口保持不变。
+- 调查 DONE：同一未过期媒体 URL、相同 Referer，移动 UA 得到 403，桌面 Web UA 得到 206；
+  添加 Origin 或只删除 UA 的 Kiyori 标记仍是 403。旧 UGC 的 mcdn 对两种 UA 均返回 206。
+  根因是媒体请求身份与 Web playurl 合同不匹配，不是未携带 Referer。
+- 实施 DONE：API 与媒体使用一致的桌面 Web UA。下载器使用 GET Range 探测，检查 Content-Range
+  与实际字节数，传播 HTTP/TLS/连接阶段和失败分类，移除隐藏原始错误的 multipart 泛化报错；
+  修复小文件分段计数等待、重试进度重复计入以及取消后分段线程仍写文件的问题。
+- 重试边界：仅明确的连接中断、超时、EOF 和 HTTP 500/502/503/504，最多三次，间隔 350/700 ms；
+  URL、Range、请求头与路由不变。403、412/429、证书错误以及未明确为瞬时故障的 TLS 握手失败不重试。
+  不向媒体 CDN 发送 Cookie、不替换 CDN 域名、不绕过证书或风控、不自动更改代理路由。
+- 资料合同：`full=true` 原本已调用 WBI 资料接口，但未输出扩展 payload；现返回 `profile`、
+  `full_requested`、`profile_source`，保留原有 `user` 摘要。公开字段缺失或为空不表示工具漏抓，
+  不承诺上游不公开的注册时间等数据；额外接口错误保持可见，不伪装为完整资料。
+- XML 是当前快照，不是完整历史。`media=false` 在新根目录不创建 media 目录；已有目录保留，
+  不删除用户之前的下载，也不生成说明占位文件。
+- 授权交付范围：本轮源码、dist、测试与合同文档；回滚点为基线提交。
+  本轮不自动回滚、不安装设备、不清理用户已有设备产物；现场验收状态仍为 `verification_pending`。
+
+### 真实网络回归
+
+生产压缩 dist 经过实际宿主 JS bootstrap、模块工厂、Tools/NativeInterface 回调，在桌面 Files 和
+FFmpeg 适配器运行。使用用户明确指定的私密配置，仅执行只读请求与授权样本下载。
+
+| 样本 | 完整下载 | 0-8 秒剪辑 | MP3 | 抽帧与覆盖保护 |
+| --- | --- | --- | --- | --- |
+| BV1GJ411x7h7 | 360p，9,540,397 B | 342,296 B | 5,206,525 B | 4 张，重复写入拒绝 |
+| BV1dS421Q7mS | 360p，162,592,013 B | 471,300 B | 59,741,007 B | 4 张，重复写入拒绝 |
+| BV1mfuV6kE4U | 360p，7,372,156 B | 589,910 B | 2,327,246 B | 4 张，重复写入拒绝 |
+| ep5137672 | 480p，80,506,457 B | 813,061 B | 29,542,187 B | 4 张，重复写入拒绝 |
+
+- 首轮矩阵的 PGC 被测试适配器固定 CDN 域名清单拒绝，不是生产下载错误。适配器现验证获准
+  playurl 返回的精确 URL 集合，支持真实返回的 `/upgcxcode/` 与 `/v1/resource/upgcxcode/` 路径，
+  不改写地址、不附 Cookie；PGC 单独复跑全部通过。首轮报告仍保留失败事实，没有改写历史报告。
+- 另用一致的桌面 Web API UA 验证 doctor、基础/完整用户资料、XML 快照、禁用所有附加项的
+  capture，共 10 次请求通过；仅记录扩展字段名称，不提交账户资料或登录态。
+- 最终以一致的桌面 Web API UA 重新执行完整四样本矩阵：45 次 API/资源请求、21 项结果判定
+  全部通过，其中包含 doctor 和 4 次预期 `OUTPUT_EXISTS`。上述表格是最终复跑的产物大小。
+- `--media-matrix` 执行上述四样本矩阵；`--target` 可限定单样本；`--diagnostics-only` 执行轻量语义检查。
+  `--native-samples` 在忽略的输出目录保存短期签名 URL，仅供显式设置 `KIYORI_BILIBILI_MEDIA_INPUT`
+  后运行 `BilibiliMediaLiveTest`，每个不同 URL 只读前 1024 bytes；默认离线 CI 跳过该项。
+  这些输入、报告与下载均不进入 Git。Android 代理开关、存储权限与内置 FFmpeg 仍需新 APK 现场复测。
+
+### 本地验收证据
+
+- TypeScript 类型检查、dist 重建和 Node **28/28** 通过，含全部 16 个压缩导出经宿主 JS 调用、
+  实际下载工具的桌面 UA/Referer/Cookie 隔离断言、full 字段、按需目录与敏感查询串移除。
+- JVM **27/27**：bridge 14、通用下载器 10、传输分类 2、显式真实 CDN 测试 1；后者以两套
+  私有样本先后执行，验证 22 条不同签名 URL 的前 1024 bytes，覆盖 UGC、PGC 视频和音频。
+  确定性测试覆盖小文件、零字节、非 Range 服务、截断重试、追加去重、进度回收、取消清理、
+  Content-Range 错位、403 不重试、TLS 证书错误和诊断脱敏；不以桌面 JVM 替代 Android 代理实测。
+- `:app:assembleDebug --no-daemon --console=plain` 为 **BUILD SUCCESSFUL in 46s**，235 tasks。
+  APK 为 `com.kiyori / 45 / 0.1.0`、**483,709,823 bytes**；SHA-256：
+  `DD7E4327D0C3F969FC0B04E93D21B89BBA0E6B0571C0A3CB42E203F701C7EB2D`。
+  v2 单 signer、16 KiB zipalign 通过；包内 Bilibili ToolPkg **26,883 bytes**，只含 manifest 与
+  两份 dist，脚本与当前 dist 字节一致，DEX 包含新增传输诊断类。构建产物不提交 Git。
+
 ## 尚需现场验收
 
 自动化与 Debug 构建不能证明真实账号、不同权限视频、Bilibili 实时风控、运营商/CDN、Android

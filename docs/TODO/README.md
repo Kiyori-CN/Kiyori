@@ -11,9 +11,11 @@ For_Agent: 对项目大规模动工前按本规范协作
   “哔哩哔哩工具包”插件；其唯一脚本子包为 `bilibili`，位于 AI 左抽屉 `Media` 分组。插件只声明
   私密宿主变量 `BILIBILI_COOKIE`，不打包或调用 `yt-dlp`，媒体后处理复用 Kiyori 内置 FFmpeg；
   已完成 nav/WBI 登录误报、capture 错误与覆盖、参数 schema、分段弹幕、分页和媒体边界修复；
-  另已定位并修复宿主前导代码覆盖压缩包 `_` 函数导致的 `not a function`；Node 24/24、JVM 13/13、
-  压缩产物经宿主 JS 链路的真实网络 16 工具及 9 类账号列表、Debug APK 重新构建核验通过，Android 现场
-  端到端验收仍为 verification_pending，证据与使用边界见专项计划。
+  已修复宿主前导代码覆盖压缩包 `_` 函数导致的 `not a function`；最新现场反馈的新 CDN 403
+  已定位为 Web playurl 与移动 UA 不匹配，并补齐传输诊断、同请求有界重试、完整资料字段与 XML 边界。
+  当前 Node 28/28、JVM 27/27（含显式真实 CDN Range 测试）、新旧 UGC/PGC 四组媒体矩阵与
+  Debug APK 核验通过；16 工具和 9 类账号列表的前轮证据保留。Android 代理开关和端到端验收仍为
+  verification_pending，证据与使用边界见专项计划。
 
 - [GoTab 原生浏览器主页迁移](kiyori_browser_product_completion/20_gotab_native_browser_home_migration.md)：主页已收敛为
   `NATIVE`、`CUSTOM_URL`、`BLANK` 三种可手动切换模式；当前开发验证阶段的新安装初值为

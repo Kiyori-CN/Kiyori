@@ -1,6 +1,8 @@
 package com.ai.assistance.operit.util
 
 import java.io.File
+import java.io.EOFException
+import java.io.IOException
 import java.io.FileOutputStream
 import java.io.RandomAccessFile
 import java.net.HttpURLConnection
@@ -50,57 +52,21 @@ object HttpMultiPartDownloader {
         headers: Map<String, String> = emptyMap(),
         connectionFactory: (URL) -> URLConnection,
     ): ProbeResult {
-        // Prefer HEAD, but some servers don't allow it.
-        var conn: HttpURLConnection? = null
-        try {
-            conn = (connectionFactory(URL(url)) as HttpURLConnection).apply {
-                requestMethod = "HEAD"
-                applyHeaders(this, headers)
-                setRequestProperty("Accept-Encoding", "identity")
-                instanceFollowRedirects = true
-                connectTimeout = 15000
-                readTimeout = 15000
+        return transfer(url, headers, "probe", "bytes=0-0", connectionFactory) { connection, attempt ->
+            val status = connection.responseCode
+            if (status == HttpURLConnection.HTTP_OK) {
+                ProbeResult(connection.getHeaderFieldLong("Content-Length", -1L), false)
+            } else if (status == HttpURLConnection.HTTP_PARTIAL) {
+                val range = requireContentRange(connection, attempt, headers)
+                if (range.first != 0L || range.second != 0L) {
+                    throw protocolFailure(connection, attempt, "Invalid probe Content-Range", headers)
+                }
+                ProbeResult(range.third, true)
+            } else if (status == 416 && connection.getHeaderField("Content-Range") == "bytes */0") {
+                ProbeResult(0L, false)
+            } else {
+                throw HttpTransferException.http(connection.url, "probe", status, attempt, "bytes=0-0", headers)
             }
-            val code = conn.responseCode
-            if (code in 200..399) {
-                val len = conn.getHeaderFieldLong("Content-Length", -1L)
-                val acceptRanges = conn.getHeaderField("Accept-Ranges")?.contains("bytes", ignoreCase = true) == true
-                return ProbeResult(len, acceptRanges)
-            }
-        } catch (_: Exception) {
-            // ignore
-        } finally {
-            conn?.disconnect()
-        }
-
-        // Fallback GET with Range 0-0 to detect range support.
-        var conn2: HttpURLConnection? = null
-        try {
-            conn2 = (connectionFactory(URL(url)) as HttpURLConnection).apply {
-                requestMethod = "GET"
-                applyHeaders(this, headers)
-                setRequestProperty("Accept-Encoding", "identity")
-                setRequestProperty("Range", "bytes=0-0")
-                instanceFollowRedirects = true
-                connectTimeout = 15000
-                readTimeout = 15000
-            }
-            val code = conn2.responseCode
-            val acceptRangesHeader = conn2.getHeaderField("Accept-Ranges")
-            val acceptRanges = (code == HttpURLConnection.HTTP_PARTIAL) ||
-                (acceptRangesHeader?.contains("bytes", ignoreCase = true) == true)
-
-            val contentRange = conn2.getHeaderField("Content-Range")
-            val totalFromContentRange = parseTotalFromContentRange(contentRange)
-            val total = when {
-                totalFromContentRange > 0L -> totalFromContentRange
-                else -> conn2.getHeaderFieldLong("Content-Length", -1L)
-            }
-            return ProbeResult(total, acceptRanges)
-        } catch (_: Exception) {
-            return ProbeResult(-1L, false)
-        } finally {
-            conn2?.disconnect()
         }
     }
 
@@ -138,63 +104,107 @@ object HttpMultiPartDownloader {
         onChunk: ((chunkBytes: Int) -> Unit)? = null,
         isCancelled: (() -> Boolean)? = null
     ) {
-        var conn: HttpURLConnection? = null
-        try {
-            conn = (connectionFactory(URL(url)) as HttpURLConnection).apply {
-                requestMethod = "GET"
-                applyHeaders(this, headers)
-                setRequestProperty("Accept-Encoding", "identity")
-                instanceFollowRedirects = true
-                connectTimeout = 15000
-                readTimeout = 30000
-                if (startInclusive > 0L || endInclusive != null) {
-                    val rangeValue =
-                        if (endInclusive != null) {
-                            "bytes=$startInclusive-$endInclusive"
-                        } else {
-                            "bytes=$startInclusive-"
-                        }
-                    setRequestProperty("Range", rangeValue)
-                }
-            }
-
+        require(startInclusive >= 0L && (endInclusive == null || endInclusive >= startInclusive))
+        val rangeValue = if (startInclusive > 0L || endInclusive != null) {
+            "bytes=$startInclusive-${endInclusive ?: ""}"
+        } else null
+        val originalLength = if (append && dest.exists()) dest.length() else 0L
+        transfer(url, headers, "download", rangeValue, connectionFactory, isCancelled) { conn, attempt ->
             val code = conn.responseCode
-            val expectedPartial = startInclusive > 0L || endInclusive != null
-            if (expectedPartial) {
-                if (code != HttpURLConnection.HTTP_PARTIAL) {
-                    throw RuntimeException("HTTP $code for ranged request")
-                }
-            } else if (code !in 200..299) {
-                throw RuntimeException("HTTP $code")
+            if (code != HttpURLConnection.HTTP_OK && code != HttpURLConnection.HTTP_PARTIAL) {
+                throw HttpTransferException.http(conn.url, "download", code, attempt, rangeValue, headers)
             }
-
+            val expectedLength = if (rangeValue != null) {
+                if (code != HttpURLConnection.HTTP_PARTIAL) throw protocolFailure(conn, attempt, "Range ignored", headers)
+                val range = requireContentRange(conn, attempt, headers)
+                if (range.first != startInclusive || (endInclusive != null && range.second != endInclusive)) {
+                    throw protocolFailure(conn, attempt, "Content-Range mismatch", headers)
+                }
+                range.second - range.first + 1
+            } else {
+                if (code != HttpURLConnection.HTTP_OK) throw protocolFailure(conn, attempt, "Unexpected partial response", headers)
+                conn.getHeaderFieldLong("Content-Length", -1L)
+            }
             dest.parentFile?.mkdirs()
-            conn.inputStream.use { input ->
-                FileOutputStream(dest, append).buffered().use { output ->
-                    val buffer = ByteArray(64 * 1024)
-                    while (true) {
-                        if (isCancelled?.invoke() == true) {
-                            throw InterruptedException("Download cancelled")
+            if (append) RandomAccessFile(dest, "rw").use { it.setLength(originalLength) }
+            var received = 0L
+            try {
+                conn.inputStream.use { input ->
+                    FileOutputStream(dest, append).buffered().use { output ->
+                        val buffer = ByteArray(64 * 1024)
+                        while (true) {
+                            if (Thread.currentThread().isInterrupted || isCancelled?.invoke() == true) {
+                                throw InterruptedException("Download cancelled")
+                            }
+                            val read = input.read(buffer)
+                            if (read <= 0) break
+                            if (expectedLength >= 0 && received + read > expectedLength) throw protocolFailure(conn, attempt, "Body exceeds declared range", headers)
+                            output.write(buffer, 0, read)
+                            received += read
+                            onChunk?.invoke(read)
                         }
-                        val read = input.read(buffer)
-                        if (read <= 0) break
-                        output.write(buffer, 0, read)
-                        onChunk?.invoke(read)
+                        output.flush()
                     }
-                    output.flush()
                 }
+                if (expectedLength >= 0 && received != expectedLength) throw EOFException("Incomplete HTTP body")
+            } catch (error: Exception) {
+                if (received > 0L) {
+                    var remaining = received
+                    while (remaining > 0L) {
+                        val chunk = minOf(remaining, Int.MAX_VALUE.toLong()).toInt()
+                        onChunk?.invoke(-chunk)
+                        remaining -= chunk
+                    }
+                }
+                throw error
             }
-        } finally {
-            conn?.disconnect()
         }
     }
 
-    private fun parseTotalFromContentRange(contentRange: String?): Long {
-        // format: bytes 0-0/12345
-        if (contentRange.isNullOrBlank()) return -1L
-        val slash = contentRange.lastIndexOf('/')
-        if (slash <= 0 || slash >= contentRange.length - 1) return -1L
-        return contentRange.substring(slash + 1).trim().toLongOrNull() ?: -1L
+    private fun requireContentRange(connection: HttpURLConnection, attempt: Int, headers: Map<String, String>): Triple<Long, Long, Long> {
+        val match = Regex("bytes ([0-9]+)-([0-9]+)/([0-9]+)").matchEntire(connection.getHeaderField("Content-Range").orEmpty())
+        val values = match?.groupValues?.drop(1)?.mapNotNull { it.toLongOrNull() }
+        if (values == null || values.size != 3 || values[0] > values[1] || values[1] >= values[2]) {
+            throw protocolFailure(connection, attempt, "Invalid Content-Range", headers)
+        }
+        return Triple(values[0], values[1], values[2])
+    }
+
+    private fun protocolFailure(connection: HttpURLConnection, attempt: Int, reason: String, headers: Map<String, String>) =
+        HttpTransferException("INVALID_HTTP_RESPONSE", HttpTransferException.endpoint(connection.url), reason, attempt, false, "ProtocolValidation", headers = headers)
+
+    private fun <Result> transfer(
+        url: String,
+        headers: Map<String, String>,
+        phase: String,
+        range: String?,
+        connectionFactory: (URL) -> URLConnection,
+        isCancelled: (() -> Boolean)? = null,
+        operation: (HttpURLConnection, Int) -> Result,
+    ): Result {
+        for (attempt in 1..3) {
+            if (Thread.currentThread().isInterrupted || isCancelled?.invoke() == true) throw InterruptedException("Download cancelled")
+            var connection: HttpURLConnection? = null
+            try {
+                connection = (connectionFactory(URL(url)) as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    applyHeaders(this, headers)
+                    setRequestProperty("Accept-Encoding", "identity")
+                    if (range != null) setRequestProperty("Range", range)
+                    instanceFollowRedirects = true
+                    connectTimeout = 15000
+                    readTimeout = 30000
+                }
+                return operation(connection, attempt)
+            } catch (error: IOException) {
+                val failure = HttpTransferException.from(error, connection?.url ?: URL(url), phase, attempt, range, headers)
+                if (!failure.retryable || attempt == 3) throw failure
+            } finally {
+                connection?.disconnect()
+            }
+            Thread.sleep(350L * (1L shl (attempt - 1)))
+        }
+        error("Transfer retry loop exhausted")
     }
 
     private fun downloadSingle(
@@ -241,15 +251,16 @@ object HttpMultiPartDownloader {
         val downloaded = AtomicLong(0L)
         val firstError = AtomicReference<Throwable?>(null)
         val pool = Executors.newFixedThreadPool(threadCount)
-        val latch = CountDownLatch(threadCount)
+        val plans = buildSegmentPlan(totalBytes, threadCount)
+        val latch = CountDownLatch(plans.size)
 
-        for (segment in buildSegmentPlan(totalBytes, threadCount)) {
+        for (segment in plans) {
             val start = segment.startInclusive
             val end = segment.endInclusive
 
             pool.execute {
+                val partFile = File(dest.parentFile, "${dest.name}.part.${segment.index}")
                 try {
-                    val partFile = File(dest.parentFile, "${dest.name}.part.${segment.index}")
                     partFile.delete()
                     downloadSegment(
                         url = url,
@@ -259,6 +270,7 @@ object HttpMultiPartDownloader {
                         startInclusive = start,
                         endInclusive = end,
                         append = false,
+                        isCancelled = { firstError.get() != null },
                         onChunk = { chunk ->
                             val now = downloaded.addAndGet(chunk.toLong())
                             onProgress?.invoke(now, totalBytes)
@@ -279,17 +291,24 @@ object HttpMultiPartDownloader {
                 } catch (t: Throwable) {
                     firstError.compareAndSet(null, t)
                 } finally {
+                    partFile.delete()
                     latch.countDown()
                 }
             }
         }
 
+        var interrupted = false
         try {
-            latch.await()
-        } catch (e: InterruptedException) {
-            Thread.currentThread().interrupt()
-            firstError.compareAndSet(null, e)
-            throw e
+            while (true) {
+                try {
+                    latch.await()
+                    break
+                } catch (error: InterruptedException) {
+                    interrupted = true
+                    firstError.compareAndSet(null, error)
+                    pool.shutdownNow()
+                }
+            }
         } finally {
             val err = firstError.get()
             if (err != null) {
@@ -297,6 +316,7 @@ object HttpMultiPartDownloader {
             } else {
                 pool.shutdown()
             }
+            if (interrupted) Thread.currentThread().interrupt()
         }
 
         val err = firstError.get()
@@ -305,7 +325,7 @@ object HttpMultiPartDownloader {
                 dest.delete()
             } catch (_: Exception) {
             }
-            throw RuntimeException("Multi-part download failed", err)
+            throw err
         }
 
         onProgress?.invoke(totalBytes, totalBytes)

@@ -49,7 +49,7 @@ export async function hostRuntime(service, tools = memoryTools().tools, modules 
           write_file: () => tools.Files.write(params.path, params.content),
           move_file: () => tools.Files.move(params.source, params.destination),
           delete_file: () => tools.Files.deleteFile(params.path, params.recursive === "true"),
-          download_file: () => tools.Files.download(params.url, params.destination),
+          download_file: () => tools.Files.download(params.url, params.destination, params.environment, params.headers === undefined ? undefined : JSON.parse(params.headers)),
           ffmpeg_info: () => tools.FFmpeg.info(params.type),
           ffmpeg_probe: () => tools.FFmpeg.probe(params.input_path),
           ffmpeg_execute: () => tools.FFmpeg.execute(params.command)
