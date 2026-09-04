@@ -2,6 +2,7 @@ package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class BrowserHomeNavigationPolicyTest {
@@ -75,5 +76,27 @@ class BrowserHomeNavigationPolicyTest {
                 navigationState = secondWindow,
             ),
         )
+    }
+
+    @Test
+    fun `legacy home values migrate to explicit modes without using native as a sentinel`() {
+        assertEquals(BrowserHomeMode.BLANK, homeModeFromLegacyUrl("ABOUT:BLANK"))
+        assertEquals(
+            BrowserHomeMode.CUSTOM_URL,
+            homeModeFromLegacyUrl("https://example.com/home"),
+        )
+        assertEquals(
+            "about:blank",
+            browserHomeSeedUrl(BrowserHomeMode.NATIVE, "https://example.com/home"),
+        )
+        assertEquals(
+            "https://example.com/home",
+            browserHomeSeedUrl(BrowserHomeMode.CUSTOM_URL, "https://example.com/home"),
+        )
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun `legacy unsupported home scheme is rejected`() {
+        homeModeFromLegacyUrl("file:///sdcard/index.html")
     }
 }

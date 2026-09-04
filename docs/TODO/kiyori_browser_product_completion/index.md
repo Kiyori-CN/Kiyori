@@ -10,6 +10,35 @@ hikerview_reference: 5de8809049e4710471f9f42642e54550ecf5dbe3
 
 # 浏览器产品能力连续完善
 
+## 2026-09-04 GoTab 原生浏览器主页迁移
+
+状态：`官网主页验证阶段已接入 / 原生主页首个 Dashboard 已接入 / 设备验收待执行`。
+
+本任务按“最终选择 Kiyori 原生浏览器主页、立即验证 GoTab 官网、明确排除直接运行 CRX”执行。第一切片将
+新安装浏览器主页设为 `https://web.gotab.cn/`，用于验证 GoTab 网页版在 Kiyori 共享 WebSession/WebView
+中的首帧、触摸、登录、存储、导航和网络行为；用户仍可在浏览器设置中改回其他 HTTP/HTTPS 地址或
+`about:blank`。这不是原生主页完成，也不表示 GoTab 的 Chrome 扩展 API 已在 Android WebView 中兼容。
+
+明确边界：
+
+- GoTab CRX 不进入 Kiyori 扩展中心，不直接解压执行，不创建第二个 Browser Runtime、WebView 或标签页注册表。
+- 官网 URL 只作为当前验证入口；远程站点、账号、服务端 API、网页版本功能和可用性不成为 Kiyori 的持久状态 owner。
+- 原生主页阶段复用 `StandardBrowserSessionTools`、`WebSessionHistoryStore`、现有地址解析、搜索、标签和窗口
+  导航 owner；GoTab 的卡片、分类、背景和小组件只作为功能/视觉参考，按 Kiyori 本地数据与权限合同重新实现。
+
+阶段门槛：
+
+1. [DONE] 将新安装主页切换到 `https://web.gotab.cn/`，同步设置测试、README、CONTEXT 和本 TODO。
+2. [PENDING] 在目标 Android WebView 验证官网页面首帧、登录态/localStorage、触摸拖拽、文件/壁纸入口、
+   Kiyori Back/主页/新标签行为，以及无网络和代理错误表现。
+3. [DONE] 已形成 `BrowserHomeDashboard` 的页面 owner、共享数据投影和搜索/快捷访问/最近访问交互，并完成
+   三模式主页设置 UI 与模式摘要；原生主页自己的本地导入/导出数据仍不在本切片范围内。
+4. [IN PROGRESS] 原生 Dashboard 已接入唯一 Browser Runtime，复用搜索、书签、历史、标签和窗口回调；三模式
+   数据迁移、主页/新标签/Back 入口和定向 JVM 已完成，官网、触摸、真实 WebView 和最终原生默认初值仍待验收，
+   完成前状态保持 `verification_pending`。
+
+本轮详细计划与风险见 [`20_gotab_native_browser_home_migration.md`](20_gotab_native_browser_home_migration.md)。
+
 ## 2026-08-28 最新日志复核：runtime readiness 与诊断噪声
 
 状态：`LOCAL IMPLEMENTATION VERIFIED / TARGET DEVICE VERIFICATION PENDING`。

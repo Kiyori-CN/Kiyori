@@ -3,12 +3,25 @@ package com.ai.assistance.operit.ui.main.shell
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CropSquare
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -21,6 +34,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
@@ -29,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.browser.navigation.BrowserAddressResolver
@@ -39,6 +54,8 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.AUTOMA
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserAdBlockState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserCredentialVaultSnapshot
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSettings
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserHomeMode
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.INITIAL_BROWSER_HOME_URL
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryStore
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.formatAutomaticFloatingMinimumDuration
@@ -55,6 +72,8 @@ import com.kiyori.capability.browser.presentation.KiyoriBrowserWorkspaceRoute
 import com.kiyori.capability.settings.navigation.KiyoriSettingsRoute
 import com.kiyori.design.theme.KiyoriUiShapes
 import kotlinx.coroutines.launch
+import java.net.URI
+import java.util.Locale
 
 internal enum class KiyoriBrowserSettingsAction {
     TOGGLE_AD_BLOCKING,
@@ -150,8 +169,8 @@ internal val kiyoriBrowserSettingsGroups =
             entries =
                 listOf(
                     browserNavigation(
-                        title = "网页主页自定义",
-                        description = "设置浏览器主页按钮和新会话使用的入口地址",
+                        title = "网页主页",
+                        description = "选择 Kiyori 原生主页、自定义网址或纯空白页",
                         action = KiyoriBrowserSettingsAction.OPEN_HOME_CUSTOMIZATION,
                     ),
                     browserToggle(
@@ -425,33 +444,43 @@ internal fun KiyoriBrowserSettingsPage(
             )
         KiyoriSettingsRoute.BROWSER_HOME_CUSTOMIZATION ->
             KiyoriBrowserHomepageCustomizationPage(
-                currentHomeUrl = settings.homeUrl,
+                currentHomeMode = settings.homeMode,
+                customHomeUrl = settings.customHomeUrl,
                 onBack = onBack,
-                onSave = { value ->
+                onSelectMode = { mode ->
+                    coordinator.setBrowserHomeMode(mode)
+                    Toast.makeText(
+                        context,
+                        when (mode) {
+                            BrowserHomeMode.NATIVE -> "已切换为 Kiyori 原生主页"
+                            BrowserHomeMode.CUSTOM_URL -> "已切换为自定义网址"
+                            BrowserHomeMode.BLANK -> "已切换为纯空白页"
+                        },
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                },
+                onSaveCustomUrl = { value ->
                     val resolvedUrl = BrowserAddressResolver.resolve(value, searchEngine)
-                    if (!isSupportedBrowserHomeUrl(resolvedUrl)) {
+                    if (!isSupportedBrowserHomeUrl(resolvedUrl) ||
+                        resolvedUrl.equals(DEFAULT_BROWSER_HOME_URL, ignoreCase = true)
+                    ) {
                         Toast.makeText(
                             context,
-                            "自定义主页入口格式无效",
+                            "请输入 HTTP/HTTPS 网址；纯空白页请直接选择对应模式",
                             Toast.LENGTH_SHORT,
                         ).show()
                         return@KiyoriBrowserHomepageCustomizationPage false
                     }
-                    coordinator.setBrowserHomeUrl(resolvedUrl)
+                    coordinator.setBrowserHomeSettings(
+                        mode = BrowserHomeMode.CUSTOM_URL,
+                        customUrl = resolvedUrl,
+                    )
                     Toast.makeText(
                         context,
-                        "自定义主页入口已保存",
+                        "自定义网址已保存并启用",
                         Toast.LENGTH_SHORT,
                     ).show()
                     true
-                },
-                onReset = {
-                    coordinator.setBrowserHomeUrl(DEFAULT_BROWSER_HOME_URL)
-                    Toast.makeText(
-                        context,
-                        "已恢复为空白页",
-                        Toast.LENGTH_SHORT,
-                    ).show()
                 },
                 modifier = modifier,
             )
@@ -806,7 +835,7 @@ internal fun browserSettingValue(
             KiyoriBrowserSettingsAction.OPEN_PLUGIN_DIAGNOSTICS ->
                 browserPluginDiagnosticsSummary(userscriptState)
             KiyoriBrowserSettingsAction.OPEN_HOME_CUSTOMIZATION ->
-                formatBrowserHomeUrl(settings.homeUrl)
+                formatBrowserHomeSummary(settings)
             KiyoriBrowserSettingsAction.OPEN_WEB_TEXT_SIZE ->
                 formatWebTextZoomPercent(settings.webTextZoomPercent)
             KiyoriBrowserSettingsAction.SELECT_AUTOMATIC_FLOATING_MINIMUM_DURATION ->
@@ -1021,6 +1050,24 @@ private fun summarizeBrowserPluginRules(rules: List<String>): String {
 internal fun formatBrowserHomeUrl(url: String): String =
     if (url.equals(DEFAULT_BROWSER_HOME_URL, ignoreCase = true)) "空白页" else url
 
+internal fun formatBrowserHomeSummary(settings: WebSessionBrowserSettings): String =
+    when (settings.homeMode) {
+        BrowserHomeMode.NATIVE -> "原生主页"
+        BrowserHomeMode.BLANK -> "纯空白页"
+        BrowserHomeMode.CUSTOM_URL ->
+            "自定义网址 · ${formatBrowserHomeHost(settings.customHomeUrl)}"
+    }
+
+private fun formatBrowserHomeHost(url: String): String {
+    val uri = runCatching { URI(url.trim()) }.getOrNull()
+    val host = uri?.host?.lowercase(Locale.ROOT)
+    if (host.isNullOrBlank()) {
+        return url.trim()
+    }
+    val path = uri.path.orEmpty().takeIf { value -> value.isNotBlank() && value != "/" }
+    return host + (path ?: "")
+}
+
 @Composable
 private fun KiyoriBrowserPluginPermissionsPage(
     state: WebSessionUserscriptUiState,
@@ -1111,96 +1158,132 @@ private fun browserPluginRuntimeAuthorizationDescription(
 
 @Composable
 private fun KiyoriBrowserHomepageCustomizationPage(
-    currentHomeUrl: String,
+    currentHomeMode: BrowserHomeMode,
+    customHomeUrl: String,
     onBack: () -> Unit,
-    onSave: (String) -> Boolean,
-    onReset: () -> Unit,
+    onSelectMode: (BrowserHomeMode) -> Unit,
+    onSaveCustomUrl: (String) -> Boolean,
     modifier: Modifier,
 ) {
     var showEditDialog by rememberSaveable { mutableStateOf(false) }
-    var showResetConfirmDialog by rememberSaveable { mutableStateOf(false) }
 
     KiyoriCollapsingSettingsPage(
-        title = "网页主页自定义",
+        title = "网页主页",
         onBack = onBack,
         modifier = modifier,
     ) {
         item {
             KiyoriSettingsGroupSection(
-                title = "主页入口",
-                description = "浏览器主页按钮和新会话会使用这里保存的地址",
+                title = "打开方式",
+                description = "主页按钮、新建标签页和冷启动入口使用这里的选择；切换不会打断当前网页",
             ) {
-                KiyoriSettingsRow(
-                    title = "当前主页",
-                    description = "支持完整 HTTP/HTTPS 地址或 about:blank 空白页",
-                    kind = KiyoriSettingsRowKind.NAVIGATION,
-                    value = formatBrowserHomeUrl(currentHomeUrl),
-                    onClick = { showEditDialog = true },
+                BrowserHomeModeOption(
+                    selected = currentHomeMode == BrowserHomeMode.NATIVE,
+                    title = "Kiyori 原生主页",
+                    description = "使用本地搜索、快捷访问、最近浏览和标签入口，不加载远程主页",
+                    icon = Icons.Outlined.Home,
+                    onClick = { onSelectMode(BrowserHomeMode.NATIVE) },
                 )
                 KiyoriSettingsDivider()
-                KiyoriSettingsRow(
-                    title = "恢复为空白页",
-                    description = "清除自定义主页，并将入口恢复为 about:blank",
-                    kind = KiyoriSettingsRowKind.NAVIGATION,
-                    value = "about:blank",
-                    onClick = { showResetConfirmDialog = true },
+                BrowserHomeModeOption(
+                    selected = currentHomeMode == BrowserHomeMode.CUSTOM_URL,
+                    title = "自定义网址",
+                    description = "使用你指定的 HTTP/HTTPS 地址作为主页和新标签页入口",
+                    icon = Icons.Outlined.Language,
+                    onClick = { onSelectMode(BrowserHomeMode.CUSTOM_URL) },
                 )
+                KiyoriSettingsDivider()
+                BrowserHomeModeOption(
+                    selected = currentHomeMode == BrowserHomeMode.BLANK,
+                    title = "纯空白页",
+                    description = "只保留浏览器地址栏、标签页和工具箱，不加载任何网页",
+                    icon = Icons.Outlined.CropSquare,
+                    onClick = { onSelectMode(BrowserHomeMode.BLANK) },
+                )
+            }
+        }
+        if (currentHomeMode == BrowserHomeMode.CUSTOM_URL) {
+            item {
+                KiyoriSettingsGroupSection(
+                    title = "自定义网址",
+                    description = "仅在选择“自定义网址”时生效；修改后立即用于主页和新标签页",
+                ) {
+                    KiyoriSettingsRow(
+                        title = "当前网址",
+                        description = customHomeUrl,
+                        kind = KiyoriSettingsRowKind.NAVIGATION,
+                        value = "修改",
+                        onClick = { showEditDialog = true },
+                    )
+                }
             }
         }
     }
 
     if (showEditDialog) {
         KiyoriBrowserHomepageEditDialog(
-            initialValue = currentHomeUrl,
+            initialValue = customHomeUrl,
             onDismiss = { showEditDialog = false },
             onConfirm = { value ->
-                if (onSave(value)) {
+                if (onSaveCustomUrl(value)) {
                     showEditDialog = false
                 }
             },
         )
     }
+}
 
-    if (showResetConfirmDialog) {
-        AlertDialog(
-            onDismissRequest = { showResetConfirmDialog = false },
-            containerColor = MaterialTheme.colorScheme.surface,
-            title = {
-                Text(
-                    text = "恢复为空白页？",
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 18.sp,
+@Composable
+private fun BrowserHomeModeOption(
+    selected: Boolean,
+    title: String,
+    description: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit,
+) {
+    val colors = com.kiyori.design.theme.LocalKiyoriSettingsColors.current
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .selectable(
+                    selected = selected,
+                    onClick = onClick,
+                    role = Role.RadioButton,
                 )
-            },
-            text = {
-                Text(
-                    text = "确认后将清除当前自定义主页，并把浏览器主页恢复为 about:blank。",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showResetConfirmDialog = false
-                        onReset()
-                    },
-                ) {
-                    Text(
-                        text = "恢复",
-                        color = MaterialTheme.colorScheme.error,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showResetConfirmDialog = false }) {
-                    Text(
-                        text = "取消",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            },
+                .padding(horizontal = 18.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = if (selected) colors.accent else colors.secondaryText,
+            modifier = Modifier.size(24.dp),
+        )
+        Spacer(modifier = Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                color = colors.primaryText,
+            )
+            Text(
+                text = description,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                color = colors.secondaryText,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+        RadioButton(
+            selected = selected,
+            onClick = null,
+            colors =
+                RadioButtonDefaults.colors(
+                    selectedColor = colors.accent,
+                    unselectedColor = colors.mutedIcon,
+                ),
         )
     }
 }
@@ -1231,10 +1314,10 @@ private fun KiyoriBrowserHomepageEditDialog(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
-                label = { Text("入口地址") },
-                placeholder = { Text("输入网址或 about:blank") },
+                label = { Text("网址") },
+                placeholder = { Text("输入 HTTP/HTTPS 网址") },
                 supportingText = {
-                    Text("支持完整 HTTP/HTTPS 地址，也可以填写 about:blank。")
+                    Text("可以输入完整网址、域名或搜索词；纯空白页请在上方选择对应模式。")
                 },
                 colors = kiyoriSettingsOutlinedTextFieldColors(),
             )

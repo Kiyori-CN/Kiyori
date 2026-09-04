@@ -1225,13 +1225,18 @@ class StandardBrowserSessionTools private constructor(
             runOnMainSync(timeoutMs = 8_000L) {
                 navigateSessionBackOnMain(session)
             }
-        val didNavigate = backResult != BrowserSessionBackResult.NONE
+        val didNavigate =
+            backResult == BrowserSessionBackResult.WEB_HISTORY ||
+                backResult == BrowserSessionBackResult.BROWSER_HOME ||
+                backResult == BrowserSessionBackResult.OPENER_HOME
         val homeUrl = browserSettingsStore.current.homeUrl
         val code =
             when (backResult) {
                 BrowserSessionBackResult.WEB_HISTORY -> "await page.goBack();"
                 BrowserSessionBackResult.BROWSER_HOME ->
                     "await page.goto(${quoteJsCode(homeUrl)});"
+                BrowserSessionBackResult.NATIVE_HOME ->
+                    "// Kiyori native browser home opened."
                 BrowserSessionBackResult.OPENER_HOME ->
                     "await page.goBack();"
                 BrowserSessionBackResult.NONE -> "await page.goBack();"
@@ -1241,6 +1246,8 @@ class StandardBrowserSessionTools private constructor(
                 BrowserSessionBackResult.WEB_HISTORY -> "Navigated back."
                 BrowserSessionBackResult.BROWSER_HOME ->
                     "Navigated to the configured browser home."
+                BrowserSessionBackResult.NATIVE_HOME ->
+                    "Opened the Kiyori native browser home."
                 BrowserSessionBackResult.OPENER_HOME ->
                     "Closed the automatic child window and returned to its browser-home opener."
                 BrowserSessionBackResult.NONE ->
@@ -1873,7 +1880,11 @@ class StandardBrowserSessionTools private constructor(
                     runOnMainSync {
                         createSessionTabOnMain(
                             appContext = context.applicationContext,
-                            initialUrl = browserSettingsStore.current.homeUrl,
+                            initialUrl =
+                                browserHomeSeedUrl(
+                                    mode = browserSettingsStore.current.homeMode,
+                                    customHomeUrl = browserSettingsStore.current.customHomeUrl,
+                                ),
                             profile = profile,
                             creationReason = BrowserWindowCreationReason.AI_EXPLICIT_CREATE,
                         )

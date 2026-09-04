@@ -6,6 +6,11 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 ## 当前进行中
 
+- [GoTab 原生浏览器主页迁移](kiyori_browser_product_completion/20_gotab_native_browser_home_migration.md)：主页已收敛为
+  `NATIVE`、`CUSTOM_URL`、`BLANK` 三种可手动切换模式；当前开发验证阶段的新安装初值为
+  `CUSTOM_URL + https://web.gotab.cn/`，旧 `home_url` 已有显式迁移，明确不直接运行 GoTab CRX。原生
+  `BrowserHomeDashboard` 复用现有 Browser Runtime；官网、真实 WebView、触摸和最终原生默认初值仍待设备验收。
+
 - [Shizuku 特权执行与日志命名迁移](kiyori_shizuku_privileged_execution_and_log_migration/index.md)：已完成
   显式 Root/Shizuku 特权路由、实时权限/工具 owner、结构化 `am` Intent/广播、一次性
   `operit.log` → `kiyori.log` 内容迁移和内部敏感命令日志脱敏；保留 namespace、AIDL、Intent、

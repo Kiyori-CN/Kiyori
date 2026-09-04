@@ -237,10 +237,18 @@ private fun StandardBrowserSessionTools.createConfiguredHomeSessionOnMain() {
     }
     createSessionTabOnMain(
         appContext = context.applicationContext,
-        initialUrl = browserSettingsStore.current.homeUrl,
+        initialUrl =
+            browserHomeSeedUrl(
+                mode = browserSettingsStore.current.homeMode,
+                customHomeUrl = browserSettingsStore.current.customHomeUrl,
+            ),
         profile = WebSessionProfile.NORMAL,
         creationReason = BrowserWindowCreationReason.MANUAL_NEW_WINDOW,
-    )
+    ).also {
+        if (browserSettingsStore.current.homeMode == BrowserHomeMode.NATIVE) {
+            browserHost?.showNativeHome(canReturnToPage = false)
+        }
+    }
 }
 
 private fun WebSessionBrowserSettings.toBrowserRecoverySettings(): BrowserRecoverySettings =

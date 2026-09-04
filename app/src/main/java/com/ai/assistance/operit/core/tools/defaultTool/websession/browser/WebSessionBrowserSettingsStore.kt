@@ -7,8 +7,21 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONObject
 
+internal enum class BrowserHomeMode(val persistedId: String) {
+    NATIVE("native"),
+    CUSTOM_URL("custom_url"),
+    BLANK("blank");
+
+    companion object {
+        fun fromPersistedId(value: String): BrowserHomeMode =
+            entries.singleOrNull { mode -> mode.persistedId == value }
+                ?: error("Unsupported browser home mode: $value")
+    }
+}
+
 internal data class WebSessionBrowserSettings(
-    val homeUrl: String = DEFAULT_BROWSER_HOME_URL,
+    val homeMode: BrowserHomeMode = BrowserHomeMode.BLANK,
+    val customHomeUrl: String = INITIAL_BROWSER_HOME_URL,
     val returnWithoutReloadEnabled: Boolean = false,
     val forcePageZoomEnabled: Boolean = false,
     val webTextZoomPercent: Int = DEFAULT_WEB_TEXT_ZOOM_PERCENT,
@@ -30,11 +43,23 @@ internal data class WebSessionBrowserSettings(
     val customGlobalUserAgent: String = "",
     val siteUserAgentRules: List<WebSessionSiteUserAgentRule> = emptyList(),
     val siteSettingsRules: List<WebSessionSiteSettingsRule> = emptyList(),
-)
+) {
+    /** URL used only when a WebView needs an actual document behind the home surface. */
+    val homeUrl: String
+        get() = browserHomeSeedUrl(homeMode, customHomeUrl)
+
+    constructor(homeUrl: String) : this(
+        homeMode = homeModeFromLegacyUrl(homeUrl),
+        customHomeUrl = homeUrl.trim().takeIf { value ->
+            value.isNotEmpty() && !value.equals(DEFAULT_BROWSER_HOME_URL, ignoreCase = true)
+        } ?: INITIAL_BROWSER_HOME_URL,
+    )
+}
 
 internal val FRESH_INSTALL_BROWSER_SETTINGS =
     WebSessionBrowserSettings(
-        homeUrl = INITIAL_BROWSER_HOME_URL,
+        homeMode = BrowserHomeMode.CUSTOM_URL,
+        customHomeUrl = INITIAL_BROWSER_HOME_URL,
         returnWithoutReloadEnabled = true,
         forcePageZoomEnabled = true,
         websitePasswordSavingEnabled = true,
@@ -52,10 +77,32 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
     val current: WebSessionBrowserSettings
         get() = _state.value
 
+    fun setHomeMode(mode: BrowserHomeMode) {
+        val customUrl = _state.value.customHomeUrl
+        require(isSupportedCustomBrowserHomeUrl(customUrl)) {
+            "Stored custom browser home URL is invalid: $customUrl"
+        }
+        writeHomeSettings(mode = mode, customUrl = customUrl)
+    }
+
     fun setHomeUrl(url: String) {
-        require(isSupportedBrowserHomeUrl(url)) { "Unsupported browser home URL: $url" }
-        preferences.edit { putString(KEY_HOME_URL, url) }
-        _state.value = _state.value.copy(homeUrl = url)
+        val normalized = url.trim()
+        if (normalized.equals(DEFAULT_BROWSER_HOME_URL, ignoreCase = true)) {
+            writeHomeSettings(mode = BrowserHomeMode.BLANK, customUrl = _state.value.customHomeUrl)
+            return
+        }
+        require(isSupportedCustomBrowserHomeUrl(normalized)) {
+            "Unsupported browser home URL: $url"
+        }
+        writeHomeSettings(mode = BrowserHomeMode.CUSTOM_URL, customUrl = normalized)
+    }
+
+    fun setHomeSettings(mode: BrowserHomeMode, customUrl: String = _state.value.customHomeUrl) {
+        val normalized = customUrl.trim()
+        require(isSupportedCustomBrowserHomeUrl(normalized)) {
+            "Unsupported custom browser home URL: $customUrl"
+        }
+        writeHomeSettings(mode = mode, customUrl = normalized)
     }
 
     fun setReturnWithoutReloadEnabled(enabled: Boolean) {
@@ -221,6 +268,7 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
     }
 
     private fun readSettings(): WebSessionBrowserSettings {
+        val homeSettings = readHomeSettings()
         val userAgentMode =
             WebSessionUserAgentMode.fromPersistedId(
                 requireNotNull(
@@ -240,12 +288,8 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
             }
         }
         return WebSessionBrowserSettings(
-            homeUrl =
-                requireNotNull(
-                    preferences.getString(KEY_HOME_URL, FRESH_INSTALL_BROWSER_SETTINGS.homeUrl),
-                ) {
-                    "Browser home URL preference must not be null"
-                },
+            homeMode = homeSettings.first,
+            customHomeUrl = homeSettings.second,
             returnWithoutReloadEnabled =
                 preferences.getBoolean(
                     KEY_RETURN_WITHOUT_RELOAD,
@@ -314,6 +358,57 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
         )
     }
 
+    private fun readHomeSettings(): Pair<BrowserHomeMode, String> {
+        val persistedMode = preferences.getString(KEY_HOME_MODE, null)
+        if (persistedMode != null) {
+            val mode = BrowserHomeMode.fromPersistedId(persistedMode)
+            val customUrl =
+                requireNotNull(preferences.getString(KEY_CUSTOM_HOME_URL, null)) {
+                    "Custom browser home URL preference must not be null"
+                }.trim()
+            require(isSupportedCustomBrowserHomeUrl(customUrl)) {
+                "Stored custom browser home URL is invalid: $customUrl"
+            }
+            return mode to customUrl
+        }
+
+        val legacyUrl =
+            if (preferences.contains(KEY_HOME_URL)) {
+                requireNotNull(preferences.getString(KEY_HOME_URL, null)) {
+                    "Browser home URL preference must not be null"
+                }.trim()
+            } else {
+                FRESH_INSTALL_BROWSER_SETTINGS.customHomeUrl
+            }
+        val migratedMode = homeModeFromLegacyUrl(legacyUrl)
+        val migratedCustomUrl =
+            legacyUrl.takeIf { value ->
+                !value.equals(DEFAULT_BROWSER_HOME_URL, ignoreCase = true)
+            } ?: FRESH_INSTALL_BROWSER_SETTINGS.customHomeUrl
+        require(isSupportedCustomBrowserHomeUrl(migratedCustomUrl)) {
+            "Stored browser home URL is invalid: $legacyUrl"
+        }
+        preferences.edit(commit = true) {
+            putString(KEY_HOME_MODE, migratedMode.persistedId)
+            putString(KEY_CUSTOM_HOME_URL, migratedCustomUrl)
+            remove(KEY_HOME_URL)
+        }
+        return migratedMode to migratedCustomUrl
+    }
+
+    private fun writeHomeSettings(mode: BrowserHomeMode, customUrl: String) {
+        preferences.edit {
+            putString(KEY_HOME_MODE, mode.persistedId)
+            putString(KEY_CUSTOM_HOME_URL, customUrl)
+            remove(KEY_HOME_URL)
+        }
+        _state.value =
+            _state.value.copy(
+                homeMode = mode,
+                customHomeUrl = customUrl,
+            )
+    }
+
     private fun writeSiteUserAgentRules(rules: List<WebSessionSiteUserAgentRule>) {
         val encoded = JSONObject()
         rules.forEach { rule -> encoded.put(rule.domain, rule.userAgent) }
@@ -357,6 +452,8 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
 
     companion object {
         private const val PREFERENCES_NAME = "web_session_browser_settings"
+        private const val KEY_HOME_MODE = "home_mode"
+        private const val KEY_CUSTOM_HOME_URL = "custom_home_url"
         private const val KEY_HOME_URL = "home_url"
         private const val KEY_RETURN_WITHOUT_RELOAD = "return_without_reload"
         private const val KEY_FORCE_PAGE_ZOOM = "force_page_zoom"
@@ -393,9 +490,9 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
     }
 }
 
-// Keep the blank-page sentinel separate so "恢复为空白页" remains an explicit user action.
+// Keep the blank-page sentinel separate so the "纯空白页" mode remains an explicit user choice.
 internal const val DEFAULT_BROWSER_HOME_URL = "about:blank"
-internal const val INITIAL_BROWSER_HOME_URL = "https://go.itab.link"
+internal const val INITIAL_BROWSER_HOME_URL = "https://web.gotab.cn/"
 internal const val DEFAULT_WEB_TEXT_ZOOM_PERCENT = 100
 internal const val MIN_WEB_TEXT_ZOOM_PERCENT = 50
 internal const val MAX_WEB_TEXT_ZOOM_PERCENT = 200
@@ -417,8 +514,30 @@ private const val MAX_AUTOMATIC_FLOATING_DURATION_MILLIS = 86_400_000L
 
 internal fun isSupportedBrowserHomeUrl(url: String): Boolean =
     url.equals(DEFAULT_BROWSER_HOME_URL, ignoreCase = true) ||
-        url.startsWith("http://", ignoreCase = true) ||
+        isSupportedCustomBrowserHomeUrl(url)
+
+internal fun isSupportedCustomBrowserHomeUrl(url: String): Boolean =
+    url.startsWith("http://", ignoreCase = true) ||
         url.startsWith("https://", ignoreCase = true)
+
+internal fun homeModeFromLegacyUrl(url: String): BrowserHomeMode =
+    when {
+        url.equals(DEFAULT_BROWSER_HOME_URL, ignoreCase = true) -> BrowserHomeMode.BLANK
+        isSupportedCustomBrowserHomeUrl(url) -> BrowserHomeMode.CUSTOM_URL
+        else -> error("Stored browser home URL is invalid: $url")
+    }
+
+internal fun browserHomeSeedUrl(mode: BrowserHomeMode, customHomeUrl: String): String =
+    when (mode) {
+        BrowserHomeMode.NATIVE,
+        BrowserHomeMode.BLANK -> DEFAULT_BROWSER_HOME_URL
+        BrowserHomeMode.CUSTOM_URL -> {
+            require(isSupportedCustomBrowserHomeUrl(customHomeUrl)) {
+                "Custom browser home URL is invalid: $customHomeUrl"
+            }
+            customHomeUrl
+        }
+    }
 
 internal fun isSupportedWebTextZoomPercent(percent: Int): Boolean =
     percent in MIN_WEB_TEXT_ZOOM_PERCENT..MAX_WEB_TEXT_ZOOM_PERCENT &&

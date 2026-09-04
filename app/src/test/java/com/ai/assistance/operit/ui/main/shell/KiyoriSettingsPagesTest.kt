@@ -6,6 +6,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.Browse
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadNetworkPolicy
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettings
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserAdBlockState
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserHomeMode
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.FRESH_INSTALL_BROWSER_SETTINGS
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSettings
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.formatAutomaticFloatingMinimumDuration
@@ -1117,7 +1118,7 @@ class KiyoriSettingsPagesTest {
                 "扩展中心",
                 "扩展权限与网站范围",
                 "脚本诊断与日志",
-                "网页主页自定义",
+                "网页主页",
                 "返回不重载",
                 "滑屏前进后退",
                 "搜索引擎切换条",
@@ -1154,7 +1155,7 @@ class KiyoriSettingsPagesTest {
                     KiyoriBrowserSettingsAction.OPEN_PLUGIN_PERMISSIONS,
                 "脚本诊断与日志" to
                     KiyoriBrowserSettingsAction.OPEN_PLUGIN_DIAGNOSTICS,
-                "网页主页自定义" to
+                "网页主页" to
                     KiyoriBrowserSettingsAction.OPEN_HOME_CUSTOMIZATION,
                 "返回不重载" to
                     KiyoriBrowserSettingsAction.TOGGLE_RETURN_WITHOUT_RELOAD,
@@ -1216,7 +1217,9 @@ class KiyoriSettingsPagesTest {
             },
         )
         val initialBrowserSettings = FRESH_INSTALL_BROWSER_SETTINGS
-        assertEquals("https://go.itab.link", initialBrowserSettings.homeUrl)
+        assertEquals("https://web.gotab.cn/", initialBrowserSettings.homeUrl)
+        assertEquals(BrowserHomeMode.CUSTOM_URL, initialBrowserSettings.homeMode)
+        assertEquals("https://web.gotab.cn/", initialBrowserSettings.customHomeUrl)
         assertTrue(initialBrowserSettings.returnWithoutReloadEnabled)
         assertTrue(initialBrowserSettings.forcePageZoomEnabled)
         assertTrue(initialBrowserSettings.websitePasswordSavingEnabled)
@@ -1282,9 +1285,9 @@ class KiyoriSettingsPagesTest {
             ),
         )
         assertEquals(
-            "https://example.com/home",
+            "自定义网址 · example.com/home",
             browserSettingValue(
-                entries.single { entry -> entry.title == "网页主页自定义" },
+                entries.single { entry -> entry.title == "网页主页" },
                 browserSettings,
             ),
         )
@@ -1401,6 +1404,18 @@ class KiyoriSettingsPagesTest {
         assertEquals("默认 · 100%", formatWebTextZoomPercent(100))
         assertEquals("135%", formatWebTextZoomPercent(135))
         assertEquals("空白页", formatBrowserHomeUrl("about:blank"))
+        assertEquals(
+            "原生主页",
+            formatBrowserHomeSummary(
+                WebSessionBrowserSettings(homeMode = BrowserHomeMode.NATIVE),
+            ),
+        )
+        assertEquals(
+            "纯空白页",
+            formatBrowserHomeSummary(
+                WebSessionBrowserSettings(homeMode = BrowserHomeMode.BLANK),
+            ),
+        )
     }
 
     @Test

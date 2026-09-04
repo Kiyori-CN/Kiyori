@@ -15,6 +15,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSheetRoute
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserPluginRoute
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserWindowCreationReason
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserHomeMode
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserSessionSearchRecovery
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserLaunchRestorationPrompt
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserWindowCountState
@@ -230,6 +231,23 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
 
     fun setBrowserHomeUrl(url: String) {
         tools.browserSettingsStore.setHomeUrl(url)
+        tools.runOnMainSync<Unit> {
+            tools.refreshSessionUiOnMain()
+        }
+    }
+
+    fun setBrowserHomeMode(mode: BrowserHomeMode) {
+        tools.browserSettingsStore.setHomeMode(mode)
+        tools.runOnMainSync<Unit> {
+            tools.refreshSessionUiOnMain()
+        }
+    }
+
+    fun setBrowserHomeSettings(mode: BrowserHomeMode, customUrl: String) {
+        tools.browserSettingsStore.setHomeSettings(mode = mode, customUrl = customUrl)
+        tools.runOnMainSync<Unit> {
+            tools.refreshSessionUiOnMain()
+        }
     }
 
     fun setAdBlockEnabled(enabled: Boolean) {

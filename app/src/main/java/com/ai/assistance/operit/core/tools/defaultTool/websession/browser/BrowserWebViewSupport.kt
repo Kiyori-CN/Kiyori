@@ -73,6 +73,7 @@ private data class BrowserCookieReadRequest(
 internal enum class BrowserSessionBackResult {
     WEB_HISTORY,
     BROWSER_HOME,
+    NATIVE_HOME,
     OPENER_HOME,
     NONE,
 }
@@ -1115,7 +1116,11 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                 try {
                     createSessionTabOnMain(
                         appContext = appContext,
-                        initialUrl = browserSettingsStore.current.homeUrl,
+                        initialUrl =
+                            browserHomeSeedUrl(
+                                mode = browserSettingsStore.current.homeMode,
+                                customHomeUrl = browserSettingsStore.current.customHomeUrl,
+                            ),
                         profile = profile,
                         creationReason = BrowserWindowCreationReason.MANUAL_NEW_WINDOW,
                     )
@@ -2291,7 +2296,8 @@ internal fun StandardBrowserSessionTools.navigateSessionOnMain(
         deferNavigationUntilStartupProxyReady(session, targetUrl, headers, proxyManager)
         return
     }
-    val configuredHomeUrl = browserSettingsStore.current.homeUrl
+    val homeSettings = browserSettingsStore.current
+    val configuredHomeUrl = homeSettings.homeUrl
     session.browserHomeNavigationState =
         if (areBrowserHomeUrlsEquivalent(targetUrl, configuredHomeUrl)) {
             // 主页是每个 WebSession 自己的浏览根。先标记 pending，避免旧历史在主页加载期间
@@ -2496,6 +2502,10 @@ internal fun StandardBrowserSessionTools.navigateSessionBackOnMain(
             useWebHistory -> {
                 navigateSessionHistoryOnMain(session, delta = -1)
                 BrowserSessionBackResult.WEB_HISTORY
+            }
+            browserSettingsStore.current.homeMode == BrowserHomeMode.NATIVE -> {
+                browserHost?.showNativeHome(canReturnToPage = false)
+                BrowserSessionBackResult.NATIVE_HOME
             }
             !isAtConfiguredBrowserHome(
                 currentUrl = session.currentUrl,
@@ -2738,7 +2748,8 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
                 }
             }
             .orEmpty()
-    val configuredHomeUrl = browserSettingsStore.current.homeUrl
+    val homeSettings = browserSettingsStore.current
+    val configuredHomeUrl = homeSettings.homeUrl
     val activeSessionIsAtHome =
         activeSession?.let { session ->
             isAtConfiguredBrowserHome(
@@ -2758,11 +2769,22 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
         incognitoAvailability = profileManager.incognitoAvailability,
         pageTitle = activeSession?.pageTitle.orEmpty(),
         currentUrl = activeSession?.currentUrl?.ifBlank { "about:blank" } ?: "about:blank",
+        homeMode = homeSettings.homeMode,
         externalNavigationPolicy =
             activeSession?.externalNavigationPolicy
                 ?: BrowserAdMarkingNavigationPolicy.DEFAULT,
         canGoBack = activeSession?.canGoBack == true,
-        canReturnToHome = activeSession != null && !activeSessionIsAtHome,
+        canShowNativeHome =
+            homeSettings.homeMode == BrowserHomeMode.NATIVE &&
+                activeSession != null &&
+                !areBrowserHomeUrlsEquivalent(
+                    activeSession.currentUrl,
+                    DEFAULT_BROWSER_HOME_URL,
+                ),
+        canReturnToHome =
+            homeSettings.homeMode != BrowserHomeMode.NATIVE &&
+                activeSession != null &&
+                !activeSessionIsAtHome,
         canGoForward = activeSession?.canGoForward == true,
         pageLoaded = activeSession?.pageLoaded == true,
         isLoading = activeSession?.isLoading == true,
