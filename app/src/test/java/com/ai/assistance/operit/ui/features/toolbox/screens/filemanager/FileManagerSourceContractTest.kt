@@ -33,8 +33,42 @@ class FileManagerSourceContractTest {
         assertTrue(screen.contains("storage.totalBytes - storage.availableBytes"))
         assertFalse(screen.contains("LoadingOverlay("))
         assertFalse(screen.contains("viewModel.selectedFile ="))
-        assertTrue(screen.contains("val viewModel = remember { FileManagerViewModel(context) }"))
+        assertTrue(screen.contains("val viewModel = rememberFileManagerViewModel(context)"))
+        assertTrue(screen.contains("val store = remember { ViewModelStore() }"))
+        assertTrue(screen.contains("FileManagerViewModel(applicationContext)"))
+        assertTrue(screen.contains("onDispose { store.clear() }"))
+        assertFalse(screen.contains("remember { FileManagerViewModel(context) }"))
         assertFalse(screen.contains("BackHandler(onBack = onBack)"))
+    }
+
+    @Test
+    fun `scroll effects restore loaded locations before collecting positions`() {
+        val screen = source(
+            "java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/FileManagerScreen.kt",
+        )
+
+        assertTrue(screen.contains("FileManagerLocation(state.path, state.environment)"))
+        assertTrue(screen.contains("state.isLoading, state.error"))
+        assertTrue(screen.contains("if (state.isLoading || state.error != null) return@LaunchedEffect"))
+        assertTrue(screen.contains("listState.layoutInfo.totalItemsCount }.first { it == state.files.size }"))
+        assertTrue(screen.contains("listState.scrollToItem(position.index, position.offset)"))
+        assertTrue(screen.contains("FileManagerScrollPosition(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset)"))
+        assertTrue(screen.contains("viewModel.saveScrollPosition(pane, location, current)"))
+        assertFalse(screen.contains("LaunchedEffect(leftListState.firstVisibleItemIndex"))
+        assertFalse(screen.contains("LaunchedEffect(rightListState.firstVisibleItemIndex"))
+    }
+
+    @Test
+    fun `storage reads are scoped to visible directory load completion on IO`() {
+        val screen = source(
+            "java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/FileManagerScreen.kt",
+        )
+
+        assertTrue(screen.contains("val storageLabel = rememberStorageLabel(viewModel)"))
+        assertTrue(screen.contains("repeatOnLifecycle(Lifecycle.State.STARTED)"))
+        assertTrue(screen.contains("snapshotFlow { viewModel.leftPaneState.isLoading || viewModel.rightPaneState.isLoading }"))
+        assertTrue(screen.contains("withContext(Dispatchers.IO) { readStorageLabel() }"))
+        assertFalse(screen.contains("val storageLabel = readStorageLabel()"))
     }
 
     @Test

@@ -4,7 +4,6 @@ import android.content.Context
 import android.os.Environment
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
@@ -16,24 +15,36 @@ import com.ai.assistance.operit.core.tools.FileInfoData
 import com.ai.assistance.operit.core.tools.FindFilesResultData
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolParameter
+import com.ai.assistance.operit.data.model.ToolResult
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.DisplayMode
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileItem
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerLocation
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerPane
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerPaneState
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerSortMode
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerScrollPosition
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.TabItem
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerBackAction
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.fileManagerBackAction
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.fileManagerParentPath
 import com.ai.assistance.operit.util.AppLogger
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-class FileManagerViewModel(private val context: Context) : ViewModel() {
-    private val initialStoragePath = Environment.getExternalStorageDirectory().absolutePath
+class FileManagerViewModel(
+    private val context: Context,
+    private val initialStoragePath: String = Environment.getExternalStorageDirectory().absolutePath,
+    private val directoryDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val executeDirectoryTool: suspend (AITool) -> ToolResult = { tool ->
+        AIToolHandler.getInstance(context).executeTool(tool)
+    },
+) : ViewModel() {
 
     private var leftPane by mutableStateOf(FileManagerPaneState(initialStoragePath, null))
     private var rightPane by mutableStateOf(FileManagerPaneState(initialStoragePath, null))
@@ -90,9 +101,10 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
     var showHiddenFiles by mutableStateOf(true)
     var sortMode by mutableStateOf(FileManagerSortMode.NAME)
 
-    // 每个窗格的滚动位置按路径保存，切换目录后不会把另一窗格的位置覆盖。
-    val leftScrollPositions = mutableStateMapOf<String, Int>()
-    val rightScrollPositions = mutableStateMapOf<String, Int>()
+    // 相同路径可能来自手机、Ubuntu 或不同 SAF 书签，位置必须包含环境和窗格。
+    private val scrollPositions = mutableMapOf<Pair<FileManagerPane, FileManagerLocation>, FileManagerScrollPosition>()
+    private val directoryJobs = mutableMapOf<FileManagerPane, Job>()
+    private val directoryRequestVersions = mutableMapOf<FileManagerPane, Long>()
 
     // 标签页状态保留既有外部行为，当前活动标签跟随活动窗格路径。
     var tabs = mutableStateListOf(TabItem(initialStoragePath, context.getString(R.string.file_manager_home), null))
@@ -176,15 +188,20 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
         return base + ToolParameter("environment", environment)
     }
 
-    fun saveScrollPosition(pane: FileManagerPane, path: String, index: Int) {
-        val positions = if (pane == FileManagerPane.LEFT) leftScrollPositions else rightScrollPositions
-        positions[path] = index
+    fun saveScrollPosition(
+        pane: FileManagerPane,
+        location: FileManagerLocation,
+        position: FileManagerScrollPosition,
+    ) {
+        val current = paneState(pane)
+        if (current.path != location.path || current.environment != location.environment ||
+            current.isLoading || current.error != null
+        ) return
+        scrollPositions[pane to location] = position
     }
 
-    fun scrollPosition(pane: FileManagerPane, path: String): Int {
-        val positions = if (pane == FileManagerPane.LEFT) leftScrollPositions else rightScrollPositions
-        return positions[path] ?: 0
-    }
+    fun scrollPosition(pane: FileManagerPane, location: FileManagerLocation): FileManagerScrollPosition =
+        scrollPositions[pane to location] ?: FileManagerScrollPosition()
 
     fun paneCanGoBack(pane: FileManagerPane = activePane): Boolean =
         paneState(pane).backStack.isNotEmpty()
@@ -290,16 +307,21 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
         navigatePaneTo(targetPane, source.path, source.environment, recordHistory = true)
     }
 
-    // 加载任意一个窗格的目录。结果只写回发起请求时的 pane/path，避免切换窗格后旧请求覆盖新目录。
+    // 取消负责及时停止工作，代际校验负责拒绝同路径刷新或 A-B-A 导航中晚到的结果。
     fun loadPaneDirectory(
         pane: FileManagerPane,
         path: String = paneState(pane).path,
         environment: String? = paneState(pane).environment,
         postLoadError: String? = null,
     ) {
+        directoryJobs.remove(pane)?.cancel()
+        val requestVersion = (directoryRequestVersions[pane] ?: 0L) + 1L
+        directoryRequestVersions[pane] = requestVersion
+        val includeHiddenFiles = showHiddenFiles
+        val requestedSortMode = sortMode
         updatePane(pane) { state -> state.copy(isLoading = true, error = null) }
-        viewModelScope.launch {
-            withContext(Dispatchers.IO) {
+        directoryJobs[pane] = viewModelScope.launch {
+            withContext(directoryDispatcher) {
                 try {
                     val listFilesTool =
                         AITool(
@@ -309,18 +331,18 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
                                 environment,
                             ),
                         )
-                    AppLogger.d("ToolboxFileManager", "execute list_files path=$path env=$environment")
-                    val result = toolHandler.executeTool(listFilesTool)
+                    AppLogger.d("ToolboxFileManager", "Loading directory pane=$pane request=$requestVersion")
+                    val result = executeDirectoryTool(listFilesTool)
                     AppLogger.d(
                         "ToolboxFileManager",
-                        "result list_files success=${result.success} error=${result.error}",
+                        "Directory result pane=$pane request=$requestVersion success=${result.success}",
                     )
-                    withContext(Dispatchers.Main) {
-                        val state = paneState(pane)
-                        if (state.path != path || state.environment != environment) return@withContext
+                    // 文件 stat、条目转换及排序全部留在后台，Main 只接收完成后的列表快照。
+                    val visibleFiles =
                         if (result.success) {
                             val directoryListing = result.result as DirectoryListingData
                             val fileList = directoryListing.entries.map { entry ->
+                                ensureActive()
                                 val localTimestamp = if (environment == null) {
                                     File(path, entry.name).lastModified()
                                 } else {
@@ -337,10 +359,10 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
                                     lastModifiedLabel = entry.lastModified,
                                 )
                             }
-                            val visibleFiles = fileList
-                                .filter { file -> showHiddenFiles || !file.name.startsWith(".") }
+                            fileList
+                                .filter { file -> includeHiddenFiles || !file.name.startsWith(".") }
                                 .let { entries ->
-                                    when (sortMode) {
+                                    when (requestedSortMode) {
                                         FileManagerSortMode.NAME -> entries.sortedWith(
                                             compareByDescending<FileItem> { it.isDirectory }
                                                 .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name },
@@ -357,6 +379,16 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
                                         )
                                     }
                                 }
+                        } else {
+                            null
+                        }
+                    ensureActive()
+                    withContext(Dispatchers.Main) publish@{
+                        val state = paneState(pane)
+                        if (directoryRequestVersions[pane] != requestVersion ||
+                            state.path != path || state.environment != environment
+                        ) return@publish
+                        if (visibleFiles != null) {
                             updatePane(pane) { current ->
                                 current.copy(
                                     files = listOf(FileItem("..", true, 0, 0)) + visibleFiles,
@@ -373,11 +405,15 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
                             }
                         }
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     AppLogger.e("FileManagerViewModel", "Error loading directory", e)
                     withContext(Dispatchers.Main) {
                         updatePane(pane) { current ->
-                            if (current.path != path || current.environment != environment) {
+                            if (directoryRequestVersions[pane] != requestVersion ||
+                                current.path != path || current.environment != environment
+                            ) {
                                 current
                             } else {
                                 current.copy(
@@ -417,6 +453,7 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
             it.copy(
                 path = path,
                 environment = environment,
+                files = emptyList(),
                 backStack = if (recordHistory) it.backStack + location else it.backStack,
                 forwardStack = if (recordHistory) emptyList() else it.forwardStack,
                 error = null,
@@ -481,6 +518,7 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
             it.copy(
                 path = previous.path,
                 environment = previous.environment,
+                files = emptyList(),
                 backStack = it.backStack.dropLast(1),
                 forwardStack = it.forwardStack + current,
                 error = null,
@@ -500,6 +538,7 @@ class FileManagerViewModel(private val context: Context) : ViewModel() {
             it.copy(
                 path = next.path,
                 environment = next.environment,
+                files = emptyList(),
                 backStack = it.backStack + current,
                 forwardStack = it.forwardStack.dropLast(1),
                 error = null,

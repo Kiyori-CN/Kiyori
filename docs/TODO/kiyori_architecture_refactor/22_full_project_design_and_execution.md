@@ -217,6 +217,49 @@ SHA-256 `E0275444592BF0C01763FF20F6398CD47D2B92693DEF75FDE329F4C7A5D831A8`。
 身份/版本/SDK/launcher/ABI 与基线一致，v2 单签名、16 KB ZIP 对齐及内置 proxy/player
 检查通过；5514 ZIP 项无重名，44 DEX、53 `.so`。字节数与基线相同，不宣称包体提升。
 
+### D-05 文件目录生命周期实施契约
+
+本批恢复点为 `f5c9f3c7d`，覆盖 `FileManagerScreen`、`FileManagerViewModel`、现有
+`FileModels` 与对应测试。外部 `list_files`/SAF/Ubuntu 工具协议、文件操作、双栏布局和
+手势保持；不恢复历史视觉菜单中已删除的操作入口，不修改文件或备份格式。
+
+源码确认的根因及实现：
+
+- 页面直接 `remember` 构造 ViewModel，没有 `ViewModelStore` 负责清理。为当前页面创建
+  独立 store，退出 composition 时清理，从而取消原 `viewModelScope`。既有打开/退出
+  生命周期保持，不能把页面工作转移到永久 Activity store。
+- 目录读取只比较 pane/path/environment，同路径刷新和 A-B-A 导航存在过期回写窗口。
+  每窗格取消前次读取并校验请求代际，失败与成功遵守同一发布条件；取消继续传播。
+  切换位置时清空旧目录条目，避免把旧条目当作新目录子路径执行操作。
+- `File.lastModified`、条目映射、过滤及排序目前在 Main 执行。改到 IO dispatcher，
+  使用发起读取时的过滤/排序配置，Main 仅发布当前请求的快照。
+- 滚动 effect 直接以 `firstVisibleItemIndex` 为 key 导致整屏随滚动重组，且缓存只区分
+  path。改为 pane/location（path+environment）索引与偏移记录；成功加载后先恢复位置，
+  等对应列表进入布局后再用 `snapshotFlow` 观察，保存时核对仍在同一位置且加载成功，
+  禁止占位项或旧目录位置覆盖记录。重新加载期间取消观察，完成后重新恢复。
+- 顶栏 `StatFs` 原本直接在 composition 调用。以页面 STARTED 生命周期和目录加载完成
+  为刷新条件，在 IO 读取；选择、弹窗和滚动不再触发磁盘读取。首次读取前不展示虚构容量。
+
+用注入的本地目录工具和测试 dispatcher 控制完成顺序，验证重复刷新、导航、两栏隔离、
+失败/取消、store 清理和条目语义；继续现有布局/手势/Back 合同。定向 JVM、diff、文档
+检查后串行 Debug/APK；真实滚动、退出加载页和 SAF/Ubuntu 设备路径保持待验证。
+
+本批之后继续 D-05 操作一致性审查：`createNewFolder`/`createNewFile`/`pasteFiles` 在完成
+后仍以捕获的旧目录发起刷新，而错误和 loading 按 pane 直接发布；切换目录可能被旧操作
+污染。`pasteFiles` 还在后台遍历可变剪贴板并读取当前 cut 标记，剪切后的删除结果未进入
+最终错误；全仓调用检索显示 `pasteFiles`/`setClipboard` 当前无消费者，须作为旧路径清理
+审查，不能为修复死代码而恢复已移除的菜单操作。`searchFiles` 复用目录 loading、缺少
+请求代际并逐项吞掉元数据读取失败。目录读取批次通过不代表文件/SAF/备份整个领域完成。
+
+2026-09-05 本批本地证据：`*FileManager*` 三套 JVM 共 23 项，零失败/错误/跳过，4m18s；
+ownership、正式准备、变更 Markdown 链接和 diff 检查通过。Debug 2m43s，235 tasks /
+23 executed；APK 07:52:52 +08:00，483709823 bytes，SHA-256
+`ED5D24E0904145E6450B82374D2359EEACE784BEAE6792A707AC165DEBC8AB63`。
+包内 `KiyoriApplication`、唯一稳定 launcher、com.kiyori 45/0.1.0、SDK 26/34/37、arm64
+保持；v2 单签名、16 KB ZIP、全部 53 个 `.so` 的 ELF LOAD 对齐及内置 proxy/player
+检查通过。5514 ZIP 项无重名，44 DEX；DEX 中已核对请求 Job/代际与滚动位置类型。
+APK 字节数不变；只证明主线程文件映射/滚动重组触发/生命周期的结构改善，不宣称设备性能。
+
 ## 兼容与上游维护
 
 继续使用 [稳定标识清单](8_compatibility_contract_inventory.md)，逐项校正消费者和状态。

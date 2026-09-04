@@ -13,16 +13,20 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -45,10 +49,25 @@ import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.componen
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.SearchResultsDialog
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.defaultFileManagerStorageEntries
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerPane
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerLocation
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerScrollPosition
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.viewmodel.FileManagerViewModel
 import com.ai.assistance.operit.util.AppLogger
 import com.kiyori.platform.window.KiyoriStatusBarAppearanceOverride
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collect
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.FileManagerNewEntryDialog
 
 private const val FILE_MANAGER_TAG = "ToolboxFileManager"
@@ -60,7 +79,7 @@ fun FileManagerScreen(
 ) {
     KiyoriStatusBarAppearanceOverride(darkIcons = false)
     val context = LocalContext.current
-    val viewModel = remember { FileManagerViewModel(context) }
+    val viewModel = rememberFileManagerViewModel(context)
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     var showStorageDrawer by remember { mutableStateOf(false) }
@@ -82,26 +101,8 @@ fun FileManagerScreen(
     LaunchedEffect(drawerState.currentValue) {
         if (drawerState.currentValue == DrawerValue.Closed) showStorageDrawer = false
     }
-    LaunchedEffect(viewModel.leftPaneState.path) {
-        leftListState.scrollToItem(viewModel.scrollPosition(FileManagerPane.LEFT, viewModel.leftPaneState.path))
-    }
-    LaunchedEffect(viewModel.rightPaneState.path) {
-        rightListState.scrollToItem(viewModel.scrollPosition(FileManagerPane.RIGHT, viewModel.rightPaneState.path))
-    }
-    LaunchedEffect(leftListState.firstVisibleItemIndex, viewModel.leftPaneState.path) {
-        viewModel.saveScrollPosition(
-            FileManagerPane.LEFT,
-            viewModel.leftPaneState.path,
-            leftListState.firstVisibleItemIndex,
-        )
-    }
-    LaunchedEffect(rightListState.firstVisibleItemIndex, viewModel.rightPaneState.path) {
-        viewModel.saveScrollPosition(
-            FileManagerPane.RIGHT,
-            viewModel.rightPaneState.path,
-            rightListState.firstVisibleItemIndex,
-        )
-    }
+    FileManagerPaneScrollEffect(viewModel, FileManagerPane.LEFT, leftListState)
+    FileManagerPaneScrollEffect(viewModel, FileManagerPane.RIGHT, rightListState)
 
     var pendingBookmarkUri by remember { mutableStateOf<Uri?>(null) }
     var bookmarkName by remember { mutableStateOf("") }
@@ -156,7 +157,7 @@ fun FileManagerScreen(
     val activeFiles = viewModel.files
     val folderCount = activeFiles.count { file -> file.isDirectory && file.name != ".." }
     val fileCount = activeFiles.count { file -> !file.isDirectory }
-    val storageLabel = readStorageLabel()
+    val storageLabel = rememberStorageLabel(viewModel)
     val selectedCount = viewModel.selectedFiles.size
 
     ModalNavigationDrawer(
@@ -439,6 +440,59 @@ fun FileManagerScreen(
         leftEnvironment = viewModel.leftPaneState.environment,
         rightEnvironment = viewModel.rightPaneState.environment,
     )
+}
+
+@Composable
+private fun rememberFileManagerViewModel(context: Context): FileManagerViewModel {
+    val store = remember { ViewModelStore() }
+    val applicationContext = context.applicationContext
+    val viewModel = remember(store, applicationContext) {
+        ViewModelProvider(
+            store,
+            viewModelFactory { initializer { FileManagerViewModel(applicationContext) } },
+        )[FileManagerViewModel::class.java]
+    }
+    // 页面有独立退出语义；清理 store 才会取消 ViewModel 的目录读取和文件工作。
+    DisposableEffect(store) {
+        onDispose { store.clear() }
+    }
+    return viewModel
+}
+
+@Composable
+private fun FileManagerPaneScrollEffect(
+    viewModel: FileManagerViewModel,
+    pane: FileManagerPane,
+    listState: LazyListState,
+) {
+    val state = if (pane == FileManagerPane.LEFT) viewModel.leftPaneState else viewModel.rightPaneState
+    val location = FileManagerLocation(state.path, state.environment)
+    LaunchedEffect(viewModel, pane, location, listState, state.isLoading, state.error) {
+        if (state.isLoading || state.error != null) return@LaunchedEffect
+        // effect 随成功状态提交后运行，并等待新列表布局，不能对加载占位项恢复后立即保存。
+        snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it == state.files.size }
+        val position = viewModel.scrollPosition(pane, location)
+        listState.scrollToItem(position.index, position.offset)
+        snapshotFlow {
+            FileManagerScrollPosition(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset)
+        }.collect { current ->
+            viewModel.saveScrollPosition(pane, location, current)
+        }
+    }
+}
+
+@Composable
+private fun rememberStorageLabel(viewModel: FileManagerViewModel): String {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val label by produceState("", viewModel, lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            // 容量只在目录读取完成或页面恢复时读取，普通选择和滚动不触发 StatFs。
+            snapshotFlow { viewModel.leftPaneState.isLoading || viewModel.rightPaneState.isLoading }
+                .filter { loading -> !loading }
+                .collectLatest { value = withContext(Dispatchers.IO) { readStorageLabel() } }
+        }
+    }
+    return label
 }
 
 private fun readStorageLabel(): String {

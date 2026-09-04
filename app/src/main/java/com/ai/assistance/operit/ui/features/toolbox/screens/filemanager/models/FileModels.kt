@@ -41,6 +41,11 @@ data class FileManagerLocation(
     val environment: String?,
 )
 
+data class FileManagerScrollPosition(
+    val index: Int = 0,
+    val offset: Int = 0,
+)
+
 data class FileManagerPaneState(
     val path: String,
     val environment: String?,
