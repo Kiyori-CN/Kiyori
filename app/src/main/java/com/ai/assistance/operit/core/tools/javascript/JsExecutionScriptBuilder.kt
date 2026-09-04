@@ -300,7 +300,10 @@ internal fun buildExecutionRuntimeBridgeScript(): String {
                     'exports',
                     'require',
                     '__operit_call_runtime',
-                    runtimePrelude + '\n' + source
+                    runtimePrelude +
+                        '\nreturn (function(module, exports, require, __operit_call_runtime) {\n' +
+                        source +
+                        '\n}).call(this, module, exports, require, __operit_call_runtime);'
                 );
             }
 

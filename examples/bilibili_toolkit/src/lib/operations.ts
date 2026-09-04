@@ -1,5 +1,7 @@
 import { contextRoot, DEFAULT_OUTPUT_ROOT, ensureDirectory, writeJsonArtifact, writeTextArtifact } from "./artifacts";
 import { BilibiliClient } from "./client";
+import { BilibiliError, failureDetails } from "./errors";
+import { danmakuXml, fetchDanmakuSegments } from "./danmaku";
 import { parseDanmakuXml, renderDanmaku, renderSubtitles, subtitleCues, subtitleTracks } from "./content";
 import {
   accountList,
@@ -14,7 +16,7 @@ import { boundedInteger, integerAt, recordAt, requireSafeAbsoluteAndroidPath, sa
 import { downloadMedia, extractFrames, fetchPlayFormats, sanitizePlayFormats } from "./media";
 import { resolveTarget } from "./target";
 import type { AccountListKind } from "./data";
-import type { JsonRecord, JsonValue, SubtitleTrack, VideoContext } from "./types";
+import type { DanmakuEntry, JsonRecord, JsonValue, SubtitleTrack, VideoContext } from "./types";
 import { compactSeason, compactVideoContext, getSeasonData } from "./video";
 
 export interface TargetParams {
@@ -41,6 +43,7 @@ export interface SubtitlesParams extends TargetParams {
 }
 
 export interface DanmakuParams extends TargetParams {
+  source?: string;
   format?: string;
   limit?: number;
   output_root?: string;
@@ -176,7 +179,15 @@ export async function doctor(): Promise<JsonRecord> {
 
 export async function resolve(params: TargetParams): Promise<JsonRecord> {
   const client = new BilibiliClient();
-  return { success: true, target: await resolveTarget(client, params.target) };
+  const target = await resolveTarget(client, params.target);
+  if (params.part !== undefined) {
+    if (target.kind !== "video" || !Number.isSafeInteger(params.part) || params.part < 1) {
+      throw new BilibiliError("INVALID_ARGUMENT", "part 只适用于视频，且必须为正整数。");
+    }
+    target.part = params.part;
+    target.url = target.url.split("?", 1)[0] + "?p=" + params.part;
+  }
+  return { success: true, target };
 }
 
 export async function search(params: SearchParams): Promise<JsonRecord> {
@@ -213,6 +224,10 @@ export async function season(params: TargetParams): Promise<JsonRecord> {
 export async function subtitles(params: SubtitlesParams): Promise<JsonRecord> {
   const client = new BilibiliClient();
   const context = await resolveVideoForData(client, params.target, params.part);
+  return subtitlesForContext(client, context, params);
+}
+
+async function subtitlesForContext(client: BilibiliClient, context: VideoContext, params: SubtitlesParams): Promise<JsonRecord> {
   const tracks = selectTracks(
     await subtitleTracks(client, context),
     params.language,
@@ -267,22 +282,36 @@ export async function subtitles(params: SubtitlesParams): Promise<JsonRecord> {
     video: compactVideoContext(context),
     formats,
     track_count: responseTracks.length,
+    available: responseTracks.length > 0,
     tracks: responseTracks,
     outputs,
-    note: tracks.length === 0 ? "No subtitles were exposed for this video and account." : null
+    note: tracks.length === 0 ? "该视频在当前账号下没有可用 CC 字幕。" : null
   };
 }
 
 export async function danmaku(params: DanmakuParams): Promise<JsonRecord> {
   const client = new BilibiliClient();
   const context = await resolveVideoForData(client, params.target, params.part);
+  return danmakuForContext(client, context, params);
+}
+
+async function danmakuForContext(client: BilibiliClient, context: VideoContext, params: DanmakuParams): Promise<JsonRecord> {
   const limit = boundedInteger(params.limit === undefined ? 1_000 : params.limit, "limit", 1, 5_000, 1_000);
   const width = boundedInteger(params.width === undefined ? 1920 : params.width, "width", 320, 7680, 1920);
   const height = boundedInteger(params.height === undefined ? 1080 : params.height, "height", 240, 4320, 1080);
   const formats = parseFormats(params.format, ["xml", "json", "txt", "ass"]);
-  const xml = await client.publicText("https://comment.bilibili.com/" + context.cid + ".xml");
-  const allEntries = parseDanmakuXml(xml, 100_000);
+  const source = params.source ?? "segments";
+  if (source !== "segments" && source !== "xml") throw new BilibiliError("INVALID_ARGUMENT", "source 必须是 segments 或 xml。");
+  const segmentResult = source === "segments" ? await fetchDanmakuSegments(client, context, limit) : null;
+  const snapshotXml = source === "xml" ? await client.publicText("https://comment.bilibili.com/" + context.cid + ".xml") : null;
+  let allEntries: DanmakuEntry[];
+  if (segmentResult !== null) allEntries = segmentResult.entries;
+  else {
+    if (snapshotXml === null) throw new Error("弹幕来源与响应不一致。");
+    allEntries = parseDanmakuXml(snapshotXml, 100_000);
+  }
   const entries = allEntries.slice(0, limit);
+  const xml = danmakuXml(entries);
   const root = contextRoot(context, outputRoot(params.output_root)) + "/danmaku";
   await ensureDirectory(root);
   const outputs: string[] = [];
@@ -299,13 +328,16 @@ export async function danmaku(params: DanmakuParams): Promise<JsonRecord> {
     cid: context.cid,
     count: entries.length,
     snapshot_count: allEntries.length,
-    truncated: entries.length < allEntries.length,
+    truncated: segmentResult === null ? entries.length < allEntries.length : segmentResult.truncated,
     limit,
-    scope: "current_xml_snapshot",
+    scope: source === "segments" ? "current_protobuf_segments" : "current_xml_snapshot",
+    fetched_segments: segmentResult === null ? null : segmentResult.fetchedSegments,
+    total_segments: segmentResult === null ? null : segmentResult.totalSegments,
+    empty_reason: entries.length === 0 ? "当前接口返回为空，不代表平台累计弹幕为零；历史、删除和过滤弹幕不在承诺范围。" : null,
     historical_complete: false,
     platform_cumulative_count: platformStat === null ? null : integerAt(platformStat, "danmaku"),
     completeness_note:
-      "The current XML endpoint is a playable snapshot, not every historical, deleted, filtered, or expired danmaku counted by the platform.",
+      "仅导出当前可播放弹幕；平台累计计数不是当前接口条数。达到条数或50段上限时明确标记 truncated。",
     outputs,
     danmaku: params.inline === true ? entries : []
   };
@@ -314,6 +346,10 @@ export async function danmaku(params: DanmakuParams): Promise<JsonRecord> {
 export async function comments(params: CommentsParams): Promise<JsonRecord> {
   const client = new BilibiliClient();
   const context = await resolveVideoForData(client, params.target, params.part);
+  return commentsForContext(client, context, params);
+}
+
+async function commentsForContext(client: BilibiliClient, context: VideoContext, params: CommentsParams): Promise<JsonRecord> {
   const result = await fetchComments(client, context, {
     sort: parseCommentSort(params.sort),
     pages: params.pages === undefined ? 1 : params.pages,
@@ -380,6 +416,10 @@ export async function interactive(params: InteractiveParams): Promise<JsonRecord
 export async function summary(params: SummaryParams): Promise<JsonRecord> {
   const client = new BilibiliClient();
   const context = await resolveVideoForData(client, params.target, params.part);
+  return summaryForContext(client, context, params);
+}
+
+async function summaryForContext(client: BilibiliClient, context: VideoContext, params: SummaryParams): Promise<JsonRecord> {
   const result = await aiSummary(client, context, params.include_transcript === true);
   if (params.output !== true) {
     return result;
@@ -401,6 +441,10 @@ export async function formats(params: FormatsParams): Promise<JsonRecord> {
 export async function download(params: DownloadParams): Promise<JsonRecord> {
   const client = new BilibiliClient();
   const context = await resolveVideoForData(client, params.target, params.part);
+  return downloadForContext(client, context, params);
+}
+
+async function downloadForContext(client: BilibiliClient, context: VideoContext, params: DownloadParams): Promise<JsonRecord> {
   return downloadMedia(client, context, {
     quality: params.quality === undefined ? "best" : params.quality,
     videoCodec: normalizedOptional(params.video_codec),
@@ -439,13 +483,22 @@ export async function capture(params: CaptureParams): Promise<JsonRecord> {
   const metadataDirectory = root + "/metadata";
   await ensureDirectory(metadataDirectory);
   const metadataPath = metadataDirectory + "/video.json";
-  const metadata = { success: true, data: compactVideoContext(context) };
-  await writeJsonArtifact(metadataPath, metadata, overwrite);
-  steps.push({ name: "metadata", success: true, outputs: [metadataPath] });
+  const manifestPath = root + "/manifest.json";
+  if (!overwrite) {
+    for (const path of [metadataPath, manifestPath]) {
+      if ((await Tools.Files.exists(path, "android")).exists) {
+        throw new BilibiliError("OUTPUT_EXISTS", "抓取产物已存在；设置 overwrite=true 可覆盖重跑。", { path, action: "set_overwrite_true" });
+      }
+    }
+  }
+  await captureStep(steps, "metadata", async () => {
+    await writeJsonArtifact(metadataPath, { success: true, data: compactVideoContext(context) }, overwrite);
+    return { success: true, outputs: [metadataPath] };
+  });
 
   if (params.subtitles !== false) {
     await captureStep(steps, "subtitles", async () =>
-      subtitles({
+      subtitlesForContext(client, context, {
         target: context.target.url,
         part: context.part,
         all_languages: true,
@@ -457,7 +510,7 @@ export async function capture(params: CaptureParams): Promise<JsonRecord> {
   }
   if (params.danmaku !== false) {
     await captureStep(steps, "danmaku", async () =>
-      danmaku({
+      danmakuForContext(client, context, {
         target: context.target.url,
         part: context.part,
         format: params.danmaku_format === undefined ? "all" : params.danmaku_format,
@@ -469,7 +522,7 @@ export async function capture(params: CaptureParams): Promise<JsonRecord> {
   }
   if (params.comments !== false) {
     await captureStep(steps, "comments", async () =>
-      comments({
+      commentsForContext(client, context, {
         target: context.target.url,
         part: context.part,
         limit: params.comment_limit === undefined ? 20 : params.comment_limit,
@@ -482,7 +535,7 @@ export async function capture(params: CaptureParams): Promise<JsonRecord> {
   }
   if (params.summary !== false) {
     await captureStep(steps, "summary", async () =>
-      summary({
+      summaryForContext(client, context, {
         target: context.target.url,
         part: context.part,
         output: true,
@@ -495,7 +548,7 @@ export async function capture(params: CaptureParams): Promise<JsonRecord> {
   let mediaOutput: string | null = null;
   if (params.media === true) {
     const result = await captureStep(steps, "media", async () =>
-      download({
+      downloadForContext(client, context, {
         target: context.target.url,
         part: context.part,
         quality: params.quality,
@@ -528,6 +581,8 @@ export async function capture(params: CaptureParams): Promise<JsonRecord> {
   const succeeded = steps.filter((step) => step.success === true).length;
   const manifest: JsonRecord = {
     success: succeeded === steps.length,
+    partial: succeeded > 0 && succeeded < steps.length,
+    message: succeeded === steps.length ? "全部抓取步骤完成。" : "抓取部分失败：" + steps.filter((step) => step.success !== true).map((step) => step.name).join("、"),
     captured_at: new Date().toISOString(),
     target: context.target,
     video: compactVideoContext(context),
@@ -537,9 +592,16 @@ export async function capture(params: CaptureParams): Promise<JsonRecord> {
     failed_steps: steps.length - succeeded,
     steps
   };
-  const manifestPath = root + "/manifest.json";
-  await writeJsonArtifact(manifestPath, manifest, overwrite);
   manifest.manifest = manifestPath;
+  try {
+    await writeJsonArtifact(manifestPath, manifest, overwrite);
+  } catch (error) {
+    const detail = failureDetails(error);
+    console.error("Bilibili manifest 写入失败：" + JSON.stringify(detail));
+    manifest.success = false;
+    manifest.message = "抓取结束，但步骤清单写入失败。";
+    manifest.manifest_error = detail;
+  }
   return manifest;
 }
 
@@ -550,11 +612,11 @@ async function captureStep(
 ): Promise<JsonRecord | null> {
   try {
     const result = await action();
-    steps.push({ name, success: true, result });
-    return result;
+    steps.push({ name, success: result.success !== false, result });
+    return result.success === false ? null : result;
   } catch (error) {
-    const detail = errorDetail(error);
-    console.error("Bilibili capture step " + name + " failed: " + detail);
+    const detail = failureDetails(error);
+    console.error("Bilibili capture step " + name + " failed: " + JSON.stringify(detail));
     steps.push({ name, success: false, error: detail });
     return null;
   }
@@ -694,14 +756,4 @@ function normalizedOptional(value: string | undefined): string | null {
   }
   const normalized = value.trim();
   return normalized.length === 0 ? null : normalized;
-}
-
-function errorDetail(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  if (typeof error === "string") {
-    return error;
-  }
-  return "non-Error exception";
 }

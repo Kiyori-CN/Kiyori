@@ -1,5 +1,6 @@
 import { requireSafeAbsoluteAndroidPath, safePathComponent } from "./json";
 import type { JsonValue, VideoContext } from "./types";
+import { BilibiliError } from "./errors";
 
 export const DEFAULT_OUTPUT_ROOT = "/sdcard/Download/Kiyori/Bilibili";
 
@@ -40,7 +41,7 @@ export async function writeTextArtifact(
 ): Promise<string> {
   const exists = await Tools.Files.exists(path, "android");
   if (exists.exists && !overwrite) {
-    throw new Error("Output already exists: " + path + ". Set overwrite=true to replace it.");
+    throw new BilibiliError("OUTPUT_EXISTS", "产物已存在；设置 overwrite=true 可覆盖重跑。", { path, action: "set_overwrite_true" });
   }
   const result = await Tools.Files.write(path, content, false, "android");
   if (!result.successful) {

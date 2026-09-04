@@ -24,6 +24,12 @@ Kiyori 是一款以浏览器为产品中心、以内置 Operit AI 为智能子�
 
 项目在保留 Operit 对话、模型配置、工具调用、工作流、记忆、终端、MCP、Skill、ToolPkg 和本地模型能力的同时，由 Kiyori 负责应用壳、全局导航、浏览器体验、产品身份、系统设置和后续发行。
 
+内置“哔哩哔哩工具包”提供 16 项只读检索、内容导出和媒体处理工具。在“扩展 → 插件”配置
+`BILIBILI_COOKIE`，再在 AI 抽屉 Media 分组启用 `bilibili`；Cookie 仅由宿主使用，不交给脚本。
+默认产物位于 `Download/Kiyori/Bilibili`，重跑覆盖需显式指定 `overwrite=true`。
+当前分段弹幕不代表完整历史，实时风控和会员权限不会被绕过；详见
+[工具包使用合同与验收状态](docs/TODO/bilibili_toolkit/index.md)。
+
 | 项目 | 当前状态 |
 | --- | --- |
 | 开发版本 | `0.1.0`（`versionCode 45`） |

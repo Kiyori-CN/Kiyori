@@ -1,5 +1,6 @@
 import { contextRoot, ensureDirectory, removeTemporaryPath, writeTextArtifact } from "./artifacts";
 import { BilibiliClient } from "./client";
+import { BilibiliError } from "./errors";
 import {
   arrayAt,
   booleanAt,
@@ -142,14 +143,15 @@ export async function fetchPlayFormats(
     preview:
       booleanAt(play, "is_preview") === true ||
       stringAt(play, "play_video_type") === "preview",
-    drm: recordAt(play, "drm_tech_type") !== null
+    drm: play.has_drm === true || play.has_drm === 1 ||
+      (typeof play.drm_tech_type === "number" && play.drm_tech_type > 0) || recordAt(play, "drm_tech_type") !== null
   };
   if (formats.video.length === 0 && formats.progressive.length === 0) {
     const restriction =
       formats.preview
         ? "Only a preview was returned for this account."
         : "No playable stream was returned. The video may require membership, be region-limited, removed, or protected.";
-    throw new Error(restriction);
+    throw new BilibiliError("NO_PLAYABLE_STREAM", restriction, { preview: formats.preview, drm: formats.drm });
   }
   return formats;
 }
@@ -180,16 +182,22 @@ export async function downloadMedia(
   validateClip(options.clipStart, options.clipEnd);
   const formats = await fetchPlayFormats(client, context, options.quality);
   if (formats.drm) {
-    throw new Error("The play response is DRM-protected and is not supported.");
+    throw new BilibiliError("DRM_PROTECTED", "该媒体受 DRM 保护，不支持下载。");
+  }
+  if (formats.preview) throw new BilibiliError("PREVIEW_ONLY", "当前账号仅返回试看内容，不能作为完整视频下载。", { preview: true });
+  if (options.clipEnd !== null && formats.durationMs !== null && options.clipEnd > formats.durationMs / 1000) {
+    throw new BilibiliError("CLIP_OUT_OF_RANGE", "剪辑结束时间超过媒体时长。", { duration_seconds: formats.durationMs / 1000 });
   }
   const root = contextRoot(context, options.outputRoot);
   const mediaDir = root + "/media";
-  const workDir = mediaDir + "/.work-" + String(Date.now());
+  const workDir = mediaDir + "/.work-" + String(Date.now()) + "-" + Math.random().toString(36).slice(2);
   await ensureDirectory(mediaDir);
-  await ensureDirectory(workDir);
   const finalName = mediaFileName(options);
-  const finalPath = mediaDir + "/" + finalName;
-  await prepareFinalPath(finalPath, options.overwrite);
+  const publishedPath = mediaDir + "/" + finalName;
+  await prepareFinalPath(publishedPath, options.overwrite);
+  await ensureDirectory(workDir);
+  // 下载与转码只写临时目录，成功核验后才发布，失败不破坏原有媒体。
+  const finalPath = workDir + "/" + finalName;
 
   try {
     let sourcePath: string;
@@ -253,10 +261,24 @@ export async function downloadMedia(
     if (!info.exists || info.size <= 0) {
       throw new Error("Media output was not created or is empty.");
     }
+    const probe = await Tools.FFmpeg.probe(finalPath);
+    if (probe.returnCode !== 0 || probe.mediaInfo === undefined) throw new BilibiliError("INVALID_MEDIA", "已生成文件，但 FFprobe 无法验证媒体。");
+    const duration = Number(probe.mediaInfo.duration);
+    if (!Number.isFinite(duration) || duration <= 0) throw new BilibiliError("INVALID_MEDIA", "生成媒体缺少有效时长。");
+    await prepareFinalPath(publishedPath, options.overwrite);
+    const moved = await Tools.Files.move(finalPath, publishedPath, "android");
+    if (!moved.successful) throw new BilibiliError("OUTPUT_PUBLISH_FAILED", "媒体已处理，但发布文件失败。", { path: publishedPath });
     return {
       success: true,
-      output: finalPath,
+      output: publishedPath,
       bytes: info.size,
+      duration_seconds: duration,
+      clip: options.clipStart === null ? null : {
+        requested_start: options.clipStart,
+        requested_end: options.clipEnd,
+        mode: "keyframe_aligned_stream_copy",
+        note: "无重编码剪辑按关键帧边界处理，实际时长可能与请求区间不同。"
+      },
       selected,
       built_in_ffmpeg: true,
       cookie_exposed_to_javascript: false
@@ -300,10 +322,11 @@ export async function extractFrames(
     throw new Error("Input media duration is unavailable.");
   }
   await ensureDirectory(output);
-  const firstFrame = output + "/frame-001.jpg";
-  const firstExists = await Tools.Files.exists(firstFrame, "android");
-  if (firstExists.exists && !overwrite) {
-    throw new Error("Frame output already exists. Set overwrite=true to replace it.");
+  const existingFrames = (await Tools.Files.list(output, "android")).entries
+    .filter((entry) => /^frame-[0-9]{3}\.jpg$/.test(entry.name));
+  if (existingFrames.some((entry) => entry.isDirectory)) throw new BilibiliError("INVALID_OUTPUT", "抽帧文件名被目录占用。");
+  if (existingFrames.length > 0 && !overwrite) {
+    throw new BilibiliError("OUTPUT_EXISTS", "抽帧产物已存在；设置 overwrite=true 可覆盖重跑。", { path: output, action: "set_overwrite_true" });
   }
   const interval = duration / (count + 1);
   const pattern = output + "/frame-%03d.jpg";
@@ -319,12 +342,30 @@ export async function extractFrames(
       " -q:v 2 " +
       ffmpegArg(pattern)
   );
+  const outputs: string[] = [];
+  for (let frame = 1; frame <= count; frame += 1) {
+    const path = output + "/frame-" + String(frame).padStart(3, "0") + ".jpg";
+    const info = await Tools.Files.info(path, "android");
+    if (!info.exists || info.size <= 0) throw new BilibiliError("INCOMPLETE_FRAMES", "抽帧进程结束，但未生成全部非空图片。", { expected_count: count, actual_count: outputs.length, path });
+    outputs.push(path);
+  }
+  if (overwrite) {
+    for (const previous of existingFrames) {
+      const path = output + "/" + previous.name;
+      if (!outputs.includes(path)) {
+        const removed = await Tools.Files.deleteFile(path, false, "android");
+        if (!removed.successful) throw new BilibiliError("OUTPUT_CLEANUP_FAILED", "无法清理上一次抽帧的多余图片。", { path });
+      }
+    }
+  }
   return {
     success: true,
     input,
     output_directory: output,
     output_pattern: pattern,
     requested_count: count,
+    actual_count: outputs.length,
+    outputs,
     interval_seconds: interval,
     built_in_ffmpeg: true
   };
@@ -435,9 +476,7 @@ function selectVideo(
       .sort((left, right) => right - left)
       .map(qualityLabel)
       .join(", ");
-    throw new Error(
-      "Requested quality " + qualityName + " is unavailable. Available video qualities: " + available + "."
-    );
+    throw new BilibiliError("QUALITY_UNAVAILABLE", "请求的清晰度不可用。可用清晰度：" + available, { requested_quality: qualityName, available_qualities: available });
   }
   if (codecNameValue === null) {
     return atQuality[0];
@@ -534,12 +573,9 @@ async function prepareFinalPath(path: string, overwrite: boolean): Promise<void>
     return;
   }
   if (!overwrite) {
-    throw new Error("Output already exists: " + path + ". Set overwrite=true to replace it.");
+    throw new BilibiliError("OUTPUT_EXISTS", "产物已存在；设置 overwrite=true 可覆盖重跑。", { path, action: "set_overwrite_true" });
   }
-  const removed = await Tools.Files.deleteFile(path, false, "android");
-  if (!removed.successful) {
-    throw new Error("Could not replace existing output: " + removed.details);
-  }
+  if (existing.isDirectory) throw new BilibiliError("INVALID_OUTPUT", "输出路径是目录，不能覆盖。", { path });
 }
 
 function mediaFileName(options: DownloadMediaOptions): string {

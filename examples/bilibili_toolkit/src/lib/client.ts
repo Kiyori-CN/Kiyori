@@ -1,12 +1,15 @@
 import { buildQuery, signWbi } from "./crypto";
 import { parseJson, recordAt, requireRecord, stringAt } from "./json";
 import type { JsonRecord, QueryParams } from "./types";
+import { BilibiliError, failureDetails } from "./errors";
 
 const API_BASE = "https://api.bilibili.com";
 
 export class BilibiliClient {
   private wbiKeys: { img: string; sub: string } | null = null;
   private cookieState = false;
+  private blockedError: BilibiliError | null = null;
+  private keysLoadedAt = 0;
 
   get cookieConfigured(): boolean {
     return this.cookieState;
@@ -26,7 +29,7 @@ export class BilibiliClient {
       query = buildQuery(params);
     }
     const url = API_BASE + path + (query.length > 0 ? "?" + query : "");
-    const response = await ToolPkg.services.bilibili.get({
+    const response = await this.get({
       mode: anonymous ? "api_anonymous" : "api",
       url
     });
@@ -35,17 +38,25 @@ export class BilibiliClient {
   }
 
   async publicJson(url: string): Promise<JsonRecord> {
-    const response = await ToolPkg.services.bilibili.get({ mode: "public", url });
+    const response = await this.get({ mode: "public", url });
     return requireRecord(parseJson(response.body, "Bilibili public resource"), "Bilibili resource");
   }
 
   async publicText(url: string): Promise<string> {
-    const response = await ToolPkg.services.bilibili.get({ mode: "public", url });
+    const response = await this.get({ mode: "public", url });
+    return response.body;
+  }
+
+  async publicBinary(url: string): Promise<string> {
+    const response = await this.get({ mode: "public", url });
+    if (response.body_encoding !== "base64") {
+      throw new Error("弹幕二进制响应缺少 base64 编码标识；请更新宿主。 ");
+    }
     return response.body;
   }
 
   async resolveShortLink(url: string): Promise<string> {
-    const response = await ToolPkg.services.bilibili.get({ mode: "resolve", url });
+    const response = await this.get({ mode: "resolve", url });
     return response.final_url;
   }
 
@@ -53,8 +64,22 @@ export class BilibiliClient {
     return this.api("/x/web-interface/nav", {}, false, anonymous);
   }
 
+  private async get(request: ToolPkg.BilibiliHostRequest): Promise<ToolPkg.BilibiliHostResponse> {
+    if (this.blockedError !== null) throw this.blockedError;
+    try {
+      return await ToolPkg.services.bilibili.get(request);
+    } catch (error) {
+      const detail = failureDetails(error);
+      console.error("Bilibili 请求失败：" + JSON.stringify(detail));
+      if (detail.code === "RISK_CONTROL" || detail.code === "CANCELLED") {
+        this.blockedError = new BilibiliError(detail.code, typeof detail.message === "string" ? detail.message : "请求已停止。", detail);
+      }
+      throw error;
+    }
+  }
+
   private async getWbiKeys(): Promise<{ img: string; sub: string }> {
-    if (this.wbiKeys !== null) {
+    if (this.wbiKeys !== null && Date.now() - this.keysLoadedAt < 300_000) {
       return this.wbiKeys;
     }
     const payload = await this.nav(true);
@@ -69,6 +94,7 @@ export class BilibiliClient {
       img: extractFileStem(imgUrl, "img_url"),
       sub: extractFileStem(subUrl, "sub_url")
     };
+    this.keysLoadedAt = Date.now();
     return this.wbiKeys;
   }
 }

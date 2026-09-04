@@ -177,6 +177,24 @@ Current work status and implementation notes belong in `docs/TODO/`.
   Chat Completions and Responses choices rather than being removed with the Web Search
   configuration-source cleanup.
 
+- **Bilibili ToolPkg** is the disabled-by-default Media script `bilibili` inside
+  `com.kiyori.bilibili_toolkit`. Its sixteen tools share one host-only `BILIBILI_COOKIE` owner;
+  JavaScript never receives the Cookie. The dedicated GET-only host bridge validates every URL and
+  redirect, accepts a nav `-101` only with explicit logged-out state and valid WBI image keys,
+  and preserves other authentication failures. Request diagnostics expose endpoint paths but not query
+  signatures or headers. Only socket timeouts and HTTP 500/502/503/504 receive at most two retries;
+  risk-control and cancellation stop the current capture request chain. Current danmaku uses bounded
+  protobuf segments (50 at most); explicit XML mode is a separate source, not automatic substitution.
+  Capture reuses one video context and client, returns per-step results, and includes nonempty
+  `message` plus `data` on failure for the shared JavaScript execution protocol. Existing output
+  requires explicit `overwrite=true`. Media processing uses only the existing Files/FFmpeg services,
+  stages output before publishing, and checks each requested frame. Detailed acceptance is maintained
+  in `docs/TODO/bilibili_toolkit/index.md`.
+- **JavaScript module factories** keep host runtime aliases in an outer lexical scope and execute each
+  CommonJS source in its own function scope. Bundled/minified local names (including `_`, `Tools` and
+  `console`) must not be overwritten by the host prelude. Both entry scripts and relative `require`
+  modules use this factory; exports, module instance caches and per-call runtime helpers retain their
+  existing ownership. A source-level strict-mode directive applies to the package source itself.
 - **Bundled Script and ToolPkg metadata** is a single Agent-facing contract. Every production ordinary
   script and ToolPkg manifest has bilingual display names and concise action-oriented descriptions, an
   explicit category and default-enabled field, and no metadata author. Any package declaring environment

@@ -8,6 +8,7 @@ import com.kiyori.platform.network.applyKiyoriNetworkProxy
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.util.UUID
+import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
@@ -19,6 +20,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -242,7 +245,8 @@ internal object BilibiliToolPkgContract {
         val subtitle =
             (url.host == "hdslb.com" || url.host.endsWith(".hdslb.com")) &&
                 url.encodedPath.startsWith("/bfs/")
-        if (!danmaku && !subtitle) {
+        val segment = url.host == API_HOST && url.encodedPath == "/x/v2/dm/web/seg.so"
+        if (!danmaku && !subtitle && !segment) {
             throw BilibiliToolPkgException(
                 code = BilibiliToolPkgErrorCode.CALLER_NOT_AUTHORIZED,
                 message = "Bilibili public resource host or path is not allowed.",
@@ -282,6 +286,10 @@ internal class BilibiliToolPkgException(
     override val message: String,
     val httpStatus: Int? = null,
     val apiCode: Int? = null,
+    val apiMessage: String? = null,
+    var endpoint: String? = null,
+    var attempts: Int = 1,
+    val causeType: String? = null,
     cause: Throwable? = null,
 ) : RuntimeException(message, cause) {
     fun toJson(requestId: String?): JSONObject =
@@ -294,7 +302,11 @@ internal class BilibiliToolPkgException(
                     .put("code", code.name)
                     .put("message", message)
                     .put("http_status", httpStatus ?: JSONObject.NULL)
-                    .put("api_code", apiCode ?: JSONObject.NULL),
+                    .put("api_code", apiCode ?: JSONObject.NULL)
+                    .put("api_message", apiMessage ?: JSONObject.NULL)
+                    .put("url", endpoint ?: JSONObject.NULL)
+                    .put("attempts", attempts)
+                    .put("cause_type", causeType ?: JSONObject.NULL),
             )
 }
 
@@ -309,18 +321,55 @@ internal class BilibiliToolPkgGateway(
             .readTimeout(60, TimeUnit.SECONDS)
             .callTimeout(75, TimeUnit.SECONDS)
             .build(),
+    private val retryPause: (Long) -> Unit = Thread::sleep,
 ) {
     fun execute(
         request: BilibiliToolPkgRequest,
         cookie: String?,
         requestId: String,
         onCallCreated: (Call) -> Unit,
-    ): JSONObject =
-        if (request.mode == BilibiliToolPkgRequestMode.RESOLVE) {
-            resolveShortLink(request, requestId, onCallCreated)
-        } else {
-            fetch(request, cookie, requestId, onCallCreated)
+    ): JSONObject {
+        var currentCall: Call? = null
+        for (attempt in 1..3) {
+            try {
+                val trackCall: (Call) -> Unit = { call ->
+                    currentCall = call
+                    onCallCreated(call)
+                }
+                return if (request.mode == BilibiliToolPkgRequestMode.RESOLVE) {
+                    resolveShortLink(request, requestId, trackCall)
+                } else {
+                    fetch(request, cookie, requestId, trackCall)
+                }
+            } catch (error: Exception) {
+                if (error is CancellationException || currentCall?.isCanceled() == true) {
+                    throw CancellationException("Bilibili 请求已取消。", error)
+                }
+                val failure = when (error) {
+                    is BilibiliToolPkgException -> error
+                    is IOException -> BilibiliToolPkgException(
+                        code = BilibiliToolPkgErrorCode.HTTP_ERROR,
+                        message = "Bilibili 网络请求失败：" + error::class.java.simpleName,
+                        causeType = error::class.java.simpleName,
+                        cause = error,
+                    )
+                    else -> throw error
+                }
+                // 查询串可能含签名，诊断只记录端点；重试不改变账号、接口或网络路由。
+                val failedUrl = currentCall?.request()?.url ?: request.url
+                failure.endpoint = failedUrl.newBuilder().query(null).fragment(null).build().toString()
+                failure.attempts = attempt
+                val transient = error is SocketTimeoutException ||
+                    failure.httpStatus in setOf(500, 502, 503, 504)
+                if (!transient || attempt == 3) throw failure
+                retryPause(350L * attempt)
+                if (currentCall?.isCanceled() == true) {
+                    throw CancellationException("Bilibili 请求在重试前已取消。")
+                }
+            }
         }
+        error("Bilibili retry loop exhausted")
+    }
 
     private fun resolveShortLink(
         request: BilibiliToolPkgRequest,
@@ -395,12 +444,23 @@ internal class BilibiliToolPkgGateway(
                 if (!it.isSuccessful) {
                     throwHttpFailure(it)
                 }
-                val responseBody = readBoundedBody(it)
+                val binary = currentUrl.host == BilibiliToolPkgContract.API_HOST &&
+                    currentUrl.encodedPath == "/x/v2/dm/web/seg.so"
+                val jsonBinaryError = binary && it.body?.contentType()?.subtype?.contains("json") == true
+                val responseBody = readBoundedBody(it, binary && !jsonBinaryError)
+                if (jsonBinaryError) {
+                    validateApiResponse(responseBody, it.code, currentUrl)
+                    throw BilibiliToolPkgException(
+                        code = BilibiliToolPkgErrorCode.API_ERROR,
+                        message = "弹幕分段接口返回 JSON 而不是 protobuf。",
+                        httpStatus = it.code,
+                    )
+                }
                 if (
                     request.mode == BilibiliToolPkgRequestMode.API ||
                         request.mode == BilibiliToolPkgRequestMode.API_ANONYMOUS
                 ) {
-                    validateApiResponse(responseBody, it.code)
+                    validateApiResponse(responseBody, it.code, currentUrl)
                 }
                 return successEnvelope(
                     requestId = requestId,
@@ -409,6 +469,7 @@ internal class BilibiliToolPkgGateway(
                     contentType = it.body?.contentType()?.toString(),
                     body = responseBody,
                     cookieConfigured = cookie != null,
+                    bodyEncoding = if (binary) "base64" else "utf8",
                 )
             }
         }
@@ -458,7 +519,7 @@ internal class BilibiliToolPkgGateway(
     private fun Response.isRedirectResponse(): Boolean = code in 300..399
 
     private fun throwIfRiskControl(response: Response) {
-        if (response.code == 412) {
+        if (response.code == 412 || response.code == 429) {
             throw BilibiliToolPkgException(
                 code = BilibiliToolPkgErrorCode.RISK_CONTROL,
                 message = "Bilibili risk control rejected the request. Stop and try again later.",
@@ -487,7 +548,7 @@ internal class BilibiliToolPkgGateway(
         )
     }
 
-    private fun readBoundedBody(response: Response): String {
+    private fun readBoundedBody(response: Response, binary: Boolean = false): String {
         val body =
             response.body
                 ?: throw BilibiliToolPkgException(
@@ -519,10 +580,11 @@ internal class BilibiliToolPkgGateway(
                 httpStatus = response.code,
             )
         }
-        return buffer.readByteArray().toString(Charsets.UTF_8)
+        val bytes = buffer.readByteArray()
+        return if (binary) Base64.getEncoder().encodeToString(bytes) else bytes.toString(Charsets.UTF_8)
     }
 
-    private fun validateApiResponse(body: String, httpStatus: Int) {
+    private fun validateApiResponse(body: String, httpStatus: Int, url: HttpUrl) {
         val payload =
             runCatching { JSONTokener(body).nextValue() as? JSONObject }.getOrNull()
                 ?: throw BilibiliToolPkgException(
@@ -539,6 +601,18 @@ internal class BilibiliToolPkgGateway(
                 )
         if (apiCode == 0) {
             return
+        }
+        // nav 的未登录响应仍是 WBI 密钥的正式数据源；不得放行其他端点的 -101。
+        if (apiCode == -101 && url.encodedPath == "/x/web-interface/nav") {
+            val data = payload.optJSONObject("data")
+            val keys = data?.optJSONObject("wbi_img")
+            val validKeys = listOf("img_url", "sub_url").all { key ->
+                val image = keys?.optString(key)?.toHttpUrlOrNull()
+                image != null && image.isHttps &&
+                    Regex("[a-fA-F0-9]{32}\\.[a-zA-Z]+")
+                        .matches(image.pathSegments.last())
+            }
+            if (data?.opt("isLogin") == false && validKeys) return
         }
         val apiMessage =
             listOf(payload.optString("message"), payload.optString("msg"))
@@ -568,6 +642,7 @@ internal class BilibiliToolPkgGateway(
                 },
             httpStatus = httpStatus,
             apiCode = apiCode,
+            apiMessage = apiMessage,
         )
     }
 
@@ -578,6 +653,7 @@ internal class BilibiliToolPkgGateway(
         contentType: String?,
         body: String,
         cookieConfigured: Boolean,
+        bodyEncoding: String = "utf8",
     ): JSONObject =
         JSONObject()
             .put("success", true)
@@ -586,6 +662,7 @@ internal class BilibiliToolPkgGateway(
             .put("final_url", finalUrl.toString())
             .put("content_type", contentType ?: JSONObject.NULL)
             .put("body", body)
+            .put("body_encoding", bodyEncoding)
             .put("cookie_configured", cookieConfigured)
 
     private companion object {
@@ -656,11 +733,15 @@ internal class ToolPkgBilibiliBridge(
                                         BilibiliToolPkgContract.COOKIE_VARIABLE,
                                     )
                                 )
+                            val executionContext = currentCoroutineContext()
                             gateway.execute(
                                 request = parsedRequest,
                                 cookie = cookie,
                                 requestId = requestId,
-                                onCallCreated = currentCall::set,
+                                onCallCreated = { call ->
+                                    currentCall.set(call)
+                                    executionContext.ensureActive()
+                                },
                             )
                         }
                     } catch (error: Throwable) {

@@ -1141,6 +1141,7 @@ export namespace ToolPkg {
     }
 
     export interface BilibiliHostResponse extends JsonObject {
+        body_encoding?: "utf8" | "base64";
         success: true;
         request_id: string;
         http_status: number;

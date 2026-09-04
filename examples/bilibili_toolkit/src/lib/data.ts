@@ -1,4 +1,5 @@
 import { BilibiliClient } from "./client";
+import { BilibiliError } from "./errors";
 import {
   arrayAt,
   booleanAt,
@@ -115,6 +116,11 @@ export async function fetchComments(
   const replyPages = boundedInteger(options.replyPages, "reply_pages", 0, 2, 0);
   const replyLimit = boundedInteger(options.replyLimit, "reply_limit", 0, 100, 50);
   const roots: JsonRecord[] = [];
+  const seenRoots = new Set<number>();
+  let nextOffset = "";
+  const seenOffsets = new Set<string>();
+  let exhausted = false;
+  let fetchedPages = 0;
   let reportedTotal: number | null = null;
   for (let page = 1; page <= pageCount && roots.length < limit; page += 1) {
     const payload = await client.api(
@@ -123,7 +129,7 @@ export async function fetchComments(
         oid: context.aid,
         type: 1,
         mode: options.sort === "hot" ? 3 : 2,
-        pagination_str: JSON.stringify({ offset: page === 1 ? "" : String((page - 1) * 20) }),
+        pagination_str: JSON.stringify({ offset: nextOffset }),
         plat: 1,
         seek_rpid: "",
         web_location: 1315875
@@ -135,6 +141,7 @@ export async function fetchComments(
       throw new Error("Bilibili comments response is missing data.");
     }
     const cursor = recordAt(data, "cursor");
+    fetchedPages += 1;
     if (reportedTotal === null && cursor !== null) {
       reportedTotal = integerAt(cursor, "all_count");
     }
@@ -143,10 +150,25 @@ export async function fetchComments(
       if (roots.length >= limit) {
         break;
       }
-      roots.push(compactComment(reply));
+      const id = integerAt(reply, "rpid");
+      if (id !== null && !seenRoots.has(id)) {
+        seenRoots.add(id);
+        roots.push(compactComment(reply));
+      }
     }
     if (pageReplies.length === 0 || booleanAt(cursor === null ? {} : cursor, "is_end") === true) {
+      exhausted = true;
       break;
+    }
+    // offset 是服务端不透明游标，不是按页大小计算的数字。
+    const pagination = cursor === null ? null : recordAt(cursor, "pagination_reply");
+    const offset = pagination === null ? null : stringAt(pagination, "next_offset");
+    if (page < pageCount && roots.length < limit) {
+      if (offset === null || offset.length === 0 || seenOffsets.has(offset)) {
+        throw new BilibiliError("INVALID_CURSOR", "评论接口未提供可推进的分页游标。", { fetched_pages: fetchedPages });
+      }
+      seenOffsets.add(offset);
+      nextOffset = offset;
     }
   }
 
@@ -205,6 +227,9 @@ export async function fetchComments(
     root_count: roots.length,
     reply_count: childCount,
     reported_total: reportedTotal,
+    fetched_pages: fetchedPages,
+    exhausted,
+    complete: false,
     roots
   };
 }
@@ -281,7 +306,7 @@ export async function currentIdentity(client: BilibiliClient): Promise<JsonRecor
   }
   const loggedIn = booleanAt(data, "isLogin") === true;
   if (!loggedIn) {
-    throw new Error("Bilibili Cookie is missing, expired, or not logged in.");
+    throw new BilibiliError("NOT_LOGGED_IN", "当前账号未登录；请检查插件环境变量 BILIBILI_COOKIE。", { action: "configure_cookie" });
   }
   const mid = integerAt(data, "mid");
   if (mid === null || mid < 1) {
@@ -368,6 +393,7 @@ export async function accountList(
       throw new Error("favorite_items requires folder_id.");
     }
     let hasMore = false;
+    let nextPage = page;
     for (let current = page; current < page + pages && items.length < limit; current += 1) {
       const data = requireData(
         await client.api("/x/v3/fav/resource/list", {
@@ -382,6 +408,7 @@ export async function accountList(
         "Favorite items"
       );
       const pageItems = records(arrayAt(data, "medias"));
+      nextPage = current + 1;
       items.push(...pageItems.map(compactAccountVideo));
       hasMore = booleanAt(data, "has_more") === true;
       const info = recordAt(data, "info");
@@ -390,11 +417,17 @@ export async function accountList(
         break;
       }
     }
-    nextCursor = hasMore ? { page: page + pages } : null;
+    nextCursor = hasMore ? { page: nextPage } : null;
   } else if (options.kind === "liked" || options.kind === "coins") {
     const endpoint = options.kind === "liked" ? "/x/space/like/video" : "/x/space/coin/video";
-    const data = requireData(await client.api(endpoint, { vmid: requestedMid }), options.kind);
-    const list = Array.isArray(data.list) ? data.list : [];
+    const payload = await client.api(endpoint, { vmid: requestedMid });
+    let list: JsonValue[];
+    if (options.kind === "coins") {
+      if (!Array.isArray(payload.data)) throw new BilibiliError("INVALID_RESPONSE", "投币列表接口的 data 应为数组。");
+      list = payload.data;
+    } else {
+      list = arrayAt(requireData(payload, options.kind), "list");
+    }
     items = records(list).map(compactAccountVideo);
     total = items.length;
   } else if (options.kind === "followed_bangumi" || options.kind === "followed_cinema") {
@@ -475,7 +508,7 @@ export async function interactiveGraph(
       ? rawGraphVersion
       : null;
   if (graphVersion === null || graphVersion === "" || graphVersion === 0 || graphVersion === "0") {
-    throw new Error("The selected video part does not expose an interactive graph.");
+    return { success: true, available: false, reason: "NOT_INTERACTIVE", message: "该视频分P不是互动视频。", node_count: 0, nodes: [], links: [] };
   }
   const pending: number[] = [edge];
   const queued = new Set<number>([edge]);
