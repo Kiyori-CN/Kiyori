@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "toolpkg_id": "com.kiyori.bilibili_toolkit",
+  "version": "1.0.0",
+  "main": "dist/main.js",
+  "display_name": {
+    "zh": "哔哩哔哩工具包",
+    "en": "Bilibili Toolkit"
+  },
+  "description": {
+    "zh": "面向 AI 对话的 Bilibili 只读检索、内容导出、媒体下载与内置 FFmpeg 处理工具。",
+    "en": "Read-only Bilibili research, export, media download, and built-in FFmpeg tools for AI chat."
+  },
+  "author": [
+    "Kiyori"
+  ],
+  "enabled_by_default": false,
+  "environment": [
+    {
+      "name": "BILIBILI_COOKIE",
+      "description": {
+        "zh": "可选的 Bilibili Cookie。仅由 Kiyori 宿主读取，插件 JavaScript 无法读取；登录列表、会员权限和部分清晰度需要有效登录态。",
+        "en": "Optional Bilibili Cookie. Only the Kiyori host can read it; plugin JavaScript cannot. Account lists, member access, and some qualities require a valid session."
+      },
+      "required": false,
+      "scope": "package",
+      "sensitive": true,
+      "consumer": "host_service",
+      "input_type": "password"
+    }
+  ],
+  "subpackages": [
+    {
+      "id": "bilibili",
+      "entry": "dist/packages/bilibili.js"
+    }
+  ]
+}

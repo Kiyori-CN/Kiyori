@@ -6,6 +6,12 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 ## 当前进行中
 
+- [哔哩哔哩工具包内置 ToolPkg](bilibili_toolkit/index.md)：将本机 `bilibili` skill 的只读检索、
+  元数据、字幕、当前弹幕、评论、账号列表、互动图、站内 AI 摘要、媒体下载与抽帧能力移植为
+  “哔哩哔哩工具包”插件；其唯一脚本子包为 `bilibili`，位于 AI 左抽屉 `Media` 分组。插件只声明
+  私密宿主变量 `BILIBILI_COOKIE`，不打包或调用 `yt-dlp`，媒体后处理复用 Kiyori 内置 FFmpeg；
+  当前处于正式实现阶段。
+
 - [GoTab 原生浏览器主页迁移](kiyori_browser_product_completion/20_gotab_native_browser_home_migration.md)：主页已收敛为
   `NATIVE`、`CUSTOM_URL`、`BLANK` 三种可手动切换模式；当前开发验证阶段的新安装初值为
   `CUSTOM_URL + https://web.gotab.cn/`，旧 `home_url` 已有显式迁移，明确不直接运行 GoTab CRX。原生

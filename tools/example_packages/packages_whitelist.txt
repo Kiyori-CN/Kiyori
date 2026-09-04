@@ -47,3 +47,4 @@ qqbot
 thinking_guidance
 plan_mode
 semantic_scholar_search.js
+bilibili_toolkit

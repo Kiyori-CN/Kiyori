@@ -171,6 +171,7 @@ internal fun buildToolPkgRegistrationBridgeScript(): String {
                 : (typeof window !== 'undefined' ? window : this);
             var moduleRefFunctionCounter = 0;
             var openAIWebSearchCallbackCounter = 0;
+            var bilibiliCallbackCounter = 0;
 
             function installGlobal(name, value) {
                 var key = String(name || '').trim();
@@ -408,6 +409,99 @@ internal fun buildToolPkgRegistrationBridgeScript(): String {
                             'openAIWebSearchRunCompatibilityProbe',
                             []
                         );
+                    }
+                };
+            }
+
+            function nextBilibiliCallbackId() {
+                bilibiliCallbackCounter += 1;
+                return '__operit_bilibili_callback_' +
+                    Date.now() + '_' + bilibiliCallbackCounter;
+            }
+
+            function parseBilibiliEnvelope(raw) {
+                var parsed;
+                try {
+                    parsed = JSON.parse(String(raw || ''));
+                } catch (error) {
+                    throw new Error(
+                        'Bilibili host returned invalid JSON: ' +
+                            String(error && error.message ? error.message : error)
+                    );
+                }
+                if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+                    throw new Error('Bilibili host returned an invalid envelope');
+                }
+                return parsed;
+            }
+
+            function bilibiliError(envelope) {
+                var payload =
+                    envelope && envelope.error && typeof envelope.error === 'object'
+                        ? envelope.error
+                        : null;
+                var code =
+                    payload && typeof payload.code === 'string'
+                        ? payload.code.trim()
+                        : '';
+                var message =
+                    payload && typeof payload.message === 'string'
+                        ? payload.message
+                        : 'Bilibili host operation failed';
+                var error = new Error(code ? '[' + code + '] ' + message : message);
+                if (code) {
+                    error.code = code;
+                }
+                error.details = envelope;
+                return error;
+            }
+
+            function invokeBilibiliRequest(request) {
+                return new Promise(function(resolve, reject) {
+                    var callbackId = nextBilibiliCallbackId();
+                    root[callbackId] = function(resultJson, isError) {
+                        try {
+                            delete root[callbackId];
+                        } catch (_deleteError) {
+                            root[callbackId] = undefined;
+                        }
+                        if (isError === true) {
+                            reject(new Error(String(resultJson || 'Bilibili host call failed')));
+                            return;
+                        }
+                        try {
+                            var envelope = parseBilibiliEnvelope(resultJson);
+                            if (envelope.success !== true) {
+                                reject(bilibiliError(envelope));
+                                return;
+                            }
+                            resolve(envelope);
+                        } catch (error) {
+                            reject(error);
+                        }
+                    };
+                    try {
+                        var requestJson = JSON.stringify(request || {});
+                        requireNative('bilibiliRequest')(
+                            currentExecutionCallId(),
+                            callbackId,
+                            requestJson
+                        );
+                    } catch (error) {
+                        try {
+                            delete root[callbackId];
+                        } catch (_deleteError2) {
+                            root[callbackId] = undefined;
+                        }
+                        reject(error);
+                    }
+                });
+            }
+
+            function createBilibiliService() {
+                return {
+                    get: function(request) {
+                        return invokeBilibiliRequest(request);
                     }
                 };
             }
@@ -827,7 +921,8 @@ internal fun buildToolPkgRegistrationBridgeScript(): String {
                 storage: createToolPkgStorage,
                 buildArtifact: buildToolPkgArtifact,
                 services: {
-                    openAIWebSearch: createOpenAIWebSearchService()
+                    openAIWebSearch: createOpenAIWebSearchService(),
+                    bilibili: createBilibiliService()
                 }
             };
 

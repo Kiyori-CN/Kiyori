@@ -95,6 +95,16 @@ class JsEngine(
         )
     }
     private val openAIWebSearchBridge by openAIWebSearchBridgeDelegate
+    private val ownsBilibiliBridge =
+        BilibiliToolPkgContract.ownsBridge(boundToolPkgContainerName)
+    private val bilibiliBridgeDelegate = lazy {
+        ToolPkgBilibiliBridge(
+            context = context.applicationContext,
+            boundToolPkgContainerName = boundToolPkgContainerName,
+            isExecutionCallActive = { callId -> resolveExecutionSession(callId) != null },
+        )
+    }
+    private val bilibiliBridge by bilibiliBridgeDelegate
 
     @Volatile
     private var quickJsThread: Thread? = null
@@ -398,6 +408,26 @@ class JsEngine(
             message = "OpenAI Web Search is only available to its bound ToolPkg container.",
         ).toJson(requestId = null).toString()
 
+    private fun bilibiliBridgeForHostCall(): ToolPkgBilibiliBridge? =
+        if (ownsBilibiliBridge) {
+            bilibiliBridge
+        } else {
+            null
+        }
+
+    private fun initializedBilibiliBridge(): ToolPkgBilibiliBridge? =
+        if (bilibiliBridgeDelegate.isInitialized()) {
+            bilibiliBridge
+        } else {
+            null
+        }
+
+    private fun bilibiliCallerNotAuthorizedEnvelope(): String =
+        BilibiliToolPkgException(
+            code = BilibiliToolPkgErrorCode.CALLER_NOT_AUTHORIZED,
+            message = "Bilibili host service is only available to its bound ToolPkg container.",
+        ).toJson(requestId = null).toString()
+
     private fun removeExecutionSession(callId: String): ExecutionSession? {
         val normalizedCallId = callId.trim()
         val removed = activeExecutionSessions.remove(normalizedCallId)
@@ -408,6 +438,12 @@ class JsEngine(
             initializedOpenAIWebSearchBridge()?.cancelForCall(
                 callId = normalizedCallId,
                 reason = "OpenAI Web Search execution owner completed.",
+            )
+            // Bilibili HTTP work is owned by the invoking script call. Cancelling here prevents an
+            // un-awaited Promise from retaining the user's private Cookie or network request.
+            initializedBilibiliBridge()?.cancelForCall(
+                callId = normalizedCallId,
+                reason = "Bilibili execution owner completed.",
             )
         }
         return removed
@@ -1880,6 +1916,34 @@ class JsEngine(
         }
 
         @JavascriptInterface
+        fun bilibiliRequest(
+            callId: String,
+            callbackId: String,
+            requestJson: String,
+        ) {
+            val normalizedCallback = callbackId.trim()
+            if (normalizedCallback.isEmpty()) {
+                return
+            }
+            val bridge = bilibiliBridgeForHostCall()
+            if (bridge == null) {
+                sendToolPkgIpcResult(
+                    normalizedCallback,
+                    bilibiliCallerNotAuthorizedEnvelope(),
+                    false,
+                )
+                return
+            }
+            bridge.request(
+                callId = callId,
+                requestJson = requestJson,
+                deliverResult = { resultJson ->
+                    sendToolPkgIpcResult(normalizedCallback, resultJson, false)
+                },
+            )
+        }
+
+        @JavascriptInterface
         fun measureComposeText(payloadJson: String): String {
             return JsNativeInterfaceDelegates.measureComposeText(
                 context = context,
@@ -2902,6 +2966,8 @@ class JsEngine(
             clearPendingJsBridgeCallbacks("java bridge callback canceled: Engine destroyed")
             initializedOpenAIWebSearchBridge()
                 ?.close("OpenAI Web Search bridge closed: Engine destroyed")
+            initializedBilibiliBridge()
+                ?.close("Bilibili bridge closed: Engine destroyed")
             toolCallInterface.detachJavaBridgeLifecycle()
 
             // 清理Bitmap注册表

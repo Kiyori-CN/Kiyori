@@ -1133,8 +1133,30 @@ export namespace ToolPkg {
         runCompatibilityProbe(): OpenAIWebSearchPendingRequest<OpenAIWebSearchResult>;
     }
 
+    export type BilibiliRequestMode = "api" | "api_anonymous" | "public" | "resolve";
+
+    export interface BilibiliHostRequest {
+        mode: BilibiliRequestMode;
+        url: string;
+    }
+
+    export interface BilibiliHostResponse extends JsonObject {
+        success: true;
+        request_id: string;
+        http_status: number;
+        final_url: string;
+        content_type: string | null;
+        body: string;
+        cookie_configured: boolean;
+    }
+
+    export interface BilibiliService {
+        get(request: BilibiliHostRequest): Promise<BilibiliHostResponse>;
+    }
+
     export interface HostServices {
         openAIWebSearch: OpenAIWebSearchService;
+        bilibili: BilibiliService;
     }
 
     export interface Registry {
