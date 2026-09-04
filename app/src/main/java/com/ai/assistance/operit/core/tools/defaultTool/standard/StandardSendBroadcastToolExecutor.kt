@@ -6,6 +6,8 @@ import android.net.Uri
 import android.os.Bundle
 import com.ai.assistance.operit.core.tools.IntentResultData
 import com.ai.assistance.operit.core.tools.StringResultData
+import com.ai.assistance.operit.core.tools.system.AndroidIntentShellCommand
+import com.ai.assistance.operit.core.tools.system.AndroidShellExecutor
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolResult
 import com.ai.assistance.operit.data.model.ToolValidationResult
@@ -61,6 +63,21 @@ class StandardSendBroadcastToolExecutor(private val context: Context) {
         val extraValue2 = tool.parameters.find { it.name == "extra_value2" }?.value ?: ""
 
         val extrasJsonString = tool.parameters.find { it.name == "extras" }?.value
+
+        if (AndroidShellExecutor.isPrivilegedExecutionConfiguredOrAvailable()) {
+            return invokePrivileged(
+                tool = tool,
+                action = action,
+                uri = uri,
+                packageName = packageName,
+                componentName = componentName,
+                extraKey = extraKey,
+                extraValue = extraValue,
+                extraKey2 = extraKey2,
+                extraValue2 = extraValue2,
+                extrasJsonString = extrasJsonString,
+            )
+        }
 
         return try {
             val intent = Intent().apply {
@@ -135,6 +152,86 @@ class StandardSendBroadcastToolExecutor(private val context: Context) {
                 success = false,
                 result = StringResultData(""),
                 error = "Broadcast failed: ${e.message}"
+            )
+        }
+    }
+
+    /** Sends the broadcast through the selected Root/Shizuku shell identity. */
+    private suspend fun invokePrivileged(
+        tool: AITool,
+        action: String,
+        uri: String?,
+        packageName: String?,
+        componentName: String?,
+        extraKey: String,
+        extraValue: String,
+        extraKey2: String,
+        extraValue2: String,
+        extrasJsonString: String?,
+    ): ToolResult {
+        return try {
+            val shellExtras = buildList {
+                if (extraKey.isNotBlank()) {
+                    add(AndroidIntentShellCommand.stringExtra(extraKey, extraValue))
+                }
+                if (extraKey2.isNotBlank()) {
+                    add(AndroidIntentShellCommand.stringExtra(extraKey2, extraValue2))
+                }
+                addAll(AndroidIntentShellCommand.parseExtras(extrasJsonString))
+            }
+            val command =
+                AndroidIntentShellCommand.build(
+                    type = "broadcast",
+                    action = action,
+                    uri = uri,
+                    packageName = packageName,
+                    component = componentName,
+                    flags = 0,
+                    extras = shellExtras,
+                )
+            val result = AndroidShellExecutor.executePrivilegedShellCommand(command)
+            if (
+                !result.success ||
+                    result.exitCode != 0 ||
+                    AndroidIntentShellCommand.outputIndicatesFailure(
+                        result.stdout,
+                        result.stderr,
+                    )
+            ) {
+                val details =
+                    listOf(result.stderr, result.stdout)
+                        .filter(String::isNotBlank)
+                        .joinToString("\n")
+                return ToolResult(
+                    toolName = tool.name,
+                    success = false,
+                    result = StringResultData(""),
+                    error = "Privileged broadcast failed (exit code: ${result.exitCode}): $details",
+                )
+            }
+
+            val normalizedComponent = AndroidIntentShellCommand.normalizeComponent(componentName)
+            ToolResult(
+                toolName = tool.name,
+                success = true,
+                result =
+                    IntentResultData(
+                        action = action,
+                        uri = uri?.takeIf { it.isNotBlank() } ?: "null",
+                        package_name = packageName?.takeIf { it.isNotBlank() } ?: "null",
+                        component = normalizedComponent ?: "null",
+                        flags = 0,
+                        extras_count = shellExtras.size,
+                        result = result.stdout.trim().ifBlank { "Broadcast command completed" },
+                    ),
+            )
+        } catch (error: Exception) {
+            AppLogger.e(TAG, "Error sending privileged broadcast", error)
+            ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = "Privileged broadcast failed: ${error.message}",
             )
         }
     }

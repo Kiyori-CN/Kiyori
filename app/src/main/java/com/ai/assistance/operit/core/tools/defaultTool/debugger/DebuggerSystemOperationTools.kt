@@ -7,6 +7,7 @@ import com.ai.assistance.operit.core.tools.NotificationData
 import com.ai.assistance.operit.core.tools.StringResultData
 import com.ai.assistance.operit.core.tools.SystemSettingData
 import com.ai.assistance.operit.core.tools.defaultTool.accessbility.AccessibilitySystemOperationTools
+import com.ai.assistance.operit.core.tools.system.AndroidIntentShellCommand
 import com.ai.assistance.operit.core.tools.system.AndroidShellExecutor
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolResult
@@ -16,6 +17,16 @@ open class DebuggerSystemOperationTools(context: Context) :
     AccessibilitySystemOperationTools(context) {
 
     private val TAG = "DebuggerSystemTools"
+
+    private fun shellQuote(value: String): String = AndroidIntentShellCommand.shellQuote(value)
+
+    private fun commandFailure(prefix: String, result: AndroidShellExecutor.CommandResult): String {
+        val details =
+            listOf(result.stderr, result.stdout)
+                .filter(String::isNotBlank)
+                .joinToString("\n")
+        return "$prefix (exit code: ${result.exitCode}): $details"
+    }
 
     override suspend fun modifySystemSetting(tool: AITool): ToolResult {
         val setting = tool.parameters.find { it.name == "setting" }?.value ?: ""
@@ -42,8 +53,8 @@ open class DebuggerSystemOperationTools(context: Context) :
         }
 
         return try {
-            val command = "settings put $namespace $setting $value"
-            val result = AndroidShellExecutor.executeShellCommand(command)
+            val command = "settings put ${shellQuote(namespace)} ${shellQuote(setting)} ${shellQuote(value)}"
+            val result = AndroidShellExecutor.executePrivilegedShellCommand(command)
 
             if (result.success) {
                 val resultData =
@@ -60,7 +71,7 @@ open class DebuggerSystemOperationTools(context: Context) :
                     toolName = tool.name,
                     success = false,
                     result = StringResultData(""),
-                    error = "Failed to set setting: ${result.stderr}"
+                    error = commandFailure("Failed to set setting", result)
                 )
             }
         } catch (e: Exception) {
@@ -98,8 +109,8 @@ open class DebuggerSystemOperationTools(context: Context) :
         }
 
         return try {
-            val command = "settings get $namespace $setting"
-            val result = AndroidShellExecutor.executeShellCommand(command)
+            val command = "settings get ${shellQuote(namespace)} ${shellQuote(setting)}"
+            val result = AndroidShellExecutor.executePrivilegedShellCommand(command)
 
             if (result.success) {
                 val resultData =
@@ -120,7 +131,7 @@ open class DebuggerSystemOperationTools(context: Context) :
                     toolName = tool.name,
                     success = false,
                     result = StringResultData(""),
-                    error = "Failed to get setting: ${result.stderr}"
+                    error = commandFailure("Failed to get setting", result)
                 )
             }
         } catch (e: Exception) {
@@ -155,9 +166,17 @@ open class DebuggerSystemOperationTools(context: Context) :
         }
 
         val existsResult =
-            AndroidShellExecutor.executeShellCommand(
-                "test -f $apkPath && echo 'exists' || echo 'not exists'"
+            AndroidShellExecutor.executePrivilegedShellCommand(
+                "test -f ${shellQuote(apkPath)} && echo 'exists' || echo 'not exists'"
             )
+        if (!existsResult.success) {
+            return ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = commandFailure("Unable to inspect APK path", existsResult)
+            )
+        }
         if (existsResult.stdout.trim() != "exists") {
             return ToolResult(
                 toolName = tool.name,
@@ -168,8 +187,8 @@ open class DebuggerSystemOperationTools(context: Context) :
         }
 
         return try {
-            val command = "pm install -r $apkPath"
-            val result = AndroidShellExecutor.executeShellCommand(command)
+            val command = "pm install -r ${shellQuote(apkPath)}"
+            val result = AndroidShellExecutor.executePrivilegedShellCommand(command)
 
             if (result.success && result.stdout.contains("Success")) {
                 val resultData =
@@ -190,7 +209,7 @@ open class DebuggerSystemOperationTools(context: Context) :
                     toolName = tool.name,
                     success = false,
                     result = StringResultData(""),
-                    error = "Installation failed: ${result.stderr}"
+                    error = commandFailure("Installation failed", result)
                 )
             }
         } catch (e: Exception) {
@@ -217,10 +236,18 @@ open class DebuggerSystemOperationTools(context: Context) :
             )
         }
 
-        val checkCommand = "pm list packages | grep -c \"$packageName\""
-        val checkResult = AndroidShellExecutor.executeShellCommand(checkCommand)
+        val checkCommand = "pm path ${shellQuote(packageName)}"
+        val checkResult = AndroidShellExecutor.executePrivilegedShellCommand(checkCommand)
 
-        if (checkResult.stdout.trim() == "0") {
+        if (!checkResult.success) {
+            return ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = commandFailure("Unable to inspect installed package", checkResult)
+            )
+        }
+        if (checkResult.stdout.isBlank()) {
             return ToolResult(
                 toolName = tool.name,
                 success = false,
@@ -232,12 +259,12 @@ open class DebuggerSystemOperationTools(context: Context) :
         return try {
             val command =
                 if (keepData) {
-                    "pm uninstall -k $packageName"
+                    "pm uninstall -k ${shellQuote(packageName)}"
                 } else {
-                    "pm uninstall $packageName"
+                    "pm uninstall ${shellQuote(packageName)}"
                 }
 
-            val result = AndroidShellExecutor.executeShellCommand(command)
+            val result = AndroidShellExecutor.executePrivilegedShellCommand(command)
 
             if (result.success && result.stdout.contains("Success")) {
                 val details = if (keepData) "(keep data)" else ""
@@ -260,7 +287,7 @@ open class DebuggerSystemOperationTools(context: Context) :
                     toolName = tool.name,
                     success = false,
                     result = StringResultData(""),
-                    error = "Uninstallation failed: ${result.stderr}"
+                    error = commandFailure("Uninstallation failed", result)
                 )
             }
         } catch (e: Exception) {
@@ -292,8 +319,8 @@ open class DebuggerSystemOperationTools(context: Context) :
             if (activity.isBlank()) {
                 // 使用 am start 命令而不是 monkey，避免修改系统设置（如屏幕旋转）
                 // 先获取应用的主 Activity，然后使用 -n 参数启动
-                val resolveCmd = "cmd package resolve-activity --brief $packageName 2>/dev/null | tail -n 1"
-                val resolveResult = AndroidShellExecutor.executeShellCommand(resolveCmd)
+                val resolveCmd = "cmd package resolve-activity --brief ${shellQuote(packageName)} 2>/dev/null | tail -n 1"
+                val resolveResult = AndroidShellExecutor.executePrivilegedShellCommand(resolveCmd)
                 
                 if (resolveResult.success && resolveResult.stdout.isNotBlank()) {
                     val output = resolveResult.stdout.trim()
@@ -304,12 +331,12 @@ open class DebuggerSystemOperationTools(context: Context) :
                     
                     // 如果返回的是完整组件名（package/activity），直接使用
                     command = if (mainActivity.contains('/')) {
-                        "am start -n $mainActivity"
+                        "am start -n ${shellQuote(mainActivity)}"
                     } else {
                         // 如果只返回了 Activity 名，拼接包名
-                        "am start -n $packageName/$mainActivity"
+                        "am start -n ${shellQuote("$packageName/$mainActivity")}"
                     }
-                    AppLogger.d(TAG, "Resolved main Activity: $mainActivity, using command: $command")
+                    AppLogger.d(TAG, "Resolved main Activity for package ${packageName.trim()}")
                 } else {
                     // 如果无法解析 Activity，返回错误
                     return ToolResult(
@@ -320,10 +347,10 @@ open class DebuggerSystemOperationTools(context: Context) :
                     )
                 }
             } else {
-                command = "am start -n $packageName/$activity"
+                command = "am start -n ${shellQuote("$packageName/$activity")}"
             }
 
-            val result = AndroidShellExecutor.executeShellCommand(command)
+            val result = AndroidShellExecutor.executePrivilegedShellCommand(command)
 
             if (result.success) {
                 val details = if (activity.isNotBlank()) "Activity: $activity" else ""
@@ -346,7 +373,7 @@ open class DebuggerSystemOperationTools(context: Context) :
                     toolName = tool.name,
                     success = false,
                     result = StringResultData(""),
-                    error = "Failed to start app: ${result.stderr}"
+                    error = commandFailure("Failed to start app", result)
                 )
             }
         } catch (e: Exception) {
@@ -373,8 +400,8 @@ open class DebuggerSystemOperationTools(context: Context) :
         }
 
         return try {
-            val command = "am force-stop $packageName"
-            val result = AndroidShellExecutor.executeShellCommand(command)
+            val command = "am force-stop ${shellQuote(packageName)}"
+            val result = AndroidShellExecutor.executePrivilegedShellCommand(command)
 
             if (result.success) {
                 val resultData =
@@ -395,7 +422,7 @@ open class DebuggerSystemOperationTools(context: Context) :
                     toolName = tool.name,
                     success = false,
                     result = StringResultData(""),
-                    error = "Failed to stop app: ${result.stderr}"
+                    error = commandFailure("Failed to stop app", result)
                 )
             }
         } catch (e: Exception) {
@@ -411,6 +438,14 @@ open class DebuggerSystemOperationTools(context: Context) :
 
     override suspend fun getNotifications(tool: AITool): ToolResult {
         val limit = tool.parameters.find { it.name == "limit" }?.value?.toIntOrNull() ?: 10
+        if (limit <= 0) {
+            return ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = "limit must be a positive integer"
+            )
+        }
         val includeOngoing =
             tool.parameters.find { it.name == "include_ongoing" }?.value?.toBoolean() ?: false
 
@@ -422,7 +457,7 @@ open class DebuggerSystemOperationTools(context: Context) :
                     "dumpsys notification --noredact | grep -v 'ongoing' | grep -E 'pkg=|text=' | head -${limit * 2}"
                 }
 
-            val result = AndroidShellExecutor.executeShellCommand(command)
+            val result = AndroidShellExecutor.executePrivilegedShellCommand(command)
 
             if (result.success) {
                 val lines = result.stdout.split("\n")
@@ -482,7 +517,7 @@ open class DebuggerSystemOperationTools(context: Context) :
                     toolName = tool.name,
                     success = false,
                     result = StringResultData(""),
-                    error = "Failed to get notifications: ${result.stderr}"
+                    error = commandFailure("Failed to get notifications", result)
                 )
             }
         } catch (e: Exception) {

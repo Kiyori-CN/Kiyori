@@ -259,6 +259,19 @@ const superAdmin = (function () {
         return value.endsWith("\n") ? count : count + 1;
     }
 
+    function describeSensitiveTextForLog(value: string): string {
+        // Commands may contain credentials, user paths, or inline file contents. Keep logs
+        // useful for correlation without persisting the command itself.
+        const hasShellOperators = /[;&|<>`$]/.test(value);
+        return `chars=${value.length}, bytes=${utf8ByteLength(value)}, shellOperators=${hasShellOperators}`;
+    }
+
+    function describeErrorForLog(error: unknown): string {
+        const type = error instanceof Error ? error.name : typeof error;
+        const message = error instanceof Error ? error.message : String(error);
+        return `type=${type}, messageChars=${message.length}`;
+    }
+
     async function persistTerminalOutputIfTooLong(
         command: string,
         result: TerminalCommandToolResult,
@@ -324,7 +337,7 @@ const superAdmin = (function () {
                 throw new Error("background必须是布尔值");
             }
 
-            console.log(`执行终端命令: ${command}`);
+            console.log(`执行终端命令 (${describeSensitiveTextForLog(command)})`);
 
             const isBackground = background === true;
             let timeout: number | undefined;
@@ -346,9 +359,8 @@ const superAdmin = (function () {
                         // would kill a still-valid background job while its caller already holds
                         // only the started response and cannot observe the failure.
                         await Tools.System.terminal.exec(sessionId, command, undefined, { timeoutPolicy: "none" });
-                    } catch (error) {
-                        console.error(`[terminal/background] 错误: ${error.message}`);
-                        console.error(error.stack);
+                    } catch (error: unknown) {
+                        console.error(`[terminal/background] 错误 (${describeErrorForLog(error)})`);
                     }
                 })();
 
@@ -390,9 +402,8 @@ const superAdmin = (function () {
                 timeoutMsUsed: timeout,
                 context_preserved: result.contextPreserved !== false,
             };
-        } catch (error) {
-            console.error(`[terminal] 错误: ${error.message}`);
-            console.error(error.stack);
+        } catch (error: unknown) {
+            console.error(`[terminal] 错误 (${describeErrorForLog(error)})`);
 
             throw error;
         }
@@ -445,9 +456,8 @@ const superAdmin = (function () {
                 contextPreserved: result.contextPreserved !== false,
                 context_preserved: result.contextPreserved !== false,
             };
-        } catch (error) {
-            console.error(`[terminal_wait] 错误: ${error.message}`);
-            console.error(error.stack);
+        } catch (error: unknown) {
+            console.error(`[terminal_wait] 错误 (${describeErrorForLog(error)})`);
             throw error;
         }
     }
@@ -464,7 +474,7 @@ const superAdmin = (function () {
             }
             const command = params.command;
 
-            console.log(`执行Shell命令: ${command}`);
+            console.log(`执行Shell命令 (${describeSensitiveTextForLog(command)})`);
 
             // 通过Shizuku/Root权限执行shell操作
             const result = await Tools.System.shell(`${command}`);
@@ -474,9 +484,8 @@ const superAdmin = (function () {
                 output: result.output,
                 exitCode: result.exitCode
             };
-        } catch (error) {
-            console.error(`[shell] 错误: ${error.message}`);
-            console.error(error.stack);
+        } catch (error: unknown) {
+            console.error(`[shell] 错误 (${describeErrorForLog(error)})`);
 
             throw error;
         }
@@ -500,9 +509,8 @@ const superAdmin = (function () {
                 cols: result.cols,
                 content: result.content
             };
-        } catch (error) {
-            console.error(`[terminal_getscreen] 错误: ${error.message}`);
-            console.error(error.stack);
+        } catch (error: unknown) {
+            console.error(`[terminal_getscreen] 错误 (${describeErrorForLog(error)})`);
             throw error;
         }
     }
@@ -538,9 +546,8 @@ const superAdmin = (function () {
                 control: params.control,
                 result
             };
-        } catch (error) {
-            console.error(`[terminal_input] 错误: ${error.message}`);
-            console.error(error.stack);
+        } catch (error: unknown) {
+            console.error(`[terminal_input] 错误 (${describeErrorForLog(error)})`);
             throw error;
         }
     }

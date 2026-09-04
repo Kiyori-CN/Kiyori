@@ -5,15 +5,14 @@ import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.core.tools.ADBResultData
 import com.ai.assistance.operit.core.tools.StringResultData
 import com.ai.assistance.operit.core.tools.system.AndroidShellExecutor
-import com.ai.assistance.operit.core.tools.system.ShizukuAuthorizer
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolResult
 import com.ai.assistance.operit.data.model.ToolValidationResult
 import kotlinx.coroutines.runBlocking
 
 /**
- * Tool for executing ADB commands directly. This provides direct access to ADB shell commands for
- * system operations. Note: This requires Shizuku service to be running with proper permissions.
+ * Tool for executing the Android shell surface used by super_admin:shell. The executor must use
+ * an explicit Root or Shizuku route; an application-UID Runtime.exec result is not equivalent.
  */
 open class StandardShellToolExecutor(private val context: Context) {
 
@@ -38,8 +37,9 @@ open class StandardShellToolExecutor(private val context: Context) {
         // Timeout parameter is kept for API compatibility but not used by AdbCommandExecutor
 
         return try {
-            // Use AdbCommandExecutor to execute the command
-            val result = runBlocking { AndroidShellExecutor.executeShellCommand(command) }
+            // super_admin:shell is a privileged surface. Keep the route decision in one owner so
+            // a live Shizuku grant cannot be accidentally bypassed by this compatibility class.
+            val result = runBlocking { AndroidShellExecutor.executePrivilegedShellCommand(command) }
 
             if (result.success) {
                 ToolResult(
@@ -66,7 +66,7 @@ open class StandardShellToolExecutor(private val context: Context) {
                         success = false,
                         result = StringResultData(""),
                         error =
-                                "ADB command execution failed (exit code: ${result.exitCode}): $errorOutput"
+                                "Privileged shell execution failed (exit code: ${result.exitCode}): $errorOutput"
                 )
             }
         } catch (e: Exception) {
@@ -75,7 +75,7 @@ open class StandardShellToolExecutor(private val context: Context) {
                     toolName = tool.name,
                     success = false,
                     result = StringResultData(""),
-                    error = "ADB command execution failed: ${e.message}"
+                    error = "Privileged shell execution failed: ${e.message}"
             )
         }
     }

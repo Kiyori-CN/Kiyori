@@ -73,6 +73,8 @@
     <queries>
         <!-- 允许查询和绑定到无障碍服务提供者应用 -->
         <package android:name="com.ai.assistance.operit.provider" />
+        <!-- Android 11+ package visibility for Shizuku installation diagnostics. -->
+        <package android:name="moe.shizuku.privileged.api" />
     </queries>
 
     <application

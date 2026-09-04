@@ -116,6 +116,23 @@ class ToolPkgRuntimeFilesTest(unittest.TestCase):
         self.assertIn("output_is_preview", source)
         self.assertIn("params.input.length === 0", source)
 
+    def test_sensitive_toolpkg_values_are_not_written_to_internal_console_logs(self) -> None:
+        super_admin = (REPO_ROOT / "examples" / "super_admin.ts").read_text(encoding="utf-8")
+        file_converter = (REPO_ROOT / "examples" / "file_converter.ts").read_text(encoding="utf-8")
+
+        self.assertIn("describeSensitiveTextForLog(command)", super_admin)
+        self.assertNotIn("执行终端命令: ${command}", super_admin)
+        self.assertNotIn("执行Shell命令: ${command}", super_admin)
+        self.assertNotIn("console.error(error.stack)", super_admin)
+
+        self.assertIn("describeSensitiveTextForLog(converter.command)", file_converter)
+        self.assertIn("describeSensitiveTextForLog(updateResult.output)", file_converter)
+        self.assertIn("describeSensitiveTextForLog(installResult.output)", file_converter)
+        self.assertNotIn("Executing conversion command: ${converter.command}", file_converter)
+        self.assertNotIn("Output: ${updateResult.output}", file_converter)
+        self.assertNotIn("${installResult.output}", file_converter)
+        self.assertNotIn('console.error(`Function ${func.name} failed: ${message}`, error)', file_converter)
+
     def test_ignored_runtime_files_are_included_in_archive(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)

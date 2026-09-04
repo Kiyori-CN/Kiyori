@@ -54,6 +54,15 @@ const fileConverter = (function () {
     function errorStack(error) {
         return error instanceof Error ? error.stack : undefined;
     }
+    function describeSensitiveTextForLog(value) {
+        // Commands, paths, and process output may contain user data or credentials. The
+        // public ToolResult remains unchanged; only the internal diagnostic is bounded.
+        return `chars=${value.length}`;
+    }
+    function describeErrorForLog(error) {
+        const type = error instanceof Error ? error.name : typeof error;
+        return `type=${type}, messageChars=${errorMessage(error).length}`;
+    }
     /**
      * Checks if a command-line tool is installed, and attempts to install it if not found.
      * @param toolName The name of the command (e.g., "ffmpeg").
@@ -66,22 +75,22 @@ const fileConverter = (function () {
         const checkCmd = `command -v ${toolName}`;
         const checkResult = await executeTerminalCommand(checkCmd, TOOL_CHECK_TIMEOUT_MS);
         if (checkResult.exitCode === 0 && checkResult.output.trim() !== '') {
-            console.log(`${toolName} is already installed at: ${checkResult.output.trim()}`);
+            console.log(`${toolName} is already installed (path ${describeSensitiveTextForLog(checkResult.output.trim())}).`);
             return true;
         }
         console.log(`${toolName} not found. Attempting to install package: ${packageName}...`);
         // Assuming an apt-based system (like Debian/Ubuntu).
         const updateCmd = 'apt-get update';
-        console.log(`Running: ${updateCmd}`);
+        console.log("Updating the package index.");
         const updateResult = await executeTerminalCommand(updateCmd, PACKAGE_UPDATE_TIMEOUT_MS);
         if (updateResult.exitCode !== 0) {
-            console.warn(`'apt-get update' failed. This might be okay if caches are fresh, but installation may fail.\nOutput: ${updateResult.output}`);
+            console.warn(`Package index update failed: exitCode=${updateResult.exitCode}, output=${describeSensitiveTextForLog(updateResult.output)}.`);
         }
         const installCmd = `apt-get install -y ${packageName}`;
-        console.log(`Running: ${installCmd}`);
+        console.log(`Installing package ${packageName}.`);
         const installResult = await executeTerminalCommand(installCmd, PACKAGE_INSTALL_TIMEOUT_MS);
         if (installResult.exitCode !== 0) {
-            console.error(`Failed to install ${packageName}: ${installResult.output}`);
+            console.error(`Failed to install ${packageName}: exitCode=${installResult.exitCode}, output=${describeSensitiveTextForLog(installResult.output)}.`);
             throw new Error(`Failed to install required tool: ${toolName} (package: ${packageName}). Please try installing it manually.`);
         }
         console.log(`${packageName} installed successfully.`);
@@ -140,7 +149,7 @@ const fileConverter = (function () {
         }
         const converter = getConverterInfo(input_path, output_path, options);
         await checkAndInstall(converter.tool, converter.pkg);
-        console.log(`Executing conversion command: ${converter.command}`);
+        console.log(`Executing ${converter.tool} conversion (${describeSensitiveTextForLog(converter.command)}).`);
         const result = await executeTerminalCommand(converter.command, CONVERSION_TIMEOUT_MS);
         if (result.exitCode !== 0) {
             throw new Error(`Conversion failed. Exit code: ${result.exitCode}\nOutput:\n${result.output}`);
@@ -166,7 +175,7 @@ const fileConverter = (function () {
         }
         catch (error) {
             const message = errorMessage(error);
-            console.error(`Function ${func.name} failed: ${message}`, error);
+            console.error(`Function ${func.name} failed (${describeErrorForLog(error)}).`);
             complete({ success: false, message: `${failMessage}: ${message}`, error_stack: errorStack(error) });
         }
     }
@@ -186,7 +195,7 @@ const fileConverter = (function () {
             const outputJpg = `${testDir}/test.jpg`;
             await Tools.Files.writeBinary(inputPng, pngBase64);
             const imageResult = await convert_file({ input_path: inputPng, output_path: outputJpg });
-            console.log("Image conversion success:", imageResult);
+            console.log(`Image conversion success (outputPath=${describeSensitiveTextForLog(imageResult.output_path)}, terminalOutput=${describeSensitiveTextForLog(imageResult.terminal_output)}).`);
             if (!(await Tools.Files.exists(outputJpg)).exists) {
                 throw new Error("JPG file not created.");
             }
@@ -195,7 +204,7 @@ const fileConverter = (function () {
             console.log("ReadBinary success: size=", jpgBinary.size, "bytes, base64 length=", jpgBinary.contentBase64.length);
         }
         catch (error) {
-            console.error("Image conversion test failed:", errorMessage(error), error);
+            console.error(`Image conversion test failed (${describeErrorForLog(error)}).`);
         }
         // Test 2: Document conversion (MD to HTML)
         try {
@@ -204,14 +213,14 @@ const fileConverter = (function () {
             const outputHtml = `${testDir}/test.html`;
             await Tools.Files.write(inputMd, "# Hello World");
             const docResult = await convert_file({ input_path: inputMd, output_path: outputHtml });
-            console.log("Document conversion success:", docResult);
+            console.log(`Document conversion success (outputPath=${describeSensitiveTextForLog(docResult.output_path)}, terminalOutput=${describeSensitiveTextForLog(docResult.terminal_output)}).`);
             const htmlContent = (await Tools.Files.read(outputHtml)).content;
             if (!htmlContent.includes("<h1")) {
                 throw new Error("HTML content is incorrect.");
             }
         }
         catch (error) {
-            console.error("Document conversion test failed:", errorMessage(error), error);
+            console.error(`Document conversion test failed (${describeErrorForLog(error)}).`);
         }
         // Test 3: Unsupported conversion
         try {
@@ -222,7 +231,7 @@ const fileConverter = (function () {
             console.error("Unsupported conversion test FAILED: It should have thrown an error but didn't.");
         }
         catch (error) {
-            console.log("Unsupported conversion test PASSED as expected:", errorMessage(error));
+            console.log(`Unsupported conversion test PASSED as expected (${describeErrorForLog(error)}).`);
         }
         console.log("\n--- File Converter Tool Test Finished ---");
         await Tools.Files.deleteFile(testDir, true);

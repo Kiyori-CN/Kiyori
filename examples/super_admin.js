@@ -181,6 +181,17 @@ const superAdmin = (function () {
         }
         return value.endsWith("\n") ? count : count + 1;
     }
+    function describeSensitiveTextForLog(value) {
+        // Commands may contain credentials, user paths, or inline file contents. Keep logs
+        // useful for correlation without persisting the command itself.
+        const hasShellOperators = /[;&|<>`$]/.test(value);
+        return `chars=${value.length}, bytes=${utf8ByteLength(value)}, shellOperators=${hasShellOperators}`;
+    }
+    function describeErrorForLog(error) {
+        const type = error instanceof Error ? error.name : typeof error;
+        const message = error instanceof Error ? error.message : String(error);
+        return `type=${type}, messageChars=${message.length}`;
+    }
     async function persistTerminalOutputIfTooLong(command, result) {
         const outputStr = result.output;
         if (outputStr.length <= MAX_INLINE_TERMINAL_OUTPUT_CHARS) {
@@ -234,7 +245,7 @@ const superAdmin = (function () {
             if (background !== undefined && typeof background !== "boolean") {
                 throw new Error("background必须是布尔值");
             }
-            console.log(`执行终端命令: ${command}`);
+            console.log(`执行终端命令 (${describeSensitiveTextForLog(command)})`);
             const isBackground = background === true;
             let timeout;
             let timeoutMsIgnored;
@@ -256,8 +267,7 @@ const superAdmin = (function () {
                         await Tools.System.terminal.exec(sessionId, command, undefined, { timeoutPolicy: "none" });
                     }
                     catch (error) {
-                        console.error(`[terminal/background] 错误: ${error.message}`);
-                        console.error(error.stack);
+                        console.error(`[terminal/background] 错误 (${describeErrorForLog(error)})`);
                     }
                 })();
                 return {
@@ -296,8 +306,7 @@ const superAdmin = (function () {
             };
         }
         catch (error) {
-            console.error(`[terminal] 错误: ${error.message}`);
-            console.error(error.stack);
+            console.error(`[terminal] 错误 (${describeErrorForLog(error)})`);
             throw error;
         }
     }
@@ -344,8 +353,7 @@ const superAdmin = (function () {
             };
         }
         catch (error) {
-            console.error(`[terminal_wait] 错误: ${error.message}`);
-            console.error(error.stack);
+            console.error(`[terminal_wait] 错误 (${describeErrorForLog(error)})`);
             throw error;
         }
     }
@@ -360,7 +368,7 @@ const superAdmin = (function () {
                 throw new Error("命令不能为空");
             }
             const command = params.command;
-            console.log(`执行Shell命令: ${command}`);
+            console.log(`执行Shell命令 (${describeSensitiveTextForLog(command)})`);
             // 通过Shizuku/Root权限执行shell操作
             const result = await Tools.System.shell(`${command}`);
             return {
@@ -370,8 +378,7 @@ const superAdmin = (function () {
             };
         }
         catch (error) {
-            console.error(`[shell] 错误: ${error.message}`);
-            console.error(error.stack);
+            console.error(`[shell] 错误 (${describeErrorForLog(error)})`);
             throw error;
         }
     }
@@ -394,8 +401,7 @@ const superAdmin = (function () {
             };
         }
         catch (error) {
-            console.error(`[terminal_getscreen] 错误: ${error.message}`);
-            console.error(error.stack);
+            console.error(`[terminal_getscreen] 错误 (${describeErrorForLog(error)})`);
             throw error;
         }
     }
@@ -429,8 +435,7 @@ const superAdmin = (function () {
             };
         }
         catch (error) {
-            console.error(`[terminal_input] 错误: ${error.message}`);
-            console.error(error.stack);
+            console.error(`[terminal_input] 错误 (${describeErrorForLog(error)})`);
             throw error;
         }
     }

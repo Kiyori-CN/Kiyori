@@ -262,12 +262,23 @@ internal fun KiyoriOnboardingScreen(
                     true
                 }
 
-                KiyoriPermissionActionKind.CONFIGURE_SHIZUKU -> {
-                    performKiyoriShizukuAction(context) {
-                        pagerScope.launch {
-                            waitingForExternalSettings = false
-                            refreshPermissions()
-                        }
+                    KiyoriPermissionActionKind.CONFIGURE_SHIZUKU -> {
+                        performKiyoriShizukuAction(context) {
+                            pagerScope.launch {
+                                if (it) {
+                                    try {
+                                        activateKiyoriShizukuExecution()
+                                    } catch (error: Exception) {
+                                        KiyoriLogger.e(
+                                            "KiyoriOnboarding",
+                                            "Shizuku granted but execution state activation failed",
+                                            error,
+                                        )
+                                    }
+                                }
+                                waitingForExternalSettings = false
+                                refreshPermissions()
+                            }
                     }
                     true
                 }

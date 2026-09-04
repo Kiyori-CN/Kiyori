@@ -6,6 +6,7 @@ import com.ai.assistance.operit.api.chat.enhance.ToolExecutionManager
 import com.ai.assistance.operit.core.tools.climode.CliToolModeSupport
 import com.ai.assistance.operit.core.tools.climode.ToolExposureMode
 import com.ai.assistance.operit.core.tools.defaultTool.ToolGetter
+import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardSystemOperationTools
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolParameter
 import com.ai.assistance.operit.data.model.ToolResult
@@ -2263,20 +2264,23 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
             }
     )
 
-    // 系统操作工具
-    val systemOperationTools = ToolGetter.getSystemOperationTools(context)
+    // Resolve the system-operation owner at invocation time. Shizuku may be granted after the
+    // application has registered its tools; retaining this object would keep the old Standard
+    // implementation and continue issuing calls under the application UID.
+    fun currentSystemOperationTools(): StandardSystemOperationTools =
+        ToolGetter.getSystemOperationTools(context)
 
     handler.registerTool(
             name = "toast",
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.toast(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().toast(tool) }
             }
     )
 
     handler.registerTool(
             name = "send_notification",
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.sendNotification(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().sendNotification(tool) }
             }
     )
 
@@ -2289,7 +2293,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 s(R.string.toolreg_modify_system_setting_desc, key, value)
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.modifySystemSetting(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().modifySystemSetting(tool) }
             }
     )
 
@@ -2301,7 +2305,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 s(R.string.toolreg_get_system_setting_desc, key)
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.getSystemSetting(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().getSystemSetting(tool) }
             }
     )
 
@@ -2313,7 +2317,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 s(R.string.toolreg_install_app_desc, path)
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.installApp(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().installApp(tool) }
             }
     )
 
@@ -2325,7 +2329,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 s(R.string.toolreg_uninstall_app_desc, packageName)
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.uninstallApp(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().uninstallApp(tool) }
             }
     )
 
@@ -2334,7 +2338,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
             name = "list_installed_apps",
             descriptionGenerator = { _ -> s(R.string.toolreg_list_installed_apps_desc) },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.listInstalledApps(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().listInstalledApps(tool) }
             }
     )
 
@@ -2346,7 +2350,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 s(R.string.toolreg_start_app_desc, packageName)
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.startApp(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().startApp(tool) }
             }
     )
 
@@ -2358,7 +2362,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 s(R.string.toolreg_stop_app_desc, packageName)
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.stopApp(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().stopApp(tool) }
             }
     )
 
@@ -2377,7 +2381,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 }
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.getNotifications(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().getNotifications(tool) }
             }
     )
 
@@ -2394,7 +2398,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 }
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.getAppUsageTime(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().getAppUsageTime(tool) }
             }
     )
 
@@ -2411,7 +2415,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 }
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.getDeviceLocation(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().getDeviceLocation(tool) }
             }
     )
 
@@ -2419,7 +2423,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
             name = "request_bluetooth_permission",
             descriptionGenerator = { _ -> "Request Bluetooth nearby devices permission" },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.requestBluetoothPermission(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().requestBluetoothPermission(tool) }
             }
     )
 
@@ -2427,7 +2431,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
             name = "get_bluetooth_state",
             descriptionGenerator = { _ -> "Get Bluetooth adapter state" },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.getBluetoothState(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().getBluetoothState(tool) }
             }
     )
 
@@ -2435,7 +2439,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
             name = "request_enable_bluetooth",
             descriptionGenerator = { _ -> "Open the system dialog to enable Bluetooth" },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.requestEnableBluetooth(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().requestEnableBluetooth(tool) }
             }
     )
 
@@ -2443,7 +2447,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
             name = "list_bluetooth_bonded_devices",
             descriptionGenerator = { _ -> "List bonded Bluetooth devices" },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.listBluetoothBondedDevices(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().listBluetoothBondedDevices(tool) }
             }
     )
 
@@ -2451,7 +2455,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
             name = "scan_bluetooth_devices",
             descriptionGenerator = { _ -> "Scan nearby Bluetooth classic and BLE devices" },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.scanBluetoothDevices(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().scanBluetoothDevices(tool) }
             }
     )
 
@@ -2462,7 +2466,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 "Connect to Bluetooth classic device $address"
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.connectBluetooth(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().connectBluetooth(tool) }
             }
     )
 
@@ -2470,7 +2474,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
             name = "bluetooth_listen",
             descriptionGenerator = { _ -> "Listen for an incoming Bluetooth classic connection" },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.listenBluetooth(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().listenBluetooth(tool) }
             }
     )
 
@@ -2481,7 +2485,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 "Accept an incoming Bluetooth classic connection from listener $listenerId"
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.acceptBluetooth(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().acceptBluetooth(tool) }
             }
     )
 
@@ -2492,7 +2496,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 "Send data to Bluetooth session $sessionId"
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.sendBluetooth(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().sendBluetooth(tool) }
             }
     )
 
@@ -2503,7 +2507,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 "Read data from Bluetooth session $sessionId"
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.readBluetooth(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().readBluetooth(tool) }
             }
     )
 
@@ -2514,7 +2518,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 "Send data and read response from Bluetooth session $sessionId"
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.sendAndReadBluetooth(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().sendAndReadBluetooth(tool) }
             }
     )
 
@@ -2525,7 +2529,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 "Close Bluetooth session $sessionId"
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.closeBluetooth(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().closeBluetooth(tool) }
             }
     )
 
@@ -2536,7 +2540,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 "Connect to BLE device $address"
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.connectBle(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().connectBle(tool) }
             }
     )
 
@@ -2547,7 +2551,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 "Discover BLE services for session $sessionId"
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.discoverBleServices(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().discoverBleServices(tool) }
             }
     )
 
@@ -2558,7 +2562,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 "Read BLE characteristic $characteristicUuid"
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.readBleCharacteristic(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().readBleCharacteristic(tool) }
             }
     )
 
@@ -2569,7 +2573,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 "Write BLE characteristic $characteristicUuid"
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.writeBleCharacteristic(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().writeBleCharacteristic(tool) }
             }
     )
 
@@ -2581,7 +2585,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 "Write BLE characteristic $writeCharacteristicUuid and read $readCharacteristicUuid"
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.writeAndReadBleCharacteristic(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().writeAndReadBleCharacteristic(tool) }
             }
     )
 
@@ -2592,7 +2596,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 "Subscribe BLE characteristic $characteristicUuid"
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.subscribeBleCharacteristic(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().subscribeBleCharacteristic(tool) }
             }
     )
 
@@ -2603,7 +2607,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 "Read BLE notifications from session $sessionId"
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { systemOperationTools.readBleNotifications(tool) }
+                runBlocking(Dispatchers.IO) { currentSystemOperationTools().readBleNotifications(tool) }
             }
     )
 

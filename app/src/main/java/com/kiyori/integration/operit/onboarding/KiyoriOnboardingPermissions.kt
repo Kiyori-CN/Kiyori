@@ -15,10 +15,14 @@ import android.provider.Settings
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import com.ai.assistance.operit.core.tools.system.AndroidPermissionLevel
+import com.ai.assistance.operit.core.tools.system.AndroidShellExecutor
 import com.ai.assistance.operit.core.tools.system.RootAuthorizer
 import com.ai.assistance.operit.core.tools.system.ShizukuAuthorizer
 import com.ai.assistance.operit.core.tools.system.ShizukuInstaller
+import com.ai.assistance.operit.data.preferences.androidPermissionPreferences
 import com.ai.assistance.operit.data.repository.UIHierarchyManager
+import com.kiyori.platform.logging.KiyoriLogger
 
 internal fun kiyoriRuntimePermissionsForSdk(
     sdkInt: Int,
@@ -462,6 +466,25 @@ internal fun performKiyoriShizukuAction(
         }
 
         else -> ShizukuAuthorizer.requestShizukuPermission(onPermissionResult)
+    }
+}
+
+/**
+ * Applies the same execution-state transition for both onboarding and Settings permission entry
+ * points. The Shizuku service grant is an Android capability; persisting DEBUGGER here makes the
+ * shell route and the permission presentation converge without introducing a second state owner.
+ */
+internal suspend fun activateKiyoriShizukuExecution() {
+    try {
+        androidPermissionPreferences.savePreferredPermissionLevel(AndroidPermissionLevel.DEBUGGER)
+        AndroidShellExecutor.clearPreferredPermissionLevelCache()
+    } catch (error: Exception) {
+        KiyoriLogger.e(
+            "KiyoriPermissions",
+            "Failed to persist Shizuku DEBUGGER execution state",
+            error,
+        )
+        throw error
     }
 }
 

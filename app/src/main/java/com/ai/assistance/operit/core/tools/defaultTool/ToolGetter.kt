@@ -7,9 +7,10 @@ import com.ai.assistance.operit.core.tools.defaultTool.debugger.*
 import com.ai.assistance.operit.core.tools.defaultTool.root.*
 import com.ai.assistance.operit.core.tools.defaultTool.standard.*
 import com.ai.assistance.operit.core.tools.system.AndroidPermissionLevel
+import com.ai.assistance.operit.core.tools.system.AndroidShellExecutor
 import com.ai.assistance.operit.data.preferences.androidPermissionPreferences
 
-/** 工具获取器 - 根据首选权限级别获取对应的工具实现 如果特定权限级别下没有对应工具实现，则回退到标准权限级别的工具 */
+/** 工具获取器 - 根据首选权限级别和实时能力获取对应的工具实现。 */
 object ToolGetter {
 
     /**
@@ -65,7 +66,15 @@ object ToolGetter {
             AndroidPermissionLevel.DEBUGGER -> DebuggerSystemOperationTools(context)
             AndroidPermissionLevel.ACCESSIBILITY -> AccessibilitySystemOperationTools(context)
             AndroidPermissionLevel.STANDARD -> StandardSystemOperationTools(context)
-            null -> StandardSystemOperationTools(context) // 默认使用标准权限级别
+            null ->
+                if (AndroidShellExecutor.isPrivilegedExecutionConfiguredOrAvailable()) {
+                    // A Shizuku grant can arrive after tool registration. The caller resolves this
+                    // owner for every invocation, so a newly available privileged route is visible
+                    // without retaining a stale StandardSystemOperationTools instance.
+                    DebuggerSystemOperationTools(context)
+                } else {
+                    StandardSystemOperationTools(context)
+                }
         }
     }
 

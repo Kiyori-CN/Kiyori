@@ -109,6 +109,7 @@ from check_architecture_boundaries import (  # noqa: E402
     M05B_HASHED_PATHS,
     M05B_HASH_SNAPSHOT,
     M05B_KIYORI_CONSUMER_SNAPSHOT,
+    M05B_LOG_MIGRATION_PATH,
     M05B_LEGACY_FACADE_PATH,
     M05B_LOGGER_PATH,
     M05B_MEMORY_PROVIDER_PATH,
@@ -3349,7 +3350,8 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             "    const val ERROR: Int = Log.ERROR\n"
             "    const val ASSERT: Int = Log.ASSERT\n"
             '    private const val LOG_DIR_NAME = "logs"\n'
-            '    private const val LOG_FILE_NAME = "operit.log"\n'
+            '    private const val LOG_FILE_NAME = KiyoriLogFileMigration.ACTIVE_FILE_NAME\n'
+            '    private const val LEGACY_LOG_FILE_NAME = KiyoriLogFileMigration.LEGACY_FILE_NAME\n'
             '    private const val PACKAGE_LOG_DIR_NAME = "packageLogs"\n'
             '    private const val TOOLPKG_LOG_TAG = "ToolPkg"\n'
             "    private const val MAX_LOG_MESSAGE_CHARS = 12_000\n"
@@ -3363,7 +3365,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             "    @Volatile private var boundFilesDir: File? = null\n"
             "    @Volatile private var packageLogRootProvider: (() -> File)? = null\n"
             "    private val fileLogExecutor = Executors.newSingleThreadExecutor { runnable ->\n"
-            '        Thread(runnable, "OperitAppLogger")\n'
+            '        Thread(runnable, "KiyoriAppLogger")\n'
             "    }\n"
             "    fun bindContext(context: Context, packageLogRootProvider: () -> File) {\n"
             "        boundFilesDir = context.applicationContext.filesDir\n"
@@ -3377,6 +3379,8 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             "        File(filesDir, LOG_DIR_NAME)\n"
             "        val rootProvider = packageLogRootProvider ?: error(\"missing\")\n"
             "        File(rootProvider(), PACKAGE_LOG_DIR_NAME)\n"
+            "        KiyoriLogFileMigration.resolve(File(filesDir, LOG_DIR_NAME))\n"
+            "        KiyoriLogFileMigration.migrate(File(filesDir, LOG_DIR_NAME))\n"
             "        return File(LOG_FILE_NAME)\n"
             "    }\n"
             "    private fun resolveFilesDir(): File? = ApplicationContextAccess.current.filesDir\n"
@@ -3405,6 +3409,29 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             "    fun getLogFile(): File? = resolveLogFile()\n"
             "    private fun resolveLogFile(): File? = logFile\n"
             "    fun resetLogFile() { logFile = null; packageLogFile = null }\n"
+            "}\n",
+        )
+        write(
+            M05B_LOG_MIGRATION_PATH,
+            "package com.kiyori.platform.logging\n\n"
+            "import java.io.File\n"
+            "import java.io.FileOutputStream\n"
+            "import java.nio.file.Files\n"
+            "import java.nio.file.StandardCopyOption\n\n"
+            "internal object KiyoriLogFileMigration {\n"
+            '    const val ACTIVE_FILE_NAME = "kiyori.log"\n'
+            '    const val LEGACY_FILE_NAME = "operit.log"\n'
+            "    fun resolve(logDirectory: File): File = File(logDirectory, ACTIVE_FILE_NAME)\n"
+            "    fun migrate(logDirectory: File) {\n"
+            "        val legacyFile = File(logDirectory, LEGACY_FILE_NAME)\n"
+            "        val activeFile = File(logDirectory, ACTIVE_FILE_NAME)\n"
+            "        val temporaryFile = File(logDirectory, \"$ACTIVE_FILE_NAME.tmp\")\n"
+            "        FileOutputStream(temporaryFile).use { fileOutput ->\n"
+            "            fileOutput.write(legacyFile.readBytes())\n"
+            "            fileOutput.fd.sync()\n"
+            "        }\n"
+            "        Files.move(temporaryFile.toPath(), activeFile.toPath(), StandardCopyOption.ATOMIC_MOVE)\n"
+            "    }\n"
             "}\n",
         )
         write(
@@ -3480,6 +3507,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             M04D_MAIN_ORIENTATION_COORDINATOR_PATH,
             M04C_NAVIGATION_INTEGRATION_PATH,
             KIYORI_FIRST_RUN_SCREEN_PATH,
+            KIYORI_FIRST_RUN_PERMISSIONS_PATH,
             "app/src/main/java/com/kiyori/integration/operit/onboarding/"
             "KiyoriPermissionsSettingsPage.kt",
             "app/src/main/java/com/kiyori/platform/network/"
@@ -7174,7 +7202,10 @@ class KiyoriPathsTest {
                     "import com.kiyori.platform.android.ApplicationContextAccess\n"
                     "import com.ai.assistance.operit.util.OperitPaths\n",
                 )
-                .replace('"operit.log"', '"changed.log"'),
+                .replace(
+                    "KiyoriLogFileMigration.ACTIVE_FILE_NAME",
+                    "ChangedLogFile.ACTIVE_FILE_NAME",
+                ),
                 encoding="utf-8",
             )
 

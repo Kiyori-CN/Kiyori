@@ -16,6 +16,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.accessbility.Accessibilit
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardUITools
 import com.ai.assistance.operit.core.tools.system.AndroidShellExecutor
 import com.ai.assistance.operit.core.tools.system.ShellIdentity
+import com.ai.assistance.operit.core.tools.system.shell.ShellCommandDiagnostics
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolResult
 import com.ai.assistance.operit.data.repository.UIHierarchyManager
@@ -98,7 +99,10 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
                         error = ""
                 )
             } else {
-                AppLogger.e(TAG, "Tap failed at coordinates: ($x, $y), error: ${result.stderr}")
+                AppLogger.e(
+                    TAG,
+                    "Tap failed at coordinates: ($x, $y), error=(${ShellCommandDiagnostics.describe(result.stderr)})",
+                )
                 withContext(Dispatchers.Main) {
                     operationOverlay.hide() // 隐藏反馈（在主线程上执行）
                 }
@@ -166,7 +170,10 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
                         error = ""
                 )
             } else {
-                AppLogger.e(TAG, "Long press failed at coordinates: ($x, $y), error: ${result.stderr}")
+                AppLogger.e(
+                    TAG,
+                    "Long press failed at coordinates: ($x, $y), error=(${ShellCommandDiagnostics.describe(result.stderr)})",
+                )
                 withContext(Dispatchers.Main) { operationOverlay.hide() }
                 return ToolResult(
                         toolName = tool.name,
@@ -237,7 +244,10 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
                         error = ""
                 )
             } else {
-                AppLogger.e(TAG, "Swipe failed: ${result.stderr}")
+                AppLogger.e(
+                    TAG,
+                    "Swipe failed (${ShellCommandDiagnostics.describe(result.stderr)})",
+                )
                 withContext(Dispatchers.Main) {
                     operationOverlay.hide() // 隐藏反馈（在主线程上执行）
                 }
@@ -389,7 +399,10 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
             }
 
             // 使用原生复制和ADB粘贴来输入文本，这比'input text'更可靠
-            AppLogger.d(TAG, "Setting text to clipboard and pasting via ADB: $text")
+            AppLogger.d(
+                TAG,
+                "Setting text to clipboard and pasting via ADB (${ShellCommandDiagnostics.describe(text)})",
+            )
             withContext(Dispatchers.Main) {
                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 val clip = ClipData.newPlainText("operit_input", text)
@@ -625,15 +638,24 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
             }
 
             if (!dumpResult.success) {
-                AppLogger.e(TAG, "uiautomator dump失败: ${dumpResult.stderr}")
+                AppLogger.e(
+                    TAG,
+                    "uiautomator dump失败 (${ShellCommandDiagnostics.describe(dumpResult.stderr)})",
+                )
                 return null
             }
-            AppLogger.d(TAG, "uiautomator dump成功: ${dumpResult.stdout}")
+            AppLogger.d(
+                TAG,
+                "uiautomator dump成功 (${ShellCommandDiagnostics.describe(dumpResult.stdout)})",
+            )
 
             // 读取dump文件内容
             val readResult = executeUiShellCommand("cat $dumpPath")
             if (!readResult.success) {
-                AppLogger.e(TAG, "读取UI dump文件失败: ${readResult.stderr}")
+                AppLogger.e(
+                    TAG,
+                    "读取UI dump文件失败 (${ShellCommandDiagnostics.describe(readResult.stderr)})",
+                )
                 return null
             }
 
@@ -654,7 +676,10 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
         } finally {
             val cleanupResult = executeUiShellCommand("rm -f $dumpPath")
             if (!cleanupResult.success) {
-                AppLogger.w(TAG, "清理UI dump文件失败: ${cleanupResult.stderr}")
+                AppLogger.w(
+                    TAG,
+                    "清理UI dump文件失败 (${ShellCommandDiagnostics.describe(cleanupResult.stderr)})",
+                )
             }
         }
     }
@@ -681,13 +706,23 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
             try {
                 val result = executeUiShellCommand(command)
                 if (result.success && result.stdout.isNotEmpty()) {
-                    AppLogger.d(TAG, "成功获取窗口信息: ${result.stdout.take(100)}")
+                    AppLogger.d(
+                        TAG,
+                        "成功获取窗口信息 (${ShellCommandDiagnostics.describe(result.stdout)})",
+                    )
                     return result.stdout
                 }
                 // 如果命令执行失败或返回空结果，尝试下一个命令
-                AppLogger.w(TAG, "窗口信息命令 '$command' 失败或返回空结果")
+                AppLogger.w(
+                    TAG,
+                    "窗口信息命令 (${ShellCommandDiagnostics.describe(command)}) 失败或返回空结果",
+                )
             } catch (e: Exception) {
-                AppLogger.e(TAG, "执行窗口信息命令 '$command' 出错", e)
+                AppLogger.e(
+                    TAG,
+                    "执行窗口信息命令 (${ShellCommandDiagnostics.describe(command)}) 出错",
+                    e,
+                )
                 // 继续尝试下一个命令
             }
         }
@@ -698,7 +733,10 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
                     "dumpsys activity activities | grep -E 'topResumedActivity|topActivity'"
             val result = executeUiShellCommand(topActivityCommand)
             if (result.success && result.stdout.isNotEmpty()) {
-                AppLogger.d(TAG, "使用topActivity作为窗口信息替代: ${result.stdout.take(100)}")
+                AppLogger.d(
+                    TAG,
+                    "使用topActivity作为窗口信息替代 (${ShellCommandDiagnostics.describe(result.stdout)})",
+                )
                 return result.stdout
             }
         } catch (e: Exception) {
@@ -815,7 +853,10 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
                 return result
             }
 
-            AppLogger.d(TAG, "Window info for extraction: ${windowInfo.take(200)}")
+            AppLogger.d(
+                TAG,
+                "Window info for extraction (${ShellCommandDiagnostics.describe(windowInfo)})",
+            )
 
             // 尝试不同的提取方法，按照特异性顺序
             if (!extractFromCurrentFocusShell(windowInfo, result) &&
@@ -1318,7 +1359,10 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
         } finally {
             val cleanupResult = executeUiShellCommand("rm -f $dumpPath")
             if (!cleanupResult.success) {
-                AppLogger.w(TAG, "Error cleaning up UI dump: ${cleanupResult.stderr}")
+                AppLogger.w(
+                    TAG,
+                    "Error cleaning up UI dump (${ShellCommandDiagnostics.describe(cleanupResult.stderr)})",
+                )
             }
         }
     }

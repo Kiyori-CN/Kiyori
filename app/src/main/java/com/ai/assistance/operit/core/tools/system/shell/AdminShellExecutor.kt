@@ -104,7 +104,10 @@ class AdminShellExecutor(private val context: Context) : ShellExecutor {
                     return@withContext ShellExecutor.CommandResult(false, "", permStatus.reason, -1)
                 }
 
-                AppLogger.d(TAG, "Executing command via device admin: $command")
+                AppLogger.d(
+                    TAG,
+                    "Executing command via device admin (${ShellCommandDiagnostics.describe(command)})",
+                )
 
                 // 设备管理员API不能直接执行shell命令，但可以执行一些系统操作
                 // 这里实现将根据实际可用的管理员API而定

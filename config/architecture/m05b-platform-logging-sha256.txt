@@ -1,4 +1,5 @@
-4D24BA7A44BB35F948E4096341936D7A92971FF22750E4736486BAD0366D6F2F	app/src/main/java/com/kiyori/platform/logging/KiyoriLogger.kt
+1CABF5A6A3287CD9C1D571569E1A71305ECB07899457B8202C8CB3081B93CCC4	app/src/main/java/com/kiyori/platform/logging/KiyoriLogger.kt
+A9D43FDD1D7A703D3A9A808C32F0F50AAE08EEA5CA6C4DA3D2B39121B2B4A348	app/src/main/java/com/kiyori/platform/logging/KiyoriLogFileMigration.kt
 1665ECEC8BA13D15414A0A7E76FDB859A4E227DAAFCA72A96D8CD314DBEB3F02	app/src/main/java/com/kiyori/platform/logging/KiyoriLogTextFormatter.kt
 252F67D6C755FB7F4C36AD363ABD73DDDCCF8F54158FB22E7AFDCEA6669694FF	app/src/main/java/com/ai/assistance/operit/util/AppLogger.kt
 E10334626A0848FB0CB9BDDC05626840BEB3DC62EEF6FEE181C88DFFA405775B	app/src/main/java/com/ai/assistance/operit/util/crash/CrashReportStore.kt

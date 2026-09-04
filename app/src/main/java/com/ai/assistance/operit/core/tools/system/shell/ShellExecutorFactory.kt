@@ -4,6 +4,7 @@ import android.content.Context
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.core.tools.system.AndroidPermissionLevel
 import com.ai.assistance.operit.data.preferences.androidPermissionPreferences
+import java.util.concurrent.ConcurrentHashMap
 
 /** Shell执行器工厂类 根据权限级别提供相应的执行器实例 */
 class ShellExecutorFactory {
@@ -11,7 +12,7 @@ class ShellExecutorFactory {
         private const val TAG = "ShellExecutorFactory"
 
         // 缓存已创建的执行器实例
-        private val executors = mutableMapOf<AndroidPermissionLevel, ShellExecutor>()
+        private val executors = ConcurrentHashMap<AndroidPermissionLevel, ShellExecutor>()
 
         /**
          * 获取指定权限级别的Shell执行器

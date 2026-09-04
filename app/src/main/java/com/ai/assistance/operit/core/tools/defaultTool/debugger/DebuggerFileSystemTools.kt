@@ -20,6 +20,7 @@ import com.ai.assistance.operit.core.tools.ToolExecutionLimits
 import com.ai.assistance.operit.BuildConfig
 import com.ai.assistance.operit.core.tools.defaultTool.accessbility.AccessibilityFileSystemTools
 import com.ai.assistance.operit.core.tools.system.AndroidShellExecutor
+import com.ai.assistance.operit.core.tools.system.shell.ShellCommandDiagnostics
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolParameter
 import com.ai.assistance.operit.data.model.ToolResult
@@ -117,11 +118,17 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
             val normalizedPath = if (path.endsWith("/")) path else "$path/"
 
             // 使用ls -la命令获取详细的文件列表
-            AppLogger.d(TAG, "Using ls -la command for path: $normalizedPath")
+            AppLogger.d(
+                TAG,
+                "Using ls -la command for path (${ShellCommandDiagnostics.describe(normalizedPath)})",
+            )
             val listResult = AndroidShellExecutor.executeShellCommand("ls -la '$normalizedPath'")
 
             if (listResult.success) {
-                AppLogger.d(TAG, "ls -la command output: ${listResult.stdout}")
+                AppLogger.d(
+                    TAG,
+                    "ls -la command completed (${ShellCommandDiagnostics.describe(listResult.stdout)})",
+                )
 
                 // 解析ls -la命令输出
                 val entries = parseDetailedDirectoryListing(listResult.stdout, normalizedPath)
@@ -135,7 +142,10 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
                         error = ""
                 )
             } else {
-                AppLogger.w(TAG, "ls -la command failed: ${listResult.stderr}")
+                AppLogger.w(
+                    TAG,
+                    "ls -la command failed (${ShellCommandDiagnostics.describe(listResult.stderr)})",
+                )
 
                 return ToolResult(
                         toolName = tool.name,
@@ -177,7 +187,7 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
                 if (line.isBlank()) continue
 
                 // 打印每一行以便调试
-                AppLogger.d(TAG, "Parsing line: $line")
+                AppLogger.d(TAG, "Parsing directory entry (${ShellCommandDiagnostics.describe(line)})")
 
                 // Android上ls -la输出格式: crwxrw--- 2 u0_a425 media_rw 4056 2025-03-14
                 // 06:04 Android
@@ -202,7 +212,10 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
                     // 处理符号链接格式 "name -> target"
                     if (isSymlink && name.contains(" -> ")) {
                         name = name.substringBefore(" -> ")
-                        AppLogger.d(TAG, "Found symlink: $name")
+                        AppLogger.d(
+                            TAG,
+                            "Found symlink (${ShellCommandDiagnostics.describe(name)})",
+                        )
                     }
 
                     // 跳过 . 和 .. 条目
@@ -215,13 +228,20 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
                                 val parsedDate = dateFormat.parse(dateTimeStr)
                                 parsedDate?.time?.toString() ?: "0"
                             } catch (e: Exception) {
-                                AppLogger.e(TAG, "Error parsing date: $dateTimeStr", e)
+                                AppLogger.e(
+                                    TAG,
+                                    "Error parsing date (${ShellCommandDiagnostics.describe(dateTimeStr)})",
+                                    e,
+                                )
                                 "0" // 解析失败时使用默认时间戳
                             }
 
                     AppLogger.d(
                             TAG,
-                            "Successfully parsed $name with date $dateTimeStr -> timestamp $timestamp"
+                            "Successfully parsed directory entry " +
+                                "(${ShellCommandDiagnostics.describe(name)}), " +
+                                "date=${ShellCommandDiagnostics.describe(dateTimeStr)}, " +
+                                "timestamp=$timestamp"
                     )
 
                     entries.add(
@@ -252,7 +272,10 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
                     // 处理符号链接格式 "name -> target"
                     if (isSymlink && name.contains(" -> ")) {
                         name = name.substringBefore(" -> ")
-                        AppLogger.d(TAG, "Found symlink (generic): $name")
+                        AppLogger.d(
+                            TAG,
+                            "Found symlink (generic) (${ShellCommandDiagnostics.describe(name)})",
+                        )
                     }
 
                     // 跳过 . 和 .. 条目
@@ -272,7 +295,11 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
                                     System.currentTimeMillis().toString()
                                 }
                             } catch (e: Exception) {
-                                AppLogger.e(TAG, "Error parsing generic date: $dateTimeStr", e)
+                                AppLogger.e(
+                                    TAG,
+                                    "Error parsing generic date (${ShellCommandDiagnostics.describe(dateTimeStr)})",
+                                    e,
+                                )
                                 "0"
                             }
 
@@ -297,7 +324,10 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
                     val parts = line.substring(10).trim().split("\\s+".toRegex())
 
                     if (parts.size < 6) {
-                        AppLogger.w(TAG, "Invalid ls -la format: $line")
+                        AppLogger.w(
+                            TAG,
+                            "Invalid ls -la format (${ShellCommandDiagnostics.describe(line)})",
+                        )
                         continue
                     }
 
@@ -306,7 +336,10 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
                             parts.indexOfFirst { it.matches("""^\d{4}-\d{2}-\d{2}$""".toRegex()) }
 
                     if (dateIndex < 0 || dateIndex + 1 >= parts.size) {
-                        AppLogger.w(TAG, "Cannot find date in line: $line")
+                        AppLogger.w(
+                            TAG,
+                            "Cannot find date in directory entry (${ShellCommandDiagnostics.describe(line)})",
+                        )
                         continue
                     }
 
@@ -316,7 +349,10 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
                     // 时间后面的所有内容都是文件名
                     val nameStartIndex = timeIndex + 1
                     if (nameStartIndex >= parts.size) {
-                        AppLogger.w(TAG, "Cannot find filename position: $line")
+                        AppLogger.w(
+                            TAG,
+                            "Cannot find filename position (${ShellCommandDiagnostics.describe(line)})",
+                        )
                         continue
                     }
 
@@ -326,7 +362,10 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
                     // 处理符号链接格式 "name -> target"
                     if (isSymlink && name.contains(" -> ")) {
                         name = name.substringBefore(" -> ")
-                        AppLogger.d(TAG, "Found symlink (fallback): $name")
+                        AppLogger.d(
+                            TAG,
+                            "Found symlink (fallback) (${ShellCommandDiagnostics.describe(name)})",
+                        )
                     }
 
                     // 跳过 . 和 .. 条目
@@ -343,7 +382,11 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
                                 val parsedDate = dateFormat.parse(dateTimeStr)
                                 parsedDate?.time?.toString() ?: "0"
                             } catch (e: Exception) {
-                                AppLogger.e(TAG, "Error parsing fallback date: $dateTimeStr", e)
+                                AppLogger.e(
+                                    TAG,
+                                    "Error parsing fallback date (${ShellCommandDiagnostics.describe(dateTimeStr)})",
+                                    e,
+                                )
                                 "0"
                             }
 
@@ -358,7 +401,11 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
                     )
                 }
             } catch (e: Exception) {
-                AppLogger.e(TAG, "Error parsing directory entry: ${lines[i]}", e)
+                AppLogger.e(
+                    TAG,
+                    "Error parsing directory entry (${ShellCommandDiagnostics.describe(lines[i])})",
+                    e,
+                )
                 // 跳过这一行但继续处理其他行
             }
         }
@@ -389,7 +436,11 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
 
             return String(permChars)
         } catch (e: Exception) {
-            AppLogger.e(TAG, "Error converting octal permission: $octalPerm", e)
+            AppLogger.e(
+                TAG,
+                "Error converting octal permission (${ShellCommandDiagnostics.describe(octalPerm)})",
+                e,
+            )
             return "???"
         }
     }
@@ -793,7 +844,11 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
             return super.handleSpecialFileRead(tool, path, fileExt)
         }
 
-        AppLogger.d(TAG, "File not directly readable (permission restricted), trying Shell copy for: $path")
+        AppLogger.d(
+            TAG,
+            "File not directly readable (permission restricted), trying Shell copy for " +
+                "${ShellCommandDiagnostics.describe(path)}",
+        )
         
         // 创建临时文件用于中转
         val tempFile = File(context.cacheDir, "shell_copy_${System.currentTimeMillis()}.$fileExt")
@@ -804,7 +859,10 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
             val copyResult = AndroidShellExecutor.executeShellCommand("cat '$path' > '${tempFile.absolutePath}'")
             
             if (!copyResult.success) {
-                AppLogger.w(TAG, "Shell copy failed: ${copyResult.stderr}")
+                AppLogger.w(
+                    TAG,
+                    "Shell copy failed (${ShellCommandDiagnostics.describe(copyResult.stderr)})",
+                )
                 // 复制失败，回退到父类逻辑（虽然很可能也失败，但能返回一致的错误信息）
                 return super.handleSpecialFileRead(tool, path, fileExt)
             }
@@ -885,7 +943,11 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
             if (directory != null) {
                 val mkdirResult = AndroidShellExecutor.executeShellCommand("mkdir -p '$directory'")
                 if (!mkdirResult.success) {
-                    AppLogger.w(TAG, "Warning: Failed to create parent directory: ${mkdirResult.stderr}")
+                    AppLogger.w(
+                        TAG,
+                        "Warning: Failed to create parent directory " +
+                            "(${ShellCommandDiagnostics.describe(mkdirResult.stderr)})",
+                    )
                 }
             }
 
@@ -922,7 +984,8 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
                             if (!chunkResult.success) {
                                 AppLogger.e(
                                         TAG,
-                                        "Failed to write base64 chunk: ${chunkResult.stderr}"
+                                        "Failed to write base64 chunk " +
+                                            "(${ShellCommandDiagnostics.describe(chunkResult.stderr)})"
                                 )
                                 chunkSuccess = false
                                 break
@@ -938,7 +1001,11 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
                     }
 
             if (!writeResult.success) {
-                AppLogger.e(TAG, "Failed to write with base64 method: ${writeResult.stderr}")
+                AppLogger.e(
+                    TAG,
+                    "Failed to write with base64 method " +
+                        "(${ShellCommandDiagnostics.describe(writeResult.stderr)})",
+                )
                 if (content.length > maxInlineBase64) {
                     return ToolResult(
                             toolName = tool.name,
@@ -2438,7 +2505,11 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
                         }
                     }
                 } catch (e: Exception) {
-                    AppLogger.w(TAG, "Device-side unzip failed for cmd: $cmd", e)
+                    AppLogger.w(
+                        TAG,
+                        "Device-side unzip failed (${ShellCommandDiagnostics.describe(cmd)})",
+                        e,
+                    )
                 }
             }
 
@@ -2469,7 +2540,9 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
                 // Log information about the temp ZIP file
                 AppLogger.d(
                         TAG,
-                        "Temp ZIP file loaded at: ${tempZipFile.absolutePath}, size: ${tempZipFile.length()} bytes"
+                        "Temp ZIP file loaded " +
+                            "(${ShellCommandDiagnostics.describe(tempZipFile.absolutePath)}), " +
+                            "size=${tempZipFile.length()} bytes"
                 )
 
                 val totalEntries = try {
@@ -2541,7 +2614,12 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
                                         "cat ${shQuote(newFile.absolutePath)} > ${shQuote(filePath)}"
                                 )
                         if (!pushResult.success) {
-                            AppLogger.w(TAG, "Failed to copy extracted file: $fileName to $filePath")
+                            AppLogger.w(
+                                TAG,
+                                "Failed to copy extracted file " +
+                                    "(${ShellCommandDiagnostics.describe(fileName)} -> " +
+                                    "${ShellCommandDiagnostics.describe(filePath)})",
+                            )
                             // Continue with next file
                         }
 
@@ -2822,7 +2900,12 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
                     error = ""
             )
         } catch (e: ActivityNotFoundException) {
-            AppLogger.e(TAG, "No activity found to handle sharing file: $path", e)
+            AppLogger.e(
+                TAG,
+                "No activity found to handle sharing file " +
+                    "(${ShellCommandDiagnostics.describe(path)})",
+                e,
+            )
             ToolResult(
                     toolName = tool.name,
                     success = false,

@@ -229,6 +229,17 @@ internal fun KiyoriPermissionsSettingsPage(
                     waitingForExternalSettings = true
                     performKiyoriShizukuAction(context) {
                         scope.launch {
+                            if (it) {
+                                try {
+                                    activateKiyoriShizukuExecution()
+                                } catch (error: Exception) {
+                                    KiyoriLogger.e(
+                                        "KiyoriPermissionsSettings",
+                                        "Shizuku granted but execution state activation failed",
+                                        error,
+                                    )
+                                }
+                            }
                             waitingForExternalSettings = false
                             activePermissionId = null
                             requestRefresh()

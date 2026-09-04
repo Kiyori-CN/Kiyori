@@ -42,7 +42,10 @@ class StandardShellExecutor(private val context: Context) : ShellExecutor {
         identity: ShellIdentity
     ): ShellExecutor.CommandResult =
             withContext(Dispatchers.IO) {
-                AppLogger.d(TAG, "Executing standard command: $command")
+                AppLogger.d(
+                    TAG,
+                    "Executing standard command (${ShellCommandDiagnostics.describe(command)})",
+                )
 
                 try {
                     // 判断是否包含shell特殊字符

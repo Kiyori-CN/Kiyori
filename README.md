@@ -58,6 +58,18 @@ Kiyori 是一款以浏览器为产品中心、以内置 Operit AI 为智能子�
 
 部分页面、真实设备交互和发行流程仍在持续验收。当前实现状态、唯一状态所有者和兼容性合同以 [`CONTEXT.md`](CONTEXT.md) 为准；阶段任务与现场验收状态以 [`docs/TODO/`](docs/TODO/README.md) 为准。
 
+### Shizuku 与应用日志
+
+`super_admin:shell` 的特权能力依赖设备上正在运行并已向 Kiyori 授权的 Shizuku；它与
+Ubuntu/proot 终端是不同执行面。权限页显示的是 Shizuku 实时服务、Binder 和授权状态，特权
+命令只有在这些条件和执行器检查全部通过时才会报告成功，普通应用 UID 不会被伪装成 Shell/Root。
+完整的执行路由、`am` Intent/广播参数合同、真机验收矩阵和日志迁移规则见
+[`Shizuku 特权执行与日志命名迁移`](docs/TODO/kiyori_shizuku_privileged_execution_and_log_migration/index.md)。
+
+应用主日志当前 owner 为 `files/logs/kiyori.log`。首次升级会把同目录旧
+`operit.log` 的完整内容迁移到新文件并在写入确认后删除旧文件；namespace、协议、ToolPkg、
+MCP、AIDL、native 和历史数据中的 `Operit` 标识仍按兼容合同保留。
+
 ### 在线播放缓存
 
 “设置 → 视频播放器 → 在线播放缓存”由一个四选一策略控制：`省流模式 / 智能均衡 / 流畅优先 / 完整缓存`，新安装默认使用“智能均衡”。策略在打开下一条媒体时快照，播放中修改设置不会重载当前视频，也不会中途替换当前请求的缓存所有者。

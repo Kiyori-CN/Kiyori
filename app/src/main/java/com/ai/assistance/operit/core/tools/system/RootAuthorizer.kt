@@ -389,7 +389,10 @@ object RootAuthorizer {
      */
     suspend fun executeRootCommand(command: String, context: Context): Pair<Boolean, String> {
         try {
-            AppLogger.d(TAG, "执行Root命令: $command")
+            AppLogger.d(
+                TAG,
+                "执行Root命令 (${com.ai.assistance.operit.core.tools.system.shell.ShellCommandDiagnostics.describe(command)})",
+            )
 
             // 检查Root执行器是否可用
             if (rootShellExecutor == null || !_hasRootAccess.value) {

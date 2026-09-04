@@ -6,6 +6,13 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 ## 当前进行中
 
+- [Shizuku 特权执行与日志命名迁移](kiyori_shizuku_privileged_execution_and_log_migration/index.md)：已完成
+  显式 Root/Shizuku 特权路由、实时权限/工具 owner、结构化 `am` Intent/广播、一次性
+  `operit.log` → `kiyori.log` 内容迁移和内部敏感命令日志脱敏；保留 namespace、AIDL、Intent、
+  ToolPkg/MCP、native、历史数据与上游归属兼容标识。定向 JVM 21/21、Python 契约 15/15、正式门禁、
+  Debug 构建和 APK 身份/签名/16 KiB 审计已通过；真机 Shizuku `uid=2000/0`、受保护命令、权限重连、
+  日志迁移和长期运行仍待 vivo Android 16 验收，状态为 `verification_pending`。
+
 - [Ubuntu 26.04 内置环境升级](kiyori_ubuntu_26_rootfs_upgrade/index.md)：只读基线、无 hardlink Resolute 资产双构建、
   `stat` 模式位 staging 合同、正式开发准备门禁、terminal JVM 和 Debug APK 均已通过；旧 Noble 归档已移出
   Android `assets`（保留在 `terminal/tools/rootfs/legacy`），全新 APK 物理体积已降至约 475.5 MB；终端不再注入

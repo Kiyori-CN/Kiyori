@@ -250,7 +250,10 @@ class RootShellExecutor(private val context: Context) : ShellExecutor {
             // 提取内部命令
             val innerCommand = match.groupValues[2]
             // 使用更低级别的日志，减少输出量
-            AppLogger.v(TAG, "提取run-as内部命令: $innerCommand")
+            AppLogger.v(
+                TAG,
+                "提取run-as内部命令 (${ShellCommandDiagnostics.describe(innerCommand)})",
+            )
             innerCommand
         } else {
             // 没有匹配到run-as格式，直接返回原命令
@@ -301,7 +304,10 @@ class RootShellExecutor(private val context: Context) : ShellExecutor {
     private suspend fun executeCommandWithExec(command: String): ShellExecutor.CommandResult {
         return withContext(Dispatchers.IO) {
             try {
-                AppLogger.d(TAG, "使用exec执行Root命令: $command")
+                AppLogger.d(
+                    TAG,
+                    "使用exec执行Root命令 (${ShellCommandDiagnostics.describe(command)})",
+                )
 
                 // 执行su -c命令
                 val process = Runtime.getRuntime().exec(buildSuExecCommand(command))
@@ -370,7 +376,11 @@ class RootShellExecutor(private val context: Context) : ShellExecutor {
 
                     return@withContext when (identity) {
                         ShellIdentity.SHELL -> {
-                            AppLogger.d(TAG, "使用shell身份执行命令: $actualCommand (原始命令: $command)")
+                            AppLogger.d(
+                                TAG,
+                                "使用shell身份执行命令 (actual=${ShellCommandDiagnostics.describe(actualCommand)}, " +
+                                    "original=${ShellCommandDiagnostics.describe(command)})",
+                            )
 
                             val launcherPath = ensureShellLauncherInstalled()
                             if (launcherPath.isEmpty()) {
@@ -447,7 +457,11 @@ class RootShellExecutor(private val context: Context) : ShellExecutor {
                             if (useExecMode) {
                                 executeCommandWithExec(actualCommand)
                             } else {
-                                AppLogger.d(TAG, "执行Root命令: $actualCommand (原始命令: $command)")
+                                AppLogger.d(
+                                    TAG,
+                                    "执行Root命令 (actual=${ShellCommandDiagnostics.describe(actualCommand)}, " +
+                                        "original=${ShellCommandDiagnostics.describe(command)})",
+                                )
                                 val shellResult = Shell.cmd(actualCommand).exec()
 
                                 val stdout = shellResult.out.joinToString("\n")

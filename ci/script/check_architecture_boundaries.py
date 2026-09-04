@@ -716,6 +716,10 @@ M05A3_ARCHITECTURE_TEST_PATH = "ci/test/test_architecture_boundaries.py"
 M05B_LOGGER_PATH = (
     "app/src/main/java/com/kiyori/platform/logging/KiyoriLogger.kt"
 )
+M05B_LOG_MIGRATION_PATH = (
+    "app/src/main/java/com/kiyori/platform/logging/"
+    "KiyoriLogFileMigration.kt"
+)
 M05B_FORMATTER_PATH = (
     "app/src/main/java/com/kiyori/platform/logging/"
     "KiyoriLogTextFormatter.kt"
@@ -753,9 +757,10 @@ M05B_NEW_FORMATTER_IMPORT = (
 M05B_OLD_FORMATTER_IMPORT = (
     "com.ai.assistance.operit.util.ThrowableTextFormatter"
 )
-M05B_KIYORI_CONSUMER_COUNT = 11
+M05B_KIYORI_CONSUMER_COUNT = 12
 M05B_HASHED_PATHS = (
     M05B_LOGGER_PATH,
+    M05B_LOG_MIGRATION_PATH,
     M05B_FORMATTER_PATH,
     M05B_LEGACY_FACADE_PATH,
     M05B_CRASH_REPORT_STORE_PATH,
@@ -8724,6 +8729,7 @@ def check_m05b_platform_logging(
 
     required_paths = {
         "log text formatter": M05B_FORMATTER_PATH,
+        "log file migration": M05B_LOG_MIGRATION_PATH,
         "legacy AppLogger facade": M05B_LEGACY_FACADE_PATH,
         "crash report store": M05B_CRASH_REPORT_STORE_PATH,
         "memory documents provider": M05B_MEMORY_PROVIDER_PATH,
@@ -8785,6 +8791,7 @@ def check_m05b_platform_logging(
 
     expected_packages = {
         M05B_LOGGER_PATH: M05B_LOGGER_PACKAGE,
+        M05B_LOG_MIGRATION_PATH: M05B_LOGGER_PACKAGE,
         M05B_FORMATTER_PATH: M05B_LOGGER_PACKAGE,
         M05B_LEGACY_FACADE_PATH: M05B_LEGACY_FACADE_PACKAGE,
     }
@@ -8853,7 +8860,8 @@ def check_m05b_platform_logging(
         "const val ERROR: Int = Log.ERROR",
         "const val ASSERT: Int = Log.ASSERT",
         'private const val LOG_DIR_NAME = "logs"',
-        'private const val LOG_FILE_NAME = "operit.log"',
+        'private const val LOG_FILE_NAME = KiyoriLogFileMigration.ACTIVE_FILE_NAME',
+        'private const val LEGACY_LOG_FILE_NAME = KiyoriLogFileMigration.LEGACY_FILE_NAME',
         'private const val PACKAGE_LOG_DIR_NAME = "packageLogs"',
         'private const val TOOLPKG_LOG_TAG = "ToolPkg"',
         "private const val MAX_LOG_MESSAGE_CHARS = 12_000",
@@ -8866,7 +8874,7 @@ def check_m05b_platform_logging(
         "private var boundFilesDir: File? = null",
         "private var packageLogRootProvider: (() -> File)? = null",
         "Executors.newSingleThreadExecutor",
-        'Thread(runnable, "OperitAppLogger")',
+        'Thread(runnable, "KiyoriAppLogger")',
         "fun bindContext(",
         "context: Context",
         "context.applicationContext.filesDir",
@@ -8885,11 +8893,29 @@ def check_m05b_platform_logging(
         "KiyoriLogTextFormatter.truncateText",
         "fun getLogFile(): File? = resolveLogFile()",
         "fun resetLogFile()",
+        "KiyoriLogFileMigration.resolve",
+        "KiyoriLogFileMigration.migrate",
     )
     for token in required_logger_tokens:
         if token not in logger_text:
             errors.append(
                 "ARCH043 M-05B platform logger contract differs: "
+                f"{token}"
+            )
+
+    migration_text = (root / M05B_LOG_MIGRATION_PATH).read_text(encoding="utf-8")
+    for token in (
+        "internal object KiyoriLogFileMigration",
+        'const val ACTIVE_FILE_NAME = "kiyori.log"',
+        'const val LEGACY_FILE_NAME = "operit.log"',
+        "fun resolve(logDirectory: File): File",
+        "fun migrate(",
+        "StandardCopyOption.ATOMIC_MOVE",
+        "fileOutput.fd.sync()",
+    ):
+        if token not in migration_text:
+            errors.append(
+                "ARCH043 M-05B log migration contract differs: "
                 f"{token}"
             )
     for token in (

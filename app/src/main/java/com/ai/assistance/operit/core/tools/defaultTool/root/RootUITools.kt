@@ -10,6 +10,7 @@ import com.ai.assistance.operit.core.tools.UIActionResultData
 import com.ai.assistance.operit.core.tools.UIPageResultData
 import com.ai.assistance.operit.core.tools.defaultTool.admin.AdminUITools
 import com.ai.assistance.operit.core.tools.system.ShellIdentity
+import com.ai.assistance.operit.core.tools.system.shell.ShellCommandDiagnostics
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolParameter
 import com.ai.assistance.operit.data.model.ToolResult
@@ -76,7 +77,10 @@ open class RootUITools(context: Context) : AdminUITools(context) {
                         )
                 )
             } else {
-                AppLogger.e(TAG, "Tap failed at coordinates: ($x, $y), error: ${result.stderr}")
+                AppLogger.e(
+                    TAG,
+                    "Tap failed at coordinates: ($x, $y), error=(${ShellCommandDiagnostics.describe(result.stderr)})",
+                )
                 withContext(Dispatchers.Main) { overlay.hide() }
                 ToolResult(
                     toolName = tool.name,
@@ -137,7 +141,10 @@ open class RootUITools(context: Context) : AdminUITools(context) {
                         )
                 )
             } else {
-                AppLogger.e(TAG, "Long press failed at coordinates: ($x, $y), error: ${result.stderr}")
+                AppLogger.e(
+                    TAG,
+                    "Long press failed at coordinates: ($x, $y), error=(${ShellCommandDiagnostics.describe(result.stderr)})",
+                )
                 withContext(Dispatchers.Main) { overlay.hide() }
                 ToolResult(
                     toolName = tool.name,
@@ -200,7 +207,10 @@ open class RootUITools(context: Context) : AdminUITools(context) {
                         )
                 )
             } else {
-                AppLogger.e(TAG, "Swipe failed: ${result.stderr}")
+                AppLogger.e(
+                    TAG,
+                    "Swipe failed (${ShellCommandDiagnostics.describe(result.stderr)})",
+                )
                 withContext(Dispatchers.Main) { overlay.hide() }
                 ToolResult(
                     toolName = tool.name,
@@ -279,7 +289,10 @@ open class RootUITools(context: Context) : AdminUITools(context) {
                 )
             }
 
-            AppLogger.d(TAG, "Setting text to clipboard and pasting via ADB: $text")
+            AppLogger.d(
+                TAG,
+                "Setting text to clipboard and pasting via ADB (${ShellCommandDiagnostics.describe(text)})",
+            )
             withContext(Dispatchers.Main) {
                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 clipboard.setPrimaryClip(ClipData.newPlainText("operit_input", text))
@@ -413,13 +426,19 @@ open class RootUITools(context: Context) : AdminUITools(context) {
             }
 
             if (!dumpResult.success) {
-                AppLogger.e(TAG, "uiautomator dump failed: ${dumpResult.stderr}")
+                AppLogger.e(
+                    TAG,
+                    "uiautomator dump failed (${ShellCommandDiagnostics.describe(dumpResult.stderr)})",
+                )
                 return null
             }
 
             val readResult = executeUiShellCommand("cat $dumpPath")
             if (!readResult.success) {
-                AppLogger.e(TAG, "Reading UI dump file failed: ${readResult.stderr}")
+                AppLogger.e(
+                    TAG,
+                    "Reading UI dump file failed (${ShellCommandDiagnostics.describe(readResult.stderr)})",
+                )
                 return null
             }
 
@@ -437,7 +456,10 @@ open class RootUITools(context: Context) : AdminUITools(context) {
         } finally {
             val cleanupResult = executeUiShellCommand("rm -f $dumpPath")
             if (!cleanupResult.success) {
-                AppLogger.w(TAG, "Failed to remove UI dump: ${cleanupResult.stderr}")
+                AppLogger.w(
+                    TAG,
+                    "Failed to remove UI dump (${ShellCommandDiagnostics.describe(cleanupResult.stderr)})",
+                )
             }
         }
     }
@@ -453,11 +475,18 @@ open class RootUITools(context: Context) : AdminUITools(context) {
             try {
                 val result = executeUiShellCommand(command)
                 if (result.success && result.stdout.isNotBlank()) {
-                    AppLogger.d(TAG, "Successfully got window info with: $command")
+                    AppLogger.d(
+                        TAG,
+                        "Successfully got window info (${ShellCommandDiagnostics.describe(command)})",
+                    )
                     return result.stdout
                 }
             } catch (e: Exception) {
-                AppLogger.e(TAG, "Command failed: '$command'", e)
+                AppLogger.e(
+                    TAG,
+                    "Command failed (${ShellCommandDiagnostics.describe(command)})",
+                    e,
+                )
             }
         }
         AppLogger.e(TAG, "All attempts to get window info failed.")
@@ -612,7 +641,10 @@ open class RootUITools(context: Context) : AdminUITools(context) {
         } finally {
             val cleanupResult = executeUiShellCommand("rm -f $dumpPath")
             if (!cleanupResult.success) {
-                AppLogger.w(TAG, "Failed to remove UI dump: ${cleanupResult.stderr}")
+                AppLogger.w(
+                    TAG,
+                    "Failed to remove UI dump (${ShellCommandDiagnostics.describe(cleanupResult.stderr)})",
+                )
             }
         }
     }

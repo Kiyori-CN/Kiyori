@@ -105,7 +105,10 @@ class AccessibilityShellExecutor(private val context: Context) : ShellExecutor {
                     return@withContext ShellExecutor.CommandResult(false, "", permStatus.reason, -1)
                 }
 
-                AppLogger.d(TAG, "Executing command via accessibility: $command")
+                AppLogger.d(
+                    TAG,
+                    "Executing command via accessibility (${ShellCommandDiagnostics.describe(command)})",
+                )
 
                 // 无障碍服务不能直接执行shell命令，此处应该转换为UI操作
                 // 这里仅作为一个框架，实际实现将根据应用程序需求而定
@@ -114,7 +117,7 @@ class AccessibilityShellExecutor(private val context: Context) : ShellExecutor {
                 return@withContext ShellExecutor.CommandResult(
                         false,
                         "",
-                        "Accessibility service cannot directly execute shell commands. Command was: $command",
+                        "Accessibility service cannot directly execute shell commands (${ShellCommandDiagnostics.describe(command)})",
                         -1
                 )
 

@@ -688,6 +688,30 @@ First-run onboarding and Settings permissions consume the same ordered 21-item c
 - `FORBID`, `ASK`, and `ALLOW` control whether a tool may be invoked. The R0-R3 contract separately controls whether the concrete operation may produce side effects. `ALLOW` cannot bypass R2 or R3 confirmation.
 - When `ASK` and an R2 or R3 confirmation apply to the same command, Kiyori presents one combined authorization decision rather than consecutive prompts.
 
+## Android privileged execution and log ownership (2026-09-04)
+
+- `super_admin:shell` is an Android Shell/Root capability and is separate from the Ubuntu/proot
+  `super_admin:terminal` contract. Its explicit privileged route must select Root for an explicitly
+  configured Root level, Debugger for an explicitly configured Debugger level, or a live Shizuku-authorized
+  Debugger when no preferred level is configured. Ordinary `AndroidShellExecutor.executeShellCommand`
+  calls retain their existing configured-level behavior; an application-UID result must never be presented
+  as Shell/Root success.
+- A privileged route reports the configured level, selected executor, Shizuku binder/service liveness,
+  Shizuku UID, permission result, executor availability, exit code, and bounded failure reason. Missing
+  privilege is an explicit failure. The permission center and onboarding permission page share the real
+  Shizuku status and, after a successful request, persist `AndroidPermissionLevel.DEBUGGER` and clear
+  executor-selection caches without creating a second permission state owner.
+- System operation tools resolve their executor at invocation time so a permission change takes effect
+  without an application restart. Debugger operations use the same privileged Shell route. Intent and
+  broadcast privileged variants compile structured `am` arguments with shell-safe quoting and accept
+  success only when the command exit status and output indicate success; unsupported extras or protected
+  operation errors are explicit failures. Non-privileged Context API behavior remains separate.
+- `KiyoriLogger` is the sole process log-file owner and writes `files/logs/kiyori.log`. A same-directory
+  legacy `operit.log` is migrated once with complete-content and post-write verification before removal;
+  migration failure leaves the legacy file intact and never blocks startup. Reset, export, Logcat and crash
+  diagnostics use the new owner. Namespace, URI, AIDL, ToolPkg/MCP, native, environment-variable and
+  historical data identifiers containing `Operit` remain compatibility identifiers and are not renamed.
+
 ## Distribution contract
 
 - This private development build does not check the Operit release channel or receive Operit remote announcements.

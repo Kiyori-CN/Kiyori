@@ -7,6 +7,8 @@ import android.os.Bundle
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.core.tools.IntentResultData
 import com.ai.assistance.operit.core.tools.StringResultData
+import com.ai.assistance.operit.core.tools.system.AndroidIntentShellCommand
+import com.ai.assistance.operit.core.tools.system.AndroidShellExecutor
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolResult
 import com.ai.assistance.operit.data.model.ToolValidationResult
@@ -68,6 +70,19 @@ class StandardIntentToolExecutor(private val context: Context) {
         val extras = tool.parameters.find { it.name == "extras" }?.value
         val componentName = tool.parameters.find { it.name == "component" }?.value
         val type = tool.parameters.find { it.name == "type" }?.value ?: TYPE_ACTIVITY
+
+        if (AndroidShellExecutor.isPrivilegedExecutionConfiguredOrAvailable()) {
+            return invokePrivileged(
+                tool = tool,
+                action = action,
+                uri = uri,
+                packageName = packageName,
+                componentName = componentName,
+                flags = flags,
+                extras = extras,
+                type = type,
+            )
+        }
 
         return try {
             // Create the intent
@@ -252,6 +267,78 @@ class StandardIntentToolExecutor(private val context: Context) {
                     success = false,
                     result = StringResultData(""),
                     error = "Intent execution failed: ${e.message}"
+            )
+        }
+    }
+
+    /** Executes the same Intent contract through the selected Root/Shizuku shell identity. */
+    private suspend fun invokePrivileged(
+        tool: AITool,
+        action: String?,
+        uri: String?,
+        packageName: String?,
+        componentName: String?,
+        flags: String?,
+        extras: String?,
+        type: String,
+    ): ToolResult {
+        return try {
+            val flagValue = AndroidIntentShellCommand.parseFlags(flags)
+            val shellExtras = AndroidIntentShellCommand.parseExtras(extras)
+            val command =
+                AndroidIntentShellCommand.build(
+                    type = type,
+                    action = action,
+                    uri = uri,
+                    packageName = packageName,
+                    component = componentName,
+                    flags = flagValue,
+                    extras = shellExtras,
+                )
+            val result = AndroidShellExecutor.executePrivilegedShellCommand(command)
+            if (
+                !result.success ||
+                    result.exitCode != 0 ||
+                    AndroidIntentShellCommand.outputIndicatesFailure(
+                        result.stdout,
+                        result.stderr,
+                    )
+            ) {
+                val details =
+                    listOf(result.stderr, result.stdout)
+                        .filter(String::isNotBlank)
+                        .joinToString("\n")
+                return ToolResult(
+                    toolName = tool.name,
+                    success = false,
+                    result = StringResultData(""),
+                    error = "Privileged Intent execution failed (exit code: ${result.exitCode}): $details",
+                )
+            }
+
+            val normalizedComponent = AndroidIntentShellCommand.normalizeComponent(componentName)
+            val resultMessage = result.stdout.trim().ifBlank { "Intent command completed" }
+            ToolResult(
+                toolName = tool.name,
+                success = true,
+                result =
+                    IntentResultData(
+                        action = action?.takeIf { it.isNotBlank() } ?: "null",
+                        uri = uri?.takeIf { it.isNotBlank() } ?: "null",
+                        package_name = packageName?.takeIf { it.isNotBlank() } ?: "null",
+                        component = normalizedComponent ?: "null",
+                        flags = flagValue,
+                        extras_count = shellExtras.size,
+                        result = resultMessage,
+                    ),
+            )
+        } catch (error: Exception) {
+            AppLogger.e(TAG, "Error executing privileged Intent", error)
+            ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = "Privileged Intent execution failed: ${error.message}",
             )
         }
     }

@@ -31,7 +31,8 @@ object KiyoriLogger {
     const val ASSERT: Int = Log.ASSERT
 
     private const val LOG_DIR_NAME = "logs"
-    private const val LOG_FILE_NAME = "operit.log"
+    private const val LOG_FILE_NAME = KiyoriLogFileMigration.ACTIVE_FILE_NAME
+    private const val LEGACY_LOG_FILE_NAME = KiyoriLogFileMigration.LEGACY_FILE_NAME
     private const val PACKAGE_LOG_DIR_NAME = "packageLogs"
     private const val TOOLPKG_LOG_TAG = "ToolPkg"
     private const val MAX_LOG_MESSAGE_CHARS = 12_000
@@ -80,7 +81,7 @@ object KiyoriLogger {
 
     private val fileLogExecutor =
         Executors.newSingleThreadExecutor { runnable ->
-            Thread(runnable, "OperitAppLogger").apply {
+            Thread(runnable, "KiyoriAppLogger").apply {
                 isDaemon = true
             }
         }
@@ -204,7 +205,15 @@ object KiyoriLogger {
             val appContext: Context = ApplicationContextAccess.current
             val dir = File(appContext.filesDir, LOG_DIR_NAME)
             val file = File(dir, LOG_FILE_NAME)
-            if (file.exists()) {
+            val legacyFile = File(dir, LEGACY_LOG_FILE_NAME)
+            if (legacyFile.exists()) {
+                // Application startup historically resets the active log before writing the new
+                // session. On the first Kiyori process after an upgrade, migrate the legacy file
+                // first and retain that verified content; deleting it here would make the rename
+                // contract impossible to satisfy. Later starts have no legacy file and preserve
+                // the old reset behavior.
+                KiyoriLogFileMigration.migrate(dir)
+            } else if (file.exists()) {
                 file.delete()
             }
             logFile = null
@@ -226,6 +235,7 @@ object KiyoriLogger {
             if (!dir.exists()) {
                 dir.mkdirs()
             }
+            KiyoriLogFileMigration.resolve(dir)
             File(dir, LOG_FILE_NAME).also { file ->
                 logFile = file
             }
