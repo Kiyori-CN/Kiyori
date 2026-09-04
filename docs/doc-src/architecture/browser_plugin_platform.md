@@ -2,7 +2,7 @@
 status: accepted_detailed_design
 implementation: phase_1_local_verified
 next_gate: phase_2_userscript_storage
-last_updated: 2026-07-31
+last_updated: 2026-09-04
 ---
 
 # 浏览器插件平台与插件中心架构
@@ -18,9 +18,11 @@ Kiyori 的浏览器和 userscript 继续运行在 Android System WebView 提供�
 
 ## 1. 文档职责
 
-本文是 Kiyori 浏览器插件平台的正式架构合同，回答以下问题：
+本文是 Kiyori 浏览器插件平台的正式架构合同。用户界面统一使用“扩展”“扩展中心”和
+“网页扩展与脚本”；本文保留“插件平台”、`BrowserPlugin*` 与 `PLUGINS` 作为稳定的架构和实现标识。
+本文回答以下问题：
 
-- 浏览器下拉抽屉中的“插件”按钮管理什么
+- 浏览器下拉抽屉中的“扩展”按钮管理什么
 - 油猴脚本、Kiyori 原生浏览器扩展、Chrome / Edge WebExtension 和 AI ToolPkg 如何分域
 - 插件包、权限、安装、更新、执行、诊断和 UI 由谁持有
 - AI 如何创建和维护脚本或插件，同时不绕过安全审查
@@ -33,7 +35,8 @@ Kiyori 的浏览器和 userscript 继续运行在 Android System WebView 提供�
 
 ## 2. 最终产品结论
 
-浏览器下拉抽屉菜单中的“插件”按钮进入 Kiyori Browser Plugin Center。它是浏览器产品域的统一控制面，
+浏览器下拉抽屉菜单中的“扩展”按钮进入用户可见的“扩展中心”，其内部架构名为
+Kiyori Browser Plugin Center。它是浏览器产品域的统一控制面，
 负责发现、搜索、查看、安装、更新、启停、卸载、配置和诊断浏览器插件；它不是 AI 对话页的 ToolPkg、
 Skill、MCP、工作流或包管理入口。
 
@@ -264,8 +267,8 @@ GM XHR 重定向权限、窄屏按钮和长脚本行为仍需要目标 Android W
 - “轻小说文库+”真实 metadata 的 3 个 match、13 个 require、4 个 resource、5 个 connect 和
   12 个 grant 已进入 parser、matcher、capability registry 和 bootstrap 回归测试
 - `BrowserPresentationCoordinator` 只投影现有 `WebSessionUserscriptManager.uiStore.state`，并把
-  总授权、打开插件中心和打开 userscript 管理器委托回同一 owner
-- 网页浏览器设置中的“网页插件与脚本”组包含总授权、管理、权限与网站范围、当前页诊断；页面另有
+  总授权、打开扩展中心和打开 userscript 管理器委托回同一 owner
+- 网页浏览器设置中的“网页扩展与脚本”组包含总授权、管理、权限与网站范围、当前页诊断；页面另有
   “内容过滤”组和全局作用域说明，当前域名网站配置只投影负向限制，不复制插件状态
 - 权限子页显示 runtime 支持状态、安装/启用数量和逐脚本执行世界、grant、connect、页面规则、
   未知权限与阻塞原因；这些 metadata 声明不是单项可撤销授权，不显示伪开关
@@ -286,7 +289,7 @@ Android Debug V2 签名与 `zipalign -P 16` 检查通过。
   “本页”工作区渲染
 - 插件库从 Overview 页签移入两个右上角加号菜单；每个已核实 HTTPS 来源仍在唯一 Browser Runtime
   创建前台新标签，不持有第二个 WebSession registry
-- Userscript 路由携带初始工作区；设置页打开插件中心、权限范围，以及合并后的当前页诊断与日志入口，
+- Userscript 路由携带初始工作区；设置页打开扩展中心、权限范围，以及合并后的当前页诊断与日志入口，
   已安装、更新和日志继续作为同一工作台的标签；权限概览中的脚本行直接进入该脚本详情
 - 日志 UI 使用仓库保留上限 `200` 条作为完整可见/导出集合。单击日志打开滚动详情并提供复制，
   长按只执行当前条目复制，不创建重复菜单；“复制全部”和“导出全部”不受搜索和级别筛选影响
@@ -298,11 +301,11 @@ Android Debug V2 签名与 `zipalign -P 16` 检查通过。
 2026-08-03 的设置、抽屉和深层页面复核进一步确立：
 
 - 网页浏览器设置只保留具有真实 owner 与 consumer 的 `4/4/3` 共 11 行；插件分组为“允许用户脚本 /
-  插件中心 / 插件权限与网站范围 / 脚本诊断与日志”，不再展示无 action 的禁用占位，也不把工作台标签
+  扩展中心 / 扩展权限与网站范围 / 脚本诊断与日志”，不再展示无 action 的禁用占位，也不把工作台标签
   重复成多个设置入口
 - 权限页只包含总授权和逐脚本声明范围；运行环境以说明文字呈现，空脚本状态使用纯信息文本，不伪装成
   不可点击的导航选项
-- Browser Settings 打开的插件中心、诊断工作台和逐脚本详情先关闭设置 child，再由唯一
+- Browser Settings 打开的扩展中心、诊断工作台和逐脚本详情先关闭设置 child，再由唯一
   `BrowserPresentationCoordinator` 把对应 `PLUGINS` 路由投影到原活动 Browser Home 标签；
   presentation 保持同一 WebView，不导航、不刷新、不复制标签状态
 - Android WebView 不支持 userscript runtime 时，总授权开关、工作台菜单和授权横幅均不可请求开启；

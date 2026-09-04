@@ -105,7 +105,7 @@ Activity、LitePal 或 native ABP 架构。
   作为工具箱中的浏览器页面工具重新设计，并绑定明确的活动 session/document
 - 无痕模式复用全屏搜索右上角的真实默认 Profile 切换与短时提示；当前标签 Profile 保持不可变，
   菜单保持显示，不复制旧版共享 Cookie 模式
-- 网页插件入口已经升级为 Browser Plugin Center；顶层统一投影插件，本轮仍只注册内置 userscript
+- 网页扩展入口已经升级为 Browser Plugin Center；顶层统一投影扩展，本轮仍只注册内置 userscript
   provider，不新增第二个插件仓库
 
 ### 已完成的播放器依赖能力
@@ -315,11 +315,11 @@ resourceKind / selector / client point`。Host 只接受活动 session、当前�
 
 ## 2026-07-30 Browser Plugin Center 里程碑一
 
-- 浏览器菜单第 1 行第 5 项保持“插件”名称和原图标，点击后进入新的 `PLUGINS` 可拖动子抽屉；
+- 浏览器菜单第 1 行第 5 项显示“扩展”并保持原图标，点击后进入新的 `PLUGINS` 可拖动子抽屉；
   未发布的旧 `USERSCRIPTS` UI 路由已删除
 - `BrowserPluginCenterFacade` 是无存储纯投影，首期把现有 userscript manager 映射为不可卸载的内置
   “油猴脚本”插件，并发布已安装、已启用、本页命中、页面菜单、支持状态和待确认安装
-- 插件中心提供“本页 / 已安装”、搜索、添加和来源快捷弹窗；来源固定为 Greasy Fork、ScriptCat、
+- 扩展中心提供“本页 / 已安装”、搜索、添加和来源快捷弹窗；来源固定为 Greasy Fork、ScriptCat、
   OpenUserJS、Userscript.Zone 和 GitHub userscript topics，并通过现有 WebSession registry
   创建前台新标签
 - 宿主增加 `OVERVIEW / USERSCRIPTS` 子页面。菜单进入概览，userscript 链接和安装预览直达管理页；
@@ -347,13 +347,13 @@ resourceKind / selector / client point`。Host 只接受活动 session、当前�
 ## 2026-08-03 插件抽屉与脚本设置初步封板
 
 - 浏览器设置从历史 `6/7/5/6/6` 占位结构收敛到 `4/4/3` 共 11 个真实选项；插件分组只保留总授权、
-  插件中心、权限与网站范围、诊断与日志
-- 第四行第三个“设置”进入 Browser Settings 后，插件中心、脚本诊断和权限页脚本详情会先关闭设置 child，
+  扩展中心、权限与网站范围、诊断与日志
+- 第四行第三个“设置”进入 Browser Settings 后，扩展中心、脚本诊断和权限页脚本详情会先关闭设置 child，
   再在原活动标签页上显示对应 `PLUGINS` 抽屉；Browser Home 的返回目标和退出展示模式保持不变
-- 权限页面不再重复插件中心、管理、诊断和日志入口；运行环境与无脚本状态改为说明内容，不显示带箭头但
+- 权限页面不再重复扩展中心、管理、诊断和日志入口；运行环境与无脚本状态改为说明内容，不显示带箭头但
   不可点击的伪导航
 - 当前 WebView 不支持 userscript runtime 时，设置、工作台菜单和授权横幅都不能请求开启总授权
-- 插件中心标签数量按过滤后实际 provider 卡片计数；脚本详情源码页可导出 `.user.js` 到
+- 扩展中心标签数量按过滤后实际 provider 卡片计数；脚本详情源码页可导出 `.user.js` 到
   `Download/Kiyori/exports`
 - 删除继续明确清理源码、修订、草稿、值与日志；批量删除逐项隔离失败并记录错误，不让一个异常中断后续项
 - `.kbx`、WebExtension、额外 provider、AI 包管理合并和设备操作不属于本轮；目标设备上的抽屉尺寸、

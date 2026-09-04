@@ -185,7 +185,7 @@ kiyori_browser_product_completion/
   跳转会创建同 Profile 子窗口并保留 opener 主页；子窗口历史耗尽后关闭并回到仍有效的主页窗口
 - 底部设置、Browser Menu 与 AI 左抽屉共用 `KiyoriSettingsNavigationState`。详情按
   `KiyoriSettingsRoute` 栈逐级返回，Browser/AI 来源在设置首页关闭后恢复原 Browser Home/WebSession
-  或原 AI 页面/路由栈；插件中心和脚本工作台通过一次性 return token 恢复同一设置会话
+  或原 AI 页面/路由栈；扩展中心和脚本工作台通过一次性 return token 恢复同一设置会话
 - “滑屏前进后退”默认关闭，开启后只从左右边缘请求当前窗口 Back/Forward，并在抽屉、搜索、
   文本选择、广告标记、对话框和无障碍触摸探索等冲突状态下停用
 - 普通窗口启动恢复只保存最小 URL 级投影。`保留多窗口`、`恢复上次的搜索结果` 和
@@ -203,7 +203,7 @@ kiyori_browser_product_completion/
 1. [DONE] P0：悬浮浏览器系统 Back、状态栏背景和人工窗口 AI 接管；本地实现、定向测试与 Debug APK 已完成，真机验收待用户执行
 2. [DONE] P0：软件首页与全屏搜索已接入共享 Browser Runtime；2026-07-28 完成搜索引擎图标、覆盖式淡蓝引擎面板、标题/网址双行操作区、自适应历史标签和显式删除提交，并按浏览器菜单基准压缩尺寸、补齐面板周围收起与当前网页区返回。历史清空现使用底部确认框且确认后立即执行，标签叉号仍由“完成”提交；此前本地定向测试、formal readiness、Kotlin 编译与 Debug APK 已验证。最新历史区放大与复制/编辑图标缩小按用户要求未运行 Gradle 或 APK 构建，真机视觉、输入法和无痕 Profile 交互继续待验收
 3. [DONE] P1：真无痕 Profile、窗口逻辑与网页缩略图；本地实现、定向测试与 Debug APK 已完成，真机 WebView Multi-Profile、缩略图和交互待用户验收
-4. [LOCAL DONE / VERIFICATION PENDING] P1：网页浏览器设置当前为 `2/4/3/3/2/1/5/3` 八组 23 行：“内容过滤 / 网页插件与脚本 / 主页与导航 / 启动与窗口 / 网页显示 / 网页交互 / 网站权限与数据 / 音视频嗅探”。页面顶部明确全局能力上限；内容过滤复用唯一 `BrowserAdBlockStore` 的总开关与管理入口，网站密码总开关和管理入口职责分离。浏览器菜单第三行第五个“网站配置”已成为冻结当前 HTTP(S) 完整 host 的真实可拖动抽屉，以 `globalEnabled && !siteDisabled` 为唯一优先级，提供广告拦截、用户脚本、返回缓存、左右滑动前进后退、缩放、长按、外部应用、定位、密码、嗅探入口和自动悬浮十一项负向开关并持久化；广告继续使用原白名单 owner，其余十项由 `WebSessionBrowserSettingsStore` 精确 host 规则持有。主源码编译和定向 JVM 已通过，最终门禁与本轮 Debug APK 证据以 `docs/TODO/README.md` 为准。目标设备上的布局、抽屉拖动、系统 Back、真实站点行为、重启持久化、普通/无痕和后台导航现场矩阵保持 `verification_pending`
+4. [LOCAL DONE / VERIFICATION PENDING] P1：网页浏览器设置当前为 `2/4/3/3/2/1/5/3` 八组 23 行：“内容过滤 / 网页扩展与脚本 / 主页与导航 / 启动与窗口 / 网页显示 / 网页交互 / 网站权限与数据 / 音视频嗅探”。页面顶部明确全局能力上限；内容过滤复用唯一 `BrowserAdBlockStore` 的总开关与管理入口，网站密码总开关和管理入口职责分离。浏览器菜单第三行第五个“网站配置”已成为冻结当前 HTTP(S) 完整 host 的真实可拖动抽屉，以 `globalEnabled && !siteDisabled` 为唯一优先级，提供广告拦截、用户脚本、返回缓存、左右滑动前进后退、缩放、长按、外部应用、定位、密码、嗅探入口和自动悬浮十一项负向开关并持久化；广告继续使用原白名单 owner，其余十项由 `WebSessionBrowserSettingsStore` 精确 host 规则持有。主源码编译和定向 JVM 已通过，最终门禁与本轮 Debug APK 证据以 `docs/TODO/README.md` 为准。目标设备上的布局、抽屉拖动、系统 Back、真实站点行为、重启持久化、普通/无痕和后台导航现场矩阵保持 `verification_pending`
 5. [IN PROGRESS] P1：下载中心与文件下载器设置；设置页已按播放器标准重排为 `5/2/3/1` 四组 11 行，“默认保存位置”统一选择应用目录、公开目录或 SAF 自定义目录，继续复用唯一 `BrowserDownloadSettingsStore` 和 `BrowserDownloadManager`；系统下载器生效时内置引擎专属项目明确禁用。仍待下载中心双筛选/批量操作复刻及真机综合验收
 6. [IN PROGRESS] P1：负一屏与四行菜单真实能力；书签/下载共享抽屉和 UA 标识直达弹窗、全局模式、域名规则已完成。2026-07-30 已完成统一历史抽屉：扩展现有 `WebSessionHistoryStore`，普通网页访问与唯一 `PlayerSession` 分别写入网页/视频记录，视频区分在线与本地，浏览器菜单与负一屏共享搜索、六分类和分时段删除抽屉；定向测试、Debug APK 和新版历史界面用户验收已通过，完整设备场景仍按第六阶段清单继续验证
 7. [DONE] P2：阶段 8 媒体 Intent、唯一 PlayerSession、全屏播放器、设置页与 native 边界，以及阶段 9 candidate、浏览器嗅探、现有下载 owner、同会话悬浮/全屏入口均已完成本地实现；2026-07-28 又完成精确视频格式、被动时长、推荐排序、动态格式筛选、双开关与结果动作弹窗。人工播放固定进入横向全屏，自动推荐才进入悬浮；该里程碑保留为嗅探入口完成记录，后续在线播放 native 修复见阶段 8、10、11 的 `2026-07-29` 补充证据
@@ -240,7 +240,7 @@ kiyori_browser_product_completion/
 
 - 浏览器菜单 `PLUGINS` 从高饱和洋红改为低饱和深梅紫：浅色
   `#5E3A8A / #EEE8F4`，深色 `#CBB8E2 / #2D2238`
-- 插件中心、用户脚本“本页 / 已安装 / 更新 / 日志”、详情与编辑器的主插件图标统一复用
+- 扩展中心、用户脚本“本页 / 已安装 / 更新 / 日志”、详情与编辑器的主扩展图标统一复用
   `PLUGINS`；错误、成功、警告和更新安全性继续使用独立状态色
 - 负一屏“收藏 / 书签 / 历史 / 下载”分别复用浏览器菜单
   `ADD_BOOKMARK / BOOKMARKS / HISTORY / DOWNLOADS`；收藏仍为零计数和空点击，专用于未来

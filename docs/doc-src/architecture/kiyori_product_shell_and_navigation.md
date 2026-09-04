@@ -496,7 +496,7 @@ Operit AI 通过 Kiyori Capability API 操作产品能力，不能直接依赖�
 
 `BrowserGestureNavigationFrameLayout` 在单指候选阶段暂不把 WebView 的 `requestDisallowInterceptTouchEvent(true)` 交给上层；中部开始的水平移动可继续到达目标边缘后升级为一次 Back/Forward。确认垂直主导、设置关闭、遮罩阻断或多指后，候选立即结束并恢复 WebView 的正常仲裁；非目标水平移动不会被父级消费。
 
-浏览器菜单的内置“网页 Cookie”插件复用活动 WebSession 的 Profile CookieManager，只对当前 HTTP(S) 页面读取并在既有 IO scope 发布。进入 Cookie 子页自动触发一次读取；页面重组或 URL 状态更新不会重复触发，用户可通过标题栏刷新动作显式重读。结果发布前必须再次确认 session、URL 与独立 Cookie 开关仍匹配，Cookie Header 只保留在进程内，不写入历史、诊断、下载、脚本或磁盘。
+浏览器菜单的内置“网页 Cookie”扩展复用活动 WebSession 的 Profile CookieManager，只对当前 HTTP(S) 页面读取并在既有 IO scope 发布。进入 Cookie 子页自动触发一次读取；页面重组或 URL 状态更新不会重复触发，用户可通过标题栏刷新动作显式重读。结果发布前必须再次确认 session、URL 与独立 Cookie 开关仍匹配，Cookie Header 只保留在进程内，不写入历史、诊断、下载、脚本或磁盘。
 
 Browser Home 可见时，AI 浏览器工具直接操作当前共享标签，不依赖悬浮窗权限。Browser Home 不可见时，AI 仍操作同一 session 和 WebView：已有 overlay 权限时挂到后台 anchor；缺少权限时返回明确权限错误，不创建 headless WebView、第二个 session 或覆盖人工页面。最小 indicator 点击后通过显式 action 打开现有 Browser Home。关闭最后标签时，可见的 Browser Home 保留无标签页面；后台 anchor 和 indicator 不拥有会话状态。
 

@@ -118,8 +118,8 @@ internal val kiyoriBrowserSettingsGroups =
                 ),
         ),
         KiyoriBrowserSettingsGroupSpec(
-            title = "网页插件与脚本",
-            description = "管理网页插件、用户脚本授权、声明权限和运行诊断",
+            title = "网页扩展与脚本",
+            description = "管理网页扩展、用户脚本授权、声明权限与运行诊断",
             entries =
                 listOf(
                     browserToggle(
@@ -128,12 +128,12 @@ internal val kiyoriBrowserSettingsGroups =
                         action = KiyoriBrowserSettingsAction.TOGGLE_USER_SCRIPTS_ALLOWED,
                     ),
                     browserNavigation(
-                        title = "插件中心",
-                        description = "查看当前网页中的插件提供者和已安装插件",
+                        title = "扩展中心",
+                        description = "查看当前页面的扩展提供者与已安装扩展",
                         action = KiyoriBrowserSettingsAction.OPEN_PLUGIN_CENTER,
                     ),
                     browserNavigation(
-                        title = "插件权限与网站范围",
+                        title = "扩展权限与网站范围",
                         description = "查看每个脚本声明的 GM 权限、联网范围和页面规则",
                         action = KiyoriBrowserSettingsAction.OPEN_PLUGIN_PERMISSIONS,
                     ),
@@ -916,7 +916,7 @@ internal fun automaticFloatingMinimumDurationSelection(
 }
 
 internal fun browserPluginCenterSummary(state: WebSessionUserscriptUiState): String =
-    "1 个插件 · ${state.installedScripts.size} 个脚本"
+    "1 个扩展 · ${state.installedScripts.size} 个脚本"
 
 internal fun browserPluginLogSummary(state: WebSessionUserscriptUiState): String =
     "${state.recentLogs.size} 条保留日志"
@@ -1030,7 +1030,7 @@ private fun KiyoriBrowserPluginPermissionsPage(
     modifier: Modifier,
 ) {
     KiyoriCollapsingSettingsPage(
-        title = "插件权限与网站范围",
+        title = "扩展权限与网站范围",
         onBack = onBack,
         modifier = modifier,
     ) {
@@ -1065,7 +1065,7 @@ private fun KiyoriBrowserPluginPermissionsPage(
             ) {
                 if (state.installedScripts.isEmpty()) {
                     Text(
-                        text = "暂无已安装脚本；可从插件中心右上角加号通过 URL、本地文件或插件库安装",
+                        text = "暂无已安装脚本；可从扩展中心右上角加号通过 URL、本地文件或扩展库安装",
                         modifier = Modifier.fillMaxWidth().padding(18.dp),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

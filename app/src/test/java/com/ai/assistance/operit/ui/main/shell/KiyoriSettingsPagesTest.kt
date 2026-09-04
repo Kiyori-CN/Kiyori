@@ -1114,8 +1114,8 @@ class KiyoriSettingsPagesTest {
                 "广告拦截",
                 "广告拦截器管理",
                 "允许用户脚本",
-                "插件中心",
-                "插件权限与网站范围",
+                "扩展中心",
+                "扩展权限与网站范围",
                 "脚本诊断与日志",
                 "网页主页自定义",
                 "返回不重载",
@@ -1148,9 +1148,9 @@ class KiyoriSettingsPagesTest {
                     KiyoriBrowserSettingsAction.OPEN_AD_BLOCKER_SETTINGS,
                 "允许用户脚本" to
                     KiyoriBrowserSettingsAction.TOGGLE_USER_SCRIPTS_ALLOWED,
-                "插件中心" to
+                "扩展中心" to
                     KiyoriBrowserSettingsAction.OPEN_PLUGIN_CENTER,
-                "插件权限与网站范围" to
+                "扩展权限与网站范围" to
                     KiyoriBrowserSettingsAction.OPEN_PLUGIN_PERMISSIONS,
                 "脚本诊断与日志" to
                     KiyoriBrowserSettingsAction.OPEN_PLUGIN_DIAGNOSTICS,
@@ -1199,7 +1199,7 @@ class KiyoriSettingsPagesTest {
         assertEquals(
             listOf(
                 "内容过滤",
-                "网页插件与脚本",
+                "网页扩展与脚本",
                 "主页与导航",
                 "启动与窗口",
                 "网页显示",
@@ -1289,9 +1289,9 @@ class KiyoriSettingsPagesTest {
             ),
         )
         assertEquals(
-            "1 个插件 · 0 个脚本",
+            "1 个扩展 · 0 个脚本",
             browserSettingValue(
-                entries.single { entry -> entry.title == "插件中心" },
+                entries.single { entry -> entry.title == "扩展中心" },
                 browserSettings,
             ),
         )

@@ -6118,12 +6118,12 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="web_session_location_permission_denied">Permissão de localização negada, localização da página da web indisponível</string>
     <string name="web_session_new_tab">Criar nova aba</string>
     <string name="web_session_plugins">Extensões</string>
-    <string name="web_session_plugins_search_hint">Pesquisar extensões</string>
+    <string name="web_session_plugins_search_hint">Pesquisar extensões, scripts ou sites</string>
     <string name="web_session_plugins_add">Adicionar</string>
-    <string name="web_session_plugins_library">Bibliotecas</string>
+    <string name="web_session_plugins_library">Biblioteca de extensões</string>
     <string name="web_session_plugins_tab_current_page">Esta página</string>
     <string name="web_session_plugins_tab_installed">Instaladas</string>
-    <string name="web_session_plugins_current_page_empty">Nenhuma extensão está em execução nesta página</string>
+    <string name="web_session_plugins_current_page_empty">Nenhuma extensão disponível para esta página</string>
     <string name="web_session_plugins_current_page_empty_summary">Mude para Instaladas para ver e gerenciar todas as extensões</string>
     <string name="web_session_plugins_installed_empty">Nenhuma extensão instalada</string>
     <string name="web_session_plugins_search_empty">Nenhuma extensão correspondente</string>
@@ -6148,7 +6148,7 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="web_session_plugins_pending_install">Pendente</string>
     <string name="web_session_plugins_runtime_blocked">Permissão de execução desativada</string>
     <string name="web_session_userscript_manager_title">Scripts de usuário</string>
-    <string name="web_session_userscript_plugin_subtitle">Gerenciador de userscripts integrado</string>
+    <string name="web_session_userscript_plugin_subtitle">Gerenciador de scripts de usuário integrado</string>
     <string name="web_session_userscript_permission_install_notice">O script pode ser instalado, mas não será executado até que Permitir scripts de usuário seja ativado.</string>
     <string name="web_session_userscript_execution_world">Ambiente de execução</string>
     <string name="web_session_userscript_execution_world_page">Ambiente da página</string>

@@ -46,7 +46,7 @@ class KiyoriBrowserPluginSettingsPolicyTest {
                     ),
             )
 
-        assertEquals("1 个插件 · 1 个脚本", browserPluginCenterSummary(state))
+        assertEquals("1 个扩展 · 1 个脚本", browserPluginCenterSummary(state))
         assertEquals("1 个脚本 · 3 项权限 · 3 个范围", browserPluginPermissionSummary(state))
         assertEquals("1 个异常", browserPluginCurrentPageSummary(state))
         assertEquals("1 个异常 · 0 条保留日志", browserPluginDiagnosticsSummary(state))
