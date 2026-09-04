@@ -429,6 +429,66 @@ heredoc 原样写入。静态合同测试锁定该换行边界；生产资产必
 - 真实 Android 设备上的长 Rust 文件、七类字符串模式、环境安装后立即重进页面和工具可用性仍需
   现场复测，状态保持 `verification_pending`。
 
+### 2026-09-04 现场工具报告复核与 Ruby/时区/JS 语义收口
+
+状态：已完成源码根因修复与本地自动化验证计划；目标设备上的环境安装、时区显示、ES5 completion
+value 和 Ubuntu 文件路径仍需现场复测，保持 `verification_pending`。
+
+#### 已确认问题
+
+- `run_javascript_file` 唯一使用 Android `Tools.Files.read`，而 Node/Python/Ruby/Go/Rust/C/C++
+  文件运行器都在同一可见 Ubuntu/proot PTY 中检查和读取路径，导致同一个 `/root` 文件对 JS 不可见、
+  `/sdcard` 文件却只有 JS 可见。
+- ES5 执行器把脚本放进 IIFE，只能接收显式 `return`；没有显式 `return` 的最后表达式 completion
+  value 在 IIFE 中被丢弃，和工具元数据的“最终返回值”描述不一致。
+- 环境配置页的唯一包清单没有 Ruby，`run_ruby`/`run_ruby_file` 却直接调用 `ruby`；设备上临时
+  `apt install ruby` 不能成为重装或换机后的可复现首装合同。
+- 所有 Ubuntu/chroot/proot 的 `env -i` 入口都未传递宿主时区；Resolute rootfs 已包含 `tzdata`，
+  因而 `date` 显示 UTC 是可修复的环境注入缺口。fake `/proc` 的静态 `btime` 是为受限 Android
+  接口准备的历史测试数据，不在本轮伪装成实时值。
+- `super_admin:terminal` 的后台任务使用独立 session 是并发隔离设计；返回不同 `sessionId` 是可追踪
+  的预期行为，文档继续明确后台任务不由默认前台 shell 或 `terminal_wait` 追踪。
+
+#### 修复合同
+
+1. Ruby 通过现有 `TerminalEnvironmentContract` 和 `SetupScreen` 唯一安装/探针链加入 `ruby` apt
+   包，探针要求 `command -v ruby` 与 `ruby --version` 成功，双语 UI 与 README/CONTEXT 同步。
+2. `run_javascript_file` 复用 Ubuntu PTY 的 `test -f`/`cat`，保持用户当前 Ubuntu cwd 和完整文件
+   内容语义；不再调用 Android 文件 API，也不新增环境参数或第二读取 owner。
+3. ES5 先以标准直接 `eval` 返回脚本 completion value；仅在解析到顶层 `return` 时使用隔离的
+   `Function` 体执行显式返回。日志、错误文本、对象格式化和工具名称保持不变。
+4. `TerminalManager` 为 chroot、proot 探针和实际 shell 的每个 `env -i` 传递宿主
+   `TimeZone.getDefault().id`，让同一 Ubuntu 会话的 `date`/Ruby/Python 时间 API 使用设备时区；不
+   修改 rootfs 身份、fake `/proc` 数据或 Android Shell 边界。
+
+#### 本轮验证计划
+
+1. [DONE] 增加 Ruby 探针/安装和时区/ES5/JS 文件路径合同测试，刷新 examples 与生产 asset 字节同步。
+2. [DONE] 运行 TypeScript、Terminal 定向 JVM、ToolPkg/正式开发准备和 `git diff --check`。
+3. [DONE] 串行运行 `./gradlew :app:assembleDebug --no-daemon --console=plain` 并核验 Debug APK。
+4. [DONE] 审计 staged 内容、子模块 gitlink、敏感文件和远端 refs；terminal 子模块以
+   `7ec4cfb10c94992adb79e6e281ba61878d7bcd8c` 提交并推送；父仓库使用本次提交完成 `main`
+   交付，最终 refs 在收尾核对中保持一致。
+5. [PENDING] 在 Android 设备复测 Ruby 首装/重进识别、Ubuntu `/root` JS 文件、ES5 最后表达式、`date`
+   时区和后台 session 追踪；本地构建不能替代这些验收。
+
+#### 本轮本地验证证据
+
+- `npm.cmd exec -- tsc -p examples/tsconfig.json --pretty false`、两份 `code_runner.js` 的
+  `node --check` 和 ES5 wrapper smoke test 均通过；`1 + 41` 与显式 `return 42` 均返回
+  `Return value: 42`。
+- `ci.test.test_toolpkg_sync` 为 `15/15`；`Terminal` 的 `:terminal:testDebugUnitTest` 与 App 的
+  `:app:compileDebugKotlin` 均为 `BUILD SUCCESSFUL`；正式开发准备检查为 `PASS`；父/子仓库
+  `git diff --check` 通过。
+- `./gradlew :app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL`，`235`
+  个 actionable tasks 中 `21` 个执行、`214` 个 up-to-date；唯一 launcher、脚本代理和播放器
+  runtime packaging 门禁通过。
+- Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `483701469` bytes，SHA-256
+  `C0B701D98F306E707FD142580C5F06005F823905A07DE09D5D9634517E34DCD5`；包/版本为
+  `com.kiyori / 45 / 0.1.0`，仅包含 `arm64-v8a` 的 `53` 个 `.so`；Android Debug V2 单 signer
+  与 `zipalign -c -P 16 4` 通过。APK 内 `assets/packages/code_runner.js` 与源码哈希均为
+  `03C931F4A1030E4F6A5B1A5962C209BA749EE7767EEDEA74344BC74DA7460F74`。
+
 ### 2026-09-03 super_admin 现场反馈收口（本轮）
 
 现场复测确认前台大输出、前台超时取消、连续超时恢复、`exit`/`kill` 后同一 `sessionId` 重建均

@@ -13,7 +13,7 @@
   tools: [
     {
       name: run_javascript_es5
-      description: { zh: "运行自定义 JavaScript (ES5) 脚本。会捕获 console.log 的输出以及最终的返回值。", en: "Run custom JavaScript (ES5). Captures console.log output and the final return value." }
+      description: { zh: "运行自定义 JavaScript (ES5) 脚本。会捕获 console.log 的输出以及最后表达式的结果；也支持显式 return。", en: "Run custom JavaScript (ES5). Captures console.log output and the final expression result; explicit return is also supported." }
       // This tool takes parameters
       parameters: [
         {
@@ -26,7 +26,7 @@
     },
     {
       name: run_javascript_file
-      description: { zh: "运行 JavaScript (ES5) 文件。会捕获 console.log 的输出以及最终的返回值。", en: "Run a JavaScript (ES5) file. Captures console.log output and the final return value." }
+      description: { zh: "运行 Ubuntu 环境中的 JavaScript (ES5) 文件。会捕获 console.log 的输出以及最后表达式的结果；也支持显式 return。", en: "Run a JavaScript (ES5) file in the Ubuntu environment. Captures console.log output and the final expression result; explicit return is also supported." }
       parameters: [
         {
           name: file_path
@@ -519,7 +519,7 @@ const codeRunner = (function () {
             .map(part => `'${escapeForShell(part)}'`)
             .join(" ");
     }
-    // Helper function to execute JavaScript code and capture logs/return value
+    // Helper function to execute JavaScript code and capture logs/completion value.
     async function executeJavaScript(script) {
         const logs = [];
         // Create a proxy for the console object
@@ -580,16 +580,30 @@ const codeRunner = (function () {
             },
         };
         try {
-            // Use the Function constructor to create a new function in the global scope.
-            // Pass the console proxy to it. This is safer than eval.
-            const func = new Function('console', `
-        // Wrap in an IIFE to handle return statements properly and avoid variable leakage.
-        return (function(){
+            let returnValue;
+            try {
+                // Direct eval follows the JavaScript completion-value rule, so a final expression is
+                // observable instead of being discarded by an IIFE. The script is still isolated in a
+                // Function scope and receives only the console proxy as an explicit host binding.
+                const evaluateCompletion = new Function('console', `
+          "use strict";
+          return eval(${JSON.stringify(script)});
+        `);
+                returnValue = evaluateCompletion(consoleProxy);
+            }
+            catch (error) {
+                // Top-level return is invalid in eval, but is part of the existing tool contract. Parsing
+                // fails before execution, so retrying through an isolated Function body cannot duplicate
+                // user side effects or console output.
+                if (!(error instanceof SyntaxError) || !/\breturn\b/i.test(error.message)) {
+                    throw error;
+                }
+                const executeFunctionBody = new Function('console', `
           "use strict";
           ${script}
-        })();
-      `);
-            const returnValue = func(consoleProxy);
+        `);
+                returnValue = executeFunctionBody(consoleProxy);
+            }
             let output = logs.join('\n');
             if (returnValue !== undefined) {
                 if (output) {
@@ -901,11 +915,19 @@ int main() {
         if (!filePath || filePath.trim() === "") {
             throw new Error("请提供要执行的 JavaScript 文件路径");
         }
-        const fileResult = await Tools.Files.read(filePath);
-        if (!fileResult || !fileResult.content) {
-            throw new Error(`无法读取文件: ${filePath}`);
+        // Keep JavaScript file execution in the same Ubuntu/proot filesystem as every other
+        // *_file tool. Android Tools.Files.read() would make /sdcard visible only to this tool and
+        // make ordinary files created in the Ubuntu session appear to be missing.
+        const escapedPath = escapeForShell(filePath);
+        const fileExistsResult = await executeTerminalCommand(`test -f '${escapedPath}'`);
+        if (fileExistsResult.exitCode !== 0) {
+            throw new Error(`JavaScript 文件不存在或路径错误: ${filePath}`);
         }
-        return executeJavaScript(fileResult.content);
+        const fileResult = await executeTerminalCommand(`cat '${escapedPath}'`);
+        if (fileResult.exitCode !== 0) {
+            throw new Error(`无法读取文件: ${filePath}\n${fileResult.output}`);
+        }
+        return executeJavaScript(fileResult.output);
     }
     async function run_javascript_node(params) {
         const script = params.script;

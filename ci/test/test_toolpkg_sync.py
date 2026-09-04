@@ -93,6 +93,20 @@ class ToolPkgRuntimeFilesTest(unittest.TestCase):
             source,
         )
 
+    def test_code_runner_javascript_files_use_ubuntu_and_capture_completion_values(self) -> None:
+        source = (REPO_ROOT / "examples" / "code_runner.ts").read_text(encoding="utf-8")
+
+        self.assertIn("return eval(${JSON.stringify(script)});", source)
+        self.assertIn("const executeFunctionBody = new Function('console'", source)
+        self.assertIn("const fileResult = await executeTerminalCommand(`cat '${escapedPath}'`);", source)
+        self.assertNotIn("Tools.Files.read(filePath)", source)
+
+    def test_terminal_manager_passes_host_timezone_to_every_isolated_ubuntu_entry(self) -> None:
+        source = (REPO_ROOT / "terminal" / "src" / "main" / "java" / "com" / "ai" / "assistance" / "operit" / "terminal" / "TerminalManager.kt").read_text(encoding="utf-8")
+
+        self.assertIn("val hostTimeZone = TimeZone.getDefault().id", source)
+        self.assertGreaterEqual(source.count("TZ=$hostTimeZone"), 6)
+
     def test_super_admin_uses_typed_timeouts_and_unique_background_sessions(self) -> None:
         source = (REPO_ROOT / "examples" / "super_admin.ts").read_text(encoding="utf-8")
 

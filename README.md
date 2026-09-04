@@ -174,8 +174,9 @@ KiyoriTerminalCore 子模块；`tools/hotbuild/OperitNightlyRelease` 是独立�
 
 上面是 Android 主工程的构建机基线；它与应用内 Terminal 的 Ubuntu 环境是两套独立合同。Terminal
 随包提供 Ubuntu 26.04.1 Resolute 的可复现核心用户空间，环境配置按需安装 Node.js 24.20.0 LTS、
-pnpm 11.25.0、TypeScript 7.0.2、OpenJDK 25 和 Gradle 9.7.1（Gradle 使用官方 SHA-256 校验的
-发行版，不使用 Ubuntu 4.4.1 旧包）。详见 [KiyoriTerminalCore Ubuntu environment](terminal/README.md)。
+pnpm 11.25.0、TypeScript 7.0.2、Ruby、OpenJDK 25 和 Gradle 9.7.1（Gradle 使用官方 SHA-256
+校验的发行版，不使用 Ubuntu 4.4.1 旧包）。Ubuntu/chroot/proot 会显式继承设备 IANA 时区，
+避免终端和语言运行时固定显示 UTC。详见 [KiyoriTerminalCore Ubuntu environment](terminal/README.md)。
 
 工作区模板的一键初始化也按生态分别锁定稳定合同：通用 Android 模板使用 Gradle 9.7.1（保留
 Android 官方 JDK 17 基线），Java 模板的 Wrapper 初始化使用 Gradle 9.7.1；Flutter 模板跟随
