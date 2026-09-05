@@ -6,6 +6,12 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 ## 当前进行中
 
+- [全项目架构重构 v4](kiyori_architecture_refactor/index.md)：2026-09-05 继续核对 A–G
+  工作项；本批先完成 PackageManager 刷新发布竞态，统一请求登记、缓存和 registry 发布锁，
+  以可控顺序行为测试及 Debug APK 验证，再推进剩余领域。当前续接批次补齐 Next 内置 TTS
+  首次迁移与真实音频解码验证；唯一进度仍在专项 index，D-06 native/lease、设备和全项目
+  总回归继续保持 `verification_pending`，本轮完成后按授权提交推送 `main`。
+
 - [Kiyori 扩展脚本品牌与运行契约迁移](kiyori_extension_script_brand_migration/index.md)：统一内置
   脚本、ToolPkg ID、环境变量、调试 marker、远程工具和 PC 配套程序的 Kiyori 名称；修复平台编辑器
   单字段更新意外重置上下文总结设置、远程配置校验和重复调用问题。Node 52 项、Python 15 项、JVM 7 项、

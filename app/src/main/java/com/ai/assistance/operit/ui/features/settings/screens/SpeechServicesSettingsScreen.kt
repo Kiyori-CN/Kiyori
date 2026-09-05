@@ -143,6 +143,7 @@ internal fun SpeechServicesSettingsScreen(
     var ttsLocaleTagInput by remember(httpConfig) { mutableStateOf(httpConfig.localeTag) }
     var ttsVoiceIdInput by remember(httpConfig) { mutableStateOf(httpConfig.voiceId) }
     var ttsModelNameInput by remember(httpConfig) { mutableStateOf(httpConfig.modelName) }
+    var ttsRateParameterModeInput by remember(httpConfig) { mutableStateOf(httpConfig.rateParameterMode) }
     var ttsResponsePipelineInput by remember(httpConfig) {
         mutableStateOf(HttpTtsResponsePipelineStep.encodeList(httpConfig.responsePipeline))
     }
@@ -195,6 +196,7 @@ internal fun SpeechServicesSettingsScreen(
             ttsLocaleTagInput != httpConfig.localeTag ||
             ttsVoiceIdInput != httpConfig.voiceId ||
             ttsModelNameInput != httpConfig.modelName ||
+            ttsRateParameterModeInput != httpConfig.rateParameterMode ||
             ttsResponsePipelineInput != HttpTtsResponsePipelineStep.encodeList(httpConfig.responsePipeline) ||
             vitsPackagePathInput != vitsConfig.packagePath ||
             vitsSpeakerIdInput != vitsConfig.speakerId ||
@@ -218,6 +220,7 @@ internal fun SpeechServicesSettingsScreen(
         ttsLocaleTagInput,
         ttsVoiceIdInput,
         ttsModelNameInput,
+        ttsRateParameterModeInput,
         ttsResponsePipelineInput,
         vitsPackagePathInput,
         vitsSpeakerIdInput,
@@ -305,7 +308,8 @@ internal fun SpeechServicesSettingsScreen(
             localeTag = ttsLocaleTagInput,
             voiceId = ttsVoiceIdInput,
             modelName = ttsModelNameInput,
-            responsePipeline = responsePipeline
+            responsePipeline = responsePipeline,
+            rateParameterMode = ttsRateParameterModeInput,
         )
 
         val vitsConfigData = SpeechServicesPreferences.VitsTtsPackageConfig(

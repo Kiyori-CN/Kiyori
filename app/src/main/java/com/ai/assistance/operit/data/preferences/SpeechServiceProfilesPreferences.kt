@@ -71,7 +71,8 @@ class SpeechServiceProfilesPreferences(private val context: Context) {
         private suspend fun migrateVersionZero(context: Context, preferences: MutablePreferences) {
             val legacy = SpeechServicesPreferences(context)
             val now = System.currentTimeMillis()
-            val tts = TtsProfile(
+            val hasLegacyTtsSettings = legacy.hasStoredTtsSettings()
+            val legacyTts = TtsProfile(
                 id = LEGACY_TTS_PROFILE_ID,
                 name = context.getString(R.string.speech_services_profile_migrated_tts),
                 serviceType = legacy.ttsServiceTypeFlow.first(),
@@ -83,6 +84,19 @@ class SpeechServiceProfilesPreferences(private val context: Context) {
                 createdAt = now,
                 updatedAt = now,
             )
+            val nextTts = TtsProfile(
+                id = SpeechServicesPreferences.DEFAULT_NEXT_TTS_PROFILE_ID,
+                name = context.getString(R.string.speech_services_profile_next_builtin),
+                serviceType = VoiceServiceFactory.VoiceServiceType.HTTP_TTS,
+                httpConfig = SpeechServicesPreferences.DEFAULT_NEXT_TTS_PRESET,
+                vitsConfig = SpeechServicesPreferences.DEFAULT_VITS_TTS_PACKAGE_CONFIG,
+                cleanerRegexs = SpeechServicesPreferences.DEFAULT_TTS_CLEANER_REGEXS,
+                speechRate = SpeechServicesPreferences.DEFAULT_TTS_SPEECH_RATE,
+                pitch = SpeechServicesPreferences.DEFAULT_TTS_PITCH,
+                createdAt = now,
+                updatedAt = now,
+            )
+            val tts = chooseInitialTtsProfile(hasLegacyTtsSettings, legacyTts, nextTts)
             val stt = SttProfile(
                 id = LEGACY_STT_PROFILE_ID,
                 name = context.getString(R.string.speech_services_profile_migrated_stt),
@@ -91,7 +105,8 @@ class SpeechServiceProfilesPreferences(private val context: Context) {
                 createdAt = now,
                 updatedAt = now,
             )
-            val ttsProfiles = decodeTtsProfiles(preferences[TTS_PROFILES]).ifEmpty { listOf(tts) }
+            val existingTtsProfiles = decodeTtsProfiles(preferences[TTS_PROFILES])
+            val ttsProfiles = existingTtsProfiles.ifEmpty { listOf(tts) }
             val sttProfiles = decodeSttProfiles(preferences[STT_PROFILES]).ifEmpty { listOf(stt) }
             preferences[TTS_PROFILES] = json.encodeToString(ttsProfiles)
             preferences[STT_PROFILES] = json.encodeToString(sttProfiles)
@@ -99,6 +114,17 @@ class SpeechServiceProfilesPreferences(private val context: Context) {
                 ?.takeIf { id -> ttsProfiles.any { it.id == id } } ?: ttsProfiles.first().id
             preferences[CURRENT_STT_PROFILE_ID] = preferences[CURRENT_STT_PROFILE_ID]
                 ?.takeIf { id -> sttProfiles.any { it.id == id } } ?: sttProfiles.first().id
+
+            if (existingTtsProfiles.isEmpty() && !hasLegacyTtsSettings) {
+                legacy.saveTtsSettings(
+                    serviceType = tts.serviceType,
+                    httpConfig = tts.httpConfig,
+                    vitsConfig = tts.vitsConfig,
+                    cleanerRegexs = tts.cleanerRegexs,
+                    speechRate = tts.speechRate,
+                    pitch = tts.pitch,
+                )
+            }
         }
 
         internal fun decodeTtsProfiles(raw: String?): List<TtsProfile> =
@@ -106,6 +132,12 @@ class SpeechServiceProfilesPreferences(private val context: Context) {
 
         internal fun decodeSttProfiles(raw: String?): List<SttProfile> =
             if (raw.isNullOrBlank()) emptyList() else json.decodeFromString(ListSerializer(SttProfile.serializer()), raw)
+
+        internal fun chooseInitialTtsProfile(
+            hasLegacyTtsSettings: Boolean,
+            legacyProfile: TtsProfile,
+            nextProfile: TtsProfile,
+        ): TtsProfile = if (hasLegacyTtsSettings) legacyProfile else nextProfile
     }
 
     private val dataStore = context.applicationContext.speechServiceProfilesDataStore

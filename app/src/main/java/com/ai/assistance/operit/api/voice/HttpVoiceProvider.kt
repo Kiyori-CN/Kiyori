@@ -19,6 +19,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.Flow
@@ -39,6 +40,15 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+
+internal fun formatHttpTtsRate(
+    rate: Float,
+    mode: SpeechServicesPreferences.HttpTtsRateParameterMode,
+): String = when (mode) {
+    SpeechServicesPreferences.HttpTtsRateParameterMode.DIRECT -> rate.toString()
+    SpeechServicesPreferences.HttpTtsRateParameterMode.OFFSET_PERCENT ->
+        ((rate - 1.0f) * 100.0f).roundToInt().toString()
+}
 
 /**
  * 基于HTTP请求的TTS语音服务实现
@@ -327,7 +337,7 @@ open class HttpVoiceProvider(
         try {
             // URL-encode parameters before replacing
             val encodedText = URLEncoder.encode(text, "UTF-8")
-            val encodedRate = rate.toString()
+            val encodedRate = formatHttpTtsRate(rate, httpConfig.rateParameterMode)
             val encodedPitch = pitch.toString()
             val encodedVoiceId = voiceId?.let { URLEncoder.encode(it, "UTF-8") } ?: ""
             val requestId = UUID.randomUUID().toString()

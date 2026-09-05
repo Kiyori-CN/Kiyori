@@ -918,6 +918,32 @@ This boundary does not change ObjectBox schema, search expansion or backup forma
 
 - `SkillManager` 使用一把 `mutationLock` 保护扫描、删除、导入以及内容读取。扫描只在局部 Map 中构造技能和错误，完成后一次性发布不可变快照；`getAvailableSkillsSnapshot()` 在同一临界区返回技能与错误的匹配视图，避免调用方观察到半次刷新或删除后重新发布的旧条目。
 - 本批不改变 Skill 目录、`SKILL.md` 格式、导入协议、可见性偏好或系统提示词内容；未新增缓存、registry 或回退路径。真实 Android 文件系统、进程死亡、设备和长时间并发验收必须以本批验证结果为准，未完成前保持 `verification_pending`。
+
+## STT/TTS 工厂配置实例所有权
+
+`SpeechServiceFactory` 与 `VoiceServiceFactory` 分别通过内部 `SpeechProfileServiceOwner`
+管理各自唯一的配置/服务缓存。配置读取、实例替换与 reset 串行执行；key 包含 profile ID
+和构造参数，实例只消费本次读取的同一快照。TTS 动态语速、音高与文本清理仍由既有调用链
+消费。替换与 reset 先摘除缓存再关闭旧服务，关闭或创建异常记录后传播，工厂不返回已关闭
+实例，也不在配置引擎失败后切换到其他供应商。直接 create 的实例仍由调用方负责释放，
+本地 STT 引用计数 lease 和唤醒策略保持现有独立边界；同步配置读取的性能尚待后续治理。
+
+首次建立 `SpeechServiceProfilesPreferences` 时，如果 legacy TTS DataStore 没有任何已保存的
+TTS key，迁移会创建并投影 `builtin-next-tts`：它使用单一已验证的 Next HTTP 地址、
+`zh-CN-XiaoxiaoNeural`、`audio/mpeg` 和相对正常语速参数。只要存在旧 TTS key，迁移就只创建
+`legacy-tts-profile` 并保留其服务类型、端点、音色、清理规则、语速和音高；已有 profile 列表
+也不会被覆盖。HTTP TTS 的 `DIRECT` 速率模式保持旧模板行为，Next 预设的
+`OFFSET_PERCENT` 将 `1.0x` 编码为 `0`，不自动更换地址或供应商。真实服务请求和音频解码已在
+2026-09-05 完成；网络端点可用性、Android MediaPlayer 播放和设备验收仍为
+`verification_pending`。
+
+## 2026-09-05 PackageManager 刷新代际边界
+
+- `PackageManager` 通过 `PackageScanPublicationGate` 复用 `initLock`，在异步刷新入队前登记单调代际。
+  扫描仅返回局部外部缓存和快照；代际校验、缓存、asset snapshot、registry 替换及既有 runtime
+  更新在同一发布锁内完成。主动清除缓存也推进代际，使失效前开始的扫描不能重新写回。
+  较新请求登记后，迟到扫描不再覆盖注册表或通知 listener。
+- 该边界保持一个 PackageManager、一个 ToolPkg registry、现有刷新 API、包格式、启用偏好和外部协议；没有新增缓存 owner、并行 registry、回退或静默丢包路径。真实外部文件并发、安装/卸载、进程死亡、设备和长时间运行仍为 `verification_pending`。
 ## 2026-09-05 Browser 用户脚本 attach/detach 代际锁边界
 
 - `WebSessionUserscriptManager.attachSession()` 在登记 pending WebView generation 后，主线程消费、旧 binding 清理、WebView bridge/document-start 注册和新 binding 发布统一置于 `pendingSessionAttachmentLock` 内。`detachSession()` 先推进同一 generation 并撤销 pending，再清理 binding；因此 detach 与已开始的 attach 不能交叉发布一个已关闭会话的脚本运行时。

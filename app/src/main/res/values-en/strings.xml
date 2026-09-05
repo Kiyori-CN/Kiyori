@@ -4846,6 +4846,7 @@
     <string name="speech_services_profiles_desc">Save and switch independent text-to-speech and speech-recognition configurations.</string>
     <string name="speech_services_profile_current">Current profile</string>
     <string name="speech_services_profile_migrated_tts">Migrated TTS profile</string>
+    <string name="speech_services_profile_next_builtin">Next built-in voice</string>
     <string name="speech_services_profile_migrated_stt">Migrated STT profile</string>
     <string name="speech_services_profile_create">Create speech profile</string>
     <string name="speech_services_profile_rename">Rename speech profile</string>

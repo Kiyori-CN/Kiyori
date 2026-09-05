@@ -13,6 +13,7 @@ import com.ai.assistance.operit.api.voice.HttpTtsResponsePipelineStep
 import com.ai.assistance.operit.api.voice.VoiceServiceFactory
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -30,6 +31,15 @@ class SpeechServicesPreferences(private val context: Context) {
     private val serializerJson = Json { ignoreUnknownKeys = true }
 
     @Serializable
+    enum class HttpTtsRateParameterMode {
+        /** Keep the existing provider-facing rate value unchanged. */
+        DIRECT,
+
+        /** Encode 1.0x as 0 and each 1% change as one integer point. */
+        OFFSET_PERCENT,
+    }
+
+    @Serializable
     data class TtsHttpConfig(
         val urlTemplate: String,
         val apiKey: String, // Keep apiKey for header-based auth
@@ -40,7 +50,8 @@ class SpeechServicesPreferences(private val context: Context) {
         val localeTag: String = "", // 通用 TTS 语言标签，如 zh-CN、en-US
         val voiceId: String = "", // 特定于TTS提供商的音色ID
         val modelName: String = "", // TTS模型名称（用于SiliconFlow等）
-        val responsePipeline: List<HttpTtsResponsePipelineStep> = emptyList()
+        val responsePipeline: List<HttpTtsResponsePipelineStep> = emptyList(),
+        val rateParameterMode: HttpTtsRateParameterMode = HttpTtsRateParameterMode.DIRECT,
     )
 
     @Serializable
@@ -90,6 +101,26 @@ class SpeechServicesPreferences(private val context: Context) {
             modelName = "",
             responsePipeline = emptyList()
         )
+
+        /**
+         * Built-in remote Chinese voice used only when the profile store is first created.
+         * The endpoint and response were verified against the fixed Next request contract.
+         */
+        val DEFAULT_NEXT_TTS_PRESET = TtsHttpConfig(
+            urlTemplate = "http://5.45.99.149:8075/tts?t={text}&v={voice}&r={rate}&p=0.0&s=&api_key=",
+            apiKey = "",
+            headers = emptyMap(),
+            httpMethod = "GET",
+            requestBody = "",
+            contentType = "audio/mpeg",
+            localeTag = "zh-CN",
+            voiceId = "zh-CN-XiaoxiaoNeural",
+            modelName = "",
+            responsePipeline = emptyList(),
+            rateParameterMode = HttpTtsRateParameterMode.OFFSET_PERCENT,
+        )
+
+        const val DEFAULT_NEXT_TTS_PROFILE_ID = "builtin-next-tts"
 
         val DEFAULT_VITS_TTS_PACKAGE_CONFIG = VitsTtsPackageConfig()
 
@@ -157,6 +188,17 @@ class SpeechServicesPreferences(private val context: Context) {
 
     val ttsPitchFlow: Flow<Float> = dataStore.data.map { prefs ->
         prefs[TTS_PITCH] ?: DEFAULT_TTS_PITCH
+    }
+
+    /** Returns whether the user has ever stored an explicit legacy TTS setting. */
+    suspend fun hasStoredTtsSettings(): Boolean {
+        val preferences = dataStore.data.first()
+        return preferences.contains(TTS_SERVICE_TYPE) ||
+            preferences.contains(TTS_HTTP_CONFIG) ||
+            preferences.contains(TTS_VITS_PACKAGE_CONFIG) ||
+            preferences.contains(TTS_CLEANER_REGEXS) ||
+            preferences.contains(TTS_SPEECH_RATE) ||
+            preferences.contains(TTS_PITCH)
     }
 
     // --- STT Flows ---

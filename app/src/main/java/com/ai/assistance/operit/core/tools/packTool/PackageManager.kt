@@ -284,6 +284,11 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
         val result: PackageScanCandidateResult
     )
 
+    private data class ExternalPackageScanResult(
+        val snapshot: PackageScanSnapshot,
+        val cache: Map<String, ExternalPackageScanCacheEntry>,
+    )
+
     internal fun interface ToolPkgRuntimeChangeListener {
         fun onToolPkgRuntimeChanged(activeContainers: List<ToolPkgContainerRuntime>)
     }
@@ -294,6 +299,7 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
     private var runtimeCachesReady = false
     private val initLock = Any()
     private val toolPkgCacheLock = Any()
+    private val packageScanPublication = PackageScanPublicationGate(initLock)
     @Volatile
     private var initializationFuture: CompletableFuture<Unit>? = null
     private val initializationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -1234,7 +1240,13 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
         return scanPackageCandidates(phase = "asset", candidates = candidates)
     }
 
-    private fun scanExternalPackages(baseSnapshot: PackageScanSnapshot): PackageScanSnapshot {
+    private fun invalidateExternalPackageScanCache() {
+        packageScanPublication.invalidate { externalPackageScanCache = emptyMap() }
+    }
+
+    private fun scanExternalPackages(
+        baseSnapshot: PackageScanSnapshot,
+    ): ExternalPackageScanResult {
         val inboxFiles =
             if (externalPackagesDir.exists()) {
                 (externalPackagesDir.listFiles() ?: emptyArray()).filter(File::isFile)
@@ -1291,10 +1303,12 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
                     )
                 result
             }
-        externalPackageScanCache = nextCache
-        return mergePackageScanCandidateResults(
-            candidateResults = candidateResults,
-            baseSnapshot = baseSnapshot
+        return ExternalPackageScanResult(
+            snapshot = mergePackageScanCandidateResults(
+                candidateResults = candidateResults,
+                baseSnapshot = baseSnapshot,
+            ),
+            cache = nextCache,
         )
     }
 
@@ -1700,9 +1714,12 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
      * Loads all available packages metadata (from assets and external storage).
      * Includes legacy JS packages and new .toolpkg containers/subpackages.
      */
-    private fun loadAvailablePackages(refreshExternalOnly: Boolean = false) {
+    private fun loadAvailablePackages(
+        refreshExternalOnly: Boolean = false,
+        scanGeneration: Long = packageScanPublication.begin(),
+    ) {
         val loadStart = System.currentTimeMillis()
-        logToolPkgInfo("loadAvailablePackages start")
+        logToolPkgInfo("loadAvailablePackages start, generation=$scanGeneration")
 
         val assetSnapshot =
             if (refreshExternalOnly) {
@@ -1710,20 +1727,30 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
                 if (cachedSnapshot != null) {
                     cachedSnapshot
                 } else {
-                    scanAssetPackages().also { assetPackageScanSnapshot = it }
+                    scanAssetPackages()
                 }
             } else {
-                scanAssetPackages().also { assetPackageScanSnapshot = it }
+                scanAssetPackages()
             }
 
-        val mergedSnapshot = scanExternalPackages(assetSnapshot)
-        applyPackageScanSnapshot(mergedSnapshot)
-        reconcileToolPkgCaches()
-        if (isInitialized) {
-            refreshToolPkgRuntimeState(persistIfChanged = true)
+        val externalScan = scanExternalPackages(assetSnapshot)
+        val mergedSnapshot = externalScan.snapshot
+        val published = packageScanPublication.publish(scanGeneration) {
+            // 缓存与 registry 必须属于同一次扫描；失效扫描不得单独覆盖解析缓存。
+            externalPackageScanCache = externalScan.cache
+            assetPackageScanSnapshot = assetSnapshot
+            applyPackageScanSnapshot(mergedSnapshot)
+            reconcileToolPkgCaches()
+            if (isInitialized) {
+                refreshToolPkgRuntimeState(persistIfChanged = true)
+            }
+        }
+        if (!published) {
+            logToolPkgInfo("loadAvailablePackages skipped stale generation=$scanGeneration")
+            return
         }
         logToolPkgInfo(
-            "loadAvailablePackages finish, elapsedMs=${System.currentTimeMillis() - loadStart}, available=${mergedSnapshot.availablePackages.size}, containers=${mergedSnapshot.toolPkgContainers.size}, subpackages=${mergedSnapshot.toolPkgSubpackages.size}, errors=${mergedSnapshot.packageLoadErrors.size}"
+            "loadAvailablePackages finish, generation=$scanGeneration, elapsedMs=${System.currentTimeMillis() - loadStart}, available=${mergedSnapshot.availablePackages.size}, containers=${mergedSnapshot.toolPkgContainers.size}, subpackages=${mergedSnapshot.toolPkgSubpackages.size}, errors=${mergedSnapshot.packageLoadErrors.size}"
         )
     }
 
@@ -2287,12 +2314,14 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
             AppLogger.e(TAG, "Failed to delete external package source: $targetCanonicalPath")
             return false
         }
-        externalPackageScanCache =
-            externalPackageScanCache.filterKeys { cachedPath ->
-                val cachedCanonicalPath =
-                    runCatching { File(cachedPath).canonicalPath }.getOrElse { cachedPath }
-                !cachedCanonicalPath.equals(targetCanonicalPath, ignoreCase = true)
-            }
+        packageScanPublication.invalidate {
+            externalPackageScanCache =
+                externalPackageScanCache.filterKeys { cachedPath ->
+                    val cachedCanonicalPath =
+                        runCatching { File(cachedPath).canonicalPath }.getOrElse { cachedPath }
+                    !cachedCanonicalPath.equals(targetCanonicalPath, ignoreCase = true)
+                }
+        }
         loadAvailablePackages(refreshExternalOnly = true)
         return true
     }
@@ -2560,7 +2589,7 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
                     activatedAt = System.currentTimeMillis(),
                 ),
             )
-            externalPackageScanCache = emptyMap()
+            invalidateExternalPackageScanCache()
             getAvailablePackages(forceRefresh = true)
             val activeRuntime =
                 toolPkgContainers[packageId]
@@ -2594,7 +2623,7 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
                     }
                 }
             }
-            externalPackageScanCache = emptyMap()
+            invalidateExternalPackageScanCache()
             runCatching {
                 loadAvailablePackages(refreshExternalOnly = true)
             }.onFailure { restoreError ->
@@ -3345,16 +3374,20 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
             return availablePackages
         }
         if (forceRefresh) {
+            // 在排入后台队列前登记请求，执行器调度顺序不能改变刷新请求的新旧关系。
+            val scanGeneration = packageScanPublication.begin()
             if (Looper.myLooper() == Looper.getMainLooper()) {
                 initializationScope.launch {
-                    runCatching { loadAvailablePackages(refreshExternalOnly = true) }
+                    runCatching {
+                        loadAvailablePackages(refreshExternalOnly = true, scanGeneration = scanGeneration)
+                    }
                         .onFailure { error ->
                             AppLogger.e(TAG, "Failed to refresh packages on background", error)
                             logToolPkgError("forceRefresh background reload failed", error)
                         }
                 }
             } else {
-                loadAvailablePackages(refreshExternalOnly = true)
+                loadAvailablePackages(refreshExternalOnly = true, scanGeneration = scanGeneration)
             }
         }
         return availablePackages
@@ -3723,7 +3756,7 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
             toolPkgArtifactStore.deactivate(normalizedPackageName)
             disablePackage(normalizedPackageName)
             destroyToolPkgExecutionEngines(normalizedPackageName)
-            externalPackageScanCache = emptyMap()
+            invalidateExternalPackageScanCache()
             loadAvailablePackages(refreshExternalOnly = true)
             toolPkgArtifactStore.cleanupUnreferencedArtifacts()
             return true

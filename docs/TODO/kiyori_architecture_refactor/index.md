@@ -38,7 +38,7 @@ Kiyori 自有父子仓库 `origin/main`。旧版“不推送”“terminal 暂�
 | D-03 | AI 协议/流、会话、工具、角色、记忆、工作流完整链 | 待实施，依赖 C-03；保留请求至多一次与工具终态合同 |
 | D-04 | ToolPkg/MCP/Skill/市场、WebChat/Mini App 注册与调用完整链 | MCP 注册代际/连接发布、工具至多一次、客户端/执行器取消、Socket 资源关闭、正文日志治理、参数解析、默认冷流与 ToolPkg clear 引擎释放本地验证通过：44 项相关 JVM、architecture、Debug/APK；workspace 等继续实施，设备待验证 |
 | D-05 | 文件/SAF/备份、网络/代理/DNS、终端/Ubuntu/PTY完整链 | 文件目录生命周期本地验证通过：23 JVM、ownership、Debug/APK；文件操作/搜索一致性及其余领域继续实施，设备待验证 |
-| D-06 | 语音/本地推理/虚拟角色生命周期和 native 边界 | 待实施；语音工厂阻塞与资源状态需治理 |
+| D-06 | 语音/本地推理/虚拟角色生命周期和 native 边界 | STT/TTS 配置实例所有权与 Next 首次迁移已在本批实现：统一配置读取、缓存替换与 reset，删除 STT 静默替代引擎路径，新安装无 legacy TTS key 时启用 `builtin-next-tts`；23 项定向 JVM、真实服务音频解码和 Debug/APK 审计通过，native/lease/页面生命周期及同步读取性能、设备播放仍待治理 |
 | E-01 | 构建输入/生成出口唯一，可复现；必要模块隔离有收益依据 | 已有输入与包体盘点；任务实现及各工具链待治理 |
 | F-01 | 资源/并发/缓存缺陷闭环，性能与包体同口径对比 | 基线 APK 483709823 bytes；运行性能待设备，不以构建时间代替 |
 | G-01 | 文档权威收束、兼容/依赖对账、全项目检查及最终 APK | 子模块 Markdown 误报已修复，本地全仓断链 1→0、299 Python、Debug/APK 通过；最终权威整理和全域总回归继续实施 |
@@ -49,16 +49,20 @@ Kiyori 自有父子仓库 `origin/main`。旧版“不推送”“terminal 暂�
 领域。E/F 在受影响领域同步执行，G 汇总验收。某领域无须修改必须留下实际实现、依赖和
 测试依据；范围内已确认缺陷不能移到“以后优化”以关闭工作项。
 
-当前观察（2026-09-05）：父 `main@09306457f30d3a1e582b9fe566bd0ebd489cff99` 与
-`origin/main` 一致，terminal gitlink 为
-`6180a86e4e2c45f8f05a3f93d20a0ef4a97d11cd`，父子工作树干净。该提交来自独立的
-Terminal ToolPkg 命令传输修复，已推送并通过其专项检查；不计入本重构批次。重构最近三个
-阶段提交为 `95f8e9576`、`2220665a0`、`7201ea863`，均已包含在当前 main。Debug 构建与
-正式准备检查通过；本轮 workspace 处理组全量 App JVM、architecture、fresh-clone 和
-候选 Markdown 检查通过。设备指标与设备兼容验收尚未采集，真实 Browser/工作区/终端行为
-继续保持 `verification_pending`。
-独立全项目 Lint 于 2026-09-05 06:49 结束，26m31s，App 有 55 errors / 78 warnings /
-1 hint，另有 20 条失效 baseline 项。设备指标与设备兼容验收尚未采集。
+当前观察（2026-09-05 续接批次）：父 `main@21ab6afa38a18053f50b669f6e071622363caea9`
+与本地 `origin/main` 分歧为 0/0，terminal 工作树干净。续接时父仓已有 PackageManager
+代际、稳定标识快照和三份文档共五个跟踪文件修改及一个未跟踪测试，均保留并复核；本轮
+继续本地修改与验证；当前用户已授权本轮提交推送。上轮仅检查源码的刷新测试已补为行为与接线测试，
+外部缓存/registry 发布纳入同一锁，入队前登记请求，主动缓存失效推进代际。相关 JVM 12/12、
+architecture `phase=m03`、formal readiness、diff 检查通过；Debug 构建 1m34s，235 tasks /
+23 executed，APK 512626322 bytes，SHA-256
+`DD2DC23A2F8EE041D8A02AACC8055D3FC2B2EAB9CC916CD76F20221F8DCEA0BC`，Debug V2 单 signer
+与 16 KiB ZIP 对齐通过。当前批次加入 Next 默认 profile、legacy key 检测和 HTTP 速率模式；
+真实端点 `http://5.45.99.149:8075/tts` 返回可解码 MP3。最终 APK 为 `512626322` bytes，
+SHA-256 `27AA7E31E3DC1DD64622CB4AB376601B846F5E85E6BEC2B127ABE1950209405A`，44 DEX、
+53 个 arm64 native library、54 个 AArch64 ELF、唯一 launcher、Debug V2 单 signer 与 16 KiB ZIP
+对齐通过。此前全量 Lint
+与各领域的旧验证记录保留其时点，不作为本轮全项目验收；G-01 总回归及设备验收仍未关闭。
 
 ## v3 历史设计与实施记录
 
@@ -503,6 +507,13 @@ Markdown、diff 与 Debug/APK 证据均通过。Debug APK 为 `488708183` bytes�
 JVM 测试、architecture `phase=m03`、formal readiness、fresh clone、Markdown links 和 Debug/APK 静态
 核验均已通过；APK 为 `485671424` bytes，SHA-256 `34186C829E2A5647001BCA35D3B2E9BBCADD432D4AA5462F635D554B63156E86`，
 身份/唯一 launcher/Debug v2/16 KiB 对齐保持。真实 Android 文件系统、进程死亡、设备和长时间运行仍为
+`verification_pending`。
+
+2026-09-05 D-04 PackageManager 刷新代际小批：`getAvailablePackages(forceRefresh=true)` 触发的异步
+扫描在入队前经 `PackageScanPublicationGate` 登记单调请求代际，复用 `initLock` 发布外部缓存、
+asset snapshot、registry 和 runtime 更新。旧扫描不能穿过主动失效边界；行为与接线测试及
+ToolPkgManager 相关测试共 12/12，architecture、formal readiness、差异和 Debug/APK 已验证，
+具体产物见本文件顶部续接记录。真实文件操作、安装卸载事务、进程死亡、设备和长时间运行保持
 `verification_pending`。
 2026-09-05 D-02 Browser 用户脚本 attach/detach 竞态收口：在 pending generation 校验之外，
 `WebSessionUserscriptManager` 现在用同一把 `pendingSessionAttachmentLock` 覆盖主线程 attach

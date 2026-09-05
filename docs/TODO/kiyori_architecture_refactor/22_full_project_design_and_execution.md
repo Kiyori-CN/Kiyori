@@ -534,6 +534,16 @@ Skill 生命周期补充：`SkillManager` 的扫描、删除、导入和内容�
 视图。该边界只治理内存快照和文件操作的并发所有权，不改变 Skill 目录格式、导入协议、可见性偏好或
 提示词内容；真实 Android 文件系统和长时间运行仍属于设备验收范围。
 
+PackageManager 生命周期补充：本批基线 `main@21ab6afa` 含上轮未提交的刷新代际实现。复核确认
+AtomicLong 的检查/缓存赋值存在竞争，且在协程开始后登记请求无法保持入队前的请求顺序。
+`PackageScanPublicationGate` 复用 `initLock`，在入队前登记请求，锁外构造扫描结果，锁内完成
+代际校验、外部缓存、asset snapshot、registry 替换及既有 runtime 更新。缓存主动失效使用
+同一门控，阻止失效前的扫描重新写入缓存。保持单一 owner、刷新 API、包格式和偏好格式。
+精确范围为 PackageManager、门控类、行为/接线测试及本专项与 CONTEXT；源码恢复依据是本批
+差异和原有 main，不自动执行恢复。验证覆盖请求/完成顺序反转、主动失效、失败传播、共享锁，
+随后执行领域 JVM、architecture、formal readiness、差异检查和串行 Debug/APK；真实文件操作、
+安装卸载事务、设备恢复与长时间运行仍需独立验收。
+
 ### C-03 workspace 规则读取边界实施证据
 
 2026-09-05 将 `WorkspaceRuleFileReader` 从
@@ -597,6 +607,47 @@ warnings=0 / inherited broken links=0，原 `terminal/README.md` 误报消除。
 `packageDebug` up-to-date，APK SHA-256 仍为
 `ACABD724519F6F11A8714C3F239A1911AB3F6F1700469D2D18F5F1D151725C8F`，沿用本批前已审计的
 同一 APK 本体，未重复宣称生成新包。
+
+### D-06 STT/TTS 工厂首批实施契约（2026-09-05）
+
+调用链已核对 `SpeechInteractionManager`、`FloatingChatService`、`ChatViewModel`、STT/TTS
+工具箱、语音设置页、软件设置工具和 AIForegroundService。直接 create 的实例由调用方释放，
+getInstance 的缓存由工厂 reset/配置切换释放；唤醒服务仍使用其明确的本地识别策略。
+当前两个工厂的 instance/profile ID 未同步；旧实例 shutdown 后创建失败会留下旧缓存；
+STT 会吞下创建错误并改用本地引擎；getInstance 二次读取配置也可能使缓存 key 与实例不符。
+
+本批在原 API 内提取可测试的语音配置实例所有者，串行读取配置、替换及 reset，旧缓存先摘除
+再 shutdown，创建失败向调用方传播。构造只消费同一个配置快照，key 覆盖 profile ID 与构造
+参数，保留动态语速/音高/清理规则的现有消费方式。删除 STT 的静默替代引擎路径和工厂中
+不必要的 provider 构造 runBlocking。非目标是改变语音 UI、持久化、默认类型、唤醒策略或
+把整个同步 API 改成 suspend；本地 lease/native close 及页面持有旧实例仍继续单独审查。
+
+文件范围为两个 Factory、`api/speech` 内部实例所有者、假引擎生命周期测试与接线合同、
+CONTEXT 和本专项。风险为 shutdown/create 异常对现有调用方可见，须保留日志并真实失败，
+不返回已关闭实例。验证包括并发获取只创建一次、相同 ID 参数变化、替换/关闭失败、重复
+reset、读取一次及 reset 与创建竞争，随后领域 JVM、架构、正式准备、Debug/APK；不调用
+真实语音供应商。恢复依据为本轮精确差异与 `21ab6afa`，设备语音与 native 验收继续待验证。
+
+### D-06 Next 内置 TTS 首次迁移（2026-09-05）
+
+在不改变既有 `SpeechServicesPreferences` key 和 profile wire 格式的前提下，补齐首次 profile
+迁移的默认行为：legacy TTS DataStore 没有任何 TTS key 时创建 `builtin-next-tts`，并投影
+`GET http://5.45.99.149:8075/tts?t={text}&v={voice}&r={rate}&p=0.0&s=&api_key=`、
+`zh-CN-XiaoxiaoNeural`、`audio/mpeg` 和 `OFFSET_PERCENT` 速率模式；存在任何旧 TTS key
+或已有 profile 时保留原配置，不覆盖用户设置。HTTP provider 的 `DIRECT` 模式保持所有
+既有配置的速率编码；Next 模式将 Kiyori `1.0x` 基准映射为 Next `r=0`，并保留配置编辑后
+的模式值。没有自动地址切换、供应商切换或第二持久化 owner。
+
+真实服务探针使用固定测试句逐一请求用户提供的 13 个候选地址：`5.45.99.149:8075`
+返回 `200 audio/mpeg`、`23184` bytes、MP3/24 kHz/单声道、`3.864 s`，`ffprobe` 和
+`ffmpeg -f null` 均通过；其余地址在探测时返回 HTTP 403 或 502/超时，故默认只采用这个
+已验证地址。定向 JVM 覆盖 Next 配置合同、legacy/新安装选择、DIRECT/百分比速率编码、
+SpeechProfileServiceOwner、PackageManager 刷新门控和配置 codec；真实 Android 播放、
+远程端点长期可用性、设备网络/代理和 native/lease 仍保持 `verification_pending`。
+本批定向测试共 23 项且全部通过；规定 `:app:assembleDebug` 生成的 APK 为 `512626322` bytes，
+SHA-256 `27AA7E31E3DC1DD64622CB4AB376601B846F5E85E6BEC2B127ABE1950209405A`，APK 审计的
+44 DEX、53 个 arm64 native library、54 个 AArch64 ELF、唯一 launcher、Debug V2 单 signer
+和 16 KiB ZIP 对齐全部通过。
 
 ## 兼容与上游维护
 

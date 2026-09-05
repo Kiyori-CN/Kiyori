@@ -5234,6 +5234,7 @@
     <string name="speech_services_profile_delete">删除语音配置</string>
     <string name="speech_services_profile_delete_message">确定删除语音配置“%1$s”吗？活动配置不能删除。</string>
     <string name="speech_services_profile_migrated_tts">迁移的 TTS 配置</string>
+    <string name="speech_services_profile_next_builtin">Next 内置语音</string>
     <string name="speech_services_profile_migrated_stt">迁移的 STT 配置</string>
     <string name="removed_character_card_binding">已移除 %1$d 条对话的角色卡绑定</string>
     <string name="assigned_chats_to_character_card">已将 %1$d 条对话归类到「%2$s」</string>

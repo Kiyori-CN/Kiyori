@@ -11,4 +11,4 @@
 8	"__type"
 2	".operit/config.json"
 1	"OPERIT_MARKET_COMPAT_VERSION"
-72	com.operit.
+19	com.operit.

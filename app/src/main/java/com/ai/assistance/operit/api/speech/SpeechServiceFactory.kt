@@ -3,6 +3,7 @@ package com.ai.assistance.operit.api.speech
 import android.content.Context
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.data.preferences.SpeechServiceProfilesPreferences
+import com.ai.assistance.operit.data.preferences.SpeechServicesPreferences
 import kotlinx.coroutines.runBlocking
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -61,24 +62,20 @@ object SpeechServiceFactory {
         return when (type) {
             SpeechServiceType.SHERPA_NCNN -> acquireLocalSpeechService(context, type)
             SpeechServiceType.OPENAI_STT -> {
-                runBlocking {
-                    OpenAISttProvider(
-                        context = context,
-                        endpointUrl = httpConfig.endpointUrl,
-                        apiKey = httpConfig.apiKey,
-                        model = httpConfig.modelName,
-                    )
-                }
+                OpenAISttProvider(
+                    context = context,
+                    endpointUrl = httpConfig.endpointUrl,
+                    apiKey = httpConfig.apiKey,
+                    model = httpConfig.modelName,
+                )
             }
             SpeechServiceType.DEEPGRAM_STT -> {
-                runBlocking {
-                    DeepgramSttProvider(
-                        context = context,
-                        endpointUrl = httpConfig.endpointUrl,
-                        apiKey = httpConfig.apiKey,
-                        model = httpConfig.modelName,
-                    )
-                }
+                DeepgramSttProvider(
+                    context = context,
+                    endpointUrl = httpConfig.endpointUrl,
+                    apiKey = httpConfig.apiKey,
+                    model = httpConfig.modelName,
+                )
             }
         }
     }
@@ -163,9 +160,15 @@ object SpeechServiceFactory {
         }
     }
 
-    // 单例实例缓存
-    private var instance: SpeechService? = null
-    private var currentProfileId: String? = null
+    private data class ServiceConfiguration(
+        val profileId: String,
+        val type: SpeechServiceType,
+        val httpConfig: SpeechServicesPreferences.SttHttpConfig,
+    )
+
+    private val serviceOwner = SpeechProfileServiceOwner<ServiceConfiguration, SpeechService> {
+        it.shutdown()
+    }
 
     /**
      * 获取语音识别服务单例实例
@@ -176,51 +179,31 @@ object SpeechServiceFactory {
     fun getInstance(
         context: Context,
     ): SpeechService {
-        val profile = runBlocking { SpeechServiceProfilesPreferences(context).getCurrentSttProfile() }
-        val selectedProfileId = profile.id
-
-        val needNewInstance = instance == null || selectedProfileId != currentProfileId
-        
-        if (needNewInstance) {
-            try {
-                instance?.shutdown()
-            } catch (error: Exception) {
-                AppLogger.w(TAG, "Failed to shutdown replaced SpeechService", error)
-            }
-
-            val created =
-                try {
-                    createSpeechService(context)
-                } catch (e: IllegalStateException) {
-                    AppLogger.w(TAG, "Failed to create SpeechService for profile=$selectedProfileId", e)
-                    null
-                }
-
-            if (created != null) {
-                instance = created
-                currentProfileId = selectedProfileId
-            }
+        try {
+            return serviceOwner.get(
+                readConfiguration = {
+                    val profile = runBlocking {
+                        SpeechServiceProfilesPreferences(context.applicationContext).getCurrentSttProfile()
+                    }
+                    ServiceConfiguration(profile.id, profile.serviceType, profile.httpConfig)
+                },
+                create = { configuration ->
+                    createSpeechService(context.applicationContext, configuration.type, configuration.httpConfig)
+                },
+            )
+        } catch (error: Exception) {
+            AppLogger.e(TAG, "Failed to obtain configured SpeechService", error)
+            throw error
         }
-
-        val value = instance
-        if (value != null) return value
-
-        val fallbackEntry = synchronized(localLock) { localEntry }
-        if (fallbackEntry != null) {
-            return acquireLocalSpeechService(context, fallbackEntry.type)
-        }
-
-        return createSpeechService(context, SpeechServiceType.SHERPA_NCNN)
     }
 
     /** 重置单例实例 在需要更改语音识别服务类型或释放资源时调用 */
     fun resetInstance() {
         try {
-            instance?.shutdown()
+            serviceOwner.reset()
         } catch (error: Exception) {
             AppLogger.w(TAG, "Failed to shutdown SpeechService during reset", error)
+            throw error
         }
-        instance = null
-        currentProfileId = null
     }
 }
