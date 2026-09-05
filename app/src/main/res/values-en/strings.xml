@@ -1066,14 +1066,7 @@
     <string name="search">Search</string>
 
     <!-- File Operations -->
-    <string name="new_folder">New Folder</string>
-    <string name="folder_name">Folder name</string>
-    <string name="create_folder">Create folder</string>
-    <string name="open">Open</string>
     <string name="copy">Copy</string>
-    <string name="cut">Cut</string>
-    <string name="paste">Paste</string>
-    <string name="share">Share</string>
     <string name="loading_files">Loading files...</string>
 
     <!-- ErrorDialog -->
@@ -2200,33 +2193,12 @@
     <string name="file_menu_share">Share</string>
     <string name="file_menu_rename">Rename</string>
     <string name="file_menu_batch_rename">Batch Rename</string>
-    <string name="file_compress">Compress</string>
     <string name="file_menu_compress">Compress</string>
-    <string name="file_menu_extract">Extract</string>
     <string name="file_dialog_new_name">New Name</string>
-    <string name="file_dialog_rename_prefix">Prefix</string>
-    <string name="file_dialog_rename_keep_original">Keep original filename</string>
-    <string name="file_dialog_rename_start_number">Start Number</string>
-    <string name="file_dialog_rename_suffix">Suffix</string>
-    <string name="file_dialog_rename_preview">Example: %1$s%2$s.%3$s%4$s</string>
-    <string name="file_dialog_rename_original">Original filename</string>
-    <string name="file_dialog_compress_title">Compress Files</string>
-    <string name="file_dialog_compress_filename">Archive name</string>
-    <string name="file_dialog_compress_button">Compress</string>
-    <string name="file_dialog_extract_title">Extract Files</string>
-    <string name="file_dialog_extract_message">Are you sure you want to extract %s?</string>
-    <string name="file_dialog_extract_button">Extract</string>
-    <string name="file_dialog_delete_single">Are you sure you want to delete %s?</string>
-    <string name="file_dialog_delete_multiple">Are you sure you want to delete %d selected items?</string>
-    <string name="file_error_open_failed">Failed to open file</string>
     <string name="file_error_open">File open error: %s</string>
-    <string name="file_error_share_failed">Failed to share file</string>
     <string name="file_error_share">File share error: %s</string>
-    <string name="file_error_compress_failed">Compression failed</string>
     <string name="file_error_compress">Compression error: %s</string>
-    <string name="file_error_extract_failed">Extraction failed</string>
     <string name="file_error_extract">Extraction error: %s</string>
-    <string name="file_error_rename_failed">Batch rename error: %s</string>
     <string name="file_op_failed">Operation failed: %s</string>
     <string name="file_op_confirm_delete">Confirm delete</string>
     <string name="file_op_confirm_delete_message">Are you sure you want to delete the selected files? This action cannot be undone.</string>
@@ -2892,7 +2864,6 @@
     <string name="token_price_description">Set the RMB price per API request</string>
     <string name="floating_chat_cancel">Cancel</string>
     <string name="floating_chat_send">Send</string>
-    <string name="file_list_folder">Folder</string>
     <string name="folder_navigator_folder">Folder</string>
     <string name="folder_navigator_all">All</string>
     <string name="file_manager_main_directory">Main Directory</string>
@@ -5080,12 +5051,8 @@
     <string name="conversation_audit_annotation_append">Append annotation</string>
     <string name="conversation_audit_export_content_description">Export conversation audit</string>
     <string name="conversation_audit_annotation_content_description">Add audit annotation</string>
-    <string name="conversation_audit_header_summary">Events: %1$d · Loaded: %2$d · Head: %3$s</string>
-    <string name="conversation_audit_chain_empty">no events</string>
     <string name="conversation_audit_chain_pending">legacy rebuild pending</string>
-    <string name="conversation_audit_header_runtime">%1$s · audit storage %2$s</string>
     <string name="conversation_audit_provider_not_recorded">Provider / model not recorded</string>
-    <string name="conversation_audit_search_loaded_events">Search loaded events by category, summary, or ID</string>
     <string name="conversation_audit_empty">This conversation has no audit events yet</string>
     <string name="conversation_audit_no_matches">No matches in the loaded events</string>
     <string name="conversation_audit_load_older">Load earlier events</string>
@@ -8404,4 +8371,63 @@
     <string name="chat_memory_rebuild_window_size">Messages per window</string>
     <string name="chat_memory_rebuild_window_size_value">Message count: %1$d</string>
     <string name="chat_memory_rebuild_confirm_action">Start rebuild</string>
+    <string name="conversation_audit_header_subtitle">Readable, searchable execution diagnostics</string>
+    <string name="conversation_audit_header_counts">Events %1$d · Messages %2$d · payload %3$s</string>
+    <string name="conversation_audit_header_runtime_compact">Runtime: %1$s · Chain head: %2$s</string>
+    <string name="conversation_audit_match_count">Matches %1$d / %2$d</string>
+    <string name="conversation_audit_expand_all">Expand all</string>
+    <string name="conversation_audit_collapse_all">Collapse all</string>
+    <string name="conversation_audit_search_timeline">Search event type, category, summary, or ID</string>
+    <string name="conversation_audit_search_conversation">Search messages, roles, providers, or models</string>
+    <string name="conversation_audit_conversation_empty">This conversation has no messages to display yet</string>
+    <string name="conversation_audit_message_index">Message timestamp=%1$d</string>
+    <string name="conversation_audit_export_title">Export conversation details</string>
+    <string name="conversation_audit_export_description">Exports always use a verified consistent snapshot, regardless of the current search or pagination.</string>
+    <string name="conversation_audit_export_ai_title">Export AI diagnostics (plain-text Markdown)</string>
+    <string name="conversation_audit_export_ai_description">UTF-8 plain text with messages, events, and readable payloads for direct AI analysis. Sensitive content is redacted; the export is not encrypted.</string>
+    <string name="conversation_audit_export_package_title">Export full audit package (signed ZIP)</string>
+    <string name="conversation_audit_export_package_description">Preserves the event chain, revisions, projections, seals, and binary payloads for local reproduction and import.</string>
+    <string name="message_send_failed_partial">The response stream was interrupted. Content already received has been retained.\nFailed to send message: %1$s</string>
+    <string name="web_session_native_home_title">Kiyori Browser Home</string>
+    <string name="web_session_native_home_subtitle">Continue with bookmarks, history, and open tabs from one page</string>
+    <string name="web_session_native_home_search_hint">Search or enter a URL</string>
+    <string name="web_session_native_home_verify_gotab">GoTab official website</string>
+    <string name="web_session_native_home_verify_gotab_supporting">Open the official website verification page</string>
+    <string name="web_session_native_home_tabs">Tabs</string>
+    <plurals name="web_session_native_home_tab_count">
+        <item quantity="one">%1$d tab</item>
+        <item quantity="other">%1$d tabs</item>
+    </plurals>
+    <string name="web_session_native_home_new_tab">New tab</string>
+    <string name="web_session_native_home_new_tab_supporting">Continue browsing</string>
+    <string name="web_session_native_home_shortcuts">Quick access</string>
+    <string name="web_session_native_home_shortcuts_supporting">Bookmarks and verification links</string>
+    <string name="web_session_native_home_recent">Recently visited</string>
+    <string name="web_session_native_home_recent_supporting">From shared browsing history</string>
+    <string name="web_session_native_home_recent_empty">Recent visits will appear here after you browse webpages</string>
+    <string name="web_session_native_home_bookmark">Bookmarks</string>
+    <string name="web_session_native_home_history">History</string>
+    <string name="web_session_native_home_data_source">Home displays bookmarks, history, and tabs from the existing Browser Runtime without copying webpage cookies or session state.</string>
+    <string name="web_session_cookie_reader_title">Webpage cookies</string>
+    <string name="web_session_cookie_reader_subtitle">Read cookies from the current webpage</string>
+    <string name="web_session_cookie_reader_card_summary">Read current webpage cookies on this device only</string>
+    <string name="web_session_cookie_reader_refresh">Read current webpage cookies again</string>
+    <string name="web_session_cookie_reader_current_page">Current webpage</string>
+    <string name="web_session_cookie_reader_no_active_page">No active webpage</string>
+    <string name="web_session_cookie_reader_unsupported_title">This page does not support cookies</string>
+    <string name="web_session_cookie_reader_unsupported_message">Cookies can only be read from http:// or https:// webpages.</string>
+    <string name="web_session_cookie_reader_error_title">Failed to read cookies</string>
+    <string name="web_session_cookie_reader_disabled_title">Cookie Reader is disabled</string>
+    <string name="web_session_cookie_reader_disabled_message">Enable Webpage cookies in the extension center before reading cookies from the current page.</string>
+    <string name="web_session_cookie_reader_not_loaded_title">Cookies have not been read yet</string>
+    <string name="web_session_cookie_reader_not_loaded_message">Tap Refresh in the upper right to read cookies from the current webpage.</string>
+    <string name="web_session_cookie_reader_empty_title">This webpage has no cookies</string>
+    <string name="web_session_cookie_reader_empty_message">WebView CookieManager currently returns no cookies for this webpage.</string>
+    <string name="web_session_cookie_reader_copy_all">Copy all cookies</string>
+    <string name="web_session_cookie_reader_copied">Cookies copied</string>
+    <string name="web_session_cookie_reader_warning">Cookies may contain login credentials. Copy or share them only after confirming it is safe.</string>
+    <plurals name="web_session_cookie_reader_count">
+        <item quantity="one">%1$d cookie</item>
+        <item quantity="other">%1$d cookies</item>
+    </plurals>
 </resources>

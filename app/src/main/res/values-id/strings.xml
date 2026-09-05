@@ -873,9 +873,6 @@
     <string name="voice_wakeup_personal_config_record">Mulai Rekam</string>
     <string name="voice_wakeup_personal_config_recording">Sedang merekam…</string>
 
-    <string name="cut">Potong</string>
-    <string name="paste">Tempel</string>
-    <string name="share">Bagikan</string>
     <string name="rename">Ganti Nama</string>
     <string name="loading_files">Memuat file...</string>
     <string name="request_failed">Permintaan gagal</string>
@@ -1289,10 +1286,6 @@
     <string name="searching">Mencari...</string>
     <string name="case_sensitive">Perhatikan huruf besar/kecil</string>
     <string name="use_wildcard">Gunakan wildcard</string>
-    <string name="new_folder">Folder Baru</string>
-    <string name="folder_name">Nama Folder</string>
-    <string name="create_folder">Buat Folder</string>
-    <string name="open">Buka</string>
     <string name="copy">Salin</string>
 
     <string name="selected_content_copied">Konten terpilih telah disalin</string>
@@ -1884,17 +1877,8 @@
     <string name="file_menu_share">Bagikan</string>
     <string name="file_menu_rename">Ganti nama</string>
     <string name="file_menu_batch_rename">Ganti nama massal</string>
-    <string name="file_compress">Kompres</string>
     <string name="file_menu_compress">Kompres file</string>
-    <string name="file_menu_extract">Ekstrak file</string>
     <string name="file_dialog_new_name">Nama baru</string>
-    <string name="file_dialog_rename_prefix">Awalan</string>
-    <string name="file_dialog_rename_keep_original">Pertahankan nama file asli</string>
-    <string name="file_dialog_rename_start_number">Nomor awal</string>
-    <string name="file_dialog_rename_suffix">Akhiran</string>
-    <string name="file_dialog_rename_preview">Contoh: %1$s%2$s.%3$s%4$s</string>
-    <string name="file_dialog_rename_original">Nama file asli</string>
-    <string name="file_dialog_compress_title">Kompres file</string>
 
     <string name="process_limit_action_restore_desc">Kembalikan batas proses phantom default sistem Android</string>
     <string name="process_limit_status_checking">Memeriksa…</string>
@@ -1981,22 +1965,10 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="toolbox_permissions_no_match">Tidak ada aplikasi yang cocok ditemukan</string>
     <string name="toolbox_permissions_try_other_keywords">Coba cari dengan kata kunci lain</string>
 
-    <string name="file_dialog_compress_filename">Nama file terkompresi</string>
-    <string name="file_dialog_compress_button">Kompres</string>
-    <string name="file_dialog_extract_title">Ekstrak file</string>
-    <string name="file_dialog_extract_message">Yakin ingin mengekstrak %s?</string>
-    <string name="file_dialog_extract_button">Ekstrak</string>
-    <string name="file_dialog_delete_single">Yakin ingin menghapus %s?</string>
-    <string name="file_dialog_delete_multiple">Yakin ingin menghapus %d item yang dipilih?</string>
-    <string name="file_error_open_failed">Gagal membuka file</string>
     <string name="file_error_open">Kesalahan membuka file: %s</string>
-    <string name="file_error_share_failed">Gagal berbagi file</string>
     <string name="file_error_share">Kesalahan berbagi file: %s</string>
-    <string name="file_error_compress_failed">Kompresi gagal</string>
     <string name="file_error_compress">Kesalahan kompresi: %s</string>
-    <string name="file_error_extract_failed">Ekstraksi gagal</string>
     <string name="file_error_extract">Kesalahan ekstraksi: %s</string>
-    <string name="file_error_rename_failed">Kesalahan penggantian nama massal: %s</string>
     <string name="file_op_failed">Operasi gagal: %s</string>
     <string name="file_op_confirm_delete">Konfirmasi penghapusan</string>
     <string name="file_op_confirm_delete_message">Yakin ingin menghapus file yang dipilih? Tindakan ini tidak dapat dibatalkan.</string>
@@ -5261,7 +5233,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
 
     <string name="floating_chat_cancel">Batal</string>
     <string name="floating_chat_send">Kirim</string>
-    <string name="file_list_folder">Folder</string>
     <string name="folder_navigator_folder">Folder</string>
     <string name="folder_navigator_all">Semua</string>
     <string name="file_manager_main_directory">Direktori Utama</string>
@@ -7542,12 +7513,8 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="conversation_audit_annotation_append">Tambahkan anotasi</string>
     <string name="conversation_audit_export_content_description">Ekspor audit percakapan</string>
     <string name="conversation_audit_annotation_content_description">Tambahkan anotasi audit</string>
-    <string name="conversation_audit_header_summary">Peristiwa: %1$d · Dimuat: %2$d · Kepala rantai: %3$s</string>
-    <string name="conversation_audit_chain_empty">tidak ada peristiwa</string>
     <string name="conversation_audit_chain_pending">rekonstruksi riwayat tertunda</string>
-    <string name="conversation_audit_header_runtime">%1$s · penyimpanan audit %2$s</string>
     <string name="conversation_audit_provider_not_recorded">Penyedia / model belum direkam</string>
-    <string name="conversation_audit_search_loaded_events">Cari peristiwa yang dimuat berdasarkan kategori, ringkasan, atau ID</string>
     <string name="conversation_audit_empty">Percakapan ini belum memiliki peristiwa audit</string>
     <string name="conversation_audit_no_matches">Tidak ada kecocokan dalam peristiwa yang dimuat</string>
     <string name="conversation_audit_load_older">Muat peristiwa sebelumnya</string>
@@ -7687,4 +7654,61 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="chat_memory_rebuild_window_size_value">%1$d pesan</string>
     <string name="chat_memory_rebuild_confirm_action">Mulai pembangunan ulang</string>
     <string name="script_settings">Setelan skrip</string>
+    <string name="conversation_audit_header_subtitle">Diagnostik eksekusi yang mudah dibaca dan dicari</string>
+    <string name="conversation_audit_header_counts">Peristiwa %1$d · Pesan %2$d · payload %3$s</string>
+    <string name="conversation_audit_header_runtime_compact">Lingkungan: %1$s · Kepala rantai: %2$s</string>
+    <string name="conversation_audit_match_count">Kecocokan %1$d / %2$d</string>
+    <string name="conversation_audit_expand_all">Perluas semua</string>
+    <string name="conversation_audit_collapse_all">Ciutkan semua</string>
+    <string name="conversation_audit_search_timeline">Cari jenis peristiwa, kategori, ringkasan, atau ID</string>
+    <string name="conversation_audit_search_conversation">Cari pesan, peran, penyedia, atau model</string>
+    <string name="conversation_audit_conversation_empty">Percakapan ini belum memiliki pesan untuk ditampilkan</string>
+    <string name="conversation_audit_message_index">Timestamp pesan=%1$d</string>
+    <string name="conversation_audit_export_title">Ekspor detail percakapan</string>
+    <string name="conversation_audit_export_description">Ekspor selalu menggunakan snapshot konsisten yang telah diverifikasi, terlepas dari pencarian atau pembagian halaman saat ini.</string>
+    <string name="conversation_audit_export_ai_title">Ekspor diagnostik AI (Markdown teks biasa)</string>
+    <string name="conversation_audit_export_ai_description">Teks biasa UTF-8 berisi pesan, peristiwa, dan payload yang dapat dibaca untuk analisis langsung oleh AI. Data sensitif telah disamarkan; ekspor tidak dienkripsi.</string>
+    <string name="conversation_audit_export_package_title">Ekspor paket audit lengkap (ZIP bertanda tangan)</string>
+    <string name="conversation_audit_export_package_description">Mempertahankan rantai peristiwa, revisi, proyeksi, segel, dan payload biner untuk reproduksi dan impor lokal.</string>
+    <string name="message_send_failed_partial">Aliran jawaban terputus. Konten yang sudah diterima tetap disimpan.\nGagal mengirim pesan: %1$s</string>
+    <string name="web_session_native_home_title">Beranda Browser Kiyori</string>
+    <string name="web_session_native_home_subtitle">Lanjutkan ke bookmark, riwayat, dan tab terbuka dari satu halaman</string>
+    <string name="web_session_native_home_search_hint">Cari atau masukkan URL</string>
+    <string name="web_session_native_home_verify_gotab">Situs resmi GoTab</string>
+    <string name="web_session_native_home_verify_gotab_supporting">Buka halaman verifikasi situs resmi</string>
+    <string name="web_session_native_home_tabs">Tab</string>
+    <plurals name="web_session_native_home_tab_count">
+        <item quantity="other">%1$d tab</item>
+    </plurals>
+    <string name="web_session_native_home_new_tab">Tab baru</string>
+    <string name="web_session_native_home_new_tab_supporting">Lanjutkan menjelajah</string>
+    <string name="web_session_native_home_shortcuts">Akses cepat</string>
+    <string name="web_session_native_home_shortcuts_supporting">Bookmark dan tautan verifikasi</string>
+    <string name="web_session_native_home_recent">Baru dikunjungi</string>
+    <string name="web_session_native_home_recent_supporting">Dari riwayat penjelajahan bersama</string>
+    <string name="web_session_native_home_recent_empty">Kunjungan terbaru akan muncul di sini setelah Anda menjelajahi halaman web</string>
+    <string name="web_session_native_home_bookmark">Bookmark</string>
+    <string name="web_session_native_home_history">Riwayat</string>
+    <string name="web_session_native_home_data_source">Beranda menampilkan bookmark, riwayat, dan tab dari Browser Runtime yang ada tanpa menyalin cookie halaman atau status sesi.</string>
+    <string name="web_session_cookie_reader_title">Cookie halaman web</string>
+    <string name="web_session_cookie_reader_subtitle">Baca cookie dari halaman web saat ini</string>
+    <string name="web_session_cookie_reader_card_summary">Baca cookie halaman saat ini hanya di perangkat ini</string>
+    <string name="web_session_cookie_reader_refresh">Baca ulang cookie halaman web saat ini</string>
+    <string name="web_session_cookie_reader_current_page">Halaman web saat ini</string>
+    <string name="web_session_cookie_reader_no_active_page">Tidak ada halaman web aktif</string>
+    <string name="web_session_cookie_reader_unsupported_title">Halaman ini tidak mendukung cookie</string>
+    <string name="web_session_cookie_reader_unsupported_message">Cookie hanya dapat dibaca dari halaman web http:// atau https://.</string>
+    <string name="web_session_cookie_reader_error_title">Gagal membaca cookie</string>
+    <string name="web_session_cookie_reader_disabled_title">Cookie Reader dinonaktifkan</string>
+    <string name="web_session_cookie_reader_disabled_message">Aktifkan Cookie halaman web di pusat ekstensi sebelum membaca cookie dari halaman saat ini.</string>
+    <string name="web_session_cookie_reader_not_loaded_title">Cookie belum dibaca</string>
+    <string name="web_session_cookie_reader_not_loaded_message">Ketuk Segarkan di kanan atas untuk membaca cookie dari halaman web saat ini.</string>
+    <string name="web_session_cookie_reader_empty_title">Halaman web ini tidak memiliki cookie</string>
+    <string name="web_session_cookie_reader_empty_message">WebView CookieManager saat ini tidak mengembalikan cookie untuk halaman web ini.</string>
+    <string name="web_session_cookie_reader_copy_all">Salin semua cookie</string>
+    <string name="web_session_cookie_reader_copied">Cookie disalin</string>
+    <string name="web_session_cookie_reader_warning">Cookie dapat berisi kredensial login. Salin atau bagikan hanya setelah memastikan keamanannya.</string>
+    <plurals name="web_session_cookie_reader_count">
+        <item quantity="other">%1$d cookie</item>
+    </plurals>
 </resources>

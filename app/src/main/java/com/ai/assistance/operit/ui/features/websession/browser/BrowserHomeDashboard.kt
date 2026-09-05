@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmark
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserTab
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryCategory
@@ -233,7 +234,7 @@ internal fun BrowserHomeDashboard(
                 BrowserHomeDashboardAction(
                     icon = Icons.Filled.Tab,
                     label = stringResource(R.string.web_session_native_home_tabs),
-                    supporting = stringResource(R.string.web_session_native_home_tab_count, tabs.size),
+                    supporting = pluralStringResource(R.plurals.web_session_native_home_tab_count, tabs.size, tabs.size),
                     onClick = onOpenTabs,
                     modifier = Modifier.weight(1f),
                 )

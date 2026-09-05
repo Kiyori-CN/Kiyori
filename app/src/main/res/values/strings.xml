@@ -1021,14 +1021,7 @@
     <string name="use_wildcard">使用通配符</string>
 
     <!-- File Operations -->
-    <string name="new_folder">新建文件夹</string>
-    <string name="folder_name">文件夹名称</string>
-    <string name="create_folder">创建文件夹</string>
-    <string name="open">打开</string>
     <string name="copy">复制</string>
-    <string name="cut">剪切</string>
-    <string name="paste">粘贴</string>
-    <string name="share">分享</string>
     <string name="rename">重命名</string>
     <string name="loading_files">正在加载文件...</string>
 
@@ -2212,33 +2205,12 @@
     <string name="file_menu_share">分享</string>
     <string name="file_menu_rename">重命名</string>
     <string name="file_menu_batch_rename">批量重命名</string>
-    <string name="file_compress">压缩</string>
     <string name="file_menu_compress">压缩文件</string>
-    <string name="file_menu_extract">解压文件</string>
     <string name="file_dialog_new_name">新名称</string>
-    <string name="file_dialog_rename_prefix">前缀</string>
-    <string name="file_dialog_rename_keep_original">保留原文件名</string>
-    <string name="file_dialog_rename_start_number">起始序号</string>
-    <string name="file_dialog_rename_suffix">后缀</string>
-    <string name="file_dialog_rename_preview">示例: %1$s%2$s.%3$s%4$s</string>
-    <string name="file_dialog_rename_original">原文件名</string>
-    <string name="file_dialog_compress_title">压缩文件</string>
-    <string name="file_dialog_compress_filename">压缩文件名</string>
-    <string name="file_dialog_compress_button">压缩</string>
-    <string name="file_dialog_extract_title">解压文件</string>
-    <string name="file_dialog_extract_message">确定要解压 %s 吗？</string>
-    <string name="file_dialog_extract_button">解压</string>
-    <string name="file_dialog_delete_single">确定要删除 %s 吗？</string>
-    <string name="file_dialog_delete_multiple">确定要删除选中的 %d 个项目吗？</string>
-    <string name="file_error_open_failed">打开文件失败</string>
     <string name="file_error_open">打开文件错误: %s</string>
-    <string name="file_error_share_failed">分享文件失败</string>
     <string name="file_error_share">分享文件错误: %s</string>
-    <string name="file_error_compress_failed">压缩失败</string>
     <string name="file_error_compress">压缩错误: %s</string>
-    <string name="file_error_extract_failed">解压失败</string>
     <string name="file_error_extract">解压错误: %s</string>
-    <string name="file_error_rename_failed">批量重命名错误: %s</string>
 <string name="file_op_failed">操作失败: %s</string>
     <string name="file_op_confirm_delete">确认删除</string>
     <string name="file_op_confirm_delete_message">确定要删除选中的文件吗？此操作无法撤销。</string>
@@ -5500,12 +5472,8 @@
     <string name="conversation_audit_export_ai_description">UTF-8 明文，包含消息、事件和可读 payload，适合直接交给 AI 分析；内容已脱敏，不加密。</string>
     <string name="conversation_audit_export_package_title">导出完整审计包（签名 ZIP）</string>
     <string name="conversation_audit_export_package_description">保留事件链、修订、投影、封印和二进制 payload，用于本机复现和导入。</string>
-    <string name="conversation_audit_header_summary">事件：%1$d · 已加载：%2$d · 链头：%3$s</string>
-    <string name="conversation_audit_chain_empty">尚无事件</string>
     <string name="conversation_audit_chain_pending">历史待重建</string>
-    <string name="conversation_audit_header_runtime">%1$s · 审计存储 %2$s</string>
     <string name="conversation_audit_provider_not_recorded">Provider / 模型尚未记录</string>
-    <string name="conversation_audit_search_loaded_events">在已加载事件中搜索类别、摘要或 ID</string>
     <string name="conversation_audit_empty">当前对话尚无审计事件</string>
     <string name="conversation_audit_no_matches">已加载事件中没有匹配项</string>
     <string name="conversation_audit_load_older">加载更早事件</string>
@@ -6356,7 +6324,6 @@
     <string name="token_price_description">设置每次API请求的人民币价格</string>
     <string name="floating_chat_cancel">取消</string>
     <string name="floating_chat_send">发送</string>
-    <string name="file_list_folder">文件夹</string>
     <string name="folder_navigator_folder">文件夹</string>
     <string name="folder_navigator_all">全部</string>
     <string name="file_manager_main_directory">主目录</string>
@@ -7730,7 +7697,9 @@
     <string name="web_session_native_home_verify_gotab">GoTab 官网</string>
     <string name="web_session_native_home_verify_gotab_supporting">打开官网验证页面</string>
     <string name="web_session_native_home_tabs">标签页</string>
-    <string name="web_session_native_home_tab_count">%1$d 个标签页</string>
+    <plurals name="web_session_native_home_tab_count">
+        <item quantity="other">%1$d 个标签页</item>
+    </plurals>
     <string name="web_session_native_home_new_tab">新标签</string>
     <string name="web_session_native_home_new_tab_supporting">继续浏览</string>
     <string name="web_session_native_home_shortcuts">快捷访问</string>
@@ -8040,8 +8009,6 @@
     <string name="web_session_cookie_reader_disabled_message">请在扩展中心启用“网页 Cookie”后再读取当前页面 Cookie。</string>
     <string name="web_session_cookie_reader_not_loaded_title">尚未读取 Cookie</string>
     <string name="web_session_cookie_reader_not_loaded_message">点击右上角刷新按钮读取当前网页 Cookie。</string>
-    <string name="web_session_cookie_reader_loading_title">正在读取 Cookie</string>
-    <string name="web_session_cookie_reader_local_message">Cookie 内容只在本机浏览器运行时中读取。</string>
     <string name="web_session_cookie_reader_empty_title">当前网页没有 Cookie</string>
     <string name="web_session_cookie_reader_empty_message">该网页当前没有可由 WebView CookieManager 返回的 Cookie。</string>
     <plurals name="web_session_cookie_reader_count">

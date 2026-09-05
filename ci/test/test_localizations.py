@@ -14,6 +14,7 @@ from check_localizations import (  # noqa: E402
     locale_from_path,
     parse_locale_config,
     placeholder_mismatch,
+    placeholder_tokens,
     select_blocking_issues,
 )
 
@@ -55,6 +56,24 @@ def snapshot(entries: dict[str, dict[str, ResourceEntry]]) -> Snapshot:
         config_error=None,
         blobs=blobs,
     )
+
+
+class PlaceholderTokensTest(unittest.TestCase):
+    def test_escaped_percent_before_prose_has_no_argument(self) -> None:
+        self.assertEqual(placeholder_tokens("100%% complete, %% (characters)"), {})
+
+    def test_escaped_percent_and_real_argument_are_scanned_in_order(self) -> None:
+        self.assertEqual(placeholder_tokens("%%s %%d %%%1$s %2$d%%"), {"%1$s": 1, "%2$d": 1})
+
+    def test_export_progress_translations_have_matching_parameters(self) -> None:
+        source = entry("progress", "%1$d%% (%2$d / %3$d)")
+        target = entry("progress", "Exporting: %1$d%% (characters: %2$d / %3$d)")
+        self.assertFalse(placeholder_mismatch(source, target))
+
+    def test_escaped_percent_does_not_hide_a_real_type_mismatch(self) -> None:
+        self.assertTrue(placeholder_mismatch(
+            entry("progress", "%1$d%%"), entry("progress", "%1$s%%"),
+        ))
 
 
 class LocalizationAttributionTest(unittest.TestCase):

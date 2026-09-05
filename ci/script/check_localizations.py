@@ -18,7 +18,7 @@ RESOURCE_ROOT = "app/src/main/res"
 LOCALE_CONFIG_PATH = f"{RESOURCE_ROOT}/xml/locales_config.xml"
 ANDROID_NAME = "{http://schemas.android.com/apk/res/android}name"
 ANDROID_DEFAULT_LOCALE = "{http://schemas.android.com/apk/res/android}defaultLocale"
-PRINTF_RE = re.compile(r"%(?:\d+\$)?[-+# 0,(<]*\d*(?:\.\d+)?[a-zA-Z]")
+PRINTF_RE = re.compile(r"%%|%(?:\d+\$)?[-+# 0,(<]*\d*(?:\.\d+)?[a-zA-Z]")
 BRACE_RE = re.compile(r"\{[A-Za-z0-9_]+\}")
 HAN_RE = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff]")
 LOCALE_TAG_RE = re.compile(r"^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$")
@@ -215,7 +215,9 @@ def load_snapshot(commit: str) -> Snapshot:
 
 
 def placeholder_tokens(text: str) -> Counter[str]:
-    return Counter(PRINTF_RE.findall(text) + BRACE_RE.findall(text))
+    # Consume escaped percent pairs before scanning the following prose as a formatter.
+    printf_tokens = [token for token in PRINTF_RE.findall(text) if token != "%%"]
+    return Counter(printf_tokens + BRACE_RE.findall(text))
 
 
 def placeholder_mismatch(source: ResourceEntry, target: ResourceEntry) -> bool:

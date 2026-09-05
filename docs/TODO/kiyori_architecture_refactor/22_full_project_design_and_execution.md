@@ -289,6 +289,96 @@ Player/Manifest/资源保护，并加入全局状态、缺少观察和双重 Win
 通过，5514 ZIP 项无重名、44 DEX。DEX 已见独立声明状态及组合阶段 getter，旧全局字段
 不再存在。包体字节数不变，不据此推断运行性能；页面状态栏效果仍待设备验收。
 
+### C-01 资源基线实施契约
+
+恢复点 `8cd8da69d`。完整 Lint 基线 55 条 MissingTranslation 涉及对话审计、部分回答
+发送失败、浏览器主页及 Cookie Reader；目标语言为 en/es/id/ko/ms/pt-BR。35 条
+UnusedResources 均已核对 app 主源码、测试和 XML 静态引用，动态 `getIdentifier` 仅用于
+系统 dimen，不消费这些字符串；这些资源主要来自已替换的文件菜单和审计旧文案。
+Cookie Reader 的 loading_title/local_message 同时属于缺失翻译和无消费者项。
+
+在原有七个 `values*/strings.xml` 内删除精确无消费者条目，给剩余 53 个活动资源补齐
+六种翻译（包含 `web_session_cookie_reader_count` 的复数项）。保留默认中文、格式化
+参数位置与类型、UTF-8/Markdown/ZIP/Cookie 等技术标识及原有用户行为；不恢复旧功能、
+不新增翻译文件绕过现有检查、不修改 Lint baseline。以 XML 解析、重复键/占位符检查、
+现有 localization 候选比较、aapt 编译和 APK 资源检查验证。Lint 重跑用于确认错误清除；
+删除文字资源的包体变化按实际 APK 报告，不预设压缩收益。
+
+候选检查另外定位到一条历史误报：英文 `backup_text_export_progress` 的 `%1$d%%
+(characters: ...)` 被 `PRINTF_RE` 从转义百分号的第二个 `%` 开始误识别为 `% (c`。实际
+中英文均有同样的三个整数参数，调用方传递 Int/Long/Long。本批让解析器先消费 `%%`，
+保留真实参数检查，并覆盖转义后正文、连续百分号和真实类型失配；不改正确的用户文案。
+
+08:51 全量 Lint 完成，27m37s，322 tasks / 10 executed：55 MissingTranslation、35
+UnusedResources 和 D-05 已修复的 2 条 FrequentlyChangingValue 均消失。报告为 0 errors /
+42 warnings / 1 hint，另有 baseline 过滤的 939 errors / 4072 warnings / 131 hints 待风险
+审查。新增的英文标签页计数 PluralsCandidate 随后通过把七种
+语言的 `web_session_native_home_tab_count` 改为真正的 plurals、唯一 BrowserHomeDashboard
+调用改用 `pluralStringResource` 修复；单复数和数量参数明确对应。保留未清理的 21 条
+失效 baseline 记录，不增加屏蔽；后续总回归再次执行完整 Lint，不把修复前报告当作最终树。
+
+### C-01 导航语义检查实施契约
+
+源码恢复点 `8cd8da69d`。ARCH025/026/027 原本保护 M-04B 的纯包迁移，但整文件哈希
+也冻结了后续正常视觉迭代；`a34ea890e` 已统一 UI token，`233793498` 等提交已调整设置
+与文件入口。当前 owner、回调和策略测试仍存在，旧哈希不能继续代表现行行为合同。
+
+本批只调整 Python 架构检查、测试和相关权威说明，不修改页面行为。删除三份不再消费的
+源码哈希及规范化函数；保留包、唯一声明、精确业务 import、Shell 唯一挂载和策略测试接线。
+AI Drawer 的两个共享 design token import 纳入已证实的 UI 归属。新增语义检查保护：抽屉
+可见期 Back 与 dismiss、由调用方提供导航事实及选择回调；底栏使用传入 destination 并
+回传点击；首页搜索/AI/窗口操作交还壳，天气仅消费共享 repository，定时刷新受 STARTED
+生命周期约束。用独立变异证明删除回调、复制状态、绕过生命周期及注释伪造均会失败。
+
+通过 Python 正反例及实际架构检查、既有 Shell/Home JVM 行为测试、文档链接和 diff 后
+串行 Debug/APK。视觉、Back 动画与前后台天气刷新仍需设备验收；Python 文本约束不替代
+Kotlin 编译或实际行为测试。资源批次 Lint 完成前不更改 Android 构建输入。
+
+2026-09-05 资源与导航两批的最终本地证据：全 CI Python 272 项通过，37.363s；其中新增
+ARCH049 的 11 项覆盖真实源码和变异。实际架构诊断从 16 降至 12，无新增，其余项继续
+C-01。首页/主导航/软件首页四套 JVM 92 项零失败/错误/跳过，4m1s；localization、formal
+readiness 与 diff 通过，Markdown 仅有下文已定位的 gitlink 误报。Debug 1m57s，235 tasks /
+23 executed。APK 09:01:21 +08:00，483708439 bytes，SHA-256
+`ACABD724519F6F11A8714C3F239A1911AB3F6F1700469D2D18F5F1D151725C8F`。
+身份/版本/SDK/唯一 launcher/arm64 保持；单一 v2 签名、16 KB ZIP、53 个 `.so` 共 157 个
+ELF LOAD 段对齐通过；5514 ZIP 项无重名，44 DEX。标签页 plurals 在七种配置中存在，
+ObjectBox schema 不变。APK 比基线减少 1384 bytes，仅记录资源变化，不宣称实质包体或
+设备性能提升。广义翻译覆盖仍有 1003 个缺项、646 个与中文相同值、25 个非中文含汉字值，
+本批通过不等于已完成全部翻译校订。
+
+### D-04 MCP 连接发布实施契约
+
+P-08 的实际 owner 是 `core/tools/mcp/MCPToolExecutor.kt` 中的 `MCPManager`。其三张
+ConcurrentHashMap 只保证单项操作安全：`getOrCreateClient` 在阻塞连接后直接写缓存，
+`registerServer`/`unregisterServer`/`shutdown` 无法使该次发布失效；同服务的并发首次
+调用还会各建一个客户端。配置虽然读取到局部变量，之后并未参与有效性判断。BridgeClient
+的 `disconnect()` 只清本地 AtomicBoolean，不持有独立 socket，不能把它描述为关闭远端服务。
+
+本批将配置注册代际与客户端发布作为一个同步合同：短注册锁只保护内存变更，同服务的
+连接串行，连接 I/O 不占注册锁；更新、卸载或 shutdown 后，旧请求的成功与失败都不得
+写回新注册状态。被淘汰的客户端清理本地连接标记，新的注册按新的请求建立连接。保留
+既有 MCPManager FQCN、公开方法、服务名/配置格式和 Bridge 唯一网络入口，不增加引擎。
+同一次调用不在连接失败后再创建客户端重复 connect；显式返回失败，后续调用可重新尝试。
+
+验证注入受控客户端，用确定性并发顺序覆盖同服务共享、不同服务独立、连接中更新/卸载/
+shutdown、迟到成功/失败、失败后的再次调用及取消；不调用真实 MCP/模型接口。同步审查
+AIToolHandler、MCPToolExecutor、MCPRepository 和 MCPStarter 的调用与注册清理关系。
+以实施前最近验证提交为恢复点，完成领域 JVM、架构无新增诊断、Debug/APK 后记录结果；
+插件注册到实际 Ubuntu bridge 调用、禁用与恢复保持设备 `verification_pending`。
+
+调用链另有独立高风险项：`MCPBridgeClient.callTool` 在已发送的工具响应包含 timeout/
+connection closed 等文本时会立即重连并再次发送同一个命令，而当前证据没有提供服务端
+幂等保证；`MCPBridge.sendCommand` 本身只发送一次。D-04 必须单独消除这处自动重放，
+同时审查取消传播和 Bridge 参数/完整响应日志，不能在连接缓存修复后直接关闭整个领域。
+
+### G-01 文档子模块链接检查事实
+
+当前 Markdown 比较器报告的唯一既有失效链接为 `README.md:189 -> terminal/README.md`。
+父候选的 terminal gitlink 是 `7ec4cfb10c94992adb79e6e281ba61878d7bcd8c`，该提交的
+README blob 已由 `git -C terminal cat-file -e <gitlink>:README.md` 证实存在。根因是
+`check_markdown_links.tree_paths` 只展开父树，没有解析 gitlink。保留有效的相对链接；
+G-01 应按候选绑定的子提交验证目标存在，而非按终端当前 HEAD 或目录前缀放行。
+
 ## 兼容与上游维护
 
 继续使用 [稳定标识清单](8_compatibility_contract_inventory.md)，逐项校正消费者和状态。
