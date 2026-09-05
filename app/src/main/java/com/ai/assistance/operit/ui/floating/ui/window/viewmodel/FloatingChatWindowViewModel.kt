@@ -5,6 +5,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.ui.floating.FloatContext
 import com.ai.assistance.operit.ui.floating.ui.window.models.ResizeEdge
+import com.ai.assistance.operit.ui.floating.ui.window.models.MAX_COMPOSE_DIMENSION_PX
 
 /** 窗口模式的状态数据类 */
 data class DraggableWindowState(
@@ -17,11 +18,17 @@ data class DraggableWindowState(
 class FloatingChatWindowModeViewModel(
     private val floatContext: FloatContext
 ) {
+    private val maxComposeDimension: Dp
+        get() = with(floatContext.density) { MAX_COMPOSE_DIMENSION_PX.toDp() }
+
+    private fun boundedDimension(value: Dp, minimum: Dp): Dp =
+        value.coerceIn(minimum, maxComposeDimension)
+
     // 窗口状态
     var windowState by mutableStateOf(
         DraggableWindowState(
-            width = floatContext.windowWidthState,
-            height = floatContext.windowHeightState,
+            width = boundedDimension(floatContext.windowWidthState, 150.dp),
+            height = boundedDimension(floatContext.windowHeightState, 200.dp),
             scale = floatContext.windowScale
         )
     )
@@ -46,8 +53,8 @@ class FloatingChatWindowModeViewModel(
     fun syncWindowState() {
         if (!isDragging) {
             windowState = DraggableWindowState(
-                width = floatContext.windowWidthState,
-                height = floatContext.windowHeightState,
+                width = boundedDimension(floatContext.windowWidthState, 150.dp),
+                height = boundedDimension(floatContext.windowHeightState, 200.dp),
                 scale = floatContext.windowScale
             )
         }
@@ -88,8 +95,12 @@ class FloatingChatWindowModeViewModel(
      * 处理窗口大小调整
      */
     fun handleResize(newWidth: Dp, newHeight: Dp) {
-        val maxWidth = (floatContext.screenWidth * 0.8f).coerceAtLeast(150.dp)
-        val maxHeight = (floatContext.screenHeight * 0.8f).coerceAtLeast(200.dp)
+        val maxWidth = (floatContext.screenWidth * 0.8f)
+            .coerceAtLeast(150.dp)
+            .coerceAtMost(maxComposeDimension)
+        val maxHeight = (floatContext.screenHeight * 0.8f)
+            .coerceAtLeast(200.dp)
+            .coerceAtMost(maxComposeDimension)
         val constrainedWidth = newWidth.coerceIn(150.dp, maxWidth)
         val constrainedHeight = newHeight.coerceIn(200.dp, maxHeight)
 

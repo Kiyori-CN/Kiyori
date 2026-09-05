@@ -347,8 +347,16 @@ internal class BrowserAdBlockStore private constructor(
         }
     }
 
-    fun setEnabled(enabled: Boolean) {
-        mutatePersistedState { current -> current.copy(enabled = enabled) }
+    fun setEnabled(enabled: Boolean): Boolean {
+        synchronized(lock) {
+            // 设置页可能在异步规则编译完成前响应点击；拒绝此时的写入，避免把初始化不变量
+            // 暴露为未处理异常，待同一个 runtimeStatus 变为 READY 后再操作。
+            if (!stateReady) {
+                return false
+            }
+            mutatePersistedState { current -> current.copy(enabled = enabled) }
+            return true
+        }
     }
 
     fun setAutoUpdateBuiltInSubscriptions(enabled: Boolean) {

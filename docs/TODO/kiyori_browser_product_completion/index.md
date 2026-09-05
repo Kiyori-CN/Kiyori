@@ -10,6 +10,24 @@ hikerview_reference: 5de8809049e4710471f9f42642e54550ecf5dbe3
 
 # 浏览器产品能力连续完善
 
+## 2026-09-06 广告拦截初始化与悬浮窗 Compose 约束崩溃修复
+
+本轮处理两份 `APP_FATAL` 报告：浏览器设置页在广告规则异步初始化期间切换总开关，绕过详情页
+就绪门禁并触发 `BrowserAdBlockStore.mutatePersistedState` 的 `stateReady` 检查；悬浮聊天窗口
+的自定义 Compose `Layout` 直接把窗口状态尺寸传给 `Constraints.fixed`，异常 display metrics
+产生 `262527px` 高度，超过 Compose 可表示的 `262143px` 上限。
+
+修复继续使用唯一 `BrowserAdBlockStore.runtimeStatus`/`stateReady` owner：`setEnabled` 在运行时
+未就绪时原子拒绝写入并由协调器显示初始化提示，READY 后保持原有持久化与 matcher 重建语义。
+悬浮窗 ViewModel 的初始、同步和拖拽尺寸统一限制在 Compose 上限，自定义测量入口再次限制像素值，
+避免过大尺寸进入约束编码或 WindowManager；正常设备尺寸和缩放交互不变。新增广告初始化合同测试
+与尺寸边界测试。
+
+本地状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。
+定向 JVM `6/6`、Kotlin 编译、formal readiness、`git diff --check` 与 Debug APK 构建/产物审计已通过；目标设备悬浮窗拖拽、
+异常 display metrics 恢复和广告规则初始化期间的真实触摸反馈仍需现场复测，保持
+`verification_pending`，不以本地构建替代设备证据。
+
 ## 2026-09-05 浏览器重复刷新、触摸回吸与 UA 生效稳定性
 
 本轮方案与证据见 [`21_browser_gesture_reload_ua_stability.md`](21_browser_gesture_reload_ua_stability.md)。

@@ -251,7 +251,9 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
     }
 
     fun setAdBlockEnabled(enabled: Boolean) {
-        tools.adBlockStore.setEnabled(enabled)
+        if (!tools.adBlockStore.setEnabled(enabled)) {
+            tools.showToast("广告拦截规则仍在初始化，请稍后再试")
+        }
     }
 
     fun setReturnWithoutReloadEnabled(enabled: Boolean) {

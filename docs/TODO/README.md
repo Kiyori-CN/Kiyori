@@ -6,6 +6,12 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 ## 当前进行中
 
+- [广告拦截初始化与悬浮窗 Compose 约束崩溃修复](kiyori_browser_product_completion/index.md)：2026-09-06
+  处理两份 `APP_FATAL` 报告；广告设置总开关复用唯一 Store 的 runtime readiness，悬浮窗尺寸在
+  ViewModel 与 Compose `Constraints.fixed` 入口统一限制为 `262143px`。定向 JVM `6/6`、Kotlin 编译、
+  formal readiness、Debug APK 构建与产物审计已通过，提交推送正在本轮完成；目标设备复测保持
+  `verification_pending`。
+
 - [全项目架构重构 v4](kiyori_architecture_refactor/index.md)：2026-09-05 继续核对 A–G
   工作项；本批先完成 PackageManager 刷新发布竞态，统一请求登记、缓存和 registry 发布锁，
   以可控顺序行为测试及 Debug APK 验证，再推进剩余领域。当前续接批次补齐 Next 内置 TTS

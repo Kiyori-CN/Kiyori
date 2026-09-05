@@ -104,6 +104,23 @@ class BrowserAdBlockStartupContractTest {
         assertTrue(networkSource.contains("postDelayed"))
     }
 
+    @Test
+    fun `top level ad block toggle cannot mutate before runtime is ready`() {
+        val storeSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/BrowserAdBlockStore.kt",
+            ).readText()
+        val coordinatorSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/core/browser/presentation/BrowserPresentationCoordinator.kt",
+            ).readText()
+
+        assertTrue(storeSource.contains("fun setEnabled(enabled: Boolean): Boolean"))
+        assertTrue(storeSource.contains("if (!stateReady)"))
+        assertTrue(storeSource.contains("return false"))
+        assertTrue(coordinatorSource.contains("if (!tools.adBlockStore.setEnabled(enabled))"))
+    }
+
     private fun repositoryFile(relativePath: String): File {
         var current: File? =
             File(requireNotNull(System.getProperty("user.dir"))).absoluteFile

@@ -185,14 +185,20 @@ private fun FloatingChatWindowContent(
         },
         modifier = Modifier.graphicsLayer { alpha = floatContext.animatedAlpha.value }
     ) { measurables, _ ->
-        val widthInPx = with(density) { viewModel.windowState.width.toPx() }
-        val heightInPx = with(density) { viewModel.windowState.height.toPx() }
+        // Compose Constraints 使用 18 位尺寸编码；窗口状态来自系统拖拽/持久化，测量边界必须
+        // 在进入 Constraints.fixed 前再次收口，避免异常 display metrics 直接触发 APP_FATAL。
+        val widthInPx = with(density) {
+            boundFloatingWindowDimensionPx(viewModel.windowState.width.toPx().roundToInt())
+        }
+        val heightInPx = with(density) {
+            boundFloatingWindowDimensionPx(viewModel.windowState.height.toPx().roundToInt())
+        }
         val scale = viewModel.windowState.scale
 
         val placeable = measurables.first().measure(
             androidx.compose.ui.unit.Constraints.fixed(
-                width = widthInPx.roundToInt(),
-                height = heightInPx.roundToInt()
+                width = widthInPx,
+                height = heightInPx
             )
         )
 
