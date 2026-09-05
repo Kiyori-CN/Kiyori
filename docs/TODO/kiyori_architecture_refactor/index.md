@@ -34,9 +34,9 @@ Kiyori 自有父子仓库 `origin/main`。旧版“不推送”“terminal 暂�
 | C-02 | 人工/AI 共用唯一 Browser Runtime，去除非共享构造与下载反向依赖 | 构造与下载能力边界本地验证通过：WorkspaceConfig 与 WorkspaceDownloadDispatcher 均在 core.workspace，WebView 仅依赖能力接口，BrowserWorkspaceDownloadDispatcher 仍适配唯一 BrowserDownloadManager；App JVM、Python、architecture、formal/fresh-clone、Debug/APK 通过，设备待验证 |
 | C-03 | 数据/工具不依赖具体 UI；状态和错误边界有测试 | 市场身份/记忆图事实提取已通过领域 JVM、250 项 Python、ownership 和 Debug/APK；MCP 参数解析与默认工具冷流已通过 43 项相关 JVM、architecture、Debug/APK；WorkspaceConfig、下载请求模型、规则读取器和变更处理组已迁移到 core.workspace，App JVM、architecture、Debug/APK 通过，权限继续实施 |
 | D-01 | 应用壳、首启、设置、权限、设计系统边界及恢复 | 状态栏窗口作用域/Compose 观察本地验证通过：29 JVM、257 Python、ARCH048、Debug/APK；其余首启、导航和权限继续审查，设备待验证 |
-| D-02 | 浏览器、搜索/历史/书签、广告/脚本及下载/播放完整链 | 待实施，依赖 C-02 |
+| D-02 | 浏览器、搜索/历史/书签、广告/脚本及下载/播放完整链 | Browser WebSession userscript attach/detach generation guard 本地验证通过；其余会话、脚本、下载与播放链继续实施，设备待验证 |
 | D-03 | AI 协议/流、会话、工具、角色、记忆、工作流完整链 | 待实施，依赖 C-03；保留请求至多一次与工具终态合同 |
-| D-04 | ToolPkg/MCP/Skill/市场、WebChat/Mini App 注册与调用完整链 | MCP 注册代际/连接发布、工具至多一次、客户端/执行器取消、Socket 资源关闭、正文日志治理、参数解析与默认冷流本地验证通过：43 项相关 JVM、architecture、Debug/APK；workspace 等继续实施，设备待验证 |
+| D-04 | ToolPkg/MCP/Skill/市场、WebChat/Mini App 注册与调用完整链 | MCP 注册代际/连接发布、工具至多一次、客户端/执行器取消、Socket 资源关闭、正文日志治理、参数解析、默认冷流与 ToolPkg clear 引擎释放本地验证通过：44 项相关 JVM、architecture、Debug/APK；workspace 等继续实施，设备待验证 |
 | D-05 | 文件/SAF/备份、网络/代理/DNS、终端/Ubuntu/PTY完整链 | 文件目录生命周期本地验证通过：23 JVM、ownership、Debug/APK；文件操作/搜索一致性及其余领域继续实施，设备待验证 |
 | D-06 | 语音/本地推理/虚拟角色生命周期和 native 边界 | 待实施；语音工厂阻塞与资源状态需治理 |
 | E-01 | 构建输入/生成出口唯一，可复现；必要模块隔离有收益依据 | 已有输入与包体盘点；任务实现及各工具链待治理 |
@@ -474,3 +474,33 @@ M-02 至 M-05 已形成 checkpoint
 平台合同和依赖五批收口；current-only 已在 QD-05 归零，继续清理完整 Kotlin 编译警报并
 审计当前 `5776` 条历史 baseline 中项目自有的高风险项。完成该
 质量门禁后再进入阶段 4 Browser 产品域。
+
+2026-09-05 D-04 ToolPkg 生命周期小批：`ToolPkgManager.clear()` 现在在清空容器/子包索引的
+同时原子移除并销毁其全部 `JsEngine` 执行上下文，manager 仍可继续获取新上下文；此前仅清
+索引会遗留 QuickJS 线程和旧运行时。`ToolPkgManagerTest` 新增释放、索引清空及重新获取合同，
+定向 JVM `ToolPkgManagerTest` 强制重跑通过（159 tasks / 159 executed），architecture
+`phase=m03` 通过。真实 ToolPkg 安装、卸载竞争、进程死亡、设备和长时间运行仍为
+`verification_pending`；本批规定 Debug 构建与静态 APK 审计已完成：`app-debug.apk` 为
+`485671424` bytes，SHA-256 `B57C3C99FAE0DEF6377FFEA2D95C98B77773A23263D6F9040195467BA6F01A6C`，
+包名/版本/SDK 为 `com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`，唯一 launcher、arm64-v8a、
+Debug V2 单 signer 与 16 KiB ZIP 对齐均通过。
+
+2026-09-05 D-02 Browser 用户脚本生命周期小批：`WebSessionUserscriptManager.attachSession()`
+现在以具体 `WebView` 和单调 generation 登记待处理 attach；`detachSession()` 在同一锁内推进
+generation 并撤销 pending 项，主线程消费时必须通过 identity/generation 校验。这样非主线程
+attach 与会话关闭交错时，旧 WebView 不会在销毁后重新注册 document-start/message bridge。
+`BrowserInteractionContractTest` 新增时序合同；定向测试、architecture、formal/fresh-clone、
+Markdown、diff 与 Debug/APK 证据均通过。Debug APK 为 `488708183` bytes，SHA-256
+`6E0967EAEC84D8483328CABEB8B0C899AE50433C067A3D8AA3957BB8AFC362B1`，包名/版本/SDK 为
+`com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`，唯一 launcher、arm64-v8a、Debug V2 单 signer
+与 16 KiB ZIP 对齐通过。真实 WebView provider、脚本安装卸载竞争、设备和长时间运行仍为
+`verification_pending`。
+2026-09-05 D-02 Browser 用户脚本 attach/detach 竞态收口：在 pending generation 校验之外，
+`WebSessionUserscriptManager` 现在用同一把 `pendingSessionAttachmentLock` 覆盖主线程 attach
+从 pending 消费、旧 binding 清理、WebView provider bridge/document-start 注册到新 binding 发布的
+整个临界区；`detachSession()` 先取得该锁推进 generation 并撤销 pending，再清理最终 binding。
+这消除了 detach 已经开始后旧 attach 仍发布新脚本 binding 的窗口。定向
+`BrowserInteractionContractTest` 通过；规定 Debug 构建通过，`app-debug.apk` 为 `488708094`
+bytes，SHA-256 `D282CA97EA75490453902C929681E8262EB937D262E0B7DB0C176BBEB698C2EC`，身份、
+唯一 launcher、arm64-v8a、Debug V2 单 signer 和 16 KiB ZIP 对齐保持。真实 WebView provider、
+脚本安装卸载竞争、设备和长时间运行仍为 `verification_pending`。

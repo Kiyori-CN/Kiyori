@@ -122,6 +122,11 @@ internal class WebSessionUserscriptManager(
         val scriptStatuses: ConcurrentHashMap<Long, UserscriptPageRuntimeStatus> = ConcurrentHashMap()
     )
 
+    private data class PendingSessionAttachment(
+        val webView: WebView,
+        val generation: Long,
+    )
+
     private data class UserscriptConnectAuthorization(
         val metadata: ParsedUserscriptMetadata,
         val pageUrl: String,
@@ -170,6 +175,9 @@ internal class WebSessionUserscriptManager(
             .build()
 
     private val sessionBindings = ConcurrentHashMap<String, SessionBinding>()
+    private val pendingSessionAttachmentLock = Any()
+    private val pendingSessionAttachmentGenerations = ConcurrentHashMap<String, Long>()
+    private val pendingSessionAttachments = ConcurrentHashMap<String, PendingSessionAttachment>()
     private val cookieServices = ConcurrentHashMap<String, UserscriptCookieService>()
     private val sessionPageStates = ConcurrentHashMap<String, SessionPageState>()
     private val activeCalls = ConcurrentHashMap<String, Call>()
@@ -294,128 +302,147 @@ internal class WebSessionUserscriptManager(
             AppLogger.e(TAG, "Userscript runtime capabilities changed before session attachment")
             return
         }
-        val existing = sessionBindings[sessionId]
-        if (existing?.webView === webView) {
-            return
+        val pendingGeneration =
+            synchronized(pendingSessionAttachmentLock) {
+                val nextGeneration = (pendingSessionAttachmentGenerations[sessionId] ?: 0L) + 1L
+                pendingSessionAttachmentGenerations[sessionId] = nextGeneration
+                pendingSessionAttachments[sessionId] =
+                    PendingSessionAttachment(webView = webView, generation = nextGeneration)
+                nextGeneration
         }
-        sessionPageStates.putIfAbsent(sessionId, SessionPageState())
         val attachNow: () -> Unit = attachNow@{
-            logWebViewProviderOnce()
-            existing?.let { binding ->
-                clearRuntimeBindingState(binding)
-            }
-            val cookieService =
-                cookieServices.computeIfAbsent(cookieScope) {
-                    UserscriptCookieService(cookieManager)
-                }
-            val scriptHandlers = mutableListOf<ScriptHandler>()
-            val pageScriptHandler =
-                runCatching {
-                    if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
-                        WebViewCompat.addWebMessageListener(
-                            webView,
-                            UserscriptBootstrapScript.BRIDGE_NAME,
-                            setOf("*"),
-                            bridgeListener(sessionId, BridgeScope.PAGE),
-                        )
-                    } else {
-                        error("Web message listener support changed during userscript attachment")
-                    }
-                    if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
-                        WebViewCompat.addDocumentStartJavaScript(
-                            webView,
-                            UserscriptBootstrapScript.documentStartScript(),
-                            setOf("*"),
-                        )
-                    } else {
-                        error("Document-start script support changed during userscript attachment")
-                    }
-                }.getOrElse { error ->
-                    AppLogger.e(TAG, "Failed to add page-world userscript runtime", error)
-                    null
-                }
-            if (pageScriptHandler != null) {
-                scriptHandlers += pageScriptHandler
-            }
-
-            val isolatedRuntime =
-                if (!runtimeCapabilities.isolatedWorldSupported) {
-                    null
-                } else if (
-                    WebViewFeature.isFeatureSupported(
-                        WebViewFeature.JS_INJECTION_IN_FRAME_AND_WORLD,
-                    )
+            synchronized(pendingSessionAttachmentLock) {
+                val pending = pendingSessionAttachments[sessionId]
+                if (
+                    pending == null ||
+                        pending.webView !== webView ||
+                        pending.generation != pendingGeneration ||
+                        !pendingSessionAttachments.remove(sessionId, pending)
                 ) {
-                    val bridgeName = UserscriptBootstrapScript.ISOLATED_BRIDGE_NAME
-                    val world =
-                        runCatching {
-                            WebViewCompat.getExecutionWorld(
+                    return@attachNow
+                }
+                val existing = sessionBindings[sessionId]
+                if (existing?.webView === webView) {
+                    return@attachNow
+                }
+                sessionPageStates.putIfAbsent(sessionId, SessionPageState())
+                logWebViewProviderOnce()
+                existing?.let { binding ->
+                    clearRuntimeBindingState(binding)
+                }
+                val cookieService =
+                    cookieServices.computeIfAbsent(cookieScope) {
+                        UserscriptCookieService(cookieManager)
+                    }
+                val scriptHandlers = mutableListOf<ScriptHandler>()
+                val pageScriptHandler =
+                    runCatching {
+                        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+                            WebViewCompat.addWebMessageListener(
                                 webView,
-                                ISOLATED_WORLD_NAME,
+                                UserscriptBootstrapScript.BRIDGE_NAME,
+                                setOf("*"),
+                                bridgeListener(sessionId, BridgeScope.PAGE),
                             )
-                        }.getOrElse { error ->
-                            AppLogger.e(
-                                TAG,
-                                "Failed to create the userscript isolated world",
-                                error,
-                            )
-                            null
+                        } else {
+                            error("Web message listener support changed during userscript attachment")
                         }
-                    world?.let { executionWorld ->
-                        val isolatedScriptHandler =
+                        if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                            WebViewCompat.addDocumentStartJavaScript(
+                                webView,
+                                UserscriptBootstrapScript.documentStartScript(),
+                                setOf("*"),
+                            )
+                        } else {
+                            error("Document-start script support changed during userscript attachment")
+                        }
+                    }.getOrElse { error ->
+                        AppLogger.e(TAG, "Failed to add page-world userscript runtime", error)
+                        null
+                    }
+                if (pageScriptHandler != null) {
+                    scriptHandlers += pageScriptHandler
+                }
+
+                val isolatedRuntime =
+                    if (!runtimeCapabilities.isolatedWorldSupported) {
+                        null
+                    } else if (
+                        WebViewFeature.isFeatureSupported(
+                            WebViewFeature.JS_INJECTION_IN_FRAME_AND_WORLD,
+                        )
+                    ) {
+                        val bridgeName = UserscriptBootstrapScript.ISOLATED_BRIDGE_NAME
+                        val world =
                             runCatching {
-                                WebViewCompat.addWebMessageListener(
+                                WebViewCompat.getExecutionWorld(
                                     webView,
-                                    bridgeName,
-                                    setOf("*"),
-                                    executionWorld,
-                                    bridgeListener(
-                                        sessionId = sessionId,
-                                        bridgeScope = BridgeScope.ISOLATED,
-                                    ),
-                                )
-                                WebViewCompat.addJavaScriptOnEvent(
-                                    webView,
-                                    UserscriptBootstrapScript.documentStartScript(bridgeName),
-                                    WebViewCompat.INJECTION_EVENT_DOCUMENT_START,
-                                    setOf("*"),
-                                    executionWorld,
+                                    ISOLATED_WORLD_NAME,
                                 )
                             }.getOrElse { error ->
                                 AppLogger.e(
                                     TAG,
-                                    "Failed to add the userscript isolated runtime",
+                                    "Failed to create the userscript isolated world",
                                     error,
                                 )
                                 null
                             }
-                        isolatedScriptHandler?.let { handler ->
-                            scriptHandlers += handler
-                            IsolatedRuntimeBinding(
-                                bridgeName = bridgeName,
-                                world = executionWorld,
-                            )
+                        world?.let { executionWorld ->
+                            val isolatedScriptHandler =
+                                runCatching {
+                                    WebViewCompat.addWebMessageListener(
+                                        webView,
+                                        bridgeName,
+                                        setOf("*"),
+                                        executionWorld,
+                                        bridgeListener(
+                                            sessionId = sessionId,
+                                            bridgeScope = BridgeScope.ISOLATED,
+                                        ),
+                                    )
+                                    WebViewCompat.addJavaScriptOnEvent(
+                                        webView,
+                                        UserscriptBootstrapScript.documentStartScript(bridgeName),
+                                        WebViewCompat.INJECTION_EVENT_DOCUMENT_START,
+                                        setOf("*"),
+                                        executionWorld,
+                                    )
+                                }.getOrElse { error ->
+                                    AppLogger.e(
+                                        TAG,
+                                        "Failed to add the userscript isolated runtime",
+                                        error,
+                                    )
+                                    null
+                                }
+                            isolatedScriptHandler?.let { handler ->
+                                scriptHandlers += handler
+                                IsolatedRuntimeBinding(
+                                    bridgeName = bridgeName,
+                                    world = executionWorld,
+                                )
+                            }
                         }
+                    } else {
+                        error("Isolated userscript WebView feature changed after capability discovery")
                     }
-                } else {
-                    error("Isolated userscript WebView feature changed after capability discovery")
-                }
 
-            sessionBindings[sessionId] =
-                SessionBinding(
-                    sessionId = sessionId,
-                    webView = webView,
-                    cookieScope = cookieScope,
-                    cookieManager = cookieManager,
-                    cookieService = cookieService,
-                    scriptHandlers = scriptHandlers,
-                    isolatedRuntime = isolatedRuntime,
+                sessionBindings[sessionId] =
+                    SessionBinding(
+                        sessionId = sessionId,
+                        webView = webView,
+                        cookieScope = cookieScope,
+                        cookieManager = cookieManager,
+                        cookieService = cookieService,
+                        scriptHandlers = scriptHandlers,
+                        isolatedRuntime = isolatedRuntime,
+                    )
+                AppLogger.i(
+                    TAG,
+                    "Attached stable userscript runtime: session=$sessionId, " +
+                        "page=${pageScriptHandler != null}, isolated=${isolatedRuntime != null}",
                 )
-            AppLogger.i(
-                TAG,
-                "Attached stable userscript runtime: session=$sessionId, " +
-                    "page=${pageScriptHandler != null}, isolated=${isolatedRuntime != null}",
-            )
+            }
         }
         if (Looper.myLooper() == Looper.getMainLooper()) {
             attachNow()
@@ -555,6 +582,11 @@ internal class WebSessionUserscriptManager(
     }
 
     fun detachSession(sessionId: String) {
+        synchronized(pendingSessionAttachmentLock) {
+            pendingSessionAttachmentGenerations[sessionId] =
+                (pendingSessionAttachmentGenerations[sessionId] ?: 0L) + 1L
+            pendingSessionAttachments.remove(sessionId)
+        }
         val binding = sessionBindings.remove(sessionId) ?: return
         if (sessionBindings.values.none { remaining -> remaining.cookieScope == binding.cookieScope }) {
             cookieServices.remove(binding.cookieScope)

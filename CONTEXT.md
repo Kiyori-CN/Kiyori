@@ -889,3 +889,31 @@ This boundary does not change ObjectBox schema, search expansion or backup forma
   分段文件造成静默数据错位。
 - 当前实现只完成本地代码、JVM 测试和 Debug 构建证据；设备上的真实订阅、自然退出触发源、Browser/
   player/downloader 现场行为仍为 `verification_pending`。
+
+## 2026-09-05 Browser 用户脚本 attach/detach 代际
+
+- `WebSessionUserscriptManager` 的待处理 session attach 由 `WebView` identity 与单调 generation
+  共同标识。非主线程 attach 延迟到主线程时，`detachSession()` 会在同一锁内推进 generation、撤销
+  pending 记录；旧任务即使晚到也不能向已关闭 WebView 注册脚本桥。
+- `BrowserInteractionContractTest`、architecture、formal readiness、fresh clone、Markdown links、
+  `git diff --check` 与定向编译测试通过；规定 Debug 构建产物为
+  `app/build/outputs/apk/debug/app-debug.apk`，大小 `488708183` bytes，SHA-256
+  `6E0967EAEC84D8483328CABEB8B0C899AE50433C067A3D8AA3957BB8AFC362B1`，包名/版本/SDK、唯一
+  launcher、arm64-v8a、Debug V2 单 signer 和 16 KiB ZIP 对齐保持。真实 WebView provider、脚本
+  安装卸载竞争、进程死亡、设备和长时间运行仍为 `verification_pending`。
+
+## 2026-09-05 ToolPkg 执行上下文清理边界
+
+- `ToolPkgManager.clear()` 是 ToolPkg 运行时 registry 的完整清理入口：它清空容器/子包索引，并在
+  `executionEngineLock` 内原子移除全部 `JsEngine` 上下文后逐一销毁；manager 本身保持可用，后续
+  获取会创建新的上下文。这样重载或调试清理不会留下 QuickJS 线程或旧容器执行状态。
+- `ToolPkgManagerTest` 覆盖跨容器引擎释放、旧 context key 不可见及清理后的重新获取。定向测试、
+  architecture、formal readiness、fresh clone、Markdown links、`git diff --check` 和规定 Debug
+  构建均通过；当前 APK 为 `app/build/outputs/apk/debug/app-debug.apk`，`485671424` bytes，
+  SHA-256 `B57C3C99FAE0DEF6377FFEA2D95C98B77773A23263D6F9040195467BA6F01A6C`，身份/launcher/
+  arm64/Debug V2/16 KiB 对齐保持。真实 ToolPkg 安装卸载竞争、进程死亡、设备和长时间运行仍为
+  `verification_pending`。
+## 2026-09-05 Browser 用户脚本 attach/detach 代际锁边界
+
+- `WebSessionUserscriptManager.attachSession()` 在登记 pending WebView generation 后，主线程消费、旧 binding 清理、WebView bridge/document-start 注册和新 binding 发布统一置于 `pendingSessionAttachmentLock` 内。`detachSession()` 先推进同一 generation 并撤销 pending，再清理 binding；因此 detach 与已开始的 attach 不能交叉发布一个已关闭会话的脚本运行时。
+- `BrowserInteractionContractTest` 覆盖 pending 撤销以及 attach 锁覆盖 provider 注册到 binding 发布的时序。定向测试和规定 Debug 构建通过；最新 `app-debug.apk` 为 `488708094` bytes，SHA-256 `D282CA97EA75490453902C929681E8262EB937D262E0B7DB0C176BBEB698C2EC`，包名/版本/SDK、唯一 launcher、arm64-v8a、Debug V2 单 signer 和 16 KiB ZIP 对齐保持。未新增 userscript runtime、协议或权限路径；真实 WebView provider、安装卸载竞争、设备和长时间运行仍为 `verification_pending`。

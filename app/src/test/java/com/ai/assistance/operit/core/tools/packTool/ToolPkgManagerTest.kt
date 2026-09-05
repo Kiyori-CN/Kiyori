@@ -89,6 +89,29 @@ class ToolPkgManagerTest {
     }
 
     @Test
+    fun `clear releases execution engines and permits later acquisition`() {
+        val first = mock<JsEngine>()
+        val second = mock<JsEngine>()
+        val replacement = mock<JsEngine>()
+        val manager = createManager(first, second, replacement)
+
+        manager.getToolPkgExecutionEngine("toolpkg_main:package-a", "package-a")
+        manager.getToolPkgExecutionEngine("toolpkg_xml_render:package-b:screen:node", "package-b")
+
+        manager.clear()
+
+        assertNull(manager.findToolPkgExecutionEngine("toolpkg_main:package-a"))
+        assertNull(manager.findToolPkgExecutionEngine("toolpkg_xml_render:package-b:screen:node"))
+        verify(first).destroy()
+        verify(second).destroy()
+
+        assertSame(
+            replacement,
+            manager.getToolPkgExecutionEngine("toolpkg_main:package-c", "package-c")
+        )
+    }
+
+    @Test
     fun `chat message hook keeps a distinct registration and event contract`() {
         assertEquals("registerToolPkgChatMessageHook", TOOLPKG_REGISTRATION_CHAT_MESSAGE_HOOK)
         assertEquals("toolpkg_chat_message", TOOLPKG_EVENT_CHAT_MESSAGE)

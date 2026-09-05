@@ -284,6 +284,49 @@ class BrowserInteractionContractTest {
         )
     }
 
+    @Test
+    fun `detaching a session cancels a queued userscript attachment`() {
+        val userscriptSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/userscript/runtime/WebSessionUserscriptManager.kt",
+            ).readText()
+
+        val pendingFieldIndex = userscriptSource.indexOf("pendingSessionAttachments")
+        val attachQueueIndex = userscriptSource.indexOf(
+            "pendingSessionAttachments[sessionId] =",
+            pendingFieldIndex,
+        )
+        val attachGuardIndex = userscriptSource.indexOf(
+            "pending.generation != pendingGeneration",
+            attachQueueIndex,
+        )
+        val detachIndex = userscriptSource.indexOf(
+            "pendingSessionAttachmentGenerations[sessionId] =",
+            attachGuardIndex,
+        )
+
+        assertTrue(pendingFieldIndex >= 0)
+        assertTrue(attachQueueIndex > pendingFieldIndex)
+        assertTrue(attachGuardIndex > attachQueueIndex)
+        assertTrue(detachIndex > attachGuardIndex)
+        assertTrue(userscriptSource.contains("pendingSessionAttachmentLock"))
+        val attachNowIndex = userscriptSource.indexOf("val attachNow", attachQueueIndex)
+        val attachBlock = userscriptSource.substring(attachNowIndex)
+        val attachLockIndex = attachBlock.indexOf(
+            "synchronized(pendingSessionAttachmentLock) {",
+        )
+        val providerRegistrationIndex = attachBlock.indexOf(
+            "logWebViewProviderOnce()",
+        )
+        val bindingPublicationIndex = attachBlock.indexOf(
+            "sessionBindings[sessionId] =",
+        )
+        assertTrue(attachNowIndex > attachQueueIndex)
+        assertTrue(attachLockIndex >= 0)
+        assertTrue(providerRegistrationIndex > attachLockIndex)
+        assertTrue(bindingPublicationIndex > providerRegistrationIndex)
+    }
+
     private fun repositoryFile(relativePath: String): File {
         var current: File? =
             File(requireNotNull(System.getProperty("user.dir"))).absoluteFile

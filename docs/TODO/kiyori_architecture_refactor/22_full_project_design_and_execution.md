@@ -634,3 +634,55 @@ loopback、Ubuntu 激活/PTY，并组合进程死亡、断网、权限拒绝、�
 推送子提交并验证可获取，再更新父 gitlink。禁止强推。local HEAD、origin/main、远端
 refs/heads/main 三者必须一致；设备和实际运行性能缺项保持单独待验证状态，总 Goal 不
 因本地提交或时间消耗而虚假完成。
+
+### D-04 ToolPkg 执行上下文清理实施证据
+
+2026-09-05 复核 `ToolPkgManager` 的生命周期入口发现，`clear()` 原先只清除容器与子包索引，
+没有处理同一 owner 登记的 `JsEngine` 执行上下文。该入口虽暂无生产调用，但其不完整合同会让
+重载/调试清理留下 QuickJS 线程和旧上下文。现改为在执行引擎锁内快照并清空 registry，锁外
+逐一调用 `destroy()`；与 `destroy()` 和按容器 identity-check 释放保持同一资源所有权，manager
+本身不进入 destroyed 状态，后续可重新获取上下文。
+
+`ToolPkgManagerTest` 新增两个容器引擎释放、旧 key 不可见、后续新 key 可获取的确定性合同，
+定向 `./gradlew :app:testDebugUnitTest --tests
+com.ai.assistance.operit.core.tools.packTool.ToolPkgManagerTest --no-daemon --console=plain
+--rerun-tasks` 通过（159 actionable tasks / 159 executed）。本批不改变 ToolPkg 协议、注册
+缓存格式、安装/卸载接口或真实 QuickJS 行为；真实安装卸载竞争、进程死亡、设备及长时间运行
+仍保持 `verification_pending`。
+
+### D-02 Browser 用户脚本 attach/detach 代际实施证据
+
+2026-09-05 复核 `WebSessionUserscriptManager.attachSession()` 发现，非主线程调用会延迟到
+主线程注册 WebView bridge；在这段窗口内 `detachSession()` 原先无法撤销待处理注册，关闭的
+WebView 可能随后重新获得 document-start 和 message listener。现新增 pending attachment
+记录、专用锁和单调 generation：attach 仅登记当前 WebView/generation，detach 推进 generation
+并移除 pending，主线程执行再次校验 identity 与 generation 后才安装脚本处理器。旧 binding
+仍按原逻辑清授权和由 WebView.destroy() 回收 provider 注册，不新增第二 runtime 或协议。
+
+`BrowserInteractionContractTest` 新增源码时序合同，定向测试覆盖 pending 登记、消费校验和
+detach 撤销；定向 `BrowserInteractionContractTest` 强制重跑通过（159 actionable tasks /
+159 executed），architecture `phase=m03`、formal readiness、fresh clone、Markdown links
+`errors=0 warnings=0`、`git diff --check` 和规定 Debug 构建通过。APK 为
+`488708183` bytes，SHA-256 `6E0967EAEC84D8483328CABEB8B0C899AE50433C067A3D8AA3957BB8AFC362B1`，
+`com.kiyori / 45 / 0.1.0`、arm64-v8a、唯一 launcher、Debug V2 单 signer 与 16 KiB ZIP 对齐
+均保持。真实 WebView provider、脚本网络、安装卸载竞争、进程死亡、设备和长时间运行仍保持
+`verification_pending`。
+### D-02 Browser 用户脚本 attach/detach 代际锁实施证据
+
+上一批 generation 只保护主线程消费 pending attach 之前的窗口。源码复核发现，attach 消费并
+移除 pending 后，后台 `detachSession()` 仍可能先移除旧 binding，随后 attach 完成 WebView
+bridge/document-start 注册并发布新 binding，使已关闭会话重新获得脚本运行时。
+
+本批将 pending generation 校验、旧 binding 清理、WebView provider 注册和新 binding 发布统一置于
+`pendingSessionAttachmentLock` 临界区；detach 先在同一锁内推进 generation 并撤销 pending，再清理
+binding。两条路径因此按完整 attach transaction 串行化：detach 先取得锁时 attach 直接失效，attach
+先取得锁时 detach 等待并撤销最终 binding。没有新增 runtime、协议、权限或第二状态 owner。
+
+`BrowserInteractionContractTest` 新增锁覆盖 provider 注册至 binding 发布的源码时序合同，定向
+测试通过（159 actionable tasks / 3 executed）。architecture `phase=m03`、formal readiness、
+fresh clone、Markdown links、`git diff --check` 和规定 `:app:assembleDebug --no-daemon --console=plain`
+均通过；Debug APK 为 `488708094` bytes，SHA-256
+`D282CA97EA75490453902C929681E8262EB937D262E0B7DB0C176BBEB698C2EC`，包名/版本/SDK 为
+`com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`，唯一 launcher、arm64-v8a、Debug V2 单 signer 与
+16 KiB ZIP 对齐通过。真实 WebView provider、脚本安装卸载竞争、进程死亡、设备和长时间运行
+继续保持 `verification_pending`。

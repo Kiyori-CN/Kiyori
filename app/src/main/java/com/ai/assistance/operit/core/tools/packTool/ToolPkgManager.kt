@@ -223,6 +223,15 @@ internal class ToolPkgManager(
     fun clear() {
         containersInternal.clear()
         subpackageByPackageNameInternal.clear()
+        val entries =
+            synchronized(executionEngineLock) {
+                executionEngines.values.toList().also {
+                    executionEngines.clear()
+                }
+            }
+        // Clearing the registry must release the engines it owns; otherwise a reload can leave
+        // QuickJS threads alive even though their container and subpackage indexes are gone.
+        entries.forEach { entry -> entry.engine.destroy() }
     }
 
     fun destroy() {
