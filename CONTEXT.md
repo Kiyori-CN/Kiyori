@@ -25,6 +25,11 @@ Current work status and implementation notes belong in `docs/TODO/`.
   configurations for later explicit calls. One acquisition attempts connection at most once, and
   cancellation or thread interruption propagates. `MCPBridgeClient.disconnect()` only clears its
   local connected flag; it does not stop the service or close the shared bridge socket.
+- `MCPBridgeClient.callTool` submits each tool command at most once. A timeout, connection error,
+  missing response or exception does not establish that the service did not execute it. The first
+  response is preserved; reconnection may occur on a later explicit call. Client cancellation and
+  MCP executor interruption propagate without continuing to tool submission. A failed ping clears
+  the local connected flag. Client and executor logs omit argument values and response bodies.
 - `StandardBrowserSessionTools.getSharedInstance` is the only Browser Runtime construction entry.
   Browser UI, AI tools and the global download drawer share its profile manager, host callbacks,
   download listeners and adblock subscription as well as the WebSession registry. Closing a drawer

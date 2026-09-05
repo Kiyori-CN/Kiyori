@@ -433,6 +433,42 @@ Bridge 的阻塞 Socket 读写仍需独立验证：仅在 catch 中重新抛出�
 的 readLine；共享连接锁、独立 spawn 连接、取消后关闭及迟到响应隔离另作传输批次，并用
 本机受控 socket 夹具验证。客户端批次不得把这项或真实 Ubuntu/插件设备验收写成已完成。
 
+进一步确认 `MCPBridge.sendCommand` 的共享分支在 `newSocket.connect` 成功后才把 socket
+写入字段，连接或流构造抛错时可能丢失待关闭资源；PrintWriter 还会隐藏写入异常。
+`sendCommandThroughStream` 会记录完整响应，sendCommand 会记录 params，启动成功的 list
+日志也包含完整服务信息。这些入口须随传输批次收束：一个连接对象拥有 socket 与读写流，
+在连接、发送和读取期间将取消绑定到该确切 socket；失败/取消先清理再释放共享锁，下一
+请求不能读取旧连接的迟到响应。保持普通命令串行及 spawn 独立连接、现有 host/port/
+JSON 行协议和连接保留时长，不借此改变本地/SSH 端口选择。移除取代后的分散 socket/
+reader/writer 资源字段及正文日志，使用会抛出写错误的流。连接建立失败、读取取消、等待锁
+取消、复用、独立 spawn 与关闭后新调用通过受控本机 TCP 夹具验证；禁止向真实 MCP
+服务发送测试命令。端口选择及 AI 外层同步执行的取消关联仍须按完整调用链继续审查。
+
+参数解析另有源码确认的问题，纳入 P-07/C-03,D-03：`MCPToolParameter.parseArray` 用
+`MutableList<Any>` 并跳过 null 元素，`parseArray`/`parseObject` 又把已经由 JSON parser
+确认的字符串再次交给 smartConvert，因此合法数组的位置及嵌套字符串类型可能变化。
+BridgeClient 的直接 Map/List JSON 转换保留 null，不能用该层测试替代 AI 文本参数入口。
+后续解析批次须先补 `null` 位置、嵌套字符串/布尔/数字、非法输入和 schema 类型特征测试，
+按显式 schema 与 JSON 原始类型修复，不引入修复后再猜测的第二解析路线。
+
+外层执行证据：`AIToolHandler.kt` 中 `ToolExecutor.invokeAndStream` 的默认实现为
+`flowOf(invoke(tool))`，构造 Flow 时已执行同步工具；ToolExecutionManager 随后附加的
+`.catch` 无法覆盖此前抛出的同步异常，未收集 Flow 也可能产生副作用。D-03 必须验证冷流
+执行时机、异常归属、取消前零执行，以及同步阻塞工具与协程取消的实际关联，不能用 MCP
+客户端局部取消测试关闭整条 AI 工具链。
+
+2026-09-05 请求批次最终三套 JVM 36 项零失败/错误/跳过：Manager 15、BridgeClient 14、
+ToolExecutor 7，Gradle 2m49s。最初运行一项测试将协程恢复后的异常副本误判为取消丢失；
+最终断言检查原取消位于 cause 链中，并保留一次发送/不重放及连接状态断言。客户端入口
+取消矩阵、执行器状态/信息/已提交调用的线程中断和日志正文排除均通过。实际 architecture
+`phase=m03` 和 diff 通过；公开 Context 构造器、命令 JSON 与 ObjectBox 模型保持。
+
+规定 Debug 3m42s，235 tasks / 23 executed；APK 10:25:04 +08:00，483708439 bytes，
+SHA-256 `23D60F2933BA6409C605FB0C03CD7A3E5B88D5FA5351BB167C6C43D148E06EAB`。
+`com.kiyori` 45/0.1.0、SDK26/34/37、唯一 launcher、单一 v2 签名、arm64 保持；5514 ZIP
+项无重复，44 DEX，53 native / 157 ELF LOAD 及 ZIP 16 KB 对齐通过。上述结果只关闭本批
+本地合同，未执行真实 MCP/模型或设备调用，传输层、其他插件生命周期和最终总回归继续。
+
 ### G-01 文档子模块链接检查事实
 
 当前 Markdown 比较器报告的唯一既有失效链接为 `README.md:189 -> terminal/README.md`。

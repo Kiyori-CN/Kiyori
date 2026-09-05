@@ -232,7 +232,7 @@ class MCPToolExecutor(private val context: Context, private val mcpManager: MCPM
                 jsonString
             }
         } catch (e: Exception) {
-            AppLogger.w(TAG, "JSON 格式化失败: ${e.message}")
+            AppLogger.w(TAG, "JSON 格式化失败: ${e.javaClass.simpleName}")
             jsonString
         }
     }
@@ -270,7 +270,12 @@ class MCPToolExecutor(private val context: Context, private val mcpManager: MCPM
         }
 
         // 在调用工具前，检查服务是否处于激活状态
-        val isActive = kotlinx.coroutines.runBlocking { mcpClient.isActive() }
+        val isActive = try {
+            runBlocking { mcpClient.isActive() }
+        } catch (interrupted: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw interrupted
+        }
         if (!isActive) {
             return ToolResult(
                     toolName = tool.name,
@@ -338,7 +343,7 @@ class MCPToolExecutor(private val context: Context, private val mcpManager: MCPM
                                 "Tool call failed but no error message returned"
                             }
                             
-                            AppLogger.w(TAG, "MCP工具调用失败: $serverName:$actualToolName - $errorMessage")
+                            AppLogger.w(TAG, "MCP工具调用失败: $serverName:$actualToolName")
                             ToolResult(
                                     toolName = tool.name,
                                     success = false,
@@ -347,9 +352,14 @@ class MCPToolExecutor(private val context: Context, private val mcpManager: MCPM
                             )
                         }
                     }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (interrupted: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    throw interrupted
                 } catch (e: Exception) {
                     val errorMessage = "Exception occurred while calling tool: ${e.message}"
-                    AppLogger.e(TAG, "调用MCP工具时发生异常: $errorMessage", e)
+                    AppLogger.e(TAG, "调用MCP工具时发生异常: ${e.javaClass.simpleName}")
                     ToolResult(
                             toolName = tool.name,
                             success = false,
@@ -368,8 +378,13 @@ class MCPToolExecutor(private val context: Context, private val mcpManager: MCPM
             val tools = kotlinx.coroutines.runBlocking { client.getTools() }
 
             return tools.find { it.optString("name") == toolName }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (interrupted: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw interrupted
         } catch (e: Exception) {
-            AppLogger.w(TAG, "获取工具信息失败: ${e.message}")
+            AppLogger.w(TAG, "获取工具信息失败: ${e.javaClass.simpleName}")
             return null
         }
     }
@@ -400,7 +415,7 @@ class MCPToolExecutor(private val context: Context, private val mcpManager: MCPM
             if (convertedValue != value) {
                 AppLogger.d(
                         TAG,
-                        "参数 $name 从 ${value::class.java.simpleName} 转换为 ${convertedValue::class.java.simpleName}: $value -> $convertedValue"
+                        "参数 $name 从 ${value::class.java.simpleName} 转换为 ${convertedValue::class.java.simpleName}"
                 )
             }
 
