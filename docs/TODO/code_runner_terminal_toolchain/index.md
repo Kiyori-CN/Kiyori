@@ -1,5 +1,34 @@
 # code_runner 与终端工具链收口
 
+## 环境配置/设置同步路由增量（2026-09-06）
+
+状态：已完成代码与本地自动化验证；目标 Android 设备上的重复点击、SurfaceView 合成和输入法行为仍保持 `verification_pending`。
+
+### 本轮问题与可验证目标
+
+- 现场反馈表明，上一轮的 `requestedRoute` 只约束了 Back 和重复请求，实际内容仍由 `NavHost` 异步 back stack 组合；旧的 `TerminalHome` 及其 `SurfaceView` 在切换帧中仍可能覆盖环境配置/设置页，造成回退到终端、输入法重新出现或点击没有反馈。
+- 环境配置和右侧设置必须共享同一个同步路由 owner：任何点击只产生一次目标路由，目标页一旦提交就不再继续组合终端首页；系统 Back、页面 Back 和安装完成必须回到终端首页。
+- 终端输入连接、焦点和软键盘必须在路由提交前释放，目标页组合后不能被旧的 SurfaceView/IME 回调重新夺回。
+
+### 冻结方案与边界
+
+1. 移除 `TerminalScreen` 内部 `NavHost`/`NavController` 作为可见页面状态源，保留现有 route 常量和 Back 语义，用单一同步状态 `activeRoute` 通过 `when` 只组合一个页面。
+2. 环境配置和设置按钮都经过 `TerminalHome.prepareForNavigation()`，随后由 `TerminalScreen.requestRoute()` 原子地锁定目标 route；重复点击在目标页已组合后不会再次入栈或重新创建页面。
+3. 保留现有 `CanvasTerminalView` 焦点/IME 释放合同和 AI 电脑宿主的黑色不透明层；不新增终端实例、并行导航器、延迟重试或回退逻辑。
+4. 增加路由状态纯函数/源码合同，覆盖 home -> setup/settings、setup/settings -> home 和同目标幂等；运行 Terminal 定向测试、正式门禁、差异检查与串行 Debug APK 构建。
+
+### 风险与验收边界
+
+- 该改动只改变终端内部页面组合方式，不改变环境包版本合同、安装命令、终端会话、设置数据或外层 AI 返回行为。
+- 本地 JVM 与 APK 只能证明同步状态和资源生命周期合同；首次启动连续点击、厂商 SurfaceView 合成、真实输入法以及 Ubuntu 实际安装仍需真机复测，完成前保持 `verification_pending`。
+
+### 本轮实现与验证
+
+- `TerminalScreen` 已移除内部 `NavHost`/`NavController`，以 `activeRoute` 作为唯一同步可见页面 owner；环境配置与右侧设置均先由 `TerminalHome.prepareForNavigation()` 清理焦点/IME，再提交目标 route。设置页返回不会修改首次启动偏好，环境配置页返回/安装完成继续确认配置完成。
+- terminal 子模块提交 `9073eab` 已推送 `origin/main`；`:terminal:testDebugUnitTest` 通过（18 actionable tasks，5 executed），terminal `git diff --check` 通过。
+- 父仓库 `:app:assembleDebug --no-daemon --console=plain` 通过（235 actionable tasks，30 executed）；Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `512626322` bytes，SHA-256 `7286BC5034F283CBF5440952F2E2FB62C7D9006B90570606B77E347D31B19471`。
+- 正式开发准备检查通过；候选 revision 的 Markdown 链接检查和父仓库最终 ref 对账在提交后执行。目标 Android 设备上的连续快速点击、设置按钮命中、SurfaceView 合成、输入法及 Ubuntu 实际安装仍为 `verification_pending`。
+
 ## 环境配置版本与首帧导航稳定性（2026-09-06）
 
 状态：本地实现、自动化验证和 Debug APK 已完成；目标 Android 设备上的首次点击/输入法/Ubuntu 实际安装仍为 `verification_pending`。
