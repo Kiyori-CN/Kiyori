@@ -529,6 +529,11 @@ ToolPkg 安装和设备行为仍保持 `verification_pending`。
 和 16 KiB ZIP 对齐核验通过。真实 Browser 下载、工作区文件和设备交互仍为
 `verification_pending`。
 
+Skill 生命周期补充：`SkillManager` 的扫描、删除、导入和内容读取共用一个 mutation lock；扫描结果
+在局部集合中构造并作为不可变 Map 一次性发布，`getAvailableSkillsSnapshot()` 同步返回匹配的技能与错误
+视图。该边界只治理内存快照和文件操作的并发所有权，不改变 Skill 目录格式、导入协议、可见性偏好或
+提示词内容；真实 Android 文件系统和长时间运行仍属于设备验收范围。
+
 ### C-03 workspace 规则读取边界实施证据
 
 2026-09-05 将 `WorkspaceRuleFileReader` 从

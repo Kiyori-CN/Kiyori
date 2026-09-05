@@ -24,8 +24,14 @@ class SkillManager private constructor(private val context: Context) {
         }
     }
 
-    private val availableSkills = mutableMapOf<String, SkillPackage>()
-    private val skillLoadErrors = mutableMapOf<String, String>()
+    /** Serializes filesystem mutations with scans so stale scans cannot republish deleted content. */
+    private val mutationLock = Any()
+
+    @Volatile
+    private var availableSkills: Map<String, SkillPackage> = emptyMap()
+
+    @Volatile
+    private var skillLoadErrors: Map<String, String> = emptyMap()
 
     private fun getSkillsRootDir(): File {
         return OperitPaths.skillsDir()
@@ -36,19 +42,29 @@ class SkillManager private constructor(private val context: Context) {
     }
 
     fun refreshAvailableSkills() {
-        availableSkills.clear()
-        skillLoadErrors.clear()
+        synchronized(mutationLock) {
+            refreshAvailableSkillsLocked()
+        }
+    }
+
+    private fun refreshAvailableSkillsLocked() {
+        val refreshedSkills = mutableMapOf<String, SkillPackage>()
+        val refreshedErrors = mutableMapOf<String, String>()
 
         val skillsDir = try {
             getSkillsRootDir()
         } catch (e: Exception) {
             AppLogger.e(TAG, "Error getting skills directory", e)
-            skillLoadErrors[context.getString(R.string.ai_extensions_tab_skill)] =
+            refreshedErrors[context.getString(R.string.ai_extensions_tab_skill)] =
                 context.getString(R.string.skill_error_cannot_access_dir, e.message ?: "")
+            availableSkills = emptyMap()
+            skillLoadErrors = refreshedErrors.toMap()
             return
         }
 
         if (!skillsDir.exists() || !skillsDir.isDirectory) {
+            availableSkills = emptyMap()
+            skillLoadErrors = emptyMap()
             return
         }
 
@@ -61,7 +77,7 @@ class SkillManager private constructor(private val context: Context) {
             }
 
             if (!skillFile.exists() || !skillFile.isFile) {
-                skillLoadErrors[child.name] = context.getString(
+                refreshedErrors[child.name] = context.getString(
                     R.string.skill_error_missing_skill_md,
                     child.absolutePath
                 )
@@ -73,9 +89,9 @@ class SkillManager private constructor(private val context: Context) {
                 val skillName = name.ifBlank { child.name }
                 val skillDesc = description.ifBlank { "" }
 
-                if (availableSkills.containsKey(skillName)) {
-                    val existingDirName = availableSkills[skillName]?.directory?.name ?: skillName
-                    skillLoadErrors[child.name] = context.getString(
+                if (refreshedSkills.containsKey(skillName)) {
+                    val existingDirName = refreshedSkills[skillName]?.directory?.name ?: skillName
+                    refreshedErrors[child.name] = context.getString(
                         R.string.skill_error_duplicate_scanned_name,
                         skillName,
                         existingDirName
@@ -83,7 +99,7 @@ class SkillManager private constructor(private val context: Context) {
                     continue
                 }
 
-                availableSkills[skillName] = SkillPackage(
+                refreshedSkills[skillName] = SkillPackage(
                     name = skillName,
                     description = skillDesc,
                     directory = child,
@@ -91,12 +107,15 @@ class SkillManager private constructor(private val context: Context) {
                 )
             } catch (e: Exception) {
                 AppLogger.e(TAG, "Error loading skill from ${skillFile.absolutePath}", e)
-                skillLoadErrors[child.name] = context.getString(
+                refreshedErrors[child.name] = context.getString(
                     R.string.skill_error_scan_failed,
                     e.message ?: e.javaClass.simpleName
                 )
             }
         }
+
+        availableSkills = refreshedSkills.toMap()
+        skillLoadErrors = refreshedErrors.toMap()
     }
 
     private fun parseSkillMetadata(skillFile: File): Pair<String, String> {
@@ -149,73 +168,85 @@ class SkillManager private constructor(private val context: Context) {
     }
 
     fun getAvailableSkills(): Map<String, SkillPackage> {
-        refreshAvailableSkills()
-        return availableSkills.toMap()
+        synchronized(mutationLock) {
+            refreshAvailableSkillsLocked()
+            return availableSkills
+        }
     }
 
     fun getAvailableSkillsSnapshot(): Pair<Map<String, SkillPackage>, Map<String, String>> {
-        refreshAvailableSkills()
-        return availableSkills.toMap() to skillLoadErrors.toMap()
+        synchronized(mutationLock) {
+            refreshAvailableSkillsLocked()
+            return availableSkills to skillLoadErrors
+        }
     }
 
     fun getSkillLoadErrors(): Map<String, String> {
-        refreshAvailableSkills()
-        return skillLoadErrors.toMap()
+        synchronized(mutationLock) {
+            refreshAvailableSkillsLocked()
+            return skillLoadErrors
+        }
     }
 
     fun readSkillContent(skillName: String): String? {
-        refreshAvailableSkills()
-        val skill = availableSkills[skillName] ?: return null
-        return try {
-            skill.skillFile.readText()
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "Failed to read SKILL.md for $skillName", e)
-            null
+        synchronized(mutationLock) {
+            refreshAvailableSkillsLocked()
+            val skill = availableSkills[skillName] ?: return null
+            return try {
+                skill.skillFile.readText()
+            } catch (e: Exception) {
+                AppLogger.e(TAG, "Failed to read SKILL.md for $skillName", e)
+                null
+            }
         }
     }
 
     fun deleteSkill(skillName: String): Boolean {
-        refreshAvailableSkills()
-        val skill = availableSkills[skillName] ?: return false
-        return try {
-            val ok = skill.directory.deleteRecursively()
-            if (ok) {
-                availableSkills.remove(skillName)
+        synchronized(mutationLock) {
+            refreshAvailableSkillsLocked()
+            val skill = availableSkills[skillName] ?: return false
+            return try {
+                val ok = skill.directory.deleteRecursively()
+                if (ok) {
+                    refreshAvailableSkillsLocked()
+                }
+                ok
+            } catch (e: Exception) {
+                AppLogger.e(TAG, "Failed to delete skill $skillName", e)
+                false
             }
-            ok
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "Failed to delete skill $skillName", e)
-            false
         }
     }
 
     fun getSkillSystemPrompt(skillName: String): String? {
-        refreshAvailableSkills()
-        val skill = availableSkills[skillName] ?: return null
-        val content = try {
-            skill.skillFile.readText()
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "Failed to read skill content: ${skill.skillFile.absolutePath}", e)
-            ""
-        }
+        synchronized(mutationLock) {
+            refreshAvailableSkillsLocked()
+            val skill = availableSkills[skillName] ?: return null
+            val content = try {
+                skill.skillFile.readText()
+            } catch (e: Exception) {
+                AppLogger.e(TAG, "Failed to read skill content: ${skill.skillFile.absolutePath}", e)
+                ""
+            }
 
-        val sb = StringBuilder()
-        sb.appendLine("Using package (Skill): ${skill.name}")
-        sb.appendLine("Use Time: ${java.time.LocalDateTime.now()}")
-        sb.appendLine("Execution policy:")
-        sb.appendLine("Prioritize using the skill-provided instructions and bundled scripts, and complete tasks with terminal-related tools.")
-        if (skill.description.isNotBlank()) {
-            sb.appendLine("Description: ${skill.description}")
-        }
-        sb.appendLine("SKILL.md path: ${skill.skillFile.absolutePath}")
-        sb.appendLine("Skill directory: ${skill.directory.absolutePath}")
-        sb.appendLine("Directory structure:")
-        sb.appendLine(buildDirectoryTreeText(skill.directory))
-        sb.appendLine()
-        sb.appendLine("SKILL.md:")
-        sb.appendLine(content)
+            val sb = StringBuilder()
+            sb.appendLine("Using package (Skill): ${skill.name}")
+            sb.appendLine("Use Time: ${java.time.LocalDateTime.now()}")
+            sb.appendLine("Execution policy:")
+            sb.appendLine("Prioritize using the skill-provided instructions and bundled scripts, and complete tasks with terminal-related tools.")
+            if (skill.description.isNotBlank()) {
+                sb.appendLine("Description: ${skill.description}")
+            }
+            sb.appendLine("SKILL.md path: ${skill.skillFile.absolutePath}")
+            sb.appendLine("Skill directory: ${skill.directory.absolutePath}")
+            sb.appendLine("Directory structure:")
+            sb.appendLine(buildDirectoryTreeText(skill.directory))
+            sb.appendLine()
+            sb.appendLine("SKILL.md:")
+            sb.appendLine(content)
 
-        return sb.toString()
+            return sb.toString()
+        }
     }
 
     private fun buildDirectoryTreeText(rootDir: File): String {
@@ -259,6 +290,12 @@ class SkillManager private constructor(private val context: Context) {
     }
 
     fun importSkillFromZipDetailed(zipFile: File, subDirPathInZip: String?): SkillImportResult {
+        synchronized(mutationLock) {
+            return importSkillFromZipDetailedLocked(zipFile, subDirPathInZip)
+        }
+    }
+
+    private fun importSkillFromZipDetailedLocked(zipFile: File, subDirPathInZip: String?): SkillImportResult {
         if (!zipFile.exists() || !zipFile.canRead()) {
             return SkillImportResult(context.getString(R.string.skill_error_cannot_read_file, zipFile.absolutePath), null)
         }
@@ -374,7 +411,7 @@ class SkillManager private constructor(private val context: Context) {
             cleanupTmp()
 
             // refresh cache
-            refreshAvailableSkills()
+            refreshAvailableSkillsLocked()
 
             val desc = metaDesc.ifBlank { "" }
             return SkillImportResult(if (desc.isNotBlank()) {

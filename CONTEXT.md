@@ -913,6 +913,11 @@ This boundary does not change ObjectBox schema, search expansion or backup forma
   SHA-256 `B57C3C99FAE0DEF6377FFEA2D95C98B77773A23263D6F9040195467BA6F01A6C`，身份/launcher/
   arm64/Debug V2/16 KiB 对齐保持。真实 ToolPkg 安装卸载竞争、进程死亡、设备和长时间运行仍为
   `verification_pending`。
+
+## 2026-09-05 Skill 扫描与文件生命周期边界
+
+- `SkillManager` 使用一把 `mutationLock` 保护扫描、删除、导入以及内容读取。扫描只在局部 Map 中构造技能和错误，完成后一次性发布不可变快照；`getAvailableSkillsSnapshot()` 在同一临界区返回技能与错误的匹配视图，避免调用方观察到半次刷新或删除后重新发布的旧条目。
+- 本批不改变 Skill 目录、`SKILL.md` 格式、导入协议、可见性偏好或系统提示词内容；未新增缓存、registry 或回退路径。真实 Android 文件系统、进程死亡、设备和长时间并发验收必须以本批验证结果为准，未完成前保持 `verification_pending`。
 ## 2026-09-05 Browser 用户脚本 attach/detach 代际锁边界
 
 - `WebSessionUserscriptManager.attachSession()` 在登记 pending WebView generation 后，主线程消费、旧 binding 清理、WebView bridge/document-start 注册和新 binding 发布统一置于 `pendingSessionAttachmentLock` 内。`detachSession()` 先推进同一 generation 并撤销 pending，再清理 binding；因此 detach 与已开始的 attach 不能交叉发布一个已关闭会话的脚本运行时。
