@@ -15,6 +15,7 @@ import com.ai.assistance.operit.ui.theme.createCustomTypography
 import com.ai.assistance.operit.ui.theme.isWaterGlassSupported
 import com.kiyori.design.theme.resolveKiyoriColorScheme
 import com.kiyori.platform.window.KiyoriApplicationSystemBars
+import com.kiyori.platform.window.KiyoriStatusBarAppearanceScope
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import io.github.fletchmckee.liquid.liquefiable
@@ -69,32 +70,33 @@ fun KiyoriTheme(content: @Composable () -> Unit) {
         }
     val colorScheme = resolveKiyoriColorScheme(darkTheme)
 
-    KiyoriApplicationSystemBars(
-        darkTheme = darkTheme,
-        navigationBarColor = colorScheme.background,
-        statusBarHidden = statusBarHidden,
-    )
-
     val liquidGlassBackdrop = rememberLayerBackdrop()
     val waterGlassState = if (isWaterGlassSupported()) rememberLiquidState() else null
-    CompositionLocalProvider(
-        LocalLiquidGlassBackdrop provides liquidGlassBackdrop,
-        LocalWaterGlassState provides waterGlassState,
-    ) {
-        com.kiyori.design.theme.KiyoriTheme(
-            colorScheme = colorScheme,
-            modifier =
-                Modifier
-                    .layerBackdrop(liquidGlassBackdrop)
-                    .then(
-                        if (waterGlassState != null) {
-                            Modifier.liquefiable(waterGlassState)
-                        } else {
-                            Modifier
-                        },
-                    ),
-            typography = customTypography,
-            content = content,
+    KiyoriStatusBarAppearanceScope {
+        KiyoriApplicationSystemBars(
+            darkTheme = darkTheme,
+            navigationBarColor = colorScheme.background,
+            statusBarHidden = statusBarHidden,
         )
+        CompositionLocalProvider(
+            LocalLiquidGlassBackdrop provides liquidGlassBackdrop,
+            LocalWaterGlassState provides waterGlassState,
+        ) {
+            com.kiyori.design.theme.KiyoriTheme(
+                colorScheme = colorScheme,
+                modifier =
+                    Modifier
+                        .layerBackdrop(liquidGlassBackdrop)
+                        .then(
+                            if (waterGlassState != null) {
+                                Modifier.liquefiable(waterGlassState)
+                            } else {
+                                Modifier
+                            },
+                        ),
+                typography = customTypography,
+                content = content,
+            )
+        }
     }
 }

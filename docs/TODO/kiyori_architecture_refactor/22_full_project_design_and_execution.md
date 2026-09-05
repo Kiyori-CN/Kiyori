@@ -260,6 +260,35 @@ ownership、正式准备、变更 Markdown 链接和 diff 检查通过。Debug 2
 检查通过。5514 ZIP 项无重名，44 DEX；DEX 中已核对请求 Job/代际与滚动位置类型。
 APK 字节数不变；只证明主线程文件映射/滚动重组触发/生命周期的结构改善，不宣称设备性能。
 
+### D-01 状态栏声明作用域实施契约
+
+恢复点 `190c076f2`。现状 `KiyoriApplicationSystemBars` 把覆盖值放在进程全局 mutable state，
+只在 `SideEffect` 读取而没有 composition 观察；覆盖声明退出时按 Boolean 值比较，无法
+区分不同声明者。目前唯一页面调用是文件管理器，根宿主还被 MainActivity 和桌面组件
+配置 Activity 使用，因此全局值不应跨根窗口共享。
+
+本批新增 `platform/window/KiyoriStatusBarAppearance` 声明状态和 composition scope，
+由各自 `app/theme/KiyoriTheme` 根创建；页面以稳定身份更新/移除自己的声明，已有声明
+更新不改变层级顺序，后进入的声明有效。`null` 沿用根主题图标策略。窗口副作用仍仅由
+`KiyoriApplicationSystemBars` 执行，并在 composition 读取有效值。旧全局 Boolean 删除。
+不改变导航、状态栏隐藏、导航栏颜色、Player fullscreen 或持久化偏好。
+
+测试覆盖同值不同 owner 清理、声明更新顺序、空声明、多个根隔离和 Snapshot 观察。
+原 M-05A3 中 app theme/system bars 两个源码哈希冻结改为语义约束，保留职责/消费者/
+Player/Manifest/资源保护，并加入全局状态、缺少观察和双重 Window 写入的拒绝反例。
+领域 JVM、Python 语义测试、ownership、diff/links 后串行 Debug/APK；实机文件管理器
+进出、明暗主题和独立配置窗口状态栏图标保持 `verification_pending`。
+
+2026-09-05 本批本地证据：3 套 JVM 共 29 项零失败/错误/跳过，4m26s；全 CI Python
+257 项通过，42.472s；ARCH048 实际源码通过，完整架构诊断由 19 降至 16，新增为零。
+其余诊断均为原有 cropper/Manifest、导航与主题快照/消费者失配，继续 C-01。
+正式准备、变更链接和 diff 检查通过。Debug 1m53s，235 tasks / 24 executed；APK
+08:08:45 +08:00，483709823 bytes，SHA-256
+`634F14A8B2D30D521F376DCC183BDA596B1EA48096DC5BCF0A088D9B5BCE48A5`。
+身份/版本/SDK/launcher/ABI 保持，v2 单签名、16 KB ZIP 和 53 个 native ELF LOAD 对齐
+通过，5514 ZIP 项无重名、44 DEX。DEX 已见独立声明状态及组合阶段 getter，旧全局字段
+不再存在。包体字节数不变，不据此推断运行性能；页面状态栏效果仍待设备验收。
+
 ## 兼容与上游维护
 
 继续使用 [稳定标识清单](8_compatibility_contract_inventory.md)，逐项校正消费者和状态。

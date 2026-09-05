@@ -2850,6 +2850,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             "import com.ai.assistance.operit.ui.theme.isWaterGlassSupported\n"
             "import com.kiyori.design.theme.resolveKiyoriColorScheme\n"
             "import com.kiyori.platform.window.KiyoriApplicationSystemBars\n"
+            "import com.kiyori.platform.window.KiyoriStatusBarAppearanceScope\n"
             "import com.kyant.backdrop.backdrops.layerBackdrop\n"
             "import com.kyant.backdrop.backdrops.rememberLayerBackdrop\n"
             "import io.github.fletchmckee.liquid.liquefiable\n"

@@ -1,17 +1,31 @@
 ---
-status: accepted_design
-plan_version: 3
-baseline: 62464b054f6de00b70c5596295bc216eb8edf63d
-last_reviewed: 2026-08-01
+status: active
+plan_version: 4
+baseline: 65d12a65dd7cb350b7589a7dbf99ede4e450280d
+last_reviewed: 2026-09-05
 ---
 
 # 验证命令目录
 
 ## 使用边界
 
-本文件列出正式实施时的命令。当前方案阶段不因文档出现命令而获得执行源码重构、设备、提交或推送权限。
+本文件保存本地验证入口。全项目当前状态以 [总计划](index.md) 的 v4 表为准；后文旧里程碑
+中的测试数量和哈希是当时证据，不表示当前构建结果。
 
 命令从高信号、低成本到高成本串行执行。失败后停止，不跳过真实失败。
+
+## v4 所有权语义检查
+
+ARCH047 要求 Browser Runtime 仅通过同步发布的共享工厂构造；ARCH048 要求状态栏声明
+状态由每个根 composition 创建、按 owner 身份清理、在 composition 读取并由唯一 Window
+副作用消费。M-05A3 的 app theme/system bars 两个完整源码哈希已被职责和作用域检查
+替代，其他兼容约束继续执行。负例覆盖全局状态、越界构造、丢失观察、按值清理、内容脱离
+作用域和第二处 Window 写入；注释不能伪造有效合同。
+
+```powershell
+.\.venv\Scripts\python.exe -B -m unittest ci.test.test_browser_runtime_ownership ci.test.test_status_bar_appearance
+.\gradlew.bat :app:testDebugUnitTest --tests '*KiyoriStatusBarAppearanceStateTest' --tests '*KiyoriDesignThemeTest' --tests '*FileManagerSourceContractTest' --no-daemon --console=plain
+```
 
 ## 基线与仓库卫生
 
@@ -63,7 +77,7 @@ G-00 当前命令：
   --require-main
 ```
 
-需要定位门禁耗时时，在同一命令末尾追加 `--timings`。该诊断模式只增加 36 个检查的
+需要定位门禁耗时时，在同一命令末尾追加 `--timings`。该诊断模式只增加各检查的
 逐项计时输出，不改变检查结果；源码扫描必须忽略 `app/src/main` 下的 `.cxx` 和 `build`
 生成目录，并复用同一源码快照的掩码结果，防止 Debug native 缓存参与架构所有权扫描。
 

@@ -666,8 +666,6 @@ M05A3_THEME_RESOURCE_PATHS = (
 M05A3_HASHED_PATHS = (
     M05A3_DESIGN_THEME_PATH,
     M05A3_TYPOGRAPHY_PATH,
-    M05A3_APP_THEME_PATH,
-    M05A3_SYSTEM_BARS_PATH,
     M05A3_TYPE_PATH,
     M05A3_LIQUID_GLASS_PATH,
     M05A3_WATER_GLASS_PATH,
@@ -680,6 +678,9 @@ M05A3_HASHED_PATHS = (
 M05A3_DESIGN_PACKAGE = "com.kiyori.design.theme"
 M05A3_APP_THEME_PACKAGE = "com.kiyori.app.theme"
 M05A3_SYSTEM_BARS_PACKAGE = "com.kiyori.platform.window"
+STATUS_BAR_APPEARANCE_PATH = (
+    "app/src/main/java/com/kiyori/platform/window/KiyoriStatusBarAppearance.kt"
+)
 M05A3_NEW_STYLE = "Theme.Kiyori"
 M05A3_OLD_STYLE = "Theme.Operit"
 M05A3_STYLE_DECLARATION_COUNT = 6
@@ -696,6 +697,7 @@ M05A3_EXPECTED_APP_HOST_PROJECT_IMPORTS = (
     "com.ai.assistance.operit.ui.theme.isWaterGlassSupported",
     "com.kiyori.design.theme.resolveKiyoriColorScheme",
     "com.kiyori.platform.window.KiyoriApplicationSystemBars",
+    "com.kiyori.platform.window.KiyoriStatusBarAppearanceScope",
 )
 M05A3_APP_THEME_EXCEPTION_REASON = (
     "M-05A3 isolates the unique Kiyori app theme host while existing "
@@ -1347,6 +1349,88 @@ def check_browser_runtime_owner(root: Path, errors: list[str]) -> None:
                 "ARCH047 non-shared Browser Runtime factory consumer: "
                 + path.relative_to(root).as_posix()
             )
+
+
+def check_status_bar_appearance(root: Path, errors: list[str]) -> None:
+    """Check root scope and composition observation without freezing presentation code."""
+    paths = (STATUS_BAR_APPEARANCE_PATH, M05A3_SYSTEM_BARS_PATH, M05A3_APP_THEME_PATH)
+    if any(not (root / path).is_file() for path in paths):
+        errors.append("ARCH048 status-bar appearance owners are missing")
+        return
+    appearance, system_bars, app_theme = (
+        source_code_mask((root / path).read_text(encoding="utf-8")) for path in paths
+    )
+
+    def block(code: str, pattern: str) -> str:
+        match = re.search(pattern, code)
+        if match is None:
+            return ""
+        opening = code.find("{", match.end())
+        if opening < 0:
+            return ""
+        depth = 0
+        for index in range(opening, len(code)):
+            if code[index] == "{":
+                depth += 1
+            elif code[index] == "}":
+                depth -= 1
+                if depth == 0:
+                    return code[opening + 1:index]
+        return ""
+
+    def compact(code: str) -> str:
+        return re.sub(r"\s+", "", code)
+
+    state = block(appearance, r"\bclass\s+KiyoriStatusBarAppearanceState\b")
+    scope = block(appearance, r"\bfun\s+KiyoriStatusBarAppearanceScope\b")
+    override = block(appearance, r"\bfun\s+KiyoriStatusBarAppearanceOverride\b")
+    host_scope = block(app_theme, r"\bKiyoriStatusBarAppearanceScope\s*(?=\{)")
+    mutation_pattern = r"\bmutableState(?:Of|MapOf|ListOf)\s*(?:<[^>]*>)?\s*\("
+    if (
+        not state
+        or len(re.findall(mutation_pattern, appearance)) != 1
+        or len(re.findall(mutation_pattern, state)) != 1
+        or len(re.findall(r"\bKiyoriStatusBarAppearanceState\s*\(", appearance)) != 1
+        or "remember{KiyoriStatusBarAppearanceState()}" not in compact(scope)
+        or "LocalKiyoriStatusBarAppearanceprovidesappearance" not in compact(scope)
+    ):
+        errors.append("ARCH048 appearance state must be created and retained inside each root scope")
+    if (
+        "valowner=remember{Any()}" not in compact(override)
+        or "SideEffect{appearance.update(owner,darkIcons)}" not in compact(override)
+        or "DisposableEffect(appearance,owner){onDispose{appearance.remove(owner)}}" not in compact(override)
+        or "it.owner===owner" not in compact(block(state, r"\bfun\s+remove\b"))
+    ):
+        errors.append("ARCH048 page appearance must update and remove only its own stable identity")
+    if (
+        "KiyoriApplicationSystemBars(" not in host_scope
+        or "com.kiyori.design.theme.KiyoriTheme(" not in host_scope
+        or len(re.findall(r"\bKiyoriStatusBarAppearanceScope\s*\{", app_theme)) != 1
+    ):
+        errors.append("ARCH048 root scope must enclose both Window owner and application content")
+    observation = "valdarkStatusBarIcons=LocalKiyoriStatusBarAppearance.current.darkIcons?:!darkTheme"
+    effect = block(system_bars, r"\bSideEffect\s*(?=\{)")
+    effect_start = re.search(r"\bSideEffect\s*\{", system_bars)
+    before_effect = system_bars[:effect_start.start()] if effect_start else ""
+    if (
+        observation not in compact(before_effect)
+        or "LocalKiyoriStatusBarAppearance" in effect
+        or "if(darkStatusBarIcons)" not in compact(effect)
+    ):
+        errors.append("ARCH048 Window appearance must observe the root state during composition")
+    for label, code in (("declaration scope", appearance), ("app theme", app_theme)):
+        if any(token in code for token in ("enableEdgeToEdge", "WindowCompat", "SystemBarStyle")):
+            errors.append(f"ARCH048 {label} must not write Window appearance")
+    if "statusBarDarkIconsOverride" in appearance + system_bars + app_theme:
+        errors.append("ARCH048 process-global status-bar override remains")
+    if len(re.findall(r"\benableEdgeToEdge\s*\(", system_bars)) != 1:
+        errors.append("ARCH048 SystemBars must have one Window appearance write")
+    for path in source_files(root / "app/src/main/java", MANAGED_SOURCE_SUFFIXES):
+        if path.relative_to(root).as_posix() == STATUS_BAR_APPEARANCE_PATH:
+            continue
+        code = source_code_mask(path.read_text(encoding="utf-8"))
+        if re.search(r"\b(?:class\s+KiyoriStatusBarAppearanceState|KiyoriStatusBarAppearanceState\s*\()", code):
+            errors.append("ARCH048 duplicate status-bar appearance state owner: " + path.relative_to(root).as_posix())
 
 
 def dependency_rule(identifier: str, imported: str) -> str:
@@ -11171,6 +11255,7 @@ def main() -> int:
             errors,
         ),
         lambda: check_browser_runtime_owner(root, errors),
+        lambda: check_status_bar_appearance(root, errors),
         lambda: check_tracked_artifacts(root, errors),
         lambda: check_terminal_unchanged(root, args.base, errors),
     )
