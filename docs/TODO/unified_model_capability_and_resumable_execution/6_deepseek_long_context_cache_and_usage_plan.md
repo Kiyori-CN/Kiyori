@@ -1342,6 +1342,24 @@ ARCH025、ARCH026、ARCH027、ARCH040、ARCH042），这些文件在本轮前已
 回退或篡改；该检查结果作为交付风险单独保留。真实 DeepSeek/relay、多 hop 工具执行、用户停止
 竞态和目标设备仍标记 `verification_pending`。
 
+### M13 2026-09-06 普通 Chat 失败 hop 诊断身份与工具 follow-up 连续性
+
+状态：`IMPLEMENTED`；本地定向回归已通过，真实 endpoint、代理链路和设备验收仍为
+`verification_pending`。
+
+诊断包 `20260906-034605-170-测试代码运行器与管理员权限-b48058ee-ai-diagnostics.md` 的最后一跳
+显示 DeepSeek Chat `/v1/chat/completions` 已发送完整请求体（`89876` bytes，HTTP/1.1），随后在
+响应头前收到 `java.net.SocketException: Software caused connection abort`。这属于提交状态未知，
+普通 Chat 不得重复 POST；但当前通用 Chat 异常未实现 `MessageFailureDiagnosticSource`，导致
+`ASSISTANT_PROJECTION_UPDATED` 与 `PROVIDER_TERMINAL_ERROR` 不能稳定携带真实失败 hop 的
+`localExecutionId`。
+
+本里程碑只修复诊断身份和失败投影的因果关联：为已进入 HTTP attempt 的 Chat transport IOException
+包装受控的执行 ID、阶段和脱敏传输快照，保持原始 cause chain；消息失败、部分 assistant 和最终审计
+统一读取该身份。补充“请求体已发送后 socket abort 只产生一个 POST、失败事件使用最后 hop ID、
+用户后续发送仍从合法历史继续”的 JVM 回归。非目标是重发未知提交、切换 provider/endpoint、
+增加直连旁路、裁剪工具结果或伪造成功；真实 DeepSeek、代理和设备仍保持 `verification_pending`。
+
 ## 可恢复开发与上下文压缩合同
 
 本任务允许跨多轮继续，但每一轮必须从以下持久状态恢复，不依赖模型记忆：

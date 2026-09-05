@@ -22,6 +22,7 @@ import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.SocketPolicy
 import okhttp3.RequestBody
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -76,7 +77,13 @@ class OpenAIProviderAttemptBoundaryTest {
                                 enableThinking = false,
                                 stream = true,
                                 availableTools = null,
-                                providerRequestContext = null,
+                                providerRequestContext = ProviderRequestContext(
+                                    localExecutionId = "chat-failure-hop",
+                                    chatId = "chat-1",
+                                    messageTimestamp = 1L,
+                                    variantIndex = 0,
+                                    hopOrdinal = 3,
+                                ),
                                 onNonFatalError = { retryNotifications.incrementAndGet() },
                             )
                             .collect { }
@@ -84,9 +91,17 @@ class OpenAIProviderAttemptBoundaryTest {
 
                 assertNotNull(failure)
                 assertTrue(failure !is UserCancellationException)
+                assertTrue(failure is OpenAIChatTransportFailure)
+                assertEquals(
+                    "chat-failure-hop",
+                    (failure as OpenAIChatTransportFailure).localExecutionId,
+                )
+                assertNotNull(failure.cause)
+                assertFalse(failure.message.orEmpty().contains("chat-failure-hop"))
+                assertFalse(failure.message.orEmpty().contains("LLM_TRANSPORT"))
                 assertEquals(0, retryNotifications.get())
                 assertEquals(
-                    "failure=${failure?.javaClass?.name}: ${failure?.message}",
+                    "failure=${failure.javaClass.name}: ${failure.message}",
                     1,
                     server.requestCount,
                 )

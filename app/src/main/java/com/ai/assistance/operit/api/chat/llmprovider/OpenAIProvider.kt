@@ -29,6 +29,7 @@ import com.ai.assistance.operit.util.OperitPaths
 import com.ai.assistance.operit.util.StreamingJsonXmlConverter
 import com.ai.assistance.operit.util.TokenCacheManager
 import com.ai.assistance.operit.util.exceptions.UserCancellationException
+import com.ai.assistance.operit.util.stream.MessageFailureDiagnosticSource
 import com.ai.assistance.operit.util.stream.MutableSharedStream
 import com.ai.assistance.operit.util.stream.SharedStream
 import com.ai.assistance.operit.util.stream.Stream
@@ -2170,6 +2171,22 @@ open class OpenAIProvider(
             isSafePreSubmissionRetry(diagnostics) -> "SAFE_PRE_SUBMISSION_RETRY"
             else -> "NO_RETRY_SUBMISSION_UNKNOWN"
         }
+
+    private fun wrapChatTransportFailure(
+        failure: Exception,
+        providerRequestContext: ProviderRequestContext?,
+        diagnostics: LlmTransportDiagnostics?,
+    ): Exception {
+        if (failure is MessageFailureDiagnosticSource || providerRequestContext == null) {
+            return failure
+        }
+        val ioFailure = failure as? IOException ?: return failure
+        return OpenAIChatTransportFailure(
+            localExecutionId = providerRequestContext.localExecutionId,
+            transportDiagnostics = diagnostics,
+            cause = ioFailure,
+        )
+    }
 
     private data class ResponsesPersistenceSession(
         val repository: OpenAIResponsesExecutionPersistence,
@@ -4344,6 +4361,12 @@ open class OpenAIProvider(
                 if (!responsesSubmissionStarted) {
                     throw e
                 }
+                val chatFailure =
+                    wrapChatTransportFailure(
+                        failure = e,
+                        providerRequestContext = providerRequestContext,
+                        diagnostics = attemptDiagnostics,
+                    )
                 if (usesAtMostOnceResponsesSubmission) {
                     retryCount =
                         handleAtMostOnceResponsesFailure(
@@ -4389,7 +4412,7 @@ open class OpenAIProvider(
                                     ?: "SUBMISSION_UNKNOWN",
                             completeness = ConversationAuditCompletenessStatus.PARTIAL,
                         )
-                        throw e
+                        throw chatFailure
                     }
 
                     val willRetry = enableRetry && retryCount < maxRetries
@@ -4413,7 +4436,7 @@ open class OpenAIProvider(
                             streamingState = attemptStreamingState,
                             completeness = ConversationAuditCompletenessStatus.PARTIAL,
                         )
-                        throw e
+                        throw chatFailure
                     }
                     recordProviderAttemptAudit(
                         context = context,
