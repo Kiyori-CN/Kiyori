@@ -35,6 +35,12 @@ Current work status and implementation notes belong in `docs/TODO/`.
   connect so connect/write/read failure is closed. Cancellation closes that socket to release a
   blocked read and prevents a late response reaching a later command. The wire contract remains
   newline-delimited JSON with the existing host/port selection and keepalive window.
+- `MCPToolParameter` applies the declared schema type only to textual input at the parameter
+  boundary. JSON arrays and objects preserve parser-confirmed numbers, booleans, strings, nested
+  structures, and `null` positions; a quoted JSON string is never reinterpreted as another type.
+  Invalid structured text remains the caller's original value. The default `ToolExecutor` stream
+  is cold: synchronous `invoke` starts during collection, so cancellation before collection has
+  no tool side effect and collection-time failures remain observable to the owning flow.
 - `StandardBrowserSessionTools.getSharedInstance` is the only Browser Runtime construction entry.
   Browser UI, AI tools and the global download drawer share its profile manager, host callbacks,
   download listeners and adblock subscription as well as the WebSession registry. Closing a drawer

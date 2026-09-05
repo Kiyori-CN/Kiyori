@@ -484,6 +484,21 @@ success 状态，不记录参数、响应或启动命令正文。
 连接资源只证明本机 socket 合同，仍需继续验证 Android 网络环境、进程死亡、Bridge JS
 pendingRequests 超时和 Ubuntu 插件生命周期；这些项目保持 `verification_pending`。
 
+### P-07 / C-03 / D-03 参数与冷流实施证据
+
+2026-09-05 修复 `MCPToolParameter` 的 JSON 结构边界：数组使用可空元素集合并保留每个
+`null` 位置；`parseArray` 与 `parseObject` 对 JSON parser 已确认的字符串不再调用无类型
+`smartConvert`，因此嵌套字符串、数字和布尔值不会因内容形状改变类型。传入的 `List` 只
+递归处理嵌套集合，保留其标量类型；非法对象文本仍按原始输入返回。新增
+`MCPToolParameterTest` 覆盖 null、嵌套数组/对象、字符串类型、非法 JSON 和显式 schema。
+
+同步将 `ToolExecutor.invokeAndStream` 默认实现从 `flowOf(invoke(tool))` 改为收集体内的
+`flow { emit(invoke(tool)) }`。同步工具现在遵守 Flow 冷流契约：创建 Flow 不执行调用，
+收集前取消不产生调用，调用异常在收集期间传播并可由外层执行流观察。新增
+`ToolExecutorTest` 覆盖这三条边界；与既有 MCP 测试合计 43 项相关 JVM 测试通过。该批次
+没有改变工具协议、参数 wire 格式或具体 executor 的流式实现，真实设备、MCP 服务和
+长时间同步工具取消仍保持 `verification_pending`。
+
 ### G-01 文档子模块链接检查事实
 
 当前 Markdown 比较器报告的唯一既有失效链接为 `README.md:189 -> terminal/README.md`。

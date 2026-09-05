@@ -69,8 +69,18 @@ data class MCPToolParameter(
         fun smartConvert(value: Any, typeName: String?): Any {
             // 如果已经是 List 或 Array，递归处理元素
             if (value is List<*>) {
-                return value.map { element -> 
-                    if (element != null) smartConvert(element, null) else null 
+                return value.map { element ->
+                    when (element) {
+                        is List<*> -> smartConvert(element, null)
+                        is Map<*, *> -> element.mapValues { (_, nested) ->
+                            if (nested is List<*> || nested is Map<*, *>) {
+                                smartConvert(nested, null)
+                            } else {
+                                nested
+                            }
+                        }
+                        else -> element
+                    }
                 }
             }
             
@@ -147,7 +157,7 @@ data class MCPToolParameter(
             // 尝试作为 JSON 数组解析
             try {
                 val jsonArray = JSONArray(trimmed)
-                val result = mutableListOf<Any>()
+                val result = mutableListOf<Any?>()
                 
                 for (i in 0 until jsonArray.length()) {
                     val element = when {
@@ -166,17 +176,12 @@ data class MCPToolParameter(
                                 }
                                 is Number -> rawValue
                                 is Boolean -> rawValue
-                                is String -> {
-                                    // 对字符串元素进行智能转换
-                                    smartConvert(rawValue, null)
-                                }
+                                is String -> rawValue
                                 else -> rawValue
                             }
                         }
                     }
-                    if (element != null) {
-                        result.add(element)
-                    }
+                    result.add(element)
                 }
                 
                 return result
@@ -232,7 +237,7 @@ data class MCPToolParameter(
             
             try {
                 val jsonObject = JSONObject(trimmed)
-                val result = mutableMapOf<String, Any>()
+                val result = mutableMapOf<String, Any?>()
                 
                 val keys = jsonObject.keys()
                 while (keys.hasNext()) {
@@ -250,10 +255,7 @@ data class MCPToolParameter(
                         }
                         is Number -> rawValue
                         is Boolean -> rawValue
-                        is String -> {
-                            // 对字符串值进行智能转换
-                            smartConvert(rawValue, null)
-                        }
+                        is String -> rawValue
                         else -> rawValue
                     }
                     

@@ -480,7 +480,7 @@ class AIToolHandler private constructor(private val context: Context) {
 interface ToolExecutor {
     fun invoke(tool: AITool): ToolResult
 
-    fun invokeAndStream(tool: AITool): Flow<ToolResult> = flowOf(invoke(tool))
+    fun invokeAndStream(tool: AITool): Flow<ToolResult> = flow { emit(invoke(tool)) }
 
     /**
      * Validates the parameters of a tool before execution Default implementation always returns

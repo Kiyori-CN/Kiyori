@@ -379,6 +379,9 @@ class MCPBridge private constructor(private val context: Context) {
 
                         deferred.complete(isRunning)
                         return@withContext isRunning
+                    } catch (cancelled: CancellationException) {
+                        deferred.completeExceptionally(cancelled)
+                        throw cancelled
                     } catch (e: Exception) {
                         AppLogger.e(TAG, "启动桥接器异常", e)
                         deferred.complete(false)
@@ -409,6 +412,8 @@ class MCPBridge private constructor(private val context: Context) {
                             AppLogger.w(TAG, "桥接器重置失败")
                         }
                         return@withContext response
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
                     } catch (e: Exception) {
                         AppLogger.e(TAG, "重置桥接器异常", e)
                         return@withContext null
@@ -611,6 +616,8 @@ class MCPBridge private constructor(private val context: Context) {
             try {
                 AppLogger.d(TAG, "查询服务 $serviceName 的状态")
                 return@withContext listMcpServices(serviceName)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 AppLogger.e(TAG, "查询服务状态时出错: ${e.message}")
                 return@withContext null
@@ -639,6 +646,8 @@ class MCPBridge private constructor(private val context: Context) {
                     AppLogger.w(TAG, "桥接器重置失败")
                     return@withContext null
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 AppLogger.e(TAG, "重置桥接器时出错: ${e.message}")
                 return@withContext null
