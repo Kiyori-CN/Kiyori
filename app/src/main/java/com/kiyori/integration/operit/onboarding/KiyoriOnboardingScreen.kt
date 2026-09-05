@@ -760,54 +760,101 @@ private fun OnboardingProgressHeader(
     onBack: () -> Unit,
     showBack: Boolean,
 ) {
-    Row(
+    Surface(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
     ) {
-        Box(modifier = Modifier.size(48.dp)) {
-            if (showBack) {
-                IconButton(onClick = onBack) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(modifier = Modifier.size(48.dp)) {
+                    if (showBack) {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.kiyori_onboarding_back),
+                            )
+                        }
+                    }
+                }
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.kiyori_onboarding_back),
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        modifier = Modifier.padding(9.dp).size(22.dp),
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = stringResource(step.onboardingLabelResId),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(
+                    text =
+                        stringResource(
+                            R.string.kiyori_onboarding_progress,
+                            step.ordinal + 1,
+                            KiyoriOnboardingStep.entries.size,
+                        ),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                KiyoriOnboardingStep.entries.forEach { item ->
+                    Box(
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .height(4.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (item.ordinal <= step.ordinal) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceContainerHighest
+                                    },
+                                ),
                     )
                 }
             }
         }
-        Column(
-            modifier = Modifier.weight(1f),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.app_name),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
-            OnboardingProgressBar(
-                progress =
-                    (step.ordinal + 1).toFloat() /
-                        KiyoriOnboardingStep.entries.size,
-            )
-            Text(
-                text =
-                    stringResource(
-                        R.string.kiyori_onboarding_progress,
-                        step.ordinal + 1,
-                        KiyoriOnboardingStep.entries.size,
-                    ),
-                style = MaterialTheme.typography.labelMedium,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-            )
-        }
-        Box(modifier = Modifier.size(48.dp))
     }
 }
+
+private val KiyoriOnboardingStep.onboardingLabelResId: Int
+    get() =
+        when (this) {
+            KiyoriOnboardingStep.WELCOME -> R.string.kiyori_onboarding_step_welcome
+            KiyoriOnboardingStep.BROWSER_AND_MEDIA -> R.string.kiyori_onboarding_step_content
+            KiyoriOnboardingStep.AI_ASSISTANT -> R.string.kiyori_onboarding_step_ai
+            KiyoriOnboardingStep.FILES_AND_TOOLS -> R.string.kiyori_onboarding_step_workspace
+            KiyoriOnboardingStep.AGREEMENT -> R.string.kiyori_onboarding_step_trust
+            KiyoriOnboardingStep.PERMISSIONS -> R.string.kiyori_onboarding_step_ready
+        }
 
 @Composable
 private fun OnboardingProgressBar(
@@ -1138,6 +1185,7 @@ private fun FeatureIntroductionPage(
         modifier =
             Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .padding(horizontal = 20.dp),
     ) {
         val useTwoColumns = maxWidth >= 700.dp
@@ -1189,14 +1237,22 @@ private fun FeatureIntroductionPage(
                             .padding(top = 10.dp, bottom = 20.dp),
                     verticalArrangement = Arrangement.Top,
                 ) {
-                    Box(
+                    Surface(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
                                 .height(mobileVisualHeight),
-                        contentAlignment = Alignment.Center,
+                        shape = RoundedCornerShape(28.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        border =
+                            BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.58f),
+                            ),
                     ) {
-                        visual(featureCards)
+                        Box(contentAlignment = Alignment.Center) {
+                            visual(featureCards)
+                        }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     content()
