@@ -499,8 +499,11 @@ Markdown、diff 与 Debug/APK 证据均通过。Debug APK 为 `488708183` bytes�
 2026-09-05 D-04 Skill 生命周期小批：`SkillManager` 以单一 `mutationLock` 串行化扫描、删除、导入
 和内容读取。扫描先在局部 Map 中完成，再一次性发布不可变技能/错误快照；技能与错误快照的获取也在
 同一临界区内完成，避免并发刷新、删除或导入时观察到半成品或已删除目录的旧引用。该批不改变 Skill
-目录、`SKILL.md` 格式、导入协议、可见性偏好和系统提示词内容；合同测试与 Debug/APK 验证完成前保持
-`verification_pending`，真实 Android 文件系统、进程死亡、设备和长时间运行仍待验收。
+目录、`SKILL.md` 格式、导入协议、可见性偏好和系统提示词内容。`SkillManagerLifecycleContractTest` 定向
+JVM 测试、architecture `phase=m03`、formal readiness、fresh clone、Markdown links 和 Debug/APK 静态
+核验均已通过；APK 为 `485671424` bytes，SHA-256 `34186C829E2A5647001BCA35D3B2E9BBCADD432D4AA5462F635D554B63156E86`，
+身份/唯一 launcher/Debug v2/16 KiB 对齐保持。真实 Android 文件系统、进程死亡、设备和长时间运行仍为
+`verification_pending`。
 2026-09-05 D-02 Browser 用户脚本 attach/detach 竞态收口：在 pending generation 校验之外，
 `WebSessionUserscriptManager` 现在用同一把 `pendingSessionAttachmentLock` 覆盖主线程 attach
 从 pending 消费、旧 binding 清理、WebView provider bridge/document-start 注册到新 binding 发布的
