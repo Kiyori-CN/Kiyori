@@ -469,6 +469,21 @@ SHA-256 `23D60F2933BA6409C605FB0C03CD7A3E5B88D5FA5351BB167C6C43D148E06EAB`。
 项无重复，44 DEX，53 native / 157 ELF LOAD 及 ZIP 16 KB 对齐通过。上述结果只关闭本批
 本地合同，未执行真实 MCP/模型或设备调用，传输层、其他插件生命周期和最终总回归继续。
 
+### D-04 MCP 传输资源实施证据
+
+2026-09-05 在 `MCPBridge.kt` 引入 `MCPBridgeConnection` 作为唯一 JSON 行连接资源：普通
+命令继续由 `commandConnectionMutex` 串行并复用同一资源，`spawn` 继续使用独立短生命周期
+资源。资源在 connect 前发布，写入使用 `BufferedWriter`，读取异常、EOF、解析失败和取消
+统一关闭确切 Socket；取消回调只关闭 Socket，不等待 `BufferedReader` 的内部锁。启动清理
+改为通过连接锁执行，启动后的 list 响应日志只记录成功状态。请求日志保留 command/id 和
+success 状态，不记录参数、响应或启动命令正文。
+
+新增 `MCPBridgeConnectionTest` 的 4 项本机随机端口 TCP 夹具覆盖单次 JSON 交换、同连接
+顺序复用、EOF 关闭和取消解除阻塞读取。与 Manager 15、BridgeClient 14、ToolExecutor 7
+合计 40 项 JVM 测试零失败/错误/跳过；未启动真实 Bridge、终端、MCP 服务或业务 API。
+连接资源只证明本机 socket 合同，仍需继续验证 Android 网络环境、进程死亡、Bridge JS
+pendingRequests 超时和 Ubuntu 插件生命周期；这些项目保持 `verification_pending`。
+
 ### G-01 文档子模块链接检查事实
 
 当前 Markdown 比较器报告的唯一既有失效链接为 `README.md:189 -> terminal/README.md`。

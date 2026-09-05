@@ -30,6 +30,11 @@ Current work status and implementation notes belong in `docs/TODO/`.
   response is preserved; reconnection may occur on a later explicit call. Client cancellation and
   MCP executor interruption propagate without continuing to tool submission. A failed ping clears
   the local connected flag. Client and executor logs omit argument values and response bodies.
+- `MCPBridge` owns one serialized ordinary-command connection and one short-lived connection for
+  `spawn`. Each connection owns its socket and buffered streams; the resource is published before
+  connect so connect/write/read failure is closed. Cancellation closes that socket to release a
+  blocked read and prevents a late response reaching a later command. The wire contract remains
+  newline-delimited JSON with the existing host/port selection and keepalive window.
 - `StandardBrowserSessionTools.getSharedInstance` is the only Browser Runtime construction entry.
   Browser UI, AI tools and the global download drawer share its profile manager, host callbacks,
   download listeners and adblock subscription as well as the WebSession registry. Closing a drawer

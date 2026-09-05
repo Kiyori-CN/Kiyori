@@ -1,7 +1,6 @@
 package com.ai.assistance.operit.data.mcp.plugins
 
 import android.content.Context
-import com.ai.assistance.operit.R
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.OperitPaths
 import com.ai.assistance.operit.util.PortProcessKiller
@@ -10,24 +9,32 @@ import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolParameter
 import java.io.BufferedReader
+import java.io.BufferedWriter
+import java.io.Closeable
+import java.io.EOFException
 import java.io.File
+import java.io.IOException
 import java.io.InputStreamReader
-import java.io.PrintWriter
+import java.io.OutputStreamWriter
+import java.net.InetSocketAddress
 import java.net.Socket
 import java.util.UUID
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import org.json.JSONArray
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * MCPBridge - 用于与TCP桥接器通信的插件类 支持以下命令:
@@ -58,19 +65,7 @@ class MCPBridge private constructor(private val context: Context) {
         private val commandConnectionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
         @Volatile
-        private var commandSocket: Socket? = null
-
-        @Volatile
-        private var commandWriter: PrintWriter? = null
-
-        @Volatile
-        private var commandReader: BufferedReader? = null
-
-        @Volatile
-        private var commandHost: String? = null
-
-        @Volatile
-        private var commandPort: Int? = null
+        private var commandConnection: MCPBridgeConnection? = null
 
         @Volatile
         private var commandLastUsedAtMs: Long = 0L
@@ -159,31 +154,15 @@ class MCPBridge private constructor(private val context: Context) {
         }
 
         private fun closeCommandConnectionLocked() {
-            try { commandWriter?.close() } catch (e: Exception) { }
-            try { commandReader?.close() } catch (e: Exception) { }
-            try { commandSocket?.close() } catch (e: Exception) { }
-            commandWriter = null
-            commandReader = null
-            commandSocket = null
-            commandHost = null
-            commandPort = null
+            commandConnection?.close()
+            commandConnection = null
             commandLastUsedAtMs = 0L
             commandCloseJob?.cancel()
             commandCloseJob = null
         }
 
-        private fun isCommandSocketReusable(host: String, port: Int, nowMs: Long): Boolean {
-            val socket = commandSocket ?: return false
-            val writer = commandWriter ?: return false
-            val reader = commandReader ?: return false
-            if (commandHost != host) return false
-            if (commandPort != port) return false
-            if (nowMs - commandLastUsedAtMs > COMMAND_CONNECTION_KEEP_MS) return false
-            if (!socket.isConnected) return false
-            if (socket.isClosed) return false
-            if (socket.isInputShutdown || socket.isOutputShutdown) return false
-            if (writer.checkError()) return false
-            return true
+        internal suspend fun closeCommandConnection() {
+            commandConnectionMutex.withLock { closeCommandConnectionLocked() }
         }
 
         private fun scheduleCommandConnectionCloseLocked() {
@@ -324,7 +303,7 @@ class MCPBridge private constructor(private val context: Context) {
                     }
 
                     try {
-                        closeCommandConnectionLocked()
+                        closeCommandConnection()
                         PortProcessKiller.killListeners(port)
                         cachedDetectedPort = null
                         cachedDetectedPortAtMs = 0L
@@ -370,7 +349,6 @@ class MCPBridge private constructor(private val context: Context) {
                         }
 
                         if (shouldSendStartCommand) {
-                            AppLogger.d(TAG, "发送启动命令: $command")
                             AppLogger.d(TAG, "进行桥接器启动...")
                             terminal.executeCommand(actualSessionId, command.toString())
                         } else {
@@ -386,7 +364,7 @@ class MCPBridge private constructor(private val context: Context) {
                         for (i in 1..3) {
                             val checkResult = getInstance(ctx).listMcpServices()
                             if (checkResult != null && checkResult.optBoolean("success", false)) {
-                                AppLogger.d(TAG, "桥接器成功启动，list响应: $checkResult")
+                                AppLogger.d(TAG, "桥接器成功启动，服务列表查询成功")
                                 isRunning = true
                                 break
                             }
@@ -437,33 +415,6 @@ class MCPBridge private constructor(private val context: Context) {
                     }
                 }
 
-        private fun sendCommandThroughStream(
-            command: JSONObject,
-            writer: PrintWriter,
-            reader: BufferedReader,
-            cmdId: String,
-            cmdType: String,
-            serviceName: String?,
-            emptyResponseMessage: String
-        ): JSONObject? {
-            return try {
-                writer.println(command.toString())
-                writer.flush()
-
-                val response = reader.readLine()
-                if (response.isNullOrBlank()) {
-                    AppLogger.e(TAG, emptyResponseMessage)
-                    null
-                } else {
-                    AppLogger.d(TAG, "命令[$cmdId: $cmdType${if (!serviceName.isNullOrBlank()) " service=$serviceName" else ""}]响应: $response")
-                    JSONObject(response)
-                }
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "命令[$cmdId: $cmdType]通信或解析失败: ${e.message}")
-                null
-            }
-        }
-
         suspend fun sendCommand(
             command: JSONObject,
             host: String = DEFAULT_HOST,
@@ -478,6 +429,7 @@ class MCPBridge private constructor(private val context: Context) {
         }
 
         // 发送命令到桥接器
+        @Suppress("UNUSED_PARAMETER") // 保持公开 Context 重载；传输不依赖 Android 文案或 UI。
         suspend fun sendCommand(
                 context: Context,
                 command: JSONObject,
@@ -488,112 +440,60 @@ class MCPBridge private constructor(private val context: Context) {
                     try {
                         // 自动检测端口（如果未指定）
                         val actualPort = port ?: detectPort()
-                        val nowMs = System.currentTimeMillis()
-                        
-                        // Extract command details for better logging
-                        val cmdType = command.optString("command", "unknown")
-                        val cmdId = command.optString("id", "no-id")
-                        val params = command.optJSONObject("params")
-
-                        // Enhanced logging with special handling for commands with service names
-                        val serviceName = params?.optString("name")
-                        val logMessage =
-                                if (serviceName != null && serviceName.isNotEmpty()) {
-                                    "${context.getString(R.string.mcp_send_command)}[$cmdId]: $cmdType ${context.getString(R.string.mcp_service_label)}: $serviceName ${context.getString(R.string.mcp_other_params)}: ${params.toString()}"
-                                } else {
-                                    "${context.getString(R.string.mcp_send_command)}[$cmdId]: $cmdType ${if (params != null) "参数: $params" else ""}"
-                                }
-
-                        AppLogger.d(TAG, logMessage)
-
-                        if (cmdType == "spawn") {
-                            var dedicatedSocket: Socket? = null
-                            return@withContext try {
-                                dedicatedSocket = Socket().apply {
-                                    reuseAddress = true
-                                    soTimeout = 180000
-                                    connect(java.net.InetSocketAddress(host, actualPort), 5000)
-                                }
-
-                                val dedicatedWriter = PrintWriter(dedicatedSocket.getOutputStream(), true)
-                                val dedicatedReader = BufferedReader(InputStreamReader(dedicatedSocket.getInputStream()))
-
-                                sendCommandThroughStream(
-                                    command = command,
-                                    writer = dedicatedWriter,
-                                    reader = dedicatedReader,
-                                    cmdId = cmdId,
-                                    cmdType = cmdType,
-                                    serviceName = serviceName,
-                                    emptyResponseMessage = "命令[$cmdId: $cmdType]没有收到响应（独立连接）"
-                                )
-                            } catch (e: Exception) {
-                                AppLogger.e(TAG, "发送独立连接命令失败[$cmdType]: ${e.message}")
-                                null
-                            } finally {
-                                try {
-                                    dedicatedSocket?.close()
-                                } catch (_: Exception) {
-                                }
-                            }
-                        }
-
-                        return@withContext commandConnectionMutex.withLock {
-                            val canReuse = isCommandSocketReusable(host, actualPort, nowMs)
-                            if (!canReuse) {
-                                closeCommandConnectionLocked()
-
-                                val newSocket = Socket()
-                                newSocket.reuseAddress = true
-                                newSocket.soTimeout = 180000
-                                newSocket.connect(
-                                    java.net.InetSocketAddress(host, actualPort),
-                                    5000
-                                )
-
-                                commandSocket = newSocket
-                                commandWriter = PrintWriter(newSocket.getOutputStream(), true)
-                                commandReader = BufferedReader(InputStreamReader(newSocket.getInputStream()))
-                                commandHost = host
-                                commandPort = actualPort
-                            }
-
-                            commandLastUsedAtMs = nowMs
-                            scheduleCommandConnectionCloseLocked()
-
-                            val writer = commandWriter
-                            val reader = commandReader
-                            if (writer == null || reader == null) {
-                                closeCommandConnectionLocked()
-                                return@withLock null
-                            }
-
-                            val jsonResponse = sendCommandThroughStream(
-                                command = command,
-                                writer = writer,
-                                reader = reader,
-                                cmdId = cmdId,
-                                cmdType = cmdType,
-                                serviceName = serviceName,
-                                emptyResponseMessage = "命令[$cmdId: $cmdType]没有收到响应"
-                            )
-
-                            if (jsonResponse == null) {
-                                closeCommandConnectionLocked()
-                                return@withLock null
-                            }
-
-                            commandLastUsedAtMs = System.currentTimeMillis()
-                            scheduleCommandConnectionCloseLocked()
-                            return@withLock jsonResponse
-                        }
+                        sendCommandAtPort(command, host, actualPort)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
                     } catch (e: Exception) {
-                        // 简化错误日志 - 只记录关键信息
                         val cmdType = command.optString("command", "unknown")
-                        AppLogger.e(TAG, "发送命令失败[$cmdType]: ${e.message}")
+                        AppLogger.e(TAG, "发送命令失败[$cmdType]: ${e.javaClass.simpleName}")
                         return@withContext null
                     }
                 }
+
+        // 调用方在 IO 线程执行；显式端口入口与自动探测共用同一连接和同步边界。
+        internal suspend fun sendCommandAtPort(command: JSONObject, host: String, port: Int): JSONObject? {
+            val cmdType = command.optString("command", "unknown")
+            val cmdId = command.optString("id", "no-id")
+            AppLogger.d(TAG, "发送命令[$cmdId: $cmdType]")
+            return try {
+                val response = if (cmdType == "spawn") {
+                    MCPBridgeConnection(host, port).use { it.exchange(command) }
+                } else {
+                    commandConnectionMutex.withLock {
+                        commandCloseJob?.cancel()
+                        commandCloseJob = null
+                        val cached = commandConnection
+                        val connection = if (
+                            cached != null && cached.canReuse(host, port) &&
+                            System.currentTimeMillis() - commandLastUsedAtMs <= COMMAND_CONNECTION_KEEP_MS
+                        ) {
+                            cached
+                        } else {
+                            closeCommandConnectionLocked()
+                            // 在 connect 之前取得资源所有权，建立连接或创建流失败也必须关闭。
+                            MCPBridgeConnection(host, port).also { commandConnection = it }
+                        }
+                        try {
+                            val result = connection.exchange(command)
+                            commandLastUsedAtMs = System.currentTimeMillis()
+                            scheduleCommandConnectionCloseLocked()
+                            result
+                        } catch (error: Exception) {
+                            // 清理发生在锁内；新请求不能消费取消或失败连接的迟到响应。
+                            closeCommandConnectionLocked()
+                            throw error
+                        }
+                    }
+                }
+                AppLogger.d(TAG, "命令[$cmdId: $cmdType]响应 success=${response.optBoolean("success", false)}")
+                response
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                AppLogger.e(TAG, "命令[$cmdId: $cmdType]通信或解析失败: ${error.javaClass.simpleName}")
+                null
+            }
+        }
     }
 
     // 注册新的MCP服务
@@ -744,4 +644,55 @@ class MCPBridge private constructor(private val context: Context) {
                 return@withContext null
             }
         }
+}
+
+/** 单条 JSON 行连接的资源；共享调用顺序仍由 MCPBridge 的连接锁管理。 */
+internal class MCPBridgeConnection(
+    private val host: String,
+    private val port: Int,
+    private val socket: Socket = Socket(),
+    private val readTimeoutMs: Int = 180000,
+) : Closeable {
+    private class Streams(val writer: BufferedWriter, val reader: BufferedReader)
+    private var streams: Streams? = null
+
+    fun canReuse(host: String, port: Int): Boolean =
+        this.host == host && this.port == port && streams != null && socket.isConnected &&
+            !socket.isClosed && !socket.isInputShutdown && !socket.isOutputShutdown
+
+    suspend fun exchange(command: JSONObject): JSONObject = suspendCancellableCoroutine { continuation ->
+        // readLine 持有 reader 锁；取消只关闭 Socket，不能在回调中等待 reader.close()。
+        continuation.invokeOnCancellation { close() }
+        if (!continuation.isActive) return@suspendCancellableCoroutine
+        try {
+            val io = streams ?: run {
+                socket.reuseAddress = true
+                socket.soTimeout = readTimeoutMs
+                socket.connect(InetSocketAddress(host, port), 5000)
+                Streams(
+                    OutputStreamWriter(socket.getOutputStream(), Charsets.UTF_8).buffered(),
+                    InputStreamReader(socket.getInputStream(), Charsets.UTF_8).buffered(),
+                ).also { streams = it }
+            }
+            if (!continuation.isActive) return@suspendCancellableCoroutine
+            // BufferedWriter 直接传播写入异常，不能使用隐藏错误的 PrintWriter。
+            io.writer.write(command.toString())
+            io.writer.newLine()
+            io.writer.flush()
+            val response = io.reader.readLine()
+            if (response.isNullOrBlank()) throw EOFException("Bridge returned no response")
+            continuation.resume(JSONObject(response))
+        } catch (error: Exception) {
+            close()
+            continuation.resumeWithException(error)
+        }
+    }
+
+    override fun close() {
+        try {
+            socket.close()
+        } catch (error: IOException) {
+            AppLogger.w("MCPBridge", "关闭命令 Socket 失败: ${error.javaClass.simpleName}")
+        }
+    }
 }
