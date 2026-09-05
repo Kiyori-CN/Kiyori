@@ -125,7 +125,7 @@ owner: Kiyori terminal / rootfs migration
   package lock、双构建和 archive/架构审计，不能把运行时网络更新伪装成预装版本证据。大型
   Node/JDK/Gradle 不随 APK 预装，以控制手机首装磁盘峰值和常驻内存；它们由环境配置按需安装。
 - Environment Setup 的 Node 选择固定到 Node.js 24 LTS `24.20.0`（官方 arm64 tar.xz 与 SHA-256
-  固定），不选 Node 26 current；pnpm 固定 `11.25.0`，TypeScript 固定 `7.0.2`，readiness
+  固定），不选 Node 26 current；pnpm 固定 `12.3.4`，TypeScript 固定 `7.0.2`，readiness
   probe 对 Node/npm/pnpm/tsc 的实际版本和可执行路径逐项精确校验。
 - Java 选择 Ubuntu Resolute 的 OpenJDK 25 LTS（当前包 `25.0.4+7-1~26.04`）；Gradle 不再调用
   Ubuntu 的 `4.4.1` stale 包，改用 Gradle 官方 `9.7.1` binary distribution，固定 SHA-256、
@@ -177,7 +177,7 @@ O2/O3/O4 的真机复测仍待完成。
 2026-08-19 构建，官方 checksum 与仓库常量一致）；Gradle 9.7.1 兼容性矩阵声明可在 JVM 17–26
 运行，因此 Resolute `openjdk-25-jdk=25.0.4+7-1~26.04` 是兼容的 LTS 选择；Node 官方发行索引显示
 `v24.20.0` 为 LTS、`v26.8.1` 为 current，Node 24.20.0 arm64 SHA-256 已固定，随包 npm 为
-`11.19.0`；npm registry 的目标版本为 pnpm `11.25.0` 与 TypeScript `7.0.2`。Ubuntu Resolute
+`11.19.0`；npm registry 的目标版本为 pnpm `12.3.4` 与 TypeScript `7.0.2`。Ubuntu Resolute
 软件包页显示 `gradle=4.4.1-22ubuntu1`（明显落后），所以一键安装不再使用该包。
 这些是本次安装合同的观察点，不代表永远不更新；后续更新必须重新核验官方版本、兼容矩阵、SHA、arm64
 设备表现和磁盘/内存预算，再修改合同常量与文档。

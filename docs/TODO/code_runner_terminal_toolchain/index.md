@@ -1,5 +1,65 @@
 # code_runner 与终端工具链收口
 
+## 环境配置版本与首帧导航稳定性（2026-09-06）
+
+状态：本地实现、自动化验证和 Debug APK 已完成；目标 Android 设备上的首次点击/输入法/Ubuntu 实际安装仍为 `verification_pending`。
+
+### 目标与验收
+
+- 环境配置页的 Gradle 文案只保留“Gradle 官方稳定版”，不再显示 Ubuntu 旧包说明；自动配置的
+  Node.js、npm、pnpm、TypeScript、OpenJDK 与 Gradle 合同必须与 2026-09-06 官方稳定版本一致，且
+  安装命令继续使用 Ubuntu 兼容的非交互、官方归档校验和明确路径。
+- AI 对话中任何时刻点击“环境配置”按钮，都在同一帧锁定 setup 路由，不能回到终端主页、重复入栈或
+  让终端 SurfaceView/输入法重新取得焦点。
+- 版本探针、安装命令、资源文案、README/CONTEXT 和定向测试只能引用同一份版本合同；环境页路由和
+  SurfaceView 生命周期必须有可回归的 JVM/源码合同证据。
+
+### 研究事实
+
+- `TerminalScreen` 当前用 `NavController.currentDestination` 判断是否已在 setup；导航调用发生后该值
+  可能仍是 home，连续点击因此不能作为幂等闸门。`TerminalHome` 在回调前清理 Compose 焦点，但
+  `CanvasTerminalScreen` 的 `AndroidView.factory` 仍会 `post { requestFocus() }`，释放路径也没有清除
+  native 焦点和输入连接；这解释了首几次点击时回到 home/输入法弹出的时序窗口。
+- Gradle Services `current=9.7.1`、官方 checksum 与 `TerminalEnvironmentContract` 一致；Node 官方
+  索引的 `24.20.0` 是当前 LTS（`26.8.1` 为 current），OpenJDK 25 最新 LTS 为 `25.0.4`，TypeScript
+  最新为 `7.0.2`。npm registry 当前稳定 pnpm 为 `12.3.4`，现有 `11.25.0` 已过期。
+- Ubuntu apt 管理的 Python、Go、Ruby、SSH 继续由 Resolute 源按包管理器提供稳定版本；不改成第二下载源，
+  避免在弱网和设备架构上引入无法验证的安装路径。
+
+### 实施方案
+
+1. 将 pnpm 合同更新为 `12.3.4`，同步中文/英文资源、Terminal README/CONTEXT、版本证据和现有契约测试；
+   保留 Node 24 LTS、OpenJDK 25 和 Gradle 9.7.1 的已验证 SHA/兼容边界。
+2. 在 `TerminalScreen` 增加单一的请求路由状态：点击 setup/settings 时先发布目标路由，再调用 NavController；
+   回退和安装完成也通过同一状态 owner，重复点击、异步 back-stack 发布和首帧系统 Back 均按目标路由处理。
+3. 删除全屏终端 `AndroidView` 的首帧自动 `requestFocus`，在 `CanvasTerminalView.release()` 和 Compose
+   `onRelease` 清理焦点、输入连接和软键盘，保留用户点击终端时的正常输入行为。
+4. 补充纯函数/源码合同测试，覆盖请求路由幂等、setup/settings Back 顺序、稳定版本探针和禁止 Ubuntu
+   `gradle` 4.4.1 安装；运行 terminal 定向测试、文档/差异检查、正式门禁，并按项目规则串行构建 Debug APK。
+
+### 风险与边界
+
+- 不新增第二个终端、路由或环境状态 owner，不修改 Ubuntu rootfs、协议标识、APT 包名和已有用户数据。
+- Node 仍选择 LTS 而不是 current，保证 Android/Ubuntu 工具链兼容；pnpm 的升级会使旧版本探针重新显示未就绪，
+  用户可通过同一环境页按新合同安装。
+- 本地 JVM/构建不能替代目标 Android 设备上的首次点击、输入法和 Ubuntu 实际安装验收；设备完成前状态保持
+  `verification_pending`。
+
+### 实现与验证结果
+
+- 终端子模块提交 `f3a3a30` 已推送 `origin/main`。环境页版本合同为 Node.js `24.20.0` LTS、npm
+  `11.19.0`、pnpm `12.3.4`、TypeScript `7.0.2`、OpenJDK 25 和 Gradle `9.7.1`；Gradle
+  文案已收敛为“Gradle 官方稳定版”，不再显示括号说明。
+- `:terminal:testDebugUnitTest` 通过（18 actionable tasks，9 executed）；`git diff --check`、
+  `check_formal_readiness.py --repository . --require-main`、`check_fresh_clone.py --repository .`
+  均通过。测试覆盖版本探针、非交互安装、Gradle 禁止 Ubuntu `4.4.1`、路由请求幂等和 Back 顺序。
+- 串行 `:app:assembleDebug --no-daemon --console=plain` 通过（235 tasks，33 executed）。最终 APK
+  `app/build/outputs/apk/debug/app-debug.apk` 为 `512626322` bytes，SHA-256
+  `3D421B8BEC6CA01A4A46517DF043805D3293CF866E76F0A36A39F3B6AAA190A3`；包名/版本为
+  `com.kiyori / 45 / 0.1.0`，min/target/compile SDK 为 `26/34/37`，仅 `arm64-v8a`，唯一 launcher，
+  Android Debug V2 单 signer 与 `zipalign -c -P 16 -v 4` 通过。Ubuntu APK packaging 通过，Resolute
+  资产 1 份、Noble 资产 0 份。
+
 状态：2026-09-01 现场回归增量的本地实现、自动化验证与 Debug APK 已完成；真机验收仍为 `verification_pending`。
 目标是让 Agent 能准确区分 code_runner、super_admin、可见终端、Ubuntu/proot、
 Android Shell、Python venv 和 Node 工作区，并消除隐藏执行器超时后遗留进程、输出失控和

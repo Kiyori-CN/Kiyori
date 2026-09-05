@@ -69,6 +69,8 @@ For_Agent: 对项目大规模动工前按本规范协作
   编码保留载荷，补齐失效 cwd 到 `$HOME` 的显式恢复与失败阻断；真实 Bash PTY 和生产
   脚本包回归、Terminal 64/64 和最终 APK 核验已通过；本轮按授权提交推送，Android/proot
   现场仍为 `verification_pending`。
+  2026-09-06 环境配置增量已更新 pnpm `12.3.4`，修复请求路由幂等和终端 SurfaceView/IME 释放竞态；
+  terminal `f3a3a30`、正式门禁、新鲜克隆、定向测试与 Debug APK 已验证并按授权推送，设备验收仍待完成。
   前轮已完成 code_runner、super_admin、可见 PTY、hidden executor、Ubuntu/proot、Python venv、Node workspace 与
   `package_proxy` 参数协议的调用链研究和本地实现；已补齐 hidden shell 失败回收、可见会话
   并发创建锁、真实 exit code、唯一临时路径、venv 自检，以及环境配置页的 hidden probe、
