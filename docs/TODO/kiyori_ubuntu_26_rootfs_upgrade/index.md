@@ -173,7 +173,7 @@ O2/O3/O4 的真机复测仍待完成。
 
 ### 版本证据与更新策略
 
-本轮按 2026-09-04 的公开官方端点核验并记录目标版本：Gradle Services `current=9.7.1`（已发布，
+本轮按 2026-09-06 的公开官方端点核验并记录目标版本：Gradle Services `current=9.7.1`（已发布，
 2026-08-19 构建，官方 checksum 与仓库常量一致）；Gradle 9.7.1 兼容性矩阵声明可在 JVM 17–26
 运行，因此 Resolute `openjdk-25-jdk=25.0.4+7-1~26.04` 是兼容的 LTS 选择；Node 官方发行索引显示
 `v24.20.0` 为 LTS、`v26.8.1` 为 current，Node 24.20.0 arm64 SHA-256 已固定，随包 npm 为
