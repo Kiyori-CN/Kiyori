@@ -52,8 +52,12 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 - [角色卡和提示词页面与环境识别修复](character_card_prompt_ui/index.md)：统一 AI 助手设置与角色卡子页面标题，重做角色卡/标签/群组切换栏，修复头像裁剪 ActionBar 按钮和选框外图片遮罩，并复核终端环境自动安装与识别合同。
 
-- [code_runner 与终端工具链收口](code_runner_terminal_toolchain/index.md)：已完成 code_runner、
-  super_admin、可见 PTY、hidden executor、Ubuntu/proot、Python venv、Node workspace 与
+- [code_runner 与终端工具链收口](code_runner_terminal_toolchain/index.md)：2026-09-05 输入保真增量
+  已复现 TAB 被 Readline 补全成 `.` 的根因，采用单行 ANSI-C
+  编码保留载荷，补齐失效 cwd 到 `$HOME` 的显式恢复与失败阻断；真实 Bash PTY 和生产
+  脚本包回归、Terminal 64/64 和最终 APK 核验已通过；本轮按授权提交推送，Android/proot
+  现场仍为 `verification_pending`。
+  前轮已完成 code_runner、super_admin、可见 PTY、hidden executor、Ubuntu/proot、Python venv、Node workspace 与
   `package_proxy` 参数协议的调用链研究和本地实现；已补齐 hidden shell 失败回收、可见会话
   并发创建锁、真实 exit code、唯一临时路径、venv 自检，以及环境配置页的 hidden probe、
   单次提交和逐步安装；当前增量又修复首路由竞态、PTY `printf` 丢失 `$?`、AI 电脑终端 IME

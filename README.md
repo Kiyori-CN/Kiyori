@@ -68,6 +68,11 @@ Kiyori 是一款以浏览器为产品中心、以内置 Operit AI 为智能子�
 
 部分页面、真实设备交互和发行流程仍在持续验收。当前实现状态、唯一状态所有者和兼容性合同以 [`CONTEXT.md`](CONTEXT.md) 为准；阶段任务与现场验收状态以 [`docs/TODO/`](docs/TODO/README.md) 为准。
 
+`code_runner` 与 `super_admin:terminal` 的脚本/命令输入支持 TAB 缩进、多行、中文与引号等
+特殊字符。终端批量命令保留所在会话的目录、环境变量和后台任务；若当前目录已被删除，下一条
+批量命令会先切换到 `$HOME`，无法进入时明确失败。NUL 字符无法由 Bash 字符串表示，会在
+入队前拒绝；终端键盘输入的 TAB 补全和 Ctrl+C 保持原有语义。
+
 ### Shizuku 与应用日志
 
 `super_admin:shell` 的特权能力依赖设备上正在运行并已向 Kiyori 授权的 Shizuku；它与

@@ -5,6 +5,73 @@
 Android Shell、Python venv 和 Node 工作区，并消除隐藏执行器超时后遗留进程、输出失控和
 `params must be a valid JSON object` 这组三类现场问题。
 
+## TAB 输入保真与失效 cwd 修复（2026-09-05）
+
+状态：根因、修复、本地回归与 Debug APK 已验证，Android/proot 现场验收保持
+`verification_pending`；本轮提交/推送与候选克隆结果由最终交付记录提供。
+
+1. 修复前分别检查 ToolPkg 字符串参数、code_runner here-document、可见 PTY 包装及真实 Bash
+   Readline 行为，使用 Go 源码和 heredoc 字节对比区分参数损坏与交互按键解释。
+2. 在现有命令包装 owner 内实现保真传输，审查 TAB、控制字符、引号、反斜杠、中文与多行边界；
+   不更换终端、会话、AIDL、超时/取消或后台执行 owner，不改原始键盘输入合同。
+3. 按用户明确要求，失效 cwd 在提交命令时恢复到 `$HOME`；恢复失败必须保留失败结果，
+   不执行依赖有效目录的用户命令。正常 cwd、export 和退出码保持原语义。
+4. 运行修复前后 PTY 对照、参数/命令定向测试、正式准备检查、文档链接、Terminal 构建与
+   Debug APK；审阅父仓和子模块差异，先发布子模块，再验证父仓 gitlink 并提交推送。
+
+风险与恢复点：交互 shell 会先解释输入按键；命令载荷不能直接暴露给 Readline。保留基线
+`terminal@7ec4cfb` 的协议、会话队列及完成 marker；本轮不安装或操控设备，不混入并行重构。
+
+### 已确认根因与实现
+
+- 参数边界 `JsToolManager.convertToolParameterValue` 对字符串返回 `rawValue`；
+  `JsEngine` 使用 JSON 序列化，code_runner here-document 和 super_admin 转发均保留 TAB。
+  `ToolPkg invocation argument was rejected` 对应缺失参数或类型不符，不是字符替换路径。
+- 旧 `buildCommandWithExitMarkerProtocol` 把原始多行内容放入 `eval '…'` 后写入交互 PTY。
+  Bash Readline 在 shell 解析之前处理 TAB，即使 TAB 位于尚未闭合的单引号中也会补全。
+  WSL Bash 5.1 的隔离目录只含 `.bashrc`、`.profile` 时，实际文件从 `09 66 6d 74` 变成
+  `2e 66 6d 74`；本机 Go 随后报 `syntax error: unexpected ., expected }`。空目录则吞掉 TAB。
+- 新 `CommandEnvelope.kt` 使用单行 ASCII 的 Bash ANSI-C quoting：编码 UTF-8 字节、
+  控制字符、引号、反斜杠及历史展开 `!`，由原 shell 在 Readline 收完输入后解码并 `eval`。
+  不使用外部 base64 进程、临时执行文件或第二个 shell。原先命令包装对 CR 和尾部 LF 的改写
+  已移除；code_runner 自身既有源文件换行规范仍为 CRLF/CR → LF 并补齐最后一个 LF。
+- NUL 不能由 Bash 字符串表示，故在队列/命令状态变更前明确拒绝。按键 `sendInput` 不编码，
+  Ctrl+C 和 TAB 补全仍是交互输入语义。实际目录查询失败才执行用户要求的 `$HOME` 恢复；
+  失败时不执行用户命令，通过既有 OSC marker 返回失败退出码。
+- 官方机制参考：[Bash 命令行编辑](https://www.gnu.org/software/bash/manual/html_node/Command-Line-Editing.html)
+  与 [Bash 手册的 ANSI-C Quoting](https://www.gnu.org/s/bash/manual/bash.html)。
+
+### 本地回归证据
+
+| 验收项 | 2026-09-05 证据 | 边界 |
+| --- | --- | --- |
+| Go TAB 缩进 | 旧 PTY 文件编译失败；新生产 Kotlin 包装经真实 PTY 后字节相同，Go 输出 `hi` | 编译器为 Windows Go，非设备上的 `run_go` |
+| terminal heredoc / Makefile | 文件逐字节包含 `0x09`，Makefile recipe 与预期完全相等 | WSL Bash PTY |
+| Python TAB / 空格缩进 | 实际 Python 输出 `中文 hi`、`space hi` | WSL Python |
+| Node 中文/引号/反斜杠/美元/反引号/感叹号 | 新包装经 PTY 写入的 JS 使用本机 Node 执行，输出精确相等 | Windows Node |
+| 其他控制字符 / CR / 中文 / emoji | 1–31 与 DEL 的文件字节、混合引号及 Unicode 精确相等；NUL 明确拒绝 | JVM + WSL PTY |
+| 长输入 | 1800 次 TAB/中文/引号混合载荷完整落盘 | WSL PTY |
+| cwd / export / jobs | 跨命令保留；后台任务完成后读取正确 | WSL PTY |
+| cwd 删除 / HOME 无效 | 前者恢复并继续，后者退出码 1 且用户命令未执行 | WSL PTY |
+| Ctrl+C / 会话继续使用 | PTY 注入 `0x03` 中断 `sleep`，下一命令成功 | Android 超时回调与 UI 仍待验收 |
+| 7 种语言脚本与终端前后台/输入转发 | `node --test tools/example_packages/terminal_input.test.mjs`，9/9 | 生产 JS + 宿主调用边界 mock，非伪称设备运行 |
+| 终端测试 / 库构建 | `:terminal:testDebugUnitTest :terminal:assembleDebug`，64/64、零跳过，构建通过 | Windows 显式设置 `KIYORI_PTY_WSL_DISTRO=Ubuntu-22.04` |
+| ToolPkg / 正式准备 | `ci.test.test_toolpkg_sync` 15/15，formal readiness PASS | 本地 |
+| Debug APK | `:app:assembleDebug --no-daemon --console=plain`，3m51s / 235 tasks，构建通过 | 开发包，非正式发行 |
+
+Debug APK：2026-09-05 13:28:36 +08:00，`app/build/outputs/apk/debug/app-debug.apk`，
+483,708,439 bytes，SHA-256
+`9DC0F990E83E2D6416DBCCA9393DAF5F3643AB81DD855EC0EB3249F51C3A0345`。
+包名/版本为 `com.kiyori / 45 / 0.1.0`，min/target/compile SDK 为 26/34/37，
+Android Debug V2 单 signer、16 KiB zipalign、唯一 ZIP entry 和 arm64 ABI 通过。
+DEX 包含新的 `CommandEnvelopeKt`，code_runner/super_admin 资产与源码逐字节相同；
+Ubuntu APK 检查确认一份 Resolute、零 Noble。Terminal 修复提交为
+`6180a86e4e2c45f8f05a3f93d20a0ef4a97d11cd`，已核对 local/tracking/remote 相同。
+
+设备剩余验收：安装本轮 APK 后，在 Ubuntu 26.04/aarch64 的真实 ToolPkg 中运行 `run_go`、
+`run_python`、Node、多行 heredoc/Makefile、前后台会话、Ctrl+C、工具超时和 deleted cwd。
+本地证据不能代替 Android/proot 的端到端结果。
+
 ## 研究结论
 
 | 面 | 唯一 owner | 执行形态 | 数据/环境边界 | 可见性 |

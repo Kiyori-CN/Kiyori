@@ -821,6 +821,13 @@ This boundary does not change ObjectBox schema, search expansion or backup forma
 ## Development identity and migration
 
 - The continuous-development branch is `main`; parent and `terminal` remotes publish Kiyori changes only to their respective `main` branches.
+- ToolPkg `code_runner` and `super_admin:terminal` batch payloads use Terminal's one `CommandEnvelope`
+  owner: UTF-8 bytes are encoded before interactive Readline, then decoded by Bash and evaluated in
+  the same session. TAB, control characters, quotes, Unicode, CR and trailing LF in terminal commands
+  are preserved; NUL is rejected before enqueueing. A physically invalid cwd is repaired to `$HOME`
+  before evaluation, and a failed repair returns its error without executing the command. Normal
+  cwd/export/jobs and raw `terminal_input` keyboard semantics remain unchanged. code_runner's source
+  writer retains its existing CRLF/CR-to-LF source-file convention and final LF insertion.
 - The `terminal` directory is the `KiyoriTerminalCore` submodule and is pinned by a parent gitlink.
 - `com.kiyori` is a new Android application identity. It cannot in-place upgrade `com.ai.assistance.operit`; users must export and import supported backups.
 - Kiyori-owned public downloads and exports use domain-specific directories under `Download/Kiyori`; public images use `Pictures/Kiyori`. The host does not automatically scan, read, merge, copy, migrate, or delete `Download/Operit`. Old public ToolPkg data enters a private generation only after the user selects a SAF tree and a package-specific migrator validates the declared input.
