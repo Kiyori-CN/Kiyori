@@ -45,6 +45,11 @@ Current work status and implementation notes belong in `docs/TODO/`.
   data contract and default web configuration. Workspace UI renders and edits this contract, while
   ToolPkg/workspace services consume it without importing UI packages; the JSON field names and
   default values remain unchanged.
+- `core.workspace.WorkspaceDownloadDispatcher` is the workspace WebView download capability boundary.
+  `WebViewHandler` submits typed network or inline requests through that capability, while
+  `BrowserWorkspaceDownloadDispatcher` adapts both paths to the existing `BrowserDownloadManager`
+  and its stable task/session contract. Workspace UI does not import Browser download functions and
+  no second downloader, persistence format, or transport owner is introduced.
 - `StandardBrowserSessionTools.getSharedInstance` is the only Browser Runtime construction entry.
   Browser UI, AI tools and the global download drawer share its profile manager, host callbacks,
   download listeners and adblock subscription as well as the WebSession registry. Closing a drawer

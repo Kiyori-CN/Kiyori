@@ -30,8 +30,9 @@ import androidx.compose.runtime.produceState
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.ai.assistance.operit.R
-import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.enqueueWorkspaceWebViewDownload
-import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.enqueueWorkspaceWebViewInlineDownload
+import com.ai.assistance.operit.core.workspace.WorkspaceDownloadDispatcher
+import com.ai.assistance.operit.core.workspace.WorkspaceDownloadRequest
+import com.ai.assistance.operit.core.workspace.WorkspaceInlineDownloadRequest
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -39,7 +40,10 @@ import java.util.Date
 import java.util.Locale
 
 /** WebViewHandler - 处理WebView的所有配置和功能 包括安全设置、CORS支持、文件上传下载、缓存控制等 */
-class WebViewHandler(private val context: Context) {
+class WebViewHandler(
+    private val context: Context,
+    private val downloadDispatcher: WorkspaceDownloadDispatcher,
+) {
 
     enum class WebViewMode {
         WORKSPACE // 用于代码/网页预览，需要自适应屏幕
@@ -96,11 +100,12 @@ class WebViewHandler(private val context: Context) {
 
                 // 确保文件名有效
                 val cleanFileName = sanitizeFileName(fileName)
-                enqueueWorkspaceWebViewInlineDownload(
-                    context = context,
-                    bytes = bytes,
-                    fileName = cleanFileName,
-                    mimeType = mimeType,
+                downloadDispatcher.enqueueInline(
+                    WorkspaceInlineDownloadRequest(
+                        bytes = bytes,
+                        fileName = cleanFileName,
+                        mimeType = mimeType,
+                    ),
                 )
             } catch (e: Exception) {
                 AppLogger.e("WebViewHandler", "Blob数据下载失败", e)
@@ -401,13 +406,14 @@ class WebViewHandler(private val context: Context) {
             ?.takeIf(String::isNotBlank)
             ?.let { cookie -> headers["Cookie"] = cookie }
         check(
-            enqueueWorkspaceWebViewDownload(
-                context = context,
-                url = url,
-                fileName = sanitizeFileName(filename),
-                mimeType = mimetype,
-                contentLength = contentLength,
-                headers = headers,
+            downloadDispatcher.enqueueNetwork(
+                WorkspaceDownloadRequest(
+                    url = url,
+                    fileName = sanitizeFileName(filename),
+                    mimeType = mimetype,
+                    contentLength = contentLength,
+                    headers = headers,
+                ),
             ),
         ) {
             "Workspace WebView download could not be enqueued"

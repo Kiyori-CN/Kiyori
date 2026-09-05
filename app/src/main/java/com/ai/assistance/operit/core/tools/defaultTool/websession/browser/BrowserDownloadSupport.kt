@@ -19,6 +19,9 @@ import com.ai.assistance.operit.core.ffmpeg.runtime.FFmpegRuntimeTerminalState
 import com.ai.assistance.operit.core.player.PlayerSettingsStore
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.core.tools.defaultTool.ToolGetter
+import com.ai.assistance.operit.core.workspace.WorkspaceDownloadDispatcher
+import com.ai.assistance.operit.core.workspace.WorkspaceDownloadRequest
+import com.ai.assistance.operit.core.workspace.WorkspaceInlineDownloadRequest
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.commitFileAtomicallyWithoutReplacement
 import com.kiyori.platform.storage.KiyoriPaths
@@ -3251,56 +3254,48 @@ internal fun StandardBrowserSessionTools.startInlineManagedDownload(
 /**
  * Workspace WebView 不是第二下载系统。它只把用户动作投递给现有 Browser 下载 owner。
  */
-internal fun enqueueWorkspaceWebViewDownload(
-    context: Context,
-    url: String,
-    fileName: String,
-    mimeType: String?,
-    contentLength: Long,
-    headers: Map<String, String>,
-): Boolean {
-    require(isBrowserDownloadNetworkUrl(url)) {
-        "Workspace WebView downloads require an http or https URL"
+internal class BrowserWorkspaceDownloadDispatcher(
+    private val context: Context,
+) : WorkspaceDownloadDispatcher {
+    override fun enqueueNetwork(request: WorkspaceDownloadRequest): Boolean {
+        require(isBrowserDownloadNetworkUrl(request.url)) {
+            "Workspace WebView downloads require an http or https URL"
+        }
+        val tools = ToolGetter.getBrowserSessionTools(context)
+        val settings = BrowserDownloadSettingsStore.getInstance(context).current
+        return tools.dispatchBrowserDownloadRequest(
+            PendingBrowserDownloadRequest(
+                requestId = UUID.randomUUID().toString(),
+                sessionId = BROWSER_WORKSPACE_WEBVIEW_DOWNLOAD_SESSION_ID,
+                url = request.url,
+                fileName = tools.sanitizeFileName(request.fileName),
+                mimeType = request.mimeType,
+                contentLength = request.contentLength,
+                headers = request.headers.filterKeys(String::isNotBlank),
+                engine = settings.defaultEngine,
+            ),
+        )
     }
-    val tools = ToolGetter.getBrowserSessionTools(context)
-    val settings = BrowserDownloadSettingsStore.getInstance(context).current
-    return tools.dispatchBrowserDownloadRequest(
-        PendingBrowserDownloadRequest(
-            requestId = UUID.randomUUID().toString(),
-            sessionId = BROWSER_WORKSPACE_WEBVIEW_DOWNLOAD_SESSION_ID,
-            url = url,
-            fileName = tools.sanitizeFileName(fileName),
-            mimeType = mimeType,
-            contentLength = contentLength,
-            headers = headers.filterKeys(String::isNotBlank),
-            engine = settings.defaultEngine,
-        ),
-    )
-}
 
-internal fun enqueueWorkspaceWebViewInlineDownload(
-    context: Context,
-    bytes: ByteArray,
-    fileName: String,
-    mimeType: String,
-) {
-    require(bytes.isNotEmpty()) { "Workspace WebView inline download is empty" }
-    val tools = ToolGetter.getBrowserSessionTools(context)
-    val resolvedFileName = tools.resolveInlineDownloadFileName(fileName, mimeType)
-    tools.browserDownloadManager().startInlineDownload(
-        sessionId = BROWSER_WORKSPACE_WEBVIEW_DOWNLOAD_SESSION_ID,
-        type = "workspace_blob",
-        suggestedFileName = resolvedFileName,
-        mimeType = mimeType,
-        bytes = bytes,
-        sourceUrl = null,
-    )
-    tools.showToast(
-        context.getString(
-            com.ai.assistance.operit.R.string.download_started,
-            resolvedFileName,
-        ),
-    )
+    override fun enqueueInline(request: WorkspaceInlineDownloadRequest) {
+        require(request.bytes.isNotEmpty()) { "Workspace WebView inline download is empty" }
+        val tools = ToolGetter.getBrowserSessionTools(context)
+        val resolvedFileName = tools.resolveInlineDownloadFileName(request.fileName, request.mimeType)
+        tools.browserDownloadManager().startInlineDownload(
+            sessionId = BROWSER_WORKSPACE_WEBVIEW_DOWNLOAD_SESSION_ID,
+            type = "workspace_blob",
+            suggestedFileName = resolvedFileName,
+            mimeType = request.mimeType,
+            bytes = request.bytes,
+            sourceUrl = null,
+        )
+        tools.showToast(
+            context.getString(
+                com.ai.assistance.operit.R.string.download_started,
+                resolvedFileName,
+            ),
+        )
+    }
 }
 
 private const val BROWSER_WORKSPACE_WEBVIEW_DOWNLOAD_SESSION_ID =

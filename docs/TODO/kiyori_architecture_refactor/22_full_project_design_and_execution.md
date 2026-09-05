@@ -512,6 +512,23 @@ readiness、fresh clone 和 Debug/APK 审计均通过。新 APK 为 483708439 by
 `6DBC7DB4546ED51859DE30A27EAD76B0C6F2AF1F756F699F98B6D02C61149B05`。真实工作区文件、
 ToolPkg 安装和设备行为仍保持 `verification_pending`。
 
+2026-09-05 随后完成 Workspace WebView 下载命令边界。新增
+`core.workspace.WorkspaceDownloadDispatcher` 及两个稳定请求模型；`WebViewHandler` 的普通
+网络下载和 Blob/Base64 下载只依赖该能力接口，不再反向导入 Browser 下载函数。
+`BrowserWorkspaceDownloadDispatcher` 是唯一适配器，网络与内联请求继续进入既有
+`BrowserDownloadManager`、相同的工作区会话标识、任务持久化、文件名处理和通知路径；未新增
+下载器、数据库、传输或协议，也未改变 HTTP/Blob 行为。WorkspaceManager 的两个 WebView
+构造点显式注入该适配器，旧顶层函数已删除且仓库内无残留引用。
+
+本批 `BrowserDownloadRuntimePolicyTest` 定向 JVM 测试通过，`:app:assembleDebug --no-daemon
+--console=plain` 在 1m16s 内通过（235 tasks，23 executed），`check_architecture_boundaries.py
+--require-main`、`check_formal_readiness.py --require-main`、`check_fresh_clone.py` 和
+`git diff --check` 均通过。APK 为 483708439 bytes，SHA-256
+`AE420B3A0B0973637DA5B9D43931157F604303D3C5F8C6EB85B37924D467C798`；包名/版本/SDK 为
+`com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`，唯一 launcher、Debug V2 单 signer、arm64-v8a
+和 16 KiB ZIP 对齐核验通过。真实 Browser 下载、工作区文件和设备交互仍为
+`verification_pending`。
+
 ### G-01 文档子模块链接检查事实
 
 当前 Markdown 比较器报告的唯一既有失效链接为 `README.md:189 -> terminal/README.md`。

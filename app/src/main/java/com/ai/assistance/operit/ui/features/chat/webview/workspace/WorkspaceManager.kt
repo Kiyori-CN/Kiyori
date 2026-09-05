@@ -50,6 +50,7 @@ import kotlin.math.roundToInt
 import androidx.compose.ui.zIndex
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.workspace.CommandConfig
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserWorkspaceDownloadDispatcher
 import com.ai.assistance.operit.core.workspace.WorkspaceConfig
 import com.ai.assistance.operit.core.workspace.WorkspaceConfigReader
 import com.ai.assistance.operit.core.tools.AIToolHandler
@@ -210,7 +211,7 @@ fun WorkspaceManager(
     // 将 webViewHandler 和 webView 实例提升到 remember 中，使其在重组中保持稳定
     val webViewHandler =
             remember(context) {
-                WebViewHandler(context).apply {
+                WebViewHandler(context, BrowserWorkspaceDownloadDispatcher(context)).apply {
                     onFileChooserRequest = { intent, callback ->
                         actualViewModel.startFileChooserForResult(intent) { resultCode, data ->
                             callback(resultCode, data)
@@ -253,7 +254,7 @@ fun WorkspaceManager(
 
     val commandPreviewHandler =
         remember(context) {
-            WebViewHandler(context).apply {
+            WebViewHandler(context, BrowserWorkspaceDownloadDispatcher(context)).apply {
                 onFileChooserRequest = { intent, callback ->
                     actualViewModel.startFileChooserForResult(intent) { resultCode, data ->
                         callback(resultCode, data)
