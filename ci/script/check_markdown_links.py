@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+from collections.abc import Container
 import os
+from pathlib import Path
 import posixpath
 import re
 import subprocess
@@ -29,18 +31,62 @@ class LinkIssue:
         return self.path, self.target
 
 
-def tree_paths(commit: str) -> set[str]:
-    result = subprocess.run(
-        ["git", "ls-tree", "-r", "-z", "--name-only", commit],
-        check=True,
-        capture_output=True,
-    )
-    return {os.fsdecode(value) for value in result.stdout.split(b"\0") if value}
+class SubmoduleTreeUnavailable(RuntimeError):
+    """A referenced gitlink cannot be verified using the local object database."""
 
 
-def read_blob(commit: str, path: str) -> str:
+class GitTree:
+    def __init__(self, commit: str, repository: Path) -> None:
+        self.repository = repository
+        result = subprocess.run(
+            ["git", "-C", str(repository), "ls-tree", "-r", "-z", commit],
+            check=True,
+            capture_output=True,
+        )
+        self.files: set[str] = set()
+        self.gitlinks: dict[str, str] = {}
+        self.children: dict[str, GitTree] = {}
+        for entry in result.stdout.split(b"\0"):
+            if not entry:
+                continue
+            metadata, raw_path = entry.split(b"\t", 1)
+            mode, kind, object_id = metadata.decode("ascii").split()
+            path = os.fsdecode(raw_path)
+            if mode == "160000" and kind == "commit":
+                self.gitlinks[path] = object_id
+            elif kind == "blob":
+                self.files.add(path)
+        self.paths = self.files | set(self.gitlinks)
+        self.paths |= directory_paths(self.paths)
+
+    def __contains__(self, target: str) -> bool:
+        if target in self.paths:
+            return True
+        for path, commit in self.gitlinks.items():
+            if not target.startswith(path + "/"):
+                continue
+            if path not in self.children:
+                repository = self.repository / path
+                # An uninitialized submodule directory otherwise makes git inspect its parent.
+                if not (repository / ".git").exists():
+                    raise SubmoduleTreeUnavailable(
+                        f"Cannot verify link inside submodule {repository.as_posix()} at {commit}: "
+                        "initialize the submodule at the recorded gitlink first."
+                    )
+                try:
+                    self.children[path] = GitTree(commit, repository)
+                except subprocess.CalledProcessError as error:
+                    raise SubmoduleTreeUnavailable(
+                        f"Cannot read submodule {repository.as_posix()} at {commit}: "
+                        "the recorded gitlink commit must be available locally."
+                    ) from error
+            return target[len(path) + 1:] in self.children[path]
+        return False
+
+
+def read_blob(commit: str, path: str, repository: Path) -> str:
     result = subprocess.run(
-        ["git", "show", f"{commit}:{path}"],
+        ["git", "-C", str(repository), "show", f"{commit}:{path}"],
         check=True,
         capture_output=True,
     )
@@ -164,7 +210,7 @@ def inline_targets(line: str) -> list[str]:
     return targets
 
 
-def check_file(path: str, text: str, existing_paths: set[str]) -> list[LinkIssue]:
+def check_file(path: str, text: str, existing_paths: Container[str]) -> list[LinkIssue]:
     issues: list[LinkIssue] = []
     open_fence: tuple[str, int] | None = None
     for line_number, line in enumerate(text.splitlines(), start=1):
@@ -200,16 +246,15 @@ def check_file(path: str, text: str, existing_paths: set[str]) -> list[LinkIssue
     return issues
 
 
-def snapshot_issues(commit: str) -> list[LinkIssue]:
-    files = tree_paths(commit)
-    existing_paths = files | directory_paths(files)
+def snapshot_issues(commit: str, repository: Path = Path(".")) -> list[LinkIssue]:
+    tree = GitTree(commit, repository)
     issues: list[LinkIssue] = []
-    for path in sorted(value for value in files if value.endswith((".md", ".mdx"))):
+    for path in sorted(value for value in tree.files if value.endswith((".md", ".mdx"))):
         try:
-            text = read_blob(commit, path)
+            text = read_blob(commit, path, repository)
         except UnicodeDecodeError:
             continue
-        issues.extend(check_file(path, text, existing_paths))
+        issues.extend(check_file(path, text, tree))
     return issues
 
 
@@ -252,8 +297,11 @@ def main() -> int:
     parser.add_argument("--candidate", required=True)
     args = parser.parse_args()
 
-    base_issues = snapshot_issues(args.base)
-    candidate_issues = snapshot_issues(args.candidate)
+    try:
+        base_issues = snapshot_issues(args.base)
+        candidate_issues = snapshot_issues(args.candidate)
+    except SubmoduleTreeUnavailable as error:
+        return report("Markdown links", [Diagnostic(code="markdown-submodule", message=str(error))])
     renames = renamed_markdown_paths(args.base, args.candidate)
     base_identities = Counter((renames.get(issue.path, issue.path), issue.target) for issue in base_issues)
     new_issues: list[LinkIssue] = []

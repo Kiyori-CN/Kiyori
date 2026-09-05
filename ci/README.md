@@ -56,6 +56,8 @@ python3 -B ci/script/normalize_lint_baseline.py --check
   持久化与 native/IPC 稳定标识、AIDL/Room/ObjectBox 关键文件哈希及 terminal/制品边界；
   M-01 额外核对精确文件集、49 次符号映射和规范化纯改名
 - 所有改动：比较 base/candidate 两棵 Git tree，只阻断 candidate 新增的本地断链；删除被文档引用的非 Markdown 文件也会检查
+- 跨子模块的本地链接按对应父树记录的 gitlink 提交验证，可递归读取嵌套 gitlink；子模块当前 HEAD 不参与判断。只检查父仓库自身的 Markdown，且仅在链接实际跨入子模块时要求其对象可读。缺少所需子模块或提交会明确报出 `markdown-submodule`，不会按目录前缀放行，也不会由检查器联网初始化。
+- PR 的 Markdown 步骤会先准备 terminal，并获取 base/candidate 各自记录的 terminal 提交；即使 shallow checkout 或本次更新了 gitlink，也能验证两棵确定的树。其他可选子模块不在该准备步骤内。
 - 本地化：按 locale、资源类型和 key 比较，只阻断 candidate 引入或实际触碰的错误
 - 翻译资源：运行 AAPT2 resource compile 检查资源语法，不执行 resource link 或完整 Android 构建
 - Kotlin/Java 和普通 Android 资源：运行 JVM unit tests 与 Android lint

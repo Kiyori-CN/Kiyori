@@ -94,10 +94,20 @@ jobs:
       - name: Check Markdown links
         id: markdown
         continue-on-error: true
+        env:
+          BASE_SHA: ${{ steps.plan.outputs.base_sha }}
+          CANDIDATE_SHA: ${{ steps.plan.outputs.candidate_sha }}
+        shell: bash
         run: |
+          set -euo pipefail
+          git submodule sync -- terminal
+          git submodule update --init --depth 1 terminal
+          git -C terminal fetch --no-tags --depth 1 origin \
+            "$(git rev-parse "$BASE_SHA:terminal")" \
+            "$(git rev-parse "$CANDIDATE_SHA:terminal")"
           python3 ci/script/check_markdown_links.py \
-            --base "${{ steps.plan.outputs.base_sha }}" \
-            --candidate "${{ steps.plan.outputs.candidate_sha }}"
+            --base "$BASE_SHA" \
+            --candidate "$CANDIDATE_SHA"
 
       - name: Check localization changes
         id: localization

@@ -405,6 +405,28 @@ README blob 已由 `git -C terminal cat-file -e <gitlink>:README.md` 证实存�
 `check_markdown_links.tree_paths` 只展开父树，没有解析 gitlink。保留有效的相对链接；
 G-01 应按候选绑定的子提交验证目标存在，而非按终端当前 HEAD 或目录前缀放行。
 
+子模块链接实施以 `f60ae564d` 为恢复点，范围仅为 Markdown 检查器、隔离 Git fixture 和
+本专项文档。解析 `ls-tree` 的 mode/type/object/path，父仓库只扫描其自身 Markdown；
+链接跨 gitlink 时按该树绑定的子提交逐层验证，缓存已读取子树，不依赖工作树 HEAD。
+没有跨子模块链接时不要求初始化可选子模块。跨链接所需子对象不可读时明确失败并给出
+子路径/提交；不联网初始化，不把无法验证当作链接有效。测试覆盖有效目标、真实缺失、
+候选/工作树 HEAD 不同、子 gitlink 更新、目录链接、嵌套子模块及不可用子对象。先验证
+隔离反例和实际 README 目标，再执行全 Python、最终候选 Markdown 和规定 Debug/APK。
+
+CI 调用链复核发现 PR workflow 原来在 Markdown 之后才按 Android lane 初始化 terminal。
+本批同步在 Markdown step 准备 terminal 并获取 base/candidate 的两个精确 gitlink 对象，
+使浅克隆及 terminal 更新也可比较。只改现有 workflow 定义，不启用或触发远端 Actions；
+可选子模块继续不在默认准备范围内。
+
+2026-09-05 隔离 Markdown 测试 16 项通过，其中 9 项验证真实 Git 子树及 gitlink 代际；
+完整 CI Python 299 项通过，96.855s。实际 `HEAD` 的两次全仓快照比较为 errors=0 /
+warnings=0 / inherited broken links=0，原 `terminal/README.md` 误报消除。CI 修改经过
+差异审阅和 Git Bash `bash -n` 语法检查；本机未提供 actionlint/专用 YAML parser，未运行
+远端 Actions，不能声明 CI 现场通过。规定 Debug 1m46s，235 tasks / 20 executed，
+`packageDebug` up-to-date，APK SHA-256 仍为
+`ACABD724519F6F11A8714C3F239A1911AB3F6F1700469D2D18F5F1D151725C8F`，沿用本批前已审计的
+同一 APK 本体，未重复宣称生成新包。
+
 ## 兼容与上游维护
 
 继续使用 [稳定标识清单](8_compatibility_contract_inventory.md)，逐项校正消费者和状态。
