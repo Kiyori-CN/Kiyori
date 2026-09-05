@@ -313,8 +313,7 @@ Cookie Reader 的 loading_title/local_message 同时属于缺失翻译和无消�
 UnusedResources 和 D-05 已修复的 2 条 FrequentlyChangingValue 均消失。报告为 0 errors /
 42 warnings / 1 hint，另有 baseline 过滤的 939 errors / 4072 warnings / 131 hints 待风险
 审查。新增的英文标签页计数 PluralsCandidate 随后通过把七种
-语言的 `web_session_native_home_tab_count` 改为真正的 plurals、唯一 BrowserHomeDashboard
-调用改用 `pluralStringResource` 修复；单复数和数量参数明确对应。保留未清理的 21 条
+语言资源中的标签页计数改为真正的 plurals，单复数和数量参数明确对应。保留未清理的 21 条
 失效 baseline 记录，不增加屏蔽；后续总回归再次执行完整 Lint，不把修复前报告当作最终树。
 
 ### C-01 导航语义检查实施契约

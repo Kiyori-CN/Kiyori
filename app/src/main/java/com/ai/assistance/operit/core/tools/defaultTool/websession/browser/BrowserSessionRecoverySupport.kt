@@ -245,9 +245,6 @@ private fun StandardBrowserSessionTools.createConfiguredHomeSessionOnMain() {
         profile = WebSessionProfile.NORMAL,
         creationReason = BrowserWindowCreationReason.MANUAL_NEW_WINDOW,
     ).also {
-        if (browserSettingsStore.current.homeMode == BrowserHomeMode.NATIVE) {
-            browserHost?.showNativeHome(canReturnToPage = false)
-        }
     }
 }
 

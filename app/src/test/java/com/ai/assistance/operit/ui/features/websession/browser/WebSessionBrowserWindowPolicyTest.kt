@@ -7,9 +7,8 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.Browse
 
 class WebSessionBrowserWindowPolicyTest {
     @Test
-    fun `clearing windows opens a home tab for native and custom modes`() {
+    fun `clearing windows opens a home tab for custom mode`() {
         assertFalse(shouldOpenConfiguredHomeAfterClearingWindows(BrowserHomeMode.BLANK))
-        assertTrue(shouldOpenConfiguredHomeAfterClearingWindows(BrowserHomeMode.NATIVE))
         assertTrue(shouldOpenConfiguredHomeAfterClearingWindows(BrowserHomeMode.CUSTOM_URL))
     }
 }

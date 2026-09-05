@@ -7667,25 +7667,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="conversation_audit_export_package_title">Eksport pakej audit penuh (ZIP bertandatangan)</string>
     <string name="conversation_audit_export_package_description">Mengekalkan rantaian peristiwa, semakan, unjuran, meterai dan payload binari untuk penghasilan semula dan import setempat.</string>
     <string name="message_send_failed_partial">Aliran jawapan telah terputus. Kandungan yang sudah diterima dikekalkan.\nGagal menghantar mesej: %1$s</string>
-    <string name="web_session_native_home_title">Laman Utama Pelayar Kiyori</string>
-    <string name="web_session_native_home_subtitle">Teruskan ke penanda halaman, sejarah dan tab terbuka dari satu halaman</string>
-    <string name="web_session_native_home_search_hint">Cari atau masukkan URL</string>
-    <string name="web_session_native_home_verify_gotab">Laman rasmi GoTab</string>
-    <string name="web_session_native_home_verify_gotab_supporting">Buka halaman pengesahan laman rasmi</string>
-    <string name="web_session_native_home_tabs">Tab</string>
-    <plurals name="web_session_native_home_tab_count">
-        <item quantity="other">%1$d tab</item>
-    </plurals>
-    <string name="web_session_native_home_new_tab">Tab baharu</string>
-    <string name="web_session_native_home_new_tab_supporting">Teruskan melayari</string>
-    <string name="web_session_native_home_shortcuts">Akses pantas</string>
-    <string name="web_session_native_home_shortcuts_supporting">Penanda halaman dan pautan pengesahan</string>
-    <string name="web_session_native_home_recent">Lawatan terkini</string>
-    <string name="web_session_native_home_recent_supporting">Daripada sejarah pelayaran yang dikongsi</string>
-    <string name="web_session_native_home_recent_empty">Lawatan terkini akan dipaparkan di sini selepas anda melayari laman web</string>
-    <string name="web_session_native_home_bookmark">Penanda halaman</string>
-    <string name="web_session_native_home_history">Sejarah</string>
-    <string name="web_session_native_home_data_source">Laman utama memaparkan penanda halaman, sejarah dan tab daripada Browser Runtime sedia ada tanpa menyalin Cookie halaman atau keadaan sesi.</string>
     <string name="web_session_cookie_reader_title">Cookie halaman web</string>
     <string name="web_session_cookie_reader_subtitle">Baca Cookie halaman web semasa</string>
     <string name="web_session_cookie_reader_card_summary">Baca Cookie halaman semasa pada peranti ini sahaja</string>

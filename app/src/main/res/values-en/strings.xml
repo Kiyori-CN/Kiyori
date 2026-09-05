@@ -8389,26 +8389,6 @@
     <string name="conversation_audit_export_package_title">Export full audit package (signed ZIP)</string>
     <string name="conversation_audit_export_package_description">Preserves the event chain, revisions, projections, seals, and binary payloads for local reproduction and import.</string>
     <string name="message_send_failed_partial">The response stream was interrupted. Content already received has been retained.\nFailed to send message: %1$s</string>
-    <string name="web_session_native_home_title">Kiyori Browser Home</string>
-    <string name="web_session_native_home_subtitle">Continue with bookmarks, history, and open tabs from one page</string>
-    <string name="web_session_native_home_search_hint">Search or enter a URL</string>
-    <string name="web_session_native_home_verify_gotab">GoTab official website</string>
-    <string name="web_session_native_home_verify_gotab_supporting">Open the official website verification page</string>
-    <string name="web_session_native_home_tabs">Tabs</string>
-    <plurals name="web_session_native_home_tab_count">
-        <item quantity="one">%1$d tab</item>
-        <item quantity="other">%1$d tabs</item>
-    </plurals>
-    <string name="web_session_native_home_new_tab">New tab</string>
-    <string name="web_session_native_home_new_tab_supporting">Continue browsing</string>
-    <string name="web_session_native_home_shortcuts">Quick access</string>
-    <string name="web_session_native_home_shortcuts_supporting">Bookmarks and verification links</string>
-    <string name="web_session_native_home_recent">Recently visited</string>
-    <string name="web_session_native_home_recent_supporting">From shared browsing history</string>
-    <string name="web_session_native_home_recent_empty">Recent visits will appear here after you browse webpages</string>
-    <string name="web_session_native_home_bookmark">Bookmarks</string>
-    <string name="web_session_native_home_history">History</string>
-    <string name="web_session_native_home_data_source">Home displays bookmarks, history, and tabs from the existing Browser Runtime without copying webpage cookies or session state.</string>
     <string name="web_session_cookie_reader_title">Webpage cookies</string>
     <string name="web_session_cookie_reader_subtitle">Read cookies from the current webpage</string>
     <string name="web_session_cookie_reader_card_summary">Read current webpage cookies on this device only</string>

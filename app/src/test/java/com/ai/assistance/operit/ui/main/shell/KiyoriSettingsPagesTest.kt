@@ -1405,12 +1405,6 @@ class KiyoriSettingsPagesTest {
         assertEquals("135%", formatWebTextZoomPercent(135))
         assertEquals("空白页", formatBrowserHomeUrl("about:blank"))
         assertEquals(
-            "原生主页",
-            formatBrowserHomeSummary(
-                WebSessionBrowserSettings(homeMode = BrowserHomeMode.NATIVE),
-            ),
-        )
-        assertEquals(
             "纯空白页",
             formatBrowserHomeSummary(
                 WebSessionBrowserSettings(homeMode = BrowserHomeMode.BLANK),

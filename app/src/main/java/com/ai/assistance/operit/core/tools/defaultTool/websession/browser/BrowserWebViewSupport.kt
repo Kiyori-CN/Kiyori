@@ -74,7 +74,6 @@ private data class BrowserCookieReadRequest(
 internal enum class BrowserSessionBackResult {
     WEB_HISTORY,
     BROWSER_HOME,
-    NATIVE_HOME,
     OPENER_HOME,
     NONE,
 }
@@ -2525,10 +2524,6 @@ internal fun StandardBrowserSessionTools.navigateSessionBackOnMain(
                 navigateSessionHistoryOnMain(session, delta = -1)
                 BrowserSessionBackResult.WEB_HISTORY
             }
-            browserSettingsStore.current.homeMode == BrowserHomeMode.NATIVE -> {
-                browserHost?.showNativeHome(canReturnToPage = false)
-                BrowserSessionBackResult.NATIVE_HOME
-            }
             !isAtConfiguredBrowserHome(
                 currentUrl = session.currentUrl,
                 configuredHomeUrl = browserSettingsStore.current.homeUrl,
@@ -2796,16 +2791,8 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
             activeSession?.externalNavigationPolicy
                 ?: BrowserAdMarkingNavigationPolicy.DEFAULT,
         canGoBack = activeSession?.canGoBack == true,
-        canShowNativeHome =
-            homeSettings.homeMode == BrowserHomeMode.NATIVE &&
-                activeSession != null &&
-                !areBrowserHomeUrlsEquivalent(
-                    activeSession.currentUrl,
-                    DEFAULT_BROWSER_HOME_URL,
-                ),
         canReturnToHome =
-            homeSettings.homeMode != BrowserHomeMode.NATIVE &&
-                activeSession != null &&
+            activeSession != null &&
                 !activeSessionIsAtHome,
         canGoForward = activeSession?.canGoForward == true,
         pageLoaded = activeSession?.pageLoaded == true,

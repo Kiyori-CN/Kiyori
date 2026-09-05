@@ -7518,25 +7518,6 @@
     <string name="conversation_audit_export_package_title">전체 감사 패키지 내보내기(서명된 ZIP)</string>
     <string name="conversation_audit_export_package_description">로컬 재현 및 가져오기를 위해 이벤트 체인, 개정, 프로젝션, 봉인 및 바이너리 payload를 보존합니다.</string>
     <string name="message_send_failed_partial">응답 전송이 중단되었습니다. 이미 받은 내용은 보존되었습니다.\n메시지 전송 실패: %1$s</string>
-    <string name="web_session_native_home_title">Kiyori 브라우저 홈</string>
-    <string name="web_session_native_home_subtitle">한 페이지에서 북마크, 방문 기록 및 열린 탭으로 이동</string>
-    <string name="web_session_native_home_search_hint">검색 또는 URL 입력</string>
-    <string name="web_session_native_home_verify_gotab">GoTab 공식 웹사이트</string>
-    <string name="web_session_native_home_verify_gotab_supporting">공식 웹사이트 확인 페이지 열기</string>
-    <string name="web_session_native_home_tabs">탭</string>
-    <plurals name="web_session_native_home_tab_count">
-        <item quantity="other">탭 %1$d개</item>
-    </plurals>
-    <string name="web_session_native_home_new_tab">새 탭</string>
-    <string name="web_session_native_home_new_tab_supporting">계속 탐색</string>
-    <string name="web_session_native_home_shortcuts">빠른 접근</string>
-    <string name="web_session_native_home_shortcuts_supporting">북마크 및 확인 링크</string>
-    <string name="web_session_native_home_recent">최근 방문</string>
-    <string name="web_session_native_home_recent_supporting">공유 방문 기록에서 가져옴</string>
-    <string name="web_session_native_home_recent_empty">웹페이지를 방문하면 최근 방문 기록이 여기에 표시됩니다</string>
-    <string name="web_session_native_home_bookmark">북마크</string>
-    <string name="web_session_native_home_history">방문 기록</string>
-    <string name="web_session_native_home_data_source">홈은 기존 Browser Runtime의 북마크, 방문 기록 및 탭을 표시하며 웹페이지 Cookie나 세션 상태를 복제하지 않습니다.</string>
     <string name="web_session_cookie_reader_title">웹페이지 Cookie</string>
     <string name="web_session_cookie_reader_subtitle">현재 웹페이지 Cookie 읽기</string>
     <string name="web_session_cookie_reader_card_summary">이 기기에서만 현재 웹페이지 Cookie 읽기</string>

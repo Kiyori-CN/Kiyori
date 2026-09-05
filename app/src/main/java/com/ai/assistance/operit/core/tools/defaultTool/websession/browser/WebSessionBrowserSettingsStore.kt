@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONObject
 
 internal enum class BrowserHomeMode(val persistedId: String) {
-    NATIVE("native"),
     CUSTOM_URL("custom_url"),
     BLANK("blank");
 
@@ -529,7 +528,6 @@ internal fun homeModeFromLegacyUrl(url: String): BrowserHomeMode =
 
 internal fun browserHomeSeedUrl(mode: BrowserHomeMode, customHomeUrl: String): String =
     when (mode) {
-        BrowserHomeMode.NATIVE,
         BrowserHomeMode.BLANK -> DEFAULT_BROWSER_HOME_URL
         BrowserHomeMode.CUSTOM_URL -> {
             require(isSupportedCustomBrowserHomeUrl(customHomeUrl)) {

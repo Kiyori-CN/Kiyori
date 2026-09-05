@@ -1236,8 +1236,6 @@ class StandardBrowserSessionTools private constructor(
                 BrowserSessionBackResult.WEB_HISTORY -> "await page.goBack();"
                 BrowserSessionBackResult.BROWSER_HOME ->
                     "await page.goto(${quoteJsCode(homeUrl)});"
-                BrowserSessionBackResult.NATIVE_HOME ->
-                    "// Kiyori native browser home opened."
                 BrowserSessionBackResult.OPENER_HOME ->
                     "await page.goBack();"
                 BrowserSessionBackResult.NONE -> "await page.goBack();"
@@ -1247,8 +1245,6 @@ class StandardBrowserSessionTools private constructor(
                 BrowserSessionBackResult.WEB_HISTORY -> "Navigated back."
                 BrowserSessionBackResult.BROWSER_HOME ->
                     "Navigated to the configured browser home."
-                BrowserSessionBackResult.NATIVE_HOME ->
-                    "Opened the Kiyori native browser home."
                 BrowserSessionBackResult.OPENER_HOME ->
                     "Closed the automatic child window and returned to its browser-home opener."
                 BrowserSessionBackResult.NONE ->

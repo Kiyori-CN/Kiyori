@@ -832,19 +832,6 @@ internal class WebSessionBrowserHost(
                 }
                 true
             }
-            WebSessionBrowserBackAction.CLOSE_NATIVE_HOME -> {
-                updateHostState { current ->
-                    current.copy(
-                        isNativeHomeVisible = false,
-                        nativeHomeCanReturnToPage = false,
-                    )
-                }
-                true
-            }
-            WebSessionBrowserBackAction.SHOW_NATIVE_HOME -> {
-                showNativeHome(canReturnToPage = false)
-                true
-            }
             WebSessionBrowserBackAction.NAVIGATE_WEB_HISTORY -> {
                 callbacks.onBack()
                 true
@@ -883,22 +870,6 @@ internal class WebSessionBrowserHost(
             HapticFeedbackConstants.LONG_PRESS,
             HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
         )
-    }
-
-    internal fun showNativeHome(canReturnToPage: Boolean) {
-        updateHostState { current ->
-            if (
-                current.isNativeHomeVisible &&
-                    current.nativeHomeCanReturnToPage == canReturnToPage
-            ) {
-                current
-            } else {
-                current.copy(
-                    isNativeHomeVisible = true,
-                    nativeHomeCanReturnToPage = canReturnToPage,
-                )
-            }
-        }
     }
 
     fun hideTextSelectionActionsOverlay() {

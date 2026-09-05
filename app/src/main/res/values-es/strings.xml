@@ -7779,27 +7779,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="conversation_audit_export_package_title">Exportar paquete de auditoría completo (ZIP firmado)</string>
     <string name="conversation_audit_export_package_description">Conserva la cadena de eventos, revisiones, proyecciones, sellos y payloads binarios para reproducir e importar en este dispositivo.</string>
     <string name="message_send_failed_partial">Se interrumpió la transmisión de la respuesta. Se ha conservado el contenido recibido.\nError al enviar el mensaje: %1$s</string>
-    <string name="web_session_native_home_title">Inicio del navegador Kiyori</string>
-    <string name="web_session_native_home_subtitle">Accede a marcadores, historial y pestañas abiertas desde una sola página</string>
-    <string name="web_session_native_home_search_hint">Buscar o introducir una URL</string>
-    <string name="web_session_native_home_verify_gotab">Sitio oficial de GoTab</string>
-    <string name="web_session_native_home_verify_gotab_supporting">Abrir la página de verificación del sitio oficial</string>
-    <string name="web_session_native_home_tabs">Pestañas</string>
-    <plurals name="web_session_native_home_tab_count">
-        <item quantity="one">%1$d pestaña</item>
-        <item quantity="many">%1$d pestañas</item>
-        <item quantity="other">%1$d pestañas</item>
-    </plurals>
-    <string name="web_session_native_home_new_tab">Nueva pestaña</string>
-    <string name="web_session_native_home_new_tab_supporting">Seguir navegando</string>
-    <string name="web_session_native_home_shortcuts">Acceso rápido</string>
-    <string name="web_session_native_home_shortcuts_supporting">Marcadores y enlaces de verificación</string>
-    <string name="web_session_native_home_recent">Visitas recientes</string>
-    <string name="web_session_native_home_recent_supporting">Del historial de navegación compartido</string>
-    <string name="web_session_native_home_recent_empty">Las visitas recientes aparecerán aquí después de navegar por páginas web</string>
-    <string name="web_session_native_home_bookmark">Marcadores</string>
-    <string name="web_session_native_home_history">Historial</string>
-    <string name="web_session_native_home_data_source">El inicio muestra los marcadores, el historial y las pestañas del Browser Runtime existente sin copiar cookies ni el estado de la sesión.</string>
     <string name="web_session_cookie_reader_title">Cookies de la página</string>
     <string name="web_session_cookie_reader_subtitle">Leer las cookies de la página actual</string>
     <string name="web_session_cookie_reader_card_summary">Leer las cookies de la página actual solo en este dispositivo</string>

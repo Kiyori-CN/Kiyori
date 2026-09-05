@@ -7692,25 +7692,6 @@
     <string name="web_session_search_placeholder">搜索或输入网址</string>
     <string name="web_session_search_submit">搜索或前往</string>
     <string name="web_session_clear_search">清空输入</string>
-    <string name="web_session_native_home_title">Kiyori 浏览器主页</string>
-    <string name="web_session_native_home_subtitle">从一个页面继续访问书签、历史和打开的标签页</string>
-    <string name="web_session_native_home_search_hint">搜索或输入网址</string>
-    <string name="web_session_native_home_verify_gotab">GoTab 官网</string>
-    <string name="web_session_native_home_verify_gotab_supporting">打开官网验证页面</string>
-    <string name="web_session_native_home_tabs">标签页</string>
-    <plurals name="web_session_native_home_tab_count">
-        <item quantity="other">%1$d 个标签页</item>
-    </plurals>
-    <string name="web_session_native_home_new_tab">新标签</string>
-    <string name="web_session_native_home_new_tab_supporting">继续浏览</string>
-    <string name="web_session_native_home_shortcuts">快捷访问</string>
-    <string name="web_session_native_home_shortcuts_supporting">书签与验证入口</string>
-    <string name="web_session_native_home_recent">最近访问</string>
-    <string name="web_session_native_home_recent_supporting">来自共享浏览历史</string>
-    <string name="web_session_native_home_recent_empty">浏览网页后，最近访问会显示在这里</string>
-    <string name="web_session_native_home_bookmark">书签</string>
-    <string name="web_session_native_home_history">历史</string>
-    <string name="web_session_native_home_data_source">主页只投影现有 Browser Runtime 的书签、历史和标签页，不复制网页 Cookie 或会话状态。</string>
     <string name="web_session_search_history">搜索历史</string>
     <string name="web_session_no_search_history">暂无搜索历史</string>
     <string name="web_session_edit_search_history">编辑搜索历史</string>

@@ -86,10 +86,6 @@ class BrowserHomeNavigationPolicyTest {
             homeModeFromLegacyUrl("https://example.com/home"),
         )
         assertEquals(
-            "about:blank",
-            browserHomeSeedUrl(BrowserHomeMode.NATIVE, "https://example.com/home"),
-        )
-        assertEquals(
             "https://example.com/home",
             browserHomeSeedUrl(BrowserHomeMode.CUSTOM_URL, "https://example.com/home"),
         )

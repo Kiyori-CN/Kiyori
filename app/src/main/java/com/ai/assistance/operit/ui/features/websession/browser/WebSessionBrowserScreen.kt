@@ -301,88 +301,36 @@ internal fun WebSessionBrowserScreen(
     val browserState = hostState.browserState
     val homeMode = browserSettings.homeMode
     val homeUrl = browserSettings.homeUrl
-    val isNativeHomeVisible = hostState.isNativeHomeVisible
     val visibleBrowserUrl = browserState.currentUrl.ifBlank { "about:blank" }
-    val displayedUrl = if (isNativeHomeVisible) "" else visibleBrowserUrl
-    val displayedPageTitle =
-        if (isNativeHomeVisible) {
-            stringResource(R.string.web_session_native_home_title)
-        } else {
-            browserState.pageTitle
-        }
-
-    fun setNativeHomeVisible(visible: Boolean, canReturnToPage: Boolean = false) {
-        onHostStateChange { current ->
-            if (
-                current.isNativeHomeVisible == visible &&
-                    current.nativeHomeCanReturnToPage == canReturnToPage
-            ) {
-                current
-            } else {
-                current.copy(
-                    isNativeHomeVisible = visible,
-                    nativeHomeCanReturnToPage = visible && canReturnToPage,
-                )
-            }
-        }
-    }
-
-    fun openUrlFromNativeHome(url: String) {
-        setNativeHomeVisible(false)
-        onOpenUrl(url)
-    }
+    val displayedUrl = visibleBrowserUrl
+    val displayedPageTitle = browserState.pageTitle
 
     fun navigateFromBrowser(url: String) {
-        setNativeHomeVisible(false)
         onNavigate(url)
     }
 
     fun openConfiguredHome() {
-        when (homeMode) {
-            BrowserHomeMode.NATIVE ->
-                setNativeHomeVisible(
-                    visible = true,
-                    canReturnToPage = browserState.activeSessionId != null,
-                )
-            BrowserHomeMode.CUSTOM_URL,
-            BrowserHomeMode.BLANK ->
-                navigateFromBrowser(homeUrl)
-        }
+        navigateFromBrowser(homeUrl)
     }
 
     fun openHistoryEntryFromBrowser(entry: WebSessionHistoryEntry): Boolean {
-        setNativeHomeVisible(false)
         return onOpenHistoryEntry(entry)
     }
 
     fun openBookmarkInTabFromBrowser(url: String, active: Boolean) {
-        setNativeHomeVisible(false)
         onOpenBookmarkInTab(url, active)
     }
 
     fun openNewTabFromBrowser(profile: WebSessionProfile) {
         onNewTab(profile)
-        setNativeHomeVisible(homeMode == BrowserHomeMode.NATIVE)
     }
 
     fun refreshFromBrowser() {
-        if (isNativeHomeVisible) {
-            setNativeHomeVisible(false)
-        }
         onRefresh()
     }
 
     fun forwardFromBrowser() {
-        if (isNativeHomeVisible) {
-            setNativeHomeVisible(false)
-        }
         onForward()
-    }
-
-    LaunchedEffect(homeMode) {
-        if (homeMode != BrowserHomeMode.NATIVE && hostState.isNativeHomeVisible) {
-            setNativeHomeVisible(false)
-        }
     }
     val currentDocumentMediaCandidates =
         remember(browserState.mediaCandidates, browserState.activeDocumentToken) {
@@ -460,9 +408,8 @@ internal fun WebSessionBrowserScreen(
         automaticFloatingCandidate?.id,
         playerState.request?.requestId,
         playerState.presentation,
-        isNativeHomeVisible,
     ) {
-        if (isNativeHomeVisible || !automaticFloatingPlaybackEnabled) return@LaunchedEffect
+        if (!automaticFloatingPlaybackEnabled) return@LaunchedEffect
         if (
             !shouldAttemptAutomaticFloatingPlayback(
                 hasMedia = playerState.hasMedia,
@@ -590,9 +537,8 @@ internal fun WebSessionBrowserScreen(
             WebSessionBrowserTopBar(
                 currentUrl = displayedUrl,
                 pageTitle = displayedPageTitle,
-                detectedVideoCount =
-                    if (isNativeHomeVisible) 0 else browserState.mediaCandidates.size,
-                showDetectedVideoBadge = showMediaCandidateBadge && !isNativeHomeVisible,
+                detectedVideoCount = browserState.mediaCandidates.size,
+                showDetectedVideoBadge = showMediaCandidateBadge,
                 searchEngine = searchEngine,
                 lastSearchQuery = hostState.lastSearchQuery,
                 isSearchEngineQuickSwitchBarVisible =
@@ -621,7 +567,6 @@ internal fun WebSessionBrowserScreen(
                 onSelectQuickSearchEngine = { engine ->
                     val query = hostState.lastSearchQuery.trim()
                     if (query.isNotBlank()) {
-                        setNativeHomeVisible(false)
                         onSetSearchEngine(engine)
                         onSubmitSearch(
                             query,
@@ -669,46 +614,7 @@ internal fun WebSessionBrowserScreen(
                         }
                         .background(MaterialTheme.colorScheme.background)
             ) {
-                if (isNativeHomeVisible) {
-                    BrowserHomeDashboard(
-                        bookmarks = bookmarks,
-                        history = globalHistory,
-                        tabs = browserState.tabs,
-                        configuredHomeUrl = INITIAL_BROWSER_HOME_URL,
-                        searchEngine = searchEngine,
-                        onOpenSearch = {
-                            profileFeedback = null
-                            onHostStateChange { current ->
-                                current.copy(
-                                    isSearchVisible = true,
-                                    isSearchEnginePanelVisible = false,
-                                    searchDraft = "",
-                                    searchProfile =
-                                        browserState.activeProfile
-                                            ?: browserState.defaultSessionProfile,
-                                )
-                            }
-                        },
-                        onOpenUrl = ::openUrlFromNativeHome,
-                        onOpenTabs = {
-                            onHostStateChange { current ->
-                                current.copy(
-                                    sheetRoute = WebSessionBrowserSheetRoute.TABS,
-                                    selectedProfile =
-                                        browserState.activeProfile
-                                            ?: browserState.defaultSessionProfile,
-                                )
-                            }
-                        },
-                        onNewTab = {
-                            openNewTabFromBrowser(
-                                browserState.activeProfile
-                                    ?: browserState.defaultSessionProfile,
-                            )
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else if (browserState.activeSessionId == null) {
+                if (browserState.activeSessionId == null) {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
@@ -907,9 +813,8 @@ internal fun WebSessionBrowserScreen(
                 WebSessionBrowserBottomBar(
                     canNavigateBack =
                         browserState.canGoBack ||
-                            browserState.canReturnToHome ||
-                            browserState.canShowNativeHome,
-                    canGoForward = !isNativeHomeVisible && browserState.canGoForward,
+                            browserState.canReturnToHome,
+                    canGoForward = browserState.canGoForward,
                     tabCount = browserState.tabs.size,
                     onBack = onBack,
                     onForward = ::forwardFromBrowser,
@@ -959,7 +864,6 @@ internal fun WebSessionBrowserScreen(
                     val query = hostState.searchDraft.trim()
                     if (query.isNotBlank()) {
                         profileFeedback = null
-                        setNativeHomeVisible(false)
                         onHostStateChange(
                             WebSessionBrowserHostState::prepareForFullScreenSearchNavigation,
                         )
@@ -971,7 +875,6 @@ internal fun WebSessionBrowserScreen(
                 onSelectEngine = onSetSearchEngine,
                 onOpenSearchRecord = { record ->
                     profileFeedback = null
-                    setNativeHomeVisible(false)
                     onHostStateChange(
                         WebSessionBrowserHostState::prepareForFullScreenSearchNavigation,
                     )
@@ -1198,7 +1101,7 @@ internal fun WebSessionBrowserScreen(
                             onDismiss = dismissSheet,
                             onBookmarkMutation = onBookmarkMutation,
                             onOpenBookmarkInTab = ::openBookmarkInTabFromBrowser,
-                            onOpenUrl = ::openUrlFromNativeHome,
+                            onOpenUrl = onOpenUrl,
                             onOpenHistoryEntry = ::openHistoryEntryFromBrowser,
                             onDeleteHistory = onDeleteHistory,
                             onDeleteHistoryEntries = onDeleteHistoryEntries,

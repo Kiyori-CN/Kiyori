@@ -377,7 +377,6 @@ internal data class WebSessionBrowserState(
     val externalNavigationPolicy: BrowserAdMarkingNavigationPolicy =
         BrowserAdMarkingNavigationPolicy.DEFAULT,
     val canGoBack: Boolean = false,
-    val canShowNativeHome: Boolean = false,
     val canReturnToHome: Boolean = false,
     val canGoForward: Boolean = false,
     val pageLoaded: Boolean = false,
@@ -455,10 +454,6 @@ internal data class BrowserSearchRecoveryProjectionKey(
 @Immutable
 internal data class WebSessionBrowserHostState(
     val browserState: WebSessionBrowserState = WebSessionBrowserState(),
-    // Native Browser Home is a presentation surface over the same WebSession host. It is not a
-    // second tab or navigation owner; the active WebView is detached while this surface is shown.
-    val isNativeHomeVisible: Boolean = false,
-    val nativeHomeCanReturnToPage: Boolean = false,
     val sheetRoute: WebSessionBrowserSheetRoute = WebSessionBrowserSheetRoute.NONE,
     val pluginRouteStack: List<WebSessionBrowserPluginRoute> =
         listOf(WebSessionBrowserPluginRoute.Overview),
@@ -509,8 +504,6 @@ internal enum class WebSessionBrowserBackAction {
     CLOSE_SHEET,
     CLOSE_SEARCH_ENGINE_PANEL,
     CLOSE_SEARCH,
-    CLOSE_NATIVE_HOME,
-    SHOW_NATIVE_HOME,
     NAVIGATE_WEB_HISTORY,
     RETURN_TO_HOME,
     EXIT_BROWSER,
@@ -553,12 +546,6 @@ internal fun resolveWebSessionBrowserBackAction(
             WebSessionBrowserBackAction.CLOSE_SEARCH_ENGINE_PANEL
         state.isSearchVisible ->
             WebSessionBrowserBackAction.CLOSE_SEARCH
-        state.isNativeHomeVisible && state.nativeHomeCanReturnToPage ->
-            WebSessionBrowserBackAction.CLOSE_NATIVE_HOME
-        state.isNativeHomeVisible ->
-            WebSessionBrowserBackAction.EXIT_BROWSER
-        state.browserState.canShowNativeHome ->
-            WebSessionBrowserBackAction.SHOW_NATIVE_HOME
         state.browserState.canGoBack ->
             WebSessionBrowserBackAction.NAVIGATE_WEB_HISTORY
         state.browserState.canReturnToHome ->

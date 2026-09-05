@@ -170,7 +170,7 @@ internal val kiyoriBrowserSettingsGroups =
                 listOf(
                     browserNavigation(
                         title = "网页主页",
-                        description = "选择 Kiyori 原生主页、自定义网址或纯空白页",
+                        description = "选择自定义网址或纯空白页",
                         action = KiyoriBrowserSettingsAction.OPEN_HOME_CUSTOMIZATION,
                     ),
                     browserToggle(
@@ -452,7 +452,6 @@ internal fun KiyoriBrowserSettingsPage(
                     Toast.makeText(
                         context,
                         when (mode) {
-                            BrowserHomeMode.NATIVE -> "已切换为 Kiyori 原生主页"
                             BrowserHomeMode.CUSTOM_URL -> "已切换为自定义网址"
                             BrowserHomeMode.BLANK -> "已切换为纯空白页"
                         },
@@ -667,9 +666,6 @@ private fun KiyoriBrowserSettingsDetailPage(
         onBack = onBack,
         modifier = modifier,
     ) {
-        item(key = "browser-settings-scope") {
-            KiyoriBrowserSettingsScopeNotice()
-        }
         items(kiyoriBrowserSettingsGroups, key = KiyoriBrowserSettingsGroupSpec::title) { group ->
             KiyoriSettingsGroupSection(
                 title = group.title,
@@ -766,30 +762,6 @@ private fun KiyoriBrowserSettingsDetailPage(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun KiyoriBrowserSettingsScopeNotice() {
-    Surface(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(start = 15.dp, top = 10.dp, end = 15.dp, bottom = 2.dp),
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp,
-    ) {
-        Text(
-            text =
-                "本页决定浏览器能力的全局上限。浏览器菜单中的“网站配置”" +
-                    "只能对单独域名进一步关闭，不能重新开启全局已关闭的能力。",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 12.sp,
-            lineHeight = 18.sp,
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
-        )
     }
 }
 
@@ -1052,7 +1024,6 @@ internal fun formatBrowserHomeUrl(url: String): String =
 
 internal fun formatBrowserHomeSummary(settings: WebSessionBrowserSettings): String =
     when (settings.homeMode) {
-        BrowserHomeMode.NATIVE -> "原生主页"
         BrowserHomeMode.BLANK -> "纯空白页"
         BrowserHomeMode.CUSTOM_URL ->
             "自定义网址 · ${formatBrowserHomeHost(settings.customHomeUrl)}"
@@ -1177,14 +1148,6 @@ private fun KiyoriBrowserHomepageCustomizationPage(
                 title = "打开方式",
                 description = "主页按钮、新建标签页和冷启动入口使用这里的选择；切换不会打断当前网页",
             ) {
-                BrowserHomeModeOption(
-                    selected = currentHomeMode == BrowserHomeMode.NATIVE,
-                    title = "Kiyori 原生主页",
-                    description = "使用本地搜索、快捷访问、最近浏览和标签入口，不加载远程主页",
-                    icon = Icons.Outlined.Home,
-                    onClick = { onSelectMode(BrowserHomeMode.NATIVE) },
-                )
-                KiyoriSettingsDivider()
                 BrowserHomeModeOption(
                     selected = currentHomeMode == BrowserHomeMode.CUSTOM_URL,
                     title = "自定义网址",
