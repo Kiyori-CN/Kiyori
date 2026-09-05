@@ -243,7 +243,7 @@ object FileUtils {
         if (!file.isFile) return false
 
         // Use GitIgnoreFilter to check if the file should be ignored
-        if (com.ai.assistance.operit.ui.features.chat.webview.workspace.process.GitIgnoreFilter.shouldIgnore(file, workspaceRoot, gitignoreRules)) {
+        if (com.ai.assistance.operit.core.workspace.GitIgnoreFilter.shouldIgnore(file, workspaceRoot, gitignoreRules)) {
             return false
         }
 

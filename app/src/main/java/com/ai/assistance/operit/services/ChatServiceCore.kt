@@ -19,7 +19,7 @@ import com.ai.assistance.operit.services.core.TokenStatisticsDelegate
 import com.ai.assistance.operit.data.model.ProviderUsageAggregate
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.ui.features.chat.viewmodel.UiStateDelegate
-import com.ai.assistance.operit.ui.features.chat.webview.workspace.process.WorkspaceChangeTracker
+import com.ai.assistance.operit.core.workspace.WorkspaceChangeTracker
 import com.ai.assistance.operit.util.stream.SharedStream
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect

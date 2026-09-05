@@ -1,4 +1,4 @@
-package com.ai.assistance.operit.ui.features.chat.webview.workspace.process
+package com.ai.assistance.operit.core.workspace
 
 import android.content.Context
 import com.ai.assistance.operit.R

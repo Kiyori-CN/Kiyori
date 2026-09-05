@@ -25,8 +25,8 @@ import com.ai.assistance.operit.data.model.ChatMessageTimestampAllocator
 import com.ai.assistance.operit.data.model.ToolParameter
 import com.ai.assistance.operit.data.model.PromptFunctionType
 import com.ai.assistance.operit.data.preferences.ApiPreferences
-import com.ai.assistance.operit.ui.features.chat.webview.workspace.process.WorkspaceAttachmentProcessor
-import com.ai.assistance.operit.ui.features.chat.webview.workspace.process.WorkspaceChangeTracker
+import com.ai.assistance.operit.core.workspace.WorkspaceAttachmentProcessor
+import com.ai.assistance.operit.core.workspace.WorkspaceChangeTracker
 import com.ai.assistance.operit.util.ImagePoolManager
 import com.ai.assistance.operit.util.MediaPoolManager
 import com.ai.assistance.operit.util.ChatUtils

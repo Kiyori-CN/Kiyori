@@ -17,7 +17,7 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.security.MessageDigest
-import com.ai.assistance.operit.ui.features.chat.webview.workspace.process.GitIgnoreFilter
+import com.ai.assistance.operit.core.workspace.GitIgnoreFilter
 import com.ai.assistance.operit.util.FileUtils
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolParameter
@@ -28,7 +28,7 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
-import com.ai.assistance.operit.ui.features.chat.webview.workspace.process.WorkspaceChangeTracker
+import com.ai.assistance.operit.core.workspace.WorkspaceChangeTracker
 
 @Serializable
 data class FileStat(

@@ -546,6 +546,23 @@ ToolPkg 安装和设备行为仍保持 `verification_pending`。
 和 16 KiB ZIP 对齐核验通过。真实提示词加载、工作区文件、设备和长时间运行仍为
 `verification_pending`。
 
+### C-03 workspace 变更处理组实施证据
+
+2026-09-05 将无 UI 渲染职责的 `WorkspaceChangeTracker`、`DepthLimitedFileObserver`、
+`GitIgnoreFilter`、`WorkspaceFileChange`/`WorkspaceFileChangeKind` 和
+`WorkspaceAttachmentProcessor` 整体迁移到 `core.workspace`。`AIMessageManager`、
+`ChatServiceCore`、`WorkspaceBackupManager`、`WorkspaceFileSelector` 与 `FileUtils` 已更新
+为新包路径；core 不再导入这些 workspace UI 处理器。观察深度、忽略规则、AI 变更抑制、变更
+聚合上限、根目录摘要、附件转义和资源文案均保持原行为，没有新增状态 owner 或持久化格式。
+
+本批 App 全量 `testDebugUnitTest` 通过（159 tasks，9 executed），architecture 边界检查与
+`git diff --check` 通过；规定 `:app:assembleDebug --no-daemon --console=plain` 通过（235
+tasks，23 executed，59s）。APK 为 483708439 bytes，SHA-256
+`B49BBB8AB4EE587F2341E3B6D3FD0622757C5405784B0BCE617FF47ECB4CEF15`；包名/版本/SDK 为
+`com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`，唯一 launcher、Debug V2 单 signer、arm64-v8a
+和 16 KiB ZIP 对齐核验通过。真实文件观察、AI 附件生成、设备和长时间运行仍为
+`verification_pending`。
+
 ### G-01 文档子模块链接检查事实
 
 当前 Markdown 比较器报告的唯一既有失效链接为 `README.md:189 -> terminal/README.md`。
