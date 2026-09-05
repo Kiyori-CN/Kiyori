@@ -219,7 +219,6 @@ from check_architecture_boundaries import (  # noqa: E402
     normalize_m01_text,
     normalize_m03_application_text,
     normalize_m04b_app_shell_text,
-    normalize_m04b_ai_drawer_text,
     path_matches,
     persistence_api_records,
     repository_text,
@@ -662,15 +661,6 @@ class ArchitectureBoundaryTest(unittest.TestCase):
         )
         architecture_root = root / "config/architecture"
         architecture_root.mkdir(parents=True)
-        normalized = normalize_m04b_ai_drawer_text(
-            ai_drawer.read_text(encoding="utf-8")
-        ).encode("utf-8")
-        (
-            architecture_root / "m04b-ai-drawer-normalized-sha256.txt"
-        ).write_text(
-            hashlib.sha256(normalized).hexdigest() + "\n",
-            encoding="utf-8",
-        )
         (architecture_root / "m04b-ai-drawer-operit-imports.txt").write_text(
             "\n".join(project_imports) + "\n",
             encoding="utf-8",
@@ -726,11 +716,6 @@ class ArchitectureBoundaryTest(unittest.TestCase):
         )
         architecture_root = root / "config/architecture"
         architecture_root.mkdir(parents=True)
-        normalized = navigation.read_bytes().replace(b"\r\n", b"\n")
-        (architecture_root / "m04b-primary-navigation-sha256.txt").write_text(
-            hashlib.sha256(normalized).hexdigest() + "\n",
-            encoding="utf-8",
-        )
         (
             architecture_root / "m04b-primary-navigation-operit-imports.txt"
         ).write_text(
@@ -822,11 +807,6 @@ class ArchitectureBoundaryTest(unittest.TestCase):
         )
         architecture_root = root / "config/architecture"
         architecture_root.mkdir(parents=True)
-        normalized = software_home.read_bytes().replace(b"\r\n", b"\n")
-        (architecture_root / "m04b-software-home-sha256.txt").write_text(
-            hashlib.sha256(normalized).hexdigest() + "\n",
-            encoding="utf-8",
-        )
         (
             architecture_root / "m04b-software-home-operit-imports.txt"
         ).write_text(
@@ -5546,7 +5526,7 @@ class KiyoriPathsTest {
             self.assertTrue(any("still imports the old App Shell" in error for error in errors))
             self.assertTrue(any("test must import moved helper" in error for error in errors))
 
-    def test_m04b_gate_accepts_ai_drawer_package_only_move(self) -> None:
+    def test_m04b_gate_accepts_ai_drawer_owner(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self.write_m04b_ai_drawer_layout(root)
@@ -5593,7 +5573,6 @@ class KiyoriPathsTest {
             errors: list[str] = []
             check_m04b_ai_drawer_owner(root, errors)
             self.assertTrue(any("old AI Drawer path remains" in error for error in errors))
-            self.assertTrue(any("changed outside" in error for error in errors))
             self.assertTrue(any("project imports differ" in error for error in errors))
             self.assertTrue(any("symbol must have one owner" in error for error in errors))
             self.assertTrue(any("still imports the old AI Drawer" in error for error in errors))
@@ -5645,7 +5624,6 @@ class KiyoriPathsTest {
             )
             errors: list[str] = []
             check_m04b_primary_navigation_owner(root, errors)
-            self.assertTrue(any("source changed" in error for error in errors))
             self.assertTrue(any("project imports differ" in error for error in errors))
             self.assertTrue(any("symbol must have one owner" in error for error in errors))
             self.assertTrue(any("still imports the old primary" in error for error in errors))
@@ -5699,7 +5677,6 @@ class KiyoriPathsTest {
             )
             errors: list[str] = []
             check_m04b_software_home_owner(root, errors)
-            self.assertTrue(any("source changed" in error for error in errors))
             self.assertTrue(any("project imports differ" in error for error in errors))
             self.assertTrue(any("symbol must have one owner" in error for error in errors))
             self.assertTrue(any("still imports the old Software Home" in error for error in errors))

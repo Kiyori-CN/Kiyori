@@ -22,9 +22,15 @@ ARCH047 要求 Browser Runtime 仅通过同步发布的共享工厂构造；ARCH
 替代，其他兼容约束继续执行。负例覆盖全局状态、越界构造、丢失观察、按值清理、内容脱离
 作用域和第二处 Window 写入；注释不能伪造有效合同。
 
+ARCH049 保护抽屉、底栏与软件首页的调用方状态/回调及天气生命周期。ARCH025/026/027
+保留 owner/import/host/test 接线，三份旧整文件哈希已删除；后文 M-04B 的源码 SHA 要求
+仅描述当时的纯迁移验证。新增行为修改继续运行对应 Kotlin 测试，语义检查不能代替编译。
+
 ```powershell
 .\.venv\Scripts\python.exe -B -m unittest ci.test.test_browser_runtime_ownership ci.test.test_status_bar_appearance
 .\gradlew.bat :app:testDebugUnitTest --tests '*KiyoriStatusBarAppearanceStateTest' --tests '*KiyoriDesignThemeTest' --tests '*FileManagerSourceContractTest' --no-daemon --console=plain
+.\.venv\Scripts\python.exe -B -m unittest ci.test.test_shell_presentation_contracts
+.\gradlew.bat :app:testDebugUnitTest --tests '*KiyoriShellStateTest' --tests '*KiyoriSoftwareHomeSearchTest' --tests '*MainActivityBrowserActionTest' --no-daemon --console=plain
 ```
 
 ## 基线与仓库卫生

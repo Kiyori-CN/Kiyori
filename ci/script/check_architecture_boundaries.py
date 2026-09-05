@@ -124,9 +124,6 @@ M04B_OLD_AI_DRAWER_PATH = (
 )
 M04B_AI_DRAWER_PATH = "app/src/main/java/com/kiyori/app/shell/KiyoriAiDrawer.kt"
 M04B_AI_DRAWER_PACKAGE = "com.kiyori.app.shell"
-M04B_AI_DRAWER_NORMALIZED_HASH_SNAPSHOT = (
-    "m04b-ai-drawer-normalized-sha256.txt"
-)
 M04B_AI_DRAWER_PROJECT_IMPORT_SNAPSHOT = (
     "m04b-ai-drawer-operit-imports.txt"
 )
@@ -134,9 +131,6 @@ M04B_PRIMARY_NAVIGATION_PATH = (
     "app/src/main/java/com/kiyori/app/shell/KiyoriPrimaryNavigation.kt"
 )
 M04B_PRIMARY_NAVIGATION_PACKAGE = "com.kiyori.app.shell"
-M04B_PRIMARY_NAVIGATION_HASH_SNAPSHOT = (
-    "m04b-primary-navigation-sha256.txt"
-)
 M04B_PRIMARY_NAVIGATION_PROJECT_IMPORT_SNAPSHOT = (
     "m04b-primary-navigation-operit-imports.txt"
 )
@@ -144,9 +138,6 @@ M04B_SOFTWARE_HOME_PATH = (
     "app/src/main/java/com/kiyori/app/shell/KiyoriSoftwareHome.kt"
 )
 M04B_SOFTWARE_HOME_PACKAGE = "com.kiyori.app.shell"
-M04B_SOFTWARE_HOME_HASH_SNAPSHOT = (
-    "m04b-software-home-sha256.txt"
-)
 M04B_SOFTWARE_HOME_PROJECT_IMPORT_SNAPSHOT = (
     "m04b-software-home-operit-imports.txt"
 )
@@ -1351,6 +1342,100 @@ def check_browser_runtime_owner(root: Path, errors: list[str]) -> None:
             )
 
 
+def source_braced_block(code: str, pattern: str) -> str:
+    """Read a balanced block from already masked code, including nested lambdas."""
+    match = re.search(pattern, code)
+    if match is None:
+        return ""
+    opening = code.find("{", match.end())
+    if opening < 0:
+        return ""
+    depth = 0
+    for index in range(opening, len(code)):
+        if code[index] == "{":
+            depth += 1
+        elif code[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return code[opening + 1:index]
+    return ""
+
+
+def check_shell_presentation_contracts(root: Path, errors: list[str]) -> None:
+    """Keep navigation facts in the shell and periodic work in the visible lifecycle."""
+    paths = (M04B_AI_DRAWER_PATH, M04B_PRIMARY_NAVIGATION_PATH, M04B_SOFTWARE_HOME_PATH)
+    if any(not (root / path).is_file() for path in paths):
+        errors.append("ARCH049 shell presentation owners are missing")
+        return
+    drawer, navigation, home = (
+        source_code_mask((root / path).read_text(encoding="utf-8")) for path in paths
+    )
+
+    def compact(code: str) -> str:
+        return re.sub(r"\s+", "", code)
+
+    drawer_host = source_braced_block(drawer, r"\bfun\s+KiyoriModalAiDrawer\b")
+    back_handler = source_braced_block(drawer_host, r"\bBackHandler\s*\(enabled\s*=\s*isVisible\s*\)")
+    if (
+        "valisVisible=isOpen||visibilityFraction>" not in compact(drawer_host)
+        or "if(isOpen){onDismiss()}" not in compact(back_handler)
+        or "if(!isVisible){return}" not in compact(drawer_host)
+    ):
+        errors.append("ARCH049 visible drawer must consume Back and dismiss through its caller")
+    drawer_content = compact(source_braced_block(drawer, r"\bfun\s+KiyoriAiDrawerContent\b"))
+    if (
+        drawer_content.count("navigationEntries.filter{") != 3
+        or "countKiyoriAiDrawerToolboxEntries(navigationModel.navigationEntries)" not in drawer_content
+        or drawer_content.count("enabled=isOpen,onClick={onEntrySelected(entry)}") != 3
+        or "enabled=isOpen,onClick={onEntrySelected(settingsEntry)}" not in drawer_content
+    ):
+        errors.append("ARCH049 drawer entries and callbacks must use the supplied navigation registry")
+
+    bottom_bar = source_braced_block(navigation, r"\bfun\s+KiyoriBottomNavigation\b")
+    selection_click = source_braced_block(bottom_bar, r"\bonClick\s*=")
+    if (
+        "valselected=selectedDestination==item.destination" not in compact(bottom_bar)
+        or "onDestinationSelected(item.destination)" not in compact(selection_click)
+        or re.search(r"\b(?:var|val)\s+selectedDestination\b", bottom_bar)
+    ):
+        errors.append("ARCH049 bottom navigation must render caller selection and dispatch its click")
+    primary_root = compact(source_braced_block(navigation, r"\bfun\s+KiyoriPrimaryRootPage\b"))
+    if (
+        "PrimaryDestination.FILE_MANAGEMENT_HOME->{KiyoriFileManagementPage(" not in primary_root
+        or "onOpenPhoneStorage=onOpenFileManager" not in primary_root
+        or "PrimaryDestination.SETTINGS_HOME->{KiyoriSettingsHomePage(" not in primary_root
+    ):
+        errors.append("ARCH049 primary root must dispatch file and settings pages through shell callbacks")
+
+    home_page = compact(source_braced_block(home, r"\bfun\s+KiyoriSoftwareHomePage\b"))
+    if any(part not in home_page for part in (
+        "KiyoriSoftwareHomePrimaryTarget.WEB_SEARCH->onSearchClick()",
+        "KiyoriSoftwareHomePrimaryTarget.AI_HOME->onAiClick()",
+        "onAiQuickAction(action)",
+        "browserWindowCount=browserWindowCount",
+        "onWindowsClick=onWindowsClick",
+    )):
+        errors.append("ARCH049 software home must dispatch search, AI and windows through shell callbacks")
+    actions = source_braced_block(home, r"\bfun\s+KiyoriHomeTopActions\b")
+    shared_weather = "remember(context){KiyoriWeatherRepository.getInstance(context.applicationContext)}"
+    if (
+        shared_weather not in compact(actions)
+        or "valweatherStatebyweatherRepository.state.collectAsState()" not in compact(actions)
+        or re.search(r"\bKiyoriWeatherRepository\s*\(", home)
+        or re.search(r"\b(?:mutableStateOf|MutableStateFlow)\s*<\s*KiyoriWeatherState\s*>", home)
+    ):
+        errors.append("ARCH049 software home must consume the shared weather state without a second owner")
+    refresh_effect = source_braced_block(
+        actions, r"\bLaunchedEffect\s*\(lifecycleOwner\s*,\s*weatherRepository\s*\)",
+    )
+    started = source_braced_block(
+        refresh_effect, r"\brepeatOnLifecycle\s*\(Lifecycle\.State\.STARTED\s*\)",
+    )
+    periodic = "while(true){weatherRepository.refresh()delay(KiyoriWeatherRepository.REFRESH_INTERVAL_MILLIS)}"
+    if periodic not in compact(started) or len(re.findall(r"\bwhile\s*\(", home)) != 1:
+        errors.append("ARCH049 periodic weather refresh must remain inside the STARTED lifecycle")
+
+
 def check_status_bar_appearance(root: Path, errors: list[str]) -> None:
     """Check root scope and composition observation without freezing presentation code."""
     paths = (STATUS_BAR_APPEARANCE_PATH, M05A3_SYSTEM_BARS_PATH, M05A3_APP_THEME_PATH)
@@ -1361,30 +1446,13 @@ def check_status_bar_appearance(root: Path, errors: list[str]) -> None:
         source_code_mask((root / path).read_text(encoding="utf-8")) for path in paths
     )
 
-    def block(code: str, pattern: str) -> str:
-        match = re.search(pattern, code)
-        if match is None:
-            return ""
-        opening = code.find("{", match.end())
-        if opening < 0:
-            return ""
-        depth = 0
-        for index in range(opening, len(code)):
-            if code[index] == "{":
-                depth += 1
-            elif code[index] == "}":
-                depth -= 1
-                if depth == 0:
-                    return code[opening + 1:index]
-        return ""
-
     def compact(code: str) -> str:
         return re.sub(r"\s+", "", code)
 
-    state = block(appearance, r"\bclass\s+KiyoriStatusBarAppearanceState\b")
-    scope = block(appearance, r"\bfun\s+KiyoriStatusBarAppearanceScope\b")
-    override = block(appearance, r"\bfun\s+KiyoriStatusBarAppearanceOverride\b")
-    host_scope = block(app_theme, r"\bKiyoriStatusBarAppearanceScope\s*(?=\{)")
+    state = source_braced_block(appearance, r"\bclass\s+KiyoriStatusBarAppearanceState\b")
+    scope = source_braced_block(appearance, r"\bfun\s+KiyoriStatusBarAppearanceScope\b")
+    override = source_braced_block(appearance, r"\bfun\s+KiyoriStatusBarAppearanceOverride\b")
+    host_scope = source_braced_block(app_theme, r"\bKiyoriStatusBarAppearanceScope\s*(?=\{)")
     mutation_pattern = r"\bmutableState(?:Of|MapOf|ListOf)\s*(?:<[^>]*>)?\s*\("
     if (
         not state
@@ -1399,7 +1467,7 @@ def check_status_bar_appearance(root: Path, errors: list[str]) -> None:
         "valowner=remember{Any()}" not in compact(override)
         or "SideEffect{appearance.update(owner,darkIcons)}" not in compact(override)
         or "DisposableEffect(appearance,owner){onDispose{appearance.remove(owner)}}" not in compact(override)
-        or "it.owner===owner" not in compact(block(state, r"\bfun\s+remove\b"))
+        or "it.owner===owner" not in compact(source_braced_block(state, r"\bfun\s+remove\b"))
     ):
         errors.append("ARCH048 page appearance must update and remove only its own stable identity")
     if (
@@ -1409,7 +1477,7 @@ def check_status_bar_appearance(root: Path, errors: list[str]) -> None:
     ):
         errors.append("ARCH048 root scope must enclose both Window owner and application content")
     observation = "valdarkStatusBarIcons=LocalKiyoriStatusBarAppearance.current.darkIcons?:!darkTheme"
-    effect = block(system_bars, r"\bSideEffect\s*(?=\{)")
+    effect = source_braced_block(system_bars, r"\bSideEffect\s*(?=\{)")
     effect_start = re.search(r"\bSideEffect\s*\{", system_bars)
     before_effect = system_bars[:effect_start.start()] if effect_start else ""
     if (
@@ -3276,26 +3344,6 @@ def check_m04b_app_shell_owner(root: Path, errors: list[str]) -> None:
                 )
 
 
-def normalize_m04b_ai_drawer_text(text: str) -> str:
-    normalized = text.replace("\r\n", "\n")
-    lines: list[str] = []
-    for line in normalized.splitlines(keepends=True):
-        if re.match(
-            r"^package (?:com\.ai\.assistance\.operit\.ui\.main\.shell|"
-            r"com\.kiyori\.app\.shell)\s*$",
-            line.rstrip("\n"),
-        ):
-            lines.append("package __M04B_AI_DRAWER_PACKAGE__\n")
-            continue
-        if (
-            line.rstrip("\n")
-            == "import com.kiyori.app.shell.calculateKiyoriAiDrawerWidthDp"
-        ):
-            continue
-        lines.append(line)
-    return "".join(lines)
-
-
 def check_m04b_ai_drawer_owner(root: Path, errors: list[str]) -> None:
     target_path = root / M04B_AI_DRAWER_PATH
     if not target_path.is_file():
@@ -3314,22 +3362,6 @@ def check_m04b_ai_drawer_owner(root: Path, errors: list[str]) -> None:
         )
 
     architecture_root = root / "config/architecture"
-    hash_entries = read_snapshot(
-        architecture_root / M04B_AI_DRAWER_NORMALIZED_HASH_SNAPSHOT
-    )
-    if len(hash_entries) != 1 or not re.fullmatch(r"[0-9A-Fa-f]{64}", hash_entries[0]):
-        raise ValueError("invalid M-04B AI Drawer normalized hash snapshot")
-    normalized = normalize_m04b_ai_drawer_text(
-        target_path.read_text(encoding="utf-8")
-    ).encode("utf-8")
-    actual_hash = hashlib.sha256(normalized).hexdigest().upper()
-    expected_hash = hash_entries[0].upper()
-    if actual_hash != expected_hash:
-        errors.append(
-            "ARCH025 AI Drawer changed outside the approved package-only move: "
-            f"expected {expected_hash}, found {actual_hash}"
-        )
-
     expected_import_entries = read_snapshot(
         architecture_root / M04B_AI_DRAWER_PROJECT_IMPORT_SNAPSHOT
     )
@@ -3433,20 +3465,6 @@ def check_m04b_primary_navigation_owner(root: Path, errors: list[str]) -> None:
         )
 
     architecture_root = root / "config/architecture"
-    hash_entries = read_snapshot(
-        architecture_root / M04B_PRIMARY_NAVIGATION_HASH_SNAPSHOT
-    )
-    if len(hash_entries) != 1 or not re.fullmatch(r"[0-9A-Fa-f]{64}", hash_entries[0]):
-        raise ValueError("invalid M-04B primary navigation hash snapshot")
-    normalized = target_path.read_bytes().replace(b"\r\n", b"\n")
-    actual_hash = hashlib.sha256(normalized).hexdigest().upper()
-    expected_hash = hash_entries[0].upper()
-    if actual_hash != expected_hash:
-        errors.append(
-            "ARCH026 primary navigation source changed: "
-            f"expected {expected_hash}, found {actual_hash}"
-        )
-
     expected_import_entries = read_snapshot(
         architecture_root / M04B_PRIMARY_NAVIGATION_PROJECT_IMPORT_SNAPSHOT
     )
@@ -3575,20 +3593,6 @@ def check_m04b_software_home_owner(root: Path, errors: list[str]) -> None:
         )
 
     architecture_root = root / "config/architecture"
-    hash_entries = read_snapshot(
-        architecture_root / M04B_SOFTWARE_HOME_HASH_SNAPSHOT
-    )
-    if len(hash_entries) != 1 or not re.fullmatch(r"[0-9A-Fa-f]{64}", hash_entries[0]):
-        raise ValueError("invalid M-04B Software Home hash snapshot")
-    normalized = target_path.read_bytes().replace(b"\r\n", b"\n")
-    actual_hash = hashlib.sha256(normalized).hexdigest().upper()
-    expected_hash = hash_entries[0].upper()
-    if actual_hash != expected_hash:
-        errors.append(
-            "ARCH027 Software Home source changed: "
-            f"expected {expected_hash}, found {actual_hash}"
-        )
-
     expected_import_entries = read_snapshot(
         architecture_root / M04B_SOFTWARE_HOME_PROJECT_IMPORT_SNAPSHOT
     )
@@ -11256,6 +11260,7 @@ def main() -> int:
         ),
         lambda: check_browser_runtime_owner(root, errors),
         lambda: check_status_bar_appearance(root, errors),
+        lambda: check_shell_presentation_contracts(root, errors),
         lambda: check_tracked_artifacts(root, errors),
         lambda: check_terminal_unchanged(root, args.base, errors),
     )

@@ -23,6 +23,12 @@ C-03 复用 ARCH003/ARCH005 ownership 规则约束市场与记忆数据边界：
 `ci/test/test_data_capability_ownership.py` 从实际 TOML 读取这四条记录，验证合法能力调用、
 重新导入 UI/Compose 以及纯能力导入平台类均得到正确结果，不额外建立一套规则配置。
 
+ARCH049 替代 ARCH025/026/027 对三个导航展示文件的整文件哈希冻结。它检查抽屉 Back/
+dismiss 与传入 registry、底栏 destination/click、首页 search/AI/windows 回调，以及共享
+天气状态和 STARTED 内的定时刷新。包、业务 import、唯一声明、Shell host 和 JVM 策略
+测试接线仍由原规则保护；正常视觉迭代不要求刷新源码哈希。变异反例见
+`ci/test/test_shell_presentation_contracts.py`，历史 M-04B/M-05A2 的 SHA 记录只作迁移证据。
+
 方案 v3 把该实现定义为 G-00，已经在 M-01 前完成首版实现：
 
 ```text
@@ -127,9 +133,9 @@ AndroidX/Sherpa/UUID 源码只允许保持自身包依赖，不得反向导入 K
 | `ARCH022` | M-04B Browser exit presentation capability contract 的 package、源码 SHA、唯一 owner、固定消费者或旧 import 漂移 | error |
 | `ARCH023` | M-04B 纯 Shell state 路径/package/唯一 owner、Browser exit 与 Settings route capability import、KiyoriApp 接线或当前 MainActivity 过渡桥接漂移 | error |
 | `ARCH024` | M-04B3 App Shell host 路径/package/规范化源码、15 个精确项目 import、唯一 helper owner、KiyoriApp host 或测试接线漂移 | error |
-| `ARCH025` | M-04B4 AI Drawer host 路径/package/规范化源码、精确 Operit import、唯一 owner、App Shell host 或测试接线漂移 | error |
-| `ARCH026` | M-04B5 primary destination presentation 拆分后的源码 SHA、精确 import、唯一声明组、App Shell host 或测试接线漂移 | error |
-| `ARCH027` | M-04B6 Software Home 拆分后的路径/package、源码 SHA、9 个精确 Operit import、完整唯一声明组、App Shell host 或 27 个策略测试 import 漂移 | error |
+| `ARCH025` | AI Drawer host 路径/package、精确业务与 design import、唯一 owner、App Shell host 或测试接线漂移 | error |
+| `ARCH026` | Primary destination presentation 的 package、精确 import、唯一声明组、App Shell host 或测试接线漂移 | error |
+| `ARCH027` | Software Home 路径/package、精确业务与 design import、完整唯一声明组、App Shell host 或策略测试 import 漂移 | error |
 | `ARCH028` | M-04B7 residual Browser Search 旧路径、源码 SHA、8 个 Operit import 加 1 个 Browser search-source capability import、页面/request/resolver 唯一 owner、App Shell/KiyoriApp/test 接线漂移 | error |
 | `ARCH029` | M-04C route catalog 旧路径、新 catalog/runtime 源码 SHA 与精确 import、唯一 assembly owner、PackageManager/listener/gateway lifecycle、KiyoriApp/test 接线漂移 | error |
 | `ARCH030` | M-04D1 pending-request owner 缺失、package/源码 SHA/精确项目 import/唯一声明漂移，MainActivity 第二状态 owner、Activity/shared-content/content-host 组合边界中的消费 API 接线缺失、owner 吸收平台副作用或合同测试缺失 | error |
@@ -149,6 +155,9 @@ AndroidX/Sherpa/UUID 源码只允许保持自身包依赖，不得反向导入 K
 | `ARCH044` | M-05C platform Activity lifecycle facts owner、Operit side-effect owner 或旧 ActivityLifecycleManager facade 缺失，callback 注册/弱引用/activity count/started count/foreground 状态出现第二 owner，旧完整 ABI、13 个旧 FQCN consumer、plugin/AI/Player/窗口副作用、JVM facts test 或 ownership 漂移 | error |
 | `ARCH045` | M-05D platform notification permission capability、Operit resource bridge 或 app projection 缺失，API 33/grant/rationale/launcher 出现第二 owner，资源或持久偏好混入 platform，旧 coordinator ABI/早注册/日志/Toast、三条直接 consumer、Manifest 声明、policy tests 或 ownership exception 清理漂移 | error |
 | `ARCH046` | M-05E Kiyori paths 或 backup projection 缺失，目录字面量/Environment/ensureDir/plugin ID/raw snapshot 排除出现第二 owner，旧 OperitPaths/OperitBackupDirs ABI 或纯委派漂移，9/7/37/0 consumer 集合、路径合同测试、M-03/M-05B/critical snapshot 漂移 | error |
+| `ARCH047` | Browser Runtime 构造不私有、出现第二工厂、非共享消费者或未同步发布 | error |
+| `ARCH048` | 状态栏声明越过根作用域、失去身份清理或 composition 观察、出现重复 Window 写入 | error |
+| `ARCH049` | 导航展示丢失壳回调或消费自建事实、抽屉 Back 越界、天气复制 owner 或定时刷新越过 STARTED | error |
 
 `ARCH017` 在四个 M-02 platform contract 尚未出现时不改变 M-01 后基线。任一 contract
 出现后，四个文件必须闭合，`com.ai.assistance.operit` 除唯一 Application 实现外不得再引用

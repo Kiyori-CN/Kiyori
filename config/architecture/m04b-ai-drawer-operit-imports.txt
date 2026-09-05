@@ -7,4 +7,6 @@ com.ai.assistance.operit.ui.main.navigation.LocalAppNavigationModel
 com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 com.ai.assistance.operit.ui.main.navigation.NavigationSurface
 com.kiyori.design.theme.KiyoriSemanticTone
+com.kiyori.design.theme.KiyoriUiShapes
+com.kiyori.design.theme.rememberKiyoriUiTokens
 com.kiyori.design.theme.resolveColors

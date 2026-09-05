@@ -11,6 +11,10 @@ last_reviewed: 2026-08-01
 
 本表是迁移前的路径级决策，不是“把整个目录搬走”的授权。
 
+v4 的全域迁移与当前状态见 [全域设计](22_full_project_design_and_execution.md) 和
+[总计划](index.md)。2026-09-05 起，三个导航展示文件的历史整文件 SHA 由 ARCH049
+状态/回调/生命周期语义检查替代，原唯一 owner、依赖与测试接线继续执行。
+
 每个文件在进入源码变更前必须拥有以下字段：
 
 - 当前路径
@@ -112,8 +116,8 @@ Manifest、AIDL、native、资源或 CI 的变化如果不是纯路径引用修�
 | `com/kiyori/app/startup/KiyoriMainContentHost.kt` | M-04D9 新建并封板；唯一 MainActivity content request projection、shared-content 交接、Plugin Loading CompositionLocal provider 与 `KiyoriApp` 参数/消费回调装配边界，由 ARCH020/ARCH030/ARCH033/ARCH038 共同锁定 | M-06/M-07 随 files、navigation 与 Operit UI contract 迁移删除过渡 import；不得持有第二 pending/plugin 状态、缓存、持久化或 Activity/runtime side effect |
 | `com/kiyori/app/shell/KiyoriShellState.kt` | M-04B2 纯移动完成；唯一 state/back owner 与 Browser capability import 已锁定 | 保持在 `com.kiyori.app.shell` |
 | `com/kiyori/app/shell/KiyoriAppShell.kt` | M-04B3 纯移动完成；后续 Shell 拆分与 M-05A1 theme owner 迁移后，规范化源码、9 个 Operit import、2 个 Kiyori design import 与唯一 root/test 接线由 ARCH024 精确锁定 | 保持在 `com.kiyori.app.shell`，随产品领域迁移删除过渡 import |
-| `com/kiyori/app/shell/KiyoriAiDrawer.kt` | M-04B4 纯移动完成；M-05A2 后规范化源码、11 个过渡 Operit import、2 个 Kiyori design import 与唯一 host/test 接线由 ARCH025 精确锁定 | 保持在 `com.kiyori.app.shell`，M-07 收口 Operit integration |
-| `com/kiyori/app/shell/KiyoriPrimaryNavigation.kt` | M-04B5 提取完成；M-05A2 后源码 SHA、9 个过渡 Operit import、1 个 Kiyori design import 与唯一 host/test 接线由 ARCH026 精确锁定 | 保持在 app shell，随 product-domain 迁移删除旧 page/chrome import |
+| `com/kiyori/app/shell/KiyoriAiDrawer.kt` | ARCH025 保护包、项目依赖、唯一 host/test；ARCH049 保护传入 registry、选择/dismiss 回调与可见期 Back | 保持在 `com.kiyori.app.shell`，按 C/D 计划收口 Operit integration |
+| `com/kiyori/app/shell/KiyoriPrimaryNavigation.kt` | ARCH026 保护项目依赖、唯一声明与 host/test；ARCH049 保护 caller selection/click 和文件/设置分发 | 保持在 app shell，随 product-domain 迁移删除旧 page/chrome import |
 | `com/kiyori/design/theme/KiyoriColorSchemes.kt` | M-05A1 新建并封板；唯一固定 application/Browser ColorScheme 与 bool resolver owner，SHA/声明/禁用依赖由 ARCH040 锁定 | 保持纯 design；不得读取 preference、持有状态或执行 Android/platform 副作用 |
 | `com/kiyori/design/theme/KiyoriTheme.kt` | M-05A3 新建并封板；唯一纯 MaterialTheme/background 组合 owner，接收已解析 ColorScheme、Typography 与标准 `modifier` | 不读取 preference，不创建 Glass 状态，不执行 system-bar/window/lifecycle 副作用；源码 hash 与组合顺序由 ARCH042 锁定 |
 | `com/kiyori/design/theme/KiyoriTypography.kt` | M-05A3 新建并封板；唯一固定零 tracking Typography 与纯 `applyFontFamilyToTypography` owner | 不读取文件、Context、UserPreferences 或 AppLogger；配置字体适配继续留在旧 Type owner |
@@ -137,7 +141,7 @@ Manifest、AIDL、native、资源或 CI 的变化如果不是纯路径引用修�
 | `com/kiyori/platform/storage/KiyoriPaths.kt` | M-05E 新建；唯一 public/internal/cache/files/backup 目录字面量、Environment、ensureDir、plugin ID 与 raw snapshot 排除 owner，ARCH046 锁定 hash/API/算法/消费者 | 保持稳定目录、大小写、层级和创建语义；不得 import 项目代码或吸收 Browser/Player/Backup 流程 |
 | `com/kiyori/platform/storage/KiyoriBackupPaths.kt` | M-05E 新建；无状态 backup 领域命名投影，只委派 `KiyoriPaths` | 不声明目录字面量、排除集合、Environment 或创建逻辑 |
 | `util/OperitPaths.kt`、`data/backup/OperitBackupDirs.kt` | M-05E `ADAPTER` 已实现；保留旧 FQCN、object、常量与完整方法 JVM ABI，分别委派 `KiyoriPaths` / `KiyoriBackupPaths` | 37 个旧 path consumer 保持上游局部性，旧 backup external consumer 为 0；禁止第二路径计算、Regex、hash、Environment 或 ensureDir |
-| `com/kiyori/app/shell/KiyoriSoftwareHome.kt` | M-04B6 提取完成；M-05A2 后源码 SHA、6 个过渡 Operit import、3 个 Kiyori design import、完整唯一声明组与 host/test 接线由 ARCH027 精确锁定 | 保持在 app shell，随 weather、AI action、Browser-window 与 design owner 迁移删除过渡 import |
+| `com/kiyori/app/shell/KiyoriSoftwareHome.kt` | ARCH027 保护依赖、唯一声明与 host/test；ARCH049 保护壳回调、共享天气事实与 STARTED 刷新 | 保持在 app shell，随 weather、AI action、Browser-window 与 design owner 迁移删除过渡 import |
 | `com/kiyori/app/shell/KiyoriBrowserSearch.kt` | M-04B7 提取完成；源码 SHA、8 个过渡 Operit import、页面/request/resolver 唯一 owner 与 App Shell/KiyoriApp/test 接线已锁定 | M-06 Browser domain migration 时移入 Browser presentation owner |
 | `ui/main/shell/KiyoriShellPages.kt` | M-04B7 已删除 residual 混合页面文件 | 不恢复；Browser Search 由 `KiyoriBrowserSearch` 过渡 owner 持有 |
 | `com/kiyori/integration/operit/navigation/AppRouteCatalog.kt` | M-04C 从 Operit UI 包移动完成；接收唯一 PackageManager 引用，源码 SHA 与 16 个 Operit import 已锁定 | 保持唯一 route catalog owner |
