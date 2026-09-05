@@ -1,4 +1,4 @@
-package com.ai.assistance.operit.ui.features.chat.webview.workspace.process
+package com.ai.assistance.operit.core.workspace
 
 import android.content.Context
 import com.ai.assistance.operit.core.tools.AIToolHandler
@@ -8,6 +8,7 @@ import com.ai.assistance.operit.data.model.ToolParameter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+/** Reads the optional workspace instruction file for prompt construction. */
 object WorkspaceRuleFileReader {
     private val WORKSPACE_RULE_FILE_NAMES = listOf("AGENT.md", "AGENTS.md")
 

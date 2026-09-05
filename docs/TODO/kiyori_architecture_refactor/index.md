@@ -32,7 +32,7 @@ Kiyori 自有父子仓库 `origin/main`。旧版“不推送”“terminal 暂�
 | B-01 | 目标边界、迁移矩阵、兼容分类、风险和验收闭合 | v4 设计已形成；重大外部契约变更不在内部迁移中隐含执行 |
 | C-01 | 修复基线契约失配，恢复可信架构/JVM/Lint检查 | 架构 19→16→12→0；主题批次 ARCH050 反例、290 Python、13 JVM、Debug/APK 通过；Lint 55 缺译错误及 35 无用资源警告已清除，标签数 plurals 已入 APK；最终 Lint 与历史高风险 baseline 继续审查 |
 | C-02 | 人工/AI 共用唯一 Browser Runtime，去除非共享构造与下载反向依赖 | 构造与下载能力边界本地验证通过：WorkspaceConfig 与 WorkspaceDownloadDispatcher 均在 core.workspace，WebView 仅依赖能力接口，BrowserWorkspaceDownloadDispatcher 仍适配唯一 BrowserDownloadManager；App JVM、Python、architecture、formal/fresh-clone、Debug/APK 通过，设备待验证 |
-| C-03 | 数据/工具不依赖具体 UI；状态和错误边界有测试 | 市场身份/记忆图事实提取已通过领域 JVM、250 项 Python、ownership 和 Debug/APK；MCP 参数解析与默认工具冷流已通过 43 项相关 JVM、architecture、Debug/APK；WorkspaceConfig 与下载请求模型已迁移到 core.workspace，权限继续实施 |
+| C-03 | 数据/工具不依赖具体 UI；状态和错误边界有测试 | 市场身份/记忆图事实提取已通过领域 JVM、250 项 Python、ownership 和 Debug/APK；MCP 参数解析与默认工具冷流已通过 43 项相关 JVM、architecture、Debug/APK；WorkspaceConfig、下载请求模型和 WorkspaceRuleFileReader 已迁移到 core.workspace，App JVM、architecture、Debug/APK 通过，权限继续实施 |
 | D-01 | 应用壳、首启、设置、权限、设计系统边界及恢复 | 状态栏窗口作用域/Compose 观察本地验证通过：29 JVM、257 Python、ARCH048、Debug/APK；其余首启、导航和权限继续审查，设备待验证 |
 | D-02 | 浏览器、搜索/历史/书签、广告/脚本及下载/播放完整链 | 待实施，依赖 C-02 |
 | D-03 | AI 协议/流、会话、工具、角色、记忆、工作流完整链 | 待实施，依赖 C-03；保留请求至多一次与工具终态合同 |

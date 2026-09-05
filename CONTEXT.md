@@ -50,6 +50,10 @@ Current work status and implementation notes belong in `docs/TODO/`.
   `BrowserWorkspaceDownloadDispatcher` adapts both paths to the existing `BrowserDownloadManager`
   and its stable task/session contract. Workspace UI does not import Browser download functions and
   no second downloader, persistence format, or transport owner is introduced.
+- `core.workspace.WorkspaceRuleFileReader` owns prompt-time discovery of the optional root
+  `AGENT.md` or `AGENTS.md` file. It executes the existing `read_file_full` tool with the same
+  workspace path/environment parameters and priority order; `core.config.SystemPromptConfig` consumes
+  this workspace capability without importing `ui.features.chat.webview`.
 - `StandardBrowserSessionTools.getSharedInstance` is the only Browser Runtime construction entry.
   Browser UI, AI tools and the global download drawer share its profile manager, host callbacks,
   download listeners and adblock subscription as well as the WebSession registry. Closing a drawer

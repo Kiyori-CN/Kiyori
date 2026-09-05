@@ -529,6 +529,23 @@ ToolPkg 安装和设备行为仍保持 `verification_pending`。
 和 16 KiB ZIP 对齐核验通过。真实 Browser 下载、工作区文件和设备交互仍为
 `verification_pending`。
 
+### C-03 workspace 规则读取边界实施证据
+
+2026-09-05 将 `WorkspaceRuleFileReader` 从
+`ui.features.chat.webview.workspace.process` 迁移到 `core.workspace`，解除
+`core.config.SystemPromptConfig` 对 UI 包的反向依赖。读取器仍按 `AGENT.md`、`AGENTS.md` 的
+既有优先级读取工作区根规则，使用相同的 `read_file_full` 工具、`text_only` 参数、可选
+`environment` 参数、空内容过滤和路径拼接；没有改变提示词内容或工具协议。旧 UI 路径已删除，
+仓库内只保留 core.workspace 定义与 SystemPromptConfig 调用。
+
+本批 App 全量 `testDebugUnitTest` 通过（159 tasks，9 executed），architecture 边界检查、
+`git diff --check` 和规定 `:app:assembleDebug --no-daemon --console=plain` 通过（235 tasks，
+23 executed，3m15s）。APK 为 483708439 bytes，SHA-256
+`9DF64E76B14C67B73964D50A990B91F034A238686E39DE6B1707E6AFA65FD423`；包名/版本/SDK 为
+`com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`，唯一 launcher、Debug V2 单 signer、arm64-v8a
+和 16 KiB ZIP 对齐核验通过。真实提示词加载、工作区文件、设备和长时间运行仍为
+`verification_pending`。
+
 ### G-01 文档子模块链接检查事实
 
 当前 Markdown 比较器报告的唯一既有失效链接为 `README.md:189 -> terminal/README.md`。
