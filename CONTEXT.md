@@ -948,3 +948,10 @@ TTS key，迁移会创建并投影 `builtin-next-tts`：它使用单一已验证
 
 - `WebSessionUserscriptManager.attachSession()` 在登记 pending WebView generation 后，主线程消费、旧 binding 清理、WebView bridge/document-start 注册和新 binding 发布统一置于 `pendingSessionAttachmentLock` 内。`detachSession()` 先推进同一 generation 并撤销 pending，再清理 binding；因此 detach 与已开始的 attach 不能交叉发布一个已关闭会话的脚本运行时。
 - `BrowserInteractionContractTest` 覆盖 pending 撤销以及 attach 锁覆盖 provider 注册到 binding 发布的时序。定向测试和规定 Debug 构建通过；最新 `app-debug.apk` 为 `488708094` bytes，SHA-256 `D282CA97EA75490453902C929681E8262EB937D262E0B7DB0C176BBEB698C2EC`，包名/版本/SDK、唯一 launcher、arm64-v8a、Debug V2 单 signer 和 16 KiB ZIP 对齐保持。未新增 userscript runtime、协议或权限路径；真实 WebView provider、安装卸载竞争、设备和长时间运行仍为 `verification_pending`。
+
+## 2026-09-06 权限管理目录与首启选择
+
+- 当前未发布版本的 Settings More Features 权限入口显示为“权限管理”，共享权限子页标题为“权限管理”。首启与 Settings 共用 23 项 `KiyoriPermissionId`、三组顺序、metadata、真实 snapshot、摘要和动作 owner。
+- 新增“读取已安装应用列表”：Android 11 及以上通过 `QUERY_ALL_PACKAGES` 的真实授予状态判断，Android 10 及以下视为系统已具备；不启动运行时授权弹窗。
+- 新增“解除设置限制”：Android 13 及以上标记为需要系统配置，动作打开应用详情页；系统是否展示“允许受限设置”以及密码/指纹验证完全由 Android/OEM 决定，应用不调用受保护广播、不写入虚假授权状态。低版本显示为不适用。
+- 首启权限页新增“全选/取消全选”按钮，集合只包含当前快照中可处理且未完成的条目，逐项勾选仍可用；设置首页底部留白由 `96dp` 调整为 `56dp`。

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessibilityNew
 import androidx.compose.material.icons.filled.Android
+import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.CameraAlt
@@ -12,6 +13,7 @@ import androidx.compose.material.icons.filled.FolderSpecial
 import androidx.compose.material.icons.filled.InstallMobile
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsActive
@@ -59,6 +61,7 @@ internal val kiyoriPermissionGroups =
                     KiyoriPermissionId.PHONE,
                     KiyoriPermissionId.SMS,
                     KiyoriPermissionId.LEGACY_STORAGE,
+                    KiyoriPermissionId.READ_INSTALLED_APPS,
                 ),
         ),
         KiyoriPermissionGroupSpec(
@@ -67,6 +70,7 @@ internal val kiyoriPermissionGroups =
             description = "由 Android 设置单独管理的文件、后台、通知和系统能力",
             permissionIds =
                 listOf(
+                    KiyoriPermissionId.REMOVE_RESTRICTED_SETTINGS,
                     KiyoriPermissionId.ALL_FILES,
                     KiyoriPermissionId.OVERLAY,
                     KiyoriPermissionId.WRITE_SETTINGS,
@@ -94,6 +98,7 @@ internal val kiyoriPermissionGroups =
 internal enum class KiyoriPermissionActionKind {
     REQUEST_RUNTIME,
     OPEN_APPLICATION_SETTINGS,
+    OPEN_RESTRICTED_SETTINGS,
     OPEN_SYSTEM_SETTINGS,
     CONFIGURE_ACCESSIBILITY,
     CONFIGURE_SHIZUKU,
@@ -143,6 +148,13 @@ internal fun resolveKiyoriPermissionAction(
         }
     }
     return when (permissionId) {
+        KiyoriPermissionId.READ_INSTALLED_APPS ->
+            if (status == KiyoriPermissionStatus.GRANTED) {
+                KiyoriPermissionActionKind.NONE
+            } else {
+                KiyoriPermissionActionKind.OPEN_APPLICATION_SETTINGS
+            }
+
         KiyoriPermissionId.ACCESSIBILITY ->
             if (status == KiyoriPermissionStatus.GRANTED) {
                 KiyoriPermissionActionKind.OPEN_SYSTEM_SETTINGS
@@ -163,6 +175,9 @@ internal fun resolveKiyoriPermissionAction(
             } else {
                 KiyoriPermissionActionKind.REQUEST_ROOT
             }
+
+        KiyoriPermissionId.REMOVE_RESTRICTED_SETTINGS ->
+            KiyoriPermissionActionKind.OPEN_RESTRICTED_SETTINGS
 
         KiyoriPermissionId.SCREEN_CAPTURE -> KiyoriPermissionActionKind.NONE
         else -> KiyoriPermissionActionKind.OPEN_SYSTEM_SETTINGS
@@ -254,6 +269,22 @@ internal fun kiyoriPermissionMetadata(
                 KiyoriSemanticTone.ORANGE,
                 R.string.kiyori_onboarding_permission_legacy_storage_title,
                 R.string.kiyori_onboarding_permission_legacy_storage_desc,
+            )
+
+        KiyoriPermissionId.READ_INSTALLED_APPS ->
+            KiyoriPermissionMetadata(
+                Icons.Default.Apps,
+                KiyoriSemanticTone.BLUE,
+                R.string.kiyori_onboarding_permission_installed_apps_title,
+                R.string.kiyori_onboarding_permission_installed_apps_desc,
+            )
+
+        KiyoriPermissionId.REMOVE_RESTRICTED_SETTINGS ->
+            KiyoriPermissionMetadata(
+                Icons.Default.LockOpen,
+                KiyoriSemanticTone.ORANGE,
+                R.string.kiyori_onboarding_permission_restricted_settings_title,
+                R.string.kiyori_onboarding_permission_restricted_settings_desc,
             )
 
         KiyoriPermissionId.ALL_FILES ->

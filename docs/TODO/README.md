@@ -6247,6 +6247,16 @@ GitHub Actions。最终提交、推送和远端 ref 状态以本次 Git 交付�
   权限传递、无外部播放器错误提示、协议长滚动与文本选择、开源搜索与外链、浅色/深色、窄屏/横屏和
   系统安全区仍保持 `verification_pending`。
 
+### 2026-09-06 权限管理能力迭代
+
+状态：`IMPLEMENTED, VALIDATION PENDING`。当前版本按未发布方案处理，权限入口文案为“权限管理”，
+子页面标题为“权限管理”；首启与 Settings 共用 23 项权限目录。新增已安装应用列表可见性和解除
+受限设置两项，前者读取 `QUERY_ALL_PACKAGES` 真实状态，后者打开应用详情页交给 Android/OEM 完成
+用户认证。首启增加全选/取消全选，仍支持逐项选择；设置首页尾部留白缩短为 `56dp`。
+
+待完成：定向 JVM、正式开发门禁、`git diff --check`、串行 Debug APK 构建与产物核验；真机的
+受限设置入口、密码/指纹弹窗、OEM 状态回读和视觉验收保持 `verification_pending`。
+
 ### 首次启动同步优化
 
 状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND DEBUG APK AUDIT COMPLETE / DEVICE VERIFICATION PENDING`。

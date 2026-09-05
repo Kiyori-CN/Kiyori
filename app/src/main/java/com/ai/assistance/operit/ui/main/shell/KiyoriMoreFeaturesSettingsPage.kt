@@ -44,7 +44,7 @@ internal val kiyoriMoreFeaturesSettingsGroups =
             entries =
                 listOf(
                     KiyoriMoreFeaturesSettingsEntrySpec(
-                        title = "权限",
+                        title = "权限管理",
                         description = "查看应用权限、系统访问和高级设备能力的当前状态",
                         icon = Icons.Default.Security,
                         iconTone = KiyoriSemanticTone.GREEN,

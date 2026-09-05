@@ -99,7 +99,7 @@ class KiyoriSettingsPagesTest {
         assertEquals("视频播放器", KIYORI_PLAYER_SETTINGS_PAGE_TITLE)
         assertEquals("广告拦截器", KIYORI_AD_BLOCK_SETTINGS_PAGE_TITLE)
         assertEquals("更多功能", KIYORI_MORE_FEATURES_SETTINGS_PAGE_TITLE)
-        assertEquals("权限与设备能力", KIYORI_PERMISSION_SETTINGS_PAGE_TITLE)
+        assertEquals("权限管理", KIYORI_PERMISSION_SETTINGS_PAGE_TITLE)
         assertEquals(156, KIYORI_SETTINGS_THEME_MENU_WIDTH_DP)
         assertEquals(
             0f,
@@ -448,7 +448,7 @@ class KiyoriSettingsPagesTest {
             kiyoriMoreFeaturesSettingsGroups
                 .flatMap(KiyoriMoreFeaturesSettingsGroupSpec::entries)
         assertEquals(
-            listOf("权限", "网络代理", "开源协议", "用户协议", "隐私政策"),
+            listOf("权限管理", "网络代理", "开源协议", "用户协议", "隐私政策"),
             entries.map(KiyoriMoreFeaturesSettingsEntrySpec::title),
         )
         assertEquals(
@@ -481,7 +481,7 @@ class KiyoriSettingsPagesTest {
             entries.single { entry ->
                 entry.action == KiyoriMoreFeaturesSettingsAction.OPEN_PERMISSIONS
             }
-        assertEquals("权限", permissionEntry.title)
+        assertEquals("权限管理", permissionEntry.title)
         assertTrue(permissionEntry.description.contains("应用权限"))
         assertTrue(permissionEntry.description.contains("系统访问"))
         assertTrue(permissionEntry.description.contains("高级设备能力"))

@@ -223,6 +223,24 @@ class KiyoriOnboardingContractTest {
     }
 
     @Test
+    fun `restricted settings is processed before other selected permissions`() {
+        assertEquals(
+            listOf(
+                KiyoriPermissionId.REMOVE_RESTRICTED_SETTINGS,
+                KiyoriPermissionId.CAMERA,
+                KiyoriPermissionId.SHIZUKU,
+            ),
+            orderKiyoriPermissionIdsForAuthorization(
+                listOf(
+                    KiyoriPermissionId.CAMERA,
+                    KiyoriPermissionId.SHIZUKU,
+                    KiyoriPermissionId.REMOVE_RESTRICTED_SETTINGS,
+                ),
+            ),
+        )
+    }
+
+    @Test
     fun `first run and Settings share one complete permission catalog`() {
         val permissionIds =
             kiyoriPermissionGroups.flatMap(KiyoriPermissionGroupSpec::permissionIds)
@@ -236,6 +254,7 @@ class KiyoriOnboardingContractTest {
             kiyoriPermissionGroups.map(KiyoriPermissionGroupSpec::id),
         )
         assertEquals(KiyoriPermissionId.entries, permissionIds)
+        assertEquals(23, permissionIds.size)
         assertEquals(KiyoriPermissionId.entries.size, permissionIds.toSet().size)
         assertTrue(
             kiyoriPermissionGroups.all { group ->
@@ -253,6 +272,20 @@ class KiyoriOnboardingContractTest {
             resolveKiyoriPermissionAction(
                 permissionId = KiyoriPermissionId.CAMERA,
                 status = KiyoriPermissionStatus.NOT_GRANTED,
+            ),
+        )
+        assertEquals(
+            KiyoriPermissionActionKind.NONE,
+            resolveKiyoriPermissionAction(
+                permissionId = KiyoriPermissionId.READ_INSTALLED_APPS,
+                status = KiyoriPermissionStatus.GRANTED,
+            ),
+        )
+        assertEquals(
+            KiyoriPermissionActionKind.OPEN_RESTRICTED_SETTINGS,
+            resolveKiyoriPermissionAction(
+                permissionId = KiyoriPermissionId.REMOVE_RESTRICTED_SETTINGS,
+                status = KiyoriPermissionStatus.REQUIRES_SETUP,
             ),
         )
         assertEquals(
@@ -316,7 +349,7 @@ class KiyoriOnboardingContractTest {
                 KiyoriPermissionSnapshot(statuses),
             )
 
-        assertEquals(19, summary.readyCount)
+        assertEquals(21, summary.readyCount)
         assertEquals(1, summary.actionRequiredCount)
         assertEquals(1, summary.onDemandCount)
         assertEquals(KiyoriPermissionId.entries.size, summary.totalCount)

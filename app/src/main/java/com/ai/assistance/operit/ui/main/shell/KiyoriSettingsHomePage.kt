@@ -300,7 +300,7 @@ internal fun KiyoriSettingsHomePage(
                     onOpenMoreFeatures = onOpenMoreFeatures,
                 )
             }
-            item { Spacer(modifier = Modifier.height(96.dp)) }
+            item { Spacer(modifier = Modifier.height(56.dp)) }
         }
     }
 }

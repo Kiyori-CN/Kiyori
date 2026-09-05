@@ -105,6 +105,8 @@ internal fun isKiyoriRuntimePermission(
         KiyoriPermissionId.SHIZUKU,
         KiyoriPermissionId.ROOT,
         KiyoriPermissionId.SCREEN_CAPTURE,
+        KiyoriPermissionId.READ_INSTALLED_APPS,
+        KiyoriPermissionId.REMOVE_RESTRICTED_SETTINGS,
         -> false
     }
 
@@ -206,6 +208,22 @@ internal fun readKiyoriPermissionSnapshot(
                                     emptyList()
                                 },
                     )
+                } else {
+                    KiyoriPermissionStatus.NOT_APPLICABLE
+                },
+            )
+            put(
+                KiyoriPermissionId.READ_INSTALLED_APPS,
+                if (sdkInt >= Build.VERSION_CODES.R) {
+                    grantedStatus(hasInstalledApplicationsAccess(context))
+                } else {
+                    KiyoriPermissionStatus.GRANTED
+                },
+            )
+            put(
+                KiyoriPermissionId.REMOVE_RESTRICTED_SETTINGS,
+                if (sdkInt >= Build.VERSION_CODES.TIRAMISU) {
+                    KiyoriPermissionStatus.REQUIRES_SETUP
                 } else {
                     KiyoriPermissionStatus.NOT_APPLICABLE
                 },
@@ -371,6 +389,8 @@ internal fun launchKiyoriPermissionSettings(
             KiyoriPermissionId.PHONE,
             KiyoriPermissionId.SMS,
             KiyoriPermissionId.LEGACY_STORAGE,
+            KiyoriPermissionId.READ_INSTALLED_APPS,
+            KiyoriPermissionId.REMOVE_RESTRICTED_SETTINGS,
             KiyoriPermissionId.SHIZUKU,
             KiyoriPermissionId.ROOT,
             KiyoriPermissionId.SCREEN_CAPTURE,
@@ -508,6 +528,12 @@ private fun permissionGroupStatus(
         else -> KiyoriPermissionStatus.PARTIAL
     }
 }
+
+private fun hasInstalledApplicationsAccess(context: Context): Boolean =
+    ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.QUERY_ALL_PACKAGES,
+    ) == PackageManager.PERMISSION_GRANTED
 
 private fun grantedStatus(granted: Boolean): KiyoriPermissionStatus =
     if (granted) {

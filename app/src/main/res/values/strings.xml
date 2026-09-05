@@ -8345,6 +8345,8 @@
     <string name="kiyori_onboarding_permissions_title">权限设置</string>
     <string name="kiyori_onboarding_permissions_desc">不授权也可以直接进入 Kiyori。请选择现在确实需要的项目；电话、短信、无障碍、Shizuku 和 Root 等高影响能力可在使用对应功能时单独配置。</string>
     <string name="kiyori_onboarding_permissions_all_items" translatable="false">权限清单</string>
+    <string name="kiyori_onboarding_permissions_select_all" translatable="false">全选</string>
+    <string name="kiyori_onboarding_permissions_deselect_all" translatable="false">取消全选</string>
     <string name="kiyori_onboarding_permissions_clear_all" translatable="false">清空已选</string>
     <string name="kiyori_onboarding_permissions_selected_count" translatable="false">已选择 %1$d 项</string>
     <string name="kiyori_onboarding_permissions_authorize_and_enter" translatable="false">授权并进入 Kiyori</string>
@@ -8381,6 +8383,10 @@
     <string name="kiyori_onboarding_permission_sms_desc">发送、读取和接收你明确授权处理的短信。</string>
     <string name="kiyori_onboarding_permission_legacy_storage_title">旧版外部存储</string>
     <string name="kiyori_onboarding_permission_legacy_storage_desc">Android 12 及以下读取公共存储；Android 9 及以下写入公共存储所需的兼容权限。</string>
+    <string name="kiyori_onboarding_permission_installed_apps_title">读取已安装应用列表</string>
+    <string name="kiyori_onboarding_permission_installed_apps_desc">读取设备上已安装应用，用于应用选择、自动化和跨应用工具；Android 由应用可见性策略管理。</string>
+    <string name="kiyori_onboarding_permission_restricted_settings_title">解除设置限制</string>
+    <string name="kiyori_onboarding_permission_restricted_settings_desc">打开 Kiyori 的应用信息页；在系统要求时，请完成“允许受限设置”和设备密码或指纹验证，这是部分高级能力的前提。</string>
     <string name="kiyori_onboarding_permission_all_files_title">所有文件访问</string>
     <string name="kiyori_onboarding_permission_all_files_desc">完整文件管理、终端和需要跨目录处理文件的工具。</string>
     <string name="kiyori_onboarding_permission_overlay_title">悬浮窗</string>

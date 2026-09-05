@@ -74,6 +74,8 @@ internal enum class KiyoriPermissionId {
     PHONE,
     SMS,
     LEGACY_STORAGE,
+    READ_INSTALLED_APPS,
+    REMOVE_RESTRICTED_SETTINGS,
     ALL_FILES,
     OVERLAY,
     WRITE_SETTINGS,
@@ -168,3 +170,12 @@ internal fun sanitizeKiyoriPermissionSelection(
     KiyoriPermissionId.entries.filterTo(linkedSetOf()) { permissionId ->
         permissionId in selectedPermissionIds && snapshot.canSelect(permissionId)
     }
+
+internal fun orderKiyoriPermissionIdsForAuthorization(
+    permissionIds: List<KiyoriPermissionId>,
+): List<KiyoriPermissionId> =
+    permissionIds.sortedWith(
+        compareBy { permissionId ->
+            if (permissionId == KiyoriPermissionId.REMOVE_RESTRICTED_SETTINGS) 0 else 1
+        },
+    )

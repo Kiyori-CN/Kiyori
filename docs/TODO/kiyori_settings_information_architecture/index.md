@@ -490,3 +490,13 @@ AI 包管理、脚本包、ToolPkg、插件市场或 AI 抽屉路由；小程序
   `8C08C8D7150BBDB56EE1018BFE1C24FDB07C70F453A3F0AB9ABA74DF267A87E1`，
   包/版本/SDK、唯一 launcher、arm64-only、Android Debug V2 单 signer 与 16 KB ZIP 对齐通过
 - 未安装或操作设备；真实点击、逐级 Back 与浅深主题视觉保持 `verification_pending`
+
+### 2026-09-06 权限管理名称与能力增量
+
+- More Features 的系统能力入口文案更新为“权限管理”，子页折叠标题更新为“权限管理”；route、Back
+  链和唯一状态 owner 不变。
+- 首启与 Settings 共享目录扩展为 23 项，新增“读取已安装应用列表”和“解除设置限制”。前者读取
+  `QUERY_ALL_PACKAGES` 授予状态；后者打开应用详情页，由 Android/OEM 在需要时显示受限设置解锁与
+  设备认证，应用只在回前台时刷新真实目录状态。
+- 首启权限页增加全选/取消全选，集合只包含当前 snapshot 可处理且未完成的项目；单项操作和设置页
+  的“依次处理”保持不变。设置首页尾部留白从 `96dp` 调整为 `56dp`。

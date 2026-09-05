@@ -58,7 +58,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-internal const val KIYORI_PERMISSION_SETTINGS_PAGE_TITLE = "权限与设备能力"
+internal const val KIYORI_PERMISSION_SETTINGS_PAGE_TITLE = "权限管理"
 
 internal fun kiyoriPermissionActionLabel(
     action: KiyoriPermissionActionKind,
@@ -67,6 +67,7 @@ internal fun kiyoriPermissionActionLabel(
     when (action) {
         KiyoriPermissionActionKind.REQUEST_RUNTIME -> "授权"
         KiyoriPermissionActionKind.OPEN_APPLICATION_SETTINGS -> "管理"
+        KiyoriPermissionActionKind.OPEN_RESTRICTED_SETTINGS -> "前往设置"
         KiyoriPermissionActionKind.OPEN_SYSTEM_SETTINGS ->
             if (status == KiyoriPermissionStatus.GRANTED) "管理" else "前往设置"
         KiyoriPermissionActionKind.CONFIGURE_ACCESSIBILITY ->
@@ -212,6 +213,11 @@ internal fun KiyoriPermissionsSettingsPage(
                     launchKiyoriApplicationPermissionSettings(context)
                 }
 
+                KiyoriPermissionActionKind.OPEN_RESTRICTED_SETTINGS -> {
+                    waitingForExternalSettings = true
+                    launchKiyoriApplicationPermissionSettings(context)
+                }
+
                 KiyoriPermissionActionKind.OPEN_SYSTEM_SETTINGS -> {
                     waitingForExternalSettings = true
                     launchKiyoriPermissionSettings(
@@ -314,9 +320,11 @@ internal fun KiyoriPermissionsSettingsPage(
                 progress = snapshot.completedCount.toFloat() / snapshot.totalCount,
                 refreshing = refreshing,
                 operationActive = operationActive,
-                onResolveAll = {
-                    enqueuePermissions(snapshot.actionableIncomplete)
-                },
+            onResolveAll = {
+                enqueuePermissions(
+                    orderKiyoriPermissionIdsForAuthorization(snapshot.actionableIncomplete),
+                )
+            },
             )
         }
         kiyoriPermissionGroups.forEach { group ->

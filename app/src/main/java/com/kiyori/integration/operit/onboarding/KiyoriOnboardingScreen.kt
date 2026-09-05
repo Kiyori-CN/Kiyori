@@ -249,6 +249,11 @@ internal fun KiyoriOnboardingScreen(
                     true
                 }
 
+                KiyoriPermissionActionKind.OPEN_RESTRICTED_SETTINGS -> {
+                    launchKiyoriApplicationPermissionSettings(context)
+                    true
+                }
+
                 KiyoriPermissionActionKind.OPEN_SYSTEM_SETTINGS -> {
                     launchKiyoriPermissionSettings(
                         context = context,
@@ -389,7 +394,8 @@ internal fun KiyoriOnboardingScreen(
             return
         }
         preferences.saveSelectedPermissions(selectable)
-        permissionQueueNames = selectable.map(KiyoriPermissionId::name)
+        permissionQueueNames =
+            orderKiyoriPermissionIdsForAuthorization(selectable.toList()).map(KiyoriPermissionId::name)
         authorizationActive = true
     }
 
@@ -732,6 +738,12 @@ internal fun KiyoriOnboardingScreen(
                                     if (!authorizationActive) {
                                         selectedPermissionIds = emptySet()
                                         preferences.clearSelectedPermissions()
+                                    }
+                                },
+                                onSelectAll = {
+                                    if (!authorizationActive) {
+                                        selectedPermissionIds = permissionSnapshot.selectable.toSet()
+                                        preferences.saveSelectedPermissions(selectedPermissionIds)
                                     }
                                 },
                                 onAuthorize = ::startAuthorization,
@@ -1604,12 +1616,17 @@ private fun KiyoriPermissionAuthorizationPage(
     waitingForExternalSettings: Boolean,
     onTogglePermission: (KiyoriPermissionId) -> Unit,
     onClearSelection: () -> Unit,
+    onSelectAll: () -> Unit,
     onAuthorize: () -> Unit,
 ) {
     val selectedCount =
         selectedPermissionIds.count { permissionId ->
             snapshot.canSelect(permissionId)
         }
+    val selectablePermissionIds = snapshot.selectable
+    val allSelectableSelected =
+        selectablePermissionIds.isNotEmpty() &&
+            selectablePermissionIds.all { permissionId -> permissionId in selectedPermissionIds }
     val groupedPermissionIds =
         remember {
             kiyoriPermissionGroups.flatMap(KiyoriPermissionGroupSpec::permissionIds)
@@ -1664,6 +1681,26 @@ private fun KiyoriPermissionAuthorizationPage(
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                     )
+                    TextButton(
+                        onClick =
+                            if (allSelectableSelected) {
+                                onClearSelection
+                            } else {
+                                onSelectAll
+                            },
+                        enabled = selectablePermissionIds.isNotEmpty() && !authorizationActive,
+                    ) {
+                        Text(
+                            text =
+                                stringResource(
+                                    if (allSelectableSelected) {
+                                        R.string.kiyori_onboarding_permissions_deselect_all
+                                    } else {
+                                        R.string.kiyori_onboarding_permissions_select_all
+                                    },
+                                ),
+                        )
+                    }
                     TextButton(
                         onClick = onClearSelection,
                         enabled = selectedCount > 0 && !authorizationActive,

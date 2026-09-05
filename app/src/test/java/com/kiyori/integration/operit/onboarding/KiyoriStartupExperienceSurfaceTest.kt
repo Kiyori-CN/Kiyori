@@ -49,7 +49,7 @@ class KiyoriStartupExperienceSurfaceTest {
     }
 
     @Test
-    fun `first run renders the shared grouped catalog without global selection`() {
+    fun `first run renders the shared grouped catalog with explicit global selection`() {
         val onboardingSource =
             repositoryFile(
                 "app/src/main/java/com/kiyori/integration/operit/onboarding/" +
@@ -61,11 +61,11 @@ class KiyoriStartupExperienceSurfaceTest {
         assertTrue(permissionPageBlock.contains("kiyoriPermissionGroups.forEach"))
         assertTrue(permissionPageBlock.contains("items = group.permissionIds"))
         assertTrue(permissionPageBlock.contains("summarizeKiyoriPermissions(snapshot)"))
-        assertFalse(permissionPageBlock.contains("onSelectAll"))
+        assertTrue(permissionPageBlock.contains("onSelectAll"))
 
         val defaultStrings =
             repositoryFile("app/src/main/res/values/strings.xml").readText()
-        assertFalse(defaultStrings.contains("kiyori_onboarding_permissions_select_all"))
+        assertTrue(defaultStrings.contains("kiyori_onboarding_permissions_select_all"))
     }
 
     @Test
