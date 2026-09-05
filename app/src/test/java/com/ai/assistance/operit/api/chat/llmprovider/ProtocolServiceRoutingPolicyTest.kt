@@ -106,7 +106,7 @@ class ProtocolServiceRoutingPolicyTest {
                 apiProtocol = ApiProtocol.OPENAI_CHAT_COMPLETIONS,
             )
 
-        assertEquals(ProtocolServiceKind.PROVIDER_ROUTED, route.serviceKind)
+        assertEquals(ProtocolServiceKind.DEEPSEEK_CHAT, route.serviceKind)
         assertEquals(ApiProviderType.DEEPSEEK, route.identityProviderType)
         assertEquals(ApiProviderType.DEEPSEEK, route.capabilityProviderType)
     }

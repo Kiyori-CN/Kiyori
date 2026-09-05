@@ -73,6 +73,15 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
         )
         assertEquals(0, responsesPolicy.maxIdleConnections)
         assertEquals(false, responsesPolicy.retryOnConnectionFailure)
+
+        val deepSeekChatPolicy =
+            LlmHttpClientProtocolPolicy.policyFor(ProtocolServiceKind.DEEPSEEK_CHAT)
+        assertEquals(
+            listOf(Protocol.HTTP_1_1),
+            deepSeekChatPolicy.protocols,
+        )
+        assertEquals(0, deepSeekChatPolicy.maxIdleConnections)
+        assertEquals(false, deepSeekChatPolicy.retryOnConnectionFailure)
     }
 
     @Test

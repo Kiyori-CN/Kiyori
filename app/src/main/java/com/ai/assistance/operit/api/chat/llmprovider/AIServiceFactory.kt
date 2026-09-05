@@ -303,11 +303,15 @@ internal object SharedHttpClient {
         build(LlmHttpClientProtocolPolicy.responsesPolicy)
     }
 
+    private val deepSeekChatInstance: OkHttpClient by lazy {
+        build(LlmHttpClientProtocolPolicy.deepSeekChatPolicy)
+    }
+
     fun forServiceKind(serviceKind: ProtocolServiceKind): OkHttpClient =
-        if (LlmHttpClientProtocolPolicy.usesResponsesClient(serviceKind)) {
-            responsesInstance
-        } else {
-            instance
+        when (serviceKind) {
+            ProtocolServiceKind.OPENAI_RESPONSES -> responsesInstance
+            ProtocolServiceKind.DEEPSEEK_CHAT -> deepSeekChatInstance
+            else -> instance
         }
 }
 
@@ -331,15 +335,22 @@ internal object LlmHttpClientProtocolPolicy {
             keepAliveTimeUnit = TimeUnit.MINUTES,
             retryOnConnectionFailure = false,
         )
+    /**
+     * DeepSeek Chat has reproduced response-header HTTP/2 CANCELs after long tool-call hops.
+     * Each request must start on a fresh HTTP/1.1 connection so a server-reset stream cannot
+     * poison the next hop; request retry remains owned by the at-most-once provider boundary.
+     */
+    val deepSeekChatPolicy = responsesPolicy
 
     val defaultProtocols: List<Protocol> = defaultPolicy.protocols
     val responsesProtocols: List<Protocol> = responsesPolicy.protocols
 
-    fun usesResponsesClient(serviceKind: ProtocolServiceKind): Boolean =
-        serviceKind == ProtocolServiceKind.OPENAI_RESPONSES
+    fun usesIsolatedClient(serviceKind: ProtocolServiceKind): Boolean =
+        serviceKind == ProtocolServiceKind.OPENAI_RESPONSES ||
+            serviceKind == ProtocolServiceKind.DEEPSEEK_CHAT
 
     fun policyFor(serviceKind: ProtocolServiceKind): LlmHttpClientTransportPolicy =
-        if (usesResponsesClient(serviceKind)) {
+        if (usesIsolatedClient(serviceKind)) {
             responsesPolicy
         } else {
             defaultPolicy
@@ -781,6 +792,7 @@ internal enum class ProtocolServiceKind {
     OPENAI_CHAT_GENERIC,
     OPENAI_RESPONSES,
     ANTHROPIC_MESSAGES,
+    DEEPSEEK_CHAT,
 }
 
 internal data class ProtocolServiceRoute(
@@ -827,10 +839,13 @@ internal object ProtocolServiceRoutingPolicy {
                         providerType == ApiProviderType.XAI
                 ProtocolServiceRoute(
                     serviceKind =
-                        if (usesGenericOpenAiChat) {
-                            ProtocolServiceKind.OPENAI_CHAT_GENERIC
-                        } else {
-                            ProtocolServiceKind.PROVIDER_ROUTED
+                        when {
+                            providerType == ApiProviderType.DEEPSEEK ->
+                                ProtocolServiceKind.DEEPSEEK_CHAT
+                            usesGenericOpenAiChat ->
+                                ProtocolServiceKind.OPENAI_CHAT_GENERIC
+                            else ->
+                                ProtocolServiceKind.PROVIDER_ROUTED
                         },
                     identityProviderType = providerType,
                     capabilityProviderType =

@@ -671,3 +671,30 @@ payload 只保存脱敏正文、思考、工具和错误事实；禁止 API key�
    reasoning-only、正文 partial、网络断流和立即重发；完成前保持 `verification_pending`。
 
 本地实现与自动验证完成不等于设备、真实 Provider 或用户验收完成。
+
+## 2026-09-05 DeepSeek Chat HTTP/2 CANCEL 诊断与连接隔离
+
+状态：`LOCAL IMPLEMENTATION, AUTOMATED VALIDATION AND DEBUG APK VERIFIED / REAL PROVIDER AND DEVICE VERIFICATION PENDING`。
+
+附件 `20260905-151206-954-测试Code Runner与超级管理员功能-621753ac-ai-diagnostics.md` 的末尾事件
+597-602 与最终 throwable 形成了完整的传输证据链：第 32 次 DeepSeek Chat Completions 请求的
+第 1 次 attempt 已发送完整 `102630` 字节请求体，transport metadata 为
+`protocol=h2`、`connectionReused=true`、`requestBodyStarted=true`、
+`responseHeadersReceived=false`、`transportStage=WAITING_FOR_RESPONSE_HEADERS`，随后
+OkHttp 抛出 `StreamResetException: stream was reset: CANCEL`。没有
+`CancellationException` 或 `PROVIDER_ATTEMPT_CANCELLED`，因此这不是用户点击停止；事件 600
+正确把它记为提交状态未知并抑制自动重试，事件 601 保留已收到的部分回答。
+
+前约 31 个工具 hop 已成功，失败只出现在长时间连续请求后的复用 HTTP/2 连接上。服务端或中间
+代理在响应头前发送 `RST_STREAM(CANCEL)` 是当前可由日志确认的传输根因；请求体已经离开进程，
+重新 POST 可能重复提交或重复工具 hop，不能用透明重试掩盖未知提交状态。
+
+本轮实现将 DeepSeek 的 `OPENAI_CHAT_COMPLETIONS` 路由标记为 `DEEPSEEK_CHAT`，并使用独立的
+HTTP 客户端策略：只协商 `HTTP/1.1`、`maxIdleConnections=0`、关闭 OkHttp
+`retryOnConnectionFailure`。这与已有 OpenAI Responses 隔离策略一致，切断长链路 HTTP/2 连接复用，
+同时保持 provider 层 at-most-once 边界，不切换 Provider/endpoint、不增加直连路径或第二代理核心、
+不吞异常、不伪造成功。
+
+已修改 `AIServiceFactory.kt` 及其路由/传输回归测试；本地定向测试、Debug APK、正式开发门禁和
+新鲜克隆检查均已完成。真实 DeepSeek endpoint、HTTP/2 reset 复现、长工具
+链路和 vivo Android 设备复测尚未执行，完成前保持 `verification_pending`。
