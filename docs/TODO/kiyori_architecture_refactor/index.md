@@ -49,9 +49,14 @@ Kiyori 自有父子仓库 `origin/main`。旧版“不推送”“terminal 暂�
 领域。E/F 在受影响领域同步执行，G 汇总验收。某领域无须修改必须留下实际实现、依赖和
 测试依据；范围内已确认缺陷不能移到“以后优化”以关闭工作项。
 
-基线观察：父 `65d12a65dd7cb350b7589a7dbf99ede4e450280d`，terminal
-`7ec4cfb10c94992adb79e6e281ba61878d7bcd8c`，父子干净。Debug 构建与正式准备检查通过，
-Python 242 项通过；App JVM 2025 项中 2 失败、1 显式 live-media 测试跳过。
+当前观察（2026-09-05）：父 `main@09306457f30d3a1e582b9fe566bd0ebd489cff99` 与
+`origin/main` 一致，terminal gitlink 为
+`6180a86e4e2c45f8f05a3f93d20a0ef4a97d11cd`，父子工作树干净。该提交来自独立的
+Terminal ToolPkg 命令传输修复，已推送并通过其专项检查；不计入本重构批次。重构最近三个
+阶段提交为 `95f8e9576`、`2220665a0`、`7201ea863`，均已包含在当前 main。Debug 构建与
+正式准备检查通过；本轮 workspace 处理组全量 App JVM、architecture、fresh-clone 和
+候选 Markdown 检查通过。设备指标与设备兼容验收尚未采集，真实 Browser/工作区/终端行为
+继续保持 `verification_pending`。
 独立全项目 Lint 于 2026-09-05 06:49 结束，26m31s，App 有 55 errors / 78 warnings /
 1 hint，另有 20 条失效 baseline 项。设备指标与设备兼容验收尚未采集。
 
