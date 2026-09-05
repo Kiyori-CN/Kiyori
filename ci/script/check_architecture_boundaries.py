@@ -385,12 +385,12 @@ M05A1_DESIGN_FILES = (
     (
         "Browser theme",
         M05A1_BROWSER_THEME_PATH,
-        "m05a1-browser-theme-sha256.txt",
+        None,
     ),
     (
         "Settings theme",
         M05A1_SETTINGS_THEME_PATH,
-        "m05a1-settings-theme-sha256.txt",
+        None,
     ),
 )
 M05A1_DECLARATION_OWNERS = {
@@ -414,6 +414,8 @@ M05A1_EXPECTED_IMPORT_CONSUMERS = {
         "browser/WebSessionBrowserScreen.kt",
     },
     "KiyoriSettingsTheme": {
+        "app/src/main/java/com/ai/assistance/operit/ui/features/chat/details/"
+        "ConversationDetailsScreen.kt",
         "app/src/main/java/com/kiyori/app/shell/KiyoriAppShell.kt",
         "app/src/main/java/com/ai/assistance/operit/ui/main/components/"
         "AppContent.kt",
@@ -427,6 +429,8 @@ M05A1_EXPECTED_IMPORT_CONSUMERS = {
         "KiyoriSettingsWorkspacePage.kt",
     },
     "LocalKiyoriSettingsColors": {
+        "app/src/main/java/com/ai/assistance/operit/ui/features/chat/details/"
+        "ConversationDetailsScreen.kt",
         "app/src/main/java/com/ai/assistance/operit/ui/features/assistant/"
         "components/AvatarPreviewSection.kt",
         "app/src/main/java/com/ai/assistance/operit/ui/features/assistant/"
@@ -644,7 +648,6 @@ M05A3_WIDGET_THEME_HOST_PATH = (
     "ToolPkgDesktopWidgetConfigActivity.kt"
 )
 M05A3_ROOT_HASH_SNAPSHOT = "m05a3-root-theme-sha256.txt"
-M05A3_RESOURCE_HASH_SNAPSHOT = "m05a3-theme-resources-sha256.txt"
 M05A3_CONSUMER_IMPORT_SNAPSHOT = "m05a3-theme-consumer-imports.txt"
 M05A3_THEME_RESOURCE_PATHS = (
     "app/src/main/res/values/themes.xml",
@@ -655,14 +658,11 @@ M05A3_THEME_RESOURCE_PATHS = (
     "app/src/main/res/values-night-v29/themes.xml",
 )
 M05A3_HASHED_PATHS = (
-    M05A3_DESIGN_THEME_PATH,
     M05A3_TYPOGRAPHY_PATH,
     M05A3_TYPE_PATH,
     M05A3_LIQUID_GLASS_PATH,
     M05A3_WATER_GLASS_PATH,
     M05A3_PLAYER_ACTIVITY_PATH,
-    M05A3_UTILITY_THEME_PATH,
-    M05A3_FLOATING_THEME_PATH,
     M04_MAIN_ACTIVITY_PATH,
     M05A3_WIDGET_THEME_HOST_PATH,
 )
@@ -1434,6 +1434,163 @@ def check_shell_presentation_contracts(root: Path, errors: list[str]) -> None:
     periodic = "while(true){weatherRepository.refresh()delay(KiyoriWeatherRepository.REFRESH_INTERVAL_MILLIS)}"
     if periodic not in compact(started) or len(re.findall(r"\bwhile\s*\(", home)) != 1:
         errors.append("ARCH049 periodic weather refresh must remain inside the STARTED lifecycle")
+
+
+def check_design_theme_contracts(root: Path, errors: list[str]) -> None:
+    """Protect theme data flow and Android style semantics without byte snapshots."""
+    adapters = {
+        M05A1_BROWSER_THEME_PATH: ("KiyoriBrowserTheme", "browserColorScheme", "parentTypography"),
+        M05A1_SETTINGS_THEME_PATH: ("KiyoriSettingsTheme", "colorScheme", "parentTypography"),
+        M05A3_DESIGN_THEME_PATH: ("KiyoriTheme", "colorScheme", "typography"),
+        M05A3_UTILITY_THEME_PATH: ("OperitUtilityTheme", "resolveThemeColorScheme(darkTheme)", "KiyoriTypography"),
+        M05A3_FLOATING_THEME_PATH: ("FloatingWindowTheme", "finalColorScheme", "finalTypography"),
+    }
+    required_paths = (*adapters, *M05A3_THEME_RESOURCE_PATHS, MAIN_MANIFEST_PATH)
+    if any(not (root / path).is_file() for path in required_paths):
+        errors.append("ARCH050 theme contract owners are missing")
+        return
+    bodies: dict[str, str] = {}
+    for path, (symbol, colors, typography) in adapters.items():
+        code = source_code_mask((root / path).read_text(encoding="utf-8"))
+        body = re.sub(r"\s+", "", source_braced_block(code, rf"\bfun\s+{symbol}\b"))
+        bodies[path] = body
+        expected = f"MaterialTheme(colorScheme={colors},typography={typography},shapes=KiyoriMaterialShapes,"
+        if body.count(expected) != 1 or body.count("MaterialTheme(") != 1:
+            errors.append(f"ARCH050 Material theme must use its resolved colors, typography and shared shapes: {path}")
+        if path != M05A1_SETTINGS_THEME_PATH and path != M05A3_DESIGN_THEME_PATH:
+            if expected + "content=content" not in body:
+                errors.append(f"ARCH050 theme must render the supplied content: {path}")
+        if path == M05A3_DESIGN_THEME_PATH:
+            if not body.endswith("{content()}}"):
+                errors.append("ARCH050 root theme must render content inside its background")
+        if path == M05A3_FLOATING_THEME_PATH and re.search(
+            r"\b(?:LocalContext|Activity|UserPreferencesManager|collectAsState)\b", code,
+        ):
+            errors.append("ARCH050 floating theme must remain independent of Activity and preferences")
+
+    browser = bodies[M05A1_BROWSER_THEME_PATH]
+    settings = bodies[M05A1_SETTINGS_THEME_PATH]
+    for path, body in ((M05A1_BROWSER_THEME_PATH, browser), (M05A1_SETTINGS_THEME_PATH, settings)):
+        if any(part not in body for part in (
+            "valparentColorScheme=MaterialTheme.colorScheme",
+            "valparentTypography=MaterialTheme.typography",
+            "parentColorScheme.background.luminance()<0.5f",
+        )):
+            errors.append(f"ARCH050 child theme must inherit typography and select colors from parent luminance: {path}")
+    if "if(parentColorScheme.background.luminance()<0.5f){KiyoriBrowserDarkColorScheme}else{KiyoriBrowserLightColorScheme}" not in browser:
+        errors.append("ARCH050 browser must select its neutral dark and light palettes")
+    if any(part not in settings for part in (
+        "valisDark=parentColorScheme.background.luminance()<0.5f",
+        "valsettingsColors=resolveKiyoriSettingsColors(isDark)",
+        "(if(isDark)KiyoriDarkColorSchemeelseKiyoriLightColorScheme).copy(",
+        "background=settingsColors.pageBackground",
+        "onBackground=settingsColors.primaryText",
+        "surface=settingsColors.cardBackground",
+        "onSurface=settingsColors.primaryText",
+        "onSurfaceVariant=settingsColors.secondaryText",
+        "outline=settingsColors.mutedIcon",
+        "outlineVariant=settingsColors.divider",
+        "surfaceContainerLowest=settingsColors.cardBackground",
+        "surfaceContainerLow=settingsColors.cardBackground",
+        "surfaceContainer=settingsColors.cardBackground",
+        "surfaceVariant=if(isDark){Color(0xFF242A31)}else{Color(0xFFEDF1F5)}",
+        "surfaceContainerHigh=if(isDark){Color(0xFF22272D)}else{Color(0xFFF2F4F7)}",
+        "surfaceContainerHighest=if(isDark){Color(0xFF2A3037)}else{Color(0xFFE9EDF2)}",
+        "shapes=KiyoriMaterialShapes,){androidx.compose.runtime.CompositionLocalProvider(LocalKiyoriSettingsColorsprovidessettingsColors,content=content,)}",
+    )):
+        errors.append("ARCH050 settings must map its palette and provide colors to content inside MaterialTheme")
+    settings_source = re.sub(r"\s+", "", source_code_mask((root / M05A1_SETTINGS_THEME_PATH).read_text(encoding="utf-8")))
+    if (
+        "staticCompositionLocalOf<KiyoriSettingsColors>{error(" not in settings_source
+        or "resolveKiyoriSettingsColors(isDark:Boolean):KiyoriSettingsColors=if(isDark)DarkSettingsColorselseLightSettingsColors" not in settings_source
+    ):
+        errors.append("ARCH050 settings colors must require a provider and resolve the matching light or dark palette")
+    utility = bodies[M05A3_UTILITY_THEME_PATH]
+    if any(part not in utility for part in (
+        "valpreferencesManager=remember(context){UserPreferencesManager.getInstance(context)}",
+        "valuseSystemThemebypreferencesManager.useSystemTheme.collectAsState(initial=false)",
+        "valthemeModebypreferencesManager.themeMode.collectAsState(initial=UserPreferencesManager.THEME_MODE_LIGHT)",
+        "valsystemDarkTheme=isSystemInDarkTheme()",
+        "valdarkTheme=if(useSystemTheme){systemDarkTheme}else{themeMode==UserPreferencesManager.THEME_MODE_DARK}",
+    )):
+        errors.append("ARCH050 utility theme must resolve the existing user and system preferences")
+    floating = bodies[M05A3_FLOATING_THEME_PATH]
+    if any(part not in floating for part in (
+        "valfinalColorScheme=colorScheme?:KiyoriLightColorScheme",
+        "valdefaultSmallTypography=KiyoriTypography.copy(",
+        "valfinalTypography=typography?:defaultSmallTypography",
+    )):
+        errors.append("ARCH050 floating theme must use supplied values or its explicit static defaults")
+    for role, size, height in (
+        ("bodyLarge", 14, 18), ("bodyMedium", 12, 16), ("bodySmall", 10, 14),
+        ("labelSmall", 10, 14), ("titleSmall", 14, 18),
+        ("labelMedium", 12, 16), ("labelLarge", 14, 18),
+    ):
+        if f"{role}=KiyoriTypography.{role}.copy(fontSize={size}.sp,lineHeight={height}.sp)" not in floating:
+            errors.append(f"ARCH050 floating typography contract differs: {role}")
+
+    # These are XML contracts, so compare parsed nodes rather than source formatting.
+    tools_api = "{http://schemas.android.com/tools}targetApi"
+    for relative_path in M05A3_THEME_RESOURCE_PATHS:
+        qualifier = Path(relative_path).parent.name
+        night = "night" in qualifier
+        expected = ET.Element("resources")
+        main_style = ET.SubElement(expected, "style", name="Theme.Kiyori", parent="@style/KiyoriThemeBase")
+
+        def items(style: ET.Element, values: dict[str, str]) -> None:
+            for name, value in values.items():
+                ET.SubElement(style, "item", name=name).text = value
+
+        if qualifier in ("values", "values-night"):
+            base = ET.SubElement(expected, "style", name="KiyoriThemeBase", parent="Theme.MaterialComponents.DayNight.NoActionBar")
+            items(base, {
+                "colorPrimary": "@color/kiyori_primary",
+                "colorPrimaryVariant": "@color/kiyori_primary",
+                "colorOnPrimary": "@color/kiyori_on_primary",
+                "colorSecondary": "@color/kiyori_secondary",
+                "colorSecondaryVariant": "@color/kiyori_secondary",
+                "colorOnSecondary": "@color/kiyori_on_secondary",
+                "colorSurface": "@color/kiyori_surface",
+                "colorOnSurface": "@color/kiyori_on_surface",
+                "android:colorBackground": "@color/kiyori_background",
+                "android:windowBackground": "@color/kiyori_background",
+                "android:statusBarColor": "@color/kiyori_background",
+                "android:navigationBarColor": "@color/kiyori_background",
+                "android:windowLightStatusBar": "false" if night else "true",
+            })
+            for name, value in (
+                ("android:windowSplashScreenBackground", "@color/kiyori_background"),
+                ("android:windowSplashScreenAnimatedIcon", "@drawable/ic_kiyori_splash_transparent"),
+                ("android:windowSplashScreenAnimationDuration", "0"),
+            ):
+                ET.SubElement(base, "item", {"name": name, tools_api: "s"}).text = value
+            cropper = ET.SubElement(expected, "style", name="Theme.Kiyori.Cropper", parent="Theme.MaterialComponents.DayNight.DarkActionBar")
+            items(cropper, {
+                "colorPrimary": "@color/kiyori_primary",
+                "colorPrimaryVariant": "@color/kiyori_primary",
+                "colorOnPrimary": "@color/kiyori_on_primary",
+                "android:windowLightStatusBar": "false",
+                "android:statusBarColor": "@color/kiyori_primary",
+                "android:navigationBarColor": "@color/kiyori_background",
+            })
+        else:
+            items(main_style, {"android:windowLightNavigationBar": "false" if night else "true"})
+            if qualifier == "values-v27":
+                items(main_style, {"android:windowLayoutInDisplayCutoutMode": "shortEdges"})
+            if qualifier.endswith("-v29"):
+                items(main_style, {"android:forceDarkAllowed": "false"})
+        actual = ET.parse(root / relative_path).getroot()
+        if canonical_manifest_element(actual) != canonical_manifest_element(expected):
+            errors.append(f"ARCH050 Android theme style contract differs: {relative_path}")
+    manifest = ET.parse(root / MAIN_MANIFEST_PATH).getroot()
+    croppers = [node for node in manifest.findall("application/activity") if node.get(ANDROID_NAME) == "com.canhub.cropper.CropImageActivity"]
+    expected_cropper_attributes = {
+        ANDROID_NAME: "com.canhub.cropper.CropImageActivity",
+        "{http://schemas.android.com/apk/res/android}theme": "@style/Theme.Kiyori.Cropper",
+        "{http://schemas.android.com/tools}replace": "android:theme",
+    }
+    if len(croppers) != 1 or croppers[0].attrib != expected_cropper_attributes or len(croppers[0]):
+        errors.append("ARCH050 cropper must have one explicit ActionBar theme override without extra exposure")
 
 
 def check_status_bar_appearance(root: Path, errors: list[str]) -> None:
@@ -7237,6 +7394,8 @@ def check_m05a1_design_theme(
                 f"expected [], found {project_imports}"
             )
 
+        if hash_snapshot_name is None:
+            continue  # ARCH050 protects Material adapters independently of source formatting.
         hash_snapshot_path = architecture_root / hash_snapshot_name
         if not hash_snapshot_path.is_file():
             errors.append(
@@ -8096,11 +8255,6 @@ def check_m05a3_root_theme(
             set(M05A3_HASHED_PATHS),
             "root theme",
         ),
-        (
-            M05A3_RESOURCE_HASH_SNAPSHOT,
-            set(M05A3_THEME_RESOURCE_PATHS),
-            "theme resource",
-        ),
     )
     for snapshot_name, expected_paths, label in snapshot_specs:
         snapshot_path = architecture_root / snapshot_name
@@ -8626,25 +8780,6 @@ def check_m05a3_root_theme(
             "ARCH042 M-05A3 Manifest theme references differ: "
             f"new={new_style_count}, old={old_style_count}"
         )
-    manifest_hash_snapshot = (
-        architecture_root / "manifest-structure-hashes.txt"
-    )
-    if not manifest_hash_snapshot.is_file():
-        errors.append(
-            "ARCH042 M-05A3 Manifest semantic hash snapshot missing"
-        )
-    else:
-        expected_manifest_hashes = read_manifest_hash_snapshot(
-            manifest_hash_snapshot
-        )
-        actual_manifest_hash = manifest_semantic_hash(manifest_path)
-        if expected_manifest_hashes.get("m03") != actual_manifest_hash:
-            errors.append(
-                "ARCH042 M-05A3 m03 Manifest semantic hash differs: "
-                f"expected {expected_manifest_hashes.get('m03')}, "
-                f"found {actual_manifest_hash}"
-            )
-
     player_path = root / M05A3_PLAYER_ACTIVITY_PATH
     player_normalized = player_path.read_bytes().replace(b"\r\n", b"\n")
     player_hash = hashlib.sha256(player_normalized).hexdigest().upper()
@@ -11261,6 +11396,7 @@ def main() -> int:
         lambda: check_browser_runtime_owner(root, errors),
         lambda: check_status_bar_appearance(root, errors),
         lambda: check_shell_presentation_contracts(root, errors),
+        lambda: check_design_theme_contracts(root, errors),
         lambda: check_tracked_artifacts(root, errors),
         lambda: check_terminal_unchanged(root, args.base, errors),
     )

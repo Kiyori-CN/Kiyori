@@ -104,16 +104,24 @@ class KiyoriDesignThemeTest {
             assertEquals(Color.White, cardBackground)
             assertEquals(Color(0xFF20242A), primaryText)
             assertEquals(Color(0xFF6E747C), secondaryText)
+            assertEquals(Color(0xFF9AA2AC), mutedIcon)
             assertEquals(Color(0xFFE9EDF2), divider)
             assertEquals(Color(0xFF1E88E5), accent)
+            assertEquals(Color.White, accentContent)
+            assertEquals(Color(0xFFD5DAE1), disabledTrack)
+            assertEquals(Color(0x73000000), scrim)
         }
         with(resolveKiyoriSettingsColors(isDark = true)) {
             assertEquals(Color(0xFF101215), pageBackground)
             assertEquals(Color(0xFF1B1F24), cardBackground)
             assertEquals(Color(0xFFF2F5F8), primaryText)
             assertEquals(Color(0xFFAAB2BC), secondaryText)
+            assertEquals(Color(0xFF7F8995), mutedIcon)
             assertEquals(Color(0xFF2A3037), divider)
             assertEquals(Color(0xFF90CAF9), accent)
+            assertEquals(Color(0xFF0A2638), accentContent)
+            assertEquals(Color(0xFF444B54), disabledTrack)
+            assertEquals(Color(0x99000000), scrim)
         }
     }
 

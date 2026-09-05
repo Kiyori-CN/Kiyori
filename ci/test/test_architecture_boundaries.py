@@ -89,7 +89,6 @@ from check_architecture_boundaries import (  # noqa: E402
     M05A3_NEW_STYLE,
     M05A3_OLD_THEME_PATH,
     M05A3_PLAYER_ACTIVITY_PATH,
-    M05A3_RESOURCE_HASH_SNAPSHOT,
     M05A3_ROOT_HASH_SNAPSHOT,
     M05A3_SYSTEM_BARS_PATH,
     M05A3_THEME_RESOURCE_PATHS,
@@ -2147,8 +2146,6 @@ class ArchitectureBoundaryTest(unittest.TestCase):
         }
         hash_snapshot_names = {
             M05A1_COLOR_SCHEMES_PATH: "m05a1-color-schemes-sha256.txt",
-            M05A1_BROWSER_THEME_PATH: "m05a1-browser-theme-sha256.txt",
-            M05A1_SETTINGS_THEME_PATH: "m05a1-settings-theme-sha256.txt",
         }
         architecture_root = root / "config/architecture"
         architecture_root.mkdir(parents=True, exist_ok=True)
@@ -2156,6 +2153,8 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             source_path = root / relative_path
             source_path.parent.mkdir(parents=True, exist_ok=True)
             source_path.write_text(source, encoding="utf-8")
+            if relative_path not in hash_snapshot_names:
+                continue
             normalized = source_path.read_bytes().replace(b"\r\n", b"\n")
             digest = hashlib.sha256(normalized).hexdigest().upper()
             (architecture_root / hash_snapshot_names[relative_path]).write_text(
@@ -2198,6 +2197,8 @@ class ArchitectureBoundaryTest(unittest.TestCase):
                 "browser/WebSessionBrowserScreen.kt",
             },
             "KiyoriSettingsTheme": {
+                "app/src/main/java/com/ai/assistance/operit/ui/features/chat/details/"
+                "ConversationDetailsScreen.kt",
                 "app/src/main/java/com/kiyori/app/shell/KiyoriAppShell.kt",
                 "app/src/main/java/com/ai/assistance/operit/ui/main/components/"
                 "AppContent.kt",
@@ -2211,6 +2212,8 @@ class ArchitectureBoundaryTest(unittest.TestCase):
                 "KiyoriSettingsWorkspacePage.kt",
             },
             "LocalKiyoriSettingsColors": {
+                "app/src/main/java/com/ai/assistance/operit/ui/features/chat/details/"
+                "ConversationDetailsScreen.kt",
                 "app/src/main/java/com/ai/assistance/operit/ui/features/assistant/"
                 "components/AvatarPreviewSection.kt",
                 "app/src/main/java/com/ai/assistance/operit/ui/features/assistant/"
@@ -3139,16 +3142,6 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             root_hash_entries.append(f"{digest}\t{relative_path}")
         (architecture_root / M05A3_ROOT_HASH_SNAPSHOT).write_text(
             "\n".join(root_hash_entries) + "\n",
-            encoding="utf-8",
-        )
-        resource_hash_entries = []
-        for relative_path in M05A3_THEME_RESOURCE_PATHS:
-            source_path = root / relative_path
-            normalized = source_path.read_bytes().replace(b"\r\n", b"\n")
-            digest = hashlib.sha256(normalized).hexdigest().upper()
-            resource_hash_entries.append(f"{digest}\t{relative_path}")
-        (architecture_root / M05A3_RESOURCE_HASH_SNAPSHOT).write_text(
-            "\n".join(resource_hash_entries) + "\n",
             encoding="utf-8",
         )
 

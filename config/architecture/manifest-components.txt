@@ -13,6 +13,7 @@ activity	.ui.features.player.PlayerActivity
 activity	.ui.main.MainActivity
 activity	.ui.recovery.DataRecoveryActivity
 activity	.widget.ToolPkgDesktopWidgetConfigActivity
+activity	com.canhub.cropper.CropImageActivity
 provider	.provider.MemoryDocumentsProvider
 provider	.provider.OperitDataDocumentsProvider
 provider	.provider.WorkspaceDocumentsProvider

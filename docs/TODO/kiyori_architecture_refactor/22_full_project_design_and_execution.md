@@ -346,6 +346,32 @@ ObjectBox schema 不变。APK 比基线减少 1384 bytes，仅记录资源变化
 设备性能提升。广义翻译覆盖仍有 1003 个缺项、646 个与中文相同值、25 个非中文含汉字值，
 本批通过不等于已完成全部翻译校订。
 
+### C-01 主题与裁剪页检查实施契约
+
+恢复点 `53dcfc87e`。ARCH040/042 的五份主题源码冻结及六份资源字节冻结未吸收已完成的
+共享 `KiyoriMaterialShapes` 迭代；`8833cdee2` 增加裁剪 Activity 的独立 ActionBar 主题，
+保留库提供的取消/确认菜单，ARCH008 的组件及 Manifest 语义快照未同步。会话详情页已经
+消费 Settings theme 与 colors local，精确消费者记录也需补齐。以上只修复检查合同，
+不回改现有 Android 实现。
+
+保留 ARCH040/042 的纯设计、唯一声明、依赖、主主题组合、字体与平台职责检查；新增
+ARCH050 保护五个 Material adapter 的实际参数、Browser/Settings 字体继承和日夜选择、
+Settings colors local 提供范围、utility 偏好读取和 floating 静态主题。资源通过 XML
+结构保护父主题、颜色及系统栏/启动屏属性和裁剪页 ActionBar，允许格式、属性和 item
+顺序调整。删除替代后的源码/资源快照，ARCH008 独占完整 Manifest 语义校验，新增精确
+cropper 记录；不扩大组件或主题例外。反例逐项覆盖共享 shapes 丢失、颜色/字体错接、
+主题 owner 越界、错误日夜资源及裁剪页主题丢失。完成 Python、实际架构、diff 和串行
+Debug/APK 审计后记录证据，继续 D-04；设备 UI 验收保持待验证。
+
+2026-09-05 本批实际架构检查 `phase=m03` 零诊断，12 个剩余失配已消除。CI Python
+290 项通过，31.096s，其中 ARCH050 18 项含独立变异；主题 JVM 13 项零失败/错误/跳过，
+1m37s。formal readiness 和 diff 通过。规定 Debug 1m28s，235 tasks / 20 executed；
+生产输入未变，`packageDebug` 为 up-to-date，核验的 APK 仍为 09:01:21 +08:00 产物，
+483708439 bytes，SHA-256 `ACABD724519F6F11A8714C3F239A1911AB3F6F1700469D2D18F5F1D151725C8F`。
+单一启动入口、`com.kiyori` 45/0.1.0、SDK26/34/37、单一 v2 签名、arm64、53 native /
+157 ELF LOAD 段与 ZIP 16 KB 对齐保持，5514 ZIP 项无重复。没有把旧产物时间写成新生成
+时间，也不以此关闭设备验收或最终全项目 Lint。
+
 ### D-04 MCP 连接发布实施契约
 
 P-08 的实际 owner 是 `core/tools/mcp/MCPToolExecutor.kt` 中的 `MCPManager`。其三张

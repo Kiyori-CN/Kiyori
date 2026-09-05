@@ -29,6 +29,14 @@ dismiss 与传入 registry、底栏 destination/click、首页 search/AI/windows
 测试接线仍由原规则保护；正常视觉迭代不要求刷新源码哈希。变异反例见
 `ci/test/test_shell_presentation_contracts.py`，历史 M-04B/M-05A2 的 SHA 记录只作迁移证据。
 
+ARCH050 替代五个 Material 主题 adapter 和六种 Android theme XML 的字节冻结，保护实际
+颜色/字体/共享 shapes/content 接线、Settings colors local、utility 偏好和 floating
+静态字体合同。XML 以结构化节点校验父主题、颜色、系统栏、启动屏及 cropper ActionBar，
+忽略排版和 item/属性顺序；完整 Manifest 语义只由 ARCH008 校验。ARCH040/042 继续
+保护依赖、唯一 owner、根组合、Glass/字体/platform 分工与 Player fullscreen。
+`ci/test/test_design_theme_contracts.py` 提供独立变异，JVM `KiyoriDesignThemeTest` 校验
+全部 Settings 颜色角色。被删除的旧 SHA 文件不再是开发入口。
+
 方案 v3 把该实现定义为 G-00，已经在 M-01 前完成首版实现：
 
 ```text
@@ -158,6 +166,7 @@ AndroidX/Sherpa/UUID 源码只允许保持自身包依赖，不得反向导入 K
 | `ARCH047` | Browser Runtime 构造不私有、出现第二工厂、非共享消费者或未同步发布 | error |
 | `ARCH048` | 状态栏声明越过根作用域、失去身份清理或 composition 观察、出现重复 Window 写入 | error |
 | `ARCH049` | 导航展示丢失壳回调或消费自建事实、抽屉 Back 越界、天气复制 owner 或定时刷新越过 STARTED | error |
+| `ARCH050` | Material adapter 的共享 shapes、颜色/字体/content 接线失配，日夜/启动屏/系统栏 XML 合同或裁剪页 ActionBar 失配 | error |
 
 `ARCH017` 在四个 M-02 platform contract 尚未出现时不改变 M-01 后基线。任一 contract
 出现后，四个文件必须闭合，`com.ai.assistance.operit` 除唯一 Application 实现外不得再引用
