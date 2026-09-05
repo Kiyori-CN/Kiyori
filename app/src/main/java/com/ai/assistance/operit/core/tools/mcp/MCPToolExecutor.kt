@@ -13,7 +13,9 @@ import com.ai.assistance.operit.util.ImagePoolManager
 import com.ai.assistance.operit.util.OperitPaths
 import java.io.File
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.locks.ReentrantLock
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 
 /**
@@ -426,9 +428,15 @@ class MCPToolExecutor(private val context: Context, private val mcpManager: MCPM
 /**
  * MCP管理器
  *
- * 管理MCP客户端的创建和缓存 注意：此版本使用MCPBridgeClient作为底层客户端，替代了原有的MCPClient
+ * 管理注册代际、连接和失败状态；共享桥接器的网络通信仍由 MCPBridgeClient 执行。
  */
-class MCPManager(private val context: Context) {
+class MCPManager internal constructor(private val clientFactory: (String) -> MCPBridgeClient) {
+    constructor(context: Context) : this(
+        clientFactory = context.applicationContext.let { appContext ->
+            { name: String -> MCPBridgeClient(appContext, name) }
+        }
+    )
+
     companion object {
         private const val TAG = "MCPManager"
 
@@ -442,13 +450,17 @@ class MCPManager(private val context: Context) {
         }
     }
 
-    // 缓存已创建的MCP桥接客户端，避免重复创建
-    private val clientCache =
-            ConcurrentHashMap<String, com.ai.assistance.operit.data.mcp.plugins.MCPBridgeClient>()
+    private class ServerEntry(var config: MCPServerConfig?) {
+        val connectionLock = ReentrantLock()
+        var generation = 0L
+        var activeCalls = 0
+        var client: MCPBridgeClient? = null
+        var failureReason: String? = null
+    }
 
-    // 缓存服务器配置
-    private val serverConfigCache = ConcurrentHashMap<String, MCPServerConfig>()
-    private val connectionFailureReasons = ConcurrentHashMap<String, String>()
+    // 配置、客户端和错误必须原子发布；连接等待不能占用此锁，否则卸载无法使旧请求失效。
+    private val registrationLock = Any()
+    private val servers = mutableMapOf<String, ServerEntry>()
 
     /**
      * 检查服务器是否已注册
@@ -457,7 +469,7 @@ class MCPManager(private val context: Context) {
      * @return 如果服务器已注册则返回true
      */
     fun isServerRegistered(serverName: String): Boolean {
-        return serverConfigCache.containsKey(serverName)
+        return synchronized(registrationLock) { servers[serverName]?.config != null }
     }
 
     /**
@@ -466,11 +478,20 @@ class MCPManager(private val context: Context) {
      * @return 服务器名称到服务器配置的映射
      */
     fun getRegisteredServers(): Map<String, MCPServerConfig> {
-        return serverConfigCache.toMap()
+        return synchronized(registrationLock) {
+            servers.mapNotNull { (name, entry) -> entry.config?.let { name to it } }.toMap()
+        }
     }
 
     fun getLastConnectionFailureReason(serverName: String): String? {
-        return connectionFailureReasons[serverName]
+        return synchronized(registrationLock) {
+            val entry = servers[serverName]
+            if (entry?.config == null) {
+                "Server is not registered in MCPManager. The runtime registration was not completed or has been removed."
+            } else {
+                entry.failureReason
+            }
+        }
     }
 
     /**
@@ -479,71 +500,91 @@ class MCPManager(private val context: Context) {
      * @param serverName 服务器名称
      * @return MCP桥接客户端，如果服务器不存在或无法连接则返回null
      */
-    fun getOrCreateClient(
-            serverName: String
-    ): com.ai.assistance.operit.data.mcp.plugins.MCPBridgeClient? {
-        // 检查缓存中是否已有客户端
-        val cachedClient = clientCache[serverName]
-        if (cachedClient != null) {
-            // 检查客户端连接状态 - 只做轻量检查，不要过早断开
-            if (cachedClient.isConnected()) {
-                AppLogger.d(TAG, "使用已缓存的客户端: $serverName")
-                return cachedClient
-            } else {
-                // 尝试重新连接现有客户端
-                AppLogger.d(TAG, "尝试重新连接缓存的客户端: $serverName")
-                val reconnected = kotlinx.coroutines.runBlocking { cachedClient.connect() }
-                if (reconnected) {
-                    AppLogger.d(TAG, "成功重新连接到服务: $serverName")
-                    connectionFailureReasons.remove(serverName)
-                    return cachedClient
-                }
-                // 客户端不再可用，从缓存移除
-                connectionFailureReasons[serverName] =
-                        cachedClient.getLastConnectionFailureDetail()
-                                ?: "Reconnect attempt failed, but the client did not report a detailed reason."
-                AppLogger.w(TAG, "无法重新连接到服务: $serverName，将创建新的连接")
-                clientCache.remove(serverName)
-            }
+    fun getOrCreateClient(serverName: String): MCPBridgeClient? {
+        val (entry, generation) = synchronized(registrationLock) {
+            val current = servers[serverName] ?: return null
+            if (current.config == null) return null
+            current.activeCalls++
+            current to current.generation
         }
-
-        // 获取服务器配置
-        val serverConfig =
-                serverConfigCache[serverName]
-                        ?: run {
-                            connectionFailureReasons[serverName] =
-                                    "Server is not registered in MCPManager. This usually means the runtime registration never happened, was cleared, or the requested server name does not match the registered service name."
-                            return null
-                        }
-
         try {
-            // 创建新的桥接客户端
-            val client =
-                    com.ai.assistance.operit.data.mcp.plugins.MCPBridgeClient(context, serverName)
-
-            // 尝试连接 - 带详细日志
-            AppLogger.d(TAG, "正在创建新的连接到服务: $serverName")
-            val connectResult = kotlinx.coroutines.runBlocking { client.connect() }
-
-            if (connectResult) {
-                // 连接成功，在会话期间保持此连接
-                AppLogger.d(TAG, "成功连接到服务: $serverName，将在会话期间保持连接")
-                clientCache[serverName] = client
-                connectionFailureReasons.remove(serverName)
-                return client
-            } else {
-                connectionFailureReasons[serverName] =
-                        client.getLastConnectionFailureDetail()
-                                ?: "Connection attempt failed, but no detailed reason was reported by the bridge client."
-                AppLogger.w(TAG, "无法连接到服务: $serverName")
+            entry.connectionLock.lockInterruptibly()
+            try {
+                return connectCurrentRegistration(serverName, entry, generation)
+            } finally {
+                entry.connectionLock.unlock()
             }
-        } catch (e: Exception) {
-            connectionFailureReasons[serverName] =
-                    "Exception while creating bridge client: ${e.message ?: e.javaClass.simpleName}"
-            AppLogger.e(TAG, "创建桥接客户端时出错: ${e.message}", e)
+        } catch (interrupted: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw interrupted
+        } finally {
+            synchronized(registrationLock) {
+                entry.activeCalls--
+                // 在途请求归零前保留同服务锁，防止卸载后立即重装产生两条并行连接。
+                if (entry.config == null && entry.activeCalls == 0) {
+                    servers.remove(serverName, entry)
+                }
+            }
         }
+    }
 
-        return null
+    private fun connectCurrentRegistration(
+        serverName: String,
+        entry: ServerEntry,
+        generation: Long,
+    ): MCPBridgeClient? {
+        var client = synchronized(registrationLock) {
+            if (!isCurrentRegistration(serverName, entry, generation)) return null
+            entry.client
+        }
+        var published = false
+        try {
+            val currentClient = client ?: clientFactory(serverName).also { client = it }
+            synchronized(registrationLock) {
+                if (!isCurrentRegistration(serverName, entry, generation)) return null
+            }
+            val connected = currentClient.isConnected() || runBlocking { currentClient.connect() }
+            val failure = if (connected) {
+                null
+            } else {
+                currentClient.getLastConnectionFailureDetail()
+                    ?: "Connection attempt failed without a detailed bridge reason."
+            }
+            return synchronized(registrationLock) {
+                if (!isCurrentRegistration(serverName, entry, generation)) return@synchronized null
+                entry.failureReason = failure
+                entry.client = if (connected) currentClient else null
+                published = connected
+                entry.client
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (interrupted: InterruptedException) {
+            throw interrupted
+        } catch (error: Exception) {
+            synchronized(registrationLock) {
+                if (isCurrentRegistration(serverName, entry, generation)) {
+                    entry.client = null
+                    entry.failureReason = "Bridge client connection failed: ${error.javaClass.simpleName}"
+                }
+            }
+            AppLogger.e(TAG, "MCP client connection failed: ${error.javaClass.simpleName}")
+            return null
+        } finally {
+            if (!published) {
+                synchronized(registrationLock) {
+                    if (isCurrentRegistration(serverName, entry, generation) && entry.client === client) {
+                        entry.client = null
+                    }
+                }
+                client?.disconnect()
+            }
+        }
+    }
+
+    // 调用方持有 registrationLock；generation 同时隔离迟到成功和迟到错误。
+    private fun isCurrentRegistration(serverName: String, entry: ServerEntry, generation: Long): Boolean {
+        return servers[serverName] === entry && entry.config != null && entry.generation == generation
     }
 
     /**
@@ -553,15 +594,17 @@ class MCPManager(private val context: Context) {
      * @param serverConfig 服务器配置
      */
     fun registerServer(serverName: String, serverConfig: MCPServerConfig) {
-        serverConfigCache[serverName] = serverConfig
-        connectionFailureReasons.remove(serverName)
-
-        // 如果已有缓存的客户端，需要更新或移除
-        if (clientCache.containsKey(serverName)) {
-            // 移除旧客户端，下次需要时会重新创建
-            val oldClient = clientCache.remove(serverName)
-            oldClient?.disconnect()
+        val oldClient = synchronized(registrationLock) {
+            val entry = servers.getOrPut(serverName) { ServerEntry(null) }
+            entry.config = serverConfig.copy(
+                capabilities = serverConfig.capabilities.toList(),
+                extraData = serverConfig.extraData.toMap(),
+            )
+            entry.generation++
+            entry.failureReason = null
+            entry.client.also { entry.client = null }
         }
+        oldClient?.disconnect()
     }
 
     /**
@@ -570,11 +613,14 @@ class MCPManager(private val context: Context) {
      * @param serverName 服务器名称
      */
     fun unregisterServer(serverName: String) {
-        serverConfigCache.remove(serverName)
-        connectionFailureReasons.remove(serverName)
-
-        // 关闭并移除对应客户端缓存
-        val oldClient = clientCache.remove(serverName)
+        val oldClient = synchronized(registrationLock) {
+            val entry = servers[serverName] ?: return
+            entry.config = null
+            entry.generation++
+            entry.failureReason = null
+            if (entry.activeCalls == 0) servers.remove(serverName)
+            entry.client.also { entry.client = null }
+        }
         oldClient?.disconnect()
     }
 
@@ -597,9 +643,15 @@ class MCPManager(private val context: Context) {
         registerServer(serverName, serverConfig)
     }
 
-    /** 关闭所有MCP客户端连接 */
+    /** 清理当前连接并使在途请求失效；注册配置保留，后续调用可建立新的连接。 */
     fun shutdown() {
-        clientCache.values.forEach { it.disconnect() }
-        clientCache.clear()
+        val oldClients = synchronized(registrationLock) {
+            servers.values.mapNotNull { entry ->
+                entry.generation++
+                entry.failureReason = null
+                entry.client.also { entry.client = null }
+            }
+        }
+        oldClients.forEach { it.disconnect() }
     }
 }

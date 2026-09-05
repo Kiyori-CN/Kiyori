@@ -386,6 +386,13 @@ ConcurrentHashMap 只保证单项操作安全：`getOrCreateClient` 在阻塞连
 既有 MCPManager FQCN、公开方法、服务名/配置格式和 Bridge 唯一网络入口，不增加引擎。
 同一次调用不在连接失败后再创建客户端重复 connect；显式返回失败，后续调用可重新尝试。
 
+连接批次当前恢复点为 `ab099e205`。每个服务条目合并 config/generation/client/failure，
+短 registration lock 保护一致发布；可中断的 per-service connection lock 跨更新、卸载
+和即时重装复用。在途请求计数归零后删除已卸载条目，避免永久累积锁；等待锁的调用也
+携带获取时的代际，不能转而替新注册发起连接。shutdown 按既有 API 保留配置，清连接
+和错误并使所有在途代际失效。保持公开 Context 构造器和现有阻塞 API，内部 factory
+用于受控测试；本批在原文件内只修改行为，按职责分文件另作纯组织迁移。
+
 验证注入受控客户端，用确定性并发顺序覆盖同服务共享、不同服务独立、连接中更新/卸载/
 shutdown、迟到成功/失败、失败后的再次调用及取消；不调用真实 MCP/模型接口。同步审查
 AIToolHandler、MCPToolExecutor、MCPRepository 和 MCPStarter 的调用与注册清理关系。
@@ -396,6 +403,35 @@ AIToolHandler、MCPToolExecutor、MCPRepository 和 MCPStarter 的调用与注�
 connection closed 等文本时会立即重连并再次发送同一个命令，而当前证据没有提供服务端
 幂等保证；`MCPBridge.sendCommand` 本身只发送一次。D-04 必须单独消除这处自动重放，
 同时审查取消传播和 Bridge 参数/完整响应日志，不能在连接缓存修复后直接关闭整个领域。
+
+2026-09-05 连接批次最终 15 项 JVM 测试零失败/错误/跳过，Gradle 4m37s；实际 architecture
+`phase=m03`、formal readiness 和 diff 通过。规定 Debug 2m8s，235 tasks / 23 executed；
+新 APK 10:04:54 +08:00，483708439 bytes，SHA-256
+`DE4EC4784B08F4FCC093607112AA50E1ED156AACD690E3FBDE58FFC9114AB89F`。
+身份 `com.kiyori` 45/0.1.0、SDK26/34/37、唯一 launcher、单一 v2 签名、arm64 保持；
+5514 ZIP 项无重复、44 DEX、53 native / 157 ELF LOAD 与 ZIP 16 KB 对齐通过。ObjectBox
+模型未变；连接资源的结构性共享由确定性测试证明，未测设备内存或耗时，不宣称性能比例。
+
+### D-04 MCP 请求与取消实施契约
+
+`MCPBridgeClient.callTool` 的自动重放和未使用的 `callParams` 必须删除。一次调用在连接准备
+成功后只发送一个 `toolcall`，完整保留首个服务响应；无响应/异常显式失败，不能据此推断
+远端未执行。连接错误只清本地连接标记，下一次显式调用才可连接并发起新命令。
+
+客户端继续保留公开 Context/serviceName 构造器、命令 JSON、同步 API 和 Bridge 单例初始化
+时机；内部 suspend command sender 与 dispatcher 支持不触及真实网络的行为测试，不构成
+另一套传输实现。`ping` 使用现有 `list(name)` 命令，`getServiceInfo` 使用原来的 `list()`。
+客户端各 suspend 入口先传播 CancellationException，再按既有返回类型处理普通失败；
+MCPToolExecutor 的工具信息读取与工具调用不得吞掉取消或线程中断后继续发送。
+
+验证首个成功/普通错误/连接错误响应保持、空响应与异常不重放、失败后的显式调用、嵌套
+Map/List 参数、连接准备失败不发送工具、各命令取消传播，以及执行器在信息读取取消后
+零工具调用。日志保留请求 ID、命令类型、服务/工具名、结果状态、大小与异常类型，删除
+参数值、完整响应和可携带私有内容的异常文本。错误对象交还原调用方，不靠日志保存正文。
+
+Bridge 的阻塞 Socket 读写仍需独立验证：仅在 catch 中重新抛出取消不能证明能中断 180s
+的 readLine；共享连接锁、独立 spawn 连接、取消后关闭及迟到响应隔离另作传输批次，并用
+本机受控 socket 夹具验证。客户端批次不得把这项或真实 Ubuntu/插件设备验收写成已完成。
 
 ### G-01 文档子模块链接检查事实
 
