@@ -32,11 +32,11 @@ Kiyori 自有父子仓库 `origin/main`。旧版“不推送”“terminal 暂�
 | B-01 | 目标边界、迁移矩阵、兼容分类、风险和验收闭合 | v4 设计已形成；重大外部契约变更不在内部迁移中隐含执行 |
 | C-01 | 修复基线契约失配，恢复可信架构/JVM/Lint检查 | 架构 19→16→12→0；主题批次 ARCH050 反例、290 Python、13 JVM、Debug/APK 通过；Lint 55 缺译错误及 35 无用资源警告已清除，标签数 plurals 已入 APK；最终 Lint 与历史高风险 baseline 继续审查 |
 | C-02 | 人工/AI 共用唯一 Browser Runtime，去除非共享构造与下载反向依赖 | 构造边界本地验证通过：ARCH047、App JVM、Python、Debug/APK；下载命令边界待实施，设备待验证 |
-| C-03 | 数据/工具不依赖具体 UI；状态和错误边界有测试 | 市场身份/记忆图事实提取已通过领域 JVM、250 项 Python、ownership 和 Debug/APK；workspace、工具解析/权限继续实施 |
+| C-03 | 数据/工具不依赖具体 UI；状态和错误边界有测试 | 市场身份/记忆图事实提取已通过领域 JVM、250 项 Python、ownership 和 Debug/APK；MCP 参数解析与默认工具冷流已通过 43 项相关 JVM、architecture、Debug/APK；workspace、权限继续实施 |
 | D-01 | 应用壳、首启、设置、权限、设计系统边界及恢复 | 状态栏窗口作用域/Compose 观察本地验证通过：29 JVM、257 Python、ARCH048、Debug/APK；其余首启、导航和权限继续审查，设备待验证 |
 | D-02 | 浏览器、搜索/历史/书签、广告/脚本及下载/播放完整链 | 待实施，依赖 C-02 |
 | D-03 | AI 协议/流、会话、工具、角色、记忆、工作流完整链 | 待实施，依赖 C-03；保留请求至多一次与工具终态合同 |
-| D-04 | ToolPkg/MCP/Skill/市场、WebChat/Mini App 注册与调用完整链 | MCP 注册代际/连接发布、工具至多一次、客户端/执行器取消、Socket 资源关闭和正文日志治理本地验证通过：40 JVM、architecture、Debug/APK；参数解析、workspace 等继续实施，设备待验证 |
+| D-04 | ToolPkg/MCP/Skill/市场、WebChat/Mini App 注册与调用完整链 | MCP 注册代际/连接发布、工具至多一次、客户端/执行器取消、Socket 资源关闭、正文日志治理、参数解析与默认冷流本地验证通过：43 项相关 JVM、architecture、Debug/APK；workspace 等继续实施，设备待验证 |
 | D-05 | 文件/SAF/备份、网络/代理/DNS、终端/Ubuntu/PTY完整链 | 文件目录生命周期本地验证通过：23 JVM、ownership、Debug/APK；文件操作/搜索一致性及其余领域继续实施，设备待验证 |
 | D-06 | 语音/本地推理/虚拟角色生命周期和 native 边界 | 待实施；语音工厂阻塞与资源状态需治理 |
 | E-01 | 构建输入/生成出口唯一，可复现；必要模块隔离有收益依据 | 已有输入与包体盘点；任务实现及各工具链待治理 |
