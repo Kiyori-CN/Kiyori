@@ -1,8 +1,8 @@
 package com.ai.assistance.operit.ui.features.chat.webview.workspace.process
 
 import android.content.Context
-import com.ai.assistance.operit.ui.features.chat.webview.workspace.WatchConfig
-import com.ai.assistance.operit.ui.features.chat.webview.workspace.WorkspaceConfigReader
+import com.ai.assistance.operit.core.workspace.WatchConfig
+import com.ai.assistance.operit.core.workspace.WorkspaceConfigReader
 import com.ai.assistance.operit.util.AppLogger
 import java.io.File
 

@@ -41,6 +41,10 @@ Current work status and implementation notes belong in `docs/TODO/`.
   Invalid structured text remains the caller's original value. The default `ToolExecutor` stream
   is cold: synchronous `invoke` starts during collection, so cancellation before collection has
   no tool side effect and collection-time failures remain observable to the owning flow.
+- `core.workspace.WorkspaceConfig` and `WorkspaceConfigReader` own the `.operit/config.json`
+  data contract and default web configuration. Workspace UI renders and edits this contract, while
+  ToolPkg/workspace services consume it without importing UI packages; the JSON field names and
+  default values remain unchanged.
 - `StandardBrowserSessionTools.getSharedInstance` is the only Browser Runtime construction entry.
   Browser UI, AI tools and the global download drawer share its profile manager, host callbacks,
   download listeners and adblock subscription as well as the WebSession registry. Closing a drawer

@@ -499,6 +499,19 @@ pendingRequests 超时和 Ubuntu 插件生命周期；这些项目保持 `verifi
 没有改变工具协议、参数 wire 格式或具体 executor 的流式实现，真实设备、MCP 服务和
 长时间同步工具取消仍保持 `verification_pending`。
 
+### C-02 / C-03 workspace 配置边界实施证据
+
+2026-09-05 将 `.operit/config.json` 的 `WorkspaceConfig`、`ServerConfig`、`PreviewConfig`、
+`CommandConfig`、`ExportConfig`、`WatchConfig` 及 `WorkspaceConfigReader` 从
+`ui.features.chat.webview.workspace` 迁移到 `core.workspace`。`PackageManager`、ToolPkg
+workspace facade、ChatViewModel、WorkspaceManager 和 WorkspaceChangeTracker 已更新为明确
+导入；UI 配置模型不再成为 core 的反向依赖。字段、默认 Web 配置、宽松 JSON 解析和文件
+格式保持不变；仅移除未使用的 UI `PreviewConfig.getLocalizedLabel(Context)` 展示辅助方法，
+避免 core 持有 Android UI 资源依赖。workspace/ToolPkg 相关 JVM 测试、architecture、formal
+readiness、fresh clone 和 Debug/APK 审计均通过。新 APK 为 483708439 bytes，SHA-256
+`6DBC7DB4546ED51859DE30A27EAD76B0C6F2AF1F756F699F98B6D02C61149B05`。真实工作区文件、
+ToolPkg 安装和设备行为仍保持 `verification_pending`。
+
 ### G-01 文档子模块链接检查事实
 
 当前 Markdown 比较器报告的唯一既有失效链接为 `README.md:189 -> terminal/README.md`。

@@ -70,9 +70,9 @@ import com.ai.assistance.operit.data.preferences.CharacterCardManager
 import com.ai.assistance.operit.data.model.ActivePrompt
 import com.ai.assistance.operit.util.WaifuMessageProcessor
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.WorkspaceBackupManager
-import com.ai.assistance.operit.ui.features.chat.webview.workspace.CommandConfig
+import com.ai.assistance.operit.core.workspace.CommandConfig
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.WorkspaceCommandExecutionState
-import com.ai.assistance.operit.ui.features.chat.webview.workspace.WorkspaceConfigReader
+import com.ai.assistance.operit.core.workspace.WorkspaceConfigReader
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.WorkspacePreviewRefreshBus
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.WorkspacePreviewRefreshEvent
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.toWorkspaceCommandOutputEntries

@@ -49,6 +49,9 @@ import androidx.compose.ui.window.DialogProperties
 import kotlin.math.roundToInt
 import androidx.compose.ui.zIndex
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.core.workspace.CommandConfig
+import com.ai.assistance.operit.core.workspace.WorkspaceConfig
+import com.ai.assistance.operit.core.workspace.WorkspaceConfigReader
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.FileContentData
 import com.ai.assistance.operit.data.model.AITool
