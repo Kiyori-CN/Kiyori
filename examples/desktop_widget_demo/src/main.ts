@@ -2,9 +2,9 @@ import widgetDemoScreen from "./ui/widget_demo/index.ui.js";
 import widgetRenderScreen from "./ui/widget_demo/widget.ui.js";
 
 const WIDGET_DEMO_ROUTE =
-  "toolpkg:com.operit.desktop_widget_demo:ui:today_hub";
+  "toolpkg:com.kiyori.desktop_widget_demo:ui:today_hub";
 const WIDGET_DEMO_RENDER_ROUTE =
-  "toolpkg:com.operit.desktop_widget_demo:ui:today_hub_widget";
+  "toolpkg:com.kiyori.desktop_widget_demo:ui:today_hub_widget";
 
 export function registerToolPkg(): boolean {
   ToolPkg.registerUiRoute({

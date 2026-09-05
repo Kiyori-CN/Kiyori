@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "toolpkg_id": "com.operit.dino_runner",
+  "toolpkg_id": "com.kiyori.dino_runner",
   "version": "1.0.0",
   "main": "dist/main.js",
   "display_name": {

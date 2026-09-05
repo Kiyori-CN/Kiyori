@@ -1,6 +1,6 @@
 import dinoRunnerScreen from "./ui/dino_runner/index.ui.js";
 
-const DINO_ROUTE = "toolpkg:com.operit.dino_runner:ui:dino_runner";
+const DINO_ROUTE = "toolpkg:com.kiyori.dino_runner:ui:dino_runner";
 
 export function registerToolPkg(): boolean {
   ToolPkg.registerUiRoute({

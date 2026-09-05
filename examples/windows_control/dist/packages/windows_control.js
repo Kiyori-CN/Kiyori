@@ -392,7 +392,7 @@ const windowsControl = (function () {
     function buildVersionMismatchMessage(remoteVersion) {
         return [
             `Version mismatch: package=${WINDOWS_CONTROL_PACKAGE_VERSION}, agent=${remoteVersion || "unknown"}.`,
-            "请前往 Windows 一键配置，重新上传最新 operit-pc-agent.zip 到电脑并运行，然后再粘贴最新配置。"
+            "请前往 Windows 一键配置，重新上传最新 kiyori-pc-agent.zip 到电脑并运行，然后再粘贴最新配置。"
         ].join(" ");
     }
     function readEnv(name) {
@@ -585,10 +585,10 @@ const windowsControl = (function () {
         if (outputChars <= MAX_INLINE_WINDOWS_EXEC_OUTPUT_CHARS) {
             return null;
         }
-        await Tools.Files.mkdir(OPERIT_CLEAN_ON_EXIT_DIR, true);
+        await Tools.Files.mkdir(KIYORI_CLEAN_ON_EXIT_DIR, true);
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
         const rand = Math.floor(Math.random() * 1000000);
-        const filePath = `${OPERIT_CLEAN_ON_EXIT_DIR}/windows_exec_output_${timestamp}_${rand}.log`;
+        const filePath = `${KIYORI_CLEAN_ON_EXIT_DIR}/windows_exec_output_${timestamp}_${rand}.log`;
         const content = [
             `command: ${command}`,
             `shell: ${shell}`,
@@ -615,7 +615,7 @@ const windowsControl = (function () {
             stderr: "(saved_to_file)",
             outputSavedTo: filePath,
             outputChars,
-            operitCleanOnExitDir: OPERIT_CLEAN_ON_EXIT_DIR,
+            kiyoriCleanOnExitDir: KIYORI_CLEAN_ON_EXIT_DIR,
             hint: "Output is large and saved to file. Use read_file_part or grep_code to inspect it.",
             packageVersion: WINDOWS_CONTROL_PACKAGE_VERSION,
             agentVersion: versionCheck.remoteVersion,

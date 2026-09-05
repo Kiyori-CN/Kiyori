@@ -36,6 +36,13 @@ The project retains Operit's chat, model configuration, tool calling, workflows,
 
 ## Main capabilities
 
+The AI drawer uses `kiyori_editor` for platform settings and `remote_kiyori` for remote access.
+Configure the remote Kiyori HTTP API with `REMOTE_KIYORI_BASE_URL`, `REMOTE_KIYORI_TOKEN`,
+and `REMOTE_KIYORI_TIMEOUT_MS`. HTTP(S), IPv4/IPv6, and path prefixes are supported; an omitted
+port means `8094`. Credentials, query strings, and fragments are rejected in the base URL.
+The Windows companion is `kiyori-pc-agent`, started with `kiyori_pc_agent.bat`.
+See the [extension migration and validation record](docs/TODO/kiyori_extension_script_brand_migration/index.md).
+
 - **Shared browser runtime** for Browser Home and AI tools, including tabs, WebView state, cookies, history, bookmarks, downloads, userscripts, and window state.
 - **Per-site network policy** from the Browser Menu can disable Kiyori's application proxy for the current HTTP(S) host and its subdomains. This has the highest Kiyori proxy priority but never bypasses an Android system VPN; the choice persists with other site settings.
 - **Browser diagnostics** from the Browser Menu, with a redacted process-local drawer for the active WebView provider, capabilities, navigation, permission, script, and renderer events. It is separate from the current-page network resource directory and never persists page or private data.

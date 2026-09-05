@@ -202,6 +202,10 @@ jobs:
           node --test tools/example_packages/bilibili_toolkit.test.mjs tools/example_packages/bilibili_host_runtime.test.mjs
           npm run build:examples:github
           git diff --exit-code -- examples/github.js
+          node node_modules/typescript/bin/tsc -p examples/tsconfig.json --pretty false
+          node node_modules/typescript/bin/tsc -p examples/remote_kiyori/tsconfig.json --pretty false
+          git diff --exit-code -- examples/kiyori_editor.js examples/remote_kiyori/dist
+          node --test tools/example_packages/kiyori_editor.test.mjs tools/example_packages/remote_kiyori.test.mjs
 
       # Gradle packages the production ToolPkg whitelist into generated assets for every variant.
 

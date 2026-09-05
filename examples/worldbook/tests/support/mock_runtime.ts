@@ -77,7 +77,7 @@ export function installMockRuntime(options?: {
   lang?: string;
   rootDirName?: string;
 }): MockRuntimeState {
-  const packageId = String(options?.packageId || "com.operit.worldbook");
+  const packageId = String(options?.packageId || "com.kiyori.worldbook");
   const configDir = path.join(
     process.cwd(),
     "temp",

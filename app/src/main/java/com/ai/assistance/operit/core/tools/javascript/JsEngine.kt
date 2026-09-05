@@ -590,8 +590,8 @@ class JsEngine(
     private fun runtimeBootstrapModules(): List<JsBootstrapModule> {
         return buildRuntimeBootstrapModules(
             context = context,
-            operitDownloadDir = OperitPaths.kiyoriRootPathSdcard(),
-            operitCleanOnExitDir = OperitPaths.cleanOnExitPathSdcard()
+            kiyoriDownloadDir = OperitPaths.kiyoriRootPathSdcard(),
+            kiyoriCleanOnExitDir = OperitPaths.cleanOnExitPathSdcard()
         )
     }
 

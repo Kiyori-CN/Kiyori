@@ -75,7 +75,7 @@ If you just want the short answer for "which tool should I use":
 - Use `execute_js_dir.*` when the entry depends on sibling modules, or when you are running directory-based tests under `app/src/androidTest/js`
 - Use `run_sandbox_script.*` when you want top-level script-mode execution instead of calling an exported function
 - Use `tools/example_packages/sync_example_packages.py` when you changed an `examples/` package or toolpkg and want it synced into the real package-loading path
-- If you are debugging `operit_editor` tools such as `debug_install_toolpkg`, the usual flow is: sync with `tools/example_packages/sync_example_packages.py`, then call the debug tool with `execute_js.bat`
+- If you are debugging `kiyori_editor` tools such as `debug_install_toolpkg`, the usual flow is: sync with `tools/example_packages/sync_example_packages.py`, then call the debug tool with `execute_js.bat`
 
 ## Prerequisites
 
@@ -222,7 +222,7 @@ OPERIT_RESULT_WAIT_SECONDS=30 ./execute_js.sh path/to/your/script.js functionNam
 
 ## Sandbox Script Debug Notes
 
-When you use `run_sandbox_script.sh` / `run_sandbox_script.bat`, or call package tools such as `operit_editor:debug_run_sandbox_script` with `source_code`, the code is executed as a **top-level script snippet**, not as `function(params) { ... }`.
+When you use `run_sandbox_script.sh` / `run_sandbox_script.bat`, or call package tools such as `kiyori_editor:debug_run_sandbox_script` with `source_code`, the code is executed as a **top-level script snippet**, not as `function(params) { ... }`.
 
 That means:
 
@@ -273,7 +273,7 @@ Use it for:
 Most common usage:
 
 ```cmd
-tools\adb\execute_js.bat examples\operit_editor.js debug_install_toolpkg @params.json
+tools\adb\execute_js.bat examples\kiyori_editor.js debug_install_toolpkg @params.json
 ```
 
 Minimum file requirements:
@@ -488,7 +488,7 @@ Recommended order:
 2. Run `tools/example_packages/sync_example_packages.py --include <dir_name>`
 3. Let it pack the directory into `.toolpkg`
 4. Let it sync the generated artifact into assets and the device
-5. Then verify installation through `operit_editor`'s `debug_install_toolpkg` or a related debug entry
+5. Then verify installation through `kiyori_editor`'s `debug_install_toolpkg` or a related debug entry
 
 This validates the full chain:
 
@@ -497,11 +497,11 @@ This validates the full chain:
 - whether debug install recognizes it
 - whether the refreshed package actually enters the loading list
 
-### Scenario 4: You changed a debug tool such as `operit_editor`
+### Scenario 4: You changed a debug tool such as `kiyori_editor`
 
 Recommended order:
 
-1. Sync `operit_editor` itself with `tools/example_packages/sync_example_packages.py`
+1. Sync `kiyori_editor` itself with `tools/example_packages/sync_example_packages.py`
 2. Prepare the package or toolpkg you want it to install
 3. Call the debug function through `execute_js.bat`
 4. Inspect the structured result for success, failure, and related warnings
@@ -509,8 +509,8 @@ Recommended order:
 Example:
 
 ```cmd
-d:\Code\prog\assistance\.venv\Scripts\python.exe d:\Code\prog\assistance\tools\example_packages\sync_example_packages.py --include operit_editor --include sidebar_bing_action
-tools\adb\execute_js.bat examples\operit_editor.js debug_install_toolpkg @params.json
+d:\Code\prog\assistance\.venv\Scripts\python.exe d:\Code\prog\assistance\tools\example_packages\sync_example_packages.py --include kiyori_editor --include sidebar_bing_action
+tools\adb\execute_js.bat examples\kiyori_editor.js debug_install_toolpkg @params.json
 ```
 
 This is good for validating:
@@ -527,7 +527,7 @@ Use `execute_js.bat` / `execute_js.sh` when you want to directly run and debug o
 This is the default choice for ordinary sandbox/package JS development.
 
 ```cmd
-tools\adb\execute_js.bat examples\operit_editor.js debug_install_toolpkg @params.json
+tools\adb\execute_js.bat examples\kiyori_editor.js debug_install_toolpkg @params.json
 ```
 
 Typical use cases:
@@ -582,8 +582,8 @@ d:\Code\prog\assistance\.venv\Scripts\python.exe d:\Code\prog\assistance\tools\e
 ### 5. Sync first, then call the debug installer tool
 
 ```cmd
-d:\Code\prog\assistance\.venv\Scripts\python.exe d:\Code\prog\assistance\tools\example_packages\sync_example_packages.py --include operit_editor --include sidebar_bing_action
-tools\adb\execute_js.bat examples\operit_editor.js debug_install_toolpkg @params.json
+d:\Code\prog\assistance\.venv\Scripts\python.exe d:\Code\prog\assistance\tools\example_packages\sync_example_packages.py --include kiyori_editor --include sidebar_bing_action
+tools\adb\execute_js.bat examples\kiyori_editor.js debug_install_toolpkg @params.json
 ```
 
 ## JavaScript File Requirements

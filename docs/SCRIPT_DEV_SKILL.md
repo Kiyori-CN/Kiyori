@@ -12,16 +12,16 @@ description: 用于 Operit Sandbox Package 开发。
 安装与更新都走同一个脚本：
 
 - 先把安装脚本下载到本地
-- 再通过 `operit_editor` 这个 package 里的 `debug_run_sandbox_script` 工具运行它
+- 再通过 `kiyori_editor` 这个 package 里的 `debug_run_sandbox_script` 工具运行它
 - 脚本会自动创建目录，并更新 `SKILL.md`、`references/SCRIPT_DEV_GUIDE.md`、`references/TOOLPKG_FORMAT_GUIDE.md`、`types/*.d.ts`
 
 这里说的“执行”，指的是：
 
 - 不是用 shell 执行
 - 不是直接打开这个 `.js` 文件
-- 而是调用 `operit_editor:debug_run_sandbox_script`
+- 而是调用 `kiyori_editor:debug_run_sandbox_script`
 
-也就是先确保 `operit_editor` 这个 package 可用，再让它执行 `/sdcard/Download/Kiyori/skills/SandboxPackage_DEV/scripts/install_or_update.js`
+也就是先确保 `kiyori_editor` 这个 package 可用，再让它执行 `/sdcard/Download/Kiyori/skills/SandboxPackage_DEV/scripts/install_or_update.js`
 
 最终目录应当长这样：
 
@@ -31,7 +31,7 @@ description: 用于 Operit Sandbox Package 开发。
   examples/
     packages/
       12306.js
-      operit_editor.js
+      kiyori_editor.js
       ...
   references/
     SCRIPT_DEV_GUIDE.md
@@ -49,11 +49,11 @@ description: 用于 Operit Sandbox Package 开发。
 1. 先创建 `/sdcard/Download/Kiyori/skills/SandboxPackage_DEV/scripts/`
 2. 用 `download_file` 下载 `https://raw.githubusercontent.com/Kiyori-CN/Kiyori/main/tools/sandboxpackage_dev_install_or_update.js`
 3. 保存为 `/sdcard/Download/Kiyori/skills/SandboxPackage_DEV/scripts/install_or_update.js`
-4. 调用 `operit_editor` 的 `debug_run_sandbox_script`
+4. 调用 `kiyori_editor` 的 `debug_run_sandbox_script`
 5. 把 `source_path` 设为 `/sdcard/Download/Kiyori/skills/SandboxPackage_DEV/scripts/install_or_update.js`
 6. 等脚本执行完成
 
-如果当前环境里没有直接暴露这个工具名，就先使用 `use_package` 调用 `operit_editor`，再执行 `debug_run_sandbox_script`。
+如果当前环境里没有直接暴露这个工具名，就先使用 `use_package` 调用 `kiyori_editor`，再执行 `debug_run_sandbox_script`。
 
 这个安装脚本会自动处理下面这些内容：
 
@@ -166,7 +166,7 @@ description: 用于 Operit Sandbox Package 开发。
 9. 用 `types/` 里的定义约束参数、返回值、可调用能力和结果结构
    - 查阅路径是 `/sdcard/Download/Kiyori/dev_package/types/`
    - 项目源码中引用类型模块时按相对路径写 `../types/...`、`../../types/...` 等实际层级
-10. 如果对代码片段或接口行为不确定，先用 `operit_editor` 的 `debug_run_sandbox_script` 做最小片段验证，再并回正式脚本或 ToolPkg
+10. 如果对代码片段或接口行为不确定，先用 `kiyori_editor` 的 `debug_run_sandbox_script` 做最小片段验证，再并回正式脚本或 ToolPkg
 11. 开始写包时，优先遵循最新本地 types 和本地 guide，不要依赖旧记忆
 12. 如果最终产物是普通 JS 包脚本，需要根据需求撰写 `main` 函数，并在交付前自行完成测试
 

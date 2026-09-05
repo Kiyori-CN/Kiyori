@@ -509,7 +509,7 @@ Run 1-4 independent UI sub-agents in parallel on virtual displays. Give every ac
     ]
  }*/
 const UIAutomationSubAgentTools = (function () {
-    const CACHE_KEY = '__operit_ui_subagent_cached_agent_id';
+    const CACHE_KEY = '__kiyori_ui_subagent_cached_agent_id';
     function getCachedAgentId() {
         try {
             return globalThis[CACHE_KEY];

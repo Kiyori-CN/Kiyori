@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "toolpkg_id": "com.operit.examples.wasm_demo",
+  "toolpkg_id": "com.kiyori.examples.wasm_demo",
   "version": "1.0.0",
   "main": "main.js",
   "display_name": {

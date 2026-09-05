@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "toolpkg_id": "com.operit.custom_ai_provider_example",
+  "toolpkg_id": "com.kiyori.custom_ai_provider_example",
   "version": "1.0.0",
   "main": "dist/main.js",
   "display_name": {

@@ -6,6 +6,12 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 ## 当前进行中
 
+- [Kiyori 扩展脚本品牌与运行契约迁移](kiyori_extension_script_brand_migration/index.md)：统一内置
+  脚本、ToolPkg ID、环境变量、调试 marker、远程工具和 PC 配套程序的 Kiyori 名称；修复平台编辑器
+  单字段更新意外重置上下文总结设置、远程配置校验和重复调用问题。Node 52 项、Python 15 项、JVM 7 项、
+  formal readiness 与 Debug APK 验证通过；50 项生产资产和 146 个包内文件与源码一致。
+  Android 扩展页与跨设备连接仍为 `verification_pending`，本轮按用户授权交付 `main`。
+
 - [哔哩哔哩工具包内置 ToolPkg](bilibili_toolkit/index.md)：将本机 `bilibili` skill 的只读检索、
   元数据、字幕、当前弹幕、评论、账号列表、互动图、站内 AI 摘要、媒体下载与抽帧能力移植为
   “哔哩哔哩工具包”插件；其唯一脚本子包为 `bilibili`，位于 AI 左抽屉 `Media` 分组。插件只声明

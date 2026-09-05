@@ -327,7 +327,7 @@ function normalizeOptionalString(value: string | undefined, label: string): stri
 function buildLargeOutputFilename(prefix: string, extension: string): string {
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const rand = Math.floor(Math.random() * 1000000);
-    return OPERIT_CLEAN_ON_EXIT_DIR + "/browser_" + prefix + "_" + timestamp + "_" + rand + "." + extension;
+    return KIYORI_CLEAN_ON_EXIT_DIR + "/browser_" + prefix + "_" + timestamp + "_" + rand + "." + extension;
 }
 
 async function maybePersistLargeBrowserResponse(
@@ -338,7 +338,7 @@ async function maybePersistLargeBrowserResponse(
     if (result.length <= MAX_INLINE_BROWSER_TEXT_CHARS) {
         return result;
     }
-    await Tools.Files.mkdir(OPERIT_CLEAN_ON_EXIT_DIR, true);
+    await Tools.Files.mkdir(KIYORI_CLEAN_ON_EXIT_DIR, true);
     const filename = buildLargeOutputFilename(prefix, extension);
     await Tools.Files.write(filename, result, false);
     const normalizedPath = filename.replace(/\\/g, "/");

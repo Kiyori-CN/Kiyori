@@ -105,7 +105,7 @@ builder：
 8. 重新打开制品并运行 archive scanner
 9. 返回已验证制品路径与 SHA-256
 
-`operit_editor` 不再调用通用 `Tools.Files.zip(source.folderPath, ...)`。
+`kiyori_editor` 不再调用通用 `Tools.Files.zip(source.folderPath, ...)`。
 
 ## 内容寻址与 active 记录
 

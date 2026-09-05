@@ -9,8 +9,8 @@ Kiyori 是用户可见的产品品牌、仓库名、Gradle 根项目名和 Andro
 - `com.ai.assistance.operit` 和 `com.ai.assistance.operit.terminal`
 - `operit://`、既有 Intent action、AIDL 名称和外部调用契约
 - 数据库、偏好、备份格式、工作区格式、插件、ToolPkg、MCP 和文件格式标识
-- `OperitForge`、Operit 市场协议、`operit_editor` 等外部生态名称
-- `.operit/config.json`、`com.operit.*` ToolPkg ID、`remote_operit`、`operit-pc-agent` 文件与目录名、`OPERIT_*` 环境变量
+- `OperitForge`、Operit 市场协议以及外部导入格式名称
+- `.operit/config.json` 等外部格式；历史 `com.operit.*` ToolPkg ID、`remote_operit`、`operit-pc-agent` 和 `OPERIT_*` 只作为显式导入兼容输入保留
 - 独立于 Kiyori 产品版本的 Operit 市场兼容版本，用于插件 `minAppVer` 和 `maxAppVer` 范围判断
 - 上游作者、许可证、历史归属和源码来源
 - 内部资源 key、类名、日志标识和 native 文件名，除非它们直接出现在用户界面
@@ -29,7 +29,7 @@ Kiyori 是用户可见的产品品牌、仓库名、Gradle 根项目名和 Andro
 
 全局替换会破坏已存在的数据导入、插件发现、OAuth 回调、AIDL、第三方市场和工作区。它也会把上游归属改写成不准确的历史描述。任何协议级改名都必须先提供独立的版本兼容和数据迁移方案。公共数据根目录是产品所有权，不是协议 ID；Kiyori 未发布版本直接使用 `Download/Kiyori`，旧 Operit 数据只允许从显式导入入口读取。
 
-Kiyori `versionName` 标识产品发布，不能代替 Operit 插件运行时兼容级别。当前 `OPERIT_MARKET_COMPAT_VERSION` 为 `1.12.1+3`；该值代表已闭环的 Operit 脚本、Market v2 与 ToolPkg 公共运行时合同，不改变 Kiyori 的 `com.kiyori / 45 / 0.1.0` 产品版本。后续只有在相应公共能力、类型声明、自动检查和设备验收边界明确后，才能再次独立提升。
+Kiyori `versionName` 标识产品发布，不能代替 Operit 市场协议的兼容级别。当前 `OPERIT_MARKET_COMPAT_VERSION` 为 `1.12.1+3`；该值代表 Market v2 与 ToolPkg 公共运行时合同，不改变 Kiyori 的 `com.kiyori / 45 / 0.1.0` 产品版本。内置脚本自身使用 Kiyori 标识，历史 Operit 标识只在导入旧数据时解释。
 
 ## 门禁规则
 

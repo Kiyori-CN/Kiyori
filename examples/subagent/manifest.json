@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "toolpkg_id": "com.operit.subagent_bundle",
+  "toolpkg_id": "com.kiyori.subagent_bundle",
   "version": "1.0.0",
   "main": "dist/main.js",
   "display_name": {

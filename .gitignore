@@ -71,6 +71,7 @@ temp/
 temp.json
 kls_database.db
 operit-pc-agent.zip
+kiyori-pc-agent.zip
 
 # Legacy locally downloaded Gradle distributions
 /gradle/gradle-8.7-bin.zip

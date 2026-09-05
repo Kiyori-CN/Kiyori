@@ -39,14 +39,14 @@ test("toolpkg_hook_runner invokes worldbook system prompt hook with prepared sto
 
   const runnerTempDir = path.join(process.cwd(), "temp", "worldbook_hook_runner_cli");
   fs.rmSync(runnerTempDir, { recursive: true, force: true });
-  fs.mkdirSync(path.join(runnerTempDir, "com.operit.worldbook"), { recursive: true });
+  fs.mkdirSync(path.join(runnerTempDir, "com.kiyori.worldbook"), { recursive: true });
   fs.copyFileSync(
     path.join(runtime.packageConfigDir, "entries.json"),
-    path.join(runnerTempDir, "com.operit.worldbook", "entries.json")
+    path.join(runnerTempDir, "com.kiyori.worldbook", "entries.json")
   );
   fs.copyFileSync(
     path.join(runtime.packageConfigDir, "variables.json"),
-    path.join(runnerTempDir, "com.operit.worldbook", "variables.json")
+    path.join(runnerTempDir, "com.kiyori.worldbook", "variables.json")
   );
 
   const fixturesPath = path.join(runnerTempDir, "fixtures.json");
@@ -125,7 +125,7 @@ test("toolpkg_hook_runner invokes worldbook system prompt hook with prepared sto
   );
   const parsed = JSON.parse(outputText);
 
-  assert.equal(parsed.packageId, "com.operit.worldbook");
+  assert.equal(parsed.packageId, "com.kiyori.worldbook");
   assert.equal(parsed.kind, "system_prompt");
   assert.equal(parsed.hookCount, 1);
   assert.equal(parsed.results[0].id, "worldbook_always_active");

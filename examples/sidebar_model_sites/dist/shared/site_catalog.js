@@ -4,8 +4,8 @@ exports.MODEL_SITE_CATALOG = exports.MODEL_SITES_VIEWER_ROUTE = exports.MODEL_SI
 exports.getModelSiteById = getModelSiteById;
 exports.getModelSitesByCategory = getModelSitesByCategory;
 exports.MODEL_SITES_ENV_KEY = "sidebar_model_sites.selected_site_id";
-exports.MODEL_SITES_LIST_ROUTE = "toolpkg:com.operit.sidebar_model_sites:ui:model_sites_list";
-exports.MODEL_SITES_VIEWER_ROUTE = "toolpkg:com.operit.sidebar_model_sites:ui:model_sites_viewer";
+exports.MODEL_SITES_LIST_ROUTE = "toolpkg:com.kiyori.sidebar_model_sites:ui:model_sites_list";
+exports.MODEL_SITES_VIEWER_ROUTE = "toolpkg:com.kiyori.sidebar_model_sites:ui:model_sites_viewer";
 exports.MODEL_SITE_CATALOG = [
     {
         id: "doubao",

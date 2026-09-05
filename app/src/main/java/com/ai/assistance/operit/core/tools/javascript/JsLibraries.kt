@@ -10,12 +10,12 @@ internal data class JsBootstrapModule(
 
 internal fun buildRuntimeBootstrapModules(
     context: Context,
-    operitDownloadDir: String,
-    operitCleanOnExitDir: String
+    kiyoriDownloadDir: String,
+    kiyoriCleanOnExitDir: String
 ): List<JsBootstrapModule> {
     return buildInitRuntimeModules(
-        operitDownloadDir = operitDownloadDir,
-        operitCleanOnExitDir = operitCleanOnExitDir
+        kiyoriDownloadDir = kiyoriDownloadDir,
+        kiyoriCleanOnExitDir = kiyoriCleanOnExitDir
     ) + listOf(
         module(
             fileName = "quickjs/init/execution-runtime.js",

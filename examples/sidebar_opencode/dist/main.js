@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerToolPkg = registerToolPkg;
 const index_ui_js_1 = __importDefault(require("./ui/opencode_dashboard/index.ui.js"));
-const OPENCODE_ROUTE = "toolpkg:com.operit.sidebar_opencode:ui:opencode_dashboard";
+const OPENCODE_ROUTE = "toolpkg:com.kiyori.sidebar_opencode:ui:opencode_dashboard";
 function registerToolPkg() {
     ToolPkg.registerUiRoute({
         id: "opencode_dashboard",

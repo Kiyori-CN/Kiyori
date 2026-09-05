@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "toolpkg_id": "com.operit.apk_reverse_toolkit",
+  "toolpkg_id": "com.kiyori.apk_reverse_toolkit",
   "version": "1.0.0",
   "main": "dist/main.js",
   "display_name": {

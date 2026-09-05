@@ -30,7 +30,7 @@ xai_draw.js
 openai_draw.js
 openai_web_search
 openalex_search.js
-operit_editor.js
+kiyori_editor.js
 browser.js
 context_limiter_c
 windows_control
@@ -41,7 +41,7 @@ linux_ssh
 deepsearching
 message_insert
 apktool
-remote_operit
+remote_kiyori
 worldbook
 qqbot
 thinking_guidance

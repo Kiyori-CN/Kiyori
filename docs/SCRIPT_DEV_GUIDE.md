@@ -834,7 +834,7 @@ if (loginButton) {
 -   使用 `console.log()`、`console.error()` 等函数输出日志。日志信息可以在执行环境中查看。
 -   将复杂的逻辑拆分成小函数，并为每个函数添加清晰的日志输出。
 -   在执行UI操作后，加入适当的 `Tools.System.sleep()` 来等待UI更新，避免操作过快导致失败。
--   如果你对某段代码本身是否可运行、某个 API 的返回值、Java bridge 行为或小片段语法不够确定，不要直接把猜测写进正式包里；可以先用 `operit_editor` 包里的 `debug_run_sandbox_script` 工具执行一小段 sandbox script 做快速验证。
+-   如果你对某段代码本身是否可运行、某个 API 的返回值、Java bridge 行为或小片段语法不够确定，不要直接把猜测写进正式包里；可以先用 `kiyori_editor` 包里的 `debug_run_sandbox_script` 工具执行一小段 sandbox script 做快速验证。
 -   这种小片段测试特别适合验证：
     -   某个 `Tools.*` 接口是否存在、参数怎么传
     -   某个 Java 类型/方法在当前宿主里能否正常调用

@@ -3,8 +3,8 @@ package com.ai.assistance.operit.core.tools.javascript
 import org.json.JSONObject
 
 internal fun buildInitRuntimeModules(
-    operitDownloadDir: String,
-    operitCleanOnExitDir: String
+    kiyoriDownloadDir: String,
+    kiyoriCleanOnExitDir: String
 ): List<JsBootstrapModule> {
     return listOf(
         JsBootstrapModule(
@@ -14,8 +14,8 @@ internal fun buildInitRuntimeModules(
         JsBootstrapModule(
             fileName = "quickjs/init/runtime-constants.js",
             source = buildRuntimeConstantsScript(
-                operitDownloadDir = operitDownloadDir,
-                operitCleanOnExitDir = operitCleanOnExitDir
+                kiyoriDownloadDir = kiyoriDownloadDir,
+                kiyoriCleanOnExitDir = kiyoriCleanOnExitDir
             )
         ),
         JsBootstrapModule(
@@ -50,8 +50,8 @@ private fun buildRuntimeExposeScript(): String {
 }
 
 private fun buildRuntimeConstantsScript(
-    operitDownloadDir: String,
-    operitCleanOnExitDir: String
+    kiyoriDownloadDir: String,
+    kiyoriCleanOnExitDir: String
 ): String {
     return """
         (function() {
@@ -61,8 +61,11 @@ private fun buildRuntimeConstantsScript(
             if (typeof expose !== 'function') {
                 throw new Error('__operitExpose is unavailable');
             }
-            expose('OPERIT_DOWNLOAD_DIR', ${JSONObject.quote(operitDownloadDir)});
-            expose('OPERIT_CLEAN_ON_EXIT_DIR', ${JSONObject.quote(operitCleanOnExitDir)});
+            expose('KIYORI_DOWNLOAD_DIR', ${JSONObject.quote(kiyoriDownloadDir)});
+            expose('KIYORI_CLEAN_ON_EXIT_DIR', ${JSONObject.quote(kiyoriCleanOnExitDir)});
+            // Imported Operit scripts keep their established ABI while bundled scripts use Kiyori names.
+            expose('OPERIT_DOWNLOAD_DIR', ${JSONObject.quote(kiyoriDownloadDir)});
+            expose('OPERIT_CLEAN_ON_EXIT_DIR', ${JSONObject.quote(kiyoriCleanOnExitDir)});
         })();
     """.trimIndent()
 }

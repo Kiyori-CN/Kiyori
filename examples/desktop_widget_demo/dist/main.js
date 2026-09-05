@@ -6,8 +6,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerToolPkg = registerToolPkg;
 const index_ui_js_1 = __importDefault(require("./ui/widget_demo/index.ui.js"));
 const widget_ui_js_1 = __importDefault(require("./ui/widget_demo/widget.ui.js"));
-const WIDGET_DEMO_ROUTE = "toolpkg:com.operit.desktop_widget_demo:ui:today_hub";
-const WIDGET_DEMO_RENDER_ROUTE = "toolpkg:com.operit.desktop_widget_demo:ui:today_hub_widget";
+const WIDGET_DEMO_ROUTE = "toolpkg:com.kiyori.desktop_widget_demo:ui:today_hub";
+const WIDGET_DEMO_RENDER_ROUTE = "toolpkg:com.kiyori.desktop_widget_demo:ui:today_hub_widget";
 function registerToolPkg() {
     ToolPkg.registerUiRoute({
         id: "today_hub",

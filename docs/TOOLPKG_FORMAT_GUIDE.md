@@ -43,7 +43,7 @@ windows_control.toolpkg (ZIP 压缩包)
 │   └── core.wasm                          # AssemblyScript 编译产物
 ├── resources/                             # 资源文件目录
 │   └── pc_agent/
-│       └── operit-pc-agent/              # 目录资源（readResource 时自动导出为 zip）
+│       └── kiyori-pc-agent/              # 目录资源（readResource 时自动导出为 zip）
 └── i18n/                                  # 国际化文件（可选）
     ├── zh-CN.js
     └── en-US.js
@@ -72,7 +72,7 @@ windows_control.toolpkg (ZIP 压缩包)
 ```json
 {
   "schema_version": 2,
-  "toolpkg_id": "com.operit.windows_bundle",
+  "toolpkg_id": "com.kiyori.windows_bundle",
   "version": "0.2.0",
   "author": ["Operit Team", "Alice"],
   "main": "main.js",
@@ -119,7 +119,7 @@ windows_control.toolpkg (ZIP 压缩包)
     },
     {
       "key": "pc_agent_zip",
-      "path": "resources/pc_agent/operit-pc-agent.zip",
+      "path": "resources/pc_agent/kiyori-pc-agent.zip",
       "mime": "application/zip"
     }
   ],
@@ -171,7 +171,7 @@ windows_control.toolpkg (ZIP 压缩包)
 | 字段 | 类型 | 必需 | 说明 |
 |------|------|------|------|
 | `schema_version` | number | 是 | 清单架构版本；`1` 为兼容格式，`2` 启用显式 `distribution.include` 分发清单 |
-| `toolpkg_id` | string | 是 | 包的唯一标识符，建议使用反向域名格式（如 `com.operit.windows_bundle`） |
+| `toolpkg_id` | string | 是 | 包的唯一标识符，建议使用反向域名格式（如 `com.kiyori.windows_bundle`） |
 | `version` | string | 否 | 包的版本号，建议使用语义化版本（如 `0.2.0`） |
 | `author` | string \| string[] | 否 | 作者信息，支持单个作者字符串或作者字符串数组 |
 | `main` | string | 是 | ToolPkg 主入口脚本路径（相对于 ZIP 根目录），用于执行注册函数 |
@@ -707,7 +707,7 @@ console.log(artifact.artifactSha256);
 ```
 
 builder 在压缩前后执行同一 scanner，按规范化路径排序并固定 ZIP 时间戳；返回值包含制品路径、
-SHA-256、ToolPkg ID/版本、条目数和总解压大小。`operit_editor` 已使用该入口，不再调用
+SHA-256、ToolPkg ID/版本、条目数和总解压大小。`kiyori_editor` 已使用该入口，不再调用
 `Tools.Files.zip(source.folderPath, ...)`。
 
 #### 3.2.6 Resources（资源文件）
@@ -717,7 +717,7 @@ SHA-256、ToolPkg ID/版本、条目数和总解压大小。`operit_editor` 已�
 ```json
 {
   "key": "pc_agent_zip",
-  "path": "resources/pc_agent/operit-pc-agent.zip",
+  "path": "resources/pc_agent/kiyori-pc-agent.zip",
   "mime": "application/zip"
 }
 ```
@@ -727,7 +727,7 @@ SHA-256、ToolPkg ID/版本、条目数和总解压大小。`operit_editor` 已�
 ```json
 {
   "key": "pc_agent_zip",
-  "path": "resources/pc_agent/operit-pc-agent",
+  "path": "resources/pc_agent/kiyori-pc-agent",
   "mime": "inode/directory"
 }
 ```
@@ -1405,7 +1405,7 @@ active 提交前的任何错误都不能改变当前激活版本。成功更新�
 
 ### 9.1 命名规范
 
-- **toolpkg_id**：使用反向域名格式，如 `com.operit.windows_bundle`
+- **toolpkg_id**：使用反向域名格式，如 `com.kiyori.windows_bundle`
 - **subpackage id**：使用小写字母和下划线，如 `windows_control`
 - **resource key**：使用小写字母和下划线，如 `pc_agent_zip`
 - **ui_module id**：使用小写字母和下划线，如 `windows_setup`
@@ -1621,7 +1621,7 @@ windows_control/
 │       └── index.ui.js
 ├── resources/
 │   └── pc_agent/
-│       └── operit-pc-agent/
+│       └── kiyori-pc-agent/
 └── i18n/
     ├── zh-CN.js
     └── en-US.js

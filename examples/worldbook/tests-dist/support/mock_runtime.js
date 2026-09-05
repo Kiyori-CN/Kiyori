@@ -47,7 +47,7 @@ function makeFsTools() {
     };
 }
 function installMockRuntime(options) {
-    const packageId = String(options?.packageId || "com.operit.worldbook");
+    const packageId = String(options?.packageId || "com.kiyori.worldbook");
     const configDir = node_path_1.default.join(process.cwd(), "temp", options?.rootDirName || `worldbook_test_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`);
     const packageConfigDir = node_path_1.default.join(configDir, packageId);
     node_fs_1.default.rmSync(configDir, { recursive: true, force: true });

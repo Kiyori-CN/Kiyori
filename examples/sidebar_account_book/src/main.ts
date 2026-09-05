@@ -1,6 +1,6 @@
 import bookkeepingDashboardScreen from "./ui/bookkeeping_dashboard/index.ui.js";
 
-const ACCOUNT_BOOK_ROUTE = "toolpkg:com.operit.sidebar_account_book:ui:bookkeeping_dashboard";
+const ACCOUNT_BOOK_ROUTE = "toolpkg:com.kiyori.sidebar_account_book:ui:bookkeeping_dashboard";
 
 export function registerToolPkg(): boolean {
   ToolPkg.registerUiRoute({

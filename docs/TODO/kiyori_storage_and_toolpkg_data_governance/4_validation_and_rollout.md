@@ -74,8 +74,8 @@
 - ARCH046 两项正反向合同测试 `2/2` 通过；完整 architecture `m03` 的 `35/35` 项检查
   通过，JSON 输出为 `errors: []`
 - formal readiness 为 `PASS`；工作树 Markdown 链接检查覆盖 `12` 份相关文件，问题数为 `0`
-- `node --check examples/operit_editor.js` 与
-  `node --check app/src/main/assets/packages/operit_editor.js` 通过
+- `node --check examples/kiyori_editor.js` 与
+  `node --check app/src/main/assets/packages/kiyori_editor.js` 通过
 - `git diff --check` 无 whitespace error；仅报告工作树既有换行转换提示
 - `:app:compileDebugKotlin` 为 `BUILD SUCCESSFUL`，`83` 个任务中 `4` 个执行、`79` 个为最新状态
 

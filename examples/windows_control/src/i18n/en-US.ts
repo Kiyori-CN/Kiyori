@@ -14,7 +14,7 @@ export const WINDOWS_SETUP_EN_US: WindowsSetupI18n = {
   step1MissingResource: "Installer resource not found",
   step2Title: "Step 2: Unzip and Start Agent on PC",
   step2Desc:
-    "On Windows, unzip the exported ZIP. In the extracted file list, find operit_pc_agent.bat and double-click it.",
+    "On Windows, unzip the exported ZIP. In the extracted file list, find kiyori_pc_agent.bat and double-click it.",
   step3Title: "Step 3: Finish Web Wizard and Paste Config Below",
   step3Desc:
     "Follow the auto-opened web setup wizard. On the final step, click Copy, then paste the copied config into the field below.",

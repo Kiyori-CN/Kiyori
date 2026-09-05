@@ -9,7 +9,7 @@ exports.registerToolPkg = registerToolPkg;
 const index_ui_js_1 = __importDefault(require("./ui/worldbook_manager/index.ui.js"));
 const worldbook_storage_js_1 = require("./shared/worldbook_storage.js");
 const worldbook_variables_js_1 = require("./shared/worldbook_variables.js");
-const WORLDBOOK_ROUTE = "toolpkg:com.operit.worldbook:ui:worldbook_manager";
+const WORLDBOOK_ROUTE = "toolpkg:com.kiyori.worldbook:ui:worldbook_manager";
 function matchesEntry(entry, text) {
     if (!entry.keywords || entry.keywords.length === 0) {
         return false;

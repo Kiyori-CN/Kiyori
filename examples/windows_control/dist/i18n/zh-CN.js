@@ -13,7 +13,7 @@ exports.WINDOWS_SETUP_ZH_CN = {
     step1ShareFailed: "分享失败",
     step1MissingResource: "安装包资源不存在",
     step2Title: "步骤 2：电脑端解压并启动代理",
-    step2Desc: "在电脑端解压刚才导出的 ZIP。解压后会看到文件列表（包含 operit_pc_agent.bat），双击 operit_pc_agent.bat 启动。",
+    step2Desc: "在电脑端解压刚才导出的 ZIP。解压后会看到文件列表（包含 kiyori_pc_agent.bat），双击 kiyori_pc_agent.bat 启动。",
     step3Title: "步骤 3：网页向导复制配置并粘贴到下方",
     step3Desc: "跟随自动弹出的网页完成配置向导，并在最后一步点击“复制”，把复制的配置粘贴到下面输入框。",
     configLabel: "粘贴向导复制的配置 JSON",

@@ -799,7 +799,7 @@ The following names are implementation or interoperability identifiers, not the 
 - the source namespace `com.ai.assistance.operit`;
 - the `operit://` OAuth callback and other externally consumed URI schemes;
 - persisted database, preference, backup, workspace, plugin, ToolPkg, MCP, Intent action, and file-format identifiers;
-- `.operit/config.json`, `com.operit.*` ToolPkg IDs, `remote_operit`, `operit-pc-agent` filenames and directories, and `OPERIT_*` environment variables;
+- `.operit/config.json` and other external compatibility formats remain stable; bundled Kiyori scripts use `com.kiyori.*` ToolPkg IDs, `remote_kiyori`, `kiyori-pc-agent` filenames/directories, and `KIYORI_*` environment variables. Legacy Operit IDs are accepted only for explicit imported compatibility data.
 - attribution, license history, source references, and upstream documentation that must continue to identify Operit accurately.
 
 Changing one of these identifiers requires a separate compatibility design and migration plan.

@@ -124,7 +124,7 @@ const superAdmin = (function () {
         output_bytes: number;
         output_lines: number;
         output_is_preview: boolean;
-        operit_clean_on_exit_dir: string;
+        kiyori_clean_on_exit_dir: string;
         hint: string;
         timeoutMsUsed?: number;
     }
@@ -282,11 +282,11 @@ const superAdmin = (function () {
             return null;
         }
 
-        await Tools.Files.mkdir(OPERIT_CLEAN_ON_EXIT_DIR, true);
+        await Tools.Files.mkdir(KIYORI_CLEAN_ON_EXIT_DIR, true);
 
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
         const rand = Math.floor(Math.random() * 1_000_000);
-        const filePath = `${OPERIT_CLEAN_ON_EXIT_DIR}/terminal_output_${timestamp}_${rand}.log`;
+        const filePath = `${KIYORI_CLEAN_ON_EXIT_DIR}/terminal_output_${timestamp}_${rand}.log`;
 
         await Tools.Files.write(filePath, outputStr, false);
 
@@ -308,7 +308,7 @@ const superAdmin = (function () {
             output_bytes: utf8ByteLength(outputStr),
             output_lines: lineCount(outputStr),
             output_is_preview: outputTruncated,
-            operit_clean_on_exit_dir: OPERIT_CLEAN_ON_EXIT_DIR,
+            kiyori_clean_on_exit_dir: KIYORI_CLEAN_ON_EXIT_DIR,
             hint: outputTruncated
                 ? "Output exceeded the 4 MiB terminal capture limit; this clean-on-exit file contains only the explicit head/tail preview. Redirect the command to a file and use read_file_part or grep_code for the complete output."
                 : "Output exceeded 12,000 JavaScript characters and is saved in this clean-on-exit file. Use read_file_part or grep_code to inspect it; the file contains the complete captured output.",
@@ -430,7 +430,7 @@ const superAdmin = (function () {
                     : await Tools.System.terminal.create(getDefaultTerminalSessionName());
             const sessionId = session.sessionId;
 
-            const marker = `__OPERIT_TERMINAL_WAIT_DONE_${Date.now()}_${Math.floor(Math.random() * 1_000_000)}__`;
+            const marker = `__KIYORI_TERMINAL_WAIT_DONE_${Date.now()}_${Math.floor(Math.random() * 1_000_000)}__`;
             const waitCommand = `printf '${marker}\\n'`;
             const startedAt = Date.now();
             const result = await Tools.System.terminal.exec(sessionId, waitCommand, timeout);

@@ -283,8 +283,8 @@ declare global {
 
     function getCallerCardId(): string | undefined;
 
-    const OPERIT_DOWNLOAD_DIR: string;
-    const OPERIT_CLEAN_ON_EXIT_DIR: string;
+    const KIYORI_DOWNLOAD_DIR: string;
+    const KIYORI_CLEAN_ON_EXIT_DIR: string;
 
     // Utility objects
     const _: {

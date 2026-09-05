@@ -1,7 +1,7 @@
 import { resolveLinuxSshSetupI18n, type LinuxSshSetupI18n } from "../i18n";
 
 const LINUX_SSH_PACKAGE_NAME = "linux_ssh";
-const DEFAULT_TMUX_SESSION_NAME = "operit_ai";
+    const DEFAULT_TMUX_SESSION_NAME = "kiyori_ai";
 
 const ENV_KEYS = {
     host: "LINUX_SSH_HOST",
@@ -88,11 +88,11 @@ function getToolOutputText(result: unknown): string {
     const rawOutput = asText(record.rawOutput || "");
     const error = asText(record.error || "");
 
-    const captureFromOutput = extractMarkedBlock(output, "__OPERIT_TMUX_CAPTURE_BEGIN__", "__OPERIT_TMUX_CAPTURE_END__");
+    const captureFromOutput = extractMarkedBlock(output, "__KIYORI_TMUX_CAPTURE_BEGIN__", "__KIYORI_TMUX_CAPTURE_END__");
     if (captureFromOutput) {
         return captureFromOutput;
     }
-    const captureFromRaw = extractMarkedBlock(rawOutput, "__OPERIT_TMUX_CAPTURE_BEGIN__", "__OPERIT_TMUX_CAPTURE_END__");
+    const captureFromRaw = extractMarkedBlock(rawOutput, "__KIYORI_TMUX_CAPTURE_BEGIN__", "__KIYORI_TMUX_CAPTURE_END__");
     if (captureFromRaw) {
         return captureFromRaw;
     }

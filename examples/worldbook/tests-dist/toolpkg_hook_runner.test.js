@@ -30,9 +30,9 @@ const importFixturePath = node_path_1.default.resolve(process.cwd(), "examples",
     await variables.syncWorldBookVariableContext("chat_1", entries, "card_1");
     const runnerTempDir = node_path_1.default.join(process.cwd(), "temp", "worldbook_hook_runner_cli");
     node_fs_1.default.rmSync(runnerTempDir, { recursive: true, force: true });
-    node_fs_1.default.mkdirSync(node_path_1.default.join(runnerTempDir, "com.operit.worldbook"), { recursive: true });
-    node_fs_1.default.copyFileSync(node_path_1.default.join(runtime.packageConfigDir, "entries.json"), node_path_1.default.join(runnerTempDir, "com.operit.worldbook", "entries.json"));
-    node_fs_1.default.copyFileSync(node_path_1.default.join(runtime.packageConfigDir, "variables.json"), node_path_1.default.join(runnerTempDir, "com.operit.worldbook", "variables.json"));
+    node_fs_1.default.mkdirSync(node_path_1.default.join(runnerTempDir, "com.kiyori.worldbook"), { recursive: true });
+    node_fs_1.default.copyFileSync(node_path_1.default.join(runtime.packageConfigDir, "entries.json"), node_path_1.default.join(runnerTempDir, "com.kiyori.worldbook", "entries.json"));
+    node_fs_1.default.copyFileSync(node_path_1.default.join(runtime.packageConfigDir, "variables.json"), node_path_1.default.join(runnerTempDir, "com.kiyori.worldbook", "variables.json"));
     const fixturesPath = node_path_1.default.join(runnerTempDir, "fixtures.json");
     const payloadPath = node_path_1.default.join(runnerTempDir, "payload.json");
     node_fs_1.default.writeFileSync(fixturesPath, JSON.stringify({
@@ -87,7 +87,7 @@ const importFixturePath = node_path_1.default.resolve(process.cwd(), "examples",
         encoding: "utf8"
     });
     const parsed = JSON.parse(outputText);
-    strict_1.default.equal(parsed.packageId, "com.operit.worldbook");
+    strict_1.default.equal(parsed.packageId, "com.kiyori.worldbook");
     strict_1.default.equal(parsed.kind, "system_prompt");
     strict_1.default.equal(parsed.hookCount, 1);
     strict_1.default.equal(parsed.results[0].id, "worldbook_always_active");

@@ -1,4 +1,4 @@
-﻿const ENV_KEY = "OPERIT_THINKING_GUIDANCE_ENABLED";
+﻿const ENV_KEY = "KIYORI_THINKING_GUIDANCE_ENABLED";
 const TOGGLE_ID = "thinking_guidance";
 const MENU_HOOK_ID = "thinking_guidance_menu";
 const PROMPT_HOOK_ID = "thinking_guidance_prompt";

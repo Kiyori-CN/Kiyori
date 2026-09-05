@@ -1,6 +1,6 @@
 import sillyTavernDashboardScreen from "./ui/sillytavern_dashboard/index.ui.js";
 
-const SILLYTAVERN_ROUTE = "toolpkg:com.operit.sidebar_sillytavern:ui:sillytavern_dashboard";
+const SILLYTAVERN_ROUTE = "toolpkg:com.kiyori.sidebar_sillytavern:ui:sillytavern_dashboard";
 
 export function registerToolPkg(): boolean {
   ToolPkg.registerUiRoute({

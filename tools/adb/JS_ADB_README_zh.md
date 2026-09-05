@@ -92,7 +92,7 @@
 - 入口文件依赖同目录其他模块，或者你在跑 `app/src/androidTest/js` 里的目录化测试，用 `execute_js_dir.*`
 - 想验证顶层 script mode 行为，不想写导出函数，用 `run_sandbox_script.*`
 - 你改的是 `examples/` 里的 package / toolpkg，想热更新到设备里的包系统，再去 UI 或包管理里验证，用 `tools/example_packages/sync_example_packages.py`
-- 你改的是 `examples/` 里的 toolpkg 调试工具，例如 `operit_editor` 的 `debug_install_toolpkg`，通常是先 `tools/example_packages/sync_example_packages.py`，再用 `execute_js.bat` 去调这个工具
+- 你改的是 `examples/` 里的 toolpkg 调试工具，例如 `kiyori_editor` 的 `debug_install_toolpkg`，通常是先 `tools/example_packages/sync_example_packages.py`，再用 `execute_js.bat` 去调这个工具
 
 ## 快速开始
 
@@ -105,7 +105,7 @@ tools\adb\execute_js.bat path\to\your\script.js functionName @params.json
 示例：
 
 ```cmd
-tools\adb\execute_js.bat examples\operit_editor.js debug_install_toolpkg @params.json
+tools\adb\execute_js.bat examples\kiyori_editor.js debug_install_toolpkg @params.json
 ```
 
 ### Linux/macOS：执行单文件导出函数
@@ -187,7 +187,7 @@ tools\adb\execute_js.bat examples\my_script.js main @params.json
 最常见调用：
 
 ```cmd
-tools\adb\execute_js.bat examples\operit_editor.js debug_install_toolpkg @params.json
+tools\adb\execute_js.bat examples\kiyori_editor.js debug_install_toolpkg @params.json
 ```
 
 你在写新脚本时，最小可运行要求就是：
@@ -402,7 +402,7 @@ tools\adb\execute_js.bat path\to\script.js main @params.json
 2. 运行 `tools/example_packages/sync_example_packages.py --include <目录名>`
 3. 让它把目录打成 `.toolpkg`
 4. 让它把生成物同步到 assets 和设备
-5. 再用 `operit_editor` 的 `debug_install_toolpkg` 或相关调试入口验证安装结果
+5. 再用 `kiyori_editor` 的 `debug_install_toolpkg` 或相关调试入口验证安装结果
 
 这样测到的是完整链路：
 
@@ -411,20 +411,20 @@ tools\adb\execute_js.bat path\to\script.js main @params.json
 - debug install 是否能识别这个包
 - 包刷新后是否真的进入加载列表
 
-### 场景 4：你改的是 `operit_editor` 这类调试工具本身
+### 场景 4：你改的是 `kiyori_editor` 这类调试工具本身
 
 推荐顺序：
 
-1. 先 `tools/example_packages/sync_example_packages.py` 更新 `operit_editor` 自己
+1. 先 `tools/example_packages/sync_example_packages.py` 更新 `kiyori_editor` 自己
 2. 再准备一个待安装的 package / toolpkg
-3. 用 `execute_js.bat` 调 `operit_editor.js` 的调试函数
+3. 用 `execute_js.bat` 调 `kiyori_editor.js` 的调试函数
 4. 看结构化结果里的成功、失败和相关告警
 
 例如：
 
 ```cmd
-d:\Code\prog\assistance\.venv\Scripts\python.exe d:\Code\prog\assistance\tools\example_packages\sync_example_packages.py --include operit_editor --include sidebar_bing_action
-tools\adb\execute_js.bat examples\operit_editor.js debug_install_toolpkg @params.json
+d:\Code\prog\assistance\.venv\Scripts\python.exe d:\Code\prog\assistance\tools\example_packages\sync_example_packages.py --include kiyori_editor --include sidebar_bing_action
+tools\adb\execute_js.bat examples\kiyori_editor.js debug_install_toolpkg @params.json
 ```
 
 这适合验证：
@@ -462,8 +462,8 @@ d:\Code\prog\assistance\.venv\Scripts\python.exe d:\Code\prog\assistance\tools\e
 ### 5. 同步后再调用调试安装工具
 
 ```cmd
-d:\Code\prog\assistance\.venv\Scripts\python.exe d:\Code\prog\assistance\tools\example_packages\sync_example_packages.py --include operit_editor --include sidebar_bing_action
-tools\adb\execute_js.bat examples\operit_editor.js debug_install_toolpkg @params.json
+d:\Code\prog\assistance\.venv\Scripts\python.exe d:\Code\prog\assistance\tools\example_packages\sync_example_packages.py --include kiyori_editor --include sidebar_bing_action
+tools\adb\execute_js.bat examples\kiyori_editor.js debug_install_toolpkg @params.json
 ```
 
 ## Script Mode 注意事项

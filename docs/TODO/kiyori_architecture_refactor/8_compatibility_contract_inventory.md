@@ -384,13 +384,15 @@ com.ai.assistance.operit.provider
 - `operit://`
 - `OperitForge`
 - Operit market compatibility version
-- `com.operit.*` ToolPkg IDs
-- `remote_operit`
-- `operit-pc-agent`
-- `OPERIT_*` environment variables
+- imported `com.operit.*` ToolPkg IDs and legacy script environment ABI
 - source attribution、license history 和 upstream URLs
 
 这些不是 Kiyori UI 品牌残留，而是生态合同或历史归属。
+
+2026-09-05 内置脚本合同已由
+[扩展脚本迁移决策](../kiyori_extension_script_brand_migration/index.md) 更新：生产脚本与示例包使用
+`com.kiyori.*`、`kiyori_editor`、`remote_kiyori`、`kiyori-pc-agent` 和 `KIYORI_*`。
+宿主两项旧目录常量只服务显式导入的脚本，与 Kiyori 常量共享同一目录值。
 
 ## 合同变更流程
 

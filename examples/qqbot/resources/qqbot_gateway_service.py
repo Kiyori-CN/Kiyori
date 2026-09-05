@@ -101,7 +101,7 @@ class SimpleWebSocketClient:
             "Connection: Upgrade",
             f"Sec-WebSocket-Key: {key}",
             "Sec-WebSocket-Version: 13",
-            "User-Agent: OperitQQBotGateway/0.3.0",
+            "User-Agent: KiyoriQQBotGateway/0.3.0",
             "",
             "",
         ]

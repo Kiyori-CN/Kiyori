@@ -13,9 +13,9 @@ export interface ModelSiteEntry {
 
 export const MODEL_SITES_ENV_KEY = "sidebar_model_sites.selected_site_id";
 export const MODEL_SITES_LIST_ROUTE =
-  "toolpkg:com.operit.sidebar_model_sites:ui:model_sites_list";
+  "toolpkg:com.kiyori.sidebar_model_sites:ui:model_sites_list";
 export const MODEL_SITES_VIEWER_ROUTE =
-  "toolpkg:com.operit.sidebar_model_sites:ui:model_sites_viewer";
+  "toolpkg:com.kiyori.sidebar_model_sites:ui:model_sites_viewer";
 
 export const MODEL_SITE_CATALOG: ModelSiteEntry[] = [
   {

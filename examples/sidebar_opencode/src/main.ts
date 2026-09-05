@@ -1,6 +1,6 @@
 import opencodeDashboardScreen from "./ui/opencode_dashboard/index.ui.js";
 
-const OPENCODE_ROUTE = "toolpkg:com.operit.sidebar_opencode:ui:opencode_dashboard";
+const OPENCODE_ROUTE = "toolpkg:com.kiyori.sidebar_opencode:ui:opencode_dashboard";
 
 export function registerToolPkg(): boolean {
   ToolPkg.registerUiRoute({

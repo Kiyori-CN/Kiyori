@@ -34,8 +34,8 @@ class BuiltInPackageMetadataContractTest {
             "examples/github/package.json",
             "examples/sidebar_account_book/resources/server_runtime/package.json",
             "examples/toolpkg_wasm_demo/package.json",
-            "examples/windows_control/resources/pc_agent/operit-pc-agent/package.json",
-            "examples/windows_control/resources/pc_agent/operit-pc-agent/package-lock.json",
+            "examples/windows_control/resources/pc_agent/kiyori-pc-agent/package.json",
+            "examples/windows_control/resources/pc_agent/kiyori-pc-agent/package-lock.json",
         ).forEach { relativePath ->
             assertEquals(
                 "$relativePath must use version 1.0.0",
@@ -117,6 +117,7 @@ class BuiltInPackageMetadataContractTest {
                 assertTrue("Missing ToolPkg manifest: $item", manifestFile.isFile)
                 val manifest = JSONObject(manifestFile.readText())
 
+                assertTrue("$item must use a Kiyori ToolPkg ID", manifest.getString("toolpkg_id").startsWith("com.kiyori."))
                 assertEquals("$item must use pre-release version 1.0.0", "1.0.0", manifest.getString("version"))
                 assertFalse("$item must not declare manifest author", manifest.has("author"))
                 assertLocalized(manifest.get("display_name"), "$item manifest display_name")
@@ -171,6 +172,38 @@ class BuiltInPackageMetadataContractTest {
         val brave = metadata(repositoryFile("examples/brave_search.js").readText())
         assertEquals("Brave 搜索", brave.getJSONObject("display_name").getString("zh"))
         assertFalse(repositoryFile("examples/brave_search.js").readText().contains("Brave搜索"))
+    }
+
+    @Test
+    fun `bundled script surface uses Kiyori identifiers`() {
+        val whitelist = readWhitelist()
+        assertTrue(whitelist.contains("kiyori_editor.js"))
+        assertTrue(whitelist.contains("remote_kiyori"))
+        assertFalse(whitelist.contains("operit_editor.js"))
+        assertFalse(whitelist.contains("remote_operit"))
+
+        assertFalse(repositoryDirectory("examples").resolve("operit_editor.ts").exists())
+        assertFalse(repositoryDirectory("examples").resolve("remote_operit").exists())
+        assertFalse(repositoryDirectory("app/src/main/assets/packages").resolve("operit_editor.js").exists())
+        val scripts = whitelist.flatMap { item ->
+            if (item.endsWith(".js")) {
+                listOf(repositoryFile("examples/$item"), repositoryFile("app/src/main/assets/packages/$item"))
+            } else {
+                repositoryDirectory("examples/$item").walkTopDown()
+                    .onEnter { it.name !in setOf("node_modules", "build", ".git") }
+                    .filter { it.isFile && it.extension in setOf("ts", "js", "json", "hjson", "md", "ps1", "bat") }
+                    .toList()
+            }
+        }
+        scripts.forEach { file ->
+            val text = file.readText()
+            assertFalse("${file.path} exposes legacy script env", text.contains("OPERIT_CLEAN_ON_EXIT_DIR"))
+            assertFalse("${file.path} exposes legacy download env", text.contains("OPERIT_DOWNLOAD_DIR"))
+            assertFalse("${file.path} exposes legacy script marker", text.contains("__OPERIT_"))
+            assertFalse("${file.path} references the old remote package", text.contains("remote_operit"))
+            assertFalse("${file.path} references the old editor package", text.contains("operit_editor"))
+            assertFalse("${file.path} references the old PC companion", text.contains("operit-pc-agent"))
+        }
     }
 
     @Test

@@ -44,6 +44,13 @@ Kiyori 是一款以浏览器为产品中心、以内置 Operit AI 为智能子�
 | 正式发行 | 尚未开放 |
 | 许可证 | GNU GPL v3 或更高版本 |
 
+AI 左抽屉的内置平台编辑器使用 `kiyori_editor`，远程工具包使用 `remote_kiyori`。
+远程配置需要目标 Kiyori 的 HTTP API 地址和访问令牌，变量名为 `REMOTE_KIYORI_BASE_URL`、
+`REMOTE_KIYORI_TOKEN`、`REMOTE_KIYORI_TIMEOUT_MS`。地址支持 HTTP(S)、IPv4/IPv6 和路径前缀，
+未写端口时使用 `8094`；不要在地址中附带账号、查询串或片段。Windows 配套包为
+`kiyori-pc-agent`，通过 `kiyori_pc_agent.bat` 启动。详见
+[内置扩展迁移与验收说明](docs/TODO/kiyori_extension_script_brand_migration/index.md)。
+
 ## 核心能力
 
 - **共享浏览器运行时**：Browser Home 与 AI 浏览器工具共用标签页、WebView、Cookie、历史、书签、下载、用户脚本和窗口状态。

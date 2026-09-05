@@ -187,7 +187,7 @@ const linuxSshTools = (function () {
     const DEFAULT_TIMEOUT_MS = 20000;
     const DEFAULT_TERMINAL_SESSION_NAME = "linux_ssh_terminal";
     const DEFAULT_HIDDEN_EXECUTOR_NAME = "linux_ssh";
-    const DEFAULT_TMUX_SESSION_NAME = "operit_ai";
+    const DEFAULT_TMUX_SESSION_NAME = "kiyori_ai";
     const MAX_INLINE_TERMINAL_OUTPUT_CHARS = 12000;
     const LARGE_OUTPUT_HINT = "Output is large and saved to file. Use read_file_part or grep_code to inspect it.";
     const ENV_KEYS = {
@@ -268,19 +268,19 @@ const linuxSshTools = (function () {
         if (outputStr.length <= MAX_INLINE_TERMINAL_OUTPUT_CHARS) {
             return data;
         }
-        await Tools.Files.mkdir(OPERIT_CLEAN_ON_EXIT_DIR, true);
+        await Tools.Files.mkdir(KIYORI_CLEAN_ON_EXIT_DIR, true);
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
         const rand = Math.floor(Math.random() * 1000000);
         const safeLabel = firstNonBlank(fileLabel, "linux_ssh_output")
             .replace(/[^a-zA-Z0-9._-]+/g, "_");
-        const filePath = `${OPERIT_CLEAN_ON_EXIT_DIR}/${safeLabel}_${timestamp}_${rand}.log`;
+        const filePath = `${KIYORI_CLEAN_ON_EXIT_DIR}/${safeLabel}_${timestamp}_${rand}.log`;
         await Tools.Files.write(filePath, outputStr, false);
         return {
             ...data,
             output: "(saved_to_file)",
             output_saved_to: filePath,
             output_chars: outputStr.length,
-            operit_clean_on_exit_dir: OPERIT_CLEAN_ON_EXIT_DIR,
+            kiyori_clean_on_exit_dir: KIYORI_CLEAN_ON_EXIT_DIR,
             hint: LARGE_OUTPUT_HINT
         };
     }
@@ -293,7 +293,7 @@ const linuxSshTools = (function () {
             output: source.output,
             output_saved_to: source.output_saved_to,
             output_chars: source.output_chars,
-            operit_clean_on_exit_dir: source.operit_clean_on_exit_dir,
+            kiyori_clean_on_exit_dir: source.kiyori_clean_on_exit_dir,
             hint: source.hint || LARGE_OUTPUT_HINT
         };
     }
@@ -735,11 +735,11 @@ const linuxSshTools = (function () {
             "else",
             "  tmux new-session -d -s \"$session_name\" -n \"$window_name\"",
             "fi",
-            "printf '__OPERIT_TMUX_WINDOW_READY__\\n'",
+            "printf '__KIYORI_TMUX_WINDOW_READY__\\n'",
             "echo \"window=$window_name\""
         ].join("\n");
         const result = await runRemoteCommandHidden(config, buildRemoteShellCommand(script, [requestedWindowName], false), config.timeoutMs, "tmux");
-        const success = result.exitCode === 0 && !result.timedOut && result.output.includes("__OPERIT_TMUX_WINDOW_READY__");
+        const success = result.exitCode === 0 && !result.timedOut && result.output.includes("__KIYORI_TMUX_WINDOW_READY__");
         const windowName = extractOutputLineValue(result.output, "window=");
         return await persistResultOutputIfTooLong({
             success,
@@ -760,19 +760,19 @@ const linuxSshTools = (function () {
             "raw_path=\"$1\"",
             ...buildRemotePathResolveLines("raw_path", "resolved_path", { fallbackToHome: false }),
             "if [ ! -f \"$resolved_path\" ]; then",
-            "  echo '__OPERIT_FILE_NOT_FOUND__'",
+            "  echo '__KIYORI_FILE_NOT_FOUND__'",
             "  exit 4",
             "fi",
-            "printf '__OPERIT_BEGIN__\\n'",
+            "printf '__KIYORI_BEGIN__\\n'",
             readCmd,
-            "printf '\\n__OPERIT_END__\\n'"
+            "printf '\\n__KIYORI_END__\\n'"
         ].join("\n");
         const command = buildRemoteShellCommand(script, [path], useSudo);
         const result = await runRemoteCommandHidden(config, command, config.timeoutMs, "fs");
         if (result.exitCode !== 0 || result.timedOut) {
             throw new Error(`Failed to read remote file: ${result.output}`);
         }
-        const content = extractBlock(result.output, "__OPERIT_BEGIN__", "__OPERIT_END__");
+        const content = extractBlock(result.output, "__KIYORI_BEGIN__", "__KIYORI_END__");
         return {
             output: result.output,
             content
@@ -808,15 +808,15 @@ const linuxSshTools = (function () {
             const config = await resolveStoredSshConfig(params);
             const timeoutMs = params?.timeout_ms ?? config.timeoutMs;
             const command = [
-                "printf '__OPERIT_CONNECT_BEGIN__\\n'",
+                "printf '__KIYORI_CONNECT_BEGIN__\\n'",
                 "echo \"user=$(whoami)\"",
                 "echo \"host=$(hostname)\"",
                 "if command -v tmux >/dev/null 2>&1; then echo 'tmux=present'; else echo 'tmux=missing'; fi",
-                "printf '__OPERIT_CONNECT_END__\\n'"
+                "printf '__KIYORI_CONNECT_END__\\n'"
             ].join("\n");
             const result = await runRemoteCommandHidden(config, buildRemoteShellCommand(command, [], false), timeoutMs, "remote");
             const success = result.exitCode === 0 && !result.timedOut;
-            const block = extractBlock(result.output, "__OPERIT_CONNECT_BEGIN__", "__OPERIT_CONNECT_END__");
+            const block = extractBlock(result.output, "__KIYORI_CONNECT_BEGIN__", "__KIYORI_CONNECT_END__");
             return await persistToolResult("linux_ssh_test_connection_output", {
                 success,
                 timeoutMs,
@@ -924,12 +924,12 @@ const linuxSshTools = (function () {
                 "fi",
                 "tmux send-keys -t \"$target_window\" \"sh '$escaped_launcher_file'\" C-m",
                 "trap - EXIT INT TERM HUP",
-                "printf '__OPERIT_TMUX_RUN_OK__\\n'",
+                "printf '__KIYORI_TMUX_RUN_OK__\\n'",
                 `echo "session=${tmuxSessionName}"`,
                 `echo "window=${windowName}"`
             ].join("\n");
             const result = await runRemoteCommandWithLocalStdinHidden(config, command, buildRemoteShellCommand(script, [targetWindow, workdir], false), config.timeoutMs, "tmux", true);
-            const success = result.exitCode === 0 && !result.timedOut && result.output.includes("__OPERIT_TMUX_RUN_OK__");
+            const success = result.exitCode === 0 && !result.timedOut && result.output.includes("__KIYORI_TMUX_RUN_OK__");
             return await persistToolResult("linux_ssh_tmux_run_output", {
                 success,
                 tmuxSessionName,
@@ -964,14 +964,14 @@ const linuxSshTools = (function () {
             }
             const target = windowName ? `${tmuxSessionName}:${windowName}` : tmuxSessionName;
             const script = [
-                `tmux has-session -t ${shellQuote(tmuxSessionName)} 2>/dev/null || { echo '__OPERIT_TMUX_NOT_FOUND__'; exit 4; }`,
-                "printf '__OPERIT_TMUX_CAPTURE_BEGIN__\\n'",
+                `tmux has-session -t ${shellQuote(tmuxSessionName)} 2>/dev/null || { echo '__KIYORI_TMUX_NOT_FOUND__'; exit 4; }`,
+                "printf '__KIYORI_TMUX_CAPTURE_BEGIN__\\n'",
                 `tmux capture-pane -t ${shellQuote(target)} -p -S -${maxLines}`,
-                "printf '\\n__OPERIT_TMUX_CAPTURE_END__\\n'"
+                "printf '\\n__KIYORI_TMUX_CAPTURE_END__\\n'"
             ].join("\n");
             const result = await runRemoteCommandHidden(config, buildRemoteShellCommand(script, [], false), config.timeoutMs, "tmux");
             const success = result.exitCode === 0 && !result.timedOut;
-            const content = extractBlock(result.output, "__OPERIT_TMUX_CAPTURE_BEGIN__", "__OPERIT_TMUX_CAPTURE_END__");
+            const content = extractBlock(result.output, "__KIYORI_TMUX_CAPTURE_BEGIN__", "__KIYORI_TMUX_CAPTURE_END__");
             return await persistToolResult("linux_ssh_tmux_capture_output", {
                 success,
                 tmuxSessionName,
@@ -1003,15 +1003,15 @@ const linuxSshTools = (function () {
                 }, tmuxReady);
             }
             const script = [
-                `tmux has-session -t ${shellQuote(tmuxSessionName)} 2>/dev/null || { echo '__OPERIT_TMUX_NOT_FOUND__'; exit 4; }`,
-                "printf '__OPERIT_TMUX_WINDOWS_BEGIN__\\n'",
+                `tmux has-session -t ${shellQuote(tmuxSessionName)} 2>/dev/null || { echo '__KIYORI_TMUX_NOT_FOUND__'; exit 4; }`,
+                "printf '__KIYORI_TMUX_WINDOWS_BEGIN__\\n'",
                 `tmux list-windows -t ${shellQuote(tmuxSessionName)} -F '#{window_index}:#{window_name}'`,
-                "printf '__OPERIT_TMUX_WINDOWS_END__\\n'"
+                "printf '__KIYORI_TMUX_WINDOWS_END__\\n'"
             ].join("; ");
             const result = await runRemoteCommandHidden(config, buildRemoteShellCommand(script, [], false), config.timeoutMs, "tmux");
-            const notFound = hasExactMarkerLine(result.output, "__OPERIT_TMUX_NOT_FOUND__");
+            const notFound = hasExactMarkerLine(result.output, "__KIYORI_TMUX_NOT_FOUND__");
             const success = result.exitCode === 0 && !result.timedOut && !notFound;
-            const block = extractBlock(result.output, "__OPERIT_TMUX_WINDOWS_BEGIN__", "__OPERIT_TMUX_WINDOWS_END__");
+            const block = extractBlock(result.output, "__KIYORI_TMUX_WINDOWS_BEGIN__", "__KIYORI_TMUX_WINDOWS_END__");
             const windows = block
                 .split(/\r?\n/)
                 .map((line) => asText(line).trim())
@@ -1096,9 +1096,9 @@ const linuxSshTools = (function () {
             if (controlKey) {
                 scriptLines.push(`tmux send-keys -t ${shellQuote(targetWindow)} ${shellQuote(controlKey)}`);
             }
-            scriptLines.push("printf '__OPERIT_TMUX_INPUT_OK__\\n'");
+            scriptLines.push("printf '__KIYORI_TMUX_INPUT_OK__\\n'");
             const result = await runRemoteCommandHidden(config, buildRemoteShellCommand(scriptLines.join("\n"), [], false), config.timeoutMs, "tmux");
-            const success = result.exitCode === 0 && !result.timedOut && result.output.includes("__OPERIT_TMUX_INPUT_OK__");
+            const success = result.exitCode === 0 && !result.timedOut && result.output.includes("__KIYORI_TMUX_INPUT_OK__");
             return await persistToolResult("linux_ssh_tmux_input_output", {
                 success,
                 tmuxSessionName,
@@ -1138,15 +1138,15 @@ const linuxSshTools = (function () {
                 }, tmuxReady);
             }
             const script = [
-                `tmux has-session -t ${shellQuote(tmuxSessionName)} 2>/dev/null || { echo '__OPERIT_TMUX_NOT_FOUND__'; exit 4; }`,
-                `tmux list-windows -t ${shellQuote(tmuxSessionName)} -F '#{window_name}' | grep -Fx -- ${shellQuote(windowName)} >/dev/null || { echo '__OPERIT_TMUX_WINDOW_NOT_FOUND__'; exit 5; }`,
+                `tmux has-session -t ${shellQuote(tmuxSessionName)} 2>/dev/null || { echo '__KIYORI_TMUX_NOT_FOUND__'; exit 4; }`,
+                `tmux list-windows -t ${shellQuote(tmuxSessionName)} -F '#{window_name}' | grep -Fx -- ${shellQuote(windowName)} >/dev/null || { echo '__KIYORI_TMUX_WINDOW_NOT_FOUND__'; exit 5; }`,
                 `tmux kill-window -t ${shellQuote(targetWindow)}`,
-                "printf '__OPERIT_TMUX_CLOSE_OK__\\n'"
+                "printf '__KIYORI_TMUX_CLOSE_OK__\\n'"
             ].join("\n");
             const result = await runRemoteCommandHidden(config, buildRemoteShellCommand(script, [], false), config.timeoutMs, "tmux");
-            const sessionExists = !hasExactMarkerLine(result.output, "__OPERIT_TMUX_NOT_FOUND__");
-            const windowExists = !hasExactMarkerLine(result.output, "__OPERIT_TMUX_WINDOW_NOT_FOUND__");
-            const success = result.exitCode === 0 && !result.timedOut && sessionExists && windowExists && result.output.includes("__OPERIT_TMUX_CLOSE_OK__");
+            const sessionExists = !hasExactMarkerLine(result.output, "__KIYORI_TMUX_NOT_FOUND__");
+            const windowExists = !hasExactMarkerLine(result.output, "__KIYORI_TMUX_WINDOW_NOT_FOUND__");
+            const success = result.exitCode === 0 && !result.timedOut && sessionExists && windowExists && result.output.includes("__KIYORI_TMUX_CLOSE_OK__");
             return await persistToolResult("linux_ssh_tmux_close_output", {
                 success,
                 tmuxSessionName,

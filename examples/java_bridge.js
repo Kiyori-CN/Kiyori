@@ -1,5 +1,5 @@
 /**
- * Operit Java Bridge Tester
+ * Kiyori Java Bridge Tester
  *
  * Focused test suite for the new Java/Kotlin bridge runtime:
  * - Java package-chain sugar / Java.use / Java.importClass / Kotlin

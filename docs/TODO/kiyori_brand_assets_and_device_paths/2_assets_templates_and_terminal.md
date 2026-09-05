@@ -19,6 +19,9 @@
 
 ## 预置 ToolPkg
 
+以下为本阶段的历史迁移边界；其中编辑器、远程包、PC companion 和内置脚本标识的保留决策
+已由 [2026-09-05 扩展脚本迁移](../kiyori_extension_script_brand_migration/index.md) 更新。
+
 - QQ Bot、侧栏记账本和 Windows 控制等直接描述当前宿主的文案使用 Kiyori
 - `remote_operit` 中“当前应用”改称 Kiyori，远端 Operit、工具名、包名和环境变量继续保留
 - Windows companion 的展示名使用 Kiyori PC Agent，`operit-pc-agent` 目录、批处理文件名、环境变量、互斥锁和存储 key 保持不变

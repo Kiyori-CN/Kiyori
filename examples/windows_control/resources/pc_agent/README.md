@@ -1,4 +1,4 @@
-`operit-pc-agent/` is the source of truth for the Windows agent asset.
+`kiyori-pc-agent/` is the source of truth for the Windows agent asset.
 
 `manifest.json` declares it as a directory resource (`inode/directory`).
 When `ToolPkg.readResource("pc_agent_zip")` is called, the runtime exports this

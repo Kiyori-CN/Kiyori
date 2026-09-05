@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerToolPkg = registerToolPkg;
 const index_ui_js_1 = __importDefault(require("./ui/sillytavern_dashboard/index.ui.js"));
-const SILLYTAVERN_ROUTE = "toolpkg:com.operit.sidebar_sillytavern:ui:sillytavern_dashboard";
+const SILLYTAVERN_ROUTE = "toolpkg:com.kiyori.sidebar_sillytavern:ui:sillytavern_dashboard";
 function registerToolPkg() {
     ToolPkg.registerUiRoute({
         id: "sillytavern_dashboard",

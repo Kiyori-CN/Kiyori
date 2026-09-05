@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerToolPkg = registerToolPkg;
 const index_ui_js_1 = __importDefault(require("./ui/dino_runner/index.ui.js"));
-const DINO_ROUTE = "toolpkg:com.operit.dino_runner:ui:dino_runner";
+const DINO_ROUTE = "toolpkg:com.kiyori.dino_runner:ui:dino_runner";
 function registerToolPkg() {
     ToolPkg.registerUiRoute({
         id: "dino_runner",

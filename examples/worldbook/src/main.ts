@@ -8,7 +8,7 @@ import {
 
 declare function getCallerCardId(): string | undefined;
 
-const WORLDBOOK_ROUTE = "toolpkg:com.operit.worldbook:ui:worldbook_manager";
+const WORLDBOOK_ROUTE = "toolpkg:com.kiyori.worldbook:ui:worldbook_manager";
 
 interface WorldBookEntry {
   id: string;
