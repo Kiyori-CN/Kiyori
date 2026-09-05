@@ -209,7 +209,7 @@ private fun shouldCoalesceBrowserDiagnostic(
     previous: BrowserDiagnosticEntry,
     current: BrowserDiagnosticEntry,
 ): Boolean {
-    if (!current.event.startsWith("CONSOLE_")) return false
+    if (!current.event.startsWith("CONSOLE_") && current.event != "NAVIGATION_FINISHED_DUPLICATE") return false
     if (previous.event != current.event || previous.level != current.level || previous.category != current.category) {
         return false
     }

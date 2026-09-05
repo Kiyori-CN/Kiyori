@@ -10,6 +10,15 @@ hikerview_reference: 5de8809049e4710471f9f42642e54550ecf5dbe3
 
 # 浏览器产品能力连续完善
 
+## 2026-09-05 浏览器重复刷新、触摸回吸与 UA 生效稳定性
+
+本轮方案与证据见 [`21_browser_gesture_reload_ua_stability.md`](21_browser_gesture_reload_ua_stability.md)。
+当前状态为 `LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEVICE VERIFICATION PENDING`：
+重点收口高频
+diagnostic/network projection 引发的 WebView 重布局、同一 document 重复 `onPageFinished` 副作用、
+以及 UA 应用缺少幂等门控和生效证据。真实 WebView provider、Bilibili、滚动/双指缩放和 UA 检测
+必须在目标设备完成后才能结束 `verification_pending`。
+
 ## 2026-09-04 GoTab 原生浏览器主页迁移
 
 状态：`官网主页验证阶段已接入 / 原生主页首个 Dashboard 已接入 / 设备验收待执行`。

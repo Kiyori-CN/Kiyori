@@ -61,6 +61,16 @@ internal fun shouldClearBrowserSearchRecoveryOnNavigation(
         resolvedResultUrl != null &&
         !areBrowserHomeUrlsEquivalent(resolvedResultUrl, targetUrl)
 
+internal fun isDuplicateBrowserDocumentCompletion(
+    finishedDocumentToken: String?,
+    finishedDocumentUrl: String,
+    currentDocumentToken: String,
+    callbackUrl: String,
+): Boolean =
+    finishedDocumentToken == currentDocumentToken &&
+        finishedDocumentUrl.isNotBlank() &&
+        finishedDocumentUrl == callbackUrl
+
 internal fun shouldUseBrowserHistoryBack(
     creationReason: BrowserWindowCreationReason,
     canGoBack: Boolean,

@@ -265,6 +265,8 @@ class StandardBrowserSessionTools private constructor(
         @Volatile var pendingBrowserDocumentStartToken: String? = null
         @Volatile var networkReadyNavigationGeneration: Long = 0L
         @Volatile var browserDocumentStartedUrl: String = ""
+        @Volatile var finishedBrowserDocumentToken: String? = null
+        @Volatile var finishedBrowserDocumentUrl: String = ""
         @Volatile var automaticFloatingConsumedDocumentToken: String? = null
         @Volatile var pendingAdBlockDocumentToken: String? = null
         @Volatile var pendingAdBlockRuleRevision: Long = -1L

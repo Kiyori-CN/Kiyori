@@ -42,6 +42,7 @@ class BrowserNavigationPolicyTest {
             ),
         )
     }
+
     @Test
     fun `site identity uses registrable domain and exact local hosts`() {
         assertEquals(
@@ -259,8 +260,7 @@ class BrowserNavigationPolicyTest {
         assertEquals(
             BrowserSessionRootBackAction.CLOSE_AND_ACTIVATE_OPENER_HOME,
             resolveBrowserSessionRootBackAction(
-                creationReason =
-                    BrowserWindowCreationReason.HOME_CROSS_SITE_USER_NAVIGATION,
+                creationReason = BrowserWindowCreationReason.HOME_CROSS_SITE_USER_NAVIGATION,
                 openerHomeSessionExists = true,
                 openerProfileMatches = true,
                 openerStillAtConfiguredHome = true,
@@ -278,6 +278,38 @@ class BrowserNavigationPolicyTest {
         assertTrue(
             BrowserWindowCreationReason.entries.contains(
                 BrowserWindowCreationReason.RESTORED_NORMAL_WINDOW,
+            ),
+        )
+    }
+
+    @Test
+    fun `duplicate completion belongs to the same document and URL`() {
+        assertTrue(
+            isDuplicateBrowserDocumentCompletion(
+                finishedDocumentToken = "document-a",
+                finishedDocumentUrl = "https://example.com/page",
+                currentDocumentToken = "document-a",
+                callbackUrl = "https://example.com/page",
+            ),
+        )
+    }
+
+    @Test
+    fun `completion for a new document or URL is processed`() {
+        assertFalse(
+            isDuplicateBrowserDocumentCompletion(
+                finishedDocumentToken = "document-a",
+                finishedDocumentUrl = "https://example.com/page",
+                currentDocumentToken = "document-b",
+                callbackUrl = "https://example.com/page",
+            ),
+        )
+        assertFalse(
+            isDuplicateBrowserDocumentCompletion(
+                finishedDocumentToken = "document-a",
+                finishedDocumentUrl = "https://example.com/page",
+                currentDocumentToken = "document-a",
+                callbackUrl = "https://example.com/other",
             ),
         )
     }

@@ -50,6 +50,7 @@ import com.kiyori.capability.browser.presentation.KiyoriBrowserSearchSource
 import com.kiyori.platform.network.KiyoriNetworkProxyLogStore
 import com.kiyori.platform.network.KiyoriNetworkProxyManager
 import java.io.ByteArrayInputStream
+import java.security.MessageDigest
 import java.util.LinkedHashSet
 import java.util.Locale
 import java.util.UUID
@@ -689,6 +690,8 @@ internal fun StandardBrowserSessionTools.configureWebView(
         object : RenderProcessSafeWebViewClient(WEBVIEW_SUPPORT_TAG) {
             override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
                 super.onPageStarted(view, url, favicon)
+                session.finishedBrowserDocumentToken = null
+                session.finishedBrowserDocumentUrl = ""
                 val pendingDocumentToken = session.pendingBrowserDocumentStartToken
                 if (pendingDocumentToken != null) {
                     check(pendingDocumentToken == session.credentialDocumentToken) {
@@ -785,6 +788,25 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 ) {
                     return
                 }
+                if (
+                    isDuplicateBrowserDocumentCompletion(
+                        finishedDocumentToken = session.finishedBrowserDocumentToken,
+                        finishedDocumentUrl = session.finishedBrowserDocumentUrl,
+                        currentDocumentToken = session.credentialDocumentToken,
+                        callbackUrl = url,
+                    )
+                ) {
+                    recordBrowserDiagnostic(
+                        level = BrowserDiagnosticLevel.WARNING,
+                        category = BrowserDiagnosticCategory.NAVIGATION,
+                        event = "NAVIGATION_FINISHED_DUPLICATE",
+                        session = session,
+                        details = mapOf("url" to url),
+                    )
+                    return
+                }
+                session.finishedBrowserDocumentToken = session.credentialDocumentToken
+                session.finishedBrowserDocumentUrl = url
                 session.currentUrl = url
                 if (session.searchRecoveryPending) {
                     session.lastSearchRecovery =
@@ -3069,10 +3091,35 @@ internal fun StandardBrowserSessionTools.applySessionUserAgent(
     resolvedUserAgent: WebSessionResolvedUserAgent,
     targetUrl: String = session.currentUrl,
 ) {
+    val currentUserAgent = session.webView.settings.userAgentString.orEmpty()
+    val userAgentChanged = currentUserAgent != resolvedUserAgent.userAgent
+    val layoutChanged = session.usesDesktopUserAgentLayout != resolvedUserAgent.usesDesktopLayout
     session.usesDesktopUserAgentLayout = resolvedUserAgent.usesDesktopLayout
-    session.webView.settings.userAgentString = resolvedUserAgent.userAgent
+    if (userAgentChanged) {
+        session.webView.settings.userAgentString = resolvedUserAgent.userAgent
+    }
     session.appliedUserAgent = resolvedUserAgent.userAgent
     applyBrowserViewportSettings(session, domainOrUrl = targetUrl)
+    if (userAgentChanged || layoutChanged) {
+        recordBrowserDiagnostic(
+            level = BrowserDiagnosticLevel.INFO,
+            category = BrowserDiagnosticCategory.NAVIGATION,
+            event = "USER_AGENT_APPLIED",
+            session = session,
+            details =
+                mapOf(
+                    "changed" to userAgentChanged.toString(),
+                    "desktopLayout" to resolvedUserAgent.usesDesktopLayout.toString(),
+                    "length" to resolvedUserAgent.userAgent.length.toString(),
+                    "fingerprint" to
+                        MessageDigest.getInstance("SHA-256")
+                            .digest(resolvedUserAgent.userAgent.toByteArray())
+                            .joinToString("") { byte -> "%02x".format(byte) }
+                            .take(16),
+                    "target" to browserNetworkHost(targetUrl),
+                ),
+        )
+    }
 }
 
 internal fun StandardBrowserSessionTools.applyViewportOverride(session: BrowserToolSession) {

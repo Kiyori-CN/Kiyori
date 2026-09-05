@@ -38,12 +38,16 @@ internal class WebSessionWebViewHost {
         require((width == null) == (height == null)) {
             "Viewport width and height must be set together"
         }
-        viewportSize =
+        val nextViewportSize =
             if (width == null) {
                 null
             } else {
                 BrowserViewportPolicy.requestedSize(width, requireNotNull(height))
             }
+        if (viewportSize == nextViewportSize) {
+            return
+        }
+        viewportSize = nextViewportSize
         reattach()
     }
 
@@ -90,8 +94,15 @@ internal class WebSessionWebViewHost {
             )
 
         if (target.childCount == 1 && target.getChildAt(0) === webView) {
-            webView.layoutParams = layoutParams
-            webView.requestLayout()
+            val currentLayoutParams = webView.layoutParams
+            if (
+                currentLayoutParams.width != layoutParams.width ||
+                    currentLayoutParams.height != layoutParams.height ||
+                    (currentLayoutParams as? FrameLayout.LayoutParams)?.gravity != layoutParams.gravity
+            ) {
+                webView.layoutParams = layoutParams
+                webView.requestLayout()
+            }
             return
         }
 
