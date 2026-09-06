@@ -4,6 +4,9 @@
 
 ## 最近整理
 
+2026-09-06 [仓库结构与构建职责整理](kiyori_architecture_refactor/23_repository_structure_and_build_logic.md)
+已完成：构建任务独立到 `buildSrc`，工具按职责归位，修复首启旧架构断言，完善目录与命名规则，并通过全量 Python 回归与 Debug APK 审计。
+
 2026-09-06 [文档体系整理与开发入口优化](documentation_system_refinement/index.md)已完成：统一中文开发文档、压缩上下文、分离用户指南与详细契约、保留历史证据，并交付许可修复、验证结果与 Debug APK。其他专项的待验收状态保持原义。
 
 ## 按领域继续开发

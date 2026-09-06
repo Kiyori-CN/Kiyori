@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Check and recreate Git symlinks inside project submodules.
-用于修复一些奇奇怪怪权限问题导致的子模块clone时没有正确的软链接
+Check first; use --apply only when repairing verified checkout link materialization.
 Git stores symbolic links as tree entries with mode 120000. On Windows, those
 entries can appear in the working tree as tiny plain files containing the link
 target. This script compares the checked-out files against the Git tree and can

@@ -26,6 +26,18 @@ def git(repository: Path, *args: str) -> str:
 
 
 class ScopeClassificationTest(unittest.TestCase):
+    def test_localization_tool_change_selects_localization_checks(self) -> None:
+        plan = classify_paths(["tools/localization/check_strings.py"])
+
+        self.assertTrue(plan.localization)
+        self.assertFalse(plan.android_full)
+
+    def test_build_logic_change_uses_full_android_lane(self) -> None:
+        plan = classify_paths(["buildSrc/src/main/kotlin/com/kiyori/buildlogic/tasks/GenerateBundledToolPkgAssetsTask.kt"])
+
+        self.assertTrue(plan.android_full)
+        self.assertFalse(plan.android_jvm)
+
     def test_translation_only_uses_resource_lane(self) -> None:
         plan = classify_paths(
             [

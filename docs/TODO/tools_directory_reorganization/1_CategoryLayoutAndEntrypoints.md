@@ -14,27 +14,36 @@ scope: tools
 - 让每个移动后的脚本继续正确定位仓库根目录与同目录资源
 - 将所有仓库内调用切换到新入口
 
-## 新布局
+## 当前布局
 
-```
+```text
 tools/
 	adb/
 	compose_dsl/
+	environment/
 	example_packages/
-	ffmpeg/
+	ffmpegkit_native_build/
 	github/
 	hotbuild/
+	localization/
 	mcp_bridge/
+	mihomo_parent_launcher/
 	native_ripgrep/
+	player_native_build/
+	search_packages/
 	shell_identity_launcher/
 	shower/
-	string/
 	toolpkg/
+	README.md
 	sandboxpackage_dev_install_or_update.js
 ```
 
 ## 预期结果
 
 除固定公开安装脚本外，根目录不再存放分散的可执行工具文件。每个新入口具有单一、可追踪的位置，且不存在旧路径兼容脚本。
+
+2026-09-06 核对后的入口及副作用见 [工具索引](../../../tools/README.md)。旧 `string` 和
+`repair_repo_enviroment/windows` 路径不保留转发；前者深度不变，后者通过 `--root` 或当前目录
+确定仓库，不依赖脚本旧位置。
 
 [DONE]

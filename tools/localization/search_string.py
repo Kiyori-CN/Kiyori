@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""Find Android string resource keys and values."""
 import argparse
 import os
 import sys

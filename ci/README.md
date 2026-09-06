@@ -2,6 +2,10 @@
 
 `script/` 保存可复现的检查入口，`test/` 保存门禁逻辑的标准库单元测试。GitHub Actions 负责准备 runner，并按变更范围调用这些入口。
 
+宿主工具按职责放在 [`tools/`](../tools/README.md)，Gradle 任务实现在
+[`buildSrc/`](../buildSrc/README.md)。不为未实施流水线预建空的 `build_apps`、`debug_test`
+或 `ci/tools` 目录；草稿目标结构不代表已有命令。
+
 ## 候选提交契约
 
 PR 技术预审只运行在 GitHub 为当前 PR 和最新目标分支生成的 merge candidate 上：
@@ -42,7 +46,7 @@ Windows PowerShell 使用 `.\.venv\Scripts\python.exe` 和 `$baseSha`、`$candid
 新增或移动文档后添加 `--write-catalogs` 更新两份派生目录；脚本只维护目录并检查格式/文件链接，不重写正文。编码、代码围栏、HTML 标题与目录行为由 `ci.test.test_documentation` 回归验证。
 
 架构门禁默认只输出最终结论。诊断本地运行时间异常时可追加 `--timings`，逐项输出
-36 个检查的开始、结束与耗时；该选项不改变断言、扫描范围或退出码。源码枚举会跳过
+全部已注册检查的开始、结束与耗时；该选项不改变断言、扫描范围或退出码。源码枚举会跳过
 `app/src/main` 下的 `.cxx`/`build` 生成目录，同一次进程内还会复用相同源码快照的
 注释与字符串掩码，避免 native 构建缓存和重复符号搜索把门禁放大为非源码工作量。
 
@@ -71,6 +75,8 @@ Windows PowerShell 使用 `.\.venv\Scripts\python.exe` 和 `$baseSha`、`$candid
 - 翻译资源：运行 AAPT2 resource compile 检查资源语法，不执行 resource link 或完整 Android 构建
 - Kotlin/Java 和普通 Android 资源：运行 JVM unit tests 与 Android lint
 - Native、Gradle 和构建输入：运行 assemble、JVM unit tests 与 Android lint
+- `buildSrc/**`：进入完整 Android lane；任务行为测试由 `:buildSrc:test` 执行，应用注册和 Variant 接线由 APK 构建验证
+- `tools/localization/**`：进入本地化检查；环境软链接检查在 `tools/environment`，不自动修复 checkout
 - player dependency preparer：进入 full Android lane，物化 AAR 后执行
   `verifyPlayerNativeInputs`
 - WebChat：运行 TypeScript typecheck 与 Vite build
@@ -93,6 +99,9 @@ PR workflow 只有 `contents: read` 权限，不读取仓库 secret，也不上�
 JVM lane 只下载 `libs.zip`，完整 Android lane 下载四个固定归档。`download_android_dependencies.sh` 使用固定 Google Drive file ID；`prepare_android_dependencies.py` 限制成员数量、解压大小、压缩比和文件类型，重建固定输出根目录，只验证本次实际解出的文件，并拒绝越界路径、重复成员及符号链接。完整 lane 还必须传入固定 NDK 路径：脚本移除已由 Maven AAR 接管的旧 GIF native 副本、删除 ffmpeg AAR 内重复的旧 arm64 C++ 运行库，并用该 NDK 的 arm64 `libc++_shared.so` 作为唯一运行库。
 
 这些 Drive 归档目前还没有内容 hash。归档内容寻址与许可证清单继续由[外部制品清单计划](../docs/TODO/refactor_building_sys/3_ExternalArtifactManifest.md)跟踪，在取得并审计真实归档前不记录推测值。
+
+正式准备检查会拒绝任意层级已跟踪的 `__pycache__`、`.pyc` 与 `.pyo`；`.gitignore` 只阻止
+新文件被普通添加，已经跟踪的缓存必须从索引中移除。检查本身不删除本机文件。
 
 ## 第三方 JAR 净化
 

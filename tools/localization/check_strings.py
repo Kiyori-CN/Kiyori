@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""Compare Android string resources across locale directories."""
 import os
 import re
 import sys

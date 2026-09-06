@@ -85,12 +85,24 @@ class PlayerAssetsTest(unittest.TestCase):
         self.assertEqual("MissingClass", removal.attrib[TOOLS + "ignore"])
 
         build_script = (REPO_ROOT / "app" / "build.gradle.kts").read_text(encoding="utf-8")
+        launcher_task = (
+            REPO_ROOT
+            / "buildSrc"
+            / "src"
+            / "main"
+            / "kotlin"
+            / "com"
+            / "kiyori"
+            / "buildlogic"
+            / "tasks"
+            / "VerifySingleDebugLauncherTask.kt"
+        ).read_text(encoding="utf-8")
         self.assertIn("VerifySingleDebugLauncherTask", build_script)
         self.assertIn("verifySingleDebugLauncher", build_script)
         self.assertIn("SingleArtifact.MERGED_MANIFEST", build_script)
         self.assertIn(
             'listOf("com.ai.assistance.operit.ui.main.MainActivity")',
-            build_script,
+            launcher_task,
         )
 
     def test_anime4k_assets_are_fixed_upstream_sources(self) -> None:

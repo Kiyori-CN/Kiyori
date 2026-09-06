@@ -34,6 +34,10 @@ git submodule update --init --recursive terminal
 
 ## 预置插件资产
 
+自定义任务类型位于 `buildSrc/src/main/kotlin/com/kiyori/buildlogic/tasks/`，app 继续持有
+任务注册与 Variant 输入。类型迁移不改变以下白名单、生成目录、任务名或缓存合同。
+构建逻辑开发与离线行为测试见 [buildSrc 说明](../../../buildSrc/README.md)。
+
 - `tools/example_packages/packages_whitelist.txt` 是生产预置清单
 - 普通 JS 脚本包继续使用已审阅并提交的 `app/src/main/assets/packages/*.js`
 - 白名单中的目录型 ToolPkg 由 `generateBundledToolPkgAssets` 在构建目录确定性生成，并通过 Android Variant Sources API 接入所有变体

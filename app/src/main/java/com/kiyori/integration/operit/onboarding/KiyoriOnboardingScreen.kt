@@ -8,7 +8,6 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -855,33 +854,6 @@ private val KiyoriOnboardingStep.onboardingLabelResId: Int
             KiyoriOnboardingStep.AGREEMENT -> R.string.kiyori_onboarding_step_trust
             KiyoriOnboardingStep.PERMISSIONS -> R.string.kiyori_onboarding_step_ready
         }
-
-@Composable
-private fun OnboardingProgressBar(
-    progress: Float,
-) {
-    val animatedProgress by
-        animateFloatAsState(
-            targetValue = progress.coerceIn(0f, 1f),
-            label = "KiyoriOnboardingProgress",
-        )
-    Box(
-        modifier =
-            Modifier
-                .fillMaxWidth(0.68f)
-                .height(5.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxHeight()
-                    .fillMaxWidth(animatedProgress)
-                    .background(MaterialTheme.colorScheme.primary),
-        )
-    }
-}
 
 @Composable
 private fun Modifier.onboardingPreviousSwipe(

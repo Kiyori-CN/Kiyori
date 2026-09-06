@@ -199,6 +199,8 @@ def check_tracked_artifacts(root: Path, errors: list[str]) -> None:
     tracked = git(root, "ls-files", "-z").split("\0")
     for path in (value for value in tracked if value):
         normalized = path.replace("\\", "/")
+        if "__pycache__" in normalized.split("/") or normalized.endswith((".pyc", ".pyo")):
+            errors.append(f"tracked Python bytecode: {path}")
         if normalized.endswith(".aab") or (normalized.endswith(".apk") and not normalized.startswith("app/src/main/assets/")):
             errors.append(f"tracked build artifact: {path}")
         if normalized.startswith("work/"):
@@ -223,13 +225,16 @@ def check_generated_native_inputs(root: Path, errors: list[str]) -> None:
 
     required_markers = {
         root / "app/build.gradle.kts": (
+            "import com.kiyori.buildlogic.tasks.BuildShellIdentityLauncherTask",
+            'layout.buildDirectory.dir("generated/shellIdentityLauncherAssets")',
+            "assets.addGeneratedSourceDirectory(buildShellIdentityLauncher)",
+            'ndkVersion.set(providers.gradleProperty("kiyori.android.ndkVersion"))',
+        ),
+        root / "buildSrc/src/main/kotlin/com/kiyori/buildlogic/tasks/BuildShellIdentityLauncherTask.kt": (
             "abstract class BuildShellIdentityLauncherTask",
             '"-nostdlib++"',
             '"-Wl,-z,max-page-size=16384"',
             '"libc++_shared.so"',
-            'layout.buildDirectory.dir("generated/shellIdentityLauncherAssets")',
-            "assets.addGeneratedSourceDirectory(buildShellIdentityLauncher)",
-            'ndkVersion.set(providers.gradleProperty("kiyori.android.ndkVersion"))',
         ),
         root / "tools/shell_identity_launcher/native-lib.cpp": (
             "setgroups(",

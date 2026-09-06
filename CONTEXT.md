@@ -48,6 +48,7 @@
 
 - `com.kiyori` 承载产品壳、设计系统、平台能力与集成；`com.ai.assistance.operit` 保留 AI 运行时和稳定生态接口。
 - `com.kiyori.capability` 定义跨领域能力，`com.kiyori.integration.operit` 适配 Operit；实际已迁移范围以源码和 [架构控制面](config/architecture/README.md) 为准。
+- 九个 Android 模块仍由根 settings 声明；`buildSrc` 只持有 Gradle 任务实现，不进入 APK。app 注册任务并提供 Variant 输入；宿主工具统一由 `tools/` 按职责管理，详细边界见 [仓库与源码架构](docs/doc-src/architecture/repository_architecture.md)。
 - Gradle namespace、AIDL/JNI、Manifest 稳定组件、Intent action、`operit://`、数据库、偏好、备份、工作区、ToolPkg/MCP 和 `.operit/config.json` 均不是可机械替换的品牌文本。
 - 新内置脚本采用 Kiyori 展示名与约定的 `com.kiyori.*`、`remote_kiyori`、`kiyori-pc-agent` 标识；历史 Operit 输入只按显式兼容契约导入。
 - `BuildConfig.OPERIT_MARKET_COMPAT_VERSION` 服务市场 `minAppVer/maxAppVer` 判断，不能用 Kiyori 的 `versionName` 替代。

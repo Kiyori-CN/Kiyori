@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""Add a string resource to the selected Android locale files."""
 import argparse
 import os
 import re

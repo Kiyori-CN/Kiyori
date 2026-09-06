@@ -6208,8 +6208,16 @@ class KiyoriPathsTest {
                 "resolveKiyoriOnboardingSwipeTarget\n"
                 "onboardingPreviousSwipe\n"
                 "resolveKiyoriOnboardingTitleAlignment\n"
-                "OnboardingProgressBar(\n"
+                "fun OnboardingProgressHeader() {\n"
                 "R.string.kiyori_onboarding_progress\n"
+                "step.ordinal + 1\n"
+                "KiyoriOnboardingStep.entries.size\n"
+                "KiyoriOnboardingStep.entries.forEach { item.ordinal <= step.ordinal }\n"
+                "}\n"
+                "onSelectAll = { if (!authorizationActive) {\n"
+                "selectedPermissionIds = permissionSnapshot.selectable.toSet()\n"
+                "preferences.saveSelectedPermissions(selectedPermissionIds)\n"
+                "} }\n"
                 "maxLines = 1\n"
             ),
             KIYORI_FIRST_RUN_AGREEMENT_PATH: (
@@ -6271,10 +6279,6 @@ class KiyoriPathsTest {
                 "kiyori_onboarding_browser_title\n"
                 "kiyori_onboarding_ai_title\n"
                 "kiyori_onboarding_files_title\n"
-                "以网页为入口的 AI 浏览器\n"
-                "从发现到播放，内容自然流动\n"
-                "让 AI 读懂上下文，也能继续行动\n"
-                "文件、终端与扩展能力，一处展开\n"
                 "网页浏览器\n"
                 "文件下载器\n"
                 "视频播放器\n"
@@ -6462,17 +6466,45 @@ class KiyoriPathsTest {
             self.write_kiyori_first_run_layout(root)
             screen = root / KIYORI_FIRST_RUN_SCREEN_PATH
             screen.write_text(
-                screen.read_text(encoding="utf-8") + "onSelectAll\n",
+                screen.read_text(encoding="utf-8").replace(
+                    "permissionSnapshot.selectable.toSet()", "KiyoriPermissionId.entries.toSet()"
+                ),
                 encoding="utf-8",
             )
             errors: list[str] = []
             check_kiyori_first_run_flow(root, errors)
             self.assertTrue(
                 any(
-                    "obsolete Kiyori onboarding UI contract remains" in error
+                    "select-all must persist only snapshot-selectable permissions" in error
                     for error in errors
                 )
             )
+
+    def test_kiyori_first_run_flow_rejects_selection_during_authorization(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_kiyori_first_run_layout(root)
+            screen = root / KIYORI_FIRST_RUN_SCREEN_PATH
+            screen.write_text(
+                screen.read_text(encoding="utf-8").replace("if (!authorizationActive)", "if (true)"),
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            check_kiyori_first_run_flow(root, errors)
+            self.assertTrue(any("while authorization is inactive" in error for error in errors))
+
+    def test_kiyori_first_run_flow_rejects_progress_from_a_fixed_step(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_kiyori_first_run_layout(root)
+            screen = root / KIYORI_FIRST_RUN_SCREEN_PATH
+            screen.write_text(
+                screen.read_text(encoding="utf-8").replace("step.ordinal + 1", "1"),
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            check_kiyori_first_run_flow(root, errors)
+            self.assertTrue(any("progress must use the current step" in error for error in errors))
 
     def test_kiyori_first_run_flow_rejects_legacy_accessibility_brand(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

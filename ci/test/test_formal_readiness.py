@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 
@@ -17,11 +18,20 @@ from check_formal_readiness import (  # noqa: E402
     check_package_metadata,
     check_runtime_urls,
     check_ssh_secret_transport,
+    check_tracked_artifacts,
     check_visible_branding,
 )
 
 
 class FormalReadinessTest(unittest.TestCase):
+    def test_tracked_python_bytecode_is_rejected_at_any_depth(self) -> None:
+        paths = "tools/github/__pycache__/helper.pyc\0examples/deep/helper.pyo\0tools/helper.py\0"
+        with patch("check_formal_readiness.git", return_value=paths):
+            errors: list[str] = []
+            check_tracked_artifacts(Path("."), errors)
+        self.assertEqual(len(errors), 2)
+        self.assertTrue(all("tracked Python bytecode" in error for error in errors))
+
     def test_attribution_is_allowed_without_exempting_page_business_code(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -72,12 +82,15 @@ class FormalReadinessTest(unittest.TestCase):
     def write_generated_native_fixture(self, root: Path) -> None:
         files = {
             "app/build.gradle.kts": """
-abstract class BuildShellIdentityLauncherTask
-args("-nostdlib++", "-Wl,-z,max-page-size=16384")
-check(!bytes.containsSequence("libc++_shared.so".toByteArray()))
+import com.kiyori.buildlogic.tasks.BuildShellIdentityLauncherTask
 outputDirectory.set(layout.buildDirectory.dir("generated/shellIdentityLauncherAssets"))
 assets.addGeneratedSourceDirectory(buildShellIdentityLauncher)
 ndkVersion.set(providers.gradleProperty("kiyori.android.ndkVersion"))
+""",
+            "buildSrc/src/main/kotlin/com/kiyori/buildlogic/tasks/BuildShellIdentityLauncherTask.kt": """
+abstract class BuildShellIdentityLauncherTask
+args("-nostdlib++", "-Wl,-z,max-page-size=16384")
+check(!bytes.containsSequence("libc++_shared.so".toByteArray()))
 """,
             "tools/shell_identity_launcher/native-lib.cpp": """
 setgroups(1, groups);

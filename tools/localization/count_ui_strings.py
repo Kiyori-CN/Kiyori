@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-统计Android项目中需要国际化的中文字符串
+统计 Android 项目中需要国际化的中文字符串。
 排除：注释、AppLogger、日志、大段提示词
 """
 

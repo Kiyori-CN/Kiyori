@@ -10,10 +10,10 @@
 - 复用 tools/github/.env 中的 OpenAI 兼容接口配置
 
 示例：
-    python tools/string/fill_missing_translations.py --report-only
-    python tools/string/fill_missing_translations.py
-    python tools/string/fill_missing_translations.py --targets all,ms,id
-    python tools/string/fill_missing_translations.py --targets ms,id --dry-run --limit 20
+    python tools/localization/fill_missing_translations.py --report-only
+    python tools/localization/fill_missing_translations.py
+    python tools/localization/fill_missing_translations.py --targets all,ms,id
+    python tools/localization/fill_missing_translations.py --targets ms,id --dry-run --limit 20
 """
 
 import argparse

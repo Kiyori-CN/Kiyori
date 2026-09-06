@@ -24,6 +24,7 @@ Kiyori 是以浏览器为产品中心、以内置 Operit AI 为智能子系统�
 | WebChat | `web-chat/` |
 | 脚本、ToolPkg 与示例 | `examples/` |
 | 构建、检查和仓库工具 | `.github/`、`ci/`、`tools/` |
+| Gradle 自定义任务及行为测试 | `buildSrc/` |
 | 正式文档和专项计划 | `docs/` |
 
 脚本作者还应阅读 [脚本开发指南](../../SCRIPT_DEV_GUIDE.md) 和
@@ -91,6 +92,10 @@ git submodule update --init --recursive terminal
 
 ## 开发原则
 
+代码、资源、工具和文档命名遵循 [仓库布局](REPOSITORY_LAYOUT.md) 的分类规则。
+修改前从 [仓库与源码架构](../architecture/repository_architecture.md) 确认实际 owner，
+不要把规划中的包或模块当作已迁移实现。
+
 - 先阅读项目规则、相关实现、测试和正式文档，再修改代码
 - 修复根因，不通过异常吞噬、隐式重试、禁用检查、扩大 Lint baseline 或 suppression 掩盖问题
 - 保持改动聚焦，不混入无关格式化、依赖升级、重命名或重构
@@ -117,6 +122,10 @@ git submodule update --init --recursive terminal
 当前结果。
 
 ## 本地验证
+
+按本轮风险选择相关验证；每轮仓库修改默认最终串行构建 Debug APK。下方完整矩阵用于
+涉及相应领域或明确要求全量审查的改动，不要求仅修改一份文档就运行所有测试与 Lint。
+修改自定义 Gradle 任务时先执行 `./gradlew :buildSrc:test --no-daemon --console=plain`，再验证 APK。
 
 仓库 Python 命令使用项目 `.venv`。Windows 示例：
 

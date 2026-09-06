@@ -2,13 +2,22 @@
 title: Kiyori 构建系统重构总计划
 status: draft
 document_type: refactoring-plan-index
-For_Agent: 未经用户明确授权，不执行编译、构建、测试或发布命令
+execution_policy: 遵循当前任务授权与根 AGENTS.md；草稿不授予发布或设备权限
 last_reviewed: 2026-08-14
 ---
 
 # Kiyori 构建系统重构总计划
 
 本目录是构建系统重构的工作草稿，不代表已经发布或最终确定的实现。每个编号文件对应一个可独立审查和提交的最小步骤，后一步只依赖已经完成的前一步。
+
+## 当前实现与草稿边界
+
+2026-09-06 的当前实现使用 npm lockfile、项目 `.venv`、九个 Android 模块，以及
+`buildSrc` 自定义任务；宿主工具保留在 `tools/<职责>`。下文 pnpm/pixi、`ci/tools`、
+`tools_built-in`、新 feature 模块和 QA/Release 变体均是草稿目标，不是已存在入口。
+尚未实施的目录不通过 `.gitkeep` 预建。本轮已落地部分见
+[仓库规范化记录](../kiyori_architecture_refactor/23_repository_structure_and_build_logic.md)，
+开发者应按 [构建指南](../../doc-src/dev-core/BUILDING.md) 执行当前命令。
 
 ## 目标
 
@@ -66,7 +75,8 @@ last_reviewed: 2026-08-14
 
 `verify`、`build`、`qa` 与 `release` profile 显式选择上述阶段。每个阶段只调用一个 pixi task，并通过结构化报告交付状态与产物。
 
-这些 profile 必须保留完整的编译、构建、测试、审计、补丁和发布能力。YAML 中的 `For_Agent` 只限制 Agent 在当前会话中执行命令，不参与 profile 选择，也不改变构建脚本行为。
+这些拟议 profile 必须保留完整的编译、构建、测试、审计、补丁和发布能力。执行权限来自当前
+任务与项目规则，文档元数据不参与 profile 选择，也不改变构建脚本行为。
 
 ## QA debug 与 release 边界
 

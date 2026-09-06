@@ -8,6 +8,7 @@
 Kiyori/
 ├── .github/          GitHub Actions、Issue 与 PR 模板
 ├── app/              Android 主应用
+├── buildSrc/         Gradle 自定义任务实现与行为测试，不进入 APK
 ├── ci/               可复现检查、门禁脚本与测试
 ├── cmake/            跨模块 CMake 支持
 ├── config/           机器可读架构与工程合同
@@ -46,7 +47,18 @@ Kiyori/
 
 主 Android application 模块。它负责应用壳、浏览器、Operit AI 集成、设置、下载、播放器宿主、工具系统、Android 资源和最终 APK 组装。
 
-`app/build.gradle.kts` 还持有固定第三方制品净化、ToolPkg 生成、native 输入验证、单 launcher 检查和 APK runtime packaging 门禁。该文件当前职责较多，后续拆分必须保持任务输入、输出和验证合同不变。
+`app/build.gradle.kts` 配置第三方制品净化、ToolPkg 生成、native 输入验证、单 launcher 检查和 APK runtime packaging 验证。拆分构建实现时必须保持任务输入、输出和验证合同不变。
+
+其中五个自定义任务类型已移入 [`buildSrc/`](../../../buildSrc/README.md)；应用脚本只注册这些
+任务、供应固定输入并连接 Android Variant Sources。播放器输入/包体断言和依赖净化配置仍由
+app 持有。运行时包层次与依赖方向见 [仓库与源码架构](../architecture/repository_architecture.md)。
+
+### `buildSrc/`
+
+Gradle 自动编译的辅助工程，源码采用 `com.kiyori.buildlogic.tasks` 包；任务类与文件同名。
+生产白名单归档、Rust/NDK 构建、Mihomo 准备和 launcher 检查可以在独立测试中验证。
+该目录没有 Android 插件或运行时业务依赖，测试版本复用根 version catalog。
+`buildSrc` 变更会触发 Gradle 脚本重新配置，CI 按完整 Android 构建范围处理。
 
 ### `ci/`
 
@@ -72,7 +84,10 @@ Kiyori/
 
 保存仓库开发、构建、诊断和资产生成工具，包括示例包同步、native ripgrep、Shower 工具、MCP bridge 和其他宿主辅助入口。
 
-该目录仍处于职责整理阶段。移动入口前必须复用 [`docs/TODO/tools_directory_reorganization/`](../../TODO/tools_directory_reorganization/index.md) 与 [`docs/TODO/refactor_building_sys/`](../../TODO/refactor_building_sys/index.md) 的既有计划，不保留旧路径转发脚本。
+完整目录、入口与副作用见 [工具索引](../../../tools/README.md)。本地化脚本位于
+`tools/localization/`，环境检查/修复位于 `tools/environment/`。工具不因被 CI 调用就迁入
+`ci/`；CI 编排仍调用其唯一入口。既有 [工具重整记录](../../TODO/tools_directory_reorganization/index.md)
+维护迁移证据，[构建系统草稿](../../TODO/refactor_building_sys/index.md) 描述尚未实施的额外变更。
 
 ### `web-chat/`
 
@@ -127,7 +142,40 @@ React、Vite 和 TypeScript 前端。源码位于 `web-chat/`，生成的 `web-c
 
 ## 命名原则
 
-- Gradle 模块和根功能目录使用稳定的小写名称。
-- 新文档目录使用小写 `snake_case`；根入口使用行业约定名称。
-- 兼容 namespace、AIDL、JNI、Intent、authority、数据库和协议标识不因目录整理被机械改名。
-- 新工具应按唯一职责归档，并同时声明 owner、输入、输出、权限、测试和文档入口。
+命名遵循对应生态，不把多语言仓库统一改成同一种大小写风格：
+
+| 对象 | 约定 | 示例与保留边界 |
+| --- | --- | --- |
+| 根入口 | 生态标准文件名 | `README.md`、`AGENTS.md`、`CONTEXT.md`、`LICENSE`、Wrapper、`buildSrc` |
+| Android 模块 | 稳定的小写职责名 | `app`、`quickjs`、`showerclient`；模块 ID 不为排版改名 |
+| Kotlin/Java 包 | 小写领域层级，与目录相符 | `com.kiyori.platform.permission` |
+| Kotlin/Java 文件 | 主要类型的 PascalCase 名称；扩展/组合文件使用明确主题 | `BuildNativeRipgrepTask.kt`，避免 `Utils2.kt`、`NewManager.kt` |
+| Android 资源 | Android 要求的小写下划线与已有领域前缀 | `kiyori_onboarding_*`；已使用资源 key 不因展示文案变化改名 |
+| Python/Shell 与工具目录 | 描述性 `snake_case` | `tools/localization/check_strings.py` |
+| Web/Node | 沿用子工程的组件与模块约定 | React 组件 PascalCase，已有 `.test.mjs` / `.live.mjs` 区分离线与真实服务 |
+| 配置 | 遵守消费工具的约定 | `package-ownership.toml`、`libs.versions.toml`、`package-lock.json` |
+| 正式文档与 TODO | 新主题小写 `snake_case`；编号使用两位；稳定入口保留 | `23_repository_structure_and_build_logic.md`、已有 `BUILDING.md` 与 `docs/TODO` |
+
+兼容 namespace、AIDL、JNI、Intent、authority、数据库、公开安装 URL 和协议标识不因目录
+整理机械改名。第三方源码保留上游名称；新工具声明 owner、输入、输出、权限、测试与文档。
+禁止只按大小写制造重名路径，避免 Windows 与 Linux checkout 行为不同；不提前创建只有
+`.gitkeep` 的架构占位目录，实际实现进入时再建立职责边界。
+
+## 根文件职责
+
+| 文件 | 唯一用途 |
+| --- | --- |
+| `settings.gradle.kts` | Gradle 工程身份、模块清单与仓库解析策略 |
+| `build.gradle.kts` | 根插件声明与明确的聚合任务 |
+| `gradle.properties` | 共享 Gradle/Android 属性，不保存本机凭据 |
+| `gradle/libs.versions.toml` | Android 与构建测试使用的依赖坐标/版本 |
+| `package.json`、`package-lock.json` | 私有 Node 开发工具及当前 npm 锁定树 |
+| `pnpm-workspace.yaml` | 预留的安装脚本许可配置；不表示已完成 pnpm workspace/lockfile 迁移 |
+| `.editorconfig`、`.gitattributes` | 编辑器编码/空白与 Git 换行、二进制处理 |
+| `.gitignore` | 本机配置、缓存、生成物与受保护输入的跟踪边界 |
+| `.gitmodules` | 固定 Git 子模块路径与来源 |
+| `local.properties.example` | 无凭据的本机构建配置样例 |
+| `LICENSE`、`NOTICE` | 项目许可与第三方归属，不是品牌重命名对象 |
+
+`res/` 等仅在本机出现而未被 Git 跟踪的目录不构成仓库接口；处理前单独确认内容与来源。
+`git status` 干净不表示这些目录可以删除。

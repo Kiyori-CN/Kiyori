@@ -59,7 +59,7 @@ app/src/main/assets/web-chat/
 .sync_example_packages_local_state.json
 debug_output/
 tools/github/issues_*.md
-tools/string/chinese_strings_detailed.txt
+tools/localization/chinese_strings_detailed.txt
 
 # Local scratch and task checkpoints
 /work/

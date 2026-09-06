@@ -15,6 +15,8 @@
 | 准备开发环境并构建 | [构建指南](doc-src/dev-core/BUILDING.md) |
 | 参与开发 | [贡献指南](doc-src/dev-core/CONTRIBUTING.md) |
 | 理解仓库目录和本地输入边界 | [仓库布局](doc-src/dev-core/REPOSITORY_LAYOUT.md) |
+| 理解源码分层与构建职责 | [仓库与源码架构](doc-src/architecture/repository_architecture.md) |
+| 查找宿主开发工具 | [工具索引](../tools/README.md) |
 | 理解 AI 对话详情、审计链与导入导出 | [AI 对话详情与完整审计](doc-src/dev-core/AI_CONVERSATION_AUDIT.md) |
 | 运行本地与 CI 门禁 | [`ci/README.md`](../ci/README.md) |
 | 查看当前长期工作 | [开发任务与验证索引](TODO/README.md) |

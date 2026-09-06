@@ -16,7 +16,7 @@ LOCALIZATION_PATTERNS = (
     "app/src/main/res/values/strings.xml",
     "app/src/main/res/values-*/strings.xml",
     "app/src/main/res/xml/locales_config.xml",
-    "tools/string/**",
+    "tools/localization/**",
 )
 TRANSLATED_STRINGS_PATTERN = "app/src/main/res/values-*/strings.xml"
 LOCALE_CONFIG_PATH = "app/src/main/res/xml/locales_config.xml"
@@ -43,6 +43,7 @@ ANDROID_FULL_PATTERNS = (
     ".github/workflows/pr-check.yml",
     ".gitmodules",
     "app/build.gradle.kts",
+    "buildSrc/**",
     "app/src/main/cpp/**",
     "build.gradle.kts",
     "cmake/**",

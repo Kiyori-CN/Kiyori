@@ -1753,6 +1753,7 @@ def repository_text(root: Path) -> str:
             "-z",
             "--",
             "app",
+            "buildSrc",
             "examples",
             "tools",
         ).split("\0")
@@ -5989,7 +5990,7 @@ def check_kiyori_first_run_flow(
         "private sealed interface KiyoriOnboardingContent",
         "LinearProgressIndicator(",
         "AnimatedContent(",
-        "onSelectAll",
+        "OnboardingProgressBar(",
     ):
         if obsolete_token in screen_code:
             errors.append(
@@ -6006,14 +6007,26 @@ def check_kiyori_first_run_flow(
                 "ARCH037 first-run legal-navigation contract missing: "
                 f"{token}"
             )
-    progress_indicator_index = screen_code.find("OnboardingProgressBar(")
-    progress_label_index = screen_code.find(
+    # 检查当前步骤来源与选择边界，不把已替换的营销文案或旧布局当作架构合同。
+    progress_header = source_braced_block(screen_code, r"\bfun\s+OnboardingProgressHeader\b")
+    for token in (
         "R.string.kiyori_onboarding_progress",
-        progress_indicator_index + 1,
-    )
-    if progress_indicator_index < 0 or progress_label_index < 0:
+        "step.ordinal + 1",
+        "KiyoriOnboardingStep.entries.size",
+        "KiyoriOnboardingStep.entries.forEach",
+        "item.ordinal <= step.ordinal",
+    ):
+        if token not in progress_header:
+            errors.append(f"ARCH037 onboarding progress must use the current step: {token}")
+    select_all = source_braced_block(screen_code, r"\bonSelectAll\s*=")
+    guarded_selection = source_braced_block(select_all, r"\bif\s*\(\s*!authorizationActive\s*\)")
+    compact_selection = re.sub(r"\s+", "", guarded_selection)
+    if (
+        "selectedPermissionIds=permissionSnapshot.selectable.toSet()" not in compact_selection
+        or "preferences.saveSelectedPermissions(selectedPermissionIds)" not in compact_selection
+    ):
         errors.append(
-            "ARCH037 onboarding progress label must follow the compact progress bar"
+            "ARCH037 select-all must persist only snapshot-selectable permissions while authorization is inactive"
         )
 
     agreement_code = source_code_mask(
@@ -6148,10 +6161,6 @@ def check_kiyori_first_run_flow(
         "kiyori_onboarding_browser_title",
         "kiyori_onboarding_ai_title",
         "kiyori_onboarding_files_title",
-        "以网页为入口的 AI 浏览器",
-        "从发现到播放，内容自然流动",
-        "让 AI 读懂上下文，也能继续行动",
-        "文件、终端与扩展能力，一处展开",
         "网页浏览器",
         "文件下载器",
         "视频播放器",
@@ -6186,7 +6195,6 @@ def check_kiyori_first_run_flow(
             "ARCH037 obsolete welcome eyebrow still present: AI 浏览器 · 内容工作台"
         )
     for forbidden_copy in (
-        "kiyori_onboarding_permissions_select_all",
         "照片、视频与音频",
     ):
         if forbidden_copy in agreement_text:

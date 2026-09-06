@@ -9,6 +9,11 @@ Windows、Linux 与 macOS 开发者；仓库当前不提供公开 Release/AAB �
 
 ## 构建输出
 
+根目录、运行时包与构建代码职责分别见 [仓库布局](REPOSITORY_LAYOUT.md)、
+[仓库与源码架构](../architecture/repository_architecture.md) 和
+[`buildSrc`](../../../buildSrc/README.md)。Gradle 会自动构建 `buildSrc`，无须单独安装或手动
+复制任务类；正常应用构建命令与 APK 路径保持不变。
+
 | 变体 | 命令 | 输出 |
 | --- | --- | --- |
 | Debug | `:app:assembleDebug` | `app/build/outputs/apk/debug/app-debug.apk` |
@@ -102,6 +107,10 @@ npm --prefix examples/toolpkg_wasm_demo ci --no-audit --no-fund
 ### Python 虚拟环境
 
 仓库 Python 检查只依赖标准库，但仍使用项目 `.venv` 隔离运行时。
+
+这仅适用于 `ci/script` 的标准库检查；[开发工具](../../../tools/README.md) 中的联网、翻译、
+设备与独立工程入口应按各自依赖和权限执行。Windows 子模块软链接诊断入口为
+`tools/environment/sync_submodule_symlinks.py`，默认只读，明确加 `--apply` 才修改链接。
 
 Windows：
 

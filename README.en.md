@@ -103,6 +103,7 @@ Website credentials use device-bound encrypted private storage and are not captu
 - [Contribution guide](docs/doc-src/dev-core/CONTRIBUTING.md)
 - [Build guide](docs/doc-src/dev-core/BUILDING.md)
 - [Project context](CONTEXT.md) and [runtime contracts](docs/doc-src/contracts/README.md)
+- [Repository architecture](docs/doc-src/architecture/repository_architecture.md), [layout and naming](docs/doc-src/dev-core/REPOSITORY_LAYOUT.md), and [developer tools](tools/README.md)
 - [Documentation catalog](docs/CATALOG.md)
 - [Script development](docs/SCRIPT_DEV_GUIDE.md) and [ToolPkg format](docs/TOOLPKG_FORMAT_GUIDE.md)
 

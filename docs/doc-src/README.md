@@ -18,6 +18,7 @@
 1. 根 [`README.md`](../../README.md)：产品与构建入口。
 2. 根 [`CONTEXT.md`](../../CONTEXT.md)：产品语言、所有权和兼容性合同。
 3. [仓库布局](dev-core/REPOSITORY_LAYOUT.md)：模块、生成目录和本地输入。
+   [仓库与源码架构](architecture/repository_architecture.md) 继续说明实际分层、依赖与构建职责。
 4. [构建指南](dev-core/BUILDING.md) 与 [贡献指南](dev-core/CONTRIBUTING.md)。
 5. 与任务相关的 `architecture/`、`decisions/` 或 `feature-protocol/` 文档。
 

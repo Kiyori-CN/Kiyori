@@ -163,6 +163,7 @@ AI 页面左上角菜单打开扩展、工具箱与工作流；深层页面按�
 | 了解开发流程 | [贡献指南](docs/doc-src/dev-core/CONTRIBUTING.md) |
 | 配置开发环境 | [构建指南](docs/doc-src/dev-core/BUILDING.md) |
 | 理解模块与不变量 | [项目上下文](CONTEXT.md) · [运行时契约](docs/doc-src/contracts/README.md) |
+| 定位源码与开发工具 | [仓库架构](docs/doc-src/architecture/repository_architecture.md) · [目录规范](docs/doc-src/dev-core/REPOSITORY_LAYOUT.md) · [工具索引](tools/README.md) |
 | 查阅全部资料 | [文档中心](docs/README.md) · [文档目录](docs/CATALOG.md) |
 | 编写插件与工具 | [脚本指南](docs/SCRIPT_DEV_GUIDE.md) · [ToolPkg 格式](docs/TOOLPKG_FORMAT_GUIDE.md) |
 

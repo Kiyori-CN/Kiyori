@@ -94,6 +94,12 @@
 | [README.md](../app/src/main/java/com/ai/assistance/operit/util/stream/README.md) | Stream 库 - 综合应用指南 |
 | [kmpREADME.md](../app/src/main/java/com/ai/assistance/operit/util/stream/kmpREADME.md) | StreamKmpGraph: 强大的流式模式匹配库 |
 
+## buildSrc
+
+| 文档 | 用途或标题 |
+| --- | --- |
+| [README.md](../buildSrc/README.md) | Kiyori 构建逻辑 |
+
 ## ci
 
 | 文档 | 用途或标题 |
@@ -285,6 +291,7 @@
 | [20_m05_design_and_platform_manifest.md](TODO/kiyori_architecture_refactor/20_m05_design_and_platform_manifest.md) | M-05 Design 与 Platform 精确实施清单 |
 | [21_quality_debt_and_stage4_readiness_manifest.md](TODO/kiyori_architecture_refactor/21_quality_debt_and_stage4_readiness_manifest.md) | Stage 4 前质量债务与开发就绪精确清单 |
 | [22_full_project_design_and_execution.md](TODO/kiyori_architecture_refactor/22_full_project_design_and_execution.md) | 全项目重构 v4 设计与实施契约 |
+| [23_repository_structure_and_build_logic.md](TODO/kiyori_architecture_refactor/23_repository_structure_and_build_logic.md) | 仓库结构与构建职责规范化 |
 | [2_target_package_architecture.md](TODO/kiyori_architecture_refactor/2_target_package_architecture.md) | 目标包结构与依赖规则 |
 | [3_migration_sequence.md](TODO/kiyori_architecture_refactor/3_migration_sequence.md) | 分阶段迁移顺序 |
 | [4_upstream_sync_strategy.md](TODO/kiyori_architecture_refactor/4_upstream_sync_strategy.md) | Operit AI 上游同步策略 |
@@ -735,6 +742,7 @@
 | [memory_candidate_scoring_formula.md](doc-src/architecture/memory_candidate_scoring_formula.md) | 记忆机制说明（简化版） |
 | [model_capability_and_resumable_execution.md](doc-src/architecture/model_capability_and_resumable_execution.md) | 统一模型能力与可恢复执行架构 |
 | [openai_hosted_web_search.md](doc-src/architecture/openai_hosted_web_search.md) | OpenAI 搜索架构 |
+| [repository_architecture.md](doc-src/architecture/repository_architecture.md) | Kiyori 仓库与源码架构 |
 | [tool_stream_reconcile_plan.md](doc-src/architecture/tool_stream_reconcile_plan.md) | Tool Stream Reconcile 方案说明 |
 
 ## docs/doc-src/contracts
@@ -898,6 +906,12 @@
 | 文档 | 用途或标题 |
 | --- | --- |
 | [README.md](../showerclient/README.md) | Shower 客户端库 |
+
+## tools
+
+| 文档 | 用途或标题 |
+| --- | --- |
+| [README.md](../tools/README.md) | Kiyori 开发工具 |
 
 ## tools/adb
 
