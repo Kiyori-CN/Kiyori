@@ -39,7 +39,7 @@ git submodule update --init --recursive terminal
 - 白名单中的目录型 ToolPkg 由 `generateBundledToolPkgAssets` 在构建目录确定性生成，并通过 Android Variant Sources API 接入所有变体
 - 生成的 `.toolpkg` 不写回源码 assets，也不得提交；缺失 manifest、运行入口、符号链接、越界路径或重复输出名时构建必须失败
 
-## Native ripgrep
+## Native ripgrep 构建
 
 - `buildNativeRipgrep` 将 Cargo 产物写入 `app/build/generated/nativeRipgrep/jniLibs/arm64-v8a/`
 - Android Variant Sources API 把该生成目录接入每个 APK 变体，`assembleDebug` 和 CI 不再向 `app/src/main/jniLibs` 复制 ripgrep 产物

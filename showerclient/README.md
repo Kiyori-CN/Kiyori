@@ -1,4 +1,4 @@
-## Shower 客户端库（`showerclient` 模块）
+# Shower 客户端库
 
 一个最小化的 Shower 客户端库，只保留 **如何接入和使用** 的说明。
 

@@ -1,265 +1,129 @@
-# Player architecture
+# 播放器架构
 
-Kiyori owns one player runtime. Fullscreen playback, browser floating playback, external media intents, settings,
-browser candidates, network-log actions and downloads are views or commands over existing owners; none of them creates
-another browser, player core or download database.
+Kiyori 只有一套播放器运行时。全屏、Browser 悬浮、外部视频、设置、媒体候选与下载动作都调用既有所有者，不创建第二个 Browser、播放器内核或下载数据库。
 
-## Source comparison
+## 参考来源与取舍
 
-The fixed references are:
+| 固定参考 | 采用内容 | 不采用内容 |
+| --- | --- | --- |
+| `kiyori-android@24a2dfa91f0a4166dc58e5c4732d11861173f766` | 视觉与候选展示 | 在多个所有者间转移可变引擎、重新加载远程媒体、页面暂停/恢复钩子 |
+| `mpv-android-anime4k@32f5f16988c1b2d5979eef692695bdef7232b7eb` | 经验证的 mpv 选项、着色器、精确 seek 与有界缓存 | 关闭 TLS 验证、静默尝试多个解码策略、第二媒体库或下载存储 |
+| `hikerView@5de8809049e4710471f9f42642e54550ecf5dbe3` | 原 URL、请求头、Range 与 HLS 证据 | 独立代理/缓存体系；Browser 已有下载所有者，mpv 已有缓存所有者 |
 
-- `kiyori-android@24a2dfa91f0a4166dc58e5c4732d11861173f766`
-- `mpv-android-anime4k@32f5f16988c1b2d5979eef692695bdef7232b7eb`
-- `hikerView@5de8809049e4710471f9f42642e54550ecf5dbe3`
+捕获的 Range 是某次浏览器传输证据，不是可以重放到播放器的固定请求身份。Kiyori 自己的应用代理桥接见 [网络路由](../contracts/network_proxy.md)。
 
-The legacy Kiyori checkout is the visual reference and demonstrates useful browser candidate presentation, but its
-temporary `MpvSeamlessHandoff.Entry` transfers a mutable engine between two owners. Several failure paths reload the
-remote media, use a proxy, resolve another URL or call JavaScript pause/resume hooks. Those behaviors are incompatible
-with the current session contract.
+## 进程与所有权
 
-The Anime4K checkout is the rendering reference. Kiyori adopts verified mpv options, live shader properties, precise
-seek and bounded cache settings. It does not adopt disabled TLS verification, a decoder chain that silently tries multiple policies, a
-second media library or a second download store.
+| 所有者 | 职责 |
+| --- | --- |
+| 主进程 `PlayerSession` | 活动请求、展示状态、播放快照、显式队列、章节、预览、Surface lease；不构造 mpv、不打开媒体 descriptor |
+| 主进程 transport resolver / `PlayerMediaStreamBridge` | HTTP(S) 路由与 loopback 传输 |
+| 非导出 `:player` 的 `PlayerRuntimeService` | 一个 HandlerThread、MpvPlayerEngine、PlayerMediaResolver、content descriptor 与远端 Surface wrapper |
+| `MpvPlayerEngine` | 唯一可导入 `MPVLib / MPVNode` 的生产源文件，管理所有 mpv/JNI 调用 |
+| `PlayerSettingsStore` | 播放器偏好，不由设置页面直接写 mpv property |
 
-HikerView demonstrates that observed request headers, byte-range evidence and HLS identity must remain attached to the
-original URL. Kiyori keeps that evidence in the browser candidate and download request, but a captured `Range` describes
-one concrete browser transfer rather than reusable playback identity. Its local proxy and cache system is not part of
-Kiyori because the existing `BrowserDownloadManager` and mpv cache already own those responsibilities.
+oneway AIDL 消息携带 runtime generation、command ID 与单调 event sequence。`FILE_LOADED` 发布轨道/容器 metadata，只有 `PLAYBACK_RESTART` 才标记实际输出就绪。
 
-## Ownership
+### 预览提取
 
-`PlayerSession` is a main-process singleton and the only product-state owner. It owns the active media request,
-presentation, playback snapshot, explicit media queue, chapters, seek-preview state and Surface lease. It never
-constructs mpv or opens the media descriptor.
+独立单线程 thumbnail executor 仅对非网络媒体直接调用 `grabThumbnailFast`。网络视频只有同一 demuxer 已证明 `FULL_VIDEO / COMPLETE` 后，才通过 `dump-cache` 导出小片段到 `cacheDir/player-seek-preview`，把本地片段交给提取器；普通 HTTP(S) URL 不开启无请求头的独立连接。
 
-The main process `PlayerSession` owns the HTTP(S) transport resolver and loopback-only `PlayerMediaStreamBridge`.
-The non-exported `:player` `PlayerRuntimeService` owns one `HandlerThread`, one `MpvPlayerEngine`, one local
-`PlayerMediaResolver`, one content descriptor and one remote Surface wrapper. A separate single thumbnail executor may
-call the packaged binding's `grabThumbnailFast` directly for non-network media. A network request becomes eligible only
-after the same mpv demuxer establishes authoritative `FULL_VIDEO / COMPLETE`; the runtime then uses `dump-cache` to
-export a small target-time excerpt to `cacheDir/player-seek-preview` and gives only that private local file to the
-thumbnail executor. Ordinary HTTP/HTTPS requests are rejected before extraction and never open an independent
-headerless connection. The runtime keeps at most one active and one newest pending extraction, buckets requests at two
-positions per second, returns a maximum `320px` Bitmap through AIDL, deletes superseded/active/closed excerpts and
-cleans abnormal-exit remnants on the next engine initialization. `MpvPlayerEngine` is the only source file allowed to
-import `is.xyz.mpv.MPVLib` or `MPVNode`. One-way AIDL messages carry runtime generation, command ID and monotonic event
-sequence. `FILE_LOADED` publishes track/container metadata but does not clear the loading state;
-`PLAYBACK_RESTART` is the first runtime event allowed to mark playback output ready.
+最多保留一个活动提取和一个最新 pending，每秒两个位置桶，AIDL 返回最大 320px Bitmap。过期、活动、关闭及异常退出残留都按规范私有目录清理。
 
-`PlayerSettingsStore` owns persisted player preferences. Decoder backend owns `hwdec`; rendering profile owns the mpv
-profile. Initialization and media load apply the broad profile before explicit backend and seek properties so each
-dedicated Kiyori setting remains the final owner of its property. Initialization records those already-applied values,
-so the first load does not repeat identical profile, decoder, seek, subtitle, or volume writes. Changing the broad
-profile invalidates every explicit-property cache, including shaders, before the live settings command reapplies the
-dedicated values. Network cache is one request-scoped four-value policy: `COMPACT`, `BALANCED`, `LARGE`, or
-`FULL_VIDEO`; there is no independent full-cache boolean. A live settings update may change rendering, decoder, seek,
-subtitles, volume, and shaders, but it cannot change the current request's cache owner. The next media request snapshots
-the current policy. The settings page never writes mpv properties.
+## 设置应用与目录
 
-The player settings page is ordered as playback/queue, gestures/progress, picture/Anime4K, audio/subtitles,
-save/download, and window/online. Screenshot and video directories are optional SAF document trees. Blank values mean
-that the current `BrowserDownloadSettingsStore` destination is resolved when the action runs; this preserves later
-changes to the main downloader instead of copying its settings into the player store.
+- 初始化与 load 先应用 broad rendering profile，再应用独立解码、seek 等属性，使专用设置保持最终所有权。
+- 初始化记录已应用值，首 load 不重复写相同属性。更换 profile 使包括 shaders 的属性缓存失效，再应用专用值。
+- 活跃设置可更新渲染、解码、seek、字幕、音量、shader；网络缓存按请求快照，播放中不能替换缓存所有者。
+- 设置分组依次为播放/队列、手势/进度、画面/Anime4K、音频/字幕、保存/下载、窗口/在线。
+- 截图与视频目录是可选 SAF tree。未单独配置时，动作执行时解析实际 Browser 下载目录，不复制第二份设置。
+- 单独视频 tree 冻结到请求并使用既有内部引擎，因为系统 DownloadManager 不支持任意 SAF tree；直链 staging 完成后移动，M3U8 包留在应用下载目录。
+- 释放持久 tree 权限前同时检查 Browser 设置、两个播放器目录与所有保留任务。
+- 重力旋转使用 `FULL_SENSOR`，关闭后恢复默认 sensor-landscape；开启时手动旋转禁用并显示“自动”。横屏 Anime4K 控件固定左下宽度，不漂移到中央播放控制。
 
-Screenshots are written to the player tree when configured. Otherwise they use the actual main-download destination:
-the Android system downloader maps to the public download directory, while the internal downloader maps to its SAF,
-public-transfer or application directory policy. Player video downloads stay in the existing `BrowserDownloadManager`.
-An independent player tree is frozen into the request and selects the existing internal engine because Android
-`DownloadManager` cannot target an arbitrary SAF tree. Direct files are moved to that tree after the staged download.
-M3U8 companion packages remain in the application download directory under the existing package contract. Persisted
-tree permission release checks the browser setting, both player directory settings and all retained tasks.
+## 展示与 Surface 状态机
 
-Gravity rotation is an Activity presentation preference. Enabling it selects `FULL_SENSOR`; disabling it after an
-enabled state restores the default sensor-landscape policy. The manual rotate control is visibly disabled and labelled
-`自动` while gravity rotation owns orientation. The landscape Anime4K control keeps a fixed lower-left width and compact
-line heights so its mode label cannot drift toward the centered transport row.
+展示状态只有 `BROWSER_ONLY / FLOATING_PLAYER / FULLSCREEN_PLAYER`。
 
-Each `WebSession` owns its current-document static resource directory and in-memory media candidates. The directory
-aggregates by document token plus normalized original URL, excludes fragments, preserves queries, increments a request
-count, keeps an independent 2,000-identity bound and groups resources by
-media/image/document/script/style/data/font/other type instead of displaying a reverse timestamp stream. The browser
-top bar, “资源嗅探” drawer, automatic floating selection and network resource directory only project candidate IDs;
-request headers and Cookie remain in the runtime owner. Bounded image thumbnails and the single image viewer reuse the
-captured request identity. Controlled response MIME and `Content-Disposition` may identify opaque URLs without reading
-the response body. Video playback calls `PlayerSession`, media download calls the existing `BrowserDownloadManager`,
-and recognized audio remains non-playable until a music-player owner exists.
+一个新 request ID 最多执行一次 `loadfile`。悬浮与全屏切换保留同一请求、进度、时长、pending seek、暂停/速度、完整缓存状态、load/runtime generation、PID、内核和 demuxer 缓存；只解绑旧 Surface 并绑定新代际。owner token 防止旧 Surface 的迟到销毁影响新 Surface。
 
-## State and transitions
+悬浮 → 全屏 → 悬浮 → 关闭不调用 WebView loadUrl/reload、页面重建、重新嗅探或 JavaScript 媒体控制。网页自己的媒体继续独立运行。关闭立即投影 `BROWSER_ONLY`，原生解绑和关闭随后结束。
 
-The presentation state is exactly:
+### 自动悬浮的文档身份
 
-- `BROWSER_ONLY`
-- `FLOATING_PLAYER`
-- `FULLSCREEN_PLAYER`
+WebSession 持有 credentialDocumentToken、应用导航 pending-start token、最近 onPageStarted URL 与自动悬浮 consumption token。接受候选时记录文档身份与手动/自动来源；自动启动要求页面完全加载且候选属于同一 token。
 
-A new request ID may execute one mpv `loadfile`. `FLOATING_PLAYER <-> FULLSCREEN_PLAYER` keeps the same
-`PlayerMediaRequest`, playback position, duration, pending seek target, pause/speed state, complete-cache state,
-`loadGeneration`, `runtimeGeneration`, runtime PID, mpv core and demuxer cache. Presentation transfer only detaches the
-old Surface and attaches the new generation. Owner-token checks prevent a late destroyed Surface from detaching its
-successor.
+关闭、自然完成或全屏 CLOSE 不重新消费旧文档候选；手动播放仍可用。导航前轮换 token 并清候选，匹配的 onPageStarted 消费 pending 后才接受完成回调，后续回调还需匹配最近 URL。
 
-Browser floating to fullscreen to floating to close never calls WebView `loadUrl`, `reload`, page reconstruction,
-candidate rescan or JavaScript media control. A page may continue its own media independently; Kiyori does not mutate
-that page state. Closing projects `BROWSER_ONLY` immediately so the floating composition disappears before native
-detach and runtime close finish. Each `WebSession` owns a current `credentialDocumentToken`, a pending-start token for
-app-initiated navigation, the URL from its latest `onPageStarted`, and an automatic-floating consumption token beside
-the candidates rather than in Compose. A
-candidate accepted by the single `PlayerSession` records that document token, whether the entry was automatic or
-manual. Automatic startup additionally
-requires the active document to be fully loaded (`pageLoaded=true`, `isLoading=false`) and filters candidates by the
-same document token. Closing, natural completion, or fullscreen `CLOSE` therefore cannot turn a consumed document's
-candidate into a new request, second `loadfile`, fresh runtime or fresh cache. Manual playback remains available.
-Navigation rotates the document token and clears candidates before the WebView operation. Completion callbacks are
-ignored until the matching `onPageStarted` consumes the pending-start token, and later callbacks must match the latest
-started URL, so an old page's player cannot consume or reopen a candidate discovered by the new page. Since
-`onReceivedSslError` has no main-frame identity and may precede `onPageStarted`, it only cancels the invalid certificate;
-the matching main-frame `onReceivedError` owns the current document's SSL and loading state.
+`onReceivedSslError` 没有主帧身份，可能早于 onPageStarted，只负责取消无效证书；文档 SSL/loading 状态由匹配主帧的 onReceivedError 持有。
 
-The fixed `mpvlibAndroid@168e0a5e` lifecycle remains the native Surface authority: detach sets `vo=null`,
-`force-window=no`, and releases the native window; attach restores the configured VO and `force-window=yes`. Kiyori
-does not replace that sequence without a reproducible native source/build closure. Fit ownership stays in
-`MpvPlayerEngine`: `FIT` resets aspect override and panscan, `CROP` uses panscan, and `STRETCH` sets
-`video-aspect-override` to the current accepted Surface width divided by height. A valid resize reapplies stretch, so
-landscape, portrait, floating, freeform, foldable, and inset-adjusted layouts follow their real Surface rather than
-display metrics.
+### Surface 与适配
 
-Fullscreen and floating progress bars keep drag movement in a local draft and submit one seek only on release.
-Cancellation submits no seek. `PlayerSession` records and immediately projects the target only after the current
-runtime/load accepts the explicit command; ordinary progress snapshots cannot overwrite that projection. mpv events
-carry the load command but no seek command ID, so one load keeps at most one runtime seek in flight. Additional rapid
-button, gesture, or progress actions update the latest projected target without issuing a second overlapping command.
-The matching `MPV_EVENT_SEEK -> MPV_EVENT_PLAYBACK_RESTART` completes the active command; if the latest target differs,
-`PlayerSession` then submits that target as the next command. Events caused by the packaged binding's Surface/VO
-reconfiguration are logged as internal seeks and do not enter UI seeking or consume a future target. New media, close,
-runtime death, command failure and explicit errors clear both pending and visible seek state.
+固定 mpvlibAndroid 生命周期：detach 写 `vo=null / force-window=no` 并释放 native window，attach 恢复 VO 与 `force-window=yes`。没有可复现 native 源码制品证据时不替换该顺序。
 
-Long-press acceleration feedback is presentation-only. The start message hides after one second while the temporary
-speed remains active; release or cancellation restores the exact pre-press speed and shows the restoration message for
-one second. Fullscreen and floating preparation indicators also wait 160 ms before appearing, which avoids flashing a
-blocking overlay when a fast request reaches first output inside that interval.
+FIT 重置 aspect override 与 panscan，CROP 使用 panscan，STRETCH 使用当前已接受 Surface 的宽高比；resize 重应用 STRETCH，不用显示器尺寸猜测实际窗口。
 
-## Media requests
+### Seek 与反馈
 
-Network URLs are passed to mpv unchanged. The media request retains headers observed by the WebSession. Immediately
-before writing `http-header-fields`, the `:player` runtime removes `Range`, `Accept-Encoding`, hop-by-hop fields and
-Chromium-only `Sec-CH-UA` / `Sec-Fetch-*` metadata case-insensitively. Origin, User-Agent, Referer, Cookie, Accept and
-unknown end-to-end authentication fields remain attached when present. FFmpeg owns active byte offsets, content
-encoding, connection framing and each seek Range; replaying browser transport metadata would force stale or
-WebView-specific behavior. The candidate and download owner continue retaining the original evidence.
+拖动在 UI 保留草稿，抬起提交一次，取消不提交。当前 runtime/load 接受命令后 PlayerSession 立即投影目标，旧周期进度不能覆盖。
 
-The `:player` resolver opens one read-only `ParcelFileDescriptor` for `content://`; its lifetime matches the remote
-media request. `file://` resolves to its original local path. System `ACTION_VIEW` creates a new request ID; Activity
-recreation reuses the existing ID. External local videos may build a same-directory queue only when normalized series
-names match; entries use natural numeric title order. Browser and other network requests remain a one-item queue unless
-their caller provides an explicit ordered queue.
+一个 load 最多一个 seek 在途。后续动作合并为最新目标，匹配 `MPV_EVENT_SEEK → MPV_EVENT_PLAYBACK_RESTART` 完成后再提交；Surface/VO 内部 seek 只记录诊断，不进入用户 seeking 或消费未来目标。新媒体、关闭、死亡和错误清理 pending。
 
-MIME and URL suffix are evidence, not absolute identity. A controlled response MIME can identify an opaque direct media
-resource, video DOM evidence outranks a misleading audio suffix/MIME, and audio DOM evidence identifies a real audio
-candidate. The original URL is never changed. At `FILE_LOADED`, mpv publishes `file-format`, video/audio codecs,
-video-track count, active hardware decoder, pixel format, and the selected video track's
-`track-list/N/codec-profile`. A stable `VIDEO_RECONFIG` rereads only that light identity, suppresses an identical
-snapshot, and sends a dedicated AIDL update without rebuilding the full track list or rerunning full-cache
-qualification. Blank, `no`, and `none` `hwdec-current` values all mean that no hardware decoder is active. Actual
-demux/track state is authoritative for diagnostics. `blob:`, MSE, WebRTC and DRM entries remain non-executable clues.
+长按加速与恢复反馈各显示一秒，不写速度记忆。准备指示延迟 160ms，避免快速首帧闪烁。完整手势契约见 [媒体与下载](../contracts/media_downloads.md)。
 
-## Diagnostics
+## 媒体请求
 
-`PlayerDebugLogBuffer` is the single fullscreen log-view owner. A new media request clears the previous in-memory
-segment, after which the main process records session, command and Surface transitions. `MpvPlayerEngine` registers the
-packaged binding's `MPVLib.LogObserver`, sets `msg-level=all=warn,ffmpeg=info,demux=info` before `mpv_initialize`, and
-sends bounded native file/network/error evidence from `:player` through the existing ordered AIDL callback. Progress
-snapshots are not logged every 250 ms.
+- 保留原网络 URL 和观察身份；`:player` 写 `http-header-fields` 前不区分大小写移除 Range、Accept-Encoding、hop-by-hop、Sec-CH-UA 与 Sec-Fetch-*。
+- Origin、UA、Referer、Cookie、Accept 和未知 end-to-end 认证字段存在时保留；活动 byte offset、编码、连接 framing 与 seek Range 由 mpv/FFmpeg 管理。
+- content URI 只打开一个只读 ParcelFileDescriptor，生命周期与请求一致；file URI 解析原路径。
+- 外部 ACTION_VIEW 创建新请求，Activity 重建复用原 ID。本地视频仅对同目录、规范化系列名一致的条目建立自然数字排序队列；网络默认单项，除非调用方明确给出有序队列。
+- MIME、后缀是证据，真实 video DOM 高于误导音频后缀。blob、MSE、WebRTC、DRM 仅为不可执行线索。
+- FILE_LOADED 发布格式、视频/音频 codec、视频轨数、hwdec、像素格式和所选 codec-profile。稳定 VIDEO_RECONFIG 只刷新轻量身份，相同快照不重发，不重建轨列表或重做缓存资格。
+- 空白、no、none 的 hwdec-current 表示无活动硬解。实际 demux/轨道是诊断权威，不能由 URL 推断。
 
-The buffer keeps at most 2,000 timestamped entries and reports how many older entries were dropped. Each entry receives
-a stable sequence ID and one or more topics when it is appended, so filtering does not repeatedly classify the full
-buffer. The dialog samples the buffer revision at a bounded cadence and renders structured entries newest-first in a
-lazy list. Its single non-wrapping horizontal strip provides all, error, warning-and-error, network/loading, playback,
-Surface/render, track/subtitle and runtime/MPV views.
+## 诊断
 
-The dialog uses one screen-bounded Surface with fixed header, filter and footer regions around a weighted log viewport.
-Close stays in the header; clear, copy and export stay in the footer, and clear requires a second tap. Clipboard copy and
-text export build a chronological full report from the current view. Exports are written to
-`Download/Kiyori/exports`.
+`PlayerDebugLogBuffer` 是唯一全屏日志视图所有者。新媒体清旧段，主进程记录 session/command/Surface；引擎在初始化前设置 `msg-level=all=warn,ffmpeg=info,demux=info`，原生日志经有序 AIDL 返回，不逐 250ms 记录进度。
 
-Diagnostics retain the online scheme, host, port and path shape needed to identify stream behavior, while URL query
-values, request-header values, Cookie, Authorization, titles and private local paths are removed. The report also
-contains the app version, device/Android version, runtime generation/PID, presentation, Surface lease, decoder,
-Anime4K, track counts and visible error. The `:player` runtime registers one default-network callback on its existing
-serial Handler, emits an initial snapshot, coalesces callback bursts for 250 ms and appends only changed redacted facts.
-Every media load records another request-start snapshot; report export records the main-process snapshot at report
-time and points to the ordered `PlayerNetwork` entries for player-process history. Each snapshot contains
-active/process-bound network presence, separate active/effective VPN/Wi-Fi/cellular/ethernet/Bluetooth transports,
-validation, metering, captive portal, background restriction, Private DNS presence, IPv4/IPv6 DNS/default-route counts
-and absent/static/PAC proxy type. It never records IPs, DNS names, proxy addresses, interface names or network handles
-and never binds around a VPN. If Android reports a process-bound network, that network is the effective owner for
-transports, DNS, routes, proxy and metering; active and effective transports remain separate evidence so a VPN or
-unexpected binding is visible without claiming causality.
-Media-load diagnostics record input/forwarded header counts, forwarded field names and whether an observed Range was
-left to mpv; values remain omitted. Concrete native evidence such as DNS failure, TCP refusal/timeout, unreachable
-route, TLS certificate failure or HTTP error outranks generic `loading failed`. `END_FILE` reads mpv's node schema as
-the string `reason` plus optional string `file_error`.
+- 上限 2,000 条，记录丢弃数量；追加时赋 sequence 与 topics，UI 有界采样 revision、倒序懒加载，过滤不重分类全缓存。
+- 对话框固定头、过滤与底栏，日志区使用剩余高度；清空二次点击确认，复制/导出按时间正序，输出到 `Download/Kiyori/exports`。
+- 保留所需 scheme、host、port、path shape；移除 query 值、header 值、Cookie、Authorization、标题与私有本地路径。
+- 报告包含应用/设备版本、generation/PID、展示、Surface lease、解码、Anime4K、轨道与可见错误。
+- 播放器在串行 Handler 注册一次网络回调，250ms 合并突发，只发布变化事实；每 load 记录请求开始快照，导出记录主进程当前快照。
+- 区分 active 与 process-bound/effective 网络，记录 transport 类型、验证/计费/门户/后台限制、Private DNS 有无、IPv4/IPv6 DNS 与路由数量、absent/static/PAC 类型；不记录 IP、DNS 名、代理地址、接口名或 network handle，也不绕过 VPN。
+- 请求诊断记录头数量、字段名及 Range 是否交给 mpv，不记录值。DNS/TCP/TLS/HTTP 原生证据优先于泛化 loading failed；END_FILE 使用字符串 reason 与可选 file_error。
 
-After `MPVLib.init()` succeeds, `MpvPlayerEngine` strictly queries the required `mpv-version`, `ffmpeg-version`,
-`protocol-list`, `demuxer-lavf-list` and `decoder-list` properties exactly once. Hardware-decoder metadata is read from
-the `option-info/hwdec` Node map because mpv defines `choices` as optional and the fixed runtime exposes `hwdec` as a
-string-list option without a choices list. When choices are exposed, a pure policy projects the fixed MediaCodec
-targets as confirmed available or unavailable. Missing option/map/choices metadata projects those targets as unknown
-with explicit evidence; malformed map, array or entry nodes additionally produce a warning but do not abort the
-otherwise valid mpv core. The stable digest includes this evidence, so unknown introspection is distinct from a
-confirmed empty list. The complete native lists are not sent through Binder, and a browser extension or MIME hint
-never becomes runtime capability evidence.
+### 能力探测
 
-Every cache policy uses explicit startup/non-startup semantics: `cache=yes`, `cache-pause-initial=no`,
-`cache-pause=yes`, `cache-pause-wait=1.0`, and its fixed forward/backward/time limits. The single setting is:
+初始化成功后只查询一次必需的 mpv-version、ffmpeg-version、protocol-list、demuxer-lavf-list、decoder-list。hwdec 从 `option-info/hwdec` Node 读取，choices 可选；缺失时如实表示 unknown，结构错误额外告警，不把未知解释为已确认空列表。摘要保留该证据，完整列表不经 Binder 传输。
 
-| Policy | Forward | Backward | Time | Session disk cache |
+## 在线缓存
+
+所有策略显式使用 `cache=yes / cache-pause-initial=no / cache-pause=yes / cache-pause-wait=1.0`。
+
+| 策略 | 前向 | 后向 | 时间 | 会话磁盘缓存 |
 | --- | ---: | ---: | ---: | --- |
-| `COMPACT` / 省流模式 | 64 MiB | 32 MiB | 60 s | no |
-| `BALANCED` / 智能均衡 | 128 MiB | 64 MiB | 180 s | no; fresh-install default |
-| `LARGE` / 流畅优先 | 256 MiB | 128 MiB | 300 s | no |
-| `FULL_VIDEO` / 完整缓存 | 256 MiB | 128 MiB | 300 s initially | prepared before `loadfile` |
+| COMPACT / 省流模式 | 64 MiB | 32 MiB | 60s | 无 |
+| BALANCED / 智能均衡 | 128 MiB | 64 MiB | 180s | 无，新安装默认 |
+| LARGE / 流畅优先 | 256 MiB | 128 MiB | 300s | 无 |
+| FULL_VIDEO / 完整缓存 | 256 MiB | 128 MiB | 初始 300s | loadfile 前准备 |
 
-`FULL_VIDEO` uses the same mpv request, headers, demuxer, and an app-private immediate-unlink session directory. It
-becomes active after `FILE_LOADED` confirms `demuxer-via-network=yes`, at least one actual video track, a non-HLS/DASH
-actual format, finite duration no longer than four hours, `seekable=yes`, `partially-seekable=no`, a positive
-`file-size` no larger than 20 GiB, and available space of at least
-`file-size + max(1 GiB, ceil(file-size * 0.15))`. Qualification does not read `stream-start`, `stream-end`, URL
-suffixes, or `demuxer-cache-state`. An ineligible request disables disk cache, deletes only its verified session
-directory, records the exact reason, and retains `FULL_VIDEO`'s own 256/128 MiB and 300-second base playback cache
-without changing policy.
+### 完整缓存资格与完成
 
-For an active request, `cache-secs` expands to finite duration plus 60 seconds.
-`demuxer-max-bytes` and `demuxer-max-back-bytes` are bounded packet-metadata budgets (`128..256 MiB` by duration) and
-never shrink the base values. `demuxer-cache-state` reads are capped at 1 Hz and classified as
-`AVAILABLE`, `UNAVAILABLE`, or `MALFORMED`; the latter two are observable but do not fail ordinary playback or form
-completion evidence. `file-cache-bytes` may exceed `file-size`, but independently enforces the actual 20 GiB disk-cache
-limit. Free-space checks run at most every five seconds, and 512 MiB is a hard stop.
-`bof-cached=yes + eof-cached=yes + exactly one seekable range` is the only first completion proof. Once that proof
-establishes `COMPLETE`, a transient unavailable, malformed, or incomplete node cannot revoke the same media session's
-completion fact. Replacement, close, engine destruction, and the next runtime initialization clean only the canonical
-`noBackupFilesDir/player/mpv-session-cache` scope after rejecting symlink or boundary violations. This is not a
-download or offline-library path. A completed request may export only a small cached excerpt for seek preview; the
-remote URL is never passed to `grabThumbnailFast`, and active, pending, superseded, closed, or next-runtime cleanup is
-bounded to the canonical private `cacheDir/player-seek-preview` scope.
+同一 mpv 请求使用私有、打开即 unlink 的会话缓存。FILE_LOADED 后须同时满足：网络 demuxer、有真实视频轨、实际格式非 HLS/DASH、有限时长不超过四小时、完全可 seek、file-size 为正且不超过 20 GiB、可用空间至少 `file-size + max(1 GiB, ceil(file-size * 0.15))`。
 
-## Native and class loading
+资格不读取 stream-start/end、URL 后缀或 demuxer-cache-state。不合格时关闭磁盘缓存、只清理已验证会话目录并记录原因；保留该策略自身 256/128 MiB、300s 基础缓冲，不更换策略。
 
-The mpv AAR is an explicit Gradle input. Pre-build validation opens its `classes.jar` and verifies the public MPV binding
-classes as well as the two arm64 native libraries. Post-build validation scans every DEX for the MPV binding and Kiyori
-engine descriptors.
+激活后 cache-secs 为时长加 60s，packet metadata 预算按时长限制在 128..256 MiB 且不缩减原基础值。demuxer-cache-state 最多 1Hz，区分 AVAILABLE/UNAVAILABLE/MALFORMED，后两者不是完成证据。
 
-Recoverable command or linkage failures become visible player errors. A fatal native exit is isolated to `:player`;
-Binder death moves `PlayerSession` to `DEAD`, writes a bounded redacted report and does not reconnect until the user
-explicitly chooses restart. Kiyori does not retry with another engine. The correct Debug artifact must pass the symbol,
-`DT_NEEDED`, ABI and 16 KB alignment audit in [Player native stack](PLAYER_NATIVE_STACK.md).
+实际 file-cache-bytes 独立受 20 GiB 上限约束；剩余空间最多每五秒检查一次，512 MiB 为硬停止条件。只有 `bof-cached=yes + eof-cached=yes + 恰好一个 seekable range` 能首次证明 COMPLETE；同会话后续短暂未知或不完整快照不能撤销已成立事实。
 
-Every JNI entry in `MpvPlayerEngine` converts `LinkageError` into `MpvRuntimeException`; the runtime reports command
-failure to `PlayerSessionState.error`. Native signal termination is diagnosed by Binder death and
-`ApplicationExitInfo`, while the main process and WebView remain outside the player process. Natural completion is
-observed through mpv `eof-reached`. `loop-file` stays disabled so `PlayerSession` can advance the real queue and apply
-the configured final-item action. `MPV_EVENT_END_FILE` is not treated as natural completion because replacing or
-stopping a file emits the same event.
+替换、关闭、销毁和下次初始化只清理规范 `noBackupFilesDir/player/mpv-session-cache`，拒绝越界或 symlink；预览片段同样限制在 `cacheDir/player-seek-preview`。缓存不是离线库。
 
-`shouldInterceptRequest` runs on Chromium worker threads. Media observation therefore reads the volatile
-`WebSession.appliedUserAgent` snapshot plus `WebResourceRequest` and profile Cookie state; it never calls
-`WebView.getSettings()` or another WebView method from that callback.
+## Native 与错误传播
+
+mpv AAR 是显式 Gradle 输入，构建前验证 classes.jar 与完整 native 集，构建后扫描 DEX 中的 binding 与 engine。精确成员与符号见 [native 栈](PLAYER_NATIVE_STACK.md)。
+
+每个 JNI 入口将 LinkageError 转为 MpvRuntimeException 并显示命令失败；native 信号退出由 Binder death 与 ApplicationExitInfo 诊断。主进程和 WebView 不在播放器进程内，不自动换内核或重连。
+
+自然完成读取 eof-reached，loop-file 保持关闭，由 PlayerSession 决定队列下一项与末项动作。END_FILE 也可能因替换/停止产生，不能直接视为自然完成。

@@ -65,10 +65,10 @@
 
 ## 验证顺序
 
-1. 使用项目 `.venv`：`\.venv\Scripts\python.exe -B ci/script/check_formal_readiness.py --repository . --require-main`
+1. 使用项目 `.venv`：`.\.venv\Scripts\python.exe -B ci/script/check_formal_readiness.py --repository . --require-main`
 2. `git diff --check`
 3. 运行受影响的 Kotlin/JVM 单测、Shell 状态测试和 chrome layout/route contract 检查
-4. `\.gradlew.bat :app:assembleDebug --no-daemon --console=plain`
+4. `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain`
 5. 核对 APK 绝对路径、大小、SHA-256、包名、版本、Android Debug V2 签名和 ZIP 16KB 对齐
 6. 不运行 Release、安装、ADB、MuMu 或设备自动化；真机视觉、拖动、系统 Back、IME、旋转、网页刷新和 AI 并发操控保持 `verification_pending`
 

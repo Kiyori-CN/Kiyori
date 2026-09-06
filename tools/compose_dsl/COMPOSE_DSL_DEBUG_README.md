@@ -1,4 +1,4 @@
-# Compose DSL UI Dump
+# Compose DSL 界面转储
 
 ## 用途
 

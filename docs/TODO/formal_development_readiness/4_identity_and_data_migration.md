@@ -1,6 +1,6 @@
 # 身份与数据迁移
 
-## Android application identity
+## Android 应用身份
 
 当前 application ID 为 `com.kiyori`，而历史 Operit 安装使用 `com.ai.assistance.operit`。Android 将它们视为两个独立应用，因此 Kiyori APK 不能直接覆盖旧 Operit 安装，也不会自动接管旧应用数据。
 

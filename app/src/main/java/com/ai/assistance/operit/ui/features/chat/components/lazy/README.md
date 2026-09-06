@@ -1,10 +1,12 @@
+# 本地 LazyColumn 实现
+
 这里是从 Jetpack Compose Foundation 提取并本地化的 `LazyColumn` 相关源码。
 
 - 来源版本：`androidx.compose.foundation:foundation-android:1.10.4`
-- 入口文件：[RecyclerLazyColumn.kt](D:/Code/prog/assistance/app/src/main/java/com/ai/assistance/operit/ui/features/chat/components/lazy/RecyclerLazyColumn.kt)
-- 核心布局：[LazyList.kt](D:/Code/prog/assistance/app/src/main/java/com/ai/assistance/operit/ui/features/chat/components/lazy/LazyList.kt)
-- 核心测量：[LazyListMeasure.kt](D:/Code/prog/assistance/app/src/main/java/com/ai/assistance/operit/ui/features/chat/components/lazy/LazyListMeasure.kt)
-- 状态管理：[LazyListState.kt](D:/Code/prog/assistance/app/src/main/java/com/ai/assistance/operit/ui/features/chat/components/lazy/LazyListState.kt)
+- 入口文件：[RecyclerLazyColumn.kt](RecyclerLazyColumn.kt)
+- 核心布局：[LazyList.kt](LazyList.kt)
+- 核心测量：[LazyListMeasure.kt](LazyListMeasure.kt)
+- 状态管理：[LazyListState.kt](LazyListState.kt)
 
 处理方式：
 

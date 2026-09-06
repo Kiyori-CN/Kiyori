@@ -1,291 +1,173 @@
 <div align="center">
-  <img src="app/src/main/assets/logo.svg" width="152" alt="Kiyori Logo">
+  <img src="app/src/main/assets/logo.svg" width="128" alt="Kiyori 标志">
   <h1>Kiyori</h1>
-  <p>由 Operit AI 驱动的 Android 全能型浏览器</p>
+  <p><strong>浏览网页，理解内容，把想法变成行动。</strong></p>
+  <p>内置 Operit AI 的 Android 浏览器 · 网页 · AI · 媒体 · 工作区</p>
   <p>
-    <a href="README.en.md">English</a> |
-    <a href="https://github.com/Kiyori-CN/Kiyori">项目仓库</a> |
-    <a href="https://github.com/Kiyori-CN/Kiyori/issues">问题反馈</a>
+    <a href="#开始使用">开始使用</a> ·
+    <a href="docs/user-guide/README.md">使用指南</a> ·
+    <a href="docs/README.md">开发文档</a> ·
+    <a href="https://github.com/Kiyori-CN/Kiyori/issues">反馈问题</a> ·
+    <a href="README.en.md">English</a>
   </p>
   <p>
-    <img src="https://img.shields.io/github/last-commit/Kiyori-CN/Kiyori" alt="Last Commit">
-    <img src="https://img.shields.io/github/license/Kiyori-CN/Kiyori" alt="License">
-    <img src="https://img.shields.io/badge/Android-8.0%2B-3DDC84" alt="Android 8.0+">
-    <img src="https://img.shields.io/badge/status-development-orange" alt="Development status">
+    <img src="https://img.shields.io/badge/Android-8.0%2B-3DDC84" alt="Android 8.0 及以上">
+    <img src="https://img.shields.io/badge/ABI-arm64--v8a-1E88E5" alt="仅 ARM64">
+    <img src="https://img.shields.io/badge/status-in_development-F5A623" alt="开发中">
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-555555" alt="GPL v3 或更高版本"></a>
   </p>
 </div>
 
 > [!IMPORTANT]
-> Kiyori 目前处于正式开发阶段，尚未建立公开发行渠道。请从本仓库构建开发版，不要将第三方 APK 视为 Kiyori 官方版本。
+> Kiyori 尚未公开发行。目前通过本仓库构建开发版，功能与设备体验仍在持续完善。请勿将第三方 APK 视为官方版本。
 
-## 项目概览
+## 为日常浏览，也为更进一步的工作
 
-Kiyori 是一款以浏览器为产品中心、以内置 Operit AI 为智能子系统的 Android 应用。人与 AI 共用同一套 Browser Runtime、WebSession 和真实 WebView，因此标签页、网页状态、Cookie、历史、下载和自动化操作不会被拆成互相不一致的两套实现。
+Kiyori 把网页浏览、AI 对话、内容保存和本地工作区放在同一个 Android 应用中。你可以阅读网页、管理窗口与下载、查看图片和播放媒体，也可以进入 Operit AI，通过自己配置的模型使用对话、工具、工作流与扩展。
 
-项目在保留 Operit 对话、模型配置、工具调用、工作流、记忆、终端、MCP、Skill、ToolPkg 和本地模型能力的同时，由 Kiyori 负责应用壳、全局导航、浏览器体验、产品身份、系统设置和后续发行。
+人工浏览和 AI 浏览器工具共享网页会话，网页与工具能够围绕同一份页面状态工作。Kiyori 负责产品界面、浏览器与系统设置，Operit AI 提供内置的智能能力。
 
-内置“哔哩哔哩工具包”提供 16 项只读检索、内容导出和媒体处理工具。在“扩展 → 插件”配置
-`BILIBILI_COOKIE`，再在 AI 抽屉 Media 分组启用 `bilibili`；Cookie 仅由宿主使用，不交给脚本。
-默认产物位于 `Download/Kiyori/Bilibili`，重跑覆盖需显式指定 `overwrite=true`。
-`bilibili_user full=true` 在保留 `user` 摘要的同时返回 `profile` 原始扩展资料，字段取决于上游公开状态。
-分段弹幕和 XML 都不代表完整历史；`capture media=false` 不新建媒体目录，也不删除以前的下载。
-下载使用与 Web 播放接口一致的请求头，不向 CDN 发送 Cookie；网络错误会区分 HTTP 拒绝、连接、超时
-和 TLS 阶段，证书错误及风控不会被绕过。详见
-[工具包使用合同与验收状态](docs/TODO/bilibili_toolkit/index.md)。
+## 你可以用它做什么
 
-| 项目 | 当前状态 |
+| 场景 | 已有能力 |
 | --- | --- |
-| 开发版本 | `0.1.0`（`versionCode 45`） |
-| Android 标识 | `com.kiyori` |
-| 支持系统 | Android 8.0 及以上（`minSdk 26`） |
-| 当前 APK ABI | `arm64-v8a` |
-| 媒体 native closure | mpv `2339eb727` + FFmpeg `n9.0.1` + Mbed TLS `3.6.7`；FFmpegKit `8.1.7-kiyori-n9.0.1-r6` + FFmpeg `n9.0.1` + OpenH264 `v2.6.0` + GPL/HarfBuzz/`drawtext`/`eq`/`boxblur` |
-| 持续开发分支 | `main` |
-| 正式发行 | 尚未开放 |
-| 许可证 | GNU GPL v3 或更高版本 |
+| **浏览与整理** | 网页窗口、书签与历史、搜索引擎切换、自定义或空白主页、普通会话恢复、网站独立设置 |
+| **阅读与专注** | 广告订阅与自定义元素规则、网页文字缩放、图片查看、用户脚本和扩展管理 |
+| **AI 对话与工具** | 多供应商与协议配置、角色卡、记忆、附件、语音、工具调用、工作流及对话详情 |
+| **保存与播放** | 网页资源目录、音视频嗅探、下载管理、mpv 播放器、字幕、队列、Anime4K 与悬浮播放 |
+| **本地工作区** | 文件管理、Ubuntu 终端、SSH、代码执行和工作区工具 |
+| **扩展与连接** | 脚本、ToolPkg、Skill、MCP、市场安装、环境变量与权限管理 |
 
-AI 左抽屉的内置平台编辑器使用 `kiyori_editor`，远程工具包使用 `remote_kiyori`。
-远程配置需要目标 Kiyori 的 HTTP API 地址和访问令牌，变量名为 `REMOTE_KIYORI_BASE_URL`、
-`REMOTE_KIYORI_TOKEN`、`REMOTE_KIYORI_TIMEOUT_MS`。地址支持 HTTP(S)、IPv4/IPv6 和路径前缀，
-未写端口时使用 `8094`；不要在地址中附带账号、查询串或片段。Windows 配套包为
-`kiyori-pc-agent`，通过 `kiyori_pc_agent.bat` 启动。详见
-[内置扩展迁移与验收说明](docs/TODO/kiyori_extension_script_brand_migration/index.md)。
+音乐播放器、文档阅读器和小程序等部分独立入口仍在建设；本地推理需要另行准备兼容模型。这里的能力概览不表示所有页面、机型或外部服务都已完成验收。具体进度见 [开发任务索引](docs/TODO/README.md)。
 
-## 核心能力
+## 开始使用
 
-- **共享浏览器运行时**：Browser Home 与 AI 浏览器工具共用标签页、WebView、Cookie、历史、书签、下载、用户脚本和窗口状态。
-- **可切换的浏览器主页**：在“设置 → 网页浏览器 → 网页主页”中选择自定义网址或纯空白页；主页和新标签继续使用同一 Browser Runtime。
-- **浏览器诊断日志**：浏览器菜单提供独立的诊断抽屉，显示当前 WebView provider、能力、导航、权限、脚本和渲染错误等脱敏运行时事件；它与当前页面网络资源目录分开，不持久化网页或隐私数据。
-- **可追溯的设置返回**：从底部设置、浏览器菜单或 AI 左抽屉进入同一个设置首页；设置分类和子页面按进入顺序逐级返回，浏览器与 AI 来源最终回到原网页或原对话页面。
-- **受控窗口与网页历史**：普通网页的同站、跨站、`target="_blank"` 和用户 `window.open()` 默认继续在当前窗口导航；只有配置主页上的真实用户跨站跳转会保留主页并创建同 Profile 子窗口。
-- **可选启动恢复**：网页浏览器设置提供边缘滑屏前进后退、恢复上次搜索结果、恢复前询问和保留普通多窗口四个独立开关；无痕窗口和无痕元数据不会写入恢复记录。当前开发验证阶段的新安装默认选择“自定义网址”，地址为 `https://web.gotab.cn/`；该设置也可切换为纯空白页。
-- **当前域名网站配置**：浏览器菜单可为当前 HTTP(S) 完整域名单独禁用应用内网络代理，或关闭广告拦截、用户脚本、返回缓存、左右滑动前进后退、强制缩放、元素长按、外部应用、定位、密码保存与填充、嗅探入口和自动悬浮播放。禁用网络代理是该域名及子域名的最高应用代理优先级，但不绕过 Android 系统 VPN；未配置时完全遵从全局设置，并在应用重启后继续生效。
-- **按元素适配的网页长按**：链接、图片、图片链接、媒体、文本和普通元素显示各自可执行的紧凑菜单；图片可全屏查看、进入有界看图模式、保存和识别二维码。设置可关闭普通元素菜单，输入框、文本域和可编辑内容始终保留 Android WebView 系统原生剪切、复制、粘贴和选区手柄。
-- **网页 Cookie 插件**：浏览器下拉抽屉菜单的“插件”中提供内置 Cookie Reader，默认开启并可单独关闭。它复用当前标签页所属 WebView Profile 的 CookieManager，读取 http(s) 页面返回的 Cookie Header，按条目展示并支持用户主动刷新、复制；关闭后不投影本页入口、不读取 Cookie。读取在后台执行且不会触发网页导航，Cookie 内容只在本机内存中处理，不写入日志或磁盘。
-- **Operit AI 子系统**：支持多模型配置、对话、角色卡、记忆、工具调用、工作流、附件、语音和可恢复执行。
-- **内置文字转语音**：新安装首次建立语音配置时默认启用经过实测的 Next 中文 HTTP 语音（晓晓音色）；已有安装会保留原来的 TTS 配置。语音配置仍可在“设置 → AI助手 → 语音 → 文本转语音”中修改，远程语音请求遵循应用级网络代理设置。
-- **可审计 AI 对话**：每条已保存对话都有持久化“对话详情”，可查看输入、上下文转换、Provider、工具、异常、修订和终态；详情页支持三视图搜索、逐条展开，并可导出不加密的 AI 诊断 Markdown 或完整 `.kiyori-audit` 审计包。
-- **扩展生态**：支持脚本包、ToolPkg 插件、Skill、MCP、市场安装、环境变量和权限管理；内置脚本与插件
-  使用统一的双语 Agent 说明和分类，声明环境变量的包首次安装默认关闭；Search/Academic 提供
-  OpenAI 搜索、Brave 搜索、arXiv、Crossref、PubMed、Semantic Scholar、OpenAlex 等官方能力。
-- **本地工作区**：集成文件管理、Ubuntu 终端、SSH、开发工具、工作区和自动化能力；“文件管理首页 → 手机存储”和“设置首页 → 文件管理器”进入同一个文件管理器。代码运行器使用可见的 `code_runner_session` PTY 会话，因此命令和输出会出现在软件终端；Python 包固定安装到 `~/.code_runner/py` 虚拟环境，Node 包固定安装到 `~/.code_runner/node` 工作区，可调用 `get_environment_info` 查看实际解释器、路径和会话 ID。终端“环境配置”使用独立 hidden probe 识别已安装包，并在一个可见会话中逐步执行安装，避免重复提交和检查命令抢占终端。
-- **法律文档**：“设置首页 → 更多功能”按“权限 / 网络代理 / 开源协议 / 用户协议 / 隐私政策”排列；用户协议和隐私政策直接进入各自的中文正文，开源协议页按组件分类展示许可证、许可证正文入口与项目地址，不改变首次启动确认状态的 owner。
-- **媒体能力**：提供按已知扩展名和首选请求媒体范围分类的当前网页静态资源目录、支持 SVG 的图片缩略图，以及支持双指缩放的全屏分页查看/保存；同时包含音视频资源嗅探、下载、独立 mpv 播放器、播放队列、字幕、Anime4K、会话级完整视频缓存和悬浮/全屏切换。
-- **本地推理**：集成 MNN、llama.cpp 等本地运行时；模型文件需要由开发者或用户按项目约定准备。
-- **Android 集成**：覆盖系统助手、无障碍、悬浮窗、通知、文件提供者、Shizuku 和系统权限入口。
+### 1. 确认设备与版本
 
-部分页面、真实设备交互和发行流程仍在持续验收。当前实现状态、唯一状态所有者和兼容性合同以 [`CONTEXT.md`](CONTEXT.md) 为准；阶段任务与现场验收状态以 [`docs/TODO/`](docs/TODO/README.md) 为准。
+- **系统**：Android 8.0 及以上。
+- **处理器**：当前 APK 仅支持 `arm64-v8a`，不适用于 x86 模拟器或 32 位 ARM 设备。
+- **应用标识**：`com.kiyori`。
+- **开发版本**：`0.1.0`，`versionCode 45`；以实际 APK 和 [构建配置](app/build.gradle.kts) 为准。
+- **获取方式**：当前需要自行构建 Debug APK，尚未提供公开发行下载入口。
 
-`code_runner` 与 `super_admin:terminal` 的脚本/命令输入支持 TAB 缩进、多行、中文与引号等
-特殊字符。终端批量命令保留所在会话的目录、环境变量和后台任务；若当前目录已被删除，下一条
-批量命令会先切换到 `$HOME`，无法进入时明确失败。NUL 字符无法由 Bash 字符串表示，会在
-入队前拒绝；终端键盘输入的 TAB 补全和 Ctrl+C 保持原有语义。
+### 2. 从源码构建
 
-### Shizuku 与应用日志
-
-`super_admin:shell` 的特权能力依赖设备上正在运行并已向 Kiyori 授权的 Shizuku；它与
-Ubuntu/proot 终端是不同执行面。权限页显示的是 Shizuku 实时服务、Binder 和授权状态，特权
-命令只有在这些条件和执行器检查全部通过时才会报告成功，普通应用 UID 不会被伪装成 Shell/Root。
-完整的执行路由、`am` Intent/广播参数合同、真机验收矩阵和日志迁移规则见
-[`Shizuku 特权执行与日志命名迁移`](docs/TODO/kiyori_shizuku_privileged_execution_and_log_migration/index.md)。
-
-应用主日志当前 owner 为 `files/logs/kiyori.log`。首次升级会把同目录旧
-`operit.log` 的完整内容迁移到新文件并在写入确认后删除旧文件；namespace、协议、ToolPkg、
-MCP、AIDL、native 和历史数据中的 `Operit` 标识仍按兼容合同保留。
-
-### 在线播放缓存
-
-“设置 → 视频播放器 → 在线播放缓存”由一个四选一策略控制：`省流模式 / 智能均衡 / 流畅优先 / 完整缓存`，新安装默认使用“智能均衡”。策略在打开下一条媒体时快照，播放中修改设置不会重载当前视频，也不会中途替换当前请求的缓存所有者。
-
-“完整缓存”仍使用同一个 mpv 请求、同一组请求头和同一个播放内核。只有有限时长、完整可拖动、总大小已知且空间充足的 HTTP/HTTPS 直链视频才会使用应用私有会话磁盘缓存；HLS/DASH、直播、滚动 DVR、未知大小或空间不足的媒体会明确保持为不符合完整缓存资格，并继续使用该档内建的基础播放缓冲。切换视频、关闭播放器或播放器进程重新建立时会释放对应会话缓存；它不是离线下载，也不会创建第二个网络请求或本地媒体副本。
-
-### 应用级网络代理
-
-打开 **设置首页 → 更多功能 → 网络代理**。这是 Kiyori 进程内唯一的网络路由设置，覆盖 AI 主模型
-与语音、AI 工具、浏览器、下载、播放器、传统脚本和 Kiyori 自身在线服务。顶部的代理模式为“规则 / 全局 /
-直连”：规则按域名决定是否进入当前策略组，全局让 Kiyori 的请求统一进入当前策略组，直连绕过内嵌
-Mihomo。所有模块统一遵循这个模式；传统 JsEngine 脚本还可以在“脚本规则”中按包名覆盖。环境变量
-抽屉底部的“网络代理”按钮会直接跳到这里，ToolPkg 不会被伪装成传统脚本。
-
-页面主页提供代理开关、代理模式、节点选择、订阅管理、规则管理、脚本规则、代理日志、局域网地址、
-系统 VPN 并存和重置。节点选择、订阅管理、脚本规则和日志各自进入独立子页面，避免同一订阅和
-策略组在主页重复出现。规则管理页顶部提供搜索框，自定义规则永远排在当前订阅规则上方；两类规则都可搜索和编辑，订阅更新会覆盖订阅规则编辑但不会覆盖独立加密的自定义规则。自定义规则支持 Mihomo 的域名、通配符、正则、IP/CIDR、端口、进程、网络、逻辑等匹配类型，动作仍为“代理”或“直连”；依赖外部 GeoSite/GeoIP/ASN 数据或远程 `rule-providers` 的规则不进入自包含运行配置，并在订阅摘要中计数。节点选择页使用横向分组标签、当前组搜索、顶部整组测速和排序；排序提供“默认、名称、延迟”，
-默认保留订阅顺序，名称按不区分大小写排序，延迟把已成功测速的节点置于未测速或失败节点之前。节点逐行显示，点击
-`select` 组节点直接切换，行尾测速按钮只测速该节点，自动策略组不提供伪装的手动选择。脚本规则页列出全部
-已安装且可执行的传统 JsEngine 包，包括当前停用的脚本；规则只允许从安装清单选择，不提供手动包名入口。
-
-应用启动时会登记已保存的代理配置协调；首个真实 Browser WebView 完成 provider、能力探测和脚本桥接后，才安装
-内嵌 Mihomo 与 WebView 的进程级代理覆盖。协调完成前，Browser 不会抢先发出 HTTP(S) 主文档请求；协调失败会明确阻止该次导航，不会静默直连。之后在设置页成功重新协调
-会发布新的 readiness generation，后续导航即可继续；`about:` 和其他本地页面不受此等待影响。
-
-“代理日志”仅在当前 Kiyori 进程内保留最近 1000 条订阅校验、Mihomo 启停、选点和测速记录。核心输出会先遮蔽
-URL 凭据与路径、Bearer、secret/password/token、UUID、私有文件路径和长凭据；日志页支持查看、复制、通过
-Android 系统文件选择器导出文本，以及二次确认后清空。日志不会持久化订阅 YAML 或 Controller secret。
-
-订阅管理页提供“添加订阅地址”和“导入 YAML 文件”两个按钮，订阅行点击立即切换当前订阅，右侧三点菜单提供
-“更新、编辑、复制、删除”；复制会创建新的订阅条目，不会切换当前订阅。订阅地址只要求填写 Clash/Mihomo
-订阅 URL，或通过“导入 YAML 文件”选择单文档 UTF-8 YAML。客户端使用
-`Clash.Meta` 身份请求 YAML mapping；Base64 节点列表、重复键、无有效出站、非法 provider 或 Mihomo
-校验失败会拒绝导入。订阅中的局域网、loopback、链路本地、私有和组播节点会被隔离并显示数量，其余
-策略组顺序和可选项会保留。订阅 URL、清洗后的 YAML 和控制器密钥使用 Android Keystore 加密并保存于
-no-backup 私有目录。
-
-运行配置不会继承订阅中依赖外部 GeoSite/GeoIP 数据库或已移除 rule-provider 的 DNS 匹配器；DNS
-解析不会重新进入业务规则图，并且订阅没有 DNS 段时使用受控的 IP nameserver；这保证 `mihomo -t`
-能在新的私有工作目录中离线完成结构校验，而不会在代理尚未运行时先下载额外数据库。
-
-播放器的 HTTP(S) 直链和 HLS 媒体在应用代理模式下使用独立进程内的 IPv4 loopback 流式桥接：
-mpv 读取本地 HTTP 流，桥接层按 `PLAYER` 路由请求真实媒体并转发 Range 与请求头，从而覆盖 mpv
-`http-proxy` 不支持的 HTTPS；桥接端点只监听 `127.0.0.1`，不会暴露 LAN 或创建第二个代理核心。
-
-Kiyori 内嵌 Mihomo 只监听随机 loopback mixed-port，不启用 TUN、LAN 入站或订阅提供的 Controller。
-外部 Clash 使用系统 VPN/TUN 时无需填写主机、端口、用户名或密码；“直连”只表示绕过 Kiyori 应用层代理，
-仍可能经过系统 VPN。检测到外部 VPN 后，内嵌代理默认拒绝启动；在高级设置明确允许并存后，代理模块按
-`Kiyori Mihomo → 系统 VPN → 节点` 连接。该功能只影响 Kiyori 进程，不改变其他应用的网络。
-
-## 产品结构
-
-```text
-Kiyori App Shell
-├── 软件首页
-│   └── 负一屏 ← 软件首页 → AI 首页
-├── 浏览器首页
-├── 小程序首页
-├── 文件管理首页
-└── 设置首页
-```
-
-浏览器是产品主体，Operit AI 是内置智能子系统。Kiyori 能力可以同时提供用户页面和受控的 AI 能力合同；AI 不直接操纵 Activity、Composable 或 ViewModel，也不会创建第二套浏览器、播放器、下载器或设置状态源。
-
-浏览器窗口遵循“明确创建、窗口内按历史返回”的原则。人工新建、跨 Profile 搜索、AI 明确创建和配置主页的用户跨站跳转可以创建产品窗口；普通网页导航不会因为域名变化或网页弹窗请求自行增加窗口。配置主页跨站子窗口的历史耗尽后会关闭该子窗口并回到仍有效的主页窗口，其他窗口的历史耗尽后回到当前配置主页。
-
-## 隐私与联网边界
-
-- 云模型由用户自行选择服务商并配置 API Key、模型和端点；聊天请求由设备直接发送到用户选择的服务商。
-- Kiyori 不提供大语言模型推理中转，也不连接 Operit 的应用更新、补丁或远程公告服务。
-- 市场、模型服务、GitHub 登录、网页搜索、语音、图片生成和用户主动配置的远程能力会连接对应第三方服务。
-- 新建公开数据使用 `Download/Kiyori`、`Pictures/Kiyori` 等 Kiyori 路径；应用不会自动扫描、合并或删除 `Download/Operit`。
-- 浏览器启动恢复仅保存用户开启相应设置后所需的普通窗口 URL、标题、顺序、活动窗口、创建原因和明确搜索来源；不保存无痕窗口、Cookie、请求头、表单、网页正文、截图或密码。
-- AI 对话审计随已保存聊天持久化，正文进入应用私有加密存储；API Key、Authorization、Cookie、密码、私钥、访问令牌和请求签名在加密前脱敏。只有删除整个聊天时才删除该聊天审计并回收无引用 payload。
-- 完整 `.kiyori-audit` 用于本机复现和可信追溯；独立 AI 诊断 Markdown 是不加密的 UTF-8 明文，会假名化账户、设备标识和私有路径。两种导出都不包含真实凭据。
-- API Key、令牌、Cookie、签名材料、私密日志和私人对话不得提交到仓库或公开 Issue。
-
-## 获取源码
+先获取源码与必要终端子模块：
 
 ```bash
 git clone https://github.com/Kiyori-CN/Kiyori.git
 cd Kiyori
-git switch main
 git submodule sync -- terminal
 git submodule update --init --recursive terminal
 ```
 
-不要对整个仓库使用 `--recurse-submodules`：`terminal` 是常规构建所需、固定到特定提交的
-KiyoriTerminalCore 子模块；`tools/hotbuild/OperitNightlyRelease` 是独立的可选私有子模块，
-不属于常规 Debug 构建入口。
+然后按 [完整构建指南](docs/doc-src/dev-core/BUILDING.md) 准备 JDK 21、Android SDK/NDK、Rust、Node.js，以及项目所需的大型依赖。**仅克隆源码不足以完成构建**；大型 AAR、模型、JNI 与子包输入由受控准备流程提供。
 
-## 开发环境
-
-完整 Android 构建使用以下基线：
-
-- JDK 21；Java/Kotlin 字节码目标为 JVM 17
-- Android SDK Platform 37、target SDK 34、Build Tools 36.0.0
-- Android NDK 28.2.13676358、CMake 3.22.1
-- Rust 1.88.0 与 `aarch64-linux-android` target
-- Node.js 22 与 npm
-- Python 与项目 `.venv`
-
-上面是 Android 主工程的构建机基线；它与应用内 Terminal 的 Ubuntu 环境是两套独立合同。Terminal
-随包提供 Ubuntu 26.04.1 Resolute 的可复现核心用户空间，环境配置按需安装 Node.js 24.20.0 LTS、
-pnpm 11.25.0、TypeScript 7.0.2、Ruby、OpenJDK 25 和 Gradle 9.7.1（Gradle 使用官方 SHA-256
-校验的发行版，不使用 Ubuntu 4.4.1 旧包）。Ubuntu/chroot/proot 会显式继承设备 IANA 时区，
-避免终端和语言运行时固定显示 UTC。详见 [KiyoriTerminalCore Ubuntu environment](terminal/README.md)。
-
-工作区模板的一键初始化也按生态分别锁定稳定合同：通用 Android 模板使用 Gradle 9.7.1（保留
-Android 官方 JDK 17 基线），Java 模板的 Wrapper 初始化使用 Gradle 9.7.1；Flutter 模板跟随
-Flutter 3.47.2 stable 使用 Gradle 9.3.1、AGP 9.1.0 和 Kotlin 2.4.0。模板版本不会通过运行时
-自动漂移，更新前必须重新核对官方兼容矩阵、下载哈希和实际构建结果。
-
-仓库不会直接提交全部大型模型和本地运行库。`app/libs/`、`app/src/main/assets/models/`、`app/src/main/assets/subpack/` 和 `app/src/main/jniLibs/` 可能包含本机准备的构建输入，不能作为普通缓存批量删除。完整环境准备、依赖来源和故障排查见 [构建指南](docs/doc-src/dev-core/BUILDING.md)。
-
-## 构建 Debug APK
-
-准备好依赖后，在 Windows 运行：
-
-```powershell
-.\gradlew.bat :app:assembleDebug --no-daemon --console=plain
-```
-
-在 macOS 或 Linux 运行：
+环境和输入准备完成后执行：
 
 ```bash
 ./gradlew :app:assembleDebug --no-daemon --console=plain
 ```
 
-APK 输出到：
-
-```text
-app/build/outputs/apk/debug/app-debug.apk
-```
-
-当前 Debug 产品合同只打包 `arm64-v8a`。Release、AAB、签名、商店发布和真机验收具有独立的授权与验证流程，不能由 Debug 构建结果替代。
-
-## 常用质量检查
-
-仓库自有 Python 入口应使用项目 `.venv`。Windows 示例：
+Windows PowerShell 使用：
 
 ```powershell
-.\.venv\Scripts\python.exe -B -m unittest discover -s ci\test -p "test_*.py"
-.\.venv\Scripts\python.exe -B ci\script\check_formal_readiness.py --repository . --require-main
-.\.venv\Scripts\python.exe -B ci\script\check_architecture_boundaries.py --repository . --require-main
-.\gradlew.bat testDebugUnitTest compileDebugAndroidTestKotlin compileDebugAndroidTestJavaWithJavac lintDebug --no-daemon --console=plain
+.\gradlew.bat :app:assembleDebug --no-daemon --console=plain
 ```
 
-完整门禁、候选提交边界和各检查入口见 [`ci/README.md`](ci/README.md)。
+产物为 `app/build/outputs/apk/debug/app-debug.apk`。将 APK 传到兼容设备后按 Android 安装提示操作；已连接且授权 ADB 的开发设备也可使用：
 
-## 文档导航
+```bash
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
 
-| 文档 | 用途 |
+不要对整仓执行递归子模块克隆：可选私有夜间构建子模块不属于常规 Debug 构建。
+
+### 3. 完成首次设置
+
+1. 阅读产品介绍、用户协议与隐私政策，按自己的选择确认。
+2. 只选择实际需要的权限；可以暂不授权进入应用，以后在 **设置 → 更多功能 → 权限管理** 中处理。
+3. 从底栏进入浏览器，或在 **设置 → 网页浏览器 → 网页主页** 中设置自定义网址或纯空白页。
+4. 使用 AI 时进入 AI 首页，从模型配置入口选择供应商、协议、模型并填写自己的 API Key。没有 Key 也可以保留在 AI 首页，浏览器使用不以模型配置为前提。
+5. 使用终端或本地模型前，按相应页面完成环境或模型准备。
+
+完整步骤见 [首次使用指南](docs/user-guide/getting_started.md)。
+
+## 熟悉你的工作空间
+
+```text
+软件首页
+├── 向左：负一屏，进入书签、历史与下载
+├── 向右：AI 首页，对话、模型与工具
+└── 底部导航
+    ├── 软件首页
+    ├── 浏览器
+    ├── 小程序
+    ├── 文件管理
+    └── 设置
+```
+
+AI 页面左上角菜单打开扩展、工具箱与工作流；深层页面按返回链逐级退出。从浏览器或 AI 进入设置后，返回会保留原来的网页或对话来源。
+
+### 按你的习惯浏览
+
+- **主页与恢复**：选择自定义或空白主页，分别控制边缘滑动历史、上次搜索恢复和普通多窗口保留；无痕不写入启动恢复记录。
+- **网站独立设置**：为当前域名调整广告拦截、脚本、缩放、外部应用等行为，不必修改所有网站的全局体验。
+- **长按与看图**：链接、图片、媒体和文本提供相应动作；图片支持全屏、分页和双指缩放，输入框保留系统原生编辑菜单。
+- **广告与扩展**：使用内置订阅、导入自己的规则，或通过“标记广告”管理当前网页元素；脚本和插件按各自权限运行。
+
+### 用 AI 连接内容与工具
+
+- 自行选择云服务商与模型，也可按项目支持的方式准备本地模型。
+- 在扩展中配置脚本、ToolPkg、Skill 和 MCP；需要环境变量的包完成配置后再启用。
+- OpenAI 搜索、Brave 搜索与学术检索各有独立配置。内置 Bilibili 工具包支持只读检索、内容导出和媒体处理，Cookie 由宿主持有。
+- “对话详情”可查看本地记录的请求、工具、异常、修订和终态；诊断导出适合排查问题，分享前仍需检查私人内容。
+
+扩展作者可从 [脚本开发指南](docs/SCRIPT_DEV_GUIDE.md) 开始；Bilibili 与远程工具配置见 [扩展使用指南](docs/user-guide/extensions.md)。
+
+### 播放、下载与网络
+
+内置 mpv 播放器支持队列、字幕、速度、Anime4K 与悬浮/全屏切换。在线播放缓存提供四种策略，“完整缓存”是符合条件媒体的会话缓存，不是离线下载。
+
+**设置 → 更多功能 → 网络代理** 统一控制 Kiyori 应用请求，可配置规则、全局或直连模式。它不改变其他应用的网络，也不等同 Android 系统 VPN。
+
+详细行为见 [网络、媒体与特权能力](docs/user-guide/network_and_media.md)。
+
+## 你的数据与连接
+
+- 云模型请求发送到你配置的服务商；Kiyori 不提供模型推理中转，也不连接 Operit 更新和公告服务。
+- 网页、市场、搜索、语音、GitHub 登录和远程扩展按功能连接对应服务。
+- 新公开文件使用 `Download/Kiyori`、`Pictures/Kiyori` 等路径。旧 Operit 与 Kiyori 是独立应用，迁移需先导出、再显式导入。
+- API Key、Cookie、密码与令牌不应出现在公开 Issue。AI 诊断 Markdown 是明文，即使凭据已脱敏，也可能包含私人对话和工具内容。
+- 网站凭据保存在设备绑定的加密私有存储中，无痕模式不保存或填写网站密码。
+
+更多说明见 [隐私、数据与迁移](docs/user-guide/privacy_and_data.md)，完整法律正文可在应用 **设置 → 更多功能** 阅读。
+
+## 常见问题
+
+| 问题 | 处理方式 |
 | --- | --- |
-| [`CONTEXT.md`](CONTEXT.md) | 产品术语、模块所有权、状态、协议、兼容性和不变量 |
-| [`docs/README.md`](docs/README.md) | 项目文档总入口 |
-| [构建指南](docs/doc-src/dev-core/BUILDING.md) | 环境、依赖、构建和故障排查 |
-| [贡献指南](docs/doc-src/dev-core/CONTRIBUTING.md) | 开发流程、变更和验证要求 |
-| [仓库布局](docs/doc-src/dev-core/REPOSITORY_LAYOUT.md) | 根目录、模块、生成目录和本地输入边界 |
-| [AI 对话详情与完整审计](docs/doc-src/dev-core/AI_CONVERSATION_AUDIT.md) | 审计数据模型、写入门禁、修订、导入导出、安全和验证边界 |
-| [正式开发准备](docs/TODO/formal_development_readiness/index.md) | 主分支、复现、CI、安全和设备验收门禁 |
-| [`docs/TODO/README.md`](docs/TODO/README.md) | 当前长期任务、专项计划和历史验证证据 |
+| 有官方 APK 下载吗？ | 目前没有公开发行渠道，请按源码构建指南生成开发版。 |
+| 不配置 AI 能浏览网页吗？ | 可以。模型与 API Key 是使用相应 AI 服务的前提，不是进入浏览器或 AI 首页的前提。 |
+| APK 无法安装怎么办？ | 核对 Android 版本、ARM64 架构、剩余空间和签名；不同签名不能直接覆盖，处理前先备份数据。 |
+| 能直接覆盖原 Operit 吗？ | 不能，两者 application ID 不同。使用显式备份导入，不自动接管旧数据。 |
+| 为什么某个网页或扩展需要额外权限？ | 相关功能依赖具体 Android 能力或第三方服务配置，在权限管理和扩展配置中按需要授权。 |
+| Debug 构建通过是否说明所有功能可用？ | 不能。真机、OEM、网络服务与发行流程分别验收；未完成状态会保留在专项计划中。 |
+| 应该提交什么排障信息？ | 设备与 Android 版本、Kiyori 版本或提交、复现步骤、预期和实际结果，以及必要的脱敏日志。 |
 
-## 兼容性与数据迁移
+## 参与 Kiyori
 
-Kiyori 是新的 Android 应用身份，历史 `com.ai.assistance.operit` 安装不能被 `com.kiyori` 直接覆盖。需要先在旧应用导出备份，再由 Kiyori 的明确导入入口恢复数据。
-
-为保持数据和生态兼容，以下标识不会因产品品牌变化而被机械重命名：
-
-- 源码 namespace `com.ai.assistance.operit`
-- `operit://` OAuth 回调及既有 Intent、AIDL、JNI 和 IPC 标识
-- 数据库、偏好、备份、工作区和文件格式
-- 插件、ToolPkg、MCP 和市场协议标识
-
-任何协议级迁移都必须具有独立的版本、数据迁移和回滚设计。
-
-### 设置中的播放器与法律中心
-
-“设置 → 视频播放器 → 默认视频播放器”提供“Kiyori 内置播放器”和“系统默认播放器”两个选项。该设置只影响外部视频文件通过 Android `ACTION_VIEW` 打开时的处理方式；浏览器媒体候选、播放队列和悬浮/全屏播放器始终由 Kiyori 的同一播放器会话负责。
-
-“设置 → 更多功能”按“权限 / 网络代理 / 开源协议 / 用户协议 / 隐私政策”排列。用户协议和隐私政策会直接进入对应的只读中文正文；开源协议页按界面与 Android、媒体与图形、AI 与本地推理、网络与数据、文档与文件、开发工具分类，逐项显示用途、许可证、许可证正文入口和项目地址。开源清单以当前 Gradle 依赖、源码模块、native source lock、随包许可证和运行时装载证据为范围；结构测试会将 FFmpegKit 的固定 source lock 与页面条目逐项对账，许可证正文和完整源码仍以各项目仓库及随附文件为准。
-
-首次安装的协议页复用同一版本和正文，协议升级后的重新确认页也会避开 Android 状态栏与显示缺口。首次启动权限页和设置权限中心使用同一 21 项、三组设备能力目录；首次启动不提供高影响能力的全局全选，不授权也可以直接进入应用，之后仍可在“设置 → 更多功能 → 权限”逐项管理。
-
-## 贡献与反馈
-
-开始开发前请阅读 [贡献指南](docs/doc-src/dev-core/CONTRIBUTING.md)、[`AGENTS.md`](AGENTS.md) 和相关专项 TODO。提交问题时请提供设备型号、Android 版本、复现步骤和经过脱敏的必要日志：
-
-- [问题反馈](https://github.com/Kiyori-CN/Kiyori/issues)
-- [功能建议](https://github.com/Kiyori-CN/Kiyori/issues/new/choose)
+| 你想做什么 | 入口 |
+| --- | --- |
+| 报告问题或建议 | [Issues](https://github.com/Kiyori-CN/Kiyori/issues) |
+| 了解开发流程 | [贡献指南](docs/doc-src/dev-core/CONTRIBUTING.md) |
+| 配置开发环境 | [构建指南](docs/doc-src/dev-core/BUILDING.md) |
+| 理解模块与不变量 | [项目上下文](CONTEXT.md) · [运行时契约](docs/doc-src/contracts/README.md) |
+| 查阅全部资料 | [文档中心](docs/README.md) · [文档目录](docs/CATALOG.md) |
+| 编写插件与工具 | [脚本指南](docs/SCRIPT_DEV_GUIDE.md) · [ToolPkg 格式](docs/TOOLPKG_FORMAT_GUIDE.md) |
 
 ## 上游与许可证
 
-Kiyori 基于 [Operit](https://github.com/AAswordman/Operit) 演进。Operit 的历史作者、贡献者、源码归属和许可证声明继续保留；Kiyori 的名称、图标、仓库和发行渠道由 Kiyori 项目独立维护。
+Kiyori 基于 [Operit](https://github.com/AAswordman/Operit) 演进，保留其作者、贡献者、源码归属与适用许可证声明。浏览器、媒体、终端和其他第三方组件的来源见 [NOTICE](NOTICE) 与应用内开源协议页。
 
-本仓库按 [GNU GPL v3 或更高版本](LICENSE) 提供。分发修改版本前，还应检查 [`NOTICE`](NOTICE)、随附第三方许可证、对应源码义务、品牌要求和相关服务条款。
+本仓库按 [GNU GPL v3 或更高版本](LICENSE) 提供。各组件的许可证与随附声明仍分别适用；Kiyori 的名称、图标、仓库与发行渠道由本项目独立维护。

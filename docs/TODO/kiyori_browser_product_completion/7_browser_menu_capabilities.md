@@ -95,7 +95,7 @@ Activity、LitePal 或 native ABP 架构。
 - `about:blank`、`file:` 和非 HTTP(S) 页面打开明确空态且不创建规则。用户脚本开关不会自动刷新
   网页；禁用会立即阻断新的脚本注入、桥接、页面菜单和网络能力，已经执行的 DOM 影响明确要求用户
   刷新当前页清理
-- 当前源码与定向测试已经通过；最终 Debug APK 与门禁证据见 `docs/TODO/README.md`。真机上的浅深
+- 当前源码与定向测试已经通过；最终 Debug APK 与门禁证据见 [历史证据索引](../history/README.md)。真机上的浅深
   主题、窄屏滚动、抽屉拖动、系统 Back、十一项真实行为和应用重启持久化保持
   `verification_pending`
 

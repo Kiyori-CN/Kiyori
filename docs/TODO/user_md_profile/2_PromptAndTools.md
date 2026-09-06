@@ -1,7 +1,7 @@
-# Prompt and tools
+# 提示词与用户资料工具
 
-Status: DONE
+原记录状态：DONE（静态验证范围）。
 
-Remove structured field formatting from conversation preparation. Inject the non-empty Markdown document inside a clearly delimited `user_profile` section when user-profile injection is enabled.
+对话准备不再格式化结构化字段；用户资料注入开启且文档非空时，在明确的 `user_profile` 边界内注入 Markdown。
 
-Character-card prompts remain independent and cannot replace the global user document. Rename the preference update tool to a document-oriented user-profile tool and retain normal tool permission confirmation. Keep the released tool name as a hidden compatibility adapter for installed packages and persisted calls; it writes into `user.md` and is not exposed in new prompts.
+角色卡提示词独立，不能替代全局用户文档。更新工具改为文档导向，继续使用工具权限确认；原上游已发布工具名只作为隐藏兼容 adapter 服务已安装包与持久调用，写入同一 `user.md`，不出现在新提示词中。

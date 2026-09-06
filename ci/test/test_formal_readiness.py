@@ -10,6 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "ci" / "script"))
 
 from check_formal_readiness import (  # noqa: E402
+    LEGAL_ATTRIBUTION_LINES,
     check_ci_android_toolchain,
     check_generated_native_inputs,
     check_native_source_pins,
@@ -21,6 +22,53 @@ from check_formal_readiness import (  # noqa: E402
 
 
 class FormalReadinessTest(unittest.TestCase):
+    def test_attribution_is_allowed_without_exempting_page_business_code(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for relative_path, lines in LEGAL_ATTRIBUTION_LINES.items():
+                source = root / relative_path
+                source.parent.mkdir(parents=True, exist_ok=True)
+                source.write_text("\n".join(sorted(lines)) + "\n", encoding="utf-8")
+            errors: list[str] = []
+            check_visible_branding(root, errors)
+            check_runtime_urls(root, errors)
+            self.assertEqual(errors, [])
+
+            for relative_path in LEGAL_ATTRIBUTION_LINES:
+                with (root / relative_path).open("a", encoding="utf-8") as stream:
+                    stream.write('val title = "OperitTerminal"\n')
+                    stream.write('val update = "https://github.com/AAswordman/Operit/releases"\n')
+            check_visible_branding(root, errors)
+            check_runtime_urls(root, errors)
+            self.assertEqual(len(errors), len(LEGAL_ATTRIBUTION_LINES) * 2)
+
+    def test_attribution_copy_and_modified_statement_are_not_exempt(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            relative_path, lines = next(iter(LEGAL_ATTRIBUTION_LINES.items()))
+            statement = next(line for line in lines if '"OperitTerminal"' in line)
+            original = root / relative_path
+            original.parent.mkdir(parents=True)
+            original.write_text('val update = ' + statement, encoding="utf-8")
+            copy = root / "app/src/main/java/Unrelated.kt"
+            copy.write_text(statement, encoding="utf-8")
+            errors: list[str] = []
+            check_visible_branding(root, errors)
+            check_runtime_urls(root, errors)
+            self.assertEqual(sum("upstream runtime URL" in error for error in errors), 2)
+            self.assertEqual(sum("visible legacy brand" in error for error in errors), 4)
+
+    def test_unquoted_legacy_name_does_not_hide_later_visible_brand(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "app/src/main/java/Example.kt"
+            path.parent.mkdir(parents=True)
+            path.write_text('import example.OperitTerminal\nval title = "OperitTerminal"\n', encoding="utf-8")
+            errors: list[str] = []
+            check_visible_branding(root, errors)
+            self.assertEqual(len(errors), 1)
+            self.assertIn(":2 ", errors[0])
+
     def write_generated_native_fixture(self, root: Path) -> None:
         files = {
             "app/build.gradle.kts": """

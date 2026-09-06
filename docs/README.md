@@ -7,8 +7,11 @@
 | 目标 | 文档 |
 | --- | --- |
 | 了解产品定位与当前能力 | [`README.md`](../README.md) |
+| 从安装到日常使用 | [用户指南](user-guide/README.md) |
 | 阅读英文项目介绍 | [`README.en.md`](../README.en.md) |
 | 查询术语、状态所有者和兼容边界 | [`CONTEXT.md`](../CONTEXT.md) |
+| 查询领域级执行与生命周期边界 | [运行时契约](doc-src/contracts/README.md) |
+| 查找全部父仓库文档 | [完整目录](CATALOG.md) |
 | 准备开发环境并构建 | [构建指南](doc-src/dev-core/BUILDING.md) |
 | 参与开发 | [贡献指南](doc-src/dev-core/CONTRIBUTING.md) |
 | 理解仓库目录和本地输入边界 | [仓库布局](doc-src/dev-core/REPOSITORY_LAYOUT.md) |
@@ -19,6 +22,8 @@
 
 ## 目录职责
 
+- `user-guide/`：首次使用、扩展配置、网络媒体与数据说明。
+- `doc-src/contracts/`：从精简 CONTEXT 按需进入的领域行为与生命周期契约。
 - `doc-src/architecture/`：当前架构、核心运行时和跨模块设计。
 - `doc-src/decisions/`：已经接受、具有长期影响的架构与产品决策。
 - `doc-src/dev-core/`：构建、贡献、仓库布局、播放器和底层开发资料。
@@ -26,7 +31,7 @@
 - `doc-src/package-dev/`：脚本包、ToolPkg 和内置工具开发接口。
 - `doc-src/research/`：依赖、外部 API 和技术方案的研究记录。
 - `doc-src/test-example/`：测试示例、实验记录和可复核的诊断材料。
-- `TODO/`：正在推进或仍有验收边界的专项计划；不是正式产品说明。
+- `TODO/`：专项计划与验收；总入口只导航，专项目录列出各 index，`history/` 保存历史证据。
 - `assets/`：按需创建主题目录，只提交被正式文档实际引用的图片和静态资源；不得保留零引用截图、历史导出或临时报告。
 - `legal/`：仓库随附的第三方许可证正文。
 - `.META/`：保留给经过审计的文档元数据和历史归档，不作为临时垃圾目录。
@@ -36,7 +41,7 @@
 同一事实只应有一个主要载体：
 
 - 用户如何获取、构建和理解项目：根 `README.md`。
-- 产品术语、模块所有权、状态、协议和不变量：根 `CONTEXT.md`。
+- 高频产品术语、所有权和不变量：根 `CONTEXT.md`；详细领域边界按需进入 `doc-src/contracts/`。
 - 开发方式、验证和交付流程：`AGENTS.md`、`doc-src/dev-core/` 与 `ci/README.md`。
 - 详细架构、API、schema、测试和决策：`doc-src/`。
 - 当前工作、未完成验收和历史证据：`TODO/`。

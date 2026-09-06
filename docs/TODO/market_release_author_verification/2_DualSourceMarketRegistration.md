@@ -1,23 +1,20 @@
-# Dual-Source Market Registration
+# 双来源市场登记
 
-## Old Implementation
+## 历史实现
 
-After choosing a local artifact, publication always created or updated an asset in the current user's `OperitForge` repository. The market asset table already had GitHub reference columns, but the publish mutation, persistence layer and projections did not retain them.
+选本地制品后总是在当前用户的 OperitForge 仓库创建或更新资产。市场表已有 GitHub 引用列，但发布写入、持久化和投影没有保存它们。
 
-## Change
+## 变更
 
-The publish page now offers its source choice after local artifact selection:
+选本地文件后可直接上传至 OperitForge，或引用作者维护的 GitHub Release 资产。后一条路径由 Android 加载仓库 Release、选择资产并下载，确认与本地文件相同后登记；Worker 仍验证 canonical Release 与作者，再持久化 owner、repository 和 tag。
 
-- Upload the current local artifact through `OperitForge`
-- Reference an asset from an author-maintained GitHub Release
+## 验收条件
 
-For a referenced asset, the Android client loads Releases from the entered repository, lets the author choose a Release and asset, downloads that asset, and requires it to match the local file before market registration. The Worker still validates the canonical GitHub Release and its author, then persists and emits the owner, repository and Release tag.
+- 两条路径使用同一资产契约。
+- `market_assets` 保存 `gh_owner / gh_repo / gh_release_tag`。
+- 条目和资产详情投影暴露该引用。
+- 作者指南说明手工创建 Release 与应用侧登记。
 
-## Verification
+## 原记录结果
 
-- The Worker accepts the same asset contract for both publication paths.
-- `market_assets` receives `gh_owner`, `gh_repo` and `gh_release_tag`.
-- Entry and asset-detail projections expose the stored GitHub reference.
-- The author guide and the Sandbox Package development skill describe manual Release creation and Operit-side market registration.
-
-Status: [DONE] Code and static reference checks are complete. Test execution was not run because it was not requested.
+代码和静态引用检查为 DONE；当时未要求测试，因此未执行测试。远端行为仍需独立验证。

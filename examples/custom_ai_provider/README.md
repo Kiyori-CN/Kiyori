@@ -1,30 +1,18 @@
-# Custom AI Provider Example
+# 自定义 AI Provider 示例
 
-This ToolPkg registers a custom AI provider that can be selected directly in model settings.
+本 ToolPkg 演示如何通过 `ToolPkg.registerAiProvider(...)` 注册可在模型设置中选择的自定义供应商。供应商 ID 为 `example_openai_compatible_provider`；实现面向 OpenAI 兼容接口，不声明完整供应商能力。
 
-Provider id:
+## 请求来源
 
-- `example_openai_compatible_provider`
+- 使用模型配置中的 `apiEndpoint`、`apiKey` 和 `modelName`。
+- 向兼容的 `/chat/completions` 入口提交请求。
+- 尝试从兼容的 `/models` 入口读取模型列表。
 
-What it does:
+## 使用步骤
 
-- Registers a provider with `ToolPkg.registerAiProvider(...)`
-- Uses the model config's `apiEndpoint`, `apiKey`, and `modelName`
-- Sends requests to an OpenAI-compatible `/chat/completions` endpoint
-- Tries to read models from a compatible `/models` endpoint
+1. 按 [ToolPkg 格式指南](../../docs/TOOLPKG_FORMAT_GUIDE.md) 准备并导入本目录对应的包。
+2. 启用包，进入模型设置。
+3. 选择“示例供应商”（注册 ID：`example_openai_compatible_provider`）。
+4. 填写 `API Endpoint`、`API Key` 和 `Model Name`，使用实际服务验证。
 
-Recommended usage:
-
-1. Import this folder as a ToolPkg.
-2. Enable the package.
-3. Open model settings.
-4. Select `示例 OpenAI 兼容供应商`.
-5. Fill in:
-   - `API Endpoint`
-   - `API Key`
-   - `Model Name`
-
-Notes:
-
-- This is an example package, intended to show the provider registration shape clearly.
-- The implementation is intentionally simple and targets OpenAI-compatible APIs.
+包结构以 [manifest.json](manifest.json) 为准；密钥由用户配置，不写入示例或发布产物。

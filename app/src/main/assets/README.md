@@ -36,4 +36,4 @@ This folder contains bundled applications that can be installed directly from th
 ## Assets Folders
 
 - **js/** - JavaScript files and shell scripts for various features
-- **packages/** - Additional package files for the app 
+- **packages/** - Additional package files for the app

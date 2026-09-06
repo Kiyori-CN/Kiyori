@@ -94,6 +94,10 @@ class OpenSourceLicensesTest {
                     "kaldifst",
                     "Wasm Micro Runtime",
                     "KiyoriTerminalCore",
+                    "mpv-android-anime4k",
+                    "Operit",
+                    "hikerView",
+                    "OperitTerminal",
                 ),
             ),
         )

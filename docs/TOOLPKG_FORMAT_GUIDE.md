@@ -17,7 +17,7 @@
 ### 1.2 ToolPkg vs 传统 JS 脚本
 
 | 特性 | 传统 JS 脚本 | ToolPkg |
-|------|-------------|---------|
+| --- | --- | --- |
 | 文件格式 | 单个 `.js` 文件 | ZIP 压缩包 (`.toolpkg`) |
 | 组织方式 | 单一脚本 | 多个子包 + 资源 + UI 模块 |
 | 资源文件 | 不支持 | 支持打包任意资源 |
@@ -169,7 +169,7 @@ windows_control.toolpkg (ZIP 压缩包)
 #### 3.2.1 顶层字段
 
 | 字段 | 类型 | 必需 | 说明 |
-|------|------|------|------|
+| --- | --- | --- | --- |
 | `schema_version` | number | 是 | 清单架构版本；`1` 为兼容格式，`2` 启用显式 `distribution.include` 分发清单 |
 | `toolpkg_id` | string | 是 | 包的唯一标识符，建议使用反向域名格式（如 `com.kiyori.windows_bundle`） |
 | `version` | string | 否 | 包的版本号，建议使用语义化版本（如 `0.2.0`） |
@@ -262,7 +262,7 @@ include 不是安全绕过项。即使被声明，符号链接、越界路径、
 ```
 
 | 字段 | 类型 | 必需 | 说明 |
-|------|------|------|------|
+| --- | --- | --- | --- |
 | `id` | string | 是 | 子包的唯一标识符，在容器内必须唯一 |
 | `entry` | string | 是 | 子包脚本的入口文件路径（相对于 ZIP 根目录） |
 | `enabled_by_default` | boolean | 否 | 是否默认启用，默认为 `false` |
@@ -289,7 +289,7 @@ include 不是安全绕过项。即使被声明，符号链接、越界路径、
 ```
 
 | 字段 | 类型 | 必需 | 说明 |
-|------|------|------|------|
+| --- | --- | --- | --- |
 | `id` | string | 是 | 模块 ID，在容器内必须唯一 |
 | `path` | string | 是 | `.wasm` 文件路径（相对于 manifest 所在目录） |
 | `exports` | string[] | 否 | 计划暴露给 JS 桥的导出函数名 |
@@ -486,7 +486,7 @@ exports.onInputMenuToggle = onInputMenuToggle;
 注册项字段：
 
 | 注册函数 | 字段 | 必需 | 说明 |
-|------|------|------|------|
+| --- | --- | --- | --- |
 | `ToolPkg.registerToolboxUiModule` | `id` | 是 | UI 模块唯一标识 |
 | `ToolPkg.registerToolboxUiModule` | `runtime` | 否 | 运行时类型，默认 `compose_dsl` |
 | `ToolPkg.registerToolboxUiModule` | `screen` | 是 | UI 模块函数（推荐 `import/require ... default` 后传入） |
@@ -549,7 +549,7 @@ exports.onInputMenuToggle = onInputMenuToggle;
 ToolPkg 运行时按执行来源分为四类上下文：
 
 | 上下文 | 典型入口 | 用途 | 实例边界 |
-|------|------|------|------|
+| --- | --- | --- | --- |
 | `main` | `manifest.main` 指向的包入口脚本 | ToolPkg 的包级逻辑：注册 hook、执行 hook、注册/处理包级 IPC、承载包级内存态 | 同一个 ToolPkg 容器共用一个包级 JS engine，内部 context key 形如 `toolpkg_main:<toolpkg_id>` |
 | `ui` | `*.ui.js` 的 Compose DSL screen / action handler | 渲染界面、响应点击、读取 UI state | 每个 UI route、widget、XML render 实例有自己的 JS engine |
 | `sandbox` | 独立工具脚本、子包工具脚本、调试脚本 | 执行一次性工具逻辑；可以通过 IPC 调用所属 ToolPkg 的 `main` | 按工具脚本执行链路管理 |
@@ -733,7 +733,7 @@ SHA-256、ToolPkg ID/版本、条目数和总解压大小。`kiyori_editor` 已�
 ```
 
 | 字段 | 类型 | 必需 | 说明 |
-|------|------|------|------|
+| --- | --- | --- | --- |
 | `key` | string | 是 | 资源的唯一键，用于在代码中引用 |
 | `path` | string | 是 | 资源文件在 ZIP 包中的路径 |
 | `mime` | string | 否 | 资源的 MIME 类型 |
@@ -780,7 +780,7 @@ ToolPkg 现在可以通过 `manifest` 直接注册工作流模板。注册后，
 字段说明：
 
 | 字段 | 类型 | 必需 | 说明 |
-|------|------|------|------|
+| --- | --- | --- | --- |
 | `id` | string | 是 | 模板唯一标识，在当前 ToolPkg 内必须唯一 |
 | `display_name` | LocalizedText | 否 | 模板显示名称 |
 | `description` | LocalizedText | 否 | 模板描述 |
@@ -832,7 +832,7 @@ ToolPkg 也可以通过 `manifest` 注册工作区模板。注册后，模板会
 字段说明：
 
 | 字段 | 类型 | 必需 | 说明 |
-|------|------|------|------|
+| --- | --- | --- | --- |
 | `id` | string | 是 | 模板唯一标识，在当前 ToolPkg 内必须唯一 |
 | `display_name` | LocalizedText | 否 | 模板显示名称 |
 | `description` | LocalizedText | 否 | 模板描述 |
@@ -1046,7 +1046,7 @@ exports.windows_exec = WindowsControl.windows_exec;
 尤其是下面这些返回值，不要再按 Java 容器 API 去写：
 
 | Java / Kotlin 返回值 | JS 侧实际使用方式 |
-|------|------|
+| --- | --- |
 | `List` / `Set` / 其他 `Iterable` | 当普通数组用：`length`、索引、`map/filter` |
 | Java 数组 / `JSONArray` | 当普通数组用 |
 | `Map` / `JSONObject` | 当普通对象用 |
@@ -1155,6 +1155,7 @@ exports.default = Screen;
 ### 6.3 可用组件
 
 #### 布局组件
+
 - `Column`：垂直布局
 - `Row`：水平布局
 - `Box`：容器
@@ -1162,6 +1163,7 @@ exports.default = Screen;
 - `LazyColumn`：可滚动列表
 
 #### 基础组件
+
 - `Text`：文本
 - `TextField`：文本输入框
 - `Button`：按钮
@@ -1172,6 +1174,7 @@ exports.default = Screen;
 - `Icon`：图标
 
 #### 进度组件
+
 - `LinearProgressIndicator`：线性进度条
 - `CircularProgressIndicator`：圆形进度条
 
@@ -1180,17 +1183,20 @@ exports.default = Screen;
 UI 模块通过 `ctx` 对象访问各种功能：
 
 #### 状态管理
+
 ```javascript
 const [value, setValue] = ctx.useState('key', initialValue);
 const memoValue = ctx.useMemo('key', () => computeValue(), [deps]);
 ```
 
 #### 工具调用
+
 ```javascript
 const result = await ctx.callTool('package:tool_name', { param: value });
 ```
 
 #### 环境变量
+
 ```javascript
 const apiKey = ctx.getEnv('API_KEY');
 await ctx.setEnv('API_KEY', 'new_value');
@@ -1198,11 +1204,13 @@ await ctx.setEnvs({ API_KEY: 'value1', TOKEN: 'value2' });
 ```
 
 #### 资源访问
+
 ```javascript
 const filePath = await ToolPkg.readResource('resource_key');
 ```
 
 #### 包管理
+
 ```javascript
 const isImported = await ctx.isPackageImported('package_name');
 await ctx.importPackage('package_name');
@@ -1212,6 +1220,7 @@ const packages = await ctx.listImportedPackages();
 ```
 
 #### 工具名解析
+
 ```javascript
 const toolName = await ctx.resolveToolName({
     packageName: 'my_package',
@@ -1222,6 +1231,7 @@ const toolName = await ctx.resolveToolName({
 ```
 
 #### UI 交互
+
 ```javascript
 await ctx.showToast('消息内容');
 const routes = ctx.listRoutes?.() ?? [];
@@ -1265,6 +1275,7 @@ Native 路由 ID 命名规则：`native.<Screen对象名的snake_case>`，例如
 - 旧接口不会自动创建主侧边栏插件入口；若需要主侧边栏插件入口，请额外调用 `ToolPkg.registerNavigationEntry(...)` 并使用 `surface: "main_sidebar_plugins"`。
 
 #### 其他
+
 ```javascript
 const locale = getLang(); // 'zh' 或 'en'
 const text = ctx.formatTemplate('Hello {name}!', { name: 'World' });
@@ -1653,6 +1664,7 @@ ls -lh app/src/main/assets/packages/windows_control.toolpkg
 ## 13. 更新日志
 
 ### v1.0.0 (2024-02-14)
+
 - 初始版本
 - 支持子包、UI 模块、资源文件
 - 支持多语言

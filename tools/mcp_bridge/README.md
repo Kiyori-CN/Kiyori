@@ -136,4 +136,4 @@ class McpClient {
 - 确保MCP服务器程序已正确安装并可执行
 - 桥接器应当与内部网络一起使用，不要暴露到公共互联网
 - 对于生产环境，考虑添加认证和加密层
-- 在Android环境中，确保应用有INTERNET权限 
+- 在Android环境中，确保应用有INTERNET权限

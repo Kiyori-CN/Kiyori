@@ -27,7 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import com.ai.assistance.operit.R
 
-internal const val KIYORI_OPEN_SOURCE_INVENTORY_VERSION = "2026-08-28-r1"
+internal const val KIYORI_OPEN_SOURCE_INVENTORY_VERSION = "2026-09-06-r1"
 
 internal data class OpenSourceLibrary(
     val name: String,
@@ -149,6 +149,7 @@ internal fun getOpenSourceLibraries(): List<OpenSourceLibrary> {
         OpenSourceLibrary("shaderc", "播放器 Vulkan/GLSL 着色器编译工具链", "Apache-2.0", "https://github.com/google/shaderc"),
         OpenSourceLibrary("mpv", "Kiyori 视频播放器使用的媒体内核", "GPL-2.0-or-later", "https://github.com/mpv-player/mpv"),
         OpenSourceLibrary("mpvlibAndroid", "Android JNI 绑定与 libmpv 构建", "GPL-2.0-or-later", "https://github.com/Riteshp2001/mpvlibAndroid"),
+        OpenSourceLibrary("mpv-android-anime4k", "Android mpv 播放器的 Anime4K 集成项目", "GPL-3.0-or-later", "https://github.com/azxcvn/mpv-android-anime4k"),
         OpenSourceLibrary("Mbed TLS", "播放器 FFmpeg 构建静态链接的 TLS 后端", "Apache-2.0 OR GPL-2.0-or-later", "https://github.com/Mbed-TLS/mbedtls"),
         OpenSourceLibrary("Anime4K", "实时动漫视频超分着色器", "MIT", "https://github.com/bloc97/Anime4K"),
 
@@ -281,6 +282,9 @@ internal fun getOpenSourceLibraries(): List<OpenSourceLibrary> {
         OpenSourceLibrary("zlib", "压缩与解压缩基础库", "Zlib", "https://github.com/madler/zlib"),
         OpenSourceLibrary("KiyoriTerminalCore", "Kiyori 终端子模块及其运行时组件", "LGPL-3.0-or-later", "https://github.com/Kiyori-CN/KiyoriTerminalCore"),
         OpenSourceLibrary("Kiyori", "Kiyori 应用源码与产品层", "GPL-3.0-or-later", "https://github.com/Kiyori-CN/Kiyori"),
+        OpenSourceLibrary("Operit", "Kiyori 继续开发所基于的上游应用源码", "LGPL-3.0-only", "https://github.com/AAswordman/Operit"),
+        OpenSourceLibrary("hikerView", "浏览器规则解析、插件与播放器参考项目", "未声明许可证", "https://github.com/qiusunshine/hikerView", licenseUrl = "https://github.com/qiusunshine/hikerView"),
+        OpenSourceLibrary("OperitTerminal", "Operit 与 Kiyori 集成的 Android Ubuntu 终端项目", "GPL-3.0", "https://github.com/AAswordman/OperitTerminal"),
         OpenSourceLibrary(
             "GNU config",
             "FFmpegKit 原生构建使用的平台识别脚本",

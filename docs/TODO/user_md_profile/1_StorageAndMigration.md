@@ -1,13 +1,12 @@
-# Storage and migration
+# 用户资料存储与迁移
 
-Status: DONE
+原记录状态：DONE（静态验证范围）。
 
-The current DataStore profile payload contains both display metadata and structured user fields. Add a private UTF-8 `user.md` repository with atomic writes and a 12,000-character limit.
+旧 DataStore profile 混合展示 metadata 与结构化字段。新增原子写入的私有 UTF-8 `user.md`，长度限制 12,000 字符。
 
-For schema version 2 migration:
+schema 2 迁移顺序：
 
-- Convert the active legacy profile into `user.md`
-- Export non-active structured profiles into `legacy-user-profiles.md`
-- Rewrite legacy profile metadata as memory-space metadata while retaining identifiers
-- Preserve the active identifier and every ObjectBox database
-- Mark the migration complete only after file and DataStore writes succeed
+1. 活动旧 profile 转为 `user.md`。
+2. 非活动结构化 profile 导出为 `legacy-user-profiles.md`。
+3. metadata 改为记忆空间术语，保留 ID、活动 ID 和所有 ObjectBox 数据库。
+4. 文件与 DataStore 写入都成功后才标记迁移完成。

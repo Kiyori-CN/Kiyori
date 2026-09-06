@@ -1,5 +1,5 @@
-`kiyori-pc-agent/` is the source of truth for the Windows agent asset.
+# Windows 代理资源
 
-`manifest.json` declares it as a directory resource (`inode/directory`).
-When `ToolPkg.readResource("pc_agent_zip")` is called, the runtime exports this
-folder as a zip file automatically, so no separate pre-packaging step is needed.
+`kiyori-pc-agent/` 是 Windows 代理资产的源码入口。
+
+`manifest.json` 将其声明为目录资源（`inode/directory`）。调用 `ToolPkg.readResource("pc_agent_zip")` 时，运行时把该目录导出为 ZIP，无须另行预打包。

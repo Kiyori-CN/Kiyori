@@ -4,6 +4,7 @@
 
 ## 目录结构
 
+- `contracts/`：领域行为与生命周期边界，是精简 CONTEXT 的按需延伸。
 - `architecture/`：整体架构、核心模块、运行时与跨模块数据流。
 - `decisions/`：已经接受且具有长期影响的架构和产品决策。
 - `dev-core/`：构建、贡献、仓库布局、播放器与底层开发资料。
@@ -31,6 +32,8 @@
 
 ## 关键入口
 
+- [运行时契约索引](contracts/README.md)
+- [全部正式文档与专项目录](../CATALOG.md)
 - [Kiyori 产品壳与导航架构](architecture/kiyori_product_shell_and_navigation.md)
 - [浏览器插件平台与插件中心架构](architecture/browser_plugin_platform.md)
 - [统一模型能力与可恢复执行](architecture/model_capability_and_resumable_execution.md)

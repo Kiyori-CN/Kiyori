@@ -1,4 +1,4 @@
-# Java Bridge Interface
+# Java Bridge 接口契约
 
 这份文档是 **QuickJS + Java Bridge 的接口契约**。
 
@@ -141,7 +141,7 @@ await someInstance.callSuspend('load', 'arg')
 Java / Kotlin 返回到 JS 时，保证按下表转换：
 
 | Java / Kotlin | JS |
-|------|------|
+| --- | --- |
 | `null` / `Unit` | `null` |
 | `String` / `char` | `string` |
 | Java 方法返回的 `CharSequence` 值 | 可按 `string` 使用 |
@@ -165,7 +165,7 @@ Java / Kotlin 返回到 JS 时，保证按下表转换：
 JS 传给 Java / Kotlin 时，保证按目标参数类型进行转换：
 
 | JS | Java / Kotlin |
-|------|------|
+| --- | --- |
 | `null` | 非 primitive 参数 |
 | `string` | `String` / `char` / `enum` / `Class<?>` / `JSONObject` / `JSONArray` |
 | `number` | 各种数字类型 |

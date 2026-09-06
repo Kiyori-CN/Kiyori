@@ -2,7 +2,9 @@
 For_Agent: native dependency FetchContent migration notes
 ---
 
-# Native Dependency FetchContent
+# Native 依赖 FetchContent 迁移
+
+本页保留原迁移计划，下文“默认跟随上游主分支”是当时方案。后续 JNI 稳定性收口已将 llama.cpp 与 MNN 改为精确提交，当前要求见 [可复现开发](../formal_development_readiness/2_reproducible_development.md)；不能据此恢复移动 ref。
 
 ## 旧状况
 

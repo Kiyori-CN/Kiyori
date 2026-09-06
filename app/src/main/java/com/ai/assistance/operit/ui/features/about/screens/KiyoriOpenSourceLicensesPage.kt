@@ -245,7 +245,7 @@ internal fun openSourceLibraryCategory(library: OpenSourceLibrary): String =
         ) -> "界面与 Android"
         library.name in setOf(
             "ExoPlayer", "FFmpeg", "FFmpegKit Maintained", "Smart Exception (FFmpegKit)", "LLVM libc++", "libplacebo", "shaderc",
-            "mpv", "mpvlibAndroid", "Mbed TLS", "Anime4K", "Filament", "Saba", "GLM", "spdlog", "stb", "tinyddsloader", "ufbx", "DragonBones", "Bullet Physics",
+            "mpv", "mpvlibAndroid", "mpv-android-anime4k", "Mbed TLS", "Anime4K", "Filament", "Saba", "GLM", "spdlog", "stb", "tinyddsloader", "ufbx", "DragonBones", "Bullet Physics",
             "cpu-features", "dav1d", "Expat", "Fontconfig", "FreeType", "FriBidi", "HarfBuzz", "Kvazaar", "LAME", "libaom", "libass", "libiconv",
             "libilbc", "libogg", "libpng", "libsndfile", "libtheora", "libuuid", "libvorbis", "libvpx", "libxml2", "OpenCORE AMR", "OpenH264", "Opus",
             "SDL2", "Shine", "Snappy", "SoX Resampler", "Speex", "TwoLAME", "VisualOn AMR-WB", "zimg", "libunibreak", "Lua", "MuJS",
@@ -269,6 +269,10 @@ internal fun openSourceLibraryCategory(library: OpenSourceLibrary): String =
 private fun openSourceLibrarySummary(library: OpenSourceLibrary): String =
     when (library.name) {
         "mpv", "mpvlibAndroid" -> "Kiyori 视频播放器使用的媒体内核与 Android JNI 构建"
+        "mpv-android-anime4k" -> "Android mpv 播放器的 Anime4K 集成"
+        "Operit" -> "Kiyori 继续开发所基于的上游应用源码"
+        "hikerView" -> "浏览器规则解析、插件与播放器参考项目"
+        "OperitTerminal" -> "Android Ubuntu 终端与 Operit 的集成项目"
         "FFmpegKit Maintained" -> "播放器与媒体工具使用的 FFmpegKit Android 构建"
         "FFmpeg" -> "播放器与媒体工具使用的音视频编解码库"
         "Smart Exception (FFmpegKit)" -> "FFmpegKit 的异常与堆栈跨语言传递组件"

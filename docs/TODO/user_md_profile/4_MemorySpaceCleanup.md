@@ -1,7 +1,7 @@
-# Memory-space cleanup
+# 记忆空间清理
 
-Status: DONE
+原记录状态：DONE（静态验证范围）。
 
-Rename preference-profile concepts used by memory selection to memory spaces. Keep identifiers stable so ObjectBox databases require no bulk copy.
+将记忆选择中的偏好 profile 术语改为记忆空间，保持 ID，使 ObjectBox 无须批量复制。角色卡固定绑定继续引用同一 ID。
 
-Character-card fixed bindings continue to reference the same identifier under memory-space terminology. Remove structured preference models, lock keys, guide navigation, and profile-field update APIs after migration support is in place.
+迁移支持建立后，移除结构化偏好模型、锁 key、引导导航与 profile 字段更新 API。

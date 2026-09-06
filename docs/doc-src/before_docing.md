@@ -10,7 +10,8 @@ status: active
 ## 文档职责
 
 - 根 `README.md` 面向用户与新贡献者，保持简洁、可操作并避免内部实现流水账。
-- 根 `CONTEXT.md` 记录术语、模块所有权、状态、协议、兼容标识和不变量。
+- 根 `CONTEXT.md` 只记录高频术语、所有权和不变量，适合会话按需注入；领域细节放入 `doc-src/contracts/`。
+- `docs/user-guide/` 保存用户首次使用、配置和排障说明，不放开发门禁与内部调用链。
 - `docs/doc-src/` 保存长期维护的架构、决策、开发、协议、研究和测试文档。
 - `docs/TODO/` 保存正在推进或仍有验收边界的专项计划与证据。
 - `AGENTS.md` 只记录工作方式和验证规则，不作为产品功能文档。
@@ -25,6 +26,10 @@ status: active
 
 ## 内容要求
 
+- 开发文档使用简体中文；类名、API、schema、枚举和命令保留源码拼写。`README.en.md`、明确双语入口、协议样例及上游许可证原文按各自用途保留语言。
+- 使用 UTF-8 无 BOM、LF 换行；每篇一个一级标题，标题不跳级，标题和列表前后留空行。
+- 表格使用一致的分隔行和左右空格；长段落按职责拆成小节或列表，避免把多条独立契约塞进单个表格单元。
+- 代码围栏标明语言；协议样例、命令、许可证与机器消费文本不因排版而改写语义。
 - 开头说明目标、适用范围、非目标、状态和权威边界。
 - 明确区分已验证事实、设计决策、推断、未知项和待设备/远端/用户验收内容。
 - 命令必须可复制，路径和参数必须与当前实现一致。
@@ -45,7 +50,7 @@ status: active
 2. 新任务在 `index.md` 中记录目标、范围、验收、依赖、风险和阶段状态。
 3. 每个阶段只在实现与相称验证完成后标记 `DONE`。
 4. 设备、远端、Release 或用户现场验收未完成时保持 `verification_pending`。
-5. 归档前更新所有引用；经项目约定确认后移入 `docs/.META/legacy/TODO/`。
+5. 总索引只导航，逐项历史证据归入 `docs/TODO/history/YYYY-MM/` 并链接原专项；不得把未完成专项整体归档成已完成。
 
 ## 提交前检查
 
@@ -56,3 +61,21 @@ status: active
 - 路径、命令、版本、分支、状态和产物说明与当前仓库一致。
 - 未包含凭据、私人日志、Cookie、令牌、签名材料或不必要的本机信息。
 - 运行 `ci/script/check_markdown_links.py` 对应的仓库检查。
+
+## 可复制检查入口
+
+使用项目 `.venv`。下列为 Windows 示例，Linux/macOS 将解释器替换为 `.venv/bin/python`：
+
+```powershell
+.\.venv\Scripts\python.exe -B ci/script/check_documentation.py --repository .
+```
+
+新增、移动或重命名文档后，更新确定性目录并再次检查：
+
+```powershell
+.\.venv\Scripts\python.exe -B ci/script/check_documentation.py --repository . --write-catalogs
+```
+
+该命令只更新 `docs/CATALOG.md` 与 `docs/TODO/catalog.md`，不重写正文。工作区检查包含未忽略的新文档；形成提交后，仍需用已确认的基线 SHA 与候选提交运行 `check_markdown_links.py --base <base-sha> --candidate HEAD`，防止工作区未跟踪文件掩盖候选树断链。
+
+上述命令自动验证文件路径、编码、标题层级和基本空白格式；本地锚点、实际渲染、外部站点与 API 行为仍需按变更范围复核。历史记录、协议夹具与第三方原文保留用途，不因文字清理扩大事实承诺。

@@ -102,6 +102,7 @@ graph TD
 ## 工作流程解析
 
 ### 1. 模式定义阶段（编译时）
+
 每种 Markdown 语法都通过 `kmpPattern` DSL 定义匹配规则：
 ```kotlin
 // 粗体模式：*content*
@@ -116,6 +117,7 @@ kmpPattern {
 - **二阶段匹配**：KMP 快速定位 + 正则表达式提取捕获组
 
 ### 2. 插件初始化
+
 每个 `StreamPlugin`（如 `BoldPlugin`, `HeaderPlugin`）都包装了一个 `StreamKmpGraph`，插件按优先级排序（长模式在前，短模式在后）。
 
 ### 3. 流式解析核心 - splitBy 操作
@@ -128,7 +130,7 @@ charStream.splitBy(blockPlugins).collect { blockGroup ->
 }
 ```
 
-**第二阶段：内联解析** 
+**第二阶段：内联解析**
 ```kotlin
 blockGroup.stream.splitBy(inlinePlugins).collect { inlineGroup ->
     // 对每个块的内容再次进行 KMP 模式匹配
@@ -150,6 +152,7 @@ blockGroup.stream.splitBy(inlinePlugins).collect { inlineGroup ->
 - **精确捕获**：结合正则表达式的捕获组功能，提取结构化数据
 
 ### 5. 数据输出
+
 解析结果最终构建成 `MarkdownNode` 树结构，支持实时的流式 UI 渲染，实现流畅的"打字机"效果。
 
 ## 公式渲染边界

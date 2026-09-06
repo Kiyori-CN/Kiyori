@@ -37,7 +37,6 @@
 为什么必须改：
 - 这是 LLM 生成 tool call 的依据，不改会导致 LLM 继续按旧参数调用。
 
-
 ### 2.2 必改：工具注册（toolName -> executor）
 
 - **文件**：`app/src/main/java/com/ai/assistance/operit/core/tools/ToolRegistration.kt`
@@ -47,7 +46,6 @@
 
 为什么必须看：
 - 改了工具名或拆分工具时，如果注册没同步，会出现“工具不存在/无法执行”。
-
 
 ### 2.3 必改：Kotlin 执行实现（参数读取与校验）
 
@@ -67,7 +65,6 @@
 为什么必须改：
 - 不改这里就算 schema 改了，执行层也拿不到参数或行为不对。
 
-
 ### 2.4 必改：JS 侧工具封装（Tools.*）
 
 - **文件**：`app/src/main/java/com/ai/assistance/operit/core/tools/javascript/JsTools.kt`
@@ -79,7 +76,6 @@
 为什么必须改：
 - 许多脚本调用的是 `Tools.Files.xxx` 而不是直接 toolCall。
 
-
 ### 2.5 必改：TypeScript 类型定义（对脚本作者的契约）
 
 - **文件**：`examples/types/*.d.ts`（尤其是 `examples/types/files.d.ts`、`examples/types/chat.d.ts`、`examples/types/core.d.ts`、`examples/types/system.d.ts` 等）
@@ -90,7 +86,6 @@
 
 为什么必须改：
 - 这是脚本作者写 TS 时的类型提示来源。
-
 
 ### 2.6 必改：示例代码（TS/JS）
 
@@ -106,7 +101,6 @@
 补充说明（advice-only 工具）：
 - 若某个工具仅用于说明/提示（如 `usage_advice`），在 examples 的 metadata 里加入 `advice: true`。
 - 标记为 `advice: true` 的工具不要求在运行时存在真实实现，可跳过“工具不存在”的校验。
-
 
 ### 2.7 必改：打包资源 / 产物文件
 
@@ -138,7 +132,6 @@
 
 为什么必须改：
 - App 实际运行时可能直接加载 assets 里的 JS 包；你只改了 TS 不改 assets，会导致运行仍调用旧参数。
-
 
 ### 2.8 必改：文档
 

@@ -26,6 +26,17 @@ FORBIDDEN_RUNTIME_URLS = (
     "https://github.com/AAswordman/Operit",
     "https://github.com/AAswordman/OperitTerminalCore",
 )
+# 归属说明允许原项目名称，但不能让整份页面绕过产品品牌和业务 URL 检查。
+# 只屏蔽已审阅的完整语句；额外拼接、改变用途或相邻业务代码仍按普通源码检查。
+LEGAL_ATTRIBUTION_LINES = {
+    Path("app/src/main/java/com/ai/assistance/operit/ui/features/about/screens/OpenSourceLicenses.kt"): frozenset({
+        'OpenSourceLibrary("Operit", "Kiyori 继续开发所基于的上游应用源码", "LGPL-3.0-only", "https://github.com/AAswordman/Operit"),',
+        'OpenSourceLibrary("OperitTerminal", "Operit 与 Kiyori 集成的 Android Ubuntu 终端项目", "GPL-3.0", "https://github.com/AAswordman/OperitTerminal"),',
+    }),
+    Path("app/src/main/java/com/ai/assistance/operit/ui/features/about/screens/KiyoriOpenSourceLicensesPage.kt"): frozenset({
+        '"OperitTerminal" -> "Android Ubuntu 终端与 Operit 的集成项目"',
+    }),
+}
 RUNTIME_ARTIFACT_PATTERNS = (
     ".gradle/",
     "app/build/",
@@ -100,6 +111,14 @@ def check_package_metadata(root: Path, errors: list[str]) -> None:
         errors.append("package-lock.json root metadata must match package.json")
 
 
+def mask_legal_attribution(path: Path, text: str) -> str:
+    allowed = LEGAL_ATTRIBUTION_LINES.get(path, frozenset())
+    return "".join(
+        re.sub(r"[^\r\n]", " ", line) if line.strip() in allowed else line
+        for line in text.splitlines(keepends=True)
+    )
+
+
 def check_visible_branding(root: Path, errors: list[str]) -> None:
     visible_tokens = ("OperitTerminal", "Operit Terminal", "Operit终端")
     resource_root = root / "app" / "src" / "main" / "res"
@@ -119,11 +138,12 @@ def check_visible_branding(root: Path, errors: list[str]) -> None:
 
     source_root = root / "app" / "src" / "main" / "java"
     for path in sorted(source_root.rglob("*.kt")):
-        text = path.read_text(encoding="utf-8")
+        text = mask_legal_attribution(path.relative_to(root), path.read_text(encoding="utf-8"))
         for token in visible_tokens:
-            index = text.find(token)
-            if index >= 0 and '"' in text[max(0, text.rfind("\n", 0, index) + 1):index]:
-                errors.append(f"{path.relative_to(root)}:{line_number(text, index)} contains a visible legacy brand {token}")
+            for match in re.finditer(re.escape(token), text):
+                index = match.start()
+                if '"' in text[max(0, text.rfind("\n", 0, index) + 1):index]:
+                    errors.append(f"{path.relative_to(root)}:{line_number(text, index)} contains a visible legacy brand {token}")
 
     terminal_output = (
         root
@@ -165,7 +185,9 @@ def check_runtime_urls(root: Path, errors: list[str]) -> None:
     for path in sorted(runtime_root.rglob("*")):
         if not path.is_file() or path.suffix.lower() not in {".kt", ".java", ".xml", ".json"}:
             continue
-        text = path.read_text(encoding="utf-8", errors="replace")
+        text = mask_legal_attribution(
+            path.relative_to(root), path.read_text(encoding="utf-8", errors="replace")
+        )
         normalized_text = text.casefold()
         for forbidden in FORBIDDEN_RUNTIME_URLS:
             index = normalized_text.find(forbidden.casefold())

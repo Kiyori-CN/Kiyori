@@ -1,4 +1,4 @@
-# External HTTP Chat API
+# 外部 HTTP 对话接口
 
 本文档描述 Operit 新增的局域网 HTTP 聊天接口。它与现有 `EXTERNAL_CHAT` Intent 接口语义一致，只是入口从广播改成了 HTTP。
 

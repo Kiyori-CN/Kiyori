@@ -1,99 +1,85 @@
-# Kiyori PC Agent (Windows)
+# Kiyori PC Agent（Windows 代理）
 
-Windows side helper project for Kiyori.
+本项目是 Kiyori `windows_control` 的 Windows 端 HTTP 代理，提供预设命令、原始命令和文件操作。默认配置界面为 `http://127.0.0.1:58321`，当前 HTTP 转发模式不依赖 OpenSSH。
 
-- Local config UI: `http://127.0.0.1:58321`
-- Single-entry launcher: `kiyori_pc_agent.bat`
-- HTTP relay for mobile side `windows_control`
-- Preset and raw command execution endpoints
+## 开始使用
 
-## Quick Start
+1. 安装 Node.js 18 或以上版本。
+2. 双击 `kiyori_pc_agent.bat`。启动器清理原服务进程，启动服务并打开浏览器。
+3. 在界面完成转发验证，复制生成的配置文本到移动端。
 
-1. Install Node.js 18+ on Windows.
-2. Double click `kiyori_pc_agent.bat`.
-3. It will auto-clean previous process, start service, and open browser.
-4. In UI, complete relay verification and copy config text for mobile side paste.
+启动器会改变本机进程和服务状态。它是唯一用户启动入口；内部脚本 `scripts/launch_agent.ps1` 负责清理、启动与打开界面。
 
-## Entry and Scripts
+## 日志
 
-- `kiyori_pc_agent.bat`: only user-facing launcher bat
-- `scripts/launch_agent.ps1`: internal launcher logic (cleanup + start + open UI)
-- (No OpenSSH dependency in current HTTP relay mode)
+| 文件 | 内容 |
+| --- | --- |
+| `logs/launcher.log` | 启动流程 |
+| `logs/agent.runtime.log` | HTTP、API 与进程运行日志 |
+| `logs/agent.out.log` | Node 标准输出 |
+| `logs/agent.err.log` | Node 标准错误 |
 
-## Logs
+## 前端结构
 
-- `logs/launcher.log`: launcher flow
-- `logs/agent.runtime.log`: runtime server logs (HTTP/API/process)
-- `logs/agent.out.log`: Node stdout stream
-- `logs/agent.err.log`: Node stderr stream
+| 文件 | 职责 |
+| --- | --- |
+| `public/index.html` | 页面入口 |
+| `public/styles/tokens.css` | 设计变量 |
+| `public/styles/base.css` | 布局与响应式规则 |
+| `public/styles/components.css` | 复用组件样式 |
+| `public/scripts/main.js` | 声明式布局树与事件绑定 |
+| `public/scripts/ui/runtime.js` | 轻量声明式渲染器 |
+| `public/scripts/ui/widgets.js` | 布局与控件 |
+| `public/scripts/i18n/strings.js` | 中英文资源 |
+| `public/scripts/services/api.js` | API 请求层 |
 
-## Web UI Structure
+## 后端结构
 
-- `public/index.html`: page entry
-- `public/styles/tokens.css`: design tokens
-- `public/styles/base.css`: layout and responsive rules
-- `public/styles/components.css`: reusable UI component styles
-- `public/scripts/main.js`: declarative layout tree and event wiring
-- `public/scripts/ui/runtime.js`: lightweight declarative renderer
-- `public/scripts/ui/widgets.js`: reusable widgets (layout + controls)
-- `public/scripts/i18n/strings.js`: centralized i18n resources (zh/en)
-- `public/scripts/services/api.js`: API request layer
+| 文件 | 职责 |
+| --- | --- |
+| `src/server.js` | 组件装配与生命周期 |
+| `src/config/paths.js` | 项目路径常量 |
+| `src/config/constants.js` | 默认配置、预设与静态 MIME 映射 |
+| `src/lib/logger.js` | 运行日志 |
+| `src/lib/http-utils.js` | JSON 解析、响应与静态文件 |
+| `src/stores/config-store.js` | 配置加载、保存与预设规范化 |
+| `src/stores/runtime-store.js` | `runtime.json` 写入与移除 |
+| `src/services/process-service.js` | 进程执行、网络与用户快照 |
+| `src/handlers/api-handler.js` | `/api/*` 路由 |
 
-## Backend Structure
+## 本地 API
 
-- `src/server.js`: composition root (wiring + lifecycle)
-- `src/config/paths.js`: project path constants
-- `src/config/constants.js`: default config, presets, static MIME map
-- `src/lib/logger.js`: runtime logger (`logs/agent.runtime.log`)
-- `src/lib/http-utils.js`: JSON body parse, response helpers, static file serving
-- `src/stores/config-store.js`: config load/save and preset normalization
-- `src/stores/runtime-store.js`: runtime.json write/remove
-- `src/services/process-service.js`: process execution, network/user snapshot
-- `src/handlers/api-handler.js`: all `/api/*` route handling
+公开读取入口：
 
-## API (local)
-
-Public read endpoints:
 - `GET /api/health`
 - `GET /api/config`
 - `GET /api/presets`
 - `GET /api/startup/state`
 
-Config / command endpoint:
+配置与命令入口：
+
 - `POST /api/config`
-- `POST /api/command/execute` (requires `token`)
+- `POST /api/command/execute`：要求 `token`。
 - `POST /api/startup/apply_recommended_bind`
 
-File endpoints (all require `token` in JSON body):
-- `POST /api/file/list`
-  - body: `{ "token": "...", "path": "D:/..." | "relative/path", "depth": 1 }`
-- `POST /api/file/read`
-  - body: `{ "token": "...", "path": "...", "encoding": "utf8" }`
-- `POST /api/file/read_segment`
-  - body: `{ "token": "...", "path": "...", "offset": 0, "length": 65536, "encoding": "utf8" }`
-- `POST /api/file/write`
-  - body: `{ "token": "...", "path": "...", "content": "...", "encoding": "utf8" }`
-- `POST /api/file/edit`
-  - body: `{ "token": "...", "path": "...", "old_text": "...", "new_text": "...", "expected_replacements": 1, "encoding": "utf8" }`
-- `POST /api/file/read_base64`
-  - body: `{ "token": "...", "path": "...", "offset": 0, "length": 1024 }`
-- `POST /api/file/write_base64`
-  - body: `{ "token": "...", "path": "...", "base64": "..." }`
+文件入口均使用 POST，JSON 请求体必须携带 `token` 与 `path`；`path` 可以是 Windows 绝对路径或相对路径。其余参数如下：
 
-## Security Notes
+| 入口 | 其余参数示例 |
+| --- | --- |
+| `/api/file/list` | `depth: 1` |
+| `/api/file/read` | `encoding: "utf8"` |
+| `/api/file/read_segment` | `offset: 0`、`length: 65536`、`encoding: "utf8"` |
+| `/api/file/write` | `content: "..."`、`encoding: "utf8"` |
+| `/api/file/edit` | `old_text: "..."`、`new_text: "..."`、`expected_replacements: 1`、`encoding: "utf8"` |
+| `/api/file/read_base64` | `offset: 0`、`length: 1024` |
+| `/api/file/write_base64` | `base64: "..."` |
 
-- Default bind address is `127.0.0.1`.
-- `apiToken` is always enabled. If missing, agent auto-generates one.
-- In wizard one-click fill, token is generated only when missing (existing token is reused).
+## 配置边界
 
-## Troubleshooting
+默认绑定 `127.0.0.1`。`apiToken` 始终启用；缺失时自动生成。向导的一键填充仅在 token 缺失时生成，已有值继续复用。运行配置和日志包含本机信息，应留在本地。
 
-- If browser does not open:
-  1. Confirm Node.js is installed (`node -v`).
-  2. Check `logs/launcher.log`.
-  3. Check `logs/agent.err.log` and `logs/agent.runtime.log`.
-  4. Double click `kiyori_pc_agent.bat` again (it auto-cleans old process).
-- If configured `bindAddress` is no longer available (for example LAN IP changed):
-  1. Launcher will start temporary local mode on `127.0.0.1`.
-  2. Opened web console shows startup recovery panel.
-  3. Click the web button to apply recommended IPv4 and auto-restart.
+## 排障
+
+浏览器未打开时，先用 `node -v` 确认 Node.js，再检查启动日志、标准错误与运行日志。重新双击启动器会清理旧服务进程后重启。
+
+当已配置的 `bindAddress` 不再可用（例如局域网 IP 变化）时，现有启动器进入临时 `127.0.0.1` 本地模式。配置界面显示启动恢复面板，由用户点击按钮应用推荐 IPv4 并重启。

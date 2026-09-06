@@ -908,7 +908,7 @@ git diff --check
 本地验证已覆盖确定性编码、字段 round-trip、显式正则、规则语义等价、正文损坏、截断、身份不符、
 固定资源类型编号、启动源码合同、内容摘要判断、刷新提交状态合并和既有跨分区规则语义。
 `BrowserAdBlockCompiledCacheTest` 等广告/设置/浏览器定向矩阵及 architecture `phase=m03` 已通过。
-最终正式门禁、Debug APK 证据已补充到 `docs/TODO/README.md`；提交与推送证据由本任务最终
+最终正式门禁、Debug APK 证据已补充到 [历史证据索引](../history/README.md)；提交与推送证据由本任务最终
 交付记录和 Git 历史提供，不把尚未发生的 commit 写成已完成事实。
 
 仍未完成：

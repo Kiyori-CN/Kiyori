@@ -1,4 +1,4 @@
-# ToolPkg Probe Timing Breakdown
+# ToolPkg 探针耗时分析
 
 采样日志：2026-03-10 00:17:18  
 场景：`deepsearching_message_plugin` 未命中，`probeOnly=true`，消息长度 `2`
@@ -72,4 +72,3 @@
 | 早期 probe | ~498ms |
 | 解压缓存后 | ~385ms |
 | 模块上下文复用后 | ~114ms |
-

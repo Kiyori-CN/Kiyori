@@ -1,6 +1,7 @@
 ---
 based_on: test_example/chat_import_markdown_example.md
 ---
+
 # Markdown 聊天记录导入格式说明
 
 本文档介绍 Operit 应用支持的新版 Markdown 格式聊天记录导入规范。
@@ -49,7 +50,7 @@ based_on: test_example/chat_import_markdown_example.md
 
 **支持字段**（均可选）：
 | 字段 | 说明 | 缺省值 |
-|------|------|--------|
+| --- | --- | --- |
 | `title` | 对话标题 | "Imported from Markdown" |
 | `created` | 创建时间 | 当前导入时间 |
 | `id` | 唯一标识符 | 自动生成 UUID |
@@ -76,7 +77,7 @@ based_on: test_example/chat_import_markdown_example.md
 
 **支持字段**：
 | 字段 | 说明 | 缺省值 |
-|------|------|--------|
+| --- | --- | --- |
 | `role` | 角色 (user/ai) | user |
 | `model` | 模型名称 | markdown |
 | `timestamp` | 时间戳 | 自动顺序生成 |
@@ -98,11 +99,13 @@ based_on: test_example/chat_import_markdown_example.md
 Operit 支持通过 **Zip 压缩包** 来管理多个对话。
 
 ### 导出
+
 当导出多个对话为 Markdown 格式时，系统会生成一个 `.zip` 文件。
 - 压缩包内包含多个 `.md` 文件。
 - 每个 `.md` 文件对应一个对话，文件名为对话标题。
 
 ### 导入
+
 你可以将多个符合上述规范的 Markdown 文件打包成 `.zip` 文件进行一次性导入。
 - 系统会自动解压并读取包内所有 `.md` 文件。
 - 每个文件将被导入为一个独立的对话记录。
@@ -110,12 +113,15 @@ Operit 支持通过 **Zip 压缩包** 来管理多个对话。
 ## ⚠️ 常见问题
 
 ### Q: 可以在一个文件中混合不同的对话吗？
+
 **A:** **不再支持**。请将每个对话保存为单独的 `.md` 文件。如果在单个文件中使用 `---`，它将被视为正文内容的一部分。
 
 ### Q: 我可以手动编写这种格式吗？
+
 **A:** 可以。只需确保文件扩展名为 `.md`，并且包含 `<!-- msg: ... -->` 注释即可。
 
 ### Q: 为什么我的文件无法导入？
+
 **A:** 请检查：
 1. 文件是否包含 `<!-- msg: ... -->` 注释。
 2. 如果是 Zip 包，请确保里面包含的是 `.md` 文件。

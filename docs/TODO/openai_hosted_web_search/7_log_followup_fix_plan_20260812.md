@@ -10,6 +10,7 @@ remote_relay_verification: pending
 device_verification: pending
 user_acceptance: pending
 ---
+
 # 2026-08-12 日志驱动后续修复计划
 
 ## 1. 计划目标

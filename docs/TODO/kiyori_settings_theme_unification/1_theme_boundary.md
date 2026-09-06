@@ -60,4 +60,3 @@ AI 对话根 `AIChatScreen` 在自身内容下方挂载现有 `AppBackgroundLaye
 
 消息图片导出和 WebChat 继续读取同一 AI 局部背景 preference。它们使用固定 Kiyori 浅深色方案
 生成默认气泡与文本颜色，不读取已经删除的全局自定义色。
-

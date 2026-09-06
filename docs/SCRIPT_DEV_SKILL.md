@@ -3,7 +3,7 @@ name: SandboxPackage_DEV
 description: 用于 Operit Sandbox Package 开发。
 ---
 
-# SandboxPackage_DEV
+# Sandbox Package 开发技能说明
 
 ## 第一部分：安装与更新
 

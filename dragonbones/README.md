@@ -89,4 +89,4 @@ dragonBonesView.setScale(0.5f)
 
 1. 确保在 AndroidManifest.xml 中添加了 INTERNET 权限
 2. 确保模型文件路径正确
-3. 模型加载是异步的，请使用回调函数处理加载完成后的逻辑 
+3. 模型加载是异步的，请使用回调函数处理加载完成后的逻辑

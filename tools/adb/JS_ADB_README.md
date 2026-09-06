@@ -646,7 +646,7 @@ exports.myFunction = myFunction;
    - Check for TypeScript-specific syntax (like type annotations)
    - Ensure functions are properly exported
    - Verify parameter formats are correct
-   
+
 ## Required Permissions
 
 This feature requires the following permissions:
@@ -657,4 +657,4 @@ This feature requires the following permissions:
 ## Security Considerations
 
 - This feature should only be used for development and debugging purposes
-- In production environments, this feature should be disabled or restricted to prevent security risks 
+- In production environments, this feature should be disabled or restricted to prevent security risks

@@ -1,4 +1,4 @@
-# External Intent API: `EXTERNAL_CHAT`
+# 外部 Intent 对话接口：`EXTERNAL_CHAT`
 
 本文档描述一个**独立于工作流系统**的外部交互接口：外部应用通过发送广播 Intent（`com.ai.assistance.operit.EXTERNAL_CHAT`）向 Operit 发起一次“发送消息给 AI”的请求，并通过另一个广播接收执行结果。
 
@@ -30,7 +30,7 @@ Manifest 注册：
 ## 2. 请求参数（Intent extras）
 
 | extra key | 类型 | 必填 | 默认值 | 说明 |
-|---|---:|:---:|---:|---|
+| --- | ---: | :---: | ---: | --- |
 | `message` | `String` | 是 | - | 要发送给 AI 的文本 |
 | `request_id` | `String` | 否 | - | 业务侧请求 ID（原样回传，便于关联请求/响应） |
 | `group` | `String` | 否 | - | 当 `create_new_chat=true` 时，用于新对话分组 |
@@ -52,7 +52,7 @@ Manifest 注册：
 Operit 在处理完成后会发送一条广播（action 为 `reply_action` 或默认 action），携带如下 extras：
 
 | extra key | 类型 | 说明 |
-|---|---:|---|
+| --- | ---: | --- |
 | `request_id` | `String` | 若请求里携带，则原样回传 |
 | `success` | `Boolean` | 是否成功 |
 | `chat_id` | `String` | 发生交互的对话 ID（如果可用） |

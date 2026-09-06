@@ -144,7 +144,7 @@
   再在原活动标签页上显示对应插件抽屉；不导航、不刷新或重建当前 WebSession。
 - 当前 Android WebView 不支持 userscript runtime 时，所有请求开启总授权的 UI 入口均禁用。
 - 脚本详情源码页可导出 active revision；删除继续清理脚本绑定数据，批量删除隔离单项失败。
-- 自动测试、formal readiness、Debug APK 和设备验收证据以 `docs/TODO/README.md` 的本轮记录为准。
+- 自动测试、formal readiness、Debug APK 和设备验收证据见 [历史证据索引](../history/README.md) 中对应日期记录。
 
 ## 2026-08-03 自动悬浮最小时长
 
@@ -160,7 +160,7 @@
   第二份状态或媒体选择逻辑。
 - 聚焦 `KiyoriSettingsPagesTest 11/11` 与
   `KiyoriBrowserPluginSettingsPolicyTest 2/2` 已通过；最终 formal readiness、Debug APK 和真机视觉
-  证据以 `docs/TODO/README.md` 的本轮记录为准。
+  证据见 [历史证据索引](../history/README.md) 中对应日期记录。
 
 ## 2026-07-29 播放器标准统一
 
@@ -181,7 +181,7 @@
 - 主页自定义子页也使用同一折叠标题、分组说明和设置行，输入弹窗只负责校验并写入既有主页 owner
 
 本轮定向 `KiyoriSettingsPagesTest` `8/8` 与主源码 Kotlin 编译通过；最终 Debug APK 和真机视觉
-验收以 `docs/TODO/README.md` 的 2026-07-29 本轮记录为准。
+验收见 [历史证据索引](../history/README.md) 中 2026-07-29 的记录。
 
 ## 2026-07-26 当前里程碑
 

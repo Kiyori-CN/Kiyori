@@ -722,6 +722,7 @@ detach 撤销；定向 `BrowserInteractionContractTest` 强制重跑通过（159
 `com.kiyori / 45 / 0.1.0`、arm64-v8a、唯一 launcher、Debug V2 单 signer 与 16 KiB ZIP 对齐
 均保持。真实 WebView provider、脚本网络、安装卸载竞争、进程死亡、设备和长时间运行仍保持
 `verification_pending`。
+
 ### D-02 Browser 用户脚本 attach/detach 代际锁实施证据
 
 上一批 generation 只保护主线程消费 pending attach 之前的窗口。源码复核发现，attach 消费并

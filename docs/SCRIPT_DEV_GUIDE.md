@@ -843,7 +843,7 @@ if (loginButton) {
 
 ## 8. 编译
 
-TypeScript 脚本 (`.ts`) 需要被编译成 JavaScript (`.js`)才能被执行。项目已配置好 `tsconfig.json`，通常可以使用 `tsc` 命令来编译所有脚本。 
+TypeScript 脚本 (`.ts`) 需要被编译成 JavaScript (`.js`)才能被执行。项目已配置好 `tsconfig.json`，通常可以使用 `tsc` 命令来编译所有脚本。
 
 ## 9. 在设备上运行和测试脚本
 
@@ -896,7 +896,7 @@ tools\\adb\\execute_js.bat examples\\my_new_script.js hello_world "{\\"name\\":\
 OPERIT_RESULT_WAIT_SECONDS=30 ./tools/adb/execute_js.sh examples/my_script.js main '{}'
 ```
 
-这样就完成了一个从编写到设备上测试的完整开发循环。 
+这样就完成了一个从编写到设备上测试的完整开发循环。
 
 ### 9.4. VS Code 集成 (推荐)
 
@@ -912,7 +912,7 @@ OPERIT_RESULT_WAIT_SECONDS=30 ./tools/adb/execute_js.sh examples/my_script.js ma
 4.  点击绿色的“启动调试”按钮 (F5)。
 5.  根据顶部弹出的提示框，依次输入**函数名**和 **JSON 格式的参数**，然后按回车。
 
-VS Code 会自动打开一个新的终端面板，并执行相应的脚本，你可以在该面板中直接看到结构化 JSON 执行结果。这个集成化的工作流极大地提升了开发和调试的效率。 
+VS Code 会自动打开一个新的终端面板，并执行相应的脚本，你可以在该面板中直接看到结构化 JSON 执行结果。这个集成化的工作流极大地提升了开发和调试的效率。
 
 ## 10. VS Code 配置 (可选)
 
@@ -1067,4 +1067,4 @@ VS Code 会自动打开一个新的终端面板，并执行相应的脚本，你
 }
 ```
 
-完成这两个文件的创建后，重启 VS Code，“运行和调试”中的配置项就应该可用了。 
+完成这两个文件的创建后，重启 VS Code，“运行和调试”中的配置项就应该可用了。

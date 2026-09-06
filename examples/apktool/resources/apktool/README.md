@@ -1,20 +1,20 @@
-# APK Reverse Toolkit Runtime Resources
+# APK 逆向工具运行资源
 
-This directory keeps the generated runtime layout and docs, but the `.jar` artifacts are local build outputs and are no longer tracked by Git.
+本目录定义 APK 逆向工具的 Android 运行资源布局。`.jar` 是本地构建产物，不由 Git 跟踪；生成入口为 [build_runtime_android_resources.ps1](../../build_runtime_android_resources.ps1)。
 
-- Runtime jars:
-  - `apktool-runtime-android.jar`
-  - `android-framework.jar`
-  - `jadx-runtime-android.jar`
-  - `apk-reverse-helper-runtime-android.jar`
-- Load mode: `ToolPkg.readResource(...)` + `Java.loadJar(..., { childFirstPrefixes: [...] })`
-- Runtime policy: no CLI entrypoints, no terminal subprocesses, no `runJar`; JS only coordinates parameters, resource extraction, and result shaping
-- Packaging rule: every runtime jar must be an Android-loadable dex-jar containing `classes.dex`
-- Expected layers:
-  - `apktool-runtime-android.jar` carries `brut.androlib.*` plus the Android-only `prebuilt/android/aapt2`
-  - `jadx-runtime-android.jar` carries the headless JADX APK pipeline, patches `jadx.core.dex.visitors.SaveCode` to avoid newer JDK-only `PrintWriter(File, Charset)`, and removes desktop GUI, `jadx-script`, `java-convert`, `aab-input`, `java-input`, and `raung` payload during packaging
-  - `apk-reverse-helper-runtime-android.jar` carries the stable helper facade and native-analysis helpers
-- Resource generation is handled by `examples/apktool/build_runtime_android_resources.ps1`
-- `android-framework.jar` remains a standalone resource and is no longer duplicated inside `apktool-runtime-android.jar`
-- Packaging trims the old desktop runtime payload instead of keeping Windows / Linux / macOS `aapt2` binaries around
-- If `jadx-runtime-android.jar` or `apk-reverse-helper-runtime-android.jar` are missing, related tools should fail clearly instead of falling back to terminal execution
+## 资源分层
+
+| 资源 | 职责 |
+| --- | --- |
+| `apktool-runtime-android.jar` | `brut.androlib.*` 与 Android 专属 `prebuilt/android/aapt2` |
+| `android-framework.jar` | 独立的 Android framework 资源，不重复嵌入 apktool JAR |
+| `jadx-runtime-android.jar` | 无界面的 JADX APK 处理链 |
+| `apk-reverse-helper-runtime-android.jar` | 稳定 helper 接口与 native 分析辅助 |
+
+## 加载与打包契约
+
+- 所有运行 JAR 都必须是包含 `classes.dex`、可由 Android 加载的 dex-jar。
+- 使用 `ToolPkg.readResource(...)` 与 `Java.loadJar(..., { childFirstPrefixes: [...] })` 加载；JS 只负责参数、资源提取和结果组织。
+- 不调用 CLI、终端子进程或 `runJar`。JADX 或 helper JAR 缺失时明确失败。
+- JADX 的 `jadx.core.dex.visitors.SaveCode` 修补避开较新 JDK 专属的 `PrintWriter(File, Charset)`。
+- 打包移除桌面 GUI、`jadx-script`、`java-convert`、`aab-input`、`java-input` 和 `raung`，以及 Windows/Linux/macOS 的 `aapt2`。

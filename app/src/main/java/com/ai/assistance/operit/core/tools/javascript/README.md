@@ -817,7 +817,7 @@ result.size();         // 错，JS 里已经不是 java.util.List 了
 桥接返回到 JS 时，当前实际转换规则是：
 
 | Java / Kotlin 侧值 | JS 侧表现 |
-|------|------|
+| --- | --- |
 | `null` / Kotlin `Unit` | `null` |
 | `String` / `char` | `string` |
 | Java 方法返回的 `CharSequence` 值 | 可按 `string` 使用 |
@@ -844,7 +844,7 @@ result.size();         // 错，JS 里已经不是 java.util.List 了
 JS 传参给 Java / Kotlin 时，桥接会按目标参数类型自动尝试转换：
 
 | JS 侧值 | 可自动适配到的 Java / Kotlin 目标 |
-|------|------|
+| --- | --- |
 | `null` | 所有非 primitive 参数 |
 | `string` | `String`，也可尝试转 `char` / `enum` / `Class<?>` / `JSONObject` / `JSONArray` |
 | `number` | 各种数字类型：`byte` / `short` / `int` / `long` / `float` / `double` |

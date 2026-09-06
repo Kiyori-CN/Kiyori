@@ -1,20 +1,13 @@
-# Markdown settings UI
+# 用户资料 Markdown 设置界面
 
-Status: DONE
+原记录状态：DONE（静态验证范围）。
 
-Replace profile selection, questionnaires, category locks, and onboarding with a single document screen.
+用一个文档页替换 profile 选择、问卷、分类锁与引导：
 
-The screen provides:
+- 紧凑工具栏提供编辑、预览、未保存状态与显式保存。
+- 低对比等宽编辑器提供本地化空态、主题适配源码着色，显示字符数与上限。
+- 文本与滚动状态协调，保持长按选择和滚动稳定。
+- 未保存退出与重置模板分别确认；低频重置、归档动作放入溢出菜单。
+- 大底部抽屉展示可选择的旧 Markdown，支持整份归档复制。
 
-- A compact document toolbar for edit, preview, dirty state, and explicit save
-- A low-contrast, monospace Markdown editor with localized empty-state guidance
-- Theme-aware Markdown source coloring without changing the stored document
-- Stable long-press selection and scrolling through coordinated text and scroll state
-- Character count and limit inside the editor status bar
-- Unsaved-change confirmation
-- Reset-to-template confirmation
-- Low-frequency reset and archive actions in an overflow menu
-- Selectable raw legacy Markdown and one-click whole-archive copy in a large bottom sheet
-
-An untouched instructional template is normalized to an empty document so an empty profile is not
-injected into the system prompt. Guidance remains presentation-only and is never stored in user.md.
+未编辑的引导模板归一化为空文档，不注入系统提示词。引导只用于展示，不写入 `user.md`。
