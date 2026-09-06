@@ -31,6 +31,7 @@ on:
       - .npmrc
       - app/**
       - build.gradle.kts
+      - buildSrc/**
       - config/architecture/**
       - ci/script/check_architecture_boundaries.py
       - ci/script/download_android_dependencies.sh
