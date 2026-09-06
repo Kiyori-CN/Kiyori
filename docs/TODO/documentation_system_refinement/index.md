@@ -1,5 +1,5 @@
 ---
-status: in_progress
+status: completed
 updated: 2026-09-06
 ---
 
@@ -27,7 +27,7 @@ updated: 2026-09-06
 | 02 入口 | 重写 README、精简 CONTEXT、规范 AGENTS | 用户路径完整、职责不重复、规则无冲突 | 已完成 |
 | 03 分层 | 提取领域契约、拆分 TODO 历史、补齐分类导航 | 重要契约与验收证据可追溯，旧引用同步迁移 | 已完成 |
 | 04 一致性 | 统一标题、排版、术语，修正失效链接与文档检查缺陷 | 全量自有文档扫描无新增缺陷，检查器回归通过 | 已完成 |
-| 05 验证交付 | 审查许可修复、串行 Debug 构建、产物核验、提交推送 | 精确变更清单、父仓与远端 ref 一致 | 进行中 |
+| 05 验证交付 | 审查许可修复、串行 Debug 构建、产物核验、提交推送 | 精确变更清单、父仓与远端 ref 一致 | 已完成 |
 
 ## 决策与风险
 
@@ -57,6 +57,8 @@ updated: 2026-09-06
 - 许可 JVM：`.\gradlew.bat :app:testDebugUnitTest --tests com.ai.assistance.operit.ui.features.about.screens.OpenSourceLicensesTest --no-daemon --console=plain`，BUILD SUCCESSFUL；测试任务复用 UP-TO-DATE 结果，2026-09-06 XML 记录 4 个测试、0 失败/错误/跳过。
 - 最终 Debug：`.\gradlew.bat :app:assembleDebug --no-daemon --console=plain`，`BUILD SUCCESSFUL in 1m 44s`，235 个任务中 24 个执行、211 个 up-to-date；launcher、脚本代理运行时和播放器运行时打包门禁通过。
 - APK：`app/build/outputs/apk/debug/app-debug.apk`，写入时间 `2026-09-06 14:17:24 +08:00`，502,520,560 bytes，SHA-256 `55A38A0C25B3FD7C33547D22C38F695325C2A6AA0162B28D2DD46EB13850B908`；`com.kiyori / 45 / 0.1.0 / minSdk 26 / targetSdk 34 / compileSdk 37`、仅 arm64、V2 单 signer 与 16 KiB ZIP 对齐通过。
-- 候选提交 Markdown 链接检查、fresh clone 检查和远端 ref 对齐在提交形成后执行并回填；设备、远端 Actions 和正式发行仍不属于本轮关闭范围。
+- 主体候选 `c9232124e11b398e5b379446ed7ec4a206e5c298`：以起点 `145f378900d663b812d9df3c73de15fbad56139c` 运行 `check_markdown_links.py --base <起点> --candidate HEAD` 和 `check_repo_hygiene.py --base <起点> --candidate HEAD`，均为 0 errors / 0 warnings；检查 213 个变更文件，无遗留断链抵扣。
+- 新鲜克隆：`.\.venv\Scripts\python.exe -B ci/script/check_fresh_clone.py --repository .` 对主体候选 PASS，固定 terminal gitlink 可从远端初始化，克隆工作区干净。
+- Git 交付：主体提交已推送 `origin/main`，本地 HEAD、`origin/main` 和 `git ls-remote origin refs/heads/main` 均为上述 SHA，父仓工作区与 terminal 干净。此后的收尾提交只回填本页和总索引的完成记录；最终 SHA 由 Git 与本次交付报告确认。
 
 设备、远端 Actions 和正式发行的历史待验收状态不由本轮文档整理关闭。
