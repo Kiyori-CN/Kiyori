@@ -115,6 +115,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextIndent
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -752,96 +753,20 @@ internal fun KiyoriOnboardingScreen(
 }
 
 @Composable
-private fun OnboardingProgressHeader(
-    step: KiyoriOnboardingStep,
-    onBack: () -> Unit,
-    showBack: Boolean,
-    onSkipIntroduction: () -> Unit,
-) {
-    Surface(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(modifier = Modifier.size(48.dp)) {
-                    if (showBack) {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.kiyori_onboarding_back),
-                            )
-                        }
-                    }
-                }
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AutoAwesome,
-                        contentDescription = null,
-                        modifier = Modifier.padding(9.dp).size(22.dp),
-                    )
-                }
-                Spacer(modifier = Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.app_name),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = stringResource(step.onboardingLabelResId),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                if (step.ordinal < KiyoriOnboardingStep.AGREEMENT.ordinal) {
-                    TextButton(onClick = onSkipIntroduction) {
-                        Text(stringResource(R.string.kiyori_onboarding_skip_intro))
-                    }
-                } else {
-                    Text(
-                        text = stringResource(R.string.kiyori_onboarding_progress,
-                            step.ordinal + 1, KiyoriOnboardingStep.entries.size),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+private fun OnboardingProgressHeader(step: KiyoriOnboardingStep, onBack: () -> Unit, showBack: Boolean, onSkipIntroduction: () -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            if (showBack) IconButton(onClick = onBack, modifier = Modifier.size(40.dp)) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.kiyori_onboarding_back)) } else Spacer(Modifier.size(40.dp))
+            Spacer(Modifier.width(10.dp))
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer) { Icon(Icons.Default.AutoAwesome, null, Modifier.padding(7.dp).size(18.dp)) }
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(stringResource(step.onboardingLabelResId), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(stringResource(R.string.kiyori_onboarding_progress, step.ordinal + 1, KiyoriOnboardingStep.entries.size), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
-            ) {
-                KiyoriOnboardingStep.entries.forEach { item ->
-                    Box(
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .height(4.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (item.ordinal <= step.ordinal) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.surfaceContainerHighest
-                                    },
-                                ),
-                    )
-                }
-            }
+            if (step.ordinal < KiyoriOnboardingStep.AGREEMENT.ordinal) TextButton(onClick = onSkipIntroduction) { Text(stringResource(R.string.kiyori_onboarding_skip_intro)) }
         }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) { KiyoriOnboardingStep.entries.forEach { item -> Box(Modifier.weight(1f).height(4.dp).clip(CircleShape).background(if (item.ordinal <= step.ordinal) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest)) } }
     }
 }
 

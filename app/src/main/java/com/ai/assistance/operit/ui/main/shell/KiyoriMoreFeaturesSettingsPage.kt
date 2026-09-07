@@ -105,6 +105,13 @@ internal val kiyoriMoreFeaturesSettingsGroups =
                         iconTone = KiyoriSemanticTone.PURPLE,
                         action = KiyoriMoreFeaturesSettingsAction.OPEN_PRIVACY_POLICY,
                     ),
+                    KiyoriMoreFeaturesSettingsEntrySpec(
+                        title = "重新查看首次引导",
+                        description = "回顾功能与安全说明，不会清除数据或自动重置授权",
+                        icon = Icons.Default.AutoAwesome,
+                        iconTone = KiyoriSemanticTone.BLUE,
+                        action = KiyoriMoreFeaturesSettingsAction.OPEN_ONBOARDING_REVIEW,
+                    ),
                 ),
         ),
     )
