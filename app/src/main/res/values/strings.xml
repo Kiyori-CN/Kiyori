@@ -8524,4 +8524,9 @@
     <string name="backup_select_chat_records">选择要导出的聊天</string>
     <string name="backup_select_chat_records_hint">请选择要包含在备份文件中的聊天记录。</string>
     <string name="backup_clear_selection">清除选择</string>
+    <string name="browser_extension_custom_version">自定义扩展 · v%1$s</string>
+    <string name="browser_extension_reload_note">启用、更新或删除后请刷新页面。清理回调可撤销已登记效果，其他页面改动可能保留到刷新。</string>
+    <string name="browser_extension_delete">删除扩展</string>
+    <string name="browser_extension_source_truncated">这里只显示前 16000 个字符，完整源码可由 AI 开发工具分块读取或导出。</string>
+    <string name="browser_extension_delete_confirm">删除 %1$s 及其已安装源码？删除后请刷新受影响的页面。</string>
 </resources>

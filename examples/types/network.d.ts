@@ -349,4 +349,23 @@ export namespace Net {
      * Cookie management
      */
     const cookies: CookieManager;
+
+    interface BrowserDevelopmentParameters {
+        action: string;
+        target?: 'extension' | 'userscript' | 'plugin';
+        id?: string;
+        expected_revision?: string;
+        package_json?: string;
+        source?: string;
+        path?: string;
+        file?: string;
+        enabled?: boolean;
+        session_id?: string;
+        expected_url?: string;
+        command_id?: string;
+        offset?: number;
+        limit?: number;
+    }
+    function browserDevelopmentQuery(params: BrowserDevelopmentParameters): Promise<string>;
+    function browserDevelopmentApply(params: BrowserDevelopmentParameters): Promise<string>;
 }

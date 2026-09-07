@@ -60,6 +60,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -231,6 +233,22 @@ internal class WebSessionUserscriptManager(
     }
 
     fun supportState(): UserscriptSupportState = supportState
+
+    fun pageStatuses(sessionId: String): Map<Long, UserscriptPageRuntimeStatus> =
+        sessionPageStates[sessionId]?.scriptStatuses?.toMap().orEmpty()
+
+    /** 工具等待持久化后显式同步授权，避免 Flow 尚未消费时刷新页面仍执行旧版本。 */
+    suspend fun synchronizeRepositoryForTools() {
+        val scripts = repository.listInstalledScripts()
+        val allowed = repository.userScriptsAllowedFlow.first()
+        withContext(Dispatchers.Main) {
+            uiStore.updateScripts(scripts)
+            uiStore.updateUserScriptsAllowed(allowed)
+            reconcileActiveRuntimeAuthorizations(scripts)
+            if (!allowed) { revokeActiveNetworkCalls(); clearActiveRuntimeAuthorizations() }
+            rebuildAllSessionBaselines()
+        }
+    }
 
     fun updateVisibleSession(
         sessionId: String?,

@@ -7422,6 +7422,10 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="kiyori_onboarding_permission_sms_desc">Mengirim, membaca, dan menerima SMS yang Anda izinkan secara tegas.</string>
     <string name="kiyori_onboarding_permission_legacy_storage_title">Penyimpanan eksternal lama</string>
     <string name="kiyori_onboarding_permission_legacy_storage_desc">Izin kompatibilitas untuk membaca penyimpanan publik pada Android 12 dan sebelumnya, serta menulis pada versi lama.</string>
+    <string name="kiyori_onboarding_permission_installed_apps_title">Aplikasi terinstal</string>
+    <string name="kiyori_onboarding_permission_installed_apps_desc">Membaca aplikasi yang terinstal di perangkat untuk pemilihan aplikasi, otomatisasi, dan alat lintas aplikasi; Android mengaturnya melalui kebijakan visibilitas aplikasi.</string>
+    <string name="kiyori_onboarding_permission_restricted_settings_title">Izinkan setelan yang dibatasi</string>
+    <string name="kiyori_onboarding_permission_restricted_settings_desc">Membuka halaman info aplikasi Kiyori. Jika diminta oleh sistem, izinkan setelan yang dibatasi dan selesaikan verifikasi sandi atau biometrik perangkat; beberapa fitur lanjutan memerlukannya.</string>
     <string name="kiyori_onboarding_permission_all_files_title">Akses semua file</string>
     <string name="kiyori_onboarding_permission_all_files_desc">Pengelolaan file lengkap, terminal, dan alat yang memproses file lintas direktori.</string>
     <string name="kiyori_onboarding_permission_overlay_title">Overlay</string>
@@ -7635,6 +7639,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="speech_services_profiles_title">Profil layanan suara</string>
     <string name="speech_services_profiles_desc">Simpan dan beralih antara konfigurasi layanan teks-ke-suara dan pengenalan suara yang terpisah.</string>
     <string name="speech_services_profile_current">Profil saat ini</string>
+    <string name="speech_services_profile_next_builtin">Suara bawaan Next</string>
     <string name="speech_services_profile_create">Buat profil suara</string>
     <string name="speech_services_profile_rename">Ganti nama profil suara</string>
     <string name="speech_services_profile_delete">Hapus profil suara</string>
@@ -7692,4 +7697,9 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <plurals name="web_session_cookie_reader_count">
         <item quantity="other">%1$d cookie</item>
     </plurals>
+    <string name="browser_extension_custom_version">Ekstensi kustom · v%1$s</string>
+    <string name="browser_extension_reload_note">Muat ulang halaman setelah mengaktifkan, memperbarui, atau menghapus ekstensi. Fungsi pembersihan membatalkan efek yang terdaftar; perubahan lain mungkin bertahan sampai halaman dimuat ulang.</string>
+    <string name="browser_extension_delete">Hapus ekstensi</string>
+    <string name="browser_extension_delete_confirm">Hapus %1$s dan kode yang terpasang? Setelah itu, muat ulang halaman yang terpengaruh.</string>
+    <string name="browser_extension_source_truncated">Hanya 16000 karakter pertama yang ditampilkan. Gunakan alat pengembangan AI untuk membaca kode per bagian atau mengekspor kode lengkap.</string>
 </resources>

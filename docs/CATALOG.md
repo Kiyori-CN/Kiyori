@@ -736,6 +736,7 @@
 | --- | --- |
 | [DEFAULT_TOOLS_ARCH.md](doc-src/architecture/DEFAULT_TOOLS_ARCH.md) | 默认工具架构（Default Tools）与参数变更清单 |
 | [RENDERER_ARCH.md](doc-src/architecture/RENDERER_ARCH.md) | 高性能流式 Markdown 渲染引擎：架构与优势 |
+| [browser_extension_development.md](doc-src/architecture/browser_extension_development.md) | AI 浏览器扩展与脚本开发 |
 | [browser_plugin_platform.md](doc-src/architecture/browser_plugin_platform.md) | 浏览器插件平台与插件中心架构 |
 | [chat_runtime_foreground_service_plan.md](doc-src/architecture/chat_runtime_foreground_service_plan.md) | 双 Session 聊天 Runtime 上移到前台服务方案 |
 | [kiyori_product_shell_and_navigation.md](doc-src/architecture/kiyori_product_shell_and_navigation.md) | Kiyori 产品壳与导航架构 |

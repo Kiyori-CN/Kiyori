@@ -7418,6 +7418,10 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="kiyori_onboarding_permission_sms_desc">Menghantar, membaca dan menerima SMS yang anda benarkan dengan jelas.</string>
     <string name="kiyori_onboarding_permission_legacy_storage_title">Storan luaran lama</string>
     <string name="kiyori_onboarding_permission_legacy_storage_desc">Kebenaran keserasian untuk membaca storan awam pada Android 12 dan ke bawah serta menulis pada versi lama.</string>
+    <string name="kiyori_onboarding_permission_installed_apps_title">Aplikasi dipasang</string>
+    <string name="kiyori_onboarding_permission_installed_apps_desc">Membaca aplikasi yang dipasang pada peranti untuk pemilihan aplikasi, automasi dan alat merentas aplikasi; Android menguruskannya melalui dasar keterlihatan aplikasi.</string>
+    <string name="kiyori_onboarding_permission_restricted_settings_title">Benarkan tetapan terhad</string>
+    <string name="kiyori_onboarding_permission_restricted_settings_desc">Buka halaman maklumat aplikasi Kiyori. Apabila diminta oleh sistem, benarkan tetapan terhad dan lengkapkan pengesahan kata laluan atau biometrik peranti; sesetengah ciri lanjutan memerlukannya.</string>
     <string name="kiyori_onboarding_permission_all_files_title">Akses semua fail</string>
     <string name="kiyori_onboarding_permission_all_files_desc">Pengurusan fail lengkap, Terminal dan alat yang memproses fail merentas direktori.</string>
     <string name="kiyori_onboarding_permission_overlay_title">Tindanan</string>
@@ -7631,6 +7635,7 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="speech_services_profiles_title">Profil perkhidmatan suara</string>
     <string name="speech_services_profiles_desc">Simpan dan tukar antara konfigurasi perkhidmatan teks-ke-pertuturan dan pengecaman pertuturan yang berasingan.</string>
     <string name="speech_services_profile_current">Profil semasa</string>
+    <string name="speech_services_profile_next_builtin">Suara terbina dalam Next</string>
     <string name="speech_services_profile_create">Cipta profil suara</string>
     <string name="speech_services_profile_rename">Namakan semula profil suara</string>
     <string name="speech_services_profile_delete">Padam profil suara</string>
@@ -7688,4 +7693,9 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <plurals name="web_session_cookie_reader_count">
         <item quantity="other">%1$d Cookie</item>
     </plurals>
+    <string name="browser_extension_custom_version">Sambungan tersuai · v%1$s</string>
+    <string name="browser_extension_reload_note">Muat semula halaman selepas mengaktifkan, mengemas kini atau memadam sambungan. Fungsi pembersihan membatalkan kesan berdaftar; perubahan lain mungkin kekal sehingga halaman dimuat semula.</string>
+    <string name="browser_extension_delete">Padam sambungan</string>
+    <string name="browser_extension_delete_confirm">Padam %1$s dan kod sumber yang dipasang? Kemudian muat semula halaman yang terjejas.</string>
+    <string name="browser_extension_source_truncated">Hanya 16000 aksara pertama dipaparkan. Gunakan alat pembangunan AI untuk membaca sumber mengikut bahagian atau mengeksport sumber penuh.</string>
 </resources>

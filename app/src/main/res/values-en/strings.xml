@@ -8210,6 +8210,10 @@
     <string name="kiyori_onboarding_permission_sms_desc">Send, read, and receive SMS messages you explicitly authorize Kiyori to process.</string>
     <string name="kiyori_onboarding_permission_legacy_storage_title">Legacy external storage</string>
     <string name="kiyori_onboarding_permission_legacy_storage_desc">Compatibility access to read shared storage on Android 12 and earlier and write it on Android 9 and earlier.</string>
+    <string name="kiyori_onboarding_permission_installed_apps_title">Installed apps</string>
+    <string name="kiyori_onboarding_permission_installed_apps_desc">Read the apps installed on this device for app selection, automation, and cross-app tools; Android controls access through app visibility rules.</string>
+    <string name="kiyori_onboarding_permission_restricted_settings_title">Allow restricted settings</string>
+    <string name="kiyori_onboarding_permission_restricted_settings_desc">Open Kiyori\'s app info page. When Android requires it, allow restricted settings and confirm your device password or biometric verification; some advanced features depend on this.</string>
     <string name="kiyori_onboarding_permission_all_files_title">All files access</string>
     <string name="kiyori_onboarding_permission_all_files_desc">Full file management, Terminal, and tools that operate across directories.</string>
     <string name="kiyori_onboarding_permission_overlay_title">Display over other apps</string>
@@ -8411,4 +8415,9 @@
         <item quantity="one">%1$d cookie</item>
         <item quantity="other">%1$d cookies</item>
     </plurals>
+    <string name="browser_extension_custom_version">Custom extension · v%1$s</string>
+    <string name="browser_extension_reload_note">Reload the page after enabling, updating or deleting. Cleanup callbacks undo registered effects; other page changes may remain until reload.</string>
+    <string name="browser_extension_delete">Delete extension</string>
+    <string name="browser_extension_source_truncated">Only the first 16000 characters are shown. Read source chunks or export using the AI development tools for the complete source.</string>
+    <string name="browser_extension_delete_confirm">Delete %1$s and its installed source? Reload affected pages afterward.</string>
 </resources>

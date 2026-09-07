@@ -1195,6 +1195,17 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
             }
     )
 
+    listOf("browser_development_query", "browser_development_apply").forEach { name ->
+        handler.registerTool(
+            name = name,
+            descriptionGenerator = { tool ->
+                val fields = tool.parameters.associate { it.name to it.value }
+                "Browser development: ${fields["action"].orEmpty()} ${fields["target"].orEmpty()} ${fields["id"].orEmpty()}"
+            },
+            executor = { tool -> ToolGetter.getBrowserSessionTools(context).invoke(tool) },
+        )
+    }
+
     // Web搜索工具
     handler.registerTool(
             name = "visit_web",

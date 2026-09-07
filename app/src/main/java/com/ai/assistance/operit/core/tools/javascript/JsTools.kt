@@ -318,6 +318,8 @@ fun getJsToolsDefinition(): String {
                     }
                     return toolCall("browser_evaluate", params);
                 },
+                browserDevelopmentQuery: (params) => toolCall("browser_development_query", params),
+                browserDevelopmentApply: (params) => toolCall("browser_development_apply", params),
                 browserFileUpload: (options) => {
                     if (options !== undefined && (typeof options !== 'object' || Array.isArray(options))) {
                         throw new Error("browserFileUpload only accepts one options object");

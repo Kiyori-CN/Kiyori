@@ -137,7 +137,24 @@ class StandardBrowserSessionTools private constructor(
     @Volatile
     internal var browserLaunchRestorationState: BrowserLaunchRestorationState =
         BrowserLaunchRestorationState.Uninitialized
-    private val userscriptRepository by lazy { UserscriptRepository.getInstance(context.applicationContext) }
+    internal val userscriptRepository by lazy { UserscriptRepository.getInstance(context.applicationContext) }
+    internal val extensionRepository by lazy {
+        com.ai.assistance.operit.core.tools.defaultTool.websession.extension.BrowserExtensionRepository(
+            root = File(context.filesDir, "browser-plugins"),
+            validateJavaScript = { source ->
+            com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptSourceTools(context)
+                .validateSyntax("// ==UserScript==\n// @name Extension syntax validation\n// ==/UserScript==\n(() => {\n$source\n})();")
+            },
+        )
+    }
+    internal val extensionRuntime by lazy {
+        com.ai.assistance.operit.core.tools.defaultTool.websession.extension.BrowserExtensionRuntime(extensionRepository) { url ->
+            resolveWebSessionSiteFeatureEnabled(browserSettingsStore.current, url, WebSessionSiteFeature.USER_SCRIPTS, true)
+        }
+    }
+    internal val browserDevelopmentTools by lazy {
+        com.ai.assistance.operit.core.tools.defaultTool.websession.extension.BrowserDevelopmentTools(this, context)
+    }
     internal val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     internal val userscriptManager by lazy {
         WebSessionUserscriptManager(
@@ -322,6 +339,9 @@ class StandardBrowserSessionTools private constructor(
     )
 
     override fun invoke(tool: AITool): ToolResult {
+        if (tool.name == "browser_development_query" || tool.name == "browser_development_apply") {
+            return browserDevelopmentTools.invoke(tool)
+        }
         return try {
             when (tool.name) {
                 "browser_click" -> browserClick(tool)

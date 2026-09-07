@@ -1,12 +1,90 @@
 ---
-status: phase_1_userscript_ui_runtime_diagnostics
+status: ai_browser_development_verification_pending
 design: ../../doc-src/architecture/browser_plugin_platform.md
 baseline_branch: main
-baseline_head: 0965a6ac418a351a6527b1cdf1201736b95e2999
-last_updated: 2026-07-31
+baseline_head: eb46f3675e013b862a9595f39df3f49baac57f0b
+last_updated: 2026-09-07
 ---
 
 # 浏览器插件平台实施计划
+
+## 2026-09-07：AI 创建与管理浏览器扩展、脚本
+
+本轮授权：详细研究、方案、实现、相关验证、Debug APK、提交推送 `main`。基线
+`eb46f3675e013b862a9595f39df3f49baac57f0b`；已有六份上传日志不属于交付。
+用户确认包含动态安装的同级扩展，采用 Kiyori 自有格式，按实际能力定义接口。
+
+### 设计与范围
+
+- AI 左抽屉新增内置脚本包“浏览器扩展开发”，提供能力与模板查询、检查、安装、读取、启停、
+  删除、诊断和页面操作；通过注册宿主工具调用唯一 Browser Runtime，不直接写运行目录。
+- 油猴脚本继续归 `UserscriptRepository` / `WebSessionUserscriptManager`。安装前解析 metadata、
+  校验 JS 和兼容性；更新绑定明确 script ID 与当前 revision，禁止按名字意外覆盖其他脚本。
+  安装、启停、删除完成后读取真实状态；新安装默认关闭，Agent 显式启用并导航测试。
+- `.kbx` 为 ZIP 中的 UTF-8 `manifest.json` 与本地 JS/CSS。首个可执行版本为严格页面扩展子集：
+  `manifest_version=3`、`kiyori.schema_version=1`、稳定反向域名 ID、数字版本、声明匹配规则、
+  顶层页面的 `document_start/document_end/document_idle`、`ISOLATED` 世界、可选 action。
+  未实现的权限、后台 worker、popup、跨 frame 与 Chrome API 必须拒绝，后续平台路线仍为设计。
+- 扩展 registry 与完整包源码原子保存在应用私有目录，独立于油猴和 ToolPkg；更新使用内容摘要
+  作比较并交换，重复安装相同内容可识别，失败保留旧版本。支持工具提交 manifest + 文本 files，
+  以及本地 `.kbx` 导入/导出，路径、重复项、压缩展开大小和条目数严格受限。
+- 同一 Browser Runtime 持有扩展协调器，使用已有真实 WebView，每个扩展独立隔离世界。
+  页面只获得 DOM 和扩展明确提供的 `kiyori` 生命周期/日志/按钮接口，不暴露 Android/AI 工具桥。
+  新增、更新、关闭和删除更新后续导航注册，撤销旧消息接收并执行已注册清理回调；工具明确返回
+  `reload_required`，任意脚本造成的 DOM/定时器副作用不能被宿主承诺自动回滚。
+- 扩展中心把每个自定义扩展显示为同级条目，支持人工查看详情、启停、触发 action 和删除；
+  内置油猴、Cookie 只支持启停，禁止把内置 Provider 当成可删除的动态包。
+- Agent 测试必须指定真实 session，先检查匹配/开关/能力，再显式刷新或导航，查询当前文档
+  诊断，最后通过现有 `browser:evaluate/snapshot` 断言效果。安装成功、注入成功、业务验收分开。
+  错误返回结构化状态与恢复动作；不自动重装、刷新全部窗口或悄悄开启全局脚本权限。
+- 使用现有工具权限系统；网页与脚本日志是非可信数据，不能成为新的工具操作指令。源码和
+  Cookie 不进入普通诊断日志；显式源码读取会进入 AI 对话，使用者须按目标选择内容。
+
+### 阶段与验收
+
+1. [DONE] 定位 Browser Plugin Center、脚本事务、AI 注册/JS 桥/权限与包分发调用链。
+2. [DONE] 冻结严格子集契约与 Agent 操作序列；修正历史规划与实际实现的界线。
+3. [DONE] 实现 `.kbx` 校验、原子存储、隔离执行、同级 UI 与结构化宿主工具。
+4. [DONE] 接通油猴版本保护与同步工具结果；生成内置 AI 开发脚本及能力模板。
+5. [DONE] 包格式/路径/版本/事务、工具参数、运行脚本生命周期和 Agent 多步模拟测试；
+   TypeScript 与相关 JVM 检查，文档检查、正式准备检查，串行 Debug 构建与产物核验。
+6. [PENDING] 精确允许清单审阅、候选提交检查、提交推送并核对本地/跟踪/远端 SHA。
+7. [PENDING] 目标 Android WebView 实机验证：AI 生成扩展和油猴脚本，安装/启停/更新/删除，
+   页面刷新、切 tab、站点权限、无痕、脚本异常与进程重启。保持 `verification_pending`。
+
+### 风险与回滚
+
+- WebView 隔离 API 依赖设备实际能力；缺少能力返回 unsupported，不退回页面主世界。
+- 更新与人工编辑竞争必须在存储提交锁内检查；删除不允许复活旧草稿或旧异步回调。
+- 扩展数量、包大小和诊断条数受限，避免无界 WebView 注入及 AI 上下文输出。
+- 代码回滚使用本轮候选提交的正常 revert；新扩展私有目录不修改既有脚本持久化格式，
+  关闭自定义扩展后重载目标页面即可停止下一文档执行。设备与远端 CI 不由本地测试代替。
+
+### 2026-09-07 本地交付证据
+
+- 实际契约与逐步使用见 [AI 浏览器扩展开发](../../doc-src/architecture/browser_extension_development.md)。
+  首版页面扩展限制为普通 Profile；站点脚本开关仍参与启动授权，document-start 为宿主授权后的
+  最早回调，不承诺先于网页 inline script。历史完整平台设计不等于当前能力清单。
+- `:app:testDebugUnitTest --tests '*BrowserExtension*' --tests '*Userscript*'
+  --tests '*BrowserPluginCenterFacadeTest'`：19 suites / 97 tests，0 failures / errors / skipped。
+  包含生产 Kotlin bootstrap 生成后在 Node 中执行的生命周期模拟；不属于 WebView 真机测试。
+- `:app:lintDebug`：`BUILD SUCCESSFUL in 15m 13s`，0 errors、47 warnings、1 hint；既有 baseline
+  过滤 939 errors、4070 warnings、131 hints。最终 SARIF 50 项，`RequiresFeature=0`，本轮扩展
+  新增文件命中 0，`app/lint-baseline.xml` 未修改。
+- `node --test tools/example_packages/browser_development.test.mjs`：4/4 通过，覆盖 metadata、参数传递、
+  失败传播和预置包一致性；TypeScript `tsc -p examples/tsconfig.json --noEmit --pretty false` 通过。
+- 正式准备、架构边界和 496 篇工作区文档检查通过。
+- 串行 `./gradlew.bat :app:assembleDebug --no-daemon --console=plain`：
+  `BUILD SUCCESSFUL in 2m 2s`，238 tasks，23 executed / 215 up-to-date；附带单启动入口、脚本代理
+  和播放器 runtime packaging 校验通过。
+- 最终源码审阅后串行复跑同一构建：`BUILD SUCCESSFUL in 3m 28s`，238 tasks，23 executed /
+  215 up-to-date；`packageDebug` 与 `assembleDebug` 均为 up-to-date，APK 元数据和哈希未变化。
+- APK：`app/build/outputs/apk/debug/app-debug.apk`，2026-09-07 17:52:52 +08:00，483825387 bytes，
+  SHA-256 `FA3FD277B649625F05CDB6C63967B8922CDD948E21DA0DB8AB3D3C68AEF44992`。
+  `com.kiyori / 45 / 0.1.0`，minSdk 26 / targetSdk 34，仅 arm64-v8a；APK V2 单签名验证通过。
+- APK 内 `assets/packages/browser_development.js` 与审阅的源码资产逐字节一致，6942 bytes，
+  SHA-256 `c94c799c8440283c501656b03bacf28a484e3fe6fb9f3103cb48cd5e081c2c11`。
+- 当前未执行设备安装、真实模型对话、Android WebView 或远端 CI 验收。设备场景继续待验证。
 
 ## 1. 目标
 
@@ -22,7 +100,7 @@ last_updated: 2026-07-31
 正式架构见
 [浏览器插件平台与插件中心架构](../../doc-src/architecture/browser_plugin_platform.md)。
 
-## 2. 当前基线
+## 2. 2026-07-31 历史基线
 
 - 分支：`main`
 - HEAD：`0965a6ac418a351a6527b1cdf1201736b95e2999`

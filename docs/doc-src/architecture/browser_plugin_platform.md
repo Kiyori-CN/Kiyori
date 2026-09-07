@@ -1,11 +1,18 @@
 ---
 status: accepted_detailed_design
-implementation: phase_1_local_verified
-next_gate: phase_2_userscript_storage
-last_updated: 2026-09-04
+implementation: ai_page_extensions_local_verified
+next_gate: ai_browser_device_acceptance
+last_updated: 2026-09-07
 ---
 
 # 浏览器插件平台与插件中心架构
+
+## 当前 AI 页面扩展实现边界（2026-09-07）
+
+AI 对话可创建同级 `.kbx` 页面扩展并管理油猴脚本，实际支持的 manifest 字段、操作、权限、
+生命周期、私有原子存储和 Agent 验证流程以 [AI 浏览器扩展与脚本开发](browser_extension_development.md)
+为准。下文第 9 节起的完整后台 worker、权限服务、通用版本仓库、WebExtension 转换与更多能力
+仍为长期平台设计；不得把设计示例中的字段当成本轮运行时已支持。设备验收保持独立状态。
 
 ## 当前 WebKit 运行时版本（2026-08-27）
 

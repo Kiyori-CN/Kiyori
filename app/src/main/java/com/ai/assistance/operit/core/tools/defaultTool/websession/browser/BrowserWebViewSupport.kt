@@ -115,6 +115,7 @@ internal fun StandardBrowserSessionTools.createSessionOnMain(
         resolvedUserAgent = resolveSessionUserAgent(session, targetUrl = "about:blank"),
     )
     recordBrowserWebViewRuntimeSnapshot(session)
+    extensionRuntime.attach(session.id, session.webView, session.profile == WebSessionProfile.NORMAL)
     userscriptManager.attachSession(
         sessionId = session.id,
         webView = session.webView,
@@ -689,6 +690,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
         object : RenderProcessSafeWebViewClient(WEBVIEW_SUPPORT_TAG) {
             override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
                 super.onPageStarted(view, url, favicon)
+                extensionRuntime.pageStarted(session.id)
                 session.finishedBrowserDocumentToken = null
                 session.finishedBrowserDocumentUrl = ""
                 val pendingDocumentToken = session.pendingBrowserDocumentStartToken
@@ -1444,8 +1446,10 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                     disabled = disabled,
                 )
                 when (feature) {
-                    WebSessionSiteFeature.USER_SCRIPTS ->
+                    WebSessionSiteFeature.USER_SCRIPTS -> {
                         userscriptManager.refreshSiteSettings()
+                        extensionRuntime.refreshSiteSettings()
+                    }
                     WebSessionSiteFeature.DISABLE_NETWORK_PROXY ->
                         ioScope.launch {
                             runCatching {
@@ -1482,6 +1486,7 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                 applyBrowserWebElementLongPressMenuSettingOnMain()
                 applyWebsitePasswordSavingSettingOnMain()
                 userscriptManager.refreshSiteSettings()
+                extensionRuntime.refreshSiteSettings()
                 ioScope.launch {
                     runCatching {
                         KiyoriNetworkProxyManager.getInstance(context.applicationContext)
@@ -4011,6 +4016,7 @@ internal fun StandardBrowserSessionTools.closeSession(sessionId: String): Boolea
     runOnMainSync<Unit> {
         closePlayerOwnedByBrowserSession(sessionId)
         userscriptManager.detachSession(sessionId)
+        extensionRuntime.detach(sessionId)
         if (wasActive) {
             StandardBrowserSessionTools.activeSessionId = null
             browserHost?.attachActiveWebView(null)

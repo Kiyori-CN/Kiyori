@@ -215,6 +215,8 @@ internal object UserscriptCapabilityRegistry {
     fun canonicalGrant(rawGrant: String): String? =
         aliasToCanonical[rawGrant.trim()]
 
+    fun declaredCapabilities(): List<UserscriptCapability> = capabilities
+
     fun isGrantKnown(rawGrant: String): Boolean =
         canonicalGrant(rawGrant) != null
 

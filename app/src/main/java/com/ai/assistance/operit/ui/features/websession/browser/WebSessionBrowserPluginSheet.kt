@@ -30,6 +30,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.LocalContext
+import com.ai.assistance.operit.core.browser.presentation.BrowserPresentationCoordinator
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -197,10 +200,20 @@ private fun BrowserPluginCenterOverview(
             )
         }
     var selectedTab by rememberSaveable { mutableStateOf(BrowserPluginCenterTab.CURRENT_PAGE) }
+    val context = LocalContext.current
+    val extensionCoordinator = remember(context) { BrowserPresentationCoordinator.getInstance(context) }
+    val extensions by extensionCoordinator.browserExtensions.collectAsState()
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var installUrlDialogVisible by remember { mutableStateOf(false) }
     var installUrl by rememberSaveable { mutableStateOf("") }
     val normalizedQuery = searchQuery.trim()
+    val matchingExtensions = extensions.filter {
+        normalizedQuery.isBlank() || it.bundle.manifest.name.contains(normalizedQuery, true) ||
+            it.id.contains(normalizedQuery, true) || it.bundle.manifest.description.contains(normalizedQuery, true)
+    }
+    val currentExtensions = matchingExtensions.filter {
+        it.enabled && it.bundle.manifest.content_scripts.any { entry -> entry.matchesUrl(currentPageUrl) }
+    }
     val userscriptTitle = stringResource(R.string.web_session_userscript_manager_title)
     val userscriptSubtitle = stringResource(R.string.web_session_userscript_plugin_subtitle)
     val cookieTitle = stringResource(R.string.web_session_cookie_reader_title)
@@ -282,7 +295,7 @@ private fun BrowserPluginCenterOverview(
             WebSessionFilterChip(
                 label =
                     "${stringResource(R.string.web_session_plugins_tab_current_page)} " +
-                        currentPageProviders.size,
+                        (currentPageProviders.size + currentExtensions.size),
                 selected = selectedTab == BrowserPluginCenterTab.CURRENT_PAGE,
                 tone = WebSessionBrowserMenuTone.PLUGINS,
                 onClick = { selectedTab = BrowserPluginCenterTab.CURRENT_PAGE },
@@ -290,7 +303,7 @@ private fun BrowserPluginCenterOverview(
             WebSessionFilterChip(
                 label =
                     "${stringResource(R.string.web_session_plugins_tab_installed)} " +
-                        installedPlugins.size,
+                        (installedPlugins.size + matchingExtensions.size),
                 selected = selectedTab == BrowserPluginCenterTab.INSTALLED,
                 tone = WebSessionBrowserMenuTone.PLUGINS,
                 onClick = { selectedTab = BrowserPluginCenterTab.INSTALLED },
@@ -309,7 +322,7 @@ private fun BrowserPluginCenterOverview(
         ) {
             when (selectedTab) {
                 BrowserPluginCenterTab.CURRENT_PAGE -> {
-                    if (currentPageProviders.isEmpty()) {
+                    if (currentPageProviders.isEmpty() && currentExtensions.isEmpty()) {
                         BrowserPluginCenterEmptyState(
                             searchActive = normalizedQuery.isNotBlank(),
                             currentPage = true,
@@ -328,10 +341,11 @@ private fun BrowserPluginCenterOverview(
                             )
                         }
                     }
+                    BrowserExtensionCards(currentExtensions, extensionCoordinator)
                 }
 
                 BrowserPluginCenterTab.INSTALLED -> {
-                    if (installedPlugins.isEmpty()) {
+                    if (installedPlugins.isEmpty() && matchingExtensions.isEmpty()) {
                         BrowserPluginCenterEmptyState(
                             searchActive = normalizedQuery.isNotBlank(),
                             currentPage = false,
@@ -358,6 +372,7 @@ private fun BrowserPluginCenterOverview(
                             )
                         }
                     }
+                    BrowserExtensionCards(matchingExtensions, extensionCoordinator)
                 }
             }
         }

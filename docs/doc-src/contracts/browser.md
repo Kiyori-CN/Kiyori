@@ -61,6 +61,11 @@
 
 ## AI 网页工具
 
+- `browser_development` 是 AI 左抽屉的预置开发脚本包；通过宿主 query/apply 管理同一浏览器的
+  内置扩展开关、油猴脚本与独立 `.kbx` 页面扩展。安装/更新默认关闭，更新/启停/删除绑定 revision；
+  扩展中心显示自定义扩展同级卡片。具体格式、隔离世界与测试闭环见
+  [AI 扩展开发契约](../architecture/browser_extension_development.md)。
+
 - `browser:fill_form` 每字段使用 string/number/boolean `value`，且 `ref/selector` 恰好一个；DOM 决定实际控件操作，checkbox/radio 需要 boolean，不接受调用方指定控件 type。
 - `browser_run_code` 注入 JavaScript 函数源码，不使用 eval 或动态 Function；支持的 Page/Locator 子集以 [浏览器工具契约](../../TODO/kiyori_browser_product_completion/index.md) 和运行时实现为准。
 - `keyboard.press` 支持单字符、Enter、Backspace、Delete；未实现成员与键明确返回 `Unsupported Playwright API`。文件选择由真实点击与 `browser:upload` 持有。

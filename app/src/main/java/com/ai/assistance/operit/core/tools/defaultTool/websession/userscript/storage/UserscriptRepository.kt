@@ -197,6 +197,7 @@ internal class UserscriptRepository private constructor(
         withContext(Dispatchers.IO) {
             installMutex.withLock {
                 val existing = resolveExistingScript(preview)
+                require(!preview.requireNew || existing == null) { "SCRIPT_ALREADY_EXISTS: specify script ID and revision to update" }
                 // 更新检查和提交是两个用户动作；基准 revision 变化后必须重新检查，不能覆盖较新的本地编辑。
                 preview.expectedRevisionId?.let { expectedRevisionId ->
                     require(existing?.activeRevisionId == expectedRevisionId) {
@@ -310,7 +311,7 @@ internal class UserscriptRepository private constructor(
                             noFrames = preview.metadata.noFrames,
                             enabled =
                                 installBlockedReasons.isEmpty() &&
-                                    (existing?.enabled ?: true),
+                                    (preview.enabledOnCommit ?: existing?.enabled ?: true),
                             sourceHash = sourceHash,
                             scriptFilePath =
                                 File(finalRevisionDir, "source.user.js").absolutePath,
@@ -383,32 +384,38 @@ internal class UserscriptRepository private constructor(
         }
     }
 
-    suspend fun setEnabled(scriptId: Long, enabled: Boolean) {
-        val entity = store.getUserscriptById(scriptId) ?: return
-        if (enabled) {
-            val metadata = entityToMetadata(entity)
-            val blockedReasons =
-                UserscriptCompatibilityPolicy.blockedReasons(
-                    metadata = metadata,
-                    runtimeCapabilities = UserscriptRuntimeCapabilities.current(),
-                )
-            if (blockedReasons.isNotEmpty()) {
-                log(
-                    userscriptId = scriptId,
-                    level = "error",
-                    pageUrl = null,
-                    message = "Cannot enable userscript ${entity.name}: ${blockedReasons.joinToString()}",
-                )
-                return
+    suspend fun setEnabled(scriptId: Long, enabled: Boolean, expectedRevisionId: String? = null) {
+        installMutex.withLock {
+            if (expectedRevisionId != null) {
+                require(store.getUserscriptById(scriptId)?.activeRevisionId == expectedRevisionId) { "REVISION_CONFLICT" }
             }
+            val entity = store.getUserscriptById(scriptId) ?: return
+            if (enabled) {
+                val metadata = entityToMetadata(entity)
+                val blockedReasons =
+                    UserscriptCompatibilityPolicy.blockedReasons(
+                        metadata = metadata,
+                        runtimeCapabilities = UserscriptRuntimeCapabilities.current(),
+                    )
+                if (blockedReasons.isNotEmpty()) {
+                    if (expectedRevisionId != null) error("UNSUPPORTED_SCRIPT: ${blockedReasons.joinToString()}")
+                    log(
+                        userscriptId = scriptId,
+                        level = "error",
+                        pageUrl = null,
+                        message = "Cannot enable userscript ${entity.name}: ${blockedReasons.joinToString()}",
+                    )
+                    return
+                }
+            }
+            store.updateUserscript(entity.copy(enabled = enabled, updatedAt = System.currentTimeMillis()))
+            log(
+                userscriptId = scriptId,
+                level = "info",
+                pageUrl = null,
+                message = if (enabled) "Enabled userscript ${entity.name}" else "Disabled userscript ${entity.name}"
+            )
         }
-        store.updateUserscript(entity.copy(enabled = enabled, updatedAt = System.currentTimeMillis()))
-        log(
-            userscriptId = scriptId,
-            level = "info",
-            pageUrl = null,
-            message = if (enabled) "Enabled userscript ${entity.name}" else "Disabled userscript ${entity.name}"
-        )
     }
 
     suspend fun setUserScriptsAllowed(allowed: Boolean) {
@@ -428,15 +435,26 @@ internal class UserscriptRepository private constructor(
         )
     }
 
-    suspend fun deleteUserscript(scriptId: Long) {
-        val entity = store.getUserscriptById(scriptId) ?: return
-        store.deleteUserscriptById(scriptId)
-        val revisionDir = store.layout.revisionScriptDir(scriptId)
-        if (revisionDir.exists() && !revisionDir.deleteRecursively()) {
-            AppLogger.w(TAG, "Unable to remove userscript revisions at ${revisionDir.absolutePath}")
+    suspend fun setEnabledForAgent(scriptId: Long, enabled: Boolean, expectedRevisionId: String) =
+        setEnabled(scriptId, enabled, expectedRevisionId)
+
+    suspend fun deleteUserscript(scriptId: Long, expectedRevisionId: String? = null) {
+        installMutex.withLock {
+            if (expectedRevisionId != null) {
+                require(store.getUserscriptById(scriptId)?.activeRevisionId == expectedRevisionId) { "REVISION_CONFLICT" }
+            }
+            val entity = store.getUserscriptById(scriptId) ?: return
+            store.deleteUserscriptById(scriptId)
+            val revisionDir = store.layout.revisionScriptDir(scriptId)
+            if (revisionDir.exists() && !revisionDir.deleteRecursively()) {
+                AppLogger.w(TAG, "Unable to remove userscript revisions at ${revisionDir.absolutePath}")
+            }
+            AppLogger.i(TAG, "Deleted userscript ${entity.name}")
         }
-        AppLogger.i(TAG, "Deleted userscript ${entity.name}")
     }
+
+    suspend fun deleteForAgent(scriptId: Long, expectedRevisionId: String) =
+        deleteUserscript(scriptId, expectedRevisionId)
 
     suspend fun readSource(scriptId: Long): String? =
         withContext(Dispatchers.IO) {
@@ -536,7 +554,7 @@ internal class UserscriptRepository private constructor(
                     sourceDisplay = entity?.sourceDisplay,
                     isUpdate = entity != null,
                     existingScriptId = entity?.id,
-                )
+                ).copy(expectedRevisionId = draft.baseRevisionId)
             install(preview).also {
                 store.deleteDraft(draftId)
             }

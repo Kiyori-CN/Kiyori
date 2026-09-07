@@ -7269,6 +7269,10 @@
     <string name="kiyori_onboarding_permission_sms_desc">사용자가 명시적으로 허용한 SMS를 보내고 읽고 받습니다.</string>
     <string name="kiyori_onboarding_permission_legacy_storage_title">이전 외부 저장소</string>
     <string name="kiyori_onboarding_permission_legacy_storage_desc">Android 12 이하의 공용 저장소 읽기와 구형 버전의 쓰기에 필요한 호환 권한입니다.</string>
+    <string name="kiyori_onboarding_permission_installed_apps_title">설치된 앱</string>
+    <string name="kiyori_onboarding_permission_installed_apps_desc">앱 선택, 자동화 및 앱 간 도구를 위해 기기에 설치된 앱 목록을 읽습니다. Android의 앱 표시 여부 정책이 접근 범위를 관리합니다.</string>
+    <string name="kiyori_onboarding_permission_restricted_settings_title">제한된 설정 허용</string>
+    <string name="kiyori_onboarding_permission_restricted_settings_desc">Kiyori의 앱 정보 페이지를 엽니다. 시스템에서 요구하는 경우 제한된 설정을 허용하고 기기 비밀번호 또는 생체 인증을 완료하세요. 일부 고급 기능에 필요합니다.</string>
     <string name="kiyori_onboarding_permission_all_files_title">모든 파일 접근</string>
     <string name="kiyori_onboarding_permission_all_files_desc">전체 파일 관리, 터미널 및 디렉터리 간 파일 처리가 필요한 도구에 사용합니다.</string>
     <string name="kiyori_onboarding_permission_overlay_title">다른 앱 위에 표시</string>
@@ -7482,6 +7486,7 @@
     <string name="speech_services_profiles_title">음성 서비스 프로필</string>
     <string name="speech_services_profiles_desc">텍스트 음성 변환과 음성 인식 서비스 설정을 각각 저장하고 전환합니다.</string>
     <string name="speech_services_profile_current">현재 프로필</string>
+    <string name="speech_services_profile_next_builtin">Next 내장 음성</string>
     <string name="speech_services_profile_create">음성 프로필 만들기</string>
     <string name="speech_services_profile_rename">음성 프로필 이름 변경</string>
     <string name="speech_services_profile_delete">음성 프로필 삭제</string>
@@ -7539,4 +7544,9 @@
     <plurals name="web_session_cookie_reader_count">
         <item quantity="other">Cookie %1$d개</item>
     </plurals>
+    <string name="browser_extension_custom_version">사용자 정의 확장 · v%1$s</string>
+    <string name="browser_extension_reload_note">확장을 활성화, 업데이트 또는 삭제한 후 페이지를 새로고침하세요. 정리 콜백은 등록된 효과를 취소하며, 다른 페이지 변경 사항은 새로고침할 때까지 남을 수 있습니다.</string>
+    <string name="browser_extension_delete">확장 삭제</string>
+    <string name="browser_extension_delete_confirm">%1$s 및 설치된 소스를 삭제할까요? 삭제 후 영향을 받은 페이지를 새로고침하세요.</string>
+    <string name="browser_extension_source_truncated">처음 16000자만 표시됩니다. AI 개발 도구로 소스를 나누어 읽거나 전체 소스를 내보낼 수 있습니다.</string>
 </resources>

@@ -132,6 +132,8 @@ internal data class UserscriptInstallPreview(
     val isUpdate: Boolean = false,
     val existingScriptId: Long? = null,
     val expectedRevisionId: String? = null,
+    val requireNew: Boolean = false,
+    val enabledOnCommit: Boolean? = null,
 )
 
 @Serializable

@@ -32,6 +32,7 @@ openai_web_search
 openalex_search.js
 kiyori_editor.js
 browser.js
+browser_development.js
 context_limiter_c
 windows_control
 pubmed_search.js

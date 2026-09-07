@@ -7299,6 +7299,10 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="kiyori_onboarding_permission_sms_desc">Envia, lê e recebe os SMS que você autorizar explicitamente.</string>
     <string name="kiyori_onboarding_permission_legacy_storage_title">Armazenamento externo legado</string>
     <string name="kiyori_onboarding_permission_legacy_storage_desc">Permissões de compatibilidade para ler o armazenamento público no Android 12 e anteriores e escrever em versões antigas.</string>
+    <string name="kiyori_onboarding_permission_installed_apps_title">Aplicativos instalados</string>
+    <string name="kiyori_onboarding_permission_installed_apps_desc">Lê os aplicativos instalados no dispositivo para seleção de apps, automação e ferramentas entre aplicativos; o Android controla o acesso pela política de visibilidade de apps.</string>
+    <string name="kiyori_onboarding_permission_restricted_settings_title">Permitir configurações restritas</string>
+    <string name="kiyori_onboarding_permission_restricted_settings_desc">Abre a página de informações do app Kiyori. Quando o sistema solicitar, permita configurações restritas e conclua a verificação por senha ou biometria do dispositivo; alguns recursos avançados dependem disso.</string>
     <string name="kiyori_onboarding_permission_all_files_title">Acesso a todos os arquivos</string>
     <string name="kiyori_onboarding_permission_all_files_desc">Gerenciamento completo de arquivos, Terminal e ferramentas que processam arquivos entre diretórios.</string>
     <string name="kiyori_onboarding_permission_overlay_title">Sobreposição</string>
@@ -7516,6 +7520,7 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="speech_services_profiles_title">Perfis de serviços de voz</string>
     <string name="speech_services_profiles_desc">Salve e alterne entre configurações independentes de conversão de texto em fala e reconhecimento de voz.</string>
     <string name="speech_services_profile_current">Perfil atual</string>
+    <string name="speech_services_profile_next_builtin">Voz integrada Next</string>
     <string name="speech_services_profile_create">Criar perfil de voz</string>
     <string name="speech_services_profile_rename">Renomear perfil de voz</string>
     <string name="speech_services_profile_delete">Excluir perfil de voz</string>
@@ -7575,4 +7580,9 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
         <item quantity="many">%1$d cookies</item>
         <item quantity="other">%1$d cookies</item>
     </plurals>
+    <string name="browser_extension_custom_version">Extensão personalizada · v%1$s</string>
+    <string name="browser_extension_reload_note">Recarregue a página após ativar, atualizar ou excluir a extensão. As funções de limpeza desfazem os efeitos registrados; outras alterações podem permanecer até a recarga.</string>
+    <string name="browser_extension_delete">Excluir extensão</string>
+    <string name="browser_extension_delete_confirm">Excluir %1$s e seu código instalado? Depois, recarregue as páginas afetadas.</string>
+    <string name="browser_extension_source_truncated">Apenas os primeiros 16000 caracteres são exibidos. Use as ferramentas de desenvolvimento de IA para ler o código em partes ou exportá-lo por completo.</string>
 </resources>

@@ -100,6 +100,28 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
     val browserCredentialVaultState: StateFlow<BrowserCredentialVaultSnapshot> =
         tools.browserCredentialVault.state
     val userscriptState: StateFlow<WebSessionUserscriptUiState> = tools.userscriptManager.uiStore.state
+    val browserExtensions get() = tools.extensionRepository.state
+    val browserExtensionDiagnostics get() = tools.extensionRuntime.diagnostics
+
+    suspend fun setBrowserExtensionEnabled(id: String, revision: String, enabled: Boolean) =
+        kotlinx.coroutines.withContext(Dispatchers.IO) {
+            if (enabled) require(tools.runOnMainSync { tools.extensionRuntime.supported }) { "UNSUPPORTED_RUNTIME" }
+            tools.extensionRepository.setEnabled(id, enabled, revision)
+            tools.runOnMainSync { tools.extensionRuntime.reconcile() }
+        }
+
+    suspend fun deleteBrowserExtension(id: String, revision: String) =
+        kotlinx.coroutines.withContext(Dispatchers.IO) {
+            tools.extensionRepository.delete(id, revision)
+            tools.runOnMainSync { tools.extensionRuntime.reconcile() }
+        }
+
+    fun invokeBrowserExtensionAction(id: String) {
+        tools.runOnMainSync {
+            val session = tools.getActiveSessionOnMain() ?: error("NO_ACTIVE_PAGE")
+            tools.extensionRuntime.invokeAction(session.id, id)
+        }
+    }
 
     init {
         KiyoriActivityLifecycle.registerActivityStoppedListener { activity ->
