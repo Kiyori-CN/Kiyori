@@ -242,15 +242,15 @@ class MihomoConfigSanitizerTest {
                     - DOMAIN-SUFFIX,blocked.example,DIRECT
                     - MATCH,KIYORI_APP_PROXY
                 rules:
-                  - SUB-RULE,blocked,KIYORI_APP_PROXY
-                  - SUB-RULE,missing,DIRECT
+                  - SUB-RULE,(NETWORK,tcp),blocked
+                  - SUB-RULE,(NETWORK,tcp),missing
                 """.trimIndent(),
             )
 
-        assertEquals(listOf("SUB-RULE,blocked,KIYORI_APP_PROXY"), sanitized.rules)
+        assertEquals(listOf("SUB-RULE,(NETWORK,tcp),blocked"), sanitized.rules)
         assertEquals(1, sanitized.summary.unsupportedRuleCount)
         assertTrue(sanitized.yaml.contains("sub-rules:"))
-        assertTrue(sanitized.yaml.contains("SUB-RULE,blocked,KIYORI_APP_PROXY"))
+        assertTrue(sanitized.yaml.contains("SUB-RULE,(NETWORK,tcp),blocked"))
 
         val runtime =
             MihomoConfigSanitizer.buildRuntimeConfig(

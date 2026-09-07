@@ -13,21 +13,26 @@
 
 ## 订阅与进程边界
 
-- 只接受单文档 UTF-8 YAML mapping，使用 `Clash.Meta` 请求身份；拒绝 Base64 节点列表、重复键、无有效出站和非法 provider。
+- 导入边界明确分类单文档 UTF-8 Clash/Mihomo YAML mapping、逐行 URI 节点列表，以及标准或 URL-safe Base64 编码的 URI 列表。URI 当前转换 VLESS、Hysteria2/Hy2、Trojan 和无插件 Shadowsocks；未知协议或字段计入“不支持”，无效凭据、端口与编码计入“拒绝”，零可用节点不保存。摘要保存输入格式、可用、隔离、拒绝和不支持数量。
+- VLESS 仅保留可验证的 TCP、WebSocket、gRPC、TLS 与 Reality 字段；Hysteria2 保留 SNI、证书跳过、证书指纹、Salamander 混淆和端口跳跃。未知字段不静默丢弃。YAML 继续拒绝重复键、无有效出站和非法 provider。
 - 订阅 URL、清洗后的 YAML 和控制器密钥由 Android Keystore 加密，保存在 no-backup 私有目录。
 - 内嵌核心只监听随机 loopback mixed-port，不启用 TUN、LAN 入站或订阅 Controller。依赖外部 GeoSite/GeoIP/ASN 或远程 rule-provider 的规则被明确计数排除，校验不在代理启动前下载数据库。
 - 自定义规则独立保存，订阅更新只替换订阅规则；不覆盖自定义规则。
 - 默认拒绝与外部系统 VPN 并存；用户明确允许后路径为应用 Mihomo → 系统 VPN → 节点。
+- 首次 URL 导入在没有 active subscription 时使用 Android 系统网络，因此可以由系统 VPN 提供可达性；已有活动订阅且需要内嵌代理时，更新必须使用当前 Kiyori 路由，失败不会静默改走直连。外部 Clash 只开放本机 mixed-port 而未接入 Android VPN/TUN 时，Kiyori 不扫描或自动接管该端口。
 
 ## 启动与恢复
 
 - manager 持有单一 readiness state 与 generation，不能永久缓存第一次成功或失败。
+- `enabled=true` 只允许在当前订阅存在、清洗配置非空且具有 root route 时持久化；从关闭切到开启、导入、替换、切换和编辑订阅均在保存前用包含订阅规则与当前自定义规则的 RULE runtime 执行 Mihomo `-t`。
+- 系统网络 callback 合并网络增删及能力变化，在既有 `mutationMutex` 内重读最新配置与全部网络的 VPN transport 后协调。VPN 冲突停止核心并清理 WebView 覆盖；不创建第二核心或静默直连。
 - 首个真实 WebView 完成 provider、能力和脚本桥初始化后安装进程代理覆盖；就绪前阻止远程主文档，包括恢复、Back、Forward、Refresh。`about:`、`file:` 等本地文档不等待。
 - 协调失败使导航明确失败；之后成功配置会发布新 generation，允许后续导航。
 - `UNEXPECTED_PROCESS_EXIT` 与连续两次 `HEALTH_CHECK_FAILED` 进入同一恢复协调；显式关闭、VPN 冲突、配置替换和启动失败不冒充该触发器。
 - 在既有 `mutationMutex` 中重读配置与 VPN；每失败 generation 一次、五分钟最多两次。限额后保持 `ERROR`，不换节点、不静默直连。
 - 核心退出立即使旧 WebView 端点失效。相同健康端点不重复安装覆盖；generation 失败清除缓存。代理关闭后的协调可正常完成，过期 deferred 不能写回新状态。
 - ProxyController 安装与清理回调有五秒超时；恢复只影响新媒体请求，既有下载保留原任务路由证据。
+- 动态 OkHttp 客户端发送请求前复核已复用连接的实际 proxy；若配置或 runtime endpoint 已变化，关闭旧 socket 并明确失败，避免旧直连或旧 loopback 端点继续承载新请求。
 
 ## 播放器传输与诊断
 

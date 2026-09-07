@@ -99,8 +99,6 @@ object MihomoConfigSanitizer {
         val ruleTargets =
             (groups.map(NamedGroup::name) +
                     proxyResult.accepted.map(NamedMapping::name) +
-                    providers.map(NamedMapping::name) +
-                    ruleProviders.keys +
                     BUILTIN_OUTBOUNDS + ROUTE_GROUP_NAME)
                 .toSet()
         val subRules =
@@ -217,8 +215,6 @@ object MihomoConfigSanitizer {
         val ruleTargets =
             (groups.map(NamedGroup::name) +
                     proxyResult.accepted.map(NamedMapping::name) +
-                    providers.map(NamedMapping::name) +
-                    ruleProviders.keys +
                     BUILTIN_OUTBOUNDS + ROUTE_GROUP_NAME)
                 .toSet()
         val subRules =
@@ -464,7 +460,7 @@ object MihomoConfigSanitizer {
         val subRules = stringKeyMap(raw, "sub-rules")
         val names = subRules.keys.map(String::trim).toSet()
         if (names.any(String::isBlank)) invalid("A sub-rule name must not be blank.")
-        return subRules.entries.mapNotNull { (rawName, rawRules) ->
+        return subRules.entries.associate { (rawName, rawRules) ->
             val name = rawName.trim()
             if (name.length > KiyoriNetworkProxyConfig.MAX_SUBSCRIPTION_NAME_LENGTH) {
                 invalid("The sub-rule name is too long: $name")
@@ -476,10 +472,8 @@ object MihomoConfigSanitizer {
                     ruleProviderNames = ruleProviderNames,
                     subRuleNames = names,
                 )
-            result.takeIf { it.accepted.isNotEmpty() }?.let { sanitized ->
-                name to SubRuleSanitizeResult(sanitized.accepted, sanitized.unsupportedCount)
-            }
-        }.toMap(linkedMapOf())
+            name to SubRuleSanitizeResult(result.accepted, result.unsupportedCount)
+        }
     }
 
     private fun sanitizeRules(
@@ -490,23 +484,19 @@ object MihomoConfigSanitizer {
     ): RuleSanitizeResult {
         if (raw == null) return RuleSanitizeResult(emptyList(), 0)
         val entries = raw as? List<*> ?: invalid("The rules field must be a YAML list.")
+        if (entries.size > KiyoriNetworkProxyConfig.MAX_SUBSCRIPTION_RULES) invalid("The subscription exceeds the 20000 rule limit.")
         var unsupported = 0
         val accepted = entries.mapNotNull { entry ->
             val value = entry as? String ?: invalid("A subscription rule must be a string.")
             val normalized = value.trim()
             val parts = splitRuleParts(normalized)
-            val kind = parts.firstOrNull()?.uppercase().orEmpty()
-            val targetIndex =
-                parts
-                    .asReversed()
-                    .indexOfFirst { part -> part.isNotBlank() && part.lowercase() !in RULE_OPTIONS }
-                    .let { reversedIndex ->
-                        if (reversedIndex < 0) -1 else parts.lastIndex - reversedIndex
-                    }
+            val kind = canonicalRuleType(parts.firstOrNull().orEmpty())
+            // 目标位置由语法决定；从末尾猜测会把 resolve 选项或名为 src 的策略组误分类。
+            val targetIndex = if (kind == "MATCH") 1 else 2
             val target = parts.getOrNull(targetIndex).orEmpty()
             val matcher =
                 if (targetIndex > 1) {
-                    parts.subList(1, targetIndex).joinToString(",")
+                    parts.getOrNull(1).orEmpty()
                 } else {
                     ""
                 }
@@ -515,20 +505,30 @@ object MihomoConfigSanitizer {
                     !isMihomoRuleExternalDataDependent(kind, matcher) &&
                     parts.size >= 2 &&
                     targetIndex >= 1 &&
-                    target in validTargets &&
+                    normalized.none(Char::isISOControl) &&
+                    parts.drop(targetIndex + 1).all { it.lowercase() in RULE_OPTIONS } &&
                     when (kind) {
-                        "MATCH" -> targetIndex == 1
+                        "MATCH" -> target in validTargets && parts.size == 2
                         "RULE-SET" -> targetIndex > 1 && matcher in ruleProviderNames
-                        "SUB-RULE" -> targetIndex > 1 && matcher in subRuleNames
-                        else -> targetIndex > 1 && isRuleMatcher(matcher)
+                        "SUB-RULE" -> target in subRuleNames && isLogicalMatcher("SUB-RULE", matcher)
+                        "AND", "OR", "NOT" -> target in validTargets && isLogicalMatcher(kind, matcher)
+                        else -> target in validTargets && isRuleMatcher(matcher)
                     }
             if (!supported) {
                 unsupported += 1
                 null
             } else {
-                parts.joinToString(",")
+                parts.mapIndexed { index, part ->
+                    when {
+                        index == 0 -> kind
+                        index == 1 && kind == "DOMAIN-SUFFIX" -> part.lowercase().removePrefix("*.").removePrefix(".")
+                        index == 1 && kind in setOf("AND", "OR", "NOT", "SUB-RULE") -> normalizeLogicalTypes(part)
+                        index > targetIndex -> part.lowercase()
+                        else -> part
+                    }
+                }.joinToString(",")
             }
-        }.distinct()
+        }
         return RuleSanitizeResult(accepted, unsupported)
     }
 
@@ -544,7 +544,7 @@ object MihomoConfigSanitizer {
         value.forEach { character ->
             when (character) {
                 '(' -> depth += 1
-                ')' -> depth = (depth - 1).coerceAtLeast(0)
+                ')' -> { depth -= 1; if (depth < 0) return emptyList() }
                 ',' ->
                     if (depth == 0) {
                         parts += current.toString().trim()
@@ -554,8 +554,80 @@ object MihomoConfigSanitizer {
             }
             current.append(character)
         }
+        if (depth != 0) return emptyList()
         parts += current.toString().trim()
         return parts
+    }
+
+    private fun canonicalRuleType(value: String): String =
+        KiyoriNetworkRuleType.entries.firstOrNull {
+            value.equals(it.name, true) || value.equals(it.wireName, true)
+        }?.wireName.orEmpty()
+
+    private fun normalizeLogicalTypes(value: String): String =
+        Regex("([,(])\\s*([A-Za-z_-]+)\\s*,").replace(value) {
+            "${it.groupValues[1]}${canonicalRuleType(it.groupValues[2]).ifEmpty { it.groupValues[2] }},"
+        }
+
+    private fun isLogicalMatcher(kind: String, value: String, depth: Int = 0): Boolean {
+        if (depth > 32 || !value.startsWith('(') || !value.endsWith(')')) return false
+        val children = if (kind == "SUB-RULE") listOf(value) else logicalChildren(value)
+        if (children.isEmpty() || (kind == "NOT" && children.size != 1)) return false
+        return children.all { child ->
+            if (!child.startsWith('(') || !child.endsWith(')')) return@all false
+            val parts = splitRuleParts(child.substring(1, child.lastIndex))
+            val type = canonicalRuleType(parts.firstOrNull().orEmpty())
+            if (parts.size < 2 || type.isEmpty() || type in EXTERNAL_DATA_RULE_TYPES || type in setOf("MATCH", "SUB-RULE")) return@all false
+            if (type in setOf("AND", "OR", "NOT")) {
+                isLogicalMatcher(type, parts.drop(1).joinToString(","), depth + 1)
+            } else isRuleMatcher(parts[1]) && parts.drop(2).all { it.lowercase() in RULE_OPTIONS }
+        }
+    }
+
+    /**
+     * Mihomo accepts both an enclosing payload group (`((A),(B))`) and the form used by
+     * nested rules (`(A),(B)`). Only complete top-level parenthesized groups may appear;
+     * accepting other text here would let an unmatched comma or option escape validation.
+     */
+    private fun logicalChildren(value: String): List<String> {
+        fun topLevelGroups(input: String): List<String> {
+            val ranges = mutableListOf<IntRange>()
+            var depth = 0
+            var start = -1
+            input.forEachIndexed { index, character ->
+                when (character) {
+                    '(' -> {
+                        if (depth == 0) start = index
+                        depth += 1
+                    }
+                    ')' -> {
+                        depth -= 1
+                        if (depth < 0) return emptyList()
+                        if (depth == 0) {
+                            if (start < 0) return emptyList()
+                            ranges += start..index
+                            start = -1
+                        }
+                    }
+                }
+            }
+            if (depth != 0 || start >= 0 || ranges.isEmpty()) return emptyList()
+            var cursor = 0
+            ranges.forEachIndexed { index, range ->
+                val separator = input.substring(cursor, range.first).trim()
+                if ((index == 0 && separator.isNotEmpty()) || (index > 0 && separator != ",")) {
+                    return emptyList()
+                }
+                cursor = range.last + 1
+            }
+            if (input.substring(cursor).isNotBlank()) return emptyList()
+            return ranges.map { range -> input.substring(range) }
+        }
+
+        val groups = topLevelGroups(value)
+        if (groups.size != 1 || groups.single().length != value.length) return groups
+        val inner = value.substring(1, value.lastIndex)
+        return if (inner.trimStart().startsWith('(')) topLevelGroups(inner) else groups
     }
 
     private fun toMihomoRule(rule: KiyoriNetworkProxyRule): String {
@@ -563,9 +635,9 @@ object MihomoConfigSanitizer {
         val matcher =
             when (rule.type) {
                 KiyoriNetworkRuleType.DOMAIN,
-                KiyoriNetworkRuleType.DOMAIN_SUFFIX,
                 KiyoriNetworkRuleType.DOMAIN_KEYWORD,
-                -> pattern.lowercase().removePrefix("*.").removePrefix(".")
+                -> pattern.lowercase()
+                KiyoriNetworkRuleType.DOMAIN_SUFFIX -> pattern.lowercase().removePrefix("*.").removePrefix(".")
                 else -> pattern
             }
         val kind = rule.type.wireName
@@ -864,7 +936,7 @@ object MihomoConfigSanitizer {
 
     private fun isForbiddenUpstreamServer(server: String): Boolean {
         val normalized = server.removePrefix("[").removeSuffix("]")
-        if (normalized.equals("localhost", ignoreCase = true)) return true
+        if (normalized.equals("localhost", ignoreCase = true) || normalized.endsWith(".localhost", ignoreCase = true)) return true
         val address =
             when {
                 ':' in normalized -> runCatching { InetAddress.getByName(normalized) }.getOrNull()
@@ -880,7 +952,8 @@ object MihomoConfigSanitizer {
             address.isLoopbackAddress ||
             address.isLinkLocalAddress ||
             address.isSiteLocalAddress ||
-            address.isMulticastAddress
+            address.isMulticastAddress ||
+            (address.address.size == 16 && (address.address[0].toInt() and 0xfe) == 0xfc)
     }
 
     private fun isHttpUrl(value: String): Boolean {
@@ -972,5 +1045,5 @@ object MihomoConfigSanitizer {
             "SUB-RULE",
             "MATCH",
         )
-    private val RULE_OPTIONS = setOf("no-resolve", "src")
+    private val RULE_OPTIONS = setOf("no-resolve", "resolve", "src")
 }

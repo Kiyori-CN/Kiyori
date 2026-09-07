@@ -342,6 +342,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
     suspend fun validateConfiguration(
         config: KiyoriProxySubscription,
         testUrl: String,
+        customRules: List<KiyoriNetworkProxyRule> = emptyList(),
     ) {
         awaitStartupCleanup()
         mutex.withLock {
@@ -372,6 +373,8 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                             controllerPort = controllerPort,
                             controllerSecret = randomHex(32),
                             testUrl = testUrl,
+                            routingMode = KiyoriNetworkConnectionMode.RULE,
+                            customRules = customRules,
                         )
                     val configFile = validationDirectory.resolve(CONFIG_FILE_NAME)
                     configFile.writeText(runtimeConfig.yaml, Charsets.UTF_8)

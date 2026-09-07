@@ -1,7 +1,6 @@
 package com.ai.assistance.operit.ui.main.shell
 
 import android.net.Uri
-import androidx.core.net.toUri
 import android.provider.OpenableColumns
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -16,9 +15,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
@@ -36,6 +37,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SaveAlt
@@ -45,7 +47,6 @@ import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.VpnKey
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -74,21 +75,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.packTool.PackageManager as ToolPackageManager
+import com.ai.assistance.operit.ui.common.copyPlainTextToClipboard
 import com.ai.assistance.operit.ui.features.packages.screens.ScriptPackageCatalogEntry
 import com.ai.assistance.operit.ui.features.packages.screens.buildScriptPackageCatalog
 import com.ai.assistance.operit.ui.features.packages.screens.resolvePackageCategoryVisual
 import com.ai.assistance.operit.ui.features.packages.screens.toImageVector
-import com.ai.assistance.operit.ui.common.copyPlainTextToClipboard
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.LocalKiyoriSettingsColors
 import com.kiyori.platform.logging.KiyoriLogger
@@ -101,6 +105,7 @@ import com.kiyori.platform.network.KiyoriNetworkOverrideMode
 import com.kiyori.platform.network.KiyoriNetworkProxyConfig
 import com.kiyori.platform.network.KiyoriNetworkProxyLogEntry
 import com.kiyori.platform.network.KiyoriNetworkProxyLogLevel
+import com.kiyori.platform.network.KiyoriNetworkProxyLogStore
 import com.kiyori.platform.network.KiyoriNetworkProxyManager
 import com.kiyori.platform.network.KiyoriNetworkProxyPolicy
 import com.kiyori.platform.network.KiyoriNetworkProxyRule
@@ -124,6 +129,7 @@ import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -359,9 +365,11 @@ internal fun KiyoriNetworkProxySettingsPage(
             activeOperation = operation
             feedback = null
             try {
-                block()
+                withContext(Dispatchers.IO) { block() }
                 feedback = NetworkProxyFeedback(operation.area, successMessage, isError = false)
                 onSuccess()
+            } catch (error: CancellationException) {
+                throw error
             } catch (error: KiyoriNetworkSettingsAppliedException) {
                 feedback =
                     NetworkProxyFeedback(
@@ -439,10 +447,10 @@ internal fun KiyoriNetworkProxySettingsPage(
             val target = yamlImportTarget
             yamlImportTarget = null
             if (uri == null || target == null) return@rememberLauncherForActivityResult
-            val operation = NetworkProxyOperation("yaml_import", NetworkProxyOperationArea.SUBSCRIPTIONS, "正在读取、校验并保存 YAML")
+            val operation = NetworkProxyOperation("yaml_import", NetworkProxyOperationArea.SUBSCRIPTIONS, "正在识别、校验并保存订阅文件")
             runOperation(
                 operation = operation,
-                successMessage = if (target is YamlImportTarget.Add) "YAML 已加入订阅库。" else "本地订阅已更新。",
+                successMessage = if (target is YamlImportTarget.Add) "订阅已加入订阅库，请查看格式及节点统计。" else "本地订阅已更新。",
             ) {
                 val selected = withContext(Dispatchers.IO) { readNetworkProxyYaml(context, uri) }
                 when (target) {
@@ -585,7 +593,7 @@ internal fun KiyoriNetworkProxySettingsPage(
                         icon = Icons.Default.VpnKey,
                         iconTone = KiyoriSemanticTone.CYAN,
                         checked = config?.enabled == true,
-                        enabled = controlsEnabled,
+                        enabled = controlsEnabled && config != null && (config.enabled || KiyoriNetworkProxyPolicy.canEnable(config)),
                         onClick = {
                             val nextEnabled = config?.enabled != true
                             runOperation(
@@ -768,7 +776,7 @@ internal fun KiyoriNetworkProxySettingsPage(
             item(key = "network_proxy_logs") {
                 KiyoriSettingsGroupSection(
                     title = "当前进程日志",
-                    description = "最多保留最近 300 条。核心输出已遮蔽凭据、私有路径和订阅地址；复制或导出由你主动触发。",
+                    description = "最多保留最近 1000 条。核心输出已遮蔽凭据、私有路径和订阅地址；复制或导出由你主动触发。",
                 ) {
                     if (proxyLogs.isEmpty()) {
                         Text(
@@ -779,15 +787,19 @@ internal fun KiyoriNetworkProxySettingsPage(
                             modifier = Modifier.padding(18.dp),
                         )
                     } else {
-                        SelectionContainer {
+                        LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 480.dp)) {
+                            items(proxyLogs, key = { it.id }) { entry ->
+                            SelectionContainer {
                             Text(
-                                text = networkProxyLogDisplayText(proxyLogs),
+                                text = networkProxyLogDisplayText(listOf(entry)),
                                 color = LocalKiyoriSettingsColors.current.primaryText,
                                 fontSize = 12.sp,
                                 lineHeight = 18.sp,
                                 fontFamily = FontFamily.Monospace,
                                 modifier = Modifier.fillMaxWidth().padding(18.dp),
                             )
+                            }
+                            }
                         }
                         KiyoriSettingsDivider()
                         TextButton(
@@ -924,12 +936,12 @@ internal fun KiyoriNetworkProxySettingsPage(
                         ) {
                             Icon(Icons.Default.Upload, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("导入 YAML 文件", fontSize = 12.sp, maxLines = 1)
+                            Text("导入订阅文件", fontSize = 12.sp, maxLines = 1)
                         }
                     }
                     val subscriptions = config?.subscriptions.orEmpty()
                     if (subscriptions.isEmpty()) {
-                        Text("还没有订阅。可添加订阅地址或导入本地 YAML 文件。", color = LocalKiyoriSettingsColors.current.secondaryText, fontSize = 13.sp, modifier = Modifier.padding(18.dp))
+                        Text("还没有订阅。支持 Clash/Mihomo YAML、Base64 和 URI 节点列表；请添加地址或导入本地文件。", color = LocalKiyoriSettingsColors.current.secondaryText, fontSize = 13.sp, modifier = Modifier.padding(18.dp))
                     } else {
                         subscriptions.forEachIndexed { index, subscription ->
                             if (index > 0) KiyoriSettingsDivider()
@@ -1743,7 +1755,8 @@ internal fun sortNetworkProxyNodes(
 }
 
 private fun subscriptionDescription(subscription: KiyoriProxySubscription): String =
-    "${subscription.summary.proxyCount} 节点 · ${subscription.summary.groupCount} 组 · ${subscription.summary.isolatedProxyCount} 隔离"
+    "${subscription.summary.inputFormat} · ${subscription.summary.proxyCount} 节点 · ${subscription.summary.groupCount} 组 · " +
+        "${subscription.summary.isolatedProxyCount} 隔离 · ${subscription.summary.rejectedProxyCount} 拒绝 · ${subscription.summary.unsupportedProxyCount} 不支持"
 
 private fun subscriptionListDescription(subscription: KiyoriProxySubscription): String {
     val source = subscriptionSourceLabel(subscription)
@@ -1822,6 +1835,7 @@ private fun networkProxyRuntimeDescription(
 ): String =
     when {
         config == null -> "加密配置不可读取，可在本页重置"
+        !KiyoriNetworkProxyPolicy.canEnable(config) -> "请先导入并选择有效订阅，才能启用应用内代理"
         !config.enabled -> "已关闭；Kiyori 使用系统网络或外部 VPN"
         !KiyoriNetworkProxyPolicy.hasConfiguredProxyRoute(config) -> "已开启；当前所有模块均配置为直连"
         activeSubscription == null -> "已开启；需要选择当前订阅"
@@ -1865,11 +1879,11 @@ private fun proxyLogLevelLabel(level: KiyoriNetworkProxyLogLevel): String =
 
 private fun networkProxyUserMessage(error: KiyoriNetworkException): String =
     when (error.code) {
-        KiyoriNetworkErrorCode.CONFIG_MISSING -> "请选择有效订阅，并至少为一个模块启用代理。"
+        KiyoriNetworkErrorCode.CONFIG_MISSING -> "请先导入并选择包含有效节点或策略组的订阅。"
         KiyoriNetworkErrorCode.CONFIG_INVALID -> "Clash / Mihomo 配置未通过结构或核心校验，现有配置未被覆盖。"
         KiyoriNetworkErrorCode.SETTINGS_WRITE_FAILED -> "Android Keystore 或私有配置文件写入失败，本次设置未保存。"
-        KiyoriNetworkErrorCode.SUBSCRIPTION_FORMAT -> "订阅服务没有返回 Clash.Meta YAML，请检查订阅类型。"
-        KiyoriNetworkErrorCode.SUBSCRIPTION_FAILED -> "订阅连接失败。首次导入时若订阅主机不可直连，请选择已下载的 Clash YAML。"
+        KiyoriNetworkErrorCode.SUBSCRIPTION_FORMAT -> "订阅格式未通过校验：${KiyoriNetworkProxyLogStore.redact(error.message.orEmpty())}"
+        KiyoriNetworkErrorCode.SUBSCRIPTION_FAILED -> "订阅连接失败。首次导入使用系统网络，可通过系统 VPN 或已下载的订阅文件导入；更新失败不会自动改走直连。"
         KiyoriNetworkErrorCode.SUBSCRIPTION_DUPLICATE -> "该订阅地址已存在；可编辑已有条目或创建副本。"
         KiyoriNetworkErrorCode.SUBSCRIPTION_NOT_FOUND -> "订阅已不存在，请刷新订阅库。"
         KiyoriNetworkErrorCode.SUBSCRIPTION_IN_USE -> "该订阅正在被代理路线使用，请先切换订阅或关闭应用内代理。"
@@ -1913,10 +1927,16 @@ private fun NetworkProxyNodeList(
     onTest: (MihomoNodeTestResult) -> Unit,
 ) {
     val colors = LocalKiyoriSettingsColors.current
-    nodes.forEachIndexed { index, node ->
+    LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 480.dp)) {
+    itemsIndexed(nodes, key = { _, node -> node.name }) { index, node ->
         val selected = node.name == selectedNodeName
         Row(
-            modifier = Modifier.fillMaxWidth().alpha(if (enabled) 1f else 0.42f).clickable(enabled = enabled && selectable) { onSelect(node) }.padding(start = 18.dp, end = 6.dp, top = 12.dp, bottom = 12.dp),
+            modifier = Modifier.fillMaxWidth()
+                .background(if (selected) colors.accent.copy(alpha = 0.14f) else Color.Transparent)
+                .semantics { this.selected = selected }
+                .alpha(if (enabled) 1f else 0.42f)
+                .clickable(enabled = enabled && selectable) { onSelect(node) }
+                .padding(start = 18.dp, end = 6.dp, top = 12.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -1953,6 +1973,7 @@ private fun NetworkProxyNodeList(
             }
         }
         if (index != nodes.lastIndex) KiyoriSettingsDivider()
+    }
     }
 }
 

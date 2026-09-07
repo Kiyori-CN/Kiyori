@@ -7,6 +7,89 @@ date: 2026-08-23
 
 # Kiyori 应用级网络代理与内嵌 Mihomo
 
+## 2026-09-07 系统兼容性、路由与设置完整性
+
+状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。
+基线 `efb754b55`，仅在 `main` 工作；六份既有上传日志不进入交付。
+
+### 实际链路与状态矩阵
+
+`设置/脚本覆盖 -> 加密 ConfigStore -> Manager mutationMutex -> Policy -> Mihomo loopback 或 NO_PROXY -> 客户端 -> 统一脱敏日志`。
+AI 服务使用 AIServiceFactory 动态客户端；HTTP/Web Visit 使用 AI_TOOLS 或宿主确认的 SCRIPTS；ToolPkg 使用 AI_TOOLS；
+Browser 使用进程 ProxyController 与 BROWSER selector；下载冻结 DOWNLOADS 快照；PlayerSession 冻结 PLAYER 快照交给唯一 IPv4 bridge；
+GitHub、天气、市场和图片加载使用 APP_SERVICES。端点补全与 Responses 恢复保留原 host/path。
+
+| 输入状态 | 必须得到的结果 |
+| --- | --- |
+| disabled，七个模块 | 系统路径；仍可经过系统 VPN |
+| 无 active / 空 root / 损坏配置 | 禁止开启；导入首份订阅走显式 bootstrap 系统路径 |
+| enabled + RULE，七个模块 | 进入唯一 Mihomo，自定义规则优先，订阅顺序匹配 |
+| enabled + GLOBAL，七个模块 | MATCH 到 KIYORI_APP_PROXY |
+| DIRECT | 绕过内嵌核心；传统脚本显式 PROXY 仍可要求核心 |
+| SCRIPTS INHERIT / DIRECT / PROXY | 跟随顶层 / 系统路径 / RULE 或 GLOBAL；ToolPkg 不接受包名伪装 |
+| 系统 VPN + 禁止并存 | VPN_CONFLICT，清理核心，导航失败可见 |
+| 系统 VPN + 允许并存 | 内嵌 Mihomo 经系统 VPN 到节点 |
+| 私网开关 false / true | private/link-local/ULA 旁路 / 可代理；loopback、multicast 永远旁路 |
+| 核心未启动 / 启动中 / RUNNING | 串行协调与健康校验；不复用旧 generation |
+| 自然退出 / 健康失败 / 恢复限额 | 现有有限恢复；限额后明确 ERROR |
+| WebView 未就绪 / 已就绪 | 不调用未初始化 provider；就绪后安装唯一覆盖并发布 readiness |
+| 导入 / 更新 / 切换 / 编辑 / 删除 | 校验后原子保存；保存成功和运行失败分别反馈 |
+
+### 已证实问题与实施计划
+
+1. `MihomoSubscriptionClient` 仅接受 YAML；增加严格 UTF-8、4 MiB、标准/URL-safe Base64 分类及 URI 解析，支持 VLESS、Hysteria2，常见协议仅按验证过的字段支持。摘要保存格式及接受/隔离/拒绝/不支持数量，零可用节点拒绝。
+2. `MihomoConfigSanitizer` 缺少 resolve、错误容忍括号、大小写未写回、SUB-RULE 语义错误，且自定义 keyword 错删前导点；修正结构解析、目标、选项、顺序与计数。外部 Geo/ASN/rule-provider 明确排除；不下载数据库。
+3. `validateConfiguration` 当前默认 GLOBAL 导致业务规则未进入 -t；校验完整 RULE 配置。启用前验证 active/root 与 YAML，ConfigStore 写入边界拒绝不可运行 enabled=true；订阅切换先校验。
+4. Manager VPN 只检查 activeNetwork，WebView 旁路缺少 IPv6/link-local/multicast；统一地址范围，监听网络变化并使用现有串行协调。检查 pooled OkHttp 与 runtime generation，拒绝旧路由。
+5. 设置开关无订阅门禁；节点 eager 列表、无选中背景；日志写 300 与 owner 1000 不一致；修正 lazy 渲染、蓝色选中、状态投影、导入格式提示及取消处理，保持唯一设置导航与主题。
+6. 补齐七模块/VPN/脚本矩阵、DeepSeek Responses、真实结构 synthetic fixtures、规则与导入单测及网络客户端回归；同步网络契约和用户指南。
+
+### 输入、风险、验证与回滚
+
+本机复核：远端 HTTP 200；Clash.Meta 返回 517801 字节 YAML，通用身份返回 36272 字节 Base64，含 54 个 VLESS 和 17 个 Hysteria2 URI。本地 YAML 为 517801 字节。真实凭据不进入源码、fixtures 或 Git。
+规则依据固定 Mihomo v1.19.30 源码与官方规则/协议文档；不凭域名所属模块改写路径，不引入第二核心、自动换节点或静默 direct fallback。
+风险集中在真实语法兼容、WebView provider 回调、网络切换及大列表；先定向 JVM/契约检查，再完整 Python/JVM、formal readiness、串行 Debug APK 与打包核验；候选提交后 fresh clone、敏感清单及远端 refs 核对。
+回滚点为基线提交，保留 schema-5 与原订阅 ID/Keystore 契约。Android 外部 VPN、前后台、网络切换、真实节点连通性与视觉验收保持 `verification_pending`，本地测试不替代现场结果。
+
+### 2026-09-08 收尾复核
+
+- 上轮因模型服务 HTTP 503 中断，未形成提交。恢复时父仓库与远端仍为 `efb754b55`，
+  `terminal` 工作区干净；本轮继续原范围的验证与交付。
+- 补齐单个 Shadowsocks Base64 凭据损坏的逐节点拒绝计数，防止中断其余合法节点；
+  不适用于当前 WebSocket/gRPC transport 的参数计为不支持，冲突的 TLS 验证别名计为拒绝。
+- 以固定 Mihomo `v1.19.30` Windows 核心连接本机回环 HTTP fixture，11 个真实规则命中用例通过：
+  DOMAIN 完整域名与子域差异、DOMAIN-SUFFIX 根域和子域、`badexample.com` 负例、
+  DOMAIN-KEYWORD、DOMAIN-WILDCARD、DOMAIN-REGEX、AND、官方嵌套 AND 和 NOT。
+  该证据确认核心规则语义，不代表 Android transport 或真实节点已验收。
+- 重新读取用户授权的本地 YAML 与远端输入，仅输出脱敏结构计数。远端两种客户端身份均为 HTTP 200：
+
+  | 输入 | 格式 | 可用节点 | 策略组 | accepted 规则 | unsupported 规则 | 隔离节点 | 拒绝 / 不支持节点 | RULE 配置 `-t` |
+  | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+  | 本地文件 | YAML | 69 | 9 | 9261 | 2 | 2 | 0 / 0 | PASS |
+  | 远端 Clash.Meta 身份 | YAML | 69 | 9 | 9261 | 2 | 2 | 0 / 0 | PASS |
+  | 远端通用身份 | BASE64_URI | 71 | 0 | 0 | 0 | 0 | 0 / 0 | PASS |
+
+  `-t` 消费当前解析器生成的完整 RULE runtime YAML；真实正文、节点凭据与订阅 URL 未加入仓库。
+- 自动验证：定向 JVM 为 35 份报告、249 个测试，0 failures / 0 errors / 0 skipped；
+  后续完整 JVM 包含新增 DeepSeek 官方 Responses 补全与恢复 URL 测试，为 361 份报告、
+  2154 个测试项，0 failures / 0 errors / 1 skipped。唯一跳过项为既有
+  `BilibiliMediaLiveTest.explicitMediaSamplesUseTheProductionRangeDownloader`，原因
+  `No explicit live media input`；未修改或降低其断言。
+- `.venv` 下网络代理 Python 契约 13 项、完整 `ci/test` 316 项通过；formal readiness、
+  architecture `phase=m03`、`git diff --check` 通过；文档工作区检查 496 文件、0 问题。
+- `:app:assembleDebug --no-daemon --console=plain` 通过，238 actionable tasks；
+  唯一 launcher、Mihomo parent-death、脚本代理 runtime 和播放器 runtime packaging 检查通过。
+  APK 为 `app/build/outputs/apk/debug/app-debug.apk`，`483825387` bytes，SHA-256 为
+  `4800758256D857FDB00270B6F1B4BAF51FA7127DED99F8B49BE78D0003193CEC`。
+  独立核验 `com.kiyori / 45 / 0.1.0 / min 26 / target 34 / compile 37`、仅 `arm64-v8a`、
+  Android Debug V2 单 signer、`zipalign -c -P 16 4` 全部通过；APK 中 54 个 AArch64 ELF 的
+  `PT_LOAD` 对齐均不低于 16 KiB。
+- 候选提交形成后使用 `check_fresh_clone.py --repository .`、
+  `check_markdown_links.py --base efb754b55 --candidate HEAD` 验证提交树与固定 terminal gitlink；
+  提交只包含本轮 16 个源码、测试和文档文件，Git/远端交付证据以提交历史及交付报告为准。
+- Android 设备、外部 VPN、Browser/AI/下载/播放器实际请求、前后台与网络切换、真实节点速度、
+  设置视觉/旋转/窄屏和触控验收保持 `verification_pending`；未安装 APK 或修改设备状态。
+
 ## 2026-08-30 runtime 指纹内存溢出修复
 
 状态：`LOCAL IMPLEMENTATION AND AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。

@@ -40,6 +40,7 @@ class ApplicationNetworkProxyContractTest(unittest.TestCase):
 
     def test_subscription_negotiates_clash_meta_yaml_and_preserves_safe_boundaries(self) -> None:
         client = self.read_kiyori("platform/network/MihomoSubscriptionClient.kt")
+        subscription_input = self.read_kiyori("platform/network/MihomoSubscriptionInput.kt")
         sanitizer = self.read_kiyori("platform/network/MihomoConfigSanitizer.kt")
         models = self.read_kiyori("platform/network/KiyoriNetworkProxyModels.kt")
         store = self.read_kiyori("platform/network/KiyoriNetworkProxyConfigStore.kt")
@@ -49,8 +50,14 @@ class ApplicationNetworkProxyContractTest(unittest.TestCase):
 
         self.assertIn('CLASH_META_USER_AGENT = "Clash.Meta"', client)
         self.assertIn('Accept", "application/yaml,text/yaml,text/plain,*/*"', client)
-        self.assertIn("SUBSCRIPTION_FORMAT", client)
+        self.assertIn("SUBSCRIPTION_FORMAT", subscription_input)
         self.assertIn("MAX_YAML_BYTES", client)
+        self.assertIn("MihomoSubscriptionInput.sanitize", client)
+        self.assertIn('format = "BASE64_URI"', subscription_input)
+        for protocol in ('"vless"', '"hysteria2"', '"trojan"', '"ss"'):
+            self.assertIn(protocol, subscription_input)
+        self.assertIn("rejectedProxyCount", subscription_input)
+        self.assertIn("unsupportedProxyCount", subscription_input)
         self.assertIn("isolatedProxyCount", sanitizer)
         self.assertIn("ROUTE_GROUP_NAME", sanitizer)
         self.assertIn("127.0.0.1", sanitizer)
@@ -137,7 +144,7 @@ class ApplicationNetworkProxyContractTest(unittest.TestCase):
         self.assertIn("完整域名", page)
         self.assertIn("域名后缀", page)
         self.assertIn("域名关键字", page)
-        self.assertIn("导入 YAML 文件", page)
+        self.assertIn("导入订阅文件", page)
         self.assertIn("onOpenNetworkProxy", drawer)
         self.assertIn("网络代理", drawer)
         self.assertIn('SCRIPTS("脚本规则")', page)
@@ -171,7 +178,7 @@ class ApplicationNetworkProxyContractTest(unittest.TestCase):
             "允许与系统 VPN 并存",
             "重置网络代理",
             "添加订阅地址",
-            "导入 YAML 文件",
+            "导入订阅文件",
             "DropdownMenuItem(text = { Text(\"更新\") }",
             "DropdownMenuItem(text = { Text(\"编辑\") }",
             "DropdownMenuItem(text = { Text(\"复制\") }",
@@ -187,6 +194,10 @@ class ApplicationNetworkProxyContractTest(unittest.TestCase):
         self.assertIn("copyPlainTextToClipboard", page)
         self.assertIn("清空代理日志？", page)
         self.assertIn("private fun NetworkProxyNodeList", page)
+        self.assertIn("LazyColumn", page)
+        self.assertIn("colors.accent.copy(alpha = 0.14f)", page)
+        self.assertIn("this.selected = selected", page)
+        self.assertIn("最多保留最近 1000 条", page)
 
     def test_extension_script_long_press_uses_the_shared_proxy_rule_owner(self) -> None:
         screen = self.read_operit("ui/features/packages/screens/PackageManagerScreen.kt")

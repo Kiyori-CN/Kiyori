@@ -2,7 +2,9 @@ package com.kiyori.platform.network
 
 import android.content.Context
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import androidx.core.content.ContextCompat
 import androidx.webkit.ProxyConfig
 import androidx.webkit.ProxyController
@@ -19,6 +21,7 @@ import java.net.URI
 import java.net.URL
 import java.net.URLConnection
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlinx.coroutines.CancellationException
@@ -26,6 +29,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -37,7 +41,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.util.concurrent.atomic.AtomicBoolean
 
 internal enum class KiyoriNetworkProxyReadiness {
     NOT_STARTED,
@@ -132,6 +135,42 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
 
     init {
         observeUnexpectedRuntimeExit()
+        observeSystemNetworks()
+    }
+
+    private fun observeSystemNetworks() {
+        val connectivity = appContext.getSystemService(ConnectivityManager::class.java)
+        val changes = Channel<Unit>(Channel.CONFLATED)
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) { changes.trySend(Unit) }
+            override fun onLost(network: Network) { changes.trySend(Unit) }
+            override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) { changes.trySend(Unit) }
+        }
+        runtimeRecoveryScope.launch {
+            var previous: String? = null
+            for (ignored in changes) {
+                try {
+                    val signature = connectivity.allNetworks.map { network ->
+                        "$network:${connectivity.getNetworkCapabilities(network)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN)}"
+                    }.sorted().joinToString("|")
+                    if (signature == previous) continue
+                    previous = signature
+                    // 网络事件不取消正在保存的事务；只合并待处理通知，在现有锁中重读最新配置。
+                    mutationMutex.withLock {
+                        val config = currentConfig()
+                        if (config.enabled) reconcileEnabledStateLocked(config)
+                    }
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    proxyLog.error("网络变化", "重新协调失败 type=${error::class.java.simpleName}")
+                }
+            }
+        }
+        connectivity.registerNetworkCallback(
+            NetworkRequest.Builder().clearCapabilities().build(),
+            callback,
+        )
     }
 
     fun exportLogText(): String = proxyLog.exportText()
@@ -154,6 +193,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
     internal fun notifyBrowserWebViewRuntimeReady() {
         if (browserWebViewRuntimeReady) return
         browserWebViewRuntimeReady = true
+        beginReadinessAttempt()
         startStartupReconciliationIfReady()
     }
 
@@ -383,7 +423,17 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
         transform: (KiyoriNetworkProxyConfig) -> KiyoriNetworkProxyConfig,
     ): KiyoriNetworkProxyConfig =
         mutationMutex.withLock {
-            val updated = persistConfig(transform)
+            val candidate = transform(currentConfig())
+            KiyoriNetworkProxyPolicy.validateSchema(candidate)
+            KiyoriNetworkProxyPolicy.validateEnabledConfig(candidate)
+            if (candidate.enabled && !currentConfig().enabled) {
+                runtime.validateConfiguration(
+                    KiyoriNetworkProxyPolicy.requireSubscription(candidate, candidate.activeSubscriptionId!!),
+                    candidate.testUrl,
+                    candidate.customRules,
+                )
+            }
+            val updated = persistConfig { candidate }
             reconcileSavedConfig(updated)
             updated
         }
@@ -464,12 +514,13 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
         mutationMutex.withLock {
             val current = currentConfig()
             val existing = KiyoriNetworkProxyPolicy.requireSubscription(current, subscriptionId)
-            val sanitized =
+            val sanitized = withContext(Dispatchers.Default) {
                 MihomoConfigSanitizer.replaceSubscriptionRule(
                     sanitizedYaml = existing.sanitizedYaml,
                     ruleIndex = ruleIndex,
                     rawRule = rawRule,
                 )
+            }
             val updatedSubscription =
                 existing.copy(
                     sanitizedYaml = sanitized.yaml,
@@ -477,7 +528,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                     rules = sanitized.rules,
                     updatedAtEpochMillis = System.currentTimeMillis(),
                 )
-            runtime.validateConfiguration(updatedSubscription, current.testUrl)
+            runtime.validateConfiguration(updatedSubscription, current.testUrl, current.customRules)
             persistSubscriptionReplacement(
                 current = current,
                 subscription = updatedSubscription,
@@ -573,15 +624,15 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                     "controllerHealthy=${state.controllerHealthy ?: "unknown"} " +
                     "mixedPortListening=${state.mixedPortListening ?: "unknown"}",
             )
-            completeReadinessSuccess(readinessGeneration)
+            if (browserWebViewRuntimeReady) completeReadinessSuccess(readinessGeneration)
         } catch (error: CancellationException) {
             completeReadinessFailure(readinessGeneration, error)
             throw error
         } catch (error: KiyoriNetworkException) {
             try {
                 if (error.code == KiyoriNetworkErrorCode.VPN_CONFLICT) {
-                    clearWebViewProxy()
                     runtime.stop("vpn_conflict")
+                    clearWebViewProxy()
                 }
             } finally {
                 proxyLog.error("运行协调", "协调失败 code=${error.code.name}")
@@ -719,7 +770,11 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                     isSystemVpnActive = systemVpnActive,
                 )
             } catch (error: KiyoriNetworkException) {
-                if (error.code == KiyoriNetworkErrorCode.VPN_CONFLICT) runtime.stop("vpn_conflict")
+                if (error.code == KiyoriNetworkErrorCode.VPN_CONFLICT) {
+                    runtime.stop("vpn_conflict")
+                    invalidateReadinessForRuntimeFailure()
+                    clearWebViewProxy()
+                }
                 proxyLog.error(
                     "路由解析",
                     "module=${module.name} route=REJECTED code=${error.code.name} " +
@@ -855,7 +910,16 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                     manager = this,
                     module = module,
                 ),
-            ).also { installDynamicFailureLogging(it, module) }
+            ).addNetworkInterceptor { chain ->
+                // OkHttp 复用连接时可能不再次调用 ProxySelector；发送 HTTP 前拒绝旧端点或旧直连。
+                val expected = DynamicKiyoriProxySelector(this, module).select(chain.request().url.toUri()).single()
+                val connection = chain.connection()
+                if (connection != null && connection.route().proxy != expected) {
+                    connection.socket().close()
+                    throw IOException("The application proxy route changed; this connection is no longer valid.")
+                }
+                chain.proceed(chain.request())
+            }.also { installDynamicFailureLogging(it, module) }
 
     fun openConnectionBlocking(
         url: URL,
@@ -945,7 +1009,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                     sanitized = sanitized,
                     now = now,
                 )
-            runtime.validateConfiguration(subscription, current.testUrl)
+            runtime.validateConfiguration(subscription, current.testUrl, current.customRules)
             val updated =
                 persistConfig { latest ->
                     if (latest.subscriptions.size >= KiyoriNetworkProxyConfig.MAX_SUBSCRIPTIONS) {
@@ -970,7 +1034,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
     ): KiyoriProxySubscription =
         mutationMutex.withLock {
             val current = currentConfig()
-            val sanitized = MihomoConfigSanitizer.sanitize(rawYaml)
+            val sanitized = withContext(Dispatchers.Default) { MihomoSubscriptionInput.sanitize(rawYaml) }
             val now = System.currentTimeMillis()
             val normalizedSourceLabel = sourceLabel.trim().take(160)
             val subscription =
@@ -988,7 +1052,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                     sanitized = sanitized,
                     now = now,
                 )
-            runtime.validateConfiguration(subscription, current.testUrl)
+            runtime.validateConfiguration(subscription, current.testUrl, current.customRules)
             val updated =
                 persistConfig { latest ->
                     if (latest.subscriptions.size >= KiyoriNetworkProxyConfig.MAX_SUBSCRIPTIONS) {
@@ -1076,7 +1140,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                     "The selected subscription is not a local YAML entry.",
                 )
             }
-            val sanitized = MihomoConfigSanitizer.sanitize(rawYaml)
+            val sanitized = withContext(Dispatchers.Default) { MihomoSubscriptionInput.sanitize(rawYaml) }
             val updatedSubscription =
                 buildImportedSubscription(
                     existing = existing,
@@ -1088,7 +1152,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                     sanitized = sanitized,
                     now = System.currentTimeMillis(),
                 )
-            runtime.validateConfiguration(updatedSubscription, current.testUrl)
+            runtime.validateConfiguration(updatedSubscription, current.testUrl, current.customRules)
             persistSubscriptionReplacement(
                 current = current,
                 subscription = updatedSubscription,
@@ -1127,6 +1191,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
             val current = currentConfig()
             val subscription = KiyoriNetworkProxyPolicy.requireSubscription(current, subscriptionId)
             proxyLog.info("订阅管理", "正在切换当前订阅：${subscription.displayName}")
+            runtime.validateConfiguration(subscription, current.testUrl, current.customRules)
             val updated = persistConfig { it.copy(activeSubscriptionId = subscriptionId) }
             reconcileSavedConfig(updated)
             proxyLog.info("订阅管理", "当前订阅已切换：${subscription.displayName}")
@@ -1150,6 +1215,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                 persistConfig { latest ->
                     latest.copy(
                         subscriptions = latest.subscriptions.filterNot { it.id == subscriptionId },
+                        enabled = latest.enabled && latest.activeSubscriptionId != subscriptionId,
                         activeSubscriptionId =
                             latest.activeSubscriptionId.takeIf { activeId -> activeId != subscriptionId },
                     )
@@ -1334,9 +1400,9 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
 
     fun isSystemVpnActive(): Boolean {
         val manager = appContext.getSystemService(ConnectivityManager::class.java)
-        val network = manager.activeNetwork ?: return false
-        val capabilities = manager.getNetworkCapabilities(network) ?: return false
-        return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
+        return manager.allNetworks.any { network ->
+            manager.getNetworkCapabilities(network)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+        }
     }
 
     private suspend fun replaceUrlSubscriptionLocked(
@@ -1361,7 +1427,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                 sanitized = sanitized,
                 now = System.currentTimeMillis(),
             )
-        runtime.validateConfiguration(updatedSubscription, current.testUrl)
+        runtime.validateConfiguration(updatedSubscription, current.testUrl, current.customRules)
         persistSubscriptionReplacement(
             current = current,
             subscription = updatedSubscription,
@@ -1373,6 +1439,10 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
     private suspend fun subscriptionUpdateEndpoint(
         config: KiyoriNetworkProxyConfig,
     ): KiyoriProxyEndpoint? {
+        if (KiyoriNetworkProxyPolicy.activeSubscription(config) == null) {
+            proxyLog.info("订阅下载", "首次导入 bootstrap=SYSTEM；允许系统 VPN 提供网络")
+            return null
+        }
         if (!KiyoriNetworkProxyPolicy.requiresEmbeddedProxy(config)) return null
         val active = KiyoriNetworkProxyPolicy.validateEmbeddedStart(config, isSystemVpnActive())
         return runtime.ensureReady(
@@ -1628,6 +1698,8 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
         endpoint: KiyoriProxyEndpoint,
         proxyPrivateNetworks: Boolean,
     ) {
+        // 代理可由 AI 或设置先启动；实际 WebView 出现后才安装覆盖，导航仍等待 readiness。
+        if (!browserWebViewRuntimeReady) return
         val startedAt = System.currentTimeMillis()
         val bypassDomains =
             browserSiteProxyDisabledDomainsProvider
@@ -1671,20 +1743,10 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
         val builder =
             ProxyConfig.Builder()
                 .addProxyRule("http://${endpoint.host}:${endpoint.port}")
-                .addBypassRule("localhost")
-                .addBypassRule("127.0.0.1")
-                .addBypassRule("[::1]")
-                .addBypassRule("<local>")
+        kiyoriWebViewProxyBypassRules(proxyPrivateNetworks).forEach(builder::addBypassRule)
         bypassDomains.forEach { normalizedDomain ->
             builder.addBypassRule(normalizedDomain)
             builder.addBypassRule("*.$normalizedDomain")
-        }
-        if (!proxyPrivateNetworks) {
-            builder.addBypassRule("10.*")
-            builder.addBypassRule("192.168.*")
-            (16..31).forEach { secondOctet ->
-                builder.addBypassRule("172.$secondOctet.*")
-            }
         }
         val completed =
             withTimeoutOrNull(WEBVIEW_PROXY_OPERATION_TIMEOUT_MILLIS) {
@@ -1715,6 +1777,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
     }
 
     private suspend fun clearWebViewProxy() {
+        if (!browserWebViewRuntimeReady) return
         if (!WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) return
         val proxyController = ProxyController.getInstance()
         val startedAt = System.currentTimeMillis()
@@ -1940,6 +2003,11 @@ internal fun shouldBypassKiyoriProxy(
     if (proxyPrivateNetworks) return false
     if (address.isSiteLocalAddress || address.isLinkLocalAddress) return true
     return address is Inet6Address && (address.address[0].toInt() and 0xfe) == 0xfc
+}
+
+internal fun kiyoriWebViewProxyBypassRules(proxyPrivateNetworks: Boolean): List<String> = buildList {
+    addAll(listOf("localhost", "*.localhost", "127.0.0.0/8", "[::1]", "0.0.0.0", "[::]", "224.0.0.0/4", "ff00::/8"))
+    if (!proxyPrivateNetworks) addAll(listOf("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16", "fe80::/10", "fc00::/7", "fec0::/10"))
 }
 
 private fun parseNumericAddress(host: String): InetAddress? {

@@ -133,6 +133,7 @@ class KiyoriNetworkProxyConfigStore private constructor(context: Context) {
     ): KiyoriNetworkProxyConfig =
         synchronized(lock) {
             val updated = transform(currentConfig()).also(KiyoriNetworkProxyPolicy::validateSchema)
+            KiyoriNetworkProxyPolicy.validateEnabledConfig(updated)
             try {
                 writeEncrypted(updated)
             } catch (error: KiyoriNetworkException) {

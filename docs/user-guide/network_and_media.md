@@ -24,7 +24,7 @@ MCP、AIDL、native 和历史数据中的 `Operit` 标识仍按兼容合同保�
 
 打开 **设置首页 → 更多功能 → 网络代理**。这是 Kiyori 进程内唯一的网络路由设置，覆盖 AI 主模型
 与语音、AI 工具、浏览器、下载、播放器、传统脚本和 Kiyori 自身在线服务。顶部的代理模式为“规则 / 全局 /
-直连”：规则按域名决定是否进入当前策略组，全局让 Kiyori 的请求统一进入当前策略组，直连绕过内嵌
+直连”：规则按自定义与订阅规则的顺序决定直连、代理或拒绝，全局让 Kiyori 的请求统一进入当前策略组，直连绕过内嵌
 Mihomo。所有模块统一遵循这个模式；传统 JsEngine 脚本还可以在“脚本规则”中按包名覆盖。环境变量
 抽屉底部的“网络代理”按钮会直接跳到这里，ToolPkg 不会被伪装成传统脚本。
 
@@ -43,13 +43,18 @@ Mihomo。所有模块统一遵循这个模式；传统 JsEngine 脚本还可以�
 URL 凭据与路径、Bearer、secret/password/token、UUID、私有文件路径和长凭据；日志页支持查看、复制、通过
 Android 系统文件选择器导出文本，以及二次确认后清空。日志不会持久化订阅 YAML 或 Controller secret。
 
-订阅管理页提供“添加订阅地址”和“导入 YAML 文件”两个按钮，订阅行点击立即切换当前订阅，右侧三点菜单提供
+订阅管理页提供“添加订阅地址”和“导入订阅文件”两个按钮，订阅行点击立即切换当前订阅，右侧三点菜单提供
 “更新、编辑、复制、删除”；复制会创建新的订阅条目，不会切换当前订阅。订阅地址只要求填写 Clash/Mihomo
-订阅 URL，或通过“导入 YAML 文件”选择单文档 UTF-8 YAML。客户端使用
-`Clash.Meta` 身份请求 YAML mapping；Base64 节点列表、重复键、无有效出站、非法 provider 或 Mihomo
-校验失败会拒绝导入。订阅中的局域网、loopback、链路本地、私有和组播节点会被隔离并显示数量，其余
+订阅 URL，或通过“导入订阅文件”选择单文档 UTF-8 YAML、URI 节点列表或标准/URL-safe Base64 节点列表。
+客户端使用 `Clash.Meta` 身份协商服务端格式；URI 当前支持 VLESS、Hysteria2/Hy2、Trojan 和无插件
+Shadowsocks。未知协议/参数与无效端口、凭据、编码会分别显示“不支持”或“拒绝”数量，零可用节点、重复键、
+无有效出站、非法 provider 或 Mihomo 校验失败会拒绝导入。订阅中的局域网、loopback、链路本地、私有和组播节点会被隔离并显示数量，其余
 策略组顺序和可选项会保留。订阅 URL、清洗后的 YAML 和控制器密钥使用 Android Keystore 加密并保存于
 no-backup 私有目录。
+
+没有当前订阅或订阅没有有效 root route 时，顶部“启用应用内代理”不可开启，Manager 也不会保存
+`enabled=true`。首次从 URL 导入使用 Android 系统网络，可以借助已经启用的系统 VPN；已有活动订阅并开启
+Kiyori 代理时，订阅更新使用当前 Kiyori 路由，运行时不可用会明确失败，不会静默直连。
 
 运行配置不会继承订阅中依赖外部 GeoSite/GeoIP 数据库或已移除 rule-provider 的 DNS 匹配器；DNS
 解析不会重新进入业务规则图，并且订阅没有 DNS 段时使用受控的 IP nameserver；这保证 `mihomo -t`
@@ -63,3 +68,5 @@ Kiyori 内嵌 Mihomo 只监听随机 loopback mixed-port，不启用 TUN、LAN �
 外部 Clash 使用系统 VPN/TUN 时无需填写主机、端口、用户名或密码；“直连”只表示绕过 Kiyori 应用层代理，
 仍可能经过系统 VPN。检测到外部 VPN 后，内嵌代理默认拒绝启动；在高级设置明确允许并存后，代理模块按
 `Kiyori Mihomo → 系统 VPN → 节点` 连接。该功能只影响 Kiyori 进程，不改变其他应用的网络。
+外部 Clash 仅开放本机 mixed-port、但没有作为 Android VPN/TUN 工作时，Kiyori 不会扫描、读取或自动使用
+它的端口和私有配置。

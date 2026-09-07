@@ -128,6 +128,9 @@ data class MihomoProxyGroupSummary(
 
 @Serializable
 data class MihomoSubscriptionSummary(
+    val inputFormat: String = "YAML",
+    val rejectedProxyCount: Int = 0,
+    val unsupportedProxyCount: Int = 0,
     val proxyCount: Int = 0,
     val providerCount: Int = 0,
     val groupCount: Int = 0,
@@ -251,6 +254,20 @@ data class KiyoriProxyEndpoint(
 )
 
 object KiyoriNetworkProxyPolicy {
+    fun canEnable(config: KiyoriNetworkProxyConfig): Boolean =
+        activeSubscription(config)?.let {
+            it.sanitizedYaml.isNotBlank() && it.summary.rootCandidates.isNotEmpty()
+        } == true
+
+    fun validateEnabledConfig(config: KiyoriNetworkProxyConfig) {
+        if (config.enabled && !canEnable(config)) {
+            throw KiyoriNetworkException(
+                KiyoriNetworkErrorCode.CONFIG_MISSING,
+                "Import and select a usable subscription before enabling the application proxy.",
+            )
+        }
+    }
+
     fun effectiveModuleMode(
         config: KiyoriNetworkProxyConfig,
         module: KiyoriNetworkModule,

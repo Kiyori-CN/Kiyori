@@ -16,100 +16,104 @@ class MihomoSubscriptionClient {
     ): SanitizedMihomoSubscription =
         try {
             withContext(Dispatchers.IO) {
-            KiyoriNetworkProxyLogStore.info("订阅下载", "正在获取 Clash.Meta YAML 订阅")
-            val client = createClient(proxyEndpoint)
-            var current = requireHttpUrl(rawUrl)
-            repeat(MAX_REDIRECTS + 1) { redirectIndex ->
-                val request =
-                    Request.Builder()
-                        .url(current.toString())
-                        // Subscription servers commonly use this identity to choose Clash YAML
-                        // instead of a Base64 URI list. Sending a generic Mihomo identity makes
-                        // the same URL return an incompatible representation.
-                        .header("User-Agent", CLASH_META_USER_AGENT)
-                        .header("Accept", "application/yaml,text/yaml,text/plain,*/*")
-                        .get()
-                        .build()
-                client.newCall(request).execute().use { response ->
-                    when (response.code) {
-                        in 200..299 -> {
-                            val body =
-                                response.body
-                                    ?: subscriptionFailure(
-                                        "The subscription response body is empty.",
-                                    )
-                            val declaredLength = body.contentLength()
-                            if (declaredLength > MihomoConfigSanitizer.MAX_YAML_BYTES) {
-                                subscriptionFailure("The subscription exceeds the 4 MiB limit.")
-                            }
-                            val bytes =
-                                body.byteStream().use { input ->
-                                    val output = java.io.ByteArrayOutputStream()
-                                    val buffer = ByteArray(32 * 1024)
-                                    while (true) {
-                                        val read = input.read(buffer)
-                                        if (read < 0) break
-                                        if (
-                                            output.size() + read >
-                                                MihomoConfigSanitizer.MAX_YAML_BYTES
-                                        ) {
-                                            subscriptionFailure(
-                                                "The subscription exceeds the 4 MiB limit.",
-                                            )
-                                        }
-                                        output.write(buffer, 0, read)
-                                    }
-                                    output.toByteArray()
+                KiyoriNetworkProxyLogStore.info(
+                    "订阅下载",
+                    "正在获取订阅并识别 YAML / Base64 / URI 格式",
+                )
+                val client = createClient(proxyEndpoint)
+                var current = requireHttpUrl(rawUrl)
+                repeat(MAX_REDIRECTS + 1) { redirectIndex ->
+                    val request =
+                        Request.Builder()
+                            .url(current.toString())
+                            // Subscription servers commonly use this identity to choose Clash YAML
+                            // instead of a Base64 URI list. Sending a generic Mihomo identity makes
+                            // the same URL return an incompatible representation.
+                            .header("User-Agent", CLASH_META_USER_AGENT)
+                            .header("Accept", "application/yaml,text/yaml,text/plain,*/*")
+                            .get()
+                            .build()
+                    client.newCall(request).execute().use { response ->
+                        when (response.code) {
+                            in 200..299 -> {
+                                val body =
+                                    response.body
+                                        ?: subscriptionFailure(
+                                            "The subscription response body is empty.",
+                                        )
+                                val declaredLength = body.contentLength()
+                                if (declaredLength > MihomoConfigSanitizer.MAX_YAML_BYTES) {
+                                    subscriptionFailure("The subscription exceeds the 4 MiB limit.")
                                 }
-                            val sanitized =
-                                MihomoConfigSanitizer.sanitize(
-                                    rawYaml =
-                                        MihomoConfigSanitizer.decodeUtf8(
-                                            bytes,
-                                            KiyoriNetworkErrorCode.SUBSCRIPTION_FAILED,
-                                        ),
-                                    rootErrorCode = KiyoriNetworkErrorCode.SUBSCRIPTION_FORMAT,
-                                )
-                            return@withContext sanitized.copy(
-                                usage = parseSubscriptionUsage(response.header(SUBSCRIPTION_USERINFO)),
-                            ).also {
-                                KiyoriNetworkProxyLogStore.info(
-                                    "订阅下载",
-                                    "订阅下载与结构清洗完成：${it.summary.proxyCount} 个静态节点，" +
-                                        "${it.summary.groupCount} 个策略组，" +
-                                        "隔离 ${it.summary.isolatedProxyCount} 个本地条目",
-                                )
-                            }
-                        }
-                        in 300..399 -> {
-                            if (redirectIndex == MAX_REDIRECTS) {
-                                subscriptionFailure(
-                                    "The subscription exceeded the redirect limit.",
-                                )
-                            }
-                            val location =
-                                response.header("Location")
-                                    ?: subscriptionFailure(
-                                        "The subscription redirect has no target.",
+                                val bytes =
+                                    body.byteStream().use { input ->
+                                        val output = java.io.ByteArrayOutputStream()
+                                        val buffer = ByteArray(32 * 1024)
+                                        while (true) {
+                                            val read = input.read(buffer)
+                                            if (read < 0) break
+                                            if (
+                                                output.size() + read >
+                                                    MihomoConfigSanitizer.MAX_YAML_BYTES
+                                            ) {
+                                                subscriptionFailure(
+                                                    "The subscription exceeds the 4 MiB limit.",
+                                                )
+                                            }
+                                            output.write(buffer, 0, read)
+                                        }
+                                        output.toByteArray()
+                                    }
+                                val sanitized =
+                                    MihomoSubscriptionInput.sanitize(
+                                        raw =
+                                            MihomoConfigSanitizer.decodeUtf8(
+                                                bytes,
+                                                KiyoriNetworkErrorCode.SUBSCRIPTION_FORMAT,
+                                            ),
                                     )
-                            val next = requireHttpUrl(current.resolve(location).toString())
-                            if (
-                                current.scheme.equals("https", ignoreCase = true) &&
-                                    next.scheme.equals("http", ignoreCase = true)
-                            ) {
-                                subscriptionFailure(
-                                    "An HTTPS subscription cannot redirect to HTTP.",
-                                )
+                                return@withContext sanitized.copy(
+                                    usage = parseSubscriptionUsage(response.header(SUBSCRIPTION_USERINFO)),
+                                ).also {
+                                    KiyoriNetworkProxyLogStore.info(
+                                        "订阅下载",
+                                        "订阅下载与结构清洗完成：format=${it.summary.inputFormat} " +
+                                            "usable=${it.summary.proxyCount} groups=${it.summary.groupCount} " +
+                                            "isolated=${it.summary.isolatedProxyCount} " +
+                                            "rejected=${it.summary.rejectedProxyCount} " +
+                                            "unsupported=${it.summary.unsupportedProxyCount}",
+                                    )
+                                }
                             }
-                            current = next
+                            in 300..399 -> {
+                                if (redirectIndex == MAX_REDIRECTS) {
+                                    subscriptionFailure(
+                                        "The subscription exceeded the redirect limit.",
+                                    )
+                                }
+                                val location =
+                                    response.header("Location")
+                                        ?: subscriptionFailure(
+                                            "The subscription redirect has no target.",
+                                        )
+                                val next = requireHttpUrl(current.resolve(location).toString())
+                                if (
+                                    current.scheme.equals("https", ignoreCase = true) &&
+                                        next.scheme.equals("http", ignoreCase = true)
+                                ) {
+                                    subscriptionFailure(
+                                        "An HTTPS subscription cannot redirect to HTTP.",
+                                    )
+                                }
+                                current = next
+                            }
+                            else ->
+                                subscriptionFailure(
+                                    "The subscription server returned HTTP ${response.code}.",
+                                )
                         }
-                        else ->
-                            subscriptionFailure(
-                                "The subscription server returned HTTP ${response.code}.",
-                            )
                     }
                 }
-            }
                 subscriptionFailure("The subscription did not return a configuration.")
             }
         } catch (error: KiyoriNetworkException) {
