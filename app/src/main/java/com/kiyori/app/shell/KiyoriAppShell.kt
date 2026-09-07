@@ -30,6 +30,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -537,11 +539,26 @@ internal fun KiyoriAppShell(
                                 modifier = Modifier.fillMaxSize(),
                             )
                         KiyoriSettingsRoute.ONBOARDING_REVIEW ->
-                            KiyoriOnboardingScreen(
-                                agreementAccepted = true,
-                                onAgreementAccepted = {},
-                                onComplete = { onStateChange(state.closeSettingsRoute()) },
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .zIndex(100f)
+                                    .pointerInput(Unit) {
+                                        awaitPointerEventScope {
+                                            while (true) {
+                                                awaitPointerEvent(PointerEventPass.Final)
+                                                    .changes.forEach { it.consume() }
+                                            }
+                                        }
+                                    },
+                            ) {
+                                KiyoriOnboardingScreen(
+                                    agreementAccepted = true,
+                                    onAgreementAccepted = {},
+                                    onComplete = { onStateChange(state.closeSettingsRoute()) },
+                                    startFromBeginning = true,
+                                )
+                            }
                         KiyoriSettingsRoute.AGREEMENT ->
                             KiyoriLegalDocumentsScreen(
                                 onBack = { onStateChange(state.closeSettingsRoute()) },

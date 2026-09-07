@@ -144,6 +144,7 @@ internal fun KiyoriOnboardingScreen(
     agreementAccepted: Boolean,
     onAgreementAccepted: () -> Unit,
     onComplete: () -> Unit,
+    startFromBeginning: Boolean = false,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -156,7 +157,9 @@ internal fun KiyoriOnboardingScreen(
         remember {
             resolveInitialKiyoriOnboardingStep(
                 agreementAccepted = agreementAccepted,
-                persistedStep = preferences.readCurrentStep(),
+                persistedStep =
+                    if (startFromBeginning) KiyoriOnboardingStep.WELCOME
+                    else preferences.readCurrentStep(),
             )
         }
     val pagerState =
@@ -761,7 +764,13 @@ private fun OnboardingProgressHeader(step: KiyoriOnboardingStep, onBack: () -> U
             Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer) { Icon(Icons.Default.AutoAwesome, null, Modifier.padding(7.dp).size(18.dp)) }
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(stringResource(step.onboardingLabelResId), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    text = if (step == KiyoriOnboardingStep.WELCOME) "欢迎使用 Kiyori" else stringResource(step.onboardingLabelResId),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 Text(stringResource(R.string.kiyori_onboarding_progress, step.ordinal + 1, KiyoriOnboardingStep.entries.size), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (step.ordinal < KiyoriOnboardingStep.AGREEMENT.ordinal) TextButton(onClick = onSkipIntroduction) { Text(stringResource(R.string.kiyori_onboarding_skip_intro)) }
