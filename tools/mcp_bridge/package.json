@@ -20,7 +20,7 @@
     "author": "",
     "license": "MIT",
     "dependencies": {
-        "uuid": "^9.0.0",
+        "uuid": "^11.1.1",
         "mcp-client": "^1.13.1",
         "@modelcontextprotocol/sdk": "^1.18.2"
     },

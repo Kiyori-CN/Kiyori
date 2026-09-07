@@ -142,7 +142,11 @@ const handlers = {
             });
 
             const toolCallResult = { content: result.content };
-            const toolCallError = result.isError ? { code: -32000, message: result.content[0]?.text || "Remote tool error" } : undefined;
+            const firstContent = result.content[0];
+            const toolCallError = result.isError ? {
+                code: -32000,
+                message: firstContent?.type === 'text' ? firstContent.text : "Remote tool error"
+            } : undefined;
 
             process.send!({
                 event: 'tool_result',
