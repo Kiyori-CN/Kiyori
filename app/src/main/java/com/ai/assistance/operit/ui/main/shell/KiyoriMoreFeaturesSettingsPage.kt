@@ -40,17 +40,6 @@ internal data class KiyoriMoreFeaturesSettingsGroupSpec(
 
 internal val kiyoriMoreFeaturesSettingsGroups =
     listOf(
-                KiyoriMoreFeaturesSettingsGroupSpec(
-            title = "使用引导",
-            description = "重新查看 Kiyori 的功能介绍、协议和权限说明",
-            entries = listOf(KiyoriMoreFeaturesSettingsEntrySpec(
-                title = "重新查看首次引导",
-                description = "回顾功能与安全说明，不会清除数据或自动重置授权",
-                icon = Icons.Default.AutoAwesome,
-                iconTone = KiyoriSemanticTone.BLUE,
-                action = KiyoriMoreFeaturesSettingsAction.OPEN_ONBOARDING_REVIEW,
-            )),
-        ),
         KiyoriMoreFeaturesSettingsGroupSpec(
             title = "系统能力",
             description = "管理 Kiyori 在设备上运行所需的授权和系统访问能力",
