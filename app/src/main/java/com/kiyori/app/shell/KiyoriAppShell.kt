@@ -63,6 +63,7 @@ import com.kiyori.capability.settings.navigation.KiyoriSettingsRoute
 import com.kiyori.design.theme.KiyoriBrowserTheme
 import com.kiyori.design.theme.KiyoriSettingsTheme
 import com.kiyori.integration.operit.onboarding.KiyoriPermissionsSettingsPage
+import com.kiyori.integration.operit.onboarding.KiyoriOnboardingScreen
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.dropWhile
@@ -500,6 +501,9 @@ internal fun KiyoriAppShell(
                                         ),
                                     )
                                 },
+                                onOpenOnboardingReview = {
+                                    onStateChange(state.openSettingsRoute(KiyoriSettingsRoute.ONBOARDING_REVIEW))
+                                },
                                 onOpenNetworkProxy = {
                                     onStateChange(
                                         state.openSettingsRoute(KiyoriSettingsRoute.NETWORK_PROXY),
@@ -531,6 +535,12 @@ internal fun KiyoriAppShell(
                             KiyoriPermissionsSettingsPage(
                                 onBack = { onStateChange(state.closeSettingsRoute()) },
                                 modifier = Modifier.fillMaxSize(),
+                            )
+                        KiyoriSettingsRoute.ONBOARDING_REVIEW ->
+                            KiyoriOnboardingScreen(
+                                agreementAccepted = true,
+                                onAgreementAccepted = {},
+                                onComplete = { onStateChange(state.closeSettingsRoute()) },
                             )
                         KiyoriSettingsRoute.AGREEMENT ->
                             KiyoriLegalDocumentsScreen(

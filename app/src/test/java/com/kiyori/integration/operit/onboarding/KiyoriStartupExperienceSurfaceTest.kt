@@ -61,11 +61,11 @@ class KiyoriStartupExperienceSurfaceTest {
         assertTrue(permissionPageBlock.contains("kiyoriPermissionGroups.forEach"))
         assertTrue(permissionPageBlock.contains("items = group.permissionIds"))
         assertTrue(permissionPageBlock.contains("summarizeKiyoriPermissions(snapshot)"))
-        assertTrue(permissionPageBlock.contains("onSelectAll"))
+        assertTrue(permissionPageBlock.contains("onClearSelection"))
 
         val defaultStrings =
             repositoryFile("app/src/main/res/values/strings.xml").readText()
-        assertTrue(defaultStrings.contains("kiyori_onboarding_permissions_select_all"))
+        assertTrue(defaultStrings.contains("kiyori_onboarding_permissions_clear_all"))
     }
 
     @Test

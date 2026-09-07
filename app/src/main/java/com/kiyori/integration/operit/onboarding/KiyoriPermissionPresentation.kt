@@ -32,8 +32,10 @@ import com.ai.assistance.operit.R
 import com.kiyori.design.theme.KiyoriSemanticTone
 
 internal enum class KiyoriPermissionGroupId {
-    APPLICATION,
-    SYSTEM_ACCESS,
+    DAILY,
+    FILES_AND_BACKGROUND,
+    DEVICE_INTEGRATION,
+    SENSITIVE_DATA,
     ADVANCED_CAPABILITIES,
 }
 
@@ -42,58 +44,42 @@ internal data class KiyoriPermissionGroupSpec(
     val title: String,
     val description: String,
     val permissionIds: List<KiyoriPermissionId>,
+    val initiallyExpanded: Boolean = false,
 )
 
-internal val kiyoriPermissionGroups =
-    listOf(
-        KiyoriPermissionGroupSpec(
-            id = KiyoriPermissionGroupId.APPLICATION,
-            title = "应用权限",
-            description = "Android 运行时授权，仅在你使用对应功能时读取或调用",
-            permissionIds =
-                listOf(
-                    KiyoriPermissionId.NOTIFICATIONS,
-                    KiyoriPermissionId.MEDIA,
-                    KiyoriPermissionId.CAMERA,
-                    KiyoriPermissionId.MICROPHONE,
-                    KiyoriPermissionId.LOCATION,
-                    KiyoriPermissionId.BLUETOOTH,
-                    KiyoriPermissionId.PHONE,
-                    KiyoriPermissionId.SMS,
-                    KiyoriPermissionId.LEGACY_STORAGE,
-                    KiyoriPermissionId.READ_INSTALLED_APPS,
-                ),
-        ),
-        KiyoriPermissionGroupSpec(
-            id = KiyoriPermissionGroupId.SYSTEM_ACCESS,
-            title = "系统访问",
-            description = "由 Android 设置单独管理的文件、后台、通知和系统能力",
-            permissionIds =
-                listOf(
-                    KiyoriPermissionId.REMOVE_RESTRICTED_SETTINGS,
-                    KiyoriPermissionId.ALL_FILES,
-                    KiyoriPermissionId.OVERLAY,
-                    KiyoriPermissionId.WRITE_SETTINGS,
-                    KiyoriPermissionId.USAGE_ACCESS,
-                    KiyoriPermissionId.INSTALL_PACKAGES,
-                    KiyoriPermissionId.BATTERY_OPTIMIZATION,
-                    KiyoriPermissionId.NOTIFICATION_LISTENER,
-                    KiyoriPermissionId.DEFAULT_ASSISTANT,
-                ),
-        ),
-        KiyoriPermissionGroupSpec(
-            id = KiyoriPermissionGroupId.ADVANCED_CAPABILITIES,
-            title = "高级设备能力",
-            description = "高影响能力需要额外安装、启动或由设备管理器明确确认",
-            permissionIds =
-                listOf(
-                    KiyoriPermissionId.ACCESSIBILITY,
-                    KiyoriPermissionId.SHIZUKU,
-                    KiyoriPermissionId.ROOT,
-                    KiyoriPermissionId.SCREEN_CAPTURE,
-                ),
-        ),
-    )
+// 展示顺序服务使用场景；持久化仍使用稳定的 permission ID，不依赖枚举序号。
+internal val kiyoriPermissionGroups = listOf(
+    KiyoriPermissionGroupSpec(
+        KiyoriPermissionGroupId.DAILY, "日常使用", "通知、影音与输入 · 只开启你会用到的功能",
+        listOf(KiyoriPermissionId.NOTIFICATIONS, KiyoriPermissionId.MEDIA,
+            KiyoriPermissionId.LEGACY_STORAGE, KiyoriPermissionId.CAMERA,
+            KiyoriPermissionId.MICROPHONE, KiyoriPermissionId.LOCATION,
+            KiyoriPermissionId.BLUETOOTH),
+        initiallyExpanded = true,
+    ),
+    KiyoriPermissionGroupSpec(
+        KiyoriPermissionGroupId.FILES_AND_BACKGROUND, "文件与后台", "跨目录管理、安装与长任务 · 由系统单独确认",
+        listOf(KiyoriPermissionId.ALL_FILES, KiyoriPermissionId.INSTALL_PACKAGES,
+            KiyoriPermissionId.BATTERY_OPTIMIZATION),
+    ),
+    KiyoriPermissionGroupSpec(
+        KiyoriPermissionGroupId.DEVICE_INTEGRATION, "设备协作", "悬浮助手与设备工具 · 普通浏览无需开启",
+        listOf(KiyoriPermissionId.OVERLAY, KiyoriPermissionId.DEFAULT_ASSISTANT,
+            KiyoriPermissionId.WRITE_SETTINGS, KiyoriPermissionId.USAGE_ACCESS,
+            KiyoriPermissionId.READ_INSTALLED_APPS),
+    ),
+    KiyoriPermissionGroupSpec(
+        KiyoriPermissionGroupId.SENSITIVE_DATA, "通信与通知内容", "涉及他人信息、验证码或通信费用 · 请逐项确认用途",
+        listOf(KiyoriPermissionId.PHONE, KiyoriPermissionId.SMS,
+            KiyoriPermissionId.NOTIFICATION_LISTENER),
+    ),
+    KiyoriPermissionGroupSpec(
+        KiyoriPermissionGroupId.ADVANCED_CAPABILITIES, "高级自动化", "可操作其他应用或受保护数据 · 仅在理解影响后启用",
+        listOf(KiyoriPermissionId.REMOVE_RESTRICTED_SETTINGS,
+            KiyoriPermissionId.ACCESSIBILITY, KiyoriPermissionId.SHIZUKU,
+            KiyoriPermissionId.ROOT, KiyoriPermissionId.SCREEN_CAPTURE),
+    ),
+)
 
 internal enum class KiyoriPermissionActionKind {
     REQUEST_RUNTIME,
@@ -111,6 +97,7 @@ internal data class KiyoriPermissionSummary(
     val actionRequiredCount: Int,
     val onDemandCount: Int,
     val totalCount: Int,
+    val notApplicableCount: Int,
 )
 
 internal fun summarizeKiyoriPermissions(
@@ -119,8 +106,7 @@ internal fun summarizeKiyoriPermissions(
     KiyoriPermissionSummary(
         readyCount =
             snapshot.statuses.values.count { status ->
-                status == KiyoriPermissionStatus.GRANTED ||
-                    status == KiyoriPermissionStatus.NOT_APPLICABLE
+                status == KiyoriPermissionStatus.GRANTED
             },
         actionRequiredCount = snapshot.actionableIncomplete.size,
         onDemandCount =
@@ -128,12 +114,17 @@ internal fun summarizeKiyoriPermissions(
                 status == KiyoriPermissionStatus.ON_DEMAND
             },
         totalCount = snapshot.totalCount,
+        notApplicableCount = snapshot.statuses.values.count { it == KiyoriPermissionStatus.NOT_APPLICABLE },
     )
 
 internal fun resolveKiyoriPermissionAction(
     permissionId: KiyoriPermissionId,
     status: KiyoriPermissionStatus,
 ): KiyoriPermissionActionKind {
+    // Android 没有跨厂商可靠的受限设置查询接口。提供帮助入口，不声称用户尚未授权。
+    if (permissionId == KiyoriPermissionId.REMOVE_RESTRICTED_SETTINGS &&
+        status != KiyoriPermissionStatus.NOT_APPLICABLE
+    ) return KiyoriPermissionActionKind.OPEN_RESTRICTED_SETTINGS
     if (
         status == KiyoriPermissionStatus.NOT_APPLICABLE ||
             status == KiyoriPermissionStatus.ON_DEMAND
@@ -390,7 +381,7 @@ internal fun kiyoriPermissionStatusTone(
     when (status) {
         KiyoriPermissionStatus.GRANTED -> KiyoriSemanticTone.GREEN
         KiyoriPermissionStatus.PARTIAL -> KiyoriSemanticTone.ORANGE
-        KiyoriPermissionStatus.NOT_GRANTED -> KiyoriSemanticTone.RED
+        KiyoriPermissionStatus.NOT_GRANTED -> KiyoriSemanticTone.BLUE
         KiyoriPermissionStatus.REQUIRES_SETUP -> KiyoriSemanticTone.PURPLE
         KiyoriPermissionStatus.NOT_APPLICABLE -> KiyoriSemanticTone.BLUE
         KiyoriPermissionStatus.ON_DEMAND -> KiyoriSemanticTone.CYAN

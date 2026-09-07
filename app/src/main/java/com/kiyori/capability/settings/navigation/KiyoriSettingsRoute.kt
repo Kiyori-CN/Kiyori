@@ -3,6 +3,7 @@ package com.kiyori.capability.settings.navigation
 enum class KiyoriSettingsRoute {
     HOME,
     MORE_FEATURES,
+    ONBOARDING_REVIEW,
     NETWORK_PROXY,
     PERMISSIONS,
     AGREEMENT,

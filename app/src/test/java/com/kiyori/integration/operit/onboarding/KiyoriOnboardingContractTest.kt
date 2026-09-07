@@ -247,13 +247,15 @@ class KiyoriOnboardingContractTest {
 
         assertEquals(
             listOf(
-                KiyoriPermissionGroupId.APPLICATION,
-                KiyoriPermissionGroupId.SYSTEM_ACCESS,
+                KiyoriPermissionGroupId.DAILY,
+                KiyoriPermissionGroupId.FILES_AND_BACKGROUND,
+                KiyoriPermissionGroupId.DEVICE_INTEGRATION,
+                KiyoriPermissionGroupId.SENSITIVE_DATA,
                 KiyoriPermissionGroupId.ADVANCED_CAPABILITIES,
             ),
             kiyoriPermissionGroups.map(KiyoriPermissionGroupSpec::id),
         )
-        assertEquals(KiyoriPermissionId.entries, permissionIds)
+        assertEquals(KiyoriPermissionId.entries.toSet(), permissionIds.toSet())
         assertEquals(23, permissionIds.size)
         assertEquals(KiyoriPermissionId.entries.size, permissionIds.toSet().size)
         assertTrue(
@@ -349,7 +351,7 @@ class KiyoriOnboardingContractTest {
                 KiyoriPermissionSnapshot(statuses),
             )
 
-        assertEquals(21, summary.readyCount)
+        assertEquals(20, summary.readyCount)
         assertEquals(1, summary.actionRequiredCount)
         assertEquals(1, summary.onDemandCount)
         assertEquals(KiyoriPermissionId.entries.size, summary.totalCount)

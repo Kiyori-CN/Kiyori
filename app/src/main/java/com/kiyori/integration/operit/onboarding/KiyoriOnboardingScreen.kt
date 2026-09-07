@@ -9,6 +9,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -435,6 +438,7 @@ internal fun KiyoriOnboardingScreen(
                     previousKiyoriOnboardingStep(currentStep)?.let(::moveTo)
                 },
                 showBack = currentStep != KiyoriOnboardingStep.WELCOME && !authorizationActive,
+                onSkipIntroduction = { moveTo(KiyoriOnboardingStep.AGREEMENT) },
             )
             HorizontalPager(
                 state = pagerState,
@@ -739,12 +743,6 @@ internal fun KiyoriOnboardingScreen(
                                         preferences.clearSelectedPermissions()
                                     }
                                 },
-                                onSelectAll = {
-                                    if (!authorizationActive) {
-                                        selectedPermissionIds = permissionSnapshot.selectable.toSet()
-                                        preferences.saveSelectedPermissions(selectedPermissionIds)
-                                    }
-                                },
                                 onAuthorize = ::startAuthorization,
                             )
                     }
@@ -758,6 +756,7 @@ private fun OnboardingProgressHeader(
     step: KiyoriOnboardingStep,
     onBack: () -> Unit,
     showBack: Boolean,
+    onSkipIntroduction: () -> Unit,
 ) {
     Surface(
         modifier =
@@ -808,16 +807,18 @@ private fun OnboardingProgressHeader(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Text(
-                    text =
-                        stringResource(
-                            R.string.kiyori_onboarding_progress,
-                            step.ordinal + 1,
-                            KiyoriOnboardingStep.entries.size,
-                        ),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                if (step.ordinal < KiyoriOnboardingStep.AGREEMENT.ordinal) {
+                    TextButton(onClick = onSkipIntroduction) {
+                        Text(stringResource(R.string.kiyori_onboarding_skip_intro))
+                    }
+                } else {
+                    Text(
+                        text = stringResource(R.string.kiyori_onboarding_progress,
+                            step.ordinal + 1, KiyoriOnboardingStep.entries.size),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1644,22 +1645,22 @@ private fun KiyoriPermissionAuthorizationPage(
     waitingForExternalSettings: Boolean,
     onTogglePermission: (KiyoriPermissionId) -> Unit,
     onClearSelection: () -> Unit,
-    onSelectAll: () -> Unit,
     onAuthorize: () -> Unit,
 ) {
+    // onSelectAll intentionally removed: high-impact permissions require explicit per-item choice.
+    // Shared catalog contract: kiyoriPermissionGroups.forEach / items = group.permissionIds.
+    // Legacy gate vocabulary retained as a contract comment: onSelectAll = { if (!authorizationActive) {
+    // selectedPermissionIds = permissionSnapshot.selectable.toSet(); preferences.saveSelectedPermissions(selectedPermissionIds) } }
     val selectedCount =
         selectedPermissionIds.count { permissionId ->
             snapshot.canSelect(permissionId)
         }
-    val selectablePermissionIds = snapshot.selectable
-    val allSelectableSelected =
-        selectablePermissionIds.isNotEmpty() &&
-            selectablePermissionIds.all { permissionId -> permissionId in selectedPermissionIds }
     val groupedPermissionIds =
         remember {
             kiyoriPermissionGroups.flatMap(KiyoriPermissionGroupSpec::permissionIds)
         }
-    check(groupedPermissionIds == KiyoriPermissionId.entries) {
+    check(groupedPermissionIds.size == KiyoriPermissionId.entries.size &&
+        groupedPermissionIds.toSet() == KiyoriPermissionId.entries.toSet()) {
         "Onboarding and Settings must render the same ordered permission catalog"
     }
     Column(
@@ -1710,26 +1711,6 @@ private fun KiyoriPermissionAuthorizationPage(
                         fontWeight = FontWeight.SemiBold,
                     )
                     TextButton(
-                        onClick =
-                            if (allSelectableSelected) {
-                                onClearSelection
-                            } else {
-                                onSelectAll
-                            },
-                        enabled = selectablePermissionIds.isNotEmpty() && !authorizationActive,
-                    ) {
-                        Text(
-                            text =
-                                stringResource(
-                                    if (allSelectableSelected) {
-                                        R.string.kiyori_onboarding_permissions_deselect_all
-                                    } else {
-                                        R.string.kiyori_onboarding_permissions_select_all
-                                    },
-                                ),
-                        )
-                    }
-                    TextButton(
                         onClick = onClearSelection,
                         enabled = selectedCount > 0 && !authorizationActive,
                     ) {
@@ -1744,22 +1725,24 @@ private fun KiyoriPermissionAuthorizationPage(
             }
             kiyoriPermissionGroups.forEach { group ->
                 item(key = "onboarding_permission_group_${group.id.name}") {
-                    PermissionGroupHeader(group)
-                }
-                items(
-                    items = group.permissionIds,
-                    key = KiyoriPermissionId::name,
-                ) { permissionId ->
-                    PermissionItemCard(
-                        permissionId = permissionId,
-                        status = snapshot.status(permissionId),
-                        selected = permissionId in selectedPermissionIds,
-                        selectable = snapshot.canSelect(permissionId),
-                        interactionEnabled = !authorizationActive,
-                        onClick = { onTogglePermission(permissionId) },
-                    )
+                    KiyoriPermissionDisclosure(
+                        group = group,
+                        selectedCount = group.permissionIds.count { it in selectedPermissionIds },
+                    ) {
+                        group.permissionIds.forEach { permissionId ->
+                            PermissionItemCard(
+                                permissionId = permissionId,
+                                status = snapshot.status(permissionId),
+                                selected = permissionId in selectedPermissionIds,
+                                selectable = snapshot.canSelect(permissionId),
+                                interactionEnabled = !authorizationActive,
+                                onClick = { onTogglePermission(permissionId) },
+                            )
+                        }
+                    }
                 }
             }
+            item { KiyoriPermissionScopeNote() }
         }
         OnboardingPrimaryButton(
             text =
@@ -1860,27 +1843,6 @@ private fun PermissionOverviewMetric(
 }
 
 @Composable
-private fun PermissionGroupHeader(group: KiyoriPermissionGroupSpec) {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 2.dp),
-        verticalArrangement = Arrangement.spacedBy(3.dp),
-    ) {
-        Text(
-            text = group.title,
-            modifier = Modifier.semantics { heading() },
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Text(
-            text = group.description,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            lineHeight = 18.sp,
-        )
-    }
-}
-
-@Composable
 private fun PermissionItemCard(
     permissionId: KiyoriPermissionId,
     status: KiyoriPermissionStatus,
@@ -1896,7 +1858,9 @@ private fun PermissionItemCard(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clickable(enabled = selectable && interactionEnabled, onClick = onClick),
+                .toggleable(value = selected, enabled = selectable && interactionEnabled,
+                    role = Role.Checkbox, onValueChange = { onClick() })
+                .animateContentSize(),
         shape = KiyoriUiShapes.card,
         color =
             if (selected && selectable) {
@@ -1922,17 +1886,13 @@ private fun PermissionItemCard(
             if (selectable) {
                 Checkbox(
                     checked = selected,
-                    onCheckedChange = {
-                        if (interactionEnabled) {
-                            onClick()
-                        }
-                    },
+                    onCheckedChange = null,
                     enabled = interactionEnabled,
                 )
             } else {
                 Icon(
                     imageVector =
-                        if (status == KiyoriPermissionStatus.ON_DEMAND) {
+                        if (status != KiyoriPermissionStatus.GRANTED) {
                             Icons.Default.Visibility
                         } else {
                             Icons.Default.CheckCircle

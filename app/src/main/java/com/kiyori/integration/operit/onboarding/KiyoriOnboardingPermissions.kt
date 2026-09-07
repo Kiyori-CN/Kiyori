@@ -223,7 +223,8 @@ internal fun readKiyoriPermissionSnapshot(
             put(
                 KiyoriPermissionId.REMOVE_RESTRICTED_SETTINGS,
                 if (sdkInt >= Build.VERSION_CODES.TIRAMISU) {
-                    KiyoriPermissionStatus.REQUIRES_SETUP
+                    // 这是遇到系统拦截时的帮助，不是可以探测的独立权限。
+                    KiyoriPermissionStatus.ON_DEMAND
                 } else {
                     KiyoriPermissionStatus.NOT_APPLICABLE
                 },

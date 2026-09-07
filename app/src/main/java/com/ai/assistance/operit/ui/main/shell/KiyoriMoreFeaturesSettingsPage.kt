@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.VpnKey
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -16,6 +17,7 @@ internal const val KIYORI_MORE_FEATURES_SETTINGS_PAGE_TITLE = "更多功能"
 
 internal enum class KiyoriMoreFeaturesSettingsAction {
     OPEN_PERMISSIONS,
+    OPEN_ONBOARDING_REVIEW,
     OPEN_NETWORK_PROXY,
     OPEN_OPEN_SOURCE,
     OPEN_USER_AGREEMENT,
@@ -38,6 +40,17 @@ internal data class KiyoriMoreFeaturesSettingsGroupSpec(
 
 internal val kiyoriMoreFeaturesSettingsGroups =
     listOf(
+                KiyoriMoreFeaturesSettingsGroupSpec(
+            title = "使用引导",
+            description = "重新查看 Kiyori 的功能介绍、协议和权限说明",
+            entries = listOf(KiyoriMoreFeaturesSettingsEntrySpec(
+                title = "重新查看首次引导",
+                description = "回顾功能与安全说明，不会清除数据或自动重置授权",
+                icon = Icons.Default.AutoAwesome,
+                iconTone = KiyoriSemanticTone.BLUE,
+                action = KiyoriMoreFeaturesSettingsAction.OPEN_ONBOARDING_REVIEW,
+            )),
+        ),
         KiyoriMoreFeaturesSettingsGroupSpec(
             title = "系统能力",
             description = "管理 Kiyori 在设备上运行所需的授权和系统访问能力",
@@ -100,6 +113,7 @@ internal val kiyoriMoreFeaturesSettingsGroups =
 internal fun KiyoriMoreFeaturesSettingsPage(
     onBack: () -> Unit,
     onOpenPermissions: () -> Unit,
+    onOpenOnboardingReview: () -> Unit,
     onOpenNetworkProxy: () -> Unit,
     onOpenOpenSource: () -> Unit,
     onOpenUserAgreement: () -> Unit,
@@ -130,6 +144,8 @@ internal fun KiyoriMoreFeaturesSettingsPage(
                             when (entry.action) {
                                 KiyoriMoreFeaturesSettingsAction.OPEN_PERMISSIONS ->
                                     onOpenPermissions()
+                                KiyoriMoreFeaturesSettingsAction.OPEN_ONBOARDING_REVIEW ->
+                                    onOpenOnboardingReview()
                                 KiyoriMoreFeaturesSettingsAction.OPEN_NETWORK_PROXY ->
                                     onOpenNetworkProxy()
                                 KiyoriMoreFeaturesSettingsAction.OPEN_OPEN_SOURCE ->

@@ -317,14 +317,8 @@ internal fun KiyoriPermissionsSettingsPage(
         item(key = "kiyori_permissions_summary") {
             KiyoriPermissionSummaryCard(
                 summary = summarizeKiyoriPermissions(snapshot),
-                progress = snapshot.completedCount.toFloat() / snapshot.totalCount,
                 refreshing = refreshing,
                 operationActive = operationActive,
-            onResolveAll = {
-                enqueuePermissions(
-                    orderKiyoriPermissionIdsForAuthorization(snapshot.actionableIncomplete),
-                )
-            },
             )
         }
         kiyoriPermissionGroups.forEach { group ->
@@ -340,16 +334,15 @@ internal fun KiyoriPermissionsSettingsPage(
                 )
             }
         }
+        item(key = "permission_scope") { KiyoriPermissionScopeNote(Modifier.padding(horizontal = 15.dp)) }
     }
 }
 
 @Composable
 private fun KiyoriPermissionSummaryCard(
     summary: KiyoriPermissionSummary,
-    progress: Float,
     refreshing: Boolean,
     operationActive: Boolean,
-    onResolveAll: () -> Unit,
 ) {
     val colors = LocalKiyoriSettingsColors.current
     KiyoriSettingsGroupCard(
@@ -365,7 +358,7 @@ private fun KiyoriPermissionSummaryCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "设备能力状态",
+                        text = "权限，由你决定",
                         color = colors.primaryText,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -375,7 +368,7 @@ private fun KiyoriPermissionSummaryCard(
                             if (refreshing) {
                                 "正在重新检查真实系统状态"
                             } else {
-                                "状态来自 Android 与对应设备能力管理器"
+                                "按功能开启，随时可以在系统中调整。无需全部授权。"
                             },
                         color = colors.secondaryText,
                         fontSize = 12.sp,
@@ -384,32 +377,23 @@ private fun KiyoriPermissionSummaryCard(
                     )
                 }
                 Text(
-                    text = "${summary.readyCount + summary.onDemandCount}/${summary.totalCount}",
+                    text = "${summary.readyCount} 项已授权",
                     color = colors.accent,
-                    fontSize = 20.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                 )
             }
-            LinearProgressIndicator(
-                progress = { progress.coerceIn(0f, 1f) },
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(7.dp),
-                color = colors.accent,
-                trackColor = colors.disabledTrack,
-            )
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 KiyoriPermissionMetric(
-                    label = "已就绪",
+                    label = "已授权",
                     value = summary.readyCount,
                     modifier = Modifier.weight(1f),
                 )
                 KiyoriPermissionMetric(
-                    label = "待处理",
+                    label = "可选开启",
                     value = summary.actionRequiredCount,
                     modifier = Modifier.weight(1f),
                 )
@@ -419,29 +403,11 @@ private fun KiyoriPermissionSummaryCard(
                     modifier = Modifier.weight(1f),
                 )
             }
-            if (summary.actionRequiredCount > 0) {
-                Button(
-                    onClick = onResolveAll,
-                    enabled = !operationActive,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = KiyoriUiShapes.control,
-                    colors =
-                        ButtonDefaults.buttonColors(
-                            containerColor = colors.accent,
-                            contentColor = colors.accentContent,
-                        ),
-                ) {
-                    Text(
-                        text =
-                            if (operationActive) {
-                                "正在处理权限"
-                            } else {
-                                "依次处理 ${summary.actionRequiredCount} 项"
-                            },
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-            }
+            Text(
+                text = if (operationActive) "正在处理你选择的权限，请完成系统确认。" else
+                    "${summary.notApplicableCount} 项在当前系统无需单独授权。下方分组可展开查看完整用途。",
+                color = colors.secondaryText, fontSize = 12.sp, lineHeight = 18.sp,
+            )
         }
     }
 }
@@ -488,9 +454,9 @@ private fun KiyoriPermissionGroup(
     activePermissionId: KiyoriPermissionId?,
     onPermissionClick: (KiyoriPermissionId) -> Unit,
 ) {
-    KiyoriSettingsGroupSection(
-        title = group.title,
-        description = group.description,
+    KiyoriPermissionDisclosure(
+        group = group,
+        modifier = Modifier.padding(horizontal = 15.dp),
     ) {
         group.permissionIds.forEachIndexed { index, permissionId ->
             val status = snapshot.status(permissionId)
@@ -561,16 +527,12 @@ private fun KiyoriPermissionRow(
                 color = colors.primaryText,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = metadata.description(context),
                 color = colors.secondaryText,
                 fontSize = 12.sp,
                 lineHeight = 17.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 4.dp),
             )
         }

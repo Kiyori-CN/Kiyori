@@ -32,6 +32,6 @@ class AgreementPreferences(context: Context) {
 
     companion object {
         /** Bump this value whenever the user agreement changes substantively. */
-        const val CURRENT_AGREEMENT_VERSION = "2026-08-28-r1"
+        const val CURRENT_AGREEMENT_VERSION = "2026-09-08-r1"
     }
 }

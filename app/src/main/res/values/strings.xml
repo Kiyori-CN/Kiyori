@@ -8223,6 +8223,7 @@
     <string name="theme_fixed_palette_desc">浅色、深色与跟随系统主题仍然保留；AI 背景、消息、头像和输入区可在其他标签中单独调整。</string>
 
     <!-- Kiyori onboarding -->
+    <string name="kiyori_onboarding_skip_intro" translatable="false">跳过介绍</string>
     <string name="kiyori_onboarding_back">返回上一步</string>
     <string name="kiyori_onboarding_progress">第 %1$d / %2$d 阶段</string>
     <string name="kiyori_onboarding_step_welcome" translatable="false">先认识一下你的新工作空间</string>
@@ -8231,8 +8232,8 @@
     <string name="kiyori_onboarding_step_workspace" translatable="false">把想法落到设备上</string>
     <string name="kiyori_onboarding_step_trust" translatable="false">了解规则与数据边界</string>
     <string name="kiyori_onboarding_step_ready" translatable="false">选择现在要用的能力</string>
-    <string name="kiyori_onboarding_welcome_title" translatable="false">把浏览、思考和行动放在一起</string>
-    <string name="kiyori_onboarding_welcome_desc" translatable="false">Kiyori 是你的 AI 工作空间：从网页和内容开始，把灵感交给 AI，再用文件、工具和终端把结果完成。</string>
+    <string name="kiyori_onboarding_welcome_title" translatable="false">让每一次浏览，多一种可能</string>
+    <string name="kiyori_onboarding_welcome_desc" translatable="false">从发现一页好内容，到整理成自己的成果。浏览网页、与 AI 协作、管理文件，都在 Kiyori。</string>
     <string name="kiyori_onboarding_welcome_card_content_title" translatable="false">浏览与内容</string>
     <string name="kiyori_onboarding_welcome_card_content_desc" translatable="false">网页、影音与阅读，发现后继续处理</string>
     <string name="kiyori_onboarding_welcome_card_ai_title" translatable="false">AI 与语音</string>
@@ -8244,7 +8245,7 @@
     <string name="kiyori_onboarding_welcome_next" translatable="false">开始了解</string>
 
     <string name="kiyori_onboarding_browser_eyebrow" translatable="false">内容工作台</string>
-    <string name="kiyori_onboarding_browser_title" translatable="false">发现内容，也把下一步准备好</string>
+    <string name="kiyori_onboarding_browser_title" translatable="false">发现值得留下的内容</string>
     <string name="kiyori_onboarding_browser_desc" translatable="false">搜索、阅读、播放和下载在同一处完成。看到值得留下的内容，就能继续整理、分享或交给 AI 处理。</string>
     <string name="kiyori_onboarding_browser_card_browser_title" translatable="false">网页浏览器</string>
     <string name="kiyori_onboarding_browser_card_browser_desc" translatable="false">搜索、标签、网页操作与广告拦截</string>
@@ -8256,9 +8257,9 @@
     <string name="kiyori_onboarding_browser_card_reading_desc" translatable="false">音乐播放与沉浸式小说阅读</string>
     <string name="kiyori_onboarding_browser_next" translatable="false">了解 AI 能力</string>
 
-    <string name="kiyori_onboarding_ai_eyebrow" translatable="false">AI 协作层</string>
-    <string name="kiyori_onboarding_ai_title" translatable="false">让 AI 读懂上下文，替你推进任务</string>
-    <string name="kiyori_onboarding_ai_desc" translatable="false">把网页、文件、语音和工具放进一段对话。你负责表达目标，Kiyori 帮你理解、整理、检索并执行下一步。</string>
+    <string name="kiyori_onboarding_ai_eyebrow" translatable="false">你的 AI 助手</string>
+    <string name="kiyori_onboarding_ai_title" translatable="false">从一个问题，到下一步行动</string>
+    <string name="kiyori_onboarding_ai_desc" translatable="false">总结网页、理解文件、检索资料，或借助工具完成任务。进入应用后连接你选择的模型服务；重要结果由你核验。</string>
     <string name="kiyori_onboarding_ai_card_assistant_title" translatable="false">AI 助手</string>
     <string name="kiyori_onboarding_ai_card_assistant_desc" translatable="false">对话、总结、检索与上下文理解</string>
     <string name="kiyori_onboarding_ai_card_voice_title" translatable="false">语音服务</string>
@@ -8270,8 +8271,8 @@
     <string name="kiyori_onboarding_ai_next" translatable="false">了解文件与工具</string>
 
     <string name="kiyori_onboarding_files_eyebrow" translatable="false">本地工作区</string>
-    <string name="kiyori_onboarding_files_title" translatable="false">把想法变成设备上的结果</string>
-    <string name="kiyori_onboarding_files_desc" translatable="false">下载内容、文档和项目都能在设备端归档；终端、工具箱、小程序和日志，让每一步都可继续、可查看、可掌控。</string>
+    <string name="kiyori_onboarding_files_title" translatable="false">让灵感有处安放</string>
+    <string name="kiyori_onboarding_files_desc" translatable="false">把下载和文档整理到本地，在需要时用终端、工具和扩展继续处理。环境与能力可以稍后配置，现在不必一次准备齐全。</string>
     <string name="kiyori_onboarding_files_card_manager_title" translatable="false">文件管理器</string>
     <string name="kiyori_onboarding_files_card_manager_desc" translatable="false">整理下载、文档、目录与工作区</string>
     <string name="kiyori_onboarding_files_card_terminal_title" translatable="false">终端</string>
@@ -8282,100 +8283,106 @@
     <string name="kiyori_onboarding_files_card_logs_desc" translatable="false">追踪运行状态、错误与问题线索</string>
     <string name="kiyori_onboarding_files_next" translatable="false">查看协议</string>
 
-    <string name="kiyori_onboarding_agreement_title">先了解，再开始</string>
-    <string name="kiyori_onboarding_agreement_subtitle">用一分钟了解 Kiyori 的使用规则和数据边界。两份文档可以分别打开阅读，确认后再进入下一步。</string>
+    <string name="kiyori_onboarding_agreement_title">安心开始，先说清楚</string>
+    <string name="kiyori_onboarding_agreement_subtitle">你的数据如何使用，哪些操作需要谨慎，以及你拥有哪些选择。请阅读两份完整文档后再决定。</string>
     <string name="kiyori_onboarding_agreement_version">当前协议版本：%1$s</string>
-    <string name="kiyori_onboarding_agreement_read_prompt" translatable="false">当前法律文件</string>
+    <string name="kiyori_onboarding_agreement_read_prompt" translatable="false">阅读完整条款</string>
     <string name="kiyori_onboarding_agreement_checkbox">我已阅读并同意《用户协议》和《隐私政策》</string>
-    <string name="kiyori_onboarding_agreement_accept">同意并继续设置</string>
+    <string name="kiyori_onboarding_agreement_accept">同意并继续</string>
     <string name="kiyori_onboarding_agreement_decline">暂不同意，退出 Kiyori</string>
     <string name="kiyori_onboarding_user_agreement_title" translatable="false">Kiyori 用户协议</string>
     <string name="kiyori_onboarding_user_agreement_summary" translatable="false">说明产品与第三方服务边界、使用规则、高影响操作、扩展责任、开源许可和责任范围。</string>
     <string name="kiyori_onboarding_user_agreement_content" translatable="false"><![CDATA[
-        <p><b>Kiyori 用户协议</b><br>版本：%1$s；生效日期：2026 年 8 月 28 日。</p>
-        <p><b>1. 产品定位与适用范围</b><br>本协议适用于 Kiyori Android 客户端及你主动启用的相关功能。Kiyori 是运行在用户设备上的开源 AI 浏览器，网页浏览、内容搜索、下载、视频播放和设备端内容处理是产品中心；Operit AI 是内嵌的 AI 子系统。安装、启动或使用 Kiyori 前，请阅读并理解本协议。</p>
-        <p><b>2. 产品与服务边界</b><br>Kiyori 不向用户提供共享模型凭据，也不把第三方模型、语音、搜索、GitHub、MCP、插件或自定义 HTTP 服务包装成由 Kiyori 运营的统一云服务。你选择并使用这些服务时，请自行确认提供方、端点、模型、价格、配额、服务条款和隐私规则。第三方服务的可用性、内容、计费、账号处理和数据保留由相应提供方负责。</p>
-        <p><b>3. 高影响操作</b><br>终端、脚本、工作流、插件、AI 工具、文件管理、应用安装、通知读取、屏幕操作、无障碍、Shizuku、ADB 和 Root 可能读取、修改或删除数据，启动服务，安装软件，调用网络，改变系统状态，或对其他应用和账号产生影响。执行前应核对目标、参数、来源和预期结果，并为重要数据保留可恢复备份。不要把高权限能力交给不可信的提示词、网页、文件、插件、脚本或远程服务。</p>
-        <p><b>4. AI 输出与自动化</b><br>AI 输出和自动化计划可能存在错误、遗漏、延迟、幻觉或不适合当前设备的操作。你是实际操作和配置的决定者。AI 输出不构成医疗、心理危机、法律、金融或其他专业建议；紧急或高风险事项应联系相应专业机构或当地紧急服务。</p>
-        <p><b>5. 扩展生态</b><br>第三方插件、脚本包、Skill、ToolPkg、MCP、模型、工作流和其他扩展由其作者或提供方负责。市场展示、安装入口或兼容标识不表示 Kiyori 对扩展的安全性、合法性、准确性、持续可用性或许可证作出保证。安装前应检查来源、代码、权限、环境变量、联网行为和许可证，不得上传或公开 API Key、Cookie、Token、私钥、账号密码或他人数据。</p>
-        <p><b>6. 合法使用</b><br>你应遵守适用法律法规、网站规则、第三方服务条款、软件许可证和他人合法权益，不得利用 Kiyori 未经授权访问系统或数据、规避安全控制、传播违法有害内容、实施欺诈或骚扰，或从事其他违法侵权活动。将机器人、HTTP 服务、自动回复或工作流开放给他人时，你作为实际部署者负责访问控制、提示、内容安全、数据保护和其他适用义务。</p>
-        <p><b>7. 开源许可与免责声明</b><br>Kiyori 源码按仓库 LICENSE 和 NOTICE 中的 GPL-3.0-or-later 边界提供；第三方组件适用各自许可证。开源许可与本协议共同适用，本协议不限制开源许可证和适用法律赋予你的权利。在适用法律允许的范围内，软件按“现状”和“可用”状态提供，不保证第三方服务、扩展、网络、设备兼容性或 AI 输出持续可用、准确、安全或适合特定目的。</p>
-        <p><b>8. 账号、凭据与第三方服务</b><br>Kiyori 不代替你管理第三方账号。你负责确认 API Key、Cookie、访问令牌、私钥、密码和授权回调的来源、权限范围、有效期与撤销方式。通过自定义端点、代理、MCP 或插件连接服务时，应核对请求目标、证书、域名和数据发送范围，并承担由此产生的账号、费用和合规责任。</p>
-        <p><b>9. 内容、版权与通知</b><br>你对输入、上传、下载、生成、转发和发布的内容承担相应责任。请在复制、转换、抓取或再分发网页、音视频、模型和文档前取得必要授权，并遵守版权、个人信息和平台规则。Kiyori 可能在应用内展示运行状态、错误和安全提示；这些提示用于辅助判断，不替代你的核验义务。</p>
-        <p><b>10. 服务变更、暂停与终止</b><br>Kiyori 的功能、内置组件、第三方接口和系统兼容性会随版本、设备和依赖变化。对于维护、安全事件、系统限制或不可控制的第三方原因，相关功能可能被暂停、限制或移除。你可以随时停止使用、卸载应用或清除数据；停止使用前应完成必要的数据导出和授权撤销。</p>
-        <p><b>11. 责任范围与争议处理</b><br>在适用法律允许的最大范围内，因设备故障、系统限制、网络中断、第三方服务、扩展代码、用户误操作或未按提示核验造成的损失，由相应责任方依法承担。任何条款无意排除或限制适用法律下不得排除的责任或用户权利。对协议有疑问时，请先通过项目仓库或应用内反馈提交可复现信息。</p>
-        <p><b>12. 协议更新与联系</b><br>功能、法律或安全边界发生实质变化时，Kiyori 会提高协议版本并要求重新确认。当前版本为 %1$s。你可以通过应用内反馈入口或项目仓库提出问题。若你不同意当前版本，应停止使用并退出应用；在卸载或清除数据前，请先导出需要保留的内容。</p>
+        <p><b>Kiyori 用户协议</b><br>版本：%1$s；更新与生效日期：2026 年 9 月 8 日。请特别阅读 AI 与自动化风险、第三方服务、免责声明及责任限制章节。</p>
+        <p><b>1. 适用范围与确认</b><br>本协议适用于 Kiyori Android 客户端及其随附功能，约定使用规则、权利与责任。Kiyori 是以网页访问和内容处理为中心的开源浏览器，集成 Operit AI、文件、下载、媒体、终端与扩展能力。请阅读本协议及《隐私政策》，理解后主动勾选并确认；未确认前可阅读正文或退出。确认协议不等于授予设备权限、购买第三方服务或同意公开你的内容。</p>
+        <p><b>2. 软件与第三方服务</b><br>Kiyori 客户端与第三方网站、模型、语音、搜索、GitHub、插件市场、MCP 和自定义 HTTP 服务具有不同的运营与责任主体。Kiyori 不提供共享模型凭据，也不因集成入口、兼容或展示结果而成为第三方服务的提供者、代理或担保方。使用前请核对实际提供方、端点、账户、服务条款与隐私规则。</p>
+        <p><b>3. 使用资格与合法用途</b><br>你应具备作出相应使用与授权决定的能力；未成年人应在监护人的指导下使用，对敏感信息和付费服务尤其谨慎。代表组织使用时，应取得必要授权并遵守组织的数据与安全制度。不得利用本软件未经授权访问系统、窃取数据、传播恶意程序、实施欺诈骚扰或其他违法侵权活动；不得以自动化能力替代所需的合法授权。</p>
+        <p><b>4. 内容与知识产权</b><br>你保留对自己合法拥有的输入、文件和其他内容的权利；使用软件不构成将这些内容的所有权转让给 Kiyori。你应确保有权处理、上传、抓取、下载、转换、传播或公开相关内容，尊重著作权、隐私、商业秘密与网站规则。技术上可访问或可下载不代表获得复制、商业使用或再分发许可。AI 生成内容的权利归属与可使用范围取决于适用法律、素材和服务商条款，软件不保证其独创性或不侵权。</p>
+        <p><b>5. AI 输出与专业建议</b><br>AI 可能产生看似可信但错误、遗漏、过时或虚构的回答、引用、代码与操作计划。联网检索、来源链接和审计记录只能辅助核验，不能保证准确性。对事实、命令、金额、对象和重要结论请独立核实。输出不构成医疗、法律、金融或其他专业意见，不应作为高风险决定的唯一依据；紧急医疗、心理危机或人身安全事件请寻求当地紧急服务或合资格专业人员。</p>
+        <p><b>6. 自动化与高影响操作</b><br>AI 工具、终端、脚本、工作流、插件、无障碍、Shizuku、ADB 和 Root 可能读取或修改文件，删除数据，安装应用，发送通信，访问账户，启动服务或改变系统状态。请在执行前核对目标、参数、作用范围、执行身份和可恢复备份。权限授予与具体操作授权是不同决定；持续授权、自动批准或后台任务会减少逐次确认，请审慎配置并及时停止异常任务。外部网页、文件和提示词可能包含诱导执行的内容，不应被当作可信指令。</p>
+        <p><b>7. 设备权限与访问控制</b><br>除软件运行所需的系统声明能力外，设备访问按 Android 及相应管理器的机制授权。你可拒绝可选权限并进入应用，但相应功能可能受限；可在系统或能力管理器中撤销授权。无障碍可读取界面并执行交互，通知访问可涉及验证码和他人消息，Root 可访问受保护数据。请理解实际权限范围，不要为了完成引导而开启所有能力。</p>
+        <p><b>8. 第三方扩展与执行环境</b><br>插件、脚本包、Skill、ToolPkg、MCP、模型和依赖包由各自作者或提供方维护。收录、排序、下载入口和兼容标识不代表已进行完整安全审计或对扩展背书。扩展可能运行代码、读取文件与环境变量、启动本地服务或访问网络；请检查来源、代码、权限、联网目的和许可证。将机器人、远程控制、HTTP 服务或自动回复开放给他人时，实际部署者应配置认证、访问范围和数据保护，承担依法属于部署者的义务。</p>
+        <p><b>9. 账户、凭据与费用</b><br>你应妥善管理 API Key、Cookie、Token、私钥和账户密码，并核对权限范围、有效期与撤销方式。不要在公开仓库、截图、日志或扩展配置示例中泄露凭据。模型、搜索、语音、云存储、通信或其他服务可能独立计费；长上下文、重试、循环工作流和自动化可能增加用量。费用、配额、退款和账户争议依相应服务条款处理，Kiyori 的本地估算或提示不替代服务商账单。</p>
+        <p><b>10. 浏览、下载与网络代理</b><br>网站内容、广告、下载文件和外部链接由相应来源负责。广告拦截、媒体识别和文件扫描等功能不保证发现全部风险，也不改变内容许可。应用代理、订阅规则、DNS 与系统 VPN 会影响请求路由；代理或加密传输不等于匿名、隐身或绝对保密。使用前请核对来源和网络配置，下载或安装前确认文件来源。</p>
+        <p><b>11. 开源许可与第三方归属</b><br>Kiyori 源码依仓库 LICENSE 与 NOTICE 所载 GPL-3.0-or-later 及相关边界提供，第三方组件分别适用各自许可证。修改、复制与再分发应履行相应义务并保留必要声明。本协议不限制开源许可证已授予的权利，也不把上游项目的商标、名称或服务承诺转移给 Kiyori。</p>
+        <p><b>12. 免责声明</b><br>在适用法律允许的范围内，本软件按“现状”和“可用”状态提供，不对无缺陷、不间断、适销性、特定目的适用性或第三方内容不侵权作出保证。开发版本、设备差异、系统更新、网络中断、模型变化、第三方接口调整或恶意扩展可能导致功能不可用、结果错误或数据损失。备份、安全提示和权限控制可降低部分风险，但不构成绝对安全、可恢复或兼容性保证。</p>
+        <p><b>13. 责任限制与法定权利</b><br>在法律允许的范围内，对第三方服务、扩展、网络故障或超出合理控制范围的事件造成的损失，按实际原因、过错和适用法律确定责任；不因提供技术入口而自动承担第三方的全部责任。对于依法可以限制的间接、附带、特殊或后果性损失，以及利润、业务机会或数据损失，适用相应责任限制。上述条款不免除依法应承担的责任，尤其不排除因故意或重大过失造成的损失、人身损害责任，以及法律规定不得排除的消费者权利；用户也不因此承担本不应由其承担的责任。</p>
+        <p><b>14. 变更、停止使用与数据保留</b><br>功能和依赖可能因维护、安全、法律或兼容性要求调整、暂停或移除。你可随时停止使用，撤销外部授权并卸载应用；此前请导出需要保留的资料。卸载不必然删除公共目录、导出备份或第三方服务器中的副本。协议或隐私边界实质变化时，提高协议版本并在继续使用前要求重新确认；不同意时可以退出。</p>
+        <p><b>15. 解释、争议与联系</b><br>本协议以随应用提供的当前中文正文为阅读依据；如条款依法无效，其余条款在法律允许范围内继续适用，不影响法定救济途径。争议应依据适用法律处理，可先通过应用内反馈或项目仓库 https://github.com/Kiyori-CN/Kiyori/issues 联系维护者，不排除依法有管辖权的机构受理。请勿在公开反馈中提交密钥或个人敏感信息。当前协议版本：%1$s。</p>
     ]]></string>
     <string name="kiyori_onboarding_privacy_policy_title" translatable="false">Kiyori 隐私政策</string>
     <string name="kiyori_onboarding_privacy_policy_summary" translatable="false">说明设备端与网站数据、第三方联网场景、权限用途、保存期限、安全措施和删除方式。</string>
     <string name="kiyori_onboarding_privacy_policy_content" translatable="false"><![CDATA[
-        <p><b>Kiyori 隐私政策</b><br>版本：%1$s；生效日期：2026 年 8 月 28 日。</p>
-        <p><b>1. 适用范围与处理原则</b><br>本政策说明 Kiyori Android 客户端在网页浏览、下载、视频播放、AI、语音、文件、自动化和扩展功能中如何处理数据。Kiyori 优先在设备端保存和处理信息；只有当你主动使用需要联网的功能时，相关数据才会发送给对应网站或服务提供方。</p>
-        <p><b>2. 设备端数据</b><br>聊天记录、角色卡、记忆、模型配置、API Key、环境变量、浏览器状态、网站数据、工作流和其他配置通常保存在应用私有数据或你明确选择的本地目录中。下载、备份、日志、媒体、工作区和其他公共文件保存在你选择或功能明确显示的位置。请自行备份重要数据并妥善保护设备、账号和凭据。</p>
-        <p><b>3. 浏览器与网站数据</b><br>网页可能使用 Cookie、本地存储、缓存、登录状态、权限和其他站点数据提供服务。你访问的网站负责其内容和隐私规则；Kiyori 作为浏览器在设备上保存相应网站数据，并提供适用的清理入口。网站请求相机、麦克风、位置等能力时，仍需经过 Kiyori 和 Android 的明确授权。</p>
-        <p><b>4. 联网与第三方处理</b><br>当你主动发送模型请求、使用联网语音、网页搜索、浏览网站、登录 GitHub、进入插件市场、安装或运行联网扩展、连接 MCP、调用自定义端点、上传文件或分享内容时，相关文字、文件、语音、网页地址、设备信息或请求参数会按功能需要发送给对应服务或网站。发送前请检查内容是否包含个人信息、商业秘密、凭据或其他敏感数据。</p>
-        <p><b>5. 权限与设备能力</b><br>Kiyori 可能请求通知、视频与音频、相机、麦克风、位置、蓝牙、电话、短信和旧版存储等 Android 运行时权限；照片和其他文件通过系统文件选择器按次选择。应用也可能引导你授予所有文件访问、悬浮窗、修改系统设置、使用情况访问、未知来源安装、电池优化豁免、通知读取、默认助手、无障碍、Shizuku 或 Root 等特殊能力。每项授权都会说明用途，并由 Android、Shizuku、Root 管理器或其他真实状态 owner 确认；拒绝授权不会被记录成成功。</p>
-        <p><b>6. 数据管理与删除</b><br>你可以通过应用内相应页面管理聊天、模型、网站数据、下载、备份、日志、插件和配置，也可以通过 Android 系统设置撤销权限或清除应用数据。卸载 Kiyori 通常会删除 Android 管理的应用私有数据；你主动导出的公共文件、SAF 目录内容和第三方服务中的数据不会被自动删除，需要在对应位置单独管理。</p>
-        <p><b>7. 数据安全</b><br>请为设备设置可靠的锁屏保护，妥善保管 API Key、Cookie、Token、私钥、账号密码和备份文件，不要把敏感内容交给不可信的网页、提示词、插件、脚本或远程服务。删除、覆盖、Root、系统清理或第三方文件工具可能造成不可恢复的数据丢失。</p>
-        <p><b>8. 保存期限与生命周期</b><br>本地数据通常保留至你主动删除、清除应用数据、卸载应用或覆盖对应配置；浏览器 Cookie、缓存、下载、日志、备份和工作区按照各自页面的清理动作管理。第三方网站、模型、代理、MCP、插件和云端服务的保存期限由其提供方决定，Kiyori 无法替你删除这些服务中的副本。</p>
-        <p><b>9. 数据共享、委托与跨境传输</b><br>当你主动选择第三方服务、上传内容、登录账号或运行联网扩展时，数据可能被传输至该服务使用的服务器所在地区，并按其隐私政策处理。Kiyori 不会为了广告画像出售你的聊天记录或本地文件；但网络请求本身可能包含访问地址、请求头、设备网络信息和你提交的内容。使用前请确认接收方、目的、范围、保存期和跨境安排。</p>
-        <p><b>10. 未成年人和他人信息</b><br>请确保你有权处理上传、分享或输入的个人信息，不要在没有合法依据或必要授权的情况下提交未成年人的敏感信息、他人账号资料、医疗记录、财务资料或企业机密。若你代表组织使用 Kiyori，应由组织负责确定数据处理角色、授权链和内部合规要求。</p>
-        <p><b>11. 安全事件与权利请求</b><br>如果你发现凭据泄露、异常联网、错误授权或疑似安全事件，请立即撤销相关权限、轮换凭据、停止对应扩展并保留必要日志。你可以通过应用内反馈或项目仓库提交问题、删除建议和隐私请求；为便于处理，请提供不包含密钥、Cookie 或个人敏感内容的最小复现信息。</p>
-        <p><b>12. 政策更新与联系</b><br>数据处理、功能、法律或安全边界发生实质变化时，Kiyori 会提高协议版本并要求重新确认。当前版本为 %1$s。你可以通过应用内反馈入口或项目仓库提出隐私问题。若你不同意当前政策，应停止使用相应功能并退出应用。</p>
+        <p><b>Kiyori 隐私政策</b><br>版本：%1$s；更新与生效日期：2026 年 9 月 8 日。本政策说明客户端的数据处理场景、设备权限、第三方接收方以及你的管理方式。</p>
+        <p><b>1. 范围与基本原则</b><br>本政策适用于 Kiyori Android 客户端的浏览、下载、媒体、AI、语音、文件、自动化和扩展功能。客户端、网站和你选择的外部服务具有不同的数据处理边界；第三方独立服务适用其隐私规则。Kiyori 以设备端存储为主，但联网功能、已启用的后台任务和扩展可能向外部发送数据，不能把“本地应用”理解为“所有数据永不离开设备”。</p>
+        <p><b>2. 本地保存的内容</b><br>为提供记录恢复和个性化功能，应用可能保存聊天、附件引用、角色卡、记忆、模型配置、服务端点、凭据、环境变量、浏览状态、下载记录、工作流及相关运行数据。应用私有数据由 Android 沙箱管理；下载、备份、日志、媒体和工作区也可能位于你选择的共享目录。不同数据采用不同保护方式，不能假定所有文件或导出内容均已加密。</p>
+        <p><b>3. 网站、Cookie 与网页内容</b><br>访问网站会向该站点发送请求地址、必要请求头、网络地址、Cookie 和你主动提交的内容；网页还可能加载第三方资源。Cookie、本地存储和缓存用于登录与网站功能，可通过相应浏览器设置管理。无痕模式不代表网站、网络运营者或服务提供方无法识别访问。网站相机、麦克风与位置请求受站点授权及 Android 权限控制，授予应用权限不应被理解为信任所有网站。</p>
+        <p><b>4. AI、检索与语音处理</b><br>调用外部模型时，可能发送当前输入、所需对话历史、系统提示、你附加的文件或图片、引用的记忆、工具结果和网页内容，以生成回答或执行任务。联网搜索接收查询词及所需参数；在线语音识别或合成接收相应音频或文本。接收方取决于你配置的供应商、端点、模型和扩展；其保留、训练使用、审核及跨境规则请查阅服务商政策。不要提交无权处理的秘密或个人信息。</p>
+        <p><b>5. 扩展、账号与联网任务</b><br>登录 GitHub、访问插件市场、下载依赖、更新订阅、连接 MCP、运行联网脚本或分享上传内容，会向对应服务发送完成请求所需的信息。插件和工具可能依据自身代码读取允许访问的文件、环境变量或凭据。你启用的定时任务、自动化、服务连接和订阅更新可能在后台联网，无需每次重新点击；停止任务、断开连接或禁用扩展可控制后续处理，已经发送的副本需向接收方管理。</p>
+        <p><b>6. 日常运行时权限</b><br>通知用于回复、下载和任务状态；视频与音频权限用于枚举或读取设备媒体，Android 14 可能仅提供用户选定的视频访问；照片和其他文件可通过系统文件选择器按次选择。相机用于拍摄及网站采集，麦克风用于录音、语音和网站音频，位置用于天气、定位工具及允许的站点，蓝牙用于附近设备连接。旧版存储权限服务旧系统公共文件访问。可拒绝可选权限；仅支持粗略位置或部分媒体访问时，能力范围随系统结果变化。</p>
+        <p><b>7. 文件、后台与设备协作</b><br>所有文件访问扩大共享存储可见范围，但不自动突破 Android 对其他应用私有目录的保护。未知来源安装用于所选 APK 及支持组件；电池优化豁免帮助持续任务运行但不保证后台不被系统终止。悬浮窗显示跨应用界面，默认助手提供系统唤起入口，修改系统设置用于亮度等操作，使用情况访问可能读取前台应用或使用记录。已安装应用列表用于应用选择和自动化，由 Android 应用可见性规则及部分厂商设置管理，并非通用运行时权限弹窗。</p>
+        <p><b>8. 通信与高影响访问</b><br>电话能力可直接拨号并产生费用；短信能力可发送、读取及接收短信，内容可能包含验证码或他人信息；通知访问可能涉及其他应用通知。无障碍支持可读取界面内容、点击、输入和执行手势；Shizuku/ADB 与 Root 的访问范围取决于执行身份和授权管理器。屏幕捕获在使用时由系统确认，画面可能包含敏感信息。受限设置是 Android 在特定安装来源下的保护措施，应用不能可靠判断所有厂商的限制状态，不应把帮助入口视为未完成授权。</p>
+        <p><b>9. 系统声明与分层授权</b><br>网络访问、网络状态、前台服务、唤醒锁、开机事件等由 Android 按 Manifest 声明和系统规则管理，不一定显示授权弹窗。文件选择器授予特定 URI 或目录访问；网站权限和 AI 工具执行授权属于不同层次。首启可暂不授予可选权限；权限中心列出当前能力、用途和状态。授予系统权限并不构成对所有联网传输、第三方扩展或后续高影响操作的无限授权。</p>
+        <p><b>10. 代理、网络地址与跨境</b><br>网站和外部服务通常能够接收建立连接所需的网络信息。你配置的代理、DNS、订阅来源或远程工具可能参与处理目的地址与请求，具体可见范围取决于协议和配置；TLS 不代表全部元数据不可见。请求可能传输至接收方部署服务器的其他地区。使用前请了解接收方、传输目的、范围、保留期限和适用跨境安排。Kiyori 不为广告画像出售你的聊天记录或本地文件。</p>
+        <p><b>11. 日志、审计与反馈</b><br>运行日志用于诊断故障；对话审计可能保留事件、请求阶段、修订和相关内容，以支持恢复与核验。日志脱敏减少凭据暴露风险，但不能保证用户文本、扩展输出或截图中的敏感信息全部被识别。导出、分享或反馈前请自行复核并删除不必要的信息。公开 Issues 对公众可见，不适合提交密钥、私人文件或完整个人资料。</p>
+        <p><b>12. 保存期限与删除</b><br>本地记录通常保留至你删除、覆盖配置、按功能清理或清除应用数据；缓存与日志还可能按各自生命周期淘汰。可在相应页面管理聊天、浏览数据、模型、下载、插件和工作区。Android 清除应用数据或卸载通常移除应用私有内容，但不自动删除共享目录、SAF 文件、导出备份和第三方副本，也不自动撤销服务端令牌；请分别处理。为避免丢失，清理前检查需要保留的内容与备份。</p>
+        <p><b>13. 你的选择与权利</b><br>你可以按功能查看、更正、导出或删除本地数据，在系统与对应能力管理器撤销权限，停止后台任务、禁用扩展或断开第三方连接。撤销不影响撤销前依法进行的处理，也不能收回已被第三方保存的副本。针对第三方数据，请向实际服务提供方提出访问、删除或其他适用权利请求；客户端维护者通常无法代替你访问这些账户。需要帮助时可通过应用内反馈说明所涉功能与最小必要信息。</p>
+        <p><b>14. 安全与敏感信息</b><br>请使用设备锁屏、可信来源、最小权限和可靠备份，妥善管理密钥、Cookie、密码与令牌。任何防护均不能保证绝对安全；Root、恶意代码、共享目录、错误配置或第三方工具可能扩大泄露和删除风险。发现异常时停止相关任务、撤销权限与令牌、轮换凭据，并保留不含秘密的必要线索。涉及未成年人、医疗、财务、身份信息或他人资料时，应取得合法依据及必要授权并限制处理范围。</p>
+        <p><b>15. 政策更新与联系</b><br>当数据处理或权利边界发生实质变化时，Kiyori 会提高协议版本并要求重新确认。你可在设置中的用户协议与隐私政策入口查看当前完整内容。隐私问题可通过应用内反馈或 https://github.com/Kiyori-CN/Kiyori/issues 联系；请先脱敏，不要在公开页面提交敏感信息。若不同意当前政策，可退出并按上述方式管理数据及外部授权。当前协议版本：%1$s。</p>
     ]]></string>
     <string name="kiyori_onboarding_legal_documents_title" translatable="false">用户协议与隐私政策</string>
     <string name="kiyori_onboarding_legal_documents_desc" translatable="false">用户协议与隐私政策是两份独立文档，可分别查看当前完整内容。</string>
     <string name="kiyori_onboarding_legal_full_text" translatable="false">完整正文</string>
-    <string name="kiyori_onboarding_legal_full_text_note" translatable="false">以下为当前生效的中文版本。正文可选择复制，标题栏会随页面滚动折叠。</string>
-    <string name="kiyori_onboarding_legal_selectable_note" translatable="false">正文可滚动阅读，也可长按选择并复制文字。</string>
+    <string name="kiyori_onboarding_legal_full_text_note" translatable="false">当前完整中文正文，可通过目录定位章节，也可长按选择复制。</string>
+    <string name="kiyori_onboarding_legal_selectable_note" translatable="false">展开目录可定位章节；正文支持滚动与长按复制。</string>
 
-    <string name="kiyori_onboarding_permissions_title">准备你的工作方式</string>
-    <string name="kiyori_onboarding_permissions_desc">Kiyori 会把每项能力的用途和当前状态写清楚。只选择你现在准备使用的项目，其余能力可以在需要时从设置中开启。</string>
+    <string name="kiyori_onboarding_permissions_title">按你的需要，开启能力</string>
+    <string name="kiyori_onboarding_permissions_desc">所有项目均为可选。普通浏览无需提前开启这些权限；选择现在要用的能力，也可以直接开始，稍后到设置中调整。</string>
     <string name="kiyori_onboarding_permissions_all_items" translatable="false">权限清单</string>
     <string name="kiyori_onboarding_permissions_select_all" translatable="false">全选</string>
     <string name="kiyori_onboarding_permissions_deselect_all" translatable="false">取消全选</string>
     <string name="kiyori_onboarding_permissions_clear_all" translatable="false">清空已选</string>
     <string name="kiyori_onboarding_permissions_selected_count" translatable="false">已选择 %1$d 项</string>
-    <string name="kiyori_onboarding_permissions_authorize_and_enter" translatable="false">授权并开始使用</string>
-    <string name="kiyori_onboarding_permissions_enter" translatable="false">进入工作空间</string>
+    <string name="kiyori_onboarding_permissions_authorize_and_enter" translatable="false">确认所选并开始</string>
+    <string name="kiyori_onboarding_permissions_enter" translatable="false">暂不授权，开始使用</string>
     <string name="kiyori_onboarding_permissions_processing" translatable="false">正在处理授权</string>
-    <string name="kiyori_onboarding_permissions_overview_title" translatable="false">设备能力状态</string>
-    <string name="kiyori_onboarding_permissions_ready" translatable="false">已就绪</string>
-    <string name="kiyori_onboarding_permissions_pending" translatable="false">待处理</string>
+    <string name="kiyori_onboarding_permissions_overview_title" translatable="false">不必一次设置好所有功能</string>
+    <string name="kiyori_onboarding_permissions_ready" translatable="false">已授权</string>
+    <string name="kiyori_onboarding_permissions_pending" translatable="false">可选开启</string>
     <string name="kiyori_onboarding_permissions_on_demand" translatable="false">使用时确认</string>
     <string name="kiyori_onboarding_permission_action_failed">无法打开“%1$s”的授权入口，请检查系统支持情况。</string>
 
     <string name="kiyori_onboarding_permission_status_granted">已授权</string>
     <string name="kiyori_onboarding_permission_status_partial">部分授权</string>
-    <string name="kiyori_onboarding_permission_status_not_granted">未授权</string>
+    <string name="kiyori_onboarding_permission_status_not_granted">未开启</string>
     <string name="kiyori_onboarding_permission_status_setup">需要配置</string>
-    <string name="kiyori_onboarding_permission_status_not_applicable">无需授权</string>
+    <string name="kiyori_onboarding_permission_status_not_applicable">本机无需</string>
     <string name="kiyori_onboarding_permission_status_on_demand">使用时确认</string>
 
     <string name="kiyori_onboarding_permission_notifications_title">通知</string>
     <string name="kiyori_onboarding_permission_notifications_desc">显示 AI 回复、下载、后台任务和服务状态。</string>
     <string name="kiyori_onboarding_permission_media_title">视频与音频</string>
-    <string name="kiyori_onboarding_permission_media_desc">读取你选择播放、上传或分析的视频与音频；照片和其他文件通过系统文件选择器按次选择。</string>
+    <string name="kiyori_onboarding_permission_media_desc">读取设备视频与音频供播放或处理；Android 14 可只允许选定视频。照片和其他文件通过系统文件选择器按次选择。</string>
     <string name="kiyori_onboarding_permission_camera_title">相机</string>
     <string name="kiyori_onboarding_permission_camera_desc">拍摄附件、网页媒体和视觉输入。</string>
     <string name="kiyori_onboarding_permission_microphone_title">麦克风</string>
     <string name="kiyori_onboarding_permission_microphone_desc">语音输入、语音助手、录音和网页音频采集。</string>
     <string name="kiyori_onboarding_permission_location_title">位置</string>
-    <string name="kiyori_onboarding_permission_location_desc">天气、定位工具和经你允许的网站地理位置请求。</string>
+    <string name="kiyori_onboarding_permission_location_desc">天气、定位工具与允许的站点。可按系统选项提供粗略位置；需要精确定位的功能会受限。</string>
     <string name="kiyori_onboarding_permission_bluetooth_title">附近设备与蓝牙</string>
     <string name="kiyori_onboarding_permission_bluetooth_desc">扫描并连接你主动使用的蓝牙设备。</string>
     <string name="kiyori_onboarding_permission_phone_title">拨打电话</string>
-    <string name="kiyori_onboarding_permission_phone_desc">在工具或自动化中执行你明确要求的电话操作。</string>
+    <string name="kiyori_onboarding_permission_phone_desc">工具可直接拨号，可能产生通信费用。不使用拨号自动化时无需开启。</string>
     <string name="kiyori_onboarding_permission_sms_title">短信</string>
-    <string name="kiyori_onboarding_permission_sms_desc">发送、读取和接收你明确授权处理的短信。</string>
+    <string name="kiyori_onboarding_permission_sms_desc">工具可发送、读取和接收短信，可能涉及验证码、他人信息与通信费用。仅在需要短信自动化时开启。</string>
     <string name="kiyori_onboarding_permission_legacy_storage_title">旧版外部存储</string>
     <string name="kiyori_onboarding_permission_legacy_storage_desc">Android 12 及以下读取公共存储；Android 9 及以下写入公共存储所需的兼容权限。</string>
     <string name="kiyori_onboarding_permission_installed_apps_title">读取已安装应用列表</string>
     <string name="kiyori_onboarding_permission_installed_apps_desc">读取设备上已安装应用，用于应用选择、自动化和跨应用工具；Android 由应用可见性策略管理。</string>
-    <string name="kiyori_onboarding_permission_restricted_settings_title">解除设置限制</string>
-    <string name="kiyori_onboarding_permission_restricted_settings_desc">打开 Kiyori 的应用信息页；在系统要求时，请完成“允许受限设置”和设备密码或指纹验证，这是部分高级能力的前提。</string>
+    <string name="kiyori_onboarding_permission_restricted_settings_title">受限设置帮助</string>
+    <string name="kiyori_onboarding_permission_restricted_settings_desc">仅在 Android 拦截通知访问等能力时，到该应用的信息页检查“允许受限设置”。无障碍支持组件需在其自己的应用信息页处理。</string>
     <string name="kiyori_onboarding_permission_all_files_title">所有文件访问</string>
-    <string name="kiyori_onboarding_permission_all_files_desc">完整文件管理、终端和需要跨目录处理文件的工具。</string>
+    <string name="kiyori_onboarding_permission_all_files_desc">跨目录管理共享存储文件，可能读取、修改或删除内容；不自动获得其他应用私有目录的访问权。</string>
     <string name="kiyori_onboarding_permission_overlay_title">悬浮窗</string>
     <string name="kiyori_onboarding_permission_overlay_desc">在其他应用上方显示语音助手、调试器和悬浮能力。</string>
     <string name="kiyori_onboarding_permission_write_settings_title">修改系统设置</string>
@@ -8385,13 +8392,13 @@
     <string name="kiyori_onboarding_permission_install_title">安装未知来源应用</string>
     <string name="kiyori_onboarding_permission_install_desc">安装你选择的 APK、内置 Shizuku 或 Kiyori 无障碍支持。</string>
     <string name="kiyori_onboarding_permission_battery_title">忽略电池优化</string>
-    <string name="kiyori_onboarding_permission_battery_desc">提高长任务、下载、语音和后台服务的持续运行能力。</string>
+    <string name="kiyori_onboarding_permission_battery_desc">帮助长任务、下载和语音服务持续运行，可能增加耗电；仍受系统后台限制。</string>
     <string name="kiyori_onboarding_permission_notification_listener_title">通知读取</string>
-    <string name="kiyori_onboarding_permission_notification_listener_desc">读取设备通知内容，供你主动使用的通知工具和自动化处理。</string>
+    <string name="kiyori_onboarding_permission_notification_listener_desc">读取其他应用通知，可能包含消息与验证码。仅在使用通知工具或自动化时开启。</string>
     <string name="kiyori_onboarding_permission_assistant_title">系统默认助手</string>
     <string name="kiyori_onboarding_permission_assistant_desc">通过系统助手手势或入口快速唤起 Kiyori。</string>
     <string name="kiyori_onboarding_permission_accessibility_title">无障碍 UI 自动化</string>
-    <string name="kiyori_onboarding_permission_accessibility_desc">安装 Kiyori 无障碍支持并启用 UI 自动化服务，用于界面理解、点击、输入和手势。</string>
+    <string name="kiyori_onboarding_permission_accessibility_desc">安装并启用 Kiyori 无障碍支持，可读取界面、点击、输入及执行手势。仅向可信任务提供此能力。</string>
     <string name="kiyori_onboarding_permission_shizuku_title">Shizuku / ADB</string>
     <string name="kiyori_onboarding_permission_shizuku_desc">使用由你启动并授权的 Shizuku 服务执行 ADB 级系统操作。</string>
     <string name="kiyori_onboarding_permission_root_title">Root</string>
