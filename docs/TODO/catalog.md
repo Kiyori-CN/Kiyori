@@ -19,6 +19,7 @@
 | [内置脚本与插件规范化](builtin_script_plugin_standardization/index.md) | `builtin_script_plugin_standardization` |
 | [角色卡和提示词页面与环境识别修复](character_card_prompt_ui/index.md) | `character_card_prompt_ui` |
 | [code_runner 与终端工具链收口](code_runner_terminal_toolchain/index.md) | `code_runner_terminal_toolchain` |
+| [Dependabot 安全告警修复](dependabot_security_remediation/index.md) | `dependabot_security_remediation` |
 | [文档体系整理与开发入口优化](documentation_system_refinement/index.md) | `documentation_system_refinement` |
 | [FFmpeg 运行时完善计划](ffmpeg_runtime_completion/index.md) | `ffmpeg_runtime_completion` |
 | [正式开发准备](formal_development_readiness/index.md) | `formal_development_readiness` |

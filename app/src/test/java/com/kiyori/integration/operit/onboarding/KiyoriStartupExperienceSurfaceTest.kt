@@ -3,10 +3,40 @@ package com.kiyori.integration.operit.onboarding
 import com.ai.assistance.operit.data.preferences.AgreementPreferences
 import java.io.File
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class KiyoriStartupExperienceSurfaceTest {
+    @Test
+    fun `sixteen feature descriptions have exactly two complete short lines and unique titles`() {
+        val strings = repositoryFile("app/src/main/res/values/strings.xml").readText()
+        val cards = Regex("<string name=\"kiyori_onboarding_(welcome|browser|ai|files)_card_[^\"]+_(title|desc)\"[^>]*>([^<]+)</string>")
+            .findAll(strings).toList()
+        listOf("welcome", "browser", "ai", "files").forEach { page ->
+            assertEquals(4, cards.count { it.groupValues[1] == page && it.groupValues[2] == "desc" })
+        }
+        assertEquals(16, cards.filter { it.groupValues[2] == "title" }.map { it.groupValues[3] }.toSet().size)
+        cards.filter { it.groupValues[2] == "desc" }.forEach { card ->
+            val lines = card.groupValues[3].split("\\n")
+            assertEquals(card.value, 2, lines.size)
+            assertTrue(card.value, lines.all { it.isNotBlank() && it.length <= 7 })
+        }
+    }
+
+    @Test
+    fun `review pager ignores saved page while first run retains native restoration`() {
+        val source = repositoryFile(
+            "app/src/main/java/com/kiyori/integration/operit/onboarding/KiyoriOnboardingScreen.kt",
+        ).readText()
+        val pager = source.substringAfter("val pagerState =").substringBefore("val pagerScope")
+        assertTrue(pager.contains("if (startFromBeginning) remember {"))
+        assertTrue(pager.contains("currentPage = KiyoriOnboardingStep.WELCOME.ordinal"))
+        assertTrue(pager.contains("else rememberPagerState("))
+        assertFalse(source.contains("enabled = !navigationBusy"))
+        assertFalse(source.contains("navigationEnabled = !navigationBusy"))
+    }
+
     @Test
     fun `startup legal and plugin surfaces consume safe drawing insets`() {
         val agreementSource =

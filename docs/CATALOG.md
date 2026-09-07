@@ -237,6 +237,12 @@
 | --- | --- |
 | [index.md](TODO/code_runner_terminal_toolchain/index.md) | code_runner 与终端工具链收口 |
 
+## docs/TODO/dependabot_security_remediation
+
+| 文档 | 用途或标题 |
+| --- | --- |
+| [index.md](TODO/dependabot_security_remediation/index.md) | Dependabot 安全告警修复 |
+
 ## docs/TODO/documentation_system_refinement
 
 | 文档 | 用途或标题 |

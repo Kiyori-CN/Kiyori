@@ -45,9 +45,42 @@ internal fun canNavigateKiyoriOnboarding(
     targetStep: KiyoriOnboardingStep,
     agreementAccepted: Boolean,
     interactionLocked: Boolean,
+    sourceStep: KiyoriOnboardingStep = currentStep,
+    skipIntroduction: Boolean = false,
 ): Boolean =
-    !interactionLocked && currentStep != targetStep &&
-        targetStep.ordinal < kiyoriOnboardingPageCount(agreementAccepted)
+    !interactionLocked && sourceStep == currentStep && currentStep != targetStep &&
+        targetStep.ordinal < kiyoriOnboardingPageCount(agreementAccepted) &&
+        if (skipIntroduction) {
+            currentStep.ordinal < KiyoriOnboardingStep.AGREEMENT.ordinal &&
+                targetStep == KiyoriOnboardingStep.AGREEMENT
+        } else {
+            kotlin.math.abs(targetStep.ordinal - currentStep.ordinal) == 1
+        }
+
+// 手势资格只在一次按下到全部抬起期间有效；折返到起点不能恢复已取消的点击。
+internal class KiyoriOnboardingTapGesture {
+    private var tracking = false
+    private var cancelled = false
+    private var released = false
+
+    val allowsClick: Boolean
+        get() = !tracking || (!cancelled && released)
+
+    fun begin(allowed: Boolean = true) {
+        tracking = true
+        cancelled = !allowed
+        released = false
+    }
+
+    fun update(distance: Float, touchSlop: Float, singlePointer: Boolean, pressed: Boolean) {
+        cancelled = cancelled || !singlePointer || distance > touchSlop
+        released = !pressed
+    }
+
+    fun end() {
+        tracking = false
+    }
+}
 
 internal enum class KiyoriPermissionId {
     NOTIFICATIONS,

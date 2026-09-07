@@ -9,12 +9,80 @@ import org.junit.Test
 
 class KiyoriOnboardingContractTest {
     @Test
-    fun `only the welcome title is centered`() {
+    fun `all four introduction eyebrows align their titles to the start`() {
         assertEquals(TextAlign.Center, resolveKiyoriOnboardingTitleAlignment(eyebrow = null))
-        assertEquals(
-            TextAlign.Start,
-            resolveKiyoriOnboardingTitleAlignment(eyebrow = "浏览与内容"),
-        )
+        listOf("Kiyori", "内容工作台", "你的 AI 助手", "本地工作区").forEach {
+            assertEquals(TextAlign.Start, resolveKiyoriOnboardingTitleAlignment(eyebrow = it))
+        }
+    }
+
+    @Test
+    fun `ordinary navigation only moves one page and rejects precomposed page callbacks`() {
+        KiyoriOnboardingStep.entries.forEach { current ->
+            KiyoriOnboardingStep.entries.forEach { target ->
+                assertEquals(
+                    kotlin.math.abs(target.ordinal - current.ordinal) == 1,
+                    canNavigateKiyoriOnboarding(current, target, true, false),
+                )
+                KiyoriOnboardingStep.entries.filter { it != current }.forEach { source ->
+                    assertFalse(canNavigateKiyoriOnboarding(
+                        current, target, true, false, sourceStep = source,
+                    ))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `only explicit skip from an introduction may jump forward to agreement`() {
+        KiyoriOnboardingStep.entries.forEach { current ->
+            KiyoriOnboardingStep.entries.forEach { target ->
+                assertEquals(
+                    current.ordinal < 4 && target == KiyoriOnboardingStep.AGREEMENT,
+                    canNavigateKiyoriOnboarding(current, target, false, false, skipIntroduction = true),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `tap dispatch is allowed at release and keyboard remains usable outside touch`() {
+        val gesture = KiyoriOnboardingTapGesture()
+        assertTrue(gesture.allowsClick)
+        gesture.begin()
+        assertFalse(gesture.allowsClick)
+        gesture.update(3f, 8f, singlePointer = true, pressed = false)
+        assertTrue(gesture.allowsClick)
+        gesture.end()
+        assertTrue(gesture.allowsClick)
+    }
+
+    @Test
+    fun `dragging back into button and lifting an extra finger never revive a tap`() {
+        val gesture = KiyoriOnboardingTapGesture()
+        gesture.begin()
+        gesture.update(20f, 8f, singlePointer = true, pressed = true)
+        gesture.update(0f, 8f, singlePointer = true, pressed = false)
+        assertFalse(gesture.allowsClick)
+        gesture.end()
+        gesture.begin()
+        gesture.update(0f, 8f, singlePointer = false, pressed = true)
+        gesture.update(0f, 8f, singlePointer = true, pressed = false)
+        assertFalse(gesture.allowsClick)
+        gesture.end()
+        gesture.begin()
+        gesture.update(0f, 8f, singlePointer = true, pressed = false)
+        assertTrue(gesture.allowsClick)
+    }
+
+    @Test
+    fun `touch that starts during navigation cannot turn into skip after scrolling stops`() {
+        val gesture = KiyoriOnboardingTapGesture()
+        gesture.begin(allowed = false)
+        gesture.update(0f, 8f, singlePointer = true, pressed = false)
+        assertFalse(gesture.allowsClick)
+        gesture.end()
+        assertTrue(gesture.allowsClick)
     }
 
     @Test

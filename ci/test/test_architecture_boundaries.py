@@ -6283,15 +6283,15 @@ class KiyoriPathsTest {
                 "网页浏览器\n"
                 "文件下载器\n"
                 "视频播放器\n"
-                "搜索、标签、网页操作与广告拦截\n"
-                "音乐播放与沉浸式小说阅读\n"
+                "广告拦截器\n"
+                "模型配置\n"
                 "AI 助手\n"
                 "语音服务\n"
-                "账号与连接\n"
+                "我的账号\n"
                 "工具箱\n"
                 "文件管理器\n"
                 "终端\n"
-                "小程序管理\n"
+                "工作流\n"
                 "日志记录器\n"
                 "Kiyori 无障碍支持\n"
                 "Kiyori UI 自动化服务\n"
@@ -6348,6 +6348,20 @@ class KiyoriPathsTest {
             errors: list[str] = []
             check_kiyori_first_run_flow(root, errors)
             self.assertEqual(errors, [])
+
+    def test_kiyori_first_run_flow_requires_current_feature_copy(self) -> None:
+        for feature in ("广告拦截器", "模型配置", "我的账号", "工作流"):
+            with self.subTest(feature=feature), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                self.write_kiyori_first_run_layout(root)
+                strings = root / "app/src/main/res/values/strings.xml"
+                strings.write_text(
+                    strings.read_text(encoding="utf-8").replace(feature, ""),
+                    encoding="utf-8",
+                )
+                errors: list[str] = []
+                check_kiyori_first_run_flow(root, errors)
+                self.assertTrue(any(f"fact contract missing: {feature}" in error for error in errors))
 
     def test_kiyori_first_run_flow_rejects_second_launcher_and_legacy_owner(
         self,
