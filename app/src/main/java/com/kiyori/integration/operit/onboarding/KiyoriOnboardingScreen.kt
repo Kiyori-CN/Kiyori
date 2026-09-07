@@ -14,7 +14,11 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -29,6 +33,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -93,12 +99,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -107,21 +115,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.style.TextIndent
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.sp
 import com.kiyori.design.theme.KiyoriUiShapes
 import androidx.lifecycle.Lifecycle
@@ -138,6 +141,11 @@ import com.kiyori.design.theme.resolveColors
 import com.kiyori.platform.logging.KiyoriLogger
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 
 @Composable
 internal fun KiyoriOnboardingScreen(
@@ -145,6 +153,7 @@ internal fun KiyoriOnboardingScreen(
     onAgreementAccepted: () -> Unit,
     onComplete: () -> Unit,
     startFromBeginning: Boolean = false,
+    onExitReview: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -158,17 +167,22 @@ internal fun KiyoriOnboardingScreen(
             resolveInitialKiyoriOnboardingStep(
                 agreementAccepted = agreementAccepted,
                 persistedStep =
-                    if (startFromBeginning) KiyoriOnboardingStep.WELCOME
-                    else preferences.readCurrentStep(),
+                    if (startFromBeginning) KiyoriOnboardingStep.WELCOME else preferences.readCurrentStep(),
+                startFromBeginning = startFromBeginning,
             )
         }
     val pagerState =
         rememberPagerState(
             initialPage = initialStep.ordinal,
-            pageCount = { KiyoriOnboardingStep.entries.size },
+            pageCount = { kiyoriOnboardingPageCount(agreementAcceptedState) },
         )
     val pagerScope = rememberCoroutineScope()
+    val pageStateHolder = rememberSaveableStateHolder()
     val currentStep = KiyoriOnboardingStep.entries[pagerState.settledPage]
+    var navigationInFlight by remember { mutableStateOf(false) }
+    val navigationBusy by remember {
+        derivedStateOf { pagerState.isScrollInProgress || navigationInFlight }
+    }
     val pagerFlingBehavior =
         PagerDefaults.flingBehavior(
             state = pagerState,
@@ -188,7 +202,8 @@ internal fun KiyoriOnboardingScreen(
             mutableStateOf(
                 sanitizeKiyoriPermissionSelection(
                     snapshot = initialPermissionSnapshot,
-                    selectedPermissionIds = preferences.readSelectedPermissions(),
+                    selectedPermissionIds =
+                        if (startFromBeginning) emptySet() else preferences.readSelectedPermissions(),
                 ),
             )
         }
@@ -198,14 +213,32 @@ internal fun KiyoriOnboardingScreen(
     var authorizationActive by remember { mutableStateOf(false) }
     var runtimeRequestInFlight by remember { mutableStateOf(false) }
     var waitingForExternalSettings by remember { mutableStateOf(false) }
+    var authorizationNeedsContinue by remember { mutableStateOf(false) }
+    var authorizationGeneration by remember { mutableStateOf(0) }
+    var completionDispatched by remember { mutableStateOf(false) }
+
+    fun persistSelection(selection: Set<KiyoriPermissionId>) {
+        if (!startFromBeginning) preferences.saveSelectedPermissions(selection)
+    }
 
     fun moveTo(step: KiyoriOnboardingStep) {
+        if (!canNavigateKiyoriOnboarding(
+                currentStep, step, agreementAcceptedState,
+                interactionLocked = authorizationActive || navigationBusy || completionDispatched,
+            )) return
+        navigationInFlight = true
         pagerScope.launch {
-            pagerState.animateScrollToPage(step.ordinal)
+            // 单个动画任务避免快速点击争抢 Pager 的 scroll mutation；原生拖动仍可中断动画。
+            try {
+                pagerState.animateScrollToPage(step.ordinal, animationSpec = tween(280))
+            } finally {
+                navigationInFlight = false
+            }
         }
     }
 
-    LaunchedEffect(pagerState, preferences) {
+    LaunchedEffect(pagerState, preferences, startFromBeginning) {
+        if (startFromBeginning) return@LaunchedEffect
         snapshotFlow { pagerState.settledPage }
             .distinctUntilChanged()
             .collect { pageIndex ->
@@ -225,24 +258,29 @@ internal fun KiyoriOnboardingScreen(
         permissionSnapshot = updatedSnapshot
         if (sanitizedSelection != selectedPermissionIds) {
             selectedPermissionIds = sanitizedSelection
-            if (sanitizedSelection.isEmpty()) {
-                preferences.clearSelectedPermissions()
-            } else {
-                preferences.saveSelectedPermissions(sanitizedSelection)
-            }
+            persistSelection(sanitizedSelection)
         }
     }
 
     fun completeOnboarding() {
-        authorizationActive = false
-        permissionQueueNames = emptyList()
-        selectedPermissionIds = emptySet()
-        preferences.clearSelectedPermissions()
-        preferences.complete()
+        if (completionDispatched || !agreementAcceptedState || authorizationActive ||
+            runtimeRequestInFlight || navigationBusy) return
+        completionDispatched = true
+        // 重看是一段独立阅读会话，不改写初次安装的完成步骤与待授权选择。
+        if (!startFromBeginning) preferences.complete()
         onComplete()
     }
 
+    fun stopAuthorization() {
+        authorizationGeneration++
+        authorizationActive = false
+        permissionQueueNames = emptyList()
+        waitingForExternalSettings = false
+        authorizationNeedsContinue = false
+    }
+
     fun handlePermissionAction(permissionId: KiyoriPermissionId): Boolean {
+        val generation = authorizationGeneration
         return try {
             when (
                 resolveKiyoriPermissionAction(
@@ -273,23 +311,25 @@ internal fun KiyoriOnboardingScreen(
                     true
                 }
 
-                    KiyoriPermissionActionKind.CONFIGURE_SHIZUKU -> {
-                        performKiyoriShizukuAction(context) {
-                            pagerScope.launch {
-                                if (it) {
-                                    try {
-                                        activateKiyoriShizukuExecution()
-                                    } catch (error: Exception) {
-                                        KiyoriLogger.e(
-                                            "KiyoriOnboarding",
-                                            "Shizuku granted but execution state activation failed",
-                                            error,
-                                        )
-                                    }
+                KiyoriPermissionActionKind.CONFIGURE_SHIZUKU -> {
+                    performKiyoriShizukuAction(context) {
+                        pagerScope.launch {
+                            if (generation != authorizationGeneration) return@launch
+                            if (it) {
+                                try {
+                                    activateKiyoriShizukuExecution()
+                                } catch (error: Exception) {
+                                    KiyoriLogger.e(
+                                        "KiyoriOnboarding",
+                                        "Shizuku granted but execution state activation failed",
+                                        error,
+                                    )
                                 }
-                                waitingForExternalSettings = false
-                                refreshPermissions()
                             }
+                            if (generation != authorizationGeneration) return@launch
+                            waitingForExternalSettings = false
+                            refreshPermissions()
+                        }
                     }
                     true
                 }
@@ -297,6 +337,7 @@ internal fun KiyoriOnboardingScreen(
                 KiyoriPermissionActionKind.REQUEST_ROOT -> {
                     RootAuthorizer.requestRootPermission {
                         pagerScope.launch {
+                            if (generation != authorizationGeneration) return@launch
                             waitingForExternalSettings = false
                             refreshPermissions()
                         }
@@ -348,14 +389,18 @@ internal fun KiyoriOnboardingScreen(
         permissionQueueNames,
         runtimeRequestInFlight,
         waitingForExternalSettings,
+        authorizationNeedsContinue,
     ) {
-        if (!authorizationActive || runtimeRequestInFlight || waitingForExternalSettings) {
+        if (!authorizationActive || runtimeRequestInFlight || waitingForExternalSettings ||
+            authorizationNeedsContinue) {
             return@LaunchedEffect
         }
-        val queue =
-            permissionQueueNames.map(KiyoriPermissionId::valueOf)
+        val queue = permissionQueueNames.map(KiyoriPermissionId::valueOf)
+            .filter(permissionSnapshot::canSelect)
         if (queue.isEmpty()) {
-            completeOnboarding()
+            permissionQueueNames = emptyList()
+            authorizationActive = false
+            refreshPermissions()
             return@LaunchedEffect
         }
         val runtimeIds =
@@ -372,17 +417,28 @@ internal fun KiyoriOnboardingScreen(
                     .filterNot(::isKiyoriRuntimePermission)
                     .map(KiyoriPermissionId::name)
             runtimeRequestInFlight = true
-            runtimePermissionLauncher.launch(
-                kiyoriRuntimePermissionsForSdk(
-                    sdkInt = Build.VERSION.SDK_INT,
-                    selectedPermissionIds = runtimeIds.toSet(),
-                ).toTypedArray(),
-            )
+            authorizationNeedsContinue = true
+            try {
+                runtimePermissionLauncher.launch(
+                    kiyoriRuntimePermissionsForSdk(
+                        sdkInt = Build.VERSION.SDK_INT,
+                        selectedPermissionIds = runtimeIds.toSet(),
+                    ).toTypedArray(),
+                )
+            } catch (error: Exception) {
+                runtimeRequestInFlight = false
+                stopAuthorization()
+                KiyoriLogger.e("KiyoriOnboarding", "无法发起所选运行时权限请求", error)
+                showKiyoriPermissionActionFailure(context, runtimeIds.first())
+            }
             return@LaunchedEffect
         }
         val permissionId = queue.first()
         permissionQueueNames = queue.drop(1).map(KiyoriPermissionId::name)
+        authorizationGeneration++
         waitingForExternalSettings = true
+        // 返回后只刷新事实，下一项必须由用户继续，避免连续拉起系统设置或自动退出引导。
+        authorizationNeedsContinue = true
         val launched = handlePermissionAction(permissionId)
         if (!launched) {
             waitingForExternalSettings = false
@@ -390,6 +446,8 @@ internal fun KiyoriOnboardingScreen(
     }
 
     fun startAuthorization() {
+        if (authorizationActive || runtimeRequestInFlight || navigationBusy || completionDispatched) return
+        refreshPermissions()
         val selectable =
             sanitizeKiyoriPermissionSelection(
                 snapshot = permissionSnapshot,
@@ -399,383 +457,487 @@ internal fun KiyoriOnboardingScreen(
             completeOnboarding()
             return
         }
-        preferences.saveSelectedPermissions(selectable)
+        persistSelection(selectable)
+        authorizationGeneration++
+        authorizationNeedsContinue = false
         permissionQueueNames =
             orderKiyoriPermissionIdsForAuthorization(selectable.toList()).map(KiyoriPermissionId::name)
         authorizationActive = true
     }
 
-    BackHandler {
+    val handleBack: () -> Unit = {
         when {
             selectedLegalDocument != null -> selectedLegalDocument = null
-            currentStep == KiyoriOnboardingStep.WELCOME -> context.findActivity().finish()
-            authorizationActive -> Unit
+            authorizationActive -> stopAuthorization()
+            navigationBusy -> Unit
+            currentStep == KiyoriOnboardingStep.WELCOME ->
+                if (onExitReview != null) onExitReview() else context.findActivity().finish()
             else -> previousKiyoriOnboardingStep(currentStep)?.let(::moveTo)
         }
     }
 
     val pagerInputEnabled =
         shouldEnableKiyoriOnboardingPagerInput(
-            step = currentStep,
-            agreementAccepted = agreementAcceptedState,
             interactionLocked = authorizationActive,
         )
 
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .windowInsetsPadding(WindowInsets.safeDrawing),
-    ) {
-        val legalDocument = selectedLegalDocument
-        if (legalDocument != null) {
-            KiyoriAgreementDocumentScreen(
-                document = legalDocument,
-                onBack = { selectedLegalDocument = null },
-                modifier = Modifier.weight(1f),
-            )
-        } else {
-            OnboardingProgressHeader(
-                step = currentStep,
-                onBack = {
-                    previousKiyoriOnboardingStep(currentStep)?.let(::moveTo)
-                },
-                showBack = currentStep != KiyoriOnboardingStep.WELCOME && !authorizationActive,
-                onSkipIntroduction = { moveTo(KiyoriOnboardingStep.AGREEMENT) },
-            )
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.weight(1f),
-                userScrollEnabled = pagerInputEnabled,
-                flingBehavior = pagerFlingBehavior,
-                beyondViewportPageCount = 1,
-                key = { pageIndex -> KiyoriOnboardingStep.entries[pageIndex].name },
-            ) { pageIndex ->
-                when (KiyoriOnboardingStep.entries[pageIndex]) {
-                        KiyoriOnboardingStep.WELCOME ->
-                            KiyoriWelcomePage(
-                                onNext = { moveTo(KiyoriOnboardingStep.BROWSER_AND_MEDIA) },
-                            )
+    KiyoriOnboardingPresentation(reviewing = onExitReview != null, onBack = handleBack) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .windowInsetsPadding(WindowInsets.safeDrawing),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            val legalDocument = selectedLegalDocument
+            if (legalDocument != null) {
+                KiyoriAgreementDocumentScreen(
+                    document = legalDocument,
+                    onBack = { selectedLegalDocument = null },
+                    modifier = Modifier.weight(1f),
+                )
+            } else {
+                OnboardingProgressHeader(
+                    step = currentStep,
+                    onBack = {
+                        if (currentStep == KiyoriOnboardingStep.WELCOME) onExitReview?.invoke()
+                        else previousKiyoriOnboardingStep(currentStep)?.let(::moveTo)
+                    },
+                    showBack = currentStep != KiyoriOnboardingStep.WELCOME || onExitReview != null,
+                    enabled = !navigationBusy && !authorizationActive,
+                    backLabel = if (currentStep == KiyoriOnboardingStep.WELCOME && onExitReview != null)
+                        stringResource(R.string.kiyori_onboarding_review_return)
+                    else stringResource(R.string.kiyori_onboarding_back),
+                    onSkipIntroduction = { moveTo(KiyoriOnboardingStep.AGREEMENT) },
+                )
+                // 正文独立呈现时保留介绍/协议/权限的阅读位置，关闭正文后回到原处。
+                pageStateHolder.SaveableStateProvider("onboarding_pages") {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.weight(1f).widthIn(max = 1080.dp).fillMaxWidth(),
+                        userScrollEnabled = pagerInputEnabled,
+                        flingBehavior = pagerFlingBehavior,
+                        beyondViewportPageCount = 1,
+                        key = { pageIndex -> KiyoriOnboardingStep.entries[pageIndex].name },
+                    ) { pageIndex ->
+                        when (KiyoriOnboardingStep.entries[pageIndex]) {
+                            KiyoriOnboardingStep.WELCOME ->
+                                KiyoriWelcomePage(
+                                    navigationEnabled = !navigationBusy,
+                                    onNext = { moveTo(KiyoriOnboardingStep.BROWSER_AND_MEDIA) },
+                                )
 
-                        KiyoriOnboardingStep.BROWSER_AND_MEDIA ->
-                            FeatureIntroductionPage(
-                                eyebrow =
-                                    stringResource(
-                                        R.string.kiyori_onboarding_browser_eyebrow,
-                                    ),
-                                title =
-                                    stringResource(
-                                        R.string.kiyori_onboarding_browser_title,
-                                    ),
-                                description =
-                                    stringResource(
-                                        R.string.kiyori_onboarding_browser_desc,
-                                    ),
-                                featureCards =
-                                    listOf(
-                                        OnboardingFeatureCard(
-                                            icon = Icons.Default.Language,
-                                            tone = KiyoriSemanticTone.BLUE,
-                                            title =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_browser_card_browser_title,
-                                                ),
-                                            description =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_browser_card_browser_desc,
-                                                ),
+                            KiyoriOnboardingStep.BROWSER_AND_MEDIA ->
+                                FeatureIntroductionPage(
+                                    navigationEnabled = !navigationBusy,
+                                    eyebrow =
+                                        stringResource(
+                                            R.string.kiyori_onboarding_browser_eyebrow,
                                         ),
-                                        OnboardingFeatureCard(
-                                            icon = Icons.Default.Download,
-                                            tone = KiyoriSemanticTone.GREEN,
-                                            title =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_browser_card_download_title,
-                                                ),
-                                            description =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_browser_card_download_desc,
-                                                ),
+                                    title =
+                                        stringResource(
+                                            R.string.kiyori_onboarding_browser_title,
                                         ),
-                                        OnboardingFeatureCard(
-                                            icon = Icons.Default.PlayCircle,
-                                            tone = KiyoriSemanticTone.RED,
-                                            title =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_browser_card_video_title,
-                                                ),
-                                            description =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_browser_card_video_desc,
-                                                ),
+                                    description =
+                                        stringResource(
+                                            R.string.kiyori_onboarding_browser_desc,
                                         ),
-                                        OnboardingFeatureCard(
-                                            icon = Icons.AutoMirrored.Filled.MenuBook,
-                                            tone = KiyoriSemanticTone.ORANGE,
-                                            title =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_browser_card_reading_title,
-                                                ),
-                                            description =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_browser_card_reading_desc,
-                                                ),
+                                    featureCards =
+                                        listOf(
+                                            OnboardingFeatureCard(
+                                                icon = Icons.Default.Language,
+                                                tone = KiyoriSemanticTone.BLUE,
+                                                title =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_browser_card_browser_title,
+                                                    ),
+                                                description =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_browser_card_browser_desc,
+                                                    ),
+                                            ),
+                                            OnboardingFeatureCard(
+                                                icon = Icons.Default.Download,
+                                                tone = KiyoriSemanticTone.GREEN,
+                                                title =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_browser_card_download_title,
+                                                    ),
+                                                description =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_browser_card_download_desc,
+                                                    ),
+                                            ),
+                                            OnboardingFeatureCard(
+                                                icon = Icons.Default.PlayCircle,
+                                                tone = KiyoriSemanticTone.RED,
+                                                title =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_browser_card_video_title,
+                                                    ),
+                                                description =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_browser_card_video_desc,
+                                                    ),
+                                            ),
+                                            OnboardingFeatureCard(
+                                                icon = Icons.AutoMirrored.Filled.MenuBook,
+                                                tone = KiyoriSemanticTone.ORANGE,
+                                                title =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_browser_card_reading_title,
+                                                    ),
+                                                description =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_browser_card_reading_desc,
+                                                    ),
+                                            ),
                                         ),
-                                    ),
-                                visual = { cards -> BrowserMediaVisual(cards) },
-                                onNext = {
-                                    moveTo(KiyoriOnboardingStep.AI_ASSISTANT)
-                                },
-                                nextLabel =
-                                    stringResource(
-                                        R.string.kiyori_onboarding_browser_next,
-                                    ),
-                            )
+                                    visual = { cards -> BrowserMediaVisual(cards) },
+                                    onNext = {
+                                        moveTo(KiyoriOnboardingStep.AI_ASSISTANT)
+                                    },
+                                    nextLabel =
+                                        stringResource(
+                                            R.string.kiyori_onboarding_browser_next,
+                                        ),
+                                )
 
-                        KiyoriOnboardingStep.AI_ASSISTANT ->
-                            FeatureIntroductionPage(
-                                eyebrow =
-                                    stringResource(
-                                        R.string.kiyori_onboarding_ai_eyebrow,
-                                    ),
-                                title =
-                                    stringResource(
-                                        R.string.kiyori_onboarding_ai_title,
-                                    ),
-                                description =
-                                    stringResource(
-                                        R.string.kiyori_onboarding_ai_desc,
-                                    ),
-                                featureCards =
-                                    listOf(
-                                        OnboardingFeatureCard(
-                                            icon = Icons.Default.AutoAwesome,
-                                            tone = KiyoriSemanticTone.PURPLE,
-                                            title =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_ai_card_assistant_title,
-                                                ),
-                                            description =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_ai_card_assistant_desc,
-                                                ),
+                            KiyoriOnboardingStep.AI_ASSISTANT ->
+                                FeatureIntroductionPage(
+                                    navigationEnabled = !navigationBusy,
+                                    eyebrow =
+                                        stringResource(
+                                            R.string.kiyori_onboarding_ai_eyebrow,
                                         ),
-                                        OnboardingFeatureCard(
-                                            icon = Icons.Default.RecordVoiceOver,
-                                            tone = KiyoriSemanticTone.CYAN,
-                                            title =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_ai_card_voice_title,
-                                                ),
-                                            description =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_ai_card_voice_desc,
-                                                ),
+                                    title =
+                                        stringResource(
+                                            R.string.kiyori_onboarding_ai_title,
                                         ),
-                                        OnboardingFeatureCard(
-                                            icon = Icons.Default.AccountCircle,
-                                            tone = KiyoriSemanticTone.GREEN,
-                                            title =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_ai_card_connection_title,
-                                                ),
-                                            description =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_ai_card_connection_desc,
-                                                ),
+                                    description =
+                                        stringResource(
+                                            R.string.kiyori_onboarding_ai_desc,
                                         ),
-                                        OnboardingFeatureCard(
-                                            icon = Icons.Default.Widgets,
-                                            tone = KiyoriSemanticTone.BLUE,
-                                            title =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_ai_card_toolbox_title,
-                                                ),
-                                            description =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_ai_card_toolbox_desc,
-                                                ),
+                                    featureCards =
+                                        listOf(
+                                            OnboardingFeatureCard(
+                                                icon = Icons.Default.AutoAwesome,
+                                                tone = KiyoriSemanticTone.PURPLE,
+                                                title =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_ai_card_assistant_title,
+                                                    ),
+                                                description =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_ai_card_assistant_desc,
+                                                    ),
+                                            ),
+                                            OnboardingFeatureCard(
+                                                icon = Icons.Default.RecordVoiceOver,
+                                                tone = KiyoriSemanticTone.CYAN,
+                                                title =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_ai_card_voice_title,
+                                                    ),
+                                                description =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_ai_card_voice_desc,
+                                                    ),
+                                            ),
+                                            OnboardingFeatureCard(
+                                                icon = Icons.Default.AccountCircle,
+                                                tone = KiyoriSemanticTone.GREEN,
+                                                title =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_ai_card_connection_title,
+                                                    ),
+                                                description =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_ai_card_connection_desc,
+                                                    ),
+                                            ),
+                                            OnboardingFeatureCard(
+                                                icon = Icons.Default.Widgets,
+                                                tone = KiyoriSemanticTone.BLUE,
+                                                title =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_ai_card_toolbox_title,
+                                                    ),
+                                                description =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_ai_card_toolbox_desc,
+                                                    ),
+                                            ),
                                         ),
-                                    ),
-                                visual = { cards -> AiCollaborationVisual(cards) },
-                                onNext = {
-                                    moveTo(KiyoriOnboardingStep.FILES_AND_TOOLS)
-                                },
-                                nextLabel =
-                                    stringResource(
-                                        R.string.kiyori_onboarding_ai_next,
-                                    ),
-                            )
+                                    visual = { cards -> AiCollaborationVisual(cards) },
+                                    onNext = {
+                                        moveTo(KiyoriOnboardingStep.FILES_AND_TOOLS)
+                                    },
+                                    nextLabel =
+                                        stringResource(
+                                            R.string.kiyori_onboarding_ai_next,
+                                        ),
+                                )
 
-                        KiyoriOnboardingStep.FILES_AND_TOOLS ->
-                            FeatureIntroductionPage(
-                                eyebrow =
-                                    stringResource(
-                                        R.string.kiyori_onboarding_files_eyebrow,
-                                    ),
-                                title =
-                                    stringResource(
-                                        R.string.kiyori_onboarding_files_title,
-                                    ),
-                                description =
-                                    stringResource(
-                                        R.string.kiyori_onboarding_files_desc,
-                                    ),
-                                featureCards =
-                                    listOf(
-                                        OnboardingFeatureCard(
-                                            icon = Icons.Default.Folder,
-                                            tone = KiyoriSemanticTone.ORANGE,
-                                            title =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_files_card_manager_title,
-                                                ),
-                                            description =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_files_card_manager_desc,
-                                                ),
+                            KiyoriOnboardingStep.FILES_AND_TOOLS ->
+                                FeatureIntroductionPage(
+                                    navigationEnabled = !navigationBusy,
+                                    eyebrow =
+                                        stringResource(
+                                            R.string.kiyori_onboarding_files_eyebrow,
                                         ),
-                                        OnboardingFeatureCard(
-                                            icon = Icons.Default.Terminal,
-                                            tone = KiyoriSemanticTone.BLUE,
-                                            title =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_files_card_terminal_title,
-                                                ),
-                                            description =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_files_card_terminal_desc,
-                                                ),
+                                    title =
+                                        stringResource(
+                                            R.string.kiyori_onboarding_files_title,
                                         ),
-                                        OnboardingFeatureCard(
-                                            icon = Icons.Default.Apps,
-                                            tone = KiyoriSemanticTone.GREEN,
-                                            title =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_files_card_miniprogram_title,
-                                                ),
-                                            description =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_files_card_miniprogram_desc,
-                                                ),
+                                    description =
+                                        stringResource(
+                                            R.string.kiyori_onboarding_files_desc,
                                         ),
-                                        OnboardingFeatureCard(
-                                            icon = Icons.Default.BugReport,
-                                            tone = KiyoriSemanticTone.PURPLE,
-                                            title =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_files_card_logs_title,
-                                                ),
-                                            description =
-                                                stringResource(
-                                                    R.string.kiyori_onboarding_files_card_logs_desc,
-                                                ),
+                                    featureCards =
+                                        listOf(
+                                            OnboardingFeatureCard(
+                                                icon = Icons.Default.Folder,
+                                                tone = KiyoriSemanticTone.ORANGE,
+                                                title =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_files_card_manager_title,
+                                                    ),
+                                                description =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_files_card_manager_desc,
+                                                    ),
+                                            ),
+                                            OnboardingFeatureCard(
+                                                icon = Icons.Default.Terminal,
+                                                tone = KiyoriSemanticTone.BLUE,
+                                                title =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_files_card_terminal_title,
+                                                    ),
+                                                description =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_files_card_terminal_desc,
+                                                    ),
+                                            ),
+                                            OnboardingFeatureCard(
+                                                icon = Icons.Default.Apps,
+                                                tone = KiyoriSemanticTone.GREEN,
+                                                title =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_files_card_miniprogram_title,
+                                                    ),
+                                                description =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_files_card_miniprogram_desc,
+                                                    ),
+                                            ),
+                                            OnboardingFeatureCard(
+                                                icon = Icons.Default.BugReport,
+                                                tone = KiyoriSemanticTone.PURPLE,
+                                                title =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_files_card_logs_title,
+                                                    ),
+                                                description =
+                                                    stringResource(
+                                                        R.string.kiyori_onboarding_files_card_logs_desc,
+                                                    ),
+                                            ),
                                         ),
-                                    ),
-                                visual = { cards -> FilesAndToolsVisual(cards) },
-                                onNext = {
-                                    moveTo(KiyoriOnboardingStep.AGREEMENT)
-                                },
-                                nextLabel =
-                                    stringResource(
-                                        R.string.kiyori_onboarding_files_next,
-                                    ),
-                            )
+                                    visual = { cards -> FilesAndToolsVisual(cards) },
+                                    onNext = {
+                                        moveTo(KiyoriOnboardingStep.AGREEMENT)
+                                    },
+                                    nextLabel =
+                                        stringResource(
+                                            R.string.kiyori_onboarding_files_next,
+                                        ),
+                                )
 
-                        KiyoriOnboardingStep.AGREEMENT ->
-                            KiyoriAgreementSummary(
-                                checked = agreementChecked,
-                                onCheckedChange = { agreementChecked = it },
-                                onOpenUserAgreement = {
-                                    selectedLegalDocument =
-                                        KiyoriLegalDocument.USER_AGREEMENT
-                                },
-                                onOpenPrivacyPolicy = {
-                                    selectedLegalDocument =
-                                        KiyoriLegalDocument.PRIVACY_POLICY
-                                },
-                                onDecline = { context.findActivity().finish() },
-                                onAccept = {
-                                    if (!agreementAcceptedState) {
-                                        onAgreementAccepted()
-                                        agreementAcceptedState = true
-                                        agreementChecked = true
-                                    }
-                                    moveTo(KiyoriOnboardingStep.PERMISSIONS)
-                                },
-                                agreementAlreadyAccepted = agreementAcceptedState,
-                                modifier =
-                                    Modifier.onboardingPreviousSwipe(
-                                        enabled = !agreementAcceptedState,
-                                        onPrevious = {
-                                            resolveKiyoriOnboardingSwipeTarget(
-                                                step = KiyoriOnboardingStep.AGREEMENT,
-                                                direction =
-                                                    KiyoriOnboardingSwipeDirection.PREVIOUS,
-                                                agreementAccepted = agreementAcceptedState,
-                                                interactionLocked = authorizationActive,
-                                            )?.let(::moveTo)
-                                        },
-                                    ),
-                            )
+                            KiyoriOnboardingStep.AGREEMENT ->
+                                KiyoriAgreementSummary(
+                                    checked = agreementChecked,
+                                    onCheckedChange = { agreementChecked = it },
+                                    onOpenUserAgreement = {
+                                        if (!navigationBusy) selectedLegalDocument =
+                                            KiyoriLegalDocument.USER_AGREEMENT
+                                    },
+                                    onOpenPrivacyPolicy = {
+                                        if (!navigationBusy) selectedLegalDocument =
+                                            KiyoriLegalDocument.PRIVACY_POLICY
+                                    },
+                                    onDecline = {
+                                        if (onExitReview != null) onExitReview() else context.findActivity().finish()
+                                    },
+                                    onAccept = {
+                                        if (navigationBusy) return@KiyoriAgreementSummary
+                                        if (!agreementAcceptedState) {
+                                            onAgreementAccepted()
+                                            agreementAcceptedState = true
+                                            agreementChecked = true
+                                        }
+                                        moveTo(KiyoriOnboardingStep.PERMISSIONS)
+                                    },
+                                    agreementAlreadyAccepted = agreementAcceptedState,
+                                    interactionEnabled = !navigationBusy,
+                                    reviewing = onExitReview != null,
+                                )
 
-                        KiyoriOnboardingStep.PERMISSIONS ->
-                            KiyoriPermissionAuthorizationPage(
-                                snapshot = permissionSnapshot,
-                                selectedPermissionIds = selectedPermissionIds,
-                                authorizationActive = authorizationActive,
-                                waitingForExternalSettings = waitingForExternalSettings,
-                                onTogglePermission = { permissionId ->
-                                    if (!authorizationActive &&
-                                        permissionSnapshot.canSelect(permissionId)
-                                    ) {
-                                        selectedPermissionIds =
-                                            if (permissionId in selectedPermissionIds) {
-                                                selectedPermissionIds - permissionId
-                                            } else {
-                                                selectedPermissionIds + permissionId
-                                            }
-                                        preferences.saveSelectedPermissions(
-                                            selectedPermissionIds,
-                                        )
-                                    }
-                                },
-                                onClearSelection = {
-                                    if (!authorizationActive) {
-                                        selectedPermissionIds = emptySet()
-                                        preferences.clearSelectedPermissions()
-                                    }
-                                },
-                                onAuthorize = ::startAuthorization,
-                            )
+                            KiyoriOnboardingStep.PERMISSIONS ->
+                                KiyoriPermissionAuthorizationPage(
+                                    snapshot = permissionSnapshot,
+                                    selectedPermissionIds = selectedPermissionIds,
+                                    authorizationActive = authorizationActive,
+                                    waitingForExternalSettings = waitingForExternalSettings || runtimeRequestInFlight,
+                                    navigationEnabled = !navigationBusy && !runtimeRequestInFlight,
+                                    reviewing = onExitReview != null,
+                                    authorizationNeedsContinue = authorizationNeedsContinue,
+                                    remainingCount = permissionQueueNames.size,
+                                    onContinueAuthorization = { authorizationNeedsContinue = false },
+                                    onStopAuthorization = ::stopAuthorization,
+                                    onFinish = ::completeOnboarding,
+                                    onTogglePermission = { permissionId ->
+                                        if (!authorizationActive &&
+                                            permissionSnapshot.canSelect(permissionId)
+                                        ) {
+                                            selectedPermissionIds =
+                                                if (permissionId in selectedPermissionIds) {
+                                                    selectedPermissionIds - permissionId
+                                                } else {
+                                                    selectedPermissionIds + permissionId
+                                                }
+                                            persistSelection(selectedPermissionIds)
+                                        }
+                                    },
+                                    onClearSelection = {
+                                        if (!authorizationActive) {
+                                            selectedPermissionIds = emptySet()
+                                            persistSelection(emptySet())
+                                        }
+                                    },
+                                    onAuthorize = ::startAuthorization,
+                                )
+                        }
                     }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun OnboardingProgressHeader(step: KiyoriOnboardingStep, onBack: () -> Unit, showBack: Boolean, onSkipIntroduction: () -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            if (showBack) IconButton(onClick = onBack, modifier = Modifier.size(40.dp)) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.kiyori_onboarding_back)) } else Spacer(Modifier.size(40.dp))
-            Spacer(Modifier.width(10.dp))
-            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer) { Icon(Icons.Default.AutoAwesome, null, Modifier.padding(7.dp).size(18.dp)) }
-            Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+private fun KiyoriOnboardingPresentation(
+    reviewing: Boolean,
+    onBack: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    if (reviewing) {
+        // 独立窗口隔离设置页的触摸与焦点，不消费子级 Final pass（那会取消拖动）。
+        // Dialog 的系统 Back 必须经 onDismissRequest 回到同一个步骤处理器，
+        // 不能依赖 Activity 的 BackHandler，否则会整段退出或吞掉返回。
+        Dialog(
+            onDismissRequest = onBack,
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+                dismissOnBackPress = true,
+                dismissOnClickOutside = false,
+            ),
+            content = content,
+        )
+    } else {
+        BackHandler(onBack = onBack)
+        content()
+    }
+}
+
+@Composable
+private fun OnboardingProgressHeader(
+    step: KiyoriOnboardingStep,
+    onBack: () -> Unit,
+    showBack: Boolean,
+    enabled: Boolean,
+    backLabel: String,
+    onSkipIntroduction: () -> Unit,
+) {
+    Column(
+        Modifier.widthIn(max = 1080.dp).fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        // 所有六页保留相同 56dp 行高与 48dp 返回槽位。跳过按钮消失不能改变 Pager 高度。
+        Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (showBack) {
+                IconButton(onClick = onBack, enabled = enabled, modifier = Modifier.size(48.dp).onboardingTapOnly()) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, backLabel)
+                }
+            } else {
+                Spacer(Modifier.size(48.dp))
+            }
+            Row(
+                Modifier.weight(1f).padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(
-                    text = if (step == KiyoriOnboardingStep.WELCOME) "欢迎使用 Kiyori" else stringResource(step.onboardingLabelResId),
+                    text = stringResource(step.onboardingLabelResId),
+                    modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(stringResource(R.string.kiyori_onboarding_progress, step.ordinal + 1, KiyoriOnboardingStep.entries.size), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    stringResource(R.string.kiyori_onboarding_progress, step.ordinal + 1, KiyoriOnboardingStep.entries.size),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
-            if (step.ordinal < KiyoriOnboardingStep.AGREEMENT.ordinal) TextButton(onClick = onSkipIntroduction) { Text(stringResource(R.string.kiyori_onboarding_skip_intro)) }
+            if (step.ordinal < KiyoriOnboardingStep.AGREEMENT.ordinal) {
+                TextButton(onClick = onSkipIntroduction, enabled = enabled, modifier = Modifier.onboardingTapOnly()) {
+                    Text(stringResource(R.string.kiyori_onboarding_skip_intro), maxLines = 1)
+                }
+            }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) { KiyoriOnboardingStep.entries.forEach { item -> Box(Modifier.weight(1f).height(4.dp).clip(CircleShape).background(if (item.ordinal <= step.ordinal) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest)) } }
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 8.dp).semantics {
+                progressBarRangeInfo = ProgressBarRangeInfo(
+                    current = (step.ordinal + 1).toFloat(),
+                    range = 0f..KiyoriOnboardingStep.entries.size.toFloat(),
+                    steps = KiyoriOnboardingStep.entries.size - 1,
+                )
+            },
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            KiyoriOnboardingStep.entries.forEach { item ->
+                Box(Modifier.weight(1f).height(4.dp).clip(CircleShape).background(
+                    if (item.ordinal <= step.ordinal) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.surfaceContainerHighest,
+                ))
+            }
+        }
+    }
+}
+
+// 顶栏不属于滚动容器：滑动若始终落在宽按钮内部，普通点击可能在抬手时成立。
+// 仅在超过系统 touch slop 或多指后取消本按钮的手势，不吞普通按下，也不接管 Pager。
+private fun Modifier.onboardingTapOnly(): Modifier = pointerInput(Unit) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        var cancelled = false
+        do {
+            val event = awaitPointerEvent(PointerEventPass.Initial)
+            val pointer = event.changes.firstOrNull { it.id == down.id }
+            if (event.changes.size > 1 || pointer == null ||
+                (pointer.position - down.position).getDistance() > viewConfiguration.touchSlop) {
+                cancelled = true
+            }
+            if (cancelled) event.changes.forEach { it.consume() }
+        } while (event.changes.any { it.pressed })
     }
 }
 
@@ -789,40 +951,6 @@ private val KiyoriOnboardingStep.onboardingLabelResId: Int
             KiyoriOnboardingStep.AGREEMENT -> R.string.kiyori_onboarding_step_trust
             KiyoriOnboardingStep.PERMISSIONS -> R.string.kiyori_onboarding_step_ready
         }
-
-@Composable
-private fun Modifier.onboardingPreviousSwipe(
-    enabled: Boolean,
-    onPrevious: () -> Unit,
-): Modifier {
-    val thresholdPx = with(LocalDensity.current) { 64.dp.toPx() }
-    val layoutDirection = LocalLayoutDirection.current
-    return pointerInput(enabled, thresholdPx, layoutDirection) {
-        if (!enabled) {
-            return@pointerInput
-        }
-        var accumulatedDrag = 0f
-        detectHorizontalDragGestures(
-            onDragStart = { accumulatedDrag = 0f },
-            onDragCancel = { accumulatedDrag = 0f },
-            onDragEnd = {
-                val isPreviousGesture =
-                    when (layoutDirection) {
-                        LayoutDirection.Ltr -> accumulatedDrag >= thresholdPx
-                        LayoutDirection.Rtl -> accumulatedDrag <= -thresholdPx
-                    }
-                if (isPreviousGesture) {
-                    onPrevious()
-                }
-                accumulatedDrag = 0f
-            },
-            onHorizontalDrag = { change, dragAmount ->
-                accumulatedDrag += dragAmount
-                change.consume()
-            },
-        )
-    }
-}
 
 @Composable
 private fun OnboardingEyebrow(
@@ -862,26 +990,27 @@ private data class OnboardingFeatureCard(
 private fun OnboardingFeatureGrid(
     cards: List<OnboardingFeatureCard>,
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        cards.chunked(2).forEach { rowCards ->
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(IntrinsicSize.Min),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                rowCards.forEach { card ->
-                    OnboardingFeatureCardSurface(
-                        card = card,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                if (rowCards.size == 1) {
-                    Spacer(modifier = Modifier.weight(1f))
+    val fontScale = LocalDensity.current.fontScale
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val columns = if (maxWidth < 340.dp || fontScale > 1.25f) 1 else 2
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            cards.chunked(columns).forEach { rowCards ->
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    rowCards.forEach { card ->
+                        OnboardingFeatureCardSurface(
+                            card = card,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    if (rowCards.size < columns) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
             }
         }
@@ -903,9 +1032,9 @@ private fun OnboardingFeatureCardSurface(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(1.dp, colors.container),
     ) {
-        Row(
-            modifier = Modifier.padding(11.dp),
-            verticalAlignment = Alignment.Top,
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             KiyoriSemanticIconBadge(
                 imageVector = card.icon,
@@ -915,9 +1044,8 @@ private fun OnboardingFeatureCardSurface(
                 iconSize = 20.dp,
                 shape = RoundedCornerShape(12.dp),
             )
-            Spacer(modifier = Modifier.width(9.dp))
             Column(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 Text(
@@ -927,9 +1055,9 @@ private fun OnboardingFeatureCardSurface(
                 )
                 Text(
                     text = card.description,
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 16.sp,
+                    lineHeight = 19.sp,
                 )
             }
         }
@@ -939,6 +1067,7 @@ private fun OnboardingFeatureCardSurface(
 @Composable
 private fun KiyoriWelcomePage(
     onNext: () -> Unit,
+    navigationEnabled: Boolean,
 ) {
     val featureCards =
         listOf(
@@ -992,6 +1121,7 @@ private fun KiyoriWelcomePage(
             ),
         )
     FeatureIntroductionPage(
+        navigationEnabled = navigationEnabled,
         eyebrow = null,
         title = stringResource(R.string.kiyori_onboarding_welcome_title),
         description = stringResource(R.string.kiyori_onboarding_welcome_desc),
@@ -1015,7 +1145,7 @@ private fun OnboardingFeatureIntroduction(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(22.dp),
+                        .heightIn(min = 22.dp),
                 contentAlignment = Alignment.CenterStart,
             ) {
                 OnboardingEyebrow(
@@ -1053,17 +1183,10 @@ private fun OnboardingFeatureIntroduction(
             Text(
                 text = description,
                 style =
-                    MaterialTheme.typography.bodyMedium.copy(
-                        textIndent = TextIndent(firstLine = 2.em),
-                    ),
+                    MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 22.sp,
             )
-        }
-        if (eyebrow == null) {
-            // 首页删除眉题后把等量节奏放到介绍与能力卡之间，标题更靠近主视觉，
-            // 同时保持前四页 2×2 能力卡在常规手机视口中的垂直基线一致。
-            Spacer(modifier = Modifier.height(28.dp))
         }
     }
 }
@@ -1077,6 +1200,7 @@ internal fun resolveKiyoriOnboardingTitleAlignment(eyebrow: String?): TextAlign 
 
 @Composable
 private fun FeatureIntroductionPage(
+    navigationEnabled: Boolean,
     eyebrow: String?,
     title: String,
     description: String,
@@ -1125,12 +1249,14 @@ private fun FeatureIntroductionPage(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(
-                        modifier = Modifier.weight(0.9f),
+                        modifier = Modifier.weight(0.9f).clearAndSetSemantics {},
                         contentAlignment = Alignment.Center,
                     ) {
                         visual(featureCards)
                     }
-                    Box(modifier = Modifier.weight(1.1f)) {
+                    Box(modifier = Modifier.weight(1.1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(vertical = 16.dp)) {
                         content()
                     }
                 }
@@ -1148,7 +1274,8 @@ private fun FeatureIntroductionPage(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .height(mobileVisualHeight),
+                                .height(mobileVisualHeight)
+                                .clearAndSetSemantics {},
                         shape = RoundedCornerShape(28.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerLowest,
                         border =
@@ -1168,6 +1295,7 @@ private fun FeatureIntroductionPage(
             OnboardingPrimaryButton(
                 text = nextLabel,
                 onClick = onNext,
+                enabled = navigationEnabled,
             )
         }
     }
@@ -1190,12 +1318,12 @@ private fun OnboardingPrimaryButton(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
             ),
-        contentPadding = PaddingValues(horizontal = 20.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
         modifier =
             Modifier
                 .fillMaxWidth()
                 .padding(bottom = 12.dp)
-                .height(56.dp),
+                .heightIn(min = 56.dp),
     ) {
         if (loading) {
             CircularProgressIndicator(
@@ -1209,7 +1337,8 @@ private fun OnboardingPrimaryButton(
             text = text,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
+            modifier = Modifier.weight(1f, fill = false),
+            textAlign = TextAlign.Center,
         )
         if (showArrow) {
             Spacer(modifier = Modifier.width(8.dp))
@@ -1577,14 +1706,17 @@ private fun KiyoriPermissionAuthorizationPage(
     selectedPermissionIds: Set<KiyoriPermissionId>,
     authorizationActive: Boolean,
     waitingForExternalSettings: Boolean,
+    navigationEnabled: Boolean,
+    reviewing: Boolean,
+    authorizationNeedsContinue: Boolean,
+    remainingCount: Int,
+    onContinueAuthorization: () -> Unit,
+    onStopAuthorization: () -> Unit,
+    onFinish: () -> Unit,
     onTogglePermission: (KiyoriPermissionId) -> Unit,
     onClearSelection: () -> Unit,
     onAuthorize: () -> Unit,
 ) {
-    // onSelectAll intentionally removed: high-impact permissions require explicit per-item choice.
-    // Shared catalog contract: kiyoriPermissionGroups.forEach / items = group.permissionIds.
-    // Legacy gate vocabulary retained as a contract comment: onSelectAll = { if (!authorizationActive) {
-    // selectedPermissionIds = permissionSnapshot.selectable.toSet(); preferences.saveSelectedPermissions(selectedPermissionIds) } }
     val selectedCount =
         selectedPermissionIds.count { permissionId ->
             snapshot.canSelect(permissionId)
@@ -1601,11 +1733,11 @@ private fun KiyoriPermissionAuthorizationPage(
         modifier =
             Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 20.dp),
     ) {
         LazyColumn(
             modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(bottom = 12.dp),
+            contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item {
@@ -1646,7 +1778,7 @@ private fun KiyoriPermissionAuthorizationPage(
                     )
                     TextButton(
                         onClick = onClearSelection,
-                        enabled = selectedCount > 0 && !authorizationActive,
+                        enabled = selectedCount > 0 && !authorizationActive && navigationEnabled,
                     ) {
                         Text(
                             text =
@@ -1669,7 +1801,7 @@ private fun KiyoriPermissionAuthorizationPage(
                                 status = snapshot.status(permissionId),
                                 selected = permissionId in selectedPermissionIds,
                                 selectable = snapshot.canSelect(permissionId),
-                                interactionEnabled = !authorizationActive,
+                                interactionEnabled = !authorizationActive && navigationEnabled,
                                 onClick = { onTogglePermission(permissionId) },
                             )
                         }
@@ -1678,23 +1810,57 @@ private fun KiyoriPermissionAuthorizationPage(
             }
             item { KiyoriPermissionScopeNote() }
         }
+        val canContinue = authorizationActive && authorizationNeedsContinue && !waitingForExternalSettings
+        if (authorizationActive) {
+            Text(
+                text = stringResource(
+                    if (remainingCount == 0) R.string.kiyori_onboarding_permissions_result_hint
+                    else R.string.kiyori_onboarding_permissions_continue_hint,
+                    remainingCount,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 8.dp),
+            )
+        }
         OnboardingPrimaryButton(
             text =
                 stringResource(
                     when {
+                        canContinue && remainingCount == 0 ->
+                            R.string.kiyori_onboarding_permissions_result
+                        canContinue -> R.string.kiyori_onboarding_permissions_continue
                         authorizationActive ->
                             R.string.kiyori_onboarding_permissions_processing
+                        selectedCount == 0 && reviewing ->
+                            R.string.kiyori_onboarding_review_done
                         selectedCount == 0 ->
                             R.string.kiyori_onboarding_permissions_enter
                         else ->
                             R.string.kiyori_onboarding_permissions_authorize_and_enter
                     },
                 ),
-            onClick = onAuthorize,
-            enabled = !waitingForExternalSettings && !authorizationActive,
+            onClick = if (canContinue) onContinueAuthorization else onAuthorize,
+            enabled = navigationEnabled && !waitingForExternalSettings && (!authorizationActive || canContinue),
             showArrow = false,
-            loading = authorizationActive,
+            loading = authorizationActive && !canContinue,
         )
+        // 无论哪些系统入口不可用，都保留明确的停下路径；不撤销已经授予的系统权限。
+        if (authorizationActive || selectedCount > 0) TextButton(
+            onClick = if (authorizationActive) onStopAuthorization else onFinish,
+            enabled = authorizationActive || navigationEnabled,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+        ) {
+            Text(stringResource(
+                when {
+                    authorizationActive -> R.string.kiyori_onboarding_permissions_stop
+                    reviewing -> R.string.kiyori_onboarding_review_return
+                    else -> R.string.kiyori_onboarding_permissions_later
+                },
+            ))
+        } else {
+            Spacer(Modifier.height(52.dp))
+        }
     }
 }
 

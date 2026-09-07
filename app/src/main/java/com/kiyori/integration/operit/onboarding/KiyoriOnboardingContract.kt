@@ -19,50 +19,35 @@ internal fun previousKiyoriOnboardingStep(
 ): KiyoriOnboardingStep? =
     KiyoriOnboardingStep.entries.getOrNull(step.ordinal - 1)
 
-internal enum class KiyoriOnboardingSwipeDirection {
-    PREVIOUS,
-    NEXT,
-}
-
-internal fun resolveKiyoriOnboardingSwipeTarget(
-    step: KiyoriOnboardingStep,
-    direction: KiyoriOnboardingSwipeDirection,
-    agreementAccepted: Boolean,
-    interactionLocked: Boolean,
-): KiyoriOnboardingStep? {
-    if (interactionLocked) {
-        return null
-    }
-    return when (direction) {
-        KiyoriOnboardingSwipeDirection.PREVIOUS ->
-            previousKiyoriOnboardingStep(step)
-
-        KiyoriOnboardingSwipeDirection.NEXT ->
-            if (step == KiyoriOnboardingStep.AGREEMENT && !agreementAccepted) {
-                null
-            } else {
-                nextKiyoriOnboardingStep(step)
-            }
-    }
-}
-
 internal fun shouldEnableKiyoriOnboardingPagerInput(
-    step: KiyoriOnboardingStep,
-    agreementAccepted: Boolean,
     interactionLocked: Boolean,
-): Boolean =
-    !interactionLocked &&
-        (step != KiyoriOnboardingStep.AGREEMENT || agreementAccepted)
+): Boolean = !interactionLocked
+
+// 未同意时协议就是 Pager 的最后一页。保留原生反向拖动，不在协议页切换手势所有者。
+internal fun kiyoriOnboardingPageCount(agreementAccepted: Boolean): Int =
+    if (agreementAccepted) KiyoriOnboardingStep.entries.size
+    else KiyoriOnboardingStep.AGREEMENT.ordinal + 1
 
 internal fun resolveInitialKiyoriOnboardingStep(
     agreementAccepted: Boolean,
     persistedStep: KiyoriOnboardingStep,
+    startFromBeginning: Boolean = false,
 ): KiyoriOnboardingStep =
     when {
+        startFromBeginning -> KiyoriOnboardingStep.WELCOME
         !agreementAccepted && persistedStep == KiyoriOnboardingStep.PERMISSIONS ->
             KiyoriOnboardingStep.AGREEMENT
         else -> persistedStep
     }
+
+internal fun canNavigateKiyoriOnboarding(
+    currentStep: KiyoriOnboardingStep,
+    targetStep: KiyoriOnboardingStep,
+    agreementAccepted: Boolean,
+    interactionLocked: Boolean,
+): Boolean =
+    !interactionLocked && currentStep != targetStep &&
+        targetStep.ordinal < kiyoriOnboardingPageCount(agreementAccepted)
 
 internal enum class KiyoriPermissionId {
     NOTIFICATIONS,

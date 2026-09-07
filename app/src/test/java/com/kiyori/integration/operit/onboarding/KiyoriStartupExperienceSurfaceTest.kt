@@ -49,7 +49,7 @@ class KiyoriStartupExperienceSurfaceTest {
     }
 
     @Test
-    fun `first run renders the shared grouped catalog with explicit global selection`() {
+    fun `first run renders the shared grouped catalog with individual permission selection`() {
         val onboardingSource =
             repositoryFile(
                 "app/src/main/java/com/kiyori/integration/operit/onboarding/" +
@@ -59,13 +59,62 @@ class KiyoriStartupExperienceSurfaceTest {
             onboardingSource.substringAfter("private fun KiyoriPermissionAuthorizationPage(")
 
         assertTrue(permissionPageBlock.contains("kiyoriPermissionGroups.forEach"))
-        assertTrue(permissionPageBlock.contains("items = group.permissionIds"))
+        assertTrue(permissionPageBlock.contains("group.permissionIds.forEach"))
+        assertFalse(permissionPageBlock.contains("onSelectAll"))
         assertTrue(permissionPageBlock.contains("summarizeKiyoriPermissions(snapshot)"))
         assertTrue(permissionPageBlock.contains("onClearSelection"))
 
         val defaultStrings =
             repositoryFile("app/src/main/res/values/strings.xml").readText()
         assertTrue(defaultStrings.contains("kiyori_onboarding_permissions_clear_all"))
+    }
+
+    @Test
+    fun `review uses a modal window rather than consuming child gestures`() {
+        val shell = repositoryFile("app/src/main/java/com/kiyori/app/shell/KiyoriAppShell.kt").readText()
+        val review = shell.substringAfter("KiyoriSettingsRoute.ONBOARDING_REVIEW ->")
+            .substringBefore("KiyoriSettingsRoute.AGREEMENT ->")
+        assertTrue(review.contains("startFromBeginning = true"))
+        assertTrue(review.contains("onExitReview = { onStateChange(state.closeSettingsRoute()) }"))
+        assertFalse(review.contains(".pointerInput("))
+        assertFalse(review.contains(".consume()"))
+        val screen = repositoryFile(
+            "app/src/main/java/com/kiyori/integration/operit/onboarding/KiyoriOnboardingScreen.kt",
+        ).readText()
+        val presentation = screen.substringAfter("private fun KiyoriOnboardingPresentation(")
+            .substringBefore("private fun OnboardingProgressHeader(")
+        assertTrue(presentation.contains("Dialog("))
+        assertTrue(presentation.contains("dismissOnClickOutside = false"))
+        assertTrue(presentation.contains("dismissOnBackPress = true"))
+        assertTrue(presentation.contains("onDismissRequest = onBack"))
+    }
+
+    @Test
+    fun `six pages share a fixed header and one native swipe owner`() {
+        val source = repositoryFile(
+            "app/src/main/java/com/kiyori/integration/operit/onboarding/KiyoriOnboardingScreen.kt",
+        ).readText()
+        val header = source.substringAfter("private fun OnboardingProgressHeader(")
+            .substringBefore("private val KiyoriOnboardingStep.onboardingLabelResId")
+        assertTrue(header.contains(".height(56.dp)"))
+        assertTrue(header.contains(".size(48.dp)"))
+        assertFalse(source.contains("detectHorizontalDragGestures"))
+        assertTrue(source.contains("pageCount = { kiyoriOnboardingPageCount(agreementAcceptedState) }"))
+        assertTrue(source.contains("finally {\n                navigationInFlight = false"))
+    }
+
+    @Test
+    fun `system permission returns do not complete onboarding or dispatch another request automatically`() {
+        val source = repositoryFile(
+            "app/src/main/java/com/kiyori/integration/operit/onboarding/KiyoriOnboardingScreen.kt",
+        ).readText()
+        val queue = source.substringAfter("LaunchedEffect(\n        authorizationActive,")
+            .substringBefore("fun startAuthorization()")
+        assertTrue(queue.contains("authorizationNeedsContinue"))
+        assertFalse(queue.contains("completeOnboarding()"))
+        assertTrue(source.contains("onStopAuthorization = ::stopAuthorization"))
+        assertTrue(source.contains("generation != authorizationGeneration"))
+        assertTrue(source.contains("if (!startFromBeginning) preferences.complete()"))
     }
 
     @Test

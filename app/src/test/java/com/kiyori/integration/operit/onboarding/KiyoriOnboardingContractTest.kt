@@ -61,79 +61,47 @@ class KiyoriOnboardingContractTest {
     }
 
     @Test
-    fun `swipe navigation preserves the explicit agreement gate`() {
-        assertEquals(
-            KiyoriOnboardingStep.FILES_AND_TOOLS,
-            resolveKiyoriOnboardingSwipeTarget(
-                step = KiyoriOnboardingStep.AGREEMENT,
-                direction = KiyoriOnboardingSwipeDirection.PREVIOUS,
-                agreementAccepted = false,
-                interactionLocked = false,
-            ),
-        )
-        assertNull(
-            resolveKiyoriOnboardingSwipeTarget(
-                step = KiyoriOnboardingStep.AGREEMENT,
-                direction = KiyoriOnboardingSwipeDirection.NEXT,
-                agreementAccepted = false,
-                interactionLocked = false,
-            ),
-        )
-        assertEquals(
-            KiyoriOnboardingStep.PERMISSIONS,
-            resolveKiyoriOnboardingSwipeTarget(
-                step = KiyoriOnboardingStep.AGREEMENT,
-                direction = KiyoriOnboardingSwipeDirection.NEXT,
-                agreementAccepted = true,
-                interactionLocked = false,
-            ),
-        )
+    fun `permission authorization locks native pager input`() {
+        assertFalse(shouldEnableKiyoriOnboardingPagerInput(interactionLocked = true))
     }
 
     @Test
-    fun `permission authorization locks every swipe direction`() {
-        KiyoriOnboardingSwipeDirection.entries.forEach { direction ->
-            assertNull(
-                resolveKiyoriOnboardingSwipeTarget(
-                    step = KiyoriOnboardingStep.PERMISSIONS,
-                    direction = direction,
-                    agreementAccepted = true,
-                    interactionLocked = true,
-                ),
-            )
+    fun `agreement is the last reachable page until accepted without disabling reverse drag`() {
+        assertEquals(5, kiyoriOnboardingPageCount(agreementAccepted = false))
+        assertEquals(6, kiyoriOnboardingPageCount(agreementAccepted = true))
+        assertTrue(shouldEnableKiyoriOnboardingPagerInput(interactionLocked = false))
+        assertTrue(canNavigateKiyoriOnboarding(
+            KiyoriOnboardingStep.AGREEMENT, KiyoriOnboardingStep.FILES_AND_TOOLS, false, false,
+        ))
+        assertFalse(canNavigateKiyoriOnboarding(
+            KiyoriOnboardingStep.AGREEMENT, KiyoriOnboardingStep.PERMISSIONS, false, false,
+        ))
+        assertTrue(canNavigateKiyoriOnboarding(
+            KiyoriOnboardingStep.AGREEMENT, KiyoriOnboardingStep.PERMISSIONS, true, false,
+        ))
+    }
+
+    @Test
+    fun `every review starts from welcome regardless of saved completion or agreement`() {
+        listOf(false, true).forEach { accepted ->
+            KiyoriOnboardingStep.entries.forEach { persisted ->
+                assertEquals(KiyoriOnboardingStep.WELCOME, resolveInitialKiyoriOnboardingStep(
+                    agreementAccepted = accepted,
+                    persistedStep = persisted,
+                    startFromBeginning = true,
+                ))
+            }
         }
-        assertFalse(
-            shouldEnableKiyoriOnboardingPagerInput(
-                step = KiyoriOnboardingStep.PERMISSIONS,
-                agreementAccepted = true,
-                interactionLocked = true,
-            ),
-        )
     }
 
     @Test
-    fun `native pager input resumes after the agreement is accepted`() {
-        assertFalse(
-            shouldEnableKiyoriOnboardingPagerInput(
-                step = KiyoriOnboardingStep.AGREEMENT,
-                agreementAccepted = false,
-                interactionLocked = false,
-            ),
-        )
-        assertTrue(
-            shouldEnableKiyoriOnboardingPagerInput(
-                step = KiyoriOnboardingStep.AGREEMENT,
-                agreementAccepted = true,
-                interactionLocked = false,
-            ),
-        )
-        assertTrue(
-            shouldEnableKiyoriOnboardingPagerInput(
-                step = KiyoriOnboardingStep.PERMISSIONS,
-                agreementAccepted = true,
-                interactionLocked = false,
-            ),
-        )
+    fun `busy navigation and authorization reject all button destinations including skip`() {
+        KiyoriOnboardingStep.entries.forEach { current ->
+            KiyoriOnboardingStep.entries.forEach { target ->
+                assertFalse(canNavigateKiyoriOnboarding(current, target, true, true))
+            }
+            assertFalse(canNavigateKiyoriOnboarding(current, current, true, false))
+        }
     }
 
     @Test

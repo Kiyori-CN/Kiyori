@@ -96,7 +96,7 @@ internal val kiyoriMoreFeaturesSettingsGroups =
                     ),
                     KiyoriMoreFeaturesSettingsEntrySpec(
                         title = "重新查看首次引导",
-                        description = "回顾功能与安全说明，不会清除数据或自动重置授权",
+                        description = "从第一页重新了解功能与使用方式，完成后返回此页；保留已有数据与授权",
                         icon = Icons.Default.AutoAwesome,
                         iconTone = KiyoriSemanticTone.BLUE,
                         action = KiyoriMoreFeaturesSettingsAction.OPEN_ONBOARDING_REVIEW,

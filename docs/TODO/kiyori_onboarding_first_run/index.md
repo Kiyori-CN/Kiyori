@@ -4,6 +4,53 @@
 
 ## 目标
 
+## 2026-09-08 手势、重看导航与六页布局完善
+
+状态：`verification_pending`。实现、定向自动验证与 Debug APK 核验完成；设备体验待验证。
+基线 `main / 99a02bb60cf28c2b030c3073f597356358fdee5b`。
+用户授权实现、代码验证、Debug 构建和最终提交推送；明确不进行设备安装或操作。
+
+- 范围：六页引导、设置重看入口、共享协议摘要布局、对应行为与架构检查、用户指南。
+- 根因：重看包装在 Final pass 无条件消费事件；顶栏随按钮消失改变测量；未同意协议使用第二手势检测器；宽屏内容没有纵向滚动；重看第一页 Back 会结束 Activity；授权队列返回后自动打开下一项且没有取消入口。
+- 方案：独立全屏模态窗口隔离设置；唯一 Pager 通过页数约束协议门；固定顶栏与稳定进度；窄屏/大字体卡片自适应、宽屏内容可滚动；重看退出保持设置来源；授权逐步确认且可停止。
+- 阶段：完成源码调用链调查 → 实现与文案完善 → 定向 JVM、架构与文档检查 → 串行 Debug APK → 审计提交推送。
+- 非目标：不改权限 ID、协议正文和版本、应用身份、模型配置、其他领域运行时；不发布 APK 附件。
+- 风险与回滚：Compose Window/inset/Back 与保存状态协同需现场验收；回滚仅针对本轮独立提交。六份上传日志在核验后移到忽略的 `work/` 留存，不删除证据。
+- 验收：覆盖协议边界、连续导航、重看起点与退出、授权取消/继续、静态布局和触摸隔离合同；核验 APK 和三个 Git ref。设备触摸、动画与视觉结果保留 `verification_pending`。
+
+架构快照同步说明：本轮已逐行审阅 App Shell 差异，仅删除重看路由的 Final pass
+拦截包装、接入 `onExitReview` 并移除失效 import。归一化 SHA-256 从
+`2D785F8C7C2C54219BCE3FB1A53E5A0AEA952C2E7E3B28162A997072D5D6DBE2`
+更新为 `1B6017566A231C639837A794A6FA30D24EEA415337AEE07035F1512EBFC433B9`；
+import 快照补记之前重看入口已经使用的 `KiyoriOnboardingScreen`。模态隔离、Back、
+起点、步骤和选择锁定另由专项回归验证，没有取消快照或放宽包边界。
+
+### 本轮验证证据（2026-09-08）
+
+- 定向 `:app:testDebugUnitTest` 覆盖 `com.kiyori.integration.operit.onboarding.*`、
+  `KiyoriMainStartupGateCoordinatorTest`、协议测试与 `KiyoriSettingsPagesTest`：
+  59 项、0 失败、0 错误，`BUILD SUCCESSFUL in 1m 2s`。修正了既有设置测试中遗漏的
+  `OPEN_ONBOARDING_REVIEW` 分支及入口期望。恢复前中断的编译日志不作为通过证据。
+- 全仓 `check_architecture_boundaries.py`：`PASS`；首启相关架构检查的 9 个正反例通过。
+  `check_formal_readiness.py --repository . --require-main`：`PASS`；
+  `check_documentation.py --repository .`：496 文件、0 问题；`git diff --check` 通过。
+- 最后补充小标题 `heightIn(min = 22.dp)` 以避免大字体固定高度裁切，并修正局部缩进；
+  以下 Debug 构建验证最终源码。共享协议勾选区随正文滚动，主按钮允许文字换行；
+  重看说明明确已有状态不会重置，但用户仍能主动处理权限。
+- 串行 `:app:assembleDebug --no-daemon --console=plain`：`BUILD SUCCESSFUL in 1m 58s`，
+  238 任务（27 executed、211 up-to-date），唯一 launcher、脚本代理与播放器打包检查通过。
+- APK：`app/build/outputs/apk/debug/app-debug.apk`；生成时间 `2026-09-08 04:43:15 +08:00`，
+  `483836055` bytes，SHA-256
+  `3E340A6E1756DBABF6E4DE20ED348425ACD5D49FA8BB5E46D7AF3046B8A09313`。
+  `com.kiyori / 45 / 0.1.0 / minSdk 26 / targetSdk 34 / compileSdk 37`，仅 `arm64-v8a`，
+  V2 单 signer 与 16 KiB ZIP 对齐通过。
+- 六份旧上传日志已可恢复地移入忽略目录 `work/onboarding/upload-logs-20260908/`；
+  两份错误内容为找不到 `0.1.0`，属于旧上传记录。本轮不上传或发布 APK 附件。
+- 未安装 APK、未操作设备，也未运行 Lint/Release。现场需覆盖全新首启、重复重看均从第一页开始、
+  设置页不响应穿透点击、六页顶栏高度、横纵向及斜向快速滑动、按钮区域拖动、连续点击、
+  协议正文往返和系统 Back、授权拒绝/取消/继续/停止，以及窄屏/横屏/大字体。
+  JVM 和源码检查不能代替上述触摸、转场与视觉验收。
+
 ## 2026-09-08 协议与权限体验深化
 
 状态：`in_progress`。本轮以 `main / 79788d6fc` 为基线，六个既有上传日志保持原样且不进入提交。

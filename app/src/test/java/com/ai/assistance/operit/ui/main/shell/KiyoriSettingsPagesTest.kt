@@ -448,7 +448,7 @@ class KiyoriSettingsPagesTest {
             kiyoriMoreFeaturesSettingsGroups
                 .flatMap(KiyoriMoreFeaturesSettingsGroupSpec::entries)
         assertEquals(
-            listOf("权限管理", "网络代理", "开源协议", "用户协议", "隐私政策"),
+            listOf("权限管理", "网络代理", "开源协议", "用户协议", "隐私政策", "重新查看首次引导"),
             entries.map(KiyoriMoreFeaturesSettingsEntrySpec::title),
         )
         assertEquals(
@@ -458,6 +458,7 @@ class KiyoriSettingsPagesTest {
                 KiyoriSemanticTone.ORANGE,
                 KiyoriSemanticTone.BLUE,
                 KiyoriSemanticTone.PURPLE,
+                KiyoriSemanticTone.BLUE,
             ),
             entries.map(KiyoriMoreFeaturesSettingsEntrySpec::iconTone),
         )
@@ -1565,6 +1566,7 @@ class KiyoriSettingsPagesTest {
                 KiyoriSettingsRoute.OPEN_SOURCE_LICENSES,
                 KiyoriSettingsRoute.USER_AGREEMENT,
                 KiyoriSettingsRoute.PRIVACY_POLICY,
+                KiyoriSettingsRoute.ONBOARDING_REVIEW,
             ),
             kiyoriMoreFeaturesSettingsGroups
                 .flatMap(KiyoriMoreFeaturesSettingsGroupSpec::entries)
@@ -1580,6 +1582,8 @@ class KiyoriSettingsPagesTest {
                             KiyoriSettingsRoute.USER_AGREEMENT
                         KiyoriMoreFeaturesSettingsAction.OPEN_PRIVACY_POLICY ->
                             KiyoriSettingsRoute.PRIVACY_POLICY
+                        KiyoriMoreFeaturesSettingsAction.OPEN_ONBOARDING_REVIEW ->
+                            KiyoriSettingsRoute.ONBOARDING_REVIEW
                     }
                 },
         )

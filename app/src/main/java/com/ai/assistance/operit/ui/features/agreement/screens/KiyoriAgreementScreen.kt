@@ -1,7 +1,5 @@
 package com.ai.assistance.operit.ui.features.agreement.screens
 
-// Kiyori agreement facts: Operit AI 是内嵌的 AI 子系统；Android 运行时权限按功能单独授权。
-
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.animateContentSize
@@ -148,6 +146,8 @@ internal fun KiyoriAgreementSummary(
     onAccept: () -> Unit,
     modifier: Modifier = Modifier,
     agreementAlreadyAccepted: Boolean = false,
+    interactionEnabled: Boolean = true,
+    reviewing: Boolean = false,
 ) {
     Column(
         modifier =
@@ -191,12 +191,12 @@ internal fun KiyoriAgreementSummary(
                 document = KiyoriLegalDocument.PRIVACY_POLICY,
                 onClick = onOpenPrivacyPolicy,
             )
-        }
+            // 勾选说明随正文滚动，窄屏横屏或大字体下不挤占整个正文视口；底部仅固定操作。
             Surface(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .toggleable(value = checked, enabled = !agreementAlreadyAccepted,
+                        .toggleable(value = checked, enabled = !agreementAlreadyAccepted && interactionEnabled,
                             role = Role.Checkbox, onValueChange = onCheckedChange),
                 shape = KiyoriUiShapes.card,
                 color = MaterialTheme.colorScheme.surfaceContainer,
@@ -208,6 +208,7 @@ internal fun KiyoriAgreementSummary(
                     Checkbox(
                         checked = checked,
                         onCheckedChange = null,
+                        enabled = !agreementAlreadyAccepted && interactionEnabled,
                     )
                     Text(
                         text = stringResource(R.string.kiyori_onboarding_agreement_checkbox),
@@ -217,12 +218,13 @@ internal fun KiyoriAgreementSummary(
                     )
                 }
             }
+        }
 
         Spacer(Modifier.height(12.dp))
 
         Button(
             onClick = onAccept,
-            enabled = canAcceptKiyoriAgreement(checked),
+            enabled = interactionEnabled && canAcceptKiyoriAgreement(checked),
             shape = KiyoriUiShapes.control,
             colors =
                 ButtonDefaults.buttonColors(
@@ -235,20 +237,27 @@ internal fun KiyoriAgreementSummary(
                     .heightIn(min = 56.dp),
         ) {
             Text(
-                text = stringResource(R.string.kiyori_onboarding_agreement_accept),
+                text = stringResource(
+                    if (agreementAlreadyAccepted) R.string.kiyori_onboarding_agreement_continue
+                    else R.string.kiyori_onboarding_agreement_accept,
+                ),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
             )
         }
         TextButton(
             onClick = onDecline,
+            enabled = interactionEnabled,
             modifier = Modifier.fillMaxWidth(),
             colors =
                 ButtonDefaults.textButtonColors(
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
         ) {
-            Text(stringResource(R.string.kiyori_onboarding_agreement_decline))
+            Text(stringResource(
+                if (reviewing) R.string.kiyori_onboarding_review_return
+                else R.string.kiyori_onboarding_agreement_decline,
+            ))
         }
         Spacer(modifier = Modifier.height(8.dp))
     }

@@ -46,8 +46,10 @@ MainActivity 保持稳定 Manifest 启动入口、公开 action/extra、Android 
 ## 首次启动
 
 - `KiyoriMainStartupGateCoordinator` 与 `integration.operit.onboarding` 持有唯一首启流程：四页介绍、协议确认、权限选择；协议正文独立于 Pager。
-- Pager 在页面稳定后保存步骤，一次 fling 最多一页；协议未同意时阻止向前，正在系统授权时锁定翻页。
-- 首启与设置共用 `KiyoriPermissionId` 目录、分组、metadata、快照、摘要与动作。当前目录包含 23 项；全选只包含当前可处理且未完成条目，不授权也可以进入应用。
+- 首启 Pager 在页面稳定后保存步骤，一次 fling 最多一页；协议未同意时仅开放前五页，原生手势可向后返回，不使用第二个手势检测器。六页进度顶栏固定高度，导航按钮串行切页；正在处理系统授权时锁定翻页，但可停止队列。
+- 设置重看使用独立全屏模态窗口隔离触摸与焦点；每次新进入从第一页开始，关闭时保留设置来源。重看不改写首启完成与步骤偏好；查看协议正文后保留原阅读位置。
+- 系统授权只处理用户所选条目。返回后刷新权限事实，继续下一项与完成引导均需明确操作；旧代际回调不能更改新队列，停止后保留系统已授予的权限。
+- 首启与设置共用 `KiyoriPermissionId` 目录、分组、metadata、快照、摘要与动作。当前目录包含 23 项；逐项选择只包含当前可处理且未完成条目，不授权也可以进入应用。
 - 通知仅走集中式 `RequestMultiplePermissions`；独立启动通知协调器已删除。精确闹钟不是首启要求，现有工作流使用 WorkManager，普通闹钟使用 `ACTION_SET_ALARM`。
 - 显示正式内容前由 `ChatHistoryManager` 验证当前聊天记录；缺失或失效时创建真实空对话，有效聊天按 `startWithNewChat` 偏好处理。
 - 软件首页首帧只观察轻量浏览器窗口投影。浏览器、历史、广告和下载运行时按实际使用启动；动态 ToolPkg 路由等待两个 frame 信号和同一 PackageManager 初始化后发布。

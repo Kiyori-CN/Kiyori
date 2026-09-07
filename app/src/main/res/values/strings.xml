@@ -8225,15 +8225,24 @@
     <!-- Kiyori onboarding -->
     <string name="kiyori_onboarding_skip_intro" translatable="false">跳过介绍</string>
     <string name="kiyori_onboarding_back">返回上一步</string>
-    <string name="kiyori_onboarding_progress">第 %1$d / %2$d 阶段</string>
-    <string name="kiyori_onboarding_step_welcome" translatable="false">先认识一下你的新工作空间</string>
-    <string name="kiyori_onboarding_step_content" translatable="false">发现内容，继续处理</string>
-    <string name="kiyori_onboarding_step_ai" translatable="false">让 AI 理解并行动</string>
-    <string name="kiyori_onboarding_step_workspace" translatable="false">把想法落到设备上</string>
-    <string name="kiyori_onboarding_step_trust" translatable="false">了解规则与数据边界</string>
-    <string name="kiyori_onboarding_step_ready" translatable="false">选择现在要用的能力</string>
+    <string name="kiyori_onboarding_progress">%1$d / %2$d</string>
+    <string name="kiyori_onboarding_step_welcome" translatable="false">欢迎使用 Kiyori</string>
+    <string name="kiyori_onboarding_step_content" translatable="false">浏览与内容</string>
+    <string name="kiyori_onboarding_step_ai" translatable="false">AI 协作</string>
+    <string name="kiyori_onboarding_step_workspace" translatable="false">文件与工具</string>
+    <string name="kiyori_onboarding_step_trust" translatable="false">协议与隐私</string>
+    <string name="kiyori_onboarding_step_ready" translatable="false">按需开启权限</string>
+    <string name="kiyori_onboarding_review_return" translatable="false">返回设置</string>
+    <string name="kiyori_onboarding_review_done" translatable="false">完成介绍，返回设置</string>
+    <string name="kiyori_onboarding_agreement_continue" translatable="false">已同意，继续查看权限</string>
+    <string name="kiyori_onboarding_permissions_continue" translatable="false">继续处理下一项</string>
+    <string name="kiyori_onboarding_permissions_result" translatable="false">查看授权结果</string>
+    <string name="kiyori_onboarding_permissions_continue_hint" translatable="false">还有 %1$d 项待处理。返回后可继续下一项，也可以随时停止。</string>
+    <string name="kiyori_onboarding_permissions_result_hint" translatable="false">本轮请求已发起。返回后查看实际状态；未开启的能力可以稍后设置。</string>
+    <string name="kiyori_onboarding_permissions_stop" translatable="false">停止处理，留在此页</string>
+    <string name="kiyori_onboarding_permissions_later" translatable="false">稍后设置，开始使用</string>
     <string name="kiyori_onboarding_welcome_title" translatable="false">让每一次浏览，多一种可能</string>
-    <string name="kiyori_onboarding_welcome_desc" translatable="false">从发现一页好内容，到整理成自己的成果。浏览网页、与 AI 协作、管理文件，都在 Kiyori。</string>
+    <string name="kiyori_onboarding_welcome_desc" translatable="false">浏览网页、与 AI 协作、把想法整理成文件。用六页认识 Kiyori，之后从你想做的一件小事开始。左右滑动翻页，上下滑动阅读。</string>
     <string name="kiyori_onboarding_welcome_card_content_title" translatable="false">浏览与内容</string>
     <string name="kiyori_onboarding_welcome_card_content_desc" translatable="false">网页、影音与阅读，发现后继续处理</string>
     <string name="kiyori_onboarding_welcome_card_ai_title" translatable="false">AI 与语音</string>
@@ -8246,7 +8255,7 @@
 
     <string name="kiyori_onboarding_browser_eyebrow" translatable="false">内容工作台</string>
     <string name="kiyori_onboarding_browser_title" translatable="false">发现值得留下的内容</string>
-    <string name="kiyori_onboarding_browser_desc" translatable="false">搜索、阅读、播放和下载在同一处完成。看到值得留下的内容，就能继续整理、分享或交给 AI 处理。</string>
+    <string name="kiyori_onboarding_browser_desc" translatable="false">从首页搜索，或打开底部的浏览器。阅读网页、发现影音，把值得留下的内容加入书签或下载，之后继续整理。</string>
     <string name="kiyori_onboarding_browser_card_browser_title" translatable="false">网页浏览器</string>
     <string name="kiyori_onboarding_browser_card_browser_desc" translatable="false">搜索、标签、网页操作与广告拦截</string>
     <string name="kiyori_onboarding_browser_card_download_title" translatable="false">文件下载器</string>
@@ -8259,7 +8268,7 @@
 
     <string name="kiyori_onboarding_ai_eyebrow" translatable="false">你的 AI 助手</string>
     <string name="kiyori_onboarding_ai_title" translatable="false">从一个问题，到下一步行动</string>
-    <string name="kiyori_onboarding_ai_desc" translatable="false">总结网页、理解文件、检索资料，或借助工具完成任务。进入应用后连接你选择的模型服务；重要结果由你核验。</string>
+    <string name="kiyori_onboarding_ai_desc" translatable="false">从首页向左滑，进入 AI 对话。先在 AI 助手设置中配置模型，再试着总结网页、理解文件或检索资料。工具操作按授权执行，重要结果由你核验。</string>
     <string name="kiyori_onboarding_ai_card_assistant_title" translatable="false">AI 助手</string>
     <string name="kiyori_onboarding_ai_card_assistant_desc" translatable="false">对话、总结、检索与上下文理解</string>
     <string name="kiyori_onboarding_ai_card_voice_title" translatable="false">语音服务</string>
@@ -8272,7 +8281,7 @@
 
     <string name="kiyori_onboarding_files_eyebrow" translatable="false">本地工作区</string>
     <string name="kiyori_onboarding_files_title" translatable="false">让灵感有处安放</string>
-    <string name="kiyori_onboarding_files_desc" translatable="false">把下载和文档整理到本地，在需要时用终端、工具和扩展继续处理。环境与能力可以稍后配置，现在不必一次准备齐全。</string>
+    <string name="kiyori_onboarding_files_desc" translatable="false">从底部的文件管理整理下载与文档；需要运行命令或扩展任务时，再打开 AI 菜单中的工具箱。环境可以稍后准备，不必一次配置齐全。</string>
     <string name="kiyori_onboarding_files_card_manager_title" translatable="false">文件管理器</string>
     <string name="kiyori_onboarding_files_card_manager_desc" translatable="false">整理下载、文档、目录与工作区</string>
     <string name="kiyori_onboarding_files_card_terminal_title" translatable="false">终端</string>
@@ -8343,7 +8352,7 @@
     <string name="kiyori_onboarding_permissions_deselect_all" translatable="false">取消全选</string>
     <string name="kiyori_onboarding_permissions_clear_all" translatable="false">清空已选</string>
     <string name="kiyori_onboarding_permissions_selected_count" translatable="false">已选择 %1$d 项</string>
-    <string name="kiyori_onboarding_permissions_authorize_and_enter" translatable="false">确认所选并开始</string>
+    <string name="kiyori_onboarding_permissions_authorize_and_enter" translatable="false">处理所选权限</string>
     <string name="kiyori_onboarding_permissions_enter" translatable="false">暂不授权，开始使用</string>
     <string name="kiyori_onboarding_permissions_processing" translatable="false">正在处理授权</string>
     <string name="kiyori_onboarding_permissions_overview_title" translatable="false">不必一次设置好所有功能</string>

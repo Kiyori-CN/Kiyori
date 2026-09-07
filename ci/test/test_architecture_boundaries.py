@@ -6193,7 +6193,7 @@ class KiyoriPathsTest {
                 "authorizationActive\n"
                 "KiyoriPermissionId.entries\n"
                 "kiyoriPermissionGroups.forEach\n"
-                "items = group.permissionIds\n"
+                "group.permissionIds.forEach\n"
                 "summarizeKiyoriPermissions(snapshot)\n"
                 "RootAuthorizer.requestRootPermission\n"
                 "KiyoriLegalDocument.USER_AGREEMENT\n"
@@ -6205,8 +6205,10 @@ class KiyoriPathsTest {
                 "PagerSnapDistance.atMost(1)\n"
                 "userScrollEnabled = pagerInputEnabled\n"
                 "shouldEnableKiyoriOnboardingPagerInput\n"
-                "resolveKiyoriOnboardingSwipeTarget\n"
-                "onboardingPreviousSwipe\n"
+                "kiyoriOnboardingPageCount\n"
+                "canNavigateKiyoriOnboarding\n"
+                "onStopAuthorization\n"
+                "authorizationNeedsContinue\n"
                 "resolveKiyoriOnboardingTitleAlignment\n"
                 "fun OnboardingProgressHeader() {\n"
                 "R.string.kiyori_onboarding_progress\n"
@@ -6214,9 +6216,9 @@ class KiyoriPathsTest {
                 "KiyoriOnboardingStep.entries.size\n"
                 "KiyoriOnboardingStep.entries.forEach { item.ordinal <= step.ordinal }\n"
                 "}\n"
-                "onSelectAll = { if (!authorizationActive) {\n"
-                "selectedPermissionIds = permissionSnapshot.selectable.toSet()\n"
-                "preferences.saveSelectedPermissions(selectedPermissionIds)\n"
+                "onTogglePermission = { permissionId -> if (!authorizationActive) {\n"
+                "permissionSnapshot.canSelect(permissionId)\n"
+                "persistSelection(selectedPermissionIds)\n"
                 "} }\n"
                 "maxLines = 1\n"
             ),
@@ -6236,8 +6238,7 @@ class KiyoriPathsTest {
                 "KiyoriPermissionSnapshot sanitizeKiyoriPermissionSelection "
                 "KiyoriPermissionStatus.ON_DEMAND "
                 "KiyoriPermissionStatus.NOT_APPLICABLE "
-                "KiyoriOnboardingSwipeDirection "
-                "resolveKiyoriOnboardingSwipeTarget "
+                "kiyoriOnboardingPageCount canNavigateKiyoriOnboarding "
                 "shouldEnableKiyoriOnboardingPagerInput "
                 "resolveKiyoriOnboardingTitleAlignment\n"
             ),
@@ -6295,9 +6296,9 @@ class KiyoriPathsTest {
                 "Kiyori 无障碍支持\n"
                 "Kiyori UI 自动化服务\n"
                 "GPL-3.0-or-later\n"
-                "Operit AI 是内嵌的 AI 子系统\n"
+                "集成 Operit AI\n"
                 "kiyori_onboarding_permissions_authorize_and_enter\n"
-                "Android 运行时权限\n"
+                "日常运行时权限\n"
                 "kiyori_onboarding_legal_full_text\n"
                 "系统文件选择器按次选择\n"
                 "Shizuku\nRoot\n"
@@ -6467,7 +6468,7 @@ class KiyoriPathsTest {
             screen = root / KIYORI_FIRST_RUN_SCREEN_PATH
             screen.write_text(
                 screen.read_text(encoding="utf-8").replace(
-                    "permissionSnapshot.selectable.toSet()", "KiyoriPermissionId.entries.toSet()"
+                    "permissionSnapshot.canSelect(permissionId)", "KiyoriPermissionId.entries.toSet()"
                 ),
                 encoding="utf-8",
             )
@@ -6475,7 +6476,7 @@ class KiyoriPathsTest {
             check_kiyori_first_run_flow(root, errors)
             self.assertTrue(
                 any(
-                    "select-all must persist only snapshot-selectable permissions" in error
+                    "individual selection must persist only actionable permissions" in error
                     for error in errors
                 )
             )

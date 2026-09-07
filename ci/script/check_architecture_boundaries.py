@@ -5952,7 +5952,7 @@ def check_kiyori_first_run_flow(
         "authorizationActive",
         "KiyoriPermissionId.entries",
         "kiyoriPermissionGroups.forEach",
-        "items = group.permissionIds",
+        "group.permissionIds.forEach",
         "summarizeKiyoriPermissions(snapshot)",
         "RootAuthorizer.requestRootPermission",
         "HorizontalPager(",
@@ -5962,8 +5962,10 @@ def check_kiyori_first_run_flow(
         "PagerSnapDistance.atMost(1)",
         "userScrollEnabled = pagerInputEnabled",
         "shouldEnableKiyoriOnboardingPagerInput",
-        "resolveKiyoriOnboardingSwipeTarget",
-        "onboardingPreviousSwipe",
+        "kiyoriOnboardingPageCount",
+        "canNavigateKiyoriOnboarding",
+        "onStopAuthorization",
+        "authorizationNeedsContinue",
         "resolveKiyoriOnboardingTitleAlignment",
     )
     for token in required_screen_tokens:
@@ -6018,16 +6020,21 @@ def check_kiyori_first_run_flow(
     ):
         if token not in progress_header:
             errors.append(f"ARCH037 onboarding progress must use the current step: {token}")
-    select_all = source_braced_block(screen_code, r"\bonSelectAll\s*=")
-    guarded_selection = source_braced_block(select_all, r"\bif\s*\(\s*!authorizationActive\s*\)")
-    compact_selection = re.sub(r"\s+", "", guarded_selection)
-    if (
-        "selectedPermissionIds=permissionSnapshot.selectable.toSet()" not in compact_selection
-        or "preferences.saveSelectedPermissions(selectedPermissionIds)" not in compact_selection
+    # 全选已移除；检查真实的逐项授权边界，不能靠注释保留旧合同。
+    if "onSelectAll" in screen_code:
+        errors.append("ARCH037 global permission selection must not be restored")
+    selection = source_braced_block(screen_code, r"\bonTogglePermission\s*=")
+    compact_selection = re.sub(r"\s+", "", selection)
+    for token in (
+        "!authorizationActive",
+        "permissionSnapshot.canSelect(permissionId)",
+        "persistSelection(selectedPermissionIds)",
     ):
-        errors.append(
-            "ARCH037 select-all must persist only snapshot-selectable permissions while authorization is inactive"
-        )
+        if token not in compact_selection:
+            errors.append(
+                "ARCH037 individual selection must persist only actionable permissions "
+                f"while authorization is inactive: {token}"
+            )
 
     agreement_code = source_code_mask(
         (root / KIYORI_FIRST_RUN_AGREEMENT_PATH).read_text(encoding="utf-8")
@@ -6177,9 +6184,9 @@ def check_kiyori_first_run_flow(
         "Kiyori 无障碍支持",
         "Kiyori UI 自动化服务",
         "GPL-3.0-or-later",
-        "Operit AI 是内嵌的 AI 子系统",
+        "集成 Operit AI",
         "kiyori_onboarding_permissions_authorize_and_enter",
-        "Android 运行时权限",
+        "日常运行时权限",
         "Shizuku",
         "Root",
         "kiyori_onboarding_legal_full_text",
@@ -6214,8 +6221,8 @@ def check_kiyori_first_run_flow(
         "sanitizeKiyoriPermissionSelection",
         "KiyoriPermissionStatus.ON_DEMAND",
         "KiyoriPermissionStatus.NOT_APPLICABLE",
-        "KiyoriOnboardingSwipeDirection",
-        "resolveKiyoriOnboardingSwipeTarget",
+        "kiyoriOnboardingPageCount",
+        "canNavigateKiyoriOnboarding",
         "shouldEnableKiyoriOnboardingPagerInput",
         "resolveKiyoriOnboardingTitleAlignment",
     ):
