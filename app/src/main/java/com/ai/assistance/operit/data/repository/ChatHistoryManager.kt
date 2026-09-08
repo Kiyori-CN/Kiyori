@@ -192,6 +192,8 @@ class ChatHistoryManager private constructor(private val context: Context) {
         fun getInstance(context: Context): ChatHistoryManager {
             return INSTANCE
                 ?: synchronized(this) {
+                    // 并发首次访问也必须共享同一个聊天仓储及其会话互斥锁。
+                    INSTANCE?.let { return@synchronized it }
                     val instance = ChatHistoryManager(context.applicationContext)
                     INSTANCE = instance
                     instance

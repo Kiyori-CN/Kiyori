@@ -70,6 +70,11 @@ projection；23→24 增加 `providerCacheMetricPromptTokens`，并把无法恢�
 
 ### 业务投影与审计
 
+聊天 DAO 和审计仓储必须持有同一个 `AppDatabase` 实例，才能共享 Room 事务上下文。
+`AppDatabase.getDatabase` 与 `ChatHistoryManager.getInstance` 在单例初始化锁内再次检查
+已发布实例，确保并发首次访问不会创建第二个数据库或聊天仓储 owner。只检查锁外的
+`@Volatile` 引用不足以满足该约束；不同 Room 实例对同一文件的嵌套写入可能触发 `SQLITE_BUSY`。
+
 会改变聊天投影的操作使用 `mutateAndAppendEvent`：
 
 1. payload 在应用私有目录原子提交；

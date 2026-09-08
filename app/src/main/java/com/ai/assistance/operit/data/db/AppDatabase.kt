@@ -763,6 +763,9 @@ abstract class AppDatabase : RoomDatabase() {
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE
                 ?: synchronized(this) {
+                    // 等锁期间另一个调用可能已完成初始化，必须复用它发布的 Room 实例。
+                    // 否则聊天 DAO 与审计事务会持有不同连接 owner，在嵌套写入时互相锁住。
+                    INSTANCE?.let { return@synchronized it }
                     val instance =
                         Room.databaseBuilder(
                             context.applicationContext,

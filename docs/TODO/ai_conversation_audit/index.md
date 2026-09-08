@@ -6,6 +6,35 @@ status: in_progress
 
 # AI 对话详情与完整审计
 
+## 2026-09-08 删除唯一对话崩溃修复
+
+状态：`verification_pending`（实现、定向回归和 Debug APK 已验证，现场复测待完成）。
+目标为修复删除唯一 AI 对话时新建替代对话触发的 `SQLITE_BUSY`，
+保留当前删除、角色匹配、审计原子性和数据库格式。基线为 `main / 895230ec3`，工作区干净。
+
+崩溃报告 `388507cf-5fa5-4e02-8a4b-3e524644ffdf` 的失败路径为
+`createNewChat → mutateAndAppendEvent → ChatDao.insertChat`。源码中 `AppDatabase`
+和 `ChatHistoryManager` 的单例初始化在进入 monitor 后均未再次读取实例；并发首次访问可能
+构造多个 owner，使聊天 DAO 和审计事务分属同一文件的不同 Room 实例。
+
+已补齐两个入口的锁内检查。受控双线程测试在旧实现上因两个不同 Room 对象的 `assertSame`
+断言失败，修复后通过，验证等待初始化锁的调用方会复用已发布实例，且仅构造一次。测试替换
+Room builder，单例入口和线程 monitor 使用生产实现；这不等同于在 Android 上复现 SQLite 锁。
+
+2026-09-08 本地证据：
+
+- `:app:testDebugUnitTest --tests com.ai.assistance.operit.data.db.AppDatabaseSingletonTest
+  --tests com.ai.assistance.operit.data.audit.ConversationAuditPayloadLifecycleContractTest`
+  通过，2 项测试，0 失败、0 错误、0 跳过。
+- `:app:assembleDebug --no-daemon --console=plain` 通过，用时 1m 8s，238 项任务。
+- Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `483904551` bytes；
+  包身份为 `com.kiyori / 45 / 0.1.0`，APK V2 签名和 `zipalign -c -P 16 4` 检查通过。
+- formal readiness、文档工作区检查和 `git diff --check` 通过。
+
+交付按五个文件的精确清单审计后提交推送 `main`。改动不涉及 schema 迁移，可独立 revert；
+单例关闭入口及恢复生命周期保持原有行为。真机冷启动、删除唯一对话、连续新建删除和多对话
+切换删除仍需现场复测，保留 `verification_pending`；本轮未操作设备或调用真实 Provider。
+
 ## 1. 目标与权威边界
 
 本专项为 AI 对话增加“对话详情”入口，以及与每条已保存对话一一对应的持久化审计记录。
