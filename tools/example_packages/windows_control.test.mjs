@@ -40,7 +40,201 @@ function loadTools(httpCall, env = {}) {
   return context.exports;
 }
 const ok = data => ({ statusCode: 200, content: JSON.stringify(data), url: "https://pc.example.com/bridge" });
-const authenticated = () => ok({ ok: true, mode: "http-agent", version: "1.1.0" });
+const agentVersion = JSON.parse(fs.readFileSync(path.join(agent, "package.json"), "utf8")).version;
+const packageVersion = JSON.parse(fs.readFileSync(path.join(root, "examples/windows_control/manifest.json"), "utf8")).version;
+const authenticated = () => ok({ ok: true, mode: "http-agent", version: agentVersion });
+
+async function terminalHarness(t, overrides = {}) {
+  const timeouts = new Map(), intervals = new Map(), events = new Map(), notices = [];
+  let timerId = 0, input, onWrite, onReset;
+  const node = () => ({ value: "", disabled: false, textContent: "", hidden: false, append() {}, replaceChildren() {}, addEventListener() {}, removeEventListener() {} });
+  const refs = new Proxy({}, { get: (target, key) => target[key] ??= node() });
+  refs.manageIncludeExitedInput.checked=true;
+  const source = fs.readFileSync(path.join(agent, "public/scripts/features/processes-page.js"), "utf8").replace(/export function /g, "function ");
+  const context = vm.createContext({ console: logger, document: { createElement: node },
+    setTimeout: (fn, ms) => { const id = ++timerId; timeouts.set(id, {fn,ms}); return id; }, clearTimeout: id => timeouts.delete(id),
+    setInterval: fn => { const id = ++timerId; intervals.set(id, fn); return id; }, clearInterval: id => intervals.delete(id),
+    window: { addEventListener: (key, fn) => events.set(key, fn), removeEventListener() {},
+      requestAnimationFrame: fn => { const id = ++timerId; timeouts.set(id, {fn,ms:0}); return id; }, cancelAnimationFrame: id => timeouts.delete(id) } });
+  vm.runInContext(source + ";globalThis.createController=createProcessesController", context);
+  const api = { listProcessSessions: async () => ({items:[{sessionId:"s1",status:"running",shell:"cmd"}]}),
+    readProcessSession: async p => ({sessionId:p.session_id,status:"running",stdout:"",stderr:"",stdoutOffset:0,stderrOffset:0}),
+    resizeProcessSession: async () => ({}), writeProcessSession: async () => ({}), terminateProcessSession: async () => ({removed:true}), ...overrides };
+  const controller = context.createController({ api, refs, t: (key, params = {}) => `${key} ${JSON.stringify(params)}`,
+    helpers: { setBusy() {}, setNotice: (tone, message) => notices.push({tone,message}), asErrorMessage: error => error.message },
+    terminalLoader: async () => ({ Terminal: class { cols=120; rows=30; loadAddon() {} open() {} onData(fn) {input=fn;} reset() {onReset?.();}
+      write(data, callback) { onWrite?.(data); callback?.(); } scrollToBottom() {} dispose() {} }, FitAddon: class { fit() {} } }) });
+  const settle = () => new Promise(resolve => setImmediate(resolve));
+  const tick = async ms => { for (const [id, task] of [...timeouts]) if (task.ms === ms) { timeouts.delete(id); task.fn(); } await settle(); };
+  t.after(() => events.get("beforeunload")?.());
+  await controller.refreshSessions(); await settle();
+  return { controller, api, refs, notices, timeouts, tick, settle, input: data => input(data), replay: fn => {onWrite=fn;}, reset: fn => {onReset=fn;}, stop: () => events.get("beforeunload")() };
+}
+
+test("terminal missing session clears queued input once, without retries or refresh", async t => {
+  let writes = 0;
+  const h = await terminalHarness(t, {writeProcessSession: async () => {writes++; throw Object.assign(new Error("Session not found"), {code:"SESSION_NOT_FOUND"});}});
+  h.input("echo one\r"); await h.tick(32);
+  for (let i=0;i<5;i++) { h.input("never\r"); await h.tick(32); }
+  assert.equal(writes,1); assert.equal(h.refs.currentSessionIdValue.textContent,"-");
+  assert.equal(h.refs.closeSessionButton.disabled,true);
+  assert.equal(h.notices.filter(n=>n.message.includes("sessionMissing")).length,1);
+});
+
+test("terminal unknown input outcome pauses, discards tail and only accepts new input after explicit refresh", async t => {
+  const sent=[]; let rejectWrite;
+  const h = await terminalHarness(t, {writeProcessSession: p => {sent.push(p.input); return new Promise((_,reject)=>{rejectWrite=reject;});}});
+  h.input("first\r"); await h.tick(32); h.input("queued tail\r");
+  rejectWrite(new Error("socket closed")); await h.settle(); await h.tick(32);
+  h.input("ignored\r"); await h.tick(32);
+  assert.deepEqual(sent,["first\r"]); assert.match(h.refs.terminalHint.textContent,/inputPaused/);
+  h.api.writeProcessSession=async p=>{sent.push(p.input);return {};};
+  await h.controller.refreshSessions(); h.input("new\r"); await h.tick(32);
+  assert.deepEqual(sent,["first\r","new\r"]);
+});
+
+test("terminal can remove exited or already-missing sessions; late failed writes cannot revive them", async t => {
+  let rejectWrite;
+  const h=await terminalHarness(t,{writeProcessSession:()=>new Promise((_,reject)=>{rejectWrite=reject;})});
+  h.input("inflight"); await h.tick(32);
+  h.api.terminateProcessSession=async()=>{throw new Error("Session not found");};
+  await h.controller.closeSelectedSession(); rejectWrite(new Error("late failure")); await h.settle();
+  assert.equal(h.refs.currentSessionIdValue.textContent,"-"); assert.ok(!h.notices.some(n=>n.message.includes("late failure")));
+  h.api.listProcessSessions=async()=>({items:[{sessionId:"exited",status:"exited"}]});
+  h.api.readProcessSession=async()=>({sessionId:"exited",status:"exited"});
+  h.api.terminateProcessSession=async()=>({removed:true});
+  await h.controller.refreshSessions(); await h.controller.selectSession("exited"); await h.settle(); assert.equal(h.refs.closeSessionButton.disabled,false);
+  await h.controller.closeSelectedSession(); assert.equal(h.refs.currentSessionIdValue.textContent,"-");
+});
+
+test("terminal missing reads stop polling; old list responses cannot resurrect a closed session", async t => {
+  const h=await terminalHarness(t);
+  let resolveList; h.api.listProcessSessions=()=>new Promise(resolve=>{resolveList=resolve;});
+  const refreshing=h.controller.refreshSessions();
+  h.api.readProcessSession=async()=>{throw Object.assign(new Error("gone"),{code:"SESSION_NOT_FOUND"});};
+  await h.controller.selectSession("s1"); await h.settle();
+  resolveList({items:[{sessionId:"s1",status:"running"}]}); await refreshing;
+  assert.equal(h.refs.currentSessionIdValue.textContent,"-");
+  assert.equal(h.notices.filter(n=>n.message.includes("sessionMissing")).length,1);
+});
+
+test("terminal snapshot protocol replies and unload callbacks never send input", async t => {
+  let reads=0,writes=0;
+  const h=await terminalHarness(t,{readProcessSession:async()=>({sessionId:"s1",status:"running",stdout:++reads===1?"history":""}),
+    writeProcessSession:async()=>{writes++;return {};}});
+  h.replay(()=>h.input("historical terminal response"));
+  await h.controller.selectSession("s1"); await h.tick(32); assert.equal(writes,0);
+  h.input("pending"); h.stop(); await h.tick(32); assert.equal(writes,0);
+});
+
+test("termination pending is distinct from closed and explicit refresh permits a new close attempt", async t => {
+  let closes=0;
+  const h=await terminalHarness(t,{terminateProcessSession:async()=>{closes++;return {wasRunning:true,signalSent:true,removed:false};}});
+  await h.controller.closeSelectedSession();
+  assert.equal(h.refs.closeSessionButton.disabled,true);
+  assert.match(h.refs.terminalHint.textContent,/sessionClosing/);
+  assert.ok(!h.notices.some(n=>n.message.includes("sessionClosed")));
+  await h.controller.closeSelectedSession(); assert.equal(closes,1);
+  await h.controller.refreshSessions(); assert.equal(h.refs.closeSessionButton.disabled,false);
+  await h.controller.closeSelectedSession(); assert.equal(closes,2);
+});
+
+test("filtering exited sessions does not permanently forget them", async t => {
+  const h=await terminalHarness(t,{listProcessSessions:async()=>({items:[{sessionId:"exited",status:"exited"}]}),readProcessSession:async()=>({sessionId:"exited",status:"exited"})});
+  h.refs.manageIncludeExitedInput.checked=false; await h.controller.refreshSessions();
+  assert.equal(h.refs.currentSessionIdValue.textContent,"-");
+  h.refs.manageIncludeExitedInput.checked=true; await h.controller.refreshSessions();
+  await h.controller.selectSession("exited"); assert.equal(h.refs.currentSessionIdValue.textContent,"exited");
+});
+
+test("PTY synchronous exit removes session and termination failure never reports success", () => {
+  let exit, fail=false;
+  const serviceRequire=createRequire(path.join(agent,"src/services/process-service.js"));
+  const context=vm.createContext({module:{exports:{}},require:name=>name==="node-pty"?{spawn:()=>({pid:123,onData(){},onExit(fn){exit=fn;},kill(){if(fail)throw new Error("denied");exit({exitCode:0});}})}:
+    name==="@xterm/headless"?{Terminal:class {dispose() {}}}:name==="child_process"?{spawn(){throw new Error("Unexpected subprocess in PTY unit test");}}:serviceRequire(name),process,console:logger,setTimeout,clearTimeout,Buffer});
+  vm.runInContext(fs.readFileSync(path.join(agent,"src/services/process-service.js"),"utf8"),context);
+  const service=context.module.exports.createProcessService({projectRoot:root,logger});
+  const session=service.startSession("cmd","");
+  assert.equal(service.terminateSession(session.sessionId,{remove:true}).removed,true);
+  assert.throws(()=>service.terminateSession(session.sessionId),error=>error.code==="SESSION_NOT_FOUND");
+  const second=service.startSession("cmd",""); fail=true;
+  assert.throws(()=>service.terminateSession(second.sessionId,{remove:true}),error=>error.code==="SESSION_TERMINATE_FAILED");
+  assert.equal(service.listSessions().items.length,1);
+  fail=false; service.terminateAllSessions();
+});
+
+function setupScreen(callTool, options = {}) {
+  const context = vm.createContext({ exports: {}, require: createRequire(path.join(root, "examples/windows_control/dist/ui/windows_setup/index.ui.js")), console: logger, getLang: () => "zh" });
+  vm.runInContext(fs.readFileSync(path.join(root, "examples/windows_control/dist/ui/windows_setup/index.ui.js"), "utf8"), context);
+  const states = new Map(), refs = new Map();
+  const env = { WINDOWS_AGENT_BASE_URL: "https://pc.example.com", WINDOWS_AGENT_TOKEN: "fixture-token" };
+  const ctx = { UI: new Proxy({}, { get: (_, type) => (props, children = []) => ({ type, props, children }) }),
+    useState: (key, initial) => { if (!states.has(key)) states.set(key, initial); return [states.get(key), value => states.set(key, value)]; },
+    useRef: (key, initial) => { if (!refs.has(key)) refs.set(key, { current: initial }); return refs.get(key); },
+    getEnv: key => env[key], setEnvs: values => Object.assign(env, values), resolveToolName: () => "windows_test_connection",
+    callTool, isPackageImported: () => true, importPackage: () => "ok", usePackage: () => "ok", ...options };
+  const render = () => context.exports.default(ctx);
+  const flatten = node => [node, ...node.children.flatMap(flatten)];
+  return { states, render, click: label => flatten(render()).find(n => n.type === "Button" && n.props.text === label).props.onClick() };
+}
+
+test("patch compatibility is independent of package version and rejects unreviewed protocols", async () => {
+  for (const version of ["1.1.0", "1.1.1", "1.1.2", "1.1.99"]) {
+    const result = await loadTools(async () => ok({ ok: true, mode: "http-agent", version })).windows_test_connection();
+    assert.equal(result.success, true, version);
+    assert.equal(result.packageVersion, packageVersion);
+  }
+  for (const version of ["1.0.0", "1.2.0", "2.1.0", "1.1.02", "1.1.2-beta", "1.1.2+dev", "garbage"]) {
+    const result = await loadTools(async () => ok({ ok: true, mode: "http-agent", version })).windows_test_connection();
+    assert.equal(result.success, false, version);
+    assert.match(result.error, /PROTOCOL_INCOMPATIBLE/);
+  }
+});
+
+test("HTTP status diagnostics survive non-JSON proxy pages", async () => {
+  for (const [statusCode, code] of [[401, "UNAUTHORIZED"], [404, "ENDPOINT_NOT_FOUND"], [502, "CONNECTION_HTTP_ERROR"]]) {
+    const result = await loadTools(async () => ({ statusCode, content: "<html>proxy</html>" })).windows_test_connection();
+    assert.equal(result.success, false); assert.match(result.error, new RegExp(code));
+  }
+  assert.equal((await loadTools(async () => ok(null)).windows_test_connection()).success, false);
+});
+
+test("phone renders actual host bridge errors, string errors and cross-realm Errors with redaction", async () => {
+  const source = fs.readFileSync(path.join(root, "app/src/main/java/com/ai/assistance/operit/core/tools/javascript/JsInitRuntimeScriptBuilder.kt"), "utf8");
+  const parser = vm.runInNewContext(source.slice(source.indexOf("function createUserFacingError("), source.indexOf("function nextToolCallbackId(")) + ";parseToolResult", { asString: value => String(value ?? "") });
+  for (const error of ["CONNECTION_FAILED fixture-token", new Error("UNAUTHORIZED fixture-token"), { message: "PROTOCOL_INCOMPATIBLE fixture-token" }, { data: { error: "details fixture-token" } }]) {
+    const screen = setupScreen(async () => { throw error; });
+    await screen.render().props.onLoad();
+    const status = screen.states.get("connectionStatus");
+    assert.equal(status.state, "failed"); assert.ok(!status.detail.includes("fixture-token"));
+    assert.match(status.detail, /\[redacted\]/); assert.match(status.detail, /正在验证/);
+  }
+  const screen = setupScreen(async () => parser({ success: false, message: "PROTOCOL_INCOMPATIBLE fixture-token" }, false));
+  await screen.render().props.onLoad();
+  assert.match(screen.states.get("connectionStatus").detail, /PROTOCOL_INCOMPATIBLE \[redacted\]/);
+  const activation = setupScreen(async () => ({}), { usePackage: () => { throw { message: "registry unavailable" }; } });
+  await activation.click("保存并连接");
+  assert.match(activation.states.get("connectionStatus").detail, /启用 Windows 工具\nregistry unavailable/);
+});
+
+test("compiled phone tools and setup connect to real bundled PC and perform file workflow", async t => {
+  const fixture = await startAgentFixture(); t.after(fixture.stop);
+  const tools = loadTools(async request => {
+    const response = await fetch(request.url, { method: request.method, redirect: "manual", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request.body) });
+    return { statusCode: response.status, content: await response.text(), url: request.url };
+  }, { WINDOWS_AGENT_BASE_URL: fixture.executionUrl, WINDOWS_AGENT_TOKEN: "isolated-fixture-token" });
+  const result = await tools.windows_test_connection();
+  assert.equal(result.success, true, result.error); assert.equal(result.agentVersion, agentVersion); assert.equal(result.packageVersion, packageVersion);
+  const screen = setupScreen(async () => JSON.stringify(await tools.windows_test_connection()));
+  await screen.render().props.onLoad(); assert.equal(screen.states.get("connectionStatus").state, "success");
+  for (const [name, params] of [["windows_mkdir", {path:"工作"}], ["write", {path:"工作/计划.txt",content:"你好\r\n"}],
+    ["edit", {path:"工作/计划.txt",old_text:"你好",new_text:"Kiyori"}], ["windows_copy", {path:"工作/计划.txt",destination:"工作/copy.txt"}],
+    ["windows_move", {path:"工作/copy.txt",destination:"工作/moved.txt"}], ["read",{path:"工作/moved.txt"}], ["windows_list",{path:"工作"}]]) {
+    const response = await tools[name](params); assert.equal(response.success, true, `${name}: ${response.error}`);
+  }
+  assert.equal(fs.readFileSync(path.join(fixture.directory, "工作/moved.txt"), "utf8"), "Kiyori\r\n");
+  assert.equal(fs.existsSync(path.join(fixture.directory, "工作/copy.txt")), false);
+});
 
 test("URL semantics preserve HTTPS, FRP prefix, explicit ports and IPv6", () => {
   for (const [input, expected] of [

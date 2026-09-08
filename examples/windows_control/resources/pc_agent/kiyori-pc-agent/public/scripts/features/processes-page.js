@@ -183,11 +183,12 @@ export function createProcessesPage({ t, W, on = {} }) {
   );
 }
 
-export function createProcessesController({ api, refs, t, helpers }) {
+export function createProcessesController({ api, refs, t, helpers, terminalLoader = loadXtermModules }) {
   const { setBusy, setNotice, asErrorMessage } = helpers;
 
   let sessions = [];
   let selectedSessionId = "";
+  let selectionCleared = false;
 
   const offsetsBySessionId = new Map();
   const outputBySessionId = new Map();
@@ -196,6 +197,60 @@ export function createProcessesController({ api, refs, t, helpers }) {
   const inputQueueBySessionId = new Map();
   const inputFlushTimerBySessionId = new Map();
   const flushingSessionIds = new Set();
+  const pausedSessionIds = new Set();
+  const closingSessionIds = new Set();
+  const forgottenSessionIds = new Set();
+  let refreshGeneration = 0;
+  let disposed = false;
+
+  function sessionMissing(error) {
+    return error && (error.code === "SESSION_NOT_FOUND" || error.message === "Session not found");
+  }
+
+  function clearSessionInput(sid) {
+    inputQueueBySessionId.delete(sid);
+    clearTimeout(inputFlushTimerBySessionId.get(sid));
+    inputFlushTimerBySessionId.delete(sid);
+  }
+
+  function canInput(sid) {
+    return !disposed && !pausedSessionIds.has(sid) && !closingSessionIds.has(sid)
+      && normalizeStatus(findSessionById(sid)?.status) === "running";
+  }
+
+  function forgetSession(sid) {
+    forgottenSessionIds.add(sid);
+    closingSessionIds.delete(sid);
+    pausedSessionIds.delete(sid);
+    clearSessionInput(sid);
+    offsetsBySessionId.delete(sid);
+    outputBySessionId.delete(sid);
+    truncationNotedSessionIds.delete(sid);
+    if (pendingResize?.sessionId === sid) pendingResize = null;
+    sessions = sessions.filter(item => item.sessionId !== sid);
+    // 不自动把键盘输入转交另一终端；旧请求也不能复活已失效会话。
+    if (selectedSessionId === sid) {
+      selectedSessionId = "";
+      selectionCleared = true;
+      void renderTerminalSnapshot();
+    }
+    renderSessionList();
+    syncCurrentSessionMeta();
+  }
+
+  function handleSessionFailure(sid, error, key) {
+    if (disposed || forgottenSessionIds.has(sid)) return;
+    clearSessionInput(sid);
+    if (sessionMissing(error)) {
+      const closing = closingSessionIds.has(sid);
+      forgetSession(sid);
+      setNotice(closing ? "ok" : "warn", t(closing ? "message.sessionClosed" : "message.sessionMissing", { sessionId: sid }));
+    } else {
+      pausedSessionIds.add(sid);
+      syncCurrentSessionMeta();
+      setNotice("error", t(key, { error: asErrorMessage(error) }));
+    }
+  }
 
   let pollTimer = null;
   let polling = false;
@@ -212,6 +267,8 @@ export function createProcessesController({ api, refs, t, helpers }) {
   let terminalWriteQueue = "";
   let terminalWriteInFlight = false;
   let terminalWriteRafId = 0;
+  let terminalViewGeneration = 0;
+  let replayingSnapshot = false;
 
   let pendingResize = null;
   let resizeInFlight = false;
@@ -255,6 +312,14 @@ export function createProcessesController({ api, refs, t, helpers }) {
       return;
     }
 
+    if (closingSessionIds.has(selectedSessionId)) {
+      setTerminalHintText(t("message.sessionClosing", { sessionId: selectedSessionId }));
+      return;
+    }
+    if (pausedSessionIds.has(selectedSessionId)) {
+      setTerminalHintText(t("message.inputPaused"));
+      return;
+    }
     if (normalizeStatus(selected.status) === "running") {
       setTerminalHintText(t("message.terminalInteractive"));
       return;
@@ -273,6 +338,8 @@ export function createProcessesController({ api, refs, t, helpers }) {
   }
 
   function resetTerminalWriteQueue() {
+    terminalViewGeneration += 1;
+    replayingSnapshot = false;
     terminalWriteQueue = "";
     terminalWriteInFlight = false;
     if (terminalWriteRafId) {
@@ -296,8 +363,10 @@ export function createProcessesController({ api, refs, t, helpers }) {
       const chunk = terminalWriteQueue.slice(0, TERMINAL_WRITE_CHUNK_SIZE);
       terminalWriteQueue = terminalWriteQueue.slice(chunk.length);
       terminalWriteInFlight = true;
+      const generation = terminalViewGeneration;
 
       terminal.write(chunk, () => {
+        if (disposed || generation !== terminalViewGeneration) return;
         terminalWriteInFlight = false;
         if (keepBottom) {
           try {
@@ -329,7 +398,7 @@ export function createProcessesController({ api, refs, t, helpers }) {
     }
 
     const selected = findSessionById(selectedSessionId);
-    if (!selected || normalizeStatus(selected.status) !== "running") {
+    if (!selected || !canInput(selectedSessionId)) {
       return;
     }
 
@@ -388,7 +457,7 @@ export function createProcessesController({ api, refs, t, helpers }) {
     }
 
     const selected = findSessionById(task.sessionId);
-    if (!selected || normalizeStatus(selected.status) !== "running") {
+    if (!selected || !canInput(task.sessionId)) {
       return;
     }
 
@@ -405,8 +474,8 @@ export function createProcessesController({ api, refs, t, helpers }) {
         cols: task.cols,
         rows: task.rows
       };
-    } catch {
-      // keep silent during polling-style updates
+    } catch (error) {
+      handleSessionFailure(task.sessionId, error, "message.sessionReadFailed");
     } finally {
       resizeInFlight = false;
       if (pendingResize) {
@@ -430,7 +499,7 @@ export function createProcessesController({ api, refs, t, helpers }) {
 
   function queueSessionInput(sessionId, chunk) {
     const sid = String(sessionId || "").trim();
-    if (!sid || !chunk) {
+    if (!sid || !chunk || !canInput(sid)) {
       return;
     }
 
@@ -441,7 +510,7 @@ export function createProcessesController({ api, refs, t, helpers }) {
 
   function scheduleInputFlush(sessionId) {
     const sid = String(sessionId || "").trim();
-    if (!sid) {
+    if (!sid || !canInput(sid)) {
       return;
     }
 
@@ -459,7 +528,8 @@ export function createProcessesController({ api, refs, t, helpers }) {
 
   async function flushSessionInput(sessionId) {
     const sid = String(sessionId || "").trim();
-    if (!sid) {
+    if (!sid || !canInput(sid)) {
+      clearSessionInput(sid);
       return;
     }
 
@@ -483,12 +553,11 @@ export function createProcessesController({ api, refs, t, helpers }) {
         input: queued
       });
     } catch (error) {
-      const tail = toText(inputQueueBySessionId.get(sid), "");
-      inputQueueBySessionId.set(sid, queued + tail);
-      setNotice("error", t("message.inputSendFailed", { error: asErrorMessage(error) }));
+      // 失败的 PTY 输入可能已执行，绝不能重新入队；连同未发送尾部停止，等待用户核对。
+      handleSessionFailure(sid, error, "message.inputSendFailed");
     } finally {
       flushingSessionIds.delete(sid);
-      if (toText(inputQueueBySessionId.get(sid), "")) {
+      if (canInput(sid) && toText(inputQueueBySessionId.get(sid), "")) {
         scheduleInputFlush(sid);
       }
     }
@@ -514,7 +583,8 @@ export function createProcessesController({ api, refs, t, helpers }) {
           throw new Error("terminal host unavailable");
         }
 
-        const modules = await loadXtermModules();
+        const modules = await terminalLoader();
+        if (disposed) return false;
         const TerminalCtor = modules.Terminal;
         const FitAddonCtor = modules.FitAddon;
 
@@ -547,12 +617,13 @@ export function createProcessesController({ api, refs, t, helpers }) {
         fitTerminal();
 
         terminal.onData((chunk) => {
-          if (!selectedSessionId) {
+          // xterm 回放历史输出时也可能生成终端协议应答，不能把历史应答作为新输入送回 PTY。
+          if (replayingSnapshot || !selectedSessionId) {
             return;
           }
 
           const selected = findSessionById(selectedSessionId);
-          if (!selected || normalizeStatus(selected.status) !== "running") {
+          if (!selected || !canInput(selectedSessionId)) {
             return;
           }
 
@@ -611,7 +682,11 @@ export function createProcessesController({ api, refs, t, helpers }) {
     const output = toText(outputBySessionId.get(selectedSessionId), "");
     if (output) {
       terminalWriteInFlight = true;
+      replayingSnapshot = true;
+      const generation = terminalViewGeneration;
       terminal.write(output, () => {
+        if (disposed || generation !== terminalViewGeneration) return;
+        replayingSnapshot = false;
         terminalWriteInFlight = false;
         try {
           terminal.scrollToBottom();
@@ -652,10 +727,10 @@ export function createProcessesController({ api, refs, t, helpers }) {
       refs.currentSessionStatusValue.textContent = selected ? toText(selected.status) : "-";
     }
     if (refs.closeSessionButton) {
-      refs.closeSessionButton.disabled = !selected || normalizeStatus(selected.status) !== "running";
+      refs.closeSessionButton.disabled = !selected || closingSessionIds.has(selectedSessionId);
     }
     if (refs.sendCtrlCButton) {
-      refs.sendCtrlCButton.disabled = !selected || normalizeStatus(selected.status) !== "running";
+      refs.sendCtrlCButton.disabled = !selected || !canInput(selectedSessionId);
     }
 
     updateTerminalHint();
@@ -689,7 +764,7 @@ export function createProcessesController({ api, refs, t, helpers }) {
   }
 
   function pickNextSelection() {
-    if (!sessions.length) {
+    if (!sessions.length || selectionCleared) {
       return "";
     }
 
@@ -737,14 +812,14 @@ export function createProcessesController({ api, refs, t, helpers }) {
   }
 
   async function pollSelectedSession() {
-    if (polling || !selectedSessionId || !pageVisible()) {
+    if (disposed || polling || !selectedSessionId || pausedSessionIds.has(selectedSessionId) || !pageVisible()) {
       return;
     }
 
     polling = true;
+    const sessionId = selectedSessionId;
 
     try {
-      const sessionId = selectedSessionId;
       const offsets = ensureOffset(sessionId);
       const selectedBefore = findSessionById(sessionId);
       const statusBefore = normalizeStatus(selectedBefore && selectedBefore.status);
@@ -765,7 +840,7 @@ export function createProcessesController({ api, refs, t, helpers }) {
           max_chars: POLL_READ_CHARS
         });
 
-        if (toText(result && result.sessionId, "") !== sessionId) {
+        if (disposed || forgottenSessionIds.has(sessionId) || toText(result && result.sessionId, "") !== sessionId) {
           break;
         }
 
@@ -799,6 +874,8 @@ export function createProcessesController({ api, refs, t, helpers }) {
         return;
       }
 
+      if (forgottenSessionIds.has(sessionId) || disposed) return;
+
       patchSessionSummary(latestResult);
 
       if (combinedChunk) {
@@ -814,23 +891,38 @@ export function createProcessesController({ api, refs, t, helpers }) {
       }
 
       syncCurrentSessionMeta();
-    } catch {
-      // silent to keep interaction smooth while polling
+    } catch (error) {
+      handleSessionFailure(sessionId, error, "message.sessionReadFailed");
     } finally {
       polling = false;
     }
   }
 
-  async function refreshSessions() {
+  async function refreshSessions(resumeInput = true) {
+    const generation = ++refreshGeneration;
     setBusy("refreshSessionsButton", true, t("action.refreshSessions"), t("action.refreshing"));
 
     try {
       const result = await api.listProcessSessions({
         token: getToken(),
-        include_exited: !!(refs.manageIncludeExitedInput && refs.manageIncludeExitedInput.checked)
+        include_exited: true
       });
 
-      sessions = sortSessions(result && result.items);
+      if (disposed || generation !== refreshGeneration) return;
+      const inventory = sortSessions(result && result.items);
+      sessions = inventory.filter(item => !forgottenSessionIds.has(item.sessionId));
+      for (const sid of new Set([...inputQueueBySessionId.keys(), ...offsetsBySessionId.keys()])) {
+        if (!findSessionById(sid)) forgetSession(sid);
+      }
+      if (!refs.manageIncludeExitedInput?.checked) {
+        sessions = sessions.filter(item => normalizeStatus(item.status) === "running");
+        for (const sid of inputQueueBySessionId.keys()) if (!findSessionById(sid)) clearSessionInput(sid);
+      }
+      // 只有用户显式刷新才恢复输入/允许再次关闭；内部刷新不能取消另一个会话的暂停状态。
+      if (resumeInput) {
+        pausedSessionIds.clear();
+        closingSessionIds.clear();
+      }
       const nextSelection = pickNextSelection();
       const changed = nextSelection !== selectedSessionId;
       selectedSessionId = nextSelection;
@@ -846,11 +938,9 @@ export function createProcessesController({ api, refs, t, helpers }) {
         void pollSelectedSession();
       }
     } catch (error) {
-      sessions = [];
-      selectedSessionId = "";
-      renderSessionList();
+      if (disposed || generation !== refreshGeneration) return;
+      for (const session of sessions) { pausedSessionIds.add(session.sessionId); clearSessionInput(session.sessionId); }
       syncCurrentSessionMeta();
-      await renderTerminalSnapshot();
       setNotice("error", t("message.sessionsRefreshFailed", { error: asErrorMessage(error) }));
     } finally {
       setBusy("refreshSessionsButton", false, t("action.refreshSessions"), t("action.refreshing"));
@@ -876,7 +966,7 @@ export function createProcessesController({ api, refs, t, helpers }) {
         outputBySessionId.set(createdSessionId, "");
       }
 
-      await refreshSessions();
+      await refreshSessions(false);
       if (createdSessionId) {
         await selectSession(createdSessionId);
       }
@@ -900,25 +990,27 @@ export function createProcessesController({ api, refs, t, helpers }) {
     }
 
     const selected = findSessionById(selectedSessionId);
-    if (!selected || normalizeStatus(selected.status) !== "running") {
+    if (!selected || !canInput(selectedSessionId)) {
       setNotice("warn", t("message.terminalReadonlyExited"));
       return;
     }
 
     setBusy("sendCtrlCButton", true, t("action.sendCtrlC"), t("action.sending"));
+    const sid = selectedSessionId;
 
     try {
       await api.writeProcessSession({
         token: getToken(),
-        session_id: selectedSessionId,
+        session_id: sid,
         input: "\u0003"
       });
       setNotice("ok", t("message.ctrlCSent"));
       void pollSelectedSession();
     } catch (error) {
-      setNotice("error", t("message.inputSendFailed", { error: asErrorMessage(error) }));
+      handleSessionFailure(sid, error, "message.inputSendFailed");
     } finally {
       setBusy("sendCtrlCButton", false, t("action.sendCtrlC"), t("action.sending"));
+      syncCurrentSessionMeta();
     }
   }
 
@@ -928,32 +1020,41 @@ export function createProcessesController({ api, refs, t, helpers }) {
       return;
     }
 
+    const closingId = selectedSessionId;
+    if (closingSessionIds.has(closingId)) return;
+    closingSessionIds.add(closingId);
+    clearSessionInput(closingId);
     setBusy("closeSessionButton", true, t("action.closeSession"), t("action.closing"));
 
     try {
-      const closingId = selectedSessionId;
-      await api.terminateProcessSession({
+      const result = await api.terminateProcessSession({
         token: getToken(),
         session_id: closingId,
         remove: true
       });
 
-      inputQueueBySessionId.delete(closingId);
-      offsetsBySessionId.delete(closingId);
-      outputBySessionId.delete(closingId);
-      truncationNotedSessionIds.delete(closingId);
-
-      setNotice("ok", t("message.sessionClosed", { sessionId: closingId }));
-      await refreshSessions();
+      if (result.removed) {
+        forgetSession(closingId);
+        setNotice("ok", t("message.sessionClosed", { sessionId: closingId }));
+      } else if (result.wasRunning && result.signalSent) {
+        setNotice("ok", t("message.sessionClosing", { sessionId: closingId }));
+      } else {
+        throw new Error(t("message.sessionCloseWarn", { sessionId: closingId }));
+      }
+      await refreshSessions(false);
     } catch (error) {
-      setNotice("error", t("message.sessionCloseFailed", { error: asErrorMessage(error) }));
+      handleSessionFailure(closingId, error, "message.sessionCloseFailed");
+      closingSessionIds.delete(closingId);
     } finally {
       setBusy("closeSessionButton", false, t("action.closeSession"), t("action.closing"));
+      syncCurrentSessionMeta();
     }
   }
 
   async function selectSession(sessionId) {
     const safeId = String(sessionId || "").trim();
+    if (safeId && !findSessionById(safeId)) return;
+    selectionCleared = !safeId;
     selectedSessionId = safeId;
 
     if (safeId) {
@@ -988,6 +1089,9 @@ export function createProcessesController({ api, refs, t, helpers }) {
   }
 
   function stopPolling() {
+    disposed = true;
+    refreshGeneration += 1;
+    inputQueueBySessionId.clear();
     if (pollTimer) {
       clearInterval(pollTimer);
       pollTimer = null;
@@ -1018,6 +1122,9 @@ export function createProcessesController({ api, refs, t, helpers }) {
       refs.terminalHost.removeEventListener("wheel", terminalWheelStopHandler);
     }
     terminalWheelStopHandler = null;
+    terminal?.dispose();
+    terminal = null;
+    terminalReady = false;
   }
 
   async function renderEmptyState() {

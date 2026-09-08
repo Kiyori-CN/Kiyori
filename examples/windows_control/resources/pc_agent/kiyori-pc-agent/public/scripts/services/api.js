@@ -24,11 +24,13 @@ async function requestJson(url, options = {}) {
   }
 
   if (!response.ok) {
-    throw new Error((data && data.error) || `HTTP ${response.status}`);
+    throw Object.assign(new Error((data && data.error) || `HTTP ${response.status}`), {
+      status: response.status, code: typeof data?.code === "string" ? data.code : ""
+    });
   }
 
   if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("Invalid response from PC Agent");
-  if (data.ok === false) throw new Error(data.error || "Operation failed");
+  if (data.ok === false) throw Object.assign(new Error(data.error || "Operation failed"), { code: typeof data.code === "string" ? data.code : "" });
   return data;
   } finally { clearTimeout(timer); }
 }

@@ -707,7 +707,7 @@ type WindowsProcessResult = {
 };
 
 const windowsControl = (function () {
-    const WINDOWS_CONTROL_PACKAGE_VERSION = "1.1.0";
+    const WINDOWS_CONTROL_PACKAGE_VERSION = "1.1.2";
     const MAX_INLINE_WINDOWS_EXEC_OUTPUT_CHARS = 12_000;
     const CONNECTION_TEST_TIMEOUT_MS = 15000;
 
@@ -724,8 +724,8 @@ const windowsControl = (function () {
 
     function buildVersionMismatchMessage(remoteVersion: string): string {
         return [
-            `Version mismatch: package=${WINDOWS_CONTROL_PACKAGE_VERSION}, agent=${remoteVersion || "unknown"}.`,
-            "请在连接 Windows 页面重新导出电脑端，更新并启动后再导入连接配置。"
+            `PROTOCOL_INCOMPATIBLE: package=${WINDOWS_CONTROL_PACKAGE_VERSION}, agent=${remoteVersion || "unknown"}; supported=1.1.x.`,
+            "手机工具包支持稳定版 1.1.x 电脑协议。请核对双端版本，从新版连接 Windows 页面导出匹配的电脑端。"
         ].join(" ");
     }
 
@@ -907,12 +907,14 @@ const windowsControl = (function () {
             timeoutMs,
             strictTimeout
         );
-        const health = parseJson(healthResponse.content);
-
         if (healthResponse.statusCode === 401) throw new Error("UNAUTHORIZED: 访问令牌不匹配，请重新从电脑复制配置");
-        if (healthResponse.statusCode === 404) throw new Error("请更新电脑端 Kiyori PC Agent 到 1.1.0 后再连接");
-        if (healthResponse.statusCode < 200 || healthResponse.statusCode >= 300 || health.ok !== true || health.mode !== "http-agent") {
-            throw new Error(`Health check failed: HTTP ${healthResponse.statusCode}`);
+        if (healthResponse.statusCode === 404) throw new Error("ENDPOINT_NOT_FOUND: 请核对执行端口及 FRP 路径前缀，电脑端需要稳定版 1.1.x");
+        if (healthResponse.statusCode < 200 || healthResponse.statusCode >= 300) {
+            throw new Error(`CONNECTION_HTTP_ERROR: HTTP ${healthResponse.statusCode}，请检查电脑服务或中转代理。`);
+        }
+        const health = parseJson(healthResponse.content);
+        if (!health || typeof health !== "object" || Array.isArray(health) || health.ok !== true || health.mode !== "http-agent") {
+            throw new Error("INVALID_AGENT_RESPONSE: 未收到有效的电脑认证结果，请检查目标地址与代理配置。");
         }
 
         const remoteVersion = asText(health.version || health.agentVersion).trim();
@@ -920,7 +922,9 @@ const windowsControl = (function () {
             throw new Error("Agent version is missing. 请从连接 Windows 页面更新电脑端。");
         }
 
-        if (remoteVersion !== WINDOWS_CONTROL_PACKAGE_VERSION) {
+        // 产品补丁与协议兼容性分离：1.1.x 保持认证/文件/进程协议，不把双端补丁差异当作断网。
+        // 新主/次版本及预发布版必须显式审查，不能靠宽松比较自动接受。
+        if (!/^1\.1\.(0|[1-9]\d*)$/.test(remoteVersion)) {
             throw new Error(buildVersionMismatchMessage(remoteVersion));
         }
 

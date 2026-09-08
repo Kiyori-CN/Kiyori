@@ -1,4 +1,5 @@
 export interface WindowsSetupI18n {
+  saving: string; activating: string;
   title: string; subtitle: string; changed: string; operationFailed: string; hostUnavailable: string;
   activationFailed: string; notConfigured: string; checking: string; invalidResponse: string;
   connected: string; saved: string; invalidConfig: string; failed: string; connection: string;

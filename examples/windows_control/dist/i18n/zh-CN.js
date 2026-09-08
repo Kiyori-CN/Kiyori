@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WINDOWS_SETUP_ZH_CN = void 0;
 exports.WINDOWS_SETUP_ZH_CN = {
+    saving: "保存连接配置", activating: "启用 Windows 工具",
     title: "连接 Windows", subtitle: "让 AI 在你的电脑上整理文件、编辑内容和运行任务。",
     changed: "配置已修改，保存后重新验证连接。", operationFailed: "操作失败", hostUnavailable: "宿主配置接口不可用，请更新 Kiyori。",
     activationFailed: "Windows 工具未能启用，请在扩展中检查工具包状态。", notConfigured: "尚未验证", checking: "正在验证连接与认证…",

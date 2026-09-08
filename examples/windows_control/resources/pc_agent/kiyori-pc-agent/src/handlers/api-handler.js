@@ -553,7 +553,7 @@ function createApiHandler({
         });
       } catch (error) {
         logger.error("process.start.error", { error: error.message });
-        sendJson(res, 400, { ok: false, error: error.message });
+        sendJson(res, 400, { ok: false, error: error.message, code: error.code || "PROCESS_ERROR" });
       }
 
       return true;
@@ -592,7 +592,7 @@ function createApiHandler({
         });
       } catch (error) {
         logger.error("process.read.error", { error: error.message });
-        sendJson(res, 400, { ok: false, error: error.message });
+        sendJson(res, 400, { ok: false, error: error.message, code: error.code || "PROCESS_ERROR" });
       }
 
       return true;
@@ -623,7 +623,7 @@ function createApiHandler({
         });
       } catch (error) {
         logger.error("process.write.error", { error: error.message });
-        sendJson(res, 400, { ok: false, error: error.message });
+        sendJson(res, 400, { ok: false, error: error.message, code: error.code || "PROCESS_ERROR" });
       }
 
       return true;
@@ -657,7 +657,7 @@ function createApiHandler({
         });
       } catch (error) {
         logger.error("process.resize.error", { error: error.message });
-        sendJson(res, 400, { ok: false, error: error.message });
+        sendJson(res, 400, { ok: false, error: error.message, code: error.code || "PROCESS_ERROR" });
       }
 
       return true;
@@ -691,7 +691,7 @@ function createApiHandler({
         });
       } catch (error) {
         logger.error("process.terminate.error", { error: error.message });
-        sendJson(res, 400, { ok: false, error: error.message });
+        sendJson(res, 400, { ok: false, error: error.message, code: error.code || "PROCESS_ERROR" });
       }
 
       return true;

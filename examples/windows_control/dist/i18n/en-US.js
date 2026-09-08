@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WINDOWS_SETUP_EN_US = void 0;
 exports.WINDOWS_SETUP_EN_US = {
+    saving: "Saving connection settings", activating: "Activating Windows tools",
     title: "Connect Windows", subtitle: "Let AI organize files, edit content and run tasks on your PC.",
     changed: "Configuration changed. Save to verify this connection.", operationFailed: "Operation failed", hostUnavailable: "Host configuration API unavailable. Update Kiyori.",
     activationFailed: "Windows tools could not be enabled. Check the toolkit in Extensions.", notConfigured: "Not verified", checking: "Verifying connection and authentication…",

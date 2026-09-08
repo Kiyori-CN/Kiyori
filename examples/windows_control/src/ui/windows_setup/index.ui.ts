@@ -1,6 +1,7 @@
 import type { ComposeDslContext, ComposeNode } from "../../../../types/compose-dsl";
 import { resolveWindowsSetupI18n } from "../../i18n";
 import { validateConnectionConfig } from "../../connection";
+import { diagnosticMessage } from "../../diagnostics";
 
 const KEYS = ["WINDOWS_AGENT_BASE_URL", "WINDOWS_AGENT_TOKEN", "WINDOWS_AGENT_DEFAULT_SHELL", "WINDOWS_AGENT_TIMEOUT_MS"];
 type Draft = { baseUrl: string; token: string; shell: string; timeout: string };
@@ -17,6 +18,7 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
   const [status, setStatus] = ctx.useState<Status>("connectionStatus", { state: "idle", detail: "" });
   const [busy, setBusy] = ctx.useState("busy", false);
   const lock = ctx.useRef("operationLock", false);
+  const phase = ctx.useRef("operationPhase", "");
   const initialized = ctx.useRef("initialized", false);
   const [setupVisible, setSetupVisible] = ctx.useState("setupVisible", !draft.baseUrl);
   const [importVisible, setImportVisible] = ctx.useState("importVisible", false);
@@ -33,14 +35,15 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
   }
   function errorText(error: unknown): string {
     console.error("[windows_setup] Operation failed", error instanceof Error ? error.name : typeof error);
-    const message = error instanceof Error ? error.message : text.operationFailed;
-    return liveDraft.current.token ? message.split(liveDraft.current.token).join("[redacted]") : message;
+    const message = diagnosticMessage(error, text.operationFailed, [liveDraft.current.token, ctx.getEnv(KEYS[1]) ?? ""]);
+    return phase.current ? `${phase.current}\n${message}` : message;
   }
   async function run(action: () => Promise<void>) {
     if (lock.current) return;
     lock.current = true;
     setBusy(true);
     setNotice("");
+    phase.current = "";
     try { await action(); }
     catch (error) { setStatus({ state: "failed", detail: errorText(error) }); }
     finally { lock.current = false; setBusy(false); }
@@ -50,6 +53,7 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
     return current && current !== ctx.getCurrentToolPkgId?.() ? current : "windows_control";
   }
   async function activate() {
+    phase.current = text.activating;
     const name = packageName();
     if (!ctx.isPackageImported || !ctx.importPackage || !ctx.usePackage) throw new Error(text.hostUnavailable);
     if (!await ctx.isPackageImported(name)) {
@@ -60,6 +64,7 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
     if (/error|failed|not found/i.test(result ?? "")) throw new Error(text.activationFailed);
   }
   async function testSaved() {
+    phase.current = text.checking;
     const saved = readDraft(ctx);
     if (!saved.baseUrl || !saved.token) {
       setStatus({ state: "idle", detail: text.notConfigured });
@@ -87,6 +92,7 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
       duration: typeof data.durationMs === "number" ? data.durationMs : undefined });
   }
   async function save(next: Draft) {
+    phase.current = text.saving;
     const config = validateConnectionConfig(next.baseUrl, next.token, next.shell, next.timeout);
     // 整份校验后再交给宿主批量写入，避免半份新配置混入旧凭据。
     if (!ctx.setEnvs) throw new Error(text.hostUnavailable);
@@ -103,6 +109,7 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
     await testSaved();
   }
   async function importConfig() {
+    phase.current = text.import;
     let value: unknown;
     try { value = JSON.parse(json); } catch { throw new Error(text.invalidConfig); }
     if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(text.invalidConfig);
@@ -140,6 +147,7 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
     ...(importVisible ? [card(text.import, [paragraph(text.importHelp), U.TextField({ label: text.config, value: json, minLines: 3, maxLines: 5, readOnly: busy, onValueChange: setJson }), button(text.applyImport, importConfig)])] : []),
     textButton(setupVisible ? text.hideSetup : text.setup, () => setSetupVisible(!setupVisible)),
     ...(setupVisible ? [card(text.setup, [paragraph(text.setupHelp), button(text.export, async () => {
+      phase.current = text.export;
       const resource = await ToolPkg.readResource("pc_agent_zip");
       if (typeof resource !== "string" || !resource.trim()) throw new Error(text.resourceMissing);
       await ctx.callTool("share_file", { path: resource, title: "Kiyori PC Agent" });

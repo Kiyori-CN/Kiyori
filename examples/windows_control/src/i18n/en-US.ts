@@ -1,5 +1,6 @@
 import type { WindowsSetupI18n } from "./types";
 export const WINDOWS_SETUP_EN_US: WindowsSetupI18n = {
+  saving: "Saving connection settings", activating: "Activating Windows tools",
   title: "Connect Windows", subtitle: "Let AI organize files, edit content and run tasks on your PC.",
   changed: "Configuration changed. Save to verify this connection.", operationFailed: "Operation failed", hostUnavailable: "Host configuration API unavailable. Update Kiyori.",
   activationFailed: "Windows tools could not be enabled. Check the toolkit in Extensions.", notConfigured: "Not verified", checking: "Verifying connection and authentication…",

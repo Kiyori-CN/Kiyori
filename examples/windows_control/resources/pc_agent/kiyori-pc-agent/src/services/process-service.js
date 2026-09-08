@@ -354,7 +354,7 @@ function createProcessService({ projectRoot, logger }) {
 
     const session = sessions.get(sessionId);
     if (!session) {
-      throw new Error("Session not found");
+      throw Object.assign(new Error("Session not found"), { code: "SESSION_NOT_FOUND" });
     }
 
     return session;
@@ -415,18 +415,8 @@ function createProcessService({ projectRoot, logger }) {
       }
     }
 
-    if (!signalSent && Number.isFinite(session.pid) && session.pid > 0) {
-      try {
-        const killer = spawn("taskkill", ["/PID", String(session.pid), "/T", "/F"], {
-          windowsHide: true,
-          cwd: projectRoot
-        });
-        killer.unref();
-        signalSent = true;
-      } catch {
-        signalSent = false;
-      }
-    }
+    // 仅使用持有的 PTY/ChildProcess 句柄，不以可能复用的数字 PID 启动 taskkill，
+    // 更不能把 taskkill 子进程启动成功当作目标进程已收到终止信号。
 
     return signalSent;
   }
@@ -848,13 +838,18 @@ function createProcessService({ projectRoot, logger }) {
     const remove = parseBoolean(options.remove, false);
 
     const wasRunning = session.status === "running";
+    // PTY kill 可能同步触发 onExit，必须先登记删除意图；信号失败则恢复原状态并明确报错。
+    const previousRemoveOnClose = session.removeOnClose;
+    if (remove && wasRunning) session.removeOnClose = true;
     const signalSent = wasRunning ? terminateChildProcess(session) : false;
+    if (wasRunning && !signalSent && session.status === "running") {
+      session.removeOnClose = previousRemoveOnClose;
+      throw Object.assign(new Error("Failed to signal session termination"), { code: "SESSION_TERMINATE_FAILED" });
+    }
 
-    let removed = false;
+    let removed = !sessions.has(session.id);
     if (remove) {
-      if (wasRunning) {
-        session.removeOnClose = true;
-      } else {
+      if (session.status !== "running" && !removed) {
         disposeScreenState(session.screenState);
         sessions.delete(session.id);
         removed = true;

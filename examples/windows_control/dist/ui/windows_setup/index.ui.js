@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = Screen;
 const i18n_1 = require("../../i18n");
 const connection_1 = require("../../connection");
+const diagnostics_1 = require("../../diagnostics");
 const KEYS = ["WINDOWS_AGENT_BASE_URL", "WINDOWS_AGENT_TOKEN", "WINDOWS_AGENT_DEFAULT_SHELL", "WINDOWS_AGENT_TIMEOUT_MS"];
 function readDraft(ctx) {
     return { baseUrl: ctx.getEnv(KEYS[0]) ?? "", token: ctx.getEnv(KEYS[1]) ?? "",
@@ -15,6 +16,7 @@ function Screen(ctx) {
     const [status, setStatus] = ctx.useState("connectionStatus", { state: "idle", detail: "" });
     const [busy, setBusy] = ctx.useState("busy", false);
     const lock = ctx.useRef("operationLock", false);
+    const phase = ctx.useRef("operationPhase", "");
     const initialized = ctx.useRef("initialized", false);
     const [setupVisible, setSetupVisible] = ctx.useState("setupVisible", !draft.baseUrl);
     const [importVisible, setImportVisible] = ctx.useState("importVisible", false);
@@ -30,8 +32,8 @@ function Screen(ctx) {
     }
     function errorText(error) {
         console.error("[windows_setup] Operation failed", error instanceof Error ? error.name : typeof error);
-        const message = error instanceof Error ? error.message : text.operationFailed;
-        return liveDraft.current.token ? message.split(liveDraft.current.token).join("[redacted]") : message;
+        const message = (0, diagnostics_1.diagnosticMessage)(error, text.operationFailed, [liveDraft.current.token, ctx.getEnv(KEYS[1]) ?? ""]);
+        return phase.current ? `${phase.current}\n${message}` : message;
     }
     async function run(action) {
         if (lock.current)
@@ -39,6 +41,7 @@ function Screen(ctx) {
         lock.current = true;
         setBusy(true);
         setNotice("");
+        phase.current = "";
         try {
             await action();
         }
@@ -55,6 +58,7 @@ function Screen(ctx) {
         return current && current !== ctx.getCurrentToolPkgId?.() ? current : "windows_control";
     }
     async function activate() {
+        phase.current = text.activating;
         const name = packageName();
         if (!ctx.isPackageImported || !ctx.importPackage || !ctx.usePackage)
             throw new Error(text.hostUnavailable);
@@ -68,6 +72,7 @@ function Screen(ctx) {
             throw new Error(text.activationFailed);
     }
     async function testSaved() {
+        phase.current = text.checking;
         const saved = readDraft(ctx);
         if (!saved.baseUrl || !saved.token) {
             setStatus({ state: "idle", detail: text.notConfigured });
@@ -103,6 +108,7 @@ function Screen(ctx) {
             duration: typeof data.durationMs === "number" ? data.durationMs : undefined });
     }
     async function save(next) {
+        phase.current = text.saving;
         const config = (0, connection_1.validateConnectionConfig)(next.baseUrl, next.token, next.shell, next.timeout);
         // 整份校验后再交给宿主批量写入，避免半份新配置混入旧凭据。
         if (!ctx.setEnvs)
@@ -121,6 +127,7 @@ function Screen(ctx) {
         await testSaved();
     }
     async function importConfig() {
+        phase.current = text.import;
         let value;
         try {
             value = JSON.parse(json);
@@ -164,6 +171,7 @@ function Screen(ctx) {
         ...(importVisible ? [card(text.import, [paragraph(text.importHelp), U.TextField({ label: text.config, value: json, minLines: 3, maxLines: 5, readOnly: busy, onValueChange: setJson }), button(text.applyImport, importConfig)])] : []),
         textButton(setupVisible ? text.hideSetup : text.setup, () => setSetupVisible(!setupVisible)),
         ...(setupVisible ? [card(text.setup, [paragraph(text.setupHelp), button(text.export, async () => {
+                    phase.current = text.export;
                     const resource = await ToolPkg.readResource("pc_agent_zip");
                     if (typeof resource !== "string" || !resource.trim())
                         throw new Error(text.resourceMissing);
