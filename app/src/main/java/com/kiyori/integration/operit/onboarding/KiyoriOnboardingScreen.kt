@@ -15,6 +15,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -153,19 +157,29 @@ internal fun KiyoriOnboardingScreen(
                 startFromBeginning = startFromBeginning,
             )
         }
+    // 重看模式必须使用独立的状态空间，避免 SavedState 恢复导致页面跳转
+    val reviewSessionId = remember(startFromBeginning) {
+        if (startFromBeginning) System.currentTimeMillis().toString() else null
+    }
     val pagerState =
-        if (startFromBeginning) remember {
+        if (startFromBeginning) {
             // 重看是新阅读会话，不能让 SavedState 中的旧页码覆盖第一页。
-            // 首启继续使用下方原生保存恢复；重看不写入首启偏好。
-            PagerState(
-                currentPage = KiyoriOnboardingStep.WELCOME.ordinal,
+            // 使用 reviewSessionId 作为 key 确保每次重看都创建全新实例，不复用旧状态。
+            remember(reviewSessionId) {
+                PagerState(
+                    currentPage = KiyoriOnboardingStep.WELCOME.ordinal,
+                    pageCount = { kiyoriOnboardingPageCount(agreementAcceptedState) },
+                )
+            }
+        } else {
+            rememberPagerState(
+                initialPage = initialStep.ordinal,
                 pageCount = { kiyoriOnboardingPageCount(agreementAcceptedState) },
             )
-        } else rememberPagerState(
-            initialPage = initialStep.ordinal,
-            pageCount = { kiyoriOnboardingPageCount(agreementAcceptedState) },
-        )
+        }
     val pagerScope = rememberCoroutineScope()
+    // 重看模式使用独立的 StateHolder key，避免恢复首次安装的页面状态
+    val pageStateKey = if (startFromBeginning) "onboarding_review_$reviewSessionId" else "onboarding_pages"
     val pageStateHolder = rememberSaveableStateHolder()
     val currentStep = KiyoriOnboardingStep.entries[pagerState.settledPage]
     var navigationInFlight by remember { mutableStateOf(false) }
@@ -211,6 +225,41 @@ internal fun KiyoriOnboardingScreen(
 
     fun persistSelection(selection: Set<KiyoriPermissionId>) {
         if (!startFromBeginning) preferences.saveSelectedPermissions(selection)
+    }
+
+
+    // 调试日志：记录重看模式的初始化状态
+    LaunchedEffect(Unit) {
+        if (startFromBeginning) {
+            KiyoriLogger.d(
+                "KiyoriOnboarding",
+                "重看模式初始化: reviewSessionId=$reviewSessionId, " +
+                "agreementAcceptedState=$agreementAcceptedState, " +
+                "pagerState.currentPage=${pagerState.currentPage}, " +
+                "pageCount=${kiyoriOnboardingPageCount(agreementAcceptedState)}"
+            )
+        }
+    }
+
+    // 防御性监控：防止重看模式下页面异常跳转到权限页
+    LaunchedEffect(pagerState.currentPage, startFromBeginning, agreementAcceptedState) {
+        if (startFromBeginning) {
+            // 重看模式下，如果协议未接受但页面跳到了权限页，强制回到协议页
+            val maxAllowedPage = if (agreementAcceptedState) {
+                KiyoriOnboardingStep.entries.lastIndex
+            } else {
+                KiyoriOnboardingStep.AGREEMENT.ordinal
+            }
+            
+            if (pagerState.currentPage > maxAllowedPage) {
+                KiyoriLogger.w(
+                    "KiyoriOnboarding",
+                    "重看模式检测到异常页面跳转: 当前=${pagerState.currentPage}, 最大允许=$maxAllowedPage, 协议接受=$agreementAcceptedState"
+                )
+                // 立即修正到最后一个允许的页面
+                pagerState.scrollToPage(maxAllowedPage)
+            }
+        }
     }
 
     fun moveTo(
@@ -513,7 +562,7 @@ internal fun KiyoriOnboardingScreen(
                     },
                 )
                 // 正文独立呈现时保留介绍/协议/权限的阅读位置，关闭正文后回到原处。
-                pageStateHolder.SaveableStateProvider("onboarding_pages") {
+                pageStateHolder.SaveableStateProvider(pageStateKey) {
                     HorizontalPager(
                         state = pagerState,
                         modifier = Modifier.weight(1f).widthIn(max = 1080.dp).fillMaxWidth(),
@@ -954,10 +1003,31 @@ private fun OnboardingProgressHeader(
             horizontalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             KiyoriOnboardingStep.entries.forEach { item ->
-                Box(Modifier.weight(1f).height(4.dp).clip(CircleShape).background(
-                    if (item.ordinal <= step.ordinal) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.surfaceContainerHighest,
-                ))
+                val isActive = item.ordinal <= step.ordinal
+                val indicatorColor by animateColorAsState(
+                    targetValue = if (isActive) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.surfaceContainerHighest,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    ),
+                    label = "progressIndicatorColor"
+                )
+                val indicatorHeight by animateDpAsState(
+                    targetValue = if (item.ordinal == step.ordinal) 5.dp else 4.dp,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    ),
+                    label = "progressIndicatorHeight"
+                )
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .height(indicatorHeight)
+                        .clip(CircleShape)
+                        .background(indicatorColor)
+                )
             }
         }
     }
@@ -1078,6 +1148,8 @@ private fun OnboardingFeatureCardSurface(
         shape = KiyoriUiShapes.card,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+        tonalElevation = 1.dp,
+        shadowElevation = 0.5.dp,
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
