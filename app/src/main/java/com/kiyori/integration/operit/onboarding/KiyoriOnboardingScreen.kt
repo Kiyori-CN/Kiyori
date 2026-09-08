@@ -157,15 +157,12 @@ internal fun KiyoriOnboardingScreen(
                 startFromBeginning = startFromBeginning,
             )
         }
-    // 重看模式必须使用独立的状态空间，避免 SavedState 恢复导致页面跳转
-    val reviewSessionId = remember(startFromBeginning) {
-        if (startFromBeginning) System.currentTimeMillis().toString() else null
-    }
+    // 重看是一次临时阅读会话，必须绕过首次安装流程的 SavedState。
+    // 不能用时间戳制造 key：它既不是页面事实，也不能阻止 SaveableStateHolder 恢复旧子树。
     val pagerState =
         if (startFromBeginning) {
-            // 重看是新阅读会话，不能让 SavedState 中的旧页码覆盖第一页。
-            // 使用 reviewSessionId 作为 key 确保每次重看都创建全新实例，不复用旧状态。
-            remember(reviewSessionId) {
+            // 该 PagerState 不进入 rememberSaveable；每次进入设置重看路由都会从第一页开始。
+            remember {
                 PagerState(
                     currentPage = KiyoriOnboardingStep.WELCOME.ordinal,
                     pageCount = { kiyoriOnboardingPageCount(agreementAcceptedState) },
@@ -178,9 +175,6 @@ internal fun KiyoriOnboardingScreen(
             )
         }
     val pagerScope = rememberCoroutineScope()
-    // 重看模式使用独立的 StateHolder key，避免恢复首次安装的页面状态
-    val pageStateKey = if (startFromBeginning) "onboarding_review_$reviewSessionId" else "onboarding_pages"
-    val pageStateHolder = rememberSaveableStateHolder()
     val currentStep = KiyoriOnboardingStep.entries[pagerState.settledPage]
     var navigationInFlight by remember { mutableStateOf(false) }
     val navigationBusy by remember {
@@ -233,8 +227,7 @@ internal fun KiyoriOnboardingScreen(
         if (startFromBeginning) {
             KiyoriLogger.d(
                 "KiyoriOnboarding",
-                "重看模式初始化: reviewSessionId=$reviewSessionId, " +
-                "agreementAcceptedState=$agreementAcceptedState, " +
+                "重看模式初始化: agreementAcceptedState=$agreementAcceptedState, " +
                 "pagerState.currentPage=${pagerState.currentPage}, " +
                 "pageCount=${kiyoriOnboardingPageCount(agreementAcceptedState)}"
             )
@@ -561,8 +554,8 @@ internal fun KiyoriOnboardingScreen(
                         moveTo(KiyoriOnboardingStep.AGREEMENT, sourceStep, skipIntroduction = true)
                     },
                 )
-                // 正文独立呈现时保留介绍/协议/权限的阅读位置，关闭正文后回到原处。
-                pageStateHolder.SaveableStateProvider(pageStateKey) {
+                // 仅首次安装流程保存正文状态；重看流程必须与历史页面子树隔离。
+                OnboardingPageStateHost(startFromBeginning = startFromBeginning) {
                     HorizontalPager(
                         state = pagerState,
                         modifier = Modifier.weight(1f).widthIn(max = 1080.dp).fillMaxWidth(),
@@ -893,6 +886,20 @@ internal fun KiyoriOnboardingScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun OnboardingPageStateHost(
+    startFromBeginning: Boolean,
+    content: @Composable () -> Unit,
+) {
+    if (startFromBeginning) {
+        content()
+    } else {
+        // 首次安装允许中断后续看；重看流程不使用这个 holder，避免旧页码/协议正文泄漏。
+        val stateHolder = rememberSaveableStateHolder()
+        stateHolder.SaveableStateProvider("onboarding_pages", content)
     }
 }
 

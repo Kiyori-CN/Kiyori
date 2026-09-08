@@ -30,9 +30,13 @@ class KiyoriStartupExperienceSurfaceTest {
             "app/src/main/java/com/kiyori/integration/operit/onboarding/KiyoriOnboardingScreen.kt",
         ).readText()
         val pager = source.substringAfter("val pagerState =").substringBefore("val pagerScope")
-        assertTrue(pager.contains("if (startFromBeginning) remember {"))
+        assertTrue(pager.contains("if (startFromBeginning) {"))
         assertTrue(pager.contains("currentPage = KiyoriOnboardingStep.WELCOME.ordinal"))
-        assertTrue(pager.contains("else rememberPagerState("))
+        assertTrue(pager.contains("else {"))
+        assertTrue(source.contains("OnboardingPageStateHost(startFromBeginning = startFromBeginning)"))
+        assertTrue(source.contains("if (startFromBeginning)"))
+        assertTrue(source.contains("stateHolder.SaveableStateProvider(\"onboarding_pages\", content)"))
+        assertFalse(source.contains("System.currentTimeMillis()"))
         assertFalse(source.contains("enabled = !navigationBusy"))
         assertFalse(source.contains("navigationEnabled = !navigationBusy"))
     }
