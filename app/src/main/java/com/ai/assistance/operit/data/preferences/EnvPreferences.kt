@@ -44,6 +44,18 @@ class EnvPreferences private constructor(context: Context) {
         prefs.edit().putString(name, value).apply()
     }
 
+    fun updateEnvs(variables: Map<String, String>) {
+        // 地址与凭据等关联字段在同一次提交中发布，不能逐键暴露半份连接配置。
+        val editor = prefs.edit()
+        variables.forEach { (key, value) ->
+            val name = key.trim()
+            if (name.isNotEmpty()) {
+                if (value.isBlank()) editor.remove(name) else editor.putString(name, value)
+            }
+        }
+        editor.apply()
+    }
+
     /** Remove a stored environment value (does not affect process env). */
     fun removeEnv(key: String) {
         val name = key.trim()

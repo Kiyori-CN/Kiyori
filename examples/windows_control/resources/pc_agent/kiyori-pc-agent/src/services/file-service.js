@@ -1,5 +1,7 @@
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
+const { spawnSync } = require("child_process");
 
 const DEFAULT_SEGMENT_LENGTH = 64 * 1024;
 const MAX_SEGMENT_LENGTH = 2 * 1024 * 1024;
@@ -36,7 +38,7 @@ function parseNonNegativeInt(value, fallback, fieldName) {
   }
 
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 0) {
+  if (!Number.isSafeInteger(parsed) || parsed < 0) {
     throw new Error(`${fieldName} must be a non-negative integer`);
   }
 
@@ -49,7 +51,7 @@ function parsePositiveInt(value, fallback, maxValue, fieldName) {
   }
 
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
     throw new Error(`${fieldName} must be a positive integer`);
   }
 
@@ -67,7 +69,7 @@ function parseExpectedReplacements(value) {
   }
 
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 1) {
+  if (!Number.isSafeInteger(parsed) || parsed < 1) {
     throw new Error("expected_replacements must be an integer >= 1");
   }
 
@@ -87,10 +89,15 @@ function resolveTargetPath(projectRoot, inputPath) {
     throw new Error("Missing path");
   }
 
-  const raw = inputPath.trim();
+  const raw = inputPath;
   if (raw.includes("\0")) {
     throw new Error("Invalid path");
   }
+
+  if (process.platform === "win32" && (/^[a-z]:(?![\\/])/i.test(raw) || /^\\\\\.\\/.test(raw))) {
+    throw new Error("Use an absolute Windows file path; drive-relative and device paths are not supported");
+  }
+  if (process.platform === "win32" && /(?:^|[\\/])(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|[\\/]|$)/i.test(raw)) throw new Error("Windows device names are not file paths");
 
   if (path.isAbsolute(raw)) {
     return path.normalize(raw);
@@ -99,8 +106,10 @@ function resolveTargetPath(projectRoot, inputPath) {
   return path.resolve(projectRoot, raw);
 }
 
-function readDirectoryEntries(targetPath, currentDepth, maxDepth) {
+function readDirectoryEntries(targetPath, currentDepth, maxDepth, budget) {
   const dirents = fs.readdirSync(targetPath, { withFileTypes: true });
+  if (dirents.length > budget.remaining) throw new Error("Directory listing exceeds 5000 entries; use a narrower path or depth");
+  budget.remaining -= dirents.length;
 
   const sorted = dirents.sort((a, b) => {
     if (a.isDirectory() && !b.isDirectory()) {
@@ -139,7 +148,12 @@ function readDirectoryEntries(targetPath, currentDepth, maxDepth) {
     };
 
     if (type === "directory" && currentDepth < maxDepth) {
-      item.children = readDirectoryEntries(itemPath, currentDepth + 1, maxDepth);
+      try {
+        item.children = readDirectoryEntries(itemPath, currentDepth + 1, maxDepth, budget);
+      } catch (error) {
+        if (error.code !== "EACCES" && error.code !== "EPERM") throw error;
+        item.error = error.code;
+      }
     }
 
     return item;
@@ -172,7 +186,7 @@ function readFileChunk(targetPath, startOffset, length) {
 }
 
 function normalizeBase64Input(rawBase64) {
-  if (typeof rawBase64 !== "string" || !rawBase64.trim()) {
+  if (typeof rawBase64 !== "string") {
     throw new Error("Missing base64");
   }
 
@@ -196,6 +210,81 @@ function normalizeBase64Input(rawBase64) {
 }
 
 function createFileService({ projectRoot }) {
+  function assertBoundedText(targetPath) {
+    const stat = ensureReadableFile(targetPath);
+    if (stat.size > MAX_TEXT_READ_BYTES) throw new Error("File too large; use byte segments (max text read 4 MiB)");
+    return stat;
+  }
+  function atomicWrite(targetPath, data) {
+    // 不截断原文件：同目录临时文件完整落盘后替换。符号链接保留原有指向，不替换链接本身。
+    const actualPath = fs.existsSync(targetPath) ? fs.realpathSync(targetPath) : targetPath;
+    if (fs.existsSync(actualPath) && fs.statSync(actualPath).nlink > 1) throw new Error("Atomic replacement of a hard-linked file is not supported; inspect its link ownership first");
+    fs.mkdirSync(path.dirname(actualPath), { recursive: true });
+    const temporary = path.join(path.dirname(actualPath), `.kiyori-${crypto.randomUUID()}.tmp`);
+    let fd;
+    try {
+      fd = fs.openSync(temporary, "wx", fs.existsSync(actualPath) ? fs.statSync(actualPath).mode : 0o600);
+      fs.writeFileSync(fd, data);
+      fs.fsyncSync(fd);
+      fs.closeSync(fd);
+      fd = undefined;
+      if (process.platform === "win32" && fs.existsSync(actualPath)) {
+        // File.Replace 保留目标 ACL 等元数据；直接 rename 临时文件会改用父目录继承的 ACL。
+        const literal = value => `'${value.replace(/'/g, "''")}'`;
+        const script = `$ErrorActionPreference = 'Stop'; [System.IO.File]::Replace(${literal(temporary)}, ${literal(actualPath)}, [NullString]::Value)`;
+        const result = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")], { windowsHide: true, encoding: "utf8", timeout: 10000 });
+        if (result.error) throw new Error("REPLACE_RESULT_UNKNOWN: inspect the target before retrying");
+        if (result.status !== 0) throw new Error("File replacement failed; check Windows file locks and permissions");
+      } else fs.renameSync(temporary, actualPath);
+    } finally {
+      if (fd !== undefined) fs.closeSync(fd);
+      if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
+    }
+  }
+
+  function statPath(pathInput) {
+    const targetPath = resolveTargetPath(projectRoot, pathInput);
+    const stat = fs.lstatSync(targetPath);
+    return { path: targetPath, type: stat.isSymbolicLink() ? "symlink" : stat.isDirectory() ? "directory" : "file",
+      sizeBytes: stat.size, modifiedAt: stat.mtime.toISOString() };
+  }
+
+  function makeDirectory(pathInput) {
+    const targetPath = resolveTargetPath(projectRoot, pathInput);
+    const created = fs.mkdirSync(targetPath, { recursive: true }) !== undefined;
+    return { path: targetPath, created };
+  }
+
+  function resolveDestination(sourceInput, destinationInput) {
+    const source = resolveTargetPath(projectRoot, sourceInput);
+    const destination = resolveTargetPath(projectRoot, destinationInput);
+    // lstat 同时检测悬空链接，避免把已存在的目标误认为可覆盖。
+    try { fs.lstatSync(destination); } catch (error) {
+      if (error.code === "ENOENT") return { source, destination };
+      throw error;
+    }
+    throw Object.assign(new Error("Destination already exists; choose a new path"), { code: "EEXIST" });
+  }
+
+  function movePath(sourceInput, destinationInput) {
+    const { source, destination } = resolveDestination(sourceInput, destinationInput);
+    const stat = fs.lstatSync(source);
+    if (source === path.parse(source).root) throw new Error("Cannot move a filesystem root");
+    if (stat.isDirectory() && path.relative(source, destination).split(path.sep)[0] !== ".." && !path.isAbsolute(path.relative(source, destination))) {
+      throw new Error("Cannot move a directory into itself");
+    }
+    // Windows rename 拒绝已存在目标；跨卷 EXDEV 直接返回，不以复制后删除冒充原子移动。
+    fs.renameSync(source, destination);
+    return { path: source, destination, moved: true };
+  }
+
+  function copyFile(sourceInput, destinationInput) {
+    const { source, destination } = resolveDestination(sourceInput, destinationInput);
+    ensureReadableFile(source);
+    fs.copyFileSync(source, destination, fs.constants.COPYFILE_EXCL);
+    return { path: source, destination, sizeBytes: fs.statSync(destination).size };
+  }
+
   function listDirectory(pathInput, depthInput) {
     const targetPath = resolveTargetPath(projectRoot, pathInput);
     if (!fs.existsSync(targetPath)) {
@@ -212,7 +301,7 @@ function createFileService({ projectRoot }) {
     return {
       path: targetPath,
       depth,
-      items: readDirectoryEntries(targetPath, 1, depth)
+      items: readDirectoryEntries(targetPath, 1, depth, { remaining: 5000 })
     };
   }
 
@@ -265,7 +354,26 @@ function createFileService({ projectRoot }) {
       };
     }
 
-    const chunk = readFileChunk(targetPath, start, readableLength);
+    let chunk = readFileChunk(targetPath, start, readableLength);
+    // 字节分页不能把 UTF-8 字符或 UTF-16 代理对切成替换字符；返回实际消费字节数供续读。
+    if (encoding === "utf8") {
+      if ((chunk[0] & 0xc0) === 0x80) throw new Error("offset is inside a UTF-8 character; use the previous returned offset + length");
+      if (start + chunk.length < stat.size) {
+        let lead = chunk.length - 1;
+        while (lead > 0 && (chunk[lead] & 0xc0) === 0x80) lead--;
+        const byte = chunk[lead];
+        const width = byte < 0x80 ? 1 : byte < 0xe0 ? 2 : byte < 0xf0 ? 3 : 4;
+        if (chunk.length - lead < width) chunk = chunk.subarray(0, lead);
+      }
+    } else if (encoding === "utf16le") {
+      if (start % 2) throw new Error("UTF-16 offset must be even");
+      chunk = chunk.subarray(0, chunk.length - chunk.length % 2);
+      if (chunk.length >= 2 && start + chunk.length < stat.size) {
+        const tail = chunk.readUInt16LE(chunk.length - 2);
+        if (tail >= 0xd800 && tail <= 0xdbff) chunk = chunk.subarray(0, chunk.length - 2);
+      }
+    }
+    if (!chunk.length) throw new Error("length is too small for a complete character; request at least 4 bytes");
 
     return {
       path: targetPath,
@@ -280,7 +388,7 @@ function createFileService({ projectRoot }) {
 
   function readTextLines(pathInput, options = {}) {
     const targetPath = resolveTargetPath(projectRoot, pathInput);
-    ensureReadableFile(targetPath);
+    assertBoundedText(targetPath);
     const encoding = normalizeEncoding(options.encoding);
 
     const rawContent = fs.readFileSync(targetPath, { encoding });
@@ -335,8 +443,7 @@ function createFileService({ projectRoot }) {
       throw new Error(`Text content too large (max ${MAX_TEXT_WRITE_BYTES} bytes)`);
     }
 
-    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-    fs.writeFileSync(targetPath, contentInput, { encoding, flag: "w" });
+    atomicWrite(targetPath, Buffer.from(contentInput, encoding));
 
     return {
       path: targetPath,
@@ -347,7 +454,7 @@ function createFileService({ projectRoot }) {
 
   function editTextFile(pathInput, oldTextInput, newTextInput, expectedReplacementsInput, encodingInput) {
     const targetPath = resolveTargetPath(projectRoot, pathInput);
-    ensureReadableFile(targetPath);
+    assertBoundedText(targetPath);
 
     if (typeof oldTextInput !== "string" || !oldTextInput.length) {
       throw new Error("Missing old_text");
@@ -380,7 +487,7 @@ function createFileService({ projectRoot }) {
       throw new Error(`Text content too large (max ${MAX_TEXT_WRITE_BYTES} bytes)`);
     }
 
-    fs.writeFileSync(targetPath, nextContent, { encoding, flag: "w" });
+    atomicWrite(targetPath, Buffer.from(nextContent, encoding));
 
     return {
       path: targetPath,
@@ -442,8 +549,7 @@ function createFileService({ projectRoot }) {
       throw new Error(`Binary content too large (max ${MAX_BASE64_BYTES} bytes)`);
     }
 
-    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-    fs.writeFileSync(targetPath, binary, { flag: "w" });
+    atomicWrite(targetPath, binary);
 
     return {
       path: targetPath,
@@ -452,6 +558,10 @@ function createFileService({ projectRoot }) {
   }
 
   return {
+    statPath,
+    makeDirectory,
+    movePath,
+    copyFile,
     listDirectory,
     readTextFile,
     readTextSegment,

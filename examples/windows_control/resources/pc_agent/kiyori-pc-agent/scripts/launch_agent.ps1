@@ -2,6 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $projectRoot
+. (Join-Path $PSScriptRoot 'agent_process.ps1')
 
 $dataDir = Join-Path $projectRoot "data"
 $logsDir = Join-Path $projectRoot "logs"
@@ -74,7 +75,7 @@ function New-LaunchContext {
 
     $readyUrls = @()
     foreach ($readyHost in $readyHosts) {
-        $readyUrls += "http://$(Format-HostForUrl -InputHost $readyHost):$Port/api/config"
+        $readyUrls += "http://$(Format-HostForUrl -InputHost $readyHost):$Port/api/health"
     }
 
     return [pscustomobject]@{
@@ -105,7 +106,8 @@ function Start-AgentAndProbeReady {
             $env:KIYORI_BIND_ADDRESS_OVERRIDE = $BindAddressOverride
         }
 
-        Start-Process -FilePath $NodePath -ArgumentList "src/server.js" -WorkingDirectory $RootPath -WindowStyle Hidden -RedirectStandardOutput $OutLogPath -RedirectStandardError $ErrLogPath
+        $agentEntry = [System.IO.Path]::GetFullPath((Join-Path $RootPath 'src\server.js'))
+        Start-Process -FilePath $NodePath -ArgumentList ('"' + $agentEntry + '"') -WorkingDirectory $RootPath -WindowStyle Hidden -RedirectStandardOutput $OutLogPath -RedirectStandardError $ErrLogPath
     }
     finally {
         if ($null -eq $previousBindOverride) {
@@ -450,8 +452,7 @@ function Stop-ExistingAgent {
             $pidText = (Get-Content -Raw $pidPath).Trim()
             if ($pidText -match '^\d+$') {
                 $pidValue = [int]$pidText
-                Stop-Process -Id $pidValue -Force -ErrorAction SilentlyContinue
-                Write-Log "INFO" "Stopped PID from pid file: $pidValue"
+                [void](Stop-OwnedAgentProcess -ProcessId $pidValue -RootPath $projectRoot)
             }
         }
         catch {
@@ -465,8 +466,7 @@ function Stop-ExistingAgent {
             $pids = $conns | Select-Object -ExpandProperty OwningProcess -Unique
             foreach ($p in $pids) {
                 if ($p -gt 0) {
-                    Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
-                    Write-Log "INFO" "Stopped process listening on port ${Port}: PID $p"
+                    [void](Stop-OwnedAgentProcess -ProcessId $p -RootPath $projectRoot)
                 }
             }
         }
@@ -477,8 +477,7 @@ function Stop-ExistingAgent {
             $parts = ($row.ToString() -split '\s+') | Where-Object { $_ -ne '' }
             if ($parts.Count -ge 5 -and $parts[4] -match '^\d+$') {
                 $p = [int]$parts[4]
-                Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
-                Write-Log "INFO" "Stopped process from netstat on port ${Port}: PID $p"
+                [void](Stop-OwnedAgentProcess -ProcessId $p -RootPath $projectRoot)
             }
         }
     }
@@ -519,7 +518,7 @@ function Ensure-Dependencies {
     }
     elseif ((Test-Path $npmLockFilePath) -and $npmCmd) {
         $installerName = "npm"
-        $primaryArgs = @("install", "--no-audit", "--no-fund")
+        $primaryArgs = @("ci", "--no-audit", "--no-fund")
         $fallbackArgs = $null
     }
     elseif ($pnpmCmd) {
@@ -867,6 +866,9 @@ try {
     if (Test-Path $runtimePath) {
         try {
             $runtime = Get-Content -Raw $runtimePath | ConvertFrom-Json
+            if ($runtime.managementUrl -match '^http://127\.0\.0\.1:\d+$') {
+                $url = $runtime.managementUrl
+            }
             if ($runtime.pid) {
                 $resolvedPid = [int]$runtime.pid
                 Write-Log "INFO" "Runtime PID: $resolvedPid"

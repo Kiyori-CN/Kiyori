@@ -2,6 +2,12 @@
   box-sizing: border-box;
 }
 
+[hidden] { display: none !important; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
 html,
 body {
   margin: 0;
@@ -12,10 +18,8 @@ body {
   min-height: 100vh;
   font-family: "Segoe UI Variable", "Noto Sans SC", "Microsoft YaHei", sans-serif;
   color: var(--text-main);
-  background:
-    radial-gradient(1200px 700px at 100% 0%, rgba(84, 135, 255, 0.16), rgba(84, 135, 255, 0)),
-    radial-gradient(900px 540px at 0% 100%, rgba(22, 166, 255, 0.12), rgba(22, 166, 255, 0)),
-    linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+  background: var(--bg-top);
+  line-height: 1.55;
 }
 
 #app {
@@ -23,8 +27,8 @@ body {
 }
 
 .shell {
-  width: min(1240px, calc(100% - 32px));
-  margin: 20px auto 28px;
+  width: min(1120px, calc(100% - 48px));
+  margin: 32px auto 48px;
 }
 
 .app-header {
@@ -42,7 +46,8 @@ body {
 
 .app-title {
   margin: 0;
-  font-size: clamp(1.32rem, 2.2vw, 1.8rem);
+  font-size: clamp(1.32rem, 2.2vw, 1.7rem);
+  letter-spacing: -0.025em;
   color: var(--text-strong);
 }
 

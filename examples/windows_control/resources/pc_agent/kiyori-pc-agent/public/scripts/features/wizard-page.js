@@ -16,6 +16,11 @@ export function createWizardPage({ t, W, on = {} }) {
         { className: "wizard-step-panel", ref: "wizardStep1Panel" },
         W.PanelTitle(t("wizard.step1Title")),
         W.Text({ as: "p", className: "wizard-step-desc", text: t("wizard.step1Desc") }),
+        W.Field({ label: t("connection.mode") }, W.Select({ ref: "connectionModeInput", options: [
+          { value: "lan", label: t("connection.lan") }, { value: "frp", label: t("connection.frp") }
+        ], on: { change: on.connectionMode } })),
+        W.Text({ as: "p", className: "wizard-hint", text: t("connection.lanHelp"), ref: "connectionModeHelp" }),
+        W.Field({ label: t("connection.publicUrl"), ref: "publicUrlField" }, W.Input({ ref: "publicUrlInput", placeholder: "https://pc.example.com", on: { input: on.mobileInput } })),
         W.Grid2(
           {},
           W.Field({ label: t("field.bindAddress") }, W.Input({ ref: "wizardBindAddressInput", placeholder: "127.0.0.1" })),
@@ -68,7 +73,8 @@ export function createWizardPage({ t, W, on = {} }) {
           )
         ),
         W.Text({ as: "p", className: "wizard-snippet-title", text: t("wizard.mobileJsonTitle") }),
-        W.Output({ ref: "wizardMobileJsonOutput", minHeight: 120, text: "{}" })
+        W.Output({ ref: "wizardMobileJsonOutput", minHeight: 100, text: "{}" }),
+        W.Text({ as: "p", className: "wizard-hint", text: t("connection.secretHint") })
       )
     )
   );
@@ -121,6 +127,7 @@ export function createWizardController({ api, refs, state, t, helpers, callbacks
   }
 
   function applyWizardBindAddressAutoDefault() {
+    if (state.connectionMode === "frp") return;
     if (state.wizardBindAutoApplied || !refs.wizardBindAddressInput) {
       return;
     }
@@ -146,6 +153,7 @@ export function createWizardController({ api, refs, state, t, helpers, callbacks
   }
 
   function buildRecommendedAgentBaseUrl() {
+    if (state.connectionMode === "frp") return refs.publicUrlInput.value.trim();
     const host = chooseRecommendedHost();
     if (!host) {
       return "";
@@ -184,7 +192,7 @@ export function createWizardController({ api, refs, state, t, helpers, callbacks
 
     const assignText = (refName, value) => {
       const node = refs[refName];
-      if (!node || value === undefined || value === null || value === "") {
+      if (!node || value === undefined || value === null || (value === "" && !force)) {
         return;
       }
 
@@ -236,10 +244,11 @@ export function createWizardController({ api, refs, state, t, helpers, callbacks
   function renderMobileSnippets() {
     const envObject = buildMobileEnvObject({ includeRequired: true });
     const jsonText = JSON.stringify(envObject, null, 2);
+    const previewText = JSON.stringify({ ...envObject, WINDOWS_AGENT_TOKEN: "••••••••" }, null, 2);
     const envText = toEnvText(envObject);
 
     if (refs.wizardMobileJsonOutput) {
-      refs.wizardMobileJsonOutput.textContent = jsonText;
+      refs.wizardMobileJsonOutput.textContent = previewText;
     }
 
     if (refs.wizardMobileEnvOutput) {
@@ -278,6 +287,9 @@ export function createWizardController({ api, refs, state, t, helpers, callbacks
   }
 
   function syncFromState(options = {}) {
+    refs.connectionModeInput.value = state.connectionMode || "lan";
+    refs.publicUrlField.hidden = state.connectionMode !== "frp";
+    refs.connectionModeHelp.textContent = t(state.connectionMode === "frp" ? "connection.frpHelp" : "connection.lanHelp");
     fillWizardHostHint();
     applyWizardBindAddressAutoDefault();
     applyOneClickMobileDefaults({ force: !!options.forceMobileDefaults });
@@ -289,6 +301,8 @@ export function createWizardController({ api, refs, state, t, helpers, callbacks
 
     try {
       const payload = {
+        connectionMode: state.connectionMode,
+        publicUrl: refs.publicUrlInput.value.trim(),
         bindAddress: refs.wizardBindAddressInput.value.trim(),
         port: Number(refs.wizardPortInput.value),
         maxCommandMs: Number(refs.wizardMaxCommandInput.value),
@@ -296,6 +310,7 @@ export function createWizardController({ api, refs, state, t, helpers, callbacks
       };
 
       const result = await api.updateConfig(payload);
+      state.pendingRestart = !!result.restartRequired;
       setJsonOutput("wizardStep1Output", result);
 
       if (result.restartRequired) {
@@ -365,14 +380,23 @@ export function createWizardController({ api, refs, state, t, helpers, callbacks
     temp.style.opacity = "0";
     document.body.appendChild(temp);
     temp.select();
-    document.execCommand("copy");
-    document.body.removeChild(temp);
+    try {
+      if (!document.execCommand("copy")) throw new Error(t("connection.clipboardFailed"));
+    } finally { document.body.removeChild(temp); }
   }
 
   async function handleWizardCopyPayload() {
     setBusy("wizardCopyPayloadButton", true, t("action.copyPayload"), t("action.working"));
 
     try {
+      const env = buildMobileEnvObject({ includeRequired: true });
+      if (!env.WINDOWS_AGENT_TOKEN) throw new Error(t("connection.tokenRequired"));
+      const raw = env.WINDOWS_AGENT_BASE_URL;
+      const url = new URL(raw);
+      if (!/^https?:$/.test(url.protocol) || url.username || url.password || url.search || url.hash || /[\s\\]/.test(raw)) throw new Error(t("connection.invalidUrl"));
+      if (["localhost", "127.0.0.1", "0.0.0.0", "[::1]", "[::]"].includes(url.hostname)) throw new Error(t("connection.phoneLoopback"));
+      if (state.health && (state.health.runtimeBindAddress !== state.config.bindAddress || state.health.port !== state.config.port || state.pendingRestart)) throw new Error(t("connection.restartFirst"));
+      if (state.connectionMode !== "frp" && ["127.0.0.1", "::1"].includes(state.config.bindAddress)) throw new Error(t("connection.restartFirst"));
       const { jsonText } = renderMobileSnippets();
       await copyText(jsonText);
       setNotice("ok", t("message.copyPayloadSuccess"));
@@ -389,7 +413,14 @@ export function createWizardController({ api, refs, state, t, helpers, callbacks
   }
 
   function handleMobileSnippetInput() {
+    if (state.connectionMode === "frp") refs.mobileBaseUrlInput.value = refs.publicUrlInput.value.trim();
     renderMobileSnippets();
+  }
+
+  function handleConnectionMode() {
+    state.connectionMode = refs.connectionModeInput.value;
+    refs.wizardBindAddressInput.value = state.connectionMode === "frp" ? "127.0.0.1" : chooseRecommendedHost();
+    syncFromState({ forceMobileDefaults: true });
   }
 
   return {
@@ -401,6 +432,7 @@ export function createWizardController({ api, refs, state, t, helpers, callbacks
     handleWizardOneClickFill,
     handleWizardCopyPayload,
     handleWizardToggleAdvanced,
-    handleMobileSnippetInput
+    handleMobileSnippetInput,
+    handleConnectionMode
   };
 }

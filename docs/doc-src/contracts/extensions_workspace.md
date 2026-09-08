@@ -36,6 +36,16 @@
 - GitHub Release 资产是已经发布的独立产物；后续市场登记失败报告 `RegistrationFailed`，不能删除 Release 或资产。
 - “扩展”的四页签和各自顶栏操作复用完整 PackageManagerSnapshot，安装成功发布 catalog revision；保留页面刷新，重建页面读取当前快照。
 
+## Windows 工具包
+
+- `com.kiyori.windows_bundle` / `windows_control` 保持稳定标识；手机 Compose DSL 和工具执行共用连接地址规范化。
+- 地址与令牌由现有 `EnvPreferences` 持有，`setEnvs` 在同一 SharedPreferences 编辑器中发布关联字段；不会清空其他包变量。
+- PC Agent 的执行端口与本机管理端口隔离，仍共用一个配置、文件与进程会话所有者。FRP 只映射执行端口。
+- 手机只有收到专用认证探测的明确成功才显示已连接；HTTPS 使用协议默认端口，支持反向代理路径前缀。
+- Windows 请求禁用重定向、共享 Cookie 和连接恢复重试。传输丢失报告未知提交状态，不自动重做文件或命令操作。
+- 文件移动/复制拒绝覆盖；写入先完成临时文件再发布，Windows 已有文件使用保留 ACL 的系统替换。
+- 具体接口、安装、局域网/FRP 配置、限制与升级见 [PC Agent 指南](../../../examples/windows_control/resources/pc_agent/kiyori-pc-agent/README.md)。
+
 ## OpenAI 搜索
 
 - `openai_web_search:openai_search` 是独立托管搜索工具；配置唯一来自 package-scoped `PACKAGE + HOST_SERVICE` 的 `ToolPkgHostEnvironmentRepository`，不跟随当前对话模型。

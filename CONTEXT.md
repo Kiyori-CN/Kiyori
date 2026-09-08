@@ -51,6 +51,7 @@
 - 九个 Android 模块仍由根 settings 声明；`buildSrc` 只持有 Gradle 任务实现，不进入 APK。app 注册任务并提供 Variant 输入；宿主工具统一由 `tools/` 按职责管理，详细边界见 [仓库与源码架构](docs/doc-src/architecture/repository_architecture.md)。
 - Gradle namespace、AIDL/JNI、Manifest 稳定组件、Intent action、`operit://`、数据库、偏好、备份、工作区、ToolPkg/MCP 和 `.operit/config.json` 均不是可机械替换的品牌文本。
 - 新内置脚本采用 Kiyori 展示名与约定的 `com.kiyori.*`、`remote_kiyori`、`kiyori-pc-agent` 标识；历史 Operit 输入只按显式兼容契约导入。
+- Windows 工具包保持 `windows_control` / `WINDOWS_AGENT_*` 兼容；手机配置与执行共用现有环境变量所有者，电脑管理与远程执行分端口、共用服务状态。连接与文件限制见扩展契约。
 - `BuildConfig.OPERIT_MARKET_COMPAT_VERSION` 服务市场 `minAppVer/maxAppVer` 判断，不能用 Kiyori 的 `versionName` 替代。
 - Kiyori 是独立 application ID，不能覆盖旧 Operit 安装；迁移通过用户明确选择的备份或文件入口。
 - 新公开文件写入 `Download/Kiyori` 或 `Pictures/Kiyori`；不自动扫描、合并或删除 `Download/Operit`。设备绑定的凭据和派生缓存按各领域备份边界处理。

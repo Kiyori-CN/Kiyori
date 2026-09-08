@@ -21,7 +21,8 @@ const {
 } = require("./config/constants");
 const { AGENT_VERSION } = require("./config/version");
 const { createRuntimeLogger } = require("./lib/logger");
-const { createStaticFileServer, sendNotFound } = require("./lib/http-utils");
+const { createStaticFileServer, sendNotFound, sendJson } = require("./lib/http-utils");
+const { allowManagementRequest } = require("./lib/request-policy");
 const { createConfigStore } = require("./stores/config-store");
 const { createRuntimeStore } = require("./stores/runtime-store");
 const { createStartupStateStore } = require("./stores/startup-state-store");
@@ -153,6 +154,7 @@ const apiHandler = createApiHandler({
     pid: () => process.pid,
     host: () => os.hostname(),
     uptimeSec: () => Math.floor(process.uptime()),
+    runtimePort: () => server.address()?.port || state.config.port,
     runtimeBindAddress: () => runtimeBinding.runtimeBindAddress,
     bindOverrideActive: () => runtimeBinding.bindOverrideActive
   },
@@ -161,29 +163,47 @@ const apiHandler = createApiHandler({
   }
 });
 
-const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host || "127.0.0.1"}`);
+function handleRequest(management) { return async (req, res) => {
+  try {
+  if (management && !allowManagementRequest(req)) {
+    sendJson(res, 403, { ok: false, error: "MANAGEMENT_ORIGIN_REJECTED" });
+    return;
+  }
+  const url = new URL(req.url, "http://127.0.0.1");
   logger.info("http.request", { method: req.method, path: url.pathname });
 
-  if (req.method === "GET" && !url.pathname.startsWith("/api/")) {
+  if (management && req.method === "GET" && !url.pathname.startsWith("/api/")) {
     if (staticFileServer.tryServePublicFile(res, url.pathname)) {
       return;
     }
   }
 
-  if (await apiHandler.handleApiRequest(req, res, url)) {
+  if (await apiHandler.handleApiRequest(req, res, url, { management })) {
     return;
   }
 
   sendNotFound(res);
   logger.warn("http.404", { method: req.method, path: url.pathname });
-});
+  } catch (error) {
+    logger.error("http.failure", { error: error.message });
+    if (!res.headersSent) sendJson(res, 400, { ok: false, error: "Invalid request" });
+    else res.end();
+  }
+}; }
+
+const server = http.createServer(handleRequest(false));
+const managementServer = http.createServer(handleRequest(true));
 
 server.listen(state.config.port, runtimeBinding.runtimeBindAddress, () => {
+  managementServer.listen(0, "127.0.0.1", () => {
+  const managementUrl = `http://127.0.0.1:${managementServer.address().port}`;
   runtimeStore.writeRuntimeFile({
     port: state.config.port,
     pid: process.pid,
-    host: os.hostname()
+    host: os.hostname(),
+    managementUrl
+  });
+  console.log(`Kiyori PC Agent: ${managementUrl}`);
   });
 
   logger.info("server.listening", {
@@ -209,6 +229,7 @@ function shutdown(signal) {
   }
 
   runtimeStore.removeRuntimeFile();
+  managementServer.close();
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(1), 2000);
 }

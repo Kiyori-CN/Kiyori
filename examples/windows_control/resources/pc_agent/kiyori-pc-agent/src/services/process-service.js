@@ -50,7 +50,8 @@ function createProcessService({ projectRoot, logger }) {
       "$utf8NoBom = [System.Text.UTF8Encoding]::new($false)",
       "[Console]::InputEncoding = $utf8NoBom",
       "[Console]::OutputEncoding = $utf8NoBom",
-      "$OutputEncoding = $utf8NoBom"
+      "$OutputEncoding = $utf8NoBom",
+      "$ErrorActionPreference = 'Stop'"
     ].join("; ");
 
     return `${prelude}; ${command}`;
@@ -61,7 +62,8 @@ function createProcessService({ projectRoot, logger }) {
     if (mode === "cmd" || mode === "pwsh") {
       return mode;
     }
-    return "powershell";
+    if (mode === "powershell") return mode;
+    throw new Error("Unsupported shell; expected powershell, pwsh or cmd");
   }
 
   function parseNonNegativeInt(value, fallback, fieldName) {
@@ -70,7 +72,7 @@ function createProcessService({ projectRoot, logger }) {
     }
 
     const parsed = Number(value);
-    if (!Number.isFinite(parsed) || parsed < 0) {
+    if (!Number.isSafeInteger(parsed) || parsed < 0) {
       throw new Error(`${fieldName} must be a non-negative integer`);
     }
 
@@ -83,7 +85,7 @@ function createProcessService({ projectRoot, logger }) {
     }
 
     const parsed = Number(value);
-    if (!Number.isFinite(parsed) || parsed <= 0) {
+    if (!Number.isSafeInteger(parsed) || parsed <= 0) {
       throw new Error(`${fieldName} must be a positive integer`);
     }
 
@@ -492,7 +494,7 @@ function createProcessService({ projectRoot, logger }) {
     return new Promise((resolve) => {
       const startedAt = Date.now();
       const windowsHide = options.windowsHide === undefined ? true : !!options.windowsHide;
-      logger.info("runProcess.start", { executable, args, timeoutMs, windowsHide });
+      logger.info("runProcess.start", { executable, argumentCount: args.length, timeoutMs, windowsHide });
 
       const child = spawn(executable, args, {
         windowsHide,
@@ -502,18 +504,28 @@ function createProcessService({ projectRoot, logger }) {
       let stdout = "";
       let stderr = "";
       let timedOut = false;
+      let outputTruncated = false;
+      child.stdout.setEncoding("utf8");
+      child.stderr.setEncoding("utf8");
 
       child.stdout.on("data", (chunk) => {
-        stdout += chunk.toString();
+        const room = Math.max(0, MAX_SESSION_BUFFER_CHARS - stdout.length);
+        if (chunk.length > room) outputTruncated = true;
+        stdout += chunk.slice(0, room);
       });
 
       child.stderr.on("data", (chunk) => {
-        stderr += chunk.toString();
+        const room = Math.max(0, MAX_SESSION_BUFFER_CHARS - stderr.length);
+        if (chunk.length > room) outputTruncated = true;
+        stderr += chunk.slice(0, room);
       });
 
       const timer = setTimeout(() => {
         timedOut = true;
-        child.kill();
+        if (process.platform === "win32" && child.pid) {
+          const killer = spawn("taskkill", ["/PID", `${child.pid}`, "/T", "/F"], { windowsHide: true, stdio: "ignore" });
+          killer.on("error", error => { logger.error("runProcess.terminate.error", { error: error.message }); child.kill(); });
+        } else child.kill();
       }, timeoutMs);
 
       child.on("close", (code) => {
@@ -521,7 +533,8 @@ function createProcessService({ projectRoot, logger }) {
         const result = {
           exitCode: code === null ? -1 : code,
           stdout,
-          stderr,
+          stderr: stderr + (outputTruncated ? "\n[OUTPUT_TRUNCATED: use a process session or redirect output to a file]" : ""),
+          outputTruncated,
           timedOut,
           durationMs: Date.now() - startedAt
         };

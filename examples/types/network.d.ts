@@ -297,6 +297,9 @@ export namespace Net {
         body?: string | object;
         connect_timeout?: number;
         read_timeout?: number;
+        write_timeout?: number;
+        use_cookies?: boolean;
+        retry_on_connection_failure?: boolean;
         follow_redirects?: boolean;
         ignore_ssl?: boolean;
         responseType?: 'text' | 'json' | 'arraybuffer' | 'blob';

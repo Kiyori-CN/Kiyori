@@ -7,8 +7,8 @@ export function registerToolPkg() {
     screen: toolboxUI,
     params: {},
     title: {
-      zh: "Windows 一键配置",
-      en: "Windows Quick Setup",
+      zh: "连接 Windows",
+      en: "Connect Windows",
     },
   });
 

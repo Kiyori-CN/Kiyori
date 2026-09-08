@@ -13,8 +13,8 @@ function registerToolPkg() {
         screen: index_ui_js_1.default,
         params: {},
         title: {
-            zh: "Windows 一键配置",
-            en: "Windows Quick Setup",
+            zh: "连接 Windows",
+            en: "Connect Windows",
         },
     });
     ToolPkg.registerAppLifecycleHook({

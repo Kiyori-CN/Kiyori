@@ -1,5 +1,11 @@
 async function requestJson(url, options = {}) {
-  const response = await fetch(url, {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 650000);
+  let response;
+  try {
+  response = await fetch(url, {
+    signal: controller.signal,
+    redirect: "error",
     method: options.method || "GET",
     headers: {
       Accept: "application/json",
@@ -21,7 +27,9 @@ async function requestJson(url, options = {}) {
     throw new Error((data && data.error) || `HTTP ${response.status}`);
   }
 
+  if (data?.ok === false) throw new Error(data.error || "Operation failed");
   return data;
+  } finally { clearTimeout(timer); }
 }
 
 export const api = {

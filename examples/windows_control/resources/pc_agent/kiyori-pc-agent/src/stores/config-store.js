@@ -53,6 +53,8 @@ function createConfigStore({ dataDir, configPath, defaultConfig, presetCommands 
       const allowedPresets = pickDefined(parsed.allowedPresets, parsed.allowed_presets);
 
       const normalized = {
+        connectionMode: parsed.connectionMode === "frp" ? "frp" : "lan",
+        publicUrl: typeof parsed.publicUrl === "string" ? parsed.publicUrl : "",
         bindAddress: typeof bindAddress === "string" && bindAddress.trim() ? bindAddress.trim() : defaultConfig.bindAddress,
         port:
           Number.isFinite(Number(port)) && Number(port) > 0 && Number(port) <= 65535
@@ -66,23 +68,22 @@ function createConfigStore({ dataDir, configPath, defaultConfig, presetCommands 
         allowedPresets: normalizeAllowedPresets(allowedPresets)
       };
 
-      fs.writeFileSync(configPath, JSON.stringify(normalized, null, 2), "utf8");
+      saveConfig(normalized);
       return normalized;
-    } catch {
-      const backup = configPath + ".broken." + Date.now();
-      fs.renameSync(configPath, backup);
-      const fallbackConfig = {
-        ...defaultConfig,
-        apiToken: ensureApiToken(defaultConfig.apiToken)
-      };
-      fs.writeFileSync(configPath, JSON.stringify(fallbackConfig, null, 2), "utf8");
-      return fallbackConfig;
+    } catch (error) {
+      throw new Error(`Cannot load PC Agent configuration; original file preserved (${error.code || error.name})`);
     }
   }
 
   function saveConfig(config) {
     ensureDir(dataDir);
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf8");
+    const temporary = `${configPath}.${crypto.randomUUID()}.tmp`;
+    try {
+      fs.writeFileSync(temporary, JSON.stringify(config, null, 2), { encoding: "utf8", flag: "wx", mode: 0o600 });
+      fs.renameSync(temporary, configPath);
+    } finally {
+      if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
+    }
   }
 
   return {

@@ -2,13 +2,14 @@ const fs = require("fs");
 const { ensureDir } = require("../lib/fs-utils");
 
 function createRuntimeStore({ dataDir, runtimePath }) {
-  function writeRuntimeFile({ port, pid, host }) {
+  function writeRuntimeFile({ port, pid, host, managementUrl }) {
     ensureDir(dataDir);
     const data = {
       pid,
       startedAt: new Date().toISOString(),
       port,
-      host
+      host,
+      managementUrl
     };
     fs.writeFileSync(runtimePath, JSON.stringify(data, null, 2), "utf8");
   }

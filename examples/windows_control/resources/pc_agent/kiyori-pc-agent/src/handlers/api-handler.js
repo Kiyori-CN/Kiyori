@@ -1,4 +1,5 @@
 const { readJsonBody, sendJson, parseBoolean } = require("../lib/http-utils");
+const { tokenMatches } = require("../lib/request-policy");
 
 const FILE_WRITE_JSON_MAX_BODY_BYTES = 8 * 1024 * 1024;
 const FILE_WRITE_BASE64_JSON_MAX_BODY_BYTES = 24 * 1024 * 1024;
@@ -11,7 +12,9 @@ function buildPublicConfig(config, versionInfo) {
     allowedPresets: config.allowedPresets,
     apiTokenConfigured: !!config.apiToken,
     apiToken: config.apiToken || "",
-    version: versionInfo.agentVersion
+    version: versionInfo.agentVersion,
+    connectionMode: config.connectionMode || "lan",
+    publicUrl: config.publicUrl || ""
   };
 }
 
@@ -36,7 +39,7 @@ function isAuthorized(config, token) {
     return false;
   }
 
-  return String(token || "") === config.apiToken;
+  return tokenMatches(config.apiToken, token);
 }
 
 function createApiHandler({
@@ -270,10 +273,36 @@ function createApiHandler({
     return sequence;
   }
 
-  async function handleApiRequest(req, res, url) {
+  async function handleApiRequest(req, res, url, { management = false } = {}) {
     const config = state.config;
 
+    if (!management && (url.pathname === "/api/config" || url.pathname.startsWith("/api/startup/"))) {
+      sendJson(res, 403, { ok: false, error: "LOCAL_MANAGEMENT_ONLY" });
+      return true;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/connection/test") {
+      try {
+        const body = await readJsonBody(req);
+        if (!isAuthorized(config, body.token)) {
+          unauthorized(res, "connection.test", !!body.token);
+          return true;
+        }
+        sendJson(res, 200, { ok: true, version: versionInfo.agentVersion, mode: "http-agent",
+          capabilities: ["files", "file-move", "file-copy", "file-mkdir", "process-sessions"],
+          runtimeBindAddress: runtimeInfo.runtimeBindAddress ? runtimeInfo.runtimeBindAddress() : config.bindAddress,
+          port: config.port });
+      } catch (error) {
+        sendJson(res, 400, { ok: false, error: error.message });
+      }
+      return true;
+    }
+
     if (req.method === "GET" && url.pathname === "/api/health") {
+      if (!management) {
+        sendJson(res, 200, { ok: true, mode: "http-agent", version: versionInfo.agentVersion, port: config.port });
+        return true;
+      }
       const network = processService.getNetworkSnapshot();
       const user = processService.getUserSnapshot();
       const startupIssue = getStartupIssueState();
@@ -286,7 +315,7 @@ function createApiHandler({
         bindAddress: config.bindAddress,
         runtimeBindAddress: runtimeInfo.runtimeBindAddress ? runtimeInfo.runtimeBindAddress() : config.bindAddress,
         bindOverrideActive: runtimeInfo.bindOverrideActive ? !!runtimeInfo.bindOverrideActive() : false,
-        port: config.port,
+        port: runtimeInfo.runtimePort ? runtimeInfo.runtimePort() : config.port,
         mode: "http-agent",
         version: versionInfo.agentVersion,
         network,
@@ -379,16 +408,30 @@ function createApiHandler({
       try {
         const body = await readJsonBody(req);
         const nextConfig = { ...state.config };
+        if (body.connectionMode !== undefined) {
+          if (!["lan", "frp"].includes(body.connectionMode)) throw new Error("Invalid connection mode");
+          nextConfig.connectionMode = body.connectionMode;
+        }
+        if (body.publicUrl !== undefined) {
+          if (typeof body.publicUrl !== "string") throw new Error("Invalid public URL");
+          const raw = body.publicUrl.trim();
+          if (raw) {
+            const endpoint = new URL(raw);
+            if (!/^https?:$/.test(endpoint.protocol) || endpoint.username || endpoint.password || endpoint.search || endpoint.hash || /[\s\\]/.test(raw)) throw new Error("Invalid public URL");
+          }
+          nextConfig.publicUrl = raw;
+        }
 
         const bindAddressInput = pickConfigInput(body, "bindAddress", "bind_address");
         if (typeof bindAddressInput === "string" && bindAddressInput.trim()) {
           nextConfig.bindAddress = bindAddressInput.trim();
+          if (!require("net").isIP(nextConfig.bindAddress) && nextConfig.bindAddress !== "localhost") throw new Error("Bind address must be a local IP address");
         }
 
         const portInput = pickConfigInput(body, "port", null);
         if (portInput !== undefined) {
           const parsed = Number(portInput);
-          if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 65535) {
+          if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 65535) {
             sendJson(res, 400, { ok: false, error: "Invalid port" });
             return true;
           }
@@ -398,7 +441,7 @@ function createApiHandler({
         const maxCommandMsInput = pickConfigInput(body, "maxCommandMs", "max_command_ms");
         if (maxCommandMsInput !== undefined) {
           const parsed = Number(maxCommandMsInput);
-          if (!Number.isFinite(parsed) || parsed < 1000 || parsed > 600000) {
+          if (!Number.isInteger(parsed) || parsed < 1000 || parsed > 600000) {
             sendJson(res, 400, { ok: false, error: "maxCommandMs must be 1000..600000" });
             return true;
           }
@@ -417,11 +460,11 @@ function createApiHandler({
           nextConfig.allowedPresets = configStore.normalizeAllowedPresets(allowedPresetsInput);
         }
 
-        const restartRequired =
-          nextConfig.port !== state.config.port || nextConfig.bindAddress !== state.config.bindAddress;
+        const restartRequired = nextConfig.port !== (runtimeInfo.runtimePort ? runtimeInfo.runtimePort() : state.config.port)
+          || nextConfig.bindAddress !== (runtimeInfo.runtimeBindAddress ? runtimeInfo.runtimeBindAddress() : state.config.bindAddress);
 
+        configStore.saveConfig(nextConfig);
         state.config = nextConfig;
-        configStore.saveConfig(state.config);
 
         logger.info("config.update.success", {
           bindAddress: state.config.bindAddress,
@@ -501,7 +544,7 @@ function createApiHandler({
         const result = await processService.runCommand(shell, command, timeout);
 
         logger.info("command.execute.result", {
-          ok: result.exitCode === 0,
+          ok: result.exitCode === 0 && !result.timedOut,
           shell,
           exitCode: result.exitCode,
           timedOut: result.timedOut,
@@ -511,7 +554,7 @@ function createApiHandler({
         });
 
         sendJson(res, 200, {
-          ok: result.exitCode === 0,
+          ok: result.exitCode === 0 && !result.timedOut,
           shell,
           command,
           exitCode: result.exitCode,
@@ -728,6 +771,25 @@ function createApiHandler({
         sendJson(res, 400, { ok: false, error: error.message });
       }
 
+      return true;
+    }
+
+    if (req.method === "POST" && ["/api/file/move", "/api/file/copy", "/api/file/mkdir", "/api/file/stat"].includes(url.pathname)) {
+      try {
+        const body = await readJsonBody(req);
+        if (!isAuthorized(state.config, body.token)) {
+          unauthorized(res, "file.operation", !!body.token);
+          return true;
+        }
+        const operation = url.pathname.split("/").pop();
+        const result = operation === "move" ? fileService.movePath(body.path, body.destination)
+          : operation === "copy" ? fileService.copyFile(body.path, body.destination)
+          : operation === "mkdir" ? fileService.makeDirectory(body.path)
+          : fileService.statPath(body.path);
+        sendJson(res, 200, { ok: true, ...result });
+      } catch (error) {
+        sendJson(res, 400, { ok: false, error: error.message, code: error.code || "INVALID_ARGUMENT" });
+      }
       return true;
     }
 

@@ -45,6 +45,9 @@ http({
   connect_timeout?,
   read_timeout?,
   follow_redirects?,
+  write_timeout?,
+  use_cookies?,
+  retry_on_connection_failure?,
   ignore_ssl?,
   responseType?,
   validateStatus?
@@ -52,6 +55,10 @@ http({
 ```
 
 这是更通用的 HTTP 请求入口。
+
+`retry_on_connection_failure` 默认保持 OkHttp 的连接恢复行为；远程文件、命令等有副作用的请求可显式设为
+`false`，同时使用 `follow_redirects: false` 防止重新提交或将凭据转发到新地址。`use_cookies: false`
+禁用共享 Cookie，`write_timeout` 单位为秒。连接失败不能证明服务未执行，调用方应保留未知提交状态。
 
 `http(options)` 与 `uploadFile(options)` 中的 `ignore_ssl` 具有相同约束：只能省略或设为 `false`。
 

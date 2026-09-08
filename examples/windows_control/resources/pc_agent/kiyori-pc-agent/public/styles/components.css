@@ -12,7 +12,7 @@
 
 .status-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -348,8 +348,8 @@
 
 .route-tab.is-active.ui-button--soft {
   border-color: #8fb2e7;
-  background: linear-gradient(180deg, #f7fbff, #eaf3ff);
-  color: #153f73;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
   box-shadow: 0 2px 0 rgba(21, 63, 115, 0.08);
 }
 
@@ -530,8 +530,8 @@
 }
 
 .wizard-step-btn.ui-button--soft {
-  border-color: #cfdced;
-  background: #f5f9ff;
+  border-color: var(--border);
+  background: var(--surface-soft);
 }
 
 .wizard-step-btn.is-active.ui-button--soft {
@@ -549,7 +549,7 @@
 .wizard-step-panel {
   border-width: 1px;
   padding: 12px;
-  background: linear-gradient(180deg, #f8fbff, #f4f8ff);
+  background: var(--surface);
 }
 
 .wizard-step-panel[hidden] {
@@ -557,8 +557,8 @@
 }
 
 .wizard-one-click {
-  border: 1px solid #b6cee8;
-  background: linear-gradient(180deg, #edf5ff, #e9f2ff);
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
 }
 
 .wizard-advanced-panel[hidden] {
@@ -574,10 +574,10 @@
 
 .wizard-hint {
   margin: 0;
-  border: 1px dashed #c6d9f3;
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: #edf5ff;
-  color: #294f80;
+  background: var(--surface-soft);
+  color: var(--text-muted);
   padding: 8px 10px;
   font-size: 0.82rem;
   line-height: 1.45;

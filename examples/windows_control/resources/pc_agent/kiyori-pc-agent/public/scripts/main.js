@@ -25,6 +25,8 @@ const state = {
   wizardStep: 0,
   wizardAdvancedVisible: false,
   wizardBindAutoApplied: false,
+  connectionMode: "lan",
+  pendingRestart: false,
   health: null,
   config: null,
   presetItems: [],
@@ -67,7 +69,7 @@ function setJsonOutput(refName, payload) {
     return;
   }
 
-  node.textContent = JSON.stringify(payload, null, 2);
+  node.textContent = JSON.stringify(payload, (key, value) => /token|authorization|password/i.test(key) && typeof value === "string" ? "[redacted]" : value, 2);
 }
 
 function setNotice(tone, text) {
@@ -250,7 +252,8 @@ function createTree() {
           wizardOneClickFill: wizardController.handleWizardOneClickFill,
           wizardCopyPayload: wizardController.handleWizardCopyPayload,
           wizardToggleAdvanced: wizardController.handleWizardToggleAdvanced,
-          mobileInput: wizardController.handleMobileSnippetInput
+          mobileInput: wizardController.handleMobileSnippetInput,
+          connectionMode: wizardController.handleConnectionMode
         }
       }),
       createCommandsPage({
@@ -413,6 +416,8 @@ async function loadConfigAndPresets(options = {}) {
   const [config, presets] = await Promise.all([api.getConfig(), api.getPresets()]);
 
   state.config = config;
+  state.connectionMode = config.connectionMode || "lan";
+  refs.publicUrlInput.value = config.publicUrl || "";
   state.presetItems = presets.items || [];
 
   settingsController.fillSettingsForm(config);

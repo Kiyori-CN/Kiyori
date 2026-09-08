@@ -73,3 +73,4 @@
 | [全软件 UI 风格统一优化](ui_style_unification/index.md) | `ui_style_unification` |
 | [GPT-5.6 可恢复执行与统一模型能力](unified_model_capability_and_resumable_execution/index.md) | `unified_model_capability_and_resumable_execution` |
 | [用户 Markdown 档案](user_md_profile/index.md) | `user_md_profile` |
+| [Windows 工具包双端完善](windows_toolkit_refinement/index.md) | `windows_toolkit_refinement` |

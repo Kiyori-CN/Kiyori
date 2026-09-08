@@ -257,9 +257,10 @@ internal object JsNativeInterfaceDelegates {
             }
             val payload = JSONObject(valuesJson)
             val preferences = EnvPreferences.getInstance(context)
-            payload.keys().forEach { rawKey ->
-                applyEnvValue(preferences, rawKey, payload.opt(rawKey)?.toString())
+            val values = payload.keys().asSequence().associateWith { rawKey ->
+                payload.opt(rawKey)?.toString()?.trim().orEmpty()
             }
+            preferences.updateEnvs(values)
         }
     }
 

@@ -1,3 +1,5 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 /* METADATA
 {
     "name": "windows_control",
@@ -6,8 +8,8 @@
         "en": "Windows Control"
     },
     "description": {
-        "zh": "通过 HTTP 调用 Kiyori PC Agent 控制 Windows 电脑，支持执行 PowerShell/CMD 命令并返回输出。",
-        "en": "Control a Windows PC through Kiyori PC Agent over HTTP, execute PowerShell/CMD commands, and return output."
+        "zh": "连接 Windows 电脑，使用 windows_list/stat 定位文件，read/edit/write 读写编辑，windows_mkdir/copy/move 整理目录和文件；也支持命令与持续进程。路径属于电脑，优先使用绝对路径。",
+        "en": "Connect to Windows: use windows_list/stat to locate files, read/edit/write to edit them, and windows_mkdir/copy/move to organize paths. Commands and persistent processes are also supported. Prefer absolute PC paths."
     },
     "enabledByDefault": false,
     "category": "System",
@@ -34,6 +36,168 @@
         }
     ],
     "tools": [
+        {
+            "name": "windows_list",
+            "description": {
+                "zh": "列出电脑目录，depth 为 1–5，最多 5000 项；不跟随子目录符号链接。",
+                "en": "List a PC directory, depth 1–5, at most 5000 entries."
+            },
+            "parameters": [
+                {
+                    "name": "path",
+                    "description": {
+                        "zh": "电脑路径，优先绝对路径；相对路径基于 PC Agent 根目录",
+                        "en": "PC path, preferably absolute; relative paths use the PC Agent root"
+                    },
+                    "type": "string",
+                    "required": true
+                },
+                {
+                    "name": "depth",
+                    "description": {
+                        "zh": "递归深度，默认 1",
+                        "en": "Depth, default 1"
+                    },
+                    "type": "number",
+                    "required": false
+                },
+                {
+                    "name": "timeout_ms",
+                    "description": {
+                        "zh": "请求超时毫秒数",
+                        "en": "Request timeout in milliseconds"
+                    },
+                    "type": "number",
+                    "required": false
+                }
+            ]
+        },
+        {
+            "name": "windows_stat",
+            "description": {
+                "zh": "查看电脑文件或目录的绝对路径、类型、大小和修改时间。",
+                "en": "Inspect a PC path, type, size and modification time."
+            },
+            "parameters": [
+                {
+                    "name": "path",
+                    "description": {
+                        "zh": "电脑路径，优先绝对路径；相对路径基于 PC Agent 根目录",
+                        "en": "PC path, preferably absolute; relative paths use the PC Agent root"
+                    },
+                    "type": "string",
+                    "required": true
+                },
+                {
+                    "name": "timeout_ms",
+                    "description": {
+                        "zh": "请求超时毫秒数",
+                        "en": "Request timeout in milliseconds"
+                    },
+                    "type": "number",
+                    "required": false
+                }
+            ]
+        },
+        {
+            "name": "windows_mkdir",
+            "description": {
+                "zh": "在授权范围内创建电脑目录，支持父目录；已存在目录返回 created=false。",
+                "en": "Create a PC directory including parents; existing directories report created=false."
+            },
+            "parameters": [
+                {
+                    "name": "path",
+                    "description": {
+                        "zh": "电脑路径，优先绝对路径；相对路径基于 PC Agent 根目录",
+                        "en": "PC path, preferably absolute; relative paths use the PC Agent root"
+                    },
+                    "type": "string",
+                    "required": true
+                },
+                {
+                    "name": "timeout_ms",
+                    "description": {
+                        "zh": "请求超时毫秒数",
+                        "en": "Request timeout in milliseconds"
+                    },
+                    "type": "number",
+                    "required": false
+                }
+            ]
+        },
+        {
+            "name": "windows_move",
+            "description": {
+                "zh": "移动或重命名电脑文件/目录，destination 必须是完整目标路径；目标已存在或跨卷时失败，不覆盖、不复制后删除。",
+                "en": "Move or rename a PC path to an exact destination; refuse existing targets and cross-volume moves."
+            },
+            "parameters": [
+                {
+                    "name": "path",
+                    "description": {
+                        "zh": "电脑路径，优先绝对路径；相对路径基于 PC Agent 根目录",
+                        "en": "PC path, preferably absolute; relative paths use the PC Agent root"
+                    },
+                    "type": "string",
+                    "required": true
+                },
+                {
+                    "name": "destination",
+                    "description": {
+                        "zh": "完整目标路径，父目录须存在",
+                        "en": "Exact destination path; parent must exist"
+                    },
+                    "type": "string",
+                    "required": true
+                },
+                {
+                    "name": "timeout_ms",
+                    "description": {
+                        "zh": "请求超时毫秒数",
+                        "en": "Request timeout in milliseconds"
+                    },
+                    "type": "number",
+                    "required": false
+                }
+            ]
+        },
+        {
+            "name": "windows_copy",
+            "description": {
+                "zh": "复制电脑文件到完整目标路径，目标已存在时失败；目录请先制定明确计划。",
+                "en": "Copy one PC file to an exact destination without overwriting; directories are not supported."
+            },
+            "parameters": [
+                {
+                    "name": "path",
+                    "description": {
+                        "zh": "电脑路径，优先绝对路径；相对路径基于 PC Agent 根目录",
+                        "en": "PC path, preferably absolute; relative paths use the PC Agent root"
+                    },
+                    "type": "string",
+                    "required": true
+                },
+                {
+                    "name": "destination",
+                    "description": {
+                        "zh": "完整目标文件路径，父目录须存在",
+                        "en": "Exact destination file path; parent must exist"
+                    },
+                    "type": "string",
+                    "required": true
+                },
+                {
+                    "name": "timeout_ms",
+                    "description": {
+                        "zh": "请求超时毫秒数",
+                        "en": "Request timeout in milliseconds"
+                    },
+                    "type": "number",
+                    "required": false
+                }
+            ]
+        },
         {
             "name": "usage_advice",
             "description": {
@@ -232,8 +396,8 @@
         {
             "name": "windows_test_connection",
             "description": {
-                "zh": "测试 Agent HTTP 连通性，并执行 whoami 预设验证命令通道。",
-                "en": "Test Agent HTTP connectivity and run whoami preset to verify command channel."
+                "zh": "验证电脑连接、访问令牌与协议版本；不执行系统命令。",
+                "en": "Verify PC connectivity, access token and protocol version without executing a command."
             },
             "parameters": [
                 {
@@ -376,10 +540,11 @@
     ]
 }
 */
+const connection_1 = require("../connection");
 const windowsControl = (function () {
-    const WINDOWS_CONTROL_PACKAGE_VERSION = "1.0.0";
+    const WINDOWS_CONTROL_PACKAGE_VERSION = "1.1.0";
     const MAX_INLINE_WINDOWS_EXEC_OUTPUT_CHARS = 12000;
-    const CONNECTION_TEST_TIMEOUT_MS = 5000;
+    const CONNECTION_TEST_TIMEOUT_MS = 15000;
     const ENV_KEYS = {
         baseUrl: "WINDOWS_AGENT_BASE_URL",
         token: "WINDOWS_AGENT_TOKEN",
@@ -392,7 +557,7 @@ const windowsControl = (function () {
     function buildVersionMismatchMessage(remoteVersion) {
         return [
             `Version mismatch: package=${WINDOWS_CONTROL_PACKAGE_VERSION}, agent=${remoteVersion || "unknown"}.`,
-            "请前往 Windows 一键配置，重新上传最新 kiyori-pc-agent.zip 到电脑并运行，然后再粘贴最新配置。"
+            "请在连接 Windows 页面重新导出电脑端，更新并启动后再导入连接配置。"
         ].join(" ");
     }
     function readEnv(name) {
@@ -409,7 +574,9 @@ const windowsControl = (function () {
         if (raw === "pwsh" || raw === "cmd") {
             return raw;
         }
-        return "powershell";
+        if (raw === "powershell")
+            return raw;
+        throw new Error("Unsupported shell; expected powershell, pwsh or cmd");
     }
     function parseTimeout(value, fallback) {
         const raw = asText(value).trim();
@@ -417,20 +584,20 @@ const windowsControl = (function () {
             return fallback;
         }
         const parsed = Number(raw);
-        if (!Number.isFinite(parsed) || parsed < 1000 || parsed > 600000) {
+        if (!Number.isSafeInteger(parsed) || parsed < 1000 || parsed > 600000) {
             throw new Error("Invalid timeout_ms, expected 1000..600000");
         }
         return Math.floor(parsed);
     }
     function toHttpTimeoutSeconds(timeoutMs) {
-        const seconds = Math.floor(timeoutMs / 1000);
+        const seconds = Math.ceil(timeoutMs / 1000);
         return seconds >= 1 ? seconds : 1;
     }
     function validateOptionalNonNegativeInt(value, fieldName) {
         if (value === undefined) {
             return undefined;
         }
-        if (!Number.isFinite(value) || value < 0) {
+        if (!Number.isSafeInteger(value) || value < 0) {
             throw new Error(`Invalid ${fieldName}, expected non-negative integer`);
         }
         return Math.floor(value);
@@ -439,7 +606,7 @@ const windowsControl = (function () {
         if (value === undefined) {
             return undefined;
         }
-        if (!Number.isFinite(value) || value < 1) {
+        if (!Number.isSafeInteger(value) || value < 1) {
             throw new Error(`Invalid ${fieldName}, expected integer >= 1`);
         }
         return Math.floor(value);
@@ -457,21 +624,13 @@ const windowsControl = (function () {
             return 1;
         }
         const parsed = Number(raw);
-        if (!Number.isFinite(parsed) || parsed < 1) {
+        if (!Number.isSafeInteger(parsed) || parsed < 1) {
             throw new Error("Invalid expected_replacements, expected integer >= 1");
         }
         return Math.floor(parsed);
     }
     function normalizeBaseUrl(rawValue) {
-        let base = asText(rawValue).trim();
-        if (!base) {
-            throw new Error("Missing env: WINDOWS_AGENT_BASE_URL");
-        }
-        if (!/^https?:\/\//i.test(base)) {
-            base = `http://${base}`;
-        }
-        base = base.replace(/\/+$/, "");
-        return base;
+        return (0, connection_1.normalizeAgentUrl)(asText(rawValue));
     }
     function parseJson(content) {
         const text = asText(content).trim();
@@ -502,17 +661,45 @@ const windowsControl = (function () {
     }
     async function httpRequest(config, path, method, body, timeoutMs, strictTimeout = false) {
         const timeoutSeconds = toHttpTimeoutSeconds(timeoutMs);
-        const response = await Tools.Net.http({
-            url: `${config.baseUrl}${path}`,
-            method,
-            headers: {
-                Accept: "application/json"
-            },
-            body: body || undefined,
-            connect_timeout: strictTimeout ? timeoutSeconds : Math.min(timeoutSeconds, 10),
-            read_timeout: strictTimeout ? timeoutSeconds : timeoutSeconds + 5,
-            validateStatus: false
-        });
+        let response;
+        try {
+            response = await Tools.Net.http({
+                url: `${config.baseUrl}${path}`,
+                method,
+                headers: {
+                    Accept: "application/json"
+                },
+                body: body || undefined,
+                connect_timeout: strictTimeout ? timeoutSeconds : Math.min(timeoutSeconds, 10),
+                read_timeout: strictTimeout ? timeoutSeconds : timeoutSeconds + 5,
+                write_timeout: timeoutSeconds,
+                follow_redirects: false,
+                use_cookies: false,
+                retry_on_connection_failure: false,
+                validateStatus: false
+            });
+        }
+        catch (error) {
+            console.error("[windows_control] Transport failed", error instanceof Error ? error.name : typeof error);
+            throw new Error(method === "POST" && path !== "/api/connection/test"
+                ? "SUBMISSION_UNKNOWN: 连接中断，操作可能已执行。先读取目标文件或进程状态，勿自动重试。"
+                : "CONNECTION_FAILED: 无法连接电脑，请检查地址、监听端口、防火墙、FRP 和 TLS 证书。");
+        }
+        if (response.statusCode >= 300 && response.statusCode < 400)
+            throw new Error("REDIRECT_REJECTED: 请填写最终 HTTP/HTTPS 地址");
+        const mutation = method === "POST" && !["/api/connection/test", "/api/file/read", "/api/file/read_segment", "/api/file/read_lines", "/api/file/list", "/api/file/stat", "/api/process/read", "/api/process/list"].includes(path);
+        if (mutation) {
+            if (response.statusCode >= 500)
+                throw new Error("SUBMISSION_UNKNOWN: 电脑或中转服务异常，操作可能已执行；先检查目标，勿自动重试。");
+            let payload;
+            try {
+                payload = JSON.parse(response.content);
+            }
+            catch { /* 下方统一返回未知提交状态，不回显代理正文。 */ }
+            if (response.statusCode >= 200 && response.statusCode < 300 && (!payload || typeof payload !== "object" || typeof payload.ok !== "boolean")) {
+                throw new Error("SUBMISSION_UNKNOWN: 未收到有效操作结果；先检查目标文件或进程，勿自动重试。");
+            }
+        }
         return {
             statusCode: response.statusCode,
             content: response.content,
@@ -520,14 +707,18 @@ const windowsControl = (function () {
         };
     }
     async function ensureVersionCompatible(config, timeoutMs, strictTimeout = false) {
-        const healthResponse = await httpRequest(config, "/api/health", "GET", null, timeoutMs, strictTimeout);
+        const healthResponse = await httpRequest(config, "/api/connection/test", "POST", { token: config.token }, timeoutMs, strictTimeout);
         const health = parseJson(healthResponse.content);
-        if (healthResponse.statusCode >= 400 || !health.ok) {
+        if (healthResponse.statusCode === 401)
+            throw new Error("UNAUTHORIZED: 访问令牌不匹配，请重新从电脑复制配置");
+        if (healthResponse.statusCode === 404)
+            throw new Error("请更新电脑端 Kiyori PC Agent 到 1.1.0 后再连接");
+        if (healthResponse.statusCode < 200 || healthResponse.statusCode >= 300 || health.ok !== true || health.mode !== "http-agent") {
             throw new Error(`Health check failed: HTTP ${healthResponse.statusCode}`);
         }
         const remoteVersion = asText(health.version || health.agentVersion).trim();
         if (!remoteVersion) {
-            throw new Error("Agent version is missing. 请前往 Windows 一键配置重新部署电脑端。");
+            throw new Error("Agent version is missing. 请从连接 Windows 页面更新电脑端。");
         }
         if (remoteVersion !== WINDOWS_CONTROL_PACKAGE_VERSION) {
             throw new Error(buildVersionMismatchMessage(remoteVersion));
@@ -663,29 +854,17 @@ const windowsControl = (function () {
     async function windows_test_connection(params) {
         try {
             const config = resolveAgentConfig();
-            const timeoutMs = Math.min(parseTimeout(params?.timeout_ms, CONNECTION_TEST_TIMEOUT_MS), CONNECTION_TEST_TIMEOUT_MS);
+            const timeoutMs = parseTimeout(params?.timeout_ms, CONNECTION_TEST_TIMEOUT_MS);
             const startAt = Date.now();
             const versionCheck = await ensureVersionCompatible(config, timeoutMs, true);
-            const elapsedMs = Date.now() - startAt;
-            const remainingMs = timeoutMs - elapsedMs;
-            if (remainingMs <= 0) {
-                throw new Error(`Connection test timed out after ${timeoutMs}ms`);
-            }
-            const commandData = await postCommand(config, { preset: "whoami" }, remainingMs, true);
             return {
-                success: !!commandData.ok,
+                success: true,
                 agentBaseUrl: config.baseUrl,
-                shell: "cmd",
-                command: "preset:whoami",
-                exitCode: commandData.exitCode,
-                timedOut: !!commandData.timedOut,
-                durationMs: commandData.durationMs,
-                output: asText(commandData.stdout),
-                stderr: asText(commandData.stderr),
+                durationMs: Date.now() - startAt,
                 health: versionCheck.health,
                 packageVersion: WINDOWS_CONTROL_PACKAGE_VERSION,
                 agentVersion: versionCheck.remoteVersion,
-                error: commandData.ok ? "" : asText(commandData.error || commandData.stderr || "Command channel failed")
+                error: ""
             };
         }
         catch (error) {
@@ -999,7 +1178,9 @@ const windowsControl = (function () {
             if (!path) {
                 throw new Error("path cannot be empty");
             }
-            const content = asText(params?.content);
+            if (typeof params?.content !== "string")
+                throw new Error("content must be a string (empty string is allowed)");
+            const content = params.content;
             const encoding = asText(params?.encoding).trim();
             const data = await postTextFileApi(config, "/api/file/write", {
                 path,
@@ -1037,7 +1218,9 @@ const windowsControl = (function () {
             if (!oldText) {
                 throw new Error("old_text cannot be empty");
             }
-            const newText = asText(params?.new_text);
+            if (typeof params?.new_text !== "string")
+                throw new Error("new_text must be a string (empty string is allowed)");
+            const newText = params.new_text;
             const expectedReplacements = parseExpectedReplacements(params?.expected_replacements);
             const encoding = asText(params?.encoding).trim();
             const data = await postTextFileApi(config, "/api/file/edit", {
@@ -1067,7 +1250,32 @@ const windowsControl = (function () {
             };
         }
     }
+    async function fileOperation(operation, params) {
+        try {
+            if (!params || typeof params.path !== "string" || !params.path.trim())
+                throw new Error("path is required");
+            if ((operation === "move" || operation === "copy") && !params.destination?.trim())
+                throw new Error("destination is required");
+            const depth = validateOptionalPositiveInt(params.depth, "depth");
+            if (depth !== undefined && depth > 5)
+                throw new Error("depth must be 1..5");
+            const config = resolveAgentConfig();
+            const timeout = parseTimeout(params.timeout_ms, config.timeoutMs);
+            await ensureVersionCompatible(config, timeout);
+            const result = await postTextFileApi(config, `/api/file/${operation}`, { path: params.path, destination: params.destination, depth }, timeout);
+            return { ...result, success: true, agentBaseUrl: config.baseUrl };
+        }
+        catch (error) {
+            console.error("[windows_control] File operation failed", error instanceof Error ? error.name : typeof error);
+            return { success: false, error: error instanceof Error ? error.message : "File operation failed" };
+        }
+    }
     return {
+        windows_list: (params) => fileOperation("list", params),
+        windows_stat: (params) => fileOperation("stat", params),
+        windows_mkdir: (params) => fileOperation("mkdir", params),
+        windows_move: (params) => fileOperation("move", params),
+        windows_copy: (params) => fileOperation("copy", params),
         windows_exec,
         windows_process_start,
         windows_process_read,
@@ -1082,6 +1290,11 @@ const windowsControl = (function () {
     };
 })();
 exports.windows_exec = windowsControl.windows_exec;
+exports.windows_list = windowsControl.windows_list;
+exports.windows_stat = windowsControl.windows_stat;
+exports.windows_mkdir = windowsControl.windows_mkdir;
+exports.windows_move = windowsControl.windows_move;
+exports.windows_copy = windowsControl.windows_copy;
 exports.windows_process_start = windowsControl.windows_process_start;
 exports.windows_process_read = windowsControl.windows_process_read;
 exports.windows_process_write = windowsControl.windows_process_write;

@@ -2,6 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $projectRoot
+. (Join-Path $PSScriptRoot 'agent_process.ps1')
 
 $dataDir = Join-Path $projectRoot "data"
 $logsDir = Join-Path $projectRoot "logs"
@@ -54,9 +55,7 @@ function Stop-AgentProcess {
             $pidText = (Get-Content -Raw $pidPath).Trim()
             if ($pidText -match '^\d+$') {
                 $pidValue = [int]$pidText
-                Stop-Process -Id $pidValue -Force -ErrorAction SilentlyContinue
-                Write-Log "INFO" "Stopped PID from pid file: $pidValue"
-                $stoppedAny = $true
+                if (Stop-OwnedAgentProcess -ProcessId $pidValue -RootPath $projectRoot) { $stoppedAny = $true }
             }
         }
         catch {
@@ -70,9 +69,7 @@ function Stop-AgentProcess {
             $pids = $conns | Select-Object -ExpandProperty OwningProcess -Unique
             foreach ($p in $pids) {
                 if ($p -gt 0) {
-                    Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
-                    Write-Log "INFO" "Stopped process listening on port ${Port}: PID $p"
-                    $stoppedAny = $true
+                    if (Stop-OwnedAgentProcess -ProcessId $p -RootPath $projectRoot) { $stoppedAny = $true }
                 }
             }
         }

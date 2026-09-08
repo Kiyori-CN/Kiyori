@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "toolpkg_id": "com.kiyori.windows_bundle",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "dist/main.js",
   "display_name": {
     "zh": "Windows 工具包",
     "en": "Windows Toolkit"
   },
   "description": {
-    "zh": "配置 Kiyori PC Agent，并通过局域网在 Windows 上执行 PowerShell 或 CMD 命令并返回输出。",
-    "en": "Configure Kiyori PC Agent, then execute PowerShell or CMD commands on Windows over the LAN and return their output."
+    "zh": "连接局域网或 FRP 中的 Windows 电脑，让 AI 管理文件、编辑内容并运行命令与持续进程。",
+    "en": "Connect to a Windows PC over LAN or FRP for AI file management, editing, commands and persistent processes."
   },
   "enabled_by_default": false,
   "subpackages": [

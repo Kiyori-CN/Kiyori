@@ -92,6 +92,7 @@ class StandardHttpTools(private val context: Context) {
             proxyHost: String? = null,
             proxyPort: Int = 0,
             ignoreSsl: Boolean = false,
+            retryOnConnectionFailure: Boolean = true,
             scriptPackageName: String? = null,
     ): OkHttpClient {
         val builder =
@@ -101,6 +102,7 @@ class StandardHttpTools(private val context: Context) {
                         .writeTimeout(writeTimeout, TimeUnit.SECONDS)
                         .followRedirects(followRedirects)
                         .followSslRedirects(followSslRedirects)
+                        .retryOnConnectionFailure(retryOnConnectionFailure)
 
         // 配置Cookie支持
         if (useCookies) {
@@ -246,6 +248,9 @@ class StandardHttpTools(private val context: Context) {
                         proxyHost = proxyHostParam,
                         proxyPort = proxyPortParam?.toIntOrNull() ?: 0,
                         ignoreSsl = ignoreSslParam?.lowercase() == "true",
+                        // 远程文件/命令写入可禁用传输重试，避免已执行但响应丢失时再次提交。
+                        retryOnConnectionFailure =
+                                tool.parameters.find { it.name == "retry_on_connection_failure" }?.value?.lowercase() != "false",
                         scriptPackageName = scriptPackageName,
                 )
 

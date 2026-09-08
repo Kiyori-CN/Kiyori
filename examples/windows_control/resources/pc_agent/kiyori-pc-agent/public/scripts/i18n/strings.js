@@ -2,13 +2,22 @@ const STORAGE_KEY = "kiyori.pc-agent.locale";
 
 const RESOURCES = {
   en: {
+    connection: {
+      mode: "Connection method", lan: "Local network", frp: "FRP / remote access", publicUrl: "Phone-facing URL",
+      lanHelp: "Keep phone and PC on a reachable network. Bind the execution service to the PC LAN IP and allow its port in Windows Firewall.",
+      frpHelp: "When frpc runs on this PC, bind to 127.0.0.1 and forward execution port 58321. Use an HTTPS public endpoint or a protected private tunnel. Never forward the console port. The URL may include a proxy path prefix.",
+      secretHint: "Token is hidden in this preview. Copy includes the full token; share only with your own Kiyori device.",
+      clipboardFailed: "Clipboard unavailable. Enable browser clipboard permission.", tokenRequired: "Access token is required.",
+      invalidUrl: "Enter a valid HTTP/HTTPS URL without credentials, query or fragment.", phoneLoopback: "The phone URL must point to the PC, not localhost.",
+      restartFirst: "Saved listener differs from the active service. Restart the PC Agent, reopen the console, then copy the configuration."
+    },
     language: {
       english: "English",
       chinese: "中文"
     },
     ui: {
       title: "Kiyori PC Agent Console",
-      subtitle: "Windows bridge for mobile integration, secure HTTP relay, and command validation"
+      subtitle: "Your Windows workspace, connected to Kiyori"
     },
     nav: {
       wizard: "Setup Wizard",
@@ -88,13 +97,13 @@ const RESOURCES = {
       allowedPresets: "Allowed Presets"
     },
     wizard: {
-      title: "Mobile Integration Wizard",
-      subtitle: "Use this guided flow to configure PC-side bridge and generate mobile-side env values.",
+      title: "Connect your phone",
+      subtitle: "Choose a connection method, then import the configuration into Kiyori.",
       stepNav1: "1. Base Config",
       stepNav2: "2. Mobile Fill",
       step1Title: "Step 1: Make PC reachable from phone",
-      step1Desc: "Use LAN IPv4 for bind address (for example 192.168.x.x). Keep port default unless needed. API token is required.",
-      step1Hint: "Do not use 127.0.0.1 for phone access. Restart service after changing bind address or port.",
+      step1Desc: "Choose how your phone reaches this PC, then save the connection settings.",
+      step1Hint: "Restart the agent after changing its bind address or port. This local console address is separate from the phone-facing URL.",
       step2Title: "Step 2: Mobile Paste Config",
       step2Desc: "Use one-click fill, then copy the config text to mobile app.",
       oneClickTitle: "Config Text",
@@ -122,10 +131,10 @@ const RESOURCES = {
       port: "Port",
       maxCommandTimeoutMs: "Max Command Timeout (ms)",
       apiToken: "API Token",
-      windowsAgentBaseUrl: "WINDOWS_AGENT_BASE_URL",
-      windowsAgentToken: "WINDOWS_AGENT_TOKEN",
-      windowsAgentDefaultShell: "WINDOWS_AGENT_DEFAULT_SHELL",
-      windowsAgentTimeoutMs: "WINDOWS_AGENT_TIMEOUT_MS"
+      windowsAgentBaseUrl: "Connection URL",
+      windowsAgentToken: "Access token",
+      windowsAgentDefaultShell: "Default shell",
+      windowsAgentTimeoutMs: "Request timeout (ms)"
     },
     placeholder: {
       tokenRequiredWhenApiTokenEnabled: "Required",
@@ -191,13 +200,22 @@ const RESOURCES = {
     }
   },
   zh: {
+    connection: {
+      mode: "连接方式", lan: "局域网", frp: "FRP / 远程连接", publicUrl: "手机访问地址",
+      lanHelp: "手机与电脑处于可互通网络。执行服务绑定电脑局域网 IP，并在 Windows 防火墙允许对应端口。",
+      frpHelp: "frpc 在本机运行时，绑定 127.0.0.1 并转发执行端口 58321。手机填写 HTTPS 外网入口或受保护的私有通道地址，可包含代理路径前缀。不要转发管理页面端口。",
+      secretHint: "预览已隐藏令牌；复制时会包含完整令牌，请仅交给自己的 Kiyori 设备。",
+      clipboardFailed: "无法复制，请检查浏览器剪贴板权限。", tokenRequired: "访问令牌不能为空。",
+      invalidUrl: "请输入有效 HTTP/HTTPS 地址，不含用户名、密码、查询串和片段。", phoneLoopback: "手机地址必须指向电脑，不能填写 localhost。",
+      restartFirst: "保存的监听设置尚未生效。请重新启动电脑端并打开新管理页面，再复制配置。"
+    },
     language: {
       english: "English",
       chinese: "中文"
     },
     ui: {
       title: "Kiyori PC Agent 控制台",
-      subtitle: "面向移动端对接的 Windows 桥接服务：安全 HTTP 中转与命令验证"
+      subtitle: "将你的 Windows 工作环境连接到 Kiyori"
     },
     nav: {
       wizard: "配置向导",
@@ -277,13 +295,13 @@ const RESOURCES = {
       allowedPresets: "允许的预设"
     },
     wizard: {
-      title: "移动端对接配置向导",
-      subtitle: "按步骤完成电脑端桥接配置，并生成移动端一键配置可直接填写的环境变量。",
+      title: "连接手机",
+      subtitle: "选择连接方式，将配置导入 Kiyori 后即可开始协作。",
       stepNav1: "1. 基础配置",
       stepNav2: "2. 移动端填写",
       step1Title: "步骤 1：让手机能访问这台电脑",
-      step1Desc: "绑定地址用局域网 IPv4（如 192.168.x.x）。端口默认即可。API 令牌必填。",
-      step1Hint: "给手机访问时不要用 127.0.0.1。改了绑定地址或端口后要重启服务。",
+      step1Desc: "选择手机访问电脑的方式，再保存连接设置。",
+      step1Hint: "修改监听地址或端口后需重启电脑端。当前管理页面地址与手机访问地址是两个独立入口。",
       step2Title: "步骤 2：移动端粘贴配置",
       step2Desc: "先一键填写，再复制配置文本到移动端粘贴。",
       oneClickTitle: "配置文本",
@@ -311,10 +329,10 @@ const RESOURCES = {
       port: "端口",
       maxCommandTimeoutMs: "最大命令超时 (ms)",
       apiToken: "API 令牌",
-      windowsAgentBaseUrl: "WINDOWS_AGENT_BASE_URL",
-      windowsAgentToken: "WINDOWS_AGENT_TOKEN",
-      windowsAgentDefaultShell: "WINDOWS_AGENT_DEFAULT_SHELL",
-      windowsAgentTimeoutMs: "WINDOWS_AGENT_TIMEOUT_MS"
+      windowsAgentBaseUrl: "连接地址",
+      windowsAgentToken: "访问令牌",
+      windowsAgentDefaultShell: "默认 Shell",
+      windowsAgentTimeoutMs: "请求超时（毫秒）"
     },
     placeholder: {
       tokenRequiredWhenApiTokenEnabled: "必填",
