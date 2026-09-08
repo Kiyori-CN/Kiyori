@@ -329,6 +329,7 @@ class ChatViewModel(
     val outputTokenCount: StateFlow<Long> by lazy { tokenStatsDelegate.cumulativeOutputTokensFlow }
     val perRequestTokenCount: StateFlow<Pair<Int, Int>?> by lazy { tokenStatsDelegate.perRequestTokenCountFlow }
     val providerUsageAggregate by lazy { tokenStatsDelegate.cumulativeProviderUsageFlow }
+    val generationSpeed by lazy { tokenStatsDelegate.generationSpeedFlow }
 
 
 

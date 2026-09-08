@@ -46,6 +46,7 @@ import com.ai.assistance.operit.data.model.ModelConfigData
 import com.ai.assistance.operit.data.model.ModelParameter
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ProviderUsageAggregate
+import com.ai.assistance.operit.data.model.GenerationSpeed
 import com.ai.assistance.operit.data.preferences.ApiPreferences
 import com.ai.assistance.operit.data.preferences.ExternalHttpApiPreferences
 import com.ai.assistance.operit.data.preferences.WakeWordPreferences
@@ -411,6 +412,9 @@ class EnhancedAIService private constructor(private val context: Context) {
     // Per-request token counts
     private val _perRequestTokenCounts = MutableStateFlow<Pair<Int, Int>?>(null)
     val perRequestTokenCounts: StateFlow<Pair<Int, Int>?> = _perRequestTokenCounts.asStateFlow()
+
+    private val generationSpeedMonitor = GenerationSpeedMonitor()
+    val generationSpeedFlow: StateFlow<GenerationSpeed?> = generationSpeedMonitor.flow
 
     // Stable request window estimate for the next model hop.
     private val _requestWindowEstimate = MutableStateFlow<Int?>(null)
@@ -1027,6 +1031,7 @@ class EnhancedAIService private constructor(private val context: Context) {
             }
 
         AppLogger.d(TAG, "sendMessage调用开始: 功能类型=$functionType, 提示词类型=$promptFunctionType")
+        generationSpeedMonitor.clear()
         accumulatedInputTokenCount = 0
         accumulatedOutputTokenCount = 0
         accumulatedCachedInputTokenCount = 0
@@ -1204,6 +1209,7 @@ class EnhancedAIService private constructor(private val context: Context) {
                     // 使用新的Stream API
                     AppLogger.d(TAG, "sendMessage请求前准备耗时: ${tAfterGetTools - startTime}ms, 流式输出: $stream")
                     val requestStartTime = messageTimingNow()
+                    val generationTracker = generationSpeedMonitor.start(stream, ::messageTimingNow)
                     val providerHopContext = execContext.nextProviderRequestContext()
                     ConversationAuditProviderRequestRecorder.record(
                         context = this@EnhancedAIService.context,
@@ -1230,6 +1236,9 @@ class EnhancedAIService private constructor(private val context: Context) {
                                         currentRequestOutputTokenCount = output.coerceAtLeast(0)
                                         currentRequestCachedInputTokenCount = cachedInput.coerceAtLeast(0)
                                         _perRequestTokenCounts.value = Pair(input, output)
+                                        if (isExecutionContextActive(execContext)) {
+                                            generationSpeedMonitor.publish(generationTracker, generationTracker.onTokens(output))
+                                        }
                                     },
                                     onNonFatalError = onNonFatalError
                             )
@@ -1262,6 +1271,8 @@ class EnhancedAIService private constructor(private val context: Context) {
                                             }
 
                                             TextStreamEventType.ROLLBACK -> {
+                                                generationTracker.invalidate()
+                                                if (isExecutionContextActive(execContext)) generationSpeedMonitor.publish(generationTracker, null)
                                                 val snapshot =
                                                     revisionMutex.withLock {
                                                         revisionTracker.rollback(event.id)?.toString()
@@ -1275,8 +1286,12 @@ class EnhancedAIService private constructor(private val context: Context) {
                                 }
                             }
  
+                        var generationCompleted = false
                         try {
                             responseStream.collect { content ->
+                                if (isExecutionContextActive(execContext)) {
+                                    generationSpeedMonitor.publish(generationTracker, generationTracker.onContent(content))
+                                }
                                 // 第一次收到响应，更新状态
                                 if (isFirstChunk) {
                                     if (!isSubTask) {
@@ -1316,7 +1331,12 @@ class EnhancedAIService private constructor(private val context: Context) {
                                 // 发射当前内容片段
                                 emit(content)
                             }
+                            generationCompleted = true
                         } finally {
+                            generationTracker.stop()
+                            if (!generationCompleted && isExecutionContextActive(execContext)) {
+                                generationSpeedMonitor.publish(generationTracker, null)
+                            }
                             revisionJob?.cancelAndJoin()
                         }
                     }
@@ -1326,6 +1346,9 @@ class EnhancedAIService private constructor(private val context: Context) {
                         service = serviceForFunction,
                         providerRequestContext = providerHopContext,
                         )
+                    if (isExecutionContextActive(execContext)) {
+                        generationSpeedMonitor.publish(generationTracker, generationTracker.complete(providerUsageSnapshot))
+                    }
                     apiPreferences.updateProviderUsageAggregateForModel(
                         providerModel = serviceForFunction.providerModel,
                         usage = providerUsageSnapshot.toProviderUsageAggregate(),
@@ -2467,6 +2490,7 @@ class EnhancedAIService private constructor(private val context: Context) {
 
         // 清空之前的单次请求token计数
         _perRequestTokenCounts.value = null
+        generationSpeedMonitor.clear()
         currentRequestInputTokenCount = 0
         currentRequestOutputTokenCount = 0
         currentRequestCachedInputTokenCount = 0
@@ -2476,6 +2500,7 @@ class EnhancedAIService private constructor(private val context: Context) {
             try {
                 // 发送消息并获取响应流
                 val aiStartTime = messageTimingNow()
+                val generationTracker = generationSpeedMonitor.start(stream, ::messageTimingNow)
                 val providerHopContext = context.nextProviderRequestContext()
                 ConversationAuditProviderRequestRecorder.record(
                     context = this@EnhancedAIService.context,
@@ -2502,6 +2527,9 @@ class EnhancedAIService private constructor(private val context: Context) {
                                     currentRequestOutputTokenCount = output.coerceAtLeast(0)
                                     currentRequestCachedInputTokenCount = cachedInput.coerceAtLeast(0)
                                     _perRequestTokenCounts.value = Pair(input, output)
+                                    if (isExecutionContextActive(context)) {
+                                        generationSpeedMonitor.publish(generationTracker, generationTracker.onTokens(output))
+                                    }
                                 },
                                 onNonFatalError = onNonFatalError
                         )
@@ -2537,6 +2565,8 @@ class EnhancedAIService private constructor(private val context: Context) {
                                         }
 
                                         TextStreamEventType.ROLLBACK -> {
+                                            generationTracker.invalidate()
+                                            if (isExecutionContextActive(context)) generationSpeedMonitor.publish(generationTracker, null)
                                             val snapshot =
                                                 revisionMutex.withLock {
                                                     revisionTracker.rollback(event.id)?.toString()
@@ -2550,8 +2580,12 @@ class EnhancedAIService private constructor(private val context: Context) {
                             }
                         }
 
+                    var generationCompleted = false
                     try {
                         responseStream.collect { content ->
+                            if (isExecutionContextActive(context)) {
+                                generationSpeedMonitor.publish(generationTracker, generationTracker.onContent(content))
+                            }
                             if (isFirstChunk) {
                                 isFirstChunk = false
                                 logMessageTiming(
@@ -2584,7 +2618,12 @@ class EnhancedAIService private constructor(private val context: Context) {
                             // 通过收集器将内容发射出去，让UI可以接收到
                             collector.emit(content)
                         }
+                        generationCompleted = true
                     } finally {
+                        generationTracker.stop()
+                        if (!generationCompleted && isExecutionContextActive(context)) {
+                            generationSpeedMonitor.publish(generationTracker, null)
+                        }
                         revisionJob?.cancelAndJoin()
                     }
                 }
@@ -2594,6 +2633,9 @@ class EnhancedAIService private constructor(private val context: Context) {
                     service = serviceForFunction,
                     providerRequestContext = providerHopContext,
                     )
+                if (isExecutionContextActive(context)) {
+                    generationSpeedMonitor.publish(generationTracker, generationTracker.complete(providerUsageSnapshot))
+                }
                 apiPreferences.updateProviderUsageAggregateForModel(
                     providerModel = serviceForFunction.providerModel,
                     usage = providerUsageSnapshot.toProviderUsageAggregate(),
@@ -2722,6 +2764,7 @@ class EnhancedAIService private constructor(private val context: Context) {
         outputTokens: Int,
         cachedInputTokens: Int = 0
     ) {
+        generationSpeedMonitor.clear()
         accumulatedInputTokenCount = inputTokens.coerceAtLeast(0)
         accumulatedOutputTokenCount = outputTokens.coerceAtLeast(0)
         accumulatedCachedInputTokenCount = cachedInputTokens.coerceAtLeast(0)
@@ -2740,6 +2783,7 @@ class EnhancedAIService private constructor(private val context: Context) {
 
     /** Reset token counters to zero Use this when starting a new conversation */
     fun resetTokenCounters() {
+        generationSpeedMonitor.clear()
         Companion.resetTokenCounters(context)
     }
 
@@ -3036,6 +3080,7 @@ class EnhancedAIService private constructor(private val context: Context) {
 
         // Reset per-request token counts
         _perRequestTokenCounts.value = null
+        generationSpeedMonitor.clear()
         accumulatedInputTokenCount = 0
         accumulatedOutputTokenCount = 0
         accumulatedCachedInputTokenCount = 0

@@ -1841,18 +1841,6 @@
     <string name="exit_edit_mode">Salir del modo de edición</string>
     <string name="enter_edit_mode">Entrar en modo de edición</string>
     <string name="total">Total</string>
-    <string name="chat_stats_context">Contexto (estimado): %1$s / %2$s</string>
-    <string name="chat_stats_request_count">Solicitudes: %1$s</string>
-    <string name="chat_stats_input_tokens">Entrada: %1$s</string>
-    <string name="chat_stats_output_tokens">Salida: %1$s</string>
-    <string name="chat_stats_cache_read_tokens">Lectura de caché: %1$s</string>
-    <string name="chat_stats_cache_write_tokens">Escritura de caché: %1$s</string>
-    <string name="chat_stats_cache_hit_rate">Tasa de aciertos de caché: %1$s</string>
-    <string name="chat_stats_usage_coverage">Cobertura de uso: %1$s</string>
-    <string name="chat_stats_cache_coverage">Cobertura de caché: %1$s</string>
-    <string name="chat_stats_reasoning_tokens">Razonamiento: %1$s</string>
-    <string name="chat_stats_total_tokens">Total: %1$s</string>
-    <string name="chat_stats_cache_hit_rate_unavailable">No disponible</string>
     <string name="auto_approve">Aprobación automática:</string>
     <string name="auto_approve_desc">Controla la política global predeterminada para las llamadas a herramientas de IA: al activarlo, todas las llamadas a herramientas se ejecutan directamente sin confirmación; las excepciones configuradas para herramientas individuales en "Ajustes - Gestión de permisos de herramientas" siguen teniendo prioridad. Al desactivarlo, se solicita confirmación para todas las llamadas a herramientas.</string>
     <string name="enabled">Activado</string>
@@ -7812,4 +7800,38 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="browser_extension_delete">Eliminar extensión</string>
     <string name="browser_extension_delete_confirm">¿Eliminar %1$s y su código instalado? Después, recarga las páginas afectadas.</string>
     <string name="browser_extension_source_truncated">Solo se muestran los primeros 16000 caracteres. Usa las herramientas de desarrollo de IA para leer el código por partes o exportarlo completo.</string>
+    <string name="chat_stats_title">Estadísticas de la conversación</string>
+    <string name="chat_stats_current_chat">Conversación actual · tokens y generación</string>
+    <string name="chat_stats_open">Abrir estadísticas, contexto utilizado %1$s</string>
+    <string name="chat_stats_copy">Copiar resumen de estadísticas</string>
+    <string name="chat_stats_unavailable">No disponible</string>
+    <string name="chat_stats_context_occupancy">Uso del contexto · estimado</string>
+    <string name="chat_stats_context_counts">%1$s / %2$s tokens</string>
+    <string name="chat_stats_context_note">Contexto estimado de la última solicitud / límite configurado. Es distinto del consumo acumulado.</string>
+    <string name="chat_stats_context_near_limit">El contexto se acerca al límite. Revisa la configuración de compresión.</string>
+    <string name="chat_stats_context_over_limit">El contexto estimado ha alcanzado o superado el límite configurado.</string>
+    <string name="chat_stats_generation_speed">Velocidad de generación · solicitud actual / última</string>
+    <string name="chat_stats_speed_value">%1$s token/s</string>
+    <string name="chat_stats_speed_estimated">Estimación · según los tokens de salida actuales</string>
+    <string name="chat_stats_speed_reported">Completada · según el uso informado por el proveedor</string>
+    <string name="chat_stats_speed_no_sample">Aún no hay datos válidos de tiempo de transmisión</string>
+    <string name="chat_stats_speed_note">Tokens de salida por solicitud / segundos desde la primera salida hasta el fin de la transmisión. Excluye la espera inicial y la ejecución de herramientas. Durante la transmisión es una estimación; no se calcula para solicitudes sin transmisión ni históricas.</string>
+    <string name="chat_stats_usage_section">Consumo acumulado · tokens</string>
+    <string name="chat_stats_input_label">Entrada acumulada</string>
+    <string name="chat_stats_output_label">Salida acumulada</string>
+    <string name="chat_stats_total_label">Tokens totales</string>
+    <string name="chat_stats_reasoning_label">Detalle de razonamiento (si existe)</string>
+    <string name="chat_stats_usage_note">Solo incluye el uso del proveedor ya registrado; el turno activo se añade después. Total = entrada + salida. El razonamiento está incluido en la salida; si no se informa el detalle, se registra como 0.</string>
+    <string name="chat_stats_cache_section">Caché de instrucciones</string>
+    <string name="chat_stats_cache_read_label">Lectura de caché</string>
+    <string name="chat_stats_cache_write_label">Escritura de caché</string>
+    <string name="chat_stats_uncached_label">Entrada sin caché</string>
+    <string name="chat_stats_cache_rate_label">Tasa de aciertos de caché</string>
+    <string name="chat_stats_cache_note">Las lecturas y escrituras de caché están incluidas en la entrada. La tasa solo utiliza solicitudes con métricas de caché. Los datos no disponibles se distinguen de un cero informado.</string>
+    <string name="chat_stats_coverage_section">Cobertura de datos</string>
+    <string name="chat_stats_requests_label">Solicitudes al modelo</string>
+    <string name="chat_stats_usage_coverage_label">Cobertura de uso</string>
+    <string name="chat_stats_cache_coverage_label">Cobertura de caché</string>
+    <string name="chat_stats_partial_usage">Algunas solicitudes no informaron su uso. Los totales están incompletos.</string>
+    <string name="chat_stats_coverage_note">Cobertura de uso = informes de uso / solicitudes al modelo. Cobertura de caché = informes de caché / informes de uso. Un turno puede incluir varias solicitudes al modelo.</string>
 </resources>

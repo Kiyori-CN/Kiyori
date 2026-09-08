@@ -1161,18 +1161,6 @@
     <string name="exit_edit_mode">Keluar dari mode edit</string>
     <string name="enter_edit_mode">Masuk ke mode edit</string>
     <string name="total">Total</string>
-    <string name="chat_stats_context">Konteks (perkiraan): %1$s / %2$s</string>
-    <string name="chat_stats_request_count">Permintaan: %1$s</string>
-    <string name="chat_stats_input_tokens">Masuk: %1$s</string>
-    <string name="chat_stats_output_tokens">Keluar: %1$s</string>
-    <string name="chat_stats_cache_read_tokens">Baca cache: %1$s</string>
-    <string name="chat_stats_cache_write_tokens">Tulis cache: %1$s</string>
-    <string name="chat_stats_cache_hit_rate">Rasio hit cache: %1$s</string>
-    <string name="chat_stats_usage_coverage">Cakupan penggunaan: %1$s</string>
-    <string name="chat_stats_cache_coverage">Cakupan cache: %1$s</string>
-    <string name="chat_stats_reasoning_tokens">Penalaran: %1$s</string>
-    <string name="chat_stats_total_tokens">Total: %1$s</string>
-    <string name="chat_stats_cache_hit_rate_unavailable">Tidak tersedia</string>
     <string name="auto_approve">Persetujuan otomatis:</string>
     <string name="auto_approve_desc">Digunakan untuk mengontrol kebijakan default global saat pemanggilan alat AI: jika diaktifkan, semua pemanggilan alat akan dieksekusi langsung tanpa konfirmasi pop-up; aturan pengecualian yang Anda atur untuk alat individual di "Pengaturan - Manajemen Izin Alat" akan tetap berlaku lebih dulu. Jika dinonaktifkan, konfirmasi pop-up akan muncul untuk semua pemanggilan alat secara default.</string>
     <string name="enabled">Diaktifkan</string>
@@ -7702,4 +7690,38 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="browser_extension_delete">Hapus ekstensi</string>
     <string name="browser_extension_delete_confirm">Hapus %1$s dan kode yang terpasang? Setelah itu, muat ulang halaman yang terpengaruh.</string>
     <string name="browser_extension_source_truncated">Hanya 16000 karakter pertama yang ditampilkan. Gunakan alat pengembangan AI untuk membaca kode per bagian atau mengekspor kode lengkap.</string>
+    <string name="chat_stats_title">Statistik percakapan</string>
+    <string name="chat_stats_current_chat">Percakapan saat ini · token dan generasi</string>
+    <string name="chat_stats_open">Buka statistik, penggunaan konteks %1$s</string>
+    <string name="chat_stats_copy">Salin ringkasan statistik</string>
+    <string name="chat_stats_unavailable">Tidak tersedia</string>
+    <string name="chat_stats_context_occupancy">Penggunaan konteks · perkiraan</string>
+    <string name="chat_stats_context_counts">%1$s / %2$s token</string>
+    <string name="chat_stats_context_note">Perkiraan konteks permintaan terakhir / batas konteks yang dikonfigurasi, berbeda dari penggunaan kumulatif.</string>
+    <string name="chat_stats_context_near_limit">Konteks mendekati batas. Periksa pengaturan kompresi konteks.</string>
+    <string name="chat_stats_context_over_limit">Perkiraan konteks telah mencapai atau melebihi batas yang dikonfigurasi.</string>
+    <string name="chat_stats_generation_speed">Kecepatan generasi · permintaan saat ini / terakhir</string>
+    <string name="chat_stats_speed_value">%1$s token/s</string>
+    <string name="chat_stats_speed_estimated">Perkiraan · berdasarkan token keluaran saat ini</string>
+    <string name="chat_stats_speed_reported">Selesai · berdasarkan penggunaan dari penyedia</string>
+    <string name="chat_stats_speed_no_sample">Belum ada data waktu streaming yang valid</string>
+    <string name="chat_stats_speed_note">Token keluaran per permintaan model / detik dari keluaran pertama hingga streaming berakhir. Tidak termasuk waktu tunggu awal dan eksekusi alat. Nilai selama streaming adalah perkiraan; kecepatan tidak dihitung untuk permintaan tanpa streaming atau riwayat.</string>
+    <string name="chat_stats_usage_section">Penggunaan kumulatif · token</string>
+    <string name="chat_stats_input_label">Total masukan</string>
+    <string name="chat_stats_output_label">Total keluaran</string>
+    <string name="chat_stats_total_label">Total token</string>
+    <string name="chat_stats_reasoning_label">Rincian penalaran (jika tersedia)</string>
+    <string name="chat_stats_usage_note">Hanya penggunaan penyedia yang sudah dicatat; giliran aktif ditambahkan nanti. Total = masukan + keluaran. Penalaran termasuk dalam keluaran; rincian yang tidak dilaporkan dicatat sebagai 0.</string>
+    <string name="chat_stats_cache_section">Cache prompt</string>
+    <string name="chat_stats_cache_read_label">Pembacaan cache</string>
+    <string name="chat_stats_cache_write_label">Penulisan cache</string>
+    <string name="chat_stats_uncached_label">Masukan tanpa cache</string>
+    <string name="chat_stats_cache_rate_label">Rasio hit cache</string>
+    <string name="chat_stats_cache_note">Pembacaan dan penulisan cache termasuk dalam masukan. Rasio hanya memakai permintaan yang melaporkan metrik cache. Data yang tidak tersedia dibedakan dari angka nol yang dilaporkan.</string>
+    <string name="chat_stats_coverage_section">Cakupan data</string>
+    <string name="chat_stats_requests_label">Permintaan model</string>
+    <string name="chat_stats_usage_coverage_label">Cakupan penggunaan</string>
+    <string name="chat_stats_cache_coverage_label">Cakupan cache</string>
+    <string name="chat_stats_partial_usage">Sebagian permintaan tidak melaporkan penggunaan. Total ini belum lengkap.</string>
+    <string name="chat_stats_coverage_note">Cakupan penggunaan = laporan penggunaan / permintaan model. Cakupan cache = laporan cache / laporan penggunaan. Satu giliran percakapan dapat berisi beberapa permintaan model.</string>
 </resources>

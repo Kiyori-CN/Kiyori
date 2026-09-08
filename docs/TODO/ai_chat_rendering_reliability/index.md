@@ -7,6 +7,27 @@ observed_at: 2026-09-03 Asia/Shanghai
 
 # AI 对话渲染可靠性与工具内容边界
 
+## 2026-09-09 对话数据统计面板完善
+
+- **目标与范围**：增加当前 / 最近模型请求的生成速度与上下文占用百分比，完善统计 UI、可读性、数据来源与未知态、复制摘要和无障碍入口。
+- **非目标**：不改变模型协议、计费、数据库、上下文压缩策略；不提交推送、不操作设备。
+- **基线与回滚点**：干净 `main@5fd93e9340b8a75f14d9570129982d486c2ef359`，变更集中在统计面板、服务请求计量、统计委托及对应测试；可按本轮差异撤回，无数据迁移。
+- **依赖与来源**：复用 `EnhancedAIService` 请求流、供应商 usage、`TokenStatisticsDelegate` 会话隔离及 `KiyoriModalBottomDrawer`。视觉沿用 MaterialTheme 与项目语义色；旧入口参考本地 Operit `f323d6c50fa661837fad06d4618462861779b562` 的 `ChatScreenHeader.kt`，按本轮授权将长菜单改成项目统一底部面板。
+- **风险**：整轮耗时包含工具执行，不能作为速度分母；回滚/取消/旧请求回调不得形成假速度；缺失 usage 不得伪装为零消耗；窄窗口和大字体不能裁剪数值。
+- **阶段计划**：请求测量与单调时钟 → 会话投影与统计面板 → 时间/来源/跨会话定向 JVM 回归 → 文档检查与串行 Debug 构建 → 真机验收。
+- **验收**：核对截图数值 `25523 / 204800 = 12.5%`、超限百分比、首包等待/工具时间排除、终态 usage 校正、旧请求隔离、复制和面板返回/滚动；自动化与设备证据分别记录。
+- **当前状态**：实现、定向测试和 Debug 构建完成；真实供应商流式、深浅色、窄屏/横屏、大字体、TalkBack、复制、拖动及 Back 保持 `verification_pending`。
+
+### 本轮本地验证（2026-09-09）
+
+- 定向 JVM：`./gradlew.bat :app:testDebugUnitTest --tests com.ai.assistance.operit.api.chat.GenerationSpeedTrackerTest --tests com.ai.assistance.operit.services.core.TokenStatisticsDelegateTest --tests com.ai.assistance.operit.ui.features.chat.components.ChatStatisticsFormatterTest --no-daemon --console=plain`，最终复测 `BUILD SUCCESSFUL`；三个 suite 共 12 项，失败、错误、跳过均为 0。
+- 资源：复用 `check_localizations.py` 的 XML 解析和占位符匹配函数，检查统计面板 34 个 key × 7 种语言，零重复或占位符问题；清理旧菜单 12 个无引用 key。
+- 文档：`check_documentation.py --repository .` 检查 498 个文件，0 个问题；`git diff --check` 通过。
+- 串行 APK：`./gradlew.bat :app:assembleDebug --no-daemon --console=plain`，`BUILD SUCCESSFUL in 1m 28s`。产物 `app/build/outputs/apk/debug/app-debug.apk`，`483927175` bytes，SHA-256 `C8D36F15BAABB2EE7F712545151FC145E1648B46078FF8DE77E053B2849226E6`；元数据 `com.kiyori / debug / 45 / 0.1.0`，ZIP 全条目 CRC 校验通过。
+- Git：保留 `main@5fd93e9340b8a75f14d9570129982d486c2ef359`，未提交、未推送；`terminal` 工作区干净。未执行 Lint、Release、设备操作、真实供应商调用或远端验证。
+
+长期统计口径见 [AI 请求与执行契约](../../doc-src/contracts/ai_execution.md#对话数据统计)。
+
 ## 2026-09-03 公式与图表现场续接计划
 
 本轮针对新截图中“Mermaid 围栏泄漏/未出现预览入口”和“`equation` 带编号公式进入渲染失败”

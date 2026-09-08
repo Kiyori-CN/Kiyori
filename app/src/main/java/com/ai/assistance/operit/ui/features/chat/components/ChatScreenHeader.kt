@@ -3,26 +3,19 @@ package com.ai.assistance.operit.ui.features.chat.components
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.material3.*
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.preferences.CharacterCardManager
 import com.ai.assistance.operit.data.preferences.CharacterGroupCardManager
@@ -31,8 +24,6 @@ import com.ai.assistance.operit.data.model.ActivePrompt
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import com.ai.assistance.operit.ui.features.chat.viewmodel.ChatViewModel
 import com.ai.assistance.operit.ui.floating.FloatingMode
-import com.kiyori.design.theme.KiyoriSemanticTone
-import com.kiyori.design.theme.resolveColors
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flowOf
 
@@ -121,6 +112,7 @@ fun ChatScreenHeader(
     val currentWindowSize by actualViewModel.currentWindowSize.collectAsState()
     val maxWindowSizeInK by actualViewModel.maxWindowSizeInK.collectAsState()
     val providerUsageAggregate by actualViewModel.providerUsageAggregate.collectAsState()
+    val currentChatId by actualViewModel.currentChatId.collectAsState()
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -167,253 +159,12 @@ fun ChatScreenHeader(
                 onCharacterClick = onCharacterSwitcherClick
         )
 
-        Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // 统计信息
-            val maxWindowSize =
-                (maxWindowSizeInK.toLong().coerceAtLeast(0L) * 1024L)
-                    .coerceAtLeast(0L)
-            val totalTokenCount = providerUsageAggregate.providerTotalTokens
-            val cacheHitRate =
-                ChatStatisticsFormatter.formatCacheHitRate(providerUsageAggregate.cacheHitRate)
-                    ?: stringResource(R.string.chat_stats_cache_hit_rate_unavailable)
-            val usageCoverage =
-                ChatStatisticsFormatter.formatCoverage(
-                    reported = providerUsageAggregate.providerUsageRequestCount,
-                    total = providerUsageAggregate.requestCount,
-                )
-            val cacheCoverage =
-                ChatStatisticsFormatter.formatCoverage(
-                    reported = providerUsageAggregate.providerCacheMetricRequestCount,
-                    total = providerUsageAggregate.providerUsageRequestCount,
-                )
-            val contextUsagePercentage =
-                    if (maxWindowSize > 0) {
-                        ((currentWindowSize.toDouble() / maxWindowSize.toDouble()) * 100.0)
-                            .coerceAtMost(999.0)
-                            .toFloat()
-                    } else {
-                        0f
-                    }
-
-            // 使用一个状态来跟踪是否显示详细信息
-            val (showDetailedStats, setShowDetailedStats) = remember { mutableStateOf(false) }
-
-            Box {
-                // 主要显示（圆环进度）
-                val progress = (contextUsagePercentage / 100f).coerceIn(0f, 1f)
-                val animatedProgress by animateFloatAsState(targetValue = progress, label = "TokenProgressAnimation")
-                val normalColors = KiyoriSemanticTone.BLUE.resolveColors()
-                val warningColors = KiyoriSemanticTone.ORANGE.resolveColors()
-                val criticalColors = KiyoriSemanticTone.RED.resolveColors()
-                val progressColor = when {
-                    contextUsagePercentage > 90 -> criticalColors.icon
-                    contextUsagePercentage > 75 -> warningColors.icon
-                    else -> normalColors.icon
-                }
-
-                Box(
-                    modifier = Modifier
-                        .clickable { setShowDetailedStats(!showDetailedStats) }
-                        // The statistics indicator is intentionally compact to keep the second
-                        // header row from consuming message space.
-                        .size(32.dp)
-                        .padding(3.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        progress = { animatedProgress },
-                        modifier = Modifier.fillMaxSize(),
-                        color = progressColor,
-                        strokeWidth = 3.dp,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                    )
-                    Text(
-                        text = "${contextUsagePercentage.toInt()}",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = progressColor
-                    )
-                }
-
-                // 简化的下拉框
-                DropdownMenu(
-                        expanded = showDetailedStats,
-                        onDismissRequest = { setShowDetailedStats(false) },
-                        modifier =
-                                Modifier.width(IntrinsicSize.Min)
-                                        .background(MaterialTheme.colorScheme.surface)
-                ) {
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(
-                                    R.string.chat_stats_context,
-                                    currentWindowSize,
-                                    maxWindowSize,
-                                )
-                            )
-                        },
-                        onClick = {},
-                        enabled = false
-                    )
-
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(
-                                    R.string.chat_stats_request_count,
-                                    providerUsageAggregate.requestCount,
-                                )
-                            )
-                        },
-                        onClick = {},
-                        enabled = false
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(
-                                    R.string.chat_stats_input_tokens,
-                                    providerUsageAggregate.providerTotalInputTokens,
-                                )
-                            )
-                        },
-                        onClick = {},
-                        enabled = false
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(
-                                    R.string.chat_stats_output_tokens,
-                                    providerUsageAggregate.providerOutputTokens,
-                                )
-                            )
-                        },
-                        onClick = {},
-                        enabled = false
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(
-                                    R.string.chat_stats_cache_read_tokens,
-                                    providerUsageAggregate.providerCacheReadTokens,
-                                )
-                            )
-                        },
-                        onClick = {},
-                        enabled = false
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(
-                                    R.string.chat_stats_cache_write_tokens,
-                                    providerUsageAggregate.providerCacheWriteTokens,
-                                )
-                            )
-                        },
-                        onClick = {},
-                        enabled = false
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(
-                                    R.string.chat_stats_cache_hit_rate,
-                                    cacheHitRate,
-                                )
-                            )
-                        },
-                        onClick = {},
-                        enabled = false
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(
-                                    R.string.chat_stats_usage_coverage,
-                                    usageCoverage,
-                                )
-                            )
-                        },
-                        onClick = {},
-                        enabled = false
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(
-                                    R.string.chat_stats_cache_coverage,
-                                    cacheCoverage,
-                                )
-                            )
-                        },
-                        onClick = {},
-                        enabled = false
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(
-                                    R.string.chat_stats_reasoning_tokens,
-                                    providerUsageAggregate.providerReasoningTokens,
-                                )
-                            )
-                        },
-                        onClick = {},
-                        enabled = false
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(R.string.chat_stats_total_tokens, totalTokenCount),
-                                style =
-                                    MaterialTheme.typography.bodyMedium.copy(
-                                        fontWeight =
-                                            androidx.compose.ui.text.font
-                                                .FontWeight.Bold
-                                    ),
-                                color = normalColors.icon
-                            )
-                        },
-                        onClick = {},
-                        enabled = false
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun StatItem(label: String, value: String, isHighlighted: Boolean = false) {
-    Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-        )
-        Text(
-                text = value,
-                style =
-                        MaterialTheme.typography.labelMedium.copy(
-                                fontWeight =
-                                        if (isHighlighted)
-                                                androidx.compose.ui.text.font.FontWeight.Bold
-                                        else androidx.compose.ui.text.font.FontWeight.Normal
-                        ),
-                color =
-                        if (isHighlighted) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurface
+        ChatStatisticsButton(
+            chatId = currentChatId,
+            currentTokens = currentWindowSize,
+            maxTokens = maxWindowSizeInK.toLong().coerceAtLeast(0L) * 1024L,
+            usage = providerUsageAggregate,
+            speedFlow = actualViewModel.generationSpeed,
         )
     }
 }

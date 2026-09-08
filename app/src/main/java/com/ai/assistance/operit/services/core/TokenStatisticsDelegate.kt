@@ -3,6 +3,7 @@ package com.ai.assistance.operit.services.core
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.api.chat.EnhancedAIService
 import com.ai.assistance.operit.data.model.ProviderUsageAggregate
+import com.ai.assistance.operit.data.model.GenerationSpeed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,6 +40,9 @@ class TokenStatisticsDelegate(
     val cumulativeProviderUsageFlow: StateFlow<ProviderUsageAggregate> =
         _cumulativeProviderUsage.asStateFlow()
 
+    private val _generationSpeed = MutableStateFlow<GenerationSpeed?>(null)
+    val generationSpeedFlow: StateFlow<GenerationSpeed?> = _generationSpeed.asStateFlow()
+
     // --- Internal State ---
     private var lastCurrentWindowSize = 0L
     private var tokenCollectorJob: Job? = null
@@ -53,6 +57,7 @@ class TokenStatisticsDelegate(
         ConcurrentHashMap<String, Pair<Int, Int>?>()
     private val cumulativeProviderUsageByChatKey =
         ConcurrentHashMap<String, ProviderUsageAggregate>()
+    private val generationSpeedByChatKey = ConcurrentHashMap<String, GenerationSpeed>()
 
     @Volatile private var activeChatId: String? = null
 
@@ -73,6 +78,7 @@ class TokenStatisticsDelegate(
         _currentWindowSize.value = window
         _perRequestTokenCount.value = perRequest
         _cumulativeProviderUsage.value = providerUsage
+        _generationSpeed.value = generationSpeedByChatKey[key]
         lastCurrentWindowSize = window
     }
 
@@ -113,6 +119,9 @@ class TokenStatisticsDelegate(
         val service = getEnhancedAiService() ?: return // Service not ready
         tokenCollectorJob = coroutineScope.launch(Dispatchers.IO) {
             launch {
+                service.generationSpeedFlow.collect { speed -> setGenerationSpeed(null, speed) }
+            }
+            launch {
                 service.perRequestTokenCounts.collect { counts ->
                     handlePerRequestCounts(
                         key = chatKey(null),
@@ -144,6 +153,11 @@ class TokenStatisticsDelegate(
         tokenCollectorJobsByChatKey[key] =
             coroutineScope.launch(Dispatchers.IO) {
                 launch {
+                    service.generationSpeedFlow.collect { speed ->
+                        if (boundServicesByChatKey[key] === service) setGenerationSpeed(chatId, speed)
+                    }
+                }
+                launch {
                     service.perRequestTokenCounts.collect { counts ->
                         handlePerRequestCounts(
                             key = key,
@@ -173,6 +187,7 @@ class TokenStatisticsDelegate(
         _currentWindowSize.value = 0L
         _perRequestTokenCount.value = null
         _cumulativeProviderUsage.value = ProviderUsageAggregate()
+        _generationSpeed.value = null
         lastCurrentWindowSize = 0L
 
         cumulativeInputTokensByChatKey.clear()
@@ -180,6 +195,7 @@ class TokenStatisticsDelegate(
         lastWindowSizeByChatKey.clear()
         perRequestTokenCountByChatKey.clear()
         cumulativeProviderUsageByChatKey.clear()
+        generationSpeedByChatKey.clear()
 
         // 同时重置服务中的token计数
         val services = buildSet {
@@ -272,6 +288,13 @@ class TokenStatisticsDelegate(
         if (isActiveKey(key)) {
             _cumulativeProviderUsage.value = providerUsage
         }
+    }
+
+    internal fun setGenerationSpeed(chatId: String?, speed: GenerationSpeed?) {
+        val key = chatKey(chatId)
+        if (speed == null) generationSpeedByChatKey.remove(key)
+        else generationSpeedByChatKey[key] = speed
+        if (isActiveKey(key)) _generationSpeed.value = speed
     }
 
     /** 获取当前累计token计数 */

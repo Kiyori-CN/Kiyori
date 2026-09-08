@@ -1,12 +1,14 @@
 package com.ai.assistance.operit.services.core
 
 import com.ai.assistance.operit.data.model.ProviderUsageAggregate
+import com.ai.assistance.operit.data.model.GenerationSpeed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 
@@ -23,6 +25,21 @@ class TokenStatisticsDelegateTest {
     @After
     fun tearDown() {
         scope.cancel()
+    }
+
+    @Test
+    fun generationSpeedFollowsActiveChatAndClearsWithoutLeakingToHistory() {
+        val speed = GenerationSpeed(42.0, false)
+        delegate.setActiveChatId("chat-a")
+        delegate.setGenerationSpeed("chat-a", speed)
+        delegate.setGenerationSpeed("chat-b", GenerationSpeed(8.0, true))
+        assertEquals(speed, delegate.generationSpeedFlow.value)
+        delegate.setActiveChatId("historical-chat")
+        assertNull(delegate.generationSpeedFlow.value)
+        delegate.setActiveChatId("chat-a")
+        assertEquals(speed, delegate.generationSpeedFlow.value)
+        delegate.setGenerationSpeed("chat-a", null)
+        assertNull(delegate.generationSpeedFlow.value)
     }
 
     @Test
