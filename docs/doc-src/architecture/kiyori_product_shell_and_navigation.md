@@ -403,7 +403,7 @@ Kiyori App Shell 统一拥有状态栏策略。软件首页、负一屏、五个
 
 文件管理首页按固定旧版提交保留搜索顶栏、八个文件分类、七个快捷访问和四个存储位置。分类计数固定为 `0项`；手机存储使用应用实际所在数据卷的 `StatFs.availableBytes` 与 `totalBytes`，在首次组合和宿主恢复前台时刷新，并进入唯一 `KiyoriShellChild.FILE_MANAGER`。该 child 直接复用现有 `FileManagerScreen`、`FileManagerViewModel` 与 AITool 文件操作链；页面自身呈现 Kiyori 风格的 MT 双窗格工作台，单一 ViewModel 持有左右窗格路径、列表、目录历史、活动窗格和按窗格隔离的选择集合。文件行是无间隔连续浅色底，选中为 MT 浅蓝；水平拖动时行实时位移，紧凑双栏仅允许从左向右移动一个图标距离，抬手建立选择，点击不同文件追加、点击已选文件取消，系统 Back 清空当前会话全部选择；目录只显示名称和修改时间，普通文件追加大小；扩展名映射为稳定的差异图标色。点击或按下任一栏激活该栏，活动栏以 `8dp` 阴影和 z-index 置于另一栏上方且空白区域无整栏 ripple；底栏第四键把活动栏路径/环境同步到另一栏，不交换焦点，方向箭头使用分离的黑灰配色。左上绝对退出按钮始终关闭 child；系统 Back 先处理页面内弹层，再沿活动窗格目录历史返回，回到手机存储初始目录且历史为空后才关闭 child。`FileManagerScreen` 绘制全尺寸不透明背景，顶栏消费 `statusBarsPadding` 并延伸到状态栏，同时向统一 system-bar owner 请求浅色状态栏图标，底栏消费 `navigationBarsPadding`，Shell 继续保持 edge-to-edge 背景，工具栏和文件内容不会进入显示 cutout 或导航栏；页面不使用全屏加载遮罩，抽屉仅由顶栏汉堡按钮打开。关闭后恢复文件管理首页，云盘、iCloud、最近删除保持空动作。分类图标到标题为 `5dp`，标题与计数使用明确行高且不再加入额外间隔，网格行距为 `10dp`。详细双窗格视觉与回退合同维护在 `docs/TODO/mt_file_manager_replica/index.md`。
 
-设置首页使用四张 `16dp` 圆角卡片，每张固定三行，入口从上到下为“我的账号 / AI助手 / 小程序”、“网页浏览器 / 文件下载器 / 文件管理器”、“视频播放器 / 音乐播放器 / 文档阅读器”和“界面定制 / 数据备份 / 更多功能”。页面、卡片、文字、分隔线、开关、禁用态和底部选择面板由 `KiyoriSettingsTheme` 统一适配浅色与深色；首页 12 个入口由设计层 `KiyoriSettingsHomeIconPalette` 提供独立的图标前景与低饱和容器色，不使用随机颜色或大面积高饱和背景。小程序、音乐播放器和文档阅读器在真实 owner 建立前保持诚实空动作，禁止连接 AI 包管理、脚本包、ToolPkg 或插件市场。文件管理器进入与文件管理首页相同的 `FILE_MANAGER` Shell child；Settings 会话在 child 前景期间保留但停止组合，关闭 child 后原 route、来源和 Back 链原样恢复。网页浏览器、视频播放器、文件下载器、界面定制、数据备份和更多功能进入各自唯一 owner；广告拦截器只在“网页浏览器 → 内容过滤”内部呈现，继续消费唯一 `BrowserAdBlockStore`。AI助手根页增加“文本转语音”和“语音转文本”两个设置 route，分别呈现 TTS/STT 配置但共同复用 `SpeechServicesPreferences`。更多功能使用现有折叠设置页视觉，并从上到下固定展示“权限 / 网络代理 / 开源协议 / 用户协议 / 隐私政策”；五项分别使用绿、青、橙、蓝、紫低饱和语义图标容器。五个入口分别进入 `KiyoriSettingsRoute.PERMISSIONS`、`NETWORK_PROXY`、`OPEN_SOURCE_LICENSES`、`USER_AGREEMENT` 和 `PRIVACY_POLICY`；开源协议页按组件类别展示用途、许可证、许可证正文入口和项目地址，清单版本独立于用户协议版本，FFmpegKit source lock 与页面条目由 JVM 合同逐项对账；用户协议与隐私政策直接进入各自只读正文。两份 Settings 正文使用共享折叠标题和正文分组卡，并继续复用当前法律文档资源、版本源和 `WindowInsets.safeDrawing` 不透明页面边界；首次启动同意状态仍由 `AgreementPreferences` 单独持有。权限页面消费首次启动的同一 21 项设备权限事实与动作，首屏不启动 Terminal、Node、Python 或 MCP 环境探测，也不显示全页“正在加载应用状态...”。主题快捷菜单固定为 `156dp`。`KiyoriSettingsNavigationState` 是唯一设置会话 owner，保存 `sessionId`、来源、完整 capability-level `KiyoriSettingsRoute` 栈和 `PRIMARY_ROOT / SOURCE_OVERLAY / OPERIT_ROUTE_DETAIL / SUSPENDED_FOR_BROWSER_WORKSPACE` 展示状态。主目的地设置首页显示底部五入口；浏览器菜单和 AI 抽屉启动来源保持会话并隐藏底栏。新协议页和权限页的标题返回与系统 Back 都先回 More Features；随后再逐级回设置首页，Browser/AI 来源最终恢复原 Browser Home/WebSession 或原 AI route stack。
+设置首页使用四张 `16dp` 圆角卡片，每张固定三行，入口从上到下为“我的账号 / AI助手 / 小程序”、“网页浏览器 / 文件下载器 / 文件管理器”、“视频播放器 / 音乐播放器 / 文档阅读器”和“界面定制 / 数据备份 / 更多功能”。页面、卡片、文字、分隔线、开关、禁用态和底部选择面板由 `KiyoriSettingsTheme` 统一适配浅色与深色；首页 12 个入口由设计层 `KiyoriSettingsHomeIconPalette` 提供独立的图标前景与低饱和容器色，不使用随机颜色或大面积高饱和背景。小程序、音乐播放器和文档阅读器在真实 owner 建立前保持诚实空动作，禁止连接 AI 包管理、脚本包、ToolPkg 或插件市场。文件管理器进入与文件管理首页相同的 `FILE_MANAGER` Shell child；Settings 会话在 child 前景期间保留但停止组合，关闭 child 后原 route、来源和 Back 链原样恢复。网页浏览器、视频播放器、文件下载器、界面定制、数据备份和更多功能进入各自唯一 owner；广告拦截器只在“网页浏览器 → 内容过滤”内部呈现，继续消费唯一 `BrowserAdBlockStore`。AI助手根页增加“文本转语音”和“语音转文本”两个设置 route，分别呈现 TTS/STT 配置但共同复用 `SpeechServicesPreferences`。更多功能使用现有折叠设置页视觉，系统能力、网络能力、开源与法律之后，最底部独立“使用引导”分组提供“重新查看首次引导”。其余入口从上到下展示“权限 / 网络代理 / 开源协议 / 用户协议 / 隐私政策”；五项分别使用绿、青、橙、蓝、紫低饱和语义图标容器。五个入口分别进入 `KiyoriSettingsRoute.PERMISSIONS`、`NETWORK_PROXY`、`OPEN_SOURCE_LICENSES`、`USER_AGREEMENT` 和 `PRIVACY_POLICY`；开源协议页按组件类别展示用途、许可证、许可证正文入口和项目地址，清单版本独立于用户协议版本，FFmpegKit source lock 与页面条目由 JVM 合同逐项对账；用户协议与隐私政策直接进入各自只读正文。两份 Settings 正文使用共享折叠标题和正文分组卡，并继续复用当前法律文档资源、版本源和 `WindowInsets.safeDrawing` 不透明页面边界；首次启动同意状态仍由 `AgreementPreferences` 单独持有。权限页面消费首次启动的同一 21 项设备权限事实与动作，首屏不启动 Terminal、Node、Python 或 MCP 环境探测，也不显示全页“正在加载应用状态...”。主题快捷菜单固定为 `156dp`。`KiyoriSettingsNavigationState` 是唯一设置会话 owner，保存 `sessionId`、来源、完整 capability-level `KiyoriSettingsRoute` 栈和 `PRIMARY_ROOT / SOURCE_OVERLAY / OPERIT_ROUTE_DETAIL / SUSPENDED_FOR_BROWSER_WORKSPACE` 展示状态。主目的地设置首页显示底部五入口；浏览器菜单和 AI 抽屉启动来源保持会话并隐藏底栏。新协议页和权限页的标题返回与系统 Back 都先回 More Features；随后再逐级回设置首页，Browser/AI 来源最终恢复原 Browser Home/WebSession 或原 AI route stack。
 
 Settings surface 不参与 Shell child 的 enter/exit 动画。Shell child 动画宿主只承载
 Full-Screen Search 与共享文件管理器；底部 `PRIMARY_ROOT + HOME` 的设置首页只由 Primary Root 绘制，
@@ -588,16 +588,15 @@ Settings 权限页只重新读取该集成的真实 snapshot，不拥有第二�
 凭据、聊天状态、浏览器状态或 `ToolPermissionSystem` 的 AI 工具授权。
 
 顶部由 `OnboardingProgressHeader` 从当前步骤派生品牌、步骤文案、数字进度和六段指示；
-不维护独立进度状态。前四页共享介绍与 2×2 能力卡片的结构，四页分别表达
-AI 浏览器总览、浏览与内容工作台、AI 与连接服务、本地文件/终端/小程序工作区。
-产品文案使用 16 个实际入口/能力名称：我的账号、AI助手、扩展、网络代理、网页浏览器、
-文件下载器、视频播放器、广告拦截器、模型配置、语音服务、记忆管理、工具箱、文件管理器、
-终端、工作流和日志记录器。卡片固定双列、说明固定两行，不宣称尚未完成的小程序安装或独立
-音乐/小说阅读能力。导航与重看会话边界以 [首启契约](../contracts/product_shell.md#首次启动) 为准。
+不维护独立进度状态。前四页共享紧凑导航示意、介绍与自适应能力卡结构，分别表达
+常用入口、浏览与媒体、AI 协作、本地文件与工具。每页四项，用途和真实入口分两句说明；
+默认双列，窄屏和大字体单列，文字自然换行而不缩小或省略。配置前提单独标注，
+卡片不伪装可点击入口，不宣称尚未完成的小程序安装或独立音乐/小说阅读能力。
+导航、布局及重看会话的唯一契约见 [首启契约](../contracts/product_shell.md#首次启动)。
 当前逐页精修只维护中文默认资源，其余语言在
 六个中文页面全部定稿后统一同步。
 
-授权页按与 Settings 相同的五组目录和状态摘要显示真实状态。已授权、无需授权和使用时确认的项目
+授权页按与 Settings 相同的五组目录逐项显示真实状态，摘要强调所选数量和自主选择，取消旧三列状态大数字。已授权、无需授权和使用时确认的项目
 使用状态图标而不是伪装成禁用复选框；可处理项目支持逐项选择，非处理中可以清空已选并直接进入：
 
 - Android runtime 权限通过唯一 launcher 一次请求用户选中的当前 SDK 适用集合；

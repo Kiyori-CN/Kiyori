@@ -94,6 +94,13 @@ internal val kiyoriMoreFeaturesSettingsGroups =
                         iconTone = KiyoriSemanticTone.PURPLE,
                         action = KiyoriMoreFeaturesSettingsAction.OPEN_PRIVACY_POLICY,
                     ),
+                ),
+        ),
+        KiyoriMoreFeaturesSettingsGroupSpec(
+            title = "使用引导",
+            description = "回顾功能入口与使用方式，按自己的节奏重新了解 Kiyori",
+            entries =
+                listOf(
                     KiyoriMoreFeaturesSettingsEntrySpec(
                         title = "重新查看首次引导",
                         description = "从第一页重新了解功能与使用方式，完成后返回此页；保留已有数据与授权",

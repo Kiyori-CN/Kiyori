@@ -441,9 +441,15 @@ class KiyoriSettingsPagesTest {
     @Test
     fun `more features exposes legal documents and the native permission center`() {
         assertEquals(
-            listOf("系统能力", "网络能力", "开源与法律"),
+            listOf("系统能力", "网络能力", "开源与法律", "使用引导"),
             kiyoriMoreFeaturesSettingsGroups.map(KiyoriMoreFeaturesSettingsGroupSpec::title),
         )
+        assertEquals(
+            listOf(KiyoriMoreFeaturesSettingsAction.OPEN_ONBOARDING_REVIEW),
+            kiyoriMoreFeaturesSettingsGroups.last().entries.map { it.action },
+        )
+        assertFalse(kiyoriMoreFeaturesSettingsGroups.single { it.title == "开源与法律" }
+            .entries.any { it.action == KiyoriMoreFeaturesSettingsAction.OPEN_ONBOARDING_REVIEW })
         val entries =
             kiyoriMoreFeaturesSettingsGroups
                 .flatMap(KiyoriMoreFeaturesSettingsGroupSpec::entries)

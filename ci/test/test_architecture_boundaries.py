@@ -6194,7 +6194,7 @@ class KiyoriPathsTest {
                 "KiyoriPermissionId.entries\n"
                 "kiyoriPermissionGroups.forEach\n"
                 "group.permissionIds.forEach\n"
-                "summarizeKiyoriPermissions(snapshot)\n"
+                "R.string.kiyori_onboarding_permissions_selected_count\n"
                 "RootAuthorizer.requestRootPermission\n"
                 "KiyoriLegalDocument.USER_AGREEMENT\n"
                 "KiyoriLegalDocument.PRIVACY_POLICY\n"
@@ -6287,12 +6287,12 @@ class KiyoriPathsTest {
                 "模型配置\n"
                 "AI 助手\n"
                 "语音服务\n"
-                "我的账号\n"
+                "首页搜索\n"
                 "工具箱\n"
                 "文件管理器\n"
                 "终端\n"
                 "工作流\n"
-                "日志记录器\n"
+                "数据备份\n"
                 "Kiyori 无障碍支持\n"
                 "Kiyori UI 自动化服务\n"
                 "GPL-3.0-or-later\n"
@@ -6350,7 +6350,7 @@ class KiyoriPathsTest {
             self.assertEqual(errors, [])
 
     def test_kiyori_first_run_flow_requires_current_feature_copy(self) -> None:
-        for feature in ("广告拦截器", "模型配置", "我的账号", "工作流"):
+        for feature in ("广告拦截器", "模型配置", "首页搜索", "工作流"):
             with self.subTest(feature=feature), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 self.write_kiyori_first_run_layout(root)
@@ -6362,6 +6362,21 @@ class KiyoriPathsTest {
                 errors: list[str] = []
                 check_kiyori_first_run_flow(root, errors)
                 self.assertTrue(any(f"fact contract missing: {feature}" in error for error in errors))
+
+    def test_kiyori_first_run_flow_requires_permission_selection_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_kiyori_first_run_layout(root)
+            screen = root / KIYORI_FIRST_RUN_SCREEN_PATH
+            screen.write_text(
+                screen.read_text(encoding="utf-8").replace(
+                    "R.string.kiyori_onboarding_permissions_selected_count", "",
+                ),
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            check_kiyori_first_run_flow(root, errors)
+            self.assertTrue(any("permissions_selected_count" in error for error in errors))
 
     def test_kiyori_first_run_flow_rejects_second_launcher_and_legacy_owner(
         self,

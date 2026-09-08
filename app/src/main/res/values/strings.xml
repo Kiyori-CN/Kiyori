@@ -8223,11 +8223,28 @@
     <string name="theme_fixed_palette_desc">浅色、深色与跟随系统主题仍然保留；AI 背景、消息、头像和输入区可在其他标签中单独调整。</string>
 
     <!-- Kiyori onboarding -->
+    <string name="kiyori_onboarding_page_announcement" translatable="false">第 %1$d 页，共 %2$d 页：%3$s</string>
+    <string name="kiyori_onboarding_requires_setup" translatable="false">需先配置</string>
+    <string name="kiyori_onboarding_welcome_note" translatable="false">以后可在“设置 → 更多功能”底部的“使用引导”分组重新查看，不会重置数据。</string>
+    <string name="kiyori_onboarding_browser_note" translatable="false">浏览网页不需要配置 AI 模型。媒体播放与下载遵循网站和文件的实际支持情况。</string>
+    <string name="kiyori_onboarding_ai_note" translatable="false">未配置模型也能进入 AI 首页；发送消息需先配置可用模型，第三方服务可能收费。</string>
+    <string name="kiyori_onboarding_files_note" translatable="false">账号、日志与网络代理等进阶设置，可在需要时再了解；不会阻碍现在开始浏览。</string>
+    <string name="kiyori_onboarding_map_left" translatable="false">负一屏</string>
+    <string name="kiyori_onboarding_map_home" translatable="false">软件首页</string>
+    <string name="kiyori_onboarding_map_ai" translatable="false">AI 助手</string>
+    <string name="kiyori_onboarding_map_home_hint" translatable="false">软件首页居中，左侧是负一屏，右侧是 AI 助手。</string>
+    <string name="kiyori_onboarding_map_browser_hint" translatable="false">底栏打开浏览器；负一屏集中查看下载与内容入口。</string>
+    <string name="kiyori_onboarding_map_ai_hint" translatable="false">从软件首页向左滑，进入右侧的 AI 首页。</string>
+    <string name="kiyori_onboarding_map_tools_hint" translatable="false">AI 工具箱打开命令终端；AI 菜单打开工作流。</string>
+    <string name="kiyori_onboarding_permissions_choice_note" translatable="false">默认不预选。选择后由你发起请求；拒绝或暂不开启都能完成引导。系统设置返回后可继续，也可停止。</string>
+    <string name="kiyori_onboarding_agreement_review_hint" translatable="false">你已同意当前版本。本次仅回顾内容，不会重新征求同意或重置设备授权。</string>
+    <string name="kiyori_onboarding_agreement_checked_hint" translatable="false">勾选表示你理解并同意条款；尚未勾选时不会继续。</string>
+
     <string name="kiyori_onboarding_skip_intro" translatable="false">跳过介绍</string>
     <string name="kiyori_onboarding_back">返回上一步</string>
     <string name="kiyori_onboarding_progress">%1$d / %2$d</string>
-    <string name="kiyori_onboarding_step_welcome" translatable="false">欢迎使用 Kiyori</string>
-    <string name="kiyori_onboarding_step_content" translatable="false">浏览与内容</string>
+    <string name="kiyori_onboarding_step_welcome" translatable="false">认识 Kiyori</string>
+    <string name="kiyori_onboarding_step_content" translatable="false">浏览与媒体</string>
     <string name="kiyori_onboarding_step_ai" translatable="false">AI 协作</string>
     <string name="kiyori_onboarding_step_workspace" translatable="false">文件与工具</string>
     <string name="kiyori_onboarding_step_trust" translatable="false">协议与隐私</string>
@@ -8242,56 +8259,56 @@
     <string name="kiyori_onboarding_permissions_stop" translatable="false">停止处理，留在此页</string>
     <string name="kiyori_onboarding_permissions_later" translatable="false">稍后设置，开始使用</string>
     <string name="kiyori_onboarding_welcome_eyebrow" translatable="false">Kiyori</string>
-    <string name="kiyori_onboarding_welcome_title" translatable="false">让每一次浏览，多一种可能</string>
-    <string name="kiyori_onboarding_welcome_desc" translatable="false">浏览网页、与 AI 协作、把想法整理成文件。用六页认识 Kiyori，之后从你想做的一件小事开始。左右滑动翻页，上下滑动阅读。</string>
-    <string name="kiyori_onboarding_welcome_card_account_title" translatable="false">我的账号</string>
-    <string name="kiyori_onboarding_welcome_card_account_desc" translatable="false">连接服务账号\n管理登录状态</string>
-    <string name="kiyori_onboarding_welcome_card_ai_title" translatable="false">AI助手</string>
-    <string name="kiyori_onboarding_welcome_card_ai_desc" translatable="false">从问题出发\n与助手协作</string>
+    <string name="kiyori_onboarding_welcome_title" translatable="false">从这里开始你的第一件事</string>
+    <string name="kiyori_onboarding_welcome_desc" translatable="false">搜索网页、与 AI 协作，再把结果整理成文件。左右滑动翻页，上下滑动阅读；所有配置都可以按需准备。</string>
+    <string name="kiyori_onboarding_welcome_card_search_title" translatable="false">首页搜索</string>
+    <string name="kiyori_onboarding_welcome_card_search_desc" translatable="false">搜索网页与网址\n软件首页搜索框</string>
+    <string name="kiyori_onboarding_welcome_card_ai_title" translatable="false">AI 助手</string>
+    <string name="kiyori_onboarding_welcome_card_ai_desc" translatable="false">提问、总结与执行\n软件首页右侧</string>
     <string name="kiyori_onboarding_welcome_card_extensions_title" translatable="false">扩展</string>
-    <string name="kiyori_onboarding_welcome_card_extensions_desc" translatable="false">按需添加能力\n组合任务工具</string>
-    <string name="kiyori_onboarding_welcome_card_network_title" translatable="false">网络代理</string>
-    <string name="kiyori_onboarding_welcome_card_network_desc" translatable="false">配置连接规则\n管理应用网络</string>
-    <string name="kiyori_onboarding_welcome_next" translatable="false">开始了解</string>
+    <string name="kiyori_onboarding_welcome_card_extensions_desc" translatable="false">添加脚本与插件\nAI 菜单 → 扩展</string>
+    <string name="kiyori_onboarding_welcome_card_appearance_title" translatable="false">界面定制</string>
+    <string name="kiyori_onboarding_welcome_card_appearance_desc" translatable="false">调整外观与主题\n设置 → 界面定制</string>
+    <string name="kiyori_onboarding_welcome_next" translatable="false">了解浏览与媒体</string>
 
     <string name="kiyori_onboarding_browser_eyebrow" translatable="false">内容工作台</string>
     <string name="kiyori_onboarding_browser_title" translatable="false">发现值得留下的内容</string>
-    <string name="kiyori_onboarding_browser_desc" translatable="false">从首页搜索，或打开底部的浏览器。阅读网页、发现影音，把值得留下的内容加入书签或下载，之后继续整理。</string>
+    <string name="kiyori_onboarding_browser_desc" translatable="false">在浏览器中找内容，把要留下的加入书签或下载，再交给播放器。网站和文件支持情况以实际结果为准。</string>
     <string name="kiyori_onboarding_browser_card_browser_title" translatable="false">网页浏览器</string>
-    <string name="kiyori_onboarding_browser_card_browser_desc" translatable="false">搜索与多窗浏览\n收藏精彩网页</string>
+    <string name="kiyori_onboarding_browser_card_browser_desc" translatable="false">搜索与多窗口浏览\n底栏 → 浏览器</string>
     <string name="kiyori_onboarding_browser_card_download_title" translatable="false">文件下载器</string>
-    <string name="kiyori_onboarding_browser_card_download_desc" translatable="false">查看下载进度\n管理下载任务</string>
+    <string name="kiyori_onboarding_browser_card_download_desc" translatable="false">查看进度与失败原因\n负一屏 → 下载</string>
     <string name="kiyori_onboarding_browser_card_video_title" translatable="false">视频播放器</string>
-    <string name="kiyori_onboarding_browser_card_video_desc" translatable="false">播放本地视频\n也能在线播放</string>
+    <string name="kiyori_onboarding_browser_card_video_desc" translatable="false">播放本地与网络视频\n打开视频文件或链接</string>
     <string name="kiyori_onboarding_browser_card_adblock_title" translatable="false">广告拦截器</string>
-    <string name="kiyori_onboarding_browser_card_adblock_desc" translatable="false">订阅过滤规则\n减少网页干扰</string>
-    <string name="kiyori_onboarding_browser_next" translatable="false">了解 AI 能力</string>
+    <string name="kiyori_onboarding_browser_card_adblock_desc" translatable="false">订阅与管理过滤规则\n浏览器设置 → 内容过滤</string>
+    <string name="kiyori_onboarding_browser_next" translatable="false">了解 AI 协作</string>
 
     <string name="kiyori_onboarding_ai_eyebrow" translatable="false">你的 AI 助手</string>
-    <string name="kiyori_onboarding_ai_title" translatable="false">从一个问题，到下一步行动</string>
-    <string name="kiyori_onboarding_ai_desc" translatable="false">从首页向左滑，进入 AI 对话。先在 AI 助手设置中配置模型，再试着总结网页、理解文件或检索资料。工具操作按授权执行，重要结果由你核验。</string>
+    <string name="kiyori_onboarding_ai_title" translatable="false">让问题有下一步行动</string>
+    <string name="kiyori_onboarding_ai_desc" translatable="false">在 AI 助手设置中配置模型，再试着总结网页、理解文件或检索资料。工具按授权执行，重要结果请自己核验。</string>
     <string name="kiyori_onboarding_ai_card_models_title" translatable="false">模型配置</string>
-    <string name="kiyori_onboarding_ai_card_models_desc" translatable="false">选择模型服务\n按用途配模型</string>
+    <string name="kiyori_onboarding_ai_card_models_desc" translatable="false">选择服务商与模型\nAI 设置 → 模型与 API</string>
     <string name="kiyori_onboarding_ai_card_voice_title" translatable="false">语音服务</string>
-    <string name="kiyori_onboarding_ai_card_voice_desc" translatable="false">用语音来输入\n听回答被朗读</string>
+    <string name="kiyori_onboarding_ai_card_voice_desc" translatable="false">配置语音识别与朗读\nAI 助手设置 → 语音</string>
     <string name="kiyori_onboarding_ai_card_memory_title" translatable="false">记忆管理</string>
-    <string name="kiyori_onboarding_ai_card_memory_desc" translatable="false">保存参考资料\n检索关联内容</string>
+    <string name="kiyori_onboarding_ai_card_memory_desc" translatable="false">保存资料与检索关联\nAI 菜单 → 记忆库</string>
     <string name="kiyori_onboarding_ai_card_toolbox_title" translatable="false">工具箱</string>
-    <string name="kiyori_onboarding_ai_card_toolbox_desc" translatable="false">查看可用工具\n按授权执行</string>
+    <string name="kiyori_onboarding_ai_card_toolbox_desc" translatable="false">查看工具与执行记录\nAI 菜单 → 工具箱</string>
     <string name="kiyori_onboarding_ai_next" translatable="false">了解文件与工具</string>
 
     <string name="kiyori_onboarding_files_eyebrow" translatable="false">本地工作区</string>
-    <string name="kiyori_onboarding_files_title" translatable="false">让灵感有处安放</string>
-    <string name="kiyori_onboarding_files_desc" translatable="false">从底部的文件管理整理下载与文档；需要运行命令或扩展任务时，再打开 AI 菜单中的工具箱。环境可以稍后准备，不必一次配置齐全。</string>
+    <string name="kiyori_onboarding_files_title" translatable="false">按需准备，不必一次配齐</string>
+    <string name="kiyori_onboarding_files_desc" translatable="false">整理文件、运行命令或编排重复任务。需要终端时再准备运行环境，重要数据请先备份。</string>
     <string name="kiyori_onboarding_files_card_manager_title" translatable="false">文件管理器</string>
-    <string name="kiyori_onboarding_files_card_manager_desc" translatable="false">浏览本地目录\n查找所需文件</string>
+    <string name="kiyori_onboarding_files_card_manager_desc" translatable="false">整理下载与本地目录\n底栏 → 文件管理</string>
     <string name="kiyori_onboarding_files_card_terminal_title" translatable="false">终端</string>
-    <string name="kiyori_onboarding_files_card_terminal_desc" translatable="false">准备运行环境\n执行命令脚本</string>
+    <string name="kiyori_onboarding_files_card_terminal_desc" translatable="false">运行命令与脚本\nAI 工具箱 → 命令终端</string>
     <string name="kiyori_onboarding_files_card_workflow_title" translatable="false">工作流</string>
-    <string name="kiyori_onboarding_files_card_workflow_desc" translatable="false">编排任务步骤\n按需重复执行</string>
-    <string name="kiyori_onboarding_files_card_logs_title" translatable="false">日志记录器</string>
-    <string name="kiyori_onboarding_files_card_logs_desc" translatable="false">查看运行记录\n定位问题线索</string>
-    <string name="kiyori_onboarding_files_next" translatable="false">查看协议</string>
+    <string name="kiyori_onboarding_files_card_workflow_desc" translatable="false">编排步骤与重复任务\nAI 菜单 → 工作流</string>
+    <string name="kiyori_onboarding_files_card_backup_title" translatable="false">数据备份</string>
+    <string name="kiyori_onboarding_files_card_backup_desc" translatable="false">导出与恢复已有数据\n设置 → 数据备份</string>
+    <string name="kiyori_onboarding_files_next" translatable="false">查看协议与隐私</string>
 
     <string name="kiyori_onboarding_agreement_title">安心开始，先说清楚</string>
     <string name="kiyori_onboarding_agreement_subtitle">你的数据如何使用，哪些操作需要谨慎，以及你拥有哪些选择。请阅读两份完整文档后再决定。</string>
@@ -8346,13 +8363,13 @@
     <string name="kiyori_onboarding_legal_full_text_note" translatable="false">当前完整中文正文，可通过目录定位章节，也可长按选择复制。</string>
     <string name="kiyori_onboarding_legal_selectable_note" translatable="false">展开目录可定位章节；正文支持滚动与长按复制。</string>
 
-    <string name="kiyori_onboarding_permissions_title">按你的需要，开启能力</string>
-    <string name="kiyori_onboarding_permissions_desc">所有项目均为可选。普通浏览无需提前开启这些权限；选择现在要用的能力，也可以直接开始，稍后到设置中调整。</string>
+    <string name="kiyori_onboarding_permissions_title">用到哪一项，再开哪一项</string>
+    <string name="kiyori_onboarding_permissions_desc">设备权限全部由你选择，也可以暂不开启。每项用途和当前状态列在下方，之后可在“设置 → 更多功能 → 权限管理”调整。</string>
     <string name="kiyori_onboarding_permissions_all_items" translatable="false">权限清单</string>
     <string name="kiyori_onboarding_permissions_select_all" translatable="false">全选</string>
     <string name="kiyori_onboarding_permissions_deselect_all" translatable="false">取消全选</string>
     <string name="kiyori_onboarding_permissions_clear_all" translatable="false">清空已选</string>
-    <string name="kiyori_onboarding_permissions_selected_count" translatable="false">已选择 %1$d 项</string>
+    <string name="kiyori_onboarding_permissions_selected_count" translatable="false">已选择 %1$d 项待授权能力</string>
     <string name="kiyori_onboarding_permissions_authorize_and_enter" translatable="false">处理所选权限</string>
     <string name="kiyori_onboarding_permissions_enter" translatable="false">暂不授权，开始使用</string>
     <string name="kiyori_onboarding_permissions_processing" translatable="false">正在处理授权</string>

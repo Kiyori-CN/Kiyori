@@ -20,7 +20,7 @@ class KiyoriStartupExperienceSurfaceTest {
         cards.filter { it.groupValues[2] == "desc" }.forEach { card ->
             val lines = card.groupValues[3].split("\\n")
             assertEquals(card.value, 2, lines.size)
-            assertTrue(card.value, lines.all { it.isNotBlank() && it.length <= 7 })
+            assertTrue(card.value, lines.all { it.isNotBlank() && it.length <= 16 })
         }
     }
 
@@ -91,7 +91,8 @@ class KiyoriStartupExperienceSurfaceTest {
         assertTrue(permissionPageBlock.contains("kiyoriPermissionGroups.forEach"))
         assertTrue(permissionPageBlock.contains("group.permissionIds.forEach"))
         assertFalse(permissionPageBlock.contains("onSelectAll"))
-        assertTrue(permissionPageBlock.contains("summarizeKiyoriPermissions(snapshot)"))
+        assertFalse(permissionPageBlock.contains("PermissionOverviewMetric"))
+        assertTrue(permissionPageBlock.contains("kiyori_onboarding_permissions_choice_note"))
         assertTrue(permissionPageBlock.contains("onClearSelection"))
 
         val defaultStrings =
@@ -131,6 +132,34 @@ class KiyoriStartupExperienceSurfaceTest {
         assertFalse(source.contains("detectHorizontalDragGestures"))
         assertTrue(source.contains("pageCount = { kiyoriOnboardingPageCount(agreementAcceptedState) }"))
         assertTrue(source.contains("finally {\n                navigationInFlight = false"))
+    }
+
+    @Test
+    fun `drag cancellation reaches native clickable before release without blocking accessibility`() {
+        val source = repositoryFile(
+            "app/src/main/java/com/kiyori/integration/operit/onboarding/KiyoriOnboardingScreen.kt",
+        ).readText()
+        val modifier = source.substringAfter("private fun Modifier.onboardingTapOnly(")
+            .substringBefore("private val KiyoriOnboardingStep.onboardingLabelResId")
+        assertTrue(modifier.contains("it.previousPressed && !it.pressed"))
+        assertTrue(modifier.indexOf("it.consume()") < modifier.indexOf("awaitPointerEvent(PointerEventPass.Final)"))
+        assertFalse(source.contains("onClick = { if (gesture.allowsClick)"))
+        assertTrue(source.contains("acceptModifier = Modifier.onboardingTapOnly"))
+        assertTrue(source.contains("declineModifier = Modifier.onboardingTapOnly"))
+    }
+
+    @Test
+    fun `large font introduction keeps all text and uses one column instead of shrinking`() {
+        val source = repositoryFile(
+            "app/src/main/java/com/kiyori/integration/operit/onboarding/KiyoriOnboardingScreen.kt",
+        ).readText()
+        val cards = source.substringAfter("private fun OnboardingFeatureGrid(")
+            .substringBefore("private fun KiyoriWelcomePage(")
+        assertTrue(cards.contains("fontScale >= 1.3f"))
+        assertFalse(cards.contains("fittedStyle"))
+        assertFalse(cards.contains("maxLines ="))
+        assertFalse(cards.contains("softWrap = false"))
+        assertTrue(cards.contains("semantics(mergeDescendants = true)"))
     }
 
     @Test

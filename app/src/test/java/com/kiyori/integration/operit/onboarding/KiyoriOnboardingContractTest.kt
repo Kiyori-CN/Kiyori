@@ -46,7 +46,7 @@ class KiyoriOnboardingContractTest {
     }
 
     @Test
-    fun `tap dispatch is allowed at release and keyboard remains usable outside touch`() {
+    fun `valid tap remains allowed after release and completion`() {
         val gesture = KiyoriOnboardingTapGesture()
         assertTrue(gesture.allowsClick)
         gesture.begin()
@@ -82,6 +82,21 @@ class KiyoriOnboardingContractTest {
         gesture.update(0f, 8f, singlePointer = true, pressed = false)
         assertFalse(gesture.allowsClick)
         gesture.end()
+        assertFalse(gesture.allowsClick)
+    }
+
+    @Test
+    fun `cancelled release cannot become a delayed click after final pass ends`() {
+        val gesture = KiyoriOnboardingTapGesture()
+        gesture.begin()
+        gesture.update(32f, 8f, singlePointer = true, pressed = true)
+        gesture.update(0f, 8f, singlePointer = true, pressed = false)
+        assertFalse(gesture.allowsClick)
+        gesture.end()
+        // 原缺陷：end 恢复 tracking=false 后，异步 onClick 再读取会变成 true。
+        assertFalse(gesture.allowsClick)
+        gesture.begin()
+        gesture.update(0f, 8f, singlePointer = true, pressed = false)
         assertTrue(gesture.allowsClick)
     }
 

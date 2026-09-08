@@ -148,6 +148,8 @@ internal fun KiyoriAgreementSummary(
     agreementAlreadyAccepted: Boolean = false,
     interactionEnabled: Boolean = true,
     reviewing: Boolean = false,
+    acceptModifier: Modifier = Modifier,
+    declineModifier: Modifier = Modifier,
 ) {
     Column(
         modifier =
@@ -171,7 +173,10 @@ internal fun KiyoriAgreementSummary(
                 lineHeight = 31.sp,
             )
             Text(
-                text = stringResource(R.string.kiyori_onboarding_agreement_subtitle),
+                text = stringResource(
+                    if (reviewing) R.string.kiyori_onboarding_agreement_review_hint
+                    else R.string.kiyori_onboarding_agreement_subtitle,
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 22.sp,
@@ -218,6 +223,11 @@ internal fun KiyoriAgreementSummary(
                     )
                 }
             }
+            if (!agreementAlreadyAccepted) Text(
+                text = stringResource(R.string.kiyori_onboarding_agreement_checked_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
         Spacer(Modifier.height(12.dp))
@@ -232,7 +242,7 @@ internal fun KiyoriAgreementSummary(
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                 ),
             modifier =
-                Modifier
+                acceptModifier
                     .fillMaxWidth()
                     .heightIn(min = 56.dp),
         ) {
@@ -248,7 +258,7 @@ internal fun KiyoriAgreementSummary(
         TextButton(
             onClick = onDecline,
             enabled = interactionEnabled,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = declineModifier.fillMaxWidth().heightIn(min = 48.dp),
             colors =
                 ButtonDefaults.textButtonColors(
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant,

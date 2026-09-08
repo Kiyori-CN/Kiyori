@@ -64,7 +64,7 @@ internal class KiyoriOnboardingTapGesture {
     private var released = false
 
     val allowsClick: Boolean
-        get() = !tracking || (!cancelled && released)
+        get() = !cancelled && (!tracking || released)
 
     fun begin(allowed: Boolean = true) {
         tracking = true

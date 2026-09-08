@@ -9,7 +9,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.background
@@ -19,6 +18,8 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -39,7 +40,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.PagerSnapDistance
@@ -52,33 +52,19 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.AccessibilityNew
-import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.AccountTree
-import androidx.compose.material.icons.filled.Hub
-import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.BatteryChargingFull
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderSpecial
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.InstallMobile
 import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.PermPhoneMsg
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.RecordVoiceOver
-import androidx.compose.material.icons.filled.SettingsApplications
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Terminal
@@ -95,34 +81,31 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kiyori.design.theme.KiyoriUiShapes
@@ -142,7 +125,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.progressBarRangeInfo
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
@@ -237,7 +219,7 @@ internal fun KiyoriOnboardingScreen(
     ) {
         if (!canNavigateKiyoriOnboarding(
                 KiyoriOnboardingStep.entries[pagerState.settledPage], step, agreementAcceptedState,
-                interactionLocked = authorizationActive || navigationBusy || completionDispatched,
+                interactionLocked = authorizationActive || runtimeRequestInFlight || navigationBusy || completionDispatched,
                 sourceStep = sourceStep,
                 skipIntroduction = skipIntroduction,
             )) return
@@ -484,6 +466,7 @@ internal fun KiyoriOnboardingScreen(
     val handleBack: () -> Unit = {
         when {
             selectedLegalDocument != null -> selectedLegalDocument = null
+            runtimeRequestInFlight -> Unit
             authorizationActive -> stopAuthorization()
             navigationBusy -> Unit
             currentStep == KiyoriOnboardingStep.WELCOME ->
@@ -494,7 +477,7 @@ internal fun KiyoriOnboardingScreen(
 
     val pagerInputEnabled =
         shouldEnableKiyoriOnboardingPagerInput(
-            interactionLocked = authorizationActive,
+            interactionLocked = authorizationActive || runtimeRequestInFlight,
         )
 
     KiyoriOnboardingPresentation(reviewing = onExitReview != null, onBack = handleBack) {
@@ -524,8 +507,8 @@ internal fun KiyoriOnboardingScreen(
                     backLabel = if (currentStep == KiyoriOnboardingStep.WELCOME && onExitReview != null)
                         stringResource(R.string.kiyori_onboarding_review_return)
                     else stringResource(R.string.kiyori_onboarding_back),
-                    onSkipIntroduction = {
-                        moveTo(KiyoriOnboardingStep.AGREEMENT, skipIntroduction = true)
+                    onSkipIntroduction = { sourceStep ->
+                        moveTo(KiyoriOnboardingStep.AGREEMENT, sourceStep, skipIntroduction = true)
                     },
                 )
                 // 正文独立呈现时保留介绍/协议/权限的阅读位置，关闭正文后回到原处。
@@ -615,7 +598,7 @@ internal fun KiyoriOnboardingScreen(
                                                     ),
                                             ),
                                         ),
-                                    visual = { cards -> BrowserMediaVisual(cards) },
+                                    step = KiyoriOnboardingStep.BROWSER_AND_MEDIA,
                                     onNext = {
                                         moveTo(KiyoriOnboardingStep.AI_ASSISTANT, KiyoriOnboardingStep.BROWSER_AND_MEDIA)
                                     },
@@ -644,6 +627,7 @@ internal fun KiyoriOnboardingScreen(
                                     featureCards =
                                         listOf(
                                             OnboardingFeatureCard(
+                                                badge = stringResource(R.string.kiyori_onboarding_requires_setup),
                                                 icon = Icons.Default.AutoAwesome,
                                                 tone = KiyoriSemanticTone.PURPLE,
                                                 title =
@@ -656,6 +640,7 @@ internal fun KiyoriOnboardingScreen(
                                                     ),
                                             ),
                                             OnboardingFeatureCard(
+                                                badge = stringResource(R.string.kiyori_onboarding_requires_setup),
                                                 icon = Icons.Default.RecordVoiceOver,
                                                 tone = KiyoriSemanticTone.CYAN,
                                                 title =
@@ -692,7 +677,7 @@ internal fun KiyoriOnboardingScreen(
                                                     ),
                                             ),
                                         ),
-                                    visual = { cards -> AiCollaborationVisual(cards) },
+                                    step = KiyoriOnboardingStep.AI_ASSISTANT,
                                     onNext = {
                                         moveTo(KiyoriOnboardingStep.FILES_AND_TOOLS, KiyoriOnboardingStep.AI_ASSISTANT)
                                     },
@@ -733,6 +718,7 @@ internal fun KiyoriOnboardingScreen(
                                                     ),
                                             ),
                                             OnboardingFeatureCard(
+                                                badge = stringResource(R.string.kiyori_onboarding_requires_setup),
                                                 icon = Icons.Default.Terminal,
                                                 tone = KiyoriSemanticTone.BLUE,
                                                 title =
@@ -757,19 +743,19 @@ internal fun KiyoriOnboardingScreen(
                                                     ),
                                             ),
                                             OnboardingFeatureCard(
-                                                icon = Icons.Default.BugReport,
+                                                icon = Icons.Default.Backup,
                                                 tone = KiyoriSemanticTone.PURPLE,
                                                 title =
                                                     stringResource(
-                                                        R.string.kiyori_onboarding_files_card_logs_title,
+                                                        R.string.kiyori_onboarding_files_card_backup_title,
                                                     ),
                                                 description =
                                                     stringResource(
-                                                        R.string.kiyori_onboarding_files_card_logs_desc,
+                                                        R.string.kiyori_onboarding_files_card_backup_desc,
                                                     ),
                                             ),
                                         ),
-                                    visual = { cards -> FilesAndToolsVisual(cards) },
+                                    step = KiyoriOnboardingStep.FILES_AND_TOOLS,
                                     onNext = {
                                         moveTo(KiyoriOnboardingStep.AGREEMENT, KiyoriOnboardingStep.FILES_AND_TOOLS)
                                     },
@@ -792,6 +778,7 @@ internal fun KiyoriOnboardingScreen(
                                             KiyoriLegalDocument.PRIVACY_POLICY
                                     },
                                     onDecline = {
+                                        if (navigationBusy || currentStep != KiyoriOnboardingStep.AGREEMENT) return@KiyoriAgreementSummary
                                         if (onExitReview != null) onExitReview() else context.findActivity().finish()
                                     },
                                     onAccept = {
@@ -804,6 +791,12 @@ internal fun KiyoriOnboardingScreen(
                                         moveTo(KiyoriOnboardingStep.PERMISSIONS, KiyoriOnboardingStep.AGREEMENT)
                                     },
                                     agreementAlreadyAccepted = agreementAcceptedState,
+                                    acceptModifier = Modifier.onboardingTapOnly {
+                                        !navigationBusy && pagerState.settledPage == pageIndex
+                                    },
+                                    declineModifier = Modifier.onboardingTapOnly {
+                                        !navigationBusy && pagerState.settledPage == pageIndex
+                                    },
                                     interactionEnabled = !completionDispatched,
                                     reviewing = onExitReview != null,
                                 )
@@ -815,6 +808,7 @@ internal fun KiyoriOnboardingScreen(
                                     authorizationActive = authorizationActive,
                                     waitingForExternalSettings = waitingForExternalSettings || runtimeRequestInFlight,
                                     navigationEnabled = !completionDispatched && !runtimeRequestInFlight,
+                                    canStartTap = { !navigationBusy && pagerState.settledPage == pageIndex },
                                     reviewing = onExitReview != null,
                                     authorizationNeedsContinue = authorizationNeedsContinue,
                                     remainingCount = permissionQueueNames.size,
@@ -822,7 +816,8 @@ internal fun KiyoriOnboardingScreen(
                                     onStopAuthorization = ::stopAuthorization,
                                     onFinish = ::completeOnboarding,
                                     onTogglePermission = { permissionId ->
-                                        if (!authorizationActive &&
+                                        if (!authorizationActive && !navigationBusy &&
+                                            currentStep == KiyoriOnboardingStep.PERMISSIONS &&
                                             permissionSnapshot.canSelect(permissionId)
                                         ) {
                                             selectedPermissionIds =
@@ -835,7 +830,8 @@ internal fun KiyoriOnboardingScreen(
                                         }
                                     },
                                     onClearSelection = {
-                                        if (!authorizationActive) {
+                                        if (!authorizationActive && !navigationBusy &&
+                                            currentStep == KiyoriOnboardingStep.PERMISSIONS) {
                                             selectedPermissionIds = emptySet()
                                             persistSelection(emptySet())
                                         }
@@ -884,13 +880,21 @@ private fun OnboardingProgressHeader(
     enabled: Boolean,
     canStartTap: () -> Boolean,
     backLabel: String,
-    onSkipIntroduction: () -> Unit,
+    onSkipIntroduction: (KiyoriOnboardingStep) -> Unit,
 ) {
     val backGesture = remember { KiyoriOnboardingTapGesture() }
     val skipGesture = remember { KiyoriOnboardingTapGesture() }
     val latestCanStartTap = rememberUpdatedState(canStartTap)
+    val pageAnnouncement = stringResource(
+        R.string.kiyori_onboarding_page_announcement,
+        step.ordinal + 1,
+        KiyoriOnboardingStep.entries.size,
+        stringResource(step.onboardingLabelResId),
+    )
     Column(
         Modifier.widthIn(max = 1080.dp).fillMaxWidth()
+            // 只有稳定的当前页播报；预组合页不能各自声明 paneTitle 抢焦点。
+            .semantics { paneTitle = pageAnnouncement }
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -898,7 +902,7 @@ private fun OnboardingProgressHeader(
         Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
             if (showBack) {
                 IconButton(
-                    onClick = { if (backGesture.allowsClick) onBack() },
+                    onClick = onBack,
                     enabled = enabled,
                     modifier = Modifier.size(48.dp).onboardingTapOnly(backGesture) { latestCanStartTap.value() },
                 ) {
@@ -930,7 +934,7 @@ private fun OnboardingProgressHeader(
             }
             if (step.ordinal < KiyoriOnboardingStep.AGREEMENT.ordinal) {
                 TextButton(
-                    onClick = { if (skipGesture.allowsClick) onSkipIntroduction() },
+                    onClick = { onSkipIntroduction(step) },
                     enabled = enabled,
                     modifier = Modifier.onboardingTapOnly(skipGesture) { latestCanStartTap.value() },
                 ) {
@@ -958,9 +962,9 @@ private fun OnboardingProgressHeader(
     }
 }
 
-// 固定操作栏没有父级纵向滚动器替它取消拖动。Initial pass 只记录点击资格，
-// Main pass 的原生 Button 保留焦点、键盘、无障碍与 ripple；Final pass 后才结束资格判断。
-// 不消费 PointerInputChange，避免按钮附近的横向手势与 Pager 争抢事件。
+// 固定操作栏没有纵向滚动父级替它取消拖动。必须在原生 clickable 看到抬起之前
+// 消费无效的 up：onClick 可能异步派发，不能在 Final pass 后重置资格并让它复活。
+// 不消费移动事件，Pager 仍持有横向拖动；键盘和无障碍走原生 onClick，不受旧触摸影响。
 private fun Modifier.onboardingTapOnly(
     gesture: KiyoriOnboardingTapGesture,
     canStartTap: () -> Boolean = { true },
@@ -978,12 +982,22 @@ private fun Modifier.onboardingTapOnly(
                     singlePointer = event.changes.size == 1 && pointer != null,
                     pressed = event.changes.any { it.pressed },
                 )
+                if (!gesture.allowsClick) {
+                    event.changes.filter { it.previousPressed && !it.pressed }.forEach { it.consume() }
+                }
                 awaitPointerEvent(PointerEventPass.Final)
             } while (event.changes.any { it.pressed })
         } finally {
             gesture.end()
         }
     }
+}
+
+@Composable
+private fun Modifier.onboardingTapOnly(canStartTap: () -> Boolean): Modifier {
+    val gesture = remember { KiyoriOnboardingTapGesture() }
+    val latestCanStartTap = rememberUpdatedState(canStartTap)
+    return onboardingTapOnly(gesture) { latestCanStartTap.value() }
 }
 
 private val KiyoriOnboardingStep.onboardingLabelResId: Int
@@ -1029,23 +1043,23 @@ private data class OnboardingFeatureCard(
     val tone: KiyoriSemanticTone,
     val title: String,
     val description: String,
+    val badge: String? = null,
 )
 
 @Composable
-private fun OnboardingFeatureGrid(
-    cards: List<OnboardingFeatureCard>,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        cards.chunked(2).forEach { rowCards ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                rowCards.forEach { card ->
-                    OnboardingFeatureCardSurface(
-                        card = card,
-                        modifier = Modifier.weight(1f),
-                    )
+private fun OnboardingFeatureGrid(cards: List<OnboardingFeatureCard>) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        // 增大系统字体是在请求更易读的文字，不能再通过缩小字号或隐藏第二句抵消它。
+        val columns = if (maxWidth < 320.dp || LocalDensity.current.fontScale >= 1.3f) 1 else 2
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            cards.chunked(columns).forEach { rowCards ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    rowCards.forEach { card ->
+                        OnboardingFeatureCardSurface(card, Modifier.weight(1f).fillMaxHeight())
+                    }
                 }
             }
         }
@@ -1059,60 +1073,36 @@ private fun OnboardingFeatureCardSurface(
 ) {
     val colors = card.tone.resolveColors()
     Surface(
-        modifier =
-            modifier
-                .defaultMinSize(minHeight = 104.dp),
+        modifier = modifier.defaultMinSize(minHeight = 122.dp).semantics(mergeDescendants = true) {},
         shape = KiyoriUiShapes.card,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, colors.container),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             KiyoriSemanticIconBadge(
                 imageVector = card.icon,
                 tone = card.tone,
                 contentDescription = null,
-                containerSize = 38.dp,
+                containerSize = 34.dp,
                 iconSize = 20.dp,
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(10.dp),
             )
-            BoxWithConstraints(Modifier.fillMaxWidth()) {
-                val measurer = rememberTextMeasurer()
-                // 先按真实字体、字号缩放与可用宽度测量，避免 2×2 卡片在窄屏截字。
-                // 显式换行固定阅读节奏；仅宽度不足时等比例收敛字号，不用省略号隐藏内容。
-                fun fittedStyle(text: String, style: TextStyle): TextStyle {
-                    fun fits(candidate: TextStyle): Boolean =
-                        measurer.measure(text, candidate, softWrap = false).size.width <= constraints.maxWidth
-                    if (fits(style)) return style
-                    var lower = 0f
-                    var upper = style.fontSize.value
-                    // Android 大字体可使用非线性 sp 缩放，因此按实际测量二分，不能只除以宽度比例。
-                    repeat(10) {
-                        val size = (lower + upper) / 2f
-                        if (fits(style.copy(fontSize = size.sp))) lower = size else upper = size
-                    }
-                    return style.copy(fontSize = lower.sp)
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(
-                        text = card.title,
-                        style = fittedStyle(card.title, MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)),
-                        maxLines = 1,
-                        softWrap = false,
-                    )
-                    Text(
-                        text = card.description,
-                        style = fittedStyle(card.description, MaterialTheme.typography.bodySmall),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 19.sp,
-                        minLines = 2,
-                        maxLines = 2,
-                        softWrap = false,
-                    )
+            Text(card.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            card.badge?.let { badge ->
+                Surface(shape = KiyoriUiShapes.control, color = colors.container) {
+                    Text(badge, Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.bodySmall, color = colors.icon)
                 }
             }
+            Text(
+                text = card.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 19.sp,
+            )
         }
     }
 }
@@ -1126,15 +1116,15 @@ private fun KiyoriWelcomePage(
     val featureCards =
         listOf(
             OnboardingFeatureCard(
-                icon = Icons.Default.AccountCircle,
+                icon = Icons.Default.Search,
                 tone = KiyoriSemanticTone.BLUE,
                 title =
                     stringResource(
-                        R.string.kiyori_onboarding_welcome_card_account_title,
+                        R.string.kiyori_onboarding_welcome_card_search_title,
                     ),
                 description =
                     stringResource(
-                        R.string.kiyori_onboarding_welcome_card_account_desc,
+                        R.string.kiyori_onboarding_welcome_card_search_desc,
                     ),
             ),
             OnboardingFeatureCard(
@@ -1162,15 +1152,15 @@ private fun KiyoriWelcomePage(
                     ),
             ),
             OnboardingFeatureCard(
-                icon = Icons.Default.Hub,
+                icon = Icons.Default.Palette,
                 tone = KiyoriSemanticTone.GREEN,
                 title =
                     stringResource(
-                        R.string.kiyori_onboarding_welcome_card_network_title,
+                        R.string.kiyori_onboarding_welcome_card_appearance_title,
                     ),
                 description =
                     stringResource(
-                        R.string.kiyori_onboarding_welcome_card_network_desc,
+                        R.string.kiyori_onboarding_welcome_card_appearance_desc,
                     ),
             ),
         )
@@ -1181,7 +1171,7 @@ private fun KiyoriWelcomePage(
         title = stringResource(R.string.kiyori_onboarding_welcome_title),
         description = stringResource(R.string.kiyori_onboarding_welcome_desc),
         featureCards = featureCards,
-        visual = { cards -> WelcomeProductVisual(cards) },
+        step = KiyoriOnboardingStep.WELCOME,
         onNext = onNext,
         nextLabel = stringResource(R.string.kiyori_onboarding_welcome_next),
     )
@@ -1213,8 +1203,7 @@ private fun OnboardingFeatureIntroduction(
         Box(
             modifier =
                 Modifier
-                    .fillMaxWidth()
-                    .defaultMinSize(minHeight = 62.dp),
+                    .fillMaxWidth(),
         ) {
             Text(
                 text = title,
@@ -1232,8 +1221,7 @@ private fun OnboardingFeatureIntroduction(
         Box(
             modifier =
                 Modifier
-                    .fillMaxWidth()
-                    .defaultMinSize(minHeight = 66.dp),
+                    .fillMaxWidth(),
         ) {
             Text(
                 text = description,
@@ -1261,7 +1249,7 @@ private fun FeatureIntroductionPage(
     title: String,
     description: String,
     featureCards: List<OnboardingFeatureCard>,
-    visual: @Composable (List<OnboardingFeatureCard>) -> Unit,
+    step: KiyoriOnboardingStep,
     onNext: () -> Unit,
     nextLabel: String,
 ) {
@@ -1275,78 +1263,41 @@ private fun FeatureIntroductionPage(
                 .background(MaterialTheme.colorScheme.background)
                 .padding(horizontal = 20.dp),
     ) {
-        val useTwoColumns = maxWidth >= 700.dp
-        val mobileVisualHeight: Dp = 146.dp
-        val content: @Composable () -> Unit = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.Top,
-            ) {
-                OnboardingFeatureIntroduction(
-                    eyebrow = eyebrow,
-                    title = title,
-                    description = description,
-                    tone = featureCards.first().tone,
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                OnboardingFeatureGrid(
-                    cards = featureCards,
-                )
+        val useTwoColumns = maxWidth >= 600.dp
+        val showMap = maxHeight >= 440.dp && LocalDensity.current.fontScale < 1.3f
+        val titleBlock: @Composable () -> Unit = {
+            if (showMap) {
+                OnboardingNavigationMap(step)
+                Spacer(Modifier.height(12.dp))
             }
+            OnboardingFeatureIntroduction(eyebrow, title, description, featureCards.first().tone)
         }
         Column(modifier = Modifier.fillMaxSize()) {
-            if (useTwoColumns) {
-                Row(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(36.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(
-                        modifier = Modifier.weight(0.9f).clearAndSetSemantics {},
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        visual(featureCards)
+            // 正文与固定操作栏分配实际高度，不用固定 96dp 覆盖层猜测按钮在大字体下的高度。
+            Column(
+                Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
+                    .padding(top = 8.dp, bottom = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                if (useTwoColumns) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                        Column(Modifier.weight(1f)) { titleBlock() }
+                        Box(Modifier.weight(1f)) { OnboardingFeatureGrid(featureCards) }
                     }
-                    Box(modifier = Modifier.weight(1.1f)
-                        .verticalScroll(rememberScrollState())
-                        .padding(vertical = 16.dp)) {
-                        content()
-                    }
+                } else {
+                    titleBlock()
+                    OnboardingFeatureGrid(featureCards)
                 }
-            } else {
-                Column(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState())
-                            .padding(top = 10.dp, bottom = 20.dp),
-                    verticalArrangement = Arrangement.Top,
-                ) {
-                    Surface(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(mobileVisualHeight)
-                                .clearAndSetSemantics {},
-                        shape = RoundedCornerShape(28.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerLowest,
-                        border =
-                            BorderStroke(
-                                1.dp,
-                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.58f),
-                            ),
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            visual(featureCards)
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    content()
-                }
+                Text(
+                    stringResource(when (step) {
+                        KiyoriOnboardingStep.WELCOME -> R.string.kiyori_onboarding_welcome_note
+                        KiyoriOnboardingStep.BROWSER_AND_MEDIA -> R.string.kiyori_onboarding_browser_note
+                        KiyoriOnboardingStep.AI_ASSISTANT -> R.string.kiyori_onboarding_ai_note
+                        else -> R.string.kiyori_onboarding_files_note
+                    }),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             OnboardingPrimaryButton(
                 text = nextLabel,
@@ -1370,7 +1321,7 @@ private fun OnboardingPrimaryButton(
     val gesture = remember { KiyoriOnboardingTapGesture() }
     val latestCanStartTap = rememberUpdatedState(canStartTap)
     Button(
-        onClick = { if (gesture.allowsClick) onClick() },
+        onClick = onClick,
         enabled = enabled,
         shape = KiyoriUiShapes.control,
         colors =
@@ -1413,352 +1364,47 @@ private fun OnboardingPrimaryButton(
 }
 
 @Composable
-private fun WelcomeProductVisual(
-    featureCards: List<OnboardingFeatureCard>,
-) {
-    val primaryColors = featureCards[0].tone.resolveColors()
-    Box(
-        modifier =
-            Modifier
-                .width(214.dp)
-                .height(138.dp)
-                .clip(RoundedCornerShape(36.dp))
-                .background(
-                    brush =
-                        Brush.linearGradient(
-                            listOf(
-                                primaryColors.container.copy(alpha = 0.82f),
-                                MaterialTheme.colorScheme.surfaceContainerLow,
-                                Color.Transparent,
-                            ),
-                        ),
-                ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Surface(
-            modifier =
-                Modifier
-                    .width(148.dp)
-                    .height(88.dp),
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            border =
-                BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
-                ),
-            shadowElevation = 5.dp,
-        ) {
-            Column(
-                modifier = Modifier.padding(13.dp),
-                verticalArrangement = Arrangement.spacedBy(9.dp),
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    repeat(3) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .size(7.dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.outlineVariant,
-                                        CircleShape,
-                                    ),
-                        )
-                    }
-                }
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(18.dp)
-                            .background(
-                                MaterialTheme.colorScheme.surfaceContainerHighest,
-                                RoundedCornerShape(9.dp),
-                            ),
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    repeat(2) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .weight(1f)
-                                    .height(25.dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.surfaceContainerHighest,
-                                        RoundedCornerShape(9.dp),
-                                    ),
-                        )
-                    }
-                }
-            }
-        }
-        VisualOrbitBadge(
-            feature = featureCards[0],
-            modifier =
-                Modifier
-                    .align(Alignment.TopStart)
-                    .padding(start = 7.dp, top = 5.dp),
-        )
-        VisualOrbitBadge(
-            feature = featureCards[1],
-            modifier =
-                Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(end = 7.dp, top = 5.dp),
-        )
-        VisualOrbitBadge(
-            feature = featureCards[2],
-            modifier =
-                Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 7.dp, bottom = 5.dp),
-        )
-        VisualOrbitBadge(
-            feature = featureCards[3],
-            modifier =
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 7.dp, bottom = 5.dp),
-        )
-    }
-}
-
-@Composable
-private fun BrowserMediaVisual(
-    featureCards: List<OnboardingFeatureCard>,
-) {
-    Column(
-        modifier = Modifier.width(206.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        VisualToolCard(
-            feature = featureCards[0],
-            height = 64.dp,
-            showSignal = true,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            featureCards.drop(1).forEach { feature ->
-                VisualToolCard(
-                    feature = feature,
-                    modifier = Modifier.weight(1f),
-                    height = 58.dp,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun AiCollaborationVisual(
-    featureCards: List<OnboardingFeatureCard>,
-) {
-    Box(
-        modifier =
-            Modifier
-                .width(214.dp)
-                .height(138.dp)
-                .clip(RoundedCornerShape(36.dp))
-                .background(
-                    Brush.radialGradient(
-                        listOf(
-                            featureCards[0].tone.resolveColors().container.copy(alpha = 0.78f),
-                            Color.Transparent,
-                        ),
-                    ),
-                ),
-    ) {
-        Surface(
-            modifier =
-                Modifier
-                    .width(178.dp)
-                    .height(92.dp)
-                    .align(Alignment.Center),
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            border =
-                BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
-                ),
-            shadowElevation = 4.dp,
-        ) {
-            Column(
-                modifier = Modifier.padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                VisualChatLine(
-                    widthFraction = 0.78f,
-                    color = KiyoriSemanticTone.PURPLE.resolveColors().container,
-                )
-                VisualChatLine(
-                    widthFraction = 0.58f,
-                    color = KiyoriSemanticTone.BLUE.resolveColors().container,
-                )
-                VisualChatLine(
-                    widthFraction = 0.84f,
-                    color = KiyoriSemanticTone.ORANGE.resolveColors().container,
-                )
-                VisualChatLine(
-                    widthFraction = 0.44f,
-                    color = KiyoriSemanticTone.GREEN.resolveColors().container,
-                )
-            }
-        }
-        VisualOrbitBadge(
-            feature = featureCards[0],
-            modifier =
-                Modifier
-                    .align(Alignment.TopStart)
-                    .padding(start = 5.dp, top = 4.dp),
-        )
-        VisualOrbitBadge(
-            feature = featureCards[1],
-            modifier =
-                Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(end = 5.dp, top = 4.dp),
-        )
-        VisualOrbitBadge(
-            feature = featureCards[2],
-            modifier =
-                Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 5.dp, bottom = 4.dp),
-        )
-        VisualOrbitBadge(
-            feature = featureCards[3],
-            modifier =
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 5.dp, bottom = 4.dp),
-        )
-    }
-}
-
-@Composable
-private fun FilesAndToolsVisual(
-    featureCards: List<OnboardingFeatureCard>,
-) {
-    Column(
-        modifier =
-            Modifier
-                .width(198.dp)
-                .clip(RoundedCornerShape(30.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                .padding(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            VisualToolCard(
-                feature = featureCards[0],
-                modifier = Modifier.weight(1f),
-                height = 55.dp,
-            )
-            VisualToolCard(
-                feature = featureCards[1],
-                modifier = Modifier.weight(1f),
-                height = 55.dp,
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            VisualToolCard(
-                feature = featureCards[2],
-                modifier = Modifier.weight(1f),
-                height = 55.dp,
-            )
-            VisualToolCard(
-                feature = featureCards[3],
-                modifier = Modifier.weight(1f),
-                height = 55.dp,
-            )
-        }
-    }
-}
-
-@Composable
-private fun VisualChatLine(
-    widthFraction: Float,
-    color: Color,
-) {
-    Box(
-        modifier =
-            Modifier
-                .fillMaxWidth(widthFraction)
-                .height(12.dp)
-                .background(color, RoundedCornerShape(6.dp)),
+private fun OnboardingNavigationMap(step: KiyoriOnboardingStep) {
+    val labels = listOf(
+        stringResource(R.string.kiyori_onboarding_map_left),
+        stringResource(R.string.kiyori_onboarding_map_home),
+        stringResource(R.string.kiyori_onboarding_map_ai),
     )
-}
-
-@Composable
-private fun VisualToolCard(
-    feature: OnboardingFeatureCard,
-    modifier: Modifier = Modifier,
-    height: Dp = 60.dp,
-    showSignal: Boolean = false,
-) {
-    val colors = feature.tone.resolveColors()
+    val active = when (step) {
+        KiyoriOnboardingStep.BROWSER_AND_MEDIA -> 0
+        KiyoriOnboardingStep.AI_ASSISTANT, KiyoriOnboardingStep.FILES_AND_TOOLS -> 2
+        else -> 1
+    }
     Surface(
-        modifier =
-            modifier
-                .height(height),
-        shape = RoundedCornerShape(18.dp),
-        color = colors.container.copy(alpha = 0.82f),
-        border = BorderStroke(1.dp, colors.icon.copy(alpha = 0.12f)),
-        shadowElevation = if (showSignal) 2.dp else 0.dp,
+        Modifier.fillMaxWidth(), shape = KiyoriUiShapes.card,
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 13.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement =
-                if (showSignal) {
-                    Arrangement.Start
-                } else {
-                    Arrangement.Center
-                },
-        ) {
-            Icon(
-                imageVector = feature.icon,
-                contentDescription = null,
-                modifier = Modifier.size(if (showSignal) 28.dp else 26.dp),
-                tint = colors.icon,
-            )
-            if (showSignal) {
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    VisualChatLine(
-                        widthFraction = 0.82f,
-                        color = colors.icon.copy(alpha = 0.24f),
-                    )
-                    VisualChatLine(
-                        widthFraction = 0.56f,
-                        color = colors.icon.copy(alpha = 0.16f),
-                    )
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                labels.forEachIndexed { index, label ->
+                    Surface(
+                        Modifier.weight(1f).fillMaxHeight(), shape = KiyoriUiShapes.control,
+                        color = if (index == active) MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.surfaceContainer,
+                    ) {
+                        Text(label, Modifier.padding(horizontal = 4.dp, vertical = 12.dp),
+                            style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center)
+                    }
                 }
             }
+            Text(
+                stringResource(when (step) {
+                    KiyoriOnboardingStep.BROWSER_AND_MEDIA -> R.string.kiyori_onboarding_map_browser_hint
+                    KiyoriOnboardingStep.AI_ASSISTANT -> R.string.kiyori_onboarding_map_ai_hint
+                    KiyoriOnboardingStep.FILES_AND_TOOLS -> R.string.kiyori_onboarding_map_tools_hint
+                    else -> R.string.kiyori_onboarding_map_home_hint
+                }),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
-}
-
-@Composable
-private fun VisualOrbitBadge(
-    feature: OnboardingFeatureCard,
-    modifier: Modifier = Modifier,
-) {
-    KiyoriSemanticIconBadge(
-        imageVector = feature.icon,
-        tone = feature.tone,
-        contentDescription = null,
-        modifier = modifier,
-        containerSize = 44.dp,
-        iconSize = 23.dp,
-        shape = RoundedCornerShape(15.dp),
-    )
 }
 
 @Composable
@@ -1768,6 +1414,7 @@ private fun KiyoriPermissionAuthorizationPage(
     authorizationActive: Boolean,
     waitingForExternalSettings: Boolean,
     navigationEnabled: Boolean,
+    canStartTap: () -> Boolean,
     reviewing: Boolean,
     authorizationNeedsContinue: Boolean,
     remainingCount: Int,
@@ -1798,7 +1445,7 @@ private fun KiyoriPermissionAuthorizationPage(
     ) {
         LazyColumn(
             modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp),
+            contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item {
@@ -1818,7 +1465,6 @@ private fun KiyoriPermissionAuthorizationPage(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 PermissionOverviewCard(
-                    snapshot = snapshot,
                     selectedCount = selectedCount,
                 )
                 Row(
@@ -1903,6 +1549,7 @@ private fun KiyoriPermissionAuthorizationPage(
                 ),
             onClick = if (canContinue) onContinueAuthorization else onAuthorize,
             enabled = navigationEnabled && !waitingForExternalSettings && (!authorizationActive || canContinue),
+            canStartTap = canStartTap,
             showArrow = false,
             loading = authorizationActive && !canContinue,
         )
@@ -1910,7 +1557,7 @@ private fun KiyoriPermissionAuthorizationPage(
         if (authorizationActive || selectedCount > 0) TextButton(
             onClick = if (authorizationActive) onStopAuthorization else onFinish,
             enabled = authorizationActive || navigationEnabled,
-            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp).onboardingTapOnly(canStartTap),
         ) {
             Text(stringResource(
                 when {
@@ -1927,79 +1574,19 @@ private fun KiyoriPermissionAuthorizationPage(
 
 @Composable
 private fun PermissionOverviewCard(
-    snapshot: KiyoriPermissionSnapshot,
     selectedCount: Int,
 ) {
-    val summary = summarizeKiyoriPermissions(snapshot)
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = KiyoriUiShapes.card,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.kiyori_onboarding_permissions_overview_title),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                PermissionOverviewMetric(
-                    label = stringResource(R.string.kiyori_onboarding_permissions_ready),
-                    value = summary.readyCount,
-                    modifier = Modifier.weight(1f),
-                )
-                PermissionOverviewMetric(
-                    label = stringResource(R.string.kiyori_onboarding_permissions_pending),
-                    value = summary.actionRequiredCount,
-                    modifier = Modifier.weight(1f),
-                )
-                PermissionOverviewMetric(
-                    label = stringResource(R.string.kiyori_onboarding_permissions_on_demand),
-                    value = summary.onDemandCount,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-            Text(
-                text =
-                    stringResource(
-                        R.string.kiyori_onboarding_permissions_selected_count,
-                        selectedCount,
-                    ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(R.string.kiyori_onboarding_permissions_selected_count, selectedCount),
+                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.kiyori_onboarding_permissions_choice_note),
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-    }
-}
-
-@Composable
-private fun PermissionOverviewMetric(
-    label: String,
-    value: Int,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        Text(
-            text = value.toString(),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-        )
     }
 }
 
@@ -2020,8 +1607,7 @@ private fun PermissionItemCard(
             Modifier
                 .fillMaxWidth()
                 .toggleable(value = selected, enabled = selectable && interactionEnabled,
-                    role = Role.Checkbox, onValueChange = { onClick() })
-                .animateContentSize(),
+                    role = Role.Checkbox, onValueChange = { onClick() }),
         shape = KiyoriUiShapes.card,
         color =
             if (selected && selectable) {
@@ -2063,35 +1649,20 @@ private fun PermissionItemCard(
                     modifier = Modifier.size(24.dp).padding(2.dp),
                 )
             }
-            KiyoriSemanticIconBadge(
-                imageVector = metadata.icon,
-                tone = metadata.tone,
-                contentDescription = null,
-                containerSize = 38.dp,
-                iconSize = 20.dp,
-            )
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = metadata.title(context),
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Medium,
-                    )
-                    Text(
-                        text = kiyoriPermissionStatusLabel(status),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = statusColors.icon,
-                    )
-                }
+                Text(
+                    text = metadata.title(context),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium,
+                )
+                Text(
+                    text = kiyoriPermissionStatusLabel(status),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = statusColors.icon,
+                )
                 Text(
                     text = metadata.description(context),
                     style = MaterialTheme.typography.bodySmall,
