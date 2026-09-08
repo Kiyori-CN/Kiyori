@@ -1,5 +1,38 @@
 # code_runner 与终端工具链收口
 
+## 环境识别、安装闭环与 SSH 一致性（2026-09-09）
+
+状态：代码、本地验证与 Debug APK 已完成；Android/proot 和真实 SSH 为 `verification_pending`。
+基线父仓库 `5fd93e9`、terminal `87cbe3c`；已有对话统计改动单独审查提交。
+
+- 目标：修复 Node/npm 误判，提供有界、可刷新且带路径/版本的检测；明确本地与 SSH 目标、系统与安装能力，安装绑定检测身份并在失败时停止。
+- 设计：区分安装目标版本与运行兼容性；复用 TerminalManager/provider 和可见 PTY，批量探测各工具独立限时；安装前检查系统、架构和权限，安装后真实执行及 TypeScript 编译，不以版本输出替代完整就绪。
+- 范围：终端环境合同、SetupScreen、SSH 执行和安装协调路径、相关测试与正式契约。保持已有入口、唯一导航 owner、rootfs、AIDL 和持久化格式；不操作设备或真实 SSH 主机。
+- 风险：用户自装工具/PATH、部分安装、网络失败、SSH 断开或身份切换、非 root/非 Debian 主机、pnpm 原生安装脚本及 TypeScript 7 硬链接路径。
+- 计划：源码与官方输入核实 → 检测和安装实现 → Bash/JVM 回归 → 串行 Debug APK → 精确清单审查与子模块优先提交推送。Git 基线可用于回滚源码，安装不删除用户文件或整机升级。
+- 验收：terminal 单元与真实 Bash 测试、父仓库构建和最终 APK、文档及候选提交核验；Android/proot、真实 SSH 和用户交互保留 `verification_pending`。
+
+官方核实：2026-09-09 Node 官方 `dist/index.json` 的 Node `24.20.0` 随附 npm `11.19.0`；
+`SHASUMS256.txt` 确认 arm64/x64 归档。npm registry 的 pnpm `12.3.4` 使用
+`install.js` 链接平台原生包；TypeScript `7.0.2` 使用平台原生可选依赖。现场 npm `12.0.2`
+不能作为 Node 官方归档的随附版本，但兼容且可执行的独立 npm 升级不应触发 Node 重装。
+
+### 实现与验证证据
+
+- terminal `88681c2d3c7bab2aec093b7b85f0451de85fc64e` 已推送 `origin/main`。共享工具链检测接收兼容 Node 与独立 npm；pnpm 原生入口、copy 配置和 TypeScript 实际编译/Node 运行共同作为就绪条件。安装完成持久化并激活 PATH；安装子 Shell 的失败不会被外层 `&&` 吞掉。
+- 页面展示实际 provider、用户/主机/HOME/架构、工具路径与诊断；4 项一批，每项 8 秒加 1 秒终止宽限，失败或不完整帧不冒充未安装。可刷新，未就绪项可配置，所选项目或必要依赖的未知状态阻止安装，其他项的超时不阻止已确认选择。
+- 安装仅处理选择及依赖，不整机升级、不清缓存、不重写无关全局源；Node arm64/x64 官方摘要与 staging 执行校验通过后激活。每一步比对目标身份，SSH 远端负责就绪信号，断线不得进入本地 Shell；SSH hidden exec 输出有界、取消和异常均释放 channel。
+- `:terminal:testDebugUnitTest`：68 项通过、0 失败、0 跳过；启用 `KIYORI_PTY_WSL_DISTRO=Ubuntu-26.04` 与 `KIYORI_ENV_INSTALL_SMOKE=1`。真实 Bash 覆盖 npm 12.0.2 的 PATH/shebang、pnpm 占位入口、TS 版本成功但编译失败、单项超时、目标错配、下载失败停止与临时目录清理。
+- 隔离 WSL x64 临时 HOME 从官方归档安装 Node `24.20.0`，npm `11.19.0`、pnpm `12.3.4`、TypeScript `7.0.2`；全局编译和 pnpm 项目编译/Node 运行通过，错误代码确实产生 `TS2322`，日志确认依赖使用 copy。临时 HOME 自动清理，不修改开发机全局工具链。
+- 已有统计改动的 `GenerationSpeedTrackerTest`、`TokenStatisticsDelegateTest`、`ChatStatisticsFormatterTest` 合计 12 项通过。正式开发准备检查通过，文档检查 498 文件、0 问题；差异、精确暂存范围、普通文件模式、异常大文件和高置信密钥检查通过。
+- 串行 `:app:assembleDebug --no-daemon --console=plain` 通过（238 tasks）；APK `app/build/outputs/apk/debug/app-debug.apk` 为 `483933911` bytes，SHA-256 `297EB4379607639D8D4D7824878953C43D1225C311D123D0AAEC428320BCD0D4`。包名 `com.kiyori`、版本 `45 / 0.1.0`，仅 `arm64-v8a`，唯一 launcher；V2 单 signer 与 16 KB ZIP 对齐验证通过。
+- 2026-09-09 实时 GitHub API 显示父仓与 terminal 均为 `public`、`fork=false`、默认 `main`；文档中旧 private 说明已纠正，产品仍未发行。父仓候选克隆与远端对账在最终提交后执行。
+
+现场验收仍需：目标 ARM64/proot 的旧环境重检与全新安装、弱网中断后重新配置、连续进出配置页、
+SSH 的 NVM/PATH、root/免交互 sudo/无权限主机，以及安装中断线不会在本地继续。
+SSH 检测不复制 PTY 临时 export、别名或项目虚拟环境；项目级 pnpm hardlink 配置仍可覆盖全局 copy。
+本地测试不能关闭这些设备及真实远端验收项。
+
 ## 环境配置/设置同步路由增量（2026-09-06）
 
 状态：已完成代码与本地自动化验证；目标 Android 设备上的重复点击、SurfaceView 合成和输入法行为仍保持 `verification_pending`。
