@@ -16,11 +16,14 @@ export function createWizardPage({ t, W, on = {} }) {
         { className: "wizard-step-panel", ref: "wizardStep1Panel" },
         W.PanelTitle(t("wizard.step1Title")),
         W.Text({ as: "p", className: "wizard-step-desc", text: t("wizard.step1Desc") }),
+        W.Text({ as: "p", className: "wizard-hint", ref: "listenerStatus", attrs: { role: "status", "aria-live": "polite" } }),
         W.Field({ label: t("connection.mode") }, W.Select({ ref: "connectionModeInput", options: [
           { value: "lan", label: t("connection.lan") }, { value: "frp", label: t("connection.frp") }
         ], on: { change: on.connectionMode } })),
         W.Text({ as: "p", className: "wizard-hint", text: t("connection.lanHelp"), ref: "connectionModeHelp" }),
         W.Field({ label: t("connection.publicUrl"), ref: "publicUrlField" }, W.Input({ ref: "publicUrlInput", placeholder: "https://pc.example.com", on: { input: on.mobileInput } })),
+        W.Field({ label: t("connection.adapter"), ref: "adapterField" }, W.Select({ ref: "adapterInput", options: [], on: { change: on.adapterChange } })),
+        W.Text({ as: "p", className: "wizard-hint", ref: "proxyHint", text: t("connection.proxyHelp") }),
         W.Grid2(
           {},
           W.Field({ label: t("field.bindAddress") }, W.Input({ ref: "wizardBindAddressInput", placeholder: "127.0.0.1" })),
@@ -83,6 +86,7 @@ export function createWizardPage({ t, W, on = {} }) {
 export function createWizardController({ api, refs, state, t, helpers, callbacks = {} }) {
   const { setBusy, setNotice, setJsonOutput, asErrorMessage } = helpers;
   const { reloadConfigAndHealth, onConfigUpdated } = callbacks;
+  let operationBusy = false;
 
   function setWizardStep(stepIndex) {
     const safeStep = Math.max(0, Math.min(1, Number(stepIndex) || 0));
@@ -118,11 +122,6 @@ export function createWizardController({ api, refs, state, t, helpers, callbacks
       return networkHost;
     }
 
-    const bindAddress = state.config && state.config.bindAddress ? String(state.config.bindAddress).trim() : "";
-    if (bindAddress && bindAddress !== "127.0.0.1" && bindAddress !== "0.0.0.0" && bindAddress !== "localhost") {
-      return bindAddress;
-    }
-
     return "";
   }
 
@@ -135,12 +134,13 @@ export function createWizardController({ api, refs, state, t, helpers, callbacks
     const savedBind = state.config && state.config.bindAddress ? String(state.config.bindAddress).trim() : "";
     const currentBind = String(refs.wizardBindAddressInput.value || "").trim();
 
-    if (savedBind && savedBind !== "127.0.0.1") {
+    const available = state.health?.network?.ipv4Candidates || [];
+    if (savedBind && savedBind !== "127.0.0.1" && available.includes(savedBind)) {
       state.wizardBindAutoApplied = true;
       return;
     }
 
-    if (currentBind && currentBind !== "127.0.0.1") {
+    if (currentBind && currentBind !== "127.0.0.1" && currentBind !== savedBind) {
       state.wizardBindAutoApplied = true;
       return;
     }
@@ -154,14 +154,15 @@ export function createWizardController({ api, refs, state, t, helpers, callbacks
 
   function buildRecommendedAgentBaseUrl() {
     if (state.connectionMode === "frp") return refs.publicUrlInput.value.trim();
-    const host = chooseRecommendedHost();
+    const bound = state.health?.runtimeBindAddress || "";
+    const host = bound && !["127.0.0.1", "localhost", "::1", "0.0.0.0", "::"].includes(bound) ? bound : chooseRecommendedHost();
     if (!host) {
       return "";
     }
 
     const port = state.config && state.config.port ? Number(state.config.port) : 58321;
     const safePort = Number.isFinite(port) && port > 0 ? Math.floor(port) : 58321;
-    return `http://${host}:${safePort}`;
+    return `http://${host.includes(":") ? `[${host}]` : host}:${safePort}`;
   }
 
   function fillWizardHostHint() {
@@ -287,6 +288,21 @@ export function createWizardController({ api, refs, state, t, helpers, callbacks
   }
 
   function syncFromState(options = {}) {
+    if (!state.config || !state.health) return;
+    const health = state.health;
+    state.pendingRestart = health.listener?.listening === false || health.runtimeBindAddress !== state.config.bindAddress || health.port !== state.config.port;
+    refs.listenerStatus.textContent = state.pendingRestart
+      ? t("connection.notApplied", { saved: `${state.config.bindAddress}:${state.config.port}`, active: health.runtimeBindAddress ? `${health.runtimeBindAddress}:${health.port}` : "—", error: health.listener?.error || "" })
+      : t("connection.applied", { address: `${health.runtimeBindAddress}:${health.port}` });
+    refs.adapterField.hidden = state.connectionMode === "frp";
+    refs.proxyHint.hidden = !health.network?.proxyInterfaceDetected;
+    const candidates = health.network?.rankedIpv4Candidates || [];
+    if (refs.adapterInput.replaceChildren) {
+      const option = (value, label) => { const node = document.createElement("option"); node.value = value; node.textContent = label; return node; };
+      refs.adapterInput.replaceChildren(option("", t("connection.chooseAdapter")), ...candidates.map(item =>
+        option(item.address, `${item.interfaceName} · ${item.address}${item.isVirtual ? ` · ${t("connection.virtualAdapter")}` : ""}`)));
+      refs.adapterInput.value = refs.wizardBindAddressInput.value;
+    }
     refs.connectionModeInput.value = state.connectionMode || "lan";
     refs.publicUrlField.hidden = state.connectionMode !== "frp";
     refs.connectionModeHelp.textContent = t(state.connectionMode === "frp" ? "connection.frpHelp" : "connection.lanHelp");
@@ -297,6 +313,8 @@ export function createWizardController({ api, refs, state, t, helpers, callbacks
   }
 
   async function handleWizardStep1SaveNext() {
+    if (operationBusy) return;
+    operationBusy = true;
     setBusy("wizardSaveNextButton", true, t("action.saveAndNext"), t("action.working"));
 
     try {
@@ -322,12 +340,17 @@ export function createWizardController({ api, refs, state, t, helpers, callbacks
       if (typeof reloadConfigAndHealth === "function") {
         await reloadConfigAndHealth();
       }
-
+      syncFromState({ forceMobileDefaults: true });
+      if (state.pendingRestart) {
+        setNotice("warn", t("connection.restartFirst"));
+        return;
+      }
       setWizardStep(1);
     } catch (error) {
       setJsonOutput("wizardStep1Output", { ok: false, error: asErrorMessage(error) });
       setNotice("error", t("message.configSaveFailed", { error: asErrorMessage(error) }));
     } finally {
+      operationBusy = false;
       setBusy("wizardSaveNextButton", false, t("action.saveAndNext"), t("action.working"));
     }
   }
@@ -386,16 +409,25 @@ export function createWizardController({ api, refs, state, t, helpers, callbacks
   }
 
   async function handleWizardCopyPayload() {
+    if (operationBusy) return;
+    operationBusy = true;
     setBusy("wizardCopyPayloadButton", true, t("action.copyPayload"), t("action.working"));
 
     try {
+      if (!state.config || !state.health) throw new Error(t("connection.refreshRequired"));
+      // 复制前读取运行事实，防止其他管理页面修改了地址/端口/令牌或服务已停止。
+      const latest = await api.getConfig();
+      const health = await api.getHealth();
+      if (latest.apiToken !== state.config.apiToken || latest.bindAddress !== state.config.bindAddress || latest.port !== state.config.port || latest.connectionMode !== state.connectionMode || latest.publicUrl !== state.config.publicUrl) throw new Error(t("connection.refreshRequired"));
+      state.health = health;
+      state.pendingRestart = health.listener?.listening === false || health.runtimeBindAddress !== latest.bindAddress || health.port !== latest.port;
       const env = buildMobileEnvObject({ includeRequired: true });
       if (!env.WINDOWS_AGENT_TOKEN) throw new Error(t("connection.tokenRequired"));
       const raw = env.WINDOWS_AGENT_BASE_URL;
       const url = new URL(raw);
       if (!/^https?:$/.test(url.protocol) || url.username || url.password || url.search || url.hash || /[\s\\]/.test(raw)) throw new Error(t("connection.invalidUrl"));
       if (["localhost", "127.0.0.1", "0.0.0.0", "[::1]", "[::]"].includes(url.hostname)) throw new Error(t("connection.phoneLoopback"));
-      if (state.health && (state.health.runtimeBindAddress !== state.config.bindAddress || state.health.port !== state.config.port || state.pendingRestart)) throw new Error(t("connection.restartFirst"));
+      if (state.pendingRestart) throw new Error(t("connection.restartFirst"));
       if (state.connectionMode !== "frp" && ["127.0.0.1", "::1"].includes(state.config.bindAddress)) throw new Error(t("connection.restartFirst"));
       const { jsonText } = renderMobileSnippets();
       await copyText(jsonText);
@@ -403,6 +435,7 @@ export function createWizardController({ api, refs, state, t, helpers, callbacks
     } catch (error) {
       setNotice("error", t("message.copyFailed", { error: asErrorMessage(error) }));
     } finally {
+      operationBusy = false;
       setBusy("wizardCopyPayloadButton", false, t("action.copyPayload"), t("action.working"));
     }
   }
@@ -423,6 +456,10 @@ export function createWizardController({ api, refs, state, t, helpers, callbacks
     syncFromState({ forceMobileDefaults: true });
   }
 
+  function handleAdapterChange() {
+    if (refs.adapterInput.value) refs.wizardBindAddressInput.value = refs.adapterInput.value;
+  }
+
   return {
     fillWizardStep1Form,
     setWizardStep,
@@ -433,6 +470,7 @@ export function createWizardController({ api, refs, state, t, helpers, callbacks
     handleWizardCopyPayload,
     handleWizardToggleAdvanced,
     handleMobileSnippetInput,
-    handleConnectionMode
+    handleConnectionMode,
+    handleAdapterChange
   };
 }

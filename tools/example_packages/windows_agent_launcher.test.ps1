@@ -15,8 +15,10 @@ foreach ($candidate in @(
     [pscustomobject]@{ Name = 'node.exe'; CommandLine = 'node.exe src/server.js' },
     [pscustomobject]@{ Name = 'node.exe'; CommandLine = 'node.exe "C:\another-agent\src\server.js"' },
     [pscustomobject]@{ Name = 'other.exe'; CommandLine = 'other.exe "' + $entry + '"' },
-    [pscustomobject]@{ Name = 'node.exe'; CommandLine = 'node.exe "' + $entry + '.backup"' }
+    [pscustomobject]@{ Name = 'node.exe'; CommandLine = 'node.exe "' + $entry + '.backup"' },
+    [pscustomobject]@{ Name = 'node.exe'; CommandLine = 'node.exe -e "' + $entry + '"' },
+    [pscustomobject]@{ Name = 'node.exe'; CommandLine = 'node.exe other.js "' + $entry + '"' }
 )) {
     if (Test-OwnedAgentProcess $candidate $agentRoot) { throw 'Unowned process accepted' }
 }
-Write-Output 'PASS: all launcher scripts parse; 5 ownership cases passed; no processes stopped.'
+Write-Output 'PASS: all launcher scripts parse; 7 ownership cases passed; no processes stopped.'

@@ -152,7 +152,7 @@ function createControllers() {
     helpers,
     callbacks: {
       onConfigSaved: async () => {
-        await Promise.all([loadConfigAndPresets({ showOutput: false }), refreshHealth()]);
+        await reloadConnectionState();
       }
     }
   });
@@ -166,7 +166,7 @@ function createControllers() {
     callbacks: {
       refreshHealth,
       reloadConfigAndHealth: async () => {
-        await Promise.all([loadConfigAndPresets({ showOutput: false }), refreshHealth()]);
+        await reloadConnectionState();
       },
       onConfigUpdated: (config) => {
         state.config = config;
@@ -253,7 +253,8 @@ function createTree() {
           wizardCopyPayload: wizardController.handleWizardCopyPayload,
           wizardToggleAdvanced: wizardController.handleWizardToggleAdvanced,
           mobileInput: wizardController.handleMobileSnippetInput,
-          connectionMode: wizardController.handleConnectionMode
+          connectionMode: wizardController.handleConnectionMode,
+          adapterChange: wizardController.handleAdapterChange
         }
       }),
       createCommandsPage({
@@ -363,9 +364,7 @@ async function applyRecommendedBindFromStartupIssue() {
     state.startupIssue = null;
     renderStartupIssuePanel();
 
-    window.setTimeout(() => {
-      window.location.reload();
-    }, 2600);
+    await reloadConnectionState();
   } catch (error) {
     setNotice("error", t("message.startupApplyFailed", { error: asErrorMessage(error) }));
   } finally {
@@ -411,6 +410,13 @@ async function refreshHealth() {
   return health;
 }
 
+async function reloadConnectionState() {
+  // 顺序读取配置和监听事实，防止两条并行响应将旧地址预填回手机配置。
+  await loadConfigAndPresets({ showOutput: false });
+  await refreshHealth();
+  wizardController.syncFromState({ forceMobileDefaults: true });
+}
+
 async function loadConfigAndPresets(options = {}) {
   const showOutput = options.showOutput !== false;
   const [config, presets] = await Promise.all([api.getConfig(), api.getPresets()]);
@@ -430,7 +436,7 @@ async function loadConfigAndPresets(options = {}) {
   settingsController.renderPresetChecklist(state.presetItems, config.allowedPresets || []);
   commandsController.renderPresetSelect(state.presetItems, config.allowedPresets || []);
 
-  if (refs.commandTokenInput && !refs.commandTokenInput.value.trim()) {
+  if (refs.commandTokenInput) {
     refs.commandTokenInput.value = config.apiToken ? String(config.apiToken) : "";
   }
 
@@ -490,7 +496,7 @@ async function refreshAll() {
   setBusy("refreshAllButton", true, t("action.refreshAll"), t("action.refreshing"));
 
   try {
-    await Promise.all([loadConfigAndPresets(), refreshHealth()]);
+    await reloadConnectionState();
     setNotice("ok", t("status.dataRefreshed"));
   } catch (error) {
     setNotice("error", t("status.refreshFailed", { error: asErrorMessage(error) }));

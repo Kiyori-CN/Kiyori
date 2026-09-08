@@ -1,122 +1,44 @@
-$ErrorActionPreference = "Stop"
-
-$projectRoot = Split-Path -Parent $PSScriptRoot
-Set-Location $projectRoot
+$ErrorActionPreference = 'Stop'
+$projectRoot = [System.IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 . (Join-Path $PSScriptRoot 'agent_process.ps1')
-
-$dataDir = Join-Path $projectRoot "data"
-$logsDir = Join-Path $projectRoot "logs"
-$configPath = Join-Path $dataDir "config.json"
-$runtimePath = Join-Path $dataDir "runtime.json"
-$pidPath = Join-Path $dataDir "agent.pid"
-$activeLaunchPath = Join-Path $dataDir "active_launch.id"
-$launcherLog = Join-Path $logsDir "launcher.log"
-
-if (-not (Test-Path $dataDir)) { New-Item -ItemType Directory -Path $dataDir -Force | Out-Null }
-if (-not (Test-Path $logsDir)) { New-Item -ItemType Directory -Path $logsDir -Force | Out-Null }
-
-function Write-Log {
-    param([string]$Level, [string]$Message)
-    $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff"
-    $line = "$ts [$Level] $Message"
-    Write-Host $line
-    Add-Content -Path $launcherLog -Value $line -Encoding UTF8
-}
-
-function Resolve-AgentPort {
-    param([string]$ConfigFilePath)
-
-    $port = 58321
-    try {
-        if (Test-Path $ConfigFilePath) {
-            $config = Get-Content -Raw $ConfigFilePath | ConvertFrom-Json
-            if ($config -and $config.port) {
-                $parsedPort = [int]$config.port
-                if ($parsedPort -ge 1 -and $parsedPort -le 65535) {
-                    $port = $parsedPort
-                }
-            }
-        }
-    }
-    catch {
-        Write-Log "WARN" "Failed to read config.json, fallback port: $($_.Exception.Message)"
-    }
-
-    return $port
-}
-
-function Stop-AgentProcess {
-    param([int]$Port)
-
-    $stoppedAny = $false
-
-    if (Test-Path $pidPath) {
-        try {
-            $pidText = (Get-Content -Raw $pidPath).Trim()
-            if ($pidText -match '^\d+$') {
-                $pidValue = [int]$pidText
-                if (Stop-OwnedAgentProcess -ProcessId $pidValue -RootPath $projectRoot) { $stoppedAny = $true }
-            }
-        }
-        catch {
-            Write-Log "WARN" "Failed to stop pid-file process: $($_.Exception.Message)"
-        }
-    }
-
-    try {
-        $conns = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
-        if ($conns) {
-            $pids = $conns | Select-Object -ExpandProperty OwningProcess -Unique
-            foreach ($p in $pids) {
-                if ($p -gt 0) {
-                    if (Stop-OwnedAgentProcess -ProcessId $p -RootPath $projectRoot) { $stoppedAny = $true }
-                }
-            }
-        }
-    }
-    catch {
-        Write-Log "WARN" "Failed to inspect listening port ${Port}: $($_.Exception.Message)"
-    }
-
-    Remove-Item -LiteralPath $pidPath -Force -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath $runtimePath -Force -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath $activeLaunchPath -Force -ErrorAction SilentlyContinue
-
-    return $stoppedAny
-}
-
-$mutexName = "Local\KiyoriPcAgentLauncher"
-$mutex = New-Object System.Threading.Mutex($false, $mutexName)
+function Write-Log { param([string]$Level,[string]$Message) Write-Host "[$Level] $Message" }
+$dataDir = Join-Path $projectRoot 'data'
+$pidPath = Join-Path $dataDir 'agent.pid'
+$runtimePath = Join-Path $dataDir 'runtime.json'
+$pathHash = [System.Security.Cryptography.SHA256]::Create()
+try { $id = ([BitConverter]::ToString($pathHash.ComputeHash([Text.Encoding]::UTF8.GetBytes($projectRoot.ToLowerInvariant())))).Replace('-', '') }
+finally { $pathHash.Dispose() }
+$mutex = New-Object System.Threading.Mutex($false, "Local\KiyoriPcAgentLauncher-$id")
 $hasLock = $false
-
 try {
     $hasLock = $mutex.WaitOne(0)
-    if (-not $hasLock) {
-        Write-Log "WARN" "Launcher is running. Close launching flow and retry stop."
-        Write-Host "[WARN] Kiyori PC Agent is busy (launcher running)."
-        exit 1
+    if (-not $hasLock) { throw 'Launcher is busy; retry after it finishes.' }
+    $recordedIds = @()
+    if (Test-Path -LiteralPath $pidPath) {
+        $value = (Get-Content -LiteralPath $pidPath -Raw).Trim()
+        if ($value -notmatch '^\d+$') { throw 'Invalid agent.pid; inspect the existing Agent.' }
+        $recordedIds += [int]$value
     }
-
-    $port = Resolve-AgentPort -ConfigFilePath $configPath
-    Write-Log "INFO" "===== kiyori_pc_agent_stop.bat ====="
-    Write-Log "INFO" "Working directory: $projectRoot"
-    Write-Log "INFO" "Target port: $port"
-
-    $stopped = Stop-AgentProcess -Port $port
-    if ($stopped) {
-        Write-Host "[OK] Kiyori PC Agent stopped (port $port)."
-        Write-Log "OK" "Agent stopped on port $port"
+    if (Test-Path -LiteralPath $runtimePath) {
+        $recordedIds += [int](Get-Content -LiteralPath $runtimePath -Raw | ConvertFrom-Json).pid
     }
-    else {
-        Write-Host "[OK] No running Kiyori PC Agent process found."
-        Write-Log "INFO" "No running agent process found on port $port"
+    foreach ($recordedId in ($recordedIds | Select-Object -Unique)) {
+        if ($recordedId -gt 0 -and (Get-Process -Id $recordedId -ErrorAction SilentlyContinue)) {
+            if (-not (Stop-OwnedAgentProcess -ProcessId $recordedId -RootPath $projectRoot)) {
+                throw 'Unverified process preserved. Close the old Agent manually or use the same Windows permissions.'
+            }
+            Wait-Process -Id $recordedId -Timeout 5 -ErrorAction SilentlyContinue
+        }
     }
-
-    exit 0
-}
-finally {
-    if ($hasLock) {
-        $mutex.ReleaseMutex() | Out-Null
+    # Remove markers only after all recorded processes are stopped or absent; never mask a stop failure.
+    foreach ($record in @($pidPath,$runtimePath)) {
+        if (Test-Path -LiteralPath $record) { Remove-Item -LiteralPath $record -Force }
     }
+    Write-Host '[OK] Recorded Agent processes stopped; configuration and logs preserved.'
+} catch {
+    Write-Host "[ERROR] $($_.Exception.Message)"
+    exit 1
+} finally {
+    if ($hasLock) { $mutex.ReleaseMutex() | Out-Null }
     $mutex.Dispose()
 }

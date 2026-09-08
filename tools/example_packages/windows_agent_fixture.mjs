@@ -7,7 +7,7 @@ import { once } from "node:events";
 import { fileURLToPath } from "node:url";
 
 /** 真正启动隔离的 PC Agent，只在明确创建的临时目录写入运行配置和日志。 */
-export async function startAgentFixture() {
+export async function startAgentFixture(options = {}) {
   const source = fileURLToPath(new URL("../../examples/windows_control/resources/pc_agent/kiyori-pc-agent", import.meta.url));
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "kiyori-windows-fixture-"));
   fs.cpSync(source, directory, { recursive: true, filter: entry => !["node_modules", "logs", "data"].includes(path.basename(entry)) });
@@ -16,7 +16,7 @@ export async function startAgentFixture() {
   const port = reservation.address().port;
   await new Promise(resolve => reservation.close(resolve));
   fs.mkdirSync(path.join(directory, "data"));
-  fs.writeFileSync(path.join(directory, "data/config.json"), JSON.stringify({ bindAddress: "127.0.0.1", port, apiToken: "isolated-fixture-token", maxCommandMs: 30000, allowedPresets: ["whoami"], connectionMode: "frp", publicUrl: "https://pc.example.com/bridge" }));
+  fs.writeFileSync(path.join(directory, "data/config.json"), JSON.stringify({ bindAddress: options.bindAddress || "127.0.0.1", port, apiToken: "isolated-fixture-token", maxCommandMs: 30000, allowedPresets: ["whoami"], connectionMode: "frp", publicUrl: "https://pc.example.com/bridge" }));
   const child = spawn(process.execPath, ["src/server.js"], { cwd: directory, windowsHide: true, stdio: ["pipe", "pipe", "pipe"], env: { ...process.env, NODE_OPTIONS: "", KIYORI_BIND_ADDRESS_OVERRIDE: "" } });
   let errors = "";
   child.stderr.on("data", data => { errors += data; });

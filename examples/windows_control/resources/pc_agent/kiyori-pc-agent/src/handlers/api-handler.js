@@ -45,8 +45,7 @@ function isAuthorized(config, token) {
 function createApiHandler({
   state,
   configStore,
-  startupStateStore,
-  restartAgent,
+  applyConfig,
   processService,
   fileService,
   logger,
@@ -54,22 +53,18 @@ function createApiHandler({
   runtimeInfo,
   versionInfo
 }) {
-  function isUsableRecommendedBind(value) {
-    const text = String(value || "").trim();
-    if (!text) {
-      return false;
-    }
-    if (text === "127.0.0.1" || text === "0.0.0.0" || text === "localhost" || text === "::1") {
-      return false;
-    }
-    return true;
-  }
-
+  let configUpdating = false;
   function getStartupIssueState() {
-    if (!startupStateStore) {
-      return null;
-    }
-    return startupStateStore.loadState();
+    const current = runtimeInfo.listenerState?.();
+    if (!current || (current.listening && current.bindAddress === state.config.bindAddress && current.port === state.config.port && !current.error)) return null;
+    const network = processService.getNetworkSnapshot();
+    return { issueType: "bindAddressUnavailable", configuredBindAddress: state.config.bindAddress,
+      recommendedBindAddress: network.recommendedHost, ipv4Candidates: network.ipv4Candidates,
+      error: current.error || "LISTENER_NOT_APPLIED" };
+  }
+  async function commitConfig(nextConfig) {
+    if (applyConfig) await applyConfig(nextConfig);
+    else { configStore.saveConfig(nextConfig); state.config = nextConfig; }
   }
 
   function getPresetList(config) {
@@ -291,7 +286,7 @@ function createApiHandler({
         sendJson(res, 200, { ok: true, version: versionInfo.agentVersion, mode: "http-agent",
           capabilities: ["files", "file-move", "file-copy", "file-mkdir", "process-sessions"],
           runtimeBindAddress: runtimeInfo.runtimeBindAddress ? runtimeInfo.runtimeBindAddress() : config.bindAddress,
-          port: config.port });
+          port: runtimeInfo.runtimePort ? runtimeInfo.runtimePort() : config.port });
       } catch (error) {
         sendJson(res, 400, { ok: false, error: error.message });
       }
@@ -300,7 +295,7 @@ function createApiHandler({
 
     if (req.method === "GET" && url.pathname === "/api/health") {
       if (!management) {
-        sendJson(res, 200, { ok: true, mode: "http-agent", version: versionInfo.agentVersion, port: config.port });
+        sendJson(res, 200, { ok: true, mode: "http-agent", version: versionInfo.agentVersion, port: runtimeInfo.runtimePort ? runtimeInfo.runtimePort() : config.port });
         return true;
       }
       const network = processService.getNetworkSnapshot();
@@ -314,7 +309,8 @@ function createApiHandler({
         uptimeSec: runtimeInfo.uptimeSec(),
         bindAddress: config.bindAddress,
         runtimeBindAddress: runtimeInfo.runtimeBindAddress ? runtimeInfo.runtimeBindAddress() : config.bindAddress,
-        bindOverrideActive: runtimeInfo.bindOverrideActive ? !!runtimeInfo.bindOverrideActive() : false,
+        bindOverrideActive: false,
+        listener: runtimeInfo.listenerState?.(),
         port: runtimeInfo.runtimePort ? runtimeInfo.runtimePort() : config.port,
         mode: "http-agent",
         version: versionInfo.agentVersion,
@@ -334,61 +330,18 @@ function createApiHandler({
     }
 
     if (req.method === "POST" && url.pathname === "/api/startup/apply_recommended_bind") {
+      if (configUpdating) { sendJson(res, 409, { ok: false, error: "CONFIG_UPDATE_BUSY" }); return true; }
+      configUpdating = true;
       try {
         await readJsonBody(req);
-        const issue = getStartupIssueState();
-        if (!issue || issue.issueType !== "bindAddressUnavailable") {
-          sendJson(res, 400, { ok: false, error: "No bindAddressUnavailable startup issue" });
-          return true;
-        }
-
-        const network = processService.getNetworkSnapshot();
-        const recommendedHost = String(network.recommendedHost || "").trim();
-        if (!isUsableRecommendedBind(recommendedHost)) {
-          sendJson(res, 400, { ok: false, error: "No usable IPv4 candidate available now" });
-          return true;
-        }
-
-        const previousBindAddress = state.config.bindAddress;
-        state.config = {
-          ...state.config,
-          bindAddress: recommendedHost
-        };
-        configStore.saveConfig(state.config);
-
-        startupStateStore.saveState({
-          ...issue,
-          status: "applied_restarting",
-          previousBindAddress,
-          appliedBindAddress: recommendedHost,
-          appliedAt: new Date().toISOString(),
-          network
-        });
-
-        logger.info("startup.bind_recovery.applied", {
-          previousBindAddress,
-          appliedBindAddress: recommendedHost,
-          port: state.config.port
-        });
-
-        if (typeof restartAgent === "function") {
-          const scheduled = restartAgent("api.startup.apply_recommended_bind");
-          if (!scheduled) {
-            sendJson(res, 409, { ok: false, error: "Restart already scheduled" });
-            return true;
-          }
-        }
-
-        sendJson(res, 200, {
-          ok: true,
-          restartScheduled: true,
-          bindAddress: recommendedHost,
-          config: buildPublicConfig(state.config, versionInfo)
-        });
+        const recommendedHost = processService.getNetworkSnapshot().recommendedHost;
+        if (!recommendedHost) throw new Error("No physical network address available; select a network explicitly");
+        await commitConfig({ ...state.config, bindAddress: recommendedHost });
+        sendJson(res, 200, { ok: true, restartScheduled: false, restartRequired: false,
+          bindAddress: recommendedHost, config: buildPublicConfig(state.config, versionInfo) });
       } catch (error) {
-        logger.error("startup.bind_recovery.error", { error: error.message });
         sendJson(res, 400, { ok: false, error: error.message });
-      }
+      } finally { configUpdating = false; }
       return true;
     }
 
@@ -405,6 +358,8 @@ function createApiHandler({
     }
 
     if (req.method === "POST" && url.pathname === "/api/config") {
+      if (configUpdating) { sendJson(res, 409, { ok: false, error: "CONFIG_UPDATE_BUSY" }); return true; }
+      configUpdating = true;
       try {
         const body = await readJsonBody(req);
         const nextConfig = { ...state.config };
@@ -423,7 +378,8 @@ function createApiHandler({
         }
 
         const bindAddressInput = pickConfigInput(body, "bindAddress", "bind_address");
-        if (typeof bindAddressInput === "string" && bindAddressInput.trim()) {
+        if (bindAddressInput !== undefined) {
+          if (typeof bindAddressInput !== "string" || !bindAddressInput.trim()) throw new Error("BIND_ADDRESS_REQUIRED");
           nextConfig.bindAddress = bindAddressInput.trim();
           if (!require("net").isIP(nextConfig.bindAddress) && nextConfig.bindAddress !== "localhost") throw new Error("Bind address must be a local IP address");
         }
@@ -463,8 +419,7 @@ function createApiHandler({
         const restartRequired = nextConfig.port !== (runtimeInfo.runtimePort ? runtimeInfo.runtimePort() : state.config.port)
           || nextConfig.bindAddress !== (runtimeInfo.runtimeBindAddress ? runtimeInfo.runtimeBindAddress() : state.config.bindAddress);
 
-        configStore.saveConfig(nextConfig);
-        state.config = nextConfig;
+        await commitConfig(nextConfig);
 
         logger.info("config.update.success", {
           bindAddress: state.config.bindAddress,
@@ -476,13 +431,13 @@ function createApiHandler({
 
         sendJson(res, 200, {
           ok: true,
-          restartRequired,
+          restartRequired: applyConfig ? false : restartRequired,
           config: buildPublicConfig(state.config, versionInfo)
         });
       } catch (error) {
         logger.error("config.update.error", { error: error.message });
         sendJson(res, 400, { ok: false, error: error.message });
-      }
+      } finally { configUpdating = false; }
 
       return true;
     }

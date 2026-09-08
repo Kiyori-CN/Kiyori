@@ -974,10 +974,6 @@ export function createProcessesController({ api, refs, t, helpers }) {
       return;
     }
 
-    if (refs.manageTokenInput.value.trim()) {
-      return;
-    }
-
     refs.manageTokenInput.value = toText(token, "");
   }
 

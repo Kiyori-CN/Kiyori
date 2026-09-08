@@ -16,7 +16,7 @@ function createRuntimeStore({ dataDir, runtimePath }) {
 
   function removeRuntimeFile() {
     try {
-      if (fs.existsSync(runtimePath)) {
+      if (fs.existsSync(runtimePath) && JSON.parse(fs.readFileSync(runtimePath, "utf8")).pid === process.pid) {
         fs.unlinkSync(runtimePath);
       }
     } catch {

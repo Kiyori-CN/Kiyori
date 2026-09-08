@@ -1,6 +1,6 @@
 async function requestJson(url, options = {}) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 650000);
+  const timer = setTimeout(() => controller.abort(), options.timeoutMs || (url.startsWith("/api/config") || url.startsWith("/api/startup") || url === "/api/health" ? 15000 : 650000));
   let response;
   try {
   response = await fetch(url, {
@@ -20,14 +20,15 @@ async function requestJson(url, options = {}) {
   try {
     data = text ? JSON.parse(text) : null;
   } catch {
-    data = { raw: text };
+    throw new Error("Invalid JSON response; check the current service state before retrying a write.");
   }
 
   if (!response.ok) {
     throw new Error((data && data.error) || `HTTP ${response.status}`);
   }
 
-  if (data?.ok === false) throw new Error(data.error || "Operation failed");
+  if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("Invalid response from PC Agent");
+  if (data.ok === false) throw new Error(data.error || "Operation failed");
   return data;
   } finally { clearTimeout(timer); }
 }

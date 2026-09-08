@@ -20,6 +20,8 @@ const { allowManagementRequest } = require(path.join(agent, "src/lib/request-pol
 const { normalizeAgentUrl, validateConnectionConfig } = require(path.join(root, "examples/windows_control/dist/connection.js"));
 const { createConfigStore } = require(path.join(agent, "src/stores/config-store.js"));
 const { DEFAULT_CONFIG, PRESET_COMMANDS } = require(path.join(agent, "src/config/constants.js"));
+const { getNetworkSnapshot, validateBindAddress } = require(path.join(agent, "src/services/network-service.js"));
+const { createListenerService } = require(path.join(agent, "src/services/listener-service.js"));
 const logger = { info() {}, warn() {}, error() {} };
 
 function temporary(t) {
@@ -208,12 +210,76 @@ test("real PC server starts separate listeners, isolates console and reports act
   assert.equal(config.publicUrl, "https://pc.example.com/bridge");
   assert.equal((await fetch(fixture.executionUrl + "/api/config")).status, 403);
   assert.equal((await fetch(fixture.managementUrl + "/api/config", {headers:{Origin:"https://evil.example"}})).status, 403);
-  const changed = await fetch(fixture.managementUrl + "/api/config", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({port:fixture.port === 65535 ? 65534 : fixture.port + 1})});
-  assert.equal((await changed.json()).restartRequired,true);
+  const reservation = http.createServer(); reservation.listen(0,"127.0.0.1"); await once(reservation,"listening");
+  const nextPort = reservation.address().port; await new Promise(resolve=>reservation.close(resolve));
+  const changed = await fetch(fixture.managementUrl + "/api/config", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({port:nextPort})});
+  assert.equal(changed.status,200);
+  assert.equal((await changed.json()).restartRequired,false);
   const health = await (await fetch(fixture.managementUrl + "/api/health")).json();
-  assert.equal(health.port,fixture.port);
+  assert.equal(health.port,nextPort);
+  assert.equal(health.listener.listening,true);
+  assert.equal((await (await fetch(`http://127.0.0.1:${nextPort}/api/health`)).json()).port,nextPort);
   const runtime = JSON.parse(fs.readFileSync(path.join(fixture.directory,"data/runtime.json"),"utf8"));
   assert.equal(runtime.managementUrl,fixture.managementUrl);
+  assert.equal(runtime.port,nextPort);
+});
+
+test("Mihomo, fake-IP and virtual adapters never become automatic LAN recommendations", () => {
+  const row = address => [{address,family:"IPv4",internal:false}];
+  const network={Mihomo:row("198.18.0.1"),"vEthernet (Default Switch)":row("172.31.224.1"),WLAN:row("192.168.86.6"),vpn:row("10.0.0.2"),offline:row("169.254.1.2")};
+  const snap=getNetworkSnapshot(network);
+  assert.equal(snap.preferredLan,"192.168.86.6");
+  assert.equal(snap.proxyInterfaceDetected,true);
+  assert.equal(snap.rankedIpv4Candidates.find(x=>x.interfaceName==="Mihomo").isVirtual,true);
+  assert.equal(getNetworkSnapshot({Mihomo:network.Mihomo,vpn:network.vpn}).recommendedHost,"");
+  assert.equal(getNetworkSnapshot({renamed:row("198.19.0.1")}).recommendedHost,"");
+  assert.throws(()=>validateBindAddress("192.168.32.1",network),/UNAVAILABLE/);
+  validateBindAddress("192.168.86.6",network);
+  validateBindAddress("198.18.0.1",network); // 明确手动选择不是自动推荐。
+});
+
+test("unavailable startup IP keeps management accessible and can be repaired without restart", async t => {
+  const fixture=await startAgentFixture({bindAddress:"192.0.2.123"}); t.after(fixture.stop);
+  const health=await (await fetch(fixture.managementUrl+"/api/health")).json();
+  assert.equal(health.listener.listening,false); assert.equal(health.port,null);
+  assert.match(health.startupIssue.error,/UNAVAILABLE/);
+  const response=await fetch(fixture.managementUrl+"/api/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({bindAddress:"127.0.0.1"})});
+  assert.equal(response.status,200);
+  const after=await (await fetch(fixture.managementUrl+"/api/health")).json();
+  assert.equal(after.pid,health.pid); assert.equal(after.listener.listening,true); assert.equal(after.startupIssue,null);
+  assert.equal((await fetch(fixture.executionUrl+"/api/health")).status,200);
+});
+
+test("listener switches same-port wildcard binding and preserves old config on occupied port", async t => {
+  const fixture=await startAgentFixture(); t.after(fixture.stop);
+  const post=body=>fetch(fixture.managementUrl+"/api/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  assert.equal((await post({bindAddress:"0.0.0.0"})).status,200);
+  assert.equal((await post({bindAddress:"127.0.0.1"})).status,200);
+  const occupied=Number(new URL(fixture.managementUrl).port);
+  const failed=await post({port:occupied,apiToken:"must-not-persist"});
+  assert.equal(failed.status,400); assert.match((await failed.json()).error,/EADDRINUSE.*preserved/);
+  const config=await (await fetch(fixture.managementUrl+"/api/config")).json();
+  assert.equal(config.port,fixture.port); assert.equal(config.apiToken,"isolated-fixture-token");
+  assert.equal((await fetch(fixture.executionUrl+"/api/health")).status,200);
+  assert.equal((await post({bindAddress:"192.0.2.123"})).status,400);
+  assert.equal((await post({bindAddress:""})).status,400);
+});
+
+test("persistence failure restores listener and concurrent configuration updates are rejected", async t => {
+  const service=createListenerService({handler:(_req,res)=>res.end("ok")}); t.after(()=>service.close());
+  const reservation=http.createServer(); reservation.listen(0,"127.0.0.1"); await once(reservation,"listening");
+  const port=reservation.address().port; await new Promise(resolve=>reservation.close(resolve));
+  await service.apply({bindAddress:"127.0.0.1",port});
+  await assert.rejects(service.apply({bindAddress:"0.0.0.0",port},()=>{throw new Error("disk-full");}),/disk-full.*preserved/);
+  assert.equal(service.snapshot().bindAddress,"127.0.0.1");
+  assert.equal(await (await fetch(`http://127.0.0.1:${port}`)).text(),"ok");
+  const changing=service.apply({bindAddress:"0.0.0.0",port});
+  await assert.rejects(service.apply({bindAddress:"127.0.0.1",port}),/BUSY/);
+  await changing;
+  const stopping=service.apply({bindAddress:"127.0.0.1",port});
+  service.close();
+  await assert.rejects(stopping,/STOPPING/);
+  assert.equal(service.snapshot().listening,false);
 });
 
 test("mobile malformed connection is failed; edits invalidate status and saves are batched", async () => {
@@ -277,4 +343,34 @@ test("every declared Windows tool has an exported implementation", () => {
   const metadata=JSON.parse(source.match(/\/\* METADATA\s*([\s\S]*?)\*\//)[1]);
   const tools=loadTools(authenticated);
   for (const tool of metadata.tools.filter(t=>!t.advice)) assert.equal(typeof tools[tool.name],"function",tool.name);
+});
+
+test("desktop save applies before advancing, clears stale pending state and copies actual bound adapter", async t => {
+  const source=fs.readFileSync(path.join(agent,"public/scripts/features/wizard-page.js"),"utf8");
+  const {createWizardController}=await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`);
+  const values=new Map(),notices=[],copies=[];
+  const refs=new Proxy({}, {get:(_,key)=>{if(!values.has(key))values.set(key,{value:"",textContent:"",hidden:false,classList:{toggle(){}}});return values.get(key);}});
+  const state={wizardStep:0,connectionMode:"lan",pendingRestart:true,
+    config:{bindAddress:"192.168.32.1",port:58321,apiToken:"fixture-token",maxCommandMs:30000,publicUrl:"",connectionMode:"lan"},
+    health:{runtimeBindAddress:"",port:null,listener:{listening:false,error:"BIND_ADDRESS_UNAVAILABLE"},network:{preferredLan:"192.168.86.6",ipv4Candidates:["192.168.86.6","192.168.99.2"]}}};
+  let fail=false,latestToken="fixture-token";
+  const controller=createWizardController({refs,state,t:key=>key,
+    api:{updateConfig:async payload=>{if(fail)throw new Error("EADDRINUSE");Object.assign(state.config,payload);state.health={...state.health,runtimeBindAddress:payload.bindAddress,port:payload.port,listener:{listening:true}};return {restartRequired:false};},
+      getConfig:async()=>({...state.config,apiToken:latestToken}),getHealth:async()=>state.health},
+    helpers:{setBusy(){},setNotice:(tone,text)=>notices.push({tone,text}),setJsonOutput(){},asErrorMessage:error=>error.message}});
+  const descriptor=Object.getOwnPropertyDescriptor(globalThis,"navigator");
+  Object.defineProperty(globalThis,"navigator",{configurable:true,value:{clipboard:{writeText:async text=>copies.push(JSON.parse(text))}}});
+  t.after(()=>{if(descriptor)Object.defineProperty(globalThis,"navigator",descriptor);else delete globalThis.navigator;});
+  controller.fillWizardStep1Form(state.config); controller.syncFromState();
+  assert.equal(refs.wizardBindAddressInput.value,"192.168.86.6");
+  refs.wizardBindAddressInput.value="192.168.99.2"; refs.wizardPortInput.value="58322";
+  await controller.handleWizardStep1SaveNext();
+  assert.equal(state.pendingRestart,false); assert.equal(state.wizardStep,1);
+  assert.equal(refs.mobileBaseUrlInput.value,"http://192.168.99.2:58322");
+  await controller.handleWizardCopyPayload();
+  assert.equal(copies.length,1); assert.equal(copies[0].WINDOWS_AGENT_BASE_URL,"http://192.168.99.2:58322");
+  latestToken="rotated-elsewhere"; await controller.handleWizardCopyPayload();
+  assert.equal(copies.length,1); assert.equal(notices.at(-1).tone,"error");
+  fail=true; controller.setWizardStep(0); await controller.handleWizardStep1SaveNext();
+  assert.equal(state.wizardStep,0);
 });
