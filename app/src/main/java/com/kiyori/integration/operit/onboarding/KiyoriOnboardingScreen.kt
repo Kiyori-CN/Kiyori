@@ -12,13 +12,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.Spring
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -38,6 +34,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -56,29 +53,33 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.filled.AccountTree
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.FolderSpecial
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Widgets
+import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Security
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.WorkOutline
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -101,35 +102,39 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.kiyori.design.theme.KiyoriUiShapes
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.system.RootAuthorizer
-import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.data.preferences.AgreementPreferences
 import com.ai.assistance.operit.ui.features.agreement.screens.KiyoriAgreementDocumentScreen
-import com.ai.assistance.operit.ui.features.agreement.screens.KiyoriAgreementSummary
 import com.ai.assistance.operit.ui.features.agreement.screens.KiyoriLegalDocument
 import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.KiyoriUiShapes
 import com.kiyori.design.theme.resolveColors
 import com.kiyori.platform.logging.KiyoriLogger
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
-import androidx.compose.ui.semantics.ProgressBarRangeInfo
-import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
@@ -147,7 +152,8 @@ internal fun KiyoriOnboardingScreen(
         remember(context) {
             KiyoriOnboardingPreferences(context.applicationContext)
         }
-    var agreementAcceptedState by rememberSaveable { mutableStateOf(if (startFromBeginning) false else agreementAccepted) }
+    // 重看仍沿用协议所有者的已同意事实，只隔离页码和页面临时状态。
+    var agreementAcceptedState by rememberSaveable { mutableStateOf(agreementAccepted) }
     val initialStep =
         remember {
             resolveInitialKiyoriOnboardingStep(
@@ -185,7 +191,10 @@ internal fun KiyoriOnboardingScreen(
             state = pagerState,
             pagerSnapDistance = PagerSnapDistance.atMost(1),
         )
-    var agreementChecked by rememberSaveable { mutableStateOf(if (startFromBeginning) false else agreementAccepted) }
+    var agreementChecked by rememberSaveable { mutableStateOf(agreementAccepted) }
+    var userAgreementRead by rememberSaveable { mutableStateOf(false) }
+    var privacyPolicyRead by rememberSaveable { mutableStateOf(false) }
+    var showAgreementExitConfirmation by rememberSaveable { mutableStateOf(false) }
     // 重看页码重建为第一页时，旧协议正文也不能盖住新会话的首屏。
     var selectedLegalDocument by if (startFromBeginning) remember {
         mutableStateOf<KiyoriLegalDocument?>(null)
@@ -203,7 +212,11 @@ internal fun KiyoriOnboardingScreen(
                 sanitizeKiyoriPermissionSelection(
                     snapshot = initialPermissionSnapshot,
                     selectedPermissionIds =
-                        if (startFromBeginning) emptySet() else preferences.readSelectedPermissions(),
+                        when {
+                            startFromBeginning -> emptySet()
+                            preferences.hasSelectedPermissionChoice() -> preferences.readSelectedPermissions()
+                            else -> setOf(KiyoriPermissionId.NOTIFICATIONS, KiyoriPermissionId.MEDIA)
+                        },
                 ),
             )
         }
@@ -524,14 +537,15 @@ internal fun KiyoriOnboardingScreen(
         )
 
     KiyoriOnboardingPresentation(reviewing = onExitReview != null, onBack = handleBack) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background)
-                    .windowInsetsPadding(WindowInsets.safeDrawing),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
+        KiyoriOnboardingTheme {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
+                        .windowInsetsPadding(WindowInsets.safeDrawing),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
             val legalDocument = selectedLegalDocument
             if (legalDocument != null) {
                 KiyoriAgreementDocumentScreen(
@@ -578,254 +592,167 @@ internal fun KiyoriOnboardingScreen(
                                 FeatureIntroductionPage(
                                     navigationEnabled = !completionDispatched,
                                     canStartTap = { !navigationBusy && pagerState.settledPage == pageIndex },
-                                    eyebrow =
-                                        stringResource(
-                                            R.string.kiyori_onboarding_browser_eyebrow,
-                                        ),
-                                    title =
-                                        stringResource(
-                                            R.string.kiyori_onboarding_browser_title,
-                                        ),
-                                    description =
-                                        stringResource(
-                                            R.string.kiyori_onboarding_browser_desc,
-                                        ),
+                                    eyebrow = stringResource(R.string.onb_p2_eyebrow),
+                                    title = stringResource(R.string.onb_p2_headline),
+                                    description = stringResource(R.string.onb_p2_lede),
                                     featureCards =
                                         listOf(
                                             OnboardingFeatureCard(
-                                                icon = Icons.Default.Language,
+                                                icon = Icons.Default.Shield,
                                                 tone = KiyoriSemanticTone.BLUE,
-                                                title =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_browser_card_browser_title,
-                                                    ),
-                                                description =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_browser_card_browser_desc,
-                                                    ),
+                                                title = stringResource(R.string.onb_card_adblock_title),
+                                                description = stringResource(R.string.onb_card_adblock_line1) + "\n" +
+                                                    stringResource(R.string.onb_card_adblock_line2),
                                             ),
                                             OnboardingFeatureCard(
                                                 icon = Icons.Default.Download,
-                                                tone = KiyoriSemanticTone.GREEN,
-                                                title =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_browser_card_download_title,
-                                                    ),
-                                                description =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_browser_card_download_desc,
-                                                    ),
+                                                tone = KiyoriSemanticTone.PURPLE,
+                                                title = stringResource(R.string.onb_card_download_title),
+                                                description = stringResource(R.string.onb_card_download_line1) + "\n" +
+                                                    stringResource(R.string.onb_card_download_line2),
                                             ),
                                             OnboardingFeatureCard(
                                                 icon = Icons.Default.PlayCircle,
-                                                tone = KiyoriSemanticTone.RED,
-                                                title =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_browser_card_video_title,
-                                                    ),
-                                                description =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_browser_card_video_desc,
-                                                    ),
+                                                tone = KiyoriSemanticTone.GREEN,
+                                                title = stringResource(R.string.onb_card_video_title),
+                                                description = stringResource(R.string.onb_card_video_line1) + "\n" +
+                                                    stringResource(R.string.onb_card_video_line2),
                                             ),
                                             OnboardingFeatureCard(
-                                                icon = Icons.Default.Shield,
+                                                icon = Icons.Outlined.MusicNote,
                                                 tone = KiyoriSemanticTone.ORANGE,
-                                                title =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_browser_card_adblock_title,
-                                                    ),
-                                                description =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_browser_card_adblock_desc,
-                                                    ),
+                                                title = stringResource(R.string.onb_card_music_title),
+                                                description = stringResource(R.string.onb_card_music_line1) + "\n" +
+                                                    stringResource(R.string.onb_card_music_line2),
+                                                badge = stringResource(R.string.onb_badge_wip),
                                             ),
                                         ),
                                     step = KiyoriOnboardingStep.BROWSER_AND_MEDIA,
                                     onNext = {
                                         moveTo(KiyoriOnboardingStep.AI_ASSISTANT, KiyoriOnboardingStep.BROWSER_AND_MEDIA)
                                     },
-                                    nextLabel =
-                                        stringResource(
-                                            R.string.kiyori_onboarding_browser_next,
-                                        ),
+                                    nextLabel = stringResource(R.string.onb_p2_cta),
                                 )
 
                             KiyoriOnboardingStep.AI_ASSISTANT ->
                                 FeatureIntroductionPage(
                                     navigationEnabled = !completionDispatched,
                                     canStartTap = { !navigationBusy && pagerState.settledPage == pageIndex },
-                                    eyebrow =
-                                        stringResource(
-                                            R.string.kiyori_onboarding_ai_eyebrow,
-                                        ),
-                                    title =
-                                        stringResource(
-                                            R.string.kiyori_onboarding_ai_title,
-                                        ),
-                                    description =
-                                        stringResource(
-                                            R.string.kiyori_onboarding_ai_desc,
-                                        ),
+                                    eyebrow = stringResource(R.string.onb_p3_eyebrow),
+                                    title = stringResource(R.string.onb_p3_headline),
+                                    description = stringResource(R.string.onb_p3_lede),
                                     featureCards =
                                         listOf(
                                             OnboardingFeatureCard(
-                                                badge = stringResource(R.string.kiyori_onboarding_requires_setup),
-                                                icon = Icons.Default.AutoAwesome,
-                                                tone = KiyoriSemanticTone.PURPLE,
-                                                title =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_ai_card_models_title,
-                                                    ),
-                                                description =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_ai_card_models_desc,
-                                                    ),
-                                            ),
-                                            OnboardingFeatureCard(
-                                                badge = stringResource(R.string.kiyori_onboarding_requires_setup),
-                                                icon = Icons.Default.RecordVoiceOver,
-                                                tone = KiyoriSemanticTone.CYAN,
-                                                title =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_ai_card_voice_title,
-                                                    ),
-                                                description =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_ai_card_voice_desc,
-                                                    ),
-                                            ),
-                                            OnboardingFeatureCard(
-                                                icon = Icons.Default.FolderSpecial,
-                                                tone = KiyoriSemanticTone.GREEN,
-                                                title =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_ai_card_memory_title,
-                                                    ),
-                                                description =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_ai_card_memory_desc,
-                                                    ),
-                                            ),
-                                            OnboardingFeatureCard(
-                                                icon = Icons.Default.Widgets,
+                                                badge = stringResource(R.string.onb_badge_setup),
+                                                icon = Icons.Outlined.Tune,
                                                 tone = KiyoriSemanticTone.BLUE,
-                                                title =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_ai_card_toolbox_title,
-                                                    ),
-                                                description =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_ai_card_toolbox_desc,
-                                                    ),
+                                                title = stringResource(R.string.onb_card_model_title),
+                                                description = stringResource(R.string.onb_card_model_line1) + "\n" +
+                                                    stringResource(R.string.onb_card_model_line2),
+                                            ),
+                                            OnboardingFeatureCard(
+                                                badge = stringResource(R.string.onb_badge_setup),
+                                                icon = Icons.Outlined.Mic,
+                                                tone = KiyoriSemanticTone.PURPLE,
+                                                title = stringResource(R.string.onb_card_voice_title),
+                                                description = stringResource(R.string.onb_card_voice_line1) + "\n" +
+                                                    stringResource(R.string.onb_card_voice_line2),
+                                            ),
+                                            OnboardingFeatureCard(
+                                                icon = Icons.AutoMirrored.Outlined.MenuBook,
+                                                tone = KiyoriSemanticTone.GREEN,
+                                                title = stringResource(R.string.onb_card_memory_title),
+                                                description = stringResource(R.string.onb_card_memory_line1) + "\n" +
+                                                    stringResource(R.string.onb_card_memory_line2),
+                                            ),
+                                            OnboardingFeatureCard(
+                                                icon = Icons.Outlined.WorkOutline,
+                                                tone = KiyoriSemanticTone.ORANGE,
+                                                title = stringResource(R.string.onb_card_toolbox_title),
+                                                description = stringResource(R.string.onb_card_toolbox_line1) + "\n" +
+                                                    stringResource(R.string.onb_card_toolbox_line2),
                                             ),
                                         ),
                                     step = KiyoriOnboardingStep.AI_ASSISTANT,
                                     onNext = {
                                         moveTo(KiyoriOnboardingStep.FILES_AND_TOOLS, KiyoriOnboardingStep.AI_ASSISTANT)
                                     },
-                                    nextLabel =
-                                        stringResource(
-                                            R.string.kiyori_onboarding_ai_next,
-                                        ),
+                                    nextLabel = stringResource(R.string.onb_p3_cta),
                                 )
 
                             KiyoriOnboardingStep.FILES_AND_TOOLS ->
                                 FeatureIntroductionPage(
                                     navigationEnabled = !completionDispatched,
                                     canStartTap = { !navigationBusy && pagerState.settledPage == pageIndex },
-                                    eyebrow =
-                                        stringResource(
-                                            R.string.kiyori_onboarding_files_eyebrow,
-                                        ),
-                                    title =
-                                        stringResource(
-                                            R.string.kiyori_onboarding_files_title,
-                                        ),
-                                    description =
-                                        stringResource(
-                                            R.string.kiyori_onboarding_files_desc,
-                                        ),
+                                    eyebrow = stringResource(R.string.onb_p4_eyebrow),
+                                    title = stringResource(R.string.onb_p4_headline),
+                                    description = stringResource(R.string.onb_p4_lede),
                                     featureCards =
                                         listOf(
                                             OnboardingFeatureCard(
-                                                icon = Icons.Default.Folder,
-                                                tone = KiyoriSemanticTone.ORANGE,
-                                                title =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_files_card_manager_title,
-                                                    ),
-                                                description =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_files_card_manager_desc,
-                                                    ),
-                                            ),
-                                            OnboardingFeatureCard(
-                                                badge = stringResource(R.string.kiyori_onboarding_requires_setup),
+                                                badge = stringResource(R.string.onb_badge_setup),
                                                 icon = Icons.Default.Terminal,
                                                 tone = KiyoriSemanticTone.BLUE,
-                                                title =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_files_card_terminal_title,
-                                                    ),
-                                                description =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_files_card_terminal_desc,
-                                                    ),
+                                                title = stringResource(R.string.onb_card_terminal_title),
+                                                description = stringResource(R.string.onb_card_terminal_line1) + "\n" +
+                                                    stringResource(R.string.onb_card_terminal_line2),
                                             ),
                                             OnboardingFeatureCard(
                                                 icon = Icons.Default.AccountTree,
+                                                tone = KiyoriSemanticTone.PURPLE,
+                                                title = stringResource(R.string.onb_card_workflow_title),
+                                                description = stringResource(R.string.onb_card_workflow_line1) + "\n" +
+                                                    stringResource(R.string.onb_card_workflow_line2),
+                                            ),
+                                            OnboardingFeatureCard(
+                                                icon = Icons.Default.Palette,
                                                 tone = KiyoriSemanticTone.GREEN,
-                                                title =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_files_card_workflow_title,
-                                                    ),
-                                                description =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_files_card_workflow_desc,
-                                                    ),
+                                                title = stringResource(R.string.onb_card_theme_title),
+                                                description = stringResource(R.string.onb_card_theme_line1) + "\n" +
+                                                    stringResource(R.string.onb_card_theme_line2),
                                             ),
                                             OnboardingFeatureCard(
                                                 icon = Icons.Default.Backup,
-                                                tone = KiyoriSemanticTone.PURPLE,
-                                                title =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_files_card_backup_title,
-                                                    ),
-                                                description =
-                                                    stringResource(
-                                                        R.string.kiyori_onboarding_files_card_backup_desc,
-                                                    ),
+                                                tone = KiyoriSemanticTone.ORANGE,
+                                                title = stringResource(R.string.onb_card_backup_title),
+                                                description = stringResource(R.string.onb_card_backup_line1) + "\n" +
+                                                    stringResource(R.string.onb_card_backup_line2),
                                             ),
                                         ),
                                     step = KiyoriOnboardingStep.FILES_AND_TOOLS,
                                     onNext = {
                                         moveTo(KiyoriOnboardingStep.AGREEMENT, KiyoriOnboardingStep.FILES_AND_TOOLS)
                                     },
-                                    nextLabel =
-                                        stringResource(
-                                            R.string.kiyori_onboarding_files_next,
-                                        ),
+                                    nextLabel = stringResource(R.string.onb_p4_cta),
                                 )
 
                             KiyoriOnboardingStep.AGREEMENT ->
-                                KiyoriAgreementSummary(
+                                KiyoriOnboardingAgreementPage(
                                     checked = agreementChecked,
-                                    onCheckedChange = { agreementChecked = it },
+                                    userAgreementRead = userAgreementRead,
+                                    privacyPolicyRead = privacyPolicyRead,
+                                    onCheckedChange = {
+                                        if (!agreementAcceptedState) agreementChecked = it
+                                    },
                                     onOpenUserAgreement = {
-                                        if (!navigationBusy && currentStep == KiyoriOnboardingStep.AGREEMENT) selectedLegalDocument =
-                                            KiyoriLegalDocument.USER_AGREEMENT
+                                        if (!navigationBusy && currentStep == KiyoriOnboardingStep.AGREEMENT) {
+                                            userAgreementRead = true
+                                            selectedLegalDocument = KiyoriLegalDocument.USER_AGREEMENT
+                                        }
                                     },
                                     onOpenPrivacyPolicy = {
-                                        if (!navigationBusy && currentStep == KiyoriOnboardingStep.AGREEMENT) selectedLegalDocument =
-                                            KiyoriLegalDocument.PRIVACY_POLICY
+                                        if (!navigationBusy && currentStep == KiyoriOnboardingStep.AGREEMENT) {
+                                            privacyPolicyRead = true
+                                            selectedLegalDocument = KiyoriLegalDocument.PRIVACY_POLICY
+                                        }
                                     },
                                     onDecline = {
-                                        if (navigationBusy || currentStep != KiyoriOnboardingStep.AGREEMENT) return@KiyoriAgreementSummary
-                                        if (onExitReview != null) onExitReview() else context.findActivity().finish()
+                                        if (navigationBusy || currentStep != KiyoriOnboardingStep.AGREEMENT) return@KiyoriOnboardingAgreementPage
+                                        if (onExitReview != null) onExitReview() else showAgreementExitConfirmation = true
                                     },
                                     onAccept = {
-                                        if (navigationBusy || currentStep != KiyoriOnboardingStep.AGREEMENT) return@KiyoriAgreementSummary
+                                        if (navigationBusy || currentStep != KiyoriOnboardingStep.AGREEMENT) return@KiyoriOnboardingAgreementPage
                                         if (!agreementAcceptedState) {
                                             onAgreementAccepted()
                                             agreementAcceptedState = true
@@ -834,14 +761,9 @@ internal fun KiyoriOnboardingScreen(
                                         moveTo(KiyoriOnboardingStep.PERMISSIONS, KiyoriOnboardingStep.AGREEMENT)
                                     },
                                     agreementAlreadyAccepted = agreementAcceptedState,
-                                    acceptModifier = Modifier.onboardingTapOnly {
-                                        !navigationBusy && pagerState.settledPage == pageIndex
-                                    },
-                                    declineModifier = Modifier.onboardingTapOnly {
-                                        !navigationBusy && pagerState.settledPage == pageIndex
-                                    },
                                     interactionEnabled = !completionDispatched,
                                     reviewing = onExitReview != null,
+                                    canStartTap = { !navigationBusy && pagerState.settledPage == pageIndex },
                                 )
 
                             KiyoriOnboardingStep.PERMISSIONS ->
@@ -879,14 +801,53 @@ internal fun KiyoriOnboardingScreen(
                                             persistSelection(emptySet())
                                         }
                                     },
+                                    onSelectRecommended = {
+                                        if (!authorizationActive && !navigationBusy &&
+                                            currentStep == KiyoriOnboardingStep.PERMISSIONS
+                                        ) {
+                                            selectedPermissionIds =
+                                                sanitizeKiyoriPermissionSelection(
+                                                    snapshot = permissionSnapshot,
+                                                    selectedPermissionIds =
+                                                        setOf(
+                                                            KiyoriPermissionId.NOTIFICATIONS,
+                                                            KiyoriPermissionId.MEDIA,
+                                                        ),
+                                                )
+                                            persistSelection(selectedPermissionIds)
+                                        }
+                                    },
                                     onAuthorize = ::startAuthorization,
                                 )
                         }
                     }
                 }
             }
+            if (showAgreementExitConfirmation) {
+                AlertDialog(
+                    onDismissRequest = { showAgreementExitConfirmation = false },
+                    title = { Text(stringResource(R.string.onb_p5_exit_title)) },
+                    text = { Text(stringResource(R.string.onb_p5_exit_body)) },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showAgreementExitConfirmation = false
+                                context.findActivity().finish()
+                            },
+                        ) {
+                            Text(stringResource(R.string.onb_p5_exit_confirm))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showAgreementExitConfirmation = false }) {
+                            Text(stringResource(R.string.onb_p5_exit_cancel))
+                        }
+                    },
+                )
+            }
         }
     }
+}
 }
 
 @Composable
@@ -952,11 +913,13 @@ private fun OnboardingProgressHeader(
         Modifier.widthIn(max = 1080.dp).fillMaxWidth()
             // 只有稳定的当前页播报；预组合页不能各自声明 paneTitle 抢焦点。
             .semantics { paneTitle = pageAnnouncement }
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(horizontal = 8.dp),
     ) {
-        // 所有六页保留相同 56dp 行高与 48dp 返回槽位。跳过按钮消失不能改变 Pager 高度。
-        Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
+        // 六页共用参考稿的 48dp 顶栏；返回槽位始终保留，避免页间横向抖动。
+        Row(
+            Modifier.fillMaxWidth().height(KiyoriOnboardingMetrics.TopBarHeight.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             if (showBack) {
                 IconButton(
                     onClick = onBack,
@@ -976,14 +939,15 @@ private fun OnboardingProgressHeader(
                 Text(
                     text = stringResource(step.onboardingLabelResId),
                     modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleSmall,
+                    fontSize = 16.sp,
+                    lineHeight = 22.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     stringResource(R.string.kiyori_onboarding_progress, step.ordinal + 1, KiyoriOnboardingStep.entries.size),
-                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -995,45 +959,33 @@ private fun OnboardingProgressHeader(
                     enabled = enabled,
                     modifier = Modifier.onboardingTapOnly(skipGesture) { latestCanStartTap.value() },
                 ) {
-                    Text(stringResource(R.string.kiyori_onboarding_skip_intro), maxLines = 1)
+                    Text(
+                        stringResource(R.string.onb_skip),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                    )
                 }
             }
         }
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 8.dp).semantics {
-                progressBarRangeInfo = ProgressBarRangeInfo(
-                    current = (step.ordinal + 1).toFloat(),
-                    range = 0f..KiyoriOnboardingStep.entries.size.toFloat(),
-                    steps = KiyoriOnboardingStep.entries.size - 1,
-                )
-            },
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 12.dp, end = 12.dp, top = 2.dp)
+                .clearAndSetSemantics { },
+            horizontalArrangement = Arrangement.spacedBy(KiyoriOnboardingMetrics.ProgressGap.dp),
         ) {
             KiyoriOnboardingStep.entries.forEach { item ->
                 val isActive = item.ordinal <= step.ordinal
-                val indicatorColor by animateColorAsState(
-                    targetValue = if (isActive) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.surfaceContainerHighest,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessMedium
-                    ),
-                    label = "progressIndicatorColor"
-                )
-                val indicatorHeight by animateDpAsState(
-                    targetValue = if (item.ordinal == step.ordinal) 5.dp else 4.dp,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessMedium
-                    ),
-                    label = "progressIndicatorHeight"
-                )
                 Box(
                     Modifier
                         .weight(1f)
-                        .height(indicatorHeight)
+                        .height(KiyoriOnboardingMetrics.ProgressHeight.dp)
                         .clip(CircleShape)
-                        .background(indicatorColor)
+                        .background(
+                            if (isActive) MaterialTheme.colorScheme.primary
+                            else currentKiyoriOnboardingColors().outline,
+                        )
                 )
             }
         }
@@ -1081,20 +1033,18 @@ private fun Modifier.onboardingTapOnly(canStartTap: () -> Boolean): Modifier {
 private val KiyoriOnboardingStep.onboardingLabelResId: Int
     get() =
         when (this) {
-            KiyoriOnboardingStep.WELCOME -> R.string.kiyori_onboarding_step_welcome
-            KiyoriOnboardingStep.BROWSER_AND_MEDIA -> R.string.kiyori_onboarding_step_content
-            KiyoriOnboardingStep.AI_ASSISTANT -> R.string.kiyori_onboarding_step_ai
-            KiyoriOnboardingStep.FILES_AND_TOOLS -> R.string.kiyori_onboarding_step_workspace
-            KiyoriOnboardingStep.AGREEMENT -> R.string.kiyori_onboarding_step_trust
-            KiyoriOnboardingStep.PERMISSIONS -> R.string.kiyori_onboarding_step_ready
+            KiyoriOnboardingStep.WELCOME -> R.string.onb_p1_nav
+            KiyoriOnboardingStep.BROWSER_AND_MEDIA -> R.string.onb_p2_nav
+            KiyoriOnboardingStep.AI_ASSISTANT -> R.string.onb_p3_nav
+            KiyoriOnboardingStep.FILES_AND_TOOLS -> R.string.onb_p4_nav
+            KiyoriOnboardingStep.AGREEMENT -> R.string.onb_p5_nav
+            KiyoriOnboardingStep.PERMISSIONS -> R.string.onb_p6_nav
         }
 
 @Composable
 private fun OnboardingEyebrow(
     text: String,
-    tone: KiyoriSemanticTone,
 ) {
-    val colors = tone.resolveColors()
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1102,15 +1052,16 @@ private fun OnboardingEyebrow(
         Box(
             modifier =
                 Modifier
-                    .width(22.dp)
-                    .height(3.dp)
+                    .width(16.dp)
+                    .height(2.dp)
                     .clip(CircleShape)
-                    .background(colors.icon),
+                    .background(MaterialTheme.colorScheme.primary),
         )
         Text(
             text = text,
-            style = MaterialTheme.typography.labelLarge,
-            color = colors.icon,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+            color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.SemiBold,
         )
     }
@@ -1127,13 +1078,13 @@ private data class OnboardingFeatureCard(
 @Composable
 private fun OnboardingFeatureGrid(cards: List<OnboardingFeatureCard>) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        // 增大系统字体是在请求更易读的文字，不能再通过缩小字号或隐藏第二句抵消它。
-        val columns = if (maxWidth < 320.dp || LocalDensity.current.fontScale >= 1.3f) 1 else 2
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        // 从 1.3 倍起改为单列；1.6 倍后由卡片保留第一句说明，避免压缩字号或截断标题。
+        val columns = if (maxWidth < 340.dp || LocalDensity.current.fontScale >= 1.3f) 1 else 2
+        Column(verticalArrangement = Arrangement.spacedBy(KiyoriOnboardingMetrics.GridGap.dp)) {
             cards.chunked(columns).forEach { rowCards ->
                 Row(
                     modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(KiyoriOnboardingMetrics.GridGap.dp),
                 ) {
                     rowCards.forEach { card ->
                         OnboardingFeatureCardSurface(card, Modifier.weight(1f).fillMaxHeight())
@@ -1149,40 +1100,89 @@ private fun OnboardingFeatureCardSurface(
     card: OnboardingFeatureCard,
     modifier: Modifier = Modifier,
 ) {
-    val colors = card.tone.resolveColors()
+    val palette = currentKiyoriOnboardingColors()
+    val toneIndex =
+        when (card.tone) {
+            KiyoriSemanticTone.BLUE -> 0
+            KiyoriSemanticTone.PURPLE -> 1
+            KiyoriSemanticTone.GREEN -> 2
+            else -> 3
+        }
+    val colors = palette.tones[toneIndex]
+    val descriptionLines = card.description.split('\n', limit = 2)
+    val showSecondLine = LocalDensity.current.fontScale < 1.6f
     Surface(
-        modifier = modifier.defaultMinSize(minHeight = 122.dp).semantics(mergeDescendants = true) {},
-        shape = KiyoriUiShapes.card,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
-        tonalElevation = 1.dp,
-        shadowElevation = 0.5.dp,
+        modifier =
+            modifier
+                .defaultMinSize(minHeight = KiyoriOnboardingMetrics.CardMinHeight.dp)
+                .shadow(1.dp, RoundedCornerShape(KiyoriOnboardingMetrics.CardRadius.dp), clip = false)
+                .semantics(mergeDescendants = true) {},
+        shape = RoundedCornerShape(KiyoriOnboardingMetrics.CardRadius.dp),
+        color = palette.surface,
+        border = BorderStroke(1.dp, palette.outline),
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(KiyoriOnboardingMetrics.CardPadding.dp),
         ) {
-            KiyoriSemanticIconBadge(
-                imageVector = card.icon,
-                tone = card.tone,
-                contentDescription = null,
-                containerSize = 34.dp,
-                iconSize = 20.dp,
-                shape = RoundedCornerShape(10.dp),
-            )
-            Text(card.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            card.badge?.let { badge ->
-                Surface(shape = KiyoriUiShapes.control, color = colors.container) {
-                    Text(badge, Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        style = MaterialTheme.typography.bodySmall, color = colors.icon)
+            Surface(
+                modifier = Modifier.size(KiyoriOnboardingMetrics.IconBox.dp),
+                shape = RoundedCornerShape(11.dp),
+                color = colors.background,
+                contentColor = colors.foreground,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = card.icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(KiyoriOnboardingMetrics.IconSize.dp),
+                    )
                 }
             }
+            Spacer(Modifier.height(9.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                Text(
+                    card.title,
+                    modifier = Modifier.weight(1f, fill = false),
+                    fontSize = 15.sp,
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                card.badge?.let { badge ->
+                    val workInProgress = badge == stringResource(R.string.onb_badge_wip)
+                    Surface(
+                        shape = RoundedCornerShape(7.dp),
+                        color = if (workInProgress) palette.tones[3].background else palette.primaryWeak,
+                    ) {
+                        Text(
+                            badge,
+                            Modifier.padding(horizontal = 5.dp),
+                            fontSize = 10.sp,
+                            lineHeight = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (workInProgress) palette.warning else palette.primary,
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(5.dp))
             Text(
-                text = card.description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 19.sp,
+                text = descriptionLines.first(),
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                color = palette.onSurfaceVariant,
             )
+            if (showSecondLine && descriptionLines.size > 1) {
+                Text(
+                    text = descriptionLines[1],
+                    modifier = Modifier.padding(top = 2.dp),
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                    color = palette.onSurfaceVariant.copy(alpha = 0.82f),
+                )
+            }
         }
     }
 }
@@ -1196,64 +1196,45 @@ private fun KiyoriWelcomePage(
     val featureCards =
         listOf(
             OnboardingFeatureCard(
-                icon = Icons.Default.Search,
+                icon = Icons.Default.Language,
                 tone = KiyoriSemanticTone.BLUE,
-                title =
-                    stringResource(
-                        R.string.kiyori_onboarding_welcome_card_search_title,
-                    ),
-                description =
-                    stringResource(
-                        R.string.kiyori_onboarding_welcome_card_search_desc,
-                    ),
+                title = stringResource(R.string.onb_card_browser_title),
+                description = stringResource(R.string.onb_card_browser_line1) + "\n" +
+                    stringResource(R.string.onb_card_browser_line2),
             ),
             OnboardingFeatureCard(
                 icon = Icons.Default.SmartToy,
                 tone = KiyoriSemanticTone.PURPLE,
-                title =
-                    stringResource(
-                        R.string.kiyori_onboarding_welcome_card_ai_title,
-                    ),
-                description =
-                    stringResource(
-                        R.string.kiyori_onboarding_welcome_card_ai_desc,
-                    ),
+                title = stringResource(R.string.onb_card_ai_title),
+                description = stringResource(R.string.onb_card_ai_line1) + "\n" +
+                    stringResource(R.string.onb_card_ai_line2),
             ),
             OnboardingFeatureCard(
-                icon = Icons.Default.Extension,
-                tone = KiyoriSemanticTone.ORANGE,
-                title =
-                    stringResource(
-                        R.string.kiyori_onboarding_welcome_card_extensions_title,
-                    ),
-                description =
-                    stringResource(
-                        R.string.kiyori_onboarding_welcome_card_extensions_desc,
-                    ),
-            ),
-            OnboardingFeatureCard(
-                icon = Icons.Default.Palette,
+                icon = Icons.Default.Widgets,
                 tone = KiyoriSemanticTone.GREEN,
-                title =
-                    stringResource(
-                        R.string.kiyori_onboarding_welcome_card_appearance_title,
-                    ),
-                description =
-                    stringResource(
-                        R.string.kiyori_onboarding_welcome_card_appearance_desc,
-                    ),
+                title = stringResource(R.string.onb_card_miniapp_title),
+                description = stringResource(R.string.onb_card_miniapp_line1) + "\n" +
+                    stringResource(R.string.onb_card_miniapp_line2),
+                badge = stringResource(R.string.onb_badge_wip),
+            ),
+            OnboardingFeatureCard(
+                icon = Icons.Default.Folder,
+                tone = KiyoriSemanticTone.ORANGE,
+                title = stringResource(R.string.onb_card_files_title),
+                description = stringResource(R.string.onb_card_files_line1) + "\n" +
+                    stringResource(R.string.onb_card_files_line2),
             ),
         )
     FeatureIntroductionPage(
         navigationEnabled = navigationEnabled,
         canStartTap = canStartTap,
-        eyebrow = stringResource(R.string.kiyori_onboarding_welcome_eyebrow),
-        title = stringResource(R.string.kiyori_onboarding_welcome_title),
-        description = stringResource(R.string.kiyori_onboarding_welcome_desc),
+        eyebrow = stringResource(R.string.onb_p1_eyebrow),
+        title = stringResource(R.string.onb_p1_headline),
+        description = stringResource(R.string.onb_p1_lede),
         featureCards = featureCards,
         step = KiyoriOnboardingStep.WELCOME,
         onNext = onNext,
-        nextLabel = stringResource(R.string.kiyori_onboarding_welcome_next),
+        nextLabel = stringResource(R.string.onb_p1_cta),
     )
 }
 
@@ -1262,7 +1243,6 @@ private fun OnboardingFeatureIntroduction(
     eyebrow: String?,
     title: String,
     description: String,
-    tone: KiyoriSemanticTone,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         if (eyebrow != null) {
@@ -1275,10 +1255,9 @@ private fun OnboardingFeatureIntroduction(
             ) {
                 OnboardingEyebrow(
                     text = eyebrow,
-                    tone = tone,
                 )
             }
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
         }
         Box(
             modifier =
@@ -1291,13 +1270,13 @@ private fun OnboardingFeatureIntroduction(
                     Modifier
                         .fillMaxWidth()
                         .semantics { heading() },
-                style = MaterialTheme.typography.headlineSmall,
+                fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                lineHeight = 31.sp,
+                lineHeight = 32.sp,
                 textAlign = resolveKiyoriOnboardingTitleAlignment(eyebrow),
             )
         }
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(10.dp))
         Box(
             modifier =
                 Modifier
@@ -1305,10 +1284,9 @@ private fun OnboardingFeatureIntroduction(
         ) {
             Text(
                 text = description,
-                style =
-                    MaterialTheme.typography.bodyMedium,
+                fontSize = 13.5.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 22.sp,
+                lineHeight = 21.sp,
             )
         }
     }
@@ -1348,16 +1326,15 @@ private fun FeatureIntroductionPage(
         val titleBlock: @Composable () -> Unit = {
             if (showMap) {
                 OnboardingNavigationMap(step)
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(16.dp))
             }
-            OnboardingFeatureIntroduction(eyebrow, title, description, featureCards.first().tone)
+            OnboardingFeatureIntroduction(eyebrow, title, description)
         }
         Column(modifier = Modifier.fillMaxSize()) {
             // 正文与固定操作栏分配实际高度，不用固定 96dp 覆盖层猜测按钮在大字体下的高度。
             Column(
                 Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
-                    .padding(top = 8.dp, bottom = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                    .padding(top = 12.dp, bottom = 20.dp),
             ) {
                 if (useTwoColumns) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -1366,25 +1343,30 @@ private fun FeatureIntroductionPage(
                     }
                 } else {
                     titleBlock()
+                    Spacer(Modifier.height(14.dp))
                     OnboardingFeatureGrid(featureCards)
                 }
+                Spacer(Modifier.height(11.dp))
                 Text(
                     stringResource(when (step) {
-                        KiyoriOnboardingStep.WELCOME -> R.string.kiyori_onboarding_welcome_note
-                        KiyoriOnboardingStep.BROWSER_AND_MEDIA -> R.string.kiyori_onboarding_browser_note
-                        KiyoriOnboardingStep.AI_ASSISTANT -> R.string.kiyori_onboarding_ai_note
-                        else -> R.string.kiyori_onboarding_files_note
+                        KiyoriOnboardingStep.WELCOME -> R.string.onb_p1_note
+                        KiyoriOnboardingStep.BROWSER_AND_MEDIA -> R.string.onb_p2_note
+                        KiyoriOnboardingStep.AI_ASSISTANT -> R.string.onb_p3_note
+                        else -> R.string.onb_p4_note
                     }),
-                    style = MaterialTheme.typography.bodySmall,
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            OnboardingPrimaryButton(
-                text = nextLabel,
-                onClick = onNext,
-                enabled = navigationEnabled,
-                canStartTap = canStartTap,
-            )
+            OnboardingBottomActions {
+                OnboardingPrimaryButton(
+                    text = nextLabel,
+                    onClick = onNext,
+                    enabled = navigationEnabled,
+                    canStartTap = canStartTap,
+                )
+            }
         }
     }
 }
@@ -1394,27 +1376,28 @@ private fun OnboardingPrimaryButton(
     text: String,
     onClick: () -> Unit,
     enabled: Boolean = true,
-    showArrow: Boolean = true,
     loading: Boolean = false,
     canStartTap: () -> Boolean = { true },
 ) {
+    val palette = currentKiyoriOnboardingColors()
     val gesture = remember { KiyoriOnboardingTapGesture() }
     val latestCanStartTap = rememberUpdatedState(canStartTap)
     Button(
         onClick = onClick,
         enabled = enabled,
-        shape = KiyoriUiShapes.control,
+        shape = RoundedCornerShape(KiyoriOnboardingMetrics.PrimaryButtonRadius.dp),
         colors =
             ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
+                containerColor = palette.primary,
+                contentColor = palette.onPrimary,
+                disabledContainerColor = palette.outline,
+                disabledContentColor = palette.onSurfaceVariant,
             ),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp),
         modifier =
             Modifier
                 .fillMaxWidth()
-                .padding(bottom = 12.dp)
-                .heightIn(min = 56.dp)
+                .height(KiyoriOnboardingMetrics.PrimaryButtonHeight.dp)
                 .onboardingTapOnly(gesture) { latestCanStartTap.value() },
     ) {
         if (loading) {
@@ -1427,61 +1410,414 @@ private fun OnboardingPrimaryButton(
         }
         Text(
             text = text,
-            style = MaterialTheme.typography.titleSmall,
+            fontSize = 16.sp,
+            lineHeight = 22.sp,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.weight(1f, fill = false),
             textAlign = TextAlign.Center,
         )
-        if (showArrow) {
-            Spacer(modifier = Modifier.width(8.dp))
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
+    }
+}
+
+@Composable
+private fun OnboardingBottomActions(content: @Composable () -> Unit) {
+    val palette = currentKiyoriOnboardingColors()
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.verticalGradient(
+                        0f to palette.background.copy(alpha = 0f),
+                        0.42f to palette.background,
+                        1f to palette.background,
+                    ),
+                )
+                .padding(top = 16.dp, bottom = 16.dp),
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun OnboardingNavigationMap(step: KiyoriOnboardingStep) {
+    val palette = currentKiyoriOnboardingColors()
+    val panelStates =
+        when (step) {
+            KiyoriOnboardingStep.WELCOME -> listOf(true, true, true)
+            KiyoriOnboardingStep.BROWSER_AND_MEDIA -> listOf(true, false, false)
+            KiyoriOnboardingStep.AI_ASSISTANT,
+            KiyoriOnboardingStep.FILES_AND_TOOLS,
+            -> listOf(false, false, true)
+            else -> listOf(false, false, false)
+        }
+    val barStates =
+        when (step) {
+            KiyoriOnboardingStep.WELCOME -> setOf(0, 1, 2, 3, 4)
+            KiyoriOnboardingStep.BROWSER_AND_MEDIA -> setOf(1)
+            KiyoriOnboardingStep.FILES_AND_TOOLS -> setOf(4)
+            else -> emptySet()
+        }
+    val panels =
+        listOf(
+            Triple(Icons.Default.Download, stringResource(R.string.kiyori_onboarding_map_left), false),
+            Triple(Icons.Default.Widgets, stringResource(R.string.kiyori_onboarding_map_home), true),
+            Triple(Icons.Default.AutoAwesome, stringResource(R.string.kiyori_onboarding_map_ai), false),
+        )
+    Surface(
+        modifier = Modifier.fillMaxWidth().height(KiyoriOnboardingMetrics.MapHeight.dp),
+        shape = RoundedCornerShape(KiyoriOnboardingMetrics.MapRadius.dp),
+        color = palette.surface,
+        border = BorderStroke(1.dp, palette.outline),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                panels.forEachIndexed { index, (icon, label, isMiddle) ->
+                    OnboardingNavigationPanel(
+                        icon = icon,
+                        label = label,
+                        active = panelStates[index],
+                        isMiddle = isMiddle,
+                    )
+                }
+            }
+            Spacer(Modifier.height(5.dp))
+            Row(
+                modifier =
+                    Modifier
+                        .width(104.dp)
+                        .height(15.dp)
+                        .clip(RoundedCornerShape(5.dp))
+                        .drawBehind {
+                            drawRoundRect(
+                                color = palette.outline,
+                                cornerRadius = CornerRadius(5.dp.toPx()),
+                                style = Stroke(width = 1.dp.toPx()),
+                            )
+                        }
+                        .padding(horizontal = 3.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                repeat(5) { index ->
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(if (index in barStates) palette.primary else palette.outline),
+                    )
+                }
+            }
+            Spacer(Modifier.height(5.dp))
+            Text(
+                stringResource(when (step) {
+                    KiyoriOnboardingStep.WELCOME -> R.string.onb_p1_map_cap
+                    KiyoriOnboardingStep.BROWSER_AND_MEDIA -> R.string.onb_p2_map_cap
+                    KiyoriOnboardingStep.AI_ASSISTANT -> R.string.onb_p3_map_cap
+                    else -> R.string.onb_p4_map_cap
+                }),
+                fontSize = 9.5.sp,
+                lineHeight = 12.sp,
+                color = palette.onSurfaceVariant,
             )
         }
     }
 }
 
 @Composable
-private fun OnboardingNavigationMap(step: KiyoriOnboardingStep) {
-    val labels = listOf(
-        stringResource(R.string.kiyori_onboarding_map_left),
-        stringResource(R.string.kiyori_onboarding_map_home),
-        stringResource(R.string.kiyori_onboarding_map_ai),
-    )
-    val active = when (step) {
-        KiyoriOnboardingStep.BROWSER_AND_MEDIA -> 0
-        KiyoriOnboardingStep.AI_ASSISTANT, KiyoriOnboardingStep.FILES_AND_TOOLS -> 2
-        else -> 1
-    }
-    Surface(
-        Modifier.fillMaxWidth(), shape = KiyoriUiShapes.card,
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+private fun OnboardingNavigationPanel(
+    icon: ImageVector,
+    label: String,
+    active: Boolean,
+    isMiddle: Boolean,
+) {
+    val palette = currentKiyoriOnboardingColors()
+    val shape = RoundedCornerShape(9.dp)
+    Box(
+        modifier =
+            Modifier
+                .width(if (isMiddle) 104.dp else 74.dp)
+                .height(if (isMiddle) 56.dp else 50.dp)
+                .clip(shape)
+                .background(if (active) palette.primaryWeak else palette.surface)
+                .drawBehind {
+                    drawRoundRect(
+                        color = if (active) palette.primary else palette.outline,
+                        cornerRadius = CornerRadius(9.dp.toPx()),
+                        style =
+                            Stroke(
+                                width = 1.dp.toPx(),
+                                pathEffect =
+                                    if (active) null else PathEffect.dashPathEffect(
+                                        floatArrayOf(5.dp.toPx(), 4.dp.toPx()),
+                                    ),
+                            ),
+                    )
+                },
+        contentAlignment = Alignment.Center,
     ) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                labels.forEachIndexed { index, label ->
-                    Surface(
-                        Modifier.weight(1f).fillMaxHeight(), shape = KiyoriUiShapes.control,
-                        color = if (index == active) MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surfaceContainer,
-                    ) {
-                        Text(label, Modifier.padding(horizontal = 4.dp, vertical = 12.dp),
-                            style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center)
-                    }
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = if (active) palette.primary else palette.onSurfaceVariant,
+            )
+            Text(
+                text = label,
+                fontSize = 9.sp,
+                lineHeight = 11.sp,
+                color = if (active) palette.primary else palette.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun KiyoriOnboardingAgreementPage(
+    checked: Boolean,
+    userAgreementRead: Boolean,
+    privacyPolicyRead: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    onOpenUserAgreement: () -> Unit,
+    onOpenPrivacyPolicy: () -> Unit,
+    onDecline: () -> Unit,
+    onAccept: () -> Unit,
+    agreementAlreadyAccepted: Boolean,
+    interactionEnabled: Boolean,
+    reviewing: Boolean,
+    canStartTap: () -> Boolean,
+) {
+    val palette = currentKiyoriOnboardingColors()
+    Column(
+        modifier = Modifier.fillMaxSize().padding(horizontal = KiyoriOnboardingMetrics.PagePadding.dp),
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(top = 14.dp, bottom = 20.dp),
+        ) {
+            OnboardingFeatureIntroduction(
+                eyebrow = stringResource(R.string.onb_p5_eyebrow),
+                title = stringResource(R.string.onb_p5_headline),
+                description = stringResource(R.string.onb_p5_lede),
+            )
+            Spacer(Modifier.height(12.dp))
+            AgreementNotice()
+            Spacer(Modifier.height(8.dp))
+            AgreementDocumentCard(
+                document = KiyoriLegalDocument.USER_AGREEMENT,
+                description = stringResource(R.string.onb_p5_doc_terms_desc),
+                read = userAgreementRead || agreementAlreadyAccepted,
+                toneIndex = 0,
+                enabled = interactionEnabled,
+                onClick = onOpenUserAgreement,
+            )
+            Spacer(Modifier.height(8.dp))
+            AgreementDocumentCard(
+                document = KiyoriLegalDocument.PRIVACY_POLICY,
+                description = stringResource(R.string.onb_p5_doc_privacy_desc),
+                read = privacyPolicyRead || agreementAlreadyAccepted,
+                toneIndex = 2,
+                enabled = interactionEnabled,
+                onClick = onOpenPrivacyPolicy,
+            )
+            Spacer(Modifier.height(9.dp))
+            Surface(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .toggleable(
+                            value = checked,
+                            enabled = !agreementAlreadyAccepted && interactionEnabled,
+                            role = Role.Checkbox,
+                            onValueChange = onCheckedChange,
+                        ),
+                shape = RoundedCornerShape(14.dp),
+                color = palette.surface,
+                border = BorderStroke(1.dp, palette.outline),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Checkbox(
+                        checked = checked,
+                        onCheckedChange = null,
+                        enabled = !agreementAlreadyAccepted && interactionEnabled,
+                        modifier = Modifier.size(28.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.onb_p5_checkbox),
+                        modifier = Modifier.weight(1f),
+                        fontSize = 12.5.sp,
+                        lineHeight = 18.sp,
+                    )
                 }
             }
+            Spacer(Modifier.height(7.dp))
             Text(
-                stringResource(when (step) {
-                    KiyoriOnboardingStep.BROWSER_AND_MEDIA -> R.string.kiyori_onboarding_map_browser_hint
-                    KiyoriOnboardingStep.AI_ASSISTANT -> R.string.kiyori_onboarding_map_ai_hint
-                    KiyoriOnboardingStep.FILES_AND_TOOLS -> R.string.kiyori_onboarding_map_tools_hint
-                    else -> R.string.kiyori_onboarding_map_home_hint
-                }),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text =
+                    stringResource(
+                        R.string.onb_p5_version_line,
+                        AgreementPreferences.CURRENT_AGREEMENT_VERSION,
+                    ),
+                fontSize = 10.5.sp,
+                lineHeight = 15.sp,
+                color = palette.onSurfaceVariant,
+            )
+        }
+        OnboardingBottomActions {
+            OnboardingPrimaryButton(
+                text =
+                    stringResource(
+                        if (agreementAlreadyAccepted) R.string.onb_p5_cta_replay
+                        else R.string.onb_p5_cta,
+                    ),
+                onClick = onAccept,
+                enabled = interactionEnabled && checked,
+                canStartTap = canStartTap,
+            )
+            TextButton(
+                onClick = onDecline,
+                enabled = interactionEnabled,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(KiyoriOnboardingMetrics.SecondaryButtonHeight.dp)
+                        .onboardingTapOnly(canStartTap),
+                colors = ButtonDefaults.textButtonColors(contentColor = palette.onSurfaceVariant),
+            ) {
+                Text(
+                    text =
+                        stringResource(
+                            if (reviewing) R.string.onb_p5_secondary_replay
+                            else R.string.onb_p5_secondary,
+                        ),
+                    fontSize = 13.5.sp,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AgreementNotice() {
+    val palette = currentKiyoriOnboardingColors()
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = palette.info,
+    ) {
+        Column(
+            modifier = Modifier.padding(start = 13.dp, top = 4.dp, end = 13.dp, bottom = 11.dp),
+        ) {
+            AgreementNoticeItem(R.string.onb_p5_point1_title, R.string.onb_p5_point1_body)
+            AgreementNoticeItem(R.string.onb_p5_point2_title, R.string.onb_p5_point2_body)
+            AgreementNoticeItem(R.string.onb_p5_point3_title, R.string.onb_p5_point3_body)
+        }
+    }
+}
+
+@Composable
+private fun AgreementNoticeItem(
+    titleResId: Int,
+    bodyResId: Int,
+) {
+    val palette = currentKiyoriOnboardingColors()
+    Column(modifier = Modifier.padding(top = 9.dp)) {
+        Text(
+            text = stringResource(titleResId),
+            fontSize = 12.5.sp,
+            lineHeight = 17.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = stringResource(bodyResId),
+            modifier = Modifier.padding(top = 3.dp),
+            fontSize = 11.5.sp,
+            lineHeight = 17.sp,
+            color = palette.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun AgreementDocumentCard(
+    document: KiyoriLegalDocument,
+    description: String,
+    read: Boolean,
+    toneIndex: Int,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val palette = currentKiyoriOnboardingColors()
+    val tone = palette.tones[toneIndex]
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
+        shape = RoundedCornerShape(14.dp),
+        color = palette.surface,
+        border = BorderStroke(1.dp, palette.outline),
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(11.dp),
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(11.dp))
+                        .background(tone.background),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector =
+                        if (document == KiyoriLegalDocument.USER_AGREEMENT) {
+                            Icons.Outlined.Description
+                        } else {
+                            Icons.Outlined.Security
+                        },
+                    contentDescription = null,
+                    modifier = Modifier.size(19.dp),
+                    tint = tone.foreground,
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(document.titleResId),
+                    fontSize = 13.5.sp,
+                    lineHeight = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = description,
+                    modifier = Modifier.padding(top = 2.dp),
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
+                    color = palette.onSurfaceVariant,
+                )
+            }
+            Text(
+                text = stringResource(if (read) R.string.onb_doc_read else R.string.onb_doc_unread) + " ›",
+                fontSize = 10.5.sp,
+                color = palette.onSurfaceVariant,
             )
         }
     }
@@ -1503,8 +1839,10 @@ private fun KiyoriPermissionAuthorizationPage(
     onFinish: () -> Unit,
     onTogglePermission: (KiyoriPermissionId) -> Unit,
     onClearSelection: () -> Unit,
+    onSelectRecommended: () -> Unit,
     onAuthorize: () -> Unit,
 ) {
+    val palette = currentKiyoriOnboardingColors()
     val selectedCount =
         selectedPermissionIds.count { permissionId ->
             snapshot.canSelect(permissionId)
@@ -1521,66 +1859,116 @@ private fun KiyoriPermissionAuthorizationPage(
         modifier =
             Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = KiyoriOnboardingMetrics.PagePadding.dp),
     ) {
         LazyColumn(
             modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(top = 14.dp, bottom = 24.dp),
         ) {
             item {
-                Text(
-                    text = stringResource(R.string.kiyori_onboarding_permissions_title),
-                    modifier = Modifier.semantics { heading() },
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    lineHeight = 31.sp,
+                OnboardingFeatureIntroduction(
+                    eyebrow = stringResource(R.string.onb_p6_eyebrow),
+                    title = stringResource(R.string.onb_p6_headline),
+                    description = stringResource(R.string.onb_p6_lede),
                 )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = stringResource(R.string.kiyori_onboarding_permissions_desc),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 22.sp,
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                PermissionOverviewCard(
+                Spacer(Modifier.height(12.dp))
+                PermissionSelectionSummary(
                     selectedCount = selectedCount,
+                    interactionEnabled = !authorizationActive && navigationEnabled,
+                    onSelectRecommended = onSelectRecommended,
+                    onClearSelection = onClearSelection,
                 )
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(top = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text =
-                            stringResource(
-                                R.string.kiyori_onboarding_permissions_all_items,
-                            ),
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    TextButton(
-                        onClick = onClearSelection,
-                        enabled = selectedCount > 0 && !authorizationActive && navigationEnabled,
-                    ) {
-                        Text(
-                            text =
-                                stringResource(
-                                    R.string.kiyori_onboarding_permissions_clear_all,
-                                ),
-                        )
-                    }
-                }
+                Spacer(Modifier.height(12.dp))
+                OnboardingPermissionGroupHeader(
+                    title = stringResource(R.string.onb_p6_daily_title),
+                    hint = stringResource(R.string.onb_p6_daily_count),
+                )
+                PermissionPreviewRow(
+                    permissionId = KiyoriPermissionId.NOTIFICATIONS,
+                    title = stringResource(R.string.onb_p6_permission_notification),
+                    description = stringResource(R.string.onb_p6_permission_notification_desc),
+                    toneIndex = 0,
+                    status = snapshot.status(KiyoriPermissionId.NOTIFICATIONS),
+                    selected = KiyoriPermissionId.NOTIFICATIONS in selectedPermissionIds,
+                    selectable = snapshot.canSelect(KiyoriPermissionId.NOTIFICATIONS),
+                    interactionEnabled = !authorizationActive && navigationEnabled,
+                    onClick = { onTogglePermission(KiyoriPermissionId.NOTIFICATIONS) },
+                )
+                PermissionPreviewRow(
+                    permissionId = KiyoriPermissionId.MEDIA,
+                    title = stringResource(R.string.onb_p6_permission_media),
+                    description = stringResource(R.string.onb_p6_permission_media_desc),
+                    toneIndex = 1,
+                    status = snapshot.status(KiyoriPermissionId.MEDIA),
+                    selected = KiyoriPermissionId.MEDIA in selectedPermissionIds,
+                    selectable = snapshot.canSelect(KiyoriPermissionId.MEDIA),
+                    interactionEnabled = !authorizationActive && navigationEnabled,
+                    onClick = { onTogglePermission(KiyoriPermissionId.MEDIA) },
+                )
+                PermissionPreviewRow(
+                    permissionId = KiyoriPermissionId.MICROPHONE,
+                    title = stringResource(R.string.onb_p6_permission_microphone),
+                    description = stringResource(R.string.onb_p6_permission_microphone_desc),
+                    toneIndex = 2,
+                    status = snapshot.status(KiyoriPermissionId.MICROPHONE),
+                    selected = KiyoriPermissionId.MICROPHONE in selectedPermissionIds,
+                    selectable = snapshot.canSelect(KiyoriPermissionId.MICROPHONE),
+                    interactionEnabled = !authorizationActive && navigationEnabled,
+                    onClick = { onTogglePermission(KiyoriPermissionId.MICROPHONE) },
+                )
+                Spacer(Modifier.height(12.dp))
+                OnboardingPermissionGroupHeader(
+                    title = stringResource(R.string.onb_p6_storage_title),
+                    hint = stringResource(R.string.onb_p6_storage_count),
+                )
+                PermissionPreviewRow(
+                    permissionId = KiyoriPermissionId.ALL_FILES,
+                    title = stringResource(R.string.onb_p6_permission_files),
+                    description = stringResource(R.string.onb_p6_permission_files_desc),
+                    toneIndex = 3,
+                    status = snapshot.status(KiyoriPermissionId.ALL_FILES),
+                    selected = KiyoriPermissionId.ALL_FILES in selectedPermissionIds,
+                    selectable = false,
+                    interactionEnabled = false,
+                    stateText = stringResource(R.string.onb_p6_use_when_needed),
+                    onClick = {},
+                )
+                PermissionPreviewRow(
+                    permissionId = KiyoriPermissionId.INSTALL_PACKAGES,
+                    title = stringResource(R.string.onb_p6_permission_install),
+                    description = stringResource(R.string.onb_p6_permission_install_desc),
+                    toneIndex = 0,
+                    status = snapshot.status(KiyoriPermissionId.INSTALL_PACKAGES),
+                    selected = KiyoriPermissionId.INSTALL_PACKAGES in selectedPermissionIds,
+                    selectable = false,
+                    interactionEnabled = false,
+                    stateText = stringResource(R.string.onb_p6_use_when_needed),
+                    onClick = {},
+                )
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider(color = palette.outline)
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = stringResource(R.string.onb_p6_catalog_title),
+                    fontSize = 13.5.sp,
+                    lineHeight = 19.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = stringResource(R.string.onb_p6_advanced_hint),
+                    modifier = Modifier.padding(top = 3.dp),
+                    fontSize = 11.5.sp,
+                    lineHeight = 16.sp,
+                    color = palette.onSurfaceVariant,
+                )
             }
             kiyoriPermissionGroups.forEach { group ->
                 item(key = "onboarding_permission_group_${group.id.name}") {
                     KiyoriPermissionDisclosure(
-                        group = group,
+                        group = group.copy(initiallyExpanded = false),
                         selectedCount = group.permissionIds.count { it in selectedPermissionIds },
+                        autoExpandWhenSelected = false,
+                        modifier = Modifier.padding(top = 8.dp),
                     ) {
                         group.permissionIds.forEach { permissionId ->
                             PermissionItemCard(
@@ -1610,63 +1998,274 @@ private fun KiyoriPermissionAuthorizationPage(
                 modifier = Modifier.padding(vertical = 8.dp),
             )
         }
-        OnboardingPrimaryButton(
-            text =
-                stringResource(
+        OnboardingBottomActions {
+            OnboardingPrimaryButton(
+                text =
+                    stringResource(
+                        when {
+                            canContinue && remainingCount == 0 ->
+                                R.string.kiyori_onboarding_permissions_result
+                            canContinue -> R.string.kiyori_onboarding_permissions_continue
+                            authorizationActive ->
+                                R.string.kiyori_onboarding_permissions_processing
+                            reviewing -> R.string.onb_p6_cta_replay
+                            selectedCount == 0 -> R.string.onb_p6_cta_zero
+                            else -> R.string.onb_p6_cta
+                        },
+                        selectedCount,
+                    ),
+                onClick =
                     when {
-                        canContinue && remainingCount == 0 ->
-                            R.string.kiyori_onboarding_permissions_result
-                        canContinue -> R.string.kiyori_onboarding_permissions_continue
-                        authorizationActive ->
-                            R.string.kiyori_onboarding_permissions_processing
-                        selectedCount == 0 && reviewing ->
-                            R.string.kiyori_onboarding_review_done
-                        selectedCount == 0 ->
-                            R.string.kiyori_onboarding_permissions_enter
-                        else ->
-                            R.string.kiyori_onboarding_permissions_authorize_and_enter
+                        canContinue -> onContinueAuthorization
+                        reviewing -> onFinish
+                        else -> onAuthorize
                     },
-                ),
-            onClick = if (canContinue) onContinueAuthorization else onAuthorize,
-            enabled = navigationEnabled && !waitingForExternalSettings && (!authorizationActive || canContinue),
-            canStartTap = canStartTap,
-            showArrow = false,
-            loading = authorizationActive && !canContinue,
-        )
-        // 无论哪些系统入口不可用，都保留明确的停下路径；不撤销已经授予的系统权限。
-        if (authorizationActive || selectedCount > 0) TextButton(
-            onClick = if (authorizationActive) onStopAuthorization else onFinish,
-            enabled = authorizationActive || navigationEnabled,
-            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp).onboardingTapOnly(canStartTap),
-        ) {
-            Text(stringResource(
-                when {
-                    authorizationActive -> R.string.kiyori_onboarding_permissions_stop
-                    reviewing -> R.string.kiyori_onboarding_review_return
-                    else -> R.string.kiyori_onboarding_permissions_later
+                enabled = navigationEnabled && !waitingForExternalSettings && (!authorizationActive || canContinue),
+                canStartTap = canStartTap,
+                loading = authorizationActive && !canContinue,
+            )
+            TextButton(
+                onClick = {
+                    when {
+                        authorizationActive -> onStopAuthorization()
+                        reviewing -> onFinish()
+                        else -> {
+                            onClearSelection()
+                            onFinish()
+                        }
+                    }
                 },
-            ))
-        } else {
-            Spacer(Modifier.height(52.dp))
+                enabled = authorizationActive || navigationEnabled,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(KiyoriOnboardingMetrics.SecondaryButtonHeight.dp)
+                        .onboardingTapOnly(canStartTap),
+                colors = ButtonDefaults.textButtonColors(contentColor = palette.onSurfaceVariant),
+            ) {
+                Text(
+                    text =
+                        stringResource(
+                            when {
+                                authorizationActive -> R.string.kiyori_onboarding_permissions_stop
+                                reviewing -> R.string.onb_p5_secondary_replay
+                                else -> R.string.onb_p6_secondary
+                            },
+                        ),
+                    fontSize = 13.5.sp,
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun PermissionOverviewCard(
+private fun PermissionSelectionSummary(
     selectedCount: Int,
+    interactionEnabled: Boolean,
+    onSelectRecommended: () -> Unit,
+    onClearSelection: () -> Unit,
 ) {
+    val palette = currentKiyoriOnboardingColors()
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = KiyoriUiShapes.card,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(16.dp),
+        color = palette.surface,
+        border = BorderStroke(1.dp, palette.outline),
     ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(R.string.kiyori_onboarding_permissions_selected_count, selectedCount),
-                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Text(stringResource(R.string.kiyori_onboarding_permissions_choice_note),
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(Modifier.padding(13.dp)) {
+            Text(
+                text = stringResource(R.string.onb_p6_summary, selectedCount),
+                fontSize = 12.5.sp,
+                lineHeight = 19.sp,
+                color = palette.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                OnboardingChoiceChip(
+                    text = stringResource(R.string.onb_p6_chip_recommend),
+                    emphasized = true,
+                    enabled = interactionEnabled,
+                    onClick = onSelectRecommended,
+                )
+                OnboardingChoiceChip(
+                    text = stringResource(R.string.onb_p6_chip_none),
+                    emphasized = false,
+                    enabled = interactionEnabled && selectedCount > 0,
+                    onClick = onClearSelection,
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun OnboardingChoiceChip(
+    text: String,
+    emphasized: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val palette = currentKiyoriOnboardingColors()
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        shape = RoundedCornerShape(11.dp),
+        color = if (emphasized) palette.primaryWeak else palette.surface,
+        contentColor = if (emphasized) palette.primary else palette.onSurfaceVariant,
+        border = if (emphasized) null else BorderStroke(1.dp, palette.outline),
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
+            fontSize = 12.sp,
+            lineHeight = 17.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+@Composable
+private fun OnboardingPermissionGroupHeader(
+    title: String,
+    hint: String,
+) {
+    val palette = currentKiyoriOnboardingColors()
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Bottom,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = title,
+            fontSize = 13.5.sp,
+            lineHeight = 19.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = hint,
+            fontSize = 11.5.sp,
+            lineHeight = 16.sp,
+            color = palette.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun PermissionPreviewRow(
+    permissionId: KiyoriPermissionId,
+    title: String,
+    description: String,
+    toneIndex: Int,
+    status: KiyoriPermissionStatus,
+    selected: Boolean,
+    selectable: Boolean,
+    interactionEnabled: Boolean,
+    stateText: String? = null,
+    onClick: () -> Unit,
+) {
+    val palette = currentKiyoriOnboardingColors()
+    val tone = palette.tones[toneIndex]
+    val granted = status == KiyoriPermissionStatus.GRANTED
+    var rowModifier: Modifier = Modifier.fillMaxWidth()
+    if (selectable) {
+        rowModifier =
+            rowModifier.toggleable(
+                value = selected,
+                enabled = interactionEnabled,
+                role = Role.Switch,
+                onValueChange = { onClick() },
+            )
+    }
+    Surface(
+        modifier = rowModifier.padding(top = 8.dp).semantics(mergeDescendants = true) {},
+        shape = RoundedCornerShape(14.dp),
+        color = palette.surface,
+        border = BorderStroke(1.dp, palette.outline),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(tone.background),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = kiyoriPermissionMetadata(permissionId).icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = tone.foreground,
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = description,
+                    modifier = Modifier.padding(top = 2.dp),
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp,
+                    color = palette.onSurfaceVariant,
+                )
+            }
+            if (stateText != null) {
+                Text(
+                    text = stateText,
+                    modifier = Modifier.padding(top = 2.dp),
+                    fontSize = 10.5.sp,
+                    lineHeight = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = palette.onSurfaceVariant,
+                )
+            } else {
+                OnboardingToggle(
+                    checked = selected || granted,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OnboardingToggle(
+    checked: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val palette = currentKiyoriOnboardingColors()
+    val thumbOffset by animateDpAsState(
+        targetValue = if (checked) 18.dp else 2.dp,
+        label = "onboardingPermissionToggle",
+    )
+    Box(
+        modifier =
+            modifier
+                .width(38.dp)
+                .height(22.dp)
+                .clip(CircleShape)
+                .background(if (checked) palette.primary else palette.outline),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .offset(x = thumbOffset, y = 2.dp)
+                    .size(18.dp)
+                    .clip(CircleShape)
+                    .background(androidx.compose.ui.graphics.Color.White),
+        )
     }
 }
 

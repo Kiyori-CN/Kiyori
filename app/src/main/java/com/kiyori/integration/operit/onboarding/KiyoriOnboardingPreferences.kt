@@ -38,6 +38,9 @@ internal class KiyoriOnboardingPreferences(
             ?.toSet()
             ?: emptySet()
 
+    fun hasSelectedPermissionChoice(): Boolean =
+        preferences.contains(KEY_SELECTED_PERMISSIONS)
+
     fun saveSelectedPermissions(permissionIds: Set<KiyoriPermissionId>) {
         preferences.edit {
             putString(

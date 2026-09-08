@@ -2,6 +2,19 @@
 
 > 状态：`IMPLEMENTED / AUTOMATED VALIDATION COMPLETE / DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`。本专项面向未发布版本的首次安装流程；真实设备视觉与触摸验收仍需安装候选 APK 后完成。
 
+## 2026-09-08 引导页重设计 v1.0 高保真复刻
+
+状态：`verification_pending`。六页 Compose 呈现、专项自动验证和 Debug APK 已完成；本轮已授权审计后提交并推送 `origin/main`，真实设备视觉、手势与系统权限往返仍待验收。实现基线为 `main / 757f51e19baec48876ede35b4a70ec2f471b2baa`，开始时工作区干净。
+
+- 设计基线：完整核查 `D:\03_Default\下载\Kiyori引导页重设计-v1.0\kiyori` 当前 22 个文件，包括 9 个文档/规范/脚本文件和 13 张 PNG；12 张单页图均为 `720 × 1600`，对应 `360 × 800dp` 的二倍图。页面内容以 `spec/onboarding_spec.json` 和 `spec/strings_onboarding.xml` 为准，HTML 与明暗主题 PNG 用于视觉对照。
+- 视觉实现：新增引导专用明暗色板及尺寸 token；六页统一 48dp 顶栏、4dp 六段进度、20dp 页面边距和 50dp 主按钮。P1-P4 使用 104dp 导航地图、设计稿的 16 张能力卡、四色图标、五个状态徽标、补充说明与渐隐底栏；1.3 倍字体起改为单列，1.6 倍起卡片保留第一行说明。
+- 协议页：P5 使用三项风险说明、两张内置文档卡、会话内已读状态、协议版本、默认未勾选复选框、禁用主按钮、重看已同意状态和退出确认；协议正文与版本继续由 `KiyoriAgreementDocumentScreen` 和 `AgreementPreferences.CURRENT_AGREEMENT_VERSION` 持有。
+- 权限页：P6 优先展示通知、视频与音频、麦克风及两项“使用时确认”，支持推荐两项和全部暂不开启；完整 23 项真实目录仍按用途折叠展示，逐项选择、系统快照、授权代际与手动继续队列继续复用现有 owner。首次默认推荐两项，用户主动清空后通过已保存空选择保持为空。
+- 事实差异：没有照抄设计包中与当前 Manifest 冲突的 `READ_MEDIA_IMAGES`，也没有展示“Kiyori 不申请定位、短信与通话”的失实声明；没有新增权限、第二个运行时 launcher、第二套协议或权限状态。
+- 自动验证：`compileDebugKotlin` 通过；引导专项 `testDebugUnitTest` 41 项全部通过；首启架构门禁的 2 个定向正反例通过；全仓 `check_architecture_boundaries.py --repository . --require-main` 为 `PASS (phase=m03)`；`check_formal_readiness.py --repository . --require-main` 为 `PASS`；`git diff --check` 通过。权限摘要架构 token 从旧资源同步为设计稿的 `onb_p6_summary`，其余唯一 owner 与授权边界检查未放宽。
+- Debug APK：最终串行 `:app:assembleDebug --no-daemon --console=plain` 在 47 秒内通过，238 个任务中 24 个执行、214 个复用；产物 `app/build/outputs/apk/debug/app-debug.apk`，`483904551` bytes，时间 `2026-09-08 18:17:49 +08:00`，SHA-256 `644350A8F0FB65F2BF51CE2EB6EE1A867000FF763189AA2A07E5DA37D5798492`。身份为 `com.kiyori / 45 / 0.1.0 / minSdk 26 / targetSdk 34 / compileSdk 37`，V2 单签名与 16 KiB ZIP 对齐验证通过。
+- 设备边界：本轮没有安装 APK、清数据或操作设备。全新首启与设置重看下的六页像素级视觉、横纵向和快速反向手势、字体 100%/130%/160%/200%、显示尺寸、TalkBack、明暗主题即时切换、协议弹窗及系统授权返回保持 `verification_pending`。
+
 ## 2026-09-08 Claude 方案取舍与引导重设计
 
 状态：`verification_pending`。实现、自动回归与 Debug APK 已完成，设备触摸与视觉待验收。基线 `main / 88076f0c71aca770420e8a6cec32a066f4b3258d`，开始时工作区干净；本轮不提交推送，不操作设备。

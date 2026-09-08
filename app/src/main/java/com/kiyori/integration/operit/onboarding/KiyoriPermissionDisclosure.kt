@@ -37,10 +37,11 @@ internal fun KiyoriPermissionDisclosure(
     group: KiyoriPermissionGroupSpec,
     modifier: Modifier = Modifier,
     selectedCount: Int = 0,
+    autoExpandWhenSelected: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     var expanded by rememberSaveable(group.id.name) {
-        mutableStateOf(group.initiallyExpanded || selectedCount > 0)
+        mutableStateOf(group.initiallyExpanded || (autoExpandWhenSelected && selectedCount > 0))
     }
     val angle by animateFloatAsState(if (expanded) 180f else 0f, label = "permissionDisclosure")
     Column(

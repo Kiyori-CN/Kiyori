@@ -6194,7 +6194,7 @@ class KiyoriPathsTest {
                 "KiyoriPermissionId.entries\n"
                 "kiyoriPermissionGroups.forEach\n"
                 "group.permissionIds.forEach\n"
-                "R.string.kiyori_onboarding_permissions_selected_count\n"
+                "R.string.onb_p6_summary\n"
                 "RootAuthorizer.requestRootPermission\n"
                 "KiyoriLegalDocument.USER_AGREEMENT\n"
                 "KiyoriLegalDocument.PRIVACY_POLICY\n"
@@ -6370,13 +6370,13 @@ class KiyoriPathsTest {
             screen = root / KIYORI_FIRST_RUN_SCREEN_PATH
             screen.write_text(
                 screen.read_text(encoding="utf-8").replace(
-                    "R.string.kiyori_onboarding_permissions_selected_count", "",
+                    "R.string.onb_p6_summary", "",
                 ),
                 encoding="utf-8",
             )
             errors: list[str] = []
             check_kiyori_first_run_flow(root, errors)
-            self.assertTrue(any("permissions_selected_count" in error for error in errors))
+            self.assertTrue(any("onb_p6_summary" in error for error in errors))
 
     def test_kiyori_first_run_flow_rejects_second_launcher_and_legacy_owner(
         self,

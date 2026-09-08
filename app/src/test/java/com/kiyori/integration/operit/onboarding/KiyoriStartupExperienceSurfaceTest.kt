@@ -10,18 +10,46 @@ import org.junit.Test
 class KiyoriStartupExperienceSurfaceTest {
     @Test
     fun `sixteen feature descriptions have exactly two complete short lines and unique titles`() {
-        val strings = repositoryFile("app/src/main/res/values/strings.xml").readText()
-        val cards = Regex("<string name=\"kiyori_onboarding_(welcome|browser|ai|files)_card_[^\"]+_(title|desc)\"[^>]*>([^<]+)</string>")
+        val strings = repositoryFile("app/src/main/res/values/strings_onboarding_redesign.xml").readText()
+        val cards = Regex("<string name=\"onb_card_([^\"]+)_(title|line1|line2)\"[^>]*>([^<]+)</string>")
             .findAll(strings).toList()
-        listOf("welcome", "browser", "ai", "files").forEach { page ->
-            assertEquals(4, cards.count { it.groupValues[1] == page && it.groupValues[2] == "desc" })
-        }
+        assertEquals(16, cards.count { it.groupValues[2] == "title" })
+        assertEquals(16, cards.count { it.groupValues[2] == "line1" })
+        assertEquals(16, cards.count { it.groupValues[2] == "line2" })
         assertEquals(16, cards.filter { it.groupValues[2] == "title" }.map { it.groupValues[3] }.toSet().size)
-        cards.filter { it.groupValues[2] == "desc" }.forEach { card ->
-            val lines = card.groupValues[3].split("\\n")
-            assertEquals(card.value, 2, lines.size)
-            assertTrue(card.value, lines.all { it.isNotBlank() && it.length <= 16 })
+        cards.filter { it.groupValues[2] != "title" }.forEach { card ->
+            assertTrue(card.value, card.groupValues[3].isNotBlank() && card.groupValues[3].length <= 16)
         }
+
+        val source = repositoryFile(
+            "app/src/main/java/com/kiyori/integration/operit/onboarding/KiyoriOnboardingScreen.kt",
+        ).readText()
+        val orderedTitles = listOf(
+            "browser", "ai", "miniapp", "files",
+            "adblock", "download", "video", "music",
+            "model", "voice", "memory", "toolbox",
+            "terminal", "workflow", "theme", "backup",
+        )
+        assertEquals(
+            orderedTitles,
+            cards.filter { it.groupValues[2] == "title" }.map { it.groupValues[1] },
+        )
+        orderedTitles.forEach { id -> assertTrue(id, source.contains("onb_card_${id}_title")) }
+        assertEquals(3, Regex("badge = stringResource\\(R.string.onb_badge_setup\\)").findAll(source).count())
+        assertEquals(2, Regex("badge = stringResource\\(R.string.onb_badge_wip\\)").findAll(source).count())
+    }
+
+    @Test
+    fun `onboarding redesign keeps the reference light dark and geometry tokens`() {
+        val design = repositoryFile(
+            "app/src/main/java/com/kiyori/integration/operit/onboarding/KiyoriOnboardingDesign.kt",
+        ).readText()
+        listOf(
+            "0xFFF3F5F8", "0xFFFFFFFF", "0xFF2F6BFF", "0xFF0E1116", "0xFF171B22", "0xFF5E8DFF",
+            "TopBarHeight = 48", "ProgressHeight = 4", "ProgressGap = 6", "MapHeight = 104",
+            "CardRadius = 16", "CardMinHeight = 122", "PrimaryButtonHeight = 50",
+            "PrimaryButtonRadius = 15",
+        ).forEach { token -> assertTrue(token, design.contains(token)) }
     }
 
     @Test
@@ -39,6 +67,14 @@ class KiyoriStartupExperienceSurfaceTest {
         assertFalse(source.contains("System.currentTimeMillis()"))
         assertFalse(source.contains("enabled = !navigationBusy"))
         assertFalse(source.contains("navigationEnabled = !navigationBusy"))
+
+        val preferences = repositoryFile(
+            "app/src/main/java/com/kiyori/integration/operit/onboarding/KiyoriOnboardingPreferences.kt",
+        ).readText()
+        assertTrue(preferences.contains("fun hasSelectedPermissionChoice()"))
+        assertTrue(preferences.contains("preferences.contains(KEY_SELECTED_PERMISSIONS)"))
+        assertTrue(source.contains("preferences.hasSelectedPermissionChoice()"))
+        assertTrue(source.contains("setOf(KiyoriPermissionId.NOTIFICATIONS, KiyoriPermissionId.MEDIA)"))
     }
 
     @Test
@@ -96,7 +132,9 @@ class KiyoriStartupExperienceSurfaceTest {
         assertTrue(permissionPageBlock.contains("group.permissionIds.forEach"))
         assertFalse(permissionPageBlock.contains("onSelectAll"))
         assertFalse(permissionPageBlock.contains("PermissionOverviewMetric"))
-        assertTrue(permissionPageBlock.contains("kiyori_onboarding_permissions_choice_note"))
+        assertTrue(permissionPageBlock.contains("onSelectRecommended"))
+        assertTrue(permissionPageBlock.contains("R.string.onb_p6_summary"))
+        assertTrue(permissionPageBlock.contains("autoExpandWhenSelected = false"))
         assertTrue(permissionPageBlock.contains("onClearSelection"))
 
         val defaultStrings =
@@ -131,7 +169,7 @@ class KiyoriStartupExperienceSurfaceTest {
         ).readText()
         val header = source.substringAfter("private fun OnboardingProgressHeader(")
             .substringBefore("private val KiyoriOnboardingStep.onboardingLabelResId")
-        assertTrue(header.contains(".height(56.dp)"))
+        assertTrue(header.contains(".height(KiyoriOnboardingMetrics.TopBarHeight.dp)"))
         assertTrue(header.contains(".size(48.dp)"))
         assertFalse(source.contains("detectHorizontalDragGestures"))
         assertTrue(source.contains("pageCount = { kiyoriOnboardingPageCount(agreementAcceptedState) }"))
@@ -148,8 +186,28 @@ class KiyoriStartupExperienceSurfaceTest {
         assertTrue(modifier.contains("it.previousPressed && !it.pressed"))
         assertTrue(modifier.indexOf("it.consume()") < modifier.indexOf("awaitPointerEvent(PointerEventPass.Final)"))
         assertFalse(source.contains("onClick = { if (gesture.allowsClick)"))
-        assertTrue(source.contains("acceptModifier = Modifier.onboardingTapOnly"))
-        assertTrue(source.contains("declineModifier = Modifier.onboardingTapOnly"))
+        assertTrue(source.contains("KiyoriOnboardingAgreementPage("))
+        assertTrue(source.contains(".onboardingTapOnly(canStartTap)"))
+    }
+
+    @Test
+    fun `agreement and permission pages retain the reference structure without false permission claims`() {
+        val source = repositoryFile(
+            "app/src/main/java/com/kiyori/integration/operit/onboarding/KiyoriOnboardingScreen.kt",
+        ).readText()
+        val strings = repositoryFile("app/src/main/res/values/strings_onboarding_redesign.xml").readText()
+        val manifest = repositoryFile("app/src/main/AndroidManifest.xml").readText()
+
+        listOf(
+            "AgreementNotice()", "AgreementDocumentCard(", "AgreementPreferences.CURRENT_AGREEMENT_VERSION",
+            "userAgreementRead = true", "privacyPolicyRead = true", "showAgreementExitConfirmation = true",
+            "PermissionSelectionSummary(", "KiyoriPermissionId.NOTIFICATIONS", "KiyoriPermissionId.MEDIA",
+            "KiyoriPermissionId.MICROPHONE", "R.string.onb_p6_use_when_needed",
+        ).forEach { contract -> assertTrue(contract, source.contains(contract)) }
+        assertTrue(strings.contains("onb_p5_point1_title"))
+        assertTrue(strings.contains("onb_p6_permission_media_desc"))
+        assertFalse(strings.contains("Kiyori 不申请定位、通讯录、短信与通话记录"))
+        assertFalse(manifest.contains("android.permission.READ_MEDIA_IMAGES"))
     }
 
     @Test

@@ -5953,7 +5953,7 @@ def check_kiyori_first_run_flow(
         "KiyoriPermissionId.entries",
         "kiyoriPermissionGroups.forEach",
         "group.permissionIds.forEach",
-        "R.string.kiyori_onboarding_permissions_selected_count",
+        "R.string.onb_p6_summary",
         "RootAuthorizer.requestRootPermission",
         "HorizontalPager(",
         "rememberPagerState(",

@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Kiyori onboarding redesign v1.0, sourced from the 2026-09-08 design package. -->
+    <string name="onb_skip" translatable="false">跳过介绍</string>
+    <string name="onb_page_indicator" translatable="false">%1$d / 6</string>
+    <string name="onb_page_a11y" translatable="false">第 %1$d 页，共 6 页：%2$s</string>
+    <string name="onb_badge_setup" translatable="false">需先配置</string>
+    <string name="onb_badge_wip" translatable="false">逐步完善</string>
+    <string name="onb_doc_unread" translatable="false">未读</string>
+    <string name="onb_doc_read" translatable="false">已读</string>
+
+    <string name="onb_p1_nav" translatable="false">认识 Kiyori</string>
+    <string name="onb_p1_eyebrow" translatable="false">Kiyori</string>
+    <string name="onb_p1_headline" translatable="false">一次安装，四个常用入口</string>
+    <string name="onb_p1_lede" translatable="false">底栏切换浏览器、小程序与文件；在首页向右滑打开 AI 对话。六页看完就知道东西都在哪，然后从你想做的一件小事开始。</string>
+    <string name="onb_p1_note" translatable="false">现在开始也可以：以后在「设置 → 更多功能 → 重新查看首次引导」还能重看。</string>
+    <string name="onb_p1_cta" translatable="false">看看能做什么</string>
+    <string name="onb_p1_map_cap" translatable="false">底栏五个入口，首页左右滑动切换</string>
+    <string name="onb_card_browser_title" translatable="false">网页浏览器</string>
+    <string name="onb_card_browser_line1" translatable="false">多窗口搜索与阅读</string>
+    <string name="onb_card_browser_line2" translatable="false">底栏第 2 个入口</string>
+    <string name="onb_card_ai_title" translatable="false">AI 助手</string>
+    <string name="onb_card_ai_line1" translatable="false">提问、总结与执行</string>
+    <string name="onb_card_ai_line2" translatable="false">首页向右滑进入</string>
+    <string name="onb_card_miniapp_title" translatable="false">小程序</string>
+    <string name="onb_card_miniapp_line1" translatable="false">打开轻量应用</string>
+    <string name="onb_card_miniapp_line2" translatable="false">底栏第 3 个入口</string>
+    <string name="onb_card_files_title" translatable="false">文件管理器</string>
+    <string name="onb_card_files_line1" translatable="false">整理下载与文档</string>
+    <string name="onb_card_files_line2" translatable="false">底栏第 4 个入口</string>
+
+    <string name="onb_p2_nav" translatable="false">浏览与媒体</string>
+    <string name="onb_p2_eyebrow" translatable="false">内容工作台</string>
+    <string name="onb_p2_headline" translatable="false">发现值得留下的内容</string>
+    <string name="onb_p2_lede" translatable="false">从首页搜索或打开浏览器；把要留下的加入书签或下载，之后交给播放器。拦截规则与缓存策略随时可以改。</string>
+    <string name="onb_p2_note" translatable="false">文档、图片与压缩包可以在文件管理里直接打开。</string>
+    <string name="onb_p2_cta" translatable="false">了解 AI 协作</string>
+    <string name="onb_p2_map_cap" translatable="false">这页的能力在 浏览器 与 负一屏</string>
+    <string name="onb_card_adblock_title" translatable="false">广告拦截</string>
+    <string name="onb_card_adblock_line1" translatable="false">订阅过滤规则</string>
+    <string name="onb_card_adblock_line2" translatable="false">减少页面干扰</string>
+    <string name="onb_card_download_title" translatable="false">文件下载器</string>
+    <string name="onb_card_download_line1" translatable="false">管理下载任务</string>
+    <string name="onb_card_download_line2" translatable="false">查看进度与失败原因</string>
+    <string name="onb_card_video_title" translatable="false">视频播放器</string>
+    <string name="onb_card_video_line1" translatable="false">本地与在线视频</string>
+    <string name="onb_card_video_line2" translatable="false">字幕、倍速与悬浮窗</string>
+    <string name="onb_card_music_title" translatable="false">音乐播放器</string>
+    <string name="onb_card_music_line1" translatable="false">播放本地音频</string>
+    <string name="onb_card_music_line2" translatable="false">列表与后台播放</string>
+
+    <string name="onb_p3_nav" translatable="false">AI 协作</string>
+    <string name="onb_p3_eyebrow" translatable="false">你的 AI 助手</string>
+    <string name="onb_p3_headline" translatable="false">从一个问题，到下一步行动</string>
+    <string name="onb_p3_lede" translatable="false">先在 AI 助手设置里填好模型，再试着总结网页、理解文件或检索资料。工具按你的授权执行，重要结果由你核验。</string>
+    <string name="onb_p3_note" translatable="false">没有密钥也能进入 AI 首页；浏览网页不需要模型。</string>
+    <string name="onb_p3_cta" translatable="false">了解工具与个性化</string>
+    <string name="onb_p3_map_cap" translatable="false">这页的能力在 AI 助手，从首页向右滑</string>
+    <string name="onb_card_model_title" translatable="false">模型配置</string>
+    <string name="onb_card_model_line1" translatable="false">填写服务商与密钥</string>
+    <string name="onb_card_model_line2" translatable="false">先发一条消息试通</string>
+    <string name="onb_card_voice_title" translatable="false">语音服务</string>
+    <string name="onb_card_voice_line1" translatable="false">用语音提问</string>
+    <string name="onb_card_voice_line2" translatable="false">听回答被朗读</string>
+    <string name="onb_card_memory_title" translatable="false">记忆管理</string>
+    <string name="onb_card_memory_line1" translatable="false">保存常用资料</string>
+    <string name="onb_card_memory_line2" translatable="false">对话中随时检索</string>
+    <string name="onb_card_toolbox_title" translatable="false">工具箱</string>
+    <string name="onb_card_toolbox_line1" translatable="false">查看可用工具</string>
+    <string name="onb_card_toolbox_line2" translatable="false">按授权执行操作</string>
+
+    <string name="onb_p4_nav" translatable="false">工具与个性化</string>
+    <string name="onb_p4_eyebrow" translatable="false">属于你的工作台</string>
+    <string name="onb_p4_headline" translatable="false">按需打开，不必一次配齐</string>
+    <string name="onb_p4_lede" translatable="false">需要跑命令或重复任务时，再打开终端与工作流；外观和数据也可以随时调整。这些都不影响你现在就开始浏览。</string>
+    <string name="onb_p4_note" translatable="false">文档阅读器、日志记录与账号管理在「设置 → 更多功能」里。</string>
+    <string name="onb_p4_cta" translatable="false">查看协议与隐私</string>
+    <string name="onb_p4_map_cap" translatable="false">这页的能力在 AI 菜单 与 设置</string>
+    <string name="onb_card_terminal_title" translatable="false">终端</string>
+    <string name="onb_card_terminal_line1" translatable="false">准备 Ubuntu 环境</string>
+    <string name="onb_card_terminal_line2" translatable="false">执行命令与脚本</string>
+    <string name="onb_card_workflow_title" translatable="false">工作流</string>
+    <string name="onb_card_workflow_line1" translatable="false">编排重复步骤</string>
+    <string name="onb_card_workflow_line2" translatable="false">按需重复执行</string>
+    <string name="onb_card_theme_title" translatable="false">界面定制</string>
+    <string name="onb_card_theme_line1" translatable="false">主题、字号与布局</string>
+    <string name="onb_card_theme_line2" translatable="false">调整首页与底栏</string>
+    <string name="onb_card_backup_title" translatable="false">数据备份</string>
+    <string name="onb_card_backup_line1" translatable="false">导出与恢复数据</string>
+    <string name="onb_card_backup_line2" translatable="false">从旧 Operit 导入</string>
+
+    <string name="onb_p5_eyebrow" translatable="false">开始前</string>
+    <string name="onb_p5_nav" translatable="false">协议与隐私</string>
+    <string name="onb_p5_headline" translatable="false">先把三件事说清楚</string>
+    <string name="onb_p5_lede" translatable="false">同意后才能继续；两份文档以后能在「设置 → 更多功能」重新打开。</string>
+    <string name="onb_p5_version_line" translatable="false">协议版本 %1$s · 更新时会再次征求同意</string>
+    <string name="onb_p5_point1_title" translatable="false">数据去向有边界</string>
+    <string name="onb_p5_point1_body" translatable="false">浏览网站、调用模型或联网扩展时，相关内容会发送给对应服务；本地保存不等于所有处理都离线。</string>
+    <string name="onb_p5_point2_title" translatable="false">授权是独立选择</string>
+    <string name="onb_p5_point2_body" translatable="false">同意协议不会开启任何设备权限。你可以暂不授权，用到具体功能时再决定。</string>
+    <string name="onb_p5_point3_title" translatable="false">重要操作请核验</string>
+    <string name="onb_p5_point3_body" translatable="false">AI 可能出错，脚本与自动化可能修改文件或设备；第三方服务可能收费，重要数据请先备份。</string>
+    <string name="onb_p5_doc_terms_desc" translatable="false">使用规则、高影响操作与开源许可</string>
+    <string name="onb_p5_doc_privacy_desc" translatable="false">数据类型、联网场景、保存期限与删除方式</string>
+    <string name="onb_p5_checkbox" translatable="false">我已阅读并同意《用户协议》和《隐私政策》</string>
+    <string name="onb_p5_cta" translatable="false">同意并继续</string>
+    <string name="onb_p5_cta_replay" translatable="false">已同意，继续查看权限</string>
+    <string name="onb_p5_secondary" translatable="false">不同意并退出</string>
+    <string name="onb_p5_secondary_replay" translatable="false">返回设置</string>
+    <string name="onb_p5_exit_title" translatable="false">不同意就无法使用 Kiyori</string>
+    <string name="onb_p5_exit_body" translatable="false">你可以先阅读两份文档，再决定是否同意。仍要退出吗？</string>
+    <string name="onb_p5_exit_confirm" translatable="false">退出应用</string>
+    <string name="onb_p5_exit_cancel" translatable="false">再看看</string>
+
+    <string name="onb_p6_nav" translatable="false">按需开启权限</string>
+    <string name="onb_p6_eyebrow" translatable="false">最后一步</string>
+    <string name="onb_p6_headline" translatable="false">用到哪一项，再开哪一项</string>
+    <string name="onb_p6_lede" translatable="false">普通浏览不需要任何权限。可以现在选，也可以直接开始，之后在「设置 → 权限管理」调整。</string>
+    <string name="onb_p6_summary" translatable="false">已选 %1$d 项，完成后会逐个弹出系统授权窗口。</string>
+    <string name="onb_p6_chip_recommend" translatable="false">选择推荐的 2 项</string>
+    <string name="onb_p6_chip_none" translatable="false">全部暂不开启</string>
+    <string name="onb_p6_cta" translatable="false">开启 %1$d 项并开始使用</string>
+    <string name="onb_p6_cta_zero" translatable="false">直接开始使用</string>
+    <string name="onb_p6_cta_replay" translatable="false">完成介绍，返回设置</string>
+    <string name="onb_p6_secondary" translatable="false">暂不开启，直接开始</string>
+    <string name="onb_p6_recommended_hint" translatable="false">推荐开启</string>
+    <string name="onb_p6_on_demand_hint" translatable="false">用到时再开</string>
+    <string name="onb_p6_daily_title" translatable="false">日常使用</string>
+    <string name="onb_p6_daily_count" translatable="false">3 项 · 建议开启</string>
+    <string name="onb_p6_storage_title" translatable="false">文件与存储</string>
+    <string name="onb_p6_storage_count" translatable="false">2 项 · 用到时再开</string>
+    <string name="onb_p6_permission_notification" translatable="false">通知</string>
+    <string name="onb_p6_permission_notification_desc" translatable="false">显示 AI 回复、下载与后台任务状态</string>
+    <string name="onb_p6_permission_media" translatable="false">视频与音频</string>
+    <string name="onb_p6_permission_media_desc" translatable="false">读取设备媒体用于播放与处理，可只选定部分</string>
+    <string name="onb_p6_permission_microphone" translatable="false">麦克风</string>
+    <string name="onb_p6_permission_microphone_desc" translatable="false">仅在使用语音输入时录音</string>
+    <string name="onb_p6_permission_files" translatable="false">文件访问</string>
+    <string name="onb_p6_permission_files_desc" translatable="false">读写工作目录、下载与导入导出的文件</string>
+    <string name="onb_p6_permission_install" translatable="false">安装应用</string>
+    <string name="onb_p6_permission_install_desc" translatable="false">仅在你确认安装扩展或更新包时使用</string>
+    <string name="onb_p6_use_when_needed" translatable="false">使用时确认</string>
+    <string name="onb_p6_catalog_title" translatable="false">完整权限目录</string>
+    <string name="onb_p6_advanced_hint" translatable="false">其余真实能力按用途折叠展示，普通浏览无需开启。</string>
+</resources>
