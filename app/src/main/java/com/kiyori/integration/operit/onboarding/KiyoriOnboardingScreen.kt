@@ -14,6 +14,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -142,7 +143,7 @@ internal fun KiyoriOnboardingScreen(
         remember(context) {
             KiyoriOnboardingPreferences(context.applicationContext)
         }
-    var agreementAcceptedState by rememberSaveable { mutableStateOf(agreementAccepted) }
+    var agreementAcceptedState by rememberSaveable { mutableStateOf(if (startFromBeginning) false else agreementAccepted) }
     val initialStep =
         remember {
             resolveInitialKiyoriOnboardingStep(
@@ -176,7 +177,7 @@ internal fun KiyoriOnboardingScreen(
             state = pagerState,
             pagerSnapDistance = PagerSnapDistance.atMost(1),
         )
-    var agreementChecked by rememberSaveable { mutableStateOf(agreementAccepted) }
+    var agreementChecked by rememberSaveable { mutableStateOf(if (startFromBeginning) false else agreementAccepted) }
     // 重看页码重建为第一页时，旧协议正文也不能盖住新会话的首屏。
     var selectedLegalDocument by if (startFromBeginning) remember {
         mutableStateOf<KiyoriLegalDocument?>(null)
@@ -227,7 +228,7 @@ internal fun KiyoriOnboardingScreen(
         pagerScope.launch {
             // 单个动画任务避免快速点击争抢 Pager 的 scroll mutation；原生拖动仍可中断动画。
             try {
-                pagerState.animateScrollToPage(step.ordinal, animationSpec = tween(280))
+                pagerState.animateScrollToPage(step.ordinal, animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing))
             } finally {
                 navigationInFlight = false
             }
