@@ -1078,8 +1078,8 @@ private data class OnboardingFeatureCard(
 @Composable
 private fun OnboardingFeatureGrid(cards: List<OnboardingFeatureCard>) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        // 从 1.3 倍起改为单列；1.6 倍后由卡片保留第一句说明，避免压缩字号或截断标题。
-        val columns = if (maxWidth < 340.dp || LocalDensity.current.fontScale >= 1.3f) 1 else 2
+        // 常规字号保持设计稿的 2×2 布局；从 1.3 倍起改为单列，避免压缩字号或截断标题。
+        val columns = if (LocalDensity.current.fontScale >= 1.3f) 1 else 2
         Column(verticalArrangement = Arrangement.spacedBy(KiyoriOnboardingMetrics.GridGap.dp)) {
             cards.chunked(columns).forEach { rowCards ->
                 Row(

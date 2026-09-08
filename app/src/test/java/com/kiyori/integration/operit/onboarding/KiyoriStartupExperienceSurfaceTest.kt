@@ -218,6 +218,8 @@ class KiyoriStartupExperienceSurfaceTest {
         val cards = source.substringAfter("private fun OnboardingFeatureGrid(")
             .substringBefore("private fun KiyoriWelcomePage(")
         assertTrue(cards.contains("fontScale >= 1.3f"))
+        assertFalse(cards.contains("maxWidth < 340.dp"))
+        assertTrue(cards.contains("else 2"))
         assertFalse(cards.contains("fittedStyle"))
         assertFalse(cards.contains("maxLines ="))
         assertFalse(cards.contains("softWrap = false"))
