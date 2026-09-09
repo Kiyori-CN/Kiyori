@@ -2,6 +2,13 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LINUX_SSH_SETUP_EN_US = void 0;
 exports.LINUX_SSH_SETUP_EN_US = {
+    confirmDelete: "Click Delete again to terminate this window and its running job. Confirm target:",
+    invalidPort: "Port must be an integer from 1 to 65535",
+    invalidTimeout: "Timeout must be an integer from 1000 to 600000 ms",
+    authRequired: "Enter a password or private key path",
+    saveBeforeAction: "Save the changed configuration before running remote actions",
+    testConnection: "Test saved connection",
+    installTmux: "Install or check remote tmux",
     unknown: "unknown",
     importPackageFailed: "import package failed",
     toolCallFailedPrefix: "Failed to call ",
@@ -25,7 +32,7 @@ exports.LINUX_SSH_SETUP_EN_US = {
     actionRunTmuxCommand: "Run tmux Command",
     errorEnterCommandFirst: "Please enter a command first",
     statusLoadedCurrentConfig: "Loaded current config",
-    topBannerTip: "After you run linux ssh once, you can give login params directly to AI. They are stored automatically, so you don't need to fill this page manually.",
+    topBannerTip: "Save and test the connection first. This toolkit is independent of the terminal SSH toggle and follows the app tool proxy route. After a timeout, inspect remote state before repeating a modifying command.",
     connectionConfigTitle: "Connection Config",
     connectionConfigTip: "Configure SSH connection params with password or private key auth",
     fieldHostLabel: "Host",

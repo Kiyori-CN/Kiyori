@@ -1,4 +1,11 @@
 export interface LinuxSshSetupI18n {
+  confirmDelete: string;
+  invalidPort: string;
+  invalidTimeout: string;
+  authRequired: string;
+  saveBeforeAction: string;
+  testConnection: string;
+  installTmux: string;
   unknown: string;
   importPackageFailed: string;
   toolCallFailedPrefix: string;

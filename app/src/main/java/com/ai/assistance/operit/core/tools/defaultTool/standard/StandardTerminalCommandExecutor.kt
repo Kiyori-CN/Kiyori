@@ -18,6 +18,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
 
+private fun shellQuoteForSsh(value: String): String =
+    "'" + value.replace("'", "'\\\"'\\\"'") + "'"
+
 /** 终端命令执行工具 - 非流式输出版本 执行终端命令并一次性收集全部输出后返回 */
 class StandardTerminalCommandExecutor(private val context: Context) {
 
@@ -418,9 +421,10 @@ class StandardTerminalCommandExecutor(private val context: Context) {
                 val terminal = Terminal.getInstance(context)
                 val hiddenResult =
                     terminal.executeHiddenCommand(
-                        command = command,
+                        command = prepareSshCommand(tool, command),
                         executorKey = executorKey,
-                        timeoutMs = timeoutMs
+                        timeoutMs = timeoutMs,
+                        localOnly = tool.parameters.any { it.name == "local_only" && it.value == "true" },
                     )
                 val output = extractHiddenExecOutput(hiddenResult)
                 val didTimeout = hiddenResult.state == HiddenExecResult.State.TIMEOUT
@@ -468,6 +472,30 @@ class StandardTerminalCommandExecutor(private val context: Context) {
     }
 
     /** 向指定的终端会话写入输入 */
+    private suspend fun prepareSshCommand(tool: AITool, command: String): String {
+        val host = tool.parameters.find { it.name == "ssh_host" }?.value ?: return command
+        val port = tool.parameters.find { it.name == "ssh_port" }?.value?.toIntOrNull() ?: 22
+        require(port in 1..65535 && host.isNotBlank()) { "Invalid SSH target" }
+        val token = "__KIYORI_SSH_PROXY_OPTION__"
+        require(command.indexOf(token) >= 0 && command.indexOf(token) == command.lastIndexOf(token)) { "Invalid SSH route placeholder" }
+        val scriptPackage = tool.parameters.find {
+            it.name == com.kiyori.platform.network.KiyoriScriptNetworkCallIdentity.INTERNAL_PACKAGE_PARAMETER
+        }?.value
+        val module = if (scriptPackage == null) com.kiyori.platform.network.KiyoriNetworkModule.AI_TOOLS
+            else com.kiyori.platform.network.KiyoriNetworkModule.SCRIPTS
+        val proxy = com.kiyori.platform.network.KiyoriNetworkProxyManager.getInstance(context)
+            .proxySelectorBlocking(module, scriptPackage)
+            .select(java.net.URI("socket", null, host, port, null, null, null)).single()
+        val endpoint = if (proxy.type() == java.net.Proxy.Type.DIRECT) null else {
+            val address = proxy.address() as java.net.InetSocketAddress
+            com.ai.assistance.operit.terminal.utils.SSHTransportPolicy.Endpoint(address.hostString, address.port)
+        }
+        val option = com.ai.assistance.operit.terminal.utils.SSHTransportPolicy.proxyOption(endpoint)
+        val routedCommand = command.replace(token, option)
+        val password = tool.parameters.find { it.name == "ssh_password" }?.value ?: return routedCommand
+        return "export SSHPASS=${shellQuoteForSsh(password)}; $routedCommand"
+    }
+
     fun inputInSession(tool: AITool): ToolResult {
         return runBlocking {
             val sessionId = tool.parameters.find { it.name == "session_id" }?.value

@@ -312,6 +312,13 @@ export namespace System {
         function hiddenExec(command: string, options?: {
             executorKey?: string;
             timeoutMs?: number | string;
+            /** Explicit local Ubuntu launcher, independent of the interactive SSH setting. */
+            localOnly?: boolean;
+            /** Host route for exactly one __KIYORI_SSH_PROXY_OPTION__ placeholder. */
+            sshHost?: string;
+            sshPort?: number;
+            /** Sensitive authentication input; never embed it into command text. */
+            sshPassword?: string;
         }): Promise<HiddenTerminalCommandResultData>;
 
         /**

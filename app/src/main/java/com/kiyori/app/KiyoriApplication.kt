@@ -141,6 +141,15 @@ class KiyoriApplication :
         ApplicationContextAccess.installForProcess(this)
         val isMainProcess = CrashProcessIdentity.currentProcessName(this) == packageName
         if (isMainProcess) {
+            com.ai.assistance.operit.terminal.utils.SSHTransportPolicy.resolveProxy = { host, port ->
+                val proxy = KiyoriNetworkProxyManager.getInstance(this)
+                    .proxySelectorBlocking(com.kiyori.platform.network.KiyoriNetworkModule.AI_TOOLS)
+                    .select(java.net.URI("socket", null, host, port, null, null, null)).single()
+                if (proxy.type() == java.net.Proxy.Type.DIRECT) null else {
+                    val address = proxy.address() as java.net.InetSocketAddress
+                    com.ai.assistance.operit.terminal.utils.SSHTransportPolicy.Endpoint(address.hostString, address.port)
+                }
+            }
             // The main process is the sole embedded-proxy owner; secondary runtimes must not
             // create another manager or compete for the process-wide WebView proxy override.
             KiyoriNetworkProxyManager.getInstance(this).scheduleStartupReconciliation()

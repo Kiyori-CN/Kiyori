@@ -137,12 +137,14 @@ class Terminal private constructor(private val context: Context) {
     suspend fun executeHiddenCommand(
         command: String,
         executorKey: String = "default",
-        timeoutMs: Long = 120000L
+        timeoutMs: Long = 120000L,
+        localOnly: Boolean = false,
     ): HiddenExecResult {
         return terminalManager.executeHiddenCommand(
             command = command,
             executorKey = executorKey,
-            timeoutMs = timeoutMs
+            timeoutMs = timeoutMs,
+            localOnly = localOnly,
         )
     }
 

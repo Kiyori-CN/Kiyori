@@ -1,7 +1,7 @@
 import { resolveLinuxSshSetupI18n, type LinuxSshSetupI18n } from "../i18n";
 
 const LINUX_SSH_PACKAGE_NAME = "linux_ssh";
-    const DEFAULT_TMUX_SESSION_NAME = "kiyori_ai";
+const DEFAULT_TMUX_SESSION_NAME = "kiyori_ai";
 
 const ENV_KEYS = {
     host: "LINUX_SSH_HOST",
@@ -29,7 +29,7 @@ type TmuxTab = {
 
 function resolveText(): LinuxSshSetupI18n {
     const rawLocale = getLang();
-    const locale = String(rawLocale || "").trim().toLowerCase();
+    const locale = (rawLocale ?? "").trim().toLowerCase();
     const preferredLocale = locale.startsWith("en") ? "en-US" : "zh-CN";
     return resolveLinuxSshSetupI18n(preferredLocale);
 }
@@ -209,19 +209,6 @@ async function ensureImportedAndUsed(ctx: ComposeDslContext, packageName: string
     }
 }
 
-async function saveEnvValues(ctx: ComposeDslContext, values: Record<string, string>): Promise<void> {
-    if (ctx.setEnvs) {
-        await ctx.setEnvs(values);
-        return;
-    }
-
-    const keys = Object.keys(values);
-    for (let i = 0; i < keys.length; i += 1) {
-        const key = keys[i];
-        await ctx.setEnv(key, values[key]);
-    }
-}
-
 export default function Screen(ctx: ComposeDslContext): ComposeNode {
     const text = resolveText();
     const hostState = useStateValue(ctx, "host", ctx.getEnv(ENV_KEYS.host) || "");
@@ -238,6 +225,9 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
     const tmuxLinesState = useStateValue(ctx, "tmuxLines", "300");
 
     const busyState = useStateValue(ctx, "busy", false);
+    const actionLock = ctx.useRef("actionLock", false);
+    const failedState = useStateValue(ctx, "failed", false);
+    const deleteConfirmation = useStateValue(ctx, "deleteConfirmation", "");
     const statusState = useStateValue(ctx, "status", text.statusIdle);
     const outputState = useStateValue(ctx, "output", "");
     const hasInitializedState = useStateValue(ctx, "hasInitialized", false);
@@ -252,6 +242,10 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
 
         const parsedPort = parseOptionalPositiveInt(portState.value);
         const parsedTimeout = parseOptionalPositiveInt(timeoutMsState.value);
+        if (!params.host || !params.username) throw new Error(text.errorHostUsernameRequired);
+        if (!/^\d+$/.test(portState.value.trim()) || parsedPort === undefined || parsedPort > 65535) throw new Error(text.invalidPort);
+        if (!/^\d+$/.test(timeoutMsState.value.trim()) || parsedTimeout === undefined || parsedTimeout < 1000 || parsedTimeout > 600000) throw new Error(text.invalidTimeout);
+        if (!params.password && !params.private_key_path) throw new Error(text.authRequired);
         if (parsedPort !== undefined) {
             params.port = parsedPort;
         }
@@ -261,53 +255,53 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
         return params;
     };
 
+    const configValues = (): Record<string, string> => ({
+        [ENV_KEYS.host]: hostState.value.trim(), [ENV_KEYS.port]: portState.value.trim(),
+        [ENV_KEYS.username]: usernameState.value.trim(), [ENV_KEYS.password]: passwordState.value,
+        [ENV_KEYS.privateKeyPath]: privateKeyPathState.value.trim(), [ENV_KEYS.timeoutMs]: timeoutMsState.value.trim()
+    });
     const saveCurrentConfigToEnv = async (): Promise<void> => {
-        await saveEnvValues(ctx, {
-            [ENV_KEYS.host]: hostState.value.trim(),
-            [ENV_KEYS.port]: portState.value.trim(),
-            [ENV_KEYS.username]: usernameState.value.trim(),
-            [ENV_KEYS.password]: passwordState.value,
-            [ENV_KEYS.privateKeyPath]: privateKeyPathState.value.trim(),
-            [ENV_KEYS.timeoutMs]: timeoutMsState.value.trim()
-        });
+        getConnectionParams();
+        for (const [key, value] of Object.entries(configValues())) {
+            const saved = ctx.getEnv(key) ?? (key === ENV_KEYS.port ? "22" : key === ENV_KEYS.timeoutMs ? "20000" : "");
+            if (saved !== value) throw new Error(text.saveBeforeAction);
+        }
     };
 
     const callLinuxTool = async (toolName: string, params: Record<string, unknown>): Promise<unknown> => {
         const packageName = resolveRuntimePackageName(ctx, LINUX_SSH_PACKAGE_NAME);
         await ensureImportedAndUsed(ctx, packageName);
-
         const resolved = await resolveToolName(ctx, packageName, toolName);
-        const candidates = [
-            resolved,
-            `${packageName}:${toolName}`,
-            `${LINUX_SSH_PACKAGE_NAME}:${toolName}`
-        ].filter((item, index, arr) => !!item && arr.indexOf(item) === index);
-
-        let lastError = "";
-        for (let i = 0; i < candidates.length; i += 1) {
-            try {
-                return await ctx.callTool(candidates[i], params);
-            } catch (error) {
-                lastError = toErrorText(error);
-            }
+        // 一次操作只提交一次。未知异常不能被当作工具不存在并换名重发。
+        const request = { ...params };
+        if (toolName !== "linux_ssh_configure") {
+            for (const key of ["host", "port", "username", "password", "private_key_path"]) delete request[key];
         }
-        throw new Error(lastError || `${text.toolCallFailedPrefix}${toolName}`);
+        const result = await ctx.callTool(resolved, request);
+        const record = parseToolRecord(result);
+        if (record.success !== true) throw new Error(asText(record.error) || getToolOutputText(result) || text.toolCallFailedPrefix + toolName);
+        return result;
     };
 
     const runAction = async (title: string, action: () => Promise<unknown>): Promise<void> => {
-        if (busyState.value) {
+        if (actionLock.current) {
             return;
         }
+        actionLock.current = true;
+        failedState.set(false);
         busyState.set(true);
         statusState.set(`${title}...`);
         try {
-            await action();
-            outputState.set("");
+            const result = await action();
+            outputState.set(result ? formatResult(result) : "");
             statusState.set(`${title}${text.actionCompletedSuffix}`);
         } catch (error) {
+            failedState.set(true);
+            console.error("Linux SSH action failed");
             statusState.set(`${title}${text.actionFailedSuffix}`);
             outputState.set(toErrorText(error));
         } finally {
+            actionLock.current = false;
             busyState.set(false);
         }
     };
@@ -318,8 +312,11 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
             if (!params.host || !params.username) {
                 throw new Error(text.errorHostUsernameRequired);
             }
-            await saveCurrentConfigToEnv();
-            return await callLinuxTool("linux_ssh_configure", params);
+            const result = await callLinuxTool("linux_ssh_configure", params);
+            tmuxTabsState.set([]);
+            selectedTmuxTabState.set("");
+            tmuxPreviewState.set(text.tmuxPreviewTapHint);
+            return result;
         });
     };
 
@@ -389,6 +386,14 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
     };
 
     const deleteTmuxTabAction = async (): Promise<void> => {
+        if (actionLock.current) return;
+        const target = selectedTmuxTabState.value;
+        if (target && deleteConfirmation.value !== target) {
+            deleteConfirmation.set(target);
+            outputState.set(text.confirmDelete + " " + target);
+            return;
+        }
+        deleteConfirmation.set("");
         await runAction(text.actionDeleteCurrentTab, async () => {
             const windowName = selectedTmuxTabState.value.trim();
             if (!windowName) {
@@ -431,8 +436,9 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
         if (!windowName) {
             return;
         }
-        selectedTmuxTabState.set(windowName);
         await runAction(text.actionLoadTmuxWindow, async () => {
+            selectedTmuxTabState.set(windowName);
+            deleteConfirmation.set("");
             await saveCurrentConfigToEnv();
             const captureResult = await captureTmuxWindow(windowName);
             const previewText = getToolOutputText(captureResult).trim();
@@ -489,7 +495,7 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
         });
     };
 
-    const configExpandedState = useStateValue(ctx, "configExpanded", false);
+    const configExpandedState = useStateValue(ctx, "configExpanded", !hostState.value || !usernameState.value);
     const tmuxPanelExpandedState = useStateValue(ctx, "tmuxPanelExpanded", true);
 
     return ctx.UI.LazyColumn(
@@ -498,7 +504,7 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
                 if (!hasInitializedState.value) {
                     hasInitializedState.set(true);
                     statusState.set(text.statusLoadedCurrentConfig);
-                    await refreshTmuxTabsAction();
+                    // 打开页面只加载配置，不连接服务器、不安装软件或改写环境变量。
                 }
             },
             fillMaxSize: true,
@@ -579,7 +585,7 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
                                 fillMaxWidth: true,
                                 shape: { cornerRadius: 10 },
                                 containerColor: "surfaceVariant",
-                                alpha: 0.35
+                                alpha: 1
                             }, [
                                 ctx.UI.Column({ padding: 12, spacing: 8 }, [
                                     ctx.UI.Text({
@@ -597,9 +603,10 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
                                         fillMaxWidth: true,
                                         shape: { cornerRadius: 6 },
                                         containerColor: "surfaceVariant",
-                                        alpha: 0.65
+                                        alpha: 1
                                     }, [
                                         ctx.UI.TextField({
+                                            enabled: !busyState.value,
                                             value: hostState.value,
                                             onValueChange: hostState.set,
                                             singleLine: true,
@@ -615,7 +622,7 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
                                     weight: 1,
                                     shape: { cornerRadius: 10 },
                                     containerColor: "surfaceVariant",
-                                    alpha: 0.35
+                                    alpha: 1
                                 }, [
                                     ctx.UI.Column({ padding: 12, spacing: 8 }, [
                                         ctx.UI.Text({ text: text.fieldPortLabel, style: "bodyMedium", fontWeight: "medium" }),
@@ -625,9 +632,10 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
                                             fillMaxWidth: true,
                                             shape: { cornerRadius: 6 },
                                             containerColor: "surfaceVariant",
-                                            alpha: 0.65
+                                            alpha: 1
                                         }, [
                                             ctx.UI.TextField({
+                                                enabled: !busyState.value,
                                                 value: portState.value,
                                                 onValueChange: portState.set,
                                                 singleLine: true,
@@ -641,7 +649,7 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
                                     weight: 2,
                                     shape: { cornerRadius: 10 },
                                     containerColor: "surfaceVariant",
-                                    alpha: 0.35
+                                    alpha: 1
                                 }, [
                                     ctx.UI.Column({ padding: 12, spacing: 8 }, [
                                         ctx.UI.Text({ text: text.fieldUsernameLabel, style: "bodyMedium", fontWeight: "medium" }),
@@ -651,9 +659,10 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
                                             fillMaxWidth: true,
                                             shape: { cornerRadius: 6 },
                                             containerColor: "surfaceVariant",
-                                            alpha: 0.65
+                                            alpha: 1
                                         }, [
                                             ctx.UI.TextField({
+                                                enabled: !busyState.value,
                                                 value: usernameState.value,
                                                 onValueChange: usernameState.set,
                                                 singleLine: true,
@@ -669,7 +678,7 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
                                 fillMaxWidth: true,
                                 shape: { cornerRadius: 10 },
                                 containerColor: "surfaceVariant",
-                                alpha: 0.35
+                                alpha: 1
                             }, [
                                 ctx.UI.Column({ padding: 12, spacing: 8 }, [
                                     ctx.UI.Text({ text: text.fieldPasswordLabel, style: "bodyMedium", fontWeight: "medium" }),
@@ -679,9 +688,10 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
                                         fillMaxWidth: true,
                                         shape: { cornerRadius: 6 },
                                         containerColor: "surfaceVariant",
-                                        alpha: 0.65
+                                        alpha: 1
                                     }, [
                                         ctx.UI.TextField({
+                                            enabled: !busyState.value,
                                             value: passwordState.value,
                                             onValueChange: passwordState.set,
                                             singleLine: true,
@@ -696,7 +706,7 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
                                 fillMaxWidth: true,
                                 shape: { cornerRadius: 10 },
                                 containerColor: "surfaceVariant",
-                                alpha: 0.35
+                                alpha: 1
                             }, [
                                 ctx.UI.Column({ padding: 12, spacing: 8 }, [
                                     ctx.UI.Text({ text: text.fieldPrivateKeyLabel, style: "bodyMedium", fontWeight: "medium" }),
@@ -706,9 +716,10 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
                                         fillMaxWidth: true,
                                         shape: { cornerRadius: 6 },
                                         containerColor: "surfaceVariant",
-                                        alpha: 0.65
+                                        alpha: 1
                                     }, [
                                         ctx.UI.TextField({
+                                            enabled: !busyState.value,
                                             value: privateKeyPathState.value,
                                             onValueChange: privateKeyPathState.set,
                                             singleLine: true,
@@ -723,7 +734,7 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
                                 fillMaxWidth: true,
                                 shape: { cornerRadius: 10 },
                                 containerColor: "surfaceVariant",
-                                alpha: 0.35
+                                alpha: 1
                             }, [
                                 ctx.UI.Column({ padding: 12, spacing: 8 }, [
                                     ctx.UI.Text({ text: text.fieldTimeoutLabel, style: "bodyMedium", fontWeight: "medium" }),
@@ -733,9 +744,10 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
                                         fillMaxWidth: true,
                                         shape: { cornerRadius: 6 },
                                         containerColor: "surfaceVariant",
-                                        alpha: 0.65
+                                        alpha: 1
                                     }, [
                                         ctx.UI.TextField({
+                                            enabled: !busyState.value,
                                             value: timeoutMsState.value,
                                             onValueChange: timeoutMsState.set,
                                             singleLine: true,
@@ -745,6 +757,16 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
                                 ])
                             ]),
 
+                            ctx.UI.Button({ text: text.testConnection, enabled: !busyState.value, fillMaxWidth: true,
+                                onClick: async () => runAction(text.testConnection, async () => {
+                                    await saveCurrentConfigToEnv();
+                                    return await callLinuxTool("linux_ssh_test_connection", {});
+                                }) }),
+                            ctx.UI.Button({ text: text.installTmux, enabled: !busyState.value, fillMaxWidth: true,
+                                onClick: async () => runAction(text.installTmux, async () => {
+                                    await saveCurrentConfigToEnv();
+                                    return await callLinuxTool("linux_ssh_ensure_tmux", {});
+                                }) }),
                             ctx.UI.Button({
                                 text: text.saveConfigButton,
                                 enabled: !busyState.value,
@@ -794,7 +816,7 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
                                 fillMaxWidth: true,
                                 shape: { cornerRadius: 8 },
                                 containerColor: "surfaceVariant",
-                                alpha: 0.35
+                                alpha: 1
                             }, [
                                 ctx.UI.Column({ padding: 12, spacing: 8 }, [
                                     ctx.UI.Row({
@@ -812,24 +834,24 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
                                             ctx.UI.IconButton({
                                                 icon: Icons.Delete,
                                                 enabled: !busyState.value,
-                                                width: 26,
-                                                height: 26,
+                                                width: 48,
+                                                height: 48,
                                                 padding: 0,
                                                 onClick: deleteTmuxTabAction
                                             }),
                                             ctx.UI.IconButton({
                                                 icon: Icons.Sync,
                                                 enabled: !busyState.value,
-                                                width: 26,
-                                                height: 26,
+                                                width: 48,
+                                                height: 48,
                                                 padding: 0,
                                                 onClick: refreshTmuxTabsAction
                                             }),
                                             ctx.UI.IconButton({
                                                 icon: Icons.Add,
                                                 enabled: !busyState.value,
-                                                width: 26,
-                                                height: 26,
+                                                width: 48,
+                                                height: 48,
                                                 padding: 0,
                                                 onClick: createTmuxTabAction
                                             })
@@ -942,7 +964,7 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
                                     weight: 1,
                                     shape: { cornerRadius: 10 },
                                     containerColor: "surfaceVariant",
-                                    alpha: 0.35
+                                    alpha: 1
                                 }, [
                                     ctx.UI.Column({ padding: 12, spacing: 8 }, [
                                         ctx.UI.Text({ text: text.tmuxCommandInputLabel, style: "bodyMedium", fontWeight: "medium" }),
@@ -952,9 +974,10 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
                                             fillMaxWidth: true,
                                             shape: { cornerRadius: 6 },
                                             containerColor: "surfaceVariant",
-                                            alpha: 0.65
+                                            alpha: 1
                                         }, [
                                             ctx.UI.TextField({
+                                                enabled: !busyState.value,
                                                 value: tmuxCommandState.value,
                                                 onValueChange: tmuxCommandState.set,
                                                 placeholder: text.tmuxCommandPlaceholder,
@@ -968,7 +991,7 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
                                     width: 120,
                                     shape: { cornerRadius: 10 },
                                     containerColor: "surfaceVariant",
-                                    alpha: 0.35
+                                    alpha: 1
                                 }, [
                                     ctx.UI.Column({ padding: 12, spacing: 8 }, [
                                         ctx.UI.Text({ text: text.tmuxPreviewLinesLabel, style: "bodyMedium", fontWeight: "medium" }),
@@ -978,9 +1001,10 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
                                             fillMaxWidth: true,
                                             shape: { cornerRadius: 6 },
                                             containerColor: "surfaceVariant",
-                                            alpha: 0.65
+                                            alpha: 1
                                         }, [
                                             ctx.UI.TextField({
+                                                enabled: !busyState.value,
                                                 value: tmuxLinesState.value,
                                                 onValueChange: tmuxLinesState.set,
                                                 singleLine: true,
@@ -1008,7 +1032,7 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
             ctx.UI.Card({
                 fillMaxWidth: true,
                 shape: { cornerRadius: 12 },
-                containerColor: "primaryContainer",
+                containerColor: failedState.value ? "errorContainer" : "primaryContainer",
                 elevation: 1
             }, [
                 ctx.UI.Column(
@@ -1020,20 +1044,20 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
                         const children: ComposeNode[] = [
                             ctx.UI.Row({ verticalAlignment: "center" }, [
                                 ctx.UI.Icon({
-                                    name: busyState.value ? "sync" : "checkCircle",
-                                    tint: "onPrimaryContainer"
+                                    name: busyState.value ? "sync" : failedState.value ? "error" : "info",
+                                    tint: failedState.value ? "onErrorContainer" : "onPrimaryContainer"
                                 }),
                                 ctx.UI.Spacer({ width: 8 }),
                                 ctx.UI.Text({
                                     text: statusState.value,
                                     style: "titleMedium",
                                     fontWeight: "semiBold",
-                                    color: "onPrimaryContainer"
+                                    color: failedState.value ? "onErrorContainer" : "onPrimaryContainer"
                                 })
                             ])
                         ];
 
-                        if (busyState.value) {
+                        if (actionLock.current) {
                             children.push(ctx.UI.LinearProgressIndicator({ fillMaxWidth: true }));
                         }
 
@@ -1043,13 +1067,13 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
                                     fillMaxWidth: true,
                                     shape: { cornerRadius: 8 },
                                     containerColor: "surface",
-                                    alpha: 0.6
+                                    alpha: 1
                                 }, [
                                     ctx.UI.Column({ padding: 12 }, [
                                         ctx.UI.Text({
                                             text: outputState.value,
                                             style: "bodySmall",
-                                            color: "onPrimaryContainer"
+                                            color: failedState.value ? "onErrorContainer" : "onPrimaryContainer"
                                         })
                                     ])
                                 ])

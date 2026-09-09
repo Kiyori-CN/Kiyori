@@ -6,8 +6,8 @@
         "en": "Linux SSH"
     },
     "description": {
-        "zh": "基于 terminal 集成能力提供 Linux SSH 连接、tmux 长任务与远程文件操作。",
-        "en": "Linux SSH tools powered by terminal integration, including tmux long jobs and remote file operations."
+        "zh": "先 configure 保存连接并 test_connection；exec 执行短命令，长任务使用 tmux_run 后 capture。连接独立于终端 SSH 开关，遵循应用工具代理。超时或断网后先检查远端状态，禁止盲目重发修改命令。",
+        "en": "Save with configure and test_connection first. Use exec for short commands and tmux_run then capture for long jobs. Independent of the terminal SSH toggle; follows app tool routing. After timeout/disconnect inspect remote state before repeating mutations."
     },
     "enabledByDefault": false,
     "category": "Network",
@@ -91,7 +91,7 @@
         },
         {
             "name": "linux_ssh_tmux_run",
-            "description": { "zh": "在远程 tmux 中启动长任务（断线不影响任务）。", "en": "Start a long-running task in remote tmux (survives disconnects)." },
+            "description": { "zh": "在新的远程 tmux 窗口启动长任务，已有窗口名会拒绝。success 仅确认提交；用 capture/list_windows 检查输出及退出状态，断线不重发。", "en": "Start a long job in a new tmux window; existing names are rejected. Success confirms dispatch only. Inspect capture/list_windows for output and exit status; never replay on disconnect." },
             "parameters": [
                 { "name": "command", "description": { "zh": "要执行的长任务命令", "en": "Long-running command" }, "type": "string", "required": true },
                 { "name": "workdir", "description": { "zh": "远程工作目录（可选）", "en": "Remote working directory (optional)" }, "type": "string", "required": false },
@@ -129,7 +129,7 @@
         },
         {
             "name": "linux_ssh_terminal_input",
-            "description": { "zh": "向交互 SSH 终端输入文本或控制键。", "en": "Write text/control keys into interactive SSH terminal." },
+            "description": { "zh": "向远端 kiyori_ai:terminal tmux 窗口发送文本或控制键，与右上角终端独立。", "en": "Send text/control keys to remote kiyori_ai:terminal tmux window, independently of the app terminal." },
             "parameters": [
                 { "name": "input", "description": { "zh": "文本输入（可选）", "en": "Input text (optional)" }, "type": "string", "required": false },
                 { "name": "control", "description": { "zh": "控制键（如 enter/tab/ctrl）", "en": "Control key (e.g. enter/tab/ctrl)" }, "type": "string", "required": false }
@@ -137,7 +137,7 @@
         },
         {
             "name": "linux_ssh_terminal_screen",
-            "description": { "zh": "获取交互 SSH 终端当前可见屏幕。", "en": "Get current visible screen of interactive SSH terminal." },
+            "description": { "zh": "读取远端 kiyori_ai:terminal tmux 窗口最近 300 行。", "en": "Read the latest 300 lines of the remote kiyori_ai:terminal tmux window." },
             "parameters": []
         },
         {
@@ -183,10 +183,9 @@
 */
 
 const linuxSshTools = (function () {
-    const PACKAGE_VERSION = "0.1.0";
+    const PACKAGE_VERSION = "1.0.0";
     const DEFAULT_PORT = 22;
     const DEFAULT_TIMEOUT_MS = 20_000;
-    const DEFAULT_TERMINAL_SESSION_NAME = "linux_ssh_terminal";
     const DEFAULT_HIDDEN_EXECUTOR_NAME = "linux_ssh";
     const DEFAULT_TMUX_SESSION_NAME = "kiyori_ai";
     const MAX_INLINE_TERMINAL_OUTPUT_CHARS = 12_000;
@@ -259,6 +258,18 @@ const linuxSshTools = (function () {
         return "";
     }
 
+    function requireInteger(value, label, min, max) {
+        const number = Number(value);
+        if (!Number.isSafeInteger(number) || number < min || number > max) throw new Error(`${label} must be an integer in ${min}..${max}`);
+        return number;
+    }
+
+    function validateWindowName(value) {
+        const name = asText(value).trim();
+        if (name && !/^[a-zA-Z0-9_-]{1,64}$/.test(name)) throw new Error("window_name must contain 1..64 letters, digits, underscores or hyphens");
+        return name;
+    }
+
     function parsePositiveInt(value, fallbackValue) {
         const raw = asText(value).trim();
         if (!raw) {
@@ -320,7 +331,7 @@ const linuxSshTools = (function () {
             return "";
         }
         const value = getEnv(name);
-        return value == null ? "" : asText(value).trim();
+        return value == null ? "" : asText(value);
     }
 
     function shellQuote(value) {
@@ -403,12 +414,8 @@ const linuxSshTools = (function () {
     }
 
     async function writeEnvVar(key, value) {
-        try {
-            await Tools.SoftwareSettings.writeEnvironmentVariable(key, asText(value));
-            return true;
-        } catch (_error) {
-            return false;
-        }
+        await Tools.SoftwareSettings.writeEnvironmentVariable(key, asText(value));
+        return true;
     }
 
     async function persistProvidedConfig(params) {
@@ -440,9 +447,6 @@ const linuxSshTools = (function () {
 
     async function resolveSshConfig(params, options) {
         const opts = options || {};
-        if (opts.persistIfProvided !== false) {
-            await persistProvidedConfig(params);
-        }
 
         const allowParamConnection = opts.allowParamConnection !== false;
         const allowParamAuth = opts.allowParamAuth !== false;
@@ -455,14 +459,11 @@ const linuxSshTools = (function () {
             allowParamConnection && params ? asText(params.username) : "",
             readEnv(ENV_KEYS.username)
         );
-        const password = firstNonBlank(
-            allowParamAuth && params ? asText(params.password) : "",
-            readEnv(ENV_KEYS.password)
-        );
-        const privateKeyPath = firstNonBlank(
-            allowParamAuth && params ? stripWrappingQuotes(params.private_key_path) : "",
-            stripWrappingQuotes(readEnv(ENV_KEYS.privateKeyPath))
-        );
+        // 密码属于原始字节语义，显式空字符串表示清除，不回读旧凭据。
+        const password = allowParamAuth && params?.password !== undefined
+            ? asText(params.password) : readEnv(ENV_KEYS.password);
+        const privateKeyPath = allowParamAuth && params?.private_key_path !== undefined
+            ? stripWrappingQuotes(params.private_key_path) : stripWrappingQuotes(readEnv(ENV_KEYS.privateKeyPath));
 
         const portRaw = firstNonBlank(
             allowParamConnection && params ? asText(params.port) : "",
@@ -471,8 +472,11 @@ const linuxSshTools = (function () {
         );
         const timeoutRaw = firstNonBlank(params && asText(params.timeout_ms), readEnv(ENV_KEYS.timeoutMs), String(DEFAULT_TIMEOUT_MS));
 
-        const port = parsePositiveInt(portRaw, DEFAULT_PORT);
-        const timeoutMs = parsePositiveInt(timeoutRaw, DEFAULT_TIMEOUT_MS);
+        const port = requireInteger(portRaw, "port", 1, 65535);
+        const timeoutMs = requireInteger(timeoutRaw, "timeout_ms", 1000, 600000);
+        if (!/^[a-zA-Z0-9:._-]+$/.test(host) || host.startsWith("-")) throw new Error("Invalid SSH host");
+        if (/[\s\u0000-\u001f\u007f/@]/.test(username) || username.startsWith("-")) throw new Error("Invalid SSH username");
+        if (password.includes("\u0000") || /[\u0000-\u001f\u007f]/.test(privateKeyPath)) throw new Error("Invalid SSH credential");
 
         if (!host) {
             throw new Error("Missing SSH host. Configure with linux_ssh_configure or set LINUX_SSH_HOST");
@@ -487,6 +491,7 @@ const linuxSshTools = (function () {
             }
         }
 
+        if (opts.persistIfProvided !== false) await persistProvidedConfig(params);
         return {
             host,
             port,
@@ -505,103 +510,47 @@ const linuxSshTools = (function () {
         return await resolveSshConfig(params, STORED_SSH_CONFIG_OPTIONS);
     }
 
-    async function createLocalTerminalSession() {
-        return await Tools.System.terminal.create(DEFAULT_TERMINAL_SESSION_NAME);
-    }
-
     function buildHiddenExecutorKey(scope) {
         const normalizedScope = firstNonBlank(scope, "default")
             .replace(/[^a-zA-Z0-9._-]+/g, "_");
         return `${DEFAULT_HIDDEN_EXECUTOR_NAME}:${normalizedScope}`;
     }
 
-    async function runLocalHiddenCommand(command, timeoutMs, scope) {
+    async function runLocalHiddenCommand(command, timeoutMs, scope, config: { host: string; port: number; password: string; privateKeyPath: string } | null = null) {
         const effectiveTimeout = parsePositiveInt(timeoutMs, DEFAULT_TIMEOUT_MS);
         const executorKey = buildHiddenExecutorKey(scope);
         const result = await Tools.System.terminal.hiddenExec(command, {
             executorKey,
-            timeoutMs: effectiveTimeout
+            timeoutMs: effectiveTimeout,
+            localOnly: true,
+            ...(config ? { sshHost: config.host, sshPort: config.port, sshPassword: config.privateKeyPath ? undefined : config.password } : {})
         });
+        if (!Number.isInteger(result.exitCode)) throw new Error("SSH execution returned no confirmed exit code; do not retry a modifying command blindly");
+        if (result.outputTruncated) throw new Error("SSH output was truncated; request a smaller range. Do not repeat modifying commands.");
         return {
             sessionId: "",
             executorKey,
-            exitCode: Number(result.exitCode || 0),
+            exitCode: result.exitCode,
             timedOut: !!result.timedOut,
             output: asText(result.output)
         };
     }
 
-    async function ensureLocalCommand(runner, commandName, installScript) {
-        const check = await runner(
-            `if command -v ${commandName} >/dev/null 2>&1; then echo '__FOUND__'; else echo '__MISSING__'; fi`,
-            DEFAULT_TIMEOUT_MS
-        );
-        if (check.output.includes("__FOUND__")) {
-            return { success: true, installed: false, output: check.output };
-        }
-
-        const install = await runner(installScript, 180_000);
-        const verify = await runner(
-            `if command -v ${commandName} >/dev/null 2>&1; then echo '__FOUND__'; else echo '__MISSING__'; fi`,
-            DEFAULT_TIMEOUT_MS
-        );
-
-        if (!verify.output.includes("__FOUND__")) {
-            throw new Error(
-                `Failed to install ${commandName}.\nInstall output:\n${install.output}\nVerify output:\n${verify.output}`
-            );
-        }
-        return { success: true, installed: true, output: install.output };
-    }
-
     async function ensureLocalSshDependencies(config, runner) {
-        await ensureLocalCommand(
-            runner,
-            "ssh",
-            [
-                "if command -v apt-get >/dev/null 2>&1; then",
-                "  (sudo -n apt-get update && sudo -n apt-get install -y openssh-client) || (apt-get update && apt-get install -y openssh-client)",
-                "elif command -v dnf >/dev/null 2>&1; then",
-                "  (sudo -n dnf install -y openssh-clients) || dnf install -y openssh-clients",
-                "elif command -v yum >/dev/null 2>&1; then",
-                "  (sudo -n yum install -y openssh-clients) || yum install -y openssh-clients",
-                "elif command -v pacman >/dev/null 2>&1; then",
-                "  (sudo -n pacman -Sy --noconfirm openssh) || pacman -Sy --noconfirm openssh",
-                "else",
-                "  echo '__NO_PACKAGE_MANAGER__'",
-                "fi"
-            ].join("\n")
-        );
-
-        if (config.password && !config.privateKeyPath) {
-            await ensureLocalCommand(
-                runner,
-                "sshpass",
-                [
-                    "if command -v apt-get >/dev/null 2>&1; then",
-                    "  (sudo -n apt-get update && sudo -n apt-get install -y sshpass) || (apt-get update && apt-get install -y sshpass)",
-                    "elif command -v dnf >/dev/null 2>&1; then",
-                    "  (sudo -n dnf install -y sshpass) || dnf install -y sshpass",
-                    "elif command -v yum >/dev/null 2>&1; then",
-                    "  (sudo -n yum install -y sshpass) || yum install -y sshpass",
-                    "elif command -v pacman >/dev/null 2>&1; then",
-                    "  (sudo -n pacman -Sy --noconfirm sshpass) || pacman -Sy --noconfirm sshpass",
-                    "else",
-                    "  echo '__NO_PACKAGE_MANAGER__'",
-                    "fi"
-                ].join("\n")
-            );
-        }
+        const commands = config.password && !config.privateKeyPath ? "ssh sshpass" : "ssh";
+        const result = await runner(`for tool in ${commands}; do command -v "$tool" >/dev/null 2>&1 || { printf 'Missing local SSH tool: %s\\n' "$tool"; exit 127; }; done`, DEFAULT_TIMEOUT_MS);
+        if (result.exitCode !== 0 || result.timedOut) throw new Error(`Local SSH tools unavailable. Install SSH tools in the local terminal environment first. ${result.output}`);
     }
 
     function buildSshOptions(config) {
         const connectTimeoutSeconds = Math.max(5, Math.floor(config.timeoutMs / 1000));
         const options = [
-            "-o StrictHostKeyChecking=no",
-            "-o UserKnownHostsFile=/dev/null",
+            "-o StrictHostKeyChecking=accept-new",
+            "-o ConnectionAttempts=1",
+            "__KIYORI_SSH_PROXY_OPTION__",
             "-o LogLevel=ERROR",
             "-o ServerAliveInterval=30",
-            "-o ServerAliveCountMax=120",
+            "-o ServerAliveCountMax=3",
             `-o ConnectTimeout=${connectTimeoutSeconds}`
         ];
 
@@ -609,18 +558,19 @@ const linuxSshTools = (function () {
             options.push("-o PreferredAuthentications=password", "-o PubkeyAuthentication=no");
         }
 
+        if (config.privateKeyPath) options.push("-o BatchMode=yes", "-o IdentitiesOnly=yes");
         return options.join(" ");
     }
 
     function buildSshCommand(config, remoteCommand, interactive) {
         const authPrefix = (config.password && !config.privateKeyPath)
-            ? `SSHPASS=${shellQuote(config.password)} sshpass -e `
+            ? "sshpass -e "
             : "";
         const keyPart = config.privateKeyPath ? ` -i ${shellQuote(config.privateKeyPath)}` : "";
         const target = `${config.username}@${config.host}`;
         const options = buildSshOptions(config);
         const tty = interactive ? " -tt" : "";
-        const base = `${authPrefix}ssh${tty}${keyPart} ${options} -p ${config.port} ${shellQuote(target)}`;
+        const base = `${authPrefix}ssh${tty}${keyPart} ${options} -p ${config.port} -- ${shellQuote(target)}`;
         if (remoteCommand === undefined || remoteCommand === null) {
             return base;
         }
@@ -649,7 +599,7 @@ const linuxSshTools = (function () {
         };
         await ensureLocalSshDependencies(config, runner);
         const command = buildSshCommand(config, remoteCommand, false);
-        const result = await runner(command, timeoutMs || config.timeoutMs);
+        const result = await runLocalHiddenCommand(command, timeoutMs || config.timeoutMs, effectiveScope, config);
         return result;
     }
 
@@ -661,7 +611,7 @@ const linuxSshTools = (function () {
         await ensureLocalSshDependencies(config, runner);
         const sshCommand = buildSshCommand(config, remoteCommand, false);
         const command = buildLocalPipeCommand(stdinText, sshCommand, appendTrailingNewline === true);
-        const result = await runner(command, timeoutMs || config.timeoutMs);
+        const result = await runLocalHiddenCommand(command, timeoutMs || config.timeoutMs, effectiveScope, config);
         return result;
     }
 
@@ -742,13 +692,13 @@ const linuxSshTools = (function () {
             return `F${functionMatch[1]}`;
         }
 
-        return raw;
+        throw new Error("Unsupported tmux control key");
     }
 
     function buildRemoteShellCommand(script, args, useSudo) {
         const prefix = useSudo ? "sudo -n " : "";
         const argv = Array.isArray(args) ? args.map((arg) => shellQuote(arg)).join(" ") : "";
-        return `${prefix}sh -c ${shellQuote(script)} sh${argv ? ` ${argv}` : ""}`;
+        return `${prefix}sh -c ${shellQuote("set -e\n" + script)} sh${argv ? ` ${argv}` : ""}`;
     }
 
     function buildRemoteUserShellCommand() {
@@ -778,7 +728,12 @@ const linuxSshTools = (function () {
         ];
     }
 
-    async function ensureRemoteTmux(config) {
+    async function ensureRemoteTmux(config, allowInstall = false) {
+        if (!allowInstall) {
+            const check = await runRemoteCommandHidden(config, "command -v tmux >/dev/null 2>&1", config.timeoutMs, "tmux");
+            return { ...check, success: check.exitCode === 0 && !check.timedOut,
+                error: "tmux is unavailable; explicitly run linux_ssh_ensure_tmux to install it" };
+        }
         const installScript = [
             "if command -v tmux >/dev/null 2>&1; then",
             "  echo '__TMUX_READY__'",
@@ -877,9 +832,10 @@ const linuxSshTools = (function () {
             "  echo '__KIYORI_FILE_NOT_FOUND__'",
             "  exit 4",
             "fi",
-            "printf '__KIYORI_BEGIN__\\n'",
-            readCmd,
-            "printf '\\n__KIYORI_END__\\n'"
+            "read_file=$(mktemp)",
+            "trap 'rm -f -- \"$read_file\"' EXIT",
+            `${readCmd} > "$read_file"`,
+            "od -An -v -tx1 -- \"$read_file\""
         ].join("\n");
 
         const command = buildRemoteShellCommand(script, [path], useSudo);
@@ -888,7 +844,10 @@ const linuxSshTools = (function () {
             throw new Error(`Failed to read remote file: ${result.output}`);
         }
 
-        const content = extractBlock(result.output, "__KIYORI_BEGIN__", "__KIYORI_END__");
+        // 终端输出会归一化 CR/LF 并裁剪末尾换行，十六进制传输保证文件字节不变。
+        const hex = result.output.replace(/\s/g, "");
+        if (!/^(?:[0-9a-fA-F]{2})*$/.test(hex)) throw new Error("Unexpected SSH file response; file data was not decoded");
+        const content = decodeURIComponent(hex.replace(/../g, "%$&"));
         return {
             output: result.output,
             content
@@ -896,12 +855,18 @@ const linuxSshTools = (function () {
     }
 
     async function writeRemoteFileContent(config, path, content, appendMode, useSudo) {
-        const redirectOperator = appendMode ? ">>" : ">";
         const script = [
             "raw_path=\"$1\"",
             ...buildRemotePathResolveLines("raw_path", "resolved_path", { fallbackToHome: false }),
             "mkdir -p \"$(dirname -- \"$resolved_path\")\"",
-            `cat ${redirectOperator} \"$resolved_path\"`
+            "resolved_path=$(readlink -m -- \"$resolved_path\")",
+            "write_file=$(mktemp \"$(dirname -- \"$resolved_path\")/.kiyori-write.XXXXXX\")",
+            "trap 'rm -f -- \"$write_file\"' EXIT",
+            "cat > \"$write_file\"",
+            ...(appendMode ? ["cat \"$write_file\" >> \"$resolved_path\""] : [
+                "if [ -e \"$resolved_path\" ]; then chmod --reference=\"$resolved_path\" \"$write_file\"; chown --reference=\"$resolved_path\" \"$write_file\"; fi",
+                "mv -T -- \"$write_file\" \"$resolved_path\""
+            ])
         ].join("\n");
 
         const command = buildRemoteShellCommand(script, [path], useSudo);
@@ -923,10 +888,8 @@ const linuxSshTools = (function () {
             await resolveConfiguredSshConfig(params);
             const testConnection = params?.test_connection === true;
             const connection = testConnection ? await linux_ssh_test_connection(params) : null;
-            return createSuccessResult({
-                testConnection,
-                connection
-            });
+            return { packageVersion: PACKAGE_VERSION, success: !connection || connection.success === true, saved: true, testConnection, connection,
+                error: connection && !connection.success ? "Configuration saved, but SSH connection test failed" : "" };
         });
     }
 
@@ -996,7 +959,7 @@ const linuxSshTools = (function () {
     async function linux_ssh_ensure_tmux(params) {
         return await runTool(async () => {
             const config = await resolveStoredSshConfig(params);
-            const tmuxResult = await ensureRemoteTmux(config);
+            const tmuxResult = await ensureRemoteTmux(config, true);
 
             return mergeToolResult({
                 success: !!tmuxResult.success,
@@ -1017,7 +980,7 @@ const linuxSshTools = (function () {
 
             const config = await resolveStoredSshConfig(params);
             const tmuxSessionName = DEFAULT_TMUX_SESSION_NAME;
-            const requestedWindowName = asText(params?.window_name).trim();
+            const requestedWindowName = validateWindowName(params?.window_name);
             const workdir = stripWrappingQuotes(params?.workdir);
 
             const tmuxReady = await ensureRemoteTmux(config);
@@ -1034,22 +997,9 @@ const linuxSshTools = (function () {
                 }, tmuxReady);
             }
 
-            const targetWindowReady = await ensureRemoteTmuxWindow(config, requestedWindowName);
-            if (!targetWindowReady.success || !targetWindowReady.windowName) {
-                return mergeToolResult({
-                    success: false,
-                    tmuxSessionName,
-                    requestedWindowName,
-                    workdir,
-                    exitCode: targetWindowReady.exitCode,
-                    timedOut: targetWindowReady.timedOut,
-                    output: targetWindowReady.output,
-                    error: "tmux window setup failed"
-                }, targetWindowReady);
-            }
-
-            const windowName = targetWindowReady.windowName;
-            const targetWindow = `${tmuxSessionName}:${windowName}`;
+            // 长任务只在新窗口启动，绝不把命令注入可能正在运行程序的旧 pane。
+            const windowName = requestedWindowName || `task-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+            const targetWindow = `${tmuxSessionName}:=${windowName}`;
 
             const script = [
                 "target_window=\"$1\"",
@@ -1074,8 +1024,15 @@ const linuxSshTools = (function () {
                 "if [ -z \"$raw_workdir\" ]; then",
                 "  printf '%s\\n' '#!/bin/sh' 'cleanup() {' \"$launcher_cleanup_line\" '}' 'trap cleanup EXIT' \"'$escaped_user_shell' '$escaped_payload_file'\" > \"$launcher_file\"",
                 "fi",
-                "tmux send-keys -t \"$target_window\" \"sh '$escaped_launcher_file'\" C-m",
+                "# 首先开启 remain-on-exit，保留任务输出和真实退出码。",
+                "sed -i '2i tmux set-option -w -t \"$TMUX_PANE\" remain-on-exit on || exit 1' \"$launcher_file\"",
+                "if tmux has-session -t kiyori_ai 2>/dev/null && tmux list-windows -t kiyori_ai -F '#{window_name}' | grep -Fx -- \"$3\" >/dev/null; then echo 'Window already exists; use a new window name'; exit 6; fi",
                 "trap - EXIT INT TERM HUP",
+                "if tmux has-session -t kiyori_ai 2>/dev/null; then",
+                "  tmux new-window -d -t kiyori_ai -n \"$3\" \"sh '$escaped_launcher_file'\" || { cleanup_now; exit 7; }",
+                "else",
+                "  tmux new-session -d -s kiyori_ai -n \"$3\" \"sh '$escaped_launcher_file'\" || { cleanup_now; exit 7; }",
+                "fi",
                 "printf '__KIYORI_TMUX_RUN_OK__\\n'",
                 `echo "session=${tmuxSessionName}"`,
                 `echo "window=${windowName}"`
@@ -1084,7 +1041,7 @@ const linuxSshTools = (function () {
             const result = await runRemoteCommandWithLocalStdinHidden(
                 config,
                 command,
-                buildRemoteShellCommand(script, [targetWindow, workdir], false),
+                buildRemoteShellCommand(script, [targetWindow, workdir, windowName], false),
                 config.timeoutMs,
                 "tmux",
                 true
@@ -1109,8 +1066,8 @@ const linuxSshTools = (function () {
         return await runTool(async () => {
             const config = await resolveStoredSshConfig(params);
             const tmuxSessionName = DEFAULT_TMUX_SESSION_NAME;
-            const windowName = asText(params?.window_name).trim();
-            const maxLines = params?.max_lines ?? 200;
+            const windowName = validateWindowName(params?.window_name);
+            const maxLines = requireInteger(params?.max_lines ?? 200, "max_lines", 1, 5000);
 
             const tmuxReady = await ensureRemoteTmux(config);
             if (!tmuxReady.success) {
@@ -1126,7 +1083,7 @@ const linuxSshTools = (function () {
                 }, tmuxReady);
             }
 
-            const target = windowName ? `${tmuxSessionName}:${windowName}` : tmuxSessionName;
+            const target = windowName ? `${tmuxSessionName}:=${windowName}` : tmuxSessionName;
             const script = [
                 `tmux has-session -t ${shellQuote(tmuxSessionName)} 2>/dev/null || { echo '__KIYORI_TMUX_NOT_FOUND__'; exit 4; }`,
                 "printf '__KIYORI_TMUX_CAPTURE_BEGIN__\\n'",
@@ -1190,7 +1147,7 @@ const linuxSshTools = (function () {
                 "tmux"
             );
             const notFound = hasExactMarkerLine(result.output, "__KIYORI_TMUX_NOT_FOUND__");
-            const success = result.exitCode === 0 && !result.timedOut && !notFound;
+            const success = !result.timedOut && (result.exitCode === 0 || (result.exitCode === 4 && notFound));
             const block = extractBlock(result.output, "__KIYORI_TMUX_WINDOWS_BEGIN__", "__KIYORI_TMUX_WINDOWS_END__");
             const windows = block
                 .split(/\r?\n/)
@@ -1218,7 +1175,7 @@ const linuxSshTools = (function () {
                 timedOut: result.timedOut,
                 output: block || result.output,
                 error: notFound
-                    ? `tmux session not found: ${tmuxSessionName}`
+                    ? ""
                     : (success ? "" : `tmux list windows failed, exitCode=${result.exitCode}`)
             });
         });
@@ -1226,7 +1183,7 @@ const linuxSshTools = (function () {
 
     async function linux_ssh_tmux_input(params) {
         return await runTool(async () => {
-            const requestedWindowName = asText(params?.window_name).trim();
+            const requestedWindowName = validateWindowName(params?.window_name);
             const inputText = params?.input !== undefined && params?.input !== null
                 ? asText(params.input)
                 : "";
@@ -1275,14 +1232,16 @@ const linuxSshTools = (function () {
             }
 
             const windowName = targetWindowReady.windowName;
-            const targetWindow = `${tmuxSessionName}:${windowName}`;
-            const scriptLines: string[] = [];
+            const targetWindow = `${tmuxSessionName}:=${windowName}`;
+            const scriptLines: string[] = [
+                `test "$(tmux display-message -p -t ${shellQuote(targetWindow)} '#{pane_dead}')" != 1 || { echo 'Task has exited; create a new window'; exit 6; }`
+            ];
 
             if (inputText) {
-                scriptLines.push(`tmux send-keys -t ${shellQuote(targetWindow)} ${shellQuote(inputText)}`);
+                scriptLines.push(`tmux send-keys -l -t ${shellQuote(targetWindow)} -- ${shellQuote(inputText)}`);
             }
             if (controlKey) {
-                scriptLines.push(`tmux send-keys -t ${shellQuote(targetWindow)} ${shellQuote(controlKey)}`);
+                scriptLines.push(`tmux send-keys -t ${shellQuote(targetWindow)} -- ${shellQuote(controlKey)}`);
             }
             scriptLines.push("printf '__KIYORI_TMUX_INPUT_OK__\\n'");
 
@@ -1312,13 +1271,13 @@ const linuxSshTools = (function () {
     async function linux_ssh_tmux_close(params) {
         return await runTool(async () => {
             const tmuxSessionName = DEFAULT_TMUX_SESSION_NAME;
-            const windowName = asText(params?.window_name).trim();
+            const windowName = validateWindowName(params?.window_name);
             if (!windowName) {
                 throw new Error("window_name cannot be empty");
             }
 
             const config = await resolveStoredSshConfig(params);
-            const targetWindow = `${tmuxSessionName}:${windowName}`;
+            const targetWindow = `${tmuxSessionName}:=${windowName}`;
 
             const tmuxReady = await ensureRemoteTmux(config);
             if (!tmuxReady.success) {
@@ -1373,37 +1332,14 @@ const linuxSshTools = (function () {
     }
 
     async function linux_ssh_terminal_input(params) {
-        return await runTool(async () => {
-            const input = params?.input;
-            const control = params?.control;
-            if (input === undefined && control === undefined) {
-                throw new Error("At least one of input/control is required");
-            }
-
-            const session = await createLocalTerminalSession();
-            const result = await Tools.System.terminal.input(session.sessionId, {
-                input: input === undefined ? undefined : asText(input),
-                control: control === undefined ? undefined : asText(control)
-            });
-
-            return createSuccessResult({
-                sessionId: session.sessionId,
-                result: extractStringResult(result)
-            });
-        });
+        if (asText(params?.control).toLowerCase() === "ctrl" && /^[a-z]$/i.test(asText(params?.input))) {
+            return await linux_ssh_tmux_input({ control: `ctrl+${params.input}`, window_name: "terminal" });
+        }
+        return await linux_ssh_tmux_input({ ...params, window_name: "terminal" });
     }
 
     async function linux_ssh_terminal_screen(params) {
-        return await runTool(async () => {
-            const session = await createLocalTerminalSession();
-            const result = await Tools.System.terminal.screen(session.sessionId);
-            return createSuccessResult({
-                sessionId: result.sessionId || session.sessionId,
-                rows: Number(result.rows || 0),
-                cols: Number(result.cols || 0),
-                content: asText(result.content)
-            });
-        });
+        return await linux_ssh_tmux_capture({ ...params, window_name: "terminal", max_lines: 300 });
     }
 
     async function linux_ssh_ls(params) {
@@ -1443,8 +1379,8 @@ const linuxSshTools = (function () {
             }
 
             const config = await resolveStoredSshConfig(params);
-            const lineStart = params?.line_start;
-            const lineEnd = params?.line_end;
+            const lineStart = params?.line_start === undefined ? undefined : requireInteger(params.line_start, "line_start", 1, 100000000);
+            const lineEnd = params?.line_end === undefined ? undefined : requireInteger(params.line_end, "line_end", 1, 100000000);
             const useSudo = params?.sudo === true;
             if (lineStart !== undefined && lineEnd !== undefined && lineEnd < lineStart) {
                 throw new Error("line_end must be greater than or equal to line_start");
@@ -1503,27 +1439,42 @@ const linuxSshTools = (function () {
             const expectedReplacements = params?.expected_replacements ?? 1;
             const useSudo = params?.sudo === true;
 
-            const readResult = await readRemoteFileContent(config, path, undefined, undefined, useSudo);
-            const source = readResult.content;
-            const parts = source.split(oldText);
-            const replacements = parts.length - 1;
-
-            if (replacements !== expectedReplacements) {
-                throw new Error(
-                    `Replacement count mismatch: expected ${expectedReplacements}, actual ${replacements}`
-                );
-            }
-
-            const updated = parts.join(newText);
-            await writeRemoteFileContent(config, path, updated, false, useSudo);
-
-            return createSuccessResult({
-                path,
-                replacements,
-                expectedReplacements,
-                beforeLength: source.length,
-                afterLength: updated.length
-            });
+            requireInteger(expectedReplacements, "expected_replacements", 1, 1000000);
+            // 在远端一次读取、匹配及原子替换；不把可能截断的终端输出当源文件写回。
+            const editScript = [
+                "import fcntl, json, os, stat, sys, tempfile",
+                "request = json.load(sys.stdin)",
+                "path = os.path.realpath(os.path.expanduser(request['path']))",
+                "with open(path + '.kiyori-edit.lock', 'a') as lock:",
+                "    fcntl.flock(lock, fcntl.LOCK_EX)",
+                "    before_stat = os.stat(path)",
+                "    with open(path, 'rb') as source: original = source.read()",
+                "    old = request['old_text'].encode('utf-8')",
+                "    new = request['new_text'].encode('utf-8')",
+                "    count = original.count(old)",
+                "    if count != request['expected']: raise ValueError('Replacement count mismatch: expected %s, actual %s' % (request['expected'], count))",
+                "    updated = original.replace(old, new)",
+                "    fd, temporary = tempfile.mkstemp(prefix='.kiyori-edit.', dir=os.path.dirname(path))",
+                "    try:",
+                "        with os.fdopen(fd, 'wb') as destination:",
+                "            destination.write(updated)",
+                "            destination.flush()",
+                "            os.fsync(destination.fileno())",
+                "            os.fchmod(destination.fileno(), stat.S_IMODE(before_stat.st_mode))",
+                "            os.fchown(destination.fileno(), before_stat.st_uid, before_stat.st_gid)",
+                "        with open(path, 'rb') as current:",
+                "            if current.read() != original: raise RuntimeError('File changed during edit; no replacement written')",
+                "        os.replace(temporary, path)",
+                "    finally:",
+                "        if os.path.exists(temporary): os.unlink(temporary)",
+                "print(json.dumps(dict(replacements=count, beforeBytes=len(original), afterBytes=len(updated))))"
+            ].join("\n");
+            const payload = JSON.stringify({ path, old_text: oldText, new_text: newText, expected: expectedReplacements });
+            const remote = `${useSudo ? "sudo -n " : ""}python3 -c ${shellQuote(editScript)}`;
+            const result = await runRemoteCommandWithLocalStdinHidden(config, payload, remote, config.timeoutMs, "fs", false);
+            const success = result.exitCode === 0 && !result.timedOut;
+            return await persistToolResult("linux_ssh_edit_output", { ...result, success, path, expectedReplacements,
+                error: success ? "" : "Remote edit failed or result unknown; inspect the file before retrying" });
         });
     }
 

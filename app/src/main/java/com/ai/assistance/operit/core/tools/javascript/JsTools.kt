@@ -854,6 +854,10 @@ fun getJsToolsDefinition(): String {
                     hiddenExec: (command, options = {}) => {
                         const params = { command };
                         if (options && typeof options === "object") {
+                            if (options.localOnly === true) params.local_only = "true";
+                            if (options.sshHost !== undefined) params.ssh_host = options.sshHost;
+                            if (options.sshPort !== undefined) params.ssh_port = String(options.sshPort);
+                            if (options.sshPassword !== undefined) params.ssh_password = options.sshPassword;
                             if (options.executorKey !== undefined && options.executorKey !== null) {
                                 params.executor_key = String(options.executorKey);
                             }

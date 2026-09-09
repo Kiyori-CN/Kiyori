@@ -2,6 +2,13 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LINUX_SSH_SETUP_ZH_CN = void 0;
 exports.LINUX_SSH_SETUP_ZH_CN = {
+    confirmDelete: "再次点击删除将终止此窗口的运行任务；确认目标后继续：",
+    invalidPort: "端口必须为 1–65535 的整数",
+    invalidTimeout: "超时必须为 1000–600000 毫秒的整数",
+    authRequired: "请输入密码或私钥路径",
+    saveBeforeAction: "配置已修改，请先保存，再执行远程操作",
+    testConnection: "测试已保存的连接",
+    installTmux: "安装或检查远端 tmux",
     unknown: "unknown",
     importPackageFailed: "导入包失败",
     toolCallFailedPrefix: "调用工具失败：",
@@ -25,7 +32,7 @@ exports.LINUX_SSH_SETUP_ZH_CN = {
     actionRunTmuxCommand: "执行 tmux 命令",
     errorEnterCommandFirst: "请先输入命令",
     statusLoadedCurrentConfig: "已加载当前配置",
-    topBannerTip: "在执行了一次 linux ssh 工具之后，你可以直接给 AI 提供一些登录参数。这些参数会自动记录，无需手动在这个页面填写。",
+    topBannerTip: "先保存并测试连接，再让 AI 使用工具。此工具包的连接独立于右上角终端的“启用 SSH 连接”；网络遵循应用工具代理设置。超时后先核对远端状态，不要重复发送修改命令。",
     connectionConfigTitle: "连接配置",
     connectionConfigTip: "配置 SSH 连接参数，支持密码或私钥认证",
     fieldHostLabel: "主机地址",
