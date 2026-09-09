@@ -38,6 +38,18 @@ test('password whitespace survives and is separate from command text; explicit l
     assert.ok(!remote.command.includes('/dev/null -o'));
 });
 
+test('remote command failures preserve exit code and merged output', async () => {
+    const { tools } = load(async (_, options) => options.sshHost
+        ? { exitCode: 42, timedOut: false, output: 'out\nerr' }
+        : { exitCode: 0, output: '' });
+    const result = await tools.linux_ssh_exec({ command: 'echo out; echo err >&2; exit 42' });
+    assert.equal(result.success, true);
+    assert.equal(result.exitCode, 42);
+    assert.equal(result.timedOut, false);
+    assert.equal(result.output, 'out\nerr');
+    assert.equal(result.error, '');
+});
+
 test('failed save propagates; failed test does not report configure success', async () => {
     const { tools } = load(async () => ({ output: 'offline', exitCode: 255, timedOut: false }));
     const result = await tools.linux_ssh_configure({ test_connection: true });

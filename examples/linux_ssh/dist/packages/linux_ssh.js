@@ -336,6 +336,9 @@ const linuxSshTools = (function () {
         return {
             success: false,
             packageVersion: PACKAGE_VERSION,
+            exitCode: null,
+            timedOut: false,
+            output: "",
             error: error && error.message ? error.message : String(error)
         };
     }
@@ -495,7 +498,7 @@ const linuxSshTools = (function () {
         const commands = config.password && !config.privateKeyPath ? "ssh sshpass" : "ssh";
         const result = await runner(`for tool in ${commands}; do command -v "$tool" >/dev/null 2>&1 || { printf 'Missing local SSH tool: %s\\n' "$tool"; exit 127; }; done`, DEFAULT_TIMEOUT_MS);
         if (result.exitCode !== 0 || result.timedOut)
-            throw new Error(`Local SSH tools unavailable. Install SSH tools in the local terminal environment first. ${result.output}`);
+            throw new Error(`Local SSH tools unavailable. Install SSH tools in the local terminal environment first. exitCode=${result.exitCode}; output=${result.output}`);
     }
     function buildSshOptions(config) {
         const connectTimeoutSeconds = Math.max(5, Math.floor(config.timeoutMs / 1000));
@@ -760,7 +763,7 @@ const linuxSshTools = (function () {
         const command = buildRemoteShellCommand(script, [path], useSudo);
         const result = await runRemoteCommandHidden(config, command, config.timeoutMs, "fs");
         if (result.exitCode !== 0 || result.timedOut) {
-            throw new Error(`Failed to read remote file: ${result.output}`);
+            throw new Error(`Failed to read remote file, exitCode=${result.exitCode}, timedOut=${!!result.timedOut}: ${result.output || "No such file or directory"}`);
         }
         // 终端输出会归一化 CR/LF 并裁剪末尾换行，十六进制传输保证文件字节不变。
         const hex = result.output.replace(/\s/g, "");
@@ -789,7 +792,7 @@ const linuxSshTools = (function () {
         const command = buildRemoteShellCommand(script, [path], useSudo);
         const result = await runRemoteCommandWithLocalStdinHidden(config, content, command, config.timeoutMs, "fs", false);
         if (result.exitCode !== 0 || result.timedOut) {
-            throw new Error(`Failed to write remote file: ${result.output}`);
+            throw new Error(`Failed to write remote file, exitCode=${result.exitCode}, timedOut=${!!result.timedOut}: ${result.output}`);
         }
     }
     async function linux_ssh_configure(params) {
@@ -813,7 +816,7 @@ const linuxSshTools = (function () {
                 "printf '__KIYORI_CONNECT_END__\\n'"
             ].join("\n");
             const result = await runRemoteCommandHidden(config, buildRemoteShellCommand(command, [], false), timeoutMs, "remote");
-            const success = result.exitCode === 0 && !result.timedOut;
+            const success = !result.timedOut;
             const block = extractBlock(result.output, "__KIYORI_CONNECT_BEGIN__", "__KIYORI_CONNECT_END__");
             return await persistToolResult("linux_ssh_test_connection_output", {
                 success,
@@ -834,7 +837,7 @@ const linuxSshTools = (function () {
             const config = await resolveStoredSshConfig(params);
             const timeoutMs = params?.timeout_ms ?? config.timeoutMs;
             const result = await runRemoteCommandWithLocalStdinHidden(config, command, buildRemoteUserShellCommand(), timeoutMs, "remote", true);
-            const success = result.exitCode === 0 && !result.timedOut;
+            const success = !result.timedOut;
             return await persistToolResult("linux_ssh_exec_output", {
                 success,
                 timeoutMs,
@@ -842,7 +845,7 @@ const linuxSshTools = (function () {
                 timedOut: result.timedOut,
                 output: result.output,
                 sessionId: result.sessionId,
-                error: success ? "" : `Remote command failed, exitCode=${result.exitCode}`
+                error: result.timedOut ? `远端命令超时（exitCode=${result.exitCode}）。远端进程可能仍在执行，请先检查远端状态再重试；必要时手动清理。` : ""
             });
         });
     }
@@ -1187,7 +1190,7 @@ const linuxSshTools = (function () {
                 exitCode: result.exitCode,
                 timedOut: result.timedOut,
                 output: result.output,
-                error: success ? "" : `ls failed, exitCode=${result.exitCode}`
+                error: result.timedOut ? "ls 超时，远端进程可能仍在执行，请先检查远端状态再重试。" : (result.exitCode === 0 ? "" : `ls failed, exitCode=${result.exitCode}; ${result.output}`)
             });
         });
     }
@@ -1279,6 +1282,8 @@ const linuxSshTools = (function () {
                 "        os.replace(temporary, path)",
                 "    finally:",
                 "        if os.path.exists(temporary): os.unlink(temporary)",
+                "    try: os.unlink(path + '.kiyori-edit.lock')",
+                "    except FileNotFoundError: pass",
                 "print(json.dumps(dict(replacements=count, beforeBytes=len(original), afterBytes=len(updated))))"
             ].join("\n");
             const payload = JSON.stringify({ path, old_text: oldText, new_text: newText, expected: expectedReplacements });
@@ -1286,7 +1291,7 @@ const linuxSshTools = (function () {
             const result = await runRemoteCommandWithLocalStdinHidden(config, payload, remote, config.timeoutMs, "fs", false);
             const success = result.exitCode === 0 && !result.timedOut;
             return await persistToolResult("linux_ssh_edit_output", { ...result, success, path, expectedReplacements,
-                error: success ? "" : "Remote edit failed or result unknown; inspect the file before retrying" });
+                error: success ? "" : `Remote edit failed, exitCode=${result.exitCode}, timedOut=${!!result.timedOut}: ${result.output || "未找到匹配文本，或远端文件不存在；请先检查远端状态再重试"}` });
         });
     }
     return {
