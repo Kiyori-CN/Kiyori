@@ -13,6 +13,7 @@ def register_commands() -> None:
     from . import formula as _formula  # noqa: F401
     from . import recalc as _recalc  # noqa: F401
     from . import write as _write  # noqa: F401
+    from . import chart as _chart  # noqa: F401
 
 
 @register("xlsx_info", schema="xlsx_info", next_actions=["xlsx_read"])

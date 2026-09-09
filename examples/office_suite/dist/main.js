@@ -1,8 +1,13 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerToolPkg = registerToolPkg;
+const index_ui_js_1 = __importDefault(require("./office_console/index.ui.js"));
 function registerToolPkg() {
-    // 第一期不注册 UI 模块：Compose 控制台属于第二期（见专项 index 的分期计划）。
+    ToolPkg.registerToolboxUiModule({ id: "office_console", runtime: "compose_dsl", screen: index_ui_js_1.default,
+        params: {}, title: { zh: "办公文档", en: "Office Documents" } });
     return true;
 }
 if (typeof exports !== "undefined") {

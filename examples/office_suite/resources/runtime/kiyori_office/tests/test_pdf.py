@@ -2,11 +2,67 @@
 
 from __future__ import annotations
 
+
+def test_tables_default_range_reads_every_page(tmp_path):
+    import pytest
+    pytest.importorskip('pdfplumber')
+    from reportlab.pdfgen.canvas import Canvas
+    from kiyori_office import protocol
+    path = tmp_path / 'tables.pdf'
+    canvas = Canvas(str(path))
+    for page in range(2):
+        for x in (50, 150, 250):
+            canvas.line(x, 650, x, 750)
+        for y in (650, 700, 750):
+            canvas.line(50, y, 250, y)
+        canvas.drawString(60, 720, 'Header')
+        canvas.drawString(160, 670, str(page + 1))
+        canvas.showPage()
+    canvas.showPage()  # 无表格页也属于默认扫描范围。
+    canvas.save()
+    all_pages = protocol.run('pdf_extract', {'path': str(path), 'mode': 'tables'})
+    assert all_pages['ok'], all_pages
+    assert all_pages['data']['pages'] == [1, 2, 3]
+    assert all_pages['data']['table_count'] == 2
+    selected = protocol.run('pdf_extract', {'path': str(path), 'mode': 'tables', 'range': '2'})
+    assert selected['ok'], selected
+    assert selected['data']['pages'] == [2] and selected['data']['table_count'] == 1
+    empty = protocol.run('pdf_extract', {'path': str(path), 'mode': 'tables', 'range': '3'})
+    assert empty['ok'] and empty['data']['tables'] == []
+
+from pathlib import Path
+
 import pytest
 
 from kiyori_office import protocol
 
 pytest.importorskip("pypdf")
+
+
+def test_acroform_fill_roundtrip_and_unknown_field_protection(tmp_path):
+    from reportlab.pdfgen.canvas import Canvas
+    from pypdf import PdfReader
+    source, output = tmp_path / 'form.pdf', tmp_path / 'filled.pdf'
+    canvas = Canvas(str(source))
+    canvas.drawString(40, 760, 'Office form fixture')
+    canvas.acroForm.textfield(name='author', x=40, y=700, width=240, height=24)
+    canvas.acroForm.checkbox(name='reviewed', x=40, y=650, checked=False)
+    canvas.showPage()
+    canvas.save()
+    listed = protocol.run('pdf_form_list', {'path': str(source)})
+    assert listed['ok'] and listed['data']['field_count'] == 2
+    result = protocol.run('pdf_form_fill', {'path': str(source), 'output_path': str(output),
+                                           'values': {'author': 'Kiyori test', 'reviewed': '/Yes'}})
+    assert result['ok'], result
+    fields = PdfReader(output).get_fields()
+    assert fields['author']['/V'] == 'Kiyori test'
+    assert fields['reviewed']['/V'] == '/Yes'
+    assert PdfReader(source).get_fields()['author'].get('/V', '') == ''
+    original = output.read_bytes()
+    rejected = protocol.run('pdf_form_fill', {'path': str(output), 'output_path': str(output),
+                                             'in_place': True, 'values': {'missing': 'x'}})
+    assert not rejected['ok'] and rejected['error']['code'] == 'E_ANCHOR_NOT_FOUND'
+    assert output.read_bytes() == original
 
 
 def _make_pdf(path, pages=2, text="Hello Kiyori"):
@@ -38,6 +94,55 @@ def test_pdf_page_range_out_of_bounds(tmp_path):
     result = protocol.run("pdf_extract", {"path": str(path), "range": "5"})
     assert result["ok"] is False
     assert result["error"]["code"] == "E_INPUT_SCHEMA"
+
+
+def test_pdf_create_supports_bullet_blocks(tmp_path):
+    """真机报告：blocks type=bullet 报「不支持的 blocks 类型」。"""
+
+    result = protocol.run(
+        "pdf_create",
+        {
+            "engine": "reportlab",
+            "blocks": [
+                {"type": "heading", "text": "标题"},
+                {"type": "bullet", "items": ["第一条", "第二条"]},
+                {"type": "paragraph", "text": "正文"},
+            ],
+        },
+    )
+    assert result["ok"] is True, result
+    assert result["artifacts"][0]["bytes"] > 0
+
+
+def test_pdf_create_detects_cjk_in_bullet_items(tmp_path):
+    """只有 bullet 列表的中文文档也必须走 CJK 字体，否则渲染成方框。"""
+
+    result = protocol.run(
+        "pdf_create",
+        {
+            "engine": "reportlab",
+            "blocks": [{"type": "bullet", "items": ["中文条目一", "中文条目二"]}],
+        },
+    )
+    assert result["ok"] is True, result
+    assert result["data"]["font"] != "Helvetica"
+
+
+def test_pdf_split_honours_output_path(tmp_path):
+    path = _make_pdf(tmp_path / "c.pdf", pages=2)
+    target = tmp_path / "custom-split"
+    result = protocol.run(
+        "pdf_split",
+        {
+            "path": str(path),
+            "range": "1-2",
+            "output_path": str(target),
+            "allow_roots": [str(tmp_path)],
+        },
+    )
+    assert result["ok"] is True, result
+    assert result["data"]["target_dir"] == str(target)
+    assert all(Path(item["path"]).parent == target for item in result["artifacts"])
 
 
 def test_pdf_merge_and_split(tmp_path):

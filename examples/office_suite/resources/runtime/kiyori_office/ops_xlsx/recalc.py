@@ -10,14 +10,15 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, List
 
-from ..env import require_binary
-from ..paths import artifact, resolve_output_path, resolve_path, resolve_task_id, task_dir
+from ..env import require_libreoffice
+from ..paths import atomic_output, artifact, resolve_output_path, resolve_path, resolve_task_id, task_dir
 from ..protocol import OfficeError, engine_version, register
 from ..readers.xlsx_reader import require_openpyxl
-from .formula import SPILL_FUNCTIONS
+from .formula import spill_functions
 
 RECALC_PROFILE_XCU = """<?xml version="1.0" encoding="UTF-8"?>
 <oor:items xmlns:oor="http://openoffice.org/2001/registry" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -43,7 +44,7 @@ def _run_soffice(soffice: str, profile: Path, source: Path, target_dir: Path) ->
         "--norestore",
         "--nolockcheck",
         "--nodefault",
-        "-env:UserInstallation=file://%s" % profile.resolve(),
+        "-env:UserInstallation=%s" % profile.resolve().as_uri(),
         "--convert-to",
         "xlsx:Calc MS Excel 2007 XML",
         "--outdir",
@@ -89,7 +90,7 @@ def _audit(path: Path) -> Dict[str, Any]:
                     missing_cache.append(
                         {"sheet": sheet.title, "cell": cell.coordinate, "formula": value}
                     )
-                elif isinstance(cached_value, str) and cached_value.startswith("#"):
+                elif cached[sheet.title][cell.coordinate].data_type == "e":
                     error_cells.append(
                         {
                             "sheet": sheet.title,
@@ -98,9 +99,8 @@ def _audit(path: Path) -> Dict[str, Any]:
                             "error": cached_value,
                         }
                     )
-                upper = value.upper()
-                for name in SPILL_FUNCTIONS:
-                    if name + "(" in upper:
+                for name in spill_functions(value):
+                    if name:
                         spill_cells.append(
                             {
                                 "sheet": sheet.title,
@@ -109,6 +109,8 @@ def _audit(path: Path) -> Dict[str, Any]:
                             }
                         )
                         break
+    workbook.close()
+    cached.close()
     return {
         "total_formulas": total_formulas,
         "total_errors": len(error_cells),
@@ -127,12 +129,15 @@ def _audit(path: Path) -> Dict[str, Any]:
 )
 def xlsx_recalc(args: Dict[str, Any]) -> Dict[str, Any]:
     require_openpyxl()
-    soffice = require_binary("soffice", tier=3, purpose="xlsx 公式重算")
+    # 重算走 Calc 组件：只装 Writer 的机器上 soffice 存在但重算必然失败。
+    soffice = require_libreoffice(purpose="xlsx 公式重算", component="calc")["path"]
     task_id = resolve_task_id(args)
     directory = task_dir(task_id)
     source = resolve_path(args.get("path"), args=args, field="path", must_exist=True)
+    if source.suffix.lower() != ".xlsx":
+        raise OfficeError("E_FORMAT_UNSUPPORTED", "重算只支持 .xlsx；不把含宏工作簿转换成无宏文件")
     output = resolve_output_path(
-        args.get("output_path"),
+        args.get("output_path") or (str(source) if args.get("in_place") else None),
         args=args,
         field="output_path",
         default_dir=directory / "out",
@@ -141,9 +146,11 @@ def xlsx_recalc(args: Dict[str, Any]) -> Dict[str, Any]:
         in_place=bool(args.get("in_place")),
     )
 
-    target_dir = directory / "tmp" / "recalc"
-    target_dir.mkdir(parents=True, exist_ok=True)
-    profile = _prepare_profile(directory)
+    if output.suffix.lower() != ".xlsx":
+        raise OfficeError("E_INPUT_SCHEMA", "重算 output_path 必须是 .xlsx")
+    # 每次调用独立目录，避免 soffice 返回 0 却未产物时误读上次结果。
+    target_dir = Path(tempfile.mkdtemp(prefix="recalc-", dir=directory / "tmp"))
+    profile = _prepare_profile(target_dir)
     try:
         run = _run_soffice(soffice, profile, source, target_dir)
     except subprocess.TimeoutExpired as exc:
@@ -178,8 +185,11 @@ def xlsx_recalc(args: Dict[str, Any]) -> Dict[str, Any]:
             remedy="改用 SUMIFS/INDEX/MATCH 等 Excel 2007 级函数后重新生成",
         )
 
-    output.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(recalculated, output)
+    if audit["total_errors"] or audit["missing_cache_count"]:
+        raise OfficeError("E_VALIDATION_FAILED", "公式重算存在错误或缺失缓存，未发布产物", data=audit,
+                          remedy="按 error_cells 和 cells_without_cached_value 修正工作簿后重算")
+    with atomic_output(output) as temporary:
+        shutil.copy2(recalculated, temporary)
     audit["bytes"] = output.stat().st_size
     audit["work_dir"] = str(directory)
     return {

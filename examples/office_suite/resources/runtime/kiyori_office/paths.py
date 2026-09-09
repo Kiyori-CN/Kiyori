@@ -15,13 +15,14 @@ import re
 import shutil
 import tempfile
 import uuid
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, Optional, Sequence
 
 from .protocol import OfficeError
 
 DEFAULT_WORK_ROOT = "~/kiyori_office/work"
-ILLEGAL_FILENAME_CHARS = re.compile(r"[\x00-\x1f<>:\"|?*]")
+ILLEGAL_FILENAME_CHARS = re.compile(r"[\x00-\x1f<>:\"|?*/\\]")
 
 
 def work_root() -> Path:
@@ -33,7 +34,7 @@ def resolve_task_id(args: Dict[str, Any]) -> str:
     raw = str(args.get("task_id") or "").strip()
     if not raw:
         return uuid.uuid4().hex[:12]
-    if not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", raw):
+    if raw in (".", "..") or not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", raw):
         raise OfficeError(
             "E_INPUT_SCHEMA",
             "task_id 只能包含字母、数字、点、下划线和连字符，且不超过 64 字符",
@@ -43,7 +44,9 @@ def resolve_task_id(args: Dict[str, Any]) -> str:
 
 
 def task_dir(task_id: str, *, create: bool = True) -> Path:
+    resolve_task_id({"task_id": task_id})
     directory = work_root() / task_id
+    _reject_symlink(directory)
     if create:
         (directory / "in").mkdir(parents=True, exist_ok=True)
         (directory / "out").mkdir(parents=True, exist_ok=True)
@@ -151,6 +154,44 @@ def resolve_output_path(
     return target
 
 
+def resolve_output_dir(
+    raw: Any,
+    *,
+    args: Dict[str, Any],
+    field: str,
+    default_dir: Path,
+    overwrite: bool,
+) -> Path:
+    """多产物命令的输出目录（office_render_preview / pdf_split / pdf_to_images 等）。
+
+    与 ``resolve_output_path`` 同语义，只是目标是一个目录：省略时用默认暂存目录，
+    显式传入时要求落在 allow_roots 内且非空目录冲突时报 E_PATH_EXISTS。
+    """
+
+    if raw:
+        target = resolve_path(raw, args=args, field=field, create_parent=True)
+    else:
+        target = default_dir
+    if target.exists() and not target.is_dir():
+        raise OfficeError(
+            "E_PATH_INVALID",
+            "%s 已存在且不是目录" % field,
+            detail=str(target),
+            remedy="改用目录路径，或换一个不冲突的 output_path",
+        )
+    # 只对调用方显式指定的目录做非空保护：默认暂存目录在同一 task_id 复用时
+    # 允许追加产物，避免 office_render_preview 二次调用被自己的上次输出挡住。
+    if raw and target.is_dir() and any(target.iterdir()) and not overwrite:
+        raise OfficeError(
+            "E_PATH_EXISTS",
+            "目标目录非空且未设置 overwrite=true",
+            detail=str(target),
+            remedy="改用新的 output_path，或显式传入 overwrite=true",
+        )
+    target.mkdir(parents=True, exist_ok=True)
+    return target
+
+
 def atomic_write_bytes(target: Path, payload: bytes) -> Path:
     target.parent.mkdir(parents=True, exist_ok=True)
     handle = tempfile.NamedTemporaryFile(dir=str(target.parent), prefix=".tmp-", delete=False)
@@ -167,6 +208,27 @@ def atomic_write_bytes(target: Path, payload: bytes) -> Path:
             pass
         raise
     return target
+
+
+@contextmanager
+def atomic_output(target: Path):
+    """同目录临时文件完成写入后才替换，保存失败不得截断原始文档。"""
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(dir=target.parent, prefix=".tmp-", suffix=target.suffix)
+    os.close(fd)
+    temporary = Path(name)
+    try:
+        yield temporary
+        with temporary.open("rb+") as handle:
+            os.fsync(handle.fileno())
+        os.replace(temporary, target)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def atomic_save(document, target: Path) -> None:
+    with atomic_output(target) as temporary:
+        document.save(str(temporary))
 
 
 def atomic_write_text(target: Path, text: str) -> Path:
@@ -209,13 +271,9 @@ def copy_into_staging(source: Path, task_id: str) -> Path:
 
 
 def clean_task(task_id: str) -> Dict[str, Any]:
-    directory = work_root() / task_id
-    if not directory.exists():
-        return {"removed": False, "work_dir": str(directory)}
-    if work_root() not in directory.resolve().parents:
-        raise OfficeError("E_PATH_INVALID", "拒绝清理工作区之外的路径", detail=str(directory))
-    shutil.rmtree(directory)
-    return {"removed": True, "work_dir": str(directory)}
+    # 兼容 Python 辅助入口也只返回计划，不留下绕过确认的直接递归删除通道。
+    from .storage import clean
+    return clean(task_id)
 
 
 def free_bytes(path: Optional[Path] = None) -> Optional[int]:

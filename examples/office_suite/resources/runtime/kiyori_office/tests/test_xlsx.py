@@ -128,3 +128,57 @@ def test_xlsx_recalc_requires_libreoffice(tmp_path, monkeypatch):
     assert result["ok"] is False
     assert result["error"]["code"] == "E_ENV_MISSING"
     assert result["error"]["remedy"]
+
+
+def test_xlsx_write_new_workbook_honours_sheet_name(tmp_path):
+    """真机报告：新建工作簿时传 sheet_name 报「工作表不存在」。"""
+
+    output = tmp_path / "budget.xlsx"
+    result = protocol.run(
+        "xlsx_write",
+        {
+            "rows": [["项目", "金额"], ["差旅", 1150]],
+            "sheet_name": "预算表",
+            "output_path": str(output),
+            "allow_roots": [str(tmp_path)],
+        },
+    )
+    assert result["ok"] is True, result
+    assert result["data"]["sheet"] == "预算表"
+    reopened = protocol.run("xlsx_info", {"path": str(output), "allow_roots": [str(tmp_path)]})
+    assert reopened["ok"] is True, reopened
+    assert [sheet["name"] for sheet in reopened["data"]["sheets"]] == ["预算表"]
+
+
+def test_xlsx_write_rejects_illegal_sheet_name(tmp_path):
+    result = protocol.run(
+        "xlsx_write",
+        {
+            "rows": [[1]],
+            "sheet_name": "非法/名称",
+            "output_path": str(tmp_path / "a.xlsx"),
+            "allow_roots": [str(tmp_path)],
+        },
+    )
+    assert result["ok"] is False
+    assert result["error"]["code"] == "E_INPUT_SCHEMA"
+    assert result["error"]["remedy"]
+
+
+def test_xlsx_write_missing_sheet_on_existing_workbook_still_fails(tmp_path):
+    """已有工作簿上查找不存在的表仍应报错，不能被「新建」语义吞掉。"""
+
+    path = _make_xlsx(tmp_path / "src.xlsx", [[1]])
+    result = protocol.run(
+        "xlsx_write",
+        {
+            "path": str(path),
+            "rows": [[2]],
+            "sheet_name": "不存在",
+            "output_path": str(tmp_path / "out.xlsx"),
+            "allow_roots": [str(tmp_path)],
+        },
+    )
+    assert result["ok"] is False
+    assert result["error"]["code"] == "E_INPUT_SCHEMA"
+    assert "工作表不存在" in result["error"]["message"]

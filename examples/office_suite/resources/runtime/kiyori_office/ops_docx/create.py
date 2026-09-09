@@ -7,9 +7,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from ..budget import bounded_text
-from ..paths import artifact, atomic_write_text, resolve_output_path, resolve_task_id, task_dir
+from ..paths import atomic_save, artifact, atomic_write_text, resolve_output_path, resolve_path, resolve_task_id, task_dir
 from ..protocol import OfficeError, engine_version, register
 from ..readers.docx_reader import docx_outline, require_docx
+from .layout import apply_layout, checked, font_style, paragraph_style, format_table, table_rows, layout_warnings, FONT_KEYS, PARAGRAPH_KEYS
 
 @register(
     "docx_create",
@@ -33,8 +34,12 @@ def docx_create(args: Dict[str, Any]) -> Dict[str, Any]:
         overwrite=bool(args.get("overwrite")),
     )
 
+    if output.suffix.lower() != ".docx":
+        raise OfficeError("E_INPUT_SCHEMA", "output_path 必须是 .docx")
     spec = args.get("spec")
     markdown = args.get("markdown")
+    if spec is not None and markdown is not None:
+        raise OfficeError("E_INPUT_SCHEMA", "spec 与 markdown 只能提供一个")
     if not spec and not markdown:
         raise OfficeError(
             "E_INPUT_SCHEMA",
@@ -43,13 +48,15 @@ def docx_create(args: Dict[str, Any]) -> Dict[str, Any]:
         )
 
     document = docx.Document()
+    if isinstance(spec, dict) and "layout" in spec:
+        apply_layout(document, spec["layout"])
     if markdown:
         _append_markdown(document, str(markdown), Pt)
     else:
         _append_spec(document, spec, Pt)
 
     output.parent.mkdir(parents=True, exist_ok=True)
-    document.save(str(output))
+    atomic_save(document, output)
     outline = docx_outline(output)
     return {
         "artifacts": [artifact(output)],
@@ -60,6 +67,7 @@ def docx_create(args: Dict[str, Any]) -> Dict[str, Any]:
             "headings": outline["headings"],
         },
         "engine_version": engine_version("python-docx"),
+        "warnings": layout_warnings(spec.get("layout", {})) if isinstance(spec, dict) else [],
     }
 
 
@@ -74,13 +82,27 @@ def _append_spec(document, spec: Any, pt) -> None:
         if not isinstance(block, dict):
             raise OfficeError("E_INPUT_SCHEMA", "spec.blocks[%d] 必须是对象" % index)
         kind = str(block.get("type") or "paragraph")
+        content = {"type", "text", "runs", "format"}
+        allowed = {
+            "heading": content | {"level"}, "title": content | {"level"},
+            "paragraph": content | {"style"},
+            "bullet": content | {"items"}, "number": content | {"items"},
+            "table": {"type", "rows", "style", "header", "column_widths_cm"},
+            "page_break": {"type"},
+        }
+        if kind in allowed:
+            # 内容字段拼错不能被当作空段落发布；错误精确到块索引。
+            checked(block, allowed[kind], "spec.blocks[%d]" % index)
+        paragraphs = []
         if kind in ("heading", "title"):
-            level = int(block.get("level") or (0 if kind == "title" else 1))
+            level = block.get("level", 0 if kind == "title" else 1)
+            if isinstance(level, bool) or not isinstance(level, int) or not 0 <= level <= 9:
+                raise OfficeError("E_INPUT_SCHEMA", "标题 level 必须为 0 到 9 的整数")
             text = str(block.get("text") or "")
             if level <= 0:
-                document.add_heading(text, level=0)
+                paragraph = document.add_heading(text, level=0)
             else:
-                document.add_heading(text, level=min(level, 9))
+                paragraph = document.add_heading(text, level=level)
         elif kind == "paragraph":
             paragraph = document.add_paragraph(str(block.get("text") or ""))
             style = block.get("style")
@@ -93,22 +115,33 @@ def _append_spec(document, spec: Any, pt) -> None:
                         "未知段落样式: %s" % style,
                         detail=str(exc),
                     ) from exc
-        elif kind == "bullet":
-            document.add_paragraph(str(block.get("text") or ""), style="List Bullet")
-        elif kind == "number":
-            document.add_paragraph(str(block.get("text") or ""), style="List Number")
+        elif kind in ("bullet", "number"):
+            style = "List Bullet" if kind == "bullet" else "List Number"
+            if "items" in block:
+                items = block["items"]
+                if "text" in block or "runs" in block:
+                    raise OfficeError("E_INPUT_SCHEMA", "spec.blocks[%d]: items 不能与 text/runs 混用" % index)
+                if not isinstance(items, list) or not items or not all(isinstance(item, str) for item in items):
+                    raise OfficeError("E_INPUT_SCHEMA", "spec.blocks[%d].items 必须是非空字符串数组" % index)
+                # 每项必须是真实列表段落，不能拼接成段内换行或只消费首项。
+                paragraphs = [document.add_paragraph(item, style=style) for item in items]
+            else:
+                if "text" not in block and not block.get("runs"):
+                    raise OfficeError("E_INPUT_SCHEMA", "spec.blocks[%d]: 列表需要 text、非空 runs 或 items" % index)
+                if "text" in block and not isinstance(block["text"], str):
+                    raise OfficeError("E_INPUT_SCHEMA", "spec.blocks[%d].text 必须是字符串" % index)
+                paragraph = document.add_paragraph(block.get("text", ""), style=style)
         elif kind == "table":
             rows = block.get("rows")
-            if not isinstance(rows, list) or not rows:
-                raise OfficeError("E_INPUT_SCHEMA", "table 需要非空 rows 数组")
-            columns = max(len(row) for row in rows if isinstance(row, list))
+            columns = table_rows(rows)
             table = document.add_table(rows=len(rows), cols=columns)
             table.style = str(block.get("style") or "Table Grid")
             for row_index, row in enumerate(rows):
                 if not isinstance(row, list):
                     raise OfficeError("E_INPUT_SCHEMA", "table.rows[%d] 必须是数组" % row_index)
                 for column_index, value in enumerate(row):
-                    table.cell(row_index, column_index).text = str(value)
+                    table.cell(row_index, column_index).text = "" if value is None else str(value)
+            format_table(table, rows, header=block.get("header", True), widths=block.get("column_widths_cm"))
         elif kind == "page_break":
             document.add_page_break()
         else:
@@ -117,6 +150,21 @@ def _append_spec(document, spec: Any, pt) -> None:
                 "不支持的 spec 块类型: %s" % kind,
                 remedy="使用 heading/title/paragraph/bullet/number/table/page_break",
             )
+
+        for paragraph in (paragraphs or [paragraph]) if kind in ("heading", "title", "paragraph", "bullet", "number") else []:
+            if "runs" in block:
+                runs = block["runs"]
+                if "text" in block or not isinstance(runs, list):
+                    raise OfficeError("E_INPUT_SCHEMA", "runs 必须是数组，且不能与 text 同时提供")
+                for item in runs:
+                    checked(item, FONT_KEYS | {"text"}, "runs[]")
+                    if not isinstance(item.get("text"), str):
+                        raise OfficeError("E_INPUT_SCHEMA", "runs[].text 必须是字符串")
+                    run = paragraph.add_run(item["text"])
+                    font_style(run.font, item)
+            if "format" in block:
+                config = checked(block["format"], PARAGRAPH_KEYS, "block.format")
+                paragraph_style(paragraph.paragraph_format, config)
 
 
 _MD_HEADING = re.compile(r"^(#{1,6})\s+(.*)$")
@@ -180,11 +228,9 @@ def docx_table(args: Dict[str, Any]) -> Dict[str, Any]:
 
     task_id = resolve_task_id(args)
     directory = task_dir(task_id)
-    source = Path(args["path"]).resolve()
-    if not source.is_file():
-        raise OfficeError("E_PATH_INVALID", "输入文件不存在", detail=str(source))
+    source = resolve_path(args.get("path"), args=args, field="path", must_exist=True)
     output = resolve_output_path(
-        args.get("output_path"),
+        args.get("output_path") or (str(source) if args.get("in_place") else None),
         args=args,
         field="output_path",
         default_dir=directory / "out",
@@ -195,29 +241,15 @@ def docx_table(args: Dict[str, Any]) -> Dict[str, Any]:
     document = docx.Document(str(source))
 
     rows = args.get("rows")
-    if not isinstance(rows, list) or not rows:
-        raise OfficeError("E_INPUT_SCHEMA", "rows 必须是非空二维数组")
+    columns = table_rows(rows)
     header = bool(args.get("header", True))
-    columns = max(len(row) for row in rows)
     table = document.add_table(rows=len(rows), cols=columns)
     table.style = str(args.get("style") or "Table Grid")
     for row_index, row in enumerate(rows):
         for column_index, value in enumerate(row):
-            table.cell(row_index, column_index).text = str(value)
-    widths = args.get("column_widths_cm")
-    if widths:
-        if len(widths) != columns:
-            raise OfficeError(
-                "E_INPUT_SCHEMA",
-                "column_widths_cm 长度必须与列数一致",
-                detail="columns=%d widths=%d" % (columns, len(widths)),
-            )
-        # 列宽与单元格宽度必须同单位同时设置，否则 Word 只认其中一处
-        for column_index, width in enumerate(widths):
-            for row in table.rows:
-                row.cells[column_index].width = Cm(float(width))
-            table.columns[column_index].width = Cm(float(width))
-    document.save(str(output))
+            table.cell(row_index, column_index).text = "" if value is None else str(value)
+    format_table(table, rows, header=header, widths=args.get("column_widths_cm"))
+    atomic_save(document, output)
     return {
         "artifacts": [artifact(output)],
         "data": {
@@ -244,11 +276,9 @@ def docx_style(args: Dict[str, Any]) -> Dict[str, Any]:
 
     task_id = resolve_task_id(args)
     directory = task_dir(task_id)
-    source = Path(args["path"]).resolve()
-    if not source.is_file():
-        raise OfficeError("E_PATH_INVALID", "输入文件不存在", detail=str(source))
+    source = resolve_path(args.get("path"), args=args, field="path", must_exist=True)
     output = resolve_output_path(
-        args.get("output_path"),
+        args.get("output_path") or (str(source) if args.get("in_place") else None),
         args=args,
         field="output_path",
         default_dir=directory / "out",
@@ -257,58 +287,14 @@ def docx_style(args: Dict[str, Any]) -> Dict[str, Any]:
         in_place=bool(args.get("in_place")),
     )
     document = docx.Document(str(source))
-    applied: List[str] = []
+    layout = {key: args[key] for key in
+        ("margins_cm", "default_font", "paragraph_styles", "page_setup", "header_footer") if key in args}
+    applied = apply_layout(document, layout)
 
-    margins = args.get("margins_cm")
-    if isinstance(margins, dict):
-        for section in document.sections:
-            if "top" in margins:
-                section.top_margin = Cm(float(margins["top"]))
-            if "bottom" in margins:
-                section.bottom_margin = Cm(float(margins["bottom"]))
-            if "left" in margins:
-                section.left_margin = Cm(float(margins["left"]))
-            if "right" in margins:
-                section.right_margin = Cm(float(margins["right"]))
-        applied.append("margins")
-
-    default_font = args.get("default_font")
-    if isinstance(default_font, dict):
-        style = document.styles["Normal"]
-        if default_font.get("name"):
-            style.font.name = str(default_font["name"])
-        if default_font.get("size_pt"):
-            style.font.size = Pt(float(default_font["size_pt"]))
-        applied.append("default_font")
-
-    paragraph_styles = args.get("paragraph_styles")
-    if isinstance(paragraph_styles, dict):
-        for name, config in paragraph_styles.items():
-            if not isinstance(config, dict):
-                continue
-            try:
-                style = document.styles[str(name)]
-            except KeyError as exc:
-                raise OfficeError(
-                    "E_INPUT_SCHEMA", "未知样式: %s" % name, detail=str(exc)
-                ) from exc
-            if config.get("size_pt"):
-                style.font.size = Pt(float(config["size_pt"]))
-            if config.get("bold") is not None:
-                style.font.bold = bool(config["bold"])
-            if config.get("color_rgb"):
-                from docx.shared import RGBColor  # type: ignore
-
-                style.font.color.rgb = RGBColor.from_string(str(config["color_rgb"]))
-            if config.get("alignment"):
-                style.paragraph_format.alignment = getattr(
-                    WD_ALIGN_PARAGRAPH, str(config["alignment"]).upper()
-                )
-            applied.append("style:%s" % name)
-
-    document.save(str(output))
+    atomic_save(document, output)
     return {
         "artifacts": [artifact(output)],
         "data": {"applied": applied, "work_dir": str(directory)},
+        "warnings": layout_warnings(layout),
         "engine_version": engine_version("python-docx"),
     }

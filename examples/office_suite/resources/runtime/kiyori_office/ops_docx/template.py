@@ -1,6 +1,6 @@
 """docx_from_template：{{变量}} 模板填充。
 
-模板段落先做 run 合并，避免变量被 Word 拆开后在 XML 里匹配不到。
+连续普通文字跨 run 单次匹配，保留未命中结构并避免替换值递归展开。
 """
 
 from __future__ import annotations
@@ -8,10 +8,10 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List
 
-from ..paths import artifact, resolve_output_path, resolve_path, resolve_task_id, task_dir
+from ..paths import atomic_save, artifact, resolve_output_path, resolve_path, resolve_task_id, task_dir
 from ..protocol import OfficeError, engine_version, register
 from ..readers.docx_reader import require_docx
-from .runs import merge_document_runs, replace_in_paragraph
+from .runs import document_text_stories, text_run_groups, _replace_runs
 
 VARIABLE_PATTERN = re.compile(r"\{\{\s*([A-Za-z0-9_.\-\u4e00-\u9fff]+)\s*\}\}")
 
@@ -42,38 +42,38 @@ def docx_from_template(args: Dict[str, Any]) -> Dict[str, Any]:
     )
 
     document = docx.Document(str(source))
-    merge_document_runs(document)
-
     used: List[str] = []
     missing: List[str] = []
+    replacements = 0
+    protected = []
 
-    def fill(paragraph) -> None:
-        combined = "".join(run.text or "" for run in paragraph.runs)
-        if not combined:
-            return
-        for name in VARIABLE_PATTERN.findall(combined):
-            if name not in variables:
-                if name not in missing:
-                    missing.append(name)
-                continue
-            if name not in used:
-                used.append(name)
-            replace_in_paragraph(
-                paragraph,
-                re.compile(r"\{\{\s*%s\s*\}\}" % re.escape(name)),
-                str(variables[name]),
-            )
+    def value_for(match):
+        name = match.group(1)
+        if name not in variables:
+            if name not in missing:
+                missing.append(name)
+            return None
+        if name not in used:
+            used.append(name)
+        return str(variables[name])
 
-    for paragraph in document.paragraphs:
-        fill(paragraph)
-    for table in document.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                for paragraph in cell.paragraphs:
-                    fill(paragraph)
-    for section in document.sections:
-        for paragraph in list(section.header.paragraphs) + list(section.footer.paragraphs):
-            fill(paragraph)
+    for story_index, story in enumerate(document_text_stories(document, include_headers=True)):
+        state = [0]
+        for paragraph_index, paragraph in enumerate(story):
+            groups = text_run_groups(paragraph, state)
+            available = sum(len(VARIABLE_PATTERN.findall(''.join(run.text for run in group))) for group in groups)
+            if len(VARIABLE_PATTERN.findall(paragraph.text)) > available:
+                protected.append({'story_index': story_index, 'xml_paragraph_index': paragraph_index})
+            for group in groups:
+                # 同一组仅扫描一次原始文本，从后向前按位置填充；值中的
+                # {{...}} 是用户数据，不能被后续变量意外递归展开。
+                replacements += _replace_runs(group, VARIABLE_PATTERN, value_for)
+
+    if protected and strict:
+        raise OfficeError('E_FORMAT_UNSUPPORTED', '模板标记位于域、链接或跨结构边界，未写入文件',
+                          detail='protected_placeholders=%s' % protected,
+                          data={'protected_placeholders': protected},
+                          remedy='将模板标记放入连续普通文字；strict=false 仅保留无法处理的标记，并不代表填充完整。')
 
     if missing and strict:
         raise OfficeError(
@@ -84,12 +84,15 @@ def docx_from_template(args: Dict[str, Any]) -> Dict[str, Any]:
         )
 
     output.parent.mkdir(parents=True, exist_ok=True)
-    document.save(str(output))
+    atomic_save(document, output)
     return {
         "artifacts": [artifact(output)],
+        "warnings": ([{'code': 'PROTECTED_TEMPLATE_MARKERS', 'message': '部分模板标记位于受保护结构内，已保留；见 data.protected_placeholders。'}] if protected else []),
         "data": {
             "used_variables": used,
             "missing_variables": missing,
+            "replacements": replacements,
+            "protected_placeholders": protected,
             "work_dir": str(directory),
         },
         "engine_version": engine_version("python-docx"),

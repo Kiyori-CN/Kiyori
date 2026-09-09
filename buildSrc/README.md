@@ -17,6 +17,11 @@
 | `VerifySingleDebugLauncherTask` | AGP 提供的合并 Manifest | 只读验证唯一 launcher，无输出文件 |
 
 任务通过带注解的 Gradle Property 显式声明输入、输出、本地缓存和机器工具链约束。
+
+内置 ToolPkg 收集固定运行目录（包括 `dist`、`resources`、`skills` 等），不会仅因
+manifest 的 `distribution.include` 写了一个新目录就自动收集。随包 Skill 的 Markdown
+经过文本体积和私钥检查；其资源路径必须在最终 `.toolpkg` 中核实。行为测试覆盖 Skill
+内容逐字节保留与确定性打包，避免“manifest 引用存在但资源漏打包”。
 不读取业务单例，不跨项目寻找 Android extension，不向源码 assets 写生成物。
 `@CacheableTask` 只用于确定性资产；本地 Rust/NDK 执行和无输出验证保持显式非缓存声明。
 

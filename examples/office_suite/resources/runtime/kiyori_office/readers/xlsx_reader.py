@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from datetime import date, datetime, time
 from typing import Any, Dict, List, Optional
 
 from ..protocol import OfficeError
@@ -14,6 +15,7 @@ from ..protocol import OfficeError
 try:
     import openpyxl  # type: ignore
     from openpyxl.utils import get_column_letter  # type: ignore
+    from openpyxl.utils.cell import range_boundaries
 
     OPENPYXL_AVAILABLE = True
 except Exception:  # pragma: no cover
@@ -72,10 +74,12 @@ def xlsx_info(path: Path) -> Dict[str, Any]:
     external_links = [str(link) for link in getattr(workbook, "_external_links", [])]
     formula_count = 0
     for sheet in workbook.worksheets:
-        for row in sheet.iter_rows():
-            for cell in row:
-                if isinstance(cell.value, str) and cell.value.startswith("="):
-                    formula_count += 1
+        # openpyxl 普通模式已经载入实际单元格；iter_rows 会把远端格式单元格之间的
+        # 整个矩形物化，稀疏表可能因此分配数十亿个空 Cell。
+        for cell in sheet._cells.values():
+            if cell.data_type == "f":
+                formula_count += 1
+    workbook.close()
     return {
         "sheets": sheets,
         "sheet_count": len(sheets),
@@ -120,29 +124,47 @@ def xlsx_read(
 
     result_sheets: List[Dict[str, Any]] = []
     for sheet in targets:
-        cell_range = _normalize_range(sheet, cell_range)
+        resolved_range = _normalize_range(sheet, cell_range)
+        try:
+            min_col, min_row, max_col, max_row = range_boundaries(resolved_range)
+            min_col, min_row = min_col or 1, min_row or 1
+            max_col, max_row = max_col or sheet.max_column, max_row or sheet.max_row
+            if min_col > max_col or min_row > max_row or min_row < 1 or min_col < 1:
+                raise ValueError("range is reversed or zero-based")
+        except (ValueError, TypeError) as exc:
+            raise OfficeError("E_INPUT_SCHEMA", "无效单元格范围", detail=resolved_range) from exc
+        # 先限制迭代范围，不能先 sheet[range] 物化百万行再截断。
+        last_row = min(max_row, min_row + max_rows - 1)
+        if max_col > 16384 or max_row > 1048576 or (last_row - min_row + 1) * (max_col - min_col + 1) > 100000:
+            raise OfficeError("E_BUDGET_EXCEEDED", "读取范围过大，请缩小 range 或 max_rows")
         rows: List[List[Dict[str, Any]]] = []
-        for row_index, row in enumerate(sheet[cell_range], start=1):
-            if row_index > max_rows:
-                break
+        for row in sheet.iter_rows(min_row=min_row, max_row=last_row, min_col=min_col, max_col=max_col):
             rendered: List[Dict[str, Any]] = []
             for cell in row:
                 value = cell.value
-                entry: Dict[str, Any] = {"ref": cell.coordinate, "value": value}
+                entry: Dict[str, Any] = {"ref": cell.coordinate, "value": _json_value(value)}
                 if isinstance(value, str) and value.startswith("="):
                     entry["formula"] = value
                     if cached is not None:
                         cached_sheet = cached[sheet.title]
-                        entry["cached_value"] = cached_sheet[cell.coordinate].value
+                        entry["cached_value"] = _json_value(cached_sheet[cell.coordinate].value)
                 rendered.append(entry)
             rows.append(rendered)
         result_sheets.append(
             {
                 "name": sheet.title,
-                "range": cell_range,
+                "range": resolved_range,
                 "rows": rows,
                 "row_count": len(rows),
-                "truncated": sheet.max_row > max_rows,
+                "truncated": max_row > last_row,
             }
         )
+    workbook.close()
+    if cached is not None:
+        cached.close()
     return {"sheets": result_sheets, "sheet_names": names}
+
+
+def _json_value(value):
+    # Excel 日期单元格必须能通过 CLI JSON 信封，保留 ISO 日期/时间语义。
+    return value.isoformat() if isinstance(value, (datetime, date, time)) else value

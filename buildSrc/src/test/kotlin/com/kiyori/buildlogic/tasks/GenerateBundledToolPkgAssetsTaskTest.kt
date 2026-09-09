@@ -83,4 +83,33 @@ class GenerateBundledToolPkgAssetsTaskTest {
         val error = assertThrows(IllegalStateException::class.java) { task.generate() }
         assertTrue(error.message.orEmpty().contains("blocked file"))
     }
+
+    @Test
+    fun bundlesSkillResourcesWithExactContentAndDeterministicBytes() {
+        val task = task("fixture\n")
+        packageSource("fixture")
+        val relative = "skills/office-core/SKILL.md"
+        val skill = File(temporary.root, "examples/fixture/$relative")
+        skill.parentFile.mkdirs()
+        skill.writeText("---\nname: office-core\ndescription: Office guide\n---\n中文指导\n")
+        task.generate()
+        val archive = File(temporary.root, "generated/packages/fixture.toolpkg")
+        val first = archive.readBytes()
+        ZipFile(archive).use { zip ->
+            assertArrayEquals(skill.readBytes(), zip.getInputStream(zip.getEntry(relative)).readBytes())
+        }
+        task.generate()
+        assertArrayEquals(first, archive.readBytes())
+    }
+
+    @Test
+    fun rejectsPrivateMaterialInsideSkillMarkdown() {
+        val task = task("fixture\n")
+        packageSource("fixture")
+        val skill = File(temporary.root, "examples/fixture/skills/office/SKILL.md")
+        skill.parentFile.mkdirs()
+        skill.writeText("-----BEGIN " + "PRIVATE KEY-----\nfixture")
+        val error = assertThrows(IllegalStateException::class.java) { task.generate() }
+        assertTrue(error.message.orEmpty().contains("private key material"))
+    }
 }

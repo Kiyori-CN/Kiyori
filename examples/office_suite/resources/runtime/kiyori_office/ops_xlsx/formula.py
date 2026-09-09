@@ -47,7 +47,23 @@ NEEDS_XLFN_PREFIX = (
     "MINIFS",
 )
 
-_FUNCTION_CALL = re.compile(r"(?<![A-Za-z0-9_.])([A-Za-z][A-Za-z0-9_.]*)\s*\(")
+def formula_functions(formula: str):
+    """用现有 Excel tokenizer 区分函数和字符串，不能改写引号内的用户文本。"""
+    from openpyxl.formula import Tokenizer
+    from openpyxl.formula.tokenizer import TokenizerError
+
+    try:
+        tokens = Tokenizer(formula).items
+    except (TokenizerError, IndexError) as exc:
+        raise OfficeError("E_INPUT_SCHEMA", "公式语法无法解析", detail=str(exc)) from exc
+    for token in tokens:
+        if token.type == "FUNC" and token.subtype == "OPEN":
+            raw = token.value[:-1].strip()
+            yield token, raw.split(".")[-1].upper()
+
+
+def spill_functions(formula: str) -> List[str]:
+    return [name for _, name in formula_functions(formula) if name in SPILL_FUNCTIONS]
 
 
 def normalize_formula(formula: str) -> str:
@@ -59,10 +75,15 @@ def normalize_formula(formula: str) -> str:
             "公式必须以 = 开头",
             detail=repr(formula)[:200],
         )
-    for match in _FUNCTION_CALL.finditer(formula):
-        raw_name = match.group(1)
-        name = raw_name.upper()
-        bare = name[6:] if name.startswith("_XLFN.") else name
+    # Token 对象保留完整词法信息；从原串按 token 长度定位，倒序改写避免偏移漂移。
+    from openpyxl.formula import Tokenizer
+    list(formula_functions(formula))  # 统一解析错误为输入错误
+    tokens = Tokenizer(formula).items
+    for token in tokens:
+        if token.type != "FUNC" or token.subtype != "OPEN":
+            continue
+        raw_name = token.value[:-1].strip()
+        bare = raw_name.split(".")[-1].upper()
         if bare in SPILL_FUNCTIONS:
             raise OfficeError(
                 "E_INPUT_SCHEMA",
@@ -70,14 +91,12 @@ def normalize_formula(formula: str) -> str:
                 detail=formula[:200],
                 remedy=(
                     "溢出函数在 openpyxl 产物中只有左上角有值且错误计数仍为 0，"
-                    "属于静默错误；改用 xlsx_aggregate 预聚合，或用 SUMIFS/INDEX/MATCH 等价写法"
+                    "属于静默错误；先预聚合数据，或用 SUMIFS/INDEX/MATCH 等价写法"
                 ),
             )
         if bare in NEEDS_XLFN_PREFIX and not raw_name.upper().startswith("_XLFN."):
-            formula = formula.replace(
-                match.group(0), match.group(0).replace(raw_name, "_xlfn." + raw_name, 1), 1
-            )
-    return formula
+            token.value = "_xlfn." + token.value
+    return "=" + "".join(token.value for token in tokens)
 
 
 def audit_formulas(path) -> Dict[str, Any]:
@@ -96,10 +115,9 @@ def audit_formulas(path) -> Dict[str, Any]:
                 value = cell.value
                 if not isinstance(value, str) or not value.startswith("="):
                     continue
-                upper = value.upper()
                 formula_cells.append({"sheet": sheet.title, "cell": cell.coordinate})
-                for name in SPILL_FUNCTIONS:
-                    if name + "(" in upper:
+                for name in spill_functions(value):
+                    if name:
                         spill_cells.append(
                             {
                                 "sheet": sheet.title,

@@ -16,14 +16,18 @@
     "include": [
       "manifest.json",
       "dist/**",
-      "resources/**"
+      "resources/**",
+      "skills/**"
     ]
   },
   "subpackages": [
     {
       "id": "office",
       "entry": "dist/packages/office.js",
-      "display_name": {"zh": "办公通用", "en": "Office Common"},
+      "display_name": {
+        "zh": "办公通用",
+        "en": "Office Common"
+      },
       "description": {
         "zh": "环境探测、统一读取、转换、预览、校验、差异与工作区管理。",
         "en": "Environment probing, unified reading, conversion, preview, validation, diff, and workspace management."
@@ -32,7 +36,10 @@
     {
       "id": "docx",
       "entry": "dist/packages/docx.js",
-      "display_name": {"zh": "Word 文档", "en": "Word Documents"},
+      "display_name": {
+        "zh": "Word 文档",
+        "en": "Word Documents"
+      },
       "description": {
         "zh": "DOCX 结构读取、创建、模板填充、跨 run 查找替换与表格/图片/样式编辑。",
         "en": "DOCX outline, creation, template fill, cross-run find/replace, tables, images, and styles."
@@ -41,7 +48,10 @@
     {
       "id": "xlsx",
       "entry": "dist/packages/xlsx.js",
-      "display_name": {"zh": "Excel 工作簿", "en": "Excel Workbooks"},
+      "display_name": {
+        "zh": "Excel 工作簿",
+        "en": "Excel Workbooks"
+      },
       "description": {
         "zh": "XLSX 读取、写入、格式、工作表操作与 LibreOffice 公式重算。",
         "en": "XLSX read/write, formatting, sheet operations, and LibreOffice recalculation."
@@ -50,7 +60,10 @@
     {
       "id": "pptx",
       "entry": "dist/packages/pptx.js",
-      "display_name": {"zh": "PowerPoint 演示", "en": "PowerPoint Decks"},
+      "display_name": {
+        "zh": "PowerPoint 演示",
+        "en": "PowerPoint Decks"
+      },
       "description": {
         "zh": "PPTX 结构读取、生成、模板填充、幻灯片结构维护与形状编辑。",
         "en": "PPTX outline, generation, template fill, slide structure maintenance, and shape editing."
@@ -59,7 +72,10 @@
     {
       "id": "pdf",
       "entry": "dist/packages/pdf.js",
-      "display_name": {"zh": "PDF 文档", "en": "PDF Documents"},
+      "display_name": {
+        "zh": "PDF 文档",
+        "en": "PDF Documents"
+      },
       "description": {
         "zh": "PDF 信息、提取、页级操作、表单、水印、加解密、转图与生成。",
         "en": "PDF info, extraction, page operations, forms, watermarks, encryption, images, and creation."
@@ -71,6 +87,31 @@
       "key": "kiyori_office_runtime",
       "path": "resources/runtime/kiyori_office",
       "mime": "inode/directory"
+    },
+    {
+      "key": "office_guide_core",
+      "path": "skills/kiyori-office-core/SKILL.md",
+      "mime": "text/markdown"
+    },
+    {
+      "key": "office_guide_docx",
+      "path": "skills/kiyori-docx/SKILL.md",
+      "mime": "text/markdown"
+    },
+    {
+      "key": "office_guide_xlsx",
+      "path": "skills/kiyori-xlsx/SKILL.md",
+      "mime": "text/markdown"
+    },
+    {
+      "key": "office_guide_pptx",
+      "path": "skills/kiyori-pptx/SKILL.md",
+      "mime": "text/markdown"
+    },
+    {
+      "key": "office_guide_pdf",
+      "path": "skills/kiyori-pdf/SKILL.md",
+      "mime": "text/markdown"
     }
   ]
 }

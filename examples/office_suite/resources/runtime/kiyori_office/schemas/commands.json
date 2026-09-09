@@ -68,9 +68,6 @@
         "type": "integer",
         "minimum": 1
       },
-      "with_anchors": {
-        "type": "boolean"
-      },
       "sheet_name": {
         "type": "string"
       },
@@ -155,9 +152,6 @@
       "overwrite": {
         "type": "boolean"
       },
-      "in_place": {
-        "type": "boolean"
-      },
       "options": {
         "type": "array",
         "items": {
@@ -167,10 +161,6 @@
       },
       "cjk_font": {
         "type": "string"
-      },
-      "timeout_ms": {
-        "type": "integer",
-        "minimum": 1000
       },
       "task_id": {
         "type": "string"
@@ -206,6 +196,13 @@
       "max_pages": {
         "type": "integer",
         "minimum": 1
+      },
+      "output_path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "overwrite": {
+        "type": "boolean"
       },
       "task_id": {
         "type": "string"
@@ -277,19 +274,29 @@
   },
   "office_workspace_clean": {
     "type": "object",
+    "required": [
+      "task_id"
+    ],
+    "additionalProperties": false,
     "properties": {
       "task_id": {
-        "type": "string"
+        "type": "string",
+        "minLength": 1
       },
-      "allow_roots": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        }
+      "scope": {
+        "type": "string",
+        "enum": [
+          "temporary",
+          "task"
+        ]
+      },
+      "confirm": {
+        "type": "boolean"
+      },
+      "plan_token": {
+        "type": "string"
       }
-    },
-    "additionalProperties": false
+    }
   },
   "docx_outline": {
     "type": "object",
@@ -626,6 +633,35 @@
           "type": "string",
           "minLength": 1
         }
+      },
+      "page_setup": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "width_cm": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 55.88
+          },
+          "height_cm": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 55.88
+          },
+          "header_distance_cm": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 55.88
+          },
+          "footer_distance_cm": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 55.88
+          }
+        }
+      },
+      "header_footer": {
+        "type": "object"
       }
     },
     "additionalProperties": false
@@ -685,6 +721,13 @@
       },
       "target_dir_name": {
         "type": "string"
+      },
+      "output_path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "overwrite": {
+        "type": "boolean"
       },
       "task_id": {
         "type": "string"
@@ -856,6 +899,10 @@
           "type": "string",
           "minLength": 1
         }
+      },
+      "range": {
+        "type": "string",
+        "minLength": 1
       }
     },
     "additionalProperties": false
@@ -1054,6 +1101,26 @@
           "type": "string",
           "minLength": 1
         }
+      },
+      "slide_size_cm": {
+        "type": "object",
+        "required": [
+          "width",
+          "height"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "width": {
+            "type": "number",
+            "minimum": 2.54,
+            "maximum": 142.24
+          },
+          "height": {
+            "type": "number",
+            "minimum": 2.54,
+            "maximum": 142.24
+          }
+        }
       }
     },
     "additionalProperties": false
@@ -1200,10 +1267,12 @@
         "type": "integer"
       },
       "width_emu": {
-        "type": "integer"
+        "type": "integer",
+        "minimum": 1
       },
       "height_emu": {
-        "type": "integer"
+        "type": "integer",
+        "minimum": 1
       },
       "output_path": {
         "type": "string"
@@ -1300,10 +1369,12 @@
         "type": "integer"
       },
       "width_emu": {
-        "type": "integer"
+        "type": "integer",
+        "minimum": 1
       },
       "height_emu": {
-        "type": "integer"
+        "type": "integer",
+        "minimum": 1
       },
       "output_path": {
         "type": "string"
@@ -1467,6 +1538,13 @@
       "range": {
         "type": "string",
         "minLength": 1
+      },
+      "output_path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "overwrite": {
+        "type": "boolean"
       },
       "task_id": {
         "type": "string"
@@ -1810,6 +1888,13 @@
         "type": "integer",
         "minimum": 1
       },
+      "output_path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
       "task_id": {
         "type": "string"
       },
@@ -1874,5 +1959,85 @@
       }
     },
     "additionalProperties": false
+  },
+  "xlsx_chart": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "sheet_name": {
+        "type": "string"
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "data_range": {
+        "type": "string",
+        "minLength": 1
+      },
+      "chart_type": {
+        "type": "string",
+        "enum": [
+          "column",
+          "bar",
+          "line",
+          "pie",
+          "scatter"
+        ]
+      },
+      "anchor": {
+        "type": "string",
+        "minLength": 1
+      },
+      "title": {
+        "type": "string"
+      },
+      "width_cm": {
+        "type": "number",
+        "minimum": 1,
+        "maximum": 100
+      },
+      "height_cm": {
+        "type": "number",
+        "minimum": 1,
+        "maximum": 100
+      },
+      "style": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 48
+      }
+    },
+    "required": [
+      "path",
+      "data_range"
+    ],
+    "additionalProperties": false
+  },
+  "office_workspace_status": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "offset": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 50
+      }
+    }
   }
 }

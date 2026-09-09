@@ -32,8 +32,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -68,8 +68,8 @@
         {
           "name": "slides",
           "description": {
-            "zh": "[{title,bullets,layout_index}]",
-            "en": "[{title,bullets,layout_index}]"
+            "zh": "页面数组：title/bullets/layout_index/title_size_pt/body_size_pt；可选 background_rgb、notes、elements。elements 支持 text/shape/table，厘米位置尺寸 left_cm/top_cm/width_cm/height_cm；文本支持 paragraphs 与字体排版。先读 pptx 指引。 chart 元素支持 column/bar/line/pie，categories 为分类数组，series:[{name,values}]，生成原生可编辑图表。",
+            "en": "Slide specs with title/bullets/layout_index and optional background_rgb, notes, elements. Elements: editable text/shape/table with left_cm/top_cm/width_cm/height_cm and paragraph styling. Read pptx guide. chart elements accept column/bar/line/pie, categories, series:[{name,values}] for native editable charts."
           },
           "type": "array",
           "required": true
@@ -113,8 +113,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -145,14 +145,23 @@
           },
           "type": "string",
           "required": false
+        },
+        {
+          "name": "slide_size_cm",
+          "type": "object",
+          "required": false,
+          "description": {
+            "zh": "幻灯片尺寸厘米 {width,height}；16:9 示例 {width:33.867,height:19.05}。",
+            "en": "Slide dimensions in cm {width,height}; 16:9 example {width:33.867,height:19.05}."
+          }
         }
       ]
     },
     {
       "name": "pptx_template_fill",
       "description": {
-        "zh": "基于模板填充 {{变量}}，保留模板设计。",
-        "en": "Fill {{variables}} in a template while preserving its design."
+        "zh": "填充模板变量，递归覆盖组合对象和表格，保留 run 格式与软换行边界；替换值不递归展开。",
+        "en": "Fill template variables recursively in groups and tables, preserving run formatting and soft-break boundaries without recursively expanding values."
       },
       "parameters": [
         {
@@ -167,8 +176,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -232,8 +241,8 @@
     {
       "name": "pptx_slide",
       "description": {
-        "zh": "增/删/复制/重排幻灯片，维护关系与 <p:sldIdLst>。结构性操作必须在内容编辑之前完成。",
-        "en": "Add/delete/duplicate/reorder slides while maintaining rels and <p:sldIdLst>. Finish structural changes before editing content."
+        "zh": "增/删/复制/重排幻灯片，维护关系与 <p:sldIdLst>。删除仍被页面或自定义放映引用的页会拒绝并定位；先完成结构操作再编辑内容。",
+        "en": "Add/delete/duplicate/reorder slides while maintaining relationships. Deletion rejects and locates incoming slide or custom-show references. Finish structure before content edits."
       },
       "parameters": [
         {
@@ -248,8 +257,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -356,8 +365,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -383,8 +392,8 @@
         {
           "name": "shape_name",
           "description": {
-            "zh": "形状名",
-            "en": "Shape name"
+            "zh": "顶层唯一形状名；多处命中时报错，使用 shape_index 消除歧义",
+            "en": "Unique top-level shape name; use shape_index if the name is ambiguous"
           },
           "type": "string",
           "required": false
@@ -536,8 +545,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -635,8 +644,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -680,8 +689,8 @@
         {
           "name": "width_emu",
           "description": {
-            "zh": "宽度 EMU",
-            "en": "Width EMU"
+            "zh": "图片宽度 EMU；只给宽度时等比推算高度，显式尺寸越界报错；1 cm=360000 EMU。",
+            "en": "Width in EMU; height inferred proportionally if omitted. Explicit out-of-slide bounds rejected. 1 cm=360000 EMU."
           },
           "type": "number",
           "required": false
@@ -761,8 +770,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true

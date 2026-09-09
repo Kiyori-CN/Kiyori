@@ -10,6 +10,7 @@ exports.asText = asText;
 exports.parseEnvelope = parseEnvelope;
 exports.isRegisteredCode = isRegisteredCode;
 exports.toFailure = toFailure;
+exports.envelopeFailure = envelopeFailure;
 exports.OFFICE_BEGIN = "__KIYORI_OFFICE_BEGIN__";
 exports.OFFICE_END = "__KIYORI_OFFICE_END__";
 exports.OFFICE_ERROR_CODES = [
@@ -31,7 +32,7 @@ function asText(value) {
 }
 function parseEnvelope(output) {
     const start = output.indexOf(exports.OFFICE_BEGIN);
-    const end = output.indexOf(exports.OFFICE_END, start + exports.OFFICE_BEGIN.length);
+    const end = output.lastIndexOf(exports.OFFICE_END);
     if (start < 0 || end < 0) {
         throw new Error(`E_PROTOCOL: office runtime sentinel missing; output tail=${output.slice(-400)}`);
     }
@@ -43,7 +44,9 @@ function parseEnvelope(output) {
     catch (error) {
         throw new Error(`E_PROTOCOL: office runtime envelope is not valid JSON: ${asText(error && error.message)}`);
     }
-    if (!parsed || typeof parsed !== "object") {
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)
+        || typeof parsed.ok !== "boolean"
+        || typeof parsed.command !== "string") {
         throw new Error("E_PROTOCOL: office runtime envelope root must be an object");
     }
     return parsed;
@@ -62,4 +65,14 @@ function toFailure(command, error) {
         code,
         command
     };
+}
+function envelopeFailure(envelope) {
+    const error = envelope.error;
+    if (!error || !isRegisteredCode(error.code)) {
+        return toFailure(envelope.command, new Error("E_PROTOCOL: 失败信封缺少已登记的错误码"));
+    }
+    return { success: false, command: envelope.command, code: error.code,
+        message: `${error.code}: ${error.message}${error.remedy ? `\n${error.remedy}` : ""}`,
+        detail: error.detail, remedy: error.remedy,
+        data: { ...envelope.data, error: { ...error } } };
 }

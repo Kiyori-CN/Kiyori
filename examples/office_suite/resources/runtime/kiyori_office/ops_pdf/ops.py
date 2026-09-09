@@ -9,8 +9,21 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from ..budget import bounded_text
-from ..env import require_binary, require_cjk_font_files, require_cjk_fonts
-from ..paths import artifact, resolve_output_path, resolve_path, resolve_task_id, task_dir
+from ..env import (
+    require_binary,
+    require_cjk_font_files,
+    require_cjk_fonts,
+    require_poppler_data,
+)
+from ..paths import (
+    atomic_output,
+    artifact,
+    resolve_output_dir,
+    resolve_output_path,
+    resolve_path,
+    resolve_task_id,
+    task_dir,
+)
 from ..protocol import OfficeError, engine_version, register
 from ..readers.pdf_reader import (
     parse_page_range,
@@ -75,7 +88,7 @@ def pdf_extract_command(args: Dict[str, Any]) -> Dict[str, Any]:
     if mode not in ("text", "layout", "tables"):
         raise OfficeError("E_INPUT_SCHEMA", "mode 必须是 text/layout/tables")
     if mode == "tables":
-        return _extract_tables(source, pages, directory, args)
+        return _extract_tables(source, pages if pages is not None else list(range(1, info["pages"] + 1)), directory, args)
     result = pdf_extract_text(source, pages=pages, layout=(mode == "layout"))
     budget = bounded_text(
         result["text"],
@@ -121,6 +134,7 @@ def _extract_tables(source: Path, pages: List[int], directory: Path, args: Dict[
         "data": {
             "tables": tables,
             "table_count": len(tables),
+            "pages": pages,
             "work_dir": str(directory),
         }
     }
@@ -157,8 +171,9 @@ def pdf_merge_command(args: Dict[str, Any]) -> Dict[str, Any]:
         for page in reader.pages:
             writer.add_page(page)
     output.parent.mkdir(parents=True, exist_ok=True)
-    with output.open("wb") as handle:
-        writer.write(handle)
+    with atomic_output(output) as temporary:
+        with temporary.open("wb") as handle:
+            writer.write(handle)
     return {
         "artifacts": [artifact(output)],
         "data": {
@@ -179,16 +194,22 @@ def pdf_split_command(args: Dict[str, Any]) -> Dict[str, Any]:
         raise OfficeError("E_INPUT_SCHEMA", "range 至少要包含一页")
     task_id = resolve_task_id(args)
     directory = task_dir(task_id)
-    target_dir = directory / "out" / (source.stem + "-split")
-    target_dir.mkdir(parents=True, exist_ok=True)
+    target_dir = resolve_output_dir(
+        args.get("output_path"),
+        args=args,
+        field="output_path",
+        default_dir=directory / "out" / (source.stem + "-split"),
+        overwrite=bool(args.get("overwrite")),
+    )
     reader = _open_reader(source)
     artifacts: List[Dict[str, Any]] = []
     for page_number in pages:
         writer = _writer()
         writer.add_page(reader.pages[page_number - 1])
         destination = target_dir / ("%s-page-%d.pdf" % (source.stem, page_number))
-        with destination.open("wb") as handle:
-            writer.write(handle)
+        with atomic_output(destination) as temporary:
+            with temporary.open("wb") as handle:
+                writer.write(handle)
         artifacts.append(artifact(destination))
     return {
         "artifacts": artifacts,
@@ -225,8 +246,9 @@ def pdf_reorder_command(args: Dict[str, Any]) -> Dict[str, Any]:
     for page_number in normalized:
         writer.add_page(reader.pages[page_number - 1])
     output.parent.mkdir(parents=True, exist_ok=True)
-    with output.open("wb") as handle:
-        writer.write(handle)
+    with atomic_output(output) as temporary:
+        with temporary.open("wb") as handle:
+            writer.write(handle)
     return {
         "artifacts": [artifact(output, role="in_place" if args.get("in_place") else "output")],
         "data": {"order": normalized, "work_dir": str(directory)},
@@ -250,8 +272,9 @@ def pdf_delete_pages_command(args: Dict[str, Any]) -> Dict[str, Any]:
     for page_number in keep:
         writer.add_page(reader.pages[page_number - 1])
     output.parent.mkdir(parents=True, exist_ok=True)
-    with output.open("wb") as handle:
-        writer.write(handle)
+    with atomic_output(output) as temporary:
+        with temporary.open("wb") as handle:
+            writer.write(handle)
     return {
         "artifacts": [artifact(output, role="in_place" if args.get("in_place") else "output")],
         "data": {"deleted": pages, "remaining": len(keep), "work_dir": str(directory)},
@@ -276,8 +299,9 @@ def pdf_rotate_command(args: Dict[str, Any]) -> Dict[str, Any]:
             page.rotate(angle)
         writer.add_page(page)
     output.parent.mkdir(parents=True, exist_ok=True)
-    with output.open("wb") as handle:
-        writer.write(handle)
+    with atomic_output(output) as temporary:
+        with temporary.open("wb") as handle:
+            writer.write(handle)
     return {
         "artifacts": [artifact(output, role="in_place" if args.get("in_place") else "output")],
         "data": {"angle": angle, "pages": pages, "work_dir": str(directory)},
@@ -339,8 +363,9 @@ def pdf_form_fill_command(args: Dict[str, Any]) -> Dict[str, Any]:
     except Exception:
         pass
     output.parent.mkdir(parents=True, exist_ok=True)
-    with output.open("wb") as handle:
-        writer.write(handle)
+    with atomic_output(output) as temporary:
+        with temporary.open("wb") as handle:
+            writer.write(handle)
     return {
         "artifacts": [artifact(output, role="in_place" if args.get("in_place") else "output")],
         "data": {"filled": sorted(values), "unknown": unknown, "work_dir": str(directory)},
@@ -358,10 +383,14 @@ def pdf_encrypt_command(args: Dict[str, Any]) -> Dict[str, Any]:
     reader = _open_reader(source)
     writer = _writer()
     writer.append(reader)
-    writer.encrypt(password, algorithm=str(args.get("algorithm") or "AES-256"))
+    try:
+        writer.encrypt(password, algorithm=str(args.get("algorithm") or "AES-256"))
+    except __import__('pypdf').errors.DependencyError as exc:
+        raise OfficeError("E_ENV_MISSING", "PDF AES 加密缺少 cryptography", remedy="用 office_env_setup(tier=1, components=['cryptography']) 获取安装计划") from exc
     output.parent.mkdir(parents=True, exist_ok=True)
-    with output.open("wb") as handle:
-        writer.write(handle)
+    with atomic_output(output) as temporary:
+        with temporary.open("wb") as handle:
+            writer.write(handle)
     return {
         "artifacts": [artifact(output, role="in_place" if args.get("in_place") else "output")],
         "data": {"algorithm": str(args.get("algorithm") or "AES-256"), "work_dir": str(directory)},
@@ -391,8 +420,9 @@ def pdf_decrypt_command(args: Dict[str, Any]) -> Dict[str, Any]:
     writer = _writer()
     writer.append(reader)
     output.parent.mkdir(parents=True, exist_ok=True)
-    with output.open("wb") as handle:
-        writer.write(handle)
+    with atomic_output(output) as temporary:
+        with temporary.open("wb") as handle:
+            writer.write(handle)
     return {
         "artifacts": [artifact(output, role="in_place" if args.get("in_place") else "output")],
         "data": {"work_dir": str(directory)},
@@ -414,7 +444,9 @@ def pdf_watermark_command(args: Dict[str, Any]) -> Dict[str, Any]:
     font_name = "Helvetica"
     if any(ord(char) > 127 for char in text):
         fonts = require_cjk_fonts(purpose="PDF 中文水印")
-        font_name = str(args.get("cjk_font") or (fonts["font_families"][0] if fonts["font_families"] else "STSong-Light"))
+        # 系统字体族并未在 ReportLab 注册。保持与 pdf_create 一致的 CID
+        # 默认字体，安装 Noto 不能改变水印默认值并导致 setFont 失败。
+        font_name = str(args.get("cjk_font") or "STSong-Light")
     watermark_buffer = io.BytesIO()
     pdf_canvas = canvas.Canvas(watermark_buffer, pagesize=A4)
     if font_name in ("STSong-Light", "STSong"):
@@ -431,7 +463,7 @@ def pdf_watermark_command(args: Dict[str, Any]) -> Dict[str, Any]:
                 "E_ENGINE_FAILED",
                 "水印字体不可用: %s" % font_name,
                 detail=str(exc),
-                remedy="先用 office_env_check 确认 fonts.font_families，再传入 cjk_font",
+                remedy="中文水印使用 STSong-Light；系统字体族不能直接当作 ReportLab 已注册字体。",
             ) from exc
     pdf_canvas.setFillGray(0.6)
     pdf_canvas.setFillAlpha(float(args.get("opacity") or 0.3))
@@ -448,12 +480,15 @@ def pdf_watermark_command(args: Dict[str, Any]) -> Dict[str, Any]:
     watermark_page = PdfReader(watermark_buffer).pages[0]
     reader = _open_reader(source)
     writer = _writer()
-    for page in reader.pages:
+    # 先把原文档交给 writer，保留表单/元数据，并在 writer 管理的页面上合成。
+    # pypdf 不保证在 reader 页面上 replace_contents 后再拷贝关系的可靠性。
+    writer.clone_document_from_reader(reader)
+    for page in writer.pages:
         page.merge_page(watermark_page)
-        writer.add_page(page)
     output.parent.mkdir(parents=True, exist_ok=True)
-    with output.open("wb") as handle:
-        writer.write(handle)
+    with atomic_output(output) as temporary:
+        with temporary.open("wb") as handle:
+            writer.write(handle)
     return {
         "artifacts": [artifact(output, role="in_place" if args.get("in_place") else "output")],
         "data": {"text": text, "font": font_name, "pages": info["pages"], "work_dir": str(directory)},
@@ -464,6 +499,8 @@ def pdf_watermark_command(args: Dict[str, Any]) -> Dict[str, Any]:
 @register("pdf_to_images", schema="pdf_to_images", engine="pdftoppm", next_actions=["office_read"])
 def pdf_to_images_command(args: Dict[str, Any]) -> Dict[str, Any]:
     pdftoppm = require_binary("pdftoppm", tier=2, purpose="PDF 转图")
+    # 同 office_render_preview：缺 CMap 时退出码为 0 但产出空白图。
+    require_poppler_data(purpose="PDF 转图")
     task_id = resolve_task_id(args)
     directory = task_dir(task_id)
     source = resolve_path(args.get("path"), args=args, field="path", must_exist=True)
@@ -472,8 +509,13 @@ def pdf_to_images_command(args: Dict[str, Any]) -> Dict[str, Any]:
         range(1, min(info["pages"], int(args.get("max_pages") or 8)) + 1)
     )
     dpi = int(args.get("dpi") or 150)
-    target_dir = directory / "out" / (source.stem + "-images")
-    target_dir.mkdir(parents=True, exist_ok=True)
+    target_dir = resolve_output_dir(
+        args.get("output_path"),
+        args=args,
+        field="output_path",
+        default_dir=directory / "out" / (source.stem + "-images"),
+        overwrite=bool(args.get("overwrite")),
+    )
     artifacts: List[Dict[str, Any]] = []
     for page in pages:
         prefix = target_dir / ("page-%03d" % page)
@@ -490,20 +532,10 @@ def pdf_to_images_command(args: Dict[str, Any]) -> Dict[str, Any]:
             str(source),
             str(prefix),
         ]
-        completed = subprocess.run(command, capture_output=True, text=True, timeout=300, check=False)
-        if completed.returncode != 0:
-            raise OfficeError(
-                "E_ENGINE_FAILED",
-                "pdftoppm 第 %d 页渲染失败" % page,
-                detail=(completed.stderr or "")[-1000:],
-            )
         produced = Path(str(prefix) + ".jpg")
-        if not produced.is_file():
-            raise OfficeError(
-                "E_ENGINE_FAILED",
-                "pdftoppm 未产出图片",
-                detail=str(produced),
-            )
+        from ..engines import run_output_command
+        run_output_command(command, produced, -1, timeout=300,
+                           purpose="pdftoppm 第 %d 页渲染" % page, output_is_prefix=True)
         artifacts.append(artifact(produced))
     return {
         "artifacts": artifacts,
@@ -551,9 +583,17 @@ def pdf_create_command(args: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(blocks, list) or not blocks:
         raise OfficeError("E_INPUT_SCHEMA", "blocks 必须是非空数组")
 
-    text_payload = "".join(
-        str(block.get("text") or "") for block in blocks if isinstance(block, dict)
-    )
+    # 必须覆盖 items：否则「只有 bullet 列表的中文文档」会漏检 CJK，
+    # 用 Helvetica 渲染出方框。
+    text_payload_parts: List[str] = []
+    for block in blocks:
+        if not isinstance(block, dict):
+            continue
+        text_payload_parts.append(str(block.get("text") or ""))
+        items = block.get("items")
+        if isinstance(items, list):
+            text_payload_parts.extend(str(item) for item in items)
+    text_payload = "".join(text_payload_parts)
     has_cjk = any(ord(char) > 127 for char in text_payload)
     font_name = "Helvetica"
     if has_cjk:
@@ -579,6 +619,25 @@ def pdf_create_command(args: Dict[str, Any]) -> Dict[str, Any]:
     heading_style = ParagraphStyle(
         "KiyoriHeading", parent=styles["Heading1"], fontName=font_name, fontSize=18, leading=24
     )
+    bullet_style = ParagraphStyle(
+        "KiyoriBullet",
+        parent=body_style,
+        leftIndent=14,
+        bulletIndent=2,
+        spaceAfter=2,
+    )
+
+    def bullet_items(block: Dict[str, Any], index: int) -> List[str]:
+        """bullet/list 块接受 items 数组或单个 text。"""
+
+        raw = block.get("items")
+        if raw is None:
+            text = str(block.get("text") or "")
+            return [text] if text else []
+        if not isinstance(raw, list):
+            raise OfficeError("E_INPUT_SCHEMA", "blocks[%d].items 必须是数组" % index)
+        return [str(item) for item in raw]
+
     flowables: List[Any] = []
     for index, block in enumerate(blocks):
         if not isinstance(block, dict):
@@ -589,26 +648,34 @@ def pdf_create_command(args: Dict[str, Any]) -> Dict[str, Any]:
             flowables.append(Paragraph(text, heading_style))
         elif kind == "paragraph":
             flowables.append(Paragraph(text, body_style))
+        elif kind in ("bullet", "bullets", "list"):
+            # 真机报告：bullet 曾报「不支持的 blocks 类型」；列表是文档生成的基础能力。
+            for item in bullet_items(block, index):
+                flowables.append(
+                    Paragraph(item, bullet_style, bulletText=str(block.get("bullet") or "\u2022"))
+                )
         elif kind == "spacer":
             flowables.append(Spacer(1, float(block.get("height_cm") or 0.5) * cm))
         else:
             raise OfficeError(
                 "E_INPUT_SCHEMA",
                 "不支持的 blocks 类型: %s" % kind,
-                remedy="使用 heading/title/paragraph/spacer",
+                remedy="使用 heading/title/paragraph/bullet/spacer",
             )
-        flowables.append(Spacer(1, 0.2 * cm))
+        if kind not in ("bullet", "bullets", "list"):
+            flowables.append(Spacer(1, 0.2 * cm))
 
     output.parent.mkdir(parents=True, exist_ok=True)
-    document = SimpleDocTemplate(
-        str(output),
-        pagesize=A4,
-        leftMargin=float(args.get("margin_cm") or 2) * cm,
-        rightMargin=float(args.get("margin_cm") or 2) * cm,
-        topMargin=float(args.get("margin_cm") or 2) * cm,
-        bottomMargin=float(args.get("margin_cm") or 2) * cm,
-    )
-    document.build(flowables)
+    with atomic_output(output) as temporary:
+        document = SimpleDocTemplate(
+            str(temporary),
+            pagesize=A4,
+            leftMargin=float(args.get("margin_cm") or 2) * cm,
+            rightMargin=float(args.get("margin_cm") or 2) * cm,
+            topMargin=float(args.get("margin_cm") or 2) * cm,
+            bottomMargin=float(args.get("margin_cm") or 2) * cm,
+        )
+        document.build(flowables)
     return {
         "artifacts": [artifact(output)],
         "data": {
@@ -640,11 +707,11 @@ def _create_with_external_engine(args: Dict[str, Any], engine: str) -> Dict[str,
         default_name=source.stem + ".pdf",
         overwrite=bool(args.get("overwrite")),
     )
-    require_cjk_font_files(purpose="中文 PDF 生成")
+    fonts = require_cjk_font_files(purpose="中文 PDF 生成")
     if engine == "pandoc":
         pandoc = require_binary("pandoc", tier=2, purpose="pandoc 生成 PDF")
         xelatex = require_binary("xelatex", tier=4, purpose="pandoc 生成 PDF")
-        fonts = require_cjk_font_files(purpose="中文 PDF 生成")
+        from ..env import select_system_cjk_font
         command = [
             pandoc,
             str(source),
@@ -653,20 +720,14 @@ def _create_with_external_engine(args: Dict[str, Any], engine: str) -> Dict[str,
             "--pdf-engine",
             xelatex,
             "-V",
-            "CJKmainfont=%s" % (args.get("cjk_font") or fonts["font_families"][0]),
+            "CJKmainfont=%s" % select_system_cjk_font(fonts, args.get('cjk_font')),
         ]
     else:
         weasyprint = require_binary("weasyprint", tier=2, purpose="weasyprint 生成 PDF")
         command = [weasyprint, str(source), str(output)]
-    output.parent.mkdir(parents=True, exist_ok=True)
-    completed = subprocess.run(command, capture_output=True, text=True, timeout=600, check=False)
-    if completed.returncode != 0:
-        raise OfficeError(
-            "E_ENGINE_FAILED",
-            "%s 生成 PDF 失败" % engine,
-            detail="exit=%s stderr=%s" % (completed.returncode, (completed.stderr or "")[-2000:]),
-            remedy="检查字体与引擎安装；不要自动切换引擎",
-        )
+    from ..engines import run_output_command
+    run_output_command(command, output, command.index("-o") + 1 if engine == "pandoc" else -1,
+                       timeout=600, purpose="%s 生成 PDF" % engine, validate=pdf_info)
     return {
         "artifacts": [artifact(output)],
         "data": {"engine": engine, "pages": pdf_info(output)["pages"], "work_dir": str(directory)},

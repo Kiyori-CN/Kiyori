@@ -67,7 +67,7 @@ export function asText(value: unknown): string {
 
 export function parseEnvelope(output: string): OfficeEnvelope {
   const start = output.indexOf(OFFICE_BEGIN);
-  const end = output.indexOf(OFFICE_END, start + OFFICE_BEGIN.length);
+  const end = output.lastIndexOf(OFFICE_END);
   if (start < 0 || end < 0) {
     throw new Error(
       `E_PROTOCOL: office runtime sentinel missing; output tail=${output.slice(-400)}`
@@ -84,7 +84,9 @@ export function parseEnvelope(output: string): OfficeEnvelope {
       )}`
     );
   }
-  if (!parsed || typeof parsed !== "object") {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)
+      || typeof (parsed as OfficeEnvelope).ok !== "boolean"
+      || typeof (parsed as OfficeEnvelope).command !== "string") {
     throw new Error("E_PROTOCOL: office runtime envelope root must be an object");
   }
   return parsed as OfficeEnvelope;
@@ -105,4 +107,15 @@ export function toFailure(command: string, error: unknown): OfficeFailure {
     code,
     command
   };
+}
+
+export function envelopeFailure(envelope: OfficeEnvelope): OfficeFailure & { data?: Record<string, unknown> } {
+  const error = envelope.error;
+  if (!error || !isRegisteredCode(error.code)) {
+    return toFailure(envelope.command, new Error("E_PROTOCOL: 失败信封缺少已登记的错误码"));
+  }
+  return { success: false, command: envelope.command, code: error.code,
+    message: `${error.code}: ${error.message}${error.remedy ? `\n${error.remedy}` : ""}`,
+    detail: error.detail, remedy: error.remedy,
+    data: { ...envelope.data, error: { ...error } } };
 }

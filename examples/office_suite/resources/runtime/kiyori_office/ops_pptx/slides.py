@@ -12,9 +12,10 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List
 
-from ..paths import artifact, resolve_output_path, resolve_path, resolve_task_id, task_dir
+from ..paths import atomic_save, artifact, resolve_output_path, resolve_path, resolve_task_id, task_dir
 from ..protocol import OfficeError, engine_version, register
 from ..readers.pptx_reader import pptx_outline, require_pptx
+from .layout import add_elements, measure, rgb, text_frame
 
 def _open(source: Path):
     from pptx import Presentation  # type: ignore
@@ -63,12 +64,12 @@ def _set_text_frame(text_frame, lines: List[str], size_pt=None) -> None:
         paragraph.text = str(line)
         if size_pt:
             for run in paragraph.runs:
-                run.font.size = Pt(float(size_pt))
+                run.font.size = Pt(measure(size_pt, "size_pt", 1, 400))
 
 
 def _apply_slide_spec(prs, spec: Dict[str, Any], layout_index: int) -> None:
     layouts = prs.slide_layouts
-    if layout_index >= len(layouts):
+    if layout_index < 0 or layout_index >= len(layouts):
         raise OfficeError(
             "E_INPUT_SCHEMA",
             "layout_index 越界: %s" % layout_index,
@@ -81,6 +82,11 @@ def _apply_slide_spec(prs, spec: Dict[str, Any], layout_index: int) -> None:
         raise OfficeError("E_INPUT_SCHEMA", "bullets 必须是字符串数组")
     if slide.shapes.title is not None and title:
         _set_text_frame(slide.shapes.title.text_frame, [title], spec.get("title_size_pt") or 36)
+    elif title:
+        # blank 等版式没有标题占位符，标题也必须落入真实文本框。
+        title_box = slide.shapes.add_textbox(int(prs.slide_width * 0.08), int(prs.slide_height * 0.05),
+                                           int(prs.slide_width * 0.84), int(prs.slide_height * 0.15))
+        _set_text_frame(title_box.text_frame, [title], spec.get("title_size_pt") or 36)
     body = None
     for placeholder in slide.placeholders:
         if placeholder.placeholder_format.idx == 1:
@@ -88,7 +94,7 @@ def _apply_slide_spec(prs, spec: Dict[str, Any], layout_index: int) -> None:
             break
     if body is not None and bullets:
         _set_text_frame(body.text_frame, [str(item) for item in bullets], spec.get("body_size_pt") or 16)
-    elif bullets and title:
+    elif bullets:
         # 没有内容占位符时显式加一个文本框，避免文字落空
         textbox = slide.shapes.add_textbox(
             prs.slide_width * 0.08,
@@ -97,6 +103,15 @@ def _apply_slide_spec(prs, spec: Dict[str, Any], layout_index: int) -> None:
             prs.slide_height * 0.65,
         )
         _set_text_frame(textbox.text_frame, [str(item) for item in bullets], spec.get("body_size_pt") or 16)
+    if "background_rgb" in spec:
+        slide.background.fill.solid()
+        slide.background.fill.fore_color.rgb = rgb(spec["background_rgb"])
+    if "elements" in spec:
+        add_elements(prs, slide, spec["elements"])
+    if "notes" in spec:
+        if not isinstance(spec["notes"], str):
+            raise OfficeError("E_INPUT_SCHEMA", "notes 必须是字符串")
+        slide.notes_slide.notes_text_frame.text = spec["notes"]
 
 
 @register(
@@ -118,13 +133,20 @@ def pptx_create(args: Dict[str, Any]) -> Dict[str, Any]:
         prs = _open(resolve_path(template, args=args, field="template_path", must_exist=True))
     else:
         prs = Presentation()
-    default_layout = int(args.get("layout_index") or 1)
+    if "slide_size_cm" in args:
+        from pptx.util import Cm
+        size = args["slide_size_cm"]
+        if not isinstance(size, dict) or set(size) != {"width", "height"}:
+            raise OfficeError("E_INPUT_SCHEMA", "slide_size_cm 需要 width 和 height")
+        prs.slide_width = Cm(measure(size["width"], "slide_size_cm.width", 2.54, 142.24))
+        prs.slide_height = Cm(measure(size["height"], "slide_size_cm.height", 2.54, 142.24))
+    default_layout = int(args.get("layout_index", 1))
     for index, spec in enumerate(slides):
         if not isinstance(spec, dict):
             raise OfficeError("E_INPUT_SCHEMA", "slides[%d] 必须是对象" % index)
         _apply_slide_spec(prs, spec, int(spec.get("layout_index", default_layout)))
     output.parent.mkdir(parents=True, exist_ok=True)
-    prs.save(str(output))
+    atomic_save(prs, output)
     outline = pptx_outline(output)
     return {
         "artifacts": [artifact(output)],
@@ -154,9 +176,9 @@ def pptx_slide(args: Dict[str, Any]) -> Dict[str, Any]:
         raise OfficeError("E_INPUT_SCHEMA", "operation 必须是 add/delete/duplicate/move")
 
     if operation == "add":
-        layout_index = int(args.get("layout_index") or 1)
+        layout_index = int(args.get("layout_index", 1))
         layouts = prs.slide_layouts
-        if layout_index >= len(layouts):
+        if layout_index < 0 or layout_index >= len(layouts):
             raise OfficeError(
                 "E_INPUT_SCHEMA",
                 "layout_index 越界: %s" % layout_index,
@@ -189,7 +211,7 @@ def pptx_slide(args: Dict[str, Any]) -> Dict[str, Any]:
             _move_slide(prs, index, target)
 
     output.parent.mkdir(parents=True, exist_ok=True)
-    prs.save(str(output))
+    atomic_save(prs, output)
     outline = pptx_outline(output)
     return {
         "artifacts": [artifact(output, role="in_place" if args.get("in_place") else "output")],
@@ -210,7 +232,7 @@ def _sld_id_lst(prs):
 def _slide_part_rId(prs, index: int) -> str:
     slide_part = list(prs.slides)[index].part
     for rId, rel in prs.part.rels.items():
-        if rel.target_part is slide_part:
+        if not rel.is_external and rel.target_part is slide_part:
             return rId
     raise OfficeError(
         "E_ENGINE_FAILED",
@@ -224,12 +246,37 @@ def _delete_slide(prs, index: int) -> None:
 
     slide_list = list(prs.slides)
     slide_id = slide_list[index].slide_id
+    target = slide_list[index].part
+    incoming = []
+    r_id = _slide_part_rId(prs, index)
+    relation_id = '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id'
+    main_entry = list(_sld_id_lst(prs))[index]
+    for node in prs.part._element.iter():
+        if node is not main_entry and (node.get(relation_id) == r_id or
+                (node.tag.rsplit('}', 1)[-1] == 'sldId' and node.get('id') == str(slide_id))):
+            incoming.append('presentation.xml#%s' % node.tag.rsplit('}', 1)[-1])
+    # OPC 保存沿关系遍历。有其他页/母版引用时只去掉 sldId 会把“已删除”
+    # 页面留在包中，链接仍能跳到隐藏内容。先诊断，不静默删链接或改目标。
+    for part in prs.part.package.iter_parts():
+        if part is prs.part or part is target:
+            continue
+        for relation in part.rels.values():
+            if not relation.is_external and relation.target_part is target:
+                # 被删页自己的备注回链会随该页一起失去可达性。
+                if slide_list[index].has_notes_slide and part is slide_list[index].notes_slide.part:
+                    continue
+                incoming.append('%s#%s' % (part.partname, relation.rId))
+    if incoming:
+        raise OfficeError('E_FORMAT_UNSUPPORTED', '目标幻灯片仍被引用，删除未执行',
+                          detail='slide_index=%d incoming=%s' % (index, ', '.join(incoming)),
+                          data={'slide_index': index, 'incoming_references': incoming},
+                          remedy='先在支持链接编辑的演示文稿编辑器中移除或重定向这些引用，再删除；不会自动改变导航意图。')
+    # 删除列表项后 index 已指向下一张（末页则越界），先保存原始关系身份。
     sld_id_lst = _sld_id_lst(prs)
     for element in list(sld_id_lst):
         if element.get("id") == str(slide_id):
             sld_id_lst.remove(element)
             break
-    r_id = _slide_part_rId(prs, index)
     prs.part.drop_rel(r_id)
 
 
@@ -240,28 +287,64 @@ def _duplicate_slide(prs, index: int):
     source_slide = slide_list[index]
     layout = source_slide.slide_layout
     new_slide = prs.slides.add_slide(layout)
-    _clear_slide_shapes(new_slide)
+    # 页副本必须拥有独立 notes/chart/embedded workbook。图片、母版、主题等
+    # 不可变资源可以共享；内部链接到其他页保持原目标，自链接指向副本。
+    from pptx.opc.packuri import PackURI
+    package = prs.part.package
+    used = {str(part.partname) for part in package.iter_parts()}
+    cloned = {source_slide.part: new_slide.part}
+    shared = {"slideLayout", "slideMaster", "notesMaster", "theme", "image", "slide"}
 
-    r_id_map = {}
-    for r_id, rel in source_slide.part.rels.items():
-        if rel.reltype.endswith("/slideLayout"):
-            continue
-        if rel.is_external:
-            new_r_id = new_slide.part.rels.get_or_add_ext_rel(rel.reltype, rel.target_ref)
-        else:
-            new_r_id = new_slide.part.relate_to(rel.target_part, rel.reltype)
-        r_id_map[r_id] = new_r_id
+    def clone_part(part):
+        if part in cloned:
+            return cloned[part]
+        original = str(part.partname)
+        stem, dot, extension = original.rpartition(".")
+        stem = re.sub(r"[0-9]+$", "", stem)
+        number = 1
+        while "%s%d.%s" % (stem, number, extension) in used:
+            number += 1
+        name = "%s%d.%s" % (stem, number, extension)
+        used.add(name)
+        duplicate = type(part).load(PackURI(name), part.content_type, package, part.blob)
+        cloned[part] = duplicate
+        mapping = copy_relationships(part, duplicate)
+        if hasattr(duplicate, "_element"):
+            remap(duplicate._element, mapping)
+        return duplicate
 
-    namespace = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
-    for shape in source_slide.shapes:
-        element = copy_module.deepcopy(shape._element)
+    def copy_relationships(source, target):
+        mapping = {}
+        for old_id, relation in source.rels.items():
+            if relation.is_external:
+                new_id = target.rels.get_or_add_ext_rel(relation.reltype, relation.target_ref)
+            else:
+                part = relation.target_part
+                kind = relation.reltype.rsplit("/", 1)[-1]
+                destination = cloned.get(part)
+                if destination is None:
+                    destination = part if kind in shared else clone_part(part)
+                new_id = target.relate_to(destination, relation.reltype)
+            mapping[old_id] = new_id
+        return mapping
+
+    def remap(element, mapping):
+        namespace = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
         for node in element.iter():
             for attribute in list(node.attrib):
-                if attribute.startswith(namespace):
-                    old = node.attrib[attribute]
-                    if old in r_id_map:
-                        node.attrib[attribute] = r_id_map[old]
-        new_slide.shapes._spTree.append(element)  # noqa: SLF001
+                if attribute.startswith(namespace) and node.attrib[attribute] in mapping:
+                    node.attrib[attribute] = mapping[node.attrib[attribute]]
+
+    mapping = copy_relationships(source_slide.part, new_slide.part)
+    element = copy_module.deepcopy(source_slide._element)
+    remap(element, mapping)
+    # 复制整个 slide 根内容，保留背景、过渡、动画等；此时尚未访问 shapes 缓存。
+    new_slide._element.attrib.clear()
+    new_slide._element.attrib.update(element.attrib)
+    for child in list(new_slide._element):
+        new_slide._element.remove(child)
+    for child in list(element):
+        new_slide._element.append(child)
 
     sld_id_lst = _sld_id_lst(prs)
     new_element = list(sld_id_lst)[-1]
@@ -298,7 +381,7 @@ def pptx_clean(args: Dict[str, Any]) -> Dict[str, Any]:
     prs = _open(source)
     before = len(prs.slides._sldIdLst)  # noqa: SLF001
     output.parent.mkdir(parents=True, exist_ok=True)
-    prs.save(str(output))
+    atomic_save(prs, output)
     after = len(_open(output).slides._sldIdLst)  # noqa: SLF001
     return {
         "artifacts": [artifact(output, role="in_place" if args.get("in_place") else "output")],
@@ -330,33 +413,48 @@ def pptx_template_fill(args: Dict[str, Any]) -> Dict[str, Any]:
     prs = _open(source)
     used: List[str] = []
     missing: List[str] = []
+    replacements = 0
+
+    def value_for(match):
+        name = match.group(1)
+        if name not in variables:
+            if name not in missing:
+                missing.append(name)
+            return None
+        if name not in used:
+            used.append(name)
+        return str(variables[name])
 
     def replace_in_frame(text_frame) -> None:
-        for paragraph in text_frame.paragraphs:
-            for run in paragraph.runs:
-                if "{{" not in (run.text or ""):
-                    continue
-                for name in VARIABLE_PATTERN.findall(run.text):
-                    if name in variables:
-                        run.text = VARIABLE_PATTERN.sub(
-                            lambda match: str(variables[match.group(1)])
-                            if match.group(1) in variables
-                            else match.group(0),
-                            run.text,
-                        )
-                        if name not in used:
-                            used.append(name)
-                    elif name not in missing:
-                        missing.append(name)
+        from ..ops_docx.runs import _replace_runs
+        nonlocal replacements
 
-    for slide in prs.slides:
-        for shape in slide.shapes:
+        for paragraph in text_frame.paragraphs:
+            # 软换行和自动域不属于普通 run；不能把边界两侧拼成一个变量。
+            groups = []
+            for run in paragraph.runs:
+                if not groups or groups[-1][-1]._r.getnext() is not run._r:
+                    groups.append([])
+                groups[-1].append(run)
+            for runs in groups:
+                replacements += _replace_runs(runs, VARIABLE_PATTERN, value_for)
+
+    def fill_shapes(shapes):
+        for shape in shapes:
+            if hasattr(shape, 'shapes'):
+                fill_shapes(shape.shapes)
             if shape.has_text_frame:
                 replace_in_frame(shape.text_frame)
             if shape.has_table:
+                seen = set()
                 for row in shape.table.rows:
                     for cell in row.cells:
+                        if cell._tc in seen:
+                            continue
+                        seen.add(cell._tc)
                         replace_in_frame(cell.text_frame)
+    for slide in prs.slides:
+        fill_shapes(slide.shapes)
     if missing and bool(args.get("strict", True)):
         raise OfficeError(
             "E_ANCHOR_NOT_FOUND",
@@ -365,12 +463,13 @@ def pptx_template_fill(args: Dict[str, Any]) -> Dict[str, Any]:
             remedy="补齐 variables，或显式设置 strict=false",
         )
     output.parent.mkdir(parents=True, exist_ok=True)
-    prs.save(str(output))
+    atomic_save(prs, output)
     return {
         "artifacts": [artifact(output)],
         "data": {
             "used_variables": used,
             "missing_variables": missing,
+            "replacements": replacements,
             "work_dir": str(directory),
         },
         "engine_version": engine_version("python-pptx"),

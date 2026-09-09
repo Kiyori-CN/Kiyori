@@ -10,7 +10,6 @@ from .budget import bounded_text
 from .paths import (
     artifact,
     atomic_write_text,
-    clean_task,
     resolve_path,
     resolve_task_id,
     sanitize_filename,
@@ -336,5 +335,12 @@ def office_workspace_init(args: Dict[str, Any]) -> Dict[str, Any]:
 
 @register("office_workspace_clean", schema="office_workspace_clean")
 def office_workspace_clean(args: Dict[str, Any]) -> Dict[str, Any]:
-    task_id = resolve_task_id(args)
-    return {"data": clean_task(task_id)}
+    from .storage import clean
+    return {"data": clean(args.get("task_id"), scope=args.get("scope", "temporary"),
+                          confirm=args.get("confirm", False), plan_token=args.get("plan_token"))}
+
+
+@register("office_workspace_status", schema="office_workspace_status", next_actions=["office_workspace_clean"])
+def office_workspace_status(args: Dict[str, Any]) -> Dict[str, Any]:
+    from .storage import list_tasks
+    return {"data": list_tasks(offset=args.get("offset", 0), limit=args.get("limit", 20))}

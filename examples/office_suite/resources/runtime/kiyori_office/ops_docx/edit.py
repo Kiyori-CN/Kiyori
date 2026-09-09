@@ -5,10 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List
 
-from ..paths import artifact, resolve_output_path, resolve_path, resolve_task_id, task_dir
+from ..paths import atomic_save, artifact, resolve_output_path, resolve_path, resolve_task_id, task_dir
 from ..protocol import OfficeError, engine_version, register
 from ..readers.docx_reader import docx_outline, require_docx
-from .runs import compile_pattern, merge_document_runs, merge_runs, replace_in_paragraph
+from .runs import compile_pattern, merge_runs, merge_text_group, text_run_groups, document_text_stories, _replace_runs
 
 def _open_document(source: Path):
     import docx  # type: ignore
@@ -97,6 +97,7 @@ def docx_edit(args: Dict[str, Any]) -> Dict[str, Any]:
 
     document = _open_document(source)
     paragraph = _resolve_paragraph(document, anchor)
+    _check_plain_paragraph(document, paragraph, operation)
     if operation == "replace":
         if "text" not in args:
             raise OfficeError("E_INPUT_SCHEMA", "replace 需要 text")
@@ -108,8 +109,7 @@ def docx_edit(args: Dict[str, Any]) -> Dict[str, Any]:
         else:
             paragraph.add_run(str(args["text"]))
     elif operation in ("insert_before", "insert_after"):
-        new_paragraph = _copy_paragraph(paragraph)
-        new_paragraph.text = str(args.get("text") or "")
+        new_paragraph = _copy_paragraph(paragraph, str(args.get("text") or ""))
         if operation == "insert_before":
             paragraph._element.addprevious(new_paragraph._element)
         else:
@@ -118,7 +118,7 @@ def docx_edit(args: Dict[str, Any]) -> Dict[str, Any]:
         paragraph._element.getparent().remove(paragraph._element)
 
     output.parent.mkdir(parents=True, exist_ok=True)
-    document.save(str(output))
+    atomic_save(document, output)
     return {
         "artifacts": [
             artifact(output, role="in_place" if args.get("in_place") else "output")
@@ -128,12 +128,57 @@ def docx_edit(args: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _copy_paragraph(paragraph):
-    import copy as copy_module
+def _check_plain_paragraph(document, paragraph, operation):
+    from docx.oxml.ns import qn
 
+    # 整段替换/删除没有对象或引用语义，不得静默损坏公式、域和跨段书签。
+    allowed = {qn('w:p'), qn('w:pPr'), qn('w:r'), qn('w:rPr'), qn('w:t'), qn('w:br'), qn('w:tab'), qn('w:cr')}
+    structures = set()
+    for child in paragraph._p if operation in ('replace', 'delete') else []:
+        if child.tag == qn('w:pPr'):
+            if operation == 'delete' and child.find(qn('w:sectPr')) is not None:
+                structures.add('sectPr')
+            continue
+        if child.tag == qn('w:r'):
+            structures.update(node.tag.rsplit('}', 1)[-1] for node in child if node.tag not in allowed)
+        else:
+            structures.add(child.tag.rsplit('}', 1)[-1])
+    state = [0]
+    for story in document_text_stories(document):
+        for candidate in story:
+            if candidate._p is paragraph._p:
+                if operation == 'insert_after':
+                    text_run_groups(candidate, state)
+                if state[0]:
+                    structures.add('field_continuation')
+                break
+            text_run_groups(candidate, state)
+    if structures:
+        index = next(i for i, item in enumerate(document.paragraphs) if item._p is paragraph._p)
+        raise OfficeError('E_FORMAT_UNSUPPORTED', '段落编辑涉及受保护结构，未写入文件',
+                          detail='paragraph_index=%d operation=%s structures=%s' % (index, operation, ', '.join(sorted(structures))),
+                          remedy='普通文字使用 docx_find_replace；域、公式、书签或分节结构请在支持它们的文档编辑器中修改。')
+
+
+def _copy_paragraph(paragraph, text):
+    import copy as copy_module
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
     from docx.text.paragraph import Paragraph  # type: ignore
 
-    return Paragraph(copy_module.deepcopy(paragraph._element), paragraph._parent)
+    # 插入继承视觉格式，不复制原段的分节、书签、对象身份或修订历史。
+    element = OxmlElement('w:p')
+    if paragraph._p.pPr is not None:
+        properties = copy_module.deepcopy(paragraph._p.pPr)
+        for child in list(properties):
+            if child.tag in (qn('w:sectPr'), qn('w:pPrChange')):
+                properties.remove(child)
+        element.append(properties)
+    result = Paragraph(element, paragraph._parent)
+    run = result.add_run(text)
+    if paragraph.runs and paragraph.runs[0]._r.rPr is not None:
+        run._r.insert(0, copy_module.deepcopy(paragraph.runs[0]._r.rPr))
+    return result
 
 
 @register(
@@ -143,7 +188,7 @@ def _copy_paragraph(paragraph):
     next_actions=["docx_outline", "office_validate", "office_render_preview"],
 )
 def docx_find_replace(args: Dict[str, Any]) -> Dict[str, Any]:
-    """跨 run 合并后查找替换，保留格式。"""
+    """仅合并命中文字组后替换，保留未命中结构和格式。"""
 
     require_docx()
     task_id, directory, source, output = _prepare(args)
@@ -158,26 +203,25 @@ def docx_find_replace(args: Dict[str, Any]) -> Dict[str, Any]:
         raise OfficeError("E_INPUT_SCHEMA", "scope 必须是 all/paragraphs/tables")
 
     document = _open_document(source)
-    merge_stats = merge_document_runs(document)
     replacements = 0
     paragraphs_touched = 0
-
-    def apply_to(paragraph) -> None:
-        nonlocal replacements, paragraphs_touched
-        hits = replace_in_paragraph(paragraph, pattern, replacement)
-        if hits:
+    runs_merged = 0
+    from docx.oxml.ns import qn
+    for story in document_text_stories(document):
+        state = [0]
+        for paragraph in story:
+            groups = text_run_groups(paragraph, state)
+            in_table = any(parent.tag == qn('w:tc') for parent in paragraph._p.iterancestors())
+            if (scope == 'paragraphs' and in_table) or (scope == 'tables' and not in_table):
+                continue
+            hits = 0
+            for group in groups:
+                if pattern.search(''.join(run.text for run in group)) is not None:
+                    group, merged = merge_text_group(group)
+                    runs_merged += merged
+                    hits += _replace_runs(group, pattern, replacement)
             replacements += hits
-            paragraphs_touched += 1
-
-    if scope in ("all", "paragraphs"):
-        for paragraph in document.paragraphs:
-            apply_to(paragraph)
-    if scope in ("all", "tables"):
-        for table in document.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    for paragraph in cell.paragraphs:
-                        apply_to(paragraph)
+            paragraphs_touched += bool(hits)
     if replacements == 0:
         raise OfficeError(
             "E_ANCHOR_NOT_FOUND",
@@ -187,7 +231,7 @@ def docx_find_replace(args: Dict[str, Any]) -> Dict[str, Any]:
         )
 
     output.parent.mkdir(parents=True, exist_ok=True)
-    document.save(str(output))
+    atomic_save(document, output)
     return {
         "artifacts": [
             artifact(output, role="in_place" if args.get("in_place") else "output")
@@ -195,7 +239,7 @@ def docx_find_replace(args: Dict[str, Any]) -> Dict[str, Any]:
         "data": {
             "replacements": replacements,
             "paragraphs_touched": paragraphs_touched,
-            "runs_merged": merge_stats["runs_merged"],
+            "runs_merged": runs_merged,
             "work_dir": str(directory),
         },
         "engine_version": engine_version("python-docx"),
@@ -239,13 +283,45 @@ def docx_merge(args: Dict[str, Any]) -> Dict[str, Any]:
     merged = 1
     for source in sources[1:]:
         incoming = docx.Document(str(source))
+        from io import BytesIO
+        from docx.oxml.ns import qn
+        from lxml import etree
+
+        # Body XML 中的 rId/样式/编号属于源包，不能直接拼接，否则图片和链接会
+        # 指向另一份文档的关系。对无法保持语义的高级对象明确拒绝，不生成坏文件。
+        relation_map = {}
         for element in incoming.element.body.iterchildren():
             if element.tag.split("}")[-1] == "sectPr":
                 continue
-            base.element.body.append(copy_module.deepcopy(element))
+            cloned = copy_module.deepcopy(element)
+            for node in cloned.iter():
+                if node.tag in (qn('w:footnoteReference'), qn('w:endnoteReference'), qn('w:commentReference'), qn('w:numPr'), qn('w:sectPr')):
+                    raise OfficeError("E_FORMAT_UNSUPPORTED", "合并包含编号、批注、脚注或分节，当前无法保证保真", remedy="保留原文件；需要保留这些结构时请在 Word/WPS 合并")
+                if node.tag in (qn('w:pStyle'), qn('w:rStyle'), qn('w:tblStyle')):
+                    style_id = node.get(qn('w:val'))
+                    incoming_style = next((s for s in incoming.styles if s.style_id == style_id), None)
+                    existing_style = next((s for s in base.styles if s.style_id == style_id), None)
+                    if incoming_style is not None:
+                        if existing_style is None:
+                            base.styles.element.append(copy_module.deepcopy(incoming_style.element))
+                        elif style_mode == 'preserve' and etree.tostring(existing_style.element) != etree.tostring(incoming_style.element):
+                            raise OfficeError("E_FORMAT_UNSUPPORTED", "合并文档存在同名异义样式", detail=style_id, remedy="确认可统一样式后显式指定 style_mode=unified")
+                for key, value in list(node.attrib.items()):
+                    if not key.startswith('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}'):
+                        continue
+                    if value not in relation_map:
+                        rel = incoming.part.rels[value]
+                        if rel.is_external:
+                            relation_map[value] = base.part.relate_to(rel.target_ref, rel.reltype, is_external=True)
+                        elif rel.reltype.endswith('/image'):
+                            relation_map[value] = base.part.get_or_add_image(BytesIO(rel.target_part.blob))[0]
+                        else:
+                            raise OfficeError("E_FORMAT_UNSUPPORTED", "合并包含不支持的嵌入对象", detail=rel.reltype)
+                    node.set(key, relation_map[value])
+            base.element.body.insert_element_before(cloned, 'w:sectPr')
         merged += 1
     output.parent.mkdir(parents=True, exist_ok=True)
-    base.save(str(output))
+    atomic_save(base, output)
     outline = docx_outline(output)
     return {
         "artifacts": [artifact(output)],

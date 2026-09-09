@@ -32,8 +32,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -68,8 +68,8 @@
         {
           "name": "spec",
           "description": {
-            "zh": "结构化 blocks 数组",
-            "en": "Structured blocks array"
+            "zh": "含 blocks 与可选 layout 的结构化文档；bullet/number 使用 text 或 runs 创建单项，items 字符串数组创建多项，三者不可混用",
+            "en": "Structured document with blocks and optional layout; bullet/number accepts text or runs for one item, or a string items array for multiple items; do not mix these inputs"
           },
           "type": "object",
           "required": false
@@ -104,8 +104,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -142,8 +142,8 @@
     {
       "name": "docx_from_template",
       "description": {
-        "zh": "{{变量}} 模板填充（业务文档首选路径）；strict=true 时缺失变量直接失败。",
-        "en": "Fill {{variable}} placeholders (preferred for business documents); strict=true fails on missing variables."
+        "zh": "单次填充 {{变量}}，保留跨 run 格式，覆盖嵌套表格及已有页眉页脚。值不递归展开；strict 拒绝缺失变量和受保护结构内的标记。",
+        "en": "Fill {{variables}} once across runs, nested tables and existing headers/footers. Values are literal; strict mode rejects missing values and protected markers."
       },
       "parameters": [
         {
@@ -158,8 +158,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -223,8 +223,8 @@
     {
       "name": "docx_edit",
       "description": {
-        "zh": "基于锚点的 replace/insert_before/insert_after/delete；必须先 docx_outline 取锚点。",
-        "en": "Anchor-based replace/insert_before/insert_after/delete; call docx_outline first."
+        "zh": "按段落锚点替换/插入/删除。整段操作保护域、公式、书签等结构；插入继承格式但不复制分节。普通局部文字优先 docx_find_replace。",
+        "en": "Replace/insert/delete at a paragraph anchor. Whole-paragraph edits protect fields, equations and bookmarks; insertion inherits formatting without copying sections. Prefer docx_find_replace for local text."
       },
       "parameters": [
         {
@@ -239,8 +239,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -338,8 +338,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -455,8 +455,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -563,8 +563,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -581,8 +581,8 @@
         {
           "name": "width_cm",
           "description": {
-            "zh": "宽度（cm）",
-            "en": "Width in cm"
+            "zh": "图片宽度厘米；省略时按最后一节正文宽高等比约束；显式宽度超出正文时报错。",
+            "en": "Width in cm. Omitted size fits final section content area; explicit overflowing sizes are rejected."
           },
           "type": "number",
           "required": false
@@ -662,8 +662,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -680,8 +680,8 @@
         {
           "name": "default_font",
           "description": {
-            "zh": "{name,size_pt}",
-            "en": "{name,size_pt}"
+            "zh": "默认字体 {name,east_asia,size_pt,bold,italic,color_rgb}；name 为西文，east_asia 为中文字体。",
+            "en": "Default font {name,east_asia,size_pt,bold,italic,color_rgb}; east_asia sets the CJK typeface."
           },
           "type": "object",
           "required": false
@@ -689,8 +689,8 @@
         {
           "name": "paragraph_styles",
           "description": {
-            "zh": "样式名到配置的映射",
-            "en": "Style name to config map"
+            "zh": "样式名到配置：字体字段及 alignment、line_spacing 倍数或 line_spacing_pt 固定磅、space_before_pt/space_after_pt、first_line_indent_cm/left_indent_cm/right_indent_cm、keep_with_next/keep_together/page_break_before/widow_control。",
+            "en": "Style-name map: font, alignment, line_spacing OR line_spacing_pt, space_before_pt/space_after_pt, first_line_indent_cm/left_indent_cm/right_indent_cm, keep_with_next/keep_together/page_break_before/widow_control."
           },
           "type": "object",
           "required": false
@@ -739,6 +739,24 @@
           },
           "type": "string",
           "required": false
+        },
+        {
+          "name": "page_setup",
+          "type": "object",
+          "required": false,
+          "description": {
+            "zh": "页面厘米参数：width_cm/height_cm/header_distance_cm/footer_distance_cm；A4 为 21×29.7。",
+            "en": "Page dimensions/distances in cm: width_cm, height_cm, header_distance_cm, footer_distance_cm; A4 21×29.7."
+          }
+        },
+        {
+          "name": "header_footer",
+          "type": "object",
+          "required": false,
+          "description": {
+            "zh": "替换默认页眉/页脚区域（不改首页与偶数页区域）：{header:{text,alignment},footer:{text,alignment,page_number,total_pages}}；页码为 Word 域，须在排版引擎更新并预览。",
+            "en": "Replace default header/footer regions only: {header:{text,alignment},footer:{text,alignment,page_number,total_pages}}. Page fields require layout-engine refresh and preview."
+          }
         }
       ]
     },
@@ -761,8 +779,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -842,8 +860,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -864,6 +882,24 @@
             "en": "Output directory name"
           },
           "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物目录；省略时写入交付目录",
+            "en": "Output directory; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标目录非空时是否覆盖，默认 false",
+            "en": "Overwrite a non-empty target directory; default false"
+          },
+          "type": "boolean",
           "required": false
         },
         {

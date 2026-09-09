@@ -2543,19 +2543,20 @@ open class StandardFileSystemTools(protected val context: Context) {
             var totalBytes = 0L
 
             if (isLinuxEnvironment(sourceEnvironment)) {
-                // 从 Linux 读取并写入
-                val content = getLinuxFileSystem().readFile(sourcePath) ?: return ToolResult(
+                // 从 Linux 读取并写入。必须用 readFileBytes：readFile 走文本解码，
+                // 会把二进制中的非法 UTF-8 字节替换成 U+FFFD，产物（docx/xlsx/pptx/jpg）
+                // 看起来复制成功但实际已损坏，且体积会变大。
+                val bytes = getLinuxFileSystem().readFileBytes(sourcePath) ?: return ToolResult(
                     toolName = toolName,
                     success = false,
                     result = FileOperationData(
                         operation = "copy",
                         path = sourcePath,
                         successful = false,
-                        details = "Failed to read source file"
+                        details = "Failed to read source file bytes: $sourcePath"
                     ),
-                    error = "Failed to read source file"
+                    error = "Failed to read source file bytes: $sourcePath"
                 )
-                val bytes = content.toByteArray(Charsets.UTF_8)
 
                 if (isLinuxEnvironment(destEnvironment)) {
                     val result = getLinuxFileSystem().writeFileBytes(finalDestPath, bytes)

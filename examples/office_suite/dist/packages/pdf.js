@@ -32,8 +32,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -68,8 +68,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -131,8 +131,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -194,8 +194,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -216,6 +216,24 @@
             "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
           },
           "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物目录；省略时写入交付目录",
+            "en": "Output directory; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标目录非空时是否覆盖，默认 false",
+            "en": "Overwrite a non-empty target directory; default false"
+          },
+          "type": "boolean",
           "required": false
         },
         {
@@ -248,8 +266,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -338,8 +356,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -419,8 +437,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -500,8 +518,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -536,8 +554,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -626,8 +644,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -743,8 +761,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -833,8 +851,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -914,8 +932,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -957,6 +975,24 @@
           "required": false
         },
         {
+          "name": "output_path",
+          "description": {
+            "zh": "产物目录；省略时写入交付目录",
+            "en": "Output directory; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标目录非空时是否覆盖，默认 false",
+            "en": "Overwrite a non-empty target directory; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
           "name": "task_id",
           "description": {
             "zh": "复用同一个 Linux 暂存区",
@@ -986,8 +1022,8 @@
         {
           "name": "blocks",
           "description": {
-            "zh": "[{type,text}]",
-            "en": "[{type,text}]"
+            "zh": "报告块数组：heading/title/paragraph/bullet(items)/spacer",
+            "en": "Blocks: heading/title/paragraph/bullet(items)/spacer"
           },
           "type": "array",
           "required": false
@@ -1013,8 +1049,8 @@
         {
           "name": "cjk_font",
           "description": {
-            "zh": "CJK 字体族",
-            "en": "CJK font family"
+            "zh": "中文字体族；Pandoc 路线必须是 fonts.system_font_families 中的真实族名，不能传字体文件名或 STSong-Light",
+            "en": "CJK font family; Pandoc requires an actual fonts.system_font_families entry, not a filename or STSong-Light"
           },
           "type": "string",
           "required": false
@@ -1040,8 +1076,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true

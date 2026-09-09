@@ -47,8 +47,9 @@ def pptx_outline(path: Path, *, max_slides: int = 0) -> Dict[str, Any]:
     slides: List[Dict[str, Any]] = []
     for slide_index, slide in enumerate(presentation.slides):
         shapes: List[Dict[str, Any]] = []
-        for shape in slide.shapes:
+        for shape_index, shape in enumerate(slide.shapes):
             entry: Dict[str, Any] = {
+                "index": shape_index,
                 "name": shape.shape_name if hasattr(shape, "shape_name") else shape.name,
                 "type": str(shape.shape_type),
                 "has_text_frame": bool(shape.has_text_frame),
@@ -56,9 +57,20 @@ def pptx_outline(path: Path, *, max_slides: int = 0) -> Dict[str, Any]:
                 "top_emu": shape.top,
                 "width_emu": shape.width,
                 "height_emu": shape.height,
+                "bounds_cm": {"left": round(shape.left / 360000, 3), "top": round(shape.top / 360000, 3),
+                              "width": round(shape.width / 360000, 3), "height": round(shape.height / 360000, 3)},
+                "out_of_bounds": (shape.left < 0 or shape.top < 0 or shape.left + shape.width > presentation.slide_width
+                                  or shape.top + shape.height > presentation.slide_height),
             }
             if shape.has_text_frame:
                 entry["text"] = shape.text_frame.text
+                entry["paragraphs"] = [{"text": p.text, "level": p.level,
+                    "runs": [{"text": r.text, "font_name": r.font.name,
+                              "size_pt": r.font.size.pt if r.font.size else None, "bold": r.font.bold}
+                             for r in p.runs]} for p in shape.text_frame.paragraphs]
+            if shape.has_chart:
+                entry["chart_type"] = str(shape.chart.chart_type)
+                entry["series"] = [{"name": s.name, "values": list(s.values)} for s in shape.chart.series]
             if shape.has_table:
                 entry["table_rows"] = len(shape.table.rows)
                 entry["table_columns"] = len(shape.table.columns)

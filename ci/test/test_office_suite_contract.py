@@ -76,6 +76,45 @@ class OfficeSuiteContractTest(unittest.TestCase):
             names = [param["name"] for param in tool["params"]]
             self.assertIn("env", names, "工具 %s 缺少 env 参数" % tool["name"])
 
+    def test_file_input_params_are_declared_for_staging(self) -> None:
+        """所有接收文件路径的参数都必须在 inputPaths 中声明。
+
+        JS 薄层只对 inputPaths 声明的字段做 Android→Linux 搬运与 allow_roots
+        白名单注入；漏声明会让 Python 侧报「越出允许根目录」，真机表现为
+        「同一路径有的工具能读、有的不能」。
+        """
+
+        path_param_names = {
+            "path",
+            "paths",
+            "image_path",
+            "from_path",
+            "source_path",
+            "template_path",
+            "original_path",
+            "left",
+            "right",
+        }
+        for tool in self.tools:
+            declared = set(tool.get("inputPaths") or [])
+            for param in tool["params"]:
+                name = param["name"]
+                if name not in path_param_names:
+                    continue
+                self.assertIn(
+                    name,
+                    declared,
+                    "工具 %s 的路径参数 %s 未在 inputPaths 中声明" % (tool["name"], name),
+                )
+
+    def test_workspace_dir_is_not_a_staged_input(self) -> None:
+        by_name = {tool["name"]: tool for tool in self.tools}
+        workspace = by_name["office_workspace_init"]
+        # dir 指向「待创建」的目录，不能走输入暂存（暂存要求源文件已存在）；
+        # Linux 工作区由 JS 层把 dir 加进 allow_roots 后交给 Python 创建。
+        self.assertNotIn("dir", workspace.get("inputPaths") or [])
+        self.assertIn("dir", [param["name"] for param in workspace["params"]])
+
     def test_advice_tools_have_no_command(self) -> None:
         for tool in self.tools:
             if tool["advice"]:
@@ -150,7 +189,8 @@ class OfficeSuiteContractTest(unittest.TestCase):
             self.assertTrue((PACKAGE_ROOT / subpackage["entry"]).is_file(), subpackage["entry"])
         for resource in self.manifest["resources"]:
             self.assertTrue((PACKAGE_ROOT / resource["path"]).exists(), resource["path"])
-            self.assertEqual(resource["mime"], "inode/directory")
+            expected_mime = "inode/directory" if (PACKAGE_ROOT / resource["path"]).is_dir() else "text/markdown"
+            self.assertEqual(resource["mime"], expected_mime)
 
     def test_error_codes_match_design_table(self) -> None:
         expected = {

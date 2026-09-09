@@ -9,13 +9,15 @@ from __future__ import annotations
 
 import os
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, List
 
-from .env import require_binary
-from .paths import artifact, resolve_path, resolve_task_id, task_dir
+from .env import require_binary, require_libreoffice_for_source, require_poppler_data
+from .paths import artifact, resolve_output_dir, resolve_path, resolve_task_id, task_dir
 from .protocol import OfficeError, engine_version
 from .readers.pdf_reader import pdf_info
+from .engines import run_output_command
 
 SOFFICE_SUFFIXES = {".docx", ".xlsx", ".xlsm", ".pptx", ".doc", ".xls", ".ppt", ".odt", ".ods", ".odp"}
 
@@ -49,8 +51,15 @@ def render_preview(args: Dict[str, Any]) -> Dict[str, Any]:
     pages = pages[:max_pages]
 
     pdftoppm = require_binary("pdftoppm", tier=2, purpose="office_render_preview")
-    target_dir = directory / "out" / (source.stem + "-preview")
-    target_dir.mkdir(parents=True, exist_ok=True)
+    # pdftoppm 缺 Adobe-GB1 CMap 时退出码仍为 0，但中文 PDF 会渲染成空白图。
+    require_poppler_data(purpose="office_render_preview")
+    target_dir = resolve_output_dir(
+        args.get("output_path"),
+        args=args,
+        field="output_path",
+        default_dir=directory / "out" / (source.stem + "-preview"),
+        overwrite=bool(args.get("overwrite")),
+    )
     artifacts: List[Dict[str, Any]] = []
     for page in pages:
         prefix = target_dir / ("preview-%03d" % page)
@@ -67,16 +76,9 @@ def render_preview(args: Dict[str, Any]) -> Dict[str, Any]:
             str(pdf_path),
             str(prefix),
         ]
-        completed = subprocess.run(command, capture_output=True, text=True, timeout=300, check=False)
-        if completed.returncode != 0:
-            raise OfficeError(
-                "E_ENGINE_FAILED",
-                "第 %d 页渲染失败" % page,
-                detail=(completed.stderr or "")[-1000:],
-            )
         produced = Path(str(prefix) + ".jpg")
-        if not produced.is_file():
-            raise OfficeError("E_ENGINE_FAILED", "渲染未产出图片", detail=str(produced))
+        run_output_command(command, produced, -1, timeout=300,
+                           purpose="第 %d 页渲染" % page, output_is_prefix=True)
         artifacts.append(artifact(produced))
     return {
         "artifacts": artifacts,
@@ -95,10 +97,12 @@ def render_preview(args: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _convert_to_pdf(source: Path, directory: Path) -> Path:
-    soffice = require_binary("soffice", tier=3, purpose="office_render_preview 视觉预览")
-    target_dir = directory / "tmp" / "render"
-    target_dir.mkdir(parents=True, exist_ok=True)
-    profile = directory / "tmp" / "lo-profile"
+    # 预览同样受组件限制：xlsx 需要 Calc、pptx 需要 Impress。
+    soffice = require_libreoffice_for_source(
+        source.suffix, purpose="office_render_preview 视觉预览"
+    )["path"]
+    target_dir = Path(tempfile.mkdtemp(prefix="render-", dir=directory / "tmp"))
+    profile = target_dir / "lo-profile"
     profile.mkdir(parents=True, exist_ok=True)
     command = [
         soffice,
@@ -106,7 +110,7 @@ def _convert_to_pdf(source: Path, directory: Path) -> Path:
         "--norestore",
         "--nolockcheck",
         "--nodefault",
-        "-env:UserInstallation=file://%s" % profile.resolve(),
+        "-env:UserInstallation=%s" % profile.resolve().as_uri(),
         "--convert-to",
         "pdf",
         "--outdir",

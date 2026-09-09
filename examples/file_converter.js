@@ -128,6 +128,12 @@ const fileConverter = (function () {
             };
         }
         if (isDocument(inputExt) || isDocument(outputExt)) {
+            if (inputExt === 'pdf' && outputExt !== 'pdf') {
+                // pandoc 不能从 PDF 提取内容；直接给出可行路径，避免用户只看到
+                // 一句 "Pandoc can convert to PDF, but not from PDF."。
+                throw new Error(`Pandoc cannot read PDF input. Use the office package's pdf_extract for ${inputPath}, ` +
+                    'or convert from the original source document instead.');
+            }
             return {
                 tool: 'pandoc',
                 pkg: 'pandoc',
@@ -143,7 +149,11 @@ const fileConverter = (function () {
      */
     async function convert_file(params) {
         const { input_path, output_path, options } = params;
-        const fileExists = await Tools.Files.exists(input_path);
+        // 转换命令在 Linux/PRoot 终端里执行，存在性必须在同一命名空间校验；
+        // 不传 environment 会被宿主当作 Android，导致 /tmp 下的文件误报「不存在」。
+        // PRoot 已把 /sdcard 与 /storage/emulated/0 绑定进 Linux 视图，
+        // 因此这里用 linux 同时覆盖 Android 存储路径。
+        const fileExists = await Tools.Files.exists(input_path, "linux");
         if (!fileExists.exists) {
             throw new Error(`Input file not found: ${input_path}`);
         }
@@ -154,7 +164,7 @@ const fileConverter = (function () {
         if (result.exitCode !== 0) {
             throw new Error(`Conversion failed. Exit code: ${result.exitCode}\nOutput:\n${result.output}`);
         }
-        const outputExists = await Tools.Files.exists(output_path);
+        const outputExists = await Tools.Files.exists(output_path, "linux");
         if (!outputExists.exists) {
             // Sometimes a tool exits with 0 but fails, writing to stderr.
             throw new Error(`Conversion process finished, but output file was not created at: ${output_path}\nTerminal Output:\n${result.output}`);

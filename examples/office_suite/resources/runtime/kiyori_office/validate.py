@@ -62,9 +62,14 @@ def validate_document(
         "summary": summary,
     }
     if issues and strict:
+        # 宿主的失败气泡可能只显示 message；完整清单仍由 data.issues 持有。
+        diagnostic = "; ".join(
+            "%s [%s]: %s" % (item["code"], item["target"], item["message"])
+            for item in issues[:5]
+        )
         raise OfficeError(
             "E_VALIDATION_FAILED",
-            "产物校验未通过（strict=true）",
+            "产物校验未通过（strict=true，%d 项）：%s" % (len(issues), diagnostic),
             detail="; ".join(issue["message"] for issue in issues[:10]),
             data=report,
             remedy="按 data.issues 修正后重新生成；不要用 strict=false 掩盖问题交付",
@@ -267,6 +272,57 @@ def _check_docx(archive: zipfile.ZipFile, names: set, summary: Dict[str, Any]) -
             )
         )
     summary["field_codes"] = field_codes[:20]
+    issues.extend(_check_docx_bookmarks(root, document_entry, summary))
+    return issues
+
+
+def _check_docx_bookmarks(root, entry, summary):
+    namespace = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+    issues = []
+    names = set()
+    ids = set()
+    active = {}
+    anchors = []
+    def own_nodes(node):
+        yield node
+        for child in node:
+            if child.tag != namespace + 'p':
+                yield from own_nodes(child)
+
+    # 书签允许跨段落和交错范围；按 id 配对，不能用 XML 父子关系或栈判断。
+    for paragraph_index, paragraph in enumerate(root.iter(namespace + 'p')):
+        location = '%s#paragraph[%d]' % (entry, paragraph_index)
+        # 文本框中的嵌套段落由自己的 paragraph 项处理，避免重复计数。
+        for node in own_nodes(paragraph):
+            if node.tag == namespace + 'bookmarkStart':
+                identity, name = node.get(namespace + 'id'), node.get(namespace + 'name')
+                if identity in ids or name in names:
+                    issues.append(_issue('BOOKMARK_DUPLICATE', '重复书签 id 或名称：%s / %s' % (identity, name), location))
+                if identity is None or not name:
+                    issues.append(_issue('BOOKMARK_INVALID', '书签缺少 id 或名称', location))
+                ids.add(identity)
+                names.add(name)
+                active.setdefault(identity, []).append(location)
+            elif node.tag == namespace + 'bookmarkEnd':
+                identity = node.get(namespace + 'id')
+                if not active.get(identity):
+                    issues.append(_issue('BOOKMARK_UNPAIRED', '书签结束没有对应起点：%s' % identity, location))
+                else:
+                    active[identity].pop()
+            elif node.tag == namespace + 'hyperlink':
+                anchor = node.get(namespace + 'anchor')
+                # 带 r:id 的链接可指向外部文档中的书签，不能按本文件目标判断。
+                external_id = node.get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id')
+                if anchor and not external_id:
+                    anchors.append((anchor, location))
+    for identity, locations in active.items():
+        for location in locations:
+            issues.append(_issue('BOOKMARK_UNPAIRED', '书签起点没有对应结束：%s' % identity, location))
+    for anchor, location in anchors:
+        if anchor not in names:
+            issues.append(_issue('HYPERLINK_ANCHOR_MISSING', '内部链接书签不存在：%s' % anchor, location))
+    summary['bookmark_count'] = len(ids)
+    summary['internal_hyperlink_count'] = len(anchors)
     return issues
 
 
@@ -337,6 +393,24 @@ def _check_pptx(archive: zipfile.ZipFile, names: set, summary: Dict[str, Any]) -
                 "slides=%d sldIds=%d" % (len(slide_parts), len(slide_ids)),
             )
         )
+    # 数量相同不代表 sldId 真正映射到不同有效页面；按 relationship 身份核验。
+    presentation_rels = 'ppt/_rels/presentation.xml.rels'
+    if presentation_rels in names:
+        try:
+            relations = ElementTree.fromstring(archive.read(presentation_rels))
+        except ElementTree.ParseError:
+            relations = []  # 通用关系检查已经报告解析错误。
+        targets = {}
+        for relation in relations:
+            if relation.get('Type', '').endswith('/slide') and relation.get('TargetMode') != 'External':
+                targets[relation.get('Id')] = posixpath.normpath(posixpath.join('ppt', relation.get('Target', ''))).lstrip('/')
+        seen_targets = set()
+        for index, identity in enumerate(slide_ids):
+            target = targets.get(identity)
+            if target not in names or target in seen_targets:
+                issues.append(_issue('SLIDE_RELATION_INVALID', '页面关系缺失或重复：%s -> %s' % (identity, target),
+                                     '%s#slide[%d]' % (presentation, index)))
+            seen_targets.add(target)
     for entry in sorted(name for name in names if name.startswith("ppt/charts/chart")):
         if not entry.endswith(".xml"):
             continue
@@ -348,7 +422,9 @@ def _check_pptx(archive: zipfile.ZipFile, names: set, summary: Dict[str, Any]) -
         chart_ns = "{http://schemas.openxmlformats.org/drawingml/2006/chart}"
         value_axes = len(list(chart_root.iter(chart_ns + "valAx")))
         category_axes = len(list(chart_root.iter(chart_ns + "catAx")))
-        if (value_axes == 0) != (category_axes == 0):
+        # 散点/气泡图使用两条数值轴，不能按普通分类图的 valAx/catAx 配对拒绝。
+        numeric_xy = any(list(chart_root.iter(chart_ns + kind)) for kind in ("scatterChart", "bubbleChart"))
+        if (numeric_xy and (value_axes < 2 or category_axes != 0)) or (not numeric_xy and (value_axes == 0) != (category_axes == 0)):
             issues.append(
                 _issue(
                     "CHART_AXIS_PAIR_MISMATCH",
@@ -371,20 +447,21 @@ def _validate_pdf(path: Path) -> Any:
             detail=str(exc),
             remedy="调用 office_env_setup 安装 Tier1 组件",
         ) from exc
-    if not path.read_bytes()[:5] == b"%PDF-":
+    with path.open("rb") as stream:
+        header = stream.read(5)
+    if header != b"%PDF-":
         issues.append(_issue("PDF_HEADER_INVALID", "缺少 %PDF- 文件头", str(path)))
         return issues, summary
     try:
         reader = PdfReader(str(path))
-        summary["pages"] = len(reader.pages)
         summary["encrypted"] = bool(reader.is_encrypted)
+        if reader.is_encrypted:
+            issues.append(_issue("PDF_ENCRYPTED", "PDF 仍处于加密状态，请先解密后校验页面", str(path), severity="warning"))
+            return issues, summary
+        summary["pages"] = len(reader.pages)
     except Exception as exc:
         issues.append(_issue("PDF_PARSE_FAILED", "PDF 解析失败", str(exc)))
         return issues, summary
-    if reader.is_encrypted:
-        issues.append(
-            _issue("PDF_ENCRYPTED", "PDF 仍处于加密状态", str(path), severity="warning")
-        )
     empty_pages = []
     for index, page in enumerate(reader.pages):
         try:

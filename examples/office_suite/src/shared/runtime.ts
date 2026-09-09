@@ -11,6 +11,7 @@ import {
   OfficeEnvelope,
   asText,
   parseEnvelope,
+  envelopeFailure,
   toFailure
 } from "./protocol";
 
@@ -126,10 +127,15 @@ const BOOTSTRAP_SCRIPT = [
   "import shutil",
   "import sys",
   "import zipfile",
+  "import hashlib",
   "",
   "zip_path, target = sys.argv[1], sys.argv[2]",
-  "marker = os.path.join(target, '.zip-size')",
-  "size = str(os.path.getsize(zip_path))",
+  "marker = os.path.join(target, '.zip-sha256')",
+  "digest = hashlib.sha256()",
+  "with open(zip_path, 'rb') as source:",
+  "    for chunk in iter(lambda: source.read(1048576), b''):",
+  "        digest.update(chunk)",
+  "size = digest.hexdigest()",
   "if os.path.isfile(marker):",
   "    with open(marker, 'r', encoding='utf-8') as handle:",
   "        if handle.read().strip() == size:",
@@ -192,6 +198,9 @@ export function androidPathCandidates(raw: unknown): string[] {
         "请用 read_file/list_files 确认完整路径"
     );
   }
+  if (value.includes("\0") || value.split("/").some(part => part === ".." || part === ".")) {
+    throw new Error("E_PATH_INVALID: Android 路径不能包含 NUL、. 或 .. 路径段");
+  }
   // Android 上同一文件可能有多个可见路径；按「原样 → 真实路径 → 兼容别名」
   // 顺序探测，命中哪个就报告哪个，不做静默替换。
   const candidates = [value];
@@ -248,6 +257,9 @@ async function runHidden(command: string, timeoutMs: number): Promise<{ output: 
     timeoutMs,
     localOnly: true
   });
+  if (result.timedOut === true) {
+    throw new Error("E_TIMEOUT: office 命令超时，已请求取消；重试前检查产物状态");
+  }
   return { output: asText(result.output), exitCode: Number(result.exitCode == null ? 1 : result.exitCode) };
 }
 
@@ -313,6 +325,7 @@ export async function resolvePaths(): Promise<CachedPaths> {
 
 async function ensureRuntime(): Promise<CachedPaths> {
   const paths = await resolvePaths();
+  await verifyLocalFileProvider(paths);
   if (runtimeReady) {
     return paths;
   }
@@ -320,7 +333,7 @@ async function ensureRuntime(): Promise<CachedPaths> {
   if (!asText(resourcePath).trim()) {
     throw new Error("E_ENV_MISSING: 无法读取 kiyori_office 运行时资源");
   }
-  await Tools.Files.mkdir(`${paths.home}/kiyori_office`, true, "linux");
+  assertFileOperation(await Tools.Files.mkdir(`${paths.home}/kiyori_office`, true, "linux"), "创建运行时目录", paths.runtimeDir);
   assertFileOperation(
     await Tools.Files.copy(resourcePath, paths.zipPath, false, "android", "linux"),
     "复制 office 运行时资源",
@@ -344,11 +357,27 @@ async function ensureRuntime(): Promise<CachedPaths> {
   return paths;
 }
 
+async function verifyLocalFileProvider(paths: CachedPaths): Promise<void> {
+  const token = newTaskId();
+  const marker = `${paths.home}/kiyori_office/.local-provider-${token}`;
+  const created = await runHidden(`mkdir -p ${shellQuote(paths.home + "/kiyori_office")} && printf %s ${shellQuote(token)} > ${shellQuote(marker)}`, 20000);
+  if (created.exitCode !== 0) throw new Error("E_ENV_MISSING: 本地工作目录不可写");
+  try {
+    const read = await Tools.Files.read({ path: marker, environment: "linux" });
+    if (read.content !== token) throw new Error("文件环境不一致");
+  } catch (error) {
+    throw new Error("E_PATH_INVALID: Linux 文件工具未指向本地 Ubuntu；请断开 SSH 文件连接后重试，未搬运用户文档");
+  } finally {
+    await runHidden(`rm -f -- ${shellQuote(marker)}`, 20000);
+  }
+}
+
 async function stageInput(
   paths: CachedPaths,
   taskDir: string,
   value: string,
-  env: FileEnv
+  env: FileEnv,
+  slot: string
 ): Promise<{ staged: string; source: string; aliases: string[] }> {
   if (env === "linux") {
     const source = asText(value).trim();
@@ -361,8 +390,10 @@ async function stageInput(
     return { staged: source, source, aliases: [source] };
   }
   const resolved = await resolveAndroidSource(value);
-  const staged = `${taskDir}/in/${baseName(resolved.path)}`;
-  await Tools.Files.mkdir(`${taskDir}/in`, true, "linux");
+  // 同一命令可能有多个输入（如 office_diff 的 left/right）且基名相同，
+  // 用「参数名 + 基名」区分暂存路径，避免后者静默覆盖前者。
+  const staged = `${taskDir}/in/${slot}-${baseName(resolved.path)}`;
+  assertFileOperation(await Tools.Files.mkdir(`${taskDir}/in`, true, "linux"), "创建输入暂存目录", taskDir);
   assertFileOperation(
     await Tools.Files.copy(resolved.path, staged, false, "android", "linux"),
     "复制输入文件到 Linux 暂存区",
@@ -422,7 +453,11 @@ async function deliverArtifacts(
   if (artifacts.length === 0) {
     return artifacts;
   }
-  const target = await androidTarget(params, spec, taskId);
+  let target = await androidTarget(params, spec, taskId);
+  // 默认交付名必须来自实际产物（例如 convert 到 PDF），不能用固定 output.docx。
+  if (!asText(params.output_path).trim() && spec.outputKind !== "multi") {
+    target = target.replace(/\/[^/]*$/, `/${baseName(artifacts[0].path)}`);
+  }
   const overwrite = params.overwrite === true;
   const multi = spec.outputKind === "multi";
   const targetDir = multi ? target : target.replace(/\/[^/]*$/, "");
@@ -434,7 +469,7 @@ async function deliverArtifacts(
       throw new Error(`E_PATH_EXISTS: 目标目录已存在且未设置 overwrite=true: ${target}`);
     }
   }
-  await Tools.Files.mkdir(targetDir, true, "android");
+  assertFileOperation(await Tools.Files.mkdir(targetDir, true, "android"), "创建交付目录", targetDir);
 
   const delivered: OfficeArtifact[] = [];
   for (const item of artifacts) {
@@ -451,13 +486,27 @@ async function deliverArtifacts(
     }
     const parent = destination.replace(/\/[^/]*$/, "");
     if (parent) {
-      await Tools.Files.mkdir(parent, true, "android");
+      assertFileOperation(await Tools.Files.mkdir(parent, true, "android"), "创建产物目录", parent);
     }
-    assertFileOperation(
-      await Tools.Files.copy(item.path, destination, false, "linux", "android"),
-      "回搬产物到 Android",
-      destination
-    );
+    const pending = `${destination}.office-${newTaskId()}.tmp`;
+    try {
+      assertFileOperation(
+        await Tools.Files.copy(item.path, pending, false, "linux", "android"),
+        "回搬产物到 Android",
+        pending
+      );
+      await verifyDeliveredSize(item, pending);
+      // 验证副本后再调用宿主 move；宿主存储后端的最终发布仍需设备验证。
+      assertFileOperation(await Tools.Files.move(pending, destination, "android"), "发布办公产物", destination);
+    } catch (error) {
+      try {
+        const exists = await Tools.Files.exists(pending, "android");
+        if (exists.exists) assertFileOperation(await Tools.Files.deleteFile(pending, false, "android"), "清理本次临时产物", pending);
+      } catch (cleanupError) {
+        throw new Error(`${asText(error instanceof Error ? error.message : error)}；临时副本清理失败：${pending}`);
+      }
+      throw error;
+    }
     delivered.push({ ...item, path: destination, env: "android" });
   }
   return delivered;
@@ -465,6 +514,35 @@ async function deliverArtifacts(
 
 function hasArtifacts(envelope: OfficeEnvelope): boolean {
   return Array.isArray(envelope.artifacts) && envelope.artifacts.length > 0;
+}
+
+/**
+ * 回搬后校验落盘大小与 Python 侧声明的字节数一致。
+ *
+ * 历史故障：跨环境复制曾用文本模式读写，二进制产物被替换成 U+FFFD 后体积变大，
+ * 但工具仍返回 success。这里用 file_info 做交付前自检，让损坏无法静默通过。
+ */
+async function verifyDeliveredSize(
+  artifact: OfficeArtifact,
+  destination: string
+): Promise<void> {
+  if (!Number.isFinite(artifact.bytes) || artifact.bytes < 0) {
+    throw new Error("E_PROTOCOL: 运行时产物缺少有效 bytes，不能跳过交付校验");
+  }
+  const info = await Tools.Files.info(destination, "android");
+  if (!info || info.exists === false) {
+    throw new Error(`E_PATH_INVALID: 交付产物未落盘 target=${destination}`);
+  }
+  const actual = Number(info.size);
+  if (!Number.isFinite(actual)) {
+    throw new Error(`E_PATH_INVALID: 无法核验交付产物大小 target=${destination}`);
+  }
+  if (actual !== artifact.bytes) {
+    throw new Error(
+      `E_PATH_INVALID: 交付产物大小不一致（疑似二进制损坏）target=${destination} ` +
+        `expected=${artifact.bytes} actual=${actual}`
+    );
+  }
 }
 
 const WORKSPACE_DIRECTORIES = ["source", "output", "templates", "assets"];
@@ -481,7 +559,7 @@ const WORKSPACE_AGENTS_MARKDOWN = [
 ].join("\n");
 
 async function createAndroidWorkspace(input: Record<string, unknown>): Promise<unknown> {
-  const target = asText(input.dir).trim();
+  const target = normalizeAndroidPath(input.dir);
   if (!target) {
     return toFailure("office_workspace_init", new Error("E_INPUT_SCHEMA: dir 不能为空"));
   }
@@ -529,9 +607,17 @@ export async function runOfficeTool(
   const input = params || {};
   const command = spec.command;
   if (!command) {
+    if (spec.defaultOutputName === "office_read_guide") {
+      return await readOfficeGuide(input);
+    }
     throw new Error(`E_PROTOCOL: ${spec.defaultOutputName} 缺少 Python 命令映射`);
   }
   const env: FileEnv = spec.requiresEnv === false ? "linux" : requireEnv(input, "env");
+  const taskId = asText(input.task_id).trim() || newTaskId();
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(taskId) ||
+      (command === "office_workspace_clean" && !asText(input.task_id).trim())) {
+    throw new Error("E_INPUT_SCHEMA: 必须使用真实 task_id，以字母或数字开头且不超过 64 字符；清理前先扫描工作文件");
+  }
   if (input.in_place === true && !declaresParam(spec, "in_place")) {
     throw new Error(`E_INPUT_SCHEMA: ${command} 不支持 in_place`);
   }
@@ -545,9 +631,83 @@ export async function runOfficeTool(
     return await createAndroidWorkspace(input);
   }
   const paths = await ensureRuntime();
-  const taskId = asText(input.task_id).trim() || newTaskId();
+  if (["office_workspace_status", "office_workspace_clean", "office_env_check"].includes(command)) {
+    return await runControlCommand(paths, spec, input);
+  }
+  const leaseToken = newTaskId();
+  await changeTaskLease(paths, taskId, leaseToken, "acquire");
+  let outcome: Record<string, unknown>;
+  try {
+    outcome = await runPreparedOfficeTool(spec, input, env, paths, taskId, leaseToken);
+  } catch (error) {
+    outcome = { ...toFailure(command, error) };
+  }
+  // timeout 可能只结束了等待，不能假定外部进程已停止并开放清理。
+  if (outcome.code === "E_TIMEOUT") {
+    outcome.data = { ...(outcome.data as Record<string, unknown> ?? {}), task_id: taskId,
+      work_dir: `${paths.home}/kiyori_office/work/${taskId}`, lease_retained: true };
+  } else {
+    try { await changeTaskLease(paths, taskId, leaseToken, "release"); }
+    catch (error) {
+      const warning = { code: "TASK_LEASE_RELEASE_FAILED", message: "任务占用未释放；结果保留，清理前需核实执行状态。" };
+      console.error("office task lease release failed", taskId, error instanceof Error ? error.name : "Error");
+      outcome.warnings = [...(Array.isArray(outcome.warnings) ? outcome.warnings : []), warning];
+    }
+  }
+  if (outcome.success === false) outcome.data = { ...(outcome.data as Record<string, unknown> ?? {}),
+    task_id: taskId, work_dir: `${paths.home}/kiyori_office/work/${taskId}` };
+  return outcome;
+}
+
+async function changeTaskLease(paths: CachedPaths, taskId: string, token: string, action: "acquire" | "release"): Promise<void> {
+  const executed = await runHidden(`PYTHONPATH=${shellQuote(paths.runtimeDir)} ${shellQuote(paths.python)} -m kiyori_office.storage ${action} ${shellQuote(taskId)} ${shellQuote(token)}`, 20000);
+  const result = parseEnvelope(executed.output);
+  if (!result.ok || executed.exitCode !== 0) throw new Error(`${result.error?.code ?? "E_ENGINE_FAILED"}: ${result.error?.message ?? "任务占用操作失败"}`);
+}
+
+async function runControlCommand(paths: CachedPaths, spec: ToolSpec, input: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const args = collectBusinessParams(spec, input);
+  if (spec.command === "office_workspace_clean" && !asText(args.task_id).trim()) {
+    throw new Error("E_INPUT_SCHEMA: 清理必须指定现有 task_id，请先调用 office_workspace_status");
+  }
+  const controlDir = `${paths.home}/kiyori_office/control`;
+  const argsPath = `${controlDir}/args-${newTaskId()}.json`;
+  assertFileOperation(await Tools.Files.mkdir(controlDir, true, "linux"), "创建办公管理目录", controlDir);
+  assertFileOperation(await Tools.Files.write(argsPath, JSON.stringify(args), false, "linux"), "写入管理参数", argsPath);
+  let completed = false;
+  let outcome: Record<string, unknown>;
+  try {
+    const executed = await runHidden(`PYTHONPATH=${shellQuote(paths.runtimeDir)} ${shellQuote(paths.python)} -m kiyori_office ${shellQuote(spec.command)} --args-file ${shellQuote(argsPath)}`, spec.timeoutMs ?? 120000);
+    completed = true;
+    const envelope = parseEnvelope(executed.output);
+    if (envelope.ok && executed.exitCode !== 0) throw new Error(`E_ENGINE_FAILED: 管理命令退出码 ${executed.exitCode}`);
+    const base = asText(typeof KIYORI_DOWNLOAD_DIR === "string" ? KIYORI_DOWNLOAD_DIR : "").trim() || "/sdcard/Download";
+    outcome = !envelope.ok ? { ...envelopeFailure(envelope) } : { success: true, command: spec.command, message: `${spec.command} 执行完成`,
+      data: { ...envelope.data, execution_env: "linux", runtime_root: paths.runtimeDir,
+        work_root: `${paths.home}/kiyori_office/work`, control_root: controlDir,
+        default_delivery_dir: normalizeAndroidPath(`${base}/Office`) },
+      artifacts: [], warnings: envelope.warnings ?? [], next_actions: envelope.next_actions ?? [] };
+  } catch (error) {
+    outcome = { ...toFailure(spec.command, error) };
+  }
+  if (completed) {
+    try { assertFileOperation(await Tools.Files.deleteFile(argsPath, false, "linux"), "清理本次管理参数", argsPath); }
+    catch (error) {
+      console.error("office control args cleanup failed", error instanceof Error ? error.name : "Error");
+      outcome.warnings = [...(Array.isArray(outcome.warnings) ? outcome.warnings : []),
+        { code: "CONTROL_ARGS_CLEANUP_FAILED", message: `管理参数未移除：${argsPath}` }];
+    }
+  } else {
+    outcome.data = { ...(outcome.data as Record<string, unknown> ?? {}), control_args_path: argsPath };
+  }
+  return outcome;
+}
+
+async function runPreparedOfficeTool(spec: ToolSpec, input: Record<string, unknown>, env: FileEnv,
+  paths: CachedPaths, taskId: string, leaseToken: string): Promise<Record<string, unknown>> {
+  const command = spec.command;
   const taskDir = `${paths.home}/kiyori_office/work/${taskId}`;
-  await Tools.Files.mkdir(`${taskDir}/out`, true, "linux");
+  assertFileOperation(await Tools.Files.mkdir(`${taskDir}/out`, true, "linux"), "创建任务输出目录", taskDir);
 
   const business = collectBusinessParams(spec, input);
   const payload: Record<string, unknown> = {};
@@ -558,20 +718,19 @@ export async function runOfficeTool(
     }
     payload[key] = value;
   }
-  if (usesFilePaths(spec) && declaresParam(spec, "task_id")) {
-    payload.task_id = taskId;
-  }
+  payload.task_id = taskId;
 
   for (const field of spec.inputPaths || []) {
     const raw = business[field];
     if (Array.isArray(raw)) {
       const stagedList: string[] = [];
-      for (const item of raw) {
+      for (let index = 0; index < raw.length; index += 1) {
+        const item = raw[index];
         const text = asText(item).trim();
         if (!text) {
           throw new Error(`E_INPUT_SCHEMA: ${field} 不能包含空路径`);
         }
-        const staged = await stageInput(paths, taskDir, text, env);
+        const staged = await stageInput(paths, taskDir, text, env, `${field}${index}`);
         stagedList.push(staged.staged);
         allowRoots.push(staged.staged.replace(/\/[^/]*$/, ""));
       }
@@ -582,9 +741,20 @@ export async function runOfficeTool(
     if (!text) {
       continue;
     }
-    const staged = await stageInput(paths, taskDir, text, env);
+    const staged = await stageInput(paths, taskDir, text, env, field);
     payload[field] = staged.staged;
     allowRoots.push(staged.staged.replace(/\/[^/]*$/, ""));
+  }
+
+  if (command === "office_workspace_init") {
+    // dir 指向「待创建」的目录，不能作为输入暂存（暂存要求源文件已存在），
+    // 但必须进入 allow_roots，否则 Linux 工作区会被 Python 判为越出允许根目录。
+    const dir = asText(business.dir).trim();
+    if (!dir) {
+      throw new Error("E_INPUT_SCHEMA: dir 不能为空");
+    }
+    payload.dir = dir;
+    allowRoots.push(dir);
   }
 
   const declaredOutputEnv = asText(input.output_env).trim();
@@ -608,7 +778,12 @@ export async function runOfficeTool(
       allowRoots.push(firstPath.replace(/\/[^/]*$/, ""));
     } else if (declaredOutputEnv === "linux" && asText(input.output_path).trim()) {
       // 由 Python 侧直接写入调用方指定的 Linux 路径，仍需通过 allow_roots 校验。
-      allowRoots.push(asText(input.output_path).trim().replace(/\/[^/]*$/, ""));
+      // 多产物命令的 output_path 是目录本身，必须整条加入白名单（去掉末段会
+      // 把目录的父级当成允许根，既过宽也可能漏掉该目录）。
+      const declaredPath = asText(input.output_path).trim();
+      allowRoots.push(
+        spec.outputKind === "multi" ? declaredPath : declaredPath.replace(/\/[^/]*$/, "")
+      );
     } else {
       // 默认交付到 Android：Python 先写暂存区，再由 JS 回搬，避免跨环境路径混用。
       delete payload.output_path;
@@ -625,7 +800,7 @@ export async function runOfficeTool(
     payload.allow_roots = allowRoots;
   }
 
-  const argsPath = `${taskDir}/args.json`;
+  const argsPath = `${taskDir}/args-${newTaskId()}.json`;
   assertFileOperation(
     await Tools.Files.write(argsPath, JSON.stringify(payload), false, "linux"),
     "写入 office 参数文件",
@@ -635,6 +810,7 @@ export async function runOfficeTool(
   const timeoutMs = Number(input.timeoutMs || spec.timeoutMs || 300000);
   const commandLine = [
     `PYTHONPATH=${shellQuote(paths.runtimeDir)}`,
+    `KIYORI_OFFICE_LEASE_TOKEN=${shellQuote(leaseToken)}`,
     shellQuote(paths.python),
     "-m",
     "kiyori_office",
@@ -657,15 +833,20 @@ export async function runOfficeTool(
     );
   }
   if (!envelope.ok) {
-    const error = envelope.error || { code: "E_ENGINE_FAILED", message: "unknown office failure" };
-    return toFailure(command, new Error(`${error.code}: ${error.message}`));
+    return envelopeFailure(envelope);
+  }
+  if (executed.exitCode !== 0) {
+    return toFailure(command, new Error(`E_ENGINE_FAILED: 运行时退出码 ${executed.exitCode}，未发布产物`));
   }
 
   const data = (envelope.data || {}) as Record<string, unknown>;
+  if (command === "office_env_setup" && input.confirm === true) {
+    return await executeSetup(paths, taskDir, taskId, data);
+  }
   let artifacts = envelope.artifacts || [];
   if (hasArtifacts(envelope)) {
     try {
-      artifacts = await deliverArtifacts(artifacts, input, spec, taskId, data);
+      artifacts = await deliverArtifacts(artifacts, input.in_place === true ? { ...input, output_env: "linux" } : input, spec, taskId, data);
     } catch (error) {
       return toFailure(command, error);
     }
@@ -698,3 +879,57 @@ export async function safeRunOfficeTool(
 }
 
 export const OFFICE_SENTINEL = { begin: OFFICE_BEGIN, end: OFFICE_END };
+
+async function readOfficeGuide(input: Record<string, unknown>): Promise<object> {
+  const format = typeof input.format === "string" ? input.format : "core";
+  if (!["core", "docx", "xlsx", "pptx", "pdf"].includes(format)) {
+    throw new Error("E_INPUT_SCHEMA: format 必须是 core/docx/xlsx/pptx/pdf");
+  }
+  const path = await ToolPkg.readResource(`office_guide_${format}`, `kiyori-office-${format}.md`, true);
+  const file = await Tools.Files.read({ path, environment: "android" });
+  if (!file.content || file.content.length < 20) {
+    throw new Error("E_PROTOCOL: 内置办公 Skill 内容不可读");
+  }
+  return { success: true, command: "office_read_guide", data: { format, content: file.content },
+    next_actions: ["office_env_check"], artifacts: [] };
+}
+
+async function executeSetup(paths: CachedPaths, taskDir: string, taskId: string,
+  plan: Record<string, unknown>): Promise<Record<string, unknown>> {
+  if (!Array.isArray(plan.commands) || !plan.commands.every((item) => typeof item === "string")) {
+    throw new Error("E_PROTOCOL: 安装计划缺少 commands");
+  }
+  const available = Number(plan.disk_free_bytes);
+  if (plan.disk_free_bytes != null && available < Number(plan.estimated_bytes)) {
+    throw new Error("E_ENV_MISSING: 可用空间小于安装计划预估，请释放空间后重试");
+  }
+  // 可见终端可能配置了 SSH。随机标记只写在已确认的本地运行时中，逐条执行前
+  // 验证同一文件的内容，防止把安装命令投递到另一台机器或错误环境。
+  const marker = `${taskDir}/local-install-marker`;
+  const token = newTaskId();
+  assertFileOperation(await Tools.Files.write(marker, token, false, "linux"), "写入本地安装身份", marker);
+  const session = await Tools.System.terminal.create(`Office setup ${taskId}`);
+  if (!session.sessionId) throw new Error("E_ENGINE_FAILED: 无法创建可见安装终端");
+  for (const command of plan.commands as string[]) {
+    const guarded = `test "$(cat ${shellQuote(marker)} 2>/dev/null)" = ${shellQuote(token)} && (${command})`;
+    const result = await Tools.System.terminal.execStreaming(session.sessionId, guarded, { timeoutMs: 1200000 });
+    if (result.timedOut || result.exitCode !== 0) {
+      return { success: false, command: "office_env_setup", code: result.timedOut ? "E_TIMEOUT" : "E_ENGINE_FAILED",
+        message: "安装未完成，请查看可见终端；不会自动重试或切换环境", data: { ...plan, executed: true, completed: false, session_id: session.sessionId },
+        remedy: "确认可见终端是本地 Ubuntu，检查网络、磁盘和命令输出后重新获取计划" };
+    }
+  }
+  // 重新生成计划读取实际组件状态，随后显式探测；退出码 0 不代表依赖可导入。
+  assertFileOperation(await Tools.Files.write(`${taskDir}/check.json`, "{}", false, "linux"), "写入环境复检参数", taskDir);
+  const probe = await runHidden(`PYTHONPATH=${shellQuote(paths.runtimeDir)} ${shellQuote(paths.python)} -m kiyori_office office_env_check --args-file ${shellQuote(taskDir + "/check.json")}`, 120000);
+  const checked = parseEnvelope(probe.output);
+  if (probe.exitCode !== 0) return toFailure("office_env_setup", new Error("E_ENGINE_FAILED: 安装复检进程异常退出，未确认安装完成"));
+  if (!checked.ok) return envelopeFailure(checked);
+  const tiers = checked.data?.tiers as Record<string, { complete?: boolean; components?: Record<string, { available?: boolean }> }> | undefined;
+  const tier = tiers?.[`tier${plan.tier}`];
+  const completed = Array.isArray(plan.components) && plan.components.every((name) =>
+    typeof name === "string" && tier?.components?.[name]?.available === true);
+  return { success: completed, command: "office_env_setup", message: completed ? "安装完成并已复检" : "安装命令结束，但组件复检未通过",
+    ...(completed ? {} : { code: "E_ENV_MISSING" }),
+    data: { ...plan, executed: true, completed, session_id: session.sessionId, environment: checked.data }, next_actions: ["office_env_check"] };
+}

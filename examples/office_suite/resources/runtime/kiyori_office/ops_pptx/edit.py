@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List
 
-from ..paths import artifact, resolve_output_path, resolve_path, resolve_task_id, task_dir
+from ..paths import atomic_save, artifact, resolve_output_path, resolve_path, resolve_task_id, task_dir
 from ..protocol import OfficeError, engine_version, register
 from ..readers.pptx_reader import pptx_outline, require_pptx
 from .slides import _open, _prepare
@@ -39,9 +39,13 @@ def _find_shape(slide, shape_index=None, shape_name=None):
             )
         return shapes[shape_index]
     if shape_name:
-        for shape in shapes:
-            if shape.name == shape_name:
-                return shape
+        matches = [(index, shape) for index, shape in enumerate(shapes) if shape.name == shape_name]
+        if len(matches) > 1:
+            raise OfficeError('E_ANCHOR_NOT_FOUND', '形状名命中多处，拒绝模糊编辑',
+                              detail='shape_name=%s indices=%s' % (shape_name, [index for index, _ in matches]),
+                              remedy='使用 pptx_outline 返回的 shape_index 精确定位。')
+        if matches:
+            return matches[0][1]
         raise OfficeError(
             "E_ANCHOR_NOT_FOUND",
             "未找到形状: %s" % shape_name,
@@ -92,8 +96,23 @@ def pptx_edit(args: Dict[str, Any]) -> Dict[str, Any]:
             )
         text = str(args.get("text") or "")
         if operation == "set_text":
+            # 替换文本保留首段/首 run 的外观；clear() 会移除 run 格式，导致
+            # 设计好的字号、字体和颜色突然回退到母版。
+            from copy import deepcopy
+            first = shape.text_frame.paragraphs[0]
+            paragraph_properties = deepcopy(first._p.pPr) if first._p.pPr is not None else None
+            run_properties = deepcopy(first.runs[0]._r.rPr) if first.runs and first.runs[0]._r.rPr is not None else None
             shape.text_frame.clear()
-            shape.text_frame.paragraphs[0].text = text
+            for index, line in enumerate(text.split("\n")):
+                paragraph = shape.text_frame.paragraphs[0] if index == 0 else shape.text_frame.add_paragraph()
+                paragraph.text = line
+                if paragraph_properties is not None:
+                    existing = paragraph._p.pPr
+                    if existing is not None:
+                        paragraph._p.remove(existing)
+                    paragraph._p.insert(0, deepcopy(paragraph_properties))
+                if paragraph.runs and run_properties is not None:
+                    paragraph.runs[0]._r.insert(0, deepcopy(run_properties))
         else:
             paragraph = shape.text_frame.add_paragraph()
             paragraph.text = text
@@ -132,7 +151,7 @@ def pptx_edit(args: Dict[str, Any]) -> Dict[str, Any]:
                     run.font.color.rgb = RGBColor.from_string(str(args["color_rgb"]))
         changed.append("font")
     output.parent.mkdir(parents=True, exist_ok=True)
-    prs.save(str(output))
+    atomic_save(prs, output)
     return {
         "artifacts": [artifact(output, role="in_place" if args.get("in_place") else "output")],
         "data": {"operation": operation, "changed": changed, "work_dir": str(directory)},
@@ -164,7 +183,7 @@ def pptx_notes(args: Dict[str, Any]) -> Dict[str, Any]:
     slide = _resolve_slide(prs, args.get("slide_index"))
     slide.notes_slide.notes_text_frame.text = str(args.get("text") or "")
     output.parent.mkdir(parents=True, exist_ok=True)
-    prs.save(str(output))
+    atomic_save(prs, output)
     return {
         "artifacts": [artifact(output, role="in_place" if args.get("in_place") else "output")],
         "data": {"slide_index": args.get("slide_index"), "work_dir": str(directory)},
@@ -186,21 +205,28 @@ def pptx_media(args: Dict[str, Any]) -> Dict[str, Any]:
     image = resolve_path(args.get("image_path"), args=args, field="image_path", must_exist=True)
     left = int(args.get("left_emu") or 0)
     top = int(args.get("top_emu") or 0)
-    width = int(args.get("width_emu") or 0) or None
-    height = int(args.get("height_emu") or 0) or None
-    if width is None or height is None:
-        # 未显式给尺寸时按页宽 80% 等比缩放，避免图片溢出页面
-        from PIL import Image  # type: ignore
-
-        with Image.open(image) as handle:
-            ratio = handle.height / handle.width
-        width = int(prs.slide_width * 0.8)
+    width = args.get("width_emu")
+    height = args.get("height_emu")
+    from PIL import Image
+    with Image.open(image) as handle:
+        ratio = handle.height / handle.width
+    if left < 0 or top < 0 or left >= prs.slide_width or top >= prs.slide_height:
+        raise OfficeError("E_INPUT_SCHEMA", "图片起点必须位于幻灯片内部")
+    if width is None and height is None:
+        width = min(int(prs.slide_width * 0.8), prs.slide_width - left,
+                    int((prs.slide_height - top) / ratio))
         height = int(width * ratio)
+    elif width is None:
+        width = int(height / ratio)
+    elif height is None:
+        height = int(width * ratio)
+    if width <= 0 or height <= 0 or left + width > prs.slide_width or top + height > prs.slide_height:
+        raise OfficeError("E_INPUT_SCHEMA", "图片显式尺寸超出幻灯片，请调整位置或尺寸")
     slide.shapes.add_picture(str(image), left, top, width=width, height=height)
     output.parent.mkdir(parents=True, exist_ok=True)
-    prs.save(str(output))
+    atomic_save(prs, output)
     return {
         "artifacts": [artifact(output, role="in_place" if args.get("in_place") else "output")],
-        "data": {"image": str(image), "work_dir": str(directory)},
+        "data": {"image": str(image), "width_emu": width, "height_emu": height, "work_dir": str(directory)},
         "engine_version": engine_version("python-pptx"),
     }

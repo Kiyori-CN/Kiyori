@@ -7,8 +7,10 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from ..paths import (
+    atomic_save,
     artifact,
     atomic_write_bytes,
+    resolve_output_dir,
     resolve_output_path,
     resolve_path,
     resolve_task_id,
@@ -35,7 +37,7 @@ def docx_insert_image(args: Dict[str, Any]) -> Dict[str, Any]:
     source = resolve_path(args.get("path"), args=args, field="path", must_exist=True)
     image = resolve_path(args.get("image_path"), args=args, field="image_path", must_exist=True)
     output = resolve_output_path(
-        args.get("output_path"),
+        args.get("output_path") or (str(source) if args.get("in_place") else None),
         args=args,
         field="output_path",
         default_dir=directory / "out",
@@ -46,17 +48,29 @@ def docx_insert_image(args: Dict[str, Any]) -> Dict[str, Any]:
     document = docx.Document(str(source))
     paragraph = document.add_paragraph()
     run = paragraph.add_run()
-    width = Cm(float(args["width_cm"])) if args.get("width_cm") else None
-    if width is not None and width > document.sections[0].page_width:
-        width = None
-    run.add_picture(str(image), width=width)
+    from .layout import number
+    from PIL import Image
+    from docx.shared import Emu
+
+    section = document.sections[-1]  # 图片追加在最后一节，不能使用第一页的纸张尺寸。
+    available_width = section.page_width - section.left_margin - section.right_margin
+    available_height = section.page_height - section.top_margin - section.bottom_margin
+    with Image.open(image) as picture:
+        ratio = picture.height / picture.width
+    if "width_cm" in args:
+        width = Cm(number(args["width_cm"], "width_cm", 0.01, 100))
+        if width > available_width or width * ratio > available_height:
+            raise OfficeError("E_INPUT_SCHEMA", "图片显式尺寸超出正文区域，请减小 width_cm")
+    else:
+        width = min(available_width, int(available_height / ratio))
+    run.add_picture(str(image), width=Emu(int(width)))
     if args.get("alignment"):
         paragraph.alignment = getattr(WD_ALIGN_PARAGRAPH, str(args["alignment"]).upper())
     output.parent.mkdir(parents=True, exist_ok=True)
-    document.save(str(output))
+    atomic_save(document, output)
     return {
         "artifacts": [artifact(output)],
-        "data": {"image": str(image), "work_dir": str(directory)},
+        "data": {"image": str(image), "width_emu": int(width), "work_dir": str(directory)},
         "engine_version": engine_version("python-docx"),
     }
 
@@ -71,10 +85,15 @@ def docx_extract_media(args: Dict[str, Any]) -> Dict[str, Any]:
     task_id = resolve_task_id(args)
     directory = task_dir(task_id)
     source = resolve_path(args.get("path"), args=args, field="path", must_exist=True)
-    target_dir = directory / "out" / sanitize_filename(
-        str(args.get("target_dir_name") or (source.stem + "-media"))
+    target_dir = resolve_output_dir(
+        args.get("output_path"),
+        args=args,
+        field="output_path",
+        default_dir=directory
+        / "out"
+        / sanitize_filename(str(args.get("target_dir_name") or (source.stem + "-media"))),
+        overwrite=bool(args.get("overwrite")),
     )
-    target_dir.mkdir(parents=True, exist_ok=True)
     extracted: List[Dict[str, Any]] = []
     try:
         with zipfile.ZipFile(source) as archive:

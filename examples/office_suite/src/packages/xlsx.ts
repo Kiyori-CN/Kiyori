@@ -31,8 +31,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -67,8 +67,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -130,8 +130,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -148,8 +148,8 @@
         {
           "name": "cells",
           "description": {
-            "zh": "[{cell,value|formula}]",
-            "en": "[{cell,value|formula}]"
+            "zh": "精确单元格数组 [{cell,value 或 formula}]；先 rows 后 cells，cells 覆盖同批 rows；null 显式清空。",
+            "en": "Explicit cells [{cell,value OR formula}]. Rows first, cells override rows; null explicitly clears."
           },
           "type": "array",
           "required": false
@@ -231,8 +231,8 @@
     {
       "name": "xlsx_format",
       "description": {
-        "zh": "数字格式、字体、填充、列宽行高、冻结窗格、自动筛选。",
-        "en": "Number formats, fonts, fills, widths/heights, freeze panes, and auto-filter."
+        "zh": "按 range 设置数字格式、字体、填充；只更新指定字体属性，保留其他属性。支持列宽、行高、冻结窗格与筛选；保存含公式的文件后需重新 xlsx_recalc。",
+        "en": "Format a range while preserving unspecified font properties; set column widths, row heights, freeze panes and filters. Recalculate formula workbooks after saving."
       },
       "parameters": [
         {
@@ -247,8 +247,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -369,6 +369,15 @@
           },
           "type": "string",
           "required": false
+        },
+        {
+          "name": "range",
+          "type": "string",
+          "required": false,
+          "description": {
+            "zh": "仅格式化此矩形区域，如 A1:D20；省略为已用区域，最多 100000 单元格",
+            "en": "Format only this rectangle, e.g. A1:D20; defaults to used range, capped at 100000 cells"
+          }
         }
       ]
     },
@@ -391,8 +400,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -499,8 +508,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -571,8 +580,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -659,6 +668,150 @@
           "required": false
         }
       ]
+    },
+    {
+      "name": "xlsx_chart",
+      "description": {
+        "zh": "在已有工作簿中添加原生可编辑柱状/条形/折线/饼/散点图。先 xlsx_read 确认表头与数值范围；保存后重算公式，再校验和预览。",
+        "en": "Add an editable column/bar/line/pie/scatter chart to a workbook. Inspect headers and data with xlsx_read first; recalculate formulas, validate and preview after saving."
+      },
+      "parameters": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "sheet_name",
+          "description": {
+            "zh": "工作表名",
+            "en": "Sheet name"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "data_range",
+          "type": "string",
+          "required": true,
+          "description": {
+            "zh": "含表头的矩形范围，首列为分类/X 值，其余列为数值系列",
+            "en": "Rectangle with headers; first column contains categories/X, remaining columns contain values"
+          }
+        },
+        {
+          "name": "chart_type",
+          "type": "string",
+          "required": false,
+          "description": {
+            "zh": "column/bar/line/pie/scatter，默认 column；饼图仅一个数值系列",
+            "en": "column/bar/line/pie/scatter; defaults to column; pie requires one value series"
+          }
+        },
+        {
+          "name": "anchor",
+          "type": "string",
+          "required": false,
+          "description": {
+            "zh": "图表左上角单元格，默认 E2",
+            "en": "Top-left cell, defaults to E2"
+          }
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": false,
+          "description": {
+            "zh": "图表标题",
+            "en": "Chart title"
+          }
+        },
+        {
+          "name": "width_cm",
+          "type": "number",
+          "required": false,
+          "description": {
+            "zh": "宽度（厘米），默认 18",
+            "en": "Width in cm, defaults to 18"
+          }
+        },
+        {
+          "name": "height_cm",
+          "type": "number",
+          "required": false,
+          "description": {
+            "zh": "高度（厘米），默认 10",
+            "en": "Height in cm, defaults to 10"
+          }
+        },
+        {
+          "name": "style",
+          "type": "number",
+          "required": false,
+          "description": {
+            "zh": "Excel 图表样式 1-48，默认 10",
+            "en": "Excel chart style 1-48, defaults to 10"
+          }
+        }
+      ]
     }
   ]
 }
@@ -687,3 +840,4 @@ exports.xlsx_format = bind("xlsx_format");
 exports.xlsx_sheet = bind("xlsx_sheet");
 exports.xlsx_recalc = bind("xlsx_recalc");
 exports.xlsx_table = bind("xlsx_table");
+exports.xlsx_chart = bind("xlsx_chart");

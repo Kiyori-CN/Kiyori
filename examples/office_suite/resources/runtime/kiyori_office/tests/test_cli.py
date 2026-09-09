@@ -20,7 +20,7 @@ def _run_cli(tmp_path, command, args):
     env["PYTHONPATH"] = str(RUNTIME_PARENT)
     env["KIYORI_OFFICE_WORK_ROOT"] = str(tmp_path)
     completed = subprocess.run(
-        [sys.executable, "-m", "kiyori_office", command, "--args-file", str(args_file)],
+        [sys.executable, "-B", "-m", "kiyori_office", command, "--args-file", str(args_file)],
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -47,7 +47,7 @@ def test_cli_returns_failure_envelope_for_bad_args_file(tmp_path):
     env = dict(os.environ)
     env["PYTHONPATH"] = str(RUNTIME_PARENT)
     completed = subprocess.run(
-        [sys.executable, "-m", "kiyori_office", "office_env_check", "--args-file", str(args_file)],
+        [sys.executable, "-B", "-m", "kiyori_office", "office_env_check", "--args-file", str(args_file)],
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -84,7 +84,7 @@ def test_resource_zip_layout_matches_bootstrap_expectation(tmp_path):
     env = dict(os.environ)
     env["PYTHONPATH"] = str(runtime_dir)
     completed = subprocess.run(
-        [sys.executable, "-m", "kiyori_office", "office_env_check", "--args-file", str(args_file)],
+        [sys.executable, "-B", "-m", "kiyori_office", "office_env_check", "--args-file", str(args_file)],
         capture_output=True,
         text=True,
         encoding="utf-8",

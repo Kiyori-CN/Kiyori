@@ -45,7 +45,7 @@ abstract class GenerateBundledToolPkgAssetsTask : DefaultTask() {
     private val blockedExactFileNames = setOf(".env", ".ds_store", "thumbs.db")
     private val blockedFileSuffixes =
         setOf(".pem", ".key", ".p12", ".pfx", ".jks", ".keystore", ".swp", ".tmp")
-    private val activeTextSuffixes = setOf(".js", ".ts", ".json", ".hjson", ".html", ".css")
+    private val activeTextSuffixes = setOf(".js", ".ts", ".json", ".hjson", ".html", ".css", ".md")
     private val privateKeyMarkers =
         listOf(
             "-----BEGIN PRIVATE KEY-----",
@@ -160,6 +160,8 @@ abstract class GenerateBundledToolPkgAssetsTask : DefaultTask() {
                 "packages",
                 "ui",
                 "resources",
+                // ToolPkg 可声明随包知识资源；遗漏会产生 manifest 有路径而 APK 无文件的坏包。
+                "skills",
                 "modules",
                 "assets",
                 "i18n",
@@ -308,6 +310,7 @@ abstract class GenerateBundledToolPkgAssetsTask : DefaultTask() {
         val segments = lowercasePath.split('/')
         val fileName = segments.last()
         return "docs" in segments ||
+            fileName == "skill.md" ||
             fileName.startsWith("readme") ||
             fileName.startsWith("license") ||
             fileName.startsWith("changelog")

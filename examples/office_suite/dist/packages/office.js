@@ -16,17 +16,35 @@
     {
       "name": "office_workflow_guide",
       "description": {
-        "zh": "办公文档强制工作流（仅提示，无需实现）：先 office_env_check，再读对应 Skill；已有文件先 outline/read 取锚点；写公式的 xlsx 必须 xlsx_recalc；交付前 office_validate + office_render_preview 并用 direct_image 看图；不原地覆盖用户源文件；E_ENV_MISSING 时不得改用「差不多」的替代方案。",
-        "en": "Mandatory office workflow (advice only): office_env_check first, then read the matching Skill; outline/read existing files before editing; formulas require xlsx_recalc; before delivery run office_validate + office_render_preview and inspect pages with direct_image; never overwrite user sources; never substitute an approximate engine after E_ENV_MISSING."
+        "zh": "办公任务先调用 office_read_guide(format=core)，再读取对应格式的内置 Skill。先检查环境与输入结构，编辑后校验、预览并看图；按真实验收状态交付。",
+        "en": "Start office tasks with office_read_guide(format=core), then the format-specific built-in Skill. Check environment and inputs, validate and preview edits, inspect images, and report verified delivery status."
       },
       "parameters": [],
       "advice": true
     },
     {
+      "name": "office_read_guide",
+      "description": {
+        "zh": "读取随插件内置的办公 Skill，无需安装 Python；format=core/docx/xlsx/pptx/pdf。先读 core，再按实际格式读取。",
+        "en": "Read the bundled office Skill without Python: format=core/docx/xlsx/pptx/pdf. Read core first, then the relevant format."
+      },
+      "parameters": [
+        {
+          "name": "format",
+          "description": {
+            "zh": "core/docx/xlsx/pptx/pdf，默认 core",
+            "en": "core/docx/xlsx/pptx/pdf; default core"
+          },
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
       "name": "office_env_check",
       "description": {
-        "zh": "探测 T1-T4 组件、版本、CJK 字体与磁盘余量；缺失组件按 remedy 处理。",
-        "en": "Probe T1-T4 components, versions, CJK fonts, and free disk; follow remedy for missing parts."
+        "zh": "探测 Python、T1-T4 组件与磁盘。T4 按实际二进制探测；fonts.system_font_families 为 fontconfig 确认的中文系统字体族，ReportLab CID 字体单独列出。",
+        "en": "Inspect Python, Tier1-Tier4 components and disk space. Tier4 probes executable names; fonts.system_font_families contains fontconfig-confirmed Chinese families, separate from ReportLab CID fonts."
       },
       "parameters": [
         {
@@ -113,8 +131,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -230,8 +248,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -275,8 +293,8 @@
         {
           "name": "cjk_font",
           "description": {
-            "zh": "CJK 字体族",
-            "en": "CJK font family"
+            "zh": "中文字体族；Pandoc 路线必须是 fonts.system_font_families 中的真实族名，不能传字体文件名或 STSong-Light",
+            "en": "CJK font family; Pandoc requires an actual fonts.system_font_families entry, not a filename or STSong-Light"
           },
           "type": "string",
           "required": false
@@ -329,8 +347,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -372,6 +390,24 @@
           "required": false
         },
         {
+          "name": "output_path",
+          "description": {
+            "zh": "产物目录；省略时写入交付目录",
+            "en": "Output directory; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标目录非空时是否覆盖，默认 false",
+            "en": "Overwrite a non-empty target directory; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
           "name": "task_id",
           "description": {
             "zh": "复用同一个 Linux 暂存区",
@@ -401,8 +437,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -464,8 +500,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -509,8 +545,8 @@
         {
           "name": "env",
           "description": {
-            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
-            "en": "Path environment; must be explicitly android or linux, never inferred"
+            "zh": "输入文件所在环境：android=手机文件，linux=Ubuntu路径；仅决定如何读取文件，办公引擎始终在本机Ubuntu执行。",
+            "en": "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu."
           },
           "type": "string",
           "required": true
@@ -536,20 +572,74 @@
       ]
     },
     {
+      "name": "office_workspace_status",
+      "description": {
+        "zh": "列出 Ubuntu 办公任务的真实路径、临时/输出占用和使用状态；不修改文件。区分引擎runtime、work任务和Android交付目录。",
+        "en": "List Ubuntu office task paths, temporary/output usage and active state without modifying tasks. Distinguishes runtime, work and Android delivery."
+      },
+      "parameters": [
+        {
+          "name": "offset",
+          "type": "number",
+          "required": false,
+          "description": {
+            "zh": "分页起点，默认0",
+            "en": "Page offset, default 0"
+          }
+        },
+        {
+          "name": "limit",
+          "type": "number",
+          "required": false,
+          "description": {
+            "zh": "每页任务数1-50，默认20",
+            "en": "Page size 1-50, default 20"
+          }
+        }
+      ]
+    },
+    {
       "name": "office_workspace_clean",
       "description": {
-        "zh": "清理指定 task_id 的 Linux 暂存区。",
-        "en": "Clean the Linux staging directory for a task_id."
+        "zh": "清理指定 Ubuntu 办公任务；默认仅预览。scope=temporary 保留输出，task 删除整个任务含输出；先预览，再传 confirm=true 与原 plan_token。不能清理运行时、Android交付或任意目录。",
+        "en": "Preview cleanup of an Ubuntu office task. temporary preserves outputs; task deletes the whole task including outputs. Confirm using confirm=true and the returned plan_token. Runtime and external/Android outputs are excluded."
       },
       "parameters": [
         {
           "name": "task_id",
-          "description": {
-            "zh": "复用同一个 Linux 暂存区",
-            "en": "Reuse the same Linux staging directory"
-          },
           "type": "string",
-          "required": false
+          "required": true,
+          "description": {
+            "zh": "待清理的真实任务ID；先用 office_workspace_status 查看",
+            "en": "Existing task ID from office_workspace_status"
+          }
+        },
+        {
+          "name": "scope",
+          "type": "string",
+          "required": false,
+          "description": {
+            "zh": "temporary（默认）：清理in/tmp/参数；task：删除整个任务含out输出",
+            "en": "temporary (default): inputs/tmp/args; task: whole task including out"
+          }
+        },
+        {
+          "name": "confirm",
+          "type": "boolean",
+          "required": false,
+          "description": {
+            "zh": "默认 false，只返回清理计划；用户确认精确清单后传 true",
+            "en": "Defaults false: preview. True executes the reviewed plan"
+          }
+        },
+        {
+          "name": "plan_token",
+          "type": "string",
+          "required": false,
+          "description": {
+            "zh": "预览返回的 plan_token，确认时必需；目录变化需重新预览",
+            "en": "Required when confirming; token from unchanged preview"
+          }
         }
       ]
     }
@@ -570,6 +660,7 @@ function bind(name) {
     }
     return async (params) => await (0, runtime_1.safeRunOfficeTool)(entry.spec, params);
 }
+exports.office_read_guide = bind("office_read_guide");
 exports.office_env_check = bind("office_env_check");
 exports.office_env_setup = bind("office_env_setup");
 exports.office_read = bind("office_read");
@@ -578,4 +669,5 @@ exports.office_render_preview = bind("office_render_preview");
 exports.office_validate = bind("office_validate");
 exports.office_diff = bind("office_diff");
 exports.office_workspace_init = bind("office_workspace_init");
+exports.office_workspace_status = bind("office_workspace_status");
 exports.office_workspace_clean = bind("office_workspace_clean");

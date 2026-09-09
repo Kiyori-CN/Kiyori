@@ -222,6 +222,28 @@ def dispatch(command: str, args: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
+def _bound_result(result: Dict[str, Any], args: Dict[str, Any]) -> Dict[str, Any]:
+    """文本与结构化结果共用预算，避免 text 截断后 outline/rows 仍撑爆上下文。"""
+    data = result.get("data") or {}
+    limit = max(1000, min(int(args.get("max_chars") or 20000), 200000))
+    serialized = json.dumps(data, ensure_ascii=False)
+    if len(serialized) <= limit:
+        return result
+    from .paths import atomic_write_text, resolve_task_id, task_dir
+
+    target = task_dir(resolve_task_id(args)) / "out" / (result["command"] + "-full.json")
+    atomic_write_text(target, serialized)
+    result["data"] = {
+        "text": serialized[:max(0, limit - 500)],
+        "navigation": {"full_output_path": str(target), "env": "linux", "format": "json"},
+        "total_chars": len(serialized),
+        "note": "结构化结果超出预算；完整 JSON 已落盘，请按路径分段读取或缩小 range。",
+    }
+    result["truncated"] = True
+    result["full_output_path"] = str(target)
+    return result
+
+
 def load_args_file(path: str) -> Dict[str, Any]:
     args_path = Path(path)
     if not args_path.is_file():
@@ -250,6 +272,23 @@ def load_args_file(path: str) -> Dict[str, Any]:
 
 
 def run(command: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    from .paths import resolve_task_id
+    from .storage import task_lease
+    if command in {"office_env_check", "office_env_setup", "office_workspace_init", "office_workspace_status", "office_workspace_clean"}:
+        return _run(command, args)
+    args = dict(args)
+    try:
+        args["task_id"] = resolve_task_id(args)
+        # JS 占用覆盖暂存、执行与回搬；直接 Python 调用则自行占用到信封完成。
+        with task_lease(args["task_id"], os.environ.get("KIYORI_OFFICE_LEASE_TOKEN") or None):
+            return _run(command, args)
+    except OfficeError as exc:
+        return build_failure(command, exc)
+    except (OSError, ValueError) as exc:
+        return build_failure(command, OfficeError('E_PATH_INVALID', '任务占用或工作目录不可用', detail=str(exc)))
+
+
+def _run(command: str, args: Dict[str, Any]) -> Dict[str, Any]:
     started = time.monotonic()
     try:
         raw = dispatch(command, args)
@@ -282,7 +321,7 @@ def run(command: str, args: Dict[str, Any]) -> Dict[str, Any]:
         full_output_path=raw.get("full_output_path"),
         elapsed_ms=_elapsed_ms(started),
     )
-    return result
+    return _bound_result(result, args)
 
 
 def _elapsed_ms(started: float) -> int:
@@ -302,7 +341,7 @@ def parse_sentinel(output: str) -> Dict[str, Any]:
     start = output.find(BEGIN)
     if start < 0:
         raise OfficeError("E_PROTOCOL", "office runtime sentinel begin marker missing")
-    end = output.find(END, start + len(BEGIN))
+    end = output.rfind(END)
     if end < 0:
         raise OfficeError("E_PROTOCOL", "office runtime sentinel end marker missing")
     raw = output[start + len(BEGIN) : end]
