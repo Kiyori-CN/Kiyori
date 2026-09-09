@@ -35,15 +35,17 @@ fun MCPCommandsEditDialog(
         pluginName: String,
         commands: List<String>,
         isLoading: Boolean = false,
+        loadError: String? = null,
+        onRetry: () -> Unit = {},
         onDismissRequest: () -> Unit,
         onConfirm: (List<String>) -> Unit
 ) {
     var editedCommands by remember { mutableStateOf(commands.joinToString("\n")) }
-
-    // 当命令更新时，更新编辑文本
-    LaunchedEffect(commands) {
-        if (commands.isNotEmpty()) {
+    var initialized by remember { mutableStateOf(!isLoading && loadError == null) }
+    LaunchedEffect(commands, isLoading, loadError) {
+        if (!initialized && !isLoading && loadError == null) {
             editedCommands = commands.joinToString("\n")
+            initialized = true
         }
     }
 
@@ -57,7 +59,7 @@ fun MCPCommandsEditDialog(
                 color = MaterialTheme.colorScheme.surface,
                 tonalElevation = 6.dp
         ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
+            Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp)) {
                 // 标题区域
                 Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -70,6 +72,7 @@ fun MCPCommandsEditDialog(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
+                            modifier = Modifier.weight(1f),
                             text = stringResource(R.string.mcp_edit_deploy_commands),
                             style = MaterialTheme.typography.titleLarge,
                             maxLines = 1,
@@ -78,7 +81,7 @@ fun MCPCommandsEditDialog(
 
                     Spacer(modifier = Modifier.weight(1f))
 
-                    IconButton(onClick = onDismissRequest, modifier = Modifier.size(40.dp)) {
+                    IconButton(onClick = onDismissRequest, modifier = Modifier.size(48.dp)) {
                         Icon(
                                 imageVector = Icons.Outlined.Close,
                                 contentDescription = stringResource(R.string.mcp_close),
@@ -130,6 +133,11 @@ fun MCPCommandsEditDialog(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
+
+                if (loadError != null) {
+                    Text(loadError, color = MaterialTheme.colorScheme.error)
+                    TextButton(onClick = onRetry, enabled = !isLoading) { Text(stringResource(R.string.mcp_retry)) }
+                }
 
                 // 命令编辑区
                 Row(
@@ -207,7 +215,7 @@ fun MCPCommandsEditDialog(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // 底部按钮
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     OutlinedButton(
                             onClick = onDismissRequest,
                             colors =
@@ -227,7 +235,7 @@ fun MCPCommandsEditDialog(
 
                                 onConfirm(finalCommands)
                             },
-                            enabled = !isLoading,
+                            enabled = !isLoading && loadError == null && (commands.isEmpty() || editedCommands.isNotBlank()),
                             colors =
                                     ButtonDefaults.buttonColors(
                                             containerColor = MaterialTheme.colorScheme.primary

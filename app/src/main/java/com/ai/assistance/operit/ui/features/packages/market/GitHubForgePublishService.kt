@@ -11,6 +11,8 @@ import com.ai.assistance.operit.data.api.MarketV2PublishAsset
 import com.ai.assistance.operit.data.api.MarketV2PublishRequest
 import com.ai.assistance.operit.data.api.MarketV2PublishVersion
 import com.ai.assistance.operit.data.api.MarketV2Version
+import com.ai.assistance.operit.data.api.canRetryRejectedMarketRegistration
+import com.ai.assistance.operit.data.api.MarketSubmissionNotStarted
 import com.ai.assistance.operit.data.preferences.GitHubAuthPreferences
 import com.ai.assistance.operit.util.ToolPkgArtifactMinifier
 import java.io.File
@@ -18,6 +20,7 @@ import java.net.URI
 import java.security.MessageDigest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
 
 data class PublishArtifactRequest(
     val localArtifact: LocalPublishableArtifact,
@@ -46,16 +49,20 @@ sealed class PublishAttemptResult {
     ) : PublishAttemptResult()
 
     data class RegistrationFailed(
-        val errorMessage: String
+        val errorMessage: String,
+        val payload: MarketRegistrationPayload,
+        val existingEntryId: String?,
+        val publishContext: ArtifactPublishClusterContext?,
+        val retryAllowed: Boolean
     ) : PublishAttemptResult()
 }
 
 class GitHubForgePublishService(
     private val context: Context,
     private val githubApiService: GitHubApiService,
-    private val marketStatsApiService: MarketStatsApiService = MarketStatsApiService()
+    private val marketStatsApiService: MarketStatsApiService = MarketStatsApiService(),
+    private val githubAuth: GitHubAuthPreferences = GitHubAuthPreferences.getInstance(context)
 ) {
-    private val githubAuth = GitHubAuthPreferences.getInstance(context)
 
     private data class EnsuredRelease(
         val release: GitHubRelease,
@@ -84,6 +91,8 @@ class GitHubForgePublishService(
                         releases = releases.filter { !it.draft }
                     )
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Result.failure(e)
             }
@@ -168,7 +177,7 @@ class GitHubForgePublishService(
                                 sourceFile.readBytes()
                             }
                         val uploadedAsset =
-                            uploadAssetReplacingExisting(
+                            ensureReleaseAsset(
                                 owner = currentUser.login,
                                 repo = forgeRepo.repoName,
                                 release = ensuredRelease.release,
@@ -256,10 +265,15 @@ class GitHubForgePublishService(
                     existingEntryId = request.publishContext?.entryId,
                     publishContext = request.publishContext
                 ).getOrElse { error ->
-                    // GitHub Release 资产已经完成上传，市场登记失败时保留它，避免用户制品丢失并允许直接重试登记。
+                    if (error is CancellationException) throw error
+                    // GitHub Release 资产已经完成上传，市场登记失败时保留精确登记快照。
                     return@withContext Result.success(
                         PublishAttemptResult.RegistrationFailed(
-                            errorMessage = error.message ?: "Failed to register market entry"
+                            errorMessage = error.message ?: "Failed to register market entry",
+                            payload = payload,
+                            existingEntryId = request.publishContext?.entryId,
+                            publishContext = request.publishContext,
+                            retryAllowed = canRetryRejectedMarketRegistration(error)
                         )
                     )
                 }
@@ -273,10 +287,32 @@ class GitHubForgePublishService(
                     payload = payload
                 )
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+
+    /** 明确重试只登记此前上传的资产，不能重新上传、替换或删除 Release。 */
+    suspend fun retryMarketRegistration(failed: PublishAttemptResult.RegistrationFailed): Result<MarketV2Entry> =
+        withContext(Dispatchers.IO) {
+            try {
+                check(failed.retryAllowed) { "Market registration submission is unconfirmed; it must not be sent again" }
+                if (!githubAuth.isLoggedIn() ||
+                    !githubAuth.getCurrentUserInfo()?.login.equals(failed.payload.publisherLogin, ignoreCase = true)) {
+                    throw MarketSubmissionNotStarted("Sign in with the original publisher account to retry registration")
+                }
+                val result = registerMarketEntry(failed.payload, failed.existingEntryId, failed.publishContext)
+                val error = result.exceptionOrNull()
+                if (error is CancellationException) throw error
+                result
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Result.failure(error)
+            }
+        }
 
     private suspend fun ensureForgeRepository(
         publisherLogin: String,
@@ -387,19 +423,11 @@ class GitHubForgePublishService(
                 prerelease = false
             ).map { release -> EnsuredRelease(release = release, created = true) }
         } else {
-            githubApiService.updateRelease(
-                owner = owner,
-                repo = repo,
-                releaseId = existing.id,
-                name = releaseDescriptor.releaseName,
-                body = releaseDescriptor.releaseBody,
-                draft = false,
-                prerelease = false
-            ).map { release -> EnsuredRelease(release = release, created = false) }
+            Result.success(EnsuredRelease(release = existing, created = false))
         }
     }
 
-    private suspend fun uploadAssetReplacingExisting(
+    internal suspend fun ensureReleaseAsset(
         owner: String,
         repo: String,
         release: GitHubRelease,
@@ -409,9 +437,15 @@ class GitHubForgePublishService(
         release.assets
             .firstOrNull { it.name.equals(descriptor.assetName, ignoreCase = true) }
             ?.let { existingAsset ->
-                githubApiService.deleteReleaseAsset(owner, repo, existingAsset.id).getOrElse { error ->
+                val existingBytes = githubApiService.downloadReleaseAsset(existingAsset.browser_download_url).getOrElse { error ->
+                    if (error is CancellationException) throw error
                     return Result.failure(error)
                 }
+                // 同版本只复用相同内容；失败重试不能先删除已经发布的文件。
+                if (!existingBytes.contentEquals(content)) {
+                    return Result.failure(IllegalStateException("This release already contains a different artifact. Publish a new version instead."))
+                }
+                return Result.success(existingAsset)
             }
 
         return githubApiService.uploadReleaseAsset(

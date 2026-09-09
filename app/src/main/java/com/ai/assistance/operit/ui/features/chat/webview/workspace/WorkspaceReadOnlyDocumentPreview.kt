@@ -23,7 +23,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,6 +47,8 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 
 private const val DOCUMENT_PREVIEW_TAG = "WorkspaceDocPreview"
@@ -59,6 +64,8 @@ private data class WorkspaceHtmlPreviewState(
     val html: String? = null,
     val errorMessage: String? = null
 )
+
+private data class WorkspacePdfPageRenderState(val loading: Boolean = true, val bitmap: Bitmap? = null)
 
 private data class WorkspacePdfPreviewState(
     val loading: Boolean = true,
@@ -123,14 +130,20 @@ internal fun rememberWorkspacePreviewFileState(
     toolHandler: AIToolHandler
 ): State<WorkspacePreviewFileState> {
     val context = LocalContext.current
-    return produceState(
-        initialValue = WorkspacePreviewFileState(),
-        key1 = fileInfo.path,
-        key2 = fileInfo.lastModified,
-        key3 = workspaceEnv
-    ) {
-        value = withContext(Dispatchers.IO) {
-            resolvePreviewSourceFile(context, toolHandler, fileInfo, workspaceEnv)
+    return key(fileInfo.path, fileInfo.lastModified, workspaceEnv) {
+        produceState(initialValue = WorkspacePreviewFileState()) {
+            var temporaryFile: File? = null
+            try {
+                value = withContext(Dispatchers.IO) {
+                    resolvePreviewSourceFile(context, toolHandler, fileInfo, workspaceEnv) { temporaryFile = it }
+                }
+                // 临时文件属于本次可见预览；切文件或环境时释放，不能按路径 hash 共用。
+                awaitDispose { }
+            } finally {
+                withContext(NonCancellable + Dispatchers.IO) {
+                    temporaryFile?.let { if (it.exists() && !it.delete()) AppLogger.w(DOCUMENT_PREVIEW_TAG, "Unable to remove preview file") }
+                }
+            }
         }
     }
 }
@@ -150,6 +163,7 @@ private fun WorkspaceHtmlDocumentPreview(
         key2 = sourceFile?.lastModified(),
         key3 = fileInfo.resolvedMimeType
     ) {
+        value = WorkspaceHtmlPreviewState()
         value = withContext(Dispatchers.IO) {
             buildHtmlPreviewState(context, sourceFile, fileInfo)
         }
@@ -188,6 +202,7 @@ private fun WorkspacePdfPreview(
         key1 = sourceFile?.absolutePath,
         key2 = sourceFile?.lastModified()
     ) {
+        value = WorkspacePdfPreviewState()
         value = withContext(Dispatchers.IO) {
             resolvePdfPreviewState(sourceFile)
         }
@@ -209,7 +224,7 @@ private fun WorkspacePdfPreview(
         else -> {
             val pageIndexes = List(pdfPreviewState.pageCount) { it }
             LazyColumn(
-                modifier = modifier.background(Color(0xFFE5E7EB)),
+                modifier = modifier.background(MaterialTheme.colorScheme.surfaceContainer),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(16.dp)
             ) {
@@ -229,35 +244,33 @@ private fun WorkspacePdfPage(
     sourceFile: File?,
     pageIndex: Int
 ) {
-    val bitmap by produceState<Bitmap?>(
-        initialValue = null,
+    val context = LocalContext.current
+    val pageState by produceState(
+        initialValue = WorkspacePdfPageRenderState(),
         key1 = sourceFile?.absolutePath,
         key2 = sourceFile?.lastModified(),
         key3 = pageIndex
     ) {
+        value = WorkspacePdfPageRenderState()
         value = withContext(Dispatchers.IO) {
-            renderPdfPage(sourceFile, pageIndex)
+            WorkspacePdfPageRenderState(loading = false, bitmap = renderPdfPage(sourceFile, pageIndex))
         }
     }
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = Color.White,
-        shadowElevation = 2.dp
-    ) {
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
-        ) {
-            if (bitmap != null) {
-                Image(
-                    bitmap = bitmap!!.asImageBitmap(),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxWidth(),
-                    contentScale = ContentScale.FillWidth
+    Surface(modifier = Modifier.fillMaxWidth(), color = Color.White, shadowElevation = 2.dp) {
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            val bitmap = pageState.bitmap
+            when {
+                pageState.loading -> CircularProgressIndicator(modifier = Modifier.padding(24.dp))
+                bitmap != null -> Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = context.getString(R.string.workspace_pdf_page, pageIndex + 1),
+                    modifier = Modifier.fillMaxWidth(), contentScale = ContentScale.FillWidth
                 )
-            } else {
-                CircularProgressIndicator(modifier = Modifier.padding(24.dp))
+                else -> Text(
+                    text = context.getString(R.string.workspace_pdf_page_failed, pageIndex + 1),
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.errorContainer).padding(24.dp)
+                )
             }
         }
     }
@@ -268,6 +281,7 @@ private fun ReadOnlyHtmlWebView(
     html: String?,
     modifier: Modifier = Modifier
 ) {
+    var loadedHtml by remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
     AndroidView(
         factory = { androidContext ->
             ParentInterceptingWebView(androidContext).apply {
@@ -282,13 +296,16 @@ private fun ReadOnlyHtmlWebView(
             }
         },
         update = { webView ->
-            webView.loadDataWithBaseURL(
+            if (loadedHtml != html) {
+                loadedHtml = html
+                webView.loadDataWithBaseURL(
                 "https://workspace-preview.local/",
                 html.orEmpty(),
                 "text/html",
                 "UTF-8",
                 null
-            )
+                )
+            }
         },
         onRelease = { webView ->
             webView.stopLoading()
@@ -332,7 +349,8 @@ private fun resolvePreviewSourceFile(
     context: android.content.Context,
     toolHandler: AIToolHandler,
     fileInfo: OpenFileInfo,
-    workspaceEnv: String?
+    workspaceEnv: String?,
+    onTemporaryFile: (File) -> Unit
 ): WorkspacePreviewFileState {
     return try {
         if (workspaceEnv.isNullOrBlank()) {
@@ -367,15 +385,15 @@ private fun resolvePreviewSourceFile(
         val binaryData = result.result
         val bytes = Base64.decode(binaryData.contentBase64, Base64.DEFAULT)
         val previewDir = File(context.cacheDir, "workspace_document_preview").apply { mkdirs() }
-        val extension = fileInfo.name.substringAfterLast('.', "bin").ifBlank { "bin" }
-        val previewFile = File(
-            previewDir,
-            "${fileInfo.path.hashCode()}_${fileInfo.lastModified}.$extension"
-        )
+        val extension = fileInfo.name.substringAfterLast('.', "bin").takeIf { it.matches(Regex("[A-Za-z0-9]{1,12}")) } ?: "bin"
+        val previewFile = File.createTempFile("preview-", ".$extension", previewDir)
+        onTemporaryFile(previewFile)
         FileOutputStream(previewFile).use { output ->
             output.write(bytes)
         }
         WorkspacePreviewFileState(loading = false, file = previewFile)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
     } catch (e: Exception) {
         AppLogger.e(DOCUMENT_PREVIEW_TAG, "Failed to resolve preview source file", e)
         WorkspacePreviewFileState(
@@ -397,12 +415,11 @@ private fun buildHtmlPreviewState(
         )
     }
 
+    var temporaryHtml: File? = null
     return try {
         val htmlDir = File(context.cacheDir, "workspace_document_html").apply { mkdirs() }
-        val htmlFile = File(
-            htmlDir,
-            "${sourceFile.absolutePath.hashCode()}_${sourceFile.lastModified()}.html"
-        )
+        val htmlFile = File.createTempFile("preview-", ".html", htmlDir)
+        temporaryHtml = htmlFile
 
         val extension = sourceFile.extension.lowercase(Locale.ROOT)
         val success = when {
@@ -428,12 +445,16 @@ private fun buildHtmlPreviewState(
             loading = false,
             html = htmlFile.readText()
         )
+    } catch (cancelled: CancellationException) {
+        throw cancelled
     } catch (e: Exception) {
         AppLogger.e(DOCUMENT_PREVIEW_TAG, "Failed to build HTML document preview", e)
         WorkspaceHtmlPreviewState(
             loading = false,
             errorMessage = context.getString(R.string.cannot_open_file, fileInfo.name)
         )
+    } finally {
+        temporaryHtml?.let { if (it.exists() && !it.delete()) AppLogger.w(DOCUMENT_PREVIEW_TAG, "Unable to remove preview HTML") }
     }
 }
 
@@ -455,6 +476,8 @@ private fun resolvePdfPreviewState(sourceFile: File?): WorkspacePdfPreviewState 
                 )
             }
         }
+    } catch (cancelled: CancellationException) {
+        throw cancelled
     } catch (e: Exception) {
         AppLogger.e(DOCUMENT_PREVIEW_TAG, "Failed to inspect PDF preview", e)
         WorkspacePdfPreviewState(
@@ -473,11 +496,13 @@ private fun renderPdfPage(sourceFile: File?, pageIndex: Int): Bitmap? {
                 if (pageIndex !in 0 until renderer.pageCount) return null
 
                 renderer.openPage(pageIndex).use { page ->
-                    val scale = 2
+                    require(page.width > 0 && page.height > 0) { "Invalid PDF page size" }
+                    // 单页最长边不超过 2048px，避免大幅面 PDF 按原尺寸翻倍分配位图。
+                    val scale = minOf(2.0, 2048.0 / maxOf(page.width, page.height))
                     val bitmap =
                         Bitmap.createBitmap(
-                            page.width * scale,
-                            page.height * scale,
+                            (page.width * scale).toInt().coerceAtLeast(1),
+                            (page.height * scale).toInt().coerceAtLeast(1),
                             Bitmap.Config.ARGB_8888
                         )
                     bitmap.eraseColor(android.graphics.Color.WHITE)
@@ -486,6 +511,8 @@ private fun renderPdfPage(sourceFile: File?, pageIndex: Int): Bitmap? {
                 }
             }
         }
+    } catch (cancelled: CancellationException) {
+        throw cancelled
     } catch (e: Exception) {
         AppLogger.e(DOCUMENT_PREVIEW_TAG, "Failed to render PDF page $pageIndex", e)
         null

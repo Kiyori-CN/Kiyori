@@ -120,7 +120,12 @@ internal fun buildWorkspacePreviewUri(
     workspaceEnv: String?,
     cacheBustToken: String? = null
 ): Uri? {
-    val relativePath = resolveWorkspacePreviewRelativePath(filePath, workspaceRootPath, workspaceEnv)
+    val relativePath = try {
+        resolveWorkspacePreviewRelativePath(filePath, workspaceRootPath, workspaceEnv)
+    } catch (error: java.io.IOException) {
+        com.ai.assistance.operit.util.AppLogger.w("WorkspacePreview", "Unable to resolve preview path")
+        return null
+    }
     if (relativePath != null) {
         val builder = Uri.Builder()
             .scheme("http")
@@ -151,26 +156,15 @@ private fun resolveWorkspacePreviewRelativePath(
     }
 }
 
-private fun resolveLocalWorkspaceRelativePath(filePath: String, workspaceRootPath: String): String? {
-    val canonicalFile = runCatching { File(filePath).canonicalPath.normalizeWorkspacePath() }
-        .getOrElse { filePath.normalizeWorkspacePath() }
-    val canonicalRoot = runCatching { File(workspaceRootPath).canonicalPath.normalizeWorkspacePath() }
-        .getOrElse { workspaceRootPath.normalizeWorkspacePath() }
-        .trimEnd('/')
-        .ifBlank { "/" }
-
-    if (canonicalFile == canonicalRoot) {
-        return "/"
-    }
-
-    return if (canonicalFile.startsWith("$canonicalRoot/")) {
-        "/" + canonicalFile.removePrefix("$canonicalRoot/").trimStart('/')
-    } else {
-        null
-    }
+internal fun resolveLocalWorkspaceRelativePath(filePath: String, workspaceRootPath: String): String? {
+    val root = File(workspaceRootPath).canonicalFile.toPath()
+    val candidate = File(filePath).canonicalFile.toPath()
+    return if (candidate.startsWith(root)) {
+        "/" + root.relativize(candidate).toString().replace(File.separatorChar, '/')
+    } else null
 }
 
-private fun resolveVirtualWorkspaceRelativePath(filePath: String, workspaceRootPath: String): String? {
+internal fun resolveVirtualWorkspaceRelativePath(filePath: String, workspaceRootPath: String): String? {
     val normalizedFile = filePath.normalizeWorkspacePath()
     val normalizedRoot = workspaceRootPath.normalizeWorkspacePath().trimEnd('/').ifBlank { "/" }
 
@@ -188,9 +182,15 @@ private fun resolveVirtualWorkspaceRelativePath(filePath: String, workspaceRootP
 }
 
 private fun String.normalizeWorkspacePath(): String {
-    val withForwardSlash = replace('\\', '/')
-    val collapsed = withForwardSlash.replace(Regex("/+"), "/")
-    return collapsed.ensureLeadingSlash()
+    val segments = java.util.ArrayDeque<String>()
+    replace('\\', '/').split('/').forEach { segment ->
+        when (segment) {
+            "", "." -> Unit
+            ".." -> if (segments.isNotEmpty()) segments.removeLast()
+            else -> segments.addLast(segment)
+        }
+    }
+    return "/" + segments.joinToString("/")
 }
 
 private fun String.ensureLeadingSlash(): String {

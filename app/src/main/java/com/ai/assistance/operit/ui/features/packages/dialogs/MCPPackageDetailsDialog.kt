@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -68,6 +69,7 @@ import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolParameter
 import com.ai.assistance.operit.data.model.ToolResult
 import com.ai.assistance.operit.util.AppLogger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -87,7 +89,8 @@ fun MCPPackageDetailsDialog(
     var loadError by remember(server.id) { mutableStateOf<String?>(null) }
     var selectedTool by remember(server.id) { mutableStateOf<PackageTool?>(null) }
 
-    LaunchedEffect(server.id, installedPath) {
+    var reloadVersion by remember(server.id) { mutableStateOf(0) }
+    LaunchedEffect(server.id, installedPath, reloadVersion) {
         isLoading = true
         loadError = null
         tools = emptyList()
@@ -100,7 +103,8 @@ fun MCPPackageDetailsDialog(
                 withContext(Dispatchers.IO) {
                     loadMcpPackageTools(context = context, serverId = server.id)
                 }
-        } catch (e: Exception) {
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (e: Exception) {
             AppLogger.e("MCPPackageDetailsDialog", "Failed to load MCP package details for ${server.id}", e)
             introText = server.description.trim()
             loadError = context.getString(R.string.tools_load_error, e.message ?: "")
@@ -201,10 +205,12 @@ fun MCPPackageDetailsDialog(
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
+                                            modifier = Modifier.weight(1f),
                                             text = loadError.orEmpty(),
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onErrorContainer
                                         )
+                                        TextButton(onClick = { reloadVersion++ }) { Text(stringResource(R.string.mcp_retry)) }
                                     }
                                 }
                             }
@@ -373,7 +379,9 @@ private fun MCPToolExecutionDialog(
     var executionResult by remember(tool) { mutableStateOf<ToolResult?>(null) }
     var executing by remember(tool) { mutableStateOf(false) }
 
-    Dialog(onDismissRequest = onDismiss) {
+    var closeRequested by remember { mutableStateOf(false) }
+    val requestDismiss: () -> Unit = { if (executing) closeRequested = true else onDismiss() }
+    Dialog(onDismissRequest = requestDismiss) {
         Surface(
             modifier = Modifier.fillMaxWidth().heightIn(max = 620.dp),
             shape = KiyoriUiShapes.dialog,
@@ -449,6 +457,7 @@ private fun MCPToolExecutionDialog(
                                         param.type.equals("array", ignoreCase = true)
                                 OutlinedTextField(
                                     value = paramValues[param.name].orEmpty(),
+                                    enabled = !executing,
                                     onValueChange = { value ->
                                         paramValues = paramValues.toMutableMap().apply {
                                             put(param.name, value)
@@ -563,20 +572,22 @@ private fun MCPToolExecutionDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
                 ) {
-                    TextButton(onClick = onDismiss) {
+                    TextButton(onClick = requestDismiss) {
                         Text(stringResource(R.string.common_cancel))
                     }
 
                     FilledTonalButton(
                         onClick = {
+                            if (executing) return@FilledTonalButton
+                            val submittedParameters = paramValues.toMap()
                             executing = true
-                            scope.launch(Dispatchers.IO) {
+                            scope.launch {
                                 try {
                                     val missingParams =
                                         tool.parameters
                                             .filter { it.required }
                                             .map { it.name }
-                                            .filter { paramValues[it].isNullOrBlank() }
+                                            .filter { submittedParameters[it].isNullOrBlank() }
 
                                     val result =
                                         if (missingParams.isNotEmpty()) {
@@ -592,25 +603,26 @@ private fun MCPToolExecutionDialog(
                                         } else {
                                             val toolParameters =
                                                 tool.parameters.mapNotNull { param ->
-                                                    val value = paramValues[param.name].orEmpty()
+                                                    val value = submittedParameters[param.name].orEmpty()
                                                     if (value.isBlank() && !param.required) {
                                                         null
                                                     } else {
                                                         ToolParameter(param.name, value)
                                                     }
                                                 }
-                                            toolHandler.executeTool(
+                                            withContext(Dispatchers.IO) { toolHandler.executeTool(
                                                 AITool(
                                                     name = "$serverId:${tool.name}",
                                                     parameters = toolParameters
                                                 )
-                                            )
+                                            ) }
                                         }
 
                                     withContext(Dispatchers.Main) {
                                         executionResult = result
                                     }
-                                } catch (e: Exception) {
+                                } catch (cancelled: CancellationException) { throw cancelled }
+                                catch (e: Exception) {
                                     AppLogger.e(
                                         "MCPToolExecutionDialog",
                                         "Failed to execute MCP tool $serverId:${tool.name}",
@@ -629,9 +641,7 @@ private fun MCPToolExecutionDialog(
                                             )
                                     }
                                 } finally {
-                                    withContext(Dispatchers.Main) {
-                                        executing = false
-                                    }
+                                    executing = false
                                 }
                             }
                         },
@@ -657,6 +667,14 @@ private fun MCPToolExecutionDialog(
             }
         }
     }
+    if (closeRequested) {
+        AlertDialog(onDismissRequest = { closeRequested = false },
+            title = { Text(stringResource(R.string.pkg_script_close_title)) },
+            text = { Text(stringResource(R.string.pkg_script_close_message)) },
+            confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.confirm)) } },
+            dismissButton = { TextButton(onClick = { closeRequested = false }) { Text(stringResource(R.string.cancel)) } })
+    }
+
 }
 
 @Composable

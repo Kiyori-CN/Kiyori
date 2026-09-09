@@ -5,7 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.ai.assistance.operit.R
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
+import com.ai.assistance.operit.util.AppLogger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,8 +15,11 @@ import kotlinx.coroutines.launch
 /**
  * 日志查看器ViewModel - 使用AppLogger文件
  */
-class LogcatViewModel(private val context: Context) : ViewModel() {
-    private val logcatManager = LogcatManager(context)
+class LogcatViewModel(
+    private val context: Context,
+    private val exportLogs: suspend () -> LogcatExportResult = { LogcatExportHelper.exportLogs(context) },
+    private val clearApplicationLogs: suspend () -> Unit = { AppLogger.clearApplicationLog() }
+) : ViewModel() {
 
 
     private val _isSaving = MutableStateFlow(false)
@@ -26,33 +30,51 @@ class LogcatViewModel(private val context: Context) : ViewModel() {
 
 
 
-    fun clearLogs() {
-        logcatManager.clearLogs()
+    private val _isClearing = MutableStateFlow(false)
+    val isClearing = _isClearing.asStateFlow()
+
+    fun clearLogs(onSuccess: () -> Unit) {
+        if (_isSaving.value || _isClearing.value) return
+        _isClearing.value = true
+        _saveResult.value = null
+        viewModelScope.launch {
+            try {
+                clearApplicationLogs()
+                _saveResult.value = context.getString(R.string.logcat_cleared)
+                onSuccess()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                _saveResult.value = context.getString(R.string.logcat_clear_failed, error.message ?: error.javaClass.simpleName)
+            } finally {
+                _isClearing.value = false
+            }
+        }.invokeOnCompletion { _isClearing.value = false }
     }
 
+    fun dismissResult() { _saveResult.value = null }
+
     fun saveLogsToFile() {
-        if (_isSaving.value) return
+        if (_isSaving.value || _isClearing.value) return
 
         _isSaving.value = true
         _saveResult.value = null
 
         viewModelScope.launch {
             try {
-                val result = LogcatExportHelper.exportLogs(context)
+                val result = exportLogs()
                 _saveResult.value = result.message
-                delay(3000)
-                _saveResult.value = null
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 _saveResult.value = context.getString(
                     R.string.logcat_save_failed,
                     e.message ?: context.getString(R.string.logcat_unknown_error)
                 )
-                delay(3000)
-                _saveResult.value = null
             } finally {
                 _isSaving.value = false
             }
-        }
+        }.invokeOnCompletion { _isSaving.value = false }
     }
 
     class Factory(private val context: Context) : ViewModelProvider.Factory {
@@ -65,8 +87,4 @@ class LogcatViewModel(private val context: Context) : ViewModel() {
         }
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        // No-op, no more monitoring to stop
-    }
 }

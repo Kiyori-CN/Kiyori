@@ -157,8 +157,8 @@ class AIForegroundService : Service() {
         private const val ACTION_STOP_EXTERNAL_HTTP =
             "com.ai.assistance.operit.action.STOP_EXTERNAL_HTTP"
 
-        @Volatile
-        private var lastRequestedImeVisible: Boolean = false
+        private val imeWakeListeningOwners = ImeWakeListeningOwners()
+        private val defaultImeOwner = Any()
 
         // 静态标志，用于从外部检查服务是否正在运行
         val isRunning = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -414,12 +414,13 @@ class AIForegroundService : Service() {
             }
         }
 
-        fun setWakeListeningSuspendedForIme(context: Context, imeVisible: Boolean) {
-            lastRequestedImeVisible = imeVisible
+        @Synchronized
+        fun setWakeListeningSuspendedForIme(context: Context, imeVisible: Boolean, owner: Any = defaultImeOwner) {
+            val anyImeVisible = imeWakeListeningOwners.setVisible(owner, imeVisible)
             if (!isRunning.get()) return
             val intent = Intent(context, AIForegroundService::class.java).apply {
                 action = ACTION_SET_WAKE_LISTENING_SUSPENDED_FOR_IME
-                putExtra(EXTRA_IME_VISIBLE, imeVisible)
+                putExtra(EXTRA_IME_VISIBLE, anyImeVisible)
             }
             try {
                 context.startService(intent)
@@ -958,7 +959,7 @@ class AIForegroundService : Service() {
         super.onCreate()
         isRunning.set(true)
         (application as MainApplicationInitialization).initializeMainApplication()
-        wakeListeningSuspendedForIme = lastRequestedImeVisible
+        wakeListeningSuspendedForIme = imeWakeListeningOwners.isVisible
         AppLogger.d(TAG, "AI 前台服务创建。")
         chatRuntimeHolder
         createNotificationChannel()

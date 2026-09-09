@@ -49,6 +49,8 @@ import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -72,9 +74,15 @@ import com.ai.assistance.operit.data.preferences.SkillVisibilityPreferences
 import com.ai.assistance.operit.data.skill.SkillRepository
 import com.ai.assistance.operit.ui.common.displays.MarkdownTextComposable
 import java.io.File
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import com.kiyori.design.theme.KiyoriUiShapes
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -102,6 +110,29 @@ fun SkillConfigScreen(
     var selectedSkill by remember { mutableStateOf<SkillPackage?>(null) }
     var selectedSkillDetail by remember { mutableStateOf<SkillDetailDialogData?>(null) }
     var isSkillDetailLoading by remember { mutableStateOf(false) }
+    var skillDetailFailed by remember { mutableStateOf(false) }
+    var skillDetailRevision by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(selectedSkill, skillDetailRevision) {
+        val target = selectedSkill ?: return@LaunchedEffect
+        isSkillDetailLoading = true
+        skillDetailFailed = false
+        selectedSkillDetail = null
+        try {
+            selectedSkillDetail = withContext(Dispatchers.IO) {
+                val operationContext = currentCoroutineContext()
+                buildSkillDetailDialogData(target, checkNotNull(skillRepository.readSkillContent(target.name))) {
+                    operationContext.ensureActive()
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            skillDetailFailed = true
+        } finally {
+            if (currentCoroutineContext().isActive) isSkillDetailLoading = false
+        }
+    }
     var skillLoadErrors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var showSkillLoadErrorsDialog by remember { mutableStateOf(false) }
 
@@ -115,18 +146,27 @@ fun SkillConfigScreen(
     var manualSkillContent by remember { mutableStateOf("") }
     var manualAttachments by remember { mutableStateOf<List<ManualImportAttachment>>(emptyList()) }
     var isImporting by remember { mutableStateOf(false) }
+    var importMessage by remember { mutableStateOf<String?>(null) }
 
-    val refreshSkills: suspend () -> Unit = {
-        isLoading = true
-        try {
-            val loaded =
-                withContext(Dispatchers.IO) {
-                    skillRepository.getAvailableSkillPackagesSnapshot()
-                }
-            skills = loaded.first
-            skillLoadErrors = loaded.second
-        } finally {
-            isLoading = false
+    var skillsLoadFailed by remember { mutableStateOf(false) }
+    val refreshLock = remember { Mutex() }
+    val refreshSkills: suspend () -> Boolean = {
+        refreshLock.withLock {
+            isLoading = true
+            skillsLoadFailed = false
+            try {
+                val loaded = withContext(Dispatchers.IO) { skillRepository.getAvailableSkillPackagesSnapshot() }
+                skills = loaded.first
+                skillLoadErrors = loaded.second
+                true
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                skillsLoadFailed = true
+                false
+            } finally {
+                isLoading = false
+            }
         }
     }
 
@@ -170,8 +210,7 @@ fun SkillConfigScreen(
         onImportClick = { showImportDialog = true },
         onRefreshClick = {
             scope.launch {
-                refreshSkills()
-                snackbarHostState.showSnackbar(context.getString(R.string.skillmgr_refreshed))
+                if (refreshSkills()) snackbarHostState.showSnackbar(context.getString(R.string.skillmgr_refreshed))
             }
         },
     )
@@ -182,6 +221,12 @@ fun SkillConfigScreen(
                 .fillMaxSize()
                 .padding(horizontal = 8.dp, vertical = 8.dp)
         ) {
+            if (skillsLoadFailed) {
+                Text(stringResource(R.string.pkg_details_load_failed), color = MaterialTheme.colorScheme.error)
+                TextButton(enabled = !isLoading, onClick = { scope.launch { refreshSkills() } }) {
+                    Text(stringResource(R.string.pkg_details_retry))
+                }
+            }
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -300,23 +345,10 @@ fun SkillConfigScreen(
                                     skill = skill,
                                     skillVisibilityPreferences = skillVisibilityPreferences,
                                     onClick = {
-                                        val targetPath = skill.directory.absolutePath
                                         selectedSkill = skill
                                         selectedSkillDetail = null
                                         isSkillDetailLoading = true
-                                        scope.launch {
-                                            val detail =
-                                                withContext(Dispatchers.IO) {
-                                                    buildSkillDetailDialogData(
-                                                        skill = skill,
-                                                        skillContent = skillRepository.readSkillContent(skill.name).orEmpty()
-                                                    )
-                                                }
-                                            if (selectedSkill?.directory?.absolutePath == targetPath) {
-                                                selectedSkillDetail = detail
-                                                isSkillDetailLoading = false
-                                            }
-                                        }
+                                        skillDetailFailed = false
                                     },
                                     modifier = Modifier.longPressDraggableHandle()
                                 )
@@ -351,13 +383,19 @@ fun SkillConfigScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(max = 460.dp)
+                        .verticalScroll(rememberScrollState())
                         .padding(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    importMessage?.let { message ->
+                        Text(message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
+
                     SecondaryScrollableTabRow(
                         selectedTabIndex = importTabIndex,
                         edgePadding = 8.dp,
-                        modifier = Modifier.height(40.dp),
+                        modifier = Modifier.heightIn(min = 48.dp),
                         divider = {},
                         indicator = {
                             if (importTabIndex in skillImportTabIndices()) {
@@ -370,19 +408,22 @@ fun SkillConfigScreen(
                         Tab(
                             selected = importTabIndex == 0,
                             onClick = { importTabIndex = 0 },
-                            modifier = Modifier.height(40.dp),
+                            enabled = !isImporting,
+                            modifier = Modifier.heightIn(min = 48.dp),
                             text = { Text(stringResource(R.string.import_from_repo), maxLines = 1) }
                         )
                         Tab(
                             selected = importTabIndex == 1,
                             onClick = { importTabIndex = 1 },
-                            modifier = Modifier.height(40.dp),
+                            enabled = !isImporting,
+                            modifier = Modifier.heightIn(min = 48.dp),
                             text = { Text(stringResource(R.string.import_from_zip), maxLines = 1) }
                         )
                         Tab(
                             selected = importTabIndex == 2,
                             onClick = { importTabIndex = 2 },
-                            modifier = Modifier.height(40.dp),
+                            enabled = !isImporting,
+                            modifier = Modifier.heightIn(min = 48.dp),
                             text = { Text(stringResource(R.string.import_from_direct), maxLines = 1) }
                         )
                     }
@@ -574,108 +615,81 @@ fun SkillConfigScreen(
                 TextButton(
                     enabled = !isImporting,
                     onClick = {
-                        scope.launch {
-                            when (importTabIndex) {
-                                0 -> {
-                                    val url = repoUrlInput.trim()
-                                    if (url.isBlank()) {
-                                        snackbarHostState.showSnackbar(context.getString(R.string.enter_repo_info))
-                                        return@launch
-                                    }
-                                    isImporting = true
+                        if (!isImporting) {
+                            val tab = importTabIndex
+                            val url = repoUrlInput.trim()
+                            val archiveUri = zipUri
+                            val archiveName = zipFileName.ifBlank { "skill.zip" }
+                            val skillId = manualSkillId.trim()
+                            val description = manualSkillDescription.trim()
+                            val content = manualSkillContent.trim()
+                            val attachments = manualAttachments.map { it.uri }
+                            val validationError = when {
+                                tab == 0 && url.isBlank() -> R.string.enter_repo_info
+                                tab == 1 && archiveUri == null -> R.string.select_zip_file
+                                tab == 1 && !archiveName.endsWith(".zip", ignoreCase = true) -> R.string.skillmgr_only_zip_files
+                                tab == 2 && skillId.isBlank() -> R.string.skillmgr_direct_skill_id_required
+                                tab == 2 && !isValidSkillId(skillId) -> R.string.skillmgr_direct_skill_id_invalid
+                                tab == 2 && content.isBlank() -> R.string.skillmgr_direct_content_required
+                                else -> null
+                            }
+                            if (validationError != null) {
+                                importMessage = context.getString(validationError)
+                            } else {
+                                isImporting = true
+                                importMessage = null
+                                scope.launch {
                                     try {
-                                        val result = skillRepository.importSkillFromGitHubRepo(url)
-                                        refreshSkills()
-                                        snackbarHostState.showSnackbar(result)
-                                        showImportDialog = false
-                                    } finally {
-                                        isImporting = false
-                                    }
-                                }
-
-                                1 -> {
-                                    val uri = zipUri
-                                    if (uri == null) {
-                                        snackbarHostState.showSnackbar(context.getString(R.string.select_zip_file))
-                                        return@launch
-                                    }
-                                    isImporting = true
-                                    try {
-                                        val nameToUse = zipFileName.ifBlank { "skill.zip" }
-                                        if (!nameToUse.endsWith(".zip", ignoreCase = true)) {
-                                            snackbarHostState.showSnackbar(context.getString(R.string.skillmgr_only_zip_files))
-                                            return@launch
-                                        }
-
-                                        val result = withContext(Dispatchers.IO) {
-                                            val tempFile = File(context.cacheDir, nameToUse)
-                                            try {
-                                                context.contentResolver.openInputStream(uri)?.use { input ->
-                                                    tempFile.outputStream().use { output ->
-                                                        input.copyTo(output)
-                                                    }
-                                                } ?: throw IllegalStateException(context.getString(R.string.skillmgr_cannot_read_file))
-
-                                                skillRepository.importSkillFromZip(tempFile)
-                                            } finally {
+                                        val result = when (tab) {
+                                            0 -> skillRepository.importSkillFromGitHubRepoDetailed(url)
+                                            1 -> withContext(Dispatchers.IO) {
+                                                // 外部显示名仅用于导入名称推导，绝不作为缓存文件路径。
+                                                val tempFile = File.createTempFile("skill_import_", ".zip", context.cacheDir)
                                                 try {
-                                                    tempFile.delete()
-                                                } catch (_: Exception) {
+                                                    context.contentResolver.openInputStream(requireNotNull(archiveUri))?.use { input ->
+                                                        tempFile.outputStream().use { output ->
+                                                            val buffer = ByteArray(64 * 1024)
+                                                            while (true) {
+                                                                currentCoroutineContext().ensureActive()
+                                                                val count = input.read(buffer)
+                                                                if (count < 0) break
+                                                                output.write(buffer, 0, count)
+                                                            }
+                                                        }
+                                                    } ?: error(context.getString(R.string.skillmgr_cannot_read_file))
+                                                    skillRepository.importSkillFromZipDetailed(tempFile, archiveName)
+                                                } finally {
+                                                    java.nio.file.Files.deleteIfExists(tempFile.toPath())
                                                 }
                                             }
+                                            2 -> skillRepository.importSkillFromDirectInputDetailed(skillId, description, content, attachments)
+                                            else -> error("Unsupported skill import tab")
                                         }
-
-                                        refreshSkills()
-                                        snackbarHostState.showSnackbar(result)
-                                        showImportDialog = false
-                                    } catch (e: Exception) {
-                                        snackbarHostState.showSnackbar(context.getString(R.string.skillmgr_import_failed, e.message ?: ""))
-                                    } finally {
-                                        isImporting = false
-                                    }
-                                }
-
-                                2 -> {
-                                    val skillId = manualSkillId.trim()
-                                    val skillContent = manualSkillContent.trim()
-                                    if (skillId.isBlank()) {
-                                        snackbarHostState.showSnackbar(context.getString(R.string.skillmgr_direct_skill_id_required))
-                                        return@launch
-                                    }
-                                    if (!isValidSkillId(skillId)) {
-                                        snackbarHostState.showSnackbar(context.getString(R.string.skillmgr_direct_skill_id_invalid))
-                                        return@launch
-                                    }
-                                    if (skillContent.isBlank()) {
-                                        snackbarHostState.showSnackbar(context.getString(R.string.skillmgr_direct_content_required))
-                                        return@launch
-                                    }
-
-                                    isImporting = true
-                                    try {
-                                        val result = skillRepository.importSkillFromDirectInput(
-                                            skillId = skillId,
-                                            description = manualSkillDescription.trim(),
-                                            content = skillContent,
-                                            attachmentUris = manualAttachments.map { it.uri }
-                                        )
-                                        refreshSkills()
-                                        snackbarHostState.showSnackbar(result)
-                                        showImportDialog = false
-                                        manualSkillId = ""
-                                        manualSkillDescription = ""
-                                        manualSkillContent = ""
-                                        manualAttachments = emptyList()
+                                        if (result.installedDir != null) {
+                                            showImportDialog = false
+                                            if (tab == 2) {
+                                                manualSkillId = ""
+                                                manualSkillDescription = ""
+                                                manualSkillContent = ""
+                                                manualAttachments = emptyList()
+                                            }
+                                            refreshSkills()
+                                            snackbarHostState.showSnackbar(result.message)
+                                        } else {
+                                            importMessage = result.message
+                                        }
+                                    } catch (cancelled: CancellationException) {
+                                        throw cancelled
+                                    } catch (_: Exception) {
+                                        importMessage = context.getString(R.string.skill_import_generic_failure)
                                     } finally {
                                         isImporting = false
                                     }
                                 }
                             }
                         }
-                    }
-                ) {
-                    Text(stringResource(R.string.import_action))
-                }
+                    },
+                ) { Text(stringResource(R.string.import_action)) }
             },
             dismissButton = {
                 TextButton(
@@ -696,32 +710,27 @@ fun SkillConfigScreen(
     }
 
     selectedSkill?.let { skill ->
-        SkillDetailDialog(
-            skill = skill,
-            detail = selectedSkillDetail,
-            isLoading = isSkillDetailLoading,
-            onDismiss = {
-                selectedSkill = null
-                selectedSkillDetail = null
-                isSkillDetailLoading = false
-            },
-            onDelete = {
-                val skillName = skill.name
-                scope.launch {
-                    val ok = skillRepository.deleteSkill(skillName)
-                    if (ok) {
+        key(skill.directory.absolutePath) {
+            SkillDetailDialog(
+                skill = skill,
+                detail = selectedSkillDetail,
+                isLoading = isSkillDetailLoading,
+                loadFailed = skillDetailFailed,
+                onReload = { skillDetailRevision++ },
+                onDismiss = { selectedSkill = null; selectedSkillDetail = null },
+                onDelete = { withContext(Dispatchers.IO) { skillRepository.deleteSkill(skill.name) } },
+                onDeleted = {
+                    selectedSkill = null
+                    selectedSkillDetail = null
+                    scope.launch {
                         refreshSkills()
-                        snackbarHostState.showSnackbar(context.getString(R.string.skillmgr_deleted, skillName))
-                    } else {
-                        snackbarHostState.showSnackbar(context.getString(R.string.skillmgr_delete_failed, skillName))
+                        snackbarHostState.showSnackbar(context.getString(R.string.skillmgr_deleted, skill.name))
                     }
-                }
-                selectedSkill = null
-                selectedSkillDetail = null
-                isSkillDetailLoading = false
-            }
-        )
+                },
+            )
+        }
     }
+
 }
 
 private data class ManualImportAttachment(
@@ -774,51 +783,18 @@ private fun resolveUriDisplayName(context: Context, uri: Uri, fallback: String =
 
 private fun buildSkillDetailDialogData(
     skill: SkillPackage,
-    skillContent: String
+    skillContent: String,
+    checkCancelled: () -> Unit,
 ): SkillDetailDialogData {
-    val previewLines = mutableListOf<String>()
-    var fileCount = 0
-    var folderCount = 0
-    val previewLimit = 18
-
-    fun sortedChildren(parent: File): List<File> {
-        return parent.listFiles()
-            ?.sortedWith(compareBy<File>({ !it.isDirectory }, { it.name.lowercase() }))
-            ?: emptyList()
-    }
-
-    fun addPreviewLine(depth: Int, label: String) {
-        if (previewLines.size < previewLimit) {
-            previewLines += "${"  ".repeat(depth)}$label"
-        }
-    }
-
-    fun walk(node: File, depth: Int) {
-        if (node.isDirectory) {
-            folderCount += 1
-            addPreviewLine(depth, "${node.name}/")
-            sortedChildren(node).forEach { child ->
-                walk(child, depth + 1)
-            }
-        } else {
-            fileCount += 1
-            addPreviewLine(depth, node.name)
-        }
-    }
-
-    sortedChildren(skill.directory).forEach { child ->
-        walk(child, depth = 0)
-    }
-
-    val totalEntries = fileCount + folderCount
+    val preview = buildSkillDirectoryPreview(skill.directory, checkCancelled)
     return SkillDetailDialogData(
         skillContent = skillContent,
         directoryPath = skill.directory.absolutePath,
         skillFilePath = skill.skillFile.absolutePath,
-        fileCount = fileCount,
-        folderCount = folderCount,
-        directoryPreview = previewLines.joinToString("\n"),
-        hiddenEntryCount = (totalEntries - previewLines.size).coerceAtLeast(0)
+        fileCount = preview.fileCount,
+        folderCount = preview.folderCount,
+        directoryPreview = preview.text,
+        hiddenEntryCount = preview.hiddenEntryCount,
     )
 }
 
@@ -827,13 +803,22 @@ private fun SkillDetailDialog(
     skill: SkillPackage,
     detail: SkillDetailDialogData?,
     isLoading: Boolean,
+    loadFailed: Boolean,
+    onReload: () -> Unit,
     onDismiss: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: suspend () -> Boolean,
+    onDeleted: () -> Unit,
 ) {
     var showSkillMarkdown by remember(skill.directory.absolutePath) { mutableStateOf(false) }
 
+    val scope = rememberCoroutineScope()
+    var deleting by remember { mutableStateOf(false) }
+    var deleteFailed by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    val dismiss: () -> Unit = { if (!deleting) onDismiss() }
+
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = dismiss,
         title = { Text(text = skill.name) },
         text = {
             Column(
@@ -843,7 +828,10 @@ private fun SkillDetailDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                if (isLoading || detail == null) {
+                if (loadFailed) {
+                    Text(stringResource(R.string.pkg_details_load_failed), color = MaterialTheme.colorScheme.error)
+                    TextButton(onClick = onReload) { Text(stringResource(R.string.pkg_details_retry)) }
+                } else if (isLoading || detail == null) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -945,16 +933,50 @@ private fun SkillDetailDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDelete) {
+            TextButton(enabled = !deleting, onClick = { deleteFailed = false; confirmDelete = true }) {
                 Text(text = stringResource(R.string.skillmgr_delete))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(enabled = !deleting, onClick = dismiss) {
                 Text(text = stringResource(R.string.skillmgr_close))
             }
         }
     )
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { if (!deleting) confirmDelete = false },
+            title = { Text(stringResource(R.string.pkg_confirm_delete)) },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    Text(stringResource(R.string.skill_detail_delete_warning, skill.directory.absolutePath))
+                    if (deleteFailed) Text(stringResource(R.string.pkg_details_delete_failed), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = !deleting, onClick = {
+                    if (!deleting) {
+                        deleting = true
+                        deleteFailed = false
+                        scope.launch {
+                            try {
+                                if (onDelete()) { confirmDelete = false; onDeleted() }
+                                else deleteFailed = true
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (_: Exception) {
+                                deleteFailed = true
+                            } finally { deleting = false }
+                        }
+                    }
+                }) { Text(stringResource(if (deleting) R.string.pkg_details_deleting else R.string.skillmgr_delete)) }
+            },
+            dismissButton = {
+                TextButton(enabled = !deleting, onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
+    }
+
 }
 
 @Composable

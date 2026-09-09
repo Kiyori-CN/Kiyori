@@ -34,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -96,6 +97,7 @@ private fun BottomInputBar(
     val focusRequester = remember { FocusRequester() }
     val hasContent = floatContext.userMessage.isNotBlank()
     var isInputFocused by remember { mutableStateOf(false) }
+    val imeOwner = remember { Any() }
     
     // 检测 AI 是否正在处理消息 - 使用 chatService 的 isLoading 状态
     val isProcessing = floatContext.chatService?.getChatCore()?.isLoading?.collectAsState()?.value ?: false
@@ -103,7 +105,12 @@ private fun BottomInputBar(
     // 监听焦点状态变化，通知服务更新窗口焦点
     LaunchedEffect(isInputFocused) {
         floatContext.onInputFocusRequest?.invoke(isInputFocused)
-        AIForegroundService.setWakeListeningSuspendedForIme(context, isInputFocused)
+        AIForegroundService.setWakeListeningSuspendedForIme(context, isInputFocused, imeOwner)
+    }
+    DisposableEffect(context, imeOwner) {
+        onDispose {
+            AIForegroundService.setWakeListeningSuspendedForIme(context, false, imeOwner)
+        }
     }
 
     Column(
@@ -130,9 +137,9 @@ private fun BottomInputBar(
         }
         
         // 输入栏（参考 ChatInputSection 的布局）
-        Row(
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             // 输入框
             OutlinedTextField(
@@ -141,26 +148,24 @@ private fun BottomInputBar(
                 placeholder = {
                     Text(
                         text = stringResource(R.string.chat_input_hint),
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp)
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 },
                 modifier = Modifier
-                    .weight(1f)
+                    .fillMaxWidth()
                     .focusRequester(focusRequester)
                     .onFocusChanged { focusState ->
                         isInputFocused = focusState.isFocused
                     },
-                textStyle = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                maxLines = 2,
+                textStyle = MaterialTheme.typography.bodyMedium,
+                maxLines = 4,
                 singleLine = false,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardOptions = KeyboardOptions(imeAction = if (isProcessing) ImeAction.Default else ImeAction.Send),
                 keyboardActions = KeyboardActions(
                     onSend = {
                         when {
-                            isProcessing -> {
-                                // 与右侧“取消”按钮行为保持一致：取消生成，不清空当前输入
-                                floatContext.onCancelMessage?.invoke()
-                            }
+                            // IME 的发送动作不会代替显式停止按钮取消正在生成的回答。
+                            isProcessing -> Unit
                             hasContent || floatContext.attachments.isNotEmpty() -> {
                                 floatContext.onSendMessage?.invoke(
                                     floatContext.userMessage,
@@ -180,6 +185,11 @@ private fun BottomInputBar(
                 ),
                 shape = KiyoriUiShapes.field
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
             
             Spacer(modifier = Modifier.width(8.dp))
             
@@ -257,6 +267,7 @@ private fun BottomInputBar(
                     },
                     modifier = Modifier.size(16.dp)
                 )
+            }
             }
         }
     }

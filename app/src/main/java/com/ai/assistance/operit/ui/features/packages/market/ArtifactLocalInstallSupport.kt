@@ -2,6 +2,7 @@ package com.ai.assistance.operit.ui.features.packages.market
 
 import android.content.Context
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
+import com.ai.assistance.operit.core.tools.packTool.StandalonePackageInstalledException
 import com.ai.assistance.operit.data.api.ArtifactProjectVersionResponse
 import com.ai.assistance.operit.data.api.MarketV2Entry
 import com.kiyori.capability.extensions.market.sameArtifactRuntimePackageId
@@ -11,6 +12,8 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -140,7 +143,7 @@ suspend fun installArtifactProjectVersion(
     projectVersions: List<ArtifactProjectVersionResponse>,
     version: ArtifactProjectVersionResponse,
     onProgress: MarketInstallProgressReporter = { _, _ -> }
-) {
+): StandalonePackageInstalledException? {
     onProgress(MarketInstallStage.CHECKING_LOCAL, null)
     val installedSnapshots =
         withContext(Dispatchers.IO) {
@@ -160,7 +163,7 @@ suspend fun installArtifactProjectVersion(
         )
 
     when (installState.kind) {
-        LocalArtifactInstallStateKind.EXACT_INSTALLED -> return
+        LocalArtifactInstallStateKind.EXACT_INSTALLED -> return null
         LocalArtifactInstallStateKind.BUILT_IN_CONFLICT ->
             throw IllegalStateException("本地已安装同名内置插件 `${version.runtimePackageId}`，不能直接覆盖。")
         LocalArtifactInstallStateKind.NAME_CONFLICT,
@@ -180,28 +183,21 @@ suspend fun installArtifactProjectVersion(
                 )
             }
         } else {
-            if (
-                installState.kind == LocalArtifactInstallStateKind.SAME_PROJECT_VARIANT_INSTALLED ||
-                installState.kind == LocalArtifactInstallStateKind.NAME_CONFLICT
-            ) {
-                val installedPackageName =
-                    installState.snapshot?.packageName ?: version.runtimePackageId
-                val deleted =
-                    withContext(Dispatchers.IO) {
-                        packageManager.deletePackage(installedPackageName)
-                    }
-                if (!deleted) {
-                    throw IllegalStateException("替换已安装插件 `${installedPackageName}` 失败。")
-                }
-            }
-            val importResult =
-                withContext(Dispatchers.IO) {
-                    packageManager.addPackageFileFromExternalStorage(tempFile.absolutePath)
-                }
-            if (!importResult.startsWith("Successfully imported", ignoreCase = true)) {
-                throw IllegalStateException(importResult)
+            withContext(Dispatchers.IO) {
+                val operationContext = currentCoroutineContext()
+                packageManager.installOrUpdateStandaloneArtifact(
+                    filePath = tempFile.absolutePath,
+                    expectedPackageId = version.runtimePackageId,
+                    expectedSha256 = version.sha256,
+                    expectedPreviousSha256 = installState.snapshot?.sha256,
+                    checkCancelled = { operationContext.ensureActive() }
+                )
             }
         }
+        return null
+    } catch (installed: StandalonePackageInstalledException) {
+        // 保留已安装事实，让入口先记录来源并刷新目录，再展示需配置/清理的原因。
+        return installed
     } finally {
         if (tempFile.exists()) {
             tempFile.delete()
@@ -209,71 +205,72 @@ suspend fun installArtifactProjectVersion(
     }
 }
 
-private fun downloadArtifactProjectVersionToTempFile(
+private suspend fun downloadArtifactProjectVersionToTempFile(
     context: Context,
     version: ArtifactProjectVersionResponse,
     onProgress: MarketInstallProgressReporter
 ): File {
     val downloadUrl = version.downloadUrl.trim().ifBlank { throw IllegalStateException("Missing v2 asset download URL") }
+    require(version.sha256.matches(Regex("[a-fA-F0-9]{64}"))) { "Invalid artifact SHA-256" }
+    val operationContext = currentCoroutineContext()
+    operationContext.ensureActive()
     val downloadDir = File(context.cacheDir, "market_downloads")
-    if (!downloadDir.exists() && !downloadDir.mkdirs()) {
-        throw IllegalStateException("Failed to create market download cache")
-    }
+    return prepareMarketDownload(downloadDir, version.assetName) { targetFile ->
+        val connection =
+            KiyoriNetworkProxyManager.getInstance(context)
+                .openConnectionBlocking(URL(downloadUrl), KiyoriNetworkModule.DOWNLOADS) as HttpURLConnection
+        connection.instanceFollowRedirects = true
+        connection.connectTimeout = 30_000
+        connection.readTimeout = 60_000
+        connection.requestMethod = "GET"
 
-    val targetFile = File(downloadDir, version.assetName.ifBlank { "${version.runtimePackageId}.bin" })
-    val connection =
-        KiyoriNetworkProxyManager.getInstance(context)
-            .openConnectionBlocking(URL(downloadUrl), KiyoriNetworkModule.DOWNLOADS) as HttpURLConnection
-    connection.instanceFollowRedirects = true
-    connection.connectTimeout = 30_000
-    connection.readTimeout = 60_000
-    connection.requestMethod = "GET"
+        try {
+            onProgress(MarketInstallStage.CONNECTING, null)
+            connection.connect()
+            val code = connection.responseCode
+            if (code !in 200..299) {
+                throw IllegalStateException("Download failed: HTTP $code")
+            }
 
-    try {
-        onProgress(MarketInstallStage.CONNECTING, null)
-        connection.connect()
-        val code = connection.responseCode
-        if (code !in 200..299) {
-            throw IllegalStateException("Download failed: HTTP $code")
-        }
-
-        val totalBytes = connection.contentLengthLong
-        var downloadedBytes = 0L
-        val inputStream = connection.inputStream ?: throw IllegalStateException("Empty download stream")
-        inputStream.use { input ->
-            targetFile.outputStream().use { output ->
-                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                while (true) {
-                    val read = input.read(buffer)
-                    if (read <= 0) break
-                    output.write(buffer, 0, read)
-                    downloadedBytes += read
-                    onProgress(
-                        MarketInstallStage.DOWNLOADING,
-                        if (totalBytes > 0) downloadedBytes.toFloat() / totalBytes.toFloat() else null
-                    )
+            val totalBytes = connection.contentLengthLong
+            var downloadedBytes = 0L
+            val inputStream = connection.inputStream ?: throw IllegalStateException("Empty download stream")
+            inputStream.use { input ->
+                targetFile.outputStream().use { output ->
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    while (true) {
+                        operationContext.ensureActive()
+                        val read = input.read(buffer)
+                        if (read <= 0) break
+                        output.write(buffer, 0, read)
+                        downloadedBytes += read
+                        onProgress(
+                            MarketInstallStage.DOWNLOADING,
+                            if (totalBytes > 0) downloadedBytes.toFloat() / totalBytes.toFloat() else null
+                        )
+                    }
                 }
             }
+        } finally {
+            connection.disconnect()
         }
-    } finally {
-        connection.disconnect()
-    }
 
-    onProgress(MarketInstallStage.VERIFYING, null)
-    val actualSha256 = sha256Hex(targetFile)
-    if (!actualSha256.equals(version.sha256, ignoreCase = true)) {
-        targetFile.delete()
-        throw IllegalStateException("Downloaded file sha256 mismatch")
-    }
+        operationContext.ensureActive()
+        onProgress(MarketInstallStage.VERIFYING, null)
+        val actualSha256 = sha256Hex(targetFile) { operationContext.ensureActive() }
+        if (!actualSha256.equals(version.sha256, ignoreCase = true)) {
+            throw IllegalStateException("Downloaded file sha256 mismatch")
+        }
 
-    return targetFile
+    }
 }
 
-private fun sha256Hex(file: File): String {
+private fun sha256Hex(file: File, checkCancelled: () -> Unit = {}): String {
     val digest = MessageDigest.getInstance("SHA-256")
     file.inputStream().use { input ->
         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
         while (true) {
+            checkCancelled()
             val read = input.read(buffer)
             if (read <= 0) break
             digest.update(buffer, 0, read)

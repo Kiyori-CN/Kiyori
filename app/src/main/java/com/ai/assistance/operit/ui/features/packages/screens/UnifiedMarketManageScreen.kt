@@ -30,6 +30,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.DisposableEffect
+import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -85,6 +87,7 @@ fun UnifiedMarketManageScreen(
     onNavigateToDetail: (MarketV2Entry) -> Unit
 ) {
     val context = LocalContext.current
+    val isCurrentScreen = LocalIsCurrentScreen.current
     var selectedTab by rememberSaveable { mutableStateOf(ManageTypeTab.SCRIPT) }
     val viewModel: UnifiedMarketManageViewModel =
         viewModel(
@@ -97,27 +100,29 @@ fun UnifiedMarketManageScreen(
         )
 
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    val accountId by viewModel.accountId.collectAsState()
+    val isMutating by viewModel.isMutating.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val entries by viewModel.entries.collectAsState()
     val hasLoaded by viewModel.hasLoaded.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
 
-    var showDeleteDialog by remember { mutableStateOf<MarketV2PublisherEntrySummary?>(null) }
-    var showReviewDialog by remember { mutableStateOf<MarketV2PublisherEntrySummary?>(null) }
+    var showDeleteDialog by remember(selectedTab, accountId) { mutableStateOf<MarketV2PublisherEntrySummary?>(null) }
+    var showReviewDialog by remember(selectedTab, accountId) { mutableStateOf<MarketV2PublisherEntrySummary?>(null) }
     var showGitHubLogin by remember { mutableStateOf(false) }
     var showPublishDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(isLoggedIn, selectedTab) {
-        if (isLoggedIn) {
-            viewModel.loadEntries()
-        } else {
-            viewModel.reset()
-        }
+    DisposableEffect(viewModel) { onDispose { viewModel.cancelPendingRead() } }
+    LaunchedEffect(isCurrentScreen, viewModel) {
+        if (!isCurrentScreen) viewModel.cancelPendingRead()
+    }
+    LaunchedEffect(accountId, isCurrentScreen, viewModel) {
+        if (isCurrentScreen && accountId != null) viewModel.loadEntries()
     }
 
-    val showManageLoading = isLoggedIn && !hasLoaded && entries.isEmpty()
-    val showRequestLoading = isLoggedIn && hasLoaded && isLoading
+    val showManageLoading = isLoggedIn && isLoading && !hasLoaded && entries.isEmpty()
+    val showRequestLoading = isLoggedIn && hasLoaded && isLoading && !isMutating
     val showEmptyState = hasLoaded && errorMessage == null && entries.isEmpty()
     val ownedEntries = remember(entries) { entries.filter { it.isOwnerRelation() } }
     val contributedEntries = remember(entries) { entries.filter { it.isContributorRelation() } }
@@ -140,13 +145,13 @@ fun UnifiedMarketManageScreen(
             SecondaryScrollableTabRow(
                 selectedTabIndex = selectedTab.ordinal,
                 edgePadding = 0.dp,
-                modifier = Modifier.height(40.dp)
+                modifier = Modifier.height(48.dp)
             ) {
                 ManageTypeTab.entries.forEach { tab ->
                     Tab(
                         selected = selectedTab == tab,
                         onClick = { selectedTab = tab },
-                        modifier = Modifier.height(40.dp),
+                        modifier = Modifier.height(48.dp),
                         text = {
                             androidx.compose.material3.Text(
                                 text = stringResource(tab.labelRes),
@@ -156,6 +161,10 @@ fun UnifiedMarketManageScreen(
                         }
                     )
                 }
+            }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(enabled = isLoggedIn && !isLoading && !isRefreshing,
+                    onClick = { viewModel.loadEntries(refresh = true) }) { Text(stringResource(R.string.refresh)) }
             }
         }
     ) {
@@ -205,7 +214,7 @@ fun UnifiedMarketManageScreen(
                                     }
                                 },
                                 onShowReview = { showReviewDialog = it },
-                                onDelete = { showDeleteDialog = it }
+                                onDelete = { viewModel.clearError(); showDeleteDialog = it }
                             )
                         }
                     }
@@ -247,7 +256,7 @@ fun UnifiedMarketManageScreen(
                                     }
                                 },
                                 onShowReview = { showReviewDialog = it },
-                                onDelete = { showDeleteDialog = it }
+                                onDelete = { viewModel.clearError(); showDeleteDialog = it }
                             )
                         }
                     }
@@ -256,24 +265,26 @@ fun UnifiedMarketManageScreen(
         }
     }
 
-    showDeleteDialog?.let { entry ->
+    showDeleteDialog?.takeIf { isCurrentScreen }?.let { entry ->
         MarketManageDeleteDialog(
             text = stringResource(R.string.confirm_remove_artifact_from_market, entry.title),
-            onConfirm = {
-                viewModel.withdrawEntry(entry)
-                showDeleteDialog = null
-            },
-            onDismiss = { showDeleteDialog = null }
+            titleText = stringResource(R.string.market_withdraw_title),
+            confirmText = stringResource(R.string.market_withdraw_action),
+            isSaving = isMutating,
+            canConfirm = !isLoading && !isRefreshing,
+            errorMessage = errorMessage,
+            onConfirm = { viewModel.withdrawEntry(entry) { showDeleteDialog = null } },
+            onDismiss = { showDeleteDialog = null; viewModel.clearError() },
         )
     }
 
-    if (showGitHubLogin) {
+    if (showGitHubLogin && isCurrentScreen) {
         GitHubLoginWebViewDialog(
             onDismissRequest = { showGitHubLogin = false }
         )
     }
 
-    if (showPublishDialog) {
+    if (showPublishDialog && isCurrentScreen) {
         ManagePublishChooserDialog(
             onDismiss = { showPublishDialog = false },
             onPublishArtifact = {
@@ -287,11 +298,11 @@ fun UnifiedMarketManageScreen(
         )
     }
 
-    if (showRequestLoading) {
-        MarketManageRequestLoadingDialog()
+    if (showRequestLoading && isCurrentScreen) {
+        MarketManageRequestLoadingDialog(onCancel = viewModel::cancelPendingRead)
     }
 
-    showReviewDialog?.let { entry ->
+    showReviewDialog?.takeIf { isCurrentScreen }?.let { entry ->
         MarketManageReviewDialog(
             entry = entry,
             onDismiss = { showReviewDialog = null }
@@ -311,9 +322,9 @@ private fun ManageSectionTitle(text: String) {
 }
 
 @Composable
-private fun MarketManageRequestLoadingDialog() {
+private fun MarketManageRequestLoadingDialog(onCancel: () -> Unit) {
     AlertDialog(
-        onDismissRequest = {},
+        onDismissRequest = onCancel,
         title = { Text(stringResource(R.string.market_manage_loading_request_title)) },
         text = {
             Row(
@@ -327,7 +338,7 @@ private fun MarketManageRequestLoadingDialog() {
                 Text(stringResource(R.string.market_manage_loading_request_message))
             }
         },
-        confirmButton = {}
+        confirmButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) } }
     )
 }
 
@@ -651,5 +662,4 @@ private fun MarketV2Entry.marketStatsType(): MarketStatsType? {
 private fun MarketV2PublisherEntrySummary.marketStatsType(): MarketStatsType? {
     return MarketStatsType.entries.firstOrNull { it.wireValue == type.lowercase() }
 }
-
 

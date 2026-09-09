@@ -37,6 +37,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * 工作流ViewModel
@@ -47,6 +48,9 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
     private val repository = WorkflowRepository(application)
     private val packageManager = PackageManager.getInstance(application, AIToolHandler.getInstance(application))
     private val app = application
+    /** 刷新可由事件流、下拉和创建回调同时触发；仅最新读取可发布列表与加载态。 */
+    private val workflowLoadGeneration = AtomicLong(0)
+    private val executionGeneration = AtomicLong(0)
 
     var workflows by mutableStateOf<List<Workflow>>(emptyList())
         private set
@@ -96,6 +100,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
      * 加载所有工作流
      */
     fun loadWorkflows(showLoading: Boolean = true) {
+        val generation = workflowLoadGeneration.incrementAndGet()
         viewModelScope.launch {
             if (showLoading) {
                 isLoading = true
@@ -103,11 +108,11 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
             error = null
             
             repository.getAllWorkflows().fold(
-                onSuccess = { workflows = it },
-                onFailure = { error = it.message ?: app.getString(R.string.workflow_load_failed) }
+                onSuccess = { if (workflowLoadGeneration.get() == generation) workflows = it },
+                onFailure = { if (workflowLoadGeneration.get() == generation) error = it.message ?: app.getString(R.string.workflow_load_failed) }
             )
             
-            if (showLoading) {
+            if (showLoading && workflowLoadGeneration.get() == generation) {
                 isLoading = false
             }
         }
@@ -1183,13 +1188,16 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
      * 触发工作流
      */
     fun triggerWorkflow(id: String, onComplete: (String) -> Unit = {}) {
+        val generation = executionGeneration.incrementAndGet()
         viewModelScope.launch {
             error = null
             _nodeExecutionStates.value = emptyMap()
 
             try {
                 repository.triggerWorkflowWithCallback(id) { nodeId, state ->
-                    _nodeExecutionStates.value = _nodeExecutionStates.value + (nodeId to state)
+                    if (executionGeneration.get() == generation) {
+                        _nodeExecutionStates.value = _nodeExecutionStates.value + (nodeId to state)
+                    }
                 }.fold(
                     onSuccess = { message ->
                         loadWorkflows()
@@ -1218,6 +1226,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun cancelWorkflow(id: String, onComplete: (String) -> Unit = {}) {
+        executionGeneration.incrementAndGet()
         viewModelScope.launch {
             error = null
 

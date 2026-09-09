@@ -614,20 +614,20 @@ class AttachmentDelegate(private val context: Context, private val toolHandler: 
      * Captures the current screen content and attaches it to the message Uses the get_page_info
      * AITool to retrieve UI structure 确保在IO线程中执行
      */
-    suspend fun captureScreenContent() =
+    suspend fun captureScreenContent(): Boolean =
             withContext(Dispatchers.IO) {
                 try {
                     val screenshotTool = AITool(name = "capture_screenshot", parameters = emptyList())
                     val screenshotResult = toolHandler.executeTool(screenshotTool)
                     if (!screenshotResult.success) {
                         _toastEvent.emit(context.getString(R.string.attachment_screen_content_failed, screenshotResult.error ?: context.getString(R.string.attachment_screenshot_failed)))
-                        return@withContext
+                        return@withContext false
                     }
 
                     val screenshotPath = screenshotResult.result.toString().trim()
                     if (screenshotPath.isBlank()) {
                         _toastEvent.emit(context.getString(R.string.attachment_screen_content_failed, context.getString(R.string.attachment_screenshot_failed)))
-                        return@withContext
+                        return@withContext false
                     }
 
                     val imageOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -649,7 +649,7 @@ class AttachmentDelegate(private val context: Context, private val toolHandler: 
 
                     if (ocrText.isBlank()) {
                         _toastEvent.emit(context.getString(R.string.attachment_no_screen_text))
-                        return@withContext
+                        return@withContext false
                     }
 
                     val captureId = "screen_ocr_${System.currentTimeMillis()}"
@@ -679,14 +679,19 @@ class AttachmentDelegate(private val context: Context, private val toolHandler: 
                     try {
                         File(screenshotPath).delete()
                     } catch (_: Exception) {}
+                    true
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     _toastEvent.emit(context.getString(R.string.attachment_screen_content_failed, e.message ?: ""))
                     AppLogger.e(TAG, "Error capturing screen content", e)
+                    false
                 }
             }
 
+
     /** 获取设备当前通知并作为附件添加到消息 使用get_notifications AITool获取通知数据 确保在IO线程中执行 */
-    suspend fun captureNotifications(limit: Int = 10) =
+    suspend fun captureNotifications(limit: Int = 10): Boolean =
             withContext(Dispatchers.IO) {
                 try {
                     // 创建工具参数
@@ -721,17 +726,23 @@ class AttachmentDelegate(private val context: Context, private val toolHandler: 
                         appendAttachment(attachmentInfo)
 
                         _toastEvent.emit(context.getString(R.string.attachment_notifications_added))
+                        true
                     } else {
                         _toastEvent.emit(context.getString(R.string.attachment_notifications_failed, result.error ?: context.getString(R.string.attachment_unknown_error)))
+                        false
                     }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     _toastEvent.emit(context.getString(R.string.attachment_notifications_failed, e.message ?: ""))
                     AppLogger.e(TAG, "Error capturing notifications", e)
+                    false
                 }
             }
 
+
     /** 获取设备当前位置并作为附件添加到消息 使用get_device_location AITool获取位置数据 确保在IO线程中执行 */
-    suspend fun captureLocation(highAccuracy: Boolean = true) =
+    suspend fun captureLocation(highAccuracy: Boolean = true): Boolean =
             withContext(Dispatchers.IO) {
                 try {
                     // 创建工具参数
@@ -766,17 +777,23 @@ class AttachmentDelegate(private val context: Context, private val toolHandler: 
                         appendAttachment(attachmentInfo)
 
                         _toastEvent.emit(context.getString(R.string.attachment_location_added))
+                        true
                     } else {
                         _toastEvent.emit(context.getString(R.string.attachment_location_failed, result.error ?: context.getString(R.string.attachment_unknown_error)))
+                        false
                     }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     _toastEvent.emit(context.getString(R.string.attachment_location_failed, e.message ?: ""))
                     AppLogger.e(TAG, "Error capturing location", e)
+                    false
                 }
             }
 
+
     /** 获取当前时间并作为附件添加到消息 */
-    suspend fun captureCurrentTime() =
+    suspend fun captureCurrentTime(): Boolean =
             withContext(Dispatchers.IO) {
                 try {
                     val captureId = "time_${System.currentTimeMillis()}"
@@ -796,11 +813,16 @@ class AttachmentDelegate(private val context: Context, private val toolHandler: 
                     appendAttachment(attachmentInfo)
 
                     _toastEvent.emit(context.getString(R.string.attachment_time_added))
+                    true
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     _toastEvent.emit(context.getString(R.string.attachment_time_failed, e.message ?: ""))
                     AppLogger.e(TAG, "Error capturing current time", e)
+                    false
                 }
             }
+
 
     /**
      * 捕获记忆文件夹并作为附件添加到消息

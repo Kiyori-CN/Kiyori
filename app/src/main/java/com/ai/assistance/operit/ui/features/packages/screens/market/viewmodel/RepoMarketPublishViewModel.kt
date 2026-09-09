@@ -28,6 +28,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ensureActive
+import kotlin.coroutines.coroutineContext
 
 data class RepoPublishDraft(
     val title: String = "",
@@ -41,17 +44,61 @@ data class RepoPublishDraft(
 
 class RepoMarketPublishViewModel(
     private val context: Context,
-    private val type: MarketStatsType
-) : ViewModel() {
-    private val marketStatsApiService = MarketStatsApiService()
-    private val githubApiService = GitHubApiService(context)
+    private val type: MarketStatsType,
+    private val marketStatsApiService: MarketStatsApiService = MarketStatsApiService(),
     val githubAuth: GitHubAuthPreferences = GitHubAuthPreferences.getInstance(context)
+) : ViewModel() {
+    private val githubApiService by lazy { GitHubApiService(context) }
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    private val _successAction = MutableStateFlow<RepoPublishSuccessAction?>(null)
+    val successAction = _successAction.asStateFlow()
+
+    /** 在启动协程前占位，提交使用调用时快照；旋转后继续展示同一次操作的结果。 */
+    fun submitDraft(
+        draft: RepoPublishDraft,
+        version: String,
+        entry: MarketV2Entry?,
+        versionOnly: Boolean,
+        canEditEntry: Boolean
+    ) {
+        if (_isLoading.value || _successAction.value != null) return
+        _isLoading.value = true
+        _errorMessage.value = null
+        viewModelScope.launch {
+            try {
+                val accountId = githubAuth.getCurrentUserInfo()?.id
+                check(accountId != null && githubAuth.isLoggedIn() && githubAuth.getCurrentUserInfo()?.id == accountId) {
+                    loginRequiredMessage()
+                }
+                val result = when {
+                    entry == null -> publish(draft.title, draft.description, draft.detail,
+                        draft.repositoryUrl, version, draft.installConfig, draft.category, draft.allowPublicUpdates)
+                    versionOnly -> publishNewVersion(entry, draft.title, draft.description, draft.detail,
+                        draft.category, draft.allowPublicUpdates, version, draft.installConfig, canEditEntry)
+                    else -> updateEntryMetadata(entry, draft.title, draft.description, draft.detail,
+                        draft.category, draft.allowPublicUpdates)
+                }
+                result.getOrThrow()
+                coroutineContext.ensureActive()
+                if (entry == null) clearDraft()
+                _successAction.value = when {
+                    entry == null -> RepoPublishSuccessAction.PUBLISH
+                    versionOnly -> RepoPublishSuccessAction.VERSION
+                    else -> RepoPublishSuccessAction.METADATA
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                _errorMessage.value = error.message ?: context.getString(R.string.publish_failed_check_network_repo)
+            }
+        }.invokeOnCompletion { _isLoading.value = false }
+    }
 
     private val sharedPrefs: SharedPreferences =
         context.getSharedPreferences("${type.wireValue}_publish_draft", Context.MODE_PRIVATE)
@@ -134,7 +181,7 @@ class RepoMarketPublishViewModel(
         }
     }
 
-    suspend fun publish(
+    private suspend fun publish(
         title: String,
         description: String,
         detail: String,
@@ -157,7 +204,7 @@ class RepoMarketPublishViewModel(
         )
     }
 
-    suspend fun publishNewVersion(
+    private suspend fun publishNewVersion(
         entry: MarketV2Entry,
         title: String,
         description: String,
@@ -198,7 +245,7 @@ class RepoMarketPublishViewModel(
         )
     }
 
-    suspend fun updateEntryMetadata(
+    private suspend fun updateEntryMetadata(
         entry: MarketV2Entry,
         title: String,
         description: String,
@@ -210,9 +257,6 @@ class RepoMarketPublishViewModel(
             return Result.failure(IllegalStateException(loginRequiredMessage()))
         }
 
-        _isLoading.value = true
-        _errorMessage.value = null
-
         return try {
             val request =
                 MarketV2EntryUpdateRequest(
@@ -223,11 +267,11 @@ class RepoMarketPublishViewModel(
                     allowPublicUpdates = allowPublicUpdates
                 )
             marketStatsApiService.updateEntry(entry.id, request).map { Unit }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             AppLogger.e(TAG, "Failed to update ${type.wireValue} market entry metadata", e)
             Result.failure(e)
-        } finally {
-            _isLoading.value = false
         }
     }
 
@@ -246,9 +290,7 @@ class RepoMarketPublishViewModel(
         if (!githubAuth.isLoggedIn()) {
             return Result.failure(IllegalStateException(loginRequiredMessage()))
         }
-
-        _isLoading.value = true
-        _errorMessage.value = null
+        val accountId = githubAuth.getCurrentUserInfo()?.id
 
         return try {
             val request =
@@ -262,6 +304,10 @@ class RepoMarketPublishViewModel(
                     category = category,
                     allowPublicUpdates = allowPublicUpdates
                 )
+            // 解析仓库默认分支可能挂起，不能用切换后的账号提交此前确认的内容。
+            check(accountId != null && githubAuth.isLoggedIn() && githubAuth.getCurrentUserInfo()?.id == accountId) {
+                loginRequiredMessage()
+            }
             val result =
                 if (entryId == null) {
                     marketStatsApiService.publish(request).map { Unit }
@@ -269,11 +315,11 @@ class RepoMarketPublishViewModel(
                     marketStatsApiService.publishNewVersion(entryId = entryId, request = request, entryPatch = entryPatch).map { Unit }
                 }
             result
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             AppLogger.e(TAG, "Failed to submit ${type.wireValue} market entry", e)
             Result.failure(e)
-        } finally {
-            _isLoading.value = false
         }
     }
 
@@ -482,3 +528,5 @@ class RepoMarketPublishViewModel(
         private const val TAG = "RepoMarketPublishViewModel"
     }
 }
+
+enum class RepoPublishSuccessAction { PUBLISH, METADATA, VERSION }

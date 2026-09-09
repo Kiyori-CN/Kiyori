@@ -1,7 +1,5 @@
 package com.ai.assistance.operit.ui.features.toolbox.screens
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -14,7 +12,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.ai.assistance.operit.ui.components.CustomScaffold
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -32,8 +29,6 @@ import com.ai.assistance.operit.ui.features.toolbox.screens.shellexecutor.ShellE
 import com.ai.assistance.operit.terminal.main.TerminalScreen as TerminalViewScreen
 // import com.ai.assistance.operit.ui.features.toolbox.screens.terminalconfig.TerminalAutoConfigScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.uidebugger.UIDebuggerScreen
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import com.ai.assistance.operit.terminal.TerminalManager
 import com.ai.assistance.operit.terminal.rememberTerminalEnv
 import com.ai.assistance.operit.ui.main.navigation.LocalAppNavigationModel
@@ -70,7 +65,7 @@ fun ToolboxScreen(
                                 }
                 }
         val tools =
-                remember(toolboxEntries) {
+                remember(toolboxEntries, onNavigationEntrySelected) {
                         toolboxEntries.map { entry ->
                                 Tool(
                                         id = entry.entryId,
@@ -106,31 +101,11 @@ fun ToolboxScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ToolCard(tool: Tool) {
-        var isPressed by remember { mutableStateOf(false) }
         val tone = remember(tool.id) { kiyoriSemanticToneForStableId(tool.id) }
 
-        // 创建协程作用域
-        val scope = rememberCoroutineScope()
-
-        // 缩放动画
-        val scale by
-                animateFloatAsState(
-                        targetValue = if (isPressed) 0.95f else 1f,
-                        animationSpec = tween(durationMillis = if (isPressed) 100 else 200),
-                        label = "scale"
-                )
-
         Card(
-                onClick = {
-                        isPressed = true
-                        // 使用rememberCoroutineScope来启动协程
-                        scope.launch {
-                                delay(100)
-                                tool.onClick()
-                                isPressed = false
-                        }
-                },
-                modifier = Modifier.fillMaxWidth().height(156.dp).scale(scale),
+                onClick = tool.onClick,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 156.dp),
                 colors =
                         CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow
@@ -145,14 +120,14 @@ fun ToolCard(tool: Tool) {
         ) {
                 // 卡片内容
                 Column(
-                        modifier = Modifier.fillMaxSize().padding(12.dp),
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                         KiyoriSemanticIconBadge(
                                 imageVector = tool.icon,
                                 tone = tone,
-                                contentDescription = tool.name,
+                                contentDescription = null,
                                 containerSize = 48.dp,
                                 iconSize = 24.dp,
                                 shape = CircleShape,

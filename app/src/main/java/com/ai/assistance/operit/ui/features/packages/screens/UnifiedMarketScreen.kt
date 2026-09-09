@@ -73,6 +73,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -96,6 +99,7 @@ import com.ai.assistance.operit.data.preferences.GitHubAuthPreferences
 import com.ai.assistance.operit.data.preferences.GitHubUser
 import com.ai.assistance.operit.data.preferences.MarketAgreementPreferences
 import com.ai.assistance.operit.ui.features.github.GitHubLoginWebViewDialog
+import com.ai.assistance.operit.ui.features.packages.market.formatMarketDetailDate
 import com.ai.assistance.operit.ui.features.packages.market.BindMarketSearchToTopBar
 import com.ai.assistance.operit.ui.features.packages.market.MarketBrowseSection
 import com.ai.assistance.operit.ui.features.packages.market.MarketStatsType
@@ -190,6 +194,7 @@ fun UnifiedMarketScreen(
 ) {
     var selectedTab by rememberSaveable(initialTab) { mutableStateOf(initialTab) }
     val context = LocalContext.current
+    val isCurrentScreen = LocalIsCurrentScreen.current
     val marketAgreementPreferences = remember {
         MarketAgreementPreferences(context.applicationContext)
     }
@@ -256,7 +261,7 @@ fun UnifiedMarketScreen(
         }
     }
 
-    if (showMarketAgreementDialog) {
+    if (showMarketAgreementDialog && isCurrentScreen) {
         MarketAgreementDialog(
             mandatory = !marketAgreementPreferences.isAgreementAccepted(),
             onDismissRequest = { showMarketAgreementDialog = false },
@@ -269,8 +274,8 @@ fun UnifiedMarketScreen(
 }
 
 @Composable
-fun UnifiedMarketNotificationsScreen() {
-    MarketNotificationsPane()
+fun UnifiedMarketNotificationsScreen(onNavigateToDetail: (MarketV2Entry) -> Unit = {}) {
+    MarketNotificationsPane(onNavigateToDetail)
 }
 
 @Composable
@@ -335,47 +340,54 @@ private fun UnifiedMarketListPane(
         viewModel.loadEntriesIfNeeded()
     }
 
-    errorMessage?.let { error ->
-        LaunchedEffect(error) {
-            Toast.makeText(context, error, Toast.LENGTH_LONG).show()
-            viewModel.clearError()
-        }
-    }
-
-    MarketBrowseSection(
-        items = entries,
-        isLoading = isLoading,
-        isLoadingMore = isLoadingMore,
-        hasMore = hasMore,
-        searchQuery = searchQuery,
-        sortOption = sortOption,
-        onSearchQueryChanged = viewModel::onSearchQueryChanged,
-        onSortOptionChanged = viewModel::onSortOptionChanged,
-        featuredOnly = featuredOnly,
-        onFeaturedOnlyChanged = viewModel::onFeaturedOnlyChanged,
-        onRefresh = viewModel::loadEntries,
-        onLoadMore = viewModel::loadMoreEntries,
-        config = config,
-        itemKey = { it.id },
-        initialFirstVisibleItemIndex = listScrollIndex,
-        initialFirstVisibleItemScrollOffset = listScrollOffset,
-        onScrollPositionChanged = viewModel::updateListScrollPosition,
-        updatedAtSelector = { entry ->
-            if (sortOption == com.ai.assistance.operit.ui.features.packages.market.MarketSortOption.UPDATED) {
-                entry.updatedAt ?: entry.publishedAt ?: entry.createdAt.orEmpty()
-            } else {
-                entry.publishedAt ?: entry.updatedAt ?: entry.createdAt.orEmpty()
+    Column(modifier = Modifier.fillMaxSize()) {
+        errorMessage?.let { error ->
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                TextButton(onClick = viewModel::loadEntries) { Text(stringResource(R.string.refresh)) }
             }
-        },
-        entryFactory = { entry ->
-            entry.toUnifiedMarketBrowseEntry(
-                installStates = installStates,
-                localInstallStates = localInstallStates,
-                onViewDetails = onOpenEntry,
-                onInstallEntry = viewModel::installEntry
-            )
         }
-    )
+        if (searchQuery.isNotBlank() && hasMore) {
+            Text(stringResource(R.string.market_search_loaded_only),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        MarketBrowseSection(
+            modifier = Modifier.weight(1f),
+            items = entries,
+            isLoading = isLoading,
+            isLoadingMore = isLoadingMore,
+            hasMore = hasMore,
+            searchQuery = searchQuery,
+            sortOption = sortOption,
+            onSearchQueryChanged = viewModel::onSearchQueryChanged,
+            onSortOptionChanged = viewModel::onSortOptionChanged,
+            featuredOnly = featuredOnly,
+            onFeaturedOnlyChanged = viewModel::onFeaturedOnlyChanged,
+            onRefresh = viewModel::loadEntries,
+            onLoadMore = viewModel::loadMoreEntries,
+            config = config,
+            itemKey = { it.id },
+            initialFirstVisibleItemIndex = listScrollIndex,
+            initialFirstVisibleItemScrollOffset = listScrollOffset,
+            onScrollPositionChanged = viewModel::updateListScrollPosition,
+            updatedAtSelector = { entry ->
+                if (sortOption == com.ai.assistance.operit.ui.features.packages.market.MarketSortOption.UPDATED) {
+                    entry.updatedAt ?: entry.publishedAt ?: entry.createdAt.orEmpty()
+                } else {
+                    entry.publishedAt ?: entry.updatedAt ?: entry.createdAt.orEmpty()
+                }
+            },
+            entryFactory = { entry ->
+                entry.toUnifiedMarketBrowseEntry(
+                    installStates = installStates,
+                    localInstallStates = localInstallStates,
+                    onViewDetails = onOpenEntry,
+                    onInstallEntry = viewModel::installEntry
+                )
+            }
+        )
+    }
 }
 
 @Composable
@@ -392,6 +404,7 @@ private fun MarketCategoryIndexPane(
             )
         )
     val categories by viewModel.categories.collectAsState()
+    val isLoading by viewModel.isLoadingManifest.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
     BindMarketSearchToTopBar(
@@ -405,16 +418,15 @@ private fun MarketCategoryIndexPane(
         viewModel.loadManifest()
     }
 
-    errorMessage?.let { error ->
-        LaunchedEffect(error) {
-            Toast.makeText(context, error, Toast.LENGTH_LONG).show()
-            viewModel.clearError()
-        }
-    }
-
-    if (categories.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
+    if (isLoading && categories.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+    } else if (categories.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(errorMessage ?: stringResource(R.string.market_categories_empty),
+                    color = if (errorMessage != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+                TextButton(onClick = viewModel::loadManifest) { Text(stringResource(R.string.refresh)) }
+            }
         }
     } else {
         LazyColumn(
@@ -535,13 +547,13 @@ private fun MarketTypedListPane(
         SecondaryScrollableTabRow(
             selectedTabIndex = selectedType.ordinal,
             edgePadding = 12.dp,
-            modifier = Modifier.height(40.dp)
+            modifier = Modifier.height(48.dp)
         ) {
             MarketCategoryTypeFilter.entries.forEach { filter ->
                 Tab(
                     selected = selectedType == filter,
                     onClick = { selectedType = filter },
-                    modifier = Modifier.height(40.dp),
+                    modifier = Modifier.height(48.dp),
                     text = {
                         Text(
                             text = stringResource(filter.labelRes),
@@ -563,8 +575,15 @@ private fun MarketTypedListPane(
 }
 
 @Composable
-private fun MarketNotificationsPane() {
+private fun MarketNotificationsPane(onNavigateToDetail: (MarketV2Entry) -> Unit) {
     val context = LocalContext.current
+    val githubAuth = remember { GitHubAuthPreferences.getInstance(context.applicationContext) }
+    val accountId by remember(githubAuth) {
+        githubAuth.isLoggedInFlow.combine(githubAuth.userInfoFlow) { loggedIn, user -> if (loggedIn) user?.id else null }
+    }.collectAsState(initial = null)
+    val isCurrentScreen = LocalIsCurrentScreen.current
+    val currentlyVisible by rememberUpdatedState(isCurrentScreen)
+    var selectedNotification by remember { mutableStateOf<MarketV2Notification?>(null) }
     val viewModel: UnifiedMarketBrowseViewModel =
         viewModel(
             key = "market-notifications",
@@ -574,6 +593,7 @@ private fun MarketNotificationsPane() {
             )
         )
     val notifications by viewModel.notifications.collectAsState()
+    val openingEntryId by viewModel.openingEntryId.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
@@ -584,15 +604,38 @@ private fun MarketNotificationsPane() {
         searchPlaceholderRes = UnifiedMarketBrowseConfig.searchPlaceholderRes
     )
 
-    LaunchedEffect(Unit) {
-        viewModel.loadNotifications()
+    LaunchedEffect(accountId) {
+        selectedNotification = null
+        viewModel.resetNotifications()
+        if (accountId != null) viewModel.loadNotifications()
     }
 
-    errorMessage?.let { error ->
-        LaunchedEffect(error) {
-            Toast.makeText(context, error, Toast.LENGTH_LONG).show()
-            viewModel.clearError()
-        }
+    LaunchedEffect(isCurrentScreen) {
+        if (!isCurrentScreen) viewModel.cancelOpeningNotificationEntry()
+    }
+
+    selectedNotification?.takeIf { isCurrentScreen }?.let { notification ->
+        AlertDialog(
+            onDismissRequest = { viewModel.cancelOpeningNotificationEntry(); selectedNotification = null },
+            title = { Text(notification.title.ifBlank { notificationKindLabel(notification.kind) }) },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(formatMarketDetailDate(notification.createdAt), style = MaterialTheme.typography.labelMedium)
+                    SelectionContainer { Text(notification.body) }
+                    errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    if (openingEntryId != null) CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                }
+            },
+            confirmButton = {
+                if (notification.entryId.isNotBlank()) TextButton(enabled = openingEntryId == null, onClick = {
+                    viewModel.openNotificationEntry(notification.entryId) { entry ->
+                        selectedNotification = null
+                        if (currentlyVisible) onNavigateToDetail(entry)
+                    }
+                }) { Text(stringResource(R.string.market_notification_view_entry)) }
+            },
+            dismissButton = { TextButton(onClick = { viewModel.cancelOpeningNotificationEntry(); selectedNotification = null; viewModel.clearError() }) { Text(stringResource(R.string.common_close)) } },
+        )
     }
 
     Column(
@@ -601,7 +644,13 @@ private fun MarketNotificationsPane() {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        if (isLoading && notifications.isEmpty()) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(enabled = !isLoading && accountId != null, onClick = viewModel::loadNotifications) { Text(stringResource(R.string.refresh)) }
+        }
+        if (selectedNotification == null) errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        if (accountId == null) {
+            Text(stringResource(R.string.mcp_plugin_login_required), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else if (isLoading && notifications.isEmpty()) {
             MarketAccountLoadingCard()
         } else if (notifications.isEmpty()) {
             MarketEmptyCard(
@@ -614,7 +663,7 @@ private fun MarketNotificationsPane() {
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(notifications, key = { it.id }) { notification ->
-                    MarketNotificationCard(notification = notification)
+                    MarketNotificationCard(notification = notification, onClick = { viewModel.clearError(); selectedNotification = notification })
                 }
             }
         }
@@ -622,9 +671,9 @@ private fun MarketNotificationsPane() {
 }
 
 @Composable
-private fun MarketNotificationCard(notification: MarketV2Notification) {
+private fun MarketNotificationCard(notification: MarketV2Notification, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = KiyoriUiShapes.control
@@ -690,16 +739,17 @@ private fun notificationKindIcon(kind: String): ImageVector {
     }
 }
 
+@Composable
 private fun notificationKindLabel(kind: String): String {
-    return when (kind) {
-        "comment_new" -> "新评论"
-        "comment_reply" -> "回复了你的评论"
-        "review_approved" -> "已通过审核"
-        "review_rejected" -> "未通过审核"
-        "review_changes" -> "需要修改"
-        "entry_curated" -> "入选精选"
-        else -> kind
-    }
+    return stringResource(when (kind) {
+        "comment_new" -> R.string.notification_kind_comment_new
+        "comment_reply" -> R.string.notification_kind_comment_reply
+        "review_approved" -> R.string.notification_kind_review_approved
+        "review_rejected" -> R.string.notification_kind_review_rejected
+        "review_changes" -> R.string.notification_kind_review_changes
+        "entry_curated" -> R.string.notification_kind_entry_curated
+        else -> R.string.market_notifications_title
+    })
 }
 
 @Composable
@@ -718,17 +768,9 @@ private fun relativeTime(isoDate: String): String {
     if (isoDate.isBlank()) return ""
     return try {
         val instant = java.time.Instant.parse(isoDate)
-        val now = java.time.Instant.now()
-        val duration = java.time.Duration.between(instant, now)
-        val seconds = duration.seconds
-        when {
-            seconds < 60 -> "刚刚"
-            seconds < 3600 -> "${seconds / 60} 分钟前"
-            seconds < 86400 -> "${seconds / 3600} 小时前"
-            seconds < 2592000 -> "${seconds / 86400} 天前"
-            seconds < 31104000 -> "${seconds / 2592000} 个月前"
-            else -> "${seconds / 31104000} 年前"
-        }
+        android.text.format.DateUtils.getRelativeTimeSpanString(
+            instant.toEpochMilli(), System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS,
+        ).toString()
     } catch (e: Exception) {
         isoDate.take(16).replace("T", " ")
     }
@@ -744,6 +786,7 @@ private fun MarketMinePane(
     onOpenAgreement: () -> Unit
 ) {
     val context = LocalContext.current
+    val isCurrentScreen = LocalIsCurrentScreen.current
     val coroutineScope = rememberCoroutineScope()
     val githubAuth = remember { GitHubAuthPreferences.getInstance(context) }
     val authState by produceState(initialValue = MarketMineAuthState(), githubAuth) {
@@ -826,7 +869,7 @@ private fun MarketMinePane(
         }
     }
 
-    if (showPublishDialog) {
+    if (showPublishDialog && isCurrentScreen) {
         MarketActionChooserDialog(
             title = stringResource(R.string.market_section_publish),
             onDismiss = { showPublishDialog = false },
@@ -842,7 +885,7 @@ private fun MarketMinePane(
         )
     }
 
-    if (showLoginDialog) {
+    if (showLoginDialog && isCurrentScreen) {
         GitHubLoginWebViewDialog(
             onDismissRequest = { showLoginDialog = false },
             onLoginSuccess = { showLoginDialog = false }
@@ -865,7 +908,7 @@ private fun MarketActionChooserDialog(
         onDismissRequest = onDismiss,
         title = { Text(text = title) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
                 actions.forEach { action ->
                     Surface(
                         modifier = Modifier

@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicLong
 
 /** Memory UI State Represents the current state of the Memory screen. */
 data class MemoryUiState(
@@ -102,6 +103,10 @@ class MemoryViewModel(
     private val _uiState = MutableStateFlow(MemoryUiState())
     val uiState: StateFlow<MemoryUiState> = _uiState.asStateFlow()
     private val searchSettingsPreferences = MemorySearchSettingsPreferences(context, profileId)
+    /** 搜索、文件夹切换和刷新可能重叠；旧图谱不能覆盖最新查询结果。 */
+    private val searchGeneration = AtomicLong(0)
+    private val simulationGeneration = AtomicLong(0)
+    private val documentSearchGeneration = AtomicLong(0)
 
     init {
         loadSearchSettings()
@@ -142,36 +147,39 @@ class MemoryViewModel(
      * the full graph.
      */
     fun searchMemories() {
+        val generation = searchGeneration.incrementAndGet()
+        val querySnapshot = _uiState.value.searchQuery
+        val configSnapshot = _uiState.value.searchConfig
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             try {
-                val query = _uiState.value.searchQuery
-                val config = _uiState.value.searchConfig
                 val memories =
-                    if (query.isBlank()) {
+                    if (querySnapshot.isBlank()) {
                         repository.searchMemories(
                             query = "",
-                            scoreMode = config.scoreMode,
-                            keywordWeight = config.keywordWeight,
-                            tagWeight = config.tagWeight,
-                            semanticWeight = config.vectorWeight,
-                            edgeWeight = config.edgeWeight
+                            scoreMode = configSnapshot.scoreMode,
+                            keywordWeight = configSnapshot.keywordWeight,
+                            tagWeight = configSnapshot.tagWeight,
+                            semanticWeight = configSnapshot.vectorWeight,
+                            edgeWeight = configSnapshot.edgeWeight
                         )
                     } else {
                         repository.searchMemories(
-                            query = query,
-                            scoreMode = config.scoreMode,
-                            keywordWeight = config.keywordWeight,
-                            tagWeight = config.tagWeight,
-                            semanticWeight = config.vectorWeight,
-                            edgeWeight = config.edgeWeight
+                            query = querySnapshot,
+                            scoreMode = configSnapshot.scoreMode,
+                            keywordWeight = configSnapshot.keywordWeight,
+                            tagWeight = configSnapshot.tagWeight,
+                            semanticWeight = configSnapshot.vectorWeight,
+                            edgeWeight = configSnapshot.edgeWeight
                         )
                     }
                 val graph = repository.getGraphForMemories(memories)
                 val graphData = withContext(Dispatchers.Default) { graph.toPresentationGraph() }
-                _uiState.update { it.copy(graph = graphData, isLoading = false) }
+                if (searchGeneration.get() == generation) {
+                    _uiState.update { it.copy(graph = graphData, isLoading = false) }
+                }
             } catch (e: Exception) {
-                _uiState.update {
+                if (searchGeneration.get() == generation) _uiState.update {
                     it.copy(isLoading = false, error = context.getString(R.string.memory_error_search, e.message ?: "Unknown error"))
                 }
             }
@@ -205,6 +213,7 @@ class MemoryViewModel(
     }
 
     fun showSearchSimulationDialog(visible: Boolean) {
+        if (!visible) simulationGeneration.incrementAndGet()
         _uiState.update {
             it.copy(
                 isSearchSimulationDialogVisible = visible,
@@ -220,12 +229,12 @@ class MemoryViewModel(
     }
 
     fun runSearchSimulation() {
+        if (_uiState.value.isSearchSimulationRunning) return
+        val generation = simulationGeneration.incrementAndGet()
+        val querySnapshot = _uiState.value.searchSimulationQuery
+        val configSnapshot = _uiState.value.searchConfig
+        val folderSnapshot = _uiState.value.selectedFolderPath.takeIf { it.isNotBlank() }
         viewModelScope.launch {
-            val currentState = _uiState.value
-            val query = currentState.searchSimulationQuery
-            val config = currentState.searchConfig
-            val folderPath = currentState.selectedFolderPath.takeIf { it.isNotBlank() }
-
             _uiState.update {
                 it.copy(
                     isSearchSimulationRunning = true,
@@ -235,15 +244,15 @@ class MemoryViewModel(
 
             try {
                 val debugInfo = repository.searchMemoriesDebug(
-                    query = query,
-                    folderPath = folderPath,
-                    scoreMode = config.scoreMode,
-                    keywordWeight = config.keywordWeight,
-                    tagWeight = config.tagWeight,
-                    semanticWeight = config.vectorWeight,
-                    edgeWeight = config.edgeWeight
+                    query = querySnapshot,
+                    folderPath = folderSnapshot,
+                    scoreMode = configSnapshot.scoreMode,
+                    keywordWeight = configSnapshot.keywordWeight,
+                    tagWeight = configSnapshot.tagWeight,
+                    semanticWeight = configSnapshot.vectorWeight,
+                    edgeWeight = configSnapshot.edgeWeight
                 )
-                _uiState.update {
+                if (simulationGeneration.get() == generation) _uiState.update {
                     it.copy(
                         isSearchSimulationRunning = false,
                         searchSimulationResult = debugInfo,
@@ -251,7 +260,7 @@ class MemoryViewModel(
                     )
                 }
             } catch (e: Exception) {
-                _uiState.update {
+                if (simulationGeneration.get() == generation) _uiState.update {
                     it.copy(
                         isSearchSimulationRunning = false,
                         searchSimulationError = context.getString(
@@ -475,6 +484,7 @@ class MemoryViewModel(
 
     /** Selects a node in the graph. Fetches the full memory details for the selected node. */
     fun selectNode(node: Node) {
+        val selectionGeneration = documentSearchGeneration.incrementAndGet()
         viewModelScope.launch {
             if (_uiState.value.isLinkingMode) {
                 // 连接模式
@@ -507,7 +517,7 @@ class MemoryViewModel(
                         repository.getChunksForMemory(memory.id)
                     }
 
-                    _uiState.update {
+                    if (documentSearchGeneration.get() == selectionGeneration) _uiState.update {
                         it.copy(
                             selectedNodeId = node.id,
                             selectedMemory = memory,
@@ -518,7 +528,7 @@ class MemoryViewModel(
                         )
                     }
                 } else {
-                    _uiState.update { it.copy(selectedNodeId = node.id, selectedMemory = memory, selectedEdge = null, isDocumentViewOpen = false) }
+                    if (documentSearchGeneration.get() == selectionGeneration) _uiState.update { it.copy(selectedNodeId = node.id, selectedMemory = memory, selectedEdge = null, isDocumentViewOpen = false) }
                 }
             }
         }
@@ -536,6 +546,7 @@ class MemoryViewModel(
 
     /** 关闭文档视图 */
     fun closeDocumentView() {
+        documentSearchGeneration.incrementAndGet()
         _uiState.update { it.copy(isDocumentViewOpen = false, documentSearchQuery = "", selectedDocumentChunks = emptyList(), selectedMemory = null, selectedNodeId = null) }
     }
 
@@ -547,12 +558,13 @@ class MemoryViewModel(
     /** 在选定文档中执行搜索 */
     fun performSearchInDocument() {
         val query = _uiState.value.documentSearchQuery
+        val generation = documentSearchGeneration.incrementAndGet()
         // 如果查询为空，则显示所有块
         if (query.isBlank()) {
             val memoryId = _uiState.value.selectedMemory?.id ?: return
             viewModelScope.launch {
                 val chunks = repository.getChunksForMemory(memoryId)
-                _uiState.update { it.copy(selectedDocumentChunks = chunks) }
+                if (documentSearchGeneration.get() == generation) _uiState.update { it.copy(selectedDocumentChunks = chunks) }
             }
             return
         }
@@ -560,7 +572,7 @@ class MemoryViewModel(
         val memoryId = _uiState.value.selectedMemory?.id ?: return
         viewModelScope.launch {
             val chunks = repository.searchChunksInDocument(memoryId, query)
-            _uiState.update { it.copy(selectedDocumentChunks = chunks) }
+            if (documentSearchGeneration.get() == generation) _uiState.update { it.copy(selectedDocumentChunks = chunks) }
         }
     }
 

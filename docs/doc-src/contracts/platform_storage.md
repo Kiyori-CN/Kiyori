@@ -16,6 +16,7 @@
 - `KiyoriActivityLifecycle` 通过一个 facts 实例持有 Activity 弱引用、created/started 计数与前台状态，唯一注册 Android 回调。
 - `OperitActivityLifecycleIntegration` 消费这些事实执行保持亮屏、插件回调、前台聊天/麦克风、PlayerCrash 与 VirtualDisplay/Shower 清理；旧 ActivityLifecycleManager 是兼容门面。
 - `KiyoriLogger` 持有执行器、日志根和写文件状态，路径为 `files/logs/kiyori.log`；`KiyoriLogTextFormatter` 处理有界消息/Throwable，旧 AppLogger 保持无状态兼容。
+- 工具箱的显式清除与导出快照排入同一日志写入队列；清除失败传播给页面，不复用启动容错重置作为成功证据。只清当前应用日志，已导出文件及独立插件日志保留。快照完成后释放日志队列，公开导出继续由 `KiyoriPublicStore` 持有；计数与正文读取同一快照，临时快照随操作清理。
 - 同目录 `operit.log` 一次性完整迁移，写后核验才删除旧文件；失败保留旧文件并记录。namespace、URI、AIDL、ToolPkg/MCP、native 与历史数据标识不随日志名称改变。
 
 ## Android 特权与权限

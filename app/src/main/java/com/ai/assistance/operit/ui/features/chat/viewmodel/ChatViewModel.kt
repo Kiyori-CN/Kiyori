@@ -23,6 +23,11 @@ import com.ai.assistance.operit.api.chat.EnhancedAIService
 import com.ai.assistance.operit.data.audit.ConversationAuditRepository
 import com.ai.assistance.operit.data.audit.ConversationAuditExportFormat
 import com.ai.assistance.operit.data.audit.ConversationAuditExporter
+import com.ai.assistance.operit.data.audit.ConversationAuditExportRecordingException
+import com.ai.assistance.operit.ui.features.chat.webview.workspace.LoadedWorkspaceConfiguration
+import com.ai.assistance.operit.terminal.TerminalManager
+import com.ai.assistance.operit.terminal.provider.filesystem.FileSystemProvider
+import com.ai.assistance.operit.terminal.utils.SSHFileConnectionManager
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.FileOperationData
 import com.ai.assistance.operit.data.model.ApiProviderType
@@ -43,6 +48,11 @@ import com.ai.assistance.operit.ui.permissions.ToolPermissionSystem
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
@@ -69,10 +79,13 @@ import com.ai.assistance.operit.data.preferences.ActivePromptManager
 import com.ai.assistance.operit.data.preferences.CharacterCardManager
 import com.ai.assistance.operit.data.model.ActivePrompt
 import com.ai.assistance.operit.util.WaifuMessageProcessor
+import com.ai.assistance.operit.ui.features.chat.webview.workspace.WorkspaceEditorState
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.WorkspaceBackupManager
 import com.ai.assistance.operit.core.workspace.CommandConfig
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.WorkspaceCommandExecutionState
+import com.ai.assistance.operit.ui.features.chat.webview.workspace.workspaceShellCommand
 import com.ai.assistance.operit.core.workspace.WorkspaceConfigReader
+import com.ai.assistance.operit.core.workspace.WorkspaceConfig
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.WorkspacePreviewRefreshBus
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.WorkspacePreviewRefreshEvent
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.toWorkspaceCommandOutputEntries
@@ -174,6 +187,16 @@ class ChatViewModel(
     private val chatRuntimeHolder = ChatRuntimeHolder.getInstance(context)
     private val conversationAuditRepository = ConversationAuditRepository.from(context)
     private val conversationAuditExporter = ConversationAuditExporter(context)
+    private var conversationAuditPagingGeneration = 0L
+    private var conversationAuditPagingJob: Job? = null
+    private val _conversationAuditLoadError = MutableStateFlow<String?>(null)
+    val conversationAuditLoadError = _conversationAuditLoadError.asStateFlow()
+    private val _isLoadingConversationAudit = MutableStateFlow(false)
+    val isLoadingConversationAudit = _isLoadingConversationAudit.asStateFlow()
+    private var conversationDetailsOpenJob: Job? = null
+    private var panelGeneration = 0L
+    private val _conversationAuditStateChatId = MutableStateFlow<String?>(null)
+    val conversationAuditStateChatId = _conversationAuditStateChatId.asStateFlow()
     private val _currentConversationAuditEvents =
         MutableStateFlow<List<ConversationAuditEventEntity>>(emptyList())
     val currentConversationAuditEvents: StateFlow<List<ConversationAuditEventEntity>> =
@@ -205,9 +228,20 @@ class ChatViewModel(
     }
     
     // 工作区终端会话映射表：workspacePath -> sessionId
-    private val workspaceTerminalSessions = mutableMapOf<String, String>()
+    private val workspaceTerminalSessions = mutableMapOf<Pair<String, String?>, String>()
+    // 页面仅借用编辑状态，切换对话和重新进入工作区不销毁未保存正文。
+    private val workspaceEditors = mutableMapOf<Pair<String, String?>, WorkspaceEditorState>()
+
+    internal fun workspaceEditorState(path: String, environment: String?) =
+        workspaceEditors.getOrPut(path to environment) {
+            WorkspaceEditorState()
+        }
+
     private var workspaceCommandExecutionJob: Job? = null
+    private val workspaceDedicatedLaunches = mutableSetOf<Pair<String, String>>()
+    private val workspaceToolLaunches = mutableSetOf<Triple<String, String?, String>>()
     private var workspaceOpenJob: Job? = null
+    private val workspaceServerMutex = Mutex()
     private var inputProcessingStateListenerJob: Job? = null
 
     private lateinit var mainChatCore: ChatServiceCore
@@ -467,6 +501,22 @@ class ChatViewModel(
         // Initialize delegates in correct order to avoid circular references
         initializeDelegates()
         startConversationAuditPaging()
+        viewModelScope.launch {
+            combine(currentChatId, chatHistories, _panelMode) { id, histories, panel ->
+                val chat = histories.find { it.id == id }
+                if (panel == ChatPanelMode.WORKSPACE) Triple(id, chat?.workspace, chat?.workspaceEnv) else null
+            }.distinctUntilChanged().collectLatest { target ->
+                if (target != null) {
+                    try {
+                        prepareWorkspaceServerForCurrentChat(target.first)
+                        if (currentChatId.value == target.first) refreshWebView()
+                    } catch (cancelled: CancellationException) { throw cancelled }
+                    catch (error: Exception) {
+                        if (currentChatId.value == target.first) uiStateDelegate.showErrorMessage(context.getString(R.string.chat_update_workspace_server_failed, error.message.orEmpty()))
+                    }
+                }
+            }
+        }
 
         // Setup additional components
         setupPermissionSystemCollection()
@@ -700,20 +750,7 @@ class ChatViewModel(
         chatHistoryDelegate.switchChat(chatId)
         chatRuntimeHolder.syncMainChatSelectionToFloating(chatId)
 
-        // 如果当前WebView正在显示，则更新工作区并触发刷新
-        if (_panelMode.value == ChatPanelMode.WORKSPACE) {
-            viewModelScope.launch {
-                try {
-                    prepareWorkspaceServerForCurrentChat(chatId)
-                    refreshWebView()
-                } catch (e: Exception) {
-                    AppLogger.e(TAG, "切换聊天后更新工作区服务失败", e)
-                    uiStateDelegate.showErrorMessage(
-                        context.getString(R.string.chat_update_workspace_server_failed, e.message ?: "")
-                    )
-                }
-            }
-        }
+        // 预览由实际当前聊天与绑定的观察器更新，不抢在异步切换完成前使用请求目标。
 
         if (_autoSwitchCharacterCard.value) {
             viewModelScope.launch {
@@ -952,31 +989,23 @@ class ChatViewModel(
     }
 
     /** 批量删除消息 */
-    fun deleteMessages(indices: Set<Int>) {
+    fun deleteMessagesByIdentity(chatId: String, timestamps: Set<Long>) {
+        if (chatId.isBlank() || timestamps.isEmpty()) return
         viewModelScope.launch {
-            AppLogger.d(TAG, "准备批量删除消息，索引: $indices")
-            val chatIdSnapshot = chatHistoryDelegate.currentChatId.value
-            if (chatIdSnapshot == null) {
-                uiStateDelegate.showToast(context.getString(R.string.chat_no_active_conversation))
-                return@launch
-            }
-
-            val historySnapshot = chatHistoryDelegate.chatHistory.value
-            val sortedIndices = indices.sortedDescending()
-            val timestamps = mutableListOf<Long>()
-            for (index in sortedIndices) {
-                val message = historySnapshot.getOrNull(index)
-                if (message == null) {
-                    AppLogger.w(TAG, "批量删除消息索引无效: index=$index, historySize=${historySnapshot.size}")
-                    uiStateDelegate.showErrorMessage(context.getString(R.string.chat_invalid_message_index))
-                    return@launch
-                }
-                timestamps += message.timestamp
-            }
-
-            chatHistoryDelegate.deleteMessagesByTimestamps(chatIdSnapshot, timestamps)
-            AppLogger.d(TAG, "批量删除完成")
+            chatHistoryDelegate.deleteMessagesByTimestamps(chatId, timestamps.toList())
         }
+    }
+
+    /** 兼容索引入口，在启动异步任务前固定目标。 */
+    fun deleteMessages(indices: Set<Int>) {
+        val chatId = currentChatId.value ?: return
+        val history = chatHistory.value
+        val timestamps = indices.mapNotNull { history.getOrNull(it)?.timestamp }.toSet()
+        if (timestamps.size != indices.size) {
+            uiStateDelegate.showErrorMessage(context.getString(R.string.chat_invalid_message_index))
+            return
+        }
+        deleteMessagesByIdentity(chatId, timestamps)
     }
 
     fun setMessageFavorite(timestamp: Long, isFavorite: Boolean) {
@@ -986,7 +1015,7 @@ class ChatViewModel(
     /** 分享消息为图片 */
     fun shareMessages(
         context: Context,
-        messageIndices: Set<Int>,
+        selectedMessages: List<ChatMessage>,
         userMessageColor: Color,
         aiMessageColor: Color,
         userTextColor: Color,
@@ -1009,30 +1038,17 @@ class ChatViewModel(
         forceShowThinkingProcess: Boolean = false,
         onSuccess: (Uri) -> Unit,
         onError: (String) -> Unit
-    ) {
-        viewModelScope.launch {
+    ): Job {
+        val messageSnapshot = selectedMessages.toList()
+        return viewModelScope.launch {
             try {
-                AppLogger.d(TAG, "开始生成分享图片，消息索引: $messageIndices")
-                
-                // 获取当前聊天历史
-                val currentHistory = chatHistoryDelegate.chatHistory.value
-                
-                // 验证索引有效性
-                if (messageIndices.any { it < 0 || it >= currentHistory.size }) {
-                    onError(context.getString(R.string.chat_invalid_message_index))
-                    return@launch
-                }
-                
-                // 获取选中的消息
-                val selectedMessages = messageIndices.sorted().map { currentHistory[it] }
-                
-                AppLogger.d(TAG, "准备生成图片，选中消息数量: ${selectedMessages.size}")
+                AppLogger.d(TAG, "准备生成图片，选中消息数量: ${messageSnapshot.size}")
                 
                 // 生成图片（内部会自动处理线程切换）
                 val imageFile = MessageImageGenerator
                     .generateMessageImage(
                         context = context,
-                        messages = selectedMessages,
+                        messages = messageSnapshot,
                         userMessageColor = userMessageColor,
                         aiMessageColor = aiMessageColor,
                         userTextColor = userTextColor,
@@ -1066,8 +1082,11 @@ class ChatViewModel(
                 
                 AppLogger.d(TAG, "Uri 获取成功: $uri")
                 
+                currentCoroutineContext().ensureActive()
                 onSuccess(uri)
                 
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 AppLogger.e(TAG, "生成分享图片失败", e)
                 onError(context.getString(R.string.chat_generate_share_image_failed, e.message ?: ""))
@@ -1090,6 +1109,7 @@ class ChatViewModel(
 
     // 添加消息编辑方法
     fun updateMessage(index: Int, editedMessage: ChatMessage) {
+        val operationChatId = currentChatId.value ?: return
         viewModelScope.launch {
             try {
                 if (isLoading.value) {
@@ -1099,7 +1119,7 @@ class ChatViewModel(
                     return@launch
                 }
                 val currentHistory = chatHistoryDelegate.chatHistory.value
-                if (currentHistory.getOrNull(index) == null) {
+                if (currentChatId.value != operationChatId || currentHistory.none { it.timestamp == editedMessage.timestamp }) {
                     uiStateDelegate.showErrorMessage(context.getString(R.string.chat_invalid_message_index))
                     return@launch
                 }
@@ -1115,26 +1135,22 @@ class ChatViewModel(
         }
     }
 
-    fun reviseConversationAuditMessage(editedMessage: ChatMessage) {
-        viewModelScope.launch {
-            try {
-                if (isLoading.value) {
-                    uiStateDelegate.showErrorMessage(
-                        context.getString(R.string.chat_regenerate_busy)
-                    )
-                    return@launch
-                }
-                reviseMessageProjection(editedMessage)
+    suspend fun reviseConversationAuditMessage(chatId: String, original: ChatMessage, content: String): Boolean {
+        return try {
+            check(currentChatId.value == chatId) { context.getString(R.string.chat_draft_changed_before_send) }
+            check(!isLoading.value) { context.getString(R.string.chat_regenerate_busy) }
+            chatHistoryDelegate.reviseMessage(original.copy(content = content), chatId, original.content)
+            if (currentChatId.value == chatId) {
+                messageCoordinationDelegate.refreshStableContextWindow(chatId = chatId)
                 uiStateDelegate.showToast(context.getString(R.string.chat_message_updated))
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "从对话详情修订消息失败", e)
-                uiStateDelegate.showErrorMessage(
-                    context.getString(
-                        R.string.chat_update_message_failed,
-                        e.message.orEmpty(),
-                    )
-                )
             }
+            true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "从对话详情修订消息失败", e)
+            uiStateDelegate.showErrorMessage(context.getString(R.string.chat_update_message_failed, e.message.orEmpty()))
+            false
         }
     }
 
@@ -1220,11 +1236,62 @@ class ChatViewModel(
      * @param index 要回档到的消息索引
      * @param editedContent 编辑后的消息内容（如果有）
      */
+    private var workspaceRewindJob: Job? = null
+
+    private suspend fun resolveRewindTimestamp(chatId: String, targetTimestamp: Long): Long {
+        // 显示窗口可能分页或从定位器跳转，不能把窗口首条误认为全历史首条。
+        return checkNotNull(chatHistoryDelegate.getMessagePredecessorTimestamp(chatId, targetTimestamp)) {
+            context.getString(R.string.chat_invalid_message_index)
+        }
+    }
+
+    private suspend fun truncateForWorkspaceRewind(chatId: String, targetTimestamp: Long): Boolean {
+        val chat = chatHistories.value.find { it.id == chatId }
+        val path = chat?.workspace
+        val environment = chat?.workspaceEnv
+        val editor = path?.takeIf { it.isNotBlank() }?.let { workspaceEditorState(it, environment) }
+        check(editor == null || (!editor.isRestoring && editor.unsavedFiles.isEmpty() && editor.savingFiles.isEmpty())) {
+            context.getString(R.string.workspace_rewind_save_first)
+        }
+        val truncate: suspend () -> Boolean = {
+            var cleanup: suspend () -> Unit = {}
+            chatHistoryDelegate.truncateChatHistory(
+                targetTimestamp,
+                chatId,
+                afterTruncate = {
+                    try {
+                        cleanup()
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Exception) {
+                        throw IllegalStateException(context.getString(R.string.workspace_rewind_cleanup_failed), error)
+                    }
+                },
+            ) {
+                // 在历史锁内重新定位边界，确认页面预览后目标未被删除或改绑。
+                val rewindTimestamp = resolveRewindTimestamp(chatId, targetTimestamp)
+                val latestChat = chatHistories.value.find { it.id == chatId }
+                check(latestChat?.workspace == path && latestChat?.workspaceEnv == environment) {
+                    context.getString(R.string.chat_draft_changed_before_send)
+                }
+                if (!path.isNullOrBlank()) {
+                    cleanup = WorkspaceBackupManager.getInstance(context)
+                        .prepareRewind(path, rewindTimestamp, environment, chatId)
+                }
+            }
+        }
+        return if (editor == null) truncate() else editor.withRewind(truncate)
+    }
+
     fun rewindAndResendMessage(index: Int, editedContent: String) {
-        viewModelScope.launch {
+        if (workspaceRewindJob?.isActive == true) return
+        val operationChatId = currentChatId.value ?: return
+        val operationHistory = chatHistory.value.toList()
+        workspaceRewindJob = viewModelScope.launch {
             try {
                 // 获取当前聊天历史
-                val currentHistory = chatHistoryDelegate.chatHistory.value.toMutableList()
+                check(currentChatId.value == operationChatId) { context.getString(R.string.chat_draft_changed_before_send) }
+                val currentHistory = operationHistory
 
                 // 确保索引有效
                 if (index < 0 || index >= currentHistory.size) {
@@ -1241,50 +1308,19 @@ class ChatViewModel(
                     return@launch
                 }
 
-                // **核心修复**: 确定回滚的时间戳。
-                // 我们需要恢复到目标消息 *之前* 的状态,
-                // 所以我们使用前一条消息的时间戳。
-                // 如果目标是第一条消息，则回滚到初始状态 (时间戳 0)。
-                val rewindTimestamp = if (index > 0) {
-                    currentHistory[index - 1].timestamp
-                } else {
-                    0L
-                }
-
-                // 获取当前工作区路径
-                val chatId = currentChatId.value
-                val currentChat = chatHistories.value.find { it.id == chatId }
-                val workspacePath = currentChat?.workspace
-                val workspaceEnv = currentChat?.workspaceEnv
-
-                AppLogger.d(TAG, "[Rewind] Target message timestamp: ${targetMessage.timestamp}")
-                if (index > 0) {
-                    AppLogger.d(TAG, "[Rewind] Previous message timestamp: ${currentHistory[index - 1].timestamp}")
-                } else {
-                    AppLogger.d(TAG, "[Rewind] No previous message, target is the first message.")
-                }
-                AppLogger.d(TAG, "[Rewind] Timestamp passed to syncState: $rewindTimestamp")
-
-                // 如果绑定了工作区，则执行回滚
-                if (!workspacePath.isNullOrBlank()) {
-                    AppLogger.d(TAG, "Rewinding workspace to timestamp: $rewindTimestamp")
-                    withContext(Dispatchers.IO) {
-                        WorkspaceBackupManager.getInstance(context)
-                            .syncState(workspacePath, rewindTimestamp, workspaceEnv, chatId)
-                    }
-                    AppLogger.d(TAG, "Workspace rewind complete.")
-                }
-
-                // 截取到指定消息的历史记录（不包含该消息本身）
-                // 获取要删除的第一条消息的时间戳
                 val timestampOfFirstDeletedMessage = currentHistory[index].timestamp
-
-                // **核心修复**：调用新的委托方法，原子性地更新数据库和内存
-                chatHistoryDelegate.truncateChatHistory(timestampOfFirstDeletedMessage)
+                check(truncateForWorkspaceRewind(operationChatId, timestampOfFirstDeletedMessage)) {
+                    context.getString(R.string.chat_draft_changed_before_send)
+                }
+                check(currentChatId.value == operationChatId) {
+                    context.getString(R.string.chat_draft_changed_before_send)
+                }
 
                 // 使用修改后的消息内容来发送
                 messageProcessingDelegate.updateUserMessage(editedContent)
                 sendUserMessage()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 AppLogger.e(TAG, "回档并重新发送消息失败", e)
                 uiStateDelegate.showErrorMessage(context.getString(R.string.chat_rewind_failed, e.message ?: ""))
@@ -1292,43 +1328,27 @@ class ChatViewModel(
         }
     }
 
-    suspend fun previewWorkspaceChangesForMessage(index: Int): List<WorkspaceBackupManager.WorkspaceFileChange> {
+    suspend fun previewWorkspaceChangesForMessage(targetTimestamp: Long): List<WorkspaceBackupManager.WorkspaceFileChange> {
+        val chatId = currentChatId.value ?: error(context.getString(R.string.chat_invalid_message_index))
+        val currentChat = chatHistories.value.find { it.id == chatId }
+        val workspacePath = currentChat?.workspace
+        val workspaceEnv = currentChat?.workspaceEnv
+        val rewindTimestamp = resolveRewindTimestamp(chatId, targetTimestamp)
+        if (workspacePath.isNullOrBlank()) return emptyList()
         return withContext(Dispatchers.IO) {
-            try {
-                val currentHistory = chatHistoryDelegate.chatHistory.value.toMutableList()
-
-                if (index < 0 || index >= currentHistory.size) {
-                    emptyList()
-                } else {
-                    val rewindTimestamp = if (index > 0) {
-                        currentHistory[index - 1].timestamp
-                    } else {
-                        0L
-                    }
-
-                    val chatId = currentChatId.value
-                    val currentChat = chatHistories.value.find { it.id == chatId }
-                    val workspacePath = currentChat?.workspace
-                    val workspaceEnv = currentChat?.workspaceEnv
-
-                    if (workspacePath.isNullOrBlank()) {
-                        emptyList()
-                    } else {
-                        WorkspaceBackupManager.getInstance(context)
-                            .previewChangesForRewind(workspacePath, workspaceEnv, rewindTimestamp, chatId)
-                    }
-                }
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "预览工作区变更失败", e)
-                emptyList()
-            }
+            WorkspaceBackupManager.getInstance(context)
+                .previewChangesForRewind(workspacePath, workspaceEnv, rewindTimestamp, chatId)
         }
     }
 
     fun rollbackToMessage(index: Int) {
-        viewModelScope.launch {
+        if (workspaceRewindJob?.isActive == true) return
+        val operationChatId = currentChatId.value ?: return
+        val operationHistory = chatHistory.value.toList()
+        workspaceRewindJob = viewModelScope.launch {
             try {
-                val currentHistory = chatHistoryDelegate.chatHistory.value.toMutableList()
+                check(currentChatId.value == operationChatId) { context.getString(R.string.chat_draft_changed_before_send) }
+                val currentHistory = operationHistory
 
                 if (index < 0 || index >= currentHistory.size) {
                     uiStateDelegate.showErrorMessage(context.getString(R.string.chat_invalid_message_index))
@@ -1343,34 +1363,21 @@ class ChatViewModel(
                     return@launch
                 }
 
-                val rewindTimestamp = if (index > 0) {
-                    currentHistory[index - 1].timestamp
-                } else {
-                    0L
-                }
-
-                val chatId = currentChatId.value
-                val currentChat = chatHistories.value.find { it.id == chatId }
-                val workspacePath = currentChat?.workspace
-                val workspaceEnv = currentChat?.workspaceEnv
-
-                if (!workspacePath.isNullOrBlank()) {
-                    AppLogger.d(TAG, "[Rollback] Rewinding workspace to timestamp: $rewindTimestamp")
-                    withContext(Dispatchers.IO) {
-                        WorkspaceBackupManager.getInstance(context)
-                            .syncState(workspacePath, rewindTimestamp, workspaceEnv, chatId)
-                    }
-                    AppLogger.d(TAG, "[Rollback] Workspace rewind complete.")
-                }
-
                 // 删除目标消息及其之后的所有消息
                 val timestampOfFirstDeletedMessage = currentHistory[index].timestamp
-                chatHistoryDelegate.truncateChatHistory(timestampOfFirstDeletedMessage)
+                check(truncateForWorkspaceRewind(operationChatId, timestampOfFirstDeletedMessage)) {
+                    context.getString(R.string.chat_draft_changed_before_send)
+                }
+                check(currentChatId.value == operationChatId) {
+                    context.getString(R.string.chat_draft_changed_before_send)
+                }
 
                 val plainText = AvatarEmotionManager.stripXmlLikeTags(targetMessage.content)
                 updateUserMessage(TextFieldValue(plainText))
 
                 uiStateDelegate.showToast(context.getString(R.string.chat_rolled_back_message_in_input))
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 AppLogger.e(TAG, "回滚到指定消息失败", e)
                 uiStateDelegate.showErrorMessage(context.getString(R.string.chat_rollback_failed, e.message ?: ""))
@@ -2221,16 +2228,26 @@ class ChatViewModel(
         }
 
         workspaceOpenJob?.cancel()
+        val openingPanelGeneration = panelGeneration
         workspaceOpenJob = viewModelScope.launch {
             _isWorkspacePreparing.value = true
             try {
                 val chatId = awaitWorkspaceChatId()
                 if (chatId != null) {
-                    prepareWorkspaceServerForCurrentChat(chatId)
+                    try {
+                        prepareWorkspaceServerForCurrentChat(chatId)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
+                        uiStateDelegate.showErrorMessage(context.getString(R.string.workspace_config_load_failed))
+                        AppLogger.w(TAG, "Workspace preview preparation failed: ${error.javaClass.simpleName}")
+                    }
                 } else {
                     AppLogger.w(TAG, "打开工作区时未获取到聊天ID，将直接显示工作区页面")
                 }
 
+                currentCoroutineContext().ensureActive()
+                if (panelGeneration != openingPanelGeneration || (chatId != null && currentChatId.value != chatId)) return@launch
                 setPanelMode(ChatPanelMode.WORKSPACE)
             } catch (e: CancellationException) {
                 AppLogger.d(TAG, "工作区打开流程已取消")
@@ -2263,17 +2280,47 @@ class ChatViewModel(
         return currentChatId.value
     }
 
-    private fun isWorkspaceServerEnabled(workspacePath: String, workspaceEnv: String?): Boolean {
-        if (workspaceEnv?.startsWith("repo:", ignoreCase = true) == true) {
-            return false
-        }
-        return WorkspaceConfigReader.readConfig(workspacePath).server.enabled
+    internal suspend fun loadWorkspaceConfiguration(workspacePath: String, workspaceEnv: String?): LoadedWorkspaceConfiguration = withContext(Dispatchers.IO) {
+        if (workspaceEnv.isNullOrBlank()) return@withContext LoadedWorkspaceConfiguration(WorkspaceConfigReader.readConfig(workspacePath))
+        // 书签工作区沿用已有文件管理合同；不将虚拟路径交给 Android File。
+        if (workspaceEnv.startsWith("repo:", ignoreCase = true)) return@withContext LoadedWorkspaceConfiguration(WorkspaceConfig(), environment = workspaceEnv)
+        require(workspaceEnv.equals("linux", ignoreCase = true)) { "Unsupported workspace environment" }
+        val provider = currentLinuxWorkspaceFileSystem()
+        val configDirectory = "${workspacePath.trimEnd('/')}/.operit"
+        val rootEntries = provider.listDirectory(workspacePath) ?: throw IOException("Unable to read workspace directory")
+        if (rootEntries.none { it.name == ".operit" }) return@withContext LoadedWorkspaceConfiguration(WorkspaceConfigReader.defaultWebConfig(), provider, workspaceEnv)
+        val configEntries = provider.listDirectory(configDirectory) ?: throw IOException("Unable to read workspace config directory")
+        if (configEntries.none { it.name == "config.json" }) return@withContext LoadedWorkspaceConfiguration(WorkspaceConfigReader.defaultWebConfig(), provider, workspaceEnv)
+        val content = provider.readFile("$configDirectory/config.json") ?: throw IOException("Unable to read workspace config")
+        LoadedWorkspaceConfiguration(WorkspaceConfigReader.parseConfig(content), provider, workspaceEnv)
     }
 
-    private suspend fun prepareWorkspaceServer(workspacePath: String, workspaceEnv: String?): Boolean {
+    private fun currentLinuxWorkspaceFileSystem(): FileSystemProvider =
+        SSHFileConnectionManager.getInstance(context).getFileSystemProvider()
+            ?: TerminalManager.getInstance(context).getFileSystemProvider()
+
+    private suspend fun verifyWorkspaceCommandEnvironment(workspaceEnv: String?, expectedFileSystem: FileSystemProvider?) {
+        withContext(Dispatchers.IO) {
+            if (workspaceEnv.isNullOrBlank()) return@withContext
+            check(workspaceEnv.equals("linux", ignoreCase = true) && expectedFileSystem != null &&
+                currentLinuxWorkspaceFileSystem() === expectedFileSystem &&
+                TerminalManager.getInstance(context).getFileSystemProvider() === expectedFileSystem) {
+                context.getString(R.string.workspace_command_environment_changed)
+            }
+        }
+    }
+
+    private suspend fun prepareWorkspaceServer(workspacePath: String, workspaceEnv: String?, expectedChatId: String?): Boolean {
         return withContext(Dispatchers.IO) {
             val webServer = LocalWebServer.getInstance(context, LocalWebServer.ServerType.WORKSPACE)
-            val serverEnabled = isWorkspaceServerEnabled(workspacePath, workspaceEnv)
+            val serverEnabled = try {
+                loadWorkspaceConfiguration(workspacePath, workspaceEnv).config.server.enabled
+            } catch (error: Exception) {
+                webServer.stop()
+                throw error
+            }
+            val latestChat = chatHistories.value.find { it.id == expectedChatId }
+            if (currentChatId.value != expectedChatId || latestChat?.workspace != workspacePath || latestChat.workspaceEnv != workspaceEnv) return@withContext false
 
             if (!serverEnabled) {
                 if (webServer.isRunning()) {
@@ -2281,29 +2328,28 @@ class ChatViewModel(
                 }
                 false
             } else {
-                if (!webServer.isRunning()) {
-                    webServer.start()
+                try {
+                    webServer.updateChatWorkspace(workspacePath, workspaceEnv)
+                    if (!webServer.isRunning()) webServer.start()
+                } catch (error: Exception) {
+                    webServer.stop()
+                    throw error
                 }
-                webServer.updateChatWorkspace(workspacePath, workspaceEnv)
                 true
             }
         }
     }
 
-    private suspend fun prepareWorkspaceServerForCurrentChat(chatId: String) {
-        val chat = chatHistories.value.find { it.id == chatId }
-        val workspacePath = chat?.workspace
-        val workspaceEnv = chat?.workspaceEnv
-
-        if (workspacePath == null) {
-            AppLogger.w(TAG, "Chat $chatId has no workspace bound. Web server not updated.")
-            return
-        }
-
-        if (prepareWorkspaceServer(workspacePath, workspaceEnv)) {
-            AppLogger.d(TAG, "Web服务器工作空间已更新为: $workspacePath env=$workspaceEnv for chat $chatId")
-        } else {
-            AppLogger.d(TAG, "工作区服务器已按配置禁用: $workspacePath env=$workspaceEnv for chat $chatId")
+    private suspend fun prepareWorkspaceServerForCurrentChat(chatId: String?): Unit = workspaceServerMutex.withLock {
+        withContext(Dispatchers.IO) {
+            if (currentChatId.value != chatId) return@withContext
+            val chat = chatHistories.value.find { it.id == chatId }
+            val workspacePath = chat?.workspace
+            if (workspacePath == null) {
+                LocalWebServer.getInstance(context, LocalWebServer.ServerType.WORKSPACE).stop()
+            } else {
+                prepareWorkspaceServer(workspacePath, chat.workspaceEnv, chatId)
+            }
         }
     }
 
@@ -2313,6 +2359,8 @@ class ChatViewModel(
         viewModelScope.launch {
             try {
                 prepareWorkspaceServerForCurrentChat(chatId)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 AppLogger.e(TAG, "更新Web服务器工作空间失败", e)
                 uiStateDelegate.showErrorMessage(
@@ -2501,55 +2549,22 @@ class ChatViewModel(
     }
 
     /** 更新指定聊天的标题 */
-    fun bindChatToWorkspace(chatId: String, workspace: String, workspaceEnv: String? = null) {
+    suspend fun bindChatToWorkspace(chatId: String, workspace: String, workspaceEnv: String? = null) {
         // 1. Persist the change
         chatHistoryDelegate.bindChatToWorkspace(chatId, workspace, workspaceEnv)
 
-        // 2. Update the web server with the new path and refresh
-        viewModelScope.launch {
-            try {
-                if (prepareWorkspaceServer(workspace, workspaceEnv)) {
-                    AppLogger.d(TAG, "Web server workspace updated to: $workspace env=$workspaceEnv for chat $chatId")
-                } else {
-                    AppLogger.d(TAG, "Workspace server disabled by config for: $workspace env=$workspaceEnv")
-                }
-
-                // 3. Trigger a refresh of the WebView
-                refreshWebView()
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "Failed to update web server workspace after binding", e)
-                uiStateDelegate.showErrorMessage(
-                    context.getString(R.string.chat_update_workspace_server_failed, e.message ?: "")
-                )
-            }
-        }
+        // 持久化成功后，现有观察器按当前聊天协调预览；页面离开不取消已完成的绑定。
     }
 
     /** 解绑聊天的工作区 */
-    fun unbindChatFromWorkspace(chatId: String) {
-        // 1. Persist the change
-        chatHistoryDelegate.unbindChatFromWorkspace(chatId)
-
-        // 2. Stop the web server or clear workspace
-        viewModelScope.launch {
-            try {
-                withContext(Dispatchers.IO) {
-                    val webServer = LocalWebServer.getInstance(context, LocalWebServer.ServerType.WORKSPACE)
-                    if (webServer.isRunning()) {
-                        webServer.stop()
-                    }
-                }
-                AppLogger.d(TAG, "Web server stopped after unbinding workspace for chat $chatId")
-
-                // 3. Trigger a refresh of the WebView
-                refreshWebView()
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "Failed to stop web server after unbinding", e)
-                uiStateDelegate.showErrorMessage(
-                    context.getString(R.string.chat_stop_workspace_server_failed, e.message ?: "")
-                )
+    suspend fun unbindChatFromWorkspace(chatId: String, expectedWorkspace: String, expectedEnvironment: String?) {
+        workspaceEditors[expectedWorkspace to expectedEnvironment]?.let { editor ->
+            check(editor.unsavedFiles.isEmpty() && editor.savingFiles.isEmpty() && !editor.isRestoring) {
+                context.getString(R.string.workspace_unbind_save_first)
             }
         }
+        // 1. Persist the change
+        chatHistoryDelegate.unbindChatFromWorkspace(chatId, expectedWorkspace, expectedEnvironment)
     }
 
     suspend fun renameWorkspace(
@@ -2558,18 +2573,8 @@ class ChatViewModel(
     ): WorkspaceRenameResult {
         val result = chatHistoryDelegate.renameWorkspaceAndChat(chatId, newWorkspaceName)
         try {
-            if (prepareWorkspaceServer(result.workspacePath, result.workspaceEnv)) {
-                AppLogger.d(
-                    TAG,
-                    "Web server workspace renamed to: ${result.workspacePath} env=${result.workspaceEnv} for chat $chatId"
-                )
-            } else {
-                AppLogger.d(
-                    TAG,
-                    "Workspace server disabled by config after rename: ${result.workspacePath} env=${result.workspaceEnv}"
-                )
-            }
-            refreshWebView()
+            prepareWorkspaceServerForCurrentChat(chatId)
+            if (currentChatId.value == chatId) refreshWebView()
         } catch (error: CancellationException) {
             throw error
         } catch (e: Exception) {
@@ -2583,10 +2588,10 @@ class ChatViewModel(
 
     /** 在工作区中执行命令（来自 config.json 按钮） */
     @RequiresApi(Build.VERSION_CODES.O)
-    fun executeCommandInWorkspace(command: CommandConfig, workspacePath: String) {
+    internal fun executeCommandInWorkspace(command: CommandConfig, workspacePath: String, loadedConfiguration: LoadedWorkspaceConfiguration) {
         val toolName = command.tool?.trim().orEmpty()
         if (toolName.isNotEmpty()) {
-            executeWorkspaceTool(command, workspacePath, toolName)
+            executeWorkspaceTool(command, workspacePath, toolName, loadedConfiguration)
             return
         }
 
@@ -2603,9 +2608,15 @@ class ChatViewModel(
             return
         }
         val terminalInstance = terminal ?: return
+        val preparedCommand = try {
+            workspaceShellCommand(workspacePath, commandText, command.workingDir, command.shell)
+        } catch (error: IllegalArgumentException) {
+            uiStateDelegate.showErrorMessage(context.getString(R.string.chat_execute_command_failed, error.message ?: ""))
+            return
+        }
 
         if (command.usesDedicatedSession) {
-            executeBackgroundWorkspaceCommand(command, workspacePath, commandText)
+            executeBackgroundWorkspaceCommand(command, workspacePath, preparedCommand, loadedConfiguration)
             return
         }
 
@@ -2614,15 +2625,16 @@ class ChatViewModel(
             return
         }
 
+        val workspaceEnv = loadedConfiguration.environment
+        val executionId = java.util.UUID.randomUUID().toString()
         workspaceCommandExecutionJob = viewModelScope.launch {
-            var sessionId: String? = null
             try {
-                AppLogger.d(TAG, "Executing workspace command: $commandText in $workspacePath")
+                AppLogger.d(TAG, "Executing workspace command ${command.id}")
                 
                 val workspaceDir = File(workspacePath)
 
                 // 使用工作区的共享会话
-                var sharedSessionId = workspaceTerminalSessions[workspacePath]
+                var sharedSessionId = workspaceTerminalSessions[workspacePath to workspaceEnv]
 
                 // 如果会话不存在或已关闭，创建新会话
                 if (sharedSessionId == null || terminalInstance.terminalState.value.sessions.none { it.id == sharedSessionId }) {
@@ -2631,7 +2643,7 @@ class ChatViewModel(
                     sharedSessionId = terminalInstance.createSession("Workspace: $workspaceName")
 
                     // 保存会话 ID
-                    workspaceTerminalSessions[workspacePath] = sharedSessionId
+                    workspaceTerminalSessions[workspacePath to workspaceEnv] = sharedSessionId
 
                     AppLogger.d(
                         TAG,
@@ -2639,11 +2651,14 @@ class ChatViewModel(
                     )
                 }
 
-                sessionId = sharedSessionId
-
-                val activeSessionId = sessionId
-
-                terminalInstance.executeCommand(activeSessionId, "cd \"${workspaceDir.absolutePath}\"")
+                val activeSessionId = sharedSessionId
+                verifyWorkspaceCommandEnvironment(workspaceEnv, loadedConfiguration.fileSystem)
+                if (workspaceEnv.isNullOrBlank()) {
+                    check(terminalInstance.terminalState.value.sessions.firstOrNull { it.id == activeSessionId }?.terminalType ==
+                        com.ai.assistance.operit.terminal.provider.type.TerminalType.LOCAL) {
+                        context.getString(R.string.workspace_command_requires_local_terminal)
+                    }
+                }
 
                 _workspaceCommandExecutionState.value =
                     WorkspaceCommandExecutionState(
@@ -2651,12 +2666,14 @@ class ChatViewModel(
                         commandLabel = command.label,
                         commandText = commandText,
                         sessionId = activeSessionId,
-                        usesDedicatedSession = command.usesDedicatedSession
+                        commandId = executionId,
+                        usesDedicatedSession = command.usesDedicatedSession,
+                        workspaceEnvironment = workspaceEnv
                     )
 
-                terminalInstance.executeCommandFlow(activeSessionId, commandText).collect { event ->
+                terminalInstance.executeCommandFlow(activeSessionId, preparedCommand, executionId).collect { event ->
                     val currentState = _workspaceCommandExecutionState.value
-                    if (currentState?.sessionId != activeSessionId) {
+                    if (currentState?.commandId != executionId) {
                         return@collect
                     }
 
@@ -2664,11 +2681,12 @@ class ChatViewModel(
                         _workspaceCommandExecutionState.value =
                             currentState.copy(
                                 isRunning = false,
-                                isCancelling = false
+                                isCancelling = false,
+                                exitCode = event.exitCode
                             )
                         notifyWorkspacePreviewRefresh(
                             workspacePath = workspacePath,
-                            workspaceEnv = resolveWorkspaceEnvForPath(workspacePath),
+                            workspaceEnv = workspaceEnv,
                             affectedPaths = listOf(workspacePath),
                             source = "workspace_command:${command.id}"
                         )
@@ -2678,20 +2696,21 @@ class ChatViewModel(
                             return@collect
                         }
                         _workspaceCommandExecutionState.value =
-                            currentState.copy(
-                                outputEntries = currentState.outputEntries + appendedEntries
-                            )
+                            currentState.appendOutput(appendedEntries)
                     }
                 }
 
                 val currentState = _workspaceCommandExecutionState.value
-                if (currentState?.sessionId == activeSessionId && !currentState.isVisible) {
+                if (currentState?.commandId == executionId && !currentState.isVisible) {
                     _workspaceCommandExecutionState.value = null
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 AppLogger.e(TAG, "Failed to execute workspace command", e)
-                if (_workspaceCommandExecutionState.value?.sessionId == sessionId) {
-                    _workspaceCommandExecutionState.value = null
+                val failedState = _workspaceCommandExecutionState.value
+                if (failedState?.commandId == executionId) {
+                    _workspaceCommandExecutionState.value = failedState.copy(isRunning = false, isCancelling = false)
                 }
                 uiStateDelegate.showErrorMessage(
                     context.getString(R.string.chat_execute_command_failed, e.message ?: "")
@@ -2706,34 +2725,52 @@ class ChatViewModel(
     private fun executeBackgroundWorkspaceCommand(
         command: CommandConfig,
         workspacePath: String,
-        commandText: String
+        preparedCommand: String,
+        loadedConfiguration: LoadedWorkspaceConfiguration
     ) {
+        val launchKey = workspacePath to command.id
+        if (!workspaceDedicatedLaunches.add(launchKey)) {
+            uiStateDelegate.showToast(context.getString(R.string.workspace_command_already_running))
+            return
+        }
+        val launchChatId = currentChatId.value
+        val workspaceEnv = loadedConfiguration.environment
         viewModelScope.launch {
             try {
-                AppLogger.d(TAG, "Executing background workspace command: $commandText in $workspacePath")
+                AppLogger.d(TAG, "Starting dedicated workspace command ${command.id}")
 
                 val terminalInstance = terminal ?: run {
                     uiStateDelegate.showErrorMessage(context.getString(R.string.chat_terminal_requires_android_8))
                     return@launch
                 }
-                val workspaceDir = File(workspacePath)
                 val sessionTitle = command.sessionTitle ?: command.label
                 val dedicatedSessionId = terminalInstance.createSession(sessionTitle)
 
-                terminalInstance.executeCommand(dedicatedSessionId, "cd \"${workspaceDir.absolutePath}\"")
-                terminalInstance.sendInput(dedicatedSessionId, commandText + "\r")
-                openAiComputerForTerminalSession()
+                if (workspaceEnv.isNullOrBlank()) {
+                    check(terminalInstance.terminalState.value.sessions.firstOrNull { it.id == dedicatedSessionId }?.terminalType ==
+                        com.ai.assistance.operit.terminal.provider.type.TerminalType.LOCAL) {
+                        context.getString(R.string.workspace_command_requires_local_terminal)
+                    }
+                }
+                verifyWorkspaceCommandEnvironment(workspaceEnv, loadedConfiguration.fileSystem)
+                terminalInstance.sendInputAndWait(dedicatedSessionId, preparedCommand + "\r")
+                if (currentChatId.value == launchChatId) {
+                    terminalInstance.switchToSession(dedicatedSessionId)
+                    openAiComputerForTerminalSession()
+                }
 
                 AppLogger.d(
                     TAG,
                     "Background workspace command started in dedicated terminal session $dedicatedSessionId"
                 )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 AppLogger.e(TAG, "Failed to execute background workspace command", e)
                 uiStateDelegate.showErrorMessage(
                     context.getString(R.string.chat_execute_command_failed, e.message ?: "")
                 )
-            }
+            } finally { workspaceDedicatedLaunches.remove(launchKey) }
         }
     }
 
@@ -2762,12 +2799,42 @@ class ChatViewModel(
         }
 
         _workspaceCommandExecutionState.value = currentState.copy(isCancelling = true)
-        terminal?.sendInterruptSignal(currentState.sessionId)
-    }
-
-    private fun executeWorkspaceTool(command: CommandConfig, workspacePath: String, toolName: String) {
         viewModelScope.launch {
             try {
+                val result = terminal?.cancelCommand(currentState.sessionId, currentState.commandId, 3_000L)
+                if (result?.settled != true && _workspaceCommandExecutionState.value?.commandId == currentState.commandId) {
+                    _workspaceCommandExecutionState.value = _workspaceCommandExecutionState.value?.copy(isCancelling = false)
+                    uiStateDelegate.showErrorMessage(context.getString(R.string.workspace_command_cancel_unconfirmed))
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) {
+                if (_workspaceCommandExecutionState.value?.commandId == currentState.commandId) {
+                    _workspaceCommandExecutionState.value = _workspaceCommandExecutionState.value?.copy(isCancelling = false)
+                    uiStateDelegate.showErrorMessage(context.getString(R.string.workspace_command_cancel_unconfirmed))
+                }
+            }
+        }
+    }
+
+    private fun executeWorkspaceTool(command: CommandConfig, workspacePath: String, toolName: String, loadedConfiguration: LoadedWorkspaceConfiguration) {
+        val workspaceEnv = loadedConfiguration.environment
+        val launchKey = Triple(workspacePath, workspaceEnv, command.id)
+        if (!workspaceToolLaunches.add(launchKey)) {
+            uiStateDelegate.showToast(context.getString(R.string.workspace_command_already_running))
+            return
+        }
+        viewModelScope.launch {
+            try {
+                if (loadedConfiguration.fileSystem != null) {
+                    check(withContext(Dispatchers.IO) { currentLinuxWorkspaceFileSystem() === loadedConfiguration.fileSystem }) {
+                        context.getString(R.string.workspace_command_environment_changed)
+                    }
+                    // 任意工具的环境语义由其参数合同决定，不能静默猜测或覆盖它。
+                    check(command.toolParameters.keys.none(::isPathLikeToolParameter) ||
+                        command.toolParameters["environment"]?.equals(workspaceEnv, ignoreCase = true) == true) {
+                        context.getString(R.string.workspace_tool_environment_required)
+                    }
+                }
                 val workspaceDir = File(workspacePath)
                 val toolParameters = command.toolParameters.map { (name, value) ->
                     ToolParameter(
@@ -2799,17 +2866,19 @@ class ChatViewModel(
                         }
                     notifyWorkspacePreviewRefresh(
                         workspacePath = workspacePath,
-                        workspaceEnv = resolveWorkspaceEnvForPath(workspacePath),
+                        workspaceEnv = workspaceEnv,
                         affectedPaths = affectedPaths,
                         source = "workspace_tool:$toolName"
                     )
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 AppLogger.e(TAG, "Failed to execute workspace tool", e)
                 uiStateDelegate.showErrorMessage(
                     context.getString(R.string.chat_execute_command_failed, e.message ?: "")
                 )
-            }
+            } finally { workspaceToolLaunches.remove(launchKey) }
         }
     }
 
@@ -2874,7 +2943,12 @@ class ChatViewModel(
     }
 
     fun onConversationDetailsButtonClick() {
-        viewModelScope.launch {
+        if (conversationDetailsOpenJob?.isActive == true) {
+            conversationDetailsOpenJob?.cancel()
+            return
+        }
+        val openingPanelGeneration = panelGeneration
+        conversationDetailsOpenJob = viewModelScope.launch {
             try {
                 if (_panelMode.value == ChatPanelMode.DETAILS) {
                     setPanelMode(ChatPanelMode.CHAT)
@@ -2882,9 +2956,13 @@ class ChatViewModel(
                 }
                 val chatId = awaitWorkspaceChatId() ?: return@launch
                 conversationAuditRepository.reconstructLegacyAuditIfNeeded(chatId)
-                _currentConversationAuditMessages.value =
-                    chatHistoryDelegate.getChatHistory(chatId)
+                val messages = chatHistoryDelegate.getChatHistory(chatId)
+                currentCoroutineContext().ensureActive()
+                if (currentChatId.value != chatId || panelGeneration != openingPanelGeneration) return@launch
+                _currentConversationAuditMessages.value = messages
                 setPanelMode(ChatPanelMode.DETAILS)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 AppLogger.e(TAG, "打开对话详情失败", e)
                 uiStateDelegate.showErrorMessage(
@@ -2904,72 +2982,97 @@ class ChatViewModel(
      * 位于 ViewModel/Repository，而不是只依赖 LazyColumn 做视觉虚拟化。
      */
     private fun startConversationAuditPaging() {
-        viewModelScope.launch {
+        conversationAuditPagingJob?.cancel()
+        conversationAuditPagingJob = viewModelScope.launch {
             chatHistoryDelegate.currentChatId.collectLatest { chatId ->
+                conversationAuditPagingGeneration++
                 _currentConversationAuditEvents.value = emptyList()
                 _currentConversationAuditMessages.value = emptyList()
                 _hasOlderConversationAuditEvents.value = false
                 _isLoadingOlderConversationAuditEvents.value = false
                 _currentConversationAuditStoredBytes.value = 0L
+                _conversationAuditStateChatId.value = chatId
+                _conversationAuditLoadError.value = null
+                _isLoadingConversationAudit.value = chatId != null
                 if (chatId == null) {
                     return@collectLatest
                 }
+                try {
+                    val latestPage =
+                        conversationAuditRepository.getEventPage(
+                            chatId = chatId,
+                            beforeSequenceExclusive = null,
+                            limit = CONVERSATION_AUDIT_EVENT_PAGE_SIZE,
+                        )
+                    currentCoroutineContext().ensureActive()
+                    _currentConversationAuditEvents.value =
+                        latestPage.sortedBy { event -> event.sequenceNumber }
+                    if (_panelMode.value == ChatPanelMode.DETAILS) {
+                        val messages = chatHistoryDelegate.getChatHistory(chatId)
+                        currentCoroutineContext().ensureActive()
+                        if (currentChatId.value != chatId) return@collectLatest
+                        _currentConversationAuditMessages.value = messages
+                    }
+                    _hasOlderConversationAuditEvents.value =
+                        latestPage.minOfOrNull { event -> event.sequenceNumber }?.let { sequence ->
+                            sequence > 1L
+                        } == true
+                    val storedBytes = conversationAuditRepository.getStoredPayloadBytesForChat(chatId)
+                    currentCoroutineContext().ensureActive()
+                    if (currentChatId.value != chatId) return@collectLatest
+                    _currentConversationAuditStoredBytes.value = storedBytes
+                    _isLoadingConversationAudit.value = false
 
-                val latestPage =
-                    conversationAuditRepository.getEventPage(
-                        chatId = chatId,
-                        beforeSequenceExclusive = null,
-                        limit = CONVERSATION_AUDIT_EVENT_PAGE_SIZE,
-                    )
-                _currentConversationAuditEvents.value =
-                    latestPage.sortedBy { event -> event.sequenceNumber }
-                if (_panelMode.value == ChatPanelMode.DETAILS) {
-                    _currentConversationAuditMessages.value =
-                        chatHistoryDelegate.getChatHistory(chatId)
-                }
-                _hasOlderConversationAuditEvents.value =
-                    latestPage.minOfOrNull { event -> event.sequenceNumber }?.let { sequence ->
-                        sequence > 1L
-                    } == true
-                _currentConversationAuditStoredBytes.value =
-                    conversationAuditRepository.getStoredPayloadBytesForChat(chatId)
-
-                conversationAuditRepository.observeLastEvent(chatId).collect { lastEvent ->
-                    val currentLastSequence =
-                        _currentConversationAuditEvents.value.lastOrNull()?.sequenceNumber ?: 0L
-                    if (
-                        lastEvent != null &&
-                            lastEvent.sequenceNumber > currentLastSequence &&
-                            chatHistoryDelegate.currentChatId.value == chatId
-                    ) {
-                        val appended =
-                            conversationAuditRepository.getEventsAfterSequence(
-                                chatId = chatId,
-                                afterSequenceExclusive = currentLastSequence,
-                            )
+                    conversationAuditRepository.observeLastEvent(chatId).collect { lastEvent ->
+                        val currentLastSequence =
+                            _currentConversationAuditEvents.value.lastOrNull()?.sequenceNumber ?: 0L
                         if (
-                            appended.isNotEmpty() &&
+                            lastEvent != null &&
+                                lastEvent.sequenceNumber > currentLastSequence &&
                                 chatHistoryDelegate.currentChatId.value == chatId
                         ) {
-                            _currentConversationAuditEvents.value =
-                                (_currentConversationAuditEvents.value + appended)
-                                    .distinctBy { event -> event.eventId }
-                                    .sortedBy { event -> event.sequenceNumber }
+                            val appended =
+                                conversationAuditRepository.getEventsAfterSequence(
+                                    chatId = chatId,
+                                    afterSequenceExclusive = currentLastSequence,
+                                )
                             if (
-                                _panelMode.value == ChatPanelMode.DETAILS &&
-                                    appended.any(::auditEventChangesConversationProjection)
+                                appended.isNotEmpty() &&
+                                    chatHistoryDelegate.currentChatId.value == chatId
                             ) {
-                                _currentConversationAuditMessages.value =
-                                    chatHistoryDelegate.getChatHistory(chatId)
+                                _currentConversationAuditEvents.value =
+                                    (_currentConversationAuditEvents.value + appended)
+                                        .distinctBy { event -> event.eventId }
+                                        .sortedBy { event -> event.sequenceNumber }
+                                if (
+                                    _panelMode.value == ChatPanelMode.DETAILS &&
+                                        appended.any(::auditEventChangesConversationProjection)
+                                ) {
+                                    val messages = chatHistoryDelegate.getChatHistory(chatId)
+                                    currentCoroutineContext().ensureActive()
+                                    if (currentChatId.value != chatId) return@collect
+                                    _currentConversationAuditMessages.value = messages
+                                }
+                                val bytes = conversationAuditRepository.getStoredPayloadBytesForChat(chatId)
+                                currentCoroutineContext().ensureActive()
+                                if (currentChatId.value == chatId) _currentConversationAuditStoredBytes.value = bytes
                             }
-                            _currentConversationAuditStoredBytes.value =
-                                conversationAuditRepository.getStoredPayloadBytesForChat(chatId)
                         }
+                    }
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    AppLogger.e(TAG, "加载对话审计失败", error)
+                    if (currentChatId.value == chatId) {
+                        _isLoadingConversationAudit.value = false
+                        _conversationAuditLoadError.value = context.getString(R.string.conversation_audit_load_failed)
                     }
                 }
             }
         }
     }
+
+    fun retryConversationAuditLoading() = startConversationAuditPaging()
 
     private fun auditEventChangesConversationProjection(
         event: ConversationAuditEventEntity,
@@ -2990,14 +3093,16 @@ class ChatViewModel(
 
     fun loadOlderConversationAuditEvents() {
         val chatId = currentChatId.value ?: return
+        if (_conversationAuditStateChatId.value != chatId) return
+        val generation = conversationAuditPagingGeneration
         if (
             _isLoadingOlderConversationAuditEvents.value ||
                 !_hasOlderConversationAuditEvents.value
         ) {
             return
         }
+        _isLoadingOlderConversationAuditEvents.value = true
         viewModelScope.launch {
-            _isLoadingOlderConversationAuditEvents.value = true
             try {
                 val firstSequence =
                     _currentConversationAuditEvents.value.firstOrNull()?.sequenceNumber
@@ -3008,7 +3113,7 @@ class ChatViewModel(
                         beforeSequenceExclusive = firstSequence,
                         limit = CONVERSATION_AUDIT_EVENT_PAGE_SIZE,
                     )
-                if (currentChatId.value != chatId) {
+                if (currentChatId.value != chatId || generation != conversationAuditPagingGeneration) {
                     return@launch
                 }
                 _currentConversationAuditEvents.value =
@@ -3020,8 +3125,11 @@ class ChatViewModel(
                     olderPage.minOfOrNull { event -> event.sequenceNumber }?.let { sequence ->
                         sequence > 1L
                     } == true
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 AppLogger.e(TAG, "加载更早的对话审计事件失败", e)
+                if (generation != conversationAuditPagingGeneration) return@launch
                 uiStateDelegate.showErrorMessage(
                     context.getString(
                         R.string.conversation_audit_load_older_failed,
@@ -3029,7 +3137,7 @@ class ChatViewModel(
                     )
                 )
             } finally {
-                _isLoadingOlderConversationAuditEvents.value = false
+                if (generation == conversationAuditPagingGeneration) _isLoadingOlderConversationAuditEvents.value = false
             }
         }
     }
@@ -3047,55 +3155,51 @@ class ChatViewModel(
     ) =
         try {
             conversationAuditRepository.loadEventPayloads(eventId)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             AppLogger.e(TAG, "加载对话审计 payload 失败: eventId=$eventId", e)
             throw e
         }
 
-    fun addConversationAuditAnnotation(text: String) {
-        val chatId = currentChatId.value ?: return
-        viewModelScope.launch {
-            try {
-                conversationAuditRepository.appendUserAnnotation(chatId, text)
-                uiStateDelegate.showToast(
-                    context.getString(R.string.conversation_audit_annotation_added)
-                )
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "添加对话审计注释失败", e)
-                uiStateDelegate.showErrorMessage(
-                    context.getString(
-                        R.string.conversation_audit_annotation_failed,
-                        e.message.orEmpty(),
-                    )
-                )
+    suspend fun addConversationAuditAnnotation(chatId: String, text: String): Boolean {
+        return try {
+            check(currentChatId.value == chatId) { context.getString(R.string.chat_draft_changed_before_send) }
+            require(text.isNotBlank())
+            conversationAuditRepository.appendUserAnnotation(chatId, text.trim())
+            if (currentChatId.value == chatId) {
+                uiStateDelegate.showToast(context.getString(R.string.conversation_audit_annotation_added))
             }
+            true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "添加对话审计注释失败", e)
+            uiStateDelegate.showErrorMessage(context.getString(R.string.conversation_audit_annotation_failed, e.message.orEmpty()))
+            false
         }
     }
 
-    fun exportCurrentConversationAudit(
+    suspend fun exportCurrentConversationAudit(
+        chatId: String,
         format: ConversationAuditExportFormat =
             ConversationAuditExportFormat.AI_DIAGNOSTICS_MARKDOWN,
-    ) {
-        val chatId = currentChatId.value ?: return
-        viewModelScope.launch {
-            try {
-                val result = conversationAuditExporter.export(chatId, format)
-                uiStateDelegate.showToast(
-                    context.getString(
-                        R.string.conversation_audit_exported,
-                        result.eventCount,
-                        result.file.name,
-                    )
-                )
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "导出对话审计失败", e)
-                uiStateDelegate.showErrorMessage(
-                    context.getString(
-                        R.string.conversation_audit_export_failed,
-                        e.message.orEmpty(),
-                    )
-                )
-            }
+    ): Boolean {
+        return try {
+            check(currentChatId.value == chatId) { context.getString(R.string.chat_draft_changed_before_send) }
+            val result = conversationAuditExporter.export(chatId, format)
+            uiStateDelegate.showToast(context.getString(R.string.conversation_audit_exported, result.eventCount, result.file.name))
+            true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: ConversationAuditExportRecordingException) {
+            AppLogger.e(TAG, "审计导出文件已生成但完成记录失败", e)
+            uiStateDelegate.showErrorMessage(context.getString(R.string.conversation_audit_export_recording_failed, e.exportedFile.absolutePath))
+            false
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "导出对话审计失败", e)
+            uiStateDelegate.showErrorMessage(context.getString(R.string.conversation_audit_export_failed, e.message.orEmpty()))
+            false
         }
     }
 
@@ -3125,6 +3229,7 @@ class ChatViewModel(
     }
 
     private fun setPanelMode(mode: ChatPanelMode) {
+        panelGeneration++
         _panelMode.value = mode
         savedStateHandle[PANEL_MODE_STATE_KEY] = mode.name
     }

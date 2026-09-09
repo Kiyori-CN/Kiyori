@@ -138,6 +138,7 @@ fun BottomControlBar(
     onToggleTtsMute: () -> Unit,
     onSendClick: () -> Unit,
     volumeLevel: Float,
+    isPreparingMessage: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     // 底部输入模式：false = 文本输入框；true = 整条变成“按住说话”按钮
@@ -193,11 +194,11 @@ fun BottomControlBar(
         ) {
             val pillColor = when {
                 isCancelRegion && isHoldToSpeakMode -> MaterialTheme.colorScheme.error
-                isHoldToSpeakMode && isPressed -> Color(0xFFE0E0E0) // 按下时使用实心浅灰色
-                else -> Color.White
+                isHoldToSpeakMode && isPressed -> MaterialTheme.colorScheme.surfaceContainerHighest
+                else -> MaterialTheme.colorScheme.surfaceContainerHigh
             }
 
-            val canSend = userMessage.isNotBlank() || attachScreenContent || attachNotifications || attachLocation || hasOcrSelection
+            val canSend = !isPreparingMessage && (userMessage.isNotBlank() || attachScreenContent || attachNotifications || attachLocation || hasOcrSelection)
             val glowPadding = 10.dp
             val glowBaseColors = listOf(
                 Color(0xFF42A5F5),
@@ -321,21 +322,21 @@ fun BottomControlBar(
                                     canFocus = userMessage.isNotBlank() || allowBlankFocus
                                 }
                             ,
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 12.sp),
+                            textStyle = MaterialTheme.typography.bodyMedium,
                             singleLine = true,
                             readOnly = isHoldToSpeakMode,
                             placeholder = {
                                 if (!isHoldToSpeakMode) {
                                     Text(
                                         text = stringResource(R.string.floating_input_or_hold_voice),
-                                        color = Color.Gray,
-                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp)
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = MaterialTheme.typography.bodySmall
                                     )
                                 }
                             },
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.Black,
-                                unfocusedTextColor = Color.Black,
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                                 focusedBorderColor = Color.Transparent,
                                 unfocusedBorderColor = Color.Transparent,
                                 cursorColor = MaterialTheme.colorScheme.primary
@@ -400,14 +401,17 @@ fun BottomControlBar(
                                                     while (true) {
                                                         val event = awaitPointerEvent(PointerEventPass.Final)
                                                         if (event.changes.isEmpty()) {
-                                                            return@withTimeoutOrNull true
+                                                            return@withTimeoutOrNull false
                                                         }
                                                         val change = event.changes.firstOrNull { it.id == down.id }
                                                         if (change == null) {
                                                             if (event.changes.none { it.pressed }) {
-                                                                return@withTimeoutOrNull true
+                                                                return@withTimeoutOrNull false
                                                             }
                                                             continue
+                                                        }
+                                                        if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
+                                                            return@withTimeoutOrNull false
                                                         }
                                                         if (!change.pressed) {
                                                             return@withTimeoutOrNull true
@@ -415,10 +419,12 @@ fun BottomControlBar(
                                                     }
                                                 }
 
-                                                if (releasedBeforeTimeout == true) {
-                                                    allowBlankFocus = true
-                                                    focusRequester.requestFocus()
-                                                    keyboardController?.show()
+                                                if (releasedBeforeTimeout != null) {
+                                                    if (releasedBeforeTimeout == true) {
+                                                        allowBlankFocus = true
+                                                        focusRequester.requestFocus()
+                                                        keyboardController?.show()
+                                                    }
                                                     return@awaitEachGesture
                                                 }
 
@@ -430,39 +436,47 @@ fun BottomControlBar(
                                                 allowBlankFocus = false
                                                 focusManager.clearFocus(force = true)
                                                 keyboardController?.hide()
-                                                onStartVoiceCapture()
+                                                try {
+                                                    onStartVoiceCapture()
 
-                                                while (true) {
-                                                    val event = awaitPointerEvent(PointerEventPass.Final)
-                                                    if (event.changes.isEmpty()) {
-                                                        allowBlankFocus = false
-                                                        focusManager.clearFocus(force = true)
-                                                        keyboardController?.hide()
-                                                        onStopVoiceCapture(isCancelRegion)
-                                                        isCancelRegion = false
-                                                        isPressed = false
-                                                        isHoldToSpeakMode = false
-                                                        totalDragY = 0f
-                                                        break
+                                                    while (true) {
+                                                        val event = awaitPointerEvent(PointerEventPass.Final)
+                                                        if (event.changes.isEmpty()) {
+                                                            allowBlankFocus = false
+                                                            focusManager.clearFocus(force = true)
+                                                            keyboardController?.hide()
+                                                            onStopVoiceCapture(true)
+                                                            isCancelRegion = false
+                                                            isPressed = false
+                                                            isHoldToSpeakMode = false
+                                                            totalDragY = 0f
+                                                            break
+                                                        }
+
+                                                        val change = event.changes.firstOrNull { it.id == down.id }
+                                                        if (change == null || !change.pressed) {
+                                                            allowBlankFocus = false
+                                                            focusManager.clearFocus(force = true)
+                                                            keyboardController?.hide()
+                                                            onStopVoiceCapture(isCancelRegion || change == null)
+                                                            isCancelRegion = false
+                                                            isPressed = false
+                                                            isHoldToSpeakMode = false
+                                                            totalDragY = 0f
+                                                            break
+                                                        }
+
+                                                        val position = change.position
+                                                        val dy = position.y - startPosition.y
+                                                        totalDragY = dy
+                                                        isCancelRegion = abs(totalDragY) > cancelThresholdPx
                                                     }
-
-                                                    val change = event.changes.firstOrNull { it.id == down.id }
-                                                    if (change == null || !change.pressed) {
-                                                        allowBlankFocus = false
-                                                        focusManager.clearFocus(force = true)
-                                                        keyboardController?.hide()
-                                                        onStopVoiceCapture(isCancelRegion)
-                                                        isCancelRegion = false
-                                                        isPressed = false
-                                                        isHoldToSpeakMode = false
-                                                        totalDragY = 0f
-                                                        break
-                                                    }
-
-                                                    val position = change.position
-                                                    val dy = position.y - startPosition.y
-                                                    totalDragY = dy
-                                                    isCancelRegion = abs(totalDragY) > cancelThresholdPx
+                                                } finally {
+                                                    // 指针协程因切换模式、旋转或取消而退出时，不提交半次手势。
+                                                    if (isPressed) onStopVoiceCapture(true)
+                                                    isPressed = false
+                                                    isCancelRegion = false
+                                                    isHoldToSpeakMode = false
                                                 }
                                             }
                                         }
@@ -1000,4 +1014,3 @@ private fun MicrophoneButton(
         }
     }
 }
-

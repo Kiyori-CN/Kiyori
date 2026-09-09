@@ -8,6 +8,8 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.util.zip.ZipInputStream
+import java.nio.file.Files
+import kotlinx.coroutines.CancellationException
 
 class SkillManager private constructor(private val context: Context) {
 
@@ -70,7 +72,7 @@ class SkillManager private constructor(private val context: Context) {
 
         val children = skillsDir.listFiles() ?: emptyArray()
         for (child in children) {
-            if (!child.isDirectory) continue
+            if (!child.isDirectory || child.name.startsWith(".import_tmp_")) continue
 
             val skillFile = File(child, "SKILL.md").let { primary ->
                 if (primary.exists()) primary else File(child, "skill.md")
@@ -206,11 +208,9 @@ class SkillManager private constructor(private val context: Context) {
             refreshAvailableSkillsLocked()
             val skill = availableSkills[skillName] ?: return false
             return try {
-                val ok = skill.directory.deleteRecursively()
-                if (ok) {
-                    refreshAvailableSkillsLocked()
-                }
-                ok
+                deleteSkillTree(skill.directory)
+                refreshAvailableSkillsLocked()
+                true
             } catch (e: Exception) {
                 AppLogger.e(TAG, "Failed to delete skill $skillName", e)
                 false
@@ -289,13 +289,69 @@ class SkillManager private constructor(private val context: Context) {
         return importSkillFromZipDetailed(zipFile, subDirPathInZip).message
     }
 
-    fun importSkillFromZipDetailed(zipFile: File, subDirPathInZip: String?): SkillImportResult {
+    fun importSkillFromZipDetailed(zipFile: File, subDirPathInZip: String?): SkillImportResult =
+        importSkillFromZipDetailed(zipFile, subDirPathInZip, zipFile.name) {}
+
+    internal fun importSkillFromZipDetailed(
+        zipFile: File,
+        subDirPathInZip: String?,
+        archiveName: String,
+        checkCancelled: () -> Unit,
+    ): SkillImportResult {
+        return importSkillFromZipDetailed(zipFile, subDirPathInZip, archiveName, null, checkCancelled)
+    }
+
+    internal fun importSkillFromZipDetailed(
+        zipFile: File,
+        subDirPathInZip: String?,
+        archiveName: String,
+        publication: SkillImportPublication?,
+        checkCancelled: () -> Unit,
+    ): SkillImportResult {
         synchronized(mutationLock) {
-            return importSkillFromZipDetailedLocked(zipFile, subDirPathInZip)
+            return importSkillFromZipDetailedLocked(zipFile, subDirPathInZip, archiveName, publication, checkCancelled)
         }
     }
 
-    private fun importSkillFromZipDetailedLocked(zipFile: File, subDirPathInZip: String?): SkillImportResult {
+    /** 手动导入同样经唯一 mutationLock 与 staging 发布，不暴露半份技能目录。 */
+    internal fun importPreparedSkill(
+        skillName: String,
+        description: String,
+        checkCancelled: () -> Unit,
+        prepare: (File) -> Unit,
+    ): SkillImportResult = synchronized(mutationLock) {
+        val root = getSkillsRootDir()
+        val target = resolveSkillImportTarget(root, skillName)
+        if (Files.exists(target.toPath(), java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+            return@synchronized SkillImportResult(context.getString(R.string.skill_error_import_duplicate_name, target.name), null)
+        }
+        val staging = Files.createTempDirectory(root.toPath(), ".import_tmp_").toFile()
+        var published: File? = null
+        try {
+            checkCancelled()
+            prepare(staging)
+            checkCancelled()
+            published = publishSkillImportDirectory(staging, root, skillName)
+            refreshAvailableSkillsLocked()
+            SkillImportResult(
+                if (description.isNotBlank()) context.getString(R.string.skill_imported_with_desc, published.name, description)
+                else context.getString(R.string.skill_imported, published.name),
+                published,
+            )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            SkillImportResult(
+                if (published != null) context.getString(R.string.skill_import_published_warning, published.absolutePath)
+                else context.getString(R.string.skill_error_import_failed, error.message.orEmpty()),
+                published,
+            )
+        } finally {
+            deleteSkillTree(staging)
+        }
+    }
+
+    private fun importSkillFromZipDetailedLocked(zipFile: File, subDirPathInZip: String?, archiveName: String, publication: SkillImportPublication?, checkCancelled: () -> Unit): SkillImportResult {
         if (!zipFile.exists() || !zipFile.canRead()) {
             return SkillImportResult(context.getString(R.string.skill_error_cannot_read_file, zipFile.absolutePath), null)
         }
@@ -310,20 +366,12 @@ class SkillManager private constructor(private val context: Context) {
             return SkillImportResult(context.getString(R.string.skill_error_cannot_access_dir, e.message ?: ""), null)
         }
 
-        val tmpDir = File(skillsRoot, ".import_tmp_${System.currentTimeMillis()}")
-        if (!tmpDir.mkdirs()) {
-            return SkillImportResult(context.getString(R.string.skill_error_create_tmp_dir_failed, tmpDir.absolutePath), null)
-        }
-
-        fun cleanupTmp() {
-            try {
-                tmpDir.deleteRecursively()
-            } catch (_: Exception) {
-            }
-        }
+        val tmpDir = Files.createTempDirectory(skillsRoot.toPath(), ".import_tmp_").toFile()
+        var publishedDir: File? = null
+        fun cleanupTmp() = deleteSkillTree(tmpDir)
 
         try {
-            unzipToDirectory(zipFile, tmpDir)
+            unzipToDirectory(zipFile, tmpDir, checkCancelled)
 
             val normalizedSubDir = subDirPathInZip
                 ?.trim()
@@ -365,9 +413,9 @@ class SkillManager private constructor(private val context: Context) {
             val skillMdCandidates = if (directSkillFile != null) {
                 listOf(directSkillFile)
             } else {
-                searchRoot.walkTopDown()
+                searchRoot.walkTopDown().onEach { checkCancelled() }
                     .filter { it.isFile && (it.name.equals("SKILL.md", ignoreCase = true) || it.name.equals("skill.md", ignoreCase = true)) }
-                    .take(10)
+                    .take(2)
                     .toList()
             }
 
@@ -380,7 +428,11 @@ class SkillManager private constructor(private val context: Context) {
                 }, null)
             }
 
-            val selectedSkillFile = skillMdCandidates.first()
+            if (skillMdCandidates.size > 1) {
+                cleanupTmp()
+                return SkillImportResult(context.getString(R.string.skill_import_multiple_candidates), null)
+            }
+            val selectedSkillFile = skillMdCandidates.single()
             val selectedSkillDir = selectedSkillFile.parentFile ?: run {
                 cleanupTmp()
                 return SkillImportResult(context.getString(R.string.skill_error_import_skill_md_path_invalid), null)
@@ -394,20 +446,20 @@ class SkillManager private constructor(private val context: Context) {
                     selectedSkillDir.absolutePath == tmpDir.absolutePath
                 }
                 if (isTmpRoot) {
-                    zipFile.nameWithoutExtension
+                    File(archiveName).nameWithoutExtension
                 } else {
-                    selectedSkillDir.name.ifBlank { zipFile.nameWithoutExtension }
+                    selectedSkillDir.name.ifBlank { File(archiveName).nameWithoutExtension }
                 }
             }
-            val finalDir = File(skillsRoot, baseName.trim().ifBlank { "skill" })
+            val finalDir = resolveSkillImportTarget(skillsRoot, baseName)
 
-            if (finalDir.exists()) {
+            if (finalDir.exists() && publication?.existingDirectory == null) {
                 cleanupTmp()
                 return SkillImportResult(context.getString(R.string.skill_error_import_duplicate_name, finalDir.name), null)
             }
 
-            // Copy the detected skill directory to final location
-            selectedSkillDir.copyRecursively(finalDir, overwrite = false)
+            checkCancelled()
+            publishSkillImportDirectory(selectedSkillDir, skillsRoot, baseName, publication) { publishedDir = it }
             cleanupTmp()
 
             // refresh cache
@@ -419,19 +471,27 @@ class SkillManager private constructor(private val context: Context) {
             } else {
                 context.getString(R.string.skill_imported, finalDir.name)
             }, finalDir)
+        } catch (cancelled: CancellationException) {
+            try { cleanupTmp() } catch (cleanup: Exception) { cancelled.addSuppressed(cleanup) }
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "Failed to import skill from zip", e)
-            cleanupTmp()
-            return SkillImportResult(context.getString(R.string.skill_error_import_failed, e.message ?: ""), null)
+            try { cleanupTmp() } catch (cleanup: Exception) { e.addSuppressed(cleanup) }
+            return SkillImportResult(
+                if (publishedDir != null) context.getString(R.string.skill_import_published_warning, publishedDir.absolutePath)
+                else context.getString(R.string.skill_error_import_failed, e.message.orEmpty()),
+                publishedDir,
+            )
         }
     }
 
 
-    private fun unzipToDirectory(zipFile: File, destinationDir: File) {
+    private fun unzipToDirectory(zipFile: File, destinationDir: File, checkCancelled: () -> Unit) {
         val destCanonical = destinationDir.canonicalFile
         ZipInputStream(FileInputStream(zipFile)).use { zis ->
             val buffer = ByteArray(64 * 1024)
             while (true) {
+                checkCancelled()
                 val entry = zis.nextEntry ?: break
 
                 val outFile = File(destinationDir, entry.name)
@@ -442,14 +502,15 @@ class SkillManager private constructor(private val context: Context) {
                 }
 
                 if (entry.isDirectory) {
-                    outFile.mkdirs()
+                    check(outFile.isDirectory || outFile.mkdirs()) { "Cannot create skill archive directory" }
                     zis.closeEntry()
                     continue
                 }
 
-                outFile.parentFile?.mkdirs()
+                outFile.parentFile?.let { check(it.isDirectory || it.mkdirs()) { "Cannot create skill archive parent" } }
                 FileOutputStream(outFile).use { fos ->
                     while (true) {
+                        checkCancelled()
                         val read = zis.read(buffer)
                         if (read <= 0) break
                         fos.write(buffer, 0, read)

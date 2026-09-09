@@ -28,6 +28,10 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -84,13 +88,11 @@ class MCPRepository(private val context: Context) {
     init {
         loadPluginsFromMCPLocalServer()
         
-        // 监听MCPLocalServer的配置变化
-        CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
-            mcpLocalServer.pluginMetadata.collect {
-                // 当插件元数据发生变化时，重新加载插件列表
-                loadPluginsFromMCPLocalServer()
-            }
-        }
+    }
+
+    /** 只有实际需要实时列表的界面订阅；观察协程随调用者生命周期结束。 */
+    fun observeConfiguration(scope: CoroutineScope) = scope.launch(Dispatchers.IO) {
+        mcpLocalServer.mcpConfig.collect { loadPluginsFromMCPLocalServer() }
     }
 
     fun refreshInstalledPlugins() {
@@ -102,6 +104,7 @@ class MCPRepository(private val context: Context) {
     /**
      * 从MCPLocalServer加载插件信息（主要数据源）
      */
+    @Synchronized
     private fun loadPluginsFromMCPLocalServer() {
         try {
             val pluginMetadata = mcpLocalServer.getAllPluginMetadata()
@@ -157,6 +160,8 @@ class MCPRepository(private val context: Context) {
             _mcpServers.value = servers.sortedBy { it.name }
             _installedPluginIds.value = installedIds
 
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "从MCPLocalServer加载插件失败", e)
         }
@@ -170,12 +175,14 @@ class MCPRepository(private val context: Context) {
         try {
             if (pluginsBaseDir.exists() && pluginsBaseDir.isDirectory) {
                 pluginsBaseDir.listFiles()?.forEach { pluginDir ->
-                    if (pluginDir.isDirectory && isPluginPhysicallyInstalled(pluginDir.name)) {
+                    if (!pluginDir.name.startsWith(".mcp_") && pluginDir.isDirectory && isPluginPhysicallyInstalled(pluginDir.name)) {
                         installedIds.add(pluginDir.name)
                     }
                 }
             }
             AppLogger.d(TAG, "文件系统扫描到已安装插件: ${installedIds.size}")
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "扫描文件系统插件失败", e)
         }
@@ -236,6 +243,8 @@ class MCPRepository(private val context: Context) {
             // 所有命令都是 npx/uvx/uv，不需要物理安装
             AppLogger.d(TAG, "All commands in config are npx/uvx/uv, no physical installation needed")
             return false
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "Error checking if config needs physical installation", e)
             return true
@@ -251,11 +260,7 @@ class MCPRepository(private val context: Context) {
             return true
         }
         
-        val pluginDir = File(pluginsBaseDir, serverId)
-        return if (pluginDir.exists() && pluginDir.isDirectory) {
-            val hasContent = pluginDir.listFiles()?.isNotEmpty() ?: false
-            if (hasContent) checkForRequiredFiles(pluginDir) else false
-        } else false
+        return getInstalledPluginPath(serverId) != null
     }
 
     /**
@@ -281,15 +286,14 @@ class MCPRepository(private val context: Context) {
             return "virtual://$serverId"
         }
         
-        val pluginDir = File(pluginsBaseDir, serverId)
+        val pluginDir = try { resolveMcpPluginDirectory(pluginsBaseDir, serverId) } catch (_: IllegalArgumentException) { return null }
         if (!pluginDir.exists() || !pluginDir.isDirectory) return null
 
-        val subdirs = pluginDir.listFiles()?.filter { it.isDirectory } ?: emptyList()
-        return if (subdirs.isNotEmpty()) {
-            val repoDir = subdirs.find { it.name.contains(serverId, ignoreCase = true) }
-            repoDir?.path ?: subdirs.first().path
-                                } else {
-            if (pluginDir.listFiles()?.isNotEmpty() == true) pluginDir.path else null
+        return try {
+            resolveMcpProjectDirectory(pluginDir, mcpLocalServer.getPluginMetadata(serverId)?.installedPath)?.path
+        } catch (_: Exception) {
+            AppLogger.e(TAG, "MCP项目目录读取失败")
+            null
         }
     }
 
@@ -298,254 +302,103 @@ class MCPRepository(private val context: Context) {
     /**
      * 安装MCP插件
      */
-    suspend fun installMCPServer(
-        pluginId: String,
-        progressCallback: (InstallProgress) -> Unit = {}
-    ): InstallResult {
-        return withContext(Dispatchers.IO) {
-            val metadata = _mcpServers.value.find { it.id == pluginId }
-            if (metadata == null) {
-                AppLogger.e(TAG, "找不到服务器信息: $pluginId")
-                return@withContext InstallResult.Error(context.getString(R.string.mcp_repository_server_not_found))
-            }
-
-            val result = installPluginInternal(metadata, progressCallback)
-            
-            if (result is InstallResult.Success) {
-                // 保存插件元数据到MCPLocalServer
-                savePluginMetadata(metadata, result.pluginPath)
-                // 重新加载插件状态
-                loadPluginsFromMCPLocalServer()
-            }
-
-            result
-        }
+    suspend fun installMCPServer(pluginId: String, progressCallback: (InstallProgress) -> Unit = {}): InstallResult {
+        val metadata = mcpLocalServer.getPluginMetadata(pluginId)
+            ?: return InstallResult.Error(context.getString(R.string.mcp_repository_server_not_found))
+        return installMCPServerWithObject(metadata, progressCallback)
     }
 
-    /**
-     * 安装MCP插件 - 使用服务器对象
-     */
-    suspend fun installMCPServerWithObject(
-        server: MCPLocalServer.PluginMetadata,
-        progressCallback: (InstallProgress) -> Unit = {}
-    ): InstallResult {
-        return withContext(Dispatchers.IO) {
-            AppLogger.d(TAG, "安装服务器插件: ${server.name} (ID: ${server.id})")
-
-            val result = installPluginInternal(server, progressCallback)
-            
-            if (result is InstallResult.Success) {
-                // 保存插件元数据到MCPLocalServer
-                savePluginMetadata(server, result.pluginPath)
-                // 重新加载插件状态
-                loadPluginsFromMCPLocalServer()
-            }
-
-            result
+    suspend fun installMCPServerWithObject(server: MCPLocalServer.PluginMetadata, progressCallback: (InstallProgress) -> Unit = {}): InstallResult =
+        installPreparedArchive(server, progressCallback) {
+            val (owner, repo) = requireNotNull(extractOwnerAndRepo(server.repoUrl))
+            checkNotNull(downloadRepositoryZip(owner, repo, server.id, progressCallback))
         }
-    }
 
-    /**
-     * 从本地ZIP文件安装MCP插件
-     */
     suspend fun installMCPServerFromZip(
-            serverId: String,
-        zipUri: Uri,
-            name: String,
-            description: String,
-            author: String,
-            progressCallback: (InstallProgress) -> Unit = {}
-    ): InstallResult {
-        return withContext(Dispatchers.IO) {
-            _isLoading.value = true
-            _errorMessage.value = null
-
-            try {
-                AppLogger.d(TAG, "从本地ZIP安装插件, ID: $serverId, Name: $name")
-
-                val server = MCPLocalServer.PluginMetadata(
-                                id = serverId,
-                                name = name,
-                                description = description,
-                                logoUrl = "",
-                                author = author,
-                                isInstalled = false,
-                                version = "1.0.0",
-                                updatedAt = "",
-                                longDescription = description,
-                                repoUrl = "",
-                                type = "local"
-                        )
-
-                val result = installPluginFromZipInternal(server, zipUri, progressCallback)
-
-                if (result is InstallResult.Success) {
-                    savePluginMetadata(server, result.pluginPath)
-                    // 重新加载插件状态
-                    loadPluginsFromMCPLocalServer()
-                }
-
-                result
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "从本地ZIP安装插件失败", e)
-                InstallResult.Error(context.getString(R.string.mcp_repository_install_error, e.message ?: ""))
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-    /**
-     * 卸载MCP插件
-     */
-    suspend fun uninstallMCPServer(pluginId: String): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                val pluginDir = File(pluginsBaseDir, pluginId)
-                val result = if (pluginDir.exists()) {
-                    pluginDir.deleteRecursively()
-                } else {
-                    true // 目录不存在，认为卸载成功
-                }
-
-                if (result) {
-                    // 从MCPLocalServer中移除配置
-                    mcpLocalServer.removeMCPServer(pluginId)
-                    // 重新加载插件状态
-                    loadPluginsFromMCPLocalServer()
-                    AppLogger.d(TAG, "插件卸载成功: $pluginId")
-                } else {
-                    AppLogger.e(TAG, "插件卸载失败: $pluginId")
-                }
-
-                result
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "卸载插件时发生错误: $pluginId", e)
-                false
-            }
-        }
-    }
-
-    // ==================== 内部安装实现 ====================
-
-    /**
-     * 内部安装插件实现
-     */
-    private suspend fun installPluginInternal(
-        server: MCPLocalServer.PluginMetadata,
-        progressCallback: (InstallProgress) -> Unit
-    ): InstallResult {
-        progressCallback(InstallProgress.Preparing)
-
+        serverId: String, zipUri: Uri, name: String, description: String, author: String,
+        progressCallback: (InstallProgress) -> Unit = {}
+    ): InstallResult = installPreparedArchive(
+        MCPLocalServer.PluginMetadata(serverId, name, description, author = author), progressCallback
+    ) {
+        val archive = File.createTempFile("mcp_local_", ".zip", context.cacheDir)
         try {
-            AppLogger.d(TAG, "安装插件 - 名称: ${server.name}, URL: ${server.repoUrl}")
-
-            val pluginDir = File(pluginsBaseDir, server.id)
-            if (pluginDir.exists()) {
-                AppLogger.d(TAG, "删除已存在的插件目录: ${pluginDir.path}")
-                pluginDir.deleteRecursively()
-            }
-            pluginDir.mkdirs()
-
-            val repoOwnerAndName = extractOwnerAndRepo(server.repoUrl)
-            if (repoOwnerAndName == null) {
-                AppLogger.e(TAG, "无法从 URL 提取仓库信息: ${server.repoUrl}")
-                return InstallResult.Error(context.getString(R.string.mcp_repository_invalid_github_url))
-            }
-
-            val (owner, repoName) = repoOwnerAndName
-            AppLogger.d(TAG, "准备下载仓库: $owner/$repoName")
-
-            progressCallback(InstallProgress.Downloading(0))
-            val zipFile = downloadRepositoryZip(owner, repoName, server.id, progressCallback)
-
-            if (zipFile == null || !zipFile.exists()) {
-                return InstallResult.Error(context.getString(R.string.mcp_repository_download_zip_failed))
-            }
-
-            progressCallback(InstallProgress.Extracting(0))
-            val extractSuccess = extractZipFile(zipFile, pluginDir, progressCallback)
-            zipFile.delete()
-
-            if (!extractSuccess) {
-                pluginDir.deleteRecursively()
-                return InstallResult.Error(context.getString(R.string.mcp_repository_extract_repo_failed))
-            }
-
-            val extractedDirs = pluginDir.listFiles()?.filter { it.isDirectory } ?: emptyList()
-            if (extractedDirs.isEmpty()) {
-                return InstallResult.Error(context.getString(R.string.mcp_repository_no_repo_dir))
-            }
-
-            val mainDir = extractedDirs.first()
-            AppLogger.d(TAG, "插件解压成功，主目录: ${mainDir.path}")
-
-            progressCallback(InstallProgress.Finished)
-            return InstallResult.Success(mainDir.path)
-
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "安装插件失败", e)
-            return InstallResult.Error(context.getString(R.string.mcp_repository_plugin_install_error, e.message ?: ""))
-        }
-    }
-
-    /**
-     * 从ZIP文件安装插件的内部实现
-     */
-    private suspend fun installPluginFromZipInternal(
-        server: MCPLocalServer.PluginMetadata,
-        zipUri: Uri,
-        progressCallback: (InstallProgress) -> Unit
-    ): InstallResult {
-        progressCallback(InstallProgress.Preparing)
-
-        try {
-            AppLogger.d(TAG, "从本地ZIP安装插件 - 名称: ${server.name}, URI: $zipUri")
-
-            val pluginDir = File(pluginsBaseDir, server.id)
-            if (pluginDir.exists()) {
-                AppLogger.d(TAG, "删除已存在的插件目录: ${pluginDir.path}")
-                pluginDir.deleteRecursively()
-            }
-            pluginDir.mkdirs()
-
-            val tempFile = File(context.cacheDir, "mcp_${server.id}_local.zip")
-            if (tempFile.exists()) tempFile.delete()
-
-            progressCallback(InstallProgress.Downloading(0))
-
-            // 从URI读取ZIP文件
-            context.contentResolver.openInputStream(zipUri)?.use { inputStream ->
-                tempFile.outputStream().use { outputStream ->
+            val coroutine = currentCoroutineContext()
+            checkNotNull(context.contentResolver.openInputStream(zipUri)).use { input ->
+                archive.outputStream().use { output ->
                     val buffer = ByteArray(BUFFER_SIZE)
-                    var bytesRead: Int
-                    while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                        outputStream.write(buffer, 0, bytesRead)
-                        progressCallback(InstallProgress.Downloading(-1))
+                    while (true) {
+                        coroutine.ensureActive()
+                        val size = input.read(buffer)
+                        if (size < 0) break
+                        output.write(buffer, 0, size)
                     }
                 }
-            } ?: return InstallResult.Error(context.getString(R.string.mcp_repository_cannot_read_zip))
-
-            progressCallback(InstallProgress.Extracting(0))
-            val extractSuccess = extractZipFile(tempFile, pluginDir, progressCallback)
-            tempFile.delete()
-
-            if (!extractSuccess) {
-                pluginDir.deleteRecursively()
-                return InstallResult.Error(context.getString(R.string.mcp_repository_extract_local_zip_failed))
             }
+            archive
+        } catch (failure: Exception) {
+            archive.delete()
+            throw failure
+        }
+    }
 
-            val extractedDirs = pluginDir.listFiles()?.filter { it.isDirectory } ?: emptyList()
-            val mainDir = if (extractedDirs.isEmpty()) pluginDir else extractedDirs.first()
-            
-            AppLogger.d(TAG, "本地插件解压成功，主目录: ${mainDir.path}")
+    private suspend fun installPreparedArchive(
+        server: MCPLocalServer.PluginMetadata,
+        progressCallback: (InstallProgress) -> Unit,
+        download: suspend () -> File
+    ): InstallResult = withContext(Dispatchers.IO) {
+        mcpLocalServer.withPluginFilesMutation {
+            var archive: File? = null
+            var staging: File? = null
+            var published = false
+            try {
+                resolveMcpPluginDirectory(pluginsBaseDir, server.id)
+                check(mcpLocalServer.getPluginMetadata(server.id)?.type != "remote")
+                progressCallback(InstallProgress.Preparing)
+                archive = download()
+                staging = java.nio.file.Files.createTempDirectory(pluginsBaseDir.toPath(), ".mcp_install_").toFile()
+                val prepared = staging
+                val coroutine = currentCoroutineContext()
+                extractMcpPluginZip(archive, prepared, { coroutine.ensureActive() }) { progressCallback(InstallProgress.Extracting(it)) }
+                val entries = checkNotNull(prepared.listFiles())
+                check(entries.isNotEmpty())
+                // 单目录包装的仓库使用该目录；根目录有文件则根目录本身就是项目。
+                val relativeMain = if (entries.size == 1 && entries.single().isDirectory) entries.single().name else ""
+                coroutine.ensureActive()
+                withContext(NonCancellable) {
+                    check(mcpLocalServer.getPluginMetadata(server.id)?.type != "remote")
+                    val target = publishMcpPluginDirectory(prepared, pluginsBaseDir, server.id) { published = true }
+                    val mainDir = if (relativeMain.isEmpty()) target else File(target, relativeMain)
+                    savePluginMetadata(server, mainDir.path)
+                    loadPluginsFromMCPLocalServer()
+                    progressCallback(InstallProgress.Finished)
+                    InstallResult.Success(mainDir.path)
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) {
+                InstallResult.Error(context.getString(if (published) R.string.mcp_install_metadata_failed else R.string.mcp_install_incomplete))
+            } finally {
+                archive?.let { if (it.exists() && !it.delete()) AppLogger.w(TAG, "MCP临时下载文件清理失败") }
+                staging?.let { directory ->
+                    try { deleteMcpPluginTree(directory) }
+                    catch (_: Exception) { AppLogger.w(TAG, "MCP临时解压目录清理失败") }
+                }
+            }
+        }
+    }
 
-            progressCallback(InstallProgress.Finished)
-            return InstallResult.Success(mainDir.path)
-
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "安装本地ZIP插件失败", e)
-            return InstallResult.Error(context.getString(R.string.mcp_repository_install_local_zip_error, e.message ?: ""))
+    suspend fun uninstallMCPServer(pluginId: String): Boolean = withContext(Dispatchers.IO) {
+        mcpLocalServer.withPluginFilesMutation {
+            try {
+                val directory = resolveMcpPluginDirectory(pluginsBaseDir, pluginId)
+                deleteMcpPluginTree(directory)
+                mcpLocalServer.removeMCPServer(pluginId)
+                loadPluginsFromMCPLocalServer()
+                true
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) {
+                AppLogger.e(TAG, "MCP卸载未完成")
+                false
+            }
         }
     }
 
@@ -576,6 +429,7 @@ class MCPRepository(private val context: Context) {
                 return@withContext file
             }
         
+        file?.let { if (it.exists() && !it.delete()) AppLogger.w(TAG, "MCP空下载文件清理失败") }
         AppLogger.e(TAG, "从默认分支 '$defaultBranch' 下载失败")
         null
     }
@@ -586,20 +440,20 @@ class MCPRepository(private val context: Context) {
     private suspend fun getGithubDefaultBranch(owner: String, repoName: String): String? = withContext(Dispatchers.IO) {
         val apiUrl = "https://api.github.com/repos/$owner/$repoName"
         AppLogger.d(TAG, "从 GitHub API 获取仓库信息: $apiUrl")
+        var connection: HttpURLConnection? = null
         try {
             val url = URL(apiUrl)
-            val connection =
+            val active =
                 KiyoriNetworkProxyManager.getInstance(context)
                     .openConnectionBlocking(url, KiyoriNetworkModule.APP_SERVICES) as HttpURLConnection
-            connection.requestMethod = "GET"
-            connection.setRequestProperty("Accept", "application/vnd.github.v3+json")
-            connection.connectTimeout = CONNECT_TIMEOUT
-            connection.readTimeout = READ_TIMEOUT
+            connection = active
+            active.requestMethod = "GET"
+            active.setRequestProperty("Accept", "application/vnd.github.v3+json")
+            active.connectTimeout = CONNECT_TIMEOUT
+            active.readTimeout = READ_TIMEOUT
 
-            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
-                val reader = connection.inputStream.bufferedReader()
-                val response = reader.readText()
-                reader.close()
+            if (active.responseCode == HttpURLConnection.HTTP_OK) {
+                val response = active.inputStream.bufferedReader().use { it.readText() }
 
                 val jsonObject = JsonParser.parseString(response).asJsonObject
                 val defaultBranch = jsonObject.get("default_branch")?.asString
@@ -611,11 +465,13 @@ class MCPRepository(private val context: Context) {
                     AppLogger.e(TAG, "在 $owner/$repoName 的 API 响应中找不到 'default_branch'")
                 }
             } else {
-                AppLogger.e(TAG, "GitHub API 请求失败，响应码: ${connection.responseCode}，URL: $apiUrl")
+                AppLogger.e(TAG, "GitHub API 请求失败，响应码: ${active.responseCode}，URL: $apiUrl")
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "获取 $owner/$repoName 的默认分支时出错", e)
-        }
+        } finally { connection?.disconnect() }
         null
     }
 
@@ -627,170 +483,49 @@ class MCPRepository(private val context: Context) {
         serverId: String,
         progressCallback: (InstallProgress) -> Unit
     ): File? = withContext(Dispatchers.IO) {
-        val tempFile = File(context.cacheDir, "mcp_${serverId}_repo.zip")
-        
+        val tempFile = File.createTempFile("mcp_repo_", ".zip", context.cacheDir)
+        var connection: HttpURLConnection? = null
+        var completed = false
         try {
-            val url = URL(zipUrl)
-            val connection =
-                KiyoriNetworkProxyManager.getInstance(context)
-                    .openConnectionBlocking(url, KiyoriNetworkModule.DOWNLOADS) as HttpURLConnection
-            connection.connectTimeout = CONNECT_TIMEOUT
-            connection.readTimeout = READ_TIMEOUT
-            connection.doInput = true
-            connection.setRequestProperty(
-                "User-Agent",
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            )
-            
-            connection.connect()
-            
-            if (connection.responseCode != HttpURLConnection.HTTP_OK) {
-                AppLogger.e(TAG, "下载失败，HTTP响应码: ${connection.responseCode}")
-                return@withContext null
-            }
-            
-            val contentLength = connection.contentLength.toLong()
-            AppLogger.d(TAG, "开始下载，文件大小: $contentLength 字节")
-            
-            val inputStream = BufferedInputStream(connection.inputStream)
-            val outputStream = FileOutputStream(tempFile)
-            
-            val buffer = ByteArray(BUFFER_SIZE)
-            var bytesRead: Int
-            var totalBytesRead: Long = 0
-            var lastReportedProgress = -1
-            
-            while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                outputStream.write(buffer, 0, bytesRead)
-                totalBytesRead += bytesRead
-                
-                val progress = if (contentLength > 0) {
-                    (totalBytesRead * 100 / contentLength).toInt()
-                } else -1
-                
-                if (progress != lastReportedProgress) {
-                    progressCallback(InstallProgress.Downloading(progress))
-                    lastReportedProgress = progress
+            val active = KiyoriNetworkProxyManager.getInstance(context)
+                .openConnectionBlocking(URL(zipUrl), KiyoriNetworkModule.DOWNLOADS) as HttpURLConnection
+            connection = active
+            active.connectTimeout = CONNECT_TIMEOUT
+            active.readTimeout = READ_TIMEOUT
+            active.connect()
+            check(active.responseCode == HttpURLConnection.HTTP_OK)
+            val contentLength = active.contentLengthLong
+            val coroutine = currentCoroutineContext()
+            active.inputStream.buffered().use { input ->
+                tempFile.outputStream().use { output ->
+                    val buffer = ByteArray(BUFFER_SIZE)
+                    var total = 0L
+                    var reported = -2
+                    while (true) {
+                        coroutine.ensureActive()
+                        val size = input.read(buffer)
+                        if (size < 0) break
+                        output.write(buffer, 0, size)
+                        total += size
+                        val progress = if (contentLength > 0) ((total * 100 / contentLength).coerceIn(0, 100)).toInt() else -1
+                        if (progress != reported) { progressCallback(InstallProgress.Downloading(progress)); reported = progress }
+                    }
+                    check(contentLength < 0 || total == contentLength)
                 }
             }
-            
-            outputStream.flush()
-            outputStream.close()
-            inputStream.close()
-            
-            AppLogger.d(TAG, "下载完成，保存到: ${tempFile.path}")
-            return@withContext tempFile
-            
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "下载ZIP文件失败: ${e.message}", e)
-            if (tempFile.exists()) tempFile.delete()
-            return@withContext null
+            coroutine.ensureActive()
+            completed = true
+            tempFile
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) {
+            AppLogger.e(TAG, "MCP ZIP下载未完成")
+            null
+        } finally {
+            connection?.disconnect()
+            if (!completed && tempFile.exists() && !tempFile.delete()) AppLogger.w(TAG, "MCP临时下载文件清理失败")
         }
     }
 
-    /**
-     * 解压ZIP文件
-     */
-    private suspend fun extractZipFile(
-        zipFile: File,
-        targetDir: File,
-        progressCallback: (InstallProgress) -> Unit
-    ): Boolean = withContext(Dispatchers.IO) {
-        try {
-            targetDir.mkdirs()
-            AppLogger.d(TAG, "开始从${zipFile.path}提取文件到${targetDir.path}")
-            
-            ZipFile(zipFile).use { zip ->
-                val inputStream = zipFile.inputStream()
-                val zipInputStream = ZipInputStream(BufferedInputStream(inputStream))
-                
-                var entry = zipInputStream.nextEntry
-                val totalEntries = countZipEntries(zipFile)
-                var extractedCount = 0
-                var lastReportedProgress = -1
-                
-                while (entry != null) {
-                    val entryName = entry.name
-                    
-                    if (entryName.contains("__MACOSX") || entryName.endsWith(".DS_Store")) {
-                        zipInputStream.closeEntry()
-                        entry = zipInputStream.nextEntry
-                        continue
-                    }
-                    
-                    val outFile = File(targetDir, entryName)
-                    
-                    if (entry.isDirectory) {
-                        outFile.mkdirs()
-                    } else {
-                        outFile.parentFile?.mkdirs()
-                        
-                        val outputStream = FileOutputStream(outFile)
-                        val buffer = ByteArray(BUFFER_SIZE)
-                        var len: Int
-                        
-                        while (zipInputStream.read(buffer).also { len = it } > 0) {
-                            outputStream.write(buffer, 0, len)
-                        }
-                        
-                        outputStream.close()
-                    }
-                    
-                    zipInputStream.closeEntry()
-                    entry = zipInputStream.nextEntry
-                    
-                    extractedCount++
-                    val progress = if (totalEntries > 0) {
-                        extractedCount * 100 / totalEntries
-                    } else -1
-                    
-                    if (progress != lastReportedProgress) {
-                        progressCallback(InstallProgress.Extracting(progress))
-                        lastReportedProgress = progress
-                    }
-                }
-                
-                zipInputStream.close()
-                inputStream.close()
-            }
-            
-            AppLogger.d(TAG, "解压完成，文件解压到: ${targetDir.path}")
-            return@withContext true
-            
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "解压ZIP文件失败", e)
-            return@withContext false
-        }
-    }
-
-    // ==================== 工具方法 ====================
-
-    /**
-     * 计算ZIP文件中的条目数量
-     */
-    private fun countZipEntries(zipFile: File): Int {
-        var count = 0
-        try {
-            val inputStream = zipFile.inputStream()
-            val zipInputStream = ZipInputStream(BufferedInputStream(inputStream))
-            
-            while (zipInputStream.nextEntry != null) {
-                count++
-                zipInputStream.closeEntry()
-            }
-            
-            zipInputStream.close()
-            inputStream.close()
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "计算ZIP条目数量失败", e)
-        }
-        return count
-    }
-
-    /**
-     * 从GitHub仓库URL中提取所有者和仓库名
-     */
-    @SuppressLint("SuspiciousIndentation")
     private fun extractOwnerAndRepo(repoUrl: String): Pair<String, String>? {
         val regex = "(?:https?://)?(?:www\\.)?github\\.com/([\\w.-]+)/([\\w.-]+)(?:\\.git)?/?.*".toRegex()
         val matchResult = regex.find(repoUrl)
@@ -808,44 +543,6 @@ class MCPRepository(private val context: Context) {
     }
 
     /**
-     * 检查插件目录中是否包含必要的关键文件
-     */
-    private fun checkForRequiredFiles(pluginDir: File): Boolean {
-        val subdirs = pluginDir.listFiles()?.filter { it.isDirectory } ?: emptyList()
-        
-        return if (subdirs.isNotEmpty()) {
-            hasPluginRequiredFiles(subdirs.first())
-        } else {
-            hasPluginRequiredFiles(pluginDir)
-        }
-    }
-
-    /**
-     * 检查目录是否包含插件所需的必要文件
-     */
-    private fun hasPluginRequiredFiles(dir: File): Boolean {
-        val requiredFiles = listOf(
-            "mcp.config.json", "README.md", "package.json",
-            "index.js", "index.py", "main.py", "main.js"
-        )
-        
-        val dirFiles = dir.listFiles() ?: return false
-        
-        val hasAnyRequiredFile = requiredFiles.any { requiredFile ->
-            dirFiles.any { it.name.equals(requiredFile, ignoreCase = true) }
-        }
-        
-        if (!hasAnyRequiredFile) {
-            val subDirs = dirFiles.filter { it.isDirectory }
-            if (subDirs.isNotEmpty()) {
-                return subDirs.any { hasPluginRequiredFiles(it) }
-            }
-        }
-        
-        return hasAnyRequiredFile
-    }
-
-    /**
      * 保存插件元数据到MCPLocalServer
      */
     private suspend fun savePluginMetadata(server: MCPLocalServer.PluginMetadata, pluginPath: String) {
@@ -855,7 +552,7 @@ class MCPRepository(private val context: Context) {
             installedTime = System.currentTimeMillis()
         )
         
-        mcpLocalServer.addOrUpdatePluginMetadata(metadata)
+        mcpLocalServer.recordPluginInstallation(metadata)
     }
     // ==================== 远程服务器管理 ====================
 
@@ -864,10 +561,9 @@ class MCPRepository(private val context: Context) {
      */
     suspend fun addRemoteServer(server: MCPLocalServer.PluginMetadata) {
         withContext(Dispatchers.IO) {
-            if (server.type != "remote" || server.endpoint == null) {
-                AppLogger.e(TAG, "addRemoteServer调用了无效的远程服务器: ${server.id}")
-                return@withContext
-            }
+            require(server.type == "remote")
+            validateMcpRemoteEndpoint(server.endpoint, server.connectionType)
+            validateMcpHeaders(server.headers.orEmpty().toList())
 
             // For remote servers, we no longer create a local process.
             // We just store the metadata. The bridge will handle the connection.
@@ -878,9 +574,9 @@ class MCPRepository(private val context: Context) {
                 installedTime = System.currentTimeMillis()
             )
             
-            AppLogger.d(TAG, "添加远程服务器: ${server.id}, bearerToken: ${server.bearerToken?.take(10)}..., headers: ${server.headers?.keys}")
+            AppLogger.d(TAG, "添加远程服务器: ${server.id}")
             
-            mcpLocalServer.addOrUpdatePluginMetadata(metadata)
+            mcpLocalServer.addRemotePlugin(metadata)
 
             // 重新加载插件状态
             loadPluginsFromMCPLocalServer()
@@ -890,32 +586,13 @@ class MCPRepository(private val context: Context) {
     /**
      * 更新远程服务器
      */
-    suspend fun updateRemoteServer(server: MCPLocalServer.PluginMetadata) {
+    suspend fun updateRemoteServer(server: MCPLocalServer.PluginMetadata, original: MCPLocalServer.PluginMetadata) {
         withContext(Dispatchers.IO) {
-            val metadata = mcpLocalServer.getPluginMetadata(server.id)
-            if (metadata == null) {
-                AppLogger.e(TAG, "无法找到要更新的插件元数据: ${server.id}")
-                return@withContext
+            if (server.type == "remote") {
+                validateMcpRemoteEndpoint(server.endpoint, server.connectionType)
+                validateMcpHeaders(server.headers.orEmpty().toList())
             }
-
-            // 更新元数据
-            val updatedMetadata = metadata.copy(
-                name = server.name,
-                description = server.description,
-                longDescription = server.longDescription,
-                author = server.author,
-                endpoint = if (server.type == "remote") server.endpoint else metadata.endpoint,
-                connectionType = if (server.type == "remote") server.connectionType else metadata.connectionType,
-                bearerToken = if (server.type == "remote") server.bearerToken else metadata.bearerToken,
-                headers = if (server.type == "remote") server.headers else metadata.headers
-            )
-            mcpLocalServer.addOrUpdatePluginMetadata(updatedMetadata)
-
-            // For remote servers, we don't need to update MCPServer config in the same way,
-            // as the bridge handles connection details directly from metadata.
-            // If any specific server config were needed, it would be updated here.
-
-            // 重新加载插件状态以更新UI
+            mcpLocalServer.editPluginMetadata(original, server)
             loadPluginsFromMCPLocalServer()
         }
     }
@@ -931,6 +608,8 @@ class MCPRepository(private val context: Context) {
                 loadPluginsFromMCPLocalServer()
                 AppLogger.d(TAG, "远程服务器 $serverId 删除成功")
                 true
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 AppLogger.e(TAG, "删除远程服务器 $serverId 时出错", e)
                 false
@@ -995,6 +674,8 @@ class MCPRepository(private val context: Context) {
                 } else {
                     AppLogger.w(TAG, "从桥接器获取服务列表失败")
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 AppLogger.e(TAG, "同步桥接器状态时出错", e)
             }
@@ -1010,6 +691,8 @@ class MCPRepository(private val context: Context) {
                 // 重新从MCPLocalServer加载插件信息
                 loadPluginsFromMCPLocalServer()
                 AppLogger.d(TAG, "同步插件安装状态完成，${_installedPluginIds.value.size} 个已安装插件")
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 AppLogger.e(TAG, "同步安装状态失败", e)
             }
@@ -1066,6 +749,8 @@ class MCPRepository(private val context: Context) {
                 }
 
                 Result.success(generatedDescription)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 AppLogger.e(TAG, "重新生成插件描述失败: $pluginId", e)
                 Result.failure(e)
@@ -1201,6 +886,8 @@ class MCPRepository(private val context: Context) {
                 }
                 AppLogger.d(TAG, "插件 $pluginId 的工具注册完成，共 ${toolsToRegister.size} 个")
 
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 AppLogger.e(TAG, "为插件 $pluginId 注册工具时发生异常", e)
             }
@@ -1246,6 +933,8 @@ class MCPRepository(private val context: Context) {
                     TAG,
                     "Runtime MCP entries removed for $pluginId, tools=${toolNamesToRemove.size}, servers=${serverNamesToRemove.size}"
                 )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 AppLogger.e(TAG, "Failed to unregister runtime MCP entries for $pluginId", e)
             }

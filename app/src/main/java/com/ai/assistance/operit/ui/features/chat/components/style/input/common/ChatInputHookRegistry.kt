@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 
 private const val TAG = "ChatInputHookRegistry"
 
@@ -77,6 +78,7 @@ object ChatInputHookRegistry {
             notificationScope.launch {
                 runCatching { hook.onEvent(context) }
                     .onFailure { error ->
+                        if (error is CancellationException) throw error
                         AppLogger.e(
                             TAG,
                             "Chat input hook notification failed: hook=${hook.id}, event=${context.eventName}",
@@ -96,6 +98,7 @@ object ChatInputHookRegistry {
             val resultOrNull =
                 runCatching { hook.onEvent(current) }
                     .getOrElse { error ->
+                        if (error is CancellationException) throw error
                         AppLogger.e(TAG, "Chat input submit hook failed: hook=${hook.id}", error)
                         null
                     }

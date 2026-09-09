@@ -11,6 +11,8 @@ import com.ai.assistance.operit.data.model.ToolParameter
 import com.google.gson.JsonParser
 import java.io.File
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -23,9 +25,6 @@ import kotlinx.coroutines.withContext
  * 负责协调项目分析、命令生成和配置生成等组件完成插件部署
  */
 class MCPDeployer(private val context: Context) {
-
-    // 创建一个协程作用域，用于处理异步操作
-    private val deployerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     companion object {
         private const val TAG = "MCPDeployer"
@@ -86,8 +85,10 @@ class MCPDeployer(private val context: Context) {
             } else {
                 null
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
-            AppLogger.e(TAG, "流式执行命令失败: $command", e)
+            AppLogger.e(TAG, "流式执行命令失败", e)
             null
         }
     }
@@ -130,8 +131,8 @@ class MCPDeployer(private val context: Context) {
                             val pluginDir = mcpLocalServer.getPluginRuntimeDirectory(pluginId)
                             statusCallback(DeploymentStatus.InProgress(context.getString(R.string.mcp_deployment_creating_directory, pluginDir)))
 
-                            val mkdirExecuted = terminal.executeCommand(sessionId, "mkdir -p $pluginDir")
-                            if (mkdirExecuted == null) {
+                            val mkdirExecuted = executeCommandWithStreaming(terminal, sessionId, "mkdir -p ${quoteMcpRuntimePath(pluginDir)}", statusCallback)
+                            if (mkdirExecuted?.exitCode != 0) {
                                 statusCallback(DeploymentStatus.Error(context.getString(R.string.mcp_deployment_create_directory_failed)))
                                 return@withContext false
                             }
@@ -140,8 +141,7 @@ class MCPDeployer(private val context: Context) {
                             statusCallback(DeploymentStatus.Success(context.getString(R.string.mcp_deployment_minimal_complete, command)))
                             return@withContext true
                         } finally {
-                            kotlinx.coroutines.delay(2000L)
-                            terminal.closeSession(sessionId)
+                            withContext(NonCancellable) { terminal.closeSession(sessionId) }
                             AppLogger.d(TAG, "虚拟插件部署完成, 已关闭会話: $sessionId")
                         }
                     }
@@ -205,7 +205,7 @@ class MCPDeployer(private val context: Context) {
                         return@withContext false
                     }
 
-                    AppLogger.d(TAG, "使用自定义命令: $customCommands")
+                    AppLogger.d(TAG, "使用自定义部署命令")
 
                     // 执行部署命令
                     return@withContext executeDeployCommands(
@@ -215,6 +215,8 @@ class MCPDeployer(private val context: Context) {
                             statusCallback,
                             configGenerator.extractServerNameFromConfig(mcpConfig)
                     )
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
                 } catch (e: Exception) {
                     AppLogger.e(TAG, "使用自定义命令部署插件时出错", e)
                     statusCallback(DeploymentStatus.Error(context.getString(R.string.mcp_deployment_error, e.message ?: "")))
@@ -258,6 +260,8 @@ class MCPDeployer(private val context: Context) {
             }
 
             return@withContext deployCommands
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "分析插件时出错: ${e.message}", e)
             return@withContext emptyList()
@@ -291,8 +295,8 @@ class MCPDeployer(private val context: Context) {
             // 首先创建插件目录
             statusCallback(DeploymentStatus.InProgress(context.getString(R.string.mcp_deployment_creating_directory, pluginDir)))
 
-            val mkdirExecuted = terminal.executeCommand(sessionId, "mkdir -p $pluginDir")
-            if (mkdirExecuted == null) {
+            val mkdirExecuted = executeCommandWithStreaming(terminal, sessionId, "mkdir -p ${quoteMcpRuntimePath(pluginDir)}", statusCallback)
+            if (mkdirExecuted?.exitCode != 0) {
                 statusCallback(DeploymentStatus.Error(context.getString(R.string.mcp_deployment_create_directory_failed)))
                 return@withContext false
             }
@@ -335,8 +339,8 @@ class MCPDeployer(private val context: Context) {
             // 切换到插件目录
             statusCallback(DeploymentStatus.InProgress(context.getString(R.string.mcp_deployment_switching_directory)))
 
-            val cdExecuted = terminal.executeCommand(sessionId, "cd $pluginDir")
-            if (cdExecuted == null) {
+            val cdExecuted = executeCommandWithStreaming(terminal, sessionId, "cd ${quoteMcpRuntimePath(pluginDir)}", statusCallback)
+            if (cdExecuted?.exitCode != 0) {
                 statusCallback(DeploymentStatus.Error(context.getString(R.string.mcp_deployment_switch_failed)))
                 return@withContext false
             }
@@ -370,12 +374,12 @@ class MCPDeployer(private val context: Context) {
                                 context.getString(R.string.mcp_deployment_executing_command, index + 1, deployCommands.size, cleanCommand)
                         )
                 )
-                AppLogger.d(TAG, "执行命令 (${index + 1}/${deployCommands.size}): $cleanCommand")
+                AppLogger.d(TAG, "执行部署命令 (${index + 1}/${deployCommands.size})")
 
                 val commandResult = executeCommandWithStreaming(
                     terminal = terminal,
                     sessionId = sessionId,
-                    command = cleanCommand,
+                    command = buildMcpDeploymentCommand(pluginDir, cleanCommand),
                     statusCallback = statusCallback
                 )
 
@@ -383,7 +387,7 @@ class MCPDeployer(private val context: Context) {
                 if (commandResult == null || commandResult.exitCode != 0) {
                     if (isNonCriticalCommand) {
                         // 对于非关键命令，即使失败也继续
-                        AppLogger.w(TAG, "非关键命令执行失败，但将继续部署: $cleanCommand (exitCode=${commandResult?.exitCode})")
+                        AppLogger.w(TAG, "非关键命令执行失败 (exitCode=${commandResult?.exitCode})")
                         statusCallback(
                                 DeploymentStatus.InProgress(
                                         context.getString(R.string.mcp_deployment_non_critical_failed, cleanCommand)
@@ -391,7 +395,7 @@ class MCPDeployer(private val context: Context) {
                         )
                     } else {
                         // 关键命令失败，中止部署
-                        AppLogger.e(TAG, "命令执行失败: $cleanCommand (exitCode=${commandResult?.exitCode})")
+                        AppLogger.e(TAG, "命令执行失败 (exitCode=${commandResult?.exitCode})")
                         statusCallback(DeploymentStatus.Error(context.getString(R.string.mcp_deployment_command_failed, cleanCommand)))
                         return@withContext false
                     }
@@ -415,6 +419,8 @@ class MCPDeployer(private val context: Context) {
             statusCallback(DeploymentStatus.Success(successMessage))
             deploySuccess = true
             return@withContext true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "执行部署命令时出错", e)
             statusCallback(DeploymentStatus.Error(context.getString(R.string.mcp_deployment_error, e.message ?: "")))
@@ -423,11 +429,11 @@ class MCPDeployer(private val context: Context) {
             // 无论成功失败，都关闭部署会话
             sessionId?.let {
                 try {
-                    // 延迟关闭会话让用户看到结果
-                    val delayTime = if (deploySuccess) 2000L else 3000L
-                    kotlinx.coroutines.delay(delayTime)
-                    Terminal.getInstance(context).closeSession(it)
+                    // 输出已由界面保留；取消不能跳过本次部署会话的释放。
+                    withContext(NonCancellable) { Terminal.getInstance(context).closeSession(it) }
                     AppLogger.d(TAG, "部署${if (deploySuccess) "完成" else "失败"}，已关闭会话: $it")
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
                 } catch (e: Exception) {
                     AppLogger.e(TAG, "关闭部署会话时出错: ${e.message}")
                 }
@@ -444,48 +450,12 @@ class MCPDeployer(private val context: Context) {
         mcpConfigJson: String
     ): Boolean {
         return try {
-            // 解析生成的MCP配置JSON
-            val jsonObject = JsonParser.parseString(mcpConfigJson).asJsonObject
-            val mcpServers = jsonObject.getAsJsonObject("mcpServers")
-
-            if (mcpServers != null && mcpServers.size() > 0) {
-                // 获取第一个服务器配置（通常是唯一的）
-                val serverName = mcpServers.keySet().first()
-                val serverConfig = mcpServers.getAsJsonObject(serverName)
-
-                // 提取配置参数
-                val command = serverConfig.get("command")?.asString ?: "python"
-                val args = serverConfig.getAsJsonArray("args")?.map { it.asString } ?: emptyList()
-                val disabled = serverConfig.get("disabled")?.asBoolean ?: false
-                val autoApprove = serverConfig.getAsJsonArray("autoApprove")?.map { it.asString } ?: emptyList()
-
-                // 提取环境变量
-                val env = mutableMapOf<String, String>()
-                serverConfig.getAsJsonObject("env")?.let { envObject ->
-                    envObject.keySet().forEach { key ->
-                        env[key] = envObject.get(key).asString
-                    }
-                }
-
-                AppLogger.d(TAG, "解析MCP配置 - 服务器: $serverName, 命令: $command, 参数: $args")
-
-                // 保存到MCPLocalServer
-                mcpLocalServer.addOrUpdateMCPServer(
-                    serverId = pluginId,
-                    command = command,
-                    args = args,
-                    env = env,
-                    disabled = disabled,
-                    autoApprove = autoApprove
-                )
-
-                true
-            } else {
-                AppLogger.e(TAG, "MCP配置中没有找到服务器配置")
-                false
-            }
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "解析和保存MCP配置失败", e)
+            val config = parseMcpDeploymentConfig(pluginId, mcpConfigJson)
+            mcpLocalServer.addOrUpdateMCPServer(pluginId, config.command, config.args, config.env, config.disabled, config.autoApprove)
+            true
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) {
+            AppLogger.e(TAG, "解析和保存MCP配置失败")
             false
         }
     }

@@ -21,6 +21,7 @@ class EnvPreferences private constructor(context: Context) {
      * 1. App preferences (if non-blank)
      * 2. System.getenv (may be null)
      */
+    @Synchronized
     fun getEnv(key: String): String? {
         val name = key.trim()
         if (name.isEmpty()) return null
@@ -38,12 +39,14 @@ class EnvPreferences private constructor(context: Context) {
     }
 
     /** Set or override an environment value in app preferences. */
+    @Synchronized
     fun setEnv(key: String, value: String) {
         val name = key.trim()
         if (name.isEmpty()) return
         prefs.edit().putString(name, value).apply()
     }
 
+    @Synchronized
     fun updateEnvs(variables: Map<String, String>) {
         // 地址与凭据等关联字段在同一次提交中发布，不能逐键暴露半份连接配置。
         val editor = prefs.edit()
@@ -57,6 +60,7 @@ class EnvPreferences private constructor(context: Context) {
     }
 
     /** Remove a stored environment value (does not affect process env). */
+    @Synchronized
     fun removeEnv(key: String) {
         val name = key.trim()
         if (name.isEmpty()) return
@@ -64,6 +68,7 @@ class EnvPreferences private constructor(context: Context) {
     }
 
     /** Get all stored environment values from preferences. */
+    @Synchronized
     fun getAllEnv(): Map<String, String> {
         return prefs.all.mapNotNull { (k, v) ->
             val key = k.trim()
@@ -73,6 +78,7 @@ class EnvPreferences private constructor(context: Context) {
     }
 
     /** Replace all stored environment values with the given map. */
+    @Synchronized
     fun setAllEnv(variables: Map<String, String>) {
         val editor = prefs.edit().clear()
         variables.forEach { (k, v) ->
@@ -82,6 +88,19 @@ class EnvPreferences private constructor(context: Context) {
             }
         }
         editor.apply()
+    }
+
+    /** 在 IO 调用；校验与批次写入共用所有写入口的锁，失败不报告保存成功。 */
+    @Synchronized
+    fun compareAndSetEnvs(edits: Map<String, EnvironmentValueEdit>) {
+        if (edits.isEmpty()) return
+        require(edits.keys.all { it.isNotBlank() && it == it.trim() })
+        validateEnvironmentValueEdits(edits, ::getEnv)
+        val editor = prefs.edit()
+        edits.forEach { (key, edit) ->
+            if (edit.value.isBlank()) editor.remove(key) else editor.putString(key, edit.value)
+        }
+        if (!editor.commit()) throw java.io.IOException("Environment configuration persistence failed")
     }
 
     companion object {

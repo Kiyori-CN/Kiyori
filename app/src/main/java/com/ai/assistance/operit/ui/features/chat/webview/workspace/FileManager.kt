@@ -85,19 +85,28 @@ data class QuickPathEntry(
 fun FileBrowser(
         initialPath: String,
         environment: String? = null,
-        onBindWorkspace: ((String, String?) -> Unit)? = null,
+        onBindWorkspace: (suspend (String, String?) -> Unit)? = null,
         onCancel: () -> Unit,
         isManageMode: Boolean = false,
         onFileOpen: ((OpenFileInfo) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val toolHandler = remember { AIToolHandler.getInstance(context) }
+    // executeTool 是同步入口；文件 provider 的 I/O 不应阻塞输入、滚动与取消反馈。
+    suspend fun executeFileTool(tool: AITool) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        toolHandler.executeTool(tool)
+    }
     val apiPreferences = remember { ApiPreferences.getInstance(context) }
     val safBookmarks by apiPreferences.safBookmarksFlow.collectAsState(initial = emptyList())
     var currentPath by remember { mutableStateOf(initialPath) }
     var currentEnvironment by remember { mutableStateOf(environment) }
     var fileList by remember { mutableStateOf<List<DirectoryEntry>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
+    var isBinding by remember { mutableStateOf(false) }
+    var hasReadableDirectory by remember { mutableStateOf(false) }
+    androidx.activity.compose.BackHandler(enabled = isBinding) { }
+    var operationError by remember { mutableStateOf<String?>(null) }
+    var pendingDeletePath by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
     var showCreateFileDialog by remember { mutableStateOf(false) }
     var newFileName by remember { mutableStateOf("") }
@@ -105,6 +114,8 @@ fun FileBrowser(
     var repoBookmarkNameInput by remember { mutableStateOf("") }
     var showRepoBookmarkNameDialog by remember { mutableStateOf(false) }
     var repoBookmarkNameError by remember { mutableStateOf<String?>(null) }
+    var isSavingBookmark by remember { mutableStateOf(false) }
+    var bookmarkToRemove by remember { mutableStateOf<ApiPreferences.SafBookmark?>(null) }
     // 用于控制长按上下文菜单的状态
     var contextMenuExpandedFor by remember { mutableStateOf<DirectoryEntry?>(null) }
     // 排序方式：0=名称, 1=大小, 2=修改时间
@@ -113,30 +124,6 @@ fun FileBrowser(
     // 是否显示隐藏文件（以.开头）
     var showHiddenFiles by remember { mutableStateOf(false) }
 
-    LaunchedEffect(environment) { currentEnvironment = environment }
-
-    fun querySafBookmarkDisplayName(uri: Uri): String {
-        return try {
-            val treeDocId = DocumentsContract.getTreeDocumentId(uri)
-            val docUri = DocumentsContract.buildDocumentUriUsingTree(uri, treeDocId)
-            context.contentResolver.query(
-                docUri,
-                arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                val idx = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
-                if (cursor.moveToFirst() && idx >= 0 && !cursor.isNull(idx)) {
-                    cursor.getString(idx)
-                } else {
-                    null
-                }
-            } ?: uri.toString()
-        } catch (_: Exception) {
-            uri.toString()
-        }
-    }
 
     fun queryRepoBookmarkName(uri: Uri): String {
         fun normalizeName(raw: String): String {
@@ -171,9 +158,9 @@ fun FileBrowser(
         return if (parent.isBlank()) "/" else parent
     }
 
-    fun withEnvParams(base: List<ToolParameter>): List<ToolParameter> {
-        if (currentEnvironment.isNullOrBlank()) return base
-        return base + ToolParameter("environment", currentEnvironment!!)
+    fun withEnvParams(base: List<ToolParameter>, targetEnvironment: String? = currentEnvironment): List<ToolParameter> {
+        if (targetEnvironment.isNullOrBlank()) return base
+        return base + ToolParameter("environment", targetEnvironment)
     }
 
     // 快速路径定义
@@ -197,33 +184,32 @@ fun FileBrowser(
         )
     }
 
-    fun loadDirectory(path: String) {
-        if (isLoading) return // 防止并发加载
+    suspend fun readDirectory(path: String, targetEnvironment: String?) {
+        val result = executeFileTool(AITool("list_files", withEnvParams(listOf(ToolParameter("path", path)), targetEnvironment)))
+        check(result.success && result.result is DirectoryListingData) {
+            result.error ?: context.getString(R.string.file_manager_operation_failed)
+        }
+        val listing = result.result
+        fileList = listing.entries.map { DirectoryEntry(it.name, it.isDirectory, it.size, it.lastModified, it.permissions) }
+        currentPath = path
+        currentEnvironment = targetEnvironment
+        hasReadableDirectory = true
+        contextMenuExpandedFor = null
+    }
+
+    fun loadDirectory(path: String, targetEnvironment: String? = currentEnvironment) {
+        if (isLoading) return
+        isLoading = true
+        hasReadableDirectory = false
+        operationError = null
         coroutineScope.launch {
-            isLoading = true
             try {
-                val tool = AITool("list_files", withEnvParams(listOf(ToolParameter("path", path))))
-                AppLogger.d("WorkspaceFileBrowser", "execute list_files path=$path env=$currentEnvironment")
-                val result = toolHandler.executeTool(tool)
-                AppLogger.d("WorkspaceFileBrowser", "result list_files success=${result.success} error=${result.error}")
-                if (result.success && result.result is DirectoryListingData) {
-                    val entries = result.result.entries
-                    fileList =
-                            entries.map {
-                                DirectoryEntry(
-                                        name = it.name,
-                                        isDirectory = it.isDirectory,
-                                        size = it.size,
-                                        lastModified = it.lastModified,
-                                        permissions = it.permissions
-                                )
-                            }
-                    currentPath = path // 仅在成功时更新路径
-                } else {
-                    // 加载失败，不改变任何状态，用户停留在当前页面
-                }
-            } catch (e: Exception) {
-                // 发生异常，同样不改变状态
+                readDirectory(path, targetEnvironment)
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                AppLogger.e("WorkspaceFileBrowser", "Failed to list directory", error)
+                operationError = context.getString(R.string.file_manager_operation_failed)
             } finally {
                 isLoading = false
             }
@@ -235,7 +221,13 @@ fun FileBrowser(
     ) { uri: Uri? ->
         if (uri != null) {
             val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-            runCatching { context.contentResolver.takePersistableUriPermission(uri, flags) }
+            try {
+                context.contentResolver.takePersistableUriPermission(uri, flags)
+            } catch (error: Exception) {
+                AppLogger.e("WorkspaceFileBrowser", "Failed to persist directory permission", error)
+                operationError = context.getString(R.string.workspace_bookmark_permission_failed)
+                return@rememberLauncherForActivityResult
+            }
             pendingRepoBookmarkUri = uri
             repoBookmarkNameInput = queryRepoBookmarkName(uri)
             showRepoBookmarkNameDialog = true
@@ -245,6 +237,7 @@ fun FileBrowser(
     if (showRepoBookmarkNameDialog) {
         AlertDialog(
             onDismissRequest = {
+                if (isSavingBookmark) return@AlertDialog
                 showRepoBookmarkNameDialog = false
                 pendingRepoBookmarkUri = null
                 repoBookmarkNameError = null
@@ -253,6 +246,7 @@ fun FileBrowser(
             text = {
                 TextField(
                     value = repoBookmarkNameInput,
+                    enabled = !isSavingBookmark,
                     onValueChange = {
                         repoBookmarkNameInput = it
                         repoBookmarkNameError = null
@@ -267,6 +261,7 @@ fun FileBrowser(
             },
             confirmButton = {
                 TextButton(
+                    enabled = !isSavingBookmark,
                     onClick = {
                         val uri = pendingRepoBookmarkUri
                         val name = repoBookmarkNameInput.trim()
@@ -290,20 +285,29 @@ fun FileBrowser(
                             return@TextButton
                         }
 
+                        isSavingBookmark = true
                         coroutineScope.launch {
-                            apiPreferences.addSafBookmark(uri.toString(), name)
-                            currentEnvironment = "repo:$name"
-                            loadDirectory("/")
+                            try {
+                                apiPreferences.addSafBookmark(uri.toString(), name)
+                                showRepoBookmarkNameDialog = false
+                                pendingRepoBookmarkUri = null
+                                repoBookmarkNameError = null
+                                loadDirectory("/", "repo:$name")
+                            } catch (error: kotlinx.coroutines.CancellationException) {
+                                throw error
+                            } catch (error: Exception) {
+                                AppLogger.e("WorkspaceFileBrowser", "Failed to save directory bookmark", error)
+                                repoBookmarkNameError = context.getString(R.string.file_manager_operation_failed)
+                            } finally {
+                                isSavingBookmark = false
+                            }
                         }
-
-                        showRepoBookmarkNameDialog = false
-                        pendingRepoBookmarkUri = null
-                        repoBookmarkNameError = null
                     }
                 ) { Text(stringResource(android.R.string.ok)) }
             },
             dismissButton = {
                 TextButton(
+                    enabled = !isSavingBookmark,
                     onClick = {
                         showRepoBookmarkNameDialog = false
                         pendingRepoBookmarkUri = null
@@ -315,34 +319,38 @@ fun FileBrowser(
     }
 
     fun createNewFile(fileName: String, isDirectory: Boolean) {
+        if (isLoading) return
+        val name = fileName.trim()
+        if (!isWorkspaceEntryNameValid(name) || fileList.any { it.name == name }) {
+            operationError = context.getString(R.string.workspace_entry_name_invalid)
+            return
+        }
+        val directory = currentPath
+        val targetEnvironment = currentEnvironment
+        val path = if (isSafEnv) joinPath(directory, name) else File(directory, name).path
+        isLoading = true
+        operationError = null
         coroutineScope.launch {
-            isLoading = true
             try {
-                val filePath =
-                    if (isSafEnv) {
-                        joinPath(currentPath, fileName)
-                    } else {
-                        File(currentPath, fileName).path
-                    }
-                val tool =
-                        if (isDirectory) {
-                            AITool("make_directory", withEnvParams(listOf(ToolParameter("path", filePath))))
-                        } else {
-                            AITool(
-                                    "write_file",
-                                    withEnvParams(
-                                        listOf(
-                                            ToolParameter("path", filePath),
-                                            ToolParameter("content", "")
-                                        )
-                                    )
-                            )
-                        }
-                AppLogger.d("WorkspaceFileBrowser", "execute ${tool.name} path=$filePath env=$currentEnvironment")
-                toolHandler.executeTool(tool)
-                loadDirectory(currentPath) // 刷新目录
-            } catch (e: Exception) {
-                // 处理错误
+                // 创建前再次读取实际存在性，不能用陈旧列表把已有文件写成空文件。
+                val exists = executeFileTool(AITool("file_exists", withEnvParams(listOf(ToolParameter("path", path)), targetEnvironment)))
+                val existsData = exists.result as? com.ai.assistance.operit.core.tools.FileExistsData
+                check(exists.success && existsData != null && !existsData.exists)
+                val tool = if (isDirectory) {
+                    AITool("make_directory", withEnvParams(listOf(ToolParameter("path", path)), targetEnvironment))
+                } else {
+                    AITool("write_file", withEnvParams(listOf(ToolParameter("path", path), ToolParameter("content", "")), targetEnvironment))
+                }
+                val result = executeFileTool(tool)
+                check(result.success) { result.error ?: context.getString(R.string.file_manager_operation_failed) }
+                showCreateFileDialog = false
+                newFileName = ""
+                readDirectory(directory, targetEnvironment)
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                AppLogger.e("WorkspaceFileBrowser", "Failed to create entry", error)
+                operationError = context.getString(R.string.workspace_entry_create_failed)
             } finally {
                 isLoading = false
             }
@@ -350,18 +358,24 @@ fun FileBrowser(
     }
 
     fun deleteFile(filePath: String) {
+        if (isLoading) return
+        val directory = currentPath
+        val targetEnvironment = currentEnvironment
+        isLoading = true
+        operationError = null
         coroutineScope.launch {
-            isLoading = true
             try {
-                val tool = AITool(
-                    "delete_file",
-                    withEnvParams(listOf(ToolParameter("path", filePath), ToolParameter("recursive", "true")))
-                )
-                AppLogger.d("WorkspaceFileBrowser", "execute delete_file path=$filePath env=$currentEnvironment")
-                toolHandler.executeTool(tool)
-                loadDirectory(currentPath) // 刷新目录
-            } catch (e: Exception) {
-                // 处理错误
+                val result = executeFileTool(AITool("delete_file", withEnvParams(listOf(
+                    ToolParameter("path", filePath), ToolParameter("recursive", "true"),
+                ), targetEnvironment)))
+                check(result.success) { result.error ?: context.getString(R.string.file_manager_operation_failed) }
+                pendingDeletePath = null
+                readDirectory(directory, targetEnvironment)
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                AppLogger.e("WorkspaceFileBrowser", "Failed to delete entry", error)
+                operationError = context.getString(R.string.file_manager_operation_failed)
             } finally {
                 isLoading = false
             }
@@ -369,11 +383,13 @@ fun FileBrowser(
     }
 
     fun openFile(filePath: String) {
+        if (isLoading) return
+        isLoading = true
+        operationError = null
         coroutineScope.launch {
-            isLoading = true
             try {
                 val mimeType = workspaceMimeTypeForPath(filePath)
-                val lastModified = if (isSafEnv) System.currentTimeMillis() else File(filePath).lastModified()
+                val lastModified = if (!currentEnvironment.isNullOrBlank()) System.currentTimeMillis() else kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { File(filePath).lastModified() }
 
                 if (workspaceShouldOpenAsDirectPreview(filePath)) {
                     onFileOpen?.invoke(
@@ -389,7 +405,7 @@ fun FileBrowser(
 
                 val tool = AITool("read_file_full", withEnvParams(listOf(ToolParameter("path", filePath))))
                 AppLogger.d("WorkspaceFileBrowser", "execute read_file_full path=$filePath env=$currentEnvironment")
-                val result = toolHandler.executeTool(tool)
+                val result = executeFileTool(tool)
                 AppLogger.d("WorkspaceFileBrowser", "result read_file_full success=${result.success} error=${result.error}")
                 if (result.success && result.result is FileContentData) {
                     val fileContentData = result.result
@@ -401,26 +417,34 @@ fun FileBrowser(
                         mimeType = mimeType
                     )
                     onFileOpen?.invoke(openFileInfo)
+                } else {
+                    operationError = context.getString(R.string.file_manager_operation_failed)
                 }
-            } catch (e: Exception) {
-                // 处理错误
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                AppLogger.e("WorkspaceFileBrowser", "Failed to open file", error)
+                operationError = context.getString(R.string.file_manager_operation_failed)
             } finally {
                 isLoading = false
             }
         }
     }
 
-    LaunchedEffect(Unit) { loadDirectory(currentPath) }
+    LaunchedEffect(initialPath, environment) { loadDirectory(initialPath, environment) }
 
     if (showCreateFileDialog) {
         AlertDialog(
-                onDismissRequest = { showCreateFileDialog = false },
+                onDismissRequest = { if (!isLoading) showCreateFileDialog = false },
                 title = { Text(stringResource(R.string.file_manager_create_new_file)) },
                 text = {
                     Column {
                         TextField(
                                 value = newFileName,
-                                onValueChange = { newFileName = it },
+                                enabled = !isLoading,
+                                onValueChange = { newFileName = it; operationError = null },
+                                isError = operationError != null,
+                                supportingText = { operationError?.let { Text(it) } },
                                 label = { Text(stringResource(R.string.file_manager_file_name)) },
                                 singleLine = true,
                                 colors =
@@ -436,28 +460,82 @@ fun FileBrowser(
                 confirmButton = {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextButton(
+                                enabled = !isLoading && isWorkspaceEntryNameValid(newFileName.trim()),
                                 onClick = {
                                     if (newFileName.isNotEmpty()) {
                                         createNewFile(newFileName, false)
-                                        showCreateFileDialog = false
-                                        newFileName = ""
                                     }
                                 }
                         ) { Text(stringResource(R.string.file_manager_create_file)) }
                         TextButton(
+                                enabled = !isLoading && isWorkspaceEntryNameValid(newFileName.trim()),
                                 onClick = {
                                     if (newFileName.isNotEmpty()) {
                                         createNewFile(newFileName, true)
-                                        showCreateFileDialog = false
-                                        newFileName = ""
                                     }
                                 }
                         ) { Text(stringResource(R.string.file_manager_create_folder)) }
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showCreateFileDialog = false }) { Text(stringResource(R.string.file_manager_cancel)) }
+                    TextButton(enabled = !isLoading, onClick = { showCreateFileDialog = false }) { Text(stringResource(R.string.file_manager_cancel)) }
                 }
+        )
+    }
+
+    bookmarkToRemove?.let { bookmark ->
+        AlertDialog(
+            onDismissRequest = { if (!isSavingBookmark) bookmarkToRemove = null },
+            title = { Text(stringResource(R.string.repo_bookmark_delete)) },
+            text = { Column {
+                Text(stringResource(R.string.workspace_bookmark_remove_confirm, bookmark.name))
+                operationError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            } },
+            confirmButton = {
+                TextButton(enabled = !isSavingBookmark, onClick = {
+                    isSavingBookmark = true
+                    coroutineScope.launch {
+                        try {
+                            if (com.ai.assistance.operit.data.repository.ChatHistoryManager.getInstance(context)
+                                    .isWorkspaceEnvironmentBound("repo:${bookmark.name}")) {
+                                operationError = context.getString(R.string.workspace_bookmark_in_use)
+                                return@launch
+                            }
+                            // 系统目录授权也可能被其他功能使用，不随快捷书签一起撤销。
+                            apiPreferences.removeSafBookmark(bookmark.uri)
+                            bookmarkToRemove = null
+                            if (currentEnvironment == "repo:${bookmark.name}") loadDirectory(initialPath, environment)
+                        } catch (error: kotlinx.coroutines.CancellationException) {
+                            throw error
+                        } catch (error: Exception) {
+                            AppLogger.e("WorkspaceFileBrowser", "Failed to remove directory bookmark", error)
+                            operationError = context.getString(R.string.file_manager_operation_failed)
+                        } finally {
+                            isSavingBookmark = false
+                        }
+                    }
+                }) { Text(stringResource(R.string.repo_bookmark_delete)) }
+            },
+            dismissButton = { TextButton(enabled = !isSavingBookmark, onClick = { bookmarkToRemove = null }) {
+                Text(stringResource(R.string.cancel))
+            } },
+        )
+    }
+
+    pendingDeletePath?.let { path ->
+        AlertDialog(
+            onDismissRequest = { if (!isLoading) pendingDeletePath = null },
+            title = { Text(stringResource(R.string.file_manager_delete)) },
+            text = { Column {
+                Text(stringResource(R.string.workspace_entry_delete_confirm, path))
+                operationError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            } },
+            confirmButton = { TextButton(enabled = !isLoading, onClick = { deleteFile(path) }) {
+                Text(stringResource(R.string.file_manager_delete), color = MaterialTheme.colorScheme.error)
+            } },
+            dismissButton = { TextButton(enabled = !isLoading, onClick = { pendingDeletePath = null }) {
+                Text(stringResource(R.string.cancel))
+            } },
         )
     }
 
@@ -473,6 +551,7 @@ fun FileBrowser(
                             ) // 拦截点击事件，防止穿透
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
+            operationError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp)) }
             // 路径导航栏 - 移除背景使其更简洁
             Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
@@ -578,7 +657,9 @@ fun FileBrowser(
                     .padding(horizontal = 12.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(quickPaths) { quickPath ->
+                items(quickPaths.filter { !isManageMode ||
+                    (if (environment == "linux") it.name == "Linux" else environment == null && it.name != "Linux")
+                }) { quickPath ->
                     QuickPathChip(
                         entry = quickPath,
                         isActive =
@@ -589,21 +670,19 @@ fun FileBrowser(
                             },
                         onClick = {
                             if (quickPath.name == "Linux") {
-                                currentEnvironment = "linux"
-                                loadDirectory("/")
+                                loadDirectory("/", "linux")
                                 return@QuickPathChip
                             }
 
                             val pathFile = File(quickPath.path)
                             if (pathFile.exists() && pathFile.isDirectory) {
-                                currentEnvironment = null
-                                loadDirectory(quickPath.path)
+                                loadDirectory(quickPath.path, null)
                             }
                         }
                     )
                 }
 
-                items(safBookmarks) { bookmark ->
+                items(safBookmarks.filter { !isManageMode || environment == "repo:${it.name}" }) { bookmark ->
                     var menuExpanded by remember(bookmark.uri) { mutableStateOf(false) }
                     val repoEnv = remember(bookmark.name) { "repo:${bookmark.name}" }
                     Box {
@@ -611,10 +690,9 @@ fun FileBrowser(
                             entry = QuickPathEntry(name = bookmark.name, path = "/", icon = Icons.Default.Folder),
                             isActive = currentEnvironment == repoEnv,
                             onClick = {
-                                currentEnvironment = repoEnv
-                                loadDirectory("/")
+                                loadDirectory("/", repoEnv)
                             },
-                            onLongPress = { menuExpanded = true }
+                            onLongPress = { if (!isManageMode && !isLoading) menuExpanded = true }
                         )
                         DropdownMenu(
                             expanded = menuExpanded,
@@ -624,25 +702,15 @@ fun FileBrowser(
                                 text = { Text(stringResource(R.string.repo_bookmark_delete)) },
                                 onClick = {
                                     menuExpanded = false
-                                    val uri = runCatching { Uri.parse(bookmark.uri) }.getOrNull()
-                                    if (uri != null) {
-                                        val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                                        runCatching { context.contentResolver.releasePersistableUriPermission(uri, flags) }
-                                    }
-                                    coroutineScope.launch {
-                                        apiPreferences.removeSafBookmark(bookmark.uri)
-                                        if (currentEnvironment == repoEnv) {
-                                            currentEnvironment = null
-                                            loadDirectory(initialPath)
-                                        }
-                                    }
+                                    bookmarkToRemove = bookmark
+                                    operationError = null
                                 }
                             )
                         }
                     }
                 }
 
-                item {
+                if (!isManageMode) item {
                     QuickPathChip(
                         entry = QuickPathEntry(name = "+", path = "", icon = Icons.Default.Add),
                         isActive = false,
@@ -690,7 +758,12 @@ fun FileBrowser(
                         fileList.filter { !it.name.startsWith(".") }
                     }
                     
-                    items(getSortedFileList(filteredList, sortMode)) { item ->
+                    if (filteredList.isEmpty()) item {
+                        Text(stringResource(R.string.file_manager_empty_folder),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.fillMaxWidth().padding(24.dp))
+                    }
+                    items(getSortedFileList(filteredList, sortMode), key = { it.name }) { item ->
                         Box { // 使用Box来定位上下文菜单
                             FileListItem(
                                     name = item.name,
@@ -712,7 +785,7 @@ fun FileBrowser(
                                         }
                                     },
                                     onLongPress = {
-                                        if (isManageMode && !item.name.startsWith(".")) {
+                                        if (isManageMode && !isLoading && item.name != "." && item.name != "..") {
                                             contextMenuExpandedFor = item
                                         }
                                     }
@@ -729,7 +802,8 @@ fun FileBrowser(
                                             val filePath =
                                                 if (isSafEnv) joinPath(currentPath, item.name)
                                                 else File(currentPath, item.name).path
-                                            deleteFile(filePath)
+                                            pendingDeletePath = filePath
+                                            operationError = null
                                             contextMenuExpandedFor = null
                                         },
                                         leadingIcon = {
@@ -757,14 +831,21 @@ fun FileBrowser(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedButton(onClick = onCancel) { Text(if (isManageMode) stringResource(R.string.file_manager_return) else stringResource(R.string.file_manager_cancel)) }
+                    OutlinedButton(enabled = !isBinding, onClick = onCancel) { Text(if (isManageMode) stringResource(R.string.file_manager_return) else stringResource(R.string.file_manager_cancel)) }
                     Button(
+                        enabled = hasReadableDirectory && !isLoading && !isBinding,
                         onClick = {
-                            AppLogger.d(
-                                "WorkspaceFileBrowser",
-                                "bind workspace path=$currentPath env=$currentEnvironment isManageMode=$isManageMode"
-                            )
-                            onBindWorkspace(currentPath, currentEnvironment)
+                            val path = currentPath
+                            val env = currentEnvironment
+                            isBinding = true
+                            isLoading = true
+                            operationError = null
+                            coroutineScope.launch {
+                                try { onBindWorkspace(path, env) }
+                                catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+                                catch (error: Exception) { operationError = error.message ?: context.getString(R.string.workspace_binding_failed) }
+                                finally { isBinding = false; isLoading = false }
+                            }
                         }
                     ) {
                         Icon(
@@ -773,7 +854,7 @@ fun FileBrowser(
                                 modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.file_manager_bind_current_folder))
+                        Text(stringResource(if (isBinding) R.string.workspace_binding_saving else R.string.file_manager_bind_current_folder))
                     }
                 }
             }

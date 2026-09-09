@@ -14,6 +14,7 @@ import com.ai.assistance.operit.data.api.MarketStatsApiService
 import com.ai.assistance.operit.data.api.GitHubApiService
 import com.ai.assistance.operit.data.api.MarketV2EntryUpdateRequest
 import com.ai.assistance.operit.data.api.MarketV2Entry
+import com.ai.assistance.operit.data.api.canRetryRejectedMarketRegistration
 import com.ai.assistance.operit.data.preferences.GitHubAuthPreferences
 import com.ai.assistance.operit.ui.features.packages.market.ArtifactMarketScope
 import com.ai.assistance.operit.ui.features.packages.market.ArtifactPublishClusterContext
@@ -46,17 +47,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Job
 
 class ArtifactMarketViewModel(
     private val context: Context,
-    private val scope: ArtifactMarketScope
+    private val scope: ArtifactMarketScope,
+    private val marketStatsApiService: MarketStatsApiService = MarketStatsApiService(),
+    private val githubAuth: GitHubAuthPreferences = GitHubAuthPreferences.getInstance(context),
+    private val forgePublishService: GitHubForgePublishService = GitHubForgePublishService(context, GitHubApiService(context)),
+    private val packageManager: PackageManager = PackageManager.getInstance(context, AIToolHandler.getInstance(context))
 ) : ViewModel() {
-    private val githubApiService = GitHubApiService(context)
-    private val marketStatsApiService = MarketStatsApiService()
-    private val githubAuth = GitHubAuthPreferences.getInstance(context)
-    private val forgePublishService = GitHubForgePublishService(context, githubApiService)
-    private val packageManager =
-        PackageManager.getInstance(context, AIToolHandler.getInstance(context))
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -99,6 +99,10 @@ class ArtifactMarketViewModel(
 
     private val supportedTypes = scope.supportedTypes()
     private var pendingPublishRequest: PublishArtifactRequest? = null
+    private val _pendingRegistration = MutableStateFlow<PublishAttemptResult.RegistrationFailed?>(null)
+    val pendingRegistration = _pendingRegistration.asStateFlow()
+    private var catalogJob: Job? = null
+    private var catalogGeneration = 0L
 
     init {
         refreshPublishableArtifacts()
@@ -131,26 +135,35 @@ class ArtifactMarketViewModel(
     }
 
     fun refreshPublishableArtifacts() {
+        if (_isLoading.value) return
+        _isLoading.value = true
+        _errorMessage.value = null
         viewModelScope.launch {
-            val artifacts =
-                withContext(Dispatchers.IO) {
-                    packageManager.getPublishablePackageSources()
-                        .mapNotNull { source ->
-                            val type = inferArtifactType(source.isToolPkg, source.fileExtension) ?: return@mapNotNull null
-                            if (type !in supportedTypes) return@mapNotNull null
-                            LocalPublishableArtifact(
-                                type = type,
-                                packageName = source.packageName,
-                                displayName = source.displayName,
-                                description = source.description,
-                                sourceFile = File(source.sourcePath),
-                                inferredVersion = source.inferredVersion
-                            )
-                        }
-                        .sortedWith(compareBy<LocalPublishableArtifact> { it.type.ordinal }.thenBy { it.displayName.lowercase() })
+            try {
+                val artifacts =
+                    withContext(Dispatchers.IO) {
+                        packageManager.getPublishablePackageSources()
+                            .mapNotNull { source ->
+                                val type = inferArtifactType(source.isToolPkg, source.fileExtension) ?: return@mapNotNull null
+                                if (type !in supportedTypes) return@mapNotNull null
+                                LocalPublishableArtifact(
+                                    type = type,
+                                    packageName = source.packageName,
+                                    displayName = source.displayName,
+                                    description = source.description,
+                                    sourceFile = File(source.sourcePath),
+                                    inferredVersion = source.inferredVersion
+                                )
+                            }
+                            .sortedWith(compareBy<LocalPublishableArtifact> { it.type.ordinal }.thenBy { it.displayName.lowercase() })
+                    }
+                _publishableArtifacts.value = artifacts
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                _errorMessage.value = error.message ?: "Failed to load local artifacts"
             }
-            _publishableArtifacts.value = artifacts
-        }
+        }.invokeOnCompletion { _isLoading.value = false }
     }
 
     fun requestPublish(
@@ -197,21 +210,31 @@ class ArtifactMarketViewModel(
     }
 
     fun loadGitHubReleaseCatalog(repositoryUrl: String) {
-        viewModelScope.launch {
-            _isLoadingGitHubReleaseCatalog.value = true
-            _githubReleaseCatalogError.value = null
-            forgePublishService.loadGitHubReleaseCatalog(repositoryUrl).fold(
-                onSuccess = { catalog ->
-                    _githubReleaseCatalog.value = catalog
-                },
-                onFailure = { error ->
-                    _githubReleaseCatalog.value = null
+        clearGitHubReleaseCatalog()
+        val generation = catalogGeneration
+        _isLoadingGitHubReleaseCatalog.value = true
+        catalogJob = viewModelScope.launch {
+            try {
+                val catalog = forgePublishService.loadGitHubReleaseCatalog(repositoryUrl).getOrThrow()
+                if (generation == catalogGeneration) _githubReleaseCatalog.value = catalog
+            } catch (cancelled: CancellationException) { throw cancelled
+            } catch (error: Exception) {
+                if (generation == catalogGeneration) {
                     _githubReleaseCatalogError.value = error.message ?: "Failed to load GitHub Releases"
-                    AppLogger.e(TAG, "Failed to load GitHub Release catalog", error)
                 }
-            )
-            _isLoadingGitHubReleaseCatalog.value = false
-        }
+            }
+        }.also { job -> job.invokeOnCompletion {
+            if (generation == catalogGeneration) _isLoadingGitHubReleaseCatalog.value = false
+        } }
+    }
+
+    fun clearGitHubReleaseCatalog() {
+        catalogGeneration++
+        catalogJob?.cancel()
+        catalogJob = null
+        _githubReleaseCatalog.value = null
+        _githubReleaseCatalogError.value = null
+        _isLoadingGitHubReleaseCatalog.value = false
     }
 
     fun updatePublishedArtifact(
@@ -224,26 +247,17 @@ class ArtifactMarketViewModel(
         minSupportedAppVersion: String?,
         maxSupportedAppVersion: String?
     ) {
+        if (!_publishProgressStage.compareAndSet(PublishProgressStage.IDLE, PublishProgressStage.VALIDATING)) return
         viewModelScope.launch {
-            if (!githubAuth.isLoggedIn()) {
-                _publishErrorMessage.value = "GitHub login required"
-                return@launch
-            }
-
-            _publishErrorMessage.value = null
-            _publishSuccessMessage.value = null
-            _publishProgressStage.value = PublishProgressStage.VALIDATING
-            _publishMessage.value = getText(R.string.artifact_publish_updating_published_node)
-
             try {
-                validateSupportedAppVersions(
-                    minSupportedAppVersion = minSupportedAppVersion,
-                    maxSupportedAppVersion = maxSupportedAppVersion
-                )
-
-                val type =
-                    PublishArtifactType.fromWireValue(entry.type)
-                        ?: throw IllegalStateException("Invalid artifact metadata")
+                check(githubAuth.isLoggedIn()) { "GitHub login required" }
+                val accountId = githubAuth.getCurrentUserInfo()?.id
+                _publishErrorMessage.value = null
+                _publishSuccessMessage.value = null
+                _publishMessage.value = getText(R.string.artifact_publish_updating_published_node)
+                validateSupportedAppVersions(minSupportedAppVersion, maxSupportedAppVersion)
+                val type = PublishArtifactType.fromWireValue(entry.type)
+                    ?: throw IllegalStateException("Invalid artifact metadata")
                 val payload = buildUpdatedMarketRegistrationPayload(
                     entry = entry,
                     type = type,
@@ -253,51 +267,50 @@ class ArtifactMarketViewModel(
                     minSupportedAppVersion = minSupportedAppVersion,
                     maxSupportedAppVersion = maxSupportedAppVersion
                 )
-                ensureArtifactDisplayNameAvailable(
-                    displayName = payload.displayName,
-                    currentEntryId = entry.id
-                )
-
+                ensureArtifactDisplayNameAvailable(payload.displayName, entry.id)
+                check(accountId != null && githubAuth.isLoggedIn() && githubAuth.getCurrentUserInfo()?.id == accountId) {
+                    "GitHub account changed during validation"
+                }
                 marketStatsApiService.updateEntry(
-                    entryId = entry.id,
-                    request = MarketV2EntryUpdateRequest(
+                    entry.id,
+                    MarketV2EntryUpdateRequest(
                         title = payload.displayName,
                         description = payload.description,
                         detail = payload.projectDescription,
                         categoryId = categoryId,
                         allowPublicUpdates = allowPublicUpdates
                     )
-                ).fold(
-                    onSuccess = {
-                        _publishProgressStage.value = PublishProgressStage.COMPLETED
-                        _publishMessage.value = null
-                        _publishSuccessMessage.value =
-                            appendMarketScheduleNotice(
-                                getText(R.string.artifact_publish_node_updated, payload.displayName)
-                            )
-                    },
-                    onFailure = { error ->
-                        _publishProgressStage.value = PublishProgressStage.IDLE
-                        _publishMessage.value = null
-                        _publishErrorMessage.value = error.message ?: "Failed to update artifact"
-                    }
-                )
-            } catch (e: Exception) {
-                _publishProgressStage.value = PublishProgressStage.IDLE
+                ).getOrThrow()
+                _publishProgressStage.value = PublishProgressStage.COMPLETED
                 _publishMessage.value = null
-                _publishErrorMessage.value = e.message ?: "Failed to update artifact"
-                AppLogger.e(TAG, "Failed to update published artifact", e)
+                _publishSuccessMessage.value = appendMarketScheduleNotice(
+                    getText(R.string.artifact_publish_node_updated, payload.displayName)
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                _publishErrorMessage.value = error.message ?: "Failed to update artifact"
+                AppLogger.e(TAG, "Failed to update published artifact", error)
+            } finally {
+                if (_publishProgressStage.value != PublishProgressStage.COMPLETED) {
+                    _publishProgressStage.value = PublishProgressStage.IDLE
+                    _publishMessage.value = null
+                }
             }
+        }.invokeOnCompletion {
+            _publishProgressStage.compareAndSet(PublishProgressStage.VALIDATING, PublishProgressStage.IDLE)
         }
     }
 
     fun confirmForgeInitializationAndPublish() {
+        if (!_requiresForgeInitialization.value) return
         val request = pendingPublishRequest ?: return
         _requiresForgeInitialization.value = false
         executePublish(request, allowCreateForgeRepo = true)
     }
 
     fun dismissForgeInitializationPrompt() {
+        if (_publishProgressStage.value != PublishProgressStage.IDLE) return
         pendingPublishRequest = null
         _requiresForgeInitialization.value = false
         _publishProgressStage.value = PublishProgressStage.IDLE
@@ -317,6 +330,7 @@ class ArtifactMarketViewModel(
     }
 
     fun clearPendingMarketRegistrationRetry() {
+        if (_pendingRegistration.value != null) return
         _publishErrorMessage.value = null
         if (_publishProgressStage.value == PublishProgressStage.IDLE) {
             _publishMessage.value = null
@@ -324,6 +338,9 @@ class ArtifactMarketViewModel(
     }
 
     private fun executePublish(request: PublishArtifactRequest, allowCreateForgeRepo: Boolean) {
+        if (_pendingRegistration.value != null) return
+        if (!_publishProgressStage.compareAndSet(PublishProgressStage.IDLE, PublishProgressStage.VALIDATING)) return
+        _publishMessage.value = getText(R.string.artifact_publish_checking_identity_conflicts)
         viewModelScope.launch {
             try {
                 if (!githubAuth.isLoggedIn()) {
@@ -357,8 +374,11 @@ class ArtifactMarketViewModel(
                     request = resolvedRequest,
                     allowCreateForgeRepo = allowCreateForgeRepo,
                     onProgress = { stage ->
-                        _publishProgressStage.value = stage
-                        _publishMessage.value = stageMessage(stage)
+                        // 完成态由本ViewModel接收结果后发布，避免服务回调提前解锁表单。
+                        if (stage != PublishProgressStage.COMPLETED) {
+                            _publishProgressStage.value = stage
+                            _publishMessage.value = stageMessage(stage)
+                        }
                     }
                 ).fold(
                     onSuccess = { result ->
@@ -376,12 +396,15 @@ class ArtifactMarketViewModel(
                             }
 
                             is PublishAttemptResult.RegistrationFailed -> {
+                                pendingPublishRequest = null
+                                _pendingRegistration.value = result
                                 _publishProgressStage.value = PublishProgressStage.IDLE
                                 _publishErrorMessage.value = result.errorMessage
                             }
                         }
                     },
                     onFailure = { error ->
+                        if (error is CancellationException) throw error
                         _publishProgressStage.value = PublishProgressStage.IDLE
                         _publishMessage.value = null
                         _publishErrorMessage.value = formatPublishErrorMessage(error.message ?: "Publish failed")
@@ -396,8 +419,51 @@ class ArtifactMarketViewModel(
                 _publishMessage.value = null
                 _publishErrorMessage.value = e.message ?: "Failed to publish artifact"
                 AppLogger.e(TAG, "Failed to publish artifact", e)
+            } finally {
+                if (_publishProgressStage.value != PublishProgressStage.COMPLETED) {
+                    _publishProgressStage.value = PublishProgressStage.IDLE
+                    _publishMessage.value = null
+                }
             }
+        }.invokeOnCompletion {
+            _publishProgressStage.compareAndSet(PublishProgressStage.VALIDATING, PublishProgressStage.IDLE)
         }
+    }
+
+    fun retryMarketRegistration() {
+        val pending = _pendingRegistration.value ?: return
+        if (!pending.retryAllowed) return
+        if (!_publishProgressStage.compareAndSet(PublishProgressStage.IDLE, PublishProgressStage.REGISTERING_MARKET)) return
+        _publishMessage.value = stageMessage(PublishProgressStage.REGISTERING_MARKET)
+        _publishErrorMessage.value = null
+        viewModelScope.launch {
+            try {
+                forgePublishService.retryMarketRegistration(pending).getOrThrow()
+                _pendingRegistration.value = null
+                _publishProgressStage.value = PublishProgressStage.COMPLETED
+                _publishSuccessMessage.value = buildSuccessMessage(pending.payload)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                _pendingRegistration.value = pending.copy(
+                    errorMessage = error.message ?: "Failed to register market entry",
+                    retryAllowed = canRetryRejectedMarketRegistration(error)
+                )
+                _publishErrorMessage.value = error.message ?: "Failed to register market entry"
+            } finally {
+                _publishMessage.value = null
+                _publishProgressStage.compareAndSet(PublishProgressStage.REGISTERING_MARKET, PublishProgressStage.IDLE)
+            }
+        }.invokeOnCompletion {
+            _publishProgressStage.compareAndSet(PublishProgressStage.REGISTERING_MARKET, PublishProgressStage.IDLE)
+        }
+    }
+
+    fun dismissRegistrationRecovery() {
+        if (_publishProgressStage.value != PublishProgressStage.IDLE) return
+        // 未确认的同一次提交保持占位，关闭说明不能重新开放整套上传和登记。
+        if (_pendingRegistration.value?.retryAllowed == false) return
+        _pendingRegistration.value = null
     }
 
     private suspend fun validateContinuationVersion(request: PublishArtifactRequest) {

@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import com.ai.assistance.operit.data.preferences.CharacterCardManager
@@ -329,9 +330,11 @@ class ChatHistoryDelegate(
 
     private suspend fun runCurrentChatDestructiveHistoryMutation(
         mismatchMessage: String,
+        expectedChatId: String? = _currentChatId.value,
         mutation: suspend (String) -> Boolean
-    ) {
-        val chatIdSnapshot = _currentChatId.value ?: return
+    ): Boolean {
+        val chatIdSnapshot = expectedChatId ?: return false
+        if (_currentChatId.value != chatIdSnapshot) return false
         prepareChatForDestructiveMutation(chatIdSnapshot)
         val didMutate =
             historyUpdateMutex.withLock {
@@ -348,6 +351,7 @@ class ChatHistoryDelegate(
         if (didMutate) {
             finishDestructiveHistoryMutation(chatIdSnapshot)
         }
+        return didMutate
     }
 
     suspend fun getChatHistory(chatId: String): List<ChatMessage> =
@@ -371,6 +375,9 @@ class ChatHistoryDelegate(
         }
         return report
     }
+
+    suspend fun getMessagePredecessorTimestamp(chatId: String, targetTimestamp: Long): Long? =
+        chatHistoryManager.getMessagePredecessorTimestamp(chatId, targetTimestamp)
 
     suspend fun getRuntimeChatHistoryUpTo(
         chatId: String,
@@ -1275,11 +1282,14 @@ class ChatHistoryDelegate(
         }
     }
 
-    suspend fun reviseMessage(message: ChatMessage) {
-        val chatId = _currentChatId.value ?: throw IllegalStateException("No active chat")
+    suspend fun reviseMessage(
+        message: ChatMessage,
+        chatId: String = _currentChatId.value ?: throw IllegalStateException("No active chat"),
+        expectedContent: String? = null,
+    ) {
         val shouldReloadCurrentChat =
             historyUpdateMutex.withLock {
-                chatHistoryManager.reviseMessage(chatId, message)
+                chatHistoryManager.reviseMessage(chatId, message, expectedContent)
                 chatId == _currentChatId.value
             }
         if (shouldReloadCurrentChat && chatId == _currentChatId.value) {
@@ -1360,22 +1370,21 @@ class ChatHistoryDelegate(
     }
 
     /** 绑定聊天到工作区 */
-    fun bindChatToWorkspace(chatId: String, workspace: String, workspaceEnv: String?) {
-        coroutineScope.launch {
-            // 1. Update the database
-            chatHistoryManager.updateChatWorkspace(chatId, workspace, workspaceEnv)
+    suspend fun bindChatToWorkspace(chatId: String, workspace: String, workspaceEnv: String?) = coroutineScope.async {
+        // 持久化与其内存投影属于服务 owner；调用页面离开只取消等待，不能截断提交后的投影。
+        // 1. Update the database
+        chatHistoryManager.updateChatWorkspace(chatId, workspace, workspaceEnv)
 
-            // 2. Manually update the UI state to reflect the change immediately
-            val updatedHistories = _chatHistories.value.map {
-                if (it.id == chatId) {
-                    it.copy(workspace = workspace, workspaceEnv = workspaceEnv, updatedAt = LocalDateTime.now())
-                } else {
-                    it
-                }
+        // 2. Manually update the UI state to reflect the change immediately
+        val updatedHistories = _chatHistories.value.map {
+            if (it.id == chatId) {
+                it.copy(workspace = workspace, workspaceEnv = workspaceEnv, updatedAt = LocalDateTime.now())
+            } else {
+                it
             }
-            _chatHistories.value = updatedHistories
         }
-    }
+        _chatHistories.value = updatedHistories
+    }.await()
 
     /** 更新聊天绑定的角色卡 */
     fun updateChatCharacterCard(chatId: String, characterCardName: String?) {
@@ -1412,22 +1421,20 @@ class ChatHistoryDelegate(
     }
 
     /** 解绑聊天的工作区 */
-    fun unbindChatFromWorkspace(chatId: String) {
-        coroutineScope.launch {
-            // 1. Update the database (set workspace to null)
-            chatHistoryManager.updateChatWorkspace(chatId, null, null)
+    suspend fun unbindChatFromWorkspace(chatId: String, expectedWorkspace: String, expectedEnvironment: String?) = coroutineScope.async {
+        // 1. Update the database (set workspace to null)
+        chatHistoryManager.updateChatWorkspace(chatId, null, null, expectedWorkspace, expectedEnvironment)
 
-            // 2. Manually update the UI state to reflect the change immediately
-            val updatedHistories = _chatHistories.value.map {
-                if (it.id == chatId) {
-                    it.copy(workspace = null, workspaceEnv = null, updatedAt = LocalDateTime.now())
-                } else {
-                    it
-                }
+        // 2. Manually update the UI state to reflect the change immediately
+        val updatedHistories = _chatHistories.value.map {
+            if (it.id == chatId) {
+                it.copy(workspace = null, workspaceEnv = null, updatedAt = LocalDateTime.now())
+            } else {
+                it
             }
-            _chatHistories.value = updatedHistories
         }
-    }
+        _chatHistories.value = updatedHistories
+    }.await()
 
     /** 更新聊天标题 */
     fun updateChatTitle(chatId: String, title: String) {
@@ -1586,8 +1593,19 @@ class ChatHistoryDelegate(
      *
      * @param timestampOfFirstDeletedMessage 用于删除数据库记录的起始时间戳。如果为null，则清空所有消息。
      */
-    suspend fun truncateChatHistory(timestampOfFirstDeletedMessage: Long?) {
-        runCurrentChatDestructiveHistoryMutation("截断聊天历史时当前会话已变化，放弃操作") { chatIdSnapshot ->
+    suspend fun truncateChatHistory(
+        timestampOfFirstDeletedMessage: Long?,
+        expectedChatId: String? = _currentChatId.value,
+        afterTruncate: suspend () -> Unit = {},
+        beforeTruncate: suspend () -> Unit = {},
+    ): Boolean {
+        var cleanupFailure: Exception? = null
+        val truncated = runCurrentChatDestructiveHistoryMutation(
+            "截断聊天历史时当前会话已变化，放弃操作",
+            expectedChatId = expectedChatId,
+        ) { chatIdSnapshot ->
+            // 先停止该对话的执行，再完成关联工作区恢复；恢复失败绝不能继续删除历史。
+            beforeTruncate()
             if (timestampOfFirstDeletedMessage != null) {
                 // 从数据库中删除指定时间戳之后的消息
                 chatHistoryManager.deleteMessagesFrom(
@@ -1599,13 +1617,25 @@ class ChatHistoryDelegate(
                 chatHistoryManager.clearChatMessages(chatIdSnapshot)
             }
 
-            if (timestampOfFirstDeletedMessage == null) {
+            try {
+                afterTruncate()
+            } catch (error: Exception) {
+                // SQL 已提交，即使备份清理失败也必须刷新投影并完成执行状态清理，再报告错误。
+                cleanupFailure = error
+            }
+
+            if (_currentChatId.value != chatIdSnapshot) {
+                // 工作区 I/O 期间可以切换页面，已固定目标的操作仍只完成旧对话。
+                return@runCurrentChatDestructiveHistoryMutation true
+            } else if (timestampOfFirstDeletedMessage == null) {
                 clearCurrentChatHistoryInMemory()
             } else {
                 reloadCurrentChatDisplayHistory(chatIdSnapshot)
             }
             true
         }
+        cleanupFailure?.let { throw it }
+        return truncated
     }
 
     /**

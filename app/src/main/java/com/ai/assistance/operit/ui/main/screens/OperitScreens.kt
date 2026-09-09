@@ -290,7 +290,7 @@ sealed class Screen(
                 onError: (String) -> Unit,
                 onGestureConsumed: (Boolean) -> Unit
         ) {
-            UnifiedMarketNotificationsScreen()
+            UnifiedMarketNotificationsScreen(onNavigateToDetail = { navigateTo(MarketEntryDetail(it)) })
         }
     }
 

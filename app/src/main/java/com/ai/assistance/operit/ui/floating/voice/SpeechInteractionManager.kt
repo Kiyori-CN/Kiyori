@@ -17,10 +17,16 @@ import com.ai.assistance.operit.api.speech.SpeechServiceFactory
 import com.ai.assistance.operit.api.voice.VoiceServiceFactory
 import com.ai.assistance.operit.util.TtsCleaner
 import com.ai.assistance.operit.util.WaifuMessageProcessor
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 private const val TAG = "SpeechInteractionManager"
 
@@ -34,6 +40,15 @@ class SpeechInteractionManager(
     private val onSpeechResult: (String, Boolean) -> Unit, // (text, isFinal)
     private val onStateChange: (String) -> Unit // 更新状态提示文本
 ) {
+    companion object {
+        // 工厂返回同一识别服务；不同浮窗实例也必须通过同一操作链交接。
+        private val captureOperations = SpeechCaptureOperations()
+        private val playbackMutex = Mutex()
+        private var playbackOwner: Any? = null
+    }
+    private val captureOwner = Any()
+    private val playbackJobs = mutableSetOf<Job>()
+
     // ===== 状态 =====
     var isRecording by mutableStateOf(false)
         private set
@@ -70,19 +85,19 @@ class SpeechInteractionManager(
         try {
             speechService.initialize()
             voiceService.initialize()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             AppLogger.e(TAG, "Failed to initialize speech services", e)
         }
     }
 
     fun cleanup() {
-        stopListening(isCancel = true)
-        coroutineScope.launch {
-            speechService.cancelRecognition()
-            voiceService.stop()
+        resetState()
+        captureOperations.stop(captureOwner, coroutineScope) {
+            releaseRecognition(cancel = true)
         }
-        timeoutJob?.cancel()
-        silenceTimeoutJob?.cancel()
+        stopSpeaking()
     }
 
     private fun resetState() {
@@ -119,6 +134,7 @@ class SpeechInteractionManager(
     // ===== 语音识别流程 =====
 
     fun startListening(onStartFailure: ((String) -> Unit)? = null) {
+        if (isRecording) return
         if (!hasFocus) {
             onStartFailure?.invoke(context.getString(R.string.floating_cannot_get_focus))
             return
@@ -129,6 +145,7 @@ class SpeechInteractionManager(
         
         // 重置文本状态
         isRecording = true
+        isProcessingSpeech = false
         userMessage = ""
         accumulatedText = ""
         latestPartialText = ""
@@ -136,7 +153,9 @@ class SpeechInteractionManager(
         onStateChange(context.getString(R.string.floating_listening))
 
         // 启动监听
-        coroutineScope.launch {
+        captureOperations.start(captureOwner, coroutineScope, releasePrevious = {
+            releaseRecognition(cancel = true)
+        }) {
             try {
                 try {
                     AIForegroundService.ensureMicrophoneForeground(context, forceStart = true)
@@ -175,6 +194,8 @@ class SpeechInteractionManager(
                     onStateChange(context.getString(R.string.floating_hold_microphone))
                     onStartFailure?.invoke(context.getString(R.string.floating_start_recording_failed))
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 isRecording = false
                 isProcessingSpeech = false
@@ -190,28 +211,52 @@ class SpeechInteractionManager(
     }
 
     fun stopListening(isCancel: Boolean) {
-        if (!isRecording) return
-        
+        if (!isRecording && !(isCancel && isProcessingSpeech)) return
         isRecording = false
         silenceTimeoutJob?.cancel()
+        timeoutJob?.cancel()
 
-        coroutineScope.launch {
-            if (isCancel) {
-                speechService.cancelRecognition()
-                isProcessingSpeech = false
-                resetState()
-                onStateChange(context.getString(R.string.floating_hold_microphone))
-            } else {
-                isProcessingSpeech = true
-                onStateChange(context.getString(R.string.floating_recognizing))
-                speechService.stopRecognition()
-                startFallbackTimeout()
+        if (isCancel) {
+            // 同步撤销结果资格；取消服务的挂起期间也不能接受迟到最终识别。
+            resetState()
+            onStateChange(context.getString(R.string.floating_hold_microphone))
+            captureOperations.stop(captureOwner, coroutineScope) {
+                releaseRecognition(cancel = true)
             }
+        } else {
+            isProcessingSpeech = true
+            onStateChange(context.getString(R.string.floating_recognizing))
+            val stopJob = captureOperations.stop(captureOwner, coroutineScope, releaseOwner = false) {
+                releaseRecognition(cancel = false)
+            }
+            coroutineScope.launch {
+                stopJob?.join()
+                if (captureOperations.owns(captureOwner) && isProcessingSpeech) {
+                    startFallbackTimeout()
+                }
+            }
+        }
+    }
+
+    private suspend fun releaseRecognition(cancel: Boolean): Boolean {
+        return try {
+            if (cancel) speechService.cancelRecognition() else speechService.stopRecognition()
+            true
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            AppLogger.e(TAG, "Failed to release speech capture", error)
+            if (captureOperations.owns(captureOwner)) {
+                resetState()
+                onStateChange(context.getString(R.string.floating_start_recording_failed))
+            }
+            false
         }
     }
 
     // 处理识别结果
     fun handleRecognitionResult(resultText: String, isFinal: Boolean, autoSendSilence: Boolean = false) {
+        if (!captureOperations.owns(captureOwner)) return
         val effectiveText = stripWakePhrasePrefixIfNeeded(resultText)
         if (isRecording) {
             if (effectiveText.isNotBlank()) {
@@ -236,6 +281,8 @@ class SpeechInteractionManager(
         } else if (isProcessingSpeech && isFinal) {
             timeoutJob?.cancel()
             accumulatedText += (if (accumulatedText.isNotEmpty() && effectiveText.isNotBlank()) "。" else "") + effectiveText
+            // 最终识别可能补全或修正中间结果，不能继续发送旧 userMessage 中的 partial。
+            if (effectiveText.isNotBlank()) userMessage = accumulatedText
             finalizeSpeechInput()
         }
     }
@@ -305,13 +352,40 @@ class SpeechInteractionManager(
     
     // ===== TTS 辅助 =====
     
-    fun speak(text: String, interrupt: Boolean = true) {
-        if (text.isBlank()) return
-        coroutineScope.launch {
+    fun speak(text: String, interrupt: Boolean = true): Job? {
+        if (text.isBlank()) return null
+        if (interrupt) playbackJobs.toList().forEach { it.cancel() }
+        playbackOwner = captureOwner
+        val job = coroutineScope.launch(start = CoroutineStart.UNDISPATCHED) {
             try {
-                voiceService.speak(text, interrupt)
+                playbackMutex.withLock {
+                    if (playbackOwner === captureOwner) voiceService.speak(text, interrupt)
+                }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 AppLogger.e(TAG, "TTS Error", e)
+            }
+        }
+        playbackJobs.add(job)
+        job.invokeOnCompletion { playbackJobs.remove(job) }
+        return job
+    }
+
+    fun stopSpeaking(): Job {
+        playbackJobs.toList().forEach { it.cancel() }
+        return coroutineScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            withContext(NonCancellable) {
+                // 检查与 stop 同处串行区间，旧页面的迟到清理不能停止新页面的朗读。
+                playbackMutex.withLock {
+                    if (playbackOwner !== captureOwner) return@withLock
+                    playbackOwner = null
+                    try {
+                        voiceService.stop()
+                    } catch (error: Exception) {
+                        AppLogger.e(TAG, "Failed to stop TTS playback", error)
+                    }
+                }
             }
         }
     }

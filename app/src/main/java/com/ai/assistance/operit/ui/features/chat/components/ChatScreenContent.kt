@@ -46,6 +46,7 @@ import com.ai.assistance.operit.ui.features.chat.components.style.bubble.BubbleI
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.WorkspaceBackupManager
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import androidx.compose.material.icons.filled.Cancel
@@ -136,16 +137,24 @@ fun ChatScreenContent(
     var headerHeight by remember { mutableStateOf(0.dp) }
 
     // Multi-select mode state
-    var isMultiSelectMode by remember { mutableStateOf(false) }
-    var selectedMessageIndices by remember { mutableStateOf(setOf<Int>()) }
+    var isMultiSelectMode by remember(currentChatId) { mutableStateOf(false) }
+    var selectedMessageTimestamps by remember(currentChatId) { mutableStateOf(setOf<Long>()) }
+    val selectedMessageIndices = projectSelectedMessageIndices(
+        chatHistory.map { it.timestamp }, selectedMessageTimestamps,
+    )
+    fun selectMessageIndices(indices: Set<Int>) {
+        selectedMessageTimestamps = indices.mapNotNull { chatHistory.getOrNull(it)?.timestamp }.toSet()
+    }
     val selectableMessageIndices = remember(chatHistory) {
         chatHistory.mapIndexedNotNull { index, message ->
             if (message.sender == "user" || message.sender == "ai") index else null
         }.toSet()
     }
     var isGeneratingImage by remember { mutableStateOf(false) }
-    var showSharePreviewDialog by remember { mutableStateOf(false) }
-    var showDeleteSelectedConfirmDialog by remember { mutableStateOf(false) }
+    var showSharePreviewDialog by remember(currentChatId) { mutableStateOf(false) }
+    var shareMessageSnapshot by remember(currentChatId) { mutableStateOf(emptyList<ChatMessage>()) }
+    var showDeleteSelectedConfirmDialog by remember(currentChatId) { mutableStateOf(false) }
+    var pendingDeleteTimestamps by remember(currentChatId) { mutableStateOf(setOf<Long>()) }
     var sharePreviewUri by remember { mutableStateOf<Uri?>(null) }
     var sharePreviewThinkingExpanded by remember { mutableStateOf(false) }
     var sharePreviewExpandThinkToolsGroups by remember { mutableStateOf(false) }
@@ -154,24 +163,30 @@ fun ChatScreenContent(
 
     // Export state
     val context = LocalContext.current
-    var showExportPlatformDialog by remember { mutableStateOf(false) }
-    var showAndroidExportDialog by remember { mutableStateOf(false) }
-    var showWindowsExportDialog by remember { mutableStateOf(false) }
-    var showExportProgressDialog by remember { mutableStateOf(false) }
-    var showExportCompleteDialog by remember { mutableStateOf(false) }
-    var exportProgress by remember { mutableStateOf(0f) }
-    var exportStatus by remember { mutableStateOf("") }
-    var exportSuccess by remember { mutableStateOf(false) }
-    var exportFilePath by remember { mutableStateOf<String?>(null) }
-    var exportErrorMessage by remember { mutableStateOf<String?>(null) }
-    var exportJob by remember { mutableStateOf<Job?>(null) }
-    var webContentDir by remember { mutableStateOf<File?>(null) }
+    var showExportPlatformDialog by remember(currentChatId) { mutableStateOf(false) }
+    var showAndroidExportDialog by remember(currentChatId) { mutableStateOf(false) }
+    var showWindowsExportDialog by remember(currentChatId) { mutableStateOf(false) }
+    var showExportProgressDialog by remember(currentChatId) { mutableStateOf(false) }
+    var showExportCompleteDialog by remember(currentChatId) { mutableStateOf(false) }
+    var exportProgress by remember(currentChatId) { mutableStateOf(0f) }
+    var exportStatus by remember(currentChatId) { mutableStateOf("") }
+    var exportSuccess by remember(currentChatId) { mutableStateOf(false) }
+    var exportFilePath by remember(currentChatId) { mutableStateOf<String?>(null) }
+    var exportErrorMessage by remember(currentChatId) { mutableStateOf<String?>(null) }
+    var exportJob by remember(currentChatId) { mutableStateOf<Job?>(null) }
+    var webContentDir by remember(currentChatId) { mutableStateOf<File?>(null) }
+    DisposableEffect(currentChatId) { onDispose { exportJob?.cancel() } }
     var editingMessageType by remember { mutableStateOf<String?>(null) }
-    var pendingRollbackIndex by remember { mutableStateOf<Int?>(null) }
-    var pendingRewindIndex by remember { mutableStateOf<Int?>(null) }
+    var editingTarget by remember(currentChatId) { mutableStateOf<ChatMessage?>(null) }
+    var pendingRollbackTimestamp by remember(currentChatId) { mutableStateOf<Long?>(null) }
+    var pendingRewindTimestamp by remember(currentChatId) { mutableStateOf<Long?>(null) }
     var pendingRewindContent by remember { mutableStateOf<String?>(null) }
-    var rollbackPreview by remember { mutableStateOf<List<WorkspaceBackupManager.WorkspaceFileChange>>(emptyList()) }
-    var rewindPreview by remember { mutableStateOf<List<WorkspaceBackupManager.WorkspaceFileChange>>(emptyList()) }
+    var rollbackPreview by remember(currentChatId, pendingRollbackTimestamp) { mutableStateOf<List<WorkspaceBackupManager.WorkspaceFileChange>>(emptyList()) }
+    var rewindPreview by remember(currentChatId, pendingRewindTimestamp) { mutableStateOf<List<WorkspaceBackupManager.WorkspaceFileChange>>(emptyList()) }
+    var rollbackPreviewLoading by remember(currentChatId, pendingRollbackTimestamp) { mutableStateOf(true) }
+    var rewindPreviewLoading by remember(currentChatId, pendingRewindTimestamp) { mutableStateOf(true) }
+    var rollbackPreviewError by remember(currentChatId, pendingRollbackTimestamp) { mutableStateOf<String?>(null) }
+    var rewindPreviewError by remember(currentChatId, pendingRewindTimestamp) { mutableStateOf<String?>(null) }
     val hasOlderDisplayHistory by actualViewModel.hasOlderDisplayHistory.collectAsState()
     val hasNewerDisplayHistory by actualViewModel.hasNewerDisplayHistory.collectAsState()
     val isLoadingDisplayWindow by actualViewModel.isLoadingDisplayWindow.collectAsState()
@@ -186,26 +201,37 @@ fun ChatScreenContent(
             "speechControls session=$isSpeechSessionActive paused=$isSpeechPaused autoRead=$isAutoReadEnabled visible=${isSpeechSessionActive || isSpeechPaused || isAutoReadEnabled}"
         )
     }
-    LaunchedEffect(pendingRollbackIndex) {
-        val index = pendingRollbackIndex
-        if (index != null) {
-            rollbackPreview = actualViewModel.previewWorkspaceChangesForMessage(index)
-        } else {
-            rollbackPreview = emptyList()
+    LaunchedEffect(currentChatId, pendingRollbackTimestamp) {
+        val target = pendingRollbackTimestamp ?: return@LaunchedEffect
+        try {
+            rollbackPreview = actualViewModel.previewWorkspaceChangesForMessage(target)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            AppLogger.e("ChatScreenContent", "Failed to preview workspace rollback", error)
+            rollbackPreviewError = context.getString(R.string.workspace_rewind_preview_failed)
+        } finally {
+            rollbackPreviewLoading = false
         }
     }
 
-    LaunchedEffect(pendingRewindIndex) {
-        val index = pendingRewindIndex
-        if (index != null) {
-            rewindPreview = actualViewModel.previewWorkspaceChangesForMessage(index)
-        } else {
-            rewindPreview = emptyList()
+    LaunchedEffect(currentChatId, pendingRewindTimestamp) {
+        val target = pendingRewindTimestamp ?: return@LaunchedEffect
+        try {
+            rewindPreview = actualViewModel.previewWorkspaceChangesForMessage(target)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            AppLogger.e("ChatScreenContent", "Failed to preview workspace resend", error)
+            rewindPreviewError = context.getString(R.string.workspace_rewind_preview_failed)
+        } finally {
+            rewindPreviewLoading = false
         }
     }
 
-    val onSelectMessageToEditCallback = remember(editingMessageIndex, editingMessageContent, editingMessageType) {
+    val onSelectMessageToEditCallback = remember(currentChatId, editingMessageIndex, editingMessageContent) {
         { index: Int, message: ChatMessage, senderType: String ->
+            editingTarget = message
             editingMessageIndex.value = index
             editingMessageContent.value = message.content
             editingMessageType = senderType
@@ -238,7 +264,7 @@ fun ChatScreenContent(
                             actualViewModel.deleteCurrentMessageVariant(index)
                         },
                         onDeleteMessagesFrom = { index -> actualViewModel.deleteMessagesFrom(index) },
-                        onRollbackToMessage = { index -> pendingRollbackIndex = index },
+                        onRollbackToMessage = { index -> pendingRollbackTimestamp = chatHistory.getOrNull(index)?.timestamp },
                         onRegenerateMessage = { index -> actualViewModel.regenerateSingleAiMessage(index) },
                         onSwitchMessageVariant = { index, targetVariantIndex ->
                             actualViewModel.switchMessageVariant(index, targetVariantIndex)
@@ -286,17 +312,19 @@ fun ChatScreenContent(
                         onToggleMultiSelectMode = { initialIndex ->
                             isMultiSelectMode = !isMultiSelectMode
                             if (!isMultiSelectMode) {
-                                selectedMessageIndices = emptySet()
+                                selectedMessageTimestamps = emptySet()
                             } else if (initialIndex != null) {
                                 // 进入多选模式时，自动选中触发的消息
-                                selectedMessageIndices = setOf(initialIndex)
+                                selectMessageIndices(setOf(initialIndex))
                             }
                         },
                         onToggleMessageSelection = { index ->
-                            selectedMessageIndices = if (selectedMessageIndices.contains(index)) {
-                                selectedMessageIndices - index
-                            } else {
-                                selectedMessageIndices + index
+                            chatHistory.getOrNull(index)?.timestamp?.let { timestamp ->
+                                selectedMessageTimestamps = if (timestamp in selectedMessageTimestamps) {
+                                    selectedMessageTimestamps - timestamp
+                                } else {
+                                    selectedMessageTimestamps + timestamp
+                                }
                             }
                         },
                         horizontalPadding = chatAreaHorizontalPadding.dp,
@@ -355,7 +383,7 @@ fun ChatScreenContent(
                             actualViewModel.deleteCurrentMessageVariant(index)
                         },
                         onDeleteMessagesFrom = { index -> actualViewModel.deleteMessagesFrom(index) },
-                        onRollbackToMessage = { index -> pendingRollbackIndex = index },
+                        onRollbackToMessage = { index -> pendingRollbackTimestamp = chatHistory.getOrNull(index)?.timestamp },
                         onRegenerateMessage = { index -> actualViewModel.regenerateSingleAiMessage(index) },
                         onSwitchMessageVariant = { index, targetVariantIndex ->
                             actualViewModel.switchMessageVariant(index, targetVariantIndex)
@@ -403,17 +431,19 @@ fun ChatScreenContent(
                         onToggleMultiSelectMode = { initialIndex ->
                             isMultiSelectMode = !isMultiSelectMode
                             if (!isMultiSelectMode) {
-                                selectedMessageIndices = emptySet()
+                                selectedMessageTimestamps = emptySet()
                             } else if (initialIndex != null) {
                                 // 进入多选模式时，自动选中触发的消息
-                                selectedMessageIndices = setOf(initialIndex)
+                                selectMessageIndices(setOf(initialIndex))
                             }
                         },
                         onToggleMessageSelection = { index ->
-                            selectedMessageIndices = if (selectedMessageIndices.contains(index)) {
-                                selectedMessageIndices - index
-                            } else {
-                                selectedMessageIndices + index
+                            chatHistory.getOrNull(index)?.timestamp?.let { timestamp ->
+                                selectedMessageTimestamps = if (timestamp in selectedMessageTimestamps) {
+                                    selectedMessageTimestamps - timestamp
+                                } else {
+                                    selectedMessageTimestamps + timestamp
+                                }
                             }
                         },
                         showChatFloatingDotsAnimation = showChatFloatingDotsAnimation,
@@ -461,7 +491,7 @@ fun ChatScreenContent(
                         IconButton(
                             onClick = {
                                 isMultiSelectMode = false
-                                selectedMessageIndices = emptySet()
+                                selectedMessageTimestamps = emptySet()
                             },
                             modifier = Modifier.size(40.dp)
                         ) {
@@ -495,12 +525,9 @@ fun ChatScreenContent(
 
                         TextButton(
                             onClick = {
-                                selectedMessageIndices =
-                                        if (allSelectableSelected) {
-                                            emptySet()
-                                        } else {
-                                            selectableMessageIndices
-                                        }
+                                selectMessageIndices(
+                                    if (allSelectableSelected) emptySet() else selectableMessageIndices
+                                )
                             },
                             enabled = selectableMessageIndices.isNotEmpty(),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
@@ -547,6 +574,7 @@ fun ChatScreenContent(
                         FilledIconButton(
                             onClick = {
                                 if (selectedMessageIndices.isNotEmpty() && !isGeneratingImage) {
+                                    shareMessageSnapshot = selectedMessageIndices.sorted().map { chatHistory[it] }
                                     // 预览参数仅对本次截图生效，不污染正常聊天展示状态
                                     sharePreviewUri = null
                                     sharePreviewThinkingExpanded = false
@@ -576,6 +604,7 @@ fun ChatScreenContent(
                         FilledIconButton(
                             onClick = {
                                 if (selectedMessageIndices.isNotEmpty()) {
+                                    pendingDeleteTimestamps = selectedMessageIndices.map { chatHistory[it].timestamp }.toSet()
                                     showDeleteSelectedConfirmDialog = true
                                 }
                             },
@@ -722,12 +751,12 @@ fun ChatScreenContent(
             AlertDialog(
                 onDismissRequest = { showDeleteSelectedConfirmDialog = false },
                 title = { Text(stringResource(R.string.confirm_delete)) },
-                text = { Text("Delete ${selectedMessageIndices.size} selected messages? This cannot be undone.") },
+                text = { Text(stringResource(R.string.chat_delete_selected_messages_confirmation, pendingDeleteTimestamps.size)) },
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            actualViewModel.deleteMessages(selectedMessageIndices)
-                            selectedMessageIndices = emptySet()
+                            actualViewModel.deleteMessagesByIdentity(currentChatId, pendingDeleteTimestamps)
+                            selectedMessageTimestamps = emptySet()
                             isMultiSelectMode = false
                             showDeleteSelectedConfirmDialog = false
                         }
@@ -743,49 +772,53 @@ fun ChatScreenContent(
         }
 
         if (showSharePreviewDialog) {
-            LaunchedEffect(
-                showSharePreviewDialog,
-                selectedMessageIndices,
+            DisposableEffect(
+                currentChatId,
+                shareMessageSnapshot,
                 sharePreviewThinkingExpanded,
                 sharePreviewExpandThinkToolsGroups,
                 sharePreviewIncludeBackground,
                 sharePreviewBorderWidth
             ) {
-                if (showSharePreviewDialog && selectedMessageIndices.isNotEmpty() && !isGeneratingImage) {
-                    isGeneratingImage = true
-                    actualViewModel.shareMessages(
-                        context = context,
-                        messageIndices = selectedMessageIndices,
-                        userMessageColor = userMessageColor,
-                        aiMessageColor = aiMessageColor,
-                        userTextColor = userTextColor,
-                        aiTextColor = aiTextColor,
-                        systemMessageColor = systemMessageColor,
-                        systemTextColor = systemTextColor,
-                        thinkingBackgroundColor = thinkingBackgroundColor,
-                        thinkingTextColor = thinkingTextColor,
-                        chatStyle = chatStyle,
-                        cursorUserBubbleLiquidGlass = cursorUserBubbleLiquidGlass,
-                        cursorUserBubbleWaterGlass = cursorUserBubbleWaterGlass,
-                        bubbleUserBubbleLiquidGlass = bubbleUserBubbleLiquidGlass,
-                        bubbleUserBubbleWaterGlass = bubbleUserBubbleWaterGlass,
-                        bubbleAiBubbleLiquidGlass = bubbleAiBubbleLiquidGlass,
-                        bubbleAiBubbleWaterGlass = bubbleAiBubbleWaterGlass,
-                        initialThinkingExpanded = sharePreviewThinkingExpanded,
-                        expandThinkToolsGroups = sharePreviewExpandThinkToolsGroups,
-                        includeBackground = sharePreviewIncludeBackground,
-                        borderWidthDp = sharePreviewBorderWidth,
-                        forceShowThinkingProcess = true,
-                        onSuccess = { uri ->
-                            sharePreviewUri = uri
-                            isGeneratingImage = false
-                        },
-                        onError = { error ->
-                            isGeneratingImage = false
-                            AppLogger.e("ChatScreenContent", "Generate share image failed: $error")
-                            android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
-                        }
-                    )
+                // 参数变化立即取消旧图；关闭面板后旧生成结果不得重新发布到预览。
+                isGeneratingImage = true
+                sharePreviewUri = null
+                val generationJob = actualViewModel.shareMessages(
+                    context = context,
+                    selectedMessages = shareMessageSnapshot,
+                    userMessageColor = userMessageColor,
+                    aiMessageColor = aiMessageColor,
+                    userTextColor = userTextColor,
+                    aiTextColor = aiTextColor,
+                    systemMessageColor = systemMessageColor,
+                    systemTextColor = systemTextColor,
+                    thinkingBackgroundColor = thinkingBackgroundColor,
+                    thinkingTextColor = thinkingTextColor,
+                    chatStyle = chatStyle,
+                    cursorUserBubbleLiquidGlass = cursorUserBubbleLiquidGlass,
+                    cursorUserBubbleWaterGlass = cursorUserBubbleWaterGlass,
+                    bubbleUserBubbleLiquidGlass = bubbleUserBubbleLiquidGlass,
+                    bubbleUserBubbleWaterGlass = bubbleUserBubbleWaterGlass,
+                    bubbleAiBubbleLiquidGlass = bubbleAiBubbleLiquidGlass,
+                    bubbleAiBubbleWaterGlass = bubbleAiBubbleWaterGlass,
+                    initialThinkingExpanded = sharePreviewThinkingExpanded,
+                    expandThinkToolsGroups = sharePreviewExpandThinkToolsGroups,
+                    includeBackground = sharePreviewIncludeBackground,
+                    borderWidthDp = sharePreviewBorderWidth,
+                    forceShowThinkingProcess = true,
+                    onSuccess = { uri ->
+                        sharePreviewUri = uri
+                        isGeneratingImage = false
+                    },
+                    onError = { error ->
+                        isGeneratingImage = false
+                        AppLogger.e("ChatScreenContent", "Generate share image failed: $error")
+                        android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                )
+                onDispose {
+                    generationJob.cancel()
+                    isGeneratingImage = false
                 }
             }
             ShareImagePreviewDialog(
@@ -814,7 +847,7 @@ fun ChatScreenContent(
                             context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_selected)))
                             showSharePreviewDialog = false
                             isMultiSelectMode = false
-                            selectedMessageIndices = emptySet()
+                            selectedMessageTimestamps = emptySet()
                             sharePreviewUri = null
                         } catch (e: Exception) {
                             AppLogger.e("ChatScreenContent", "Share failed", e)
@@ -847,18 +880,19 @@ fun ChatScreenContent(
         }
 
         // Android导出设置对话框
-        if (showAndroidExportDialog && webContentDir != null) {
+        val exportDirectory = webContentDir
+        if (showAndroidExportDialog && exportDirectory != null) {
             AndroidExportDialog(
-                    workDir = webContentDir!!,
+                    workDir = exportDirectory,
                     onDismiss = { showAndroidExportDialog = false },
                     onExport = { packageName, appName, iconUri, versionName, versionCode ->
+                        if (exportJob?.isActive == true) return@AndroidExportDialog
                         showAndroidExportDialog = false
                         showExportProgressDialog = true
                         exportProgress = 0f
                         exportStatus = context.getString(R.string.chat_starting_export)
 
                         // 启动导出过程
-                        exportJob?.cancel()
                         exportJob = coroutineScope.launch {
                             exportAndroidApp(
                                     context = context,
@@ -867,7 +901,7 @@ fun ChatScreenContent(
                                     versionName = versionName,
                                     versionCode = versionCode,
                                     iconUri = iconUri,
-                                    webContentDir = webContentDir!!,
+                                    webContentDir = exportDirectory,
                                     onProgress = { progress, status ->
                                         exportProgress = progress
                                         exportStatus = status
@@ -887,24 +921,24 @@ fun ChatScreenContent(
         }
 
         // Windows导出设置对话框
-        if (showWindowsExportDialog && webContentDir != null) {
+        if (showWindowsExportDialog && exportDirectory != null) {
             WindowsExportDialog(
-                    workDir = webContentDir!!,
+                    workDir = exportDirectory,
                     onDismiss = { showWindowsExportDialog = false },
                     onExport = { appName, iconUri ->
+                        if (exportJob?.isActive == true) return@WindowsExportDialog
                         showWindowsExportDialog = false
                         showExportProgressDialog = true
                         exportProgress = 0f
                         exportStatus = context.getString(R.string.chat_starting_export)
 
                         // 启动导出过程
-                        exportJob?.cancel()
                         exportJob = coroutineScope.launch {
                             exportWindowsApp(
                                     context = context,
                                     appName = appName,
                                     iconUri = iconUri,
-                                    webContentDir = webContentDir!!,
+                                    webContentDir = exportDirectory,
                                     onProgress = { progress, status ->
                                         exportProgress = progress
                                         exportStatus = status
@@ -971,34 +1005,40 @@ fun ChatScreenContent(
         }
 
         // 当需要编辑消息时，显示消息编辑器
-        if (editingMessageIndex.value != null) {
+        if (editingMessageIndex.value != null && editingTarget != null) {
             MessageEditor(
                 editingMessageContent = editingMessageContent,
                 onCancel = {
                     editingMessageIndex.value = null
                     editingMessageContent.value = ""
                 },
-                onSave = {
-                    val index = editingMessageIndex.value
-                    if (index != null) {
-                        val editedMessage =
-                            chatHistory[index].copy(
-                                content = editingMessageContent.value,
-                                contentStream = null
-                            )
-                        actualViewModel.updateMessage(index, editedMessage)
+                onSave = saveEdit@{
+                    val target = editingTarget
+                    val index = chatHistory.indexOfFirst { it.timestamp == target?.timestamp }
+                    if (index < 0 || target == null) {
+                        actualViewModel.showToast(context.getString(R.string.chat_invalid_message_index))
+                        return@saveEdit
                     }
+                    val editedMessage = target.copy(
+                        content = editingMessageContent.value,
+                        contentStream = null,
+                    )
+                    actualViewModel.updateMessage(index, editedMessage)
                     editingMessageIndex.value = null
                     editingMessageContent.value = ""
                 },
-                onResend = {
-                    val index = editingMessageIndex.value
-                    if (index != null) {
+                onResend = resendEdit@{
+                    val index = chatHistory.indexOfFirst { it.timestamp == editingTarget?.timestamp }
+                    if (index < 0) {
+                        actualViewModel.showToast(context.getString(R.string.chat_invalid_message_index))
+                        return@resendEdit
+                    }
+                    if (index >= 0) {
                         val currentChat = chatHistories.find { it.id == currentChatId }
                         val hasWorkspace = !currentChat?.workspace.isNullOrBlank()
 
                         if (hasWorkspace) {
-                            pendingRewindIndex = index
+                            pendingRewindTimestamp = chatHistory.getOrNull(index)?.timestamp
                             pendingRewindContent = editingMessageContent.value
                         } else {
                             // 没有绑定工作区时，直接执行编辑并重发，无需确认弹窗
@@ -1012,38 +1052,42 @@ fun ChatScreenContent(
             )
         }
 
-        if (pendingRollbackIndex != null) {
+        if (pendingRollbackTimestamp != null) {
             WorkspaceChangeConfirmDialog(
                 mode = WorkspaceChangeConfirmMode.ROLLBACK,
                 changes = rollbackPreview,
+                isLoading = rollbackPreviewLoading,
+                errorMessage = rollbackPreviewError,
                 onConfirm = {
-                    val index = pendingRollbackIndex
+                    val index = chatHistory.indexOfFirst { it.timestamp == pendingRollbackTimestamp }.takeIf { it >= 0 }
                     if (index != null) {
                         actualViewModel.rollbackToMessage(index)
                     }
-                    pendingRollbackIndex = null
+                    pendingRollbackTimestamp = null
                 },
                 onDismiss = {
-                    pendingRollbackIndex = null
+                    pendingRollbackTimestamp = null
                 }
             )
         }
 
-        if (pendingRewindIndex != null && pendingRewindContent != null) {
+        if (pendingRewindTimestamp != null && pendingRewindContent != null) {
             WorkspaceChangeConfirmDialog(
                 mode = WorkspaceChangeConfirmMode.EDIT_AND_RESEND,
                 changes = rewindPreview,
+                isLoading = rewindPreviewLoading,
+                errorMessage = rewindPreviewError,
                 onConfirm = {
-                    val index = pendingRewindIndex
+                    val index = chatHistory.indexOfFirst { it.timestamp == pendingRewindTimestamp }.takeIf { it >= 0 }
                     val content = pendingRewindContent
                     if (index != null && content != null) {
                         actualViewModel.rewindAndResendMessage(index, content)
                     }
-                    pendingRewindIndex = null
+                    pendingRewindTimestamp = null
                     pendingRewindContent = null
                 },
                 onDismiss = {
-                    pendingRewindIndex = null
+                    pendingRewindTimestamp = null
                     pendingRewindContent = null
                 }
             )

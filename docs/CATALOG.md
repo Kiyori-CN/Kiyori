@@ -141,6 +141,13 @@
 | [2_AgreementTextDraft.md](TODO/agreement_version_confirmation/2_AgreementTextDraft.md) | 旧协议文本实现记录 |
 | [index.md](TODO/agreement_version_confirmation/index.md) | 已发布用户协议版本确认（历史记录） |
 
+## docs/TODO/ai_chat_experience_refinement
+
+| 文档 | 用途或标题 |
+| --- | --- |
+| [01_surface_inventory.md](TODO/ai_chat_experience_refinement/01_surface_inventory.md) | AI 体验页面与弹层定位清单 |
+| [index.md](TODO/ai_chat_experience_refinement/index.md) | AI 对话全界面与交互优化 |
+
 ## docs/TODO/ai_chat_rendering_reliability
 
 | 文档 | 用途或标题 |
@@ -764,6 +771,7 @@
 | --- | --- |
 | [README.md](doc-src/contracts/README.md) | 运行时契约索引 |
 | [ai_execution.md](doc-src/contracts/ai_execution.md) | AI 请求与执行契约 |
+| [ai_interaction.md](doc-src/contracts/ai_interaction.md) | AI 对话交互契约 |
 | [browser.md](doc-src/contracts/browser.md) | 浏览器运行时契约 |
 | [extensions_workspace.md](doc-src/contracts/extensions_workspace.md) | 扩展、工具与工作区契约 |
 | [media_downloads.md](doc-src/contracts/media_downloads.md) | 媒体、资源目录与下载契约 |

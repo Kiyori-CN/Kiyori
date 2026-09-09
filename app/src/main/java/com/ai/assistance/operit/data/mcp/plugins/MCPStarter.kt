@@ -937,7 +937,7 @@ class MCPStarter(private val context: Context) {
                             if (generatedDescription.isNotBlank()) {
                                 val updatedMetadata =
                                     pluginInfo.copy(description = generatedDescription)
-                                mcpLocalServer.addOrUpdatePluginMetadata(updatedMetadata)
+                                mcpLocalServer.editPluginMetadata(pluginInfo, updatedMetadata)
                                 AppLogger.i(
                                     TAG,
                                     "已为插件 ${result.pluginId} 生成描述: $generatedDescription"

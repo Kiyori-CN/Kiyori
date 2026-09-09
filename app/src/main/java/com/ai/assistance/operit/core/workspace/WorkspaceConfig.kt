@@ -1,6 +1,5 @@
 package com.ai.assistance.operit.core.workspace
 
-import com.ai.assistance.operit.util.AppLogger
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -58,30 +57,37 @@ data class WatchConfig(
 )
 
 object WorkspaceConfigReader {
-    private const val TAG = "WorkspaceConfigReader"
     private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
     }
 
     fun readConfig(workspacePath: String): WorkspaceConfig {
-        val configFile = File(workspacePath, ".operit/config.json")
-        if (!configFile.exists()) {
-            AppLogger.d(TAG, "Config file not found at ${configFile.absolutePath}, using default")
+        val root = File(workspacePath)
+        require(root.isDirectory) { "Workspace directory is unavailable" }
+        val configFile = File(root, ".operit/config.json")
+        val content = try {
+            java.nio.file.Files.newBufferedReader(configFile.toPath(), Charsets.UTF_8).use { it.readText() }
+        } catch (missing: java.nio.file.NoSuchFileException) {
+            val parent = requireNotNull(configFile.parentFile).toPath()
+            if (java.nio.file.Files.exists(configFile.toPath(), java.nio.file.LinkOption.NOFOLLOW_LINKS) ||
+                (java.nio.file.Files.exists(parent, java.nio.file.LinkOption.NOFOLLOW_LINKS) && !java.nio.file.Files.isDirectory(parent))) throw missing
             return defaultWebConfig()
         }
-        return try {
-            json.decodeFromString<WorkspaceConfig>(configFile.readText())
-        } catch (error: Exception) {
-            AppLogger.e(TAG, "Failed to parse config file: ${error.message}", error)
-            defaultWebConfig()
-        }
+        return parseConfig(content)
+    }
+
+    fun parseConfig(content: String): WorkspaceConfig = try {
+        json.decodeFromString<WorkspaceConfig>(content)
+    } catch (error: kotlinx.serialization.SerializationException) {
+        // JSON 解析异常可能夹带命令/环境变量正文；错误可见，但不能带入持久日志。
+        throw java.io.IOException("Invalid workspace configuration (${error.javaClass.simpleName})")
     }
 
     fun hasConfig(workspacePath: String): Boolean =
         File(workspacePath, ".operit/config.json").exists()
 
-    private fun defaultWebConfig(): WorkspaceConfig =
+    fun defaultWebConfig(): WorkspaceConfig =
         WorkspaceConfig(
             server = ServerConfig(enabled = true, port = 8093, autoStart = true),
             preview = PreviewConfig(type = "browser", url = "http://localhost:8093"),

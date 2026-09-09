@@ -29,7 +29,8 @@ fun WorkspaceScreen(
 ) {
     if (currentChat?.workspace != null) {
         val workspacePath = currentChat.workspace
-        WorkspaceManager(
+        key(currentChat.id, workspacePath, currentChat.workspaceEnv) {
+            WorkspaceManager(
                 actualViewModel = actualViewModel,
                 currentChat = currentChat,
                 workspacePath = workspacePath,
@@ -37,14 +38,18 @@ fun WorkspaceScreen(
                 isVisible = isVisible,
                 onExportClick = onExportClick
             )
+        }
         
     } else if (currentChat != null) {
-        WorkspaceSetup(
-            chatId = currentChat.id,
-            onBindWorkspace = { workspacePath, workspaceEnv ->
-                actualViewModel.bindChatToWorkspace(currentChat.id, workspacePath, workspaceEnv)
-            }
-        )
+        key(currentChat.id) {
+            WorkspaceSetup(
+                chatId = currentChat.id,
+                isVisible = isVisible,
+                onBindWorkspace = { workspacePath, workspaceEnv ->
+                    actualViewModel.bindChatToWorkspace(currentChat.id, workspacePath, workspaceEnv)
+                }
+            )
+        }
     } else {
         val context = LocalContext.current
         Column(

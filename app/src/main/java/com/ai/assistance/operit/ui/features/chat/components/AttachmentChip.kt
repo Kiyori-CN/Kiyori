@@ -57,7 +57,7 @@ fun AttachmentChip(attachmentInfo: AttachmentInfo, onRemove: () -> Unit, onInser
     if (isImage) {
         Box(
             modifier =
-                Modifier.size(52.dp)
+                Modifier.size(72.dp)
                     .clip(RoundedCornerShape(12.dp))
         ) {
             AsyncImage(
@@ -78,8 +78,8 @@ fun AttachmentChip(attachmentInfo: AttachmentInfo, onRemove: () -> Unit, onInser
                 IconButton(onClick = onRemove, modifier = Modifier.fillMaxSize()) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = context.getString(R.string.remove_attachment),
-                        modifier = Modifier.size(10.dp),
+                        contentDescription = context.getString(R.string.remove_attachment) + ": " + attachmentInfo.fileName,
+                        modifier = Modifier.size(16.dp),
                         tint = Color.White,
                     )
                 }
@@ -115,7 +115,7 @@ fun AttachmentChip(attachmentInfo: AttachmentInfo, onRemove: () -> Unit, onInser
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.widthIn(max = 80.dp),
+                    modifier = Modifier.widthIn(max = 160.dp),
                 )
 
                 Spacer(modifier = Modifier.width(2.dp))
@@ -123,8 +123,8 @@ fun AttachmentChip(attachmentInfo: AttachmentInfo, onRemove: () -> Unit, onInser
                 IconButton(onClick = onRemove, modifier = Modifier.size(40.dp)) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = context.getString(R.string.remove_attachment),
-                        modifier = Modifier.size(10.dp),
+                        contentDescription = context.getString(R.string.remove_attachment) + ": " + attachmentInfo.fileName,
+                        modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }

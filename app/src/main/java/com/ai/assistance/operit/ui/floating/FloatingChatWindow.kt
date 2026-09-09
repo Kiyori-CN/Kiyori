@@ -142,10 +142,7 @@ fun FloatingChatWindow(
         // 通知服务需要切换焦点模式
         floatContext.onInputFocusRequest?.invoke(floatContext.showInputDialog)
 
-        // 如果隐藏输入框，清空消息
-        if (!floatContext.showInputDialog) {
-            floatContext.userMessage = ""
-        }
+        // 收起只改变呈现；草稿由发送或用户编辑处理，避免模式切换丢失输入。
     }
 
     // 根据currentMode参数渲染对应界面，使用AnimatedContent添加炫酷过渡动画

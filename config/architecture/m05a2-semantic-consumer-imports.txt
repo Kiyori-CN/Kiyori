@@ -5,8 +5,10 @@ app/src/main/java/com/ai/assistance/operit/ui/features/chat/components/Character
 app/src/main/java/com/ai/assistance/operit/ui/features/chat/components/CharacterSelectorPanel.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/features/chat/components/ChatHeader.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/chat/components/ChatHeader.kt	com.kiyori.design.theme.resolveColors
-app/src/main/java/com/ai/assistance/operit/ui/features/chat/components/ChatScreenHeader.kt	com.kiyori.design.theme.KiyoriSemanticTone
-app/src/main/java/com/ai/assistance/operit/ui/features/chat/components/ChatScreenHeader.kt	com.kiyori.design.theme.resolveColors
+app/src/main/java/com/ai/assistance/operit/ui/features/chat/components/ChatStatisticsSheet.kt	com.kiyori.design.theme.KiyoriSemanticTone
+app/src/main/java/com/ai/assistance/operit/ui/features/chat/components/ChatStatisticsSheet.kt	com.kiyori.design.theme.resolveColors
+app/src/main/java/com/ai/assistance/operit/ui/features/chat/details/ConversationDetailsScreen.kt	com.kiyori.design.theme.KiyoriSemanticTone
+app/src/main/java/com/ai/assistance/operit/ui/features/chat/details/ConversationDetailsScreen.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/features/chat/screens/AIChatScreen.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/chat/screens/AIChatScreen.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/features/demo/components/PermissionLevelCard.kt	com.kiyori.design.theme.KiyoriSemanticTone
@@ -85,6 +87,7 @@ app/src/main/java/com/ai/assistance/operit/ui/main/shell/KiyoriApplicationSettin
 app/src/main/java/com/ai/assistance/operit/ui/main/shell/KiyoriAssistantExperienceSettingsPages.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/main/shell/KiyoriFileManagementPage.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/main/shell/KiyoriMoreFeaturesSettingsPage.kt	com.kiyori.design.theme.KiyoriSemanticTone
+app/src/main/java/com/ai/assistance/operit/ui/main/shell/KiyoriNetworkProxySettingsPage.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/main/shell/KiyoriSettingsUi.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/kiyori/app/shell/KiyoriAiDrawer.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/kiyori/app/shell/KiyoriAiDrawer.kt	com.kiyori.design.theme.resolveColors
@@ -99,4 +102,3 @@ app/src/test/java/com/ai/assistance/operit/ui/features/packages/screens/PackageM
 app/src/test/java/com/ai/assistance/operit/ui/features/websession/browser/chrome/WebSessionBrowserVisualPolicyTest.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/test/java/com/ai/assistance/operit/ui/main/shell/KiyoriSettingsPagesTest.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/test/java/com/ai/assistance/operit/ui/main/shell/KiyoriShellStateTest.kt	com.kiyori.design.theme.KiyoriSemanticTone
-app/src/main/java/com/ai/assistance/operit/ui/main/shell/KiyoriNetworkProxySettingsPage.kt	com.kiyori.design.theme.KiyoriSemanticTone

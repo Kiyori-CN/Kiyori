@@ -5,6 +5,7 @@ import android.widget.Toast
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
+import com.ai.assistance.operit.core.tools.skill.SkillImportPublication
 import com.ai.assistance.operit.data.api.MarketStatsApiService
 import com.ai.assistance.operit.data.api.MarketV2Entry
 import com.ai.assistance.operit.data.mcp.InstallResult
@@ -50,12 +51,19 @@ class MarketEntryInstallController(
             throw IllegalStateException(context.getString(R.string.skillmarket_invalid_repo_url))
         }
         onProgress(MarketInstallStage.IMPORTING_REPOSITORY, null)
-        deleteInstalledMarkerRoot(entry)
-        val result = skillRepository.importSkillFromGitHubRepoDetailed(repoUrl)
-        val installedDir = result.installedDir ?: throw IllegalStateException(result.message)
-        withContext(Dispatchers.IO) {
-            writeMarketInstallMarker(installedDir, entry)
+        val existingDirectory = withContext(Dispatchers.IO) {
+            val roots = findInstalledMarketMarkerRoots(appContext, packageManager, entry.id).distinctBy { it.canonicalPath }
+            check(roots.size <= 1) { "Multiple installations match this market skill" }
+            roots.singleOrNull()
         }
+        val result = skillRepository.importSkillFromGitHubRepoDetailed(repoUrl, SkillImportPublication(
+            existingDirectory = existingDirectory,
+            validateExisting = { directory ->
+                check(readMarketInstallMarker(directory)?.entryId == entry.id) { "Installed skill source changed before update" }
+            },
+            prepareDirectory = { directory -> writeMarketInstallMarker(directory, entry) },
+        ))
+        if (result.installedDir == null) throw IllegalStateException(result.message)
         Toast.makeText(context, result.message, Toast.LENGTH_LONG).show()
         trackEntryAssetDownload(entry, onProgress)
     }
@@ -76,7 +84,6 @@ class MarketEntryInstallController(
                 throw IllegalStateException(context.getString(R.string.mcp_local_no_mcp_servers_field))
             }
             onProgress(MarketInstallStage.IMPORTING_CONFIG, null)
-            deleteInstalledMarkerRoot(entry)
             val count =
                 MCPLocalServer.getInstance(appContext)
                     .mergeConfigFromJson(installConfig)
@@ -106,7 +113,6 @@ class MarketEntryInstallController(
         }
 
         onProgress(MarketInstallStage.IMPORTING_REPOSITORY, null)
-        deleteInstalledMarkerRoot(entry)
         val server = MCPLocalServer.PluginMetadata(
             id = entry.id,
             name = entry.title,
@@ -140,32 +146,23 @@ class MarketEntryInstallController(
         val serverIds = parseMcpServerIds(entry.latestVersion?.installConfig.orEmpty())
         if (serverIds.isEmpty()) return
         val localServer = MCPLocalServer.getInstance(appContext)
-        for (serverId in serverIds) {
-            val current = localServer.getPluginMetadata(serverId)
-            localServer.addOrUpdatePluginMetadata(
+        localServer.recordMarketConfigMetadata(serverIds.map { serverId ->
                 MCPLocalServer.PluginMetadata(
                     id = serverId,
-                    name = current?.name?.ifBlank { entry.title } ?: entry.title,
-                    description = current?.description?.ifBlank { entry.description } ?: entry.description,
-                    logoUrl = entry.publisher?.avatarUrl ?: entry.publisher?.avatar ?: entry.author?.avatarUrl ?: entry.author?.avatar ?: current?.logoUrl,
-                    author = entry.publisher?.login.orEmpty().ifBlank { entry.author?.login.orEmpty() }.ifBlank { current?.author ?: entry.publisherId.removePrefix("gh_") },
+                    name = entry.title,
+                    description = entry.description,
+                    logoUrl = entry.publisher?.avatarUrl ?: entry.publisher?.avatar ?: entry.author?.avatarUrl ?: entry.author?.avatar,
+                    author = entry.publisher?.login.orEmpty().ifBlank { entry.author?.login.orEmpty() }.ifBlank { entry.publisherId.removePrefix("gh_") },
                     isInstalled = true,
-                    version = entry.latestVersion?.version ?: current?.version.orEmpty(),
-                    updatedAt = entry.updatedAt.orEmpty().ifBlank { current?.updatedAt.orEmpty() },
+                    version = entry.latestVersion?.version.orEmpty(),
+                    updatedAt = entry.updatedAt.orEmpty(),
                     longDescription = entry.detail.ifBlank { entry.description },
                     repoUrl = entry.source?.url.orEmpty(),
-                    type = current?.type ?: "local",
-                    endpoint = current?.endpoint,
-                    connectionType = current?.connectionType,
-                    disabled = current?.disabled ?: false,
-                    bearerToken = current?.bearerToken,
-                    headers = current?.headers,
-                    installedPath = current?.installedPath,
-                    installedTime = current?.installedTime ?: System.currentTimeMillis(),
+                    type = "local",
+                    installedTime = System.currentTimeMillis(),
                     marketConfig = entry.latestVersion?.installConfig
                 )
-            )
-        }
+        })
     }
 
     private suspend fun installArtifactEntry(
@@ -177,7 +174,7 @@ class MarketEntryInstallController(
         val defaultVersion =
             project.versions.firstOrNull { it.versionId == project.defaultVersionId }
                 ?: throw IllegalStateException("Default artifact version not found")
-        installArtifactProjectVersion(
+        val installedIssue = installArtifactProjectVersion(
             context = appContext,
             packageManager = packageManager,
             projectVersions = project.versions,
@@ -188,6 +185,7 @@ class MarketEntryInstallController(
             writeMarketInstallMarker(artifactMarketMarkerRoot(packageManager, defaultVersion.runtimePackageId), entry)
         }
         MarketInstallStateStore.notifyArtifactCatalogChanged()
+        installedIssue?.let { throw it }
         Toast.makeText(
             context,
             context.getString(
@@ -199,16 +197,6 @@ class MarketEntryInstallController(
             ),
             Toast.LENGTH_SHORT
         ).show()
-    }
-
-    private suspend fun deleteInstalledMarkerRoot(entry: MarketV2Entry) {
-        withContext(Dispatchers.IO) {
-            findInstalledMarketMarkerRoots(appContext, packageManager, entry.id).forEach { root ->
-                if (root.exists()) {
-                    root.deleteRecursively()
-                }
-            }
-        }
     }
 
     private suspend fun trackEntryAssetDownload(

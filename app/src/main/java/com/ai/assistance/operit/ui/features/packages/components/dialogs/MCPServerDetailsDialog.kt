@@ -10,6 +10,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.res.stringResource
+import com.ai.assistance.operit.R
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,8 +58,7 @@ fun MCPServerDetailsDialog(
         onUninstall: (MCPLocalServer.PluginMetadata) -> Unit,
         installedPath: String? = null,
         pluginConfig: String = "",
-        onSaveConfig: () -> Unit = {},
-        onUpdateConfig: (String) -> Unit = {},
+        onSaveConfig: suspend (String) -> Boolean = { false },
         mdFontSize: Float = 14f
 ) {
     val isInstalled = server.isInstalled
@@ -64,10 +71,18 @@ fun MCPServerDetailsDialog(
     // 本地编辑的配置内容
     var localPluginConfig by remember { mutableStateOf(pluginConfig) }
 
-    // 编辑结果同步到父组件
-    LaunchedEffect(localPluginConfig) { onUpdateConfig(localPluginConfig) }
-
-    Dialog(onDismissRequest = onDismiss) {
+    val scope = rememberCoroutineScope()
+    var saving by remember { mutableStateOf(false) }
+    var saveResult by remember { mutableStateOf<Boolean?>(null) }
+    var savedConfig by remember { mutableStateOf(pluginConfig) }
+    var discardRequested by remember { mutableStateOf(false) }
+    var uninstallRequested by remember { mutableStateOf(false) }
+    val requestDismiss: () -> Unit = {
+        if (!saving) {
+            if (localPluginConfig != savedConfig) discardRequested = true else onDismiss()
+        }
+    }
+    Dialog(onDismissRequest = requestDismiss) {
         Surface(
                 modifier =
                         Modifier.fillMaxWidth(0.95f) // Take 95% of the screen width
@@ -75,7 +90,7 @@ fun MCPServerDetailsDialog(
                                         0.7f
                                 ) // Take 70% of the screen height (reduced from 0.85f)
                                 .heightIn(
-                                        min = 400.dp,
+                                        min = minOf(400.dp, screenHeight * 0.7f),
                                         max = screenHeight * 0.7f // Reduced maximum height
                                 ) // Responsive height
                                 .padding(vertical = 8.dp), // Reduced vertical padding
@@ -83,10 +98,9 @@ fun MCPServerDetailsDialog(
                 color = MaterialTheme.colorScheme.surface,
                 tonalElevation = 2.dp
         ) {
-            Box(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.fillMaxWidth()) {
                     // Header (Logo, title, badges, etc.)
-                    MCPServerDetailsHeader(server = server, onDismiss = onDismiss)
+                    MCPServerDetailsHeader(server = server, onDismiss = requestDismiss)
 
                     // Tabs if installed
                     if (isInstalled) {
@@ -102,7 +116,6 @@ fun MCPServerDetailsDialog(
                             modifier =
                                     Modifier.fillMaxWidth()
                                             .weight(1f)
-                                            .padding(bottom = 56.dp) // Make space for actions
                     ) {
                         if (!isInstalled || selectedTabIndex == 0) {
                             // Details tab
@@ -117,27 +130,61 @@ fun MCPServerDetailsDialog(
                                     localPluginConfig = localPluginConfig,
                                     onConfigChanged = { localPluginConfig = it },
                                     installedPath = installedPath,
-                                    onSaveConfig = onSaveConfig,
+                                    saving = saving,
+                                    saveResult = saveResult,
+                                    onSaveConfig = {
+                                        if (!saving) {
+                                            val draft = localPluginConfig
+                                            saving = true
+                                            saveResult = null
+                                            scope.launch {
+                                                try {
+                                                    val saved = onSaveConfig(draft)
+                                                    saveResult = saved
+                                                    if (saved) savedConfig = draft
+                                                } catch (cancelled: CancellationException) { throw cancelled }
+                                                catch (_: Exception) { saveResult = false }
+                                                finally { saving = false }
+                                            }
+                                        }
+                                    },
                                     modifier = Modifier.fillMaxSize() // Fill the available space
                             )
                         }
                     }
-                }
 
-                // Bottom action buttons - Fixed at bottom
+                // 按钮参与实际布局测量，避免大字体下覆盖正文。
                 Surface(
-                        modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter),
+                        modifier = Modifier.fillMaxWidth(),
                         tonalElevation = 3.dp, // Slightly elevated
                         shadowElevation = 4.dp // Add shadow for visual separation
                 ) {
                     MCPServerDetailsActions(
                             server = server,
                             isInstalled = isInstalled,
+                            enabled = !saving,
                             onInstall = onInstall,
-                            onUninstall = onUninstall
+                            onUninstall = { if (!saving) uninstallRequested = true }
                     )
                 }
             }
         }
     }
+    if (discardRequested || uninstallRequested) {
+        AlertDialog(
+            onDismissRequest = { discardRequested = false; uninstallRequested = false },
+            title = { Text(stringResource(if (uninstallRequested) R.string.uninstall else R.string.mcp_unsaved_config)) },
+            text = { Text(if (uninstallRequested) server.name else stringResource(R.string.mcp_discard_config)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (uninstallRequested) onUninstall(server) else onDismiss()
+                    discardRequested = false
+                    uninstallRequested = false
+                }) { Text(stringResource(R.string.confirm)) }
+            },
+            dismissButton = { TextButton(onClick = { discardRequested = false; uninstallRequested = false }) { Text(stringResource(R.string.cancel)) } }
+        )
+    }
+
+
 }

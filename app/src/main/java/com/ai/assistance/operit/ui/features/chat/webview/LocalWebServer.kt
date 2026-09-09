@@ -55,10 +55,10 @@ private constructor(
     private val type: ServerType
 ) : NanoHTTPD(port) {
 
+    private data class WorkspaceLocation(val path: String, val environment: String?)
+    // 路径与环境必须一同发布；每次请求只消费一份快照，避免跨聊天混用两个值。
     @Volatile
-    private var rootPath: String = initialRootPath
-    @Volatile
-    private var workspaceEnv: String? = null
+    private var workspaceLocation = WorkspaceLocation(initialRootPath, null)
     private val proxyClient = OkHttpClient.Builder()
         .applyKiyoriNetworkProxy(KiyoriNetworkModule.BROWSER)
         .followRedirects(true)
@@ -161,7 +161,7 @@ private constructor(
             }
             super.start(SOCKET_READ_TIMEOUT, false)
             isServerRunning = true
-            AppLogger.d(TAG, "本地Web服务器已在端口 $port 上启动, 根目录: $rootPath")
+            AppLogger.d(TAG, "本地Web服务器已在端口 $port 上启动")
         }
     }
 
@@ -175,10 +175,10 @@ private constructor(
 
     fun updateChatWorkspace(newWorkspacePath: String, newWorkspaceEnv: String?) {
         synchronized(serverLock) {
-            this.rootPath = newWorkspacePath
-            this.workspaceEnv = newWorkspaceEnv
-            ensureWorkspaceDirExists(newWorkspacePath)
-            AppLogger.d(TAG, "Workspace path updated to: $rootPath env=$workspaceEnv")
+            if (newWorkspaceEnv.isNullOrBlank()) {
+                check(File(newWorkspacePath).isDirectory) { "Workspace directory is unavailable" }
+            }
+            workspaceLocation = WorkspaceLocation(newWorkspacePath, newWorkspaceEnv)
         }
     }
 
@@ -401,21 +401,22 @@ private constructor(
     }
 
     override fun serve(session: IHTTPSession): Response {
+        val location = workspaceLocation
         AppLogger.d(TAG, "Request received: ${session.uri} at port $port")
 
         // API route for file listing
         if (session.uri.startsWith("/api/")) {
-            return handleApiRequest(session)
+            return handleApiRequest(session, location)
         }
 
         // Serve static files
         val uri = if (session.uri == "/") "/index.html" else session.uri
         val mimeType = getCustomMimeType(uri)
 
-        return if (type == ServerType.WORKSPACE && !workspaceEnv.isNullOrBlank()) {
-            serveWorkspaceFileViaTool(uri, mimeType)
+        return if (type == ServerType.WORKSPACE && !location.environment.isNullOrBlank()) {
+            serveWorkspaceFileViaTool(uri, mimeType, location)
         } else {
-            serveFileFromDisk(uri, mimeType)
+            serveFileFromDisk(uri, mimeType, location)
         }
     }
 
@@ -438,7 +439,8 @@ private constructor(
         return if (base == "/") rel else normalizeWebPath(base.trimEnd('/') + rel)
     }
 
-    private fun serveWorkspaceFileViaTool(uri: String, mimeType: String): Response {
+    private fun serveWorkspaceFileViaTool(uri: String, mimeType: String, location: WorkspaceLocation): Response {
+        val (rootPath, workspaceEnv) = location
         if (!isSafeRelativeWebPath(uri)) {
             return newFixedLengthResponse(Response.Status.FORBIDDEN, MIME_PLAINTEXT, "Access denied").addCorsHeaders()
         }
@@ -486,10 +488,10 @@ private constructor(
         }
     }
 
-    private fun serveFileFromDisk(uri: String, mimeType: String): Response {
-        val file = File(rootPath, uri)
+    private fun serveFileFromDisk(uri: String, mimeType: String, location: WorkspaceLocation): Response {
+        val file = File(location.path, uri)
 
-        if (!file.exists() || !isInRoot(file)) {
+        if (!file.isFile || !isInRoot(file, location.path)) {
             AppLogger.w(TAG, "File not found or access denied: ${file.absolutePath}")
             return newFixedLengthResponse(
                 Response.Status.NOT_FOUND,
@@ -678,25 +680,25 @@ private constructor(
         return htmlContent + snippet
     }
 
-    private fun isInRoot(file: File): Boolean {
+    private fun isInRoot(file: File, rootPath: String): Boolean {
         return try {
             val rootDir = File(rootPath)
-            file.canonicalPath.startsWith(rootDir.canonicalPath)
+            isFileWithinWorkspace(rootDir, file)
         } catch (e: IOException) {
             AppLogger.e(TAG, "Error checking file path: ${e.message}")
             false
         }
     }
 
-    private fun handleApiRequest(session: IHTTPSession): Response {
+    private fun handleApiRequest(session: IHTTPSession, location: WorkspaceLocation): Response {
         val uri = session.uri
         return when {
             uri.startsWith("/api/proxy") -> {
                 handleProxyRequest(session)
             }
             uri.startsWith("/api/files") -> {
-                val path = session.parameters["path"]?.get(0) ?: ""
-                listDirectory(path)
+                val path = session.parameters["path"]?.firstOrNull() ?: ""
+                listDirectory(path, location)
             }
             else -> {
                 newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "API endpoint not found").addCorsHeaders()
@@ -786,7 +788,8 @@ private constructor(
         }
     }
 
-    private fun listDirectory(relativePath: String): Response {
+    private fun listDirectory(relativePath: String, location: WorkspaceLocation): Response {
+        val (rootPath, workspaceEnv) = location
         try {
             val toolHandler = AIToolHandler.getInstance(context)
 
@@ -798,7 +801,7 @@ private constructor(
             } else {
                 // Security check: ensure the path is within our root directory
                 val requestedDir = File(rootPath, relativePath).canonicalFile
-                if (!requestedDir.path.startsWith(File(rootPath).canonicalPath)) {
+                if (!isFileWithinWorkspace(File(rootPath), requestedDir)) {
                     return newFixedLengthResponse(Response.Status.FORBIDDEN, MIME_PLAINTEXT, "Access denied").addCorsHeaders()
                 }
                 requestedDir.absolutePath
@@ -806,7 +809,7 @@ private constructor(
 
             val params = mutableListOf(ToolParameter("path", requestedPath))
             if (type == ServerType.WORKSPACE && !workspaceEnv.isNullOrBlank()) {
-                params.add(ToolParameter("environment", workspaceEnv ?: ""))
+                params.add(ToolParameter("environment", workspaceEnv))
             }
 
             val tool = AITool(
@@ -854,18 +857,6 @@ private constructor(
             } finally {
                 response.close()
             }
-        }
-    }
-    
-    /**
-     * 确保工作区目录存在
-     */
-    private fun ensureWorkspaceDirExists(path: String) {
-        if (!workspaceEnv.isNullOrBlank()) return
-        val dir = File(path)
-        if (!dir.exists()) {
-            dir.mkdirs()
-            AppLogger.d(TAG, "创建工作区目录: $path")
         }
     }
     

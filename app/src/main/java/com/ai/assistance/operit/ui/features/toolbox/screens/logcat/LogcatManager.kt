@@ -40,8 +40,8 @@ class LogcatManager(private val context: Context) {
     /**
      * 清除日志文件
      */
-    fun clearLogs() {
-        AppLogger.resetLogFile()
+    suspend fun clearLogs() {
+        AppLogger.clearApplicationLog()
     }
 
     /**

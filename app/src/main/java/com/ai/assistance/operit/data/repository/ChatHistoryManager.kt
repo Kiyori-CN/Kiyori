@@ -780,6 +780,9 @@ class ChatHistoryManager private constructor(private val context: Context) {
         return withContext(Dispatchers.IO) { chatDao.getTotalChatCount() }
     }
 
+    suspend fun isWorkspaceEnvironmentBound(environment: String): Boolean =
+        chatDao.isWorkspaceEnvironmentBound(environment)
+
     suspend fun getTotalMessageCount(): Int {
         return withContext(Dispatchers.IO) { messageDao.getTotalMessageCount() }
     }
@@ -2001,6 +2004,7 @@ class ChatHistoryManager private constructor(private val context: Context) {
     suspend fun reviseMessage(
         chatId: String,
         message: ChatMessage,
+        expectedContent: String? = null,
     ) {
         chatMutex(chatId).withLock {
             conversationAuditRepository.reviseMessage(
@@ -2009,6 +2013,7 @@ class ChatHistoryManager private constructor(private val context: Context) {
                     messageTimestamp = message.timestamp,
                     variantIndex = message.selectedVariantIndex,
                     newContent = message.content,
+                    expectedContent = expectedContent,
                 )
             )
         }
@@ -2504,10 +2509,13 @@ class ChatHistoryManager private constructor(private val context: Context) {
     }
 
     /** 更新聊天工作区 */
-    suspend fun updateChatWorkspace(chatId: String, workspace: String?, workspaceEnv: String?) {
+    suspend fun updateChatWorkspace(chatId: String, workspace: String?, workspaceEnv: String?, expectedWorkspace: String? = null, expectedEnvironment: String? = null) {
         chatMutex(chatId).withLock {
             try {
-                chatDao.updateChatWorkspace(chatId, workspace, workspaceEnv)
+                // 数据库原子比较打开界面时的绑定，防止覆盖其他入口的新选择或已删除聊天。
+                check(chatDao.updateChatWorkspace(chatId, workspace, workspaceEnv, expectedWorkspace, expectedEnvironment) == 1) {
+                    context.getString(R.string.workspace_binding_changed)
+                }
             } catch (e: Exception) {
                 AppLogger.e(TAG, "Failed to update chat workspace for chat $chatId", e)
                 throw e
@@ -2682,23 +2690,18 @@ class ChatHistoryManager private constructor(private val context: Context) {
     /** 搜索包含特定关键词的聊天ID列表 */
     suspend fun searchChatIdsByContent(query: String): Set<String> {
         return kotlinx.coroutines.withContext(Dispatchers.IO) {
-            try {
-                if (query.isBlank()) {
-                    return@withContext emptySet()
-                }
-                val escapedQuery =
-                    query
-                        .trim()
-                        .replace("\\", "\\\\")
-                        .replace("%", "\\%")
-                        .replace("_", "\\_")
-
-                val chatIds = messageDao.searchChatIdsByContent(escapedQuery)
-                chatIds.toSet()
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "搜索聊天内容失败: $query", e)
-                emptySet()
+            if (query.isBlank()) {
+                return@withContext emptySet()
             }
+            val escapedQuery =
+                query
+                    .trim()
+                    .replace("\\", "\\\\")
+                    .replace("%", "\\%")
+                    .replace("_", "\\_")
+
+            val chatIds = messageDao.searchChatIdsByContent(escapedQuery)
+            chatIds.toSet()
         }
     }
 
@@ -3545,6 +3548,9 @@ class ChatHistoryManager private constructor(private val context: Context) {
             )
         }
     }
+
+    suspend fun getMessagePredecessorTimestamp(chatId: String, targetTimestamp: Long): Long? =
+        messageDao.getPredecessorTimestamp(chatId, targetTimestamp)
 
     suspend fun loadRuntimeChatMessagesUpTo(
         chatId: String,

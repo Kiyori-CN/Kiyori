@@ -1,5 +1,8 @@
 package com.ai.assistance.operit.ui.features.packages.market
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -1246,20 +1249,26 @@ fun UnifiedMarketDetailCommentDialog(
     onCommentTextChange: (String) -> Unit,
     onDismiss: () -> Unit,
     onPost: () -> Unit,
-    isPosting: Boolean
+    isPosting: Boolean,
+    isEditing: Boolean = false,
+    errorMessage: String? = null,
 ) {
     AlertDialog(
         onDismissRequest = { if (!isPosting) onDismiss() },
-        title = { Text(text = stringResource(R.string.mcp_plugin_add_comment)) },
+        title = { Text(text = stringResource(if (isEditing) R.string.market_comment_edit_title else R.string.mcp_plugin_add_comment)) },
         text = {
-            OutlinedTextField(
-                value = commentText,
-                onValueChange = onCommentTextChange,
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text(text = stringResource(R.string.mcp_plugin_comment_hint)) },
-                minLines = 4,
-                enabled = !isPosting
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
+                OutlinedTextField(
+                    value = commentText,
+                    onValueChange = onCommentTextChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text(text = stringResource(R.string.mcp_plugin_comment_hint)) },
+                    minLines = 4,
+                    maxLines = 8,
+                    enabled = !isPosting
+                )
+                errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            }
         },
         confirmButton = {
             TextButton(
@@ -1272,7 +1281,7 @@ fun UnifiedMarketDetailCommentDialog(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text(text = stringResource(R.string.mcp_plugin_post_comment))
+                    Text(text = stringResource(if (isEditing) R.string.save else R.string.mcp_plugin_post_comment))
                 }
             }
         },

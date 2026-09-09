@@ -1,5 +1,7 @@
 package com.ai.assistance.operit.ui.features.packages.screens.mcp.components
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,7 +37,7 @@ fun MCPDeployConfirmDialog(
                 color = MaterialTheme.colorScheme.surface,
                 tonalElevation = 6.dp
         ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
+            Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp)) {
                 // 标题区域
                 Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -102,7 +104,6 @@ fun MCPDeployConfirmDialog(
                     Button(
                             onClick = {
                                 onConfirm()
-                                onDismissRequest()
                             },
                             colors =
                                     ButtonDefaults.buttonColors(

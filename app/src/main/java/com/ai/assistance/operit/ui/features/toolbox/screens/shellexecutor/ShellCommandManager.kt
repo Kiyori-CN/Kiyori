@@ -1,7 +1,6 @@
 package com.ai.assistance.operit.ui.features.toolbox.screens.shellexecutor
 
 import android.content.Context
-import android.content.SharedPreferences
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.*
@@ -16,14 +15,6 @@ import java.util.*
  * Shell命令管理器 - 负责命令执行、历史记录管理等
  */
 class ShellCommandManager(private val context: Context) {
-    
-    private val PREFS_NAME = "shell_executor_prefs"
-    private val KEY_COMMAND_HISTORY = "command_history"
-    private val MAX_HISTORY_SIZE = 100
-    
-    private val prefs: SharedPreferences by lazy {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    }
     
     /**
      * 获取预设命令列表
@@ -146,27 +137,6 @@ class ShellCommandManager(private val context: Context) {
     }
     
     /**
-     * 添加自定义预设命令
-     */
-    suspend fun addCustomPresetCommand(command: PresetCommand) {
-        // 实现保存自定义预设命令的逻辑
-    }
-    
-    /**
-     * 获取命令历史记录
-     */
-    fun getCommandHistory(): List<CommandRecord> {
-        val historyJson = prefs.getString(KEY_COMMAND_HISTORY, null) ?: return emptyList()
-        return try {
-            // 在实际实现中，使用JSON解析库如Gson或Moshi来解析历史记录
-            // 此处为简化，返回空列表
-            emptyList()
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-    
-    /**
      * 执行Shell命令
      */
     suspend fun executeCommand(command: String): CommandRecord {
@@ -180,62 +150,7 @@ class ShellCommandManager(private val context: Context) {
             timestamp = System.currentTimeMillis()
         )
         
-        // 保存到历史记录
-        saveCommandToHistory(record)
-        
         return record
     }
     
-    /**
-     * 保存命令到历史记录
-     */
-    private fun saveCommandToHistory(record: CommandRecord) {
-        val history = getCommandHistory().toMutableList()
-        
-        // 如果已存在相同命令，移除旧记录
-        history.removeAll { it.command == record.command }
-        
-        // 添加新记录到列表头部
-        history.add(0, record)
-        
-        // 限制历史记录大小
-        val trimmedHistory = history.take(MAX_HISTORY_SIZE)
-        
-        // 保存到SharedPreferences
-        // 在实际实现中，使用JSON序列化库将历史记录转换为JSON字符串
-        // prefs.edit().putString(KEY_COMMAND_HISTORY, jsonString).apply()
-    }
-    
-    /**
-     * 清除命令历史
-     */
-    fun clearCommandHistory() {
-        prefs.edit().remove(KEY_COMMAND_HISTORY).apply()
-    }
-    
-    /**
-     * 从历史记录中移除指定命令
-     */
-    fun removeCommandFromHistory(command: String) {
-        val history = getCommandHistory().toMutableList()
-        history.removeAll { it.command == command }
-        
-        // 保存到SharedPreferences
-        // 在实际实现中，使用JSON序列化库将历史记录转换为JSON字符串
-        // prefs.edit().putString(KEY_COMMAND_HISTORY, jsonString).apply()
-    }
-    
-    /**
-     * 获取建议的命令列表（基于历史记录和输入的前缀）
-     */
-    fun getSuggestedCommands(prefix: String): List<String> {
-        if (prefix.isBlank()) return emptyList()
-        
-        val history = getCommandHistory()
-        return history
-            .map { it.command }
-            .distinct()
-            .filter { it.startsWith(prefix, ignoreCase = true) }
-            .take(5)
-    }
 }

@@ -62,10 +62,9 @@ import com.ai.assistance.operit.ui.features.packages.market.PublishProgressStage
 import com.ai.assistance.operit.ui.features.packages.market.isOperit2VersionAllowed
 import com.kiyori.capability.extensions.market.sameArtifactRuntimePackageId
 import com.ai.assistance.operit.ui.features.packages.screens.artifact.viewmodel.ArtifactMarketViewModel
-import com.ai.assistance.operit.util.AppLogger
-import kotlinx.coroutines.launch
-
-private const val ARTIFACT_PUBLISH_TAG = "ArtifactPublishScreen"
+import kotlinx.coroutines.CancellationException
+import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
+import com.ai.assistance.operit.ui.main.navigation.RegisterRouteBackGuard
 
 private data class ArtifactPublishEditInfo(
     val type: PublishArtifactType?,
@@ -129,19 +128,24 @@ fun ArtifactPublishScreen(
     publishContext: ArtifactPublishClusterContext? = null
 ) {
     val context = LocalContext.current
+    val isCurrentScreen = LocalIsCurrentScreen.current
     val scrollState = rememberScrollState()
     val isEditMode = editingEntry != null
     val viewModel: ArtifactMarketViewModel =
         viewModel(
-            key = "artifact-publish-all",
+            key = "artifact-publish-${editingEntry?.id.orEmpty()}-${publishContext?.entryId.orEmpty()}",
             factory = ArtifactMarketViewModel.Factory(context.applicationContext, ArtifactMarketScope.ALL)
         )
 
+    val localLoading by viewModel.isLoading.collectAsState()
+    val localError by viewModel.errorMessage.collectAsState()
     val artifacts by viewModel.publishableArtifacts.collectAsState()
     val publishStage by viewModel.publishProgressStage.collectAsState()
     val publishMessage by viewModel.publishMessage.collectAsState()
     val publishError by viewModel.publishErrorMessage.collectAsState()
     val publishSuccess by viewModel.publishSuccessMessage.collectAsState()
+    val pendingRegistration by viewModel.pendingRegistration.collectAsState()
+    var showRegistrationRecovery by remember(pendingRegistration?.payload) { mutableStateOf(true) }
     val requiresForgeInitialization by viewModel.requiresForgeInitialization.collectAsState()
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
     val githubReleaseCatalog by viewModel.githubReleaseCatalog.collectAsState()
@@ -223,19 +227,21 @@ fun ArtifactPublishScreen(
     var showOperit2WarningDialog by remember { mutableStateOf(false) }
     var showSecondForgeConfirm by remember { mutableStateOf(false) }
     var manifestLoadError by remember { mutableStateOf<String?>(null) }
+    var manifestReload by remember { mutableStateOf(0) }
+    var hasEdits by rememberSaveable { mutableStateOf(false) }
+    var showDiscard by rememberSaveable { mutableStateOf(false) }
+    var discardApproved by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        viewModel.refreshPublishableArtifacts()
-        MarketStatsApiService().getManifest().fold(
-            onSuccess = { manifest ->
-                categories = manifest.categories.filter { it.id.isNotBlank() }
-                manifestLoadError = null
-            },
-            onFailure = { error ->
-                AppLogger.e(ARTIFACT_PUBLISH_TAG, "Failed to load artifact categories", error)
-                manifestLoadError = context.getString(R.string.market_error_load_failed)
-            }
-        )
+    LaunchedEffect(isCurrentScreen, manifestReload) {
+        if (!isCurrentScreen || (categories.isNotEmpty() && manifestReload == 0)) return@LaunchedEffect
+        manifestLoadError = null
+        try {
+            categories = MarketStatsApiService().getManifest().getOrThrow().categories.filter { it.id.isNotBlank() }
+            if (categories.isEmpty()) manifestLoadError = context.getString(R.string.market_categories_empty)
+        } catch (cancelled: CancellationException) { throw cancelled
+        } catch (error: Exception) {
+            manifestLoadError = context.getString(R.string.market_error_load_failed)
+        }
     }
 
     LaunchedEffect(filteredArtifacts, activePublishContext?.runtimePackageId, initialInfo?.normalizedId) {
@@ -270,6 +276,16 @@ fun ArtifactPublishScreen(
     val selectedArtifact = filteredArtifacts.firstOrNull { it.packageName == selectedPackageName }
     val selectedType = selectedArtifact?.type ?: initialInfo?.type
     val isPublishing = publishStage !in listOf(PublishProgressStage.IDLE, PublishProgressStage.COMPLETED)
+    val isFormLocked = isPublishing || pendingRegistration != null
+    RegisterRouteBackGuard {
+        when {
+            isPublishing -> false
+            showConfirmationDialog -> { showConfirmationDialog = false; false }
+            showOperit2WarningDialog -> { showOperit2WarningDialog = false; false }
+            !discardApproved && hasEdits && publishStage != PublishProgressStage.COMPLETED -> { showDiscard = true; false }
+            else -> true
+        }
+    }
     val selectorDisplayName =
         if (isEditMode) {
             selectedArtifact?.displayName
@@ -308,6 +324,16 @@ fun ArtifactPublishScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        if (localLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp))
+        localError?.let { error ->
+            Text(error, color = MaterialTheme.colorScheme.error)
+            TextButton(onClick = viewModel::refreshPublishableArtifacts, enabled = !localLoading && !isPublishing) {
+                Text(stringResource(R.string.mcp_retry))
+            }
+        }
+        if (manifestLoadError != null) {
+            TextButton(onClick = { manifestReload++ }, enabled = !isPublishing) { Text(stringResource(R.string.mcp_retry)) }
+        }
         Card(
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
@@ -435,6 +461,7 @@ fun ArtifactPublishScreen(
 
         if (isEditMode) {
             OutlinedTextField(
+                enabled = !isFormLocked,
                 value = selectorDisplayName,
                 onValueChange = {},
                 label = { Text(stringResource(R.string.local_artifact_entry)) },
@@ -454,14 +481,15 @@ fun ArtifactPublishScreen(
             )
         } else {
             ExposedDropdownMenuBox(
-                expanded = selectorExpanded,
+                expanded = selectorExpanded && !isFormLocked && isCurrentScreen,
                 onExpandedChange = {
-                    if (filteredArtifacts.isNotEmpty()) {
+                    if (!isFormLocked && filteredArtifacts.isNotEmpty()) {
                         selectorExpanded = !selectorExpanded
                     }
                 }
             ) {
                 OutlinedTextField(
+                    enabled = !isFormLocked,
                     value = selectorDisplayName,
                     onValueChange = {},
                     label = { Text(stringResource(R.string.local_artifact_entry)) },
@@ -469,7 +497,7 @@ fun ArtifactPublishScreen(
                         .fillMaxWidth()
                         .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
                     readOnly = true,
-                    enabled = filteredArtifacts.isNotEmpty(),
+
                     trailingIcon = {
                         ExposedDropdownMenuDefaults.TrailingIcon(expanded = selectorExpanded)
                     },
@@ -487,7 +515,7 @@ fun ArtifactPublishScreen(
                     }
                 )
                 ExposedDropdownMenu(
-                    expanded = selectorExpanded,
+                    expanded = selectorExpanded && !isFormLocked && isCurrentScreen,
                     onDismissRequest = { selectorExpanded = false }
                 ) {
                     filteredArtifacts.forEach { artifact ->
@@ -509,6 +537,7 @@ fun ArtifactPublishScreen(
                             },
                             onClick = {
                                 viewModel.clearPendingMarketRegistrationRetry()
+                                hasEdits = true
                                 selectedPackageName = artifact.packageName
                                 selectorExpanded = false
                                 if (initialInfo == null) {
@@ -532,18 +561,22 @@ fun ArtifactPublishScreen(
                 )
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     SegmentedButton(
+                        enabled = !isFormLocked,
                         selected = !useGitHubReleaseAsset,
                         onClick = {
                             viewModel.clearPendingMarketRegistrationRetry()
+                            hasEdits = true
                             useGitHubReleaseAsset = false
                         },
                         shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                         label = { Text(stringResource(R.string.artifact_publish_asset_source_upload)) }
                     )
                     SegmentedButton(
+                        enabled = !isFormLocked,
                         selected = useGitHubReleaseAsset,
                         onClick = {
                             viewModel.clearPendingMarketRegistrationRetry()
+                            hasEdits = true
                             useGitHubReleaseAsset = true
                         },
                         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
@@ -552,9 +585,14 @@ fun ArtifactPublishScreen(
                 }
                 if (useGitHubReleaseAsset) {
                     OutlinedTextField(
+                        enabled = !isFormLocked,
                         value = githubRepositoryUrl,
                         onValueChange = {
+                            hasEdits = true
                             viewModel.clearPendingMarketRegistrationRetry()
+                            viewModel.clearGitHubReleaseCatalog()
+                            selectedReleaseTag = ""
+                            selectedReleaseAssetName = ""
                             githubRepositoryUrl = it
                         },
                         label = { Text(stringResource(R.string.artifact_publish_github_repository_url)) },
@@ -568,7 +606,7 @@ fun ArtifactPublishScreen(
                             viewModel.loadGitHubReleaseCatalog(githubRepositoryUrl)
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = githubRepositoryUrl.isNotBlank() && !isLoadingGitHubReleaseCatalog
+                        enabled = !isFormLocked && githubRepositoryUrl.isNotBlank() && !isLoadingGitHubReleaseCatalog
                     ) {
                         if (isLoadingGitHubReleaseCatalog) {
                             CircularProgressIndicator(
@@ -588,10 +626,11 @@ fun ArtifactPublishScreen(
                     }
                     githubReleaseCatalog?.let { catalog ->
                         ExposedDropdownMenuBox(
-                            expanded = releaseSelectorExpanded,
-                            onExpandedChange = { releaseSelectorExpanded = !releaseSelectorExpanded }
+                            expanded = releaseSelectorExpanded && !isFormLocked && isCurrentScreen,
+                            onExpandedChange = { if (!isFormLocked) releaseSelectorExpanded = !releaseSelectorExpanded }
                         ) {
                             OutlinedTextField(
+                                enabled = !isFormLocked,
                                 value = selectedGitHubRelease?.name.orEmpty().ifBlank { selectedReleaseTag },
                                 onValueChange = {},
                                 label = { Text(stringResource(R.string.artifact_publish_github_release)) },
@@ -605,7 +644,7 @@ fun ArtifactPublishScreen(
                                 }
                             )
                             ExposedDropdownMenu(
-                                expanded = releaseSelectorExpanded,
+                                expanded = releaseSelectorExpanded && !isFormLocked && isCurrentScreen,
                                 onDismissRequest = { releaseSelectorExpanded = false }
                             ) {
                                 catalog.releases.forEach { release ->
@@ -632,10 +671,11 @@ fun ArtifactPublishScreen(
                         }
                         selectedGitHubRelease?.let { release ->
                             ExposedDropdownMenuBox(
-                                expanded = releaseAssetSelectorExpanded,
-                                onExpandedChange = { releaseAssetSelectorExpanded = !releaseAssetSelectorExpanded }
+                                expanded = releaseAssetSelectorExpanded && !isFormLocked && isCurrentScreen,
+                                onExpandedChange = { if (!isFormLocked) releaseAssetSelectorExpanded = !releaseAssetSelectorExpanded }
                             ) {
                                 OutlinedTextField(
+                                    enabled = !isFormLocked,
                                     value = selectedGitHubReleaseAsset?.name.orEmpty(),
                                     onValueChange = {},
                                     label = { Text(stringResource(R.string.artifact_publish_github_release_asset)) },
@@ -649,7 +689,7 @@ fun ArtifactPublishScreen(
                                     }
                                 )
                                 ExposedDropdownMenu(
-                                    expanded = releaseAssetSelectorExpanded,
+                                    expanded = releaseAssetSelectorExpanded && !isFormLocked && isCurrentScreen,
                                     onDismissRequest = { releaseAssetSelectorExpanded = false }
                                 ) {
                                     release.assets.forEach { asset ->
@@ -671,8 +711,10 @@ fun ArtifactPublishScreen(
         }
 
         OutlinedTextField(
+            enabled = !isFormLocked,
             value = displayName,
             onValueChange = {
+                hasEdits = true
                 if (!isEditMode && !isDisplayNameLocked) {
                     viewModel.clearPendingMarketRegistrationRetry()
                     displayName = it
@@ -691,8 +733,10 @@ fun ArtifactPublishScreen(
             }
         )
         OutlinedTextField(
+            enabled = !isFormLocked,
             value = description,
             onValueChange = {
+                hasEdits = true
                 viewModel.clearPendingMarketRegistrationRetry()
                 description = it
             },
@@ -701,8 +745,10 @@ fun ArtifactPublishScreen(
             minLines = 3,
         )
         OutlinedTextField(
+            enabled = !isFormLocked,
             value = detail,
             onValueChange = {
+                hasEdits = true
                 viewModel.clearPendingMarketRegistrationRetry()
                 detail = it
             },
@@ -712,9 +758,9 @@ fun ArtifactPublishScreen(
             maxLines = 10
         )
         ExposedDropdownMenuBox(
-            expanded = categoryExpanded,
+            expanded = categoryExpanded && !isFormLocked && isCurrentScreen,
             onExpandedChange = {
-                if (categories.isNotEmpty() && !isContinuationCategoryLocked) {
+                if (!isFormLocked && categories.isNotEmpty() && !isContinuationCategoryLocked) {
                     categoryExpanded = !categoryExpanded
                 }
             }
@@ -725,6 +771,7 @@ fun ArtifactPublishScreen(
                     ?.let { selected -> marketCategoryLabel(selected) }
                     .orEmpty()
             OutlinedTextField(
+                enabled = !isFormLocked && categories.isNotEmpty() && !isContinuationCategoryLocked,
                 value = selectedCategoryLabel,
                 onValueChange = {},
                 label = { Text(stringResource(R.string.market_detail_category_label)) },
@@ -732,14 +779,14 @@ fun ArtifactPublishScreen(
                     .fillMaxWidth()
                     .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
                 readOnly = true,
-                enabled = categories.isNotEmpty() && !isContinuationCategoryLocked,
+
                 trailingIcon = {
                     ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded)
                 },
                 isError = categoryId.isBlank()
             )
             ExposedDropdownMenu(
-                expanded = categoryExpanded,
+                expanded = categoryExpanded && !isFormLocked && isCurrentScreen,
                 onDismissRequest = { categoryExpanded = false }
             ) {
                 categories.forEach { category ->
@@ -747,6 +794,7 @@ fun ArtifactPublishScreen(
                         text = { Text(marketCategoryLabel(category.id)) },
                         onClick = {
                             viewModel.clearPendingMarketRegistrationRetry()
+                            hasEdits = true
                             categoryId = category.id
                             categoryExpanded = false
                         }
@@ -776,9 +824,11 @@ fun ArtifactPublishScreen(
                         )
                     }
                     Switch(
+                        enabled = !isFormLocked,
                         checked = allowPublicUpdates,
                         onCheckedChange = {
-                            viewModel.clearPendingMarketRegistrationRetry()
+                            hasEdits = true
+viewModel.clearPendingMarketRegistrationRetry()
                             allowPublicUpdates = it
                         }
                     )
@@ -817,9 +867,11 @@ fun ArtifactPublishScreen(
                         )
                     }
                     Switch(
+                        enabled = !isFormLocked,
                         checked = minifyArtifact,
                         onCheckedChange = {
-                            viewModel.clearPendingMarketRegistrationRetry()
+                            hasEdits = true
+viewModel.clearPendingMarketRegistrationRetry()
                             minifyArtifact = it
                         }
                     )
@@ -827,8 +879,10 @@ fun ArtifactPublishScreen(
             }
         }
         OutlinedTextField(
+            enabled = !isFormLocked,
             value = version,
             onValueChange = {
+                hasEdits = true
                 if (!isEditMode) {
                     viewModel.clearPendingMarketRegistrationRetry()
                     version = it
@@ -845,8 +899,10 @@ fun ArtifactPublishScreen(
             }
         )
         OutlinedTextField(
+            enabled = !isFormLocked,
             value = minSupportedAppVersion,
             onValueChange = {
+                hasEdits = true
                 viewModel.clearPendingMarketRegistrationRetry()
                 minSupportedAppVersion = it
             },
@@ -856,8 +912,10 @@ fun ArtifactPublishScreen(
             supportingText = { Text(stringResource(R.string.min_supported_version_input_hint)) }
         )
         OutlinedTextField(
+            enabled = !isFormLocked,
             value = maxSupportedAppVersion,
             onValueChange = {
+                hasEdits = true
                 viewModel.clearPendingMarketRegistrationRetry()
                 maxSupportedAppVersion = it
             },
@@ -880,6 +938,11 @@ fun ArtifactPublishScreen(
                 message = error
             )
         }
+        if (pendingRegistration != null) {
+            TextButton(onClick = { showRegistrationRecovery = true }, enabled = !isPublishing) {
+                Text(stringResource(R.string.market_registration_partial_title))
+            }
+        }
 
         Button(
             onClick = {
@@ -896,6 +959,7 @@ fun ArtifactPublishScreen(
                     description.isNotBlank() &&
                     categoryId.isNotBlank() &&
                     !isPublishing &&
+                    pendingRegistration == null &&
                     (
                         if (isEditMode) {
                             initialInfo?.type != null
@@ -923,12 +987,21 @@ fun ArtifactPublishScreen(
             )
         }
 
-        OutlinedButton(onClick = onNavigateBack, modifier = Modifier.fillMaxWidth()) {
+        OutlinedButton(onClick = { if (hasEdits) showDiscard = true else onNavigateBack() }, enabled = !isPublishing, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.cancel))
         }
     }
 
-    if (publishMessage != null && isPublishing) {
+    if (isCurrentScreen && showDiscard) {
+        AlertDialog(
+            onDismissRequest = { showDiscard = false },
+            title = { Text(stringResource(R.string.pkg_env_discard_title)) },
+            text = { Text(stringResource(R.string.market_publish_discard_message)) },
+            confirmButton = { TextButton(onClick = { discardApproved = true; showDiscard = false; onNavigateBack() }) { Text(stringResource(R.string.pkg_env_discard)) } },
+            dismissButton = { TextButton(onClick = { showDiscard = false }) { Text(stringResource(R.string.cancel)) } }
+        )
+    }
+    if (isCurrentScreen && isPublishing) {
         AlertDialog(
             onDismissRequest = {},
             title = { Text(stringResource(R.string.publishing_progress)) },
@@ -943,7 +1016,7 @@ fun ArtifactPublishScreen(
         )
     }
 
-    if (showConfirmationDialog && (selectedArtifact != null || isEditMode)) {
+    if (isCurrentScreen && showConfirmationDialog && (selectedArtifact != null || isEditMode)) {
         AlertDialog(
             onDismissRequest = { showConfirmationDialog = false },
             title = {
@@ -956,7 +1029,7 @@ fun ArtifactPublishScreen(
                 )
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (isEditMode) {
                         Text(stringResource(R.string.artifact_publish_edit_confirmation_message))
                         Text(stringResource(R.string.description_colon, description))
@@ -1083,7 +1156,7 @@ fun ArtifactPublishScreen(
         )
     }
 
-    if (showOperit2WarningDialog) {
+    if (isCurrentScreen && showOperit2WarningDialog) {
         AlertDialog(
             onDismissRequest = { showOperit2WarningDialog = false },
             title = { Text(stringResource(R.string.operit2_version_warning_title)) },
@@ -1106,7 +1179,7 @@ fun ArtifactPublishScreen(
         )
     }
 
-    if (requiresForgeInitialization && !showSecondForgeConfirm) {
+    if (isCurrentScreen && requiresForgeInitialization && !showSecondForgeConfirm) {
         AlertDialog(
             onDismissRequest = {
                 showSecondForgeConfirm = false
@@ -1132,7 +1205,7 @@ fun ArtifactPublishScreen(
         )
     }
 
-    if (requiresForgeInitialization && showSecondForgeConfirm) {
+    if (isCurrentScreen && requiresForgeInitialization && showSecondForgeConfirm) {
         AlertDialog(
             onDismissRequest = {
                 showSecondForgeConfirm = false
@@ -1163,9 +1236,26 @@ fun ArtifactPublishScreen(
         )
     }
 
-    publishSuccess?.let { message ->
+    if (isCurrentScreen && !isPublishing && showRegistrationRecovery) pendingRegistration?.let { pending ->
         AlertDialog(
-            onDismissRequest = { viewModel.clearPublishMessages() },
+            onDismissRequest = { showRegistrationRecovery = false; viewModel.dismissRegistrationRecovery() },
+            title = { Text(stringResource(R.string.market_registration_partial_title)) },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(if (pending.retryAllowed) R.string.market_registration_partial_message else R.string.market_registration_unknown_message))
+                    androidx.compose.foundation.text.selection.SelectionContainer { Text(pending.payload.downloadUrl) }
+                    Text(publishError ?: pending.errorMessage, color = MaterialTheme.colorScheme.error)
+                }
+            },
+            confirmButton = {
+                if (pending.retryAllowed) TextButton(onClick = viewModel::retryMarketRegistration) { Text(stringResource(R.string.market_registration_retry_only)) }
+            },
+            dismissButton = { TextButton(onClick = { showRegistrationRecovery = false; viewModel.dismissRegistrationRecovery() }) { Text(stringResource(R.string.cancel)) } }
+        )
+    }
+    if (isCurrentScreen) publishSuccess?.let { message ->
+        AlertDialog(
+            onDismissRequest = {},
             title = {
                 Text(
                     when {
@@ -1179,6 +1269,7 @@ fun ArtifactPublishScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
+                        discardApproved = true
                         viewModel.clearPublishMessages()
                         onNavigateBack()
                     }

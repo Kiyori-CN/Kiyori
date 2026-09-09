@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
@@ -80,7 +81,7 @@ fun EditPanel(
                 .fillMaxWidth()
                 .padding(16.dp)
                 .background(
-                    Color.Black.copy(alpha = 0.8f),
+                    MaterialTheme.colorScheme.surfaceContainerHigh,
                     KiyoriUiShapes.card
                 )
                 .padding(16.dp),
@@ -90,7 +91,7 @@ fun EditPanel(
             Text(
                 text = stringResource(R.string.floating_edit_your_message),
                 style = MaterialTheme.typography.titleMedium,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
@@ -104,19 +105,20 @@ fun EditPanel(
                 placeholder = {
                     Text(
                         text = stringResource(R.string.floating_enter_or_edit_message),
-                        color = Color.White.copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
                     cursorColor = MaterialTheme.colorScheme.primary
                 ),
                 keyboardOptions = KeyboardOptions.Default.copy(
                     imeAction = ImeAction.Send
                 ),
+                keyboardActions = KeyboardActions(onSend = { if (editableText.isNotBlank()) onSend() }),
                 shape = KiyoriUiShapes.field,
                 maxLines = 4
             )
@@ -130,11 +132,11 @@ fun EditPanel(
                 OutlinedButton(
                     onClick = onCancel,
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color.White
+                        contentColor = MaterialTheme.colorScheme.onSurface
                     ),
                     border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
                         brush = Brush.horizontalGradient(
-                            listOf(Color.White.copy(alpha = 0.5f), Color.White.copy(alpha = 0.5f))
+                            listOf(MaterialTheme.colorScheme.outline, MaterialTheme.colorScheme.outline)
                         )
                     ),
                     shape = KiyoriUiShapes.control,

@@ -1,7 +1,6 @@
 package com.ai.assistance.operit.ui.features.chat.components
 
 import android.content.Context
-import android.graphics.BitmapFactory
 import android.net.Uri
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.OperitPaths
@@ -11,7 +10,6 @@ import com.canhub.cropper.CropImageContract
 import com.canhub.cropper.CropImageContractOptions
 import com.canhub.cropper.CropImageOptions
 import com.canhub.cropper.CropImageView
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -30,14 +28,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.ai.assistance.operit.core.subpack.ApkEditor
@@ -179,8 +175,9 @@ fun AndroidExportDialog(
     var versionCode by rememberLocal(key = "export_version_code_${workDir.absolutePath}", "1")
     var iconUri by rememberLocal<Uri?>(key = "export_icon_uri_${workDir.absolutePath}", null, serializer = UriSerializer)
 
-    var isPackageNameError by remember { mutableStateOf(false) }
-    var isVersionNameError by remember { mutableStateOf(false) }
+    val isPackageNameError = packageName.isNotEmpty() && !validExportPackageName(packageName)
+    val isVersionNameError = versionName.isNotEmpty() && !validExportVersionName(versionName)
+    val isVersionCodeError = versionCode.isNotEmpty() && !validExportVersionCode(versionCode)
 
     val context = LocalContext.current
     val dialogMetrics = rememberCompactDialogMetrics()
@@ -238,24 +235,7 @@ fun AndroidExportDialog(
                         value = packageName,
                         onValueChange = { 
                             // 只允许小写字母、数字和点号
-                            val filtered = it.filter { c -> c.isLowerCase() || c.isDigit() || c == '.' }
-                            
-                            // 验证包名格式
-                            val isValid = when {
-                                filtered.isEmpty() -> true  // 允许空输入
-                                filtered.startsWith(".") -> false  // 不能以点开头
-                                filtered.endsWith(".") -> false    // 不能以点结尾
-                                filtered.contains("..") -> false   // 不能有连续的点
-                                else -> {
-                                    // 检查每个段是否以字母开头
-                                    filtered.split('.').all { segment ->
-                                        segment.isNotEmpty() && segment[0].isLetter()
-                                    }
-                                }
-                            }
-                            
-                            isPackageNameError = !isValid && filtered.isNotEmpty()
-                            packageName = filtered
+                            packageName = it
                         },
                         label = { Text(context.getString(R.string.package_name_label)) },
                         placeholder = { Text("com.example.webproject") },
@@ -307,44 +287,7 @@ fun AndroidExportDialog(
                                             .clickable { imagePicker.launch("image/*") },
                             contentAlignment = Alignment.Center
                     ) {
-                        if (iconUri != null) {
-                            val bitmap =
-                                    remember(iconUri) {
-                                        try {
-                                            val inputStream =
-                                                    context.contentResolver.openInputStream(
-                                                            iconUri!!
-                                                    )
-                                            val bitmap = BitmapFactory.decodeStream(inputStream)
-                                            inputStream?.close()
-                                            bitmap?.asImageBitmap()
-                                        } catch (e: Exception) {
-                                            null
-                                        }
-                                    }
-
-                            if (bitmap != null) {
-                                Image(
-                                        bitmap = bitmap,
-                                        contentDescription = context.getString(R.string.app_icon),
-                                        contentScale = ContentScale.Fit,
-                                        modifier =
-                                                Modifier.size(70.dp).clip(RoundedCornerShape(4.dp))
-                                )
-                            } else {
-                                Icon(
-                                        imageVector = Icons.Default.Warning,
-                                        contentDescription = context.getString(R.string.load_folder_failed),
-                                        tint = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        } else {
-                            Icon(
-                                    imageVector = Icons.Default.Image,
-                                    contentDescription = context.getString(R.string.app_icon),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        ExportIconPreview(iconUri)
                     }
 
                     // 提示文字
@@ -361,11 +304,7 @@ fun AndroidExportDialog(
                 OutlinedTextField(
                         value = versionName,
                         onValueChange = { 
-                            val newValue = it.filter { c -> c.isDigit() || c == '.' || c == '-' }
-                            // 简单的版本号格式验证，例如 1.0.0 或 1.0.0-beta
-                            val regex = "^\\d+(\\.\\d+){0,2}(-[a-zA-Z0-9]+)?$".toRegex()
-                            isVersionNameError = !regex.matches(newValue) && newValue.isNotEmpty()
-                            versionName = newValue
+                            versionName = it
                         },
                         label = { Text(context.getString(R.string.version_name)) },
                         placeholder = { Text("1.0.0") },
@@ -383,9 +322,12 @@ fun AndroidExportDialog(
 
                 OutlinedTextField(
                         value = versionCode,
-                        onValueChange = { versionCode = it.filter { c -> c.isDigit() } },
+                        onValueChange = { versionCode = it },
                         label = { Text(context.getString(R.string.version_code)) },
                         placeholder = { Text("1") },
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                        isError = isVersionCodeError,
+                        supportingText = { if (isVersionCodeError) Text(context.getString(R.string.export_invalid_version_code)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                 )
@@ -400,7 +342,7 @@ fun AndroidExportDialog(
 
                     Button(
                             onClick = { onExport(packageName, appName, iconUri, versionName, versionCode) },
-                            enabled = packageName.isNotEmpty() && !isPackageNameError && appName.isNotEmpty() && versionName.isNotEmpty() && !isVersionNameError && versionCode.isNotEmpty()
+                            enabled = validExportPackageName(packageName) && appName.isNotBlank() && validExportVersionName(versionName) && validExportVersionCode(versionCode)
                     ) { Text(context.getString(R.string.export)) }
                 }
             }
@@ -507,44 +449,7 @@ fun WindowsExportDialog(
                                             .clickable { imagePicker.launch("image/*") },
                             contentAlignment = Alignment.Center
                     ) {
-                        if (iconUri != null) {
-                            val bitmap =
-                                    remember(iconUri) {
-                                        try {
-                                            val inputStream =
-                                                    context.contentResolver.openInputStream(
-                                                            iconUri!!
-                                                    )
-                                            val bitmap = BitmapFactory.decodeStream(inputStream)
-                                            inputStream?.close()
-                                            bitmap?.asImageBitmap()
-                                        } catch (e: Exception) {
-                                            null
-                                        }
-                                    }
-
-                            if (bitmap != null) {
-                                Image(
-                                        bitmap = bitmap,
-                                        contentDescription = context.getString(R.string.app_icon),
-                                        contentScale = ContentScale.Fit,
-                                        modifier =
-                                                Modifier.size(70.dp).clip(RoundedCornerShape(4.dp))
-                                )
-                            } else {
-                                Icon(
-                                        imageVector = Icons.Default.Warning,
-                                        contentDescription = context.getString(R.string.load_folder_failed),
-                                        tint = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        } else {
-                            Icon(
-                                    imageVector = Icons.Default.Image,
-                                    contentDescription = context.getString(R.string.app_icon),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        ExportIconPreview(iconUri)
                     }
 
                     // 提示文字
@@ -566,11 +471,33 @@ fun WindowsExportDialog(
 
                     Button(
                             onClick = { onExport(appName, iconUri) },
-                            enabled = appName.isNotEmpty()
+                            enabled = appName.isNotBlank()
                     ) { Text(context.getString(R.string.export)) }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ExportIconPreview(uri: Uri?) {
+    val context = LocalContext.current
+    var loading by remember(uri) { mutableStateOf(uri != null) }
+    var failed by remember(uri) { mutableStateOf(false) }
+    if (uri == null) {
+        Icon(Icons.Default.Image, context.getString(R.string.app_icon), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    } else {
+        coil.compose.AsyncImage(
+            model = uri,
+            contentDescription = context.getString(R.string.app_icon),
+            modifier = Modifier.size(70.dp).clip(RoundedCornerShape(4.dp)),
+            contentScale = ContentScale.Fit,
+            onLoading = { loading = true; failed = false },
+            onSuccess = { loading = false },
+            onError = { loading = false; failed = true },
+        )
+        if (loading) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+        if (failed) Icon(Icons.Default.Warning, context.getString(R.string.export_icon_load_failed), tint = MaterialTheme.colorScheme.error)
     }
 }
 
@@ -689,78 +616,42 @@ fun ExportCompleteDialog(
         onOpenFile: (String) -> Unit
 ) {
     val context = LocalContext.current
-    Dialog(
-            onDismissRequest = onDismiss,
-            properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true)
-    ) {
-        Card(
-                modifier = Modifier.fillMaxWidth(0.9f).wrapContentHeight(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            Column(
-                    modifier = Modifier.padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                        if (success) context.getString(R.string.export_success) else context.getString(R.string.export_failed),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = if (success) Color.Green else Color.Red
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                if (success && filePath != null) {
-                    Text(context.getString(R.string.file_saved_to), style = MaterialTheme.typography.bodyMedium)
-
-                    Text(
-                            filePath,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(top = 4.dp)
-                    )
-                } else if (errorMessage != null) {
-                    // 使用可滚动的列表显示错误信息，特别是对于长消息
-                    Box(
-                            modifier =
-                                    Modifier.fillMaxWidth()
-                                            .heightIn(min = 80.dp, max = 200.dp)
-                                            .border(
-                                                    1.dp,
-                                                    Color.Red.copy(alpha = 0.5f),
-                                                    RoundedCornerShape(8.dp)
-                                            )
-                                            .padding(8.dp)
-                    ) {
-                        Text(
-                                errorMessage,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = Color.Red,
-                                textAlign = TextAlign.Start,
-                                modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                context.getString(if (success) R.string.export_success else R.string.export_failed),
+                color = if (success) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error
+            )
+        },
+        text = {
+            androidx.compose.foundation.text.selection.SelectionContainer {
+                Column(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 280.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    TextButton(onClick = onDismiss) { Text(context.getString(R.string.close)) }
-
                     if (success && filePath != null) {
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        Button(onClick = { onOpenFile(filePath) }) { Text(context.getString(R.string.open_file)) }
+                        Text(context.getString(R.string.file_saved_to))
+                        Text(filePath, style = MaterialTheme.typography.bodySmall)
+                    } else if (errorMessage != null) {
+                        Text(errorMessage, color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
+        },
+        confirmButton = {
+            if (success && filePath != null) {
+                TextButton(onClick = { onOpenFile(filePath) }) { Text(context.getString(R.string.open_file)) }
+            } else {
+                TextButton(onClick = onDismiss) { Text(context.getString(R.string.close)) }
+            }
+        },
+        dismissButton = {
+            if (success && filePath != null) {
+                TextButton(onClick = onDismiss) { Text(context.getString(R.string.close)) }
+            }
         }
-    }
+    )
 }
 
 /**
@@ -784,10 +675,13 @@ suspend fun exportAndroidApp(
         onProgress: (Float, String) -> Unit,
         onComplete: (success: Boolean, filePath: String?, errorMessage: String?) -> Unit
 ) {
-    var outputFile: File? = null
+    suspend fun reportProgress(value: Float, status: String) = withContext(Dispatchers.Main) { onProgress(value, status) }
+    var exportFiles: WorkspaceExportFile? = null
     try {
-        withContext(Dispatchers.IO) {
-            onProgress(0.1f, context.getString(R.string.export_prepare_base_apk))
+        require(validExportPackageName(packageName) && appName.isNotBlank() && validExportVersionName(versionName) && validExportVersionCode(versionCode)) { "Invalid Android export settings" }
+        val completedFile = withContext(Dispatchers.IO) {
+            check(webContentDir.isDirectory) { "Export source directory is unavailable" }
+            reportProgress(0.1f, context.getString(R.string.export_prepare_base_apk))
             currentCoroutineContext().ensureActive()
 
             // 1. 初始化APK编辑器
@@ -795,7 +689,7 @@ suspend fun exportAndroidApp(
 
             try {
                 // 2. 修改包名和应用名
-                onProgress(0.3f, context.getString(R.string.export_modify_app_info))
+                reportProgress(0.3f, context.getString(R.string.export_modify_app_info))
                 apkEditor.changePackageName(packageName)
                 apkEditor.changeAppName(appName)
                 apkEditor.changeVersionName(versionName)
@@ -804,7 +698,7 @@ suspend fun exportAndroidApp(
 
                 // 4. 更改图标（如果提供）
                 if (iconUri != null) {
-                    onProgress(0.4f, context.getString(R.string.export_change_app_icon))
+                    reportProgress(0.4f, context.getString(R.string.export_change_app_icon))
                     val inputStream =
                         context.contentResolver.openInputStream(iconUri)
                             ?: throw IOException("Unable to open selected Android app icon")
@@ -813,7 +707,7 @@ suspend fun exportAndroidApp(
                 currentCoroutineContext().ensureActive()
 
                 // 6. 准备签名文件
-                onProgress(0.7f, context.getString(R.string.export_prepare_signing))
+                reportProgress(0.5f, context.getString(R.string.export_prepare_signing))
                 val keyStoreFile = KeyStoreHelper.getOrCreateKeystore(context)
                 AppLogger.d(
                         "ExportDialogs",
@@ -821,10 +715,11 @@ suspend fun exportAndroidApp(
                 )
 
                 // 7. 设置签名信息并执行签名
-                onProgress(0.8f, context.getString(R.string.export_signing_apk))
+                reportProgress(0.6f, context.getString(R.string.export_signing_apk))
                 val outputDir = OperitPaths.exportsDir()
-                val androidOutputFile = File(outputDir, "WebApp_${Date().time}.apk")
-                outputFile = androidOutputFile
+                val files = WorkspaceExportFile(outputDir, "WebApp", "apk")
+                exportFiles = files
+                val androidOutputFile = files.temporary
 
                 AppLogger.d("ExportDialogs", "即将签名APK，使用密钥: ${keyStoreFile.absolutePath}, 别名: androidkey")
                 apkEditor
@@ -836,13 +731,12 @@ suspend fun exportAndroidApp(
                         )
                         .setOutput(androidOutputFile)
 
-                onProgress(0.5f, context.getString(R.string.export_pack_web_content))
-                onProgress(0.9f, context.getString(R.string.export_finish_packaging))
-                val signedApk = apkEditor.repackAndSignWithWebContent(webContentDir)
+                reportProgress(0.7f, context.getString(R.string.export_pack_web_content))
+                val exportContext = currentCoroutineContext()
+                apkEditor.repackAndSignWithWebContent(webContentDir) { exportContext.ensureActive() }
                 currentCoroutineContext().ensureActive()
-
-                onProgress(1.0f, context.getString(R.string.export_completed))
-                onComplete(true, signedApk.absolutePath, null)
+                reportProgress(0.9f, context.getString(R.string.export_finish_packaging))
+                files.publish()
             } finally {
                 try {
                     apkEditor.cleanup()
@@ -851,13 +745,17 @@ suspend fun exportAndroidApp(
                 }
             }
         }
+        withContext(Dispatchers.Main) {
+            onProgress(1f, context.getString(R.string.export_completed))
+            onComplete(true, completedFile.absolutePath, null)
+        }
     } catch (error: CancellationException) {
-        outputFile?.delete()
         throw error
     } catch (e: Exception) {
-        outputFile?.delete()
         AppLogger.e("ExportDialogs", "导出失败", e)
-        onComplete(false, null, context.getString(R.string.export_failed_with_reason, e.message ?: ""))
+        withContext(Dispatchers.Main) { onComplete(false, null, context.getString(R.string.export_failed_with_reason, e.message ?: "")) }
+    } finally {
+        exportFiles?.temporary?.let { if (it.exists() && !it.delete()) AppLogger.w("ExportDialogs", "Unable to remove incomplete Android export") }
     }
 }
 
@@ -870,10 +768,13 @@ suspend fun exportWindowsApp(
         onProgress: (Float, String) -> Unit,
         onComplete: (success: Boolean, filePath: String?, errorMessage: String?) -> Unit
 ) {
-    var outputZip: File? = null
+    suspend fun reportProgress(value: Float, status: String) = withContext(Dispatchers.Main) { onProgress(value, status) }
+    var exportFiles: WorkspaceExportFile? = null
     try {
-        withContext(Dispatchers.IO) {
-            onProgress(0.1f, context.getString(R.string.export_prepare_windows_template))
+        require(appName.isNotBlank()) { "Application name is empty" }
+        val completedFile = withContext(Dispatchers.IO) {
+            check(webContentDir.isDirectory) { "Export source directory is unavailable" }
+            reportProgress(0.1f, context.getString(R.string.export_prepare_windows_template))
             currentCoroutineContext().ensureActive()
 
             val outputDir = OperitPaths.exportsDir()
@@ -887,7 +788,7 @@ suspend fun exportWindowsApp(
 
             try {
                 // 1. 从assets复制windows.zip模板到临时目录
-                onProgress(0.2f, context.getString(R.string.export_copy_template))
+                reportProgress(0.2f, context.getString(R.string.export_copy_template))
                 val templateZip = File(tempDir, "windows.zip")
                 context.assets.open("subpack/windows.zip").use { input ->
                     FileOutputStream(templateZip).use { output -> input.copyTo(output) }
@@ -895,7 +796,7 @@ suspend fun exportWindowsApp(
                 currentCoroutineContext().ensureActive()
 
                 // 2. 解压windows.zip
-                onProgress(0.3f, context.getString(R.string.export_extract_template))
+                reportProgress(0.3f, context.getString(R.string.export_extract_template))
                 val extractedDir = File(tempDir, "extracted")
                 if (!extractedDir.mkdirs()) {
                     throw IOException("Unable to create Windows export extraction directory")
@@ -927,7 +828,7 @@ suspend fun exportWindowsApp(
 
                 // 3. 如果提供了图标，修改assistance_subpack.exe的图标
                 if (iconUri != null) {
-                    onProgress(0.4f, context.getString(R.string.export_change_app_icon))
+                    reportProgress(0.4f, context.getString(R.string.export_change_app_icon))
                     val mainExe = File(extractedDir, "assistance_subpack.exe")
                     if (!mainExe.isFile) {
                         throw IOException("Windows export template is missing assistance_subpack.exe")
@@ -944,7 +845,7 @@ suspend fun exportWindowsApp(
                 currentCoroutineContext().ensureActive()
 
                 // 4. 复制网页内容到data\flutter_assets\assets\web_content
-                onProgress(0.5f, context.getString(R.string.export_copy_web_content))
+                reportProgress(0.5f, context.getString(R.string.export_copy_web_content))
                 val webContentTarget = File(extractedDir, "data/flutter_assets/assets/web_content")
                 if (!webContentTarget.exists()) {
                     webContentTarget.mkdirs()
@@ -958,20 +859,13 @@ suspend fun exportWindowsApp(
                 currentCoroutineContext().ensureActive()
 
                 // 5. 创建最终输出文件名
-                val timestamp =
-                        java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
-                                .format(java.util.Date())
                 val safeName = appName.replace(Regex("[^a-zA-Z0-9_-]"), "_")
-                val windowsOutputZip = File(outputDir, "${safeName}_${timestamp}.zip")
-                outputZip = windowsOutputZip
+                val files = WorkspaceExportFile(outputDir, safeName.take(80), "zip")
+                exportFiles = files
+                val windowsOutputZip = files.temporary
 
                 // 6. 重新打包为ZIP
-                onProgress(0.8f, context.getString(R.string.export_pack_app))
-
-                // 确保输出文件不存在
-                if (windowsOutputZip.exists() && !windowsOutputZip.delete()) {
-                    throw IOException("Unable to replace existing Windows export")
-                }
+                reportProgress(0.8f, context.getString(R.string.export_pack_app))
 
                 // 创建ZIP文件
                 val buffer = ByteArray(1024)
@@ -981,30 +875,27 @@ suspend fun exportWindowsApp(
                 }
                 currentCoroutineContext().ensureActive()
 
-                onProgress(1.0f, context.getString(R.string.export_completed))
-                onComplete(true, windowsOutputZip.absolutePath, null)
-            } catch (error: CancellationException) {
-                throw error
-            } catch (e: Exception) {
-                outputZip?.delete()
-                AppLogger.e("ExportDialogs", "Windows应用导出过程失败", e)
-                onComplete(false, null, context.getString(R.string.export_process_failed, e.message ?: ""))
+                files.publish()
             } finally {
                 // 7. 清理临时文件
                 try {
-                    onProgress(0.9f, context.getString(R.string.export_cleanup_temp_files))
                     tempDir.deleteRecursively()
                 } catch (e: Exception) {
                     AppLogger.e("ExportDialogs", "清理临时文件失败", e)
                 }
             }
         }
+        withContext(Dispatchers.Main) {
+            onProgress(1f, context.getString(R.string.export_completed))
+            onComplete(true, completedFile.absolutePath, null)
+        }
     } catch (error: CancellationException) {
-        outputZip?.delete()
         throw error
     } catch (e: Exception) {
         AppLogger.e("ExportDialogs", "Windows应用导出失败", e)
-        onComplete(false, null, context.getString(R.string.export_failed_with_reason, e.message ?: ""))
+        withContext(Dispatchers.Main) { onComplete(false, null, context.getString(R.string.export_failed_with_reason, e.message ?: "")) }
+    } finally {
+        exportFiles?.temporary?.let { if (it.exists() && !it.delete()) AppLogger.w("ExportDialogs", "Unable to remove incomplete Windows export") }
     }
 }
 
@@ -1063,42 +954,20 @@ private fun validateKeystore(file: File, type: String, password: String): Boolea
 
 /** 复制目录及其内容 */
 private suspend fun copyDirectory(sourceDir: File, destDir: File) {
-    currentCoroutineContext().ensureActive()
-    if (!destDir.exists() && !destDir.mkdirs()) {
-        throw IOException("Unable to create export directory: ${destDir.name}")
-    }
-
-    val files =
-        sourceDir.listFiles()
-            ?: throw IOException("Unable to read export source directory: ${sourceDir.name}")
-    files.forEach { file ->
-        currentCoroutineContext().ensureActive()
-        val destFile = File(destDir, file.name)
-        if (file.isDirectory) {
-            copyDirectory(file, destFile)
+    val operation = currentCoroutineContext()
+    val entries = com.ai.assistance.operit.core.subpack.collectWorkspaceExportEntries(sourceDir) { operation.ensureActive() }
+    check(destDir.isDirectory || destDir.mkdirs()) { "Unable to create export directory" }
+    for (entry in entries) {
+        operation.ensureActive()
+        val target = File(destDir, entry.relativePath)
+        if (entry.isDirectory) {
+            check(target.isDirectory || target.mkdirs()) { "Unable to create export directory" }
         } else {
-            if (destFile.exists() && !destFile.delete()) {
-                throw IOException("Unable to replace export file: ${destFile.name}")
-            }
-
-            val parentDir = destFile.parentFile
-            if (parentDir != null && !parentDir.exists() && !parentDir.mkdirs()) {
-                throw IOException("Unable to create export directory: ${parentDir.name}")
-            }
-
-            file.inputStream().use { input ->
-                FileOutputStream(destFile).use { output ->
-                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                    var count: Int
-                    while (input.read(buffer).also { count = it } >= 0) {
-                        currentCoroutineContext().ensureActive()
-                        if (count > 0) {
-                            output.write(buffer, 0, count)
-                        }
-                    }
+            entry.file.inputStream().use { input ->
+                FileOutputStream(target).use { output ->
+                    com.ai.assistance.operit.core.subpack.copyWorkspaceExportBytes(input, output) { operation.ensureActive() }
                 }
             }
-            AppLogger.d("ExportDialogs", "成功复制文件: ${file.absolutePath} -> ${destFile.absolutePath}")
         }
     }
 }

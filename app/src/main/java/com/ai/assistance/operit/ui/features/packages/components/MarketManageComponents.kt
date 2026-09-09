@@ -1,5 +1,8 @@
 package com.ai.assistance.operit.ui.features.packages.components
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -473,19 +476,28 @@ fun MarketManageDeleteDialog(
     onDismiss: () -> Unit,
     titleText: String = stringResource(R.string.confirm_delete),
     confirmText: String = stringResource(R.string.confirm_delete_action),
-    dismissText: String = stringResource(R.string.cancel)
+    dismissText: String = stringResource(R.string.cancel),
+    isSaving: Boolean = false,
+    canConfirm: Boolean = true,
+    errorMessage: String? = null,
 ) {
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isSaving) onDismiss() },
         title = { Text(titleText) },
-        text = { Text(text) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(text)
+                errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                if (isSaving) CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            }
+        },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
+            TextButton(onClick = onConfirm, enabled = !isSaving && canConfirm) {
                 Text(confirmText)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, enabled = !isSaving) {
                 Text(dismissText)
             }
         }

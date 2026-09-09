@@ -1,5 +1,7 @@
 package com.ai.assistance.operit.ui.features.packages.market
 
+import androidx.activity.compose.BackHandler
+
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
@@ -67,6 +69,8 @@ fun BindMarketSearchToTopBar(
             latestOnSearchQueryChanged.value("")
         }
     }
+
+    BackHandler(enabled = isCurrentScreen && isSearchActive) { closeSearch(clearQuery = true) }
 
     LaunchedEffect(isCurrentScreen, enabled) {
         if (isCurrentScreen && !enabled && (isSearchExpanded || searchQuery.isNotBlank())) {

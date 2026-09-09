@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
@@ -139,9 +140,15 @@ private fun ImeWakeListeningEffect(
     density: androidx.compose.ui.unit.Density,
 ) {
     val imeVisible = WindowInsets.ime.getBottom(density) > 0
+    val imeOwner = remember { Any() }
 
     LaunchedEffect(context, imeVisible) {
-        AIForegroundService.setWakeListeningSuspendedForIme(context, imeVisible)
+        AIForegroundService.setWakeListeningSuspendedForIme(context, imeVisible, imeOwner)
+    }
+    DisposableEffect(context, imeOwner) {
+        onDispose {
+            AIForegroundService.setWakeListeningSuspendedForIme(context, false, imeOwner)
+        }
     }
 }
 

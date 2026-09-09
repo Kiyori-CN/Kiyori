@@ -31,9 +31,9 @@ import com.ai.assistance.operit.core.tools.packTool.PackageManager
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolParameter
 import com.ai.assistance.operit.data.model.ToolResult
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -53,15 +53,14 @@ fun ScriptExecutionDialog(
     var scriptText by remember(tool) { mutableStateOf(tool.script) }
     var paramValues by remember(tool) { mutableStateOf(tool.parameters.associate { it.name to "" }) }
     var executing by remember { mutableStateOf(false) }
-    var executionResults by remember { mutableStateOf<List<ToolResult>>(emptyList()) }
-
-    LaunchedEffect(initialResult) {
-        if (initialResult != null) {
-            executionResults = listOf(initialResult)
-        }
+    var showCloseConfirm by remember { mutableStateOf(false) }
+    val requestClose: () -> Unit = { if (executing) showCloseConfirm = true else onDismiss() }
+    // 父页也保存最近一条结果；回传的同一结果不能再次重置当前流的完整列表。
+    var executionResults by remember {
+        mutableStateOf(initialResult?.let { listOf(it) } ?: emptyList())
     }
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = requestClose) {
         Surface(
             modifier = Modifier.fillMaxWidth().heightIn(max = 600.dp),
             shape = KiyoriUiShapes.dialog,
@@ -122,6 +121,7 @@ fun ScriptExecutionDialog(
                         )
                     ) {
                         TextField(
+                            readOnly = executing,
                             value = scriptText,
                             onValueChange = { newValue -> scriptText = newValue },
                             modifier = Modifier.fillMaxWidth().height(160.dp),
@@ -156,6 +156,7 @@ fun ScriptExecutionDialog(
 
                         tool.parameters.forEach { param ->
                             OutlinedTextField(
+                                readOnly = executing,
                                 value = paramValues[param.name] ?: "",
                                 onValueChange = { value ->
                                     paramValues = paramValues.toMutableMap().apply {
@@ -228,85 +229,57 @@ fun ScriptExecutionDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
                 ) {
-                    OutlinedButton(onClick = onDismiss) {
+                    OutlinedButton(onClick = requestClose) {
                         Text(stringResource(R.string.common_cancel))
                     }
 
                     FilledTonalButton(
                         onClick = {
-                            executing = true
-                            executionResults = emptyList()
-                            scope.launch(Dispatchers.IO) {
-                                try {
-                                    val missingParams = tool.parameters
-                                        .filter { it.required }
-                                        .map { it.name }
-                                        .filter { paramValues[it].isNullOrEmpty() }
-
-                                    if (missingParams.isNotEmpty()) {
-                                        val missingResult = ToolResult(
-                                            toolName = "${packageName}:${tool.name}",
-                                            success = false,
-                                            result = StringResultData(""),
-                                            error = context.getString(R.string.script_missing_params, missingParams.joinToString(", "))
-                                        )
-                                        withContext(Dispatchers.Main) {
-                                            executionResults = listOf(missingResult)
-                                            onExecuted(missingResult)
-                                        }
-                                    } else {
-                                        val parameters = paramValues.map { (name, value) ->
-                                            ToolParameter(name = name, value = value)
-                                        }
-
-                                        val aiTool = AITool(
-                                            name = "${packageName}:${tool.name}",
-                                            parameters = parameters
-                                        )
-
-                                        val interpreter = JsToolManager.getInstance(context, packageManager)
-
-                                        interpreter
-                                            .executeScript(scriptText, aiTool)
-                                            .catch { e ->
-                                                AppLogger.e("ScriptExecutionDialog", "Flow collection error", e)
-                                                val errorResult = ToolResult(
-                                                    toolName = "${packageName}:${tool.name}",
-                                                    success = false,
-                                                    result = StringResultData(""),
-                                                    error = context.getString(R.string.script_flow_error, e.message ?: "")
-                                                )
-                                                withContext(Dispatchers.Main) {
-                                                    executionResults = executionResults + errorResult
-                                                    onExecuted(errorResult)
-                                                }
-                                            }
-                                            .onCompletion {
-                                                withContext(Dispatchers.Main) {
-                                                    executing = false
-                                                }
-                                            }
-                                            .collect { result ->
-                                                withContext(Dispatchers.Main) {
+                            if (!executing) {
+                                // UI 线程冻结此次输入；后台执行不能读取用户后来输入的新版本。
+                                val scriptSnapshot = scriptText
+                                val parameterSnapshot = paramValues.toMap()
+                                executing = true
+                                executionResults = emptyList()
+                                scope.launch {
+                                    try {
+                                        val missingParams = tool.parameters.filter { it.required }
+                                            .map { it.name }.filter { parameterSnapshot[it].isNullOrBlank() }
+                                        if (missingParams.isNotEmpty()) {
+                                            val result = ToolResult(
+                                                toolName = "${packageName}:${tool.name}", success = false,
+                                                result = StringResultData(""),
+                                                error = context.getString(R.string.script_missing_params, missingParams.joinToString(", ")),
+                                            )
+                                            executionResults = listOf(result)
+                                            onExecuted(result)
+                                        } else {
+                                            val aiTool = AITool(
+                                                name = "${packageName}:${tool.name}",
+                                                parameters = parameterSnapshot.map { (name, value) -> ToolParameter(name, value) },
+                                            )
+                                            JsToolManager.getInstance(context, packageManager)
+                                                .executeScript(scriptSnapshot, aiTool)
+                                                .flowOn(Dispatchers.IO)
+                                                .collect { result ->
                                                     executionResults = executionResults + result
                                                     onExecuted(result)
                                                 }
-                                            }
-                                    }
-                                } catch (e: Exception) {
-                                    AppLogger.e("ScriptExecutionDialog", "Failed to execute script", e)
-                                    withContext(Dispatchers.Main) {
-                                        val finalError = ToolResult(
-                                            toolName = "${packageName}:${tool.name}",
-                                            success = false,
+                                        }
+                                    } catch (cancelled: CancellationException) {
+                                        throw cancelled
+                                    } catch (_: Exception) {
+                                        AppLogger.e("ScriptExecutionDialog", "Script execution failed")
+                                        val result = ToolResult(
+                                            toolName = "${packageName}:${tool.name}", success = false,
                                             result = StringResultData(""),
-                                            error = context.getString(R.string.script_execution_error, e.message ?: "")
+                                            error = context.getString(R.string.pkg_script_execution_failed),
                                         )
-                                        executionResults = executionResults + finalError
-                                        onExecuted(finalError)
+                                        executionResults = executionResults + result
+                                        onExecuted(result)
+                                    } finally {
+                                        executing = false
                                     }
-                                } finally {
-                                    withContext(Dispatchers.Main) { executing = false }
                                 }
                             }
                         },
@@ -333,4 +306,20 @@ fun ScriptExecutionDialog(
             }
         }
     }
+    if (showCloseConfirm) {
+        AlertDialog(
+            onDismissRequest = { showCloseConfirm = false },
+            title = { Text(stringResource(R.string.pkg_script_close_title)) },
+            text = { Text(stringResource(R.string.pkg_script_close_message)) },
+            confirmButton = {
+                TextButton(onClick = { showCloseConfirm = false; onDismiss() }) {
+                    Text(stringResource(R.string.pkg_close))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCloseConfirm = false }) { Text(stringResource(R.string.pkg_cancel)) }
+            },
+        )
+    }
+
 }

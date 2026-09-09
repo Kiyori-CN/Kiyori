@@ -160,18 +160,33 @@ class ChatServiceCore(
         }
 
         coroutineScope.launch {
+            var reportedWorkspaceFailure: String? = null
             combine(
                 chatHistoryDelegate.currentChatId,
                 chatHistoryDelegate.chatHistories
             ) { chatId, histories ->
                 histories.firstOrNull { it.id == chatId }
             }.collect { chat ->
-                workspaceChangeTracker.updateOwner(
-                    ownerId = workspaceTrackerOwnerId,
-                    chatId = chat?.id,
-                    workspacePath = chat?.workspace,
-                    workspaceEnv = chat?.workspaceEnv
-                )
+                try {
+                    withContext(Dispatchers.IO) {
+                        workspaceChangeTracker.updateOwner(
+                            ownerId = workspaceTrackerOwnerId,
+                            chatId = chat?.id,
+                            workspacePath = chat?.workspace,
+                            workspaceEnv = chat?.workspaceEnv
+                        )
+                    }
+                    reportedWorkspaceFailure = null
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    // 配置损坏不能终止整个历史观察器，也不能按默认配置继续启动 watcher。
+                    if (reportedWorkspaceFailure != chat?.workspace) {
+                        uiStateDelegate.showErrorMessage(context.getString(com.ai.assistance.operit.R.string.workspace_config_load_failed))
+                        reportedWorkspaceFailure = chat?.workspace
+                    }
+                    AppLogger.w(TAG, "Workspace watcher unavailable: ${error.javaClass.simpleName}")
+                }
             }
         }
 

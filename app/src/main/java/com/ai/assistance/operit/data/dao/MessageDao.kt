@@ -12,6 +12,14 @@ import com.ai.assistance.operit.data.model.MessageEntity
 /** 消息DAO接口，定义对消息表的数据访问方法 */
 @Dao
 interface MessageDao {
+    /** null 表示目标已不存在；0 只表示目标确实是该对话的第一条消息。 */
+    @Query("""
+        SELECT COALESCE((SELECT MAX(previous.timestamp) FROM messages AS previous
+            WHERE previous.chatId = :chatId AND previous.timestamp < :targetTimestamp), 0)
+        FROM messages WHERE chatId = :chatId AND timestamp = :targetTimestamp LIMIT 1
+    """)
+    suspend fun getPredecessorTimestamp(chatId: String, targetTimestamp: Long): Long?
+
     /** 获取消息总数 */
     @Query("SELECT COUNT(*) FROM messages")
     suspend fun getTotalMessageCount(): Int

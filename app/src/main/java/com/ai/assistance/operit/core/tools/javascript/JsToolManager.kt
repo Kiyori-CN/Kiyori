@@ -439,6 +439,8 @@ class JsToolManager private constructor(
                         "Script execution timed out after ${JsTimeoutConfig.SCRIPT_TIMEOUT_MS}ms"
                     )
                 )
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 AppLogger.e(TAG, "Script execution failed: tool=${tool.name}, error=${e.message}", e)
                 send(failure(tool.name, "Script execution failed: ${e.message}"))

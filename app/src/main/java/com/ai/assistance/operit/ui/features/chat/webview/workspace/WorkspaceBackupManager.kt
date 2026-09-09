@@ -94,13 +94,19 @@ class WorkspaceBackupManager(private val context: Context) {
      * Synchronizes the workspace state based on the message timestamp.
      * It either creates a new backup or restores to a previous state.
      */
-    suspend fun syncState(
+    suspend fun prepareRewind(
         workspacePath: String,
         messageTimestamp: Long,
         workspaceEnv: String? = null,
         chatId: String? = null
-    ) {
-        syncStateProvider(workspacePath, workspaceEnv, messageTimestamp, chatId)
+    ): suspend () -> Unit {
+        val obsoleteManifests = syncStateProvider(workspacePath, workspaceEnv, messageTimestamp, chatId)
+        // 文件系统与聊天数据库没有共同事务。只有历史提交成功后才能销毁重试所需的清单。
+        return {
+            withContext(Dispatchers.IO) {
+                obsoleteManifests.forEach { deleteFileProvider(it, workspaceEnv) }
+            }
+        }
     }
 
     private data class HookSessionInit(
@@ -440,6 +446,7 @@ class WorkspaceBackupManager(private val context: Context) {
         workspaceEnv: String?
     ): BackupManifest? {
         val statePath = joinPath(backupDir, CURRENT_STATE_FILE_NAME)
+        if (fileExistsProvider(statePath, workspaceEnv)?.exists != true) return null
         val readRes =
             toolHandler.executeTool(
                 AITool(
@@ -455,11 +462,8 @@ class WorkspaceBackupManager(private val context: Context) {
                 )
             )
         val content = (readRes.result as? FileContentData)?.content
-        if (!readRes.success || content.isNullOrBlank()) {
-            return null
-        }
-
-        return runCatching { json.decodeFromString<BackupManifest>(content) }.getOrNull()
+        check(readRes.success && !content.isNullOrBlank()) { "Cannot read workspace current-state manifest" }
+        return json.decodeFromString<BackupManifest>(content)
     }
 
     private suspend fun saveCurrentStateManifestProvider(
@@ -468,7 +472,7 @@ class WorkspaceBackupManager(private val context: Context) {
         manifest: BackupManifest
     ) {
         val statePath = joinPath(backupDir, CURRENT_STATE_FILE_NAME)
-        toolHandler.executeTool(
+        val result = toolHandler.executeTool(
             AITool(
                 name = "write_file",
                 parameters =
@@ -482,6 +486,7 @@ class WorkspaceBackupManager(private val context: Context) {
                     )
             )
         )
+        check(result.success) { result.error ?: "Workspace backup write failed" }
     }
 
     private suspend fun writeBackupManifestProvider(
@@ -491,7 +496,7 @@ class WorkspaceBackupManager(private val context: Context) {
         manifest: BackupManifest
     ) {
         val manifestPath = joinPath(backupDir, "$timestamp.json")
-        toolHandler.executeTool(
+        val result = toolHandler.executeTool(
             AITool(
                 name = "write_file",
                 parameters =
@@ -505,6 +510,7 @@ class WorkspaceBackupManager(private val context: Context) {
                     )
             )
         )
+        check(result.success) { result.error ?: "Workspace backup write failed" }
     }
 
     private suspend fun refreshPathInStateProvider(
@@ -678,7 +684,7 @@ class WorkspaceBackupManager(private val context: Context) {
     private fun makeRelativePath(root: String, fullPath: String): String? {
         val normalizedRoot = root.trimEnd('/')
         if (normalizedRoot.isBlank()) return null
-        if (!fullPath.startsWith(normalizedRoot)) return null
+        if (fullPath != normalizedRoot && !fullPath.startsWith("$normalizedRoot/")) return null
         return fullPath.removePrefix(normalizedRoot).trimStart('/').ifBlank { "" }
     }
 
@@ -696,6 +702,7 @@ class WorkspaceBackupManager(private val context: Context) {
     }
 
     private suspend fun resolveObjectPathForRead(objectsDir: String, hash: String, workspaceEnv: String?): String? {
+        require(hash.matches(Regex("[a-fA-F0-9]{64}"))) { "Invalid workspace backup hash" }
         val sharded = buildShardedObjectPath(objectsDir, hash)
         if (fileExistsProvider(sharded, workspaceEnv)?.exists == true) return sharded
 
@@ -706,7 +713,7 @@ class WorkspaceBackupManager(private val context: Context) {
     }
 
     private suspend fun ensureDirectory(path: String, workspaceEnv: String?) {
-        toolHandler.executeTool(
+        val result = toolHandler.executeTool(
             AITool(
                 name = "make_directory",
                 parameters = withWorkspaceEnvParams(
@@ -718,9 +725,11 @@ class WorkspaceBackupManager(private val context: Context) {
                 )
             )
         )
+        check(result.success) { result.error ?: "Workspace backup write failed" }
     }
 
     private suspend fun listBackupsInBackupDir(backupDir: String, workspaceEnv: String?): List<Long> {
+        if (fileExistsProvider(backupDir, workspaceEnv)?.exists != true) return emptyList()
         val listRes =
             toolHandler.executeTool(
                 AITool(
@@ -729,8 +738,8 @@ class WorkspaceBackupManager(private val context: Context) {
                 )
             )
 
-        val listing = listRes.result as? DirectoryListingData
-        val entries = listing?.entries.orEmpty()
+        check(listRes.success && listRes.result is DirectoryListingData) { "Cannot list workspace backups" }
+        val entries = listRes.result.entries
         return entries
             .asSequence()
             .filter { !it.isDirectory }
@@ -757,10 +766,8 @@ class WorkspaceBackupManager(private val context: Context) {
                 )
             )
         val content = (readRes.result as? FileContentData)?.content
-        if (!readRes.success || content.isNullOrBlank()) {
-            return null
-        }
-        return runCatching { json.decodeFromString<BackupManifest>(content) }.getOrNull()
+        check(readRes.success && !content.isNullOrBlank()) { "Cannot read workspace backup manifest" }
+        return json.decodeFromString<BackupManifest>(content)
     }
 
     private suspend fun readBinaryBase64(path: String, workspaceEnv: String?): String? {
@@ -771,11 +778,12 @@ class WorkspaceBackupManager(private val context: Context) {
                     parameters = withWorkspaceEnvParams(listOf(ToolParameter("path", path)), workspaceEnv)
                 )
             )
-        return (res.result as? BinaryFileContentData)?.contentBase64
+        check(res.success && res.result is BinaryFileContentData) { "Cannot read workspace backup object" }
+        return res.result.contentBase64
     }
 
     private suspend fun writeBinaryBase64(path: String, contentBase64: String, workspaceEnv: String?) {
-        toolHandler.executeTool(
+        val result = toolHandler.executeTool(
             AITool(
                 name = "write_file_binary",
                 parameters = withWorkspaceEnvParams(
@@ -787,15 +795,18 @@ class WorkspaceBackupManager(private val context: Context) {
                 )
             )
         )
+        check(result.success) { result.error ?: "Workspace backup write failed" }
     }
 
     private suspend fun deleteFileProvider(path: String, workspaceEnv: String?) {
-        toolHandler.executeTool(
+        if (fileExistsProvider(path, workspaceEnv)?.exists != true) return
+        val result = toolHandler.executeTool(
             AITool(
                 name = "delete_file",
                 parameters = withWorkspaceEnvParams(listOf(ToolParameter("path", path)), workspaceEnv)
             )
         )
+        check(result.success) { result.error ?: "Workspace backup write failed" }
     }
 
     private suspend fun fileExistsProvider(path: String, workspaceEnv: String?): FileExistsData? {
@@ -806,7 +817,8 @@ class WorkspaceBackupManager(private val context: Context) {
                     parameters = withWorkspaceEnvParams(listOf(ToolParameter("path", path)), workspaceEnv)
                 )
             )
-        return res.result as? FileExistsData
+        check(res.success && res.result is FileExistsData) { "Cannot inspect workspace backup path" }
+        return res.result
     }
 
     private suspend fun fileInfoProvider(path: String, workspaceEnv: String?): FileInfoData? {
@@ -873,12 +885,11 @@ class WorkspaceBackupManager(private val context: Context) {
         workspaceEnv: String?,
         messageTimestamp: Long,
         chatId: String?
-    ) {
-        withContext(Dispatchers.IO) {
+    ): List<String> {
+        return withContext(Dispatchers.IO) {
             val exists = fileExistsProvider(workspacePath, workspaceEnv)
             if (exists == null || !exists.exists || !exists.isDirectory) {
-                AppLogger.w(TAG, "Workspace path does not exist or is not a directory: $workspacePath")
-                return@withContext
+                error("Workspace path does not exist or is not a directory")
             }
 
             val backupRootDir = joinPath(workspacePath, BACKUP_DIR_NAME)
@@ -909,7 +920,9 @@ class WorkspaceBackupManager(private val context: Context) {
                 AppLogger.i(TAG, "Newer backups found. Rewinding workspace to state at $restoreTimestamp")
                 AppLogger.d(TAG, "[Rewind] Calculated restoreTimestamp: $restoreTimestamp")
 
-                val targetManifest = loadBackupManifestProvider(backupDir, restoreTimestamp, workspaceEnv)
+                val targetManifest = checkNotNull(loadBackupManifestProvider(backupDir, restoreTimestamp, workspaceEnv)) {
+                    "Workspace restore manifest is missing"
+                }
                 restoreFromManifestsProvider(
                     workspacePath = workspacePath,
                     workspaceEnv = workspaceEnv,
@@ -918,23 +931,12 @@ class WorkspaceBackupManager(private val context: Context) {
                     targetManifest = targetManifest
                 )
 
-                val restoredState =
-                    targetManifest
-                        ?: BackupManifest(
-                            timestamp = restoreTimestamp,
-                            files = emptyMap(),
-                            fileStats = emptyMap()
-                        )
-                saveCurrentStateManifestProvider(backupDir, workspaceEnv, restoredState)
+                saveCurrentStateManifestProvider(backupDir, workspaceEnv, targetManifest)
 
                 val backupsToDelete = newerBackups.filter { it >= restoreTimestamp }
                 AppLogger.d(TAG, "[Rewind] Backups to be deleted: $backupsToDelete")
                 AppLogger.d(TAG, "Deleting backups from $restoreTimestamp onwards: $backupsToDelete")
-                backupsToDelete.forEach { ts ->
-                    deleteFileProvider(joinPath(backupDir, "$ts.json"), workspaceEnv)
-                }
-                AppLogger.i(TAG, "Deleted ${backupsToDelete.size} newer backup manifests.")
-                return@withContext
+                return@withContext backupsToDelete.map { ts -> joinPath(backupDir, "$ts.json") }
             }
 
             val existingManifest =
@@ -947,7 +949,7 @@ class WorkspaceBackupManager(private val context: Context) {
             if (existingManifest != null) {
                 saveCurrentStateManifestProvider(backupDir, workspaceEnv, existingManifest)
                 AppLogger.d(TAG, "Backup for timestamp $messageTimestamp already exists. Synced current state.")
-                return@withContext
+                return@withContext emptyList()
             }
 
             AppLogger.i(TAG, "No newer backups found for timestamp $messageTimestamp. Recording current state snapshot.")
@@ -957,6 +959,7 @@ class WorkspaceBackupManager(private val context: Context) {
                 workspaceEnv = workspaceEnv,
                 manifest = currentState.copy(timestamp = messageTimestamp)
             )
+            emptyList()
         }
     }
 
@@ -965,40 +968,24 @@ class WorkspaceBackupManager(private val context: Context) {
         workspaceEnv: String?,
         objectsDir: String,
         currentState: BackupManifest,
-        targetManifest: BackupManifest?
+        targetManifest: BackupManifest,
     ) {
-        val currentFiles = currentState.files
-        val targetFiles = targetManifest?.files ?: emptyMap()
-
-        AppLogger.d(TAG, "Step 1: Deleting tracked files not present in the target manifest...")
-        for ((relativePath, _) in currentFiles) {
-            if (targetFiles.containsKey(relativePath)) continue
-            val currentFilePath = joinPath(workspacePath, relativePath)
-            AppLogger.i(TAG, "Deleting tracked text file not in manifest: $relativePath")
-            deleteFileProvider(currentFilePath, workspaceEnv)
-        }
-
-        AppLogger.d(TAG, "Step 2: Restoring and updating files from the target manifest...")
-        for ((relativePath, hash) in targetFiles) {
-            val currentHash = currentFiles[relativePath]
-            if (currentHash == hash) continue
-
-            val objectPath = resolveObjectPathForRead(objectsDir, hash, workspaceEnv)
-            if (objectPath == null) {
-                AppLogger.e(TAG, "Object file not found for hash $hash, cannot restore $relativePath")
-                continue
-            }
-
-            val targetPath = joinPath(workspacePath, relativePath)
-            val parent = targetPath.substringBeforeLast('/', "")
-            if (parent.isNotBlank()) {
-                ensureDirectory(parent, workspaceEnv)
-            }
-
-            AppLogger.i(TAG, "Restoring file: $relativePath")
-            val objectBase64 = readBinaryBase64(objectPath, workspaceEnv) ?: continue
-            writeBinaryBase64(targetPath, objectBase64, workspaceEnv)
-        }
+        restoreWorkspaceFiles(
+            currentFiles = currentState.files,
+            targetFiles = targetManifest.files,
+            resolveObject = { hash -> resolveObjectPathForRead(objectsDir, hash, workspaceEnv) },
+            writeFile = { relativePath, objectPath, hash ->
+                val content = checkNotNull(readBinaryBase64(objectPath, workspaceEnv)) { "Workspace backup object is unreadable" }
+                val bytes = Base64.decode(content, Base64.DEFAULT)
+                val actualHash = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+                check(actualHash.equals(hash, ignoreCase = true)) { "Workspace backup object checksum mismatch" }
+                val targetPath = joinPath(workspacePath, relativePath)
+                val parent = targetPath.substringBeforeLast('/', "")
+                if (parent.isNotBlank()) ensureDirectory(parent, workspaceEnv)
+                writeBinaryBase64(targetPath, content, workspaceEnv)
+            },
+            deleteFile = { relativePath -> deleteFileProvider(joinPath(workspacePath, relativePath), workspaceEnv) },
+        )
     }
 
     private fun normalizeTextLinesForDiff(text: String): List<String> {
@@ -1048,6 +1035,8 @@ class WorkspaceBackupManager(private val context: Context) {
         rewindTimestamp: Long,
         chatId: String?
     ): List<WorkspaceFileChange> {
+        val workspaceInfo = fileExistsProvider(workspacePath, workspaceEnv)
+        check(workspaceInfo?.exists == true && workspaceInfo.isDirectory) { "Workspace is unavailable" }
         val backupRootDir = joinPath(workspacePath, BACKUP_DIR_NAME)
         val backupDir = resolveChatBackupDir(backupRootDir, chatId)
         val existingBackups = listBackupsInBackupDir(backupDir, workspaceEnv)
@@ -1086,11 +1075,9 @@ class WorkspaceBackupManager(private val context: Context) {
         hash: String,
         workspaceEnv: String?
     ): String? {
-        val objectPath = resolveObjectPathForRead(objectsDir, hash, workspaceEnv) ?: return null
-        val objectBase64 = readBinaryBase64(objectPath, workspaceEnv) ?: return null
-        return runCatching {
-            String(Base64.decode(objectBase64, Base64.DEFAULT), Charsets.UTF_8)
-        }.getOrNull()
+        val objectPath = checkNotNull(resolveObjectPathForRead(objectsDir, hash, workspaceEnv)) { "Workspace backup object is missing" }
+        val objectBase64 = checkNotNull(readBinaryBase64(objectPath, workspaceEnv)) { "Workspace backup object is unreadable" }
+        return String(Base64.decode(objectBase64, Base64.DEFAULT), Charsets.UTF_8)
     }
 
     private suspend fun estimateLineCountFromHashProvider(
@@ -1123,8 +1110,7 @@ class WorkspaceBackupManager(private val context: Context) {
         return withContext(Dispatchers.IO) {
             val exists = fileExistsProvider(workspacePath, workspaceEnv)
             if (exists == null || !exists.exists || !exists.isDirectory) {
-                AppLogger.w(TAG, "Workspace path does not exist or is not a directory: $workspacePath")
-                return@withContext emptyList()
+                error("Workspace path does not exist or is not a directory")
             }
 
             val backupRootDir = joinPath(workspacePath, BACKUP_DIR_NAME)
@@ -1132,13 +1118,9 @@ class WorkspaceBackupManager(private val context: Context) {
             val objectsDir = joinPath(backupRootDir, OBJECTS_DIR_NAME)
 
             val currentState = loadCurrentStateForDiffProvider(backupDir, workspaceEnv)
-            val targetManifest =
-                loadBackupManifestProvider(backupDir, targetTimestamp, workspaceEnv)
-                    ?: BackupManifest(
-                        timestamp = targetTimestamp,
-                        files = emptyMap(),
-                        fileStats = emptyMap()
-                    )
+            val targetManifest = checkNotNull(loadBackupManifestProvider(backupDir, targetTimestamp, workspaceEnv)) {
+                "Workspace preview manifest is missing"
+            }
 
             val currentFiles = currentState.files
             val targetFiles = targetManifest.files

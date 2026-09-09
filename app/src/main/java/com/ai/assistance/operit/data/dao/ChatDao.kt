@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.Flow
 /** 聊天DAO接口，定义对聊天表的数据访问方法 */
 @Dao
 interface ChatDao {
+    @Query("SELECT EXISTS(SELECT 1 FROM chats WHERE workspace IS NOT NULL AND workspace != '' AND workspaceEnv = :environment)")
+    suspend fun isWorkspaceEnvironmentBound(environment: String): Boolean
+
     /** 获取所有聊天，按显示顺序排列 */
     @Query("SELECT * FROM chats ORDER BY pinned DESC, displayOrder ASC")
     fun getAllChats(): Flow<List<ChatEntity>>
@@ -96,8 +99,8 @@ interface ChatDao {
     suspend fun updateChatTitle(chatId: String, title: String, timestamp: Long = System.currentTimeMillis())
 
     /** 更新聊天工作区 */
-    @Query("UPDATE chats SET `workspace` = :workspace, `workspaceEnv` = :workspaceEnv, updatedAt = :timestamp WHERE id = :chatId")
-    suspend fun updateChatWorkspace(chatId: String, workspace: String?, workspaceEnv: String?, timestamp: Long = System.currentTimeMillis())
+    @Query("UPDATE chats SET `workspace` = :workspace, `workspaceEnv` = :workspaceEnv, updatedAt = :timestamp WHERE id = :chatId AND `workspace` IS :expectedWorkspace AND `workspaceEnv` IS :expectedEnvironment")
+    suspend fun updateChatWorkspace(chatId: String, workspace: String?, workspaceEnv: String?, expectedWorkspace: String?, expectedEnvironment: String?, timestamp: Long = System.currentTimeMillis()): Int
 
     /** 同时更新聊天标题和工作区 */
     @Query(

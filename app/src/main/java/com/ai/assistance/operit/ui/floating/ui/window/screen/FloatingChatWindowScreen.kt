@@ -48,6 +48,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -1014,18 +1015,22 @@ private fun ColumnScope.InputTextField(
     val isProcessing =
         floatContext.chatService?.getChatCore()?.isLoading?.collectAsState()?.value ?: false
 
-    DisposableEffect(floatContext.showInputDialog) {
+    val inputContext = LocalContext.current
+    val imeOwner = remember { Any() }
+    LaunchedEffect(floatContext.showInputDialog) {
         if (floatContext.showInputDialog) {
-            floatContext.coroutineScope.launch {
-                delay(300)
-                try {
-                    focusRequester.requestFocus()
-                } catch (e: Exception) {
-                    AppLogger.e("FloatingChatWindow", "Failed to request focus", e)
-                }
-            }
+            // 焦点任务属于编辑器组合，退出后自动取消，避免旧输入框重新抢焦点。
+            withFrameNanos { }
+            focusRequester.requestFocus()
+            com.ai.assistance.operit.api.chat.AIForegroundService
+                .setWakeListeningSuspendedForIme(inputContext, true, imeOwner)
         }
-        onDispose {}
+    }
+    DisposableEffect(inputContext, imeOwner) {
+        onDispose {
+            com.ai.assistance.operit.api.chat.AIForegroundService
+                .setWakeListeningSuspendedForIme(inputContext, false, imeOwner)
+        }
     }
 
     Box(
@@ -1043,12 +1048,12 @@ private fun ColumnScope.InputTextField(
             textStyle = TextStyle.Default,
             maxLines = Int.MAX_VALUE,
             keyboardOptions = KeyboardOptions(
-                imeAction = ImeAction.Send,
+                imeAction = if (isProcessing) ImeAction.Default else ImeAction.Send,
                 autoCorrectEnabled = true
             ),
             keyboardActions = KeyboardActions(
                 onSend = {
-                    if (floatContext.userMessage.isNotBlank() || floatContext.attachments.isNotEmpty()) {
+                    if (!isProcessing && (floatContext.userMessage.isNotBlank() || floatContext.attachments.isNotEmpty())) {
                         floatContext.onSendMessage?.invoke(
                             floatContext.userMessage,
                             PromptFunctionType.CHAT
@@ -1408,5 +1413,4 @@ private fun ProcessingStatusIndicator(floatContext: FloatContext) {
         }
     }
 }
-
 

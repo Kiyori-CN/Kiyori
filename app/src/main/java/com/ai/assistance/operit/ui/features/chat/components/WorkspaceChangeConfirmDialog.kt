@@ -39,7 +39,9 @@ fun WorkspaceChangeConfirmDialog(
     mode: WorkspaceChangeConfirmMode,
     changes: List<WorkspaceBackupManager.WorkspaceFileChange>,
     onConfirm: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    isLoading: Boolean = false,
+    errorMessage: String? = null,
 ) {
     val dialogMetrics = rememberCompactDialogMetrics()
     val previewMaxHeight = if (dialogMetrics.isCompactHeight) 120.dp else 260.dp
@@ -61,6 +63,7 @@ fun WorkspaceChangeConfirmDialog(
                 modifier = Modifier
                     .padding(20.dp)
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -95,7 +98,14 @@ fun WorkspaceChangeConfirmDialog(
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
-                if (changes.isNotEmpty()) {
+                if (isLoading) {
+                    Spacer(Modifier.height(16.dp))
+                    androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    Text(stringResource(R.string.workspace_rewind_preview_loading), style = MaterialTheme.typography.bodySmall)
+                } else if (errorMessage != null) {
+                    Spacer(Modifier.height(16.dp))
+                    Text(errorMessage, color = MaterialTheme.colorScheme.error)
+                } else if (changes.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = stringResource(id = R.string.workspace_changes_preview_title),
@@ -199,6 +209,7 @@ fun WorkspaceChangeConfirmDialog(
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = onConfirm,
+                        enabled = !isLoading && errorMessage == null,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.error
                         )

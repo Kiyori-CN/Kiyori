@@ -16,16 +16,21 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
@@ -39,9 +44,6 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.system.AndroidShellExecutor
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 import com.kiyori.design.theme.KiyoriSemanticTone
@@ -84,63 +86,30 @@ data class PresetCommand(
 @Composable
 fun ShellExecutorScreen(navController: NavController? = null) {
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
+    val isCurrentScreen = LocalIsCurrentScreen.current
+    val state: ShellExecutorViewModel = viewModel { ShellExecutorViewModel(context.applicationContext) }
     val focusManager = LocalFocusManager.current
     
     // 创建命令管理器
     val commandManager = remember { ShellCommandManager(context) }
     
-    // 状态管理
-    var commandInput by remember { mutableStateOf("") }
-    var isExecuting by remember { mutableStateOf(false) }
-    var commandHistory by remember { mutableStateOf(listOf<CommandRecord>()) }
-    var showPresets by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var showError by remember { mutableStateOf(false) }
+    var commandInput by state::commandInput
+    val isExecuting = state.isExecuting
+    val commandHistory = state.commandHistory
+    val errorMessage = state.errorMessage
+    var showPresets by rememberSaveable { mutableStateOf(false) }
+    var showClearHistory by rememberSaveable { mutableStateOf(false) }
     var showSuggestions by remember { mutableStateOf(false) }
-    var suggestionsList by remember { mutableStateOf(listOf<String>()) }
-    
-    // 从管理器获取预设命令
-    val presetCommands = remember { commandManager.getPresetCommands() }
-    
-    // 加载历史记录
-    LaunchedEffect(Unit) {
-        commandHistory = commandManager.getCommandHistory()
+    val suggestionsList = remember(commandInput, commandHistory) {
+        commandHistory.map { it.command }.filter { it.startsWith(commandInput, ignoreCase = true) }.take(5)
     }
-    
-    // 命令建议更新
-    LaunchedEffect(commandInput) {
-        if (commandInput.isNotEmpty()) {
-            suggestionsList = commandManager.getSuggestedCommands(commandInput)
-            showSuggestions = suggestionsList.isNotEmpty()
-        } else {
-            showSuggestions = false
-        }
-    }
+    val presetCommands = remember(commandManager) { commandManager.getPresetCommands() }
 
-    // 执行命令函数
     fun executeCommand(command: String) {
-        val trimmedCommand = command.trim()
-        if (trimmedCommand.isBlank()) return
-        
-        isExecuting = true
+        if (isExecuting || command.isBlank()) return
         focusManager.clearFocus()
-        
-        coroutineScope.launch {
-            try {
-                val record = commandManager.executeCommand(trimmedCommand)
-                
-                // 添加到历史记录
-                commandHistory = listOf(record) + commandHistory
-                commandInput = "" // 清空输入
-            } catch (e: Exception) {
-                errorMessage = context.getString(R.string.shell_executor_execute_failed, e.message ?: "Unknown error")
-                showError = true
-            } finally {
-                // 确保执行状态重置
-                isExecuting = false
-            }
-        }
+        showSuggestions = false
+        state.executeCommand(command)
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -180,7 +149,7 @@ fun ShellExecutorScreen(navController: NavController? = null) {
                     Box(modifier = Modifier.weight(1f)) {
                         OutlinedTextField(
                             value = commandInput,
-                            onValueChange = { commandInput = it },
+                            onValueChange = { commandInput = it; showSuggestions = it.isNotBlank() },
                             modifier = Modifier.fillMaxWidth(),
                             placeholder = { Text(stringResource(R.string.shell_executor_input_hint)) },
                             leadingIcon = {
@@ -213,7 +182,7 @@ fun ShellExecutorScreen(navController: NavController? = null) {
                         )
                         
                         // 命令建议下拉菜单
-                        if (showSuggestions && commandInput.isNotEmpty()) {
+                        if (showSuggestions && commandInput.isNotEmpty() && suggestionsList.isNotEmpty()) {
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
                                 color = MaterialTheme.colorScheme.surfaceVariant,
@@ -265,7 +234,7 @@ fun ShellExecutorScreen(navController: NavController? = null) {
                     // 执行按钮
                     FilledTonalButton(
                         onClick = { executeCommand(commandInput) },
-                        enabled = commandInput.trim().isNotEmpty(),
+                        enabled = commandInput.trim().isNotEmpty() && !isExecuting,
                         shape = CircleShape,
                         modifier = Modifier.height(56.dp),
                         contentPadding = PaddingValues(horizontal = 16.dp)
@@ -296,9 +265,9 @@ fun ShellExecutorScreen(navController: NavController? = null) {
                     if (commandHistory.isNotEmpty()) {
                         TextButton(
                             onClick = {
-                                commandManager.clearCommandHistory()
-                                commandHistory = emptyList()
+                                showClearHistory = true
                             },
+                            enabled = !isExecuting,
                             contentPadding = PaddingValues(horizontal = 8.dp)
                         ) {
                             Icon(
@@ -461,10 +430,11 @@ fun ShellExecutorScreen(navController: NavController? = null) {
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    items(items = commandHistory) { record ->
+                    items(items = commandHistory, key = { it.command }) { record ->
                         CommandResultCard(
                             record = record,
-                            onReExecute = { executeCommand(record.command) }
+                            onReExecute = { executeCommand(record.command) },
+                            canExecute = !isExecuting
                         )
                     }
 
@@ -475,10 +445,23 @@ fun ShellExecutorScreen(navController: NavController? = null) {
         }
     }
 
-    // 错误提示
-    if (showError && errorMessage != null) {
+    if (isCurrentScreen && showClearHistory) {
         AlertDialog(
-            onDismissRequest = { showError = false },
+            onDismissRequest = { showClearHistory = false },
+            title = { Text(stringResource(R.string.shell_executor_clear_history)) },
+            text = { Text(stringResource(R.string.shell_executor_clear_history_confirm)) },
+            confirmButton = { TextButton(onClick = {
+                state.clearHistory()
+                showClearHistory = false
+            }, enabled = !isExecuting) { Text(stringResource(R.string.shell_executor_confirm)) } },
+            dismissButton = { TextButton(onClick = { showClearHistory = false }) { Text(stringResource(R.string.cancel)) } }
+        )
+    }
+
+    // 错误提示
+    if (isCurrentScreen && errorMessage != null) {
+        AlertDialog(
+            onDismissRequest = { state.clearError() },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
@@ -491,10 +474,14 @@ fun ShellExecutorScreen(navController: NavController? = null) {
                     Text(stringResource(R.string.shell_executor_error_title))
                 }
             },
-            text = { Text(errorMessage!!, style = MaterialTheme.typography.bodyMedium) },
+            text = { Text(
+                context.getString(R.string.shell_executor_execute_failed, errorMessage),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) },
             confirmButton = {
                 TextButton(
-                    onClick = { showError = false },
+                    onClick = { state.clearError() },
                     colors = ButtonDefaults.textButtonColors(
                         contentColor = MaterialTheme.colorScheme.primary
                     )
@@ -511,7 +498,7 @@ fun ShellExecutorScreen(navController: NavController? = null) {
 fun PresetCommandChip(presetCommand: PresetCommand, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Surface(
         modifier = modifier
-            .heightIn(min = 40.dp)
+            .heightIn(min = 48.dp)
             .clickable { onClick() },
         shape = KiyoriUiShapes.control,
         color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
@@ -542,13 +529,13 @@ fun PresetCommandChip(presetCommand: PresetCommand, modifier: Modifier = Modifie
 
 /** 命令结果卡片 */
 @Composable
-fun CommandResultCard(record: CommandRecord, onReExecute: () -> Unit = {}) {
+fun CommandResultCard(record: CommandRecord, onReExecute: () -> Unit = {}, canExecute: Boolean = true) {
     val successColors = KiyoriSemanticTone.GREEN.resolveColors()
     val errorColors = KiyoriSemanticTone.RED.resolveColors()
     val dateFormatter = remember { SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()) }
     val formattedDate = remember(record) { dateFormatter.format(Date(record.timestamp)) }
     
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by rememberSaveable(record.command, record.timestamp) { mutableStateOf(false) }
     val backgroundColor = MaterialTheme.colorScheme.surface
     
     Card(
@@ -637,6 +624,13 @@ fun CommandResultCard(record: CommandRecord, onReExecute: () -> Unit = {}) {
                         .padding(16.dp)
                 ) {
                     // 标准输出
+                    Text(
+                        text = stringResource(R.string.shell_executor_command),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    ShellOutputText(record.command)
+                    Spacer(modifier = Modifier.height(8.dp))
                     if (record.result.stdout.isNotEmpty()) {
                         Text(
                             text = stringResource(R.string.shell_executor_stdout),
@@ -651,15 +645,7 @@ fun CommandResultCard(record: CommandRecord, onReExecute: () -> Unit = {}) {
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text(
-                                text = record.result.stdout,
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 12.sp,
-                                    lineHeight = 16.sp
-                                ),
-                                modifier = Modifier.padding(12.dp)
-                            )
+                            ShellOutputText(record.result.stdout)
                         }
                     }
 
@@ -680,16 +666,7 @@ fun CommandResultCard(record: CommandRecord, onReExecute: () -> Unit = {}) {
                             color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text(
-                                text = record.result.stderr,
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 12.sp,
-                                    lineHeight = 16.sp
-                                ),
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.padding(12.dp)
-                            )
+                            ShellOutputText(record.result.stderr, MaterialTheme.colorScheme.onErrorContainer)
                         }
                     }
 
@@ -711,6 +688,7 @@ fun CommandResultCard(record: CommandRecord, onReExecute: () -> Unit = {}) {
                         // 重新执行按钮
                         TextButton(
                             onClick = onReExecute,
+                            enabled = canExecute,
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Icon(
@@ -728,5 +706,19 @@ fun CommandResultCard(record: CommandRecord, onReExecute: () -> Unit = {}) {
                 }
             }
         }
+    }
+}
+
+/** 长输出在有界区域内滚动，保留完整内容与文本选择，避免一张历史卡占满页面。 */
+@Composable
+private fun ShellOutputText(text: String, color: Color = LocalContentColor.current) {
+    SelectionContainer {
+        Text(
+            text = text,
+            color = color,
+            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+            modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp)
+                .verticalScroll(rememberScrollState()).padding(12.dp)
+        )
     }
 }

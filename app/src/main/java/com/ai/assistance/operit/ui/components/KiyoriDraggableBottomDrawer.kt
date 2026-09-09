@@ -71,6 +71,8 @@ internal fun KiyoriDraggableBottomDrawer(
     onDismissRequest: () -> Unit,
     onHidden: () -> Unit,
     modifier: Modifier = Modifier,
+    gesturesEnabled: Boolean = true,
+    confirmDismiss: () -> Boolean = { true },
     content: @Composable ColumnScope.() -> Unit,
 ) {
     require(partialVisibleFraction in 0f..1f) {
@@ -141,7 +143,7 @@ internal fun KiyoriDraggableBottomDrawer(
             Modifier.draggable(
                 state = dragState,
                 orientation = Orientation.Vertical,
-                enabled = isVisible,
+                enabled = isVisible && gesturesEnabled,
                 onDragStarted = {
                     dragStartFraction = offsetFraction.value
                     dragDistancePx = 0f
@@ -174,16 +176,18 @@ internal fun KiyoriDraggableBottomDrawer(
                                     partialOffsetFraction = partialOffsetFraction,
                                 )
                         }
-                    drawerValue = targetValue
+                    // 先由宿主确认关闭；带未保存内容的页面可以拒绝，不能先隐藏后困住用户。
+                    val settledValue = if (targetValue == KiyoriBottomDrawerValue.HIDDEN && !confirmDismiss()) {
+                        KiyoriBottomDrawerValue.PARTIAL
+                    } else targetValue
+                    drawerValue = settledValue
                     scope.launch {
                         offsetFraction.stop()
                         offsetFraction.animateTo(
-                            targetValue.offsetFraction(partialOffsetFraction),
+                            settledValue.offsetFraction(partialOffsetFraction),
                             KiyoriBottomDrawerAnimationSpec,
                         )
-                        if (targetValue == KiyoriBottomDrawerValue.HIDDEN) {
-                            onDismissRequest()
-                        }
+                        if (settledValue == KiyoriBottomDrawerValue.HIDDEN) onDismissRequest()
                     }
                     dragDistancePx = 0f
                 },

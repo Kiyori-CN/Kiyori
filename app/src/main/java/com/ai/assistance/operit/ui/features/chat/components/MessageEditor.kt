@@ -604,7 +604,7 @@ private fun TagEditorDialog(
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 2.dp
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(20.dp)) {
                 // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),

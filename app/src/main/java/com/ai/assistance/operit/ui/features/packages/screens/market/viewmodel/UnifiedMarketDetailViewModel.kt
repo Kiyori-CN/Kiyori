@@ -22,6 +22,7 @@ import com.ai.assistance.operit.ui.features.packages.market.MarketInteractionMes
 import com.ai.assistance.operit.ui.features.packages.market.resolveMarketLocalInstallStates
 import com.ai.assistance.operit.util.AppLogger
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -97,34 +98,33 @@ class UnifiedMarketDetailViewModel(
         marketInteractionController.loadEntryComments(entryId, perPage = 50)
     }
 
-    fun postEntryComment(entryId: String, body: String, parentId: String? = null) {
+    fun postEntryComment(entryId: String, body: String, parentId: String? = null, onSuccess: () -> Unit = {}) {
         val text = body.trim()
         if (text.isBlank()) return
 
-        viewModelScope.launch {
-            if (!githubAuth.isLoggedIn()) {
-                _errorMessage.value = context.getString(R.string.mcp_plugin_login_required)
-                return@launch
-            }
-            marketInteractionController.postEntryComment(
-                entryId = entryId,
-                body = text,
-                parentId = parentId,
-                successBehavior = CommentPostSuccessBehavior.RELOAD_FROM_SERVER,
-                perPage = 50
-            )
-        }
+        _errorMessage.value = null
+        marketInteractionController.postEntryComment(
+            entryId = entryId,
+            body = text,
+            parentId = parentId,
+            successBehavior = CommentPostSuccessBehavior.RELOAD_FROM_SERVER,
+            perPage = 50,
+            authorize = { check(githubAuth.isLoggedIn()) { context.getString(R.string.mcp_plugin_login_required) } },
+            onSuccess = onSuccess,
+        )
     }
 
-    fun editComment(entryId: String, commentId: String, body: String) {
+    fun editComment(entryId: String, commentId: String, body: String, onSuccess: () -> Unit = {}) {
         val text = body.trim()
         if (text.isBlank() || commentId.isBlank()) return
-        marketInteractionController.editEntryComment(entryId, commentId, text)
+        _errorMessage.value = null
+        marketInteractionController.editEntryComment(entryId, commentId, text, onSuccess = onSuccess)
     }
 
-    fun deleteComment(entryId: String, commentId: String) {
+    fun deleteComment(entryId: String, commentId: String, onSuccess: () -> Unit = {}) {
         if (commentId.isBlank()) return
-        marketInteractionController.deleteEntryComment(entryId, commentId)
+        _errorMessage.value = null
+        marketInteractionController.deleteEntryComment(entryId, commentId, onSuccess = onSuccess)
     }
 
     fun loadEntryReactions(entry: MarketV2Entry) {
@@ -134,8 +134,8 @@ class UnifiedMarketDetailViewModel(
         )
     }
 
-    fun addReactionToEntry(entryId: String) {
-        marketInteractionController.addReactionToEntry(entryId)
+    fun addReactionToEntry(entryId: String, onSuccess: () -> Unit = {}) {
+        marketInteractionController.addReactionToEntry(entryId, onSuccess)
     }
 
     fun installEntry(entry: MarketV2Entry) {
@@ -146,14 +146,24 @@ class UnifiedMarketDetailViewModel(
                 installController.install(entry) { stage, progress ->
                     MarketInstallStateStore.update(entryId, stage, progress)
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
-                _errorMessage.value = context.getString(R.string.mcp_market_install_failed_with_error, e.message ?: "")
+                _errorMessage.value = if (e is com.ai.assistance.operit.core.tools.packTool.StandalonePackageInstalledException) {
+                    e.message
+                } else context.getString(R.string.mcp_market_install_failed_with_error, e.message ?: "")
                 AppLogger.e(TAG, "Failed to install market entry ${entry.id}", e)
             } finally {
-                refreshLocalInstallStates(entry)
-                MarketInstallStateStore.finish(entryId)
+                try {
+                    refreshLocalInstallStates(entry)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    _errorMessage.value = context.getString(R.string.market_install_state_refresh_failed)
+                    AppLogger.e(TAG, "Failed to refresh local installation state", error)
+                }
             }
-        }
+        }.invokeOnCompletion { MarketInstallStateStore.finish(entryId) }
     }
 
     private suspend fun refreshLocalInstallStates(entry: MarketV2Entry) {

@@ -126,14 +126,21 @@ fun <T> MarketBrowseList(
     )
     val pullToRefreshState = rememberPullToRefreshState()
     val showInitialLoading = isLoading && items.isEmpty()
-    val lastLoadMoreIndex = remember { mutableStateOf(-1) }
+    val lastLoadMoreIndex = remember(sortOption, searchQuery, featuredOnly) { mutableStateOf(-1) }
+    val previousSort = remember { mutableStateOf(sortOption) }
     val isRefreshing = isLoading && items.isNotEmpty() && searchQuery.isBlank()
 
-    LaunchedEffect(listState, items.size, searchQuery, hasMore, isLoadingMore) {
-        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1 }
-            .collect { lastVisibleIndex ->
+    LaunchedEffect(sortOption) {
+        if (previousSort.value != sortOption) listState.scrollToItem(0)
+        previousSort.value = sortOption
+    }
+
+    LaunchedEffect(listState, items.size, searchQuery, hasMore, isLoadingMore, sortOption, featuredOnly) {
+        snapshotFlow { (listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1) to listState.layoutInfo.totalItemsCount }
+            .collect { (lastVisibleIndex, totalItemsCount) ->
                 if (searchQuery.isNotBlank()) return@collect
-                val lastItemIndex = items.size - 1
+                // 分组标题和底部操作也是LazyColumn条目，不能用数据数量代替布局索引。
+                val lastItemIndex = totalItemsCount - 1
                 if (hasMore && !isLoadingMore && items.isNotEmpty() && lastVisibleIndex >= (lastItemIndex - 2) && lastVisibleIndex != lastLoadMoreIndex.value) {
                     lastLoadMoreIndex.value = lastVisibleIndex
                     onLoadMore()
@@ -195,6 +202,15 @@ fun <T> MarketBrowseList(
                                 ) {
                                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
                                 }
+                            }
+                        }
+
+                        if (hasMore && !isLoadingMore && !isLoading) {
+                            item {
+                                androidx.compose.material3.TextButton(
+                                    onClick = onLoadMore,
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                                ) { Text(stringResource(R.string.market_load_more_entries)) }
                             }
                         }
 

@@ -11,6 +11,9 @@ import com.ai.assistance.operit.data.api.MarketStatsApiService
 import com.ai.assistance.operit.data.preferences.GitHubUser
 import com.ai.assistance.operit.util.AppLogger
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -43,6 +46,7 @@ class MarketInteractionController(
     private val avatarCachePrefs: SharedPreferences? = null
 ) {
     private val _entryComments = MutableStateFlow<Map<String, List<MarketV2Comment>>>(emptyMap())
+    private val commentLoadGenerations = mutableMapOf<String, Long>()
     val entryComments: StateFlow<Map<String, List<MarketV2Comment>>> = _entryComments.asStateFlow()
 
     private val _isLoadingComments = MutableStateFlow<Set<String>>(emptySet())
@@ -80,16 +84,21 @@ class MarketInteractionController(
     fun loadEntryComments(entryId: String, perPage: Int = 50) {
         val id = entryId.trim()
         if (id.isBlank()) return
+        val generation = (commentLoadGenerations[id] ?: 0L) + 1L
+        commentLoadGenerations[id] = generation
+        _isLoadingComments.value = _isLoadingComments.value + id
         scope.launch {
             try {
-                _isLoadingComments.value = _isLoadingComments.value + id
                 val result = marketApiService.getComments(id).map { comments -> comments.take(perPage) }
+                currentCoroutineContext().ensureActive()
+                if (commentLoadGenerations[id] != generation) return@launch
                 result.fold(
                     onSuccess = { comments ->
                         _entryComments.value = _entryComments.value.toMutableMap().also { it[id] = comments }
                         AppLogger.d(logTag, "Loaded ${comments.size} comments for entry $id")
                     },
                     onFailure = { error ->
+                        if (error is CancellationException) throw error
                         if (error.message?.contains("404") == true) {
                             _entryComments.value = _entryComments.value.toMutableMap().also { it[id] = emptyList() }
                         } else {
@@ -98,12 +107,15 @@ class MarketInteractionController(
                         }
                     }
                 )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
+                if (commentLoadGenerations[id] != generation) return@launch
                 onError(messages.commentLoadError(e.message.orEmpty()))
                 AppLogger.e(logTag, "Exception while loading comments for entry $id", e)
-            } finally {
-                _isLoadingComments.value = _isLoadingComments.value - id
             }
+        }.invokeOnCompletion {
+            if (commentLoadGenerations[id] == generation) _isLoadingComments.value = _isLoadingComments.value - id
         }
     }
 
@@ -112,18 +124,22 @@ class MarketInteractionController(
         body: String,
         parentId: String? = null,
         successBehavior: CommentPostSuccessBehavior = CommentPostSuccessBehavior.APPEND_TO_CACHE,
-        perPage: Int = 50
+        perPage: Int = 50,
+        authorize: suspend () -> Unit = {},
+        onSuccess: () -> Unit = {},
     ) {
         val id = entryId.trim()
-        if (id.isBlank()) return
+        if (id.isBlank() || body.isBlank() || id in _isPostingComment.value) return
+        _isPostingComment.value = _isPostingComment.value + id
         scope.launch {
             try {
-                _isPostingComment.value = _isPostingComment.value + id
+                authorize()
                 val result = marketApiService.postComment(id, body, parentId)
                 result.fold(
                     onSuccess = { newComment ->
                         when (successBehavior) {
                             CommentPostSuccessBehavior.APPEND_TO_CACHE -> {
+                                invalidateCommentLoad(id)
                                 val existing = _entryComments.value[id].orEmpty()
                                 _entryComments.value = _entryComments.value.toMutableMap().also {
                                     it[id] = existing + newComment
@@ -133,29 +149,33 @@ class MarketInteractionController(
                         }
                         messages.commentPostSuccess?.let { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
                         AppLogger.d(logTag, "Posted comment to entry $id")
+                        onSuccess()
                     },
                     onFailure = { error ->
+                        if (error is CancellationException) throw error
                         onError(messages.commentPostFailed(error.message.orEmpty()))
                         AppLogger.e(logTag, "Failed to post comment to entry $id", error)
                     }
                 )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 onError(messages.commentPostError(e.message.orEmpty()))
                 AppLogger.e(logTag, "Exception while posting comment to entry $id", e)
-            } finally {
-                _isPostingComment.value = _isPostingComment.value - id
             }
-        }
+        }.invokeOnCompletion { _isPostingComment.value = _isPostingComment.value - id }
     }
 
     fun editEntryComment(
         entryId: String,
         commentId: String,
         body: String,
-        perPage: Int = 50
+        perPage: Int = 50,
+        onSuccess: () -> Unit = {},
     ) {
         val id = entryId.trim()
-        if (id.isBlank()) return
+        if (id.isBlank() || body.isBlank() || id in _isPostingComment.value || commentId in _isDeletingComment.value) return
+        _isPostingComment.value = _isPostingComment.value + id
         scope.launch {
             try {
                 val result = marketApiService.editComment(commentId, body)
@@ -169,29 +189,35 @@ class MarketInteractionController(
                             }
                         }
                         AppLogger.d(logTag, "Edited comment $commentId on entry $id")
+                        invalidateCommentLoad(id)
+                        onSuccess()
                     },
                     onFailure = { error ->
+                        if (error is CancellationException) throw error
                         onError("Failed to edit comment: ${error.message}")
                         AppLogger.e(logTag, "Failed to edit comment $commentId on entry $id", error)
                     }
                 )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 onError("Failed to edit comment: ${e.message}")
                 AppLogger.e(logTag, "Exception while editing comment $commentId on entry $id", e)
             }
-        }
+        }.invokeOnCompletion { _isPostingComment.value = _isPostingComment.value - id }
     }
 
     fun deleteEntryComment(
         entryId: String,
         commentId: String,
-        perPage: Int = 50
+        perPage: Int = 50,
+        onSuccess: () -> Unit = {},
     ) {
         val id = entryId.trim()
-        if (id.isBlank()) return
+        if (id.isBlank() || commentId.isBlank() || commentId in _isDeletingComment.value || id in _isPostingComment.value) return
+        _isDeletingComment.value = _isDeletingComment.value + commentId
         scope.launch {
             try {
-                _isDeletingComment.value = _isDeletingComment.value + commentId
                 val result = marketApiService.deleteComment(commentId)
                 result.fold(
                     onSuccess = {
@@ -200,19 +226,27 @@ class MarketInteractionController(
                             it[id] = existing.filter { comment -> comment.id != commentId }
                         }
                         AppLogger.d(logTag, "Deleted comment $commentId on entry $id")
+                        invalidateCommentLoad(id)
+                        onSuccess()
                     },
                     onFailure = { error ->
+                        if (error is CancellationException) throw error
                         onError("Failed to delete comment: ${error.message}")
                         AppLogger.e(logTag, "Failed to delete comment $commentId on entry $id", error)
                     }
                 )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 onError("Failed to delete comment: ${e.message}")
                 AppLogger.e(logTag, "Exception while deleting comment $commentId on entry $id", e)
-            } finally {
-                _isDeletingComment.value = _isDeletingComment.value - commentId
             }
-        }
+        }.invokeOnCompletion { _isDeletingComment.value = _isDeletingComment.value - commentId }
+    }
+
+    private fun invalidateCommentLoad(entryId: String) {
+        commentLoadGenerations[entryId] = (commentLoadGenerations[entryId] ?: 0L) + 1L
+        _isLoadingComments.value = _isLoadingComments.value - entryId
     }
 
     fun loadEntryReactions(entryId: String, entryLikes: Int, force: Boolean = false) {
@@ -231,12 +265,12 @@ class MarketInteractionController(
         AppLogger.d(logTag, "Loaded reactions for entry $id from entry payload")
     }
 
-    fun addReactionToEntry(entryId: String) {
+    fun addReactionToEntry(entryId: String, onSuccess: () -> Unit = {}) {
         val id = entryId.trim()
         if (id.isBlank() || id in _isReacting.value) return
+        _isReacting.value = _isReacting.value + id
         scope.launch {
             try {
-                _isReacting.value = _isReacting.value + id
                 val result = marketApiService.addReaction(id)
                 result.fold(
                     onSuccess = { reaction ->
@@ -246,19 +280,21 @@ class MarketInteractionController(
                         }
                         messages.reactionSuccess?.let { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
                         AppLogger.d(logTag, "Added reaction to entry $id")
+                        onSuccess()
                     },
                     onFailure = { error ->
+                        if (error is CancellationException) throw error
                         onError(messages.reactionFailed(error.message.orEmpty()))
                         AppLogger.e(logTag, "Failed to add reaction to entry $id", error)
                     }
                 )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 onError(messages.reactionError(e.message.orEmpty()))
                 AppLogger.e(logTag, "Exception while adding reaction to entry $id", e)
-            } finally {
-                _isReacting.value = _isReacting.value - id
             }
-        }
+        }.invokeOnCompletion { _isReacting.value = _isReacting.value - id }
     }
 
     fun getCommentsForEntry(entryId: String): List<MarketV2Comment> = _entryComments.value[entryId].orEmpty()
@@ -282,9 +318,12 @@ class MarketInteractionController(
                         saveAvatarToPrefs(username, user.avatarUrl)
                     },
                     onFailure = { error ->
+                        if (error is CancellationException) throw error
                         AppLogger.w(logTag, "Failed to fetch avatar for user $username: ${error.message}")
                     }
                 )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 AppLogger.w(logTag, "Exception while fetching avatar for user $username", e)
             }
@@ -302,9 +341,12 @@ class MarketInteractionController(
                         }
                     },
                     onFailure = { error ->
+                        if (error is CancellationException) throw error
                         AppLogger.w(logTag, "Failed to fetch repository info for $repositoryUrl: ${error.message}")
                     }
                 )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 AppLogger.w(logTag, "Exception while fetching repository info for $repositoryUrl", e)
             }
@@ -361,5 +403,4 @@ class MarketInteractionController(
 
 
 private fun MarketV2Reaction.reactionKey(): String = reaction.ifBlank { content }
-
 

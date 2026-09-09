@@ -542,7 +542,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 */
 const connection_1 = require("../connection");
 const windowsControl = (function () {
-    const WINDOWS_CONTROL_PACKAGE_VERSION = "1.1.2";
+    const WINDOWS_CONTROL_PACKAGE_VERSION = "1.0.0";
     const MAX_INLINE_WINDOWS_EXEC_OUTPUT_CHARS = 12000;
     const CONNECTION_TEST_TIMEOUT_MS = 15000;
     const ENV_KEYS = {

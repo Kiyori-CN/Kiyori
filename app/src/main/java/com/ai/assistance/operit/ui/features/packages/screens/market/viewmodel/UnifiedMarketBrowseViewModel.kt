@@ -18,6 +18,10 @@ import com.ai.assistance.operit.ui.features.packages.market.MarketSortOption
 import com.ai.assistance.operit.ui.features.packages.market.resolveMarketLocalInstallStates
 import com.ai.assistance.operit.ui.features.packages.market.toRankMetric
 import com.ai.assistance.operit.util.AppLogger
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -69,12 +73,28 @@ data class UnifiedMarketBrowseScope(
 
 class UnifiedMarketBrowseViewModel(
     private val context: Context,
-    private val browseScope: UnifiedMarketBrowseScope
+    private val browseScope: UnifiedMarketBrowseScope,
+    private val marketApiService: MarketStatsApiService = MarketStatsApiService(),
+    private val localStateReader: suspend (List<MarketV2Entry>) -> Map<String, MarketLocalInstallState> = { entries ->
+        withContext(Dispatchers.IO) {
+            val appContext = context.applicationContext
+            resolveMarketLocalInstallStates(appContext,
+                PackageManager.getInstance(appContext, AIToolHandler.getInstance(appContext)), entries)
+        }
+    },
 ) : ViewModel() {
-    private val marketApiService = MarketStatsApiService()
-    private val installController = MarketEntryInstallController(context, marketApiService)
-    private val packageManager =
-        PackageManager.getInstance(context.applicationContext, AIToolHandler.getInstance(context.applicationContext))
+    private val installController by lazy { MarketEntryInstallController(context, marketApiService) }
+    private var listRequestGeneration = 0L
+    private var localProjectionGeneration = 0L
+    private var listJob: Job? = null
+    private var moreJob: Job? = null
+    private var openingEntryJob: Job? = null
+    private var notificationJob: Job? = null
+    private var notificationGeneration = 0L
+    private val _openingEntryId = MutableStateFlow<String?>(null)
+    val openingEntryId: StateFlow<String?> = _openingEntryId.asStateFlow()
+    private val _isLoadingManifest = MutableStateFlow(false)
+    val isLoadingManifest: StateFlow<Boolean> = _isLoadingManifest.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -147,6 +167,9 @@ class UnifiedMarketBrowseViewModel(
     fun onSortOptionChanged(option: MarketSortOption) {
         if (_sortOption.value == option) return
         _sortOption.value = option
+        _entries.value = emptyList()
+        _localInstallStates.value = emptyMap()
+        updateListScrollPosition(0, 0)
         loadEntries()
     }
 
@@ -156,50 +179,50 @@ class UnifiedMarketBrowseViewModel(
     }
 
     fun loadManifest() {
+        if (_isLoadingManifest.value) return
+        _isLoadingManifest.value = true
+        _errorMessage.value = null
         viewModelScope.launch {
-            marketApiService.getManifest().fold(
-                onSuccess = { manifest ->
-                    _categories.value = manifest.categories.filter { it.id.isNotBlank() }
-                },
-                onFailure = { error ->
-                    _errorMessage.value = error.message ?: "Failed to load market manifest"
-                    AppLogger.e(TAG, "Failed to load market manifest", error)
-                }
-            )
-        }
+            try {
+                val manifest = marketApiService.getManifest().getOrThrow()
+                _categories.value = manifest.categories.filter { it.id.isNotBlank() }.distinctBy { it.id }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) {
+                _errorMessage.value = error.message ?: "Failed to load market manifest"
+                AppLogger.e(TAG, "Failed to load market manifest", error)
+            }
+        }.also { job -> job.invokeOnCompletion { _isLoadingManifest.value = false } }
     }
 
     fun loadEntries() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            _isLoadingMore.value = false
-            _hasMore.value = false
-            _errorMessage.value = null
-            currentPage = 1
-            totalPages = 1
-
+        val generation = ++listRequestGeneration
+        listJob?.cancel()
+        moreJob?.cancel()
+        _isLoading.value = true
+        _isLoadingMore.value = false
+        _hasMore.value = false
+        _errorMessage.value = null
+        listJob = viewModelScope.launch {
             try {
-                loadPage(page = 1).fold(
-                    onSuccess = { page ->
-                        currentPage = page.page
-                        totalPages = page.totalPages.coerceAtLeast(1)
-                        val loadedEntries = page.items.map { it.entry }.orderedForCurrentSort()
-                        _entries.value = loadedEntries
-                        refreshLocalInstallStates(loadedEntries)
-                        _hasMore.value = currentPage < totalPages
-                    },
-                    onFailure = { error ->
-                        _entries.value = emptyList()
-                        _hasMore.value = false
-                        _errorMessage.value = error.message ?: "Failed to load market list"
-                        AppLogger.e(TAG, "Failed to load market list", error)
-                    }
-                )
-            } finally {
+                val page = loadPage(page = 1).getOrThrow()
+                currentCoroutineContext().ensureActive()
+                if (generation != listRequestGeneration) return@launch
+                currentPage = page.page
+                totalPages = page.totalPages.coerceAtLeast(1)
+                val loadedEntries = page.items.map { it.entry }.distinctBy { it.id }.orderedForCurrentSort()
+                _entries.value = loadedEntries
+                _hasMore.value = currentPage < totalPages
+                refreshLocalInstallStates(loadedEntries)
                 hasLoadedEntries = true
-                _isLoading.value = false
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) {
+                if (generation != listRequestGeneration) return@launch
+                _errorMessage.value = error.message ?: "Failed to load market list"
+                AppLogger.e(TAG, "Failed to load market list", error)
             }
-        }
+        }.also { job -> job.invokeOnCompletion {
+            if (generation == listRequestGeneration) _isLoading.value = false
+        } }
     }
 
     fun loadEntriesIfNeeded() {
@@ -213,53 +236,81 @@ class UnifiedMarketBrowseViewModel(
     }
 
     fun loadMoreEntries() {
-        if (_searchQuery.value.isNotBlank() || _isLoading.value || _isLoadingMore.value || !_hasMore.value) {
-            return
-        }
-
-        viewModelScope.launch {
-            _isLoadingMore.value = true
+        if (_isLoading.value || _isLoadingMore.value || !_hasMore.value) return
+        val generation = listRequestGeneration
+        _isLoadingMore.value = true
+        _errorMessage.value = null
+        moreJob = viewModelScope.launch {
             try {
-                loadPage(page = currentPage + 1).fold(
-                    onSuccess = { page ->
-                        currentPage = page.page
-                        totalPages = page.totalPages.coerceAtLeast(1)
-                        val loadedEntries =
-                            (_entries.value + page.items.map { it.entry })
-                                .distinctBy { it.id }
-                                .orderedForCurrentSort()
-                        _entries.value = loadedEntries
-                        refreshLocalInstallStates(loadedEntries)
-                        _hasMore.value = currentPage < totalPages
-                    },
-                    onFailure = { error ->
-                        _hasMore.value = false
-                        _errorMessage.value = error.message ?: "Failed to load more market entries"
-                        AppLogger.e(TAG, "Failed to load more market entries", error)
-                    }
-                )
-            } finally {
-                _isLoadingMore.value = false
+                val page = loadPage(page = currentPage + 1).getOrThrow()
+                currentCoroutineContext().ensureActive()
+                if (generation != listRequestGeneration) return@launch
+                currentPage = page.page
+                totalPages = page.totalPages.coerceAtLeast(1)
+                val loadedEntries = (_entries.value + page.items.map { it.entry }).distinctBy { it.id }.orderedForCurrentSort()
+                _entries.value = loadedEntries
+                _hasMore.value = currentPage < totalPages
+                refreshLocalInstallStates(loadedEntries)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) {
+                if (generation != listRequestGeneration) return@launch
+                _errorMessage.value = error.message ?: "Failed to load more market entries"
+                AppLogger.e(TAG, "Failed to load more market entries", error)
             }
-        }
+        }.also { job -> job.invokeOnCompletion {
+            if (generation == listRequestGeneration) _isLoadingMore.value = false
+        } }
+    }
+
+    fun resetNotifications() {
+        notificationGeneration++
+        notificationJob?.cancel()
+        cancelOpeningNotificationEntry()
+        _notifications.value = emptyList()
+        _isLoading.value = false
+        _errorMessage.value = null
     }
 
     fun loadNotifications() {
-        viewModelScope.launch {
-            _isLoading.value = true
+        if (_isLoading.value) return
+        val generation = notificationGeneration
+        _isLoading.value = true
+        _errorMessage.value = null
+        notificationJob = viewModelScope.launch {
             try {
-                marketApiService.getNotifications(limit = 50, offset = 0).fold(
-                    onSuccess = { _notifications.value = it },
-                    onFailure = { error ->
-                        _errorMessage.value = error.message ?: "Failed to load market notifications"
-                        AppLogger.e(TAG, "Failed to load market notifications", error)
-                    }
-                )
-            } finally {
-                _isLoading.value = false
+                val loaded = marketApiService.getNotifications(limit = 50, offset = 0).getOrThrow()
+                currentCoroutineContext().ensureActive()
+                if (generation == notificationGeneration) _notifications.value = loaded.distinctBy { it.id }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) {
+                if (generation != notificationGeneration) return@launch
+                _errorMessage.value = error.message ?: "Failed to load market notifications"
+                AppLogger.e(TAG, "Failed to load market notifications", error)
             }
-        }
+        }.also { job -> job.invokeOnCompletion {
+            if (generation == notificationGeneration) _isLoading.value = false
+        } }
     }
+
+    fun openNotificationEntry(entryId: String, onLoaded: (MarketV2Entry) -> Unit) {
+        if (entryId.isBlank() || _openingEntryId.value != null) return
+        _openingEntryId.value = entryId
+        _errorMessage.value = null
+        openingEntryJob = viewModelScope.launch {
+            try {
+                val entry = marketApiService.getEntry(entryId).getOrThrow()
+                    ?: error(context.getString(com.ai.assistance.operit.R.string.market_error_load_failed))
+                currentCoroutineContext().ensureActive()
+                onLoaded(entry)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) {
+                _errorMessage.value = error.message ?: context.getString(com.ai.assistance.operit.R.string.market_error_load_failed)
+                AppLogger.e(TAG, "Failed to open notification entry", error)
+            }
+        }.also { job -> job.invokeOnCompletion { _openingEntryId.value = null } }
+    }
+
+    fun cancelOpeningNotificationEntry() { openingEntryJob?.cancel() }
 
     fun installEntry(entry: MarketV2Entry) {
         val entryId = entry.id.trim()
@@ -270,14 +321,22 @@ class UnifiedMarketBrowseViewModel(
                 installController.install(entry) { stage, progress ->
                     MarketInstallStateStore.update(entryId, stage, progress)
                 }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 _errorMessage.value = e.message ?: "Failed to install market entry"
                 AppLogger.e(TAG, "Failed to install market entry ${entry.id}", e)
             } finally {
-                refreshLocalInstallStates(_entries.value)
-                MarketInstallStateStore.finish(entryId)
+                try {
+                    refreshLocalInstallStates(_entries.value)
+                } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    _errorMessage.value = context.getString(com.ai.assistance.operit.R.string.market_install_state_refresh_failed)
+                    AppLogger.e(TAG, "Failed to refresh local installation state", error)
+                }
             }
-        }
+        }.invokeOnCompletion { MarketInstallStateStore.finish(entryId) }
     }
 
     fun clearError() {
@@ -316,18 +375,10 @@ class UnifiedMarketBrowseViewModel(
         }
 
     private suspend fun refreshLocalInstallStates(entries: List<MarketV2Entry>) {
-        if (entries.isEmpty()) {
-            _localInstallStates.value = emptyMap()
-            return
-        }
-        _localInstallStates.value =
-            withContext(Dispatchers.IO) {
-                resolveMarketLocalInstallStates(
-                    context = context.applicationContext,
-                    packageManager = packageManager,
-                    entries = entries
-                )
-            }
+        val generation = ++localProjectionGeneration
+        val states = if (entries.isEmpty()) emptyMap() else localStateReader(entries)
+        currentCoroutineContext().ensureActive()
+        if (generation == localProjectionGeneration && entries === _entries.value) _localInstallStates.value = states
     }
 
     class Factory(

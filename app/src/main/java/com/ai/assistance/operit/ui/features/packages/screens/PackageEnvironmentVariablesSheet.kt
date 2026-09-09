@@ -8,12 +8,15 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,6 +45,8 @@ import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -55,6 +60,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -65,6 +71,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -81,6 +89,10 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.EnvVarInputType
 import com.ai.assistance.operit.core.tools.EnvVarScope
 import com.ai.assistance.operit.core.tools.ToolPackage
+import com.ai.assistance.operit.data.preferences.EnvironmentValueEdit
+import com.ai.assistance.operit.data.preferences.EnvironmentEditConflictException
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import com.ai.assistance.operit.ui.components.KiyoriDraggableBottomDrawer
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.kiyori.design.theme.KiyoriSemanticTone
@@ -92,12 +104,15 @@ internal fun PackageEnvironmentVariablesSheet(
     currentValues: Map<PackageEnvironmentVariableKey, String>,
     onOpenNetworkProxy: () -> Unit,
     onDismiss: () -> Unit,
-    onConfirm: (Map<PackageEnvironmentVariableKey, String>) -> Unit,
+    onConfirm: suspend (Map<PackageEnvironmentVariableKey, EnvironmentValueEdit>) -> Unit,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    // 配置目录刷新不能改变本次表单的字段或覆盖草稿，提交时由原仓储核对原值。
+    val editingPackages = remember { packages.toList() }
     val groups =
         sortPackageEnvironmentVariableGroups(
-            packages.map { toolPackage ->
+            editingPackages.map { toolPackage ->
                 val categoryLabel =
                     normalizePackageEnvironmentCategoryLabel(toolPackage.category)
                 PackageEnvironmentVariableGroup(
@@ -134,20 +149,18 @@ internal fun PackageEnvironmentVariablesSheet(
         )
 
     val variableKeys = remember(groups) { distinctPackageEnvironmentVariableKeys(groups) }
-    var editableValues by
-        remember(variableKeys, currentValues) {
-            mutableStateOf(
-                variableKeys.associateWith { variableKey ->
-                    currentValues[variableKey].orEmpty()
-                },
-            )
-        }
+    val originalValues = remember { variableKeys.associateWith { currentValues[it].orEmpty() } }
+    var editableValues by remember { mutableStateOf(originalValues) }
+    var isSaving by remember { mutableStateOf(false) }
+    var saveError by remember { mutableStateOf<Int?>(null) }
+    var pendingExit by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val hasChanges = packageEnvironmentEdits(originalValues, editableValues).isNotEmpty()
     var selectedCategoryKey by rememberSaveable {
         mutableStateOf<String?>(null)
     }
     var query by rememberSaveable { mutableStateOf("") }
     var expandedPackageNames by
-        remember(groups, currentValues) {
+        remember {
             mutableStateOf(initialExpandedPackageNames(groups, currentValues))
         }
     var drawerVisible by remember { mutableStateOf(true) }
@@ -171,7 +184,15 @@ internal fun PackageEnvironmentVariablesSheet(
         }
     }
 
-    val requestClose = { drawerVisible = false }
+    val close = { drawerVisible = false }
+    val confirmClose: () -> Boolean = {
+        when {
+            isSaving -> false
+            hasChanges -> { pendingExit = close; false }
+            else -> true
+        }
+    }
+    val requestClose: () -> Unit = { if (confirmClose()) close() }
     Dialog(
         onDismissRequest = requestClose,
         properties =
@@ -200,6 +221,8 @@ internal fun PackageEnvironmentVariablesSheet(
                     ),
                 onDismissRequest = requestClose,
                 onHidden = onDismiss,
+                gesturesEnabled = !isSaving,
+                confirmDismiss = confirmClose,
             ) {
                 PackageEnvironmentVariablesSheetContent(
                     groups = groups,
@@ -208,6 +231,9 @@ internal fun PackageEnvironmentVariablesSheet(
                     selectedCategoryKey = selectedCategoryKey,
                     query = query,
                     editableValues = editableValues,
+                    isSaving = isSaving,
+                    hasChanges = hasChanges,
+                    saveError = saveError,
                     expandedPackageNames = expandedPackageNames,
                     onCategorySelected = { categoryKey -> selectedCategoryKey = categoryKey },
                     onQueryChange = { newQuery -> query = newQuery },
@@ -221,23 +247,58 @@ internal fun PackageEnvironmentVariablesSheet(
                             }
                     },
                     onValueChange = { variableKey, value ->
-                        editableValues =
+                        if (!isSaving) editableValues =
                             editableValues.toMutableMap().apply {
                                 this[variableKey] = value
                             }
                     },
                     onCancel = requestClose,
                     onOpenNetworkProxy = {
-                        requestClose()
-                        onOpenNetworkProxy()
+                        if (!isSaving) {
+                            val navigate = { close(); onOpenNetworkProxy() }
+                            if (hasChanges) pendingExit = navigate else navigate()
+                        }
                     },
                     onSave = {
-                        onConfirm(editableValues)
-                        requestClose()
+                        if (!isSaving && hasChanges) {
+                            val edits = packageEnvironmentEdits(originalValues, editableValues)
+                            isSaving = true
+                            saveError = null
+                            scope.launch {
+                                try {
+                                    onConfirm(edits)
+                                    close()
+                                } catch (cancelled: CancellationException) {
+                                    throw cancelled
+                                } catch (_: EnvironmentEditConflictException) {
+                                    saveError = R.string.pkg_env_save_conflict
+                                } catch (_: Exception) {
+                                    // 配置异常可能含凭据；界面只呈现固定分类，不输出原始异常。
+                                    saveError = R.string.pkg_env_save_failed
+                                } finally {
+                                    isSaving = false
+                                }
+                            }
+                        }
                     },
                 )
             }
         }
+    }
+    if (pendingExit != null) {
+        AlertDialog(
+            onDismissRequest = { pendingExit = null },
+            title = { Text(stringResource(R.string.pkg_env_discard_title)) },
+            text = { Text(stringResource(R.string.pkg_env_discard_message)) },
+            confirmButton = {
+                TextButton(onClick = { val exit = pendingExit; pendingExit = null; exit?.invoke() }) {
+                    Text(stringResource(R.string.pkg_env_discard))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingExit = null }) { Text(stringResource(R.string.pkg_cancel)) }
+            },
+        )
     }
 }
 
@@ -249,6 +310,9 @@ private fun PackageEnvironmentVariablesSheetContent(
     selectedCategoryKey: String?,
     query: String,
     editableValues: Map<PackageEnvironmentVariableKey, String>,
+    isSaving: Boolean,
+    hasChanges: Boolean,
+    saveError: Int?,
     expandedPackageNames: Set<String>,
     onCategorySelected: (String?) -> Unit,
     onQueryChange: (String) -> Unit,
@@ -294,6 +358,10 @@ private fun PackageEnvironmentVariablesSheetContent(
             selectedCategoryKey = selectedCategoryKey,
             onCategorySelected = onCategorySelected,
         )
+        saveError?.let {
+            Text(stringResource(it), color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp))
+        }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
         Box(
@@ -335,6 +403,7 @@ private fun PackageEnvironmentVariablesSheetContent(
                                 values = editableValues,
                                 expanded = isExpanded,
                                 toggleEnabled = query.isBlank(),
+                                editingEnabled = !isSaving,
                                 onToggle = { onTogglePackage(group.packageName) },
                                 onValueChange = onValueChange,
                             )
@@ -344,28 +413,31 @@ private fun PackageEnvironmentVariablesSheetContent(
         }
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Row(
+        FlowRow(
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 14.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            TextButton(onClick = onOpenNetworkProxy) {
+            TextButton(onClick = onOpenNetworkProxy, enabled = !isSaving) {
                 Icon(Icons.Outlined.VpnKey, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(text = "网络代理")
+                Text(text = stringResource(R.string.pkg_env_network_proxy))
             }
-            Spacer(modifier = Modifier.weight(1f))
-            TextButton(onClick = onCancel) {
+            TextButton(onClick = onCancel, enabled = !isSaving) {
                 Text(text = stringResource(R.string.pkg_cancel))
             }
             Button(
                 onClick = onSave,
-                enabled = groups.isNotEmpty(),
+                enabled = groups.isNotEmpty() && hasChanges && !isSaving,
             ) {
-                Text(text = stringResource(R.string.pkg_save))
+                if (isSaving) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(6.dp))
+                }
+                Text(text = stringResource(if (isSaving) R.string.pkg_env_saving else R.string.pkg_save))
             }
         }
     }
@@ -578,6 +650,7 @@ private fun PackageEnvironmentVariableGroupCard(
     values: Map<PackageEnvironmentVariableKey, String>,
     expanded: Boolean,
     toggleEnabled: Boolean,
+    editingEnabled: Boolean,
     onToggle: () -> Unit,
     onValueChange: (PackageEnvironmentVariableKey, String) -> Unit,
 ) {
@@ -717,6 +790,7 @@ private fun PackageEnvironmentVariableGroupCard(
                         variable = variable,
                         value = values[variable.key].orEmpty(),
                         visual = visual,
+                        enabled = editingEnabled,
                         onValueChange = { value -> onValueChange(variable.key, value) },
                     )
                     if (index < group.variables.lastIndex) {
@@ -736,6 +810,7 @@ private fun PackageEnvironmentVariableEditor(
     variable: PackageEnvironmentVariableItem,
     value: String,
     visual: PackageCategoryVisual,
+    enabled: Boolean,
     onValueChange: (String) -> Unit,
 ) {
     val categoryColors = visual.resolveColors()
@@ -772,7 +847,7 @@ private fun PackageEnvironmentVariableEditor(
                 )
             }
         }
-        if (variable.description.isNotBlank() || variable.defaultValue != null) {
+        if (variable.description.isNotBlank() || (variable.defaultValue != null && !variable.sensitive && variable.inputType != EnvVarInputType.PASSWORD)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top,
@@ -785,11 +860,9 @@ private fun PackageEnvironmentVariableEditor(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 10.5.sp,
                         lineHeight = 13.sp,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
                     )
                 }
-                variable.defaultValue?.let { defaultValue ->
+                variable.defaultValue?.takeUnless { variable.sensitive || variable.inputType == EnvVarInputType.PASSWORD }?.let { defaultValue ->
                     Text(
                         text = stringResource(R.string.pkg_default, defaultValue),
                         modifier =
@@ -819,8 +892,10 @@ private fun PackageEnvironmentVariableEditor(
                     },
             ),
             accentColor = categoryColors.icon,
-            inputType = variable.inputType,
+            inputType = if (variable.sensitive) EnvVarInputType.PASSWORD else variable.inputType,
             allowedValues = variable.allowedValues,
+            enabled = enabled,
+            label = variable.name,
         )
     }
 }
@@ -833,6 +908,8 @@ private fun PackageEnvironmentValueField(
     accentColor: androidx.compose.ui.graphics.Color,
     inputType: EnvVarInputType,
     allowedValues: List<String>,
+    enabled: Boolean,
+    label: String,
 ) {
     val choices =
         when (inputType) {
@@ -846,6 +923,7 @@ private fun PackageEnvironmentValueField(
             choices = choices,
             onValueChange = onValueChange,
             accentColor = accentColor,
+            enabled = enabled,
         )
         return
     }
@@ -855,7 +933,7 @@ private fun PackageEnvironmentValueField(
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     val isPassword = inputType == EnvVarInputType.PASSWORD
     Surface(
-        modifier = Modifier.fillMaxWidth().height(42.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
         shape = RoundedCornerShape(9.dp),
         color = MaterialTheme.colorScheme.surface,
         border =
@@ -870,14 +948,15 @@ private fun PackageEnvironmentValueField(
             ),
     ) {
         Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 11.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).semantics { contentDescription = label },
                 singleLine = true,
+                readOnly = !enabled,
                 keyboardOptions =
                     KeyboardOptions(
                         keyboardType =
@@ -920,7 +999,7 @@ private fun PackageEnvironmentValueField(
             if (isPassword) {
                 IconButton(
                     onClick = { passwordVisible = !passwordVisible },
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.size(48.dp),
                 ) {
                     Icon(
                         imageVector =
@@ -952,16 +1031,19 @@ private fun PackageEnvironmentChoiceField(
     choices: List<String>,
     onValueChange: (String) -> Unit,
     accentColor: androidx.compose.ui.graphics.Color,
+    enabled: Boolean,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
         choices.forEach { choice ->
             val selected = value == choice
             Surface(
                 modifier =
-                    Modifier.clickable(
+                    Modifier.heightIn(min = 48.dp).selectable(
+                        selected = selected,
+                        enabled = enabled,
                         role = Role.RadioButton,
                         onClick = { onValueChange(choice) },
                     ),
@@ -998,6 +1080,9 @@ private fun PackageEnvironmentChoiceField(
                     maxLines = 1,
                 )
             }
+        }
+        IconButton(onClick = { onValueChange("") }, enabled = enabled && value.isNotBlank()) {
+            Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.pkg_env_clear_value))
         }
     }
 }

@@ -38,7 +38,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,7 +53,11 @@ import com.ai.assistance.operit.data.api.MarketV2Entry
 import com.ai.assistance.operit.data.api.MarketV2ManifestCategory
 import com.ai.assistance.operit.ui.features.packages.market.MarketStatsType
 import com.ai.assistance.operit.ui.features.packages.screens.market.viewmodel.RepoMarketPublishViewModel
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
+import com.ai.assistance.operit.ui.main.navigation.RegisterRouteBackGuard
+import com.ai.assistance.operit.ui.features.packages.screens.market.viewmodel.RepoPublishDraft
+import com.ai.assistance.operit.ui.features.packages.screens.market.viewmodel.RepoPublishSuccessAction
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,11 +73,11 @@ fun RepoMarketPublishScreen(
     }
 
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val isCurrentScreen = LocalIsCurrentScreen.current
     val scrollState = rememberScrollState()
     val viewModel: RepoMarketPublishViewModel =
         viewModel(
-            key = "repo-publish-${type.wireValue}-${editingEntry?.id.orEmpty()}",
+            key = "repo-publish-${type.wireValue}-${editingEntry?.id.orEmpty()}-$publishVersionOnly",
             factory = RepoMarketPublishViewModel.Factory(context.applicationContext, type)
         )
 
@@ -83,25 +88,41 @@ fun RepoMarketPublishScreen(
             editingEntry?.let(viewModel::parseEntry) ?: viewModel.publishDraft
         }
 
-    var title by remember(initialDraft) { mutableStateOf(initialDraft.title) }
-    var description by remember(initialDraft) { mutableStateOf(initialDraft.description) }
-    var detail by remember(initialDraft) { mutableStateOf(initialDraft.detail) }
-    var repositoryUrl by remember(initialDraft) { mutableStateOf(initialDraft.repositoryUrl) }
-    var installConfig by remember(initialDraft) { mutableStateOf(initialDraft.installConfig) }
-    var category by remember(initialDraft) { mutableStateOf(initialDraft.category) }
-    var allowPublicUpdates by remember(initialDraft) { mutableStateOf(initialDraft.allowPublicUpdates) }
-    var version by remember(editingEntry?.id) {
+    var title by rememberSaveable(initialDraft) { mutableStateOf(initialDraft.title) }
+    var description by rememberSaveable(initialDraft) { mutableStateOf(initialDraft.description) }
+    var detail by rememberSaveable(initialDraft) { mutableStateOf(initialDraft.detail) }
+    var repositoryUrl by rememberSaveable(initialDraft) { mutableStateOf(initialDraft.repositoryUrl) }
+    var installConfig by rememberSaveable(initialDraft) { mutableStateOf(initialDraft.installConfig) }
+    var category by rememberSaveable(initialDraft) { mutableStateOf(initialDraft.category) }
+    var allowPublicUpdates by rememberSaveable(initialDraft) { mutableStateOf(initialDraft.allowPublicUpdates) }
+    var version by rememberSaveable(editingEntry?.id, publishVersionOnly) {
         mutableStateOf(if (isEditMode) "" else "1.0.0")
     }
 
-    var isPublishing by remember { mutableStateOf(false) }
-    var successAction by remember { mutableStateOf<RepoPublishSuccessAction?>(null) }
+    val isPublishing by viewModel.isLoading.collectAsState()
+    val successAction by viewModel.successAction.collectAsState()
+    val submitError by viewModel.errorMessage.collectAsState()
     var showConfirmationDialog by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var categoryError by remember { mutableStateOf<String?>(null) }
+    var categoryLoading by remember { mutableStateOf(false) }
+    var categoryReload by remember { mutableStateOf(0) }
+    var showDiscard by rememberSaveable { mutableStateOf(false) }
+    var discardApproved by remember { mutableStateOf(false) }
     var categories by remember { mutableStateOf<List<MarketV2ManifestCategory>>(emptyList()) }
     val isEntryMetadataLocked = isVersionMode && !canEditEntry
 
-    if (!isEditMode) {
+    val draft = RepoPublishDraft(title, description, detail, repositoryUrl, installConfig, category, allowPublicUpdates)
+    val hasUnsavedEdits = isEditMode && (draft != initialDraft || version.isNotBlank())
+    RegisterRouteBackGuard {
+        when {
+            isPublishing -> false
+            showConfirmationDialog -> { showConfirmationDialog = false; false }
+            !discardApproved && hasUnsavedEdits && successAction == null -> { showDiscard = true; false }
+            else -> true
+        }
+    }
+
+    if (!isEditMode && successAction == null) {
         LaunchedEffect(title, description, detail, repositoryUrl, installConfig, category, allowPublicUpdates) {
             viewModel.saveDraft(
                 title = title,
@@ -115,15 +136,20 @@ fun RepoMarketPublishScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        MarketStatsApiService().getManifest().fold(
-            onSuccess = { manifest ->
-                categories = manifest.categories.filter { it.id.isNotBlank() }
-            },
-            onFailure = { error ->
-                errorMessage = error.message ?: context.getString(R.string.publish_failed_check_network_repo)
-            }
-        )
+    LaunchedEffect(isCurrentScreen, categoryReload) {
+        if (!isCurrentScreen || (categories.isNotEmpty() && categoryReload == 0)) return@LaunchedEffect
+        categoryLoading = true
+        categoryError = null
+        try {
+            categories = MarketStatsApiService().getManifest().getOrThrow().categories.filter { it.id.isNotBlank() }
+            if (categories.isEmpty()) categoryError = context.getString(R.string.market_categories_empty)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            categoryError = error.message ?: context.getString(R.string.publish_failed_check_network_repo)
+        } finally {
+            categoryLoading = false
+        }
     }
 
     Column(
@@ -141,7 +167,7 @@ fun RepoMarketPublishScreen(
             label = { Text(repoNameLabel(type)) },
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             singleLine = true,
-            enabled = !isEntryMetadataLocked,
+            enabled = !isEntryMetadataLocked && !isPublishing,
             isError = title.isBlank()
         )
 
@@ -152,7 +178,7 @@ fun RepoMarketPublishScreen(
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             minLines = 3,
             maxLines = 6,
-            enabled = !isEntryMetadataLocked,
+            enabled = !isPublishing,
             isError = description.isBlank()
         )
 
@@ -163,7 +189,7 @@ fun RepoMarketPublishScreen(
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             minLines = 4,
             maxLines = 10,
-            enabled = !isEntryMetadataLocked
+            enabled = !isPublishing
         )
 
         OutlinedTextField(
@@ -177,6 +203,7 @@ fun RepoMarketPublishScreen(
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             singleLine = true,
             readOnly = isEditMode,
+            enabled = !isPublishing,
             placeholder = { Text("https://github.com/username/repo") },
             supportingText = { Text(stringResource(R.string.repo_publish_repository_url_description)) },
             isError = repositoryUrl.isBlank()
@@ -186,7 +213,7 @@ fun RepoMarketPublishScreen(
             selectedCategory = category,
             categories = categories,
             onCategorySelected = { category = it },
-            enabled = !isEntryMetadataLocked,
+            enabled = !isEntryMetadataLocked && !isPublishing,
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
         )
 
@@ -213,7 +240,8 @@ fun RepoMarketPublishScreen(
                     }
                     Switch(
                         checked = allowPublicUpdates,
-                        onCheckedChange = { allowPublicUpdates = it }
+                        onCheckedChange = { allowPublicUpdates = it },
+                        enabled = !isPublishing
                     )
                 }
             }
@@ -229,6 +257,7 @@ fun RepoMarketPublishScreen(
                     placeholder = { Text(stringResource(R.string.install_config_example)) },
                     minLines = 3,
                     maxLines = 8,
+                    enabled = !isPublishing,
                     leadingIcon = {
                         Icon(Icons.Outlined.Terminal, contentDescription = stringResource(R.string.install_config))
                     },
@@ -242,11 +271,21 @@ fun RepoMarketPublishScreen(
                 label = { Text(stringResource(if (isVersionMode) R.string.repo_publish_new_version_label else R.string.version_label)) },
                 modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
                 singleLine = true,
+                enabled = !isPublishing,
                 isError = version.isBlank()
             )
         }
 
-        errorMessage?.let { error ->
+        if (categoryLoading) {
+            CircularProgressIndicator(modifier = Modifier.padding(bottom = 16.dp).size(24.dp))
+        }
+        categoryError?.let { error ->
+            Text(error, color = MaterialTheme.colorScheme.error)
+            TextButton(onClick = { categoryReload++ }, enabled = !categoryLoading && !isPublishing) {
+                Text(stringResource(R.string.mcp_retry))
+            }
+        }
+        submitError?.let { error ->
             Card(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
@@ -262,36 +301,8 @@ fun RepoMarketPublishScreen(
 
         if (isEditMode && !isVersionMode) {
             Button(
-                onClick = {
-                    if (title.isBlank() || description.isBlank() || repositoryUrl.isBlank() || category.isBlank()) {
-                        errorMessage = context.getString(R.string.please_fill_all_required_fields)
-                        return@Button
-                    }
-                    scope.launch {
-                        isPublishing = true
-                        errorMessage = null
-                        try {
-                            viewModel.updateEntryMetadata(
-                                entry = editingEntry,
-                                title = title,
-                                description = description,
-                                detail = detail,
-                                category = category,
-                                allowPublicUpdates = allowPublicUpdates
-                            ).fold(
-                                onSuccess = { successAction = RepoPublishSuccessAction.METADATA },
-                                onFailure = { error ->
-                                    errorMessage = error.message ?: context.getString(R.string.publish_failed_check_network_repo)
-                                }
-                            )
-                        } catch (error: Exception) {
-                            errorMessage = context.getString(R.string.publish_failed_with_error, error.message ?: "")
-                        } finally {
-                            isPublishing = false
-                        }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth().height(48.dp).padding(bottom = 8.dp),
+                onClick = { viewModel.submitDraft(draft, version, editingEntry, false, canEditEntry) },
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).height(48.dp),
                 enabled = !isPublishing && title.isNotBlank() && description.isNotBlank() && repositoryUrl.isNotBlank() && category.isNotBlank()
             ) {
                 if (isPublishing) {
@@ -310,13 +321,7 @@ fun RepoMarketPublishScreen(
 
         if (!isEditMode || isVersionMode) {
             Button(
-                onClick = {
-                    if (title.isBlank() || description.isBlank() || repositoryUrl.isBlank() || version.isBlank() || category.isBlank()) {
-                        errorMessage = context.getString(R.string.please_fill_all_required_fields)
-                        return@Button
-                    }
-                    showConfirmationDialog = true
-                },
+                onClick = { if (!isPublishing) showConfirmationDialog = true },
                 modifier = Modifier.fillMaxWidth().height(48.dp),
                 enabled = !isPublishing && title.isNotBlank() && description.isNotBlank() && repositoryUrl.isNotBlank() && version.isNotBlank() && category.isNotBlank()
             ) {
@@ -337,14 +342,15 @@ fun RepoMarketPublishScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedButton(
-            onClick = onNavigateBack,
+            onClick = { if (hasUnsavedEdits) showDiscard = true else onNavigateBack() },
+            enabled = !isPublishing,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(stringResource(R.string.cancel))
         }
     }
 
-    if (showConfirmationDialog) {
+    if (isCurrentScreen && showConfirmationDialog) {
         RepoPublishConfirmDialog(
             type = type,
             isEditMode = isEditMode,
@@ -359,59 +365,23 @@ fun RepoMarketPublishScreen(
             onDismiss = { showConfirmationDialog = false },
             onConfirm = {
                 showConfirmationDialog = false
-                scope.launch {
-                    isPublishing = true
-                    errorMessage = null
-                    try {
-                        val result =
-                            if (isVersionMode) {
-                                viewModel.publishNewVersion(
-                                    entry = editingEntry,
-                                    title = title,
-                                    description = description,
-                                    detail = detail,
-                                    category = category,
-                                    allowPublicUpdates = allowPublicUpdates,
-                                    version = version,
-                                    installConfig = installConfig,
-                                    canEditEntry = canEditEntry
-                                )
-                            } else {
-                                viewModel.publish(
-                                    title = title,
-                                    description = description,
-                                    detail = detail,
-                                    repositoryUrl = repositoryUrl,
-                                    version = version,
-                                    installConfig = installConfig,
-                                    category = category,
-                                    allowPublicUpdates = allowPublicUpdates
-                                )
-                            }
-
-                        result.fold(
-                            onSuccess = {
-                                if (!isEditMode) viewModel.clearDraft()
-                                successAction = if (isVersionMode) RepoPublishSuccessAction.VERSION else RepoPublishSuccessAction.PUBLISH
-                            },
-                            onFailure = { error ->
-                                errorMessage =
-                                    error.message
-                                        ?: context.getString(R.string.publish_failed_check_network_repo)
-                            }
-                        )
-                    } catch (error: Exception) {
-                        errorMessage =
-                            context.getString(R.string.publish_failed_with_error, error.message ?: "")
-                    } finally {
-                        isPublishing = false
-                    }
-                }
+                viewModel.submitDraft(draft, version, editingEntry, isVersionMode, canEditEntry)
             }
         )
     }
 
-    successAction?.let { action ->
+    if (isCurrentScreen && showDiscard) {
+        AlertDialog(
+            onDismissRequest = { showDiscard = false },
+            title = { Text(stringResource(R.string.pkg_env_discard_title)) },
+            text = { Text(stringResource(R.string.market_publish_discard_message)) },
+            confirmButton = { TextButton(onClick = { discardApproved = true; showDiscard = false; onNavigateBack() }) {
+                Text(stringResource(R.string.pkg_env_discard))
+            } },
+            dismissButton = { TextButton(onClick = { showDiscard = false }) { Text(stringResource(R.string.cancel)) } }
+        )
+    }
+    if (isCurrentScreen) successAction?.let { action ->
         AlertDialog(
             onDismissRequest = { },
             title = { Text(stringResource(repoSuccessTitle(action))) },
@@ -419,7 +389,6 @@ fun RepoMarketPublishScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        successAction = null
                         onNavigateBack()
                     }
                 ) {
@@ -438,6 +407,7 @@ private fun RepoCategoryDropdown(
     enabled: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val isCurrentScreen = LocalIsCurrentScreen.current
     var expanded by remember { mutableStateOf(false) }
     val selectedLabel =
         selectedCategory
@@ -459,13 +429,13 @@ private fun RepoCategoryDropdown(
                     onClick = { if (enabled) expanded = true },
                     enabled = enabled
                 ) {
-                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                    Icon(Icons.Default.ArrowDropDown, contentDescription = stringResource(R.string.select_category))
                 }
             },
             isError = enabled && selectedCategory.isBlank()
         )
         DropdownMenu(
-            expanded = expanded,
+            expanded = expanded && enabled && isCurrentScreen,
             onDismissRequest = { expanded = false }
         ) {
             categories.forEach { category ->
@@ -556,7 +526,7 @@ private fun RepoPublishConfirmDialog(
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(stringResource(R.string.please_check_submitted_info))
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(stringResource(R.string.name_colon, title), style = MaterialTheme.typography.bodyMedium)
@@ -616,12 +586,6 @@ private fun repoDescriptionLabel(type: MarketStatsType): String =
             R.string.plugin_description_required
         }
     )
-
-private enum class RepoPublishSuccessAction {
-    PUBLISH,
-    METADATA,
-    VERSION
-}
 
 private fun repoSuccessTitle(action: RepoPublishSuccessAction): Int =
     when (action) {

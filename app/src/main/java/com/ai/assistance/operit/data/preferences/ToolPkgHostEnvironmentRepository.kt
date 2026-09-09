@@ -18,11 +18,13 @@ class ToolPkgHostEnvironmentRepository private constructor(context: Context) {
     private val preferences: SharedPreferences =
         context.applicationContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
+    @Synchronized
     fun getValue(containerPackageName: String, variableName: String): String? {
         val storageKey = storageKey(containerPackageName, variableName)
         return preferences.getString(storageKey, null)?.takeIf(String::isNotBlank)
     }
 
+    @Synchronized
     fun setValue(containerPackageName: String, variableName: String, value: String) {
         val storageKey = storageKey(containerPackageName, variableName)
         if (value.isBlank()) {
@@ -32,8 +34,23 @@ class ToolPkgHostEnvironmentRepository private constructor(context: Context) {
         }
     }
 
+    @Synchronized
     fun removeValue(containerPackageName: String, variableName: String) {
         preferences.edit { remove(storageKey(containerPackageName, variableName)) }
+    }
+
+    /** Pair 为容器名与变量名；全部关联字段在同一编辑器中发布，仍沿用原存储格式。 */
+    @Synchronized
+    fun compareAndSetValues(edits: Map<Pair<String, String>, EnvironmentValueEdit>) {
+        if (edits.isEmpty()) return
+        val storedEdits = edits.mapKeys { (key, _) -> storageKey(key.first, key.second) }
+        require(storedEdits.size == edits.size)
+        validateEnvironmentValueEdits(storedEdits) { preferences.getString(it, null) }
+        val editor = preferences.edit()
+        storedEdits.forEach { (key, edit) ->
+            if (edit.value.isBlank()) editor.remove(key) else editor.putString(key, edit.value)
+        }
+        if (!editor.commit()) throw java.io.IOException("Host configuration persistence failed")
     }
 
     private fun storageKey(containerPackageName: String, variableName: String): String {

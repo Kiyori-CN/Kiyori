@@ -87,7 +87,7 @@ fun ShareImagePreviewDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(stringResource(R.string.share_preview_title), style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.share_preview_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f).padding(end = 8.dp))
                     IconButton(onClick = onDismiss) {
                         Icon(Icons.Default.Close, contentDescription = stringResource(R.string.common_cancel))
                     }
@@ -151,7 +151,7 @@ fun ShareImagePreviewDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(stringResource(R.string.share_preview_expand_thinking), style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.share_preview_expand_thinking), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(end = 8.dp))
                         Switch(checked = thinkingExpanded, onCheckedChange = onThinkingExpandedChange)
                     }
                     Row(
@@ -159,7 +159,7 @@ fun ShareImagePreviewDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(stringResource(R.string.share_preview_expand_tools_groups), style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.share_preview_expand_tools_groups), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(end = 8.dp))
                         Switch(checked = expandThinkToolsGroups, onCheckedChange = onExpandThinkToolsGroupsChange)
                     }
                     Row(
@@ -167,7 +167,7 @@ fun ShareImagePreviewDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(stringResource(R.string.share_preview_include_background), style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.share_preview_include_background), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(end = 8.dp))
                         Switch(checked = includeBackground, onCheckedChange = onIncludeBackgroundChange)
                     }
                     Text(

@@ -98,20 +98,22 @@ class ApkReverseEngineer(private val context: Context) {
             newAppName: String?,
             newVersionName: String?,
             newVersionCode: String?,
-            newIconBitmap: Bitmap?
+            newIconBitmap: Bitmap?,
+            checkCancellation: () -> Unit = {}
     ): Boolean {
+        val tempUnalignedApk = File(outputApk.parentFile, "${outputApk.nameWithoutExtension}_unaligned.apk")
         try {
+            val webEntries = collectWorkspaceExportEntries(webContentDir, checkCancellation)
             if (outputApk.exists()) outputApk.delete()
             outputApk.parentFile?.mkdirs()
 
-            val tempUnalignedApk =
-                    File(outputApk.parentFile, "${outputApk.nameWithoutExtension}_unaligned.apk")
             if (tempUnalignedApk.exists()) tempUnalignedApk.delete()
 
             ZipArchiveOutputStream(FileOutputStream(tempUnalignedApk)).use { zipOut ->
                 ZipFile(inputApk).use { zip ->
                     val entries = zip.entries()
                     while (entries.hasMoreElements()) {
+                        checkCancellation()
                         val entry = entries.nextElement()
                         val entryName = entry.name
 
@@ -149,12 +151,13 @@ class ApkReverseEngineer(private val context: Context) {
                     }
                 }
 
-                addWebContentToZip(zipOut, webContentDir)
+                addWebContentToZip(zipOut, webEntries, checkCancellation)
             }
 
             AppLogger.d(TAG, "APK快速打包完成，准备进行zipalign对齐: ${tempUnalignedApk.absolutePath}")
 
             val aligned = zipalign(tempUnalignedApk, outputApk, 4)
+            checkCancellation()
             tempUnalignedApk.delete()
 
             if (!aligned) {
@@ -164,9 +167,13 @@ class ApkReverseEngineer(private val context: Context) {
 
             AppLogger.d(TAG, "APK快速打包成功并完成4字节对齐: ${outputApk.absolutePath}")
             return true
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "APK快速打包失败", e)
             return false
+        } finally {
+            if (tempUnalignedApk.exists() && !tempUnalignedApk.delete()) AppLogger.w(TAG, "Unable to remove unaligned export")
         }
     }
 
@@ -362,27 +369,20 @@ class ApkReverseEngineer(private val context: Context) {
         zipOut.closeArchiveEntry()
     }
 
-    private fun addWebContentToZip(zipOut: ZipArchiveOutputStream, webContentDir: File) {
-        if (!webContentDir.exists() || !webContentDir.isDirectory) {
-            AppLogger.w(TAG, "web内容目录不存在或不是目录: ${webContentDir.absolutePath}")
-            return
-        }
-
-        val basePath = webContentDir.absolutePath
-        val files =
-                webContentDir.walkTopDown().filter { it.isFile }.sortedBy { it.absolutePath }
-
-        for (file in files) {
-            val relativePath =
-                    file.absolutePath.substring(basePath.length + 1).replace("\\", "/")
-            val entryName = "assets/flutter_assets/assets/web_content/$relativePath"
+    private fun addWebContentToZip(zipOut: ZipArchiveOutputStream, files: List<WorkspaceExportEntry>, checkCancellation: () -> Unit) {
+        for (item in files) {
+            checkCancellation()
+            val file = item.file
+            val entryName = "assets/flutter_assets/assets/web_content/${item.relativePath}" + if (item.isDirectory) "/" else ""
 
             val entry = ZipArchiveEntry(entryName)
             entry.method = ZipArchiveEntry.DEFLATED
             entry.time = file.lastModified()
 
             zipOut.putArchiveEntry(entry)
-            FileInputStream(file).use { input -> IOUtils.copy(input, zipOut) }
+            if (!item.isDirectory) {
+                FileInputStream(file).use { input -> copyWorkspaceExportBytes(input, zipOut, checkCancellation) }
+            }
             zipOut.closeArchiveEntry()
         }
     }

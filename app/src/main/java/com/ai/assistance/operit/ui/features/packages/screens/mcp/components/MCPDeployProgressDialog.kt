@@ -1,5 +1,8 @@
 package com.ai.assistance.operit.ui.features.packages.screens.mcp.components
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -30,6 +33,8 @@ import com.kiyori.design.theme.KiyoriUiShapes
 @Composable
 fun MCPDeployProgressDialog(
         deploymentStatus: DeploymentStatus,
+        isDeploying: Boolean = deploymentStatus is DeploymentStatus.InProgress,
+        omittedOutputLines: Int = 0,
         onDismissRequest: () -> Unit,
         onRetry: (() -> Unit)? = null,
         pluginName: String,
@@ -41,7 +46,7 @@ fun MCPDeployProgressDialog(
     val logListState = rememberLazyListState()
 
     LaunchedEffect(outputMessages.size) {
-        if (outputMessages.isNotEmpty()) {
+        if (outputMessages.isNotEmpty() && !logListState.canScrollForward) {
             logListState.animateScrollToItem(outputMessages.lastIndex)
         }
     }
@@ -50,8 +55,8 @@ fun MCPDeployProgressDialog(
             onDismissRequest = onDismissRequest,
             properties =
                     DialogProperties(
-                            dismissOnBackPress = deploymentStatus !is DeploymentStatus.InProgress,
-                            dismissOnClickOutside = deploymentStatus !is DeploymentStatus.InProgress
+                            dismissOnBackPress = !isDeploying,
+                            dismissOnClickOutside = !isDeploying
                     )
     ) {
         Surface(
@@ -60,13 +65,14 @@ fun MCPDeployProgressDialog(
                 color = MaterialTheme.colorScheme.surface,
                 tonalElevation = 6.dp
         ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
+            Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp)) {
                 // 标题区域
                 Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
+                            modifier = Modifier.weight(1f),
                             text = if (deploymentStatus is DeploymentStatus.Success) stringResource(R.string.mcp_deploy_success)
                                   else if (deploymentStatus is DeploymentStatus.Error) stringResource(R.string.mcp_deploy_failed)
                                   else stringResource(R.string.mcp_deploy_in_progress),
@@ -78,10 +84,10 @@ fun MCPDeployProgressDialog(
                     Spacer(modifier = Modifier.weight(1f))
                     
                     // 环境变量按钮
-                    if (onEnvironmentVariablesChange != null) {
+                    if (onEnvironmentVariablesChange != null && !isDeploying) {
                         IconButton(
                                 onClick = { showEnvVarsDialog = true },
-                                modifier = Modifier.size(40.dp)
+                                modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
                                     imageVector = Icons.Outlined.Settings,
@@ -92,10 +98,10 @@ fun MCPDeployProgressDialog(
                     }
                     
                     // 非进行中状态才显示关闭按钮
-                    if (deploymentStatus !is DeploymentStatus.InProgress) {
+                    if (!isDeploying) {
                         IconButton(
                                 onClick = onDismissRequest,
-                                modifier = Modifier.size(40.dp)
+                                modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
                                     imageVector = Icons.Outlined.Close,
@@ -183,6 +189,8 @@ fun MCPDeployProgressDialog(
                     }
                 }
 
+                if (omittedOutputLines > 0) Text(stringResource(R.string.mcp_output_omitted, omittedOutputLines), style = MaterialTheme.typography.bodySmall)
+
                 // 输出日志区域
                 if (outputMessages.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(16.dp))
@@ -220,12 +228,12 @@ fun MCPDeployProgressDialog(
                                                 .padding(12.dp)
                         ) {
                             itemsIndexed(outputMessages) { _, message ->
-                                Text(
+                                SelectionContainer { Text(
                                         text = message,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.padding(vertical = 2.dp)
-                                )
+                                ) }
                             }
                         }
                     }
@@ -233,11 +241,11 @@ fun MCPDeployProgressDialog(
 
                 // 底部按钮
                 Spacer(modifier = Modifier.height(16.dp))
-                Row(
+                FlowRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End
                 ) {
-                    if (deploymentStatus is DeploymentStatus.Error && onRetry != null) {
+                    if (!isDeploying && deploymentStatus is DeploymentStatus.Error && onRetry != null) {
                         OutlinedButton(
                                 onClick = onRetry,
                                 modifier = Modifier.padding(end = 8.dp),
@@ -255,7 +263,7 @@ fun MCPDeployProgressDialog(
                         }
                     }
 
-                    if (deploymentStatus !is DeploymentStatus.InProgress) {
+                    if (!isDeploying) {
                         Button(
                                 onClick = onDismissRequest,
                                 colors = ButtonDefaults.buttonColors(
@@ -275,7 +283,7 @@ fun MCPDeployProgressDialog(
                 }
 
                 // 环境变量对话框
-                if (showEnvVarsDialog && onEnvironmentVariablesChange != null) {
+                if (showEnvVarsDialog && onEnvironmentVariablesChange != null && !isDeploying) {
                     MCPEnvironmentVariablesDialog(
                             environmentVariables = environmentVariables,
                             onDismiss = { showEnvVarsDialog = false },

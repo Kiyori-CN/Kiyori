@@ -5,12 +5,25 @@ data class WorkspaceCommandExecutionState(
     val commandLabel: String,
     val commandText: String,
     val sessionId: String,
+    val commandId: String = "",
     val usesDedicatedSession: Boolean,
     val outputEntries: List<String> = emptyList(),
     val isRunning: Boolean = true,
     val isVisible: Boolean = true,
-    val isCancelling: Boolean = false
-)
+    val isCancelling: Boolean = false,
+    val exitCode: Int? = null,
+    val omittedOutputEntries: Int = 0,
+    val workspaceEnvironment: String? = null,
+) {
+    fun appendOutput(entries: List<String>): WorkspaceCommandExecutionState {
+        if (entries.isEmpty()) return this
+        val combined = outputEntries + entries
+        val removed = (combined.size - MAX_OUTPUT_ENTRIES).coerceAtLeast(0)
+        return copy(outputEntries = combined.takeLast(MAX_OUTPUT_ENTRIES), omittedOutputEntries = omittedOutputEntries + removed)
+    }
+
+    companion object { const val MAX_OUTPUT_ENTRIES = 2_000 }
+}
 
 fun String.toWorkspaceCommandOutputEntries(): List<String> {
     if (isEmpty()) return emptyList()

@@ -3,6 +3,17 @@ package com.ai.assistance.operit.ui.features.packages.screens
 import com.ai.assistance.operit.core.tools.EnvVarConsumer
 import com.ai.assistance.operit.core.tools.EnvVarInputType
 import com.ai.assistance.operit.core.tools.EnvVarScope
+import com.ai.assistance.operit.data.preferences.EnvironmentValueEdit
+
+internal fun packageEnvironmentEdits(
+    original: Map<PackageEnvironmentVariableKey, String>,
+    edited: Map<PackageEnvironmentVariableKey, String>,
+): Map<PackageEnvironmentVariableKey, EnvironmentValueEdit> =
+    original.mapNotNull { (key, value) ->
+        val desired = edited[key] ?: value
+        if (value.ifBlank { "" } == desired.ifBlank { "" }) null
+        else key to EnvironmentValueEdit(value, desired)
+    }.toMap()
 
 internal data class PackageEnvironmentVariableKey(
     val packageName: String,

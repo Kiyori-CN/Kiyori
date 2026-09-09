@@ -9,18 +9,23 @@ import com.ai.assistance.operit.data.api.MarketStatsApiService
 import com.ai.assistance.operit.data.api.MarketV2Entry
 import com.ai.assistance.operit.data.api.MarketV2PublisherEntrySummary
 import com.ai.assistance.operit.util.AppLogger
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class UnifiedMarketAuthorViewModel(
     private val context: Context,
-    private val authorId: String
+    private val authorId: String,
+    private val marketStatsApiService: MarketStatsApiService = MarketStatsApiService(),
 ) : ViewModel() {
-    private val marketStatsApiService = MarketStatsApiService()
+    private var openingJob: Job? = null
+    private val _openingEntryId = MutableStateFlow<String?>(null)
+    val openingEntryId: StateFlow<String?> = _openingEntryId.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -35,59 +40,46 @@ class UnifiedMarketAuthorViewModel(
     val hasLoaded: StateFlow<Boolean> = _hasLoaded.asStateFlow()
 
     fun loadEntries(refresh: Boolean = false) {
+        if (_isLoading.value || (!refresh && _hasLoaded.value)) return
+        _isLoading.value = true
+        _errorMessage.value = null
         viewModelScope.launch {
-            if (_isLoading.value) return@launch
-            if (!refresh && _hasLoaded.value) return@launch
-
-            _isLoading.value = true
-            _errorMessage.value = null
-
             try {
-                val loaded =
-                    withContext(Dispatchers.IO) {
-                        marketStatsApiService.getPublisherEntries(authorId).getOrThrow()
-                    }
-                _entries.value = loaded
-            } catch (e: Exception) {
-                _errorMessage.value = e.message ?: context.getString(R.string.market_error_load_failed)
-                AppLogger.e(TAG, "Failed to load market author entries $authorId", e)
-            } finally {
+                val loaded = marketStatsApiService.getPublisherEntries(authorId).getOrThrow()
+                currentCoroutineContext().ensureActive()
+                _entries.value = loaded.distinctBy { it.id to it.relation }
                 _hasLoaded.value = true
-                _isLoading.value = false
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) {
+                _errorMessage.value = error.message ?: context.getString(R.string.market_error_load_failed)
+                AppLogger.e(TAG, "Failed to load market author entries", error)
             }
-        }
+        }.invokeOnCompletion { _isLoading.value = false }
     }
 
-    fun openEntryDetail(
-        entry: MarketV2PublisherEntrySummary,
-        onLoaded: (MarketV2Entry) -> Unit
-    ) {
-        viewModelScope.launch {
-            if (entry.id.isBlank()) {
-                _errorMessage.value = context.getString(R.string.market_error_load_failed)
-                return@launch
-            }
-
-            _isLoading.value = true
-            _errorMessage.value = null
+    fun openEntryDetail(entry: MarketV2PublisherEntrySummary, onLoaded: (MarketV2Entry) -> Unit) {
+        if (_openingEntryId.value != null) return
+        if (entry.id.isBlank()) {
+            _errorMessage.value = context.getString(R.string.market_error_load_failed)
+            return
+        }
+        _openingEntryId.value = entry.id
+        _errorMessage.value = null
+        openingJob = viewModelScope.launch {
             try {
-                val fullEntry =
-                    withContext(Dispatchers.IO) {
-                        marketStatsApiService.getEntry(entry.id).getOrThrow()
-                    }
-                if (fullEntry == null) {
-                    _errorMessage.value = context.getString(R.string.market_error_load_failed)
-                    return@launch
-                }
+                val fullEntry = marketStatsApiService.getEntry(entry.id).getOrThrow()
+                    ?: error(context.getString(R.string.market_error_load_failed))
+                currentCoroutineContext().ensureActive()
                 onLoaded(fullEntry)
-            } catch (e: Exception) {
-                _errorMessage.value = e.message ?: context.getString(R.string.market_error_load_failed)
-                AppLogger.e(TAG, "Failed to load author market entry ${entry.id}", e)
-            } finally {
-                _isLoading.value = false
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) {
+                _errorMessage.value = error.message ?: context.getString(R.string.market_error_load_failed)
+                AppLogger.e(TAG, "Failed to load author market entry", error)
             }
-        }
+        }.also { job -> job.invokeOnCompletion { _openingEntryId.value = null } }
     }
+
+    fun cancelOpeningEntry() { openingJob?.cancel() }
 
     fun clearError() {
         _errorMessage.value = null

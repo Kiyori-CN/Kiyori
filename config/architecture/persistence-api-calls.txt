@@ -12,6 +12,7 @@ app/src/main/java/com/ai/assistance/operit/core/tools/packTool/PackageManager.kt
 app/src/main/java/com/ai/assistance/operit/core/tools/packTool/PackageManager.kt	getSharedPreferences	PACKAGE_PREFS
 app/src/main/java/com/ai/assistance/operit/core/tools/packTool/PackageManager.kt	getSharedPreferences	PACKAGE_PREFS
 app/src/main/java/com/ai/assistance/operit/core/tools/packTool/PackageManager.kt	getSharedPreferences	PACKAGE_PREFS
+app/src/main/java/com/ai/assistance/operit/core/tools/packTool/PackageManager.kt	getSharedPreferences	PACKAGE_PREFS
 app/src/main/java/com/ai/assistance/operit/core/workflow/WorkflowScheduler.kt	cancelUniqueWork	getWorkName(workflowId)
 app/src/main/java/com/ai/assistance/operit/core/workflow/WorkflowScheduler.kt	enqueueUniquePeriodicWork	getWorkName(workflowId)
 app/src/main/java/com/ai/assistance/operit/core/workflow/WorkflowScheduler.kt	enqueueUniquePeriodicWork	getWorkName(workflowId)
@@ -60,7 +61,6 @@ app/src/main/java/com/ai/assistance/operit/ui/features/packages/screens/market/v
 app/src/main/java/com/ai/assistance/operit/data/preferences/MarketAgreementPreferences.kt	getSharedPreferences	PREFS_NAME
 app/src/main/java/com/ai/assistance/operit/ui/features/settings/screens/GlobalDisplaySettingsScreen.kt	getSharedPreferences	"floating_chat_prefs"
 app/src/main/java/com/ai/assistance/operit/ui/features/token/preferences/UrlConfigManager.kt	preferencesDataStore	"url_config"
-app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/shellexecutor/ShellCommandManager.kt	getSharedPreferences	PREFS_NAME
 app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionFloatingTheme.kt	getSharedPreferences	FLOATING_PREFS_NAME
 app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionFloatingTheme.kt	getSharedPreferences	FLOATING_PREFS_NAME
 app/src/main/java/com/ai/assistance/operit/ui/main/weather/KiyoriWeatherRepository.kt	getSharedPreferences	PREFERENCES_NAME

@@ -52,6 +52,9 @@ class FloatingFullscreenModeViewModel(
     var isEditMode by mutableStateOf(false)
     var editableText by mutableStateOf("")
     var inputText by mutableStateOf("")
+    var isPreparingMessage by mutableStateOf(false)
+        private set
+    private var prepareMessageJob: Job? = null
     var showDragHints by mutableStateOf(false)
 
     var attachScreenContent by mutableStateOf(false)
@@ -93,20 +96,7 @@ class FloatingFullscreenModeViewModel(
             // 收到最终语音结果后直接发送，不再写入底部输入框
             val finalText = text.trim()
             if (finalText.isNotEmpty()) {
-                aiMessage = context.getString(R.string.floating_thinking)
-                coroutineScope.launch {
-                    startVoiceAvatarThinking()
-                    prepareVoiceCaptureForAiTurn()
-                    try {
-                        maybeAutoAttachByKeyword(finalText)
-                    } catch (error: CancellationException) {
-                        throw error
-                    } catch (error: Exception) {
-                        AppLogger.e(TAG, "语音关键词自动附件处理失败", error)
-                    }
-                    floatContext.onSendMessage?.invoke(finalText, PromptFunctionType.VOICE)
-                    awaitAiTurnAndResumeVoiceCapture()
-                }
+                submitVoiceMessage(finalText, onFailure = { enterEditMode(finalText) }) {}
             }
         },
         onStateChange = { msg -> aiMessage = msg }
@@ -134,7 +124,7 @@ class FloatingFullscreenModeViewModel(
     private fun stopCurrentTtsPlayback() {
         ttsSpeakJob?.cancel()
         ttsSpeakJob = null
-        coroutineScope.launch { speechManager.voiceService.stop() }
+        speechManager.stopSpeaking()
     }
 
     private fun isAiBusyOrSpeaking(): Boolean {
@@ -302,7 +292,7 @@ class FloatingFullscreenModeViewModel(
             coroutineScope.launch {
                 try {
                     previousJob?.join()
-                    speechManager.voiceService.speak(text, interrupt)
+                    speechManager.speak(text, interrupt)?.join()
                 } catch (_: kotlinx.coroutines.CancellationException) {
                 } catch (e: Exception) {
                     AppLogger.e(TAG, "TTS playback failed", e)
@@ -365,7 +355,7 @@ class FloatingFullscreenModeViewModel(
         suppressRecognitionUntilMs = 0L
         waveModeAutoTimeoutEnabled = false
         stopVoiceCapture(true)
-        coroutineScope.launch { speechManager.voiceService.stop() }
+        speechManager.stopSpeaking()
         isWaveActive = false
         showBottomControls = true
         inactivityJob?.cancel()
@@ -400,7 +390,7 @@ class FloatingFullscreenModeViewModel(
                 floatContext.onCancelMessage?.invoke()
             }
             coroutineScope.launch {
-                speechManager.voiceService.stop()
+                speechManager.stopSpeaking().join()
                 if (!speechManager.isRecording && !speechManager.isProcessingSpeech) {
                     startVoiceCapture()
                 }
@@ -459,6 +449,8 @@ class FloatingFullscreenModeViewModel(
      }
 
      fun cleanup() {
+        prepareMessageJob?.cancel()
+        prepareMessageJob = null
         val view = floatContext.chatService?.getComposeView()
         speechManager.releaseFocus(view)
         speechManager.cleanup()
@@ -555,76 +547,101 @@ class FloatingFullscreenModeViewModel(
     }
     
     fun sendEditedMessage() {
-        if (editableText.isNotBlank()) {
-            startVoiceAvatarThinking()
-            prepareVoiceCaptureForAiTurn()
-            floatContext.onSendMessage?.invoke(editableText, PromptFunctionType.VOICE)
-            awaitAiTurnAndResumeVoiceCapture()
-            isEditMode = false
-            editableText = ""
-            aiMessage = context.getString(R.string.floating_thinking)
-        }
-    }
-    
-    fun sendInputMessage() {
-        val text = inputText.trim()
-        if (text.isEmpty() && !attachScreenContent && !attachNotifications && !attachLocation && !hasOcrSelection) return
-
-        // 立即清理UI状态，不等待协程
-        val shouldCaptureScreen = attachScreenContent
-        val shouldCaptureNotifications = attachNotifications
-        val shouldCaptureLocation = attachLocation
-        
-        inputText = ""
-        attachScreenContent = false
-        attachNotifications = false
-        attachLocation = false
-        hasOcrSelection = false
-        aiMessage = context.getString(R.string.floating_thinking)
-
-        startVoiceAvatarThinking()
-        prepareVoiceCaptureForAiTurn()
-
-        coroutineScope.launch {
-            try {
-                maybeAutoAttachByKeyword(text)
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Exception) {
-                AppLogger.e(TAG, "语音关键词自动附件处理失败", error)
-            }
-            try {
-                val attachmentDelegate = floatContext.chatService?.getChatCore()?.getAttachmentDelegate()
-                if (shouldCaptureScreen) {
-                    attachmentDelegate?.captureScreenContent()
-                }
-                if (shouldCaptureNotifications) {
-                    attachmentDelegate?.captureNotifications()
-                }
-                if (shouldCaptureLocation) {
-                    attachmentDelegate?.captureLocation()
-                }
-                // hasOcrSelection 的附件已经在 FloatingScreenOcrScreen 中添加了
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Exception) {
-                AppLogger.e(TAG, "采集语音消息上下文附件失败", error)
-            }
-
-            floatContext.onSendMessage?.invoke(text, PromptFunctionType.VOICE)
-            awaitAiTurnAndResumeVoiceCapture()
-        }
-    }
-
-    private suspend fun maybeAutoAttachByKeyword(text: String) {
+        val text = editableText
         if (text.isBlank()) return
+        submitVoiceMessage(text, isDraftCurrent = { isEditMode && editableText == text }) {
+            if (editableText == text) {
+                isEditMode = false
+                editableText = ""
+            }
+        }
+    }
+
+    fun sendInputMessage() {
+        val draft = inputText
+        val screen = attachScreenContent
+        val notifications = attachNotifications
+        val location = attachLocation
+        val ocr = hasOcrSelection
+        if (draft.isBlank() && !screen && !notifications && !location && !ocr) return
+        submitVoiceMessage(
+            draft.trim(), screen, notifications, location,
+            isDraftCurrent = {
+                inputText == draft && attachScreenContent == screen &&
+                    attachNotifications == notifications && attachLocation == location && hasOcrSelection == ocr
+            },
+        ) {
+            inputText = ""
+            attachScreenContent = false
+            attachNotifications = false
+            attachLocation = false
+            hasOcrSelection = false
+        }
+    }
+
+    private fun submitVoiceMessage(
+        text: String,
+        screen: Boolean = false,
+        notifications: Boolean = false,
+        location: Boolean = false,
+        isDraftCurrent: () -> Boolean = { true },
+        onFailure: () -> Unit = {},
+        onSubmitted: () -> Unit,
+    ) {
+        if (isPreparingMessage) return
+        val service = floatContext.chatService
+        val send = floatContext.onSendMessage
+        if (service == null || send == null) {
+            onFailure()
+            aiMessage = context.getString(R.string.floating_message_prepare_failed)
+            return
+        }
+        isPreparingMessage = true
+        val chatId = service.getChatCore().currentChatId.value
+        aiMessage = context.getString(R.string.floating_message_preparing)
+        prepareMessageJob = coroutineScope.launch {
+            try {
+                val attachments = service.getChatCore().getAttachmentDelegate()
+                check(!screen || attachments.captureScreenContent())
+                check(!notifications || attachments.captureNotifications())
+                check(!location || attachments.captureLocation())
+                check(maybeAutoAttachByKeyword(text, screen, notifications, location))
+                // 采集会挂起。只提交仍属于当前窗口且未被继续编辑的草稿。
+                if (floatContext.chatService !== service || service.getChatCore().currentChatId.value != chatId || !isDraftCurrent()) {
+                    onFailure()
+                    aiMessage = context.getString(R.string.floating_message_draft_changed)
+                    return@launch
+                }
+                startVoiceAvatarThinking()
+                prepareVoiceCaptureForAiTurn()
+                send(text, PromptFunctionType.VOICE)
+                onSubmitted()
+                aiMessage = context.getString(R.string.floating_thinking)
+                awaitAiTurnAndResumeVoiceCapture()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                AppLogger.e(TAG, "Failed to prepare voice message", error)
+                onFailure()
+                aiMessage = context.getString(R.string.floating_message_prepare_failed)
+                resetVoiceAvatarToIdle()
+            } finally {
+                isPreparingMessage = false
+            }
+        }
+    }
+
+    private suspend fun maybeAutoAttachByKeyword(
+        text: String, screenCaptured: Boolean, notificationsCaptured: Boolean, locationCaptured: Boolean,
+    ): Boolean {
+        if (text.isBlank()) return true
 
         wakePrefs.migrateVoiceAutoAttachItemsIfNeeded()
 
         val enabled = wakePrefs.voiceAutoAttachEnabledFlow.first()
-        if (!enabled) return
+        if (!enabled) return true
 
-        val attachmentDelegate = floatContext.chatService?.getChatCore()?.getAttachmentDelegate() ?: return
+        val attachmentDelegate = floatContext.chatService?.getChatCore()?.getAttachmentDelegate() ?: return false
 
         val items = wakePrefs.voiceAutoAttachItemsFlow.first()
         items
@@ -635,21 +652,23 @@ class FloatingFullscreenModeViewModel(
                 if (keywordConfig.isBlank()) return@forEach
                 if (!matchesAnyKeyword(text, keywordConfig)) return@forEach
 
-                when (item.type) {
+                val captured = when (item.type) {
                     WakeWordPreferences.VoiceAutoAttachType.SCREEN_OCR -> {
-                        attachmentDelegate.captureScreenContent()
+                        screenCaptured || attachmentDelegate.captureScreenContent()
                     }
                     WakeWordPreferences.VoiceAutoAttachType.NOTIFICATIONS -> {
-                        attachmentDelegate.captureNotifications()
+                        notificationsCaptured || attachmentDelegate.captureNotifications()
                     }
                     WakeWordPreferences.VoiceAutoAttachType.LOCATION -> {
-                        attachmentDelegate.captureLocation()
+                        locationCaptured || attachmentDelegate.captureLocation()
                     }
                     WakeWordPreferences.VoiceAutoAttachType.TIME -> {
                         attachmentDelegate.captureCurrentTime()
                     }
                 }
+                if (!captured) return false
             }
+        return true
     }
 
     private fun matchesAnyKeyword(text: String, keywordConfig: String): Boolean {

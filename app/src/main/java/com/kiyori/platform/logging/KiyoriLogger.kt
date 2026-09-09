@@ -199,6 +199,19 @@ object KiyoriLogger {
     @JvmStatic
     fun getLogFile(): File? = resolveLogFile()
 
+    /** 用户操作与已排队写入有明确先后；启动时的容错重置不作为UI清除结果。 */
+    suspend fun clearApplicationLog() = awaitLogFileOperation(fileLogExecutor) {
+        val file = requireNotNull(resolveLogFile()) { "Application log is unavailable" }
+        clearApplicationLogFile(file)
+        logFile = null
+    }
+
+    /** 快照完成后再交给导出端，公开文件写入不会长时间占住日志队列。 */
+    suspend fun copyApplicationLogSnapshot(destination: File): Boolean = awaitLogFileOperation(fileLogExecutor) {
+        val file = requireNotNull(resolveLogFile()) { "Application log is unavailable" }
+        copyApplicationLogFile(file, destination)
+    }
+
     @JvmStatic
     fun resetLogFile() {
         try {

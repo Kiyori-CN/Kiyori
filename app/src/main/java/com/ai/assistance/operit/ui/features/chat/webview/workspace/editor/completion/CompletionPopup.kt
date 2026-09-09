@@ -14,15 +14,25 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
-import com.ai.assistance.operit.ui.features.chat.webview.workspace.editor.language.LanguageSupport
+import androidx.compose.ui.window.PopupPositionProvider
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.editor.theme.EditorTheme
+
+/** 光标坐标已处于窗口空间，不能再次叠加 Popup 父锚点；下方不足时放到上方。 */
+internal fun completionPopupPosition(cursor: IntOffset, window: IntSize, popup: IntSize, viewportBottom: Int): IntOffset {
+    val bottom = minOf(window.height, viewportBottom).coerceAtLeast(0)
+    val maxY = (bottom - popup.height).coerceAtLeast(0)
+    val y = if (cursor.y.toLong() + popup.height <= bottom) cursor.y else cursor.y - popup.height
+    return IntOffset(cursor.x.coerceIn(0, (window.width - popup.width).coerceAtLeast(0)), y.coerceIn(0, maxY))
+}
 
 /**
  * 代码补全弹出组件
@@ -34,21 +44,29 @@ fun CompletionPopup(
     onItemSelected: (CompletionItem) -> Unit,
     onDismissRequest: () -> Unit,
     offset: IntOffset = IntOffset.Zero,
+    viewportBottom: Int = Int.MAX_VALUE,
     modifier: Modifier = Modifier
 ) {
     if (completionItems.isEmpty()) return
     
     val listState = rememberLazyListState()
+    LaunchedEffect(completionItems) { listState.scrollToItem(0) }
+    val positionProvider = remember(offset, viewportBottom) {
+        object : PopupPositionProvider {
+            override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize,
+                layoutDirection: LayoutDirection, popupContentSize: IntSize): IntOffset =
+                completionPopupPosition(offset, windowSize, popupContentSize, viewportBottom)
+        }
+    }
     
     Popup(
-        alignment = Alignment.TopStart,
-        offset = offset,
+        popupPositionProvider = positionProvider,
         onDismissRequest = onDismissRequest,
         properties = PopupProperties(
             focusable = false, // 设置为false，避免抢占焦点
             dismissOnBackPress = true,
             dismissOnClickOutside = true,
-            clippingEnabled = false // 允许在父布局边界外绘制，防止截断
+            clippingEnabled = true
         ) 
     ) {
         Surface(
@@ -86,6 +104,7 @@ fun CompletionItemRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 48.dp)
             .clickable { onItemSelected(item) }
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -104,11 +123,11 @@ fun CompletionItemRow(
             },
             contentDescription = null,
             tint = when (item.kind) {
-                CompletionItemKind.KEYWORD -> Color(LanguageSupport.KEYWORD_COLOR)
-                CompletionItemKind.FUNCTION, CompletionItemKind.METHOD -> Color(LanguageSupport.FUNCTION_COLOR)
-                CompletionItemKind.VARIABLE -> Color(LanguageSupport.VARIABLE_COLOR)
-                CompletionItemKind.CLASS -> Color(LanguageSupport.TYPE_COLOR)
-                CompletionItemKind.PROPERTY -> Color(LanguageSupport.VARIABLE_COLOR)
+                CompletionItemKind.KEYWORD -> theme.keywordColor
+                CompletionItemKind.FUNCTION, CompletionItemKind.METHOD -> theme.processingColor
+                CompletionItemKind.VARIABLE -> theme.attributeColor
+                CompletionItemKind.CLASS -> theme.typeColor
+                CompletionItemKind.PROPERTY -> theme.attributeColor
                 else -> theme.lineNumberColor
             },
             modifier = Modifier.size(20.dp)

@@ -23,6 +23,12 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -57,18 +63,18 @@ private val defaultTables = listOf("chats", "messages")
 @Composable
 fun SqlViewerScreen(navController: NavController? = null) {
     val context = LocalContext.current
-    val viewModel: SqlViewerViewModel = viewModel(factory = SqlViewerViewModel.Factory(context))
+    val viewModel: SqlViewerViewModel = viewModel(factory = SqlViewerViewModel.Factory(context.applicationContext))
+    val isCurrentScreen = LocalIsCurrentScreen.current
     val state by viewModel.state.collectAsState()
     var showControlsSheet by remember { mutableStateOf(false) }
 
-    var sqlText by remember { mutableStateOf("SELECT * FROM chats") }
-    var pageSizeText by remember { mutableStateOf(state.pageSize.toString()) }
-    var enablePaging by remember { mutableStateOf(true) }
-    var lastExecutedSql by remember { mutableStateOf("") }
+    var sqlText by rememberSaveable { mutableStateOf("SELECT * FROM chats") }
+    var pageSizeText by rememberSaveable { mutableStateOf(state.pageSize.toString()) }
+    var enablePaging by rememberSaveable { mutableStateOf(true) }
 
-    val pageSize = pageSizeText.toIntOrNull()?.coerceAtLeast(1) ?: 50
+    val pageSize = pageSizeText.toIntOrNull()?.takeIf { it in 1..1000 }
     val canLoadMore =
-        state.result != null && enablePaging && state.lastFetchCount >= pageSize && !state.isRunning
+        state.result != null && state.canPaginate && state.lastFetchCount >= state.pageSize && !state.isRunning
 
     Box(modifier = Modifier.fillMaxSize()) {
             if (state.result == null) {
@@ -110,22 +116,23 @@ fun SqlViewerScreen(navController: NavController? = null) {
                         style = MaterialTheme.typography.labelMedium
                     )
                     TextButton(
-                        onClick = {
-                            val baseQuery = if (state.lastBaseQuery.isNotBlank()) state.lastBaseQuery else lastExecutedSql
-                            if (baseQuery.isNotBlank()) {
-                                viewModel.runQuery(
-                                    baseQuery,
-                                    pageSize,
-                                    state.currentOffset + pageSize,
-                                    enablePaging,
-                                    append = true
-                                )
-                            }
-                        },
+                        onClick = viewModel::loadNextPage,
                         enabled = canLoadMore
                     ) {
                         Text(stringResource(R.string.sql_viewer_load_more))
                     }
+                }
+            }
+
+            if (state.isRunning) LinearProgressIndicator(modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter))
+            state.error?.let { error ->
+                Surface(
+                    modifier = Modifier.align(Alignment.TopStart).padding(start = 12.dp, end = 60.dp, top = 12.dp),
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    shape = KiyoriUiShapes.control
+                ) {
+                    Text(error, modifier = Modifier.heightIn(max = 160.dp).verticalScroll(rememberScrollState()).padding(12.dp))
                 }
             }
 
@@ -142,11 +149,12 @@ fun SqlViewerScreen(navController: NavController? = null) {
             }
         }
 
-    if (showControlsSheet) {
+    if (isCurrentScreen && showControlsSheet) {
         KiyoriModalBottomDrawer(onDismissRequest = { showControlsSheet = false }) { _ ->
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -192,10 +200,9 @@ fun SqlViewerScreen(navController: NavController? = null) {
                     ) {
                         FilledTonalButton(
                             onClick = {
-                                lastExecutedSql = sqlText
-                                viewModel.runQuery(sqlText, pageSize, 0, enablePaging, append = false)
+                                viewModel.runQuery(sqlText, pageSize ?: state.pageSize, 0, enablePaging, append = false)
                             },
-                            enabled = !state.isRunning,
+                            enabled = !state.isRunning && sqlText.isNotBlank() && (!enablePaging || pageSize != null),
                             shape = KiyoriUiShapes.control,
                         ) {
                             Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -205,7 +212,6 @@ fun SqlViewerScreen(navController: NavController? = null) {
                         OutlinedButton(
                             onClick = {
                                 sqlText = ""
-                                lastExecutedSql = ""
                             },
                             shape = KiyoriUiShapes.control,
                         ) {
@@ -223,12 +229,19 @@ fun SqlViewerScreen(navController: NavController? = null) {
                         Spacer(modifier = Modifier.weight(1f))
                         OutlinedTextField(
                             value = pageSizeText,
-                            onValueChange = { pageSizeText = it.filter(Char::isDigit).take(4) },
+                            onValueChange = { pageSizeText = it },
+                            enabled = enablePaging,
+                            isError = enablePaging && pageSize == null,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.width(80.dp),
                             singleLine = true,
                             shape = KiyoriUiShapes.field,
                         )
                     }
+                }
+
+                if (enablePaging && pageSize == null) {
+                    Text(stringResource(R.string.sql_viewer_page_size_invalid), color = MaterialTheme.colorScheme.error)
                 }
 
                 Row(

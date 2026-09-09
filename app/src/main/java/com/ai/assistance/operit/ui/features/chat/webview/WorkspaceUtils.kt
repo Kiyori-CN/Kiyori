@@ -15,66 +15,57 @@ fun createAndGetDefaultWorkspace(context: Context, chatId: String): File {
     return createAndGetDefaultWorkspace(context, chatId, null)
 }
 
-fun createAndResetWorkspaceDirectory(context: Context, chatId: String): File {
-    val workspaceDir = File(getWorkspacePath(context, chatId))
-    if (workspaceDir.exists()) {
-        workspaceDir.deleteRecursively()
-    }
-    workspaceDir.mkdirs()
-    return workspaceDir
-}
+fun createWorkspaceFromTemplate(context: Context, chatId: String, populate: (File) -> Unit): File =
+    com.ai.assistance.operit.ui.features.chat.webview.workspace.createWorkspaceDirectorySafely(
+        File(context.filesDir, "workspace"), chatId, populate,
+    )
 
 fun createAndGetDefaultWorkspace(context: Context, chatId: String, projectType: String?): File {
-    // 创建内部存储工作区
-    val workspacePath = getWorkspacePath(context, chatId)
-    ensureWorkspaceDirExists(workspacePath)
+    return createWorkspaceFromTemplate(context, chatId) { webContentDir ->
+        // 根据项目类型复制模板文件并创建配置
+        when (projectType) {
+            "android" -> {
+                copyTemplateFiles(context, webContentDir, "android")
+                createProjectConfigIfNeeded(context, webContentDir, ProjectType.ANDROID)
+            }
+            "flutter" -> {
+                copyTemplateFiles(context, webContentDir, "flutter")
+                createProjectConfigIfNeeded(context, webContentDir, ProjectType.FLUTTER)
+            }
+            "node" -> {
+                copyTemplateFiles(context, webContentDir, "node")
+                createProjectConfigIfNeeded(context, webContentDir, ProjectType.NODE)
+            }
+            "typescript" -> {
+                copyTemplateFiles(context, webContentDir, "typescript")
+                createProjectConfigIfNeeded(context, webContentDir, ProjectType.TYPESCRIPT)
+            }
+            "python" -> {
+                copyTemplateFiles(context, webContentDir, "python")
+                createProjectConfigIfNeeded(context, webContentDir, ProjectType.PYTHON)
+            }
+            "java" -> {
+                copyTemplateFiles(context, webContentDir, "java")
+                createProjectConfigIfNeeded(context, webContentDir, ProjectType.JAVA)
+            }
+            "go" -> {
+                copyTemplateFiles(context, webContentDir, "go")
+                createProjectConfigIfNeeded(context, webContentDir, ProjectType.GO)
+            }
+            "office" -> {
+                copyTemplateFiles(context, webContentDir, "office")
+                createProjectConfigIfNeeded(context, webContentDir, ProjectType.OFFICE)
+            }
+            "blank" -> {
+                createProjectConfigIfNeeded(context, webContentDir, ProjectType.BLANK)
+            }
+            else -> {
+                copyTemplateFiles(context, webContentDir, "web")
+                createProjectConfigIfNeeded(context, webContentDir, ProjectType.WEB)
+            }
+        }
 
-    val webContentDir = File(workspacePath)
-
-    // 根据项目类型复制模板文件并创建配置
-    when (projectType) {
-        "android" -> {
-            copyTemplateFiles(context, webContentDir, "android")
-            createProjectConfigIfNeeded(context, webContentDir, ProjectType.ANDROID)
-        }
-        "flutter" -> {
-            copyTemplateFiles(context, webContentDir, "flutter")
-            createProjectConfigIfNeeded(context, webContentDir, ProjectType.FLUTTER)
-        }
-        "node" -> {
-            copyTemplateFiles(context, webContentDir, "node")
-            createProjectConfigIfNeeded(context, webContentDir, ProjectType.NODE)
-        }
-        "typescript" -> {
-            copyTemplateFiles(context, webContentDir, "typescript")
-            createProjectConfigIfNeeded(context, webContentDir, ProjectType.TYPESCRIPT)
-        }
-        "python" -> {
-            copyTemplateFiles(context, webContentDir, "python")
-            createProjectConfigIfNeeded(context, webContentDir, ProjectType.PYTHON)
-        }
-        "java" -> {
-            copyTemplateFiles(context, webContentDir, "java")
-            createProjectConfigIfNeeded(context, webContentDir, ProjectType.JAVA)
-        }
-        "go" -> {
-            copyTemplateFiles(context, webContentDir, "go")
-            createProjectConfigIfNeeded(context, webContentDir, ProjectType.GO)
-        }
-        "office" -> {
-            copyTemplateFiles(context, webContentDir, "office")
-            createProjectConfigIfNeeded(context, webContentDir, ProjectType.OFFICE)
-        }
-        "blank" -> {
-            createProjectConfigIfNeeded(context, webContentDir, ProjectType.BLANK)
-        }
-        else -> {
-            copyTemplateFiles(context, webContentDir, "web")
-            createProjectConfigIfNeeded(context, webContentDir, ProjectType.WEB)
-        }
     }
-
-    return webContentDir
 }
 
 /**
@@ -713,7 +704,8 @@ private fun copyTemplateFiles(context: Context, workspaceDir: File, templateName
     val templatePath = "templates/$templateName"
 
     try {
-        val files = assetManager.list(templatePath) ?: return
+        val files = assetManager.list(templatePath) ?: throw IOException("Workspace template is unavailable")
+        if (files.isEmpty()) throw IOException("Workspace template is empty")
 
         for (filename in files) {
             val sourcePath = "$templatePath/$filename"
@@ -748,7 +740,7 @@ private fun copyTemplateFiles(context: Context, workspaceDir: File, templateName
         // the template-specific path only when a workspace is created.
         copySharedTemplateAssets(assetManager, workspaceDir, templateName)
     } catch (e: IOException) {
-        e.printStackTrace()
+        throw IOException("Failed to copy workspace template", e)
     }
 }
 
@@ -802,7 +794,7 @@ private fun copyTemplateFilesRecursive(assetManager: android.content.res.AssetMa
             }
         }
     } catch (e: IOException) {
-        e.printStackTrace()
+        throw IOException("Failed to copy workspace template", e)
     }
 }
 
@@ -833,7 +825,7 @@ private fun createProjectConfigIfNeeded(context: Context, workspaceDir: File, pr
 
     try {
         configFile.writeText(configContent.trimIndent())
-    } catch (_: IOException) {
-        // Ignore write errors for now
+    } catch (error: IOException) {
+        throw IOException("Failed to write workspace configuration", error)
     }
 }

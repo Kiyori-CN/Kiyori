@@ -65,6 +65,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.api.MarketV2Entry
 import com.ai.assistance.operit.data.api.MarketV2Version
+import com.ai.assistance.operit.data.api.MarketV2Comment
+import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
 import com.ai.assistance.operit.data.preferences.GitHubAuthPreferences
 import com.ai.assistance.operit.ui.features.packages.market.MarketReviewState
 import com.ai.assistance.operit.ui.features.packages.market.MarketInstallProgress
@@ -102,6 +104,7 @@ fun UnifiedMarketDetailEntryScreen(
     onNavigateToAuthor: (String, String, String) -> Unit = { _, _, _ -> }
 ) {
     val context = LocalContext.current
+    val isCurrentScreen = LocalIsCurrentScreen.current
     val viewModel: UnifiedMarketDetailViewModel =
         viewModel(
             key = "market-detail-${initialEntry.id}",
@@ -143,8 +146,9 @@ fun UnifiedMarketDetailEntryScreen(
     var editingCommentId by remember { mutableStateOf<String?>(null) }
     var replyingCommentId by remember { mutableStateOf<String?>(null) }
     var commentText by remember { mutableStateOf("") }
-    var waitingForCommentPost by remember { mutableStateOf(false) }
-    var commentPostStarted by remember { mutableStateOf(false) }
+    var commentOriginalText by remember { mutableStateOf("") }
+    var deletingComment by remember { mutableStateOf<MarketV2Comment?>(null) }
+    var showDiscardComment by remember { mutableStateOf(false) }
     var selectedEntry by remember(initialEntry.id) { mutableStateOf(initialEntry) }
     var showVersionHistoryDialog by remember { mutableStateOf(false) }
 
@@ -160,20 +164,23 @@ fun UnifiedMarketDetailEntryScreen(
         if (sourceUrl.isNotBlank()) viewModel.fetchRepositoryInfo(sourceUrl)
     }
 
-    val isPostingCurrentComment = entryId in isPostingComment
-    LaunchedEffect(isPostingCurrentComment, waitingForCommentPost, commentPostStarted) {
-        if (waitingForCommentPost && isPostingCurrentComment) {
-            commentPostStarted = true
-        } else if (waitingForCommentPost && commentPostStarted) {
-            showCommentDialog = false
-            replyingCommentId = null
-            commentText = ""
-            waitingForCommentPost = false
-            commentPostStarted = false
+    val closeCommentEditor = {
+        showCommentDialog = false
+        showEditCommentDialog = false
+        replyingCommentId = null
+        editingCommentId = null
+        commentText = ""
+        commentOriginalText = ""
+        viewModel.clearError()
+    }
+    val requestCloseCommentEditor = {
+        if (entryId !in isPostingComment) {
+            if (commentText != commentOriginalText) showDiscardComment = true
+            else closeCommentEditor()
         }
     }
 
-    errorMessage?.let { error ->
+    errorMessage?.takeIf { isCurrentScreen && !showCommentDialog && !showEditCommentDialog && deletingComment == null }?.let { error ->
         LaunchedEffect(error) {
             Toast.makeText(context, error, Toast.LENGTH_LONG).show()
             viewModel.clearError()
@@ -383,8 +390,7 @@ fun UnifiedMarketDetailEntryScreen(
                             enabled = currentUser != null,
                             onClick = {
                                 if (!hasThumbsUp) {
-                                    hasThumbsUp = true
-                                    viewModel.addReactionToEntry(entryId)
+                                    viewModel.addReactionToEntry(entryId) { hasThumbsUp = true }
                                 }
                             }
                         )
@@ -405,76 +411,91 @@ fun UnifiedMarketDetailEntryScreen(
                 onRefresh = { viewModel.loadEntryComments(entryId) },
                 onRequestPost = {
                     replyingCommentId = null
+                    commentOriginalText = ""
+                    commentText = ""
+                    viewModel.clearError()
                     showCommentDialog = true
                 },
                 onReplyToComment = { comment ->
                     replyingCommentId = comment.id
                     commentText = ""
+                    commentOriginalText = ""
+                    viewModel.clearError()
                     showCommentDialog = true
                 },
                 onEditComment = { comment ->
                     editingCommentId = comment.id
                     commentText = comment.body
+                    commentOriginalText = comment.body
+                    viewModel.clearError()
                     showEditCommentDialog = true
                 },
                 onDeleteComment = { comment ->
-                    viewModel.deleteComment(entryId, comment.id)
+                    deletingComment = comment
+                    viewModel.clearError()
                 }
             )
     )
 
-    if (showEditCommentDialog) {
+    if (showEditCommentDialog && isCurrentScreen) {
         UnifiedMarketDetailCommentDialog(
             commentText = commentText,
             onCommentTextChange = { commentText = it },
             isPosting = entryId in isPostingComment,
-            onDismiss = {
-                showEditCommentDialog = false
-                editingCommentId = null
-            },
+            isEditing = true,
+            errorMessage = errorMessage,
+            onDismiss = requestCloseCommentEditor,
             onPost = {
-                editingCommentId?.let { viewModel.editComment(entryId, it, commentText) }
-                showEditCommentDialog = false
-                editingCommentId = null
+                editingCommentId?.let { viewModel.editComment(entryId, it, commentText, onSuccess = closeCommentEditor) }
             }
         )
     }
 
-    if (showCommentDialog) {
+    if (showCommentDialog && isCurrentScreen) {
         UnifiedMarketDetailCommentDialog(
             commentText = commentText,
             onCommentTextChange = { commentText = it },
-            onDismiss = {
-                showCommentDialog = false
-                replyingCommentId = null
-                commentText = ""
-            },
+            onDismiss = requestCloseCommentEditor,
+            errorMessage = errorMessage,
             onPost = {
                 if (commentText.isNotBlank()) {
-                    waitingForCommentPost = true
-                    commentPostStarted = false
-                    viewModel.postEntryComment(entryId, commentText, replyingCommentId)
+                    viewModel.postEntryComment(entryId, commentText, replyingCommentId, onSuccess = closeCommentEditor)
                 }
             },
             isPosting = entryId in isPostingComment
         )
     }
 
-    if (isDeletingComment.isNotEmpty()) {
+    if (showDiscardComment && isCurrentScreen) {
         AlertDialog(
-            onDismissRequest = {},
-            title = { Text(stringResource(R.string.market_detail_deleting_comment)) },
-            text = {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    CircularProgressIndicator()
-                    Text(stringResource(R.string.market_detail_deleting_comment_message))
-                }
-            },
-            confirmButton = {}
+            onDismissRequest = { showDiscardComment = false },
+            title = { Text(stringResource(R.string.pkg_env_discard_title)) },
+            text = { Text(stringResource(R.string.market_comment_discard_message)) },
+            confirmButton = { TextButton(onClick = { showDiscardComment = false; closeCommentEditor() }) { Text(stringResource(R.string.pkg_env_discard)) } },
+            dismissButton = { TextButton(onClick = { showDiscardComment = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 
-    if (showVersionHistoryDialog) {
+    deletingComment?.takeIf { isCurrentScreen }?.let { target ->
+        val deleting = target.id in isDeletingComment
+        AlertDialog(
+            onDismissRequest = { if (!deleting) deletingComment = null },
+            title = { Text(stringResource(R.string.market_comment_delete_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(target.body, maxLines = 8, overflow = TextOverflow.Ellipsis)
+                    errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    if (deleting) CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                }
+            },
+            confirmButton = { TextButton(enabled = !deleting, onClick = {
+                viewModel.deleteComment(entryId, target.id) { deletingComment = null }
+            }) { Text(stringResource(R.string.delete)) } },
+            dismissButton = { TextButton(enabled = !deleting, onClick = { deletingComment = null; viewModel.clearError() }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+
+    if (showVersionHistoryDialog && isCurrentScreen) {
         MarketVersionHistoryDialog(
             entry = entry,
             onDismiss = { showVersionHistoryDialog = false },

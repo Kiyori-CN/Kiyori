@@ -755,6 +755,7 @@ class MarketStatsApiService {
                     pathSegments = listOf("market", "v2", "assets", resolvedAssetId, "download"),
                     label = "trackDownload assetId=$resolvedAssetId",
                     includeMarketSession = false,
+                    allowDownloadRedirect = true,
                     followRedirects = false
                 ) { _, response ->
                     if (response.code in 300..399 || response.isSuccessful) Unit else error("Download tracking failed")
@@ -1045,7 +1046,8 @@ class MarketStatsApiService {
         body: String? = null,
         queryParameters: Map<String, String> = emptyMap(),
         includeMarketSession: Boolean = true,
-        followRedirects: Boolean = true,
+        followRedirects: Boolean = method.equals("GET", ignoreCase = true),
+        allowDownloadRedirect: Boolean = false,
         decode: (String, Response) -> T
     ): T {
         val urlBuilder = BASE_URL.newBuilder()
@@ -1080,32 +1082,22 @@ class MarketStatsApiService {
                 "HTTP RESP $label code=${response.code} elapsed=${SystemClock.elapsedRealtime() - startedAt}ms url=$url"
             )
             val responseBody = response.body?.string().orEmpty()
-            if (!response.isSuccessful && response.code !in 300..399) {
-                error(buildHttpErrorMessage(response, responseBody))
+            if (!isAcceptedMarketResponse(response.code, allowDownloadRedirect)) {
+                throw MarketHttpFailure(response.code, buildHttpErrorMessage(response, responseBody))
             }
             return decode(responseBody, response)
         }
     }
 
-    private fun ensureMarketSession(): String {
-        val cached = marketSession
-        if (!cached.isNullOrBlank()) return cached
-
-        return synchronized(MARKET_SESSION_LOCK) {
-            val lockedCached = marketSession
-            if (!lockedCached.isNullOrBlank()) {
-                lockedCached
-            } else {
-                val githubToken =
-                    kotlinx.coroutines.runBlocking {
-                        authPreferences.getCurrentAccessToken()
-                    } ?: error("GitHub login required")
-                val session = requestMarketSession(githubToken)
-                marketSession = session
-                session
+    private fun ensureMarketSession(): String = marketSessionCache.get(
+        readCredential = {
+            kotlinx.coroutines.runBlocking {
+                if (authPreferences.isLoggedIn() && !authPreferences.isTokenExpired()) authPreferences.getCurrentAccessToken()
+                else null
             }
-        }
-    }
+        },
+        authenticate = ::requestMarketSession,
+    )
 
     private fun requestMarketSession(githubToken: String): String {
         val urlBuilder = BASE_URL.newBuilder()
@@ -1344,9 +1336,7 @@ class MarketStatsApiService {
         private val BASE_URL = "https://api.operit.app".toHttpUrl()
         private val STATIC_BASE_URL = "https://static.operit.app".toHttpUrl()
 
-        @Volatile
-        private var marketSession: String? = null
-        private val MARKET_SESSION_LOCK = Any()
+        private val marketSessionCache = MarketSessionCache()
 
         private val STATIC_CLIENT by lazy {
             OkHttpClient.Builder()
@@ -1372,6 +1362,7 @@ class MarketStatsApiService {
 
         private val NO_REDIRECT_DYNAMIC_CLIENT by lazy {
             DYNAMIC_CLIENT.newBuilder()
+                .retryOnConnectionFailure(false)
                 .followRedirects(false)
                 .followSslRedirects(false)
                 .build()

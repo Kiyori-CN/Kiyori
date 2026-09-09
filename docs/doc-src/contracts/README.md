@@ -11,6 +11,7 @@
 | 网络代理、进程就绪、路由与故障 | [网络路由](network_proxy.md) | [代理专项](../../TODO/application_network_proxy/index.md) |
 | 下载、播放、媒体候选、缓存 | [媒体与下载](media_downloads.md) | [播放器架构](../dev-core/PLAYER_ARCHITECTURE.md) |
 | 模型请求、流、取消、工具闭合、恢复 | [AI 请求与执行](ai_execution.md) | [执行架构](../architecture/model_capability_and_resumable_execution.md) |
+| AI 输入、消息选择、分享、历史与小窗 | [AI 对话交互](ai_interaction.md) | [体验专项](../../TODO/ai_chat_experience_refinement/index.md) |
 | MCP、ToolPkg、Skill、工作区与检索 | [扩展与工作区](extensions_workspace.md) | [脚本开发](../../SCRIPT_DEV_GUIDE.md) |
 | 路径、日志、权限、终端与语音服务 | [平台与存储](platform_storage.md) | [仓库布局](../dev-core/REPOSITORY_LAYOUT.md) |
 | 对话详情、修订、审计与导出 | [完整审计](../dev-core/AI_CONVERSATION_AUDIT.md) | [对话审计专项](../../TODO/ai_conversation_audit/index.md) |

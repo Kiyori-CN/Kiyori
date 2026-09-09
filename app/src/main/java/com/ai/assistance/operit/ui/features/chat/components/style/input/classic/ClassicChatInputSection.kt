@@ -1,5 +1,7 @@
 package com.ai.assistance.operit.ui.features.chat.components.style.input.classic
 
+import com.ai.assistance.operit.ui.features.chat.components.style.input.common.handleChatEnterKey
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -542,18 +544,12 @@ fun ClassicChatInputSection(
                         .heightIn(min = 30.dp)
                         .focusRequester(inputFocusRequester)
                         .onPreviewKeyEvent { keyEvent ->
-                            if (!enableEnterToSend) {
-                                false
-                            } else if (
-                                keyEvent.type == KeyEventType.KeyDown &&
-                                keyEvent.key == Key.Enter &&
-                                !keyEvent.isShiftPressed
-                            ) {
-                                handleEnterSendAction()
-                                true
-                            } else {
-                                false
-                            }
+                            handleChatEnterKey(
+                                event = keyEvent,
+                                enabled = enableEnterToSend,
+                                isComposing = userMessage.composition != null,
+                                onSubmit = ::handleEnterSendAction,
+                            )
                         },
                     textStyle = modernTextStyle.copy(color = MaterialTheme.colorScheme.onSurface),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),

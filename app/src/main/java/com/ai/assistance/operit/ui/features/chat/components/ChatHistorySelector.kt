@@ -122,6 +122,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.graphics.Brush
+import kotlinx.coroutines.CancellationException
+import com.ai.assistance.operit.util.AppLogger
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.material3.CircularProgressIndicator
@@ -465,8 +467,9 @@ fun ChatHistorySelector(
     
     // 搜索相关状态
     var showSearchBox by remember { mutableStateOf(false) }
-    var matchedChatIdsByContent by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var isSearching by remember { mutableStateOf(false) }
+    var matchedChatIdsByContent by remember(searchQuery) { mutableStateOf<Set<String>>(emptySet()) }
+    var isSearching by remember(searchQuery) { mutableStateOf(searchQuery.trim().length >= 2) }
+    var searchFailed by remember(searchQuery) { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
@@ -573,26 +576,25 @@ fun ChatHistorySelector(
             return@LaunchedEffect
         }
 
-        val hasTitleOrGroupMatch =
-            chatHistories.any { history ->
-                history.title.contains(trimmedQuery, ignoreCase = true) ||
-                    (history.group?.contains(trimmedQuery, ignoreCase = true) == true)
-            }
-
-        val shouldSearchByContent = !hasTitleOrGroupMatch && trimmedQuery.length >= 2
-        if (!shouldSearchByContent) {
+        // 标题与正文结果取并集；标题命中不能阻止其他对话的正文匹配。
+        if (trimmedQuery.length < 2) {
             matchedChatIdsByContent = emptySet()
             isSearching = false
             return@LaunchedEffect
         }
+        matchedChatIdsByContent = emptySet()
+        searchFailed = false
+        isSearching = true
 
         // 延迟400ms，如果用户继续输入则取消本次搜索（LaunchedEffect会自动取消）
         delay(400)
-        // 注意：如果 searchQuery 在延迟期间改变，LaunchedEffect 会重新启动，这里检查的是当前值
-        isSearching = true
         try {
             matchedChatIdsByContent = chatHistoryManager.searchChatIdsByContent(trimmedQuery)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
+            AppLogger.e("ChatHistorySelector", "History content search failed: ${e.javaClass.simpleName}")
+            searchFailed = true
             matchedChatIdsByContent = emptySet()
         } finally {
             isSearching = false
@@ -1304,17 +1306,19 @@ fun ChatHistorySelector(
                 OutlinedTextField(
                     value = newGroupNameText,
                     onValueChange = { newGroupNameText = it },
+                    singleLine = true,
                     label = { Text(stringResource(R.string.new_group_name)) },
                     modifier = Modifier.fillMaxWidth()
                 )
             },
             confirmButton = {
                 Button(
+                    enabled = newGroupNameText.isNotBlank(),
                     onClick = {
-                        if (newGroupNameText.isNotBlank() && newGroupNameText != groupToRename!!.groupName) {
+                        if (newGroupNameText.isNotBlank() && newGroupNameText.trim() != groupToRename!!.groupName) {
                             onUpdateGroupName(
                                 groupToRename!!.groupName, 
-                                newGroupNameText,
+                                newGroupNameText.trim(),
                                 groupToRename!!.characterCardName
                             )
                         }
@@ -1832,12 +1836,14 @@ fun ChatHistorySelector(
                     OutlinedTextField(
                             value = newGroupName,
                             onValueChange = { newGroupName = it },
+                            singleLine = true,
                             label = { Text(stringResource(R.string.group_name)) },
                             modifier = Modifier.fillMaxWidth()
                     )
                 },
                 confirmButton = {
                     Button(
+                            enabled = newGroupName.isNotBlank(),
                             onClick = {
                                 if (newGroupName.isNotBlank()) {
                                     val normalizedGroupName = newGroupName.trim()
@@ -1966,6 +1972,10 @@ fun ChatHistorySelector(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = onSearchQueryChange,
+                isError = searchFailed,
+                supportingText = if (searchFailed) {
+                    { Text(stringResource(R.string.chat_history_search_failed)) }
+                } else null,
                 label = { Text(stringResource(R.string.search)) },
                 placeholder = { Text(stringResource(R.string.search_chat_history_hint)) },
                 leadingIcon = {
@@ -1979,7 +1989,7 @@ fun ChatHistorySelector(
                     }
                 },
                 trailingIcon = {
-                    if (searchQuery.isNotBlank() && !isSearching) {
+                    if (searchQuery.isNotBlank()) {
                         IconButton(onClick = { onSearchQueryChange("") }) {
                             Icon(Icons.Default.SearchOff, contentDescription = stringResource(R.string.clear_search))
                         }
@@ -2032,8 +2042,21 @@ fun ChatHistorySelector(
                     .fillMaxWidth()
                     .padding(start = 10.dp, end = 22.dp)
             ) {
+                if (filteredHistories.isEmpty() && !isSearching && !searchFailed) {
+                    item(key = "history-empty-state") {
+                        Text(
+                            text = stringResource(
+                                if (searchQuery.isBlank()) R.string.chat_history_empty_hint
+                                else R.string.no_matching_chats_adjust_filter
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 32.dp),
+                        )
+                    }
+                }
                 items(
-                    items = flatItems,
+                    items = if (filteredHistories.isEmpty()) emptyList() else flatItems,
                     key = {
                         when (it) {
                             is HistoryListItem.CharacterHeader -> it.key

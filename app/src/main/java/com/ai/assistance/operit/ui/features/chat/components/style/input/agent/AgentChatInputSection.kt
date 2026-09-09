@@ -1,5 +1,7 @@
 package com.ai.assistance.operit.ui.features.chat.components.style.input.agent
 
+import com.ai.assistance.operit.ui.features.chat.components.style.input.common.handleChatEnterKey
+
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -522,18 +524,12 @@ fun AgentChatInputSection(
         setShowAttachmentPanel(false)
     }
     val onEnterToSendKeyEvent: (androidx.compose.ui.input.key.KeyEvent) -> Boolean = { keyEvent ->
-        if (!enableEnterToSend) {
-            false
-        } else if (
-            keyEvent.type == KeyEventType.KeyDown &&
-            keyEvent.key == Key.Enter &&
-            !keyEvent.isShiftPressed
-        ) {
-            handleEnterSendAction()
-            true
-        } else {
-            false
-        }
+        handleChatEnterKey(
+            event = keyEvent,
+            enabled = enableEnterToSend,
+            isComposing = userMessage.composition != null,
+            onSubmit = ::handleEnterSendAction,
+        )
     }
 
     val isDarkTheme = MaterialTheme.colorScheme.onSurface.luminance() > 0.5f

@@ -95,6 +95,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import com.ai.assistance.operit.data.preferences.CharacterCardManager
 import com.ai.assistance.operit.data.preferences.CharacterGroupCardManager
 import com.ai.assistance.operit.ui.common.rememberLocal
@@ -801,6 +803,9 @@ val actualViewModel: ChatViewModel =
     val showAiComputer by actualViewModel.showAiComputer.collectAsState()
     val showConversationDetails by actualViewModel.showConversationDetails.collectAsState()
     val conversationAudit by actualViewModel.currentConversationAudit.collectAsState()
+    val conversationAuditStateChatId by actualViewModel.conversationAuditStateChatId.collectAsState()
+    val conversationAuditLoadError by actualViewModel.conversationAuditLoadError.collectAsState()
+    val isLoadingConversationAudit by actualViewModel.isLoadingConversationAudit.collectAsState()
     val conversationAuditEvents by
         actualViewModel.currentConversationAuditEvents.collectAsState()
     val conversationAuditMessages by
@@ -1024,18 +1029,19 @@ val actualViewModel: ChatViewModel =
     }
 
     // 导出相关状态
-    var showExportPlatformDialog by remember { mutableStateOf(false) }
-    var showAndroidExportDialog by remember { mutableStateOf(false) }
-    var showWindowsExportDialog by remember { mutableStateOf(false) }
-    var showExportProgressDialog by remember { mutableStateOf(false) }
-    var showExportCompleteDialog by remember { mutableStateOf(false) }
-    var exportProgress by remember { mutableStateOf(0f) }
-    var exportStatus by remember { mutableStateOf("") }
-    var exportSuccess by remember { mutableStateOf(false) }
-    var exportFilePath by remember { mutableStateOf<String?>(null) }
-    var exportErrorMessage by remember { mutableStateOf<String?>(null) }
-    var exportJob by remember { mutableStateOf<Job?>(null) }
-    var webContentDir by remember { mutableStateOf<File?>(null) }
+    var showExportPlatformDialog by remember(currentChatId) { mutableStateOf(false) }
+    var showAndroidExportDialog by remember(currentChatId) { mutableStateOf(false) }
+    var showWindowsExportDialog by remember(currentChatId) { mutableStateOf(false) }
+    var showExportProgressDialog by remember(currentChatId) { mutableStateOf(false) }
+    var showExportCompleteDialog by remember(currentChatId) { mutableStateOf(false) }
+    var exportProgress by remember(currentChatId) { mutableStateOf(0f) }
+    var exportStatus by remember(currentChatId) { mutableStateOf("") }
+    var exportSuccess by remember(currentChatId) { mutableStateOf(false) }
+    var exportFilePath by remember(currentChatId) { mutableStateOf<String?>(null) }
+    var exportErrorMessage by remember(currentChatId) { mutableStateOf<String?>(null) }
+    var exportJob by remember(currentChatId) { mutableStateOf<Job?>(null) }
+    var webContentDir by remember(currentChatId) { mutableStateOf<File?>(null) }
+    DisposableEffect(currentChatId) { onDispose { exportJob?.cancel() } }
     var showCharacterSelector by remember { mutableStateOf(false) }
 
     var bottomBarHeightPx by remember { mutableStateOf(0) }
@@ -1428,25 +1434,39 @@ val actualViewModel: ChatViewModel =
         }
 
         if (showConversationDetails) {
-            ConversationDetailsScreen(
-                audit = conversationAudit,
-                events = conversationAuditEvents,
-                messages = conversationAuditMessages,
-                storedPayloadBytes = conversationAuditStoredBytes,
-                hasOlderEvents = hasOlderConversationAuditEvents,
-                isLoadingOlderEvents = isLoadingOlderConversationAuditEvents,
-                isGenerating = isLoading,
-                onEditMessage = actualViewModel::reviseConversationAuditMessage,
-                onLoadPayloads = actualViewModel::loadConversationAuditPayloads,
-                onLoadOlderEvents = actualViewModel::loadOlderConversationAuditEvents,
-                onExport = actualViewModel::exportCurrentConversationAudit,
-                onAddAnnotation = actualViewModel::addConversationAuditAnnotation,
-                onClose = { actualViewModel.closeActiveChatPanel() },
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .clipToBounds(),
-            )
+            val detailsChatId = currentChatId
+            val hasCurrentAuditState = detailsChatId == conversationAuditStateChatId
+            key(detailsChatId) {
+                ConversationDetailsScreen(
+                    audit = conversationAudit?.takeIf { it.chatId == detailsChatId },
+                    events = if (hasCurrentAuditState) conversationAuditEvents else emptyList(),
+                    messages = if (hasCurrentAuditState) conversationAuditMessages else emptyList(),
+                    storedPayloadBytes = if (hasCurrentAuditState) conversationAuditStoredBytes else 0L,
+                    hasOlderEvents = hasCurrentAuditState && hasOlderConversationAuditEvents,
+                    isLoadingOlderEvents = hasCurrentAuditState && isLoadingOlderConversationAuditEvents,
+                    isLoading = !hasCurrentAuditState || isLoadingConversationAudit,
+                    loadError = if (hasCurrentAuditState) conversationAuditLoadError else null,
+                    onRetryLoading = actualViewModel::retryConversationAuditLoading,
+                    isGenerating = isLoading,
+                    onEditMessage = { original, content ->
+                        detailsChatId != null && actualViewModel.reviseConversationAuditMessage(detailsChatId, original, content)
+                    },
+                    onLoadPayloads = actualViewModel::loadConversationAuditPayloads,
+                    onLoadOlderEvents = actualViewModel::loadOlderConversationAuditEvents,
+                    onExport = { format ->
+                        detailsChatId != null && actualViewModel.exportCurrentConversationAudit(detailsChatId, format)
+                    },
+                    onAddAnnotation = { text ->
+                        detailsChatId != null && actualViewModel.addConversationAuditAnnotation(detailsChatId, text)
+                    },
+                    onClose = { actualViewModel.closeActiveChatPanel() },
+                    systemBackEnabled = aiHostSystemBackEnabled,
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .clipToBounds(),
+                )
+            }
         }
 
         AnimatedVisibility(
@@ -1501,18 +1521,19 @@ val actualViewModel: ChatViewModel =
         }
 
         // Android导出设置对话框
-        if (showAndroidExportDialog && webContentDir != null) {
+        val exportDirectory = webContentDir
+        if (showAndroidExportDialog && exportDirectory != null) {
             AndroidExportDialog(
-                    workDir = webContentDir!!,
+                    workDir = exportDirectory,
                     onDismiss = { showAndroidExportDialog = false },
                     onExport = { packageName, appName, iconUri, versionName, versionCode ->
+                        if (exportJob?.isActive == true) return@AndroidExportDialog
                         showAndroidExportDialog = false
                         showExportProgressDialog = true
                         exportProgress = 0f
                         exportStatus = context.getString(R.string.export_starting)
 
                         // 启动导出过程
-                        exportJob?.cancel()
                         exportJob = coroutineScope.launch {
                             exportAndroidApp(
                                     context = context,
@@ -1521,7 +1542,7 @@ val actualViewModel: ChatViewModel =
                                     versionName = versionName,
                                     versionCode = versionCode,
                                     iconUri = iconUri,
-                                    webContentDir = webContentDir!!,
+                                    webContentDir = exportDirectory,
                                     onProgress = { progress, status ->
                                         exportProgress = progress
                                         exportStatus = status
@@ -1541,24 +1562,24 @@ val actualViewModel: ChatViewModel =
         }
 
         // Windows导出设置对话框
-        if (showWindowsExportDialog && webContentDir != null) {
+        if (showWindowsExportDialog && exportDirectory != null) {
             WindowsExportDialog(
-                    workDir = webContentDir!!,
+                    workDir = exportDirectory,
                     onDismiss = { showWindowsExportDialog = false },
                     onExport = { appName, iconUri ->
+                        if (exportJob?.isActive == true) return@WindowsExportDialog
                         showWindowsExportDialog = false
                         showExportProgressDialog = true
                         exportProgress = 0f
                         exportStatus = context.getString(R.string.export_starting)
 
                         // 启动导出过程
-                        exportJob?.cancel()
                         exportJob = coroutineScope.launch {
                             exportWindowsApp(
                                     context = context,
                                     appName = appName,
                                     iconUri = iconUri,
-                                    webContentDir = webContentDir!!,
+                                    webContentDir = exportDirectory,
                                     onProgress = { progress, status ->
                                         exportProgress = progress
                                         exportStatus = status
@@ -1786,6 +1807,7 @@ private fun ChatInputBottomBar(
     val waifuMergeBuffer = remember(currentChatId) { mutableStateListOf<String>() }
     val latestQueueBlocked = rememberUpdatedState(isQueueBlocked)
     val latestCurrentChatId = rememberUpdatedState(currentChatId)
+    var submitHookJob by remember { mutableStateOf<Job?>(null) }
 
     fun buildChatInputHookContext(
         eventName: String,
@@ -2010,8 +2032,15 @@ private fun ChatInputBottomBar(
         actualViewModel.showToast(context.getString(R.string.chat_queue_added))
     }
 
-    val sendMessage: () -> Unit = {
-        coroutineScope.launch {
+    val sendMessage: () -> Unit = send@{
+        // 插件可以挂起提交。期间的重复点击不能再次调用插件，旧结果也不能修改新草稿。
+        if (submitHookJob?.isActive == true) return@send
+        val submittedChatId = actualViewModel.currentChatId.value
+        val submittedDraft = actualViewModel.userMessage.value.text
+        val submittedAttachments = actualViewModel.attachments.value.toList()
+        val submittedReply = actualViewModel.replyToMessage.value
+        if (submittedDraft.isBlank() && submittedAttachments.isEmpty()) return@send
+        submitHookJob = coroutineScope.launch {
             if (currentChatId.isNullOrBlank()) {
                 Toast.makeText(
                     context,
@@ -2025,9 +2054,20 @@ private fun ChatInputBottomBar(
                 ChatInputHookRegistry.dispatchSubmitRequested(
                     buildChatInputHookContext(
                         eventName = ChatInputEvents.SUBMIT_REQUESTED,
+                        text = submittedDraft,
+                        chatId = submittedChatId,
                         submitSource = "send"
                     )
                 )
+            currentCoroutineContext().ensureActive()
+            if (actualViewModel.currentChatId.value != submittedChatId ||
+                actualViewModel.userMessage.value.text != submittedDraft ||
+                actualViewModel.attachments.value != submittedAttachments ||
+                actualViewModel.replyToMessage.value != submittedReply
+            ) {
+                actualViewModel.showToast(context.getString(R.string.chat_draft_changed_before_send))
+                return@launch
+            }
             when (submitDecision.action) {
                 ChatInputSubmitActions.BLOCK -> {
                     showChatInputHookMessage(submitDecision.message)

@@ -195,7 +195,8 @@ private constructor(
      * @param webContentDir 网页内容目录
      * @return 重新打包后的APK文件（未签名）
      */
-    fun repackWithWebContent(webContentDir: File): File {
+    fun repackWithWebContent(webContentDir: File, checkCancellation: () -> Unit = {}): File {
+        checkCancellation()
         if (!webContentDir.exists() || !webContentDir.isDirectory) {
             throw IllegalArgumentException("webContentDir is missing or not a directory: ${webContentDir.absolutePath}")
         }
@@ -215,7 +216,8 @@ private constructor(
                         newAppName,
                         newVersionName,
                         newVersionCode,
-                        newIconBitmap
+                        newIconBitmap,
+                        checkCancellation
                 )
         ) {
             throw RuntimeException(context.getString(R.string.apk_editor_repack_failed))
@@ -229,8 +231,9 @@ private constructor(
      * @param webContentDir 网页内容目录
      * @return 签名后的APK文件
      */
-    fun repackAndSignWithWebContent(webContentDir: File): File {
-        val unsignedApk = repackWithWebContent(webContentDir)
+    fun repackAndSignWithWebContent(webContentDir: File, checkCancellation: () -> Unit = {}): File {
+        val unsignedApk = repackWithWebContent(webContentDir, checkCancellation)
+        checkCancellation()
 
         AppLogger.d(TAG, "未签名APK生成成功: ${unsignedApk.absolutePath}, 文件大小: ${unsignedApk.length()}")
 

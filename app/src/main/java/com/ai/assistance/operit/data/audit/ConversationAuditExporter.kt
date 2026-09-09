@@ -13,6 +13,9 @@ import java.util.Locale
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -27,6 +30,9 @@ data class ConversationAuditExportResult(
     val cutoffEventId: String?,
     val eventCount: Int,
 )
+
+class ConversationAuditExportRecordingException(val exportedFile: File, cause: Exception) :
+    IllegalStateException("Export file was created but its audit completion could not be recorded", cause)
 
 enum class ConversationAuditExportFormat {
     AI_DIAGNOSTICS_MARKDOWN,
@@ -51,176 +57,178 @@ class ConversationAuditExporter(context: Context) {
     ): ConversationAuditExportResult =
         exportMutex.withLock {
             withContext(Dispatchers.IO) {
-            val snapshot =
-                repository.createExportSnapshot(
-                    chatId = chatId,
-                    sealReason = "EXPORT_SNAPSHOT",
-                )
-            val exportDir = KiyoriPaths.conversationAuditExportsDir()
-            val timestamp =
-                SimpleDateFormat("yyyyMMdd-HHmmss-SSS", Locale.ROOT)
-                    .format(Date(snapshot.exportedAt))
-            val safeTitle =
-                snapshot.chat.title
-                    .replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]"), "_")
-                    .trim()
-                    .take(48)
-                    .ifBlank { "conversation" }
-            val baseName = "$timestamp-$safeTitle-${snapshot.chat.id.take(8)}"
-            val target =
+                val snapshot =
+                    repository.createExportSnapshot(
+                        chatId = chatId,
+                        sealReason = "EXPORT_SNAPSHOT",
+                    )
+                val exportDir = KiyoriPaths.conversationAuditExportsDir()
+                val timestamp =
+                    SimpleDateFormat("yyyyMMdd-HHmmss-SSS", Locale.ROOT)
+                        .format(Date(snapshot.exportedAt))
+                val safeTitle =
+                    snapshot.chat.title
+                        .replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]"), "_")
+                        .trim()
+                        .take(48)
+                        .ifBlank { "conversation" }
+                val baseName = "$timestamp-$safeTitle-${snapshot.chat.id.take(8)}"
+                val target =
+                    when (format) {
+                        ConversationAuditExportFormat.AI_DIAGNOSTICS_MARKDOWN ->
+                            File(exportDir, "$baseName-ai-diagnostics.md")
+                        ConversationAuditExportFormat.COMPLETE_AUDIT_PACKAGE ->
+                            File(exportDir, "$baseName-complete-audit.kiyori-audit")
+                    }
+                currentCoroutineContext().ensureActive()
                 when (format) {
                     ConversationAuditExportFormat.AI_DIAGNOSTICS_MARKDOWN ->
-                        File(exportDir, "$baseName-ai-diagnostics.md")
+                        writeMarkdown(snapshot, target)
                     ConversationAuditExportFormat.COMPLETE_AUDIT_PACKAGE ->
-                        File(exportDir, "$baseName-complete-audit.kiyori-audit")
+                        writePackage(snapshot, target)
                 }
-            when (format) {
-                ConversationAuditExportFormat.AI_DIAGNOSTICS_MARKDOWN ->
-                    writeMarkdown(snapshot, target)
-                ConversationAuditExportFormat.COMPLETE_AUDIT_PACKAGE ->
-                    writePackage(snapshot, target)
-            }
-            repository.appendEvent(
-                ConversationAuditEventRequest(
-                    chatId = chatId,
-                    category = "IMPORT_EXPORT",
-                    eventType = "AUDIT_EXPORTED",
-                    actor = "USER",
-                    summary =
-                        when (format) {
-                            ConversationAuditExportFormat.AI_DIAGNOSTICS_MARKDOWN ->
-                                "已导出明文 AI 诊断 Markdown"
-                            ConversationAuditExportFormat.COMPLETE_AUDIT_PACKAGE ->
-                                "已导出完整签名审计包"
-                        },
-                    completeness =
-                        ConversationAuditCompletenessStatus.valueOf(
-                            snapshot.audit.completenessStatus
-                        ),
-                    payloads =
-                        listOf(
-                            ConversationAuditPayloadInput.text(
-                                label = "export_manifest",
-                                role = "metadata",
-                                value =
-                                    JSONObject()
-                                        .put("file", target.name)
-                                        .put("format", format.name)
-                                        .put(
-                                            "cutoffEventId",
-                                            snapshot.cutoffEventId ?: JSONObject.NULL,
-                                        )
-                                        .put("eventCount", snapshot.events.size)
-                                        .toString(),
-                                mediaType = "application/json",
-                            )
-                        ),
+                try {
+                    repository.appendEvent(
+                        ConversationAuditEventRequest(
+                            chatId = chatId,
+                            category = "IMPORT_EXPORT",
+                            eventType = "AUDIT_EXPORTED",
+                            actor = "USER",
+                            summary =
+                                when (format) {
+                                    ConversationAuditExportFormat.AI_DIAGNOSTICS_MARKDOWN ->
+                                        "已导出明文 AI 诊断 Markdown"
+                                    ConversationAuditExportFormat.COMPLETE_AUDIT_PACKAGE ->
+                                        "已导出完整签名审计包"
+                                },
+                            completeness =
+                                ConversationAuditCompletenessStatus.valueOf(
+                                    snapshot.audit.completenessStatus
+                                ),
+                            payloads =
+                                listOf(
+                                    ConversationAuditPayloadInput.text(
+                                        label = "export_manifest",
+                                        role = "metadata",
+                                        value =
+                                            JSONObject()
+                                                .put("file", target.name)
+                                                .put("format", format.name)
+                                                .put(
+                                                    "cutoffEventId",
+                                                    snapshot.cutoffEventId ?: JSONObject.NULL,
+                                                )
+                                                .put("eventCount", snapshot.events.size)
+                                                .toString(),
+                                        mediaType = "application/json",
+                                    )
+                                ),
+                        )
+                    )
+                    repository.seal(chatId, reason = "AUDIT_EXPORTED")
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    throw ConversationAuditExportRecordingException(target, error)
+                }
+                ConversationAuditExportResult(
+                    file = target,
+                    format = format,
+                    cutoffEventId = snapshot.cutoffEventId,
+                    eventCount = snapshot.events.size,
                 )
-            )
-            repository.seal(chatId, reason = "AUDIT_EXPORTED")
-            ConversationAuditExportResult(
-                file = target,
-                format = format,
-                cutoffEventId = snapshot.cutoffEventId,
-                eventCount = snapshot.events.size,
-            )
-        }
+            }
         }
 
     private fun writePackage(
         snapshot: ConversationAuditExportSnapshot,
         target: File,
     ) {
-        val temporary = File(target.parentFile, "${target.name}.tmp")
-        require(!temporary.exists() || temporary.delete()) {
-            "Unable to replace stale conversation audit export staging file"
-        }
-        FileOutputStream(temporary).use { output ->
-            val zip = ZipOutputStream(output)
-            try {
-                zip.writeEntry("manifest.json", manifest(snapshot).toString(2))
-                zip.writeEntry(
-                    "chat.json",
-                    archiveJson.encodeToString(
-                        snapshot.toOperitArchivedChat(includeAudit = false)
-                    ),
-                )
-                zip.writeEntry(
-                    "audit.json",
-                    archiveJson.encodeToString(
-                        snapshot.toOperitArchivedConversationAudit()
-                    ),
-                )
-                zip.writeEntry(
-                    "timeline.md",
-                    timelineMarkdown(
-                        snapshot = snapshot,
-                        inlinePayloads = false,
-                        externalShare = false,
-                    ),
-                )
-                zip.writeEntry(
-                    "events.jsonl",
-                    snapshot.events.joinToString("\n") { event ->
-                        eventJson(
-                            event = event,
-                            refs = snapshot.eventPayloads[event.eventId].orEmpty(),
-                        ).toString()
-                    } + if (snapshot.events.isEmpty()) "" else "\n",
-                )
-                zip.writeEntry(
-                    "revisions.jsonl",
-                    snapshot.revisions.joinToString("\n") { revision ->
-                        JSONObject()
-                            .put("revisionId", revision.revisionId)
-                            .put("chatId", revision.chatId)
-                            .put("messageTimestamp", revision.messageTimestamp)
-                            .put("variantIndex", revision.variantIndex)
-                            .put("revisionNumber", revision.revisionNumber)
-                            .put("sender", revision.sender)
-                            .put("contentPayloadSha256", revision.contentPayloadSha256)
-                            .put(
-                                "previousRevisionId",
-                                revision.previousRevisionId ?: JSONObject.NULL,
+        writeConversationAuditExportFile(target) { temporary ->
+            FileOutputStream(temporary).use { output ->
+                val zip = ZipOutputStream(output)
+                try {
+                    zip.writeEntry("manifest.json", manifest(snapshot).toString(2))
+                    zip.writeEntry(
+                        "chat.json",
+                        archiveJson.encodeToString(
+                            snapshot.toOperitArchivedChat(includeAudit = false)
+                        ),
+                    )
+                    zip.writeEntry(
+                        "audit.json",
+                        archiveJson.encodeToString(
+                            snapshot.toOperitArchivedConversationAudit()
+                        ),
+                    )
+                    zip.writeEntry(
+                        "timeline.md",
+                        timelineMarkdown(
+                            snapshot = snapshot,
+                            inlinePayloads = false,
+                            externalShare = false,
+                        ),
+                    )
+                    zip.writeEntry(
+                        "events.jsonl",
+                        snapshot.events.joinToString("\n") { event ->
+                            eventJson(
+                                event = event,
+                                refs = snapshot.eventPayloads[event.eventId].orEmpty(),
+                            ).toString()
+                        } + if (snapshot.events.isEmpty()) "" else "\n",
+                    )
+                    zip.writeEntry(
+                        "revisions.jsonl",
+                        snapshot.revisions.joinToString("\n") { revision ->
+                            JSONObject()
+                                .put("revisionId", revision.revisionId)
+                                .put("chatId", revision.chatId)
+                                .put("messageTimestamp", revision.messageTimestamp)
+                                .put("variantIndex", revision.variantIndex)
+                                .put("revisionNumber", revision.revisionNumber)
+                                .put("sender", revision.sender)
+                                .put("contentPayloadSha256", revision.contentPayloadSha256)
+                                .put(
+                                    "previousRevisionId",
+                                    revision.previousRevisionId ?: JSONObject.NULL,
+                                )
+                                .put("auditEventId", revision.auditEventId)
+                                .put("source", revision.source)
+                                .put("createdAt", revision.createdAt)
+                                .toString()
+                        } + if (snapshot.revisions.isEmpty()) "" else "\n",
+                    )
+                    zip.writeEntry(
+                        "projections.jsonl",
+                        snapshot.projections.joinToString("\n") { projection ->
+                            JSONObject()
+                                .put("chatId", projection.chatId)
+                                .put("messageTimestamp", projection.messageTimestamp)
+                                .put("variantIndex", projection.variantIndex)
+                                .put("currentRevisionId", projection.currentRevisionId)
+                                .put("estimatedTokenCount", projection.estimatedTokenCount)
+                                .put("updatedAt", projection.updatedAt)
+                                .toString()
+                        } + if (snapshot.projections.isEmpty()) "" else "\n",
+                    )
+                    zip.writeEntry("integrity.json", integrity(snapshot).toString(2))
+                    zip.writeEntry("redaction-report.json", redactionReport().toString(2))
+                    snapshot.payloads
+                        .toSortedMap()
+                        .forEach { (payloadSha256, payload) ->
+                            zip.writeEntry(
+                                payloadPath(payloadSha256, payload),
+                                payload.bytes,
                             )
-                            .put("auditEventId", revision.auditEventId)
-                            .put("source", revision.source)
-                            .put("createdAt", revision.createdAt)
-                            .toString()
-                    } + if (snapshot.revisions.isEmpty()) "" else "\n",
-                )
-                zip.writeEntry(
-                    "projections.jsonl",
-                    snapshot.projections.joinToString("\n") { projection ->
-                        JSONObject()
-                            .put("chatId", projection.chatId)
-                            .put("messageTimestamp", projection.messageTimestamp)
-                            .put("variantIndex", projection.variantIndex)
-                            .put("currentRevisionId", projection.currentRevisionId)
-                            .put("estimatedTokenCount", projection.estimatedTokenCount)
-                            .put("updatedAt", projection.updatedAt)
-                            .toString()
-                    } + if (snapshot.projections.isEmpty()) "" else "\n",
-                )
-                zip.writeEntry("integrity.json", integrity(snapshot).toString(2))
-                zip.writeEntry("redaction-report.json", redactionReport().toString(2))
-                snapshot.payloads
-                    .toSortedMap()
-                    .forEach { (payloadSha256, payload) ->
-                        zip.writeEntry(
-                            payloadPath(payloadSha256, payload),
-                            payload.bytes,
-                        )
-                    }
-                zip.finish()
-                zip.flush()
-                output.fd.sync()
-            } finally {
-                zip.close()
+                        }
+                    zip.finish()
+                    zip.flush()
+                    output.fd.sync()
+                } finally {
+                    zip.close()
+                }
             }
-        }
-        require(temporary.renameTo(target)) {
-            "Unable to atomically commit conversation audit export ${target.name}"
         }
     }
 
@@ -228,22 +236,17 @@ class ConversationAuditExporter(context: Context) {
         snapshot: ConversationAuditExportSnapshot,
         target: File,
     ) {
-        val temporary = File(target.parentFile, "${target.name}.tmp")
-        require(!temporary.exists() || temporary.delete()) {
-            "Unable to replace stale AI review export staging file"
-        }
-        FileOutputStream(temporary).use { output ->
-            output.write(
-                timelineMarkdown(
-                    snapshot = snapshot,
-                    inlinePayloads = true,
-                    externalShare = true,
-                ).toByteArray(Charsets.UTF_8)
-            )
-            output.fd.sync()
-        }
-        require(temporary.renameTo(target)) {
-            "Unable to atomically commit AI review export ${target.name}"
+        writeConversationAuditExportFile(target) { temporary ->
+            FileOutputStream(temporary).use { output ->
+                output.write(
+                    timelineMarkdown(
+                        snapshot = snapshot,
+                        inlinePayloads = true,
+                        externalShare = true,
+                    ).toByteArray(Charsets.UTF_8)
+                )
+                output.fd.sync()
+            }
         }
     }
 

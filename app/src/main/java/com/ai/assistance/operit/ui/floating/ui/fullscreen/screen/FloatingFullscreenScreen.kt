@@ -625,6 +625,7 @@ fun FloatingFullscreenMode(floatContext: FloatContext) {
             isTtsMuted = viewModel.isStreamingTtsMuted,
             onToggleTtsMute = { viewModel.toggleStreamingTtsMuted() },
             onSendClick = { viewModel.sendInputMessage() },
+            isPreparingMessage = viewModel.isPreparingMessage,
             volumeLevel = volumeLevel,
             modifier = Modifier.align(Alignment.BottomCenter)
         )

@@ -56,14 +56,14 @@ fun MarketBrowseControls(
             FilterChip(
                 selected = sortOption == option,
                 onClick = { onSortOptionChanged(option) },
-                modifier = Modifier.height(34.dp),
+                modifier = Modifier.height(48.dp),
                 label = { Text(stringResource(option.labelRes)) }
             )
         }
         FilterChip(
             selected = featuredOnly,
             onClick = { onFeaturedOnlyChanged(!featuredOnly) },
-            modifier = Modifier.height(34.dp),
+            modifier = Modifier.height(48.dp),
             leadingIcon = {
                 if (featuredOnly) {
                     Icon(

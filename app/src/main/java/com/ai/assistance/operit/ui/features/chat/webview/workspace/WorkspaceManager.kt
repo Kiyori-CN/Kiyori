@@ -21,6 +21,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
@@ -52,7 +54,6 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.workspace.CommandConfig
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserWorkspaceDownloadDispatcher
 import com.ai.assistance.operit.core.workspace.WorkspaceConfig
-import com.ai.assistance.operit.core.workspace.WorkspaceConfigReader
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.FileContentData
 import com.ai.assistance.operit.data.model.AITool
@@ -63,7 +64,6 @@ import com.ai.assistance.operit.ui.common.rememberLocal
 import com.ai.assistance.operit.ui.features.chat.components.rememberCompactDialogMetrics
 import com.ai.assistance.operit.ui.features.chat.components.attachments.AudioAttachmentPlayer
 import com.ai.assistance.operit.ui.features.chat.components.attachments.VideoAttachmentPlayer
-import com.ai.assistance.operit.ui.features.chat.webview.LocalWebServer
 import com.ai.assistance.operit.ui.features.chat.viewmodel.ChatViewModel
 import com.ai.assistance.operit.ui.features.chat.webview.WebViewHandler
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.editor.CodeEditor
@@ -167,40 +167,29 @@ fun WorkspaceManager(
     val workspaceCommandExecutionState by actualViewModel.workspaceCommandExecutionState.collectAsState()
     val coroutineScope = rememberCoroutineScope()
     val toolHandler = remember { AIToolHandler.getInstance(context) }
-    val workspaceServer = remember(context) {
-        LocalWebServer.getInstance(context, LocalWebServer.ServerType.WORKSPACE)
-    }
     
     val isSafEnv = remember(workspaceEnv) { workspaceEnv?.startsWith("repo:", ignoreCase = true) == true }
 
-    // 读取工作区配置：在重新进入预览界面时从磁盘刷新
-    var workspaceConfig by remember(workspacePath, workspaceEnv) {
-        mutableStateOf(if (isSafEnv) WorkspaceConfig() else WorkspaceConfigReader.readConfig(workspacePath))
-    }
+    var loadedConfiguration by remember(workspacePath, workspaceEnv) { mutableStateOf<LoadedWorkspaceConfiguration?>(null) }
+    var isConfigLoading by remember { mutableStateOf(true) }
+    var configError by remember { mutableStateOf<String?>(null) }
+    var configRevision by remember { mutableIntStateOf(0) }
+    val workspaceConfig = loadedConfiguration?.config ?: WorkspaceConfig()
 
-    LaunchedEffect(isVisible, workspacePath, workspaceEnv) {
-        if (isVisible && !isSafEnv) {
-            workspaceConfig = WorkspaceConfigReader.readConfig(workspacePath)
-        }
-    }
-
-    LaunchedEffect(isVisible, workspacePath, workspaceEnv, workspaceServer, workspaceConfig.server.enabled) {
+    LaunchedEffect(isVisible, workspacePath, workspaceEnv, configRevision) {
         if (!isVisible) return@LaunchedEffect
-
-        runCatching {
-            withContext(Dispatchers.IO) {
-                if (workspaceConfig.server.enabled) {
-                    if (!workspaceServer.isRunning()) {
-                        workspaceServer.start()
-                    }
-                    workspaceServer.updateChatWorkspace(workspacePath, workspaceEnv)
-                } else if (workspaceServer.isRunning()) {
-                    workspaceServer.stop()
-                }
-            }
-        }.onFailure { error ->
-            AppLogger.e("WorkspaceManager", "Failed to prepare workspace preview server", error)
-        }
+        isConfigLoading = true
+        configError = null
+        try {
+            loadedConfiguration = actualViewModel.loadWorkspaceConfiguration(workspacePath, workspaceEnv)
+            actualViewModel.updateWebServerForCurrentChat(currentChat.id)
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            loadedConfiguration = null
+            configError = context.getString(R.string.workspace_config_load_failed)
+            actualViewModel.updateWebServerForCurrentChat(currentChat.id)
+        } finally { isConfigLoading = false }
     }
 
     fun withWorkspaceEnvParams(base: List<ToolParameter>): List<ToolParameter> {
@@ -223,7 +212,9 @@ fun WorkspaceManager(
     var lastLoadedWorkspacePreviewUrl by remember(workspacePath, workspaceEnv) {
         mutableStateOf<String?>(null)
     }
-    val workspacePreviewUrl = workspaceConfig.preview.url.ifEmpty { "http://localhost:8093" }
+    val workspacePreviewUrl = workspaceConfig.preview.url.ifBlank {
+        if (workspaceConfig.server.enabled) "http://127.0.0.1:${com.ai.assistance.operit.ui.features.chat.webview.LocalWebServer.WORKSPACE_PORT}" else ""
+    }
     val workspacePreviewOptions = remember(workspacePreviewUrl) { previewWebViewOptions(workspacePreviewUrl) }
 
     var canWebViewGoBack by remember { mutableStateOf(false) }
@@ -274,15 +265,15 @@ fun WorkspaceManager(
 
     // 文件管理和标签状态 - 使用内存态，避免编辑大文件时频繁持久化整份内容
     var showFileManager by remember { mutableStateOf(false) }
-    var openFiles by remember(workspacePath, workspaceEnv) { mutableStateOf(emptyList<OpenFileInfo>()) }
-    var currentFileIndex by remember(workspacePath, workspaceEnv) { mutableStateOf(-1) }
-    var filePreviewStates by remember { mutableStateOf(mapOf<String, Boolean>()) }
-    var unsavedFiles by remember(workspacePath, workspaceEnv) { mutableStateOf(emptySet<String>()) }
+    val editorState = remember(actualViewModel, workspacePath, workspaceEnv) {
+        actualViewModel.workspaceEditorState(workspacePath, workspaceEnv)
+    }
+    var filePreviewStates by remember(workspacePath, workspaceEnv) { mutableStateOf(mapOf<String, Boolean>()) }
     val isBrowserPreviewVisible =
-        isVisible && currentFileIndex == -1 && workspaceConfig.preview.type == "browser"
+        isVisible && !isConfigLoading && configError == null && loadedConfiguration != null && editorState.currentFileIndex == -1 && workspaceConfig.preview.type == "browser"
     val isCommandPreviewVisible =
-        isVisible &&
-            currentFileIndex == -1 &&
+        isVisible && !isConfigLoading && configError == null && loadedConfiguration != null &&
+            editorState.currentFileIndex == -1 &&
             workspaceConfig.preview.type != "browser" &&
             showCommandBrowserPreview &&
             commandPreviewUrl.isNotEmpty()
@@ -324,12 +315,16 @@ fun WorkspaceManager(
     
     // 解绑确认对话框状态
     var showUnbindConfirmDialog by remember { mutableStateOf(false) }
+    var isUnbinding by remember { mutableStateOf(false) }
+    var unbindError by remember { mutableStateOf<String?>(null) }
     
     // 关闭文件确认对话框状态
-    var fileToCloseIndex by remember { mutableStateOf(-1) }
+    var fileToClosePath by remember(workspacePath, workspaceEnv) { mutableStateOf<String?>(null) }
     
     // 当前活动的编辑器引用
-    var activeEditor by remember { mutableStateOf<com.ai.assistance.operit.ui.features.chat.webview.workspace.editor.NativeCodeEditor?>(null) }
+    var activeEditor by remember(workspacePath, workspaceEnv) { mutableStateOf<com.ai.assistance.operit.ui.features.chat.webview.workspace.editor.NativeCodeEditor?>(null) }
+    var editorInteraction by remember { mutableStateOf(com.ai.assistance.operit.ui.features.chat.webview.workspace.editor.EditorInteractionState()) }
+    var activeEditorPath by remember(workspacePath, workspaceEnv) { mutableStateOf<String?>(null) }
     val density = LocalDensity.current
     val isImeVisible = WindowInsets.ime.getBottom(density) > 0
 
@@ -362,46 +357,34 @@ fun WorkspaceManager(
         }
     }
 
-    // 当工作区可见时，检查文件更新
-    LaunchedEffect(isVisible) {
-        if (isVisible) {
-            if (isSafEnv) {
-                return@LaunchedEffect
-            }
-            val updatedFiles = openFiles.map { fileInfo ->
+    // 外部读取挂起期间可能继续编辑、关标签或打开新文件，只发布仍匹配的单文件快照。
+    LaunchedEffect(isVisible, workspacePath, workspaceEnv, editorState.refreshGeneration, editorState.isRestoring) {
+        if (isVisible && !editorState.isRestoring) {
+            editorState.openFiles.toList().forEach { fileInfo ->
+                if (fileInfo.path in editorState.unsavedFiles || fileInfo.path in editorState.savingFiles) return@forEach
                 val currentFile = File(fileInfo.path)
-                if (currentFile.exists() && currentFile.lastModified() > fileInfo.lastModified) {
-                    if (fileInfo.isReadOnlyPreview) {
-                        return@map fileInfo.copy(lastModified = currentFile.lastModified())
-                    }
-
-                    // 文件已在外部被修改，重新加载内容
-                    val tool = AITool(
-                        "read_file_full",
-                        withWorkspaceEnvParams(listOf(ToolParameter("path", fileInfo.path)))
-                    )
-                    val result = toolHandler.executeTool(tool)
-                    if (result.success && result.result is FileContentData) {
-                        val newContent = result.result.content
-                        
-                        // 如果当前文件就是这个被修改的文件，则更新编辑器内容
-                        if (openFiles.getOrNull(currentFileIndex)?.path == fileInfo.path) {
-                             activeEditor?.replaceAllText(newContent)
-                        }
-                        
-                        // 返回更新后的文件信息
-                        fileInfo.copy(
-                            content = newContent,
-                            lastModified = currentFile.lastModified()
-                        )
-                    } else {
-                        fileInfo // 加载失败，保留旧信息
-                    }
+                val requiresProviderRead = isSafEnv || workspaceEnv?.equals("linux", ignoreCase = true) == true
+                if (!requiresProviderRead && fileInfo.lastModified != Long.MIN_VALUE &&
+                    (!currentFile.exists() || currentFile.lastModified() <= fileInfo.lastModified)) return@forEach
+                if (fileInfo.isReadOnlyPreview) {
+                    editorState.acceptExternalUpdate(fileInfo, fileInfo.copy(lastModified = if (requiresProviderRead) System.currentTimeMillis() else currentFile.lastModified()))
                 } else {
-                    fileInfo // 文件未更改
+                    try {
+                        val tool = AITool("read_file_full", withWorkspaceEnvParams(listOf(ToolParameter("path", fileInfo.path))))
+                        val result = withContext(Dispatchers.IO) { toolHandler.executeTool(tool) }
+                        if (result.success && result.result is FileContentData) {
+                            editorState.acceptExternalUpdate(fileInfo, fileInfo.copy(
+                                content = result.result.content,
+                                lastModified = currentFile.lastModified(),
+                            ))
+                        }
+                    } catch (error: kotlinx.coroutines.CancellationException) {
+                        throw error
+                    } catch (error: Exception) {
+                        AppLogger.e("WorkspaceManager", "Failed to refresh open file", error)
+                    }
                 }
             }
-            openFiles = updatedFiles
         }
     }
 
@@ -411,7 +394,7 @@ fun WorkspaceManager(
         workspacePath,
         workspaceEnv,
         workspaceConfig.preview.type,
-        currentFileIndex,
+        editorState.currentFileIndex,
         workspaceWebView
     ) {
         if (!isVisible || isSafEnv) {
@@ -426,7 +409,7 @@ fun WorkspaceManager(
                     ignoreCase = true
                 )
             val shouldRefreshBrowserPreview =
-                currentFileIndex == -1 && workspaceConfig.preview.type == "browser"
+                editorState.currentFileIndex == -1 && workspaceConfig.preview.type == "browser"
 
             if (!isSameWorkspace || !isSameEnvironment || !shouldRefreshBrowserPreview) {
                 return@collect
@@ -440,65 +423,40 @@ fun WorkspaceManager(
         }
     }
     
-    // 保存文件函数
-    fun saveFile(fileInfo: OpenFileInfo) {
-        if (fileInfo.isReadOnlyPreview) return
-
+    fun saveFile(fileInfo: OpenFileInfo, closeAfterSave: Boolean = false) {
+        if (fileInfo.isReadOnlyPreview || fileInfo.path in editorState.savingFiles) return
         coroutineScope.launch {
-            val tool =
-                AITool(
-                    "write_file",
-                    withWorkspaceEnvParams(
-                        listOf(
-                            ToolParameter("path", fileInfo.path),
-                            ToolParameter("content", fileInfo.content)
-                        )
-                    )
-                )
-            
-            // 使用toolHandler代替actualViewModel.executeAITool
-            toolHandler.executeTool(tool)
-            
-            // 如果是HTML文件且正在预览，刷新WebView
-            if (fileInfo.isHtml && filePreviewStates[fileInfo.path] == true) {
-                actualViewModel.refreshWebView()
+            try {
+                val saved = editorState.save(fileInfo.path) { snapshot ->
+                    val tool = AITool("write_file", withWorkspaceEnvParams(listOf(
+                        ToolParameter("path", snapshot.path), ToolParameter("content", snapshot.content),
+                    )))
+                    val result = withContext(Dispatchers.IO) { toolHandler.executeTool(tool) }
+                    check(result.success) { result.error ?: context.getString(R.string.file_manager_operation_failed) }
+                    true
+                }
+                if (saved) {
+                    if (fileInfo.path == File(workspacePath, ".operit/config.json").path) configRevision++
+                    if (fileInfo.isHtml && filePreviewStates[fileInfo.path] == true) actualViewModel.refreshWebView()
+                    if (closeAfterSave) {
+                        editorState.close(fileInfo.path)
+                        fileToClosePath = null
+                    }
+                } else if (closeAfterSave) {
+                    actualViewModel.showToast(context.getString(R.string.workspace_save_draft_changed))
+                }
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                AppLogger.e("WorkspaceManager", "Failed to save workspace file", error)
+                actualViewModel.showToast(context.getString(R.string.workspace_save_failed, fileInfo.name))
             }
         }
     }
 
-    // 实际执行关闭文件操作
-    fun confirmCloseFile(index: Int) {
-        if (index >= 0 && index < openFiles.size) {
-            val fileToClose = openFiles[index]
-            val updatedFiles = openFiles.toMutableList()
-            updatedFiles.removeAt(index)
-            openFiles = updatedFiles
-
-            // 从未保存集合中移除
-            unsavedFiles = unsavedFiles - fileToClose.path
-            
-            // 更新当前选中的标签
-            currentFileIndex = when {
-                updatedFiles.isEmpty() -> -1
-                index >= updatedFiles.size -> updatedFiles.size - 1
-                else -> index
-            }
-        }
-        fileToCloseIndex = -1 // 重置待关闭文件索引
-    }
-
-    // 关闭文件标签
-    fun closeFile(index: Int) {
-        if (index >= 0 && index < openFiles.size) {
-            val fileToClose = openFiles[index]
-            // 如果文件有未保存的更改，显示确认对话框
-            if (unsavedFiles.contains(fileToClose.path)) {
-                fileToCloseIndex = index
-            } else {
-                // 否则直接关闭
-                confirmCloseFile(index)
-            }
-        }
+    fun closeFile(path: String) {
+        if (path in editorState.savingFiles) return
+        if (path in editorState.unsavedFiles) fileToClosePath = path else editorState.close(path)
     }
 
     // 切换文件预览状态
@@ -510,15 +468,15 @@ fun WorkspaceManager(
     // 打开文件
     fun openFile(fileInfo: OpenFileInfo) {
         // 检查文件是否已经打开
-        val existingIndex = openFiles.indexOfFirst { it.path == fileInfo.path }
+        val existingIndex = editorState.openFiles.indexOfFirst { it.path == fileInfo.path }
 
         if (existingIndex != -1) {
             // 如果文件已经打开，切换到该标签
-            currentFileIndex = existingIndex
+            editorState.currentFileIndex = existingIndex
         } else {
             // 否则添加到打开的文件列表
-            openFiles = openFiles + fileInfo
-            currentFileIndex = openFiles.size - 1
+            editorState.openFiles = editorState.openFiles + fileInfo
+            editorState.currentFileIndex = editorState.openFiles.size - 1
 
             // 初始化预览状态
             filePreviewStates =
@@ -563,40 +521,40 @@ fun WorkspaceManager(
                         VSCodeTab(
                                 title = stringResource(R.string.workspace_preview),
                                 icon = Icons.Default.Visibility,
-                                isActive = currentFileIndex == -1,
+                                isActive = editorState.currentFileIndex == -1,
                                 isUnsaved = false,
                                 onClose = null,
-                                onClick = { currentFileIndex = -1 }
+                                onClick = { editorState.currentFileIndex = -1 }
                         )
 
                         // 打开的文件标签
-                        openFiles.forEachIndexed { index, fileInfo ->
+                        editorState.openFiles.forEachIndexed { index, fileInfo ->
                             VSCodeTab(
                                     title = fileInfo.name,
                                     icon = getFileIcon(fileInfo.name), // 使用统一的 getFileIcon
-                                    isActive = currentFileIndex == index,
-                                    isUnsaved = unsavedFiles.contains(fileInfo.path),
-                                    onClose = { closeFile(index) },
-                                    onClick = { currentFileIndex = index }
+                                    isActive = editorState.currentFileIndex == index,
+                                    isUnsaved = editorState.unsavedFiles.contains(fileInfo.path),
+                                    onClose = { closeFile(fileInfo.path) },
+                                    onClick = { editorState.currentFileIndex = index }
                             )
                         }
                     }
 
                     // 动态操作区域
-                    val currentFile = openFiles.getOrNull(currentFileIndex)
+                    val currentFile = editorState.openFiles.getOrNull(editorState.currentFileIndex)
 
                     // 保存按钮
-                    if (currentFile != null && unsavedFiles.contains(currentFile.path)) {
+                    if (currentFile != null && editorState.unsavedFiles.contains(currentFile.path)) {
                         IconButton(
                             onClick = {
                                 saveFile(currentFile)
-                                unsavedFiles = unsavedFiles - currentFile.path
                             },
-                            modifier = Modifier.size(40.dp)
+                            enabled = currentFile.path !in editorState.savingFiles,
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
                                 Icons.Default.Save,
-                                contentDescription = "Save File"
+                                contentDescription = context.getString(R.string.save)
                             )
                         }
                     }
@@ -669,8 +627,28 @@ fun WorkspaceManager(
                                     .background(MaterialTheme.colorScheme.surface) // 添加背景色防止闪烁
             ) {
                 when {
+                    editorState.currentFileIndex == -1 && (isConfigLoading || configError != null) -> {
+                        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center) {
+                            if (isConfigLoading) CircularProgressIndicator()
+                            else {
+                                Text(configError.orEmpty(), color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
+                                Spacer(Modifier.height(16.dp))
+                                TextButton(onClick = { configRevision++ }) { Text(stringResource(R.string.workspace_config_reload)) }
+                                TextButton(onClick = { showFileManager = true }) { Text(stringResource(R.string.workspace_open_files)) }
+                            }
+                        }
+                    }
+                    editorState.currentFileIndex == -1 && workspaceConfig.preview.type == "browser" && workspacePreviewUrl.isBlank() -> {
+                        Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center) {
+                            Text(stringResource(R.string.workspace_preview_not_configured), textAlign = TextAlign.Center)
+                            TextButton(onClick = { showFileManager = true }) { Text(stringResource(R.string.workspace_open_files)) }
+                        }
+                    }
                     // 显示WebView预览（仅当preview类型为browser时）
-                    currentFileIndex == -1 && workspaceConfig.preview.type == "browser" -> {
+                    editorState.currentFileIndex == -1 && workspaceConfig.preview.type == "browser" -> {
                         key(workspacePath, workspaceEnv) {
                             AndroidView(
                                     factory = { androidContext ->
@@ -712,7 +690,7 @@ fun WorkspaceManager(
                         }
                     }
                     // 显示命令按钮界面（当preview类型不是browser时）
-                    currentFileIndex == -1 && workspaceConfig.preview.type != "browser" -> {
+                    editorState.currentFileIndex == -1 && workspaceConfig.preview.type != "browser" -> {
                         if (isCommandPreviewVisible) {
                             key(workspacePath, workspaceEnv, commandPreviewUrl) {
                                 AndroidView(
@@ -761,7 +739,7 @@ fun WorkspaceManager(
                                 onCommandExecute = { command ->
                                     // 在专属会话中执行命令
                                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                        actualViewModel.executeCommandInWorkspace(command, workspacePath)
+                                        loadedConfiguration?.let { actualViewModel.executeCommandInWorkspace(command, workspacePath, it) }
                                     } else {
                                         // 对于旧版本Android，显示不支持提示
                                         AppLogger.w("WorkspaceManager", "Terminal features require Android 8.0+")
@@ -774,8 +752,8 @@ fun WorkspaceManager(
                         }
                     }
                     // 显示打开的文件
-                    currentFileIndex in openFiles.indices -> {
-                        val fileInfo = openFiles[currentFileIndex]
+                    editorState.currentFileIndex in editorState.openFiles.indices -> {
+                        val fileInfo = editorState.openFiles[editorState.currentFileIndex]
                         val isPreviewMode = filePreviewStates[fileInfo.path] ?: false
 
                         when {
@@ -916,18 +894,22 @@ fun WorkspaceManager(
                                             code = fileInfo.content,
                                             language = fileLanguage,
                                             onCodeChange = { newContent ->
-                                                val updatedFiles = openFiles.toMutableList()
-                                                if (currentFileIndex in updatedFiles.indices) {
-                                                    val updatedFile = openFiles[currentFileIndex].copy(content = newContent)
-                                                    updatedFiles[currentFileIndex] = updatedFile
-                                                    openFiles = updatedFiles
-
-                                                    // 将文件标记为未保存
-                                                    unsavedFiles = unsavedFiles + updatedFile.path
-                                                }
+                                                editorState.edit(fileInfo.path, newContent)
                                             },
                                             modifier = Modifier.fillMaxSize(),
-                                            editorRef = { editor -> activeEditor = editor } // 传递editor引用
+                                            onInteractionStateChanged = { interaction ->
+                                                if (activeEditorPath == fileInfo.path) editorInteraction = interaction
+                                            },
+                                            editorRef = { editor ->
+                                                if (editor != null) {
+                                                    activeEditor = editor
+                                                    activeEditorPath = fileInfo.path
+                                                } else if (activeEditorPath == fileInfo.path) {
+                                                    activeEditor = null
+                                                    activeEditorPath = null
+                                                    editorInteraction = com.ai.assistance.operit.ui.features.chat.webview.workspace.editor.EditorInteractionState()
+                                                }
+                                            }
                                     )
                                 }
                             }
@@ -938,7 +920,8 @@ fun WorkspaceManager(
         }
 
         // 从底部弹出的文件管理器面板
-        if (showFileManager) {
+        BackHandler(enabled = isVisible && showFileManager) { showFileManager = false }
+        if (isVisible && showFileManager) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -990,44 +973,40 @@ fun WorkspaceManager(
         // 键盘弹起时隐藏工作区悬浮菜单，避免遮挡编辑区与输入区域
         if (!isImeVisible) {
             ExpandableFabMenu(
-                isExpanded = isFabMenuExpanded,
+                isExpanded = isVisible && isFabMenuExpanded,
                 onToggle = { isFabMenuExpanded = !isFabMenuExpanded },
-                exportEnabled = workspaceConfig.export.enabled && !isSafEnv,
+                exportEnabled = workspaceConfig.export.enabled && workspaceEnv.isNullOrBlank(),
+                canUndo = activeEditor != null && editorInteraction.canUndo,
+                canRedo = activeEditor != null && editorInteraction.canRedo,
                 onExportClick = {
                     if (!isSafEnv) {
                         onExportClick(File(workspacePath))
                     }
                 },
                 onFileManagerClick = { showFileManager = true },
-                onUndoClick = { activeEditor?.undo() },
-                onRedoClick = { activeEditor?.redo() },
+                onUndoClick = { activeEditor?.takeIf { activeEditorPath == editorState.openFiles.getOrNull(editorState.currentFileIndex)?.path }?.undo() },
+                onRedoClick = { activeEditor?.takeIf { activeEditorPath == editorState.openFiles.getOrNull(editorState.currentFileIndex)?.path }?.redo() },
                 onFormatClick = {
                     // 格式化当前文件
-                    val currentFile = openFiles.getOrNull(currentFileIndex)
+                    val currentFile = editorState.openFiles.getOrNull(editorState.currentFileIndex)
                     if (currentFile != null) {
                         val language = LanguageDetector.detectLanguage(currentFile.name)
                         val formattedCode = CodeFormatter.format(currentFile.content, language)
                         
-                        // 更新文件内容
-                        val updatedFiles = openFiles.toMutableList()
-                        updatedFiles[currentFileIndex] = currentFile.copy(content = formattedCode)
-                        openFiles = updatedFiles
-                        
-                        // 更新编辑器显示
-                        activeEditor?.replaceAllText(formattedCode)
-                        
-                        // 标记为未保存
-                        unsavedFiles = unsavedFiles + currentFile.path
+                        editorState.edit(currentFile.path, formattedCode)
+                        activeEditor?.takeIf { activeEditorPath == editorState.openFiles.getOrNull(editorState.currentFileIndex)?.path }?.replaceAllText(formattedCode)
                     }
                     isFabMenuExpanded = false
                 },
                 onUnbindClick = { 
-                    showUnbindConfirmDialog = true
+                    if (editorState.unsavedFiles.isNotEmpty()) {
+                        actualViewModel.showToast(context.getString(R.string.workspace_unbind_save_first))
+                    } else showUnbindConfirmDialog = true
                     isFabMenuExpanded = false
                 },
                 renameEnabled = canRenameWorkspace,
                 onRenameWorkspaceClick = {
-                    if (unsavedFiles.isNotEmpty()) {
+                    if (editorState.unsavedFiles.isNotEmpty()) {
                         actualViewModel.showToast(context.getString(R.string.workspace_rename_save_first))
                     } else {
                         renameWorkspaceInput = File(workspacePath).name
@@ -1036,7 +1015,7 @@ fun WorkspaceManager(
                     }
                     isFabMenuExpanded = false
                 },
-                canFormat = openFiles.getOrNull(currentFileIndex)?.let { file ->
+                canFormat = editorState.openFiles.getOrNull(editorState.currentFileIndex)?.let { file ->
                     val language = LanguageDetector.detectLanguage(file.name).lowercase()
                     language in listOf("javascript", "js", "css", "html", "htm")
                 } ?: false
@@ -1044,30 +1023,43 @@ fun WorkspaceManager(
         }
         
         // 解绑确认对话框
-        if (showUnbindConfirmDialog) {
+        if (isVisible && showUnbindConfirmDialog) {
             AlertDialog(
-                onDismissRequest = { showUnbindConfirmDialog = false },
+                onDismissRequest = { if (!isUnbinding) showUnbindConfirmDialog = false },
                 title = { Text(context.getString(R.string.unbind_workspace_title)) },
-                text = { Text(context.getString(R.string.unbind_workspace_confirm)) },
+                text = { Column {
+                    Text(context.getString(R.string.unbind_workspace_confirm))
+                    unbindError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                } },
                 confirmButton = {
                     TextButton(
+                        enabled = !isUnbinding,
                         onClick = {
-                            actualViewModel.unbindChatFromWorkspace(currentChat.id)
-                            showUnbindConfirmDialog = false
+                            isUnbinding = true
+                            unbindError = null
+                            coroutineScope.launch {
+                                try {
+                                    check(editorState.unsavedFiles.isEmpty()) { context.getString(R.string.workspace_unbind_save_first) }
+                                    actualViewModel.unbindChatFromWorkspace(currentChat.id, workspacePath, workspaceEnv)
+                                    showUnbindConfirmDialog = false
+                                } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+                                catch (error: Exception) { unbindError = error.message ?: context.getString(R.string.workspace_binding_failed) }
+                                finally { isUnbinding = false }
+                            }
                         }
                     ) {
-                        Text(context.getString(R.string.confirm_action))
+                        Text(context.getString(if (isUnbinding) R.string.workspace_binding_saving else R.string.confirm_action))
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showUnbindConfirmDialog = false }) {
+                    TextButton(enabled = !isUnbinding, onClick = { showUnbindConfirmDialog = false }) {
                         Text(context.getString(R.string.cancel))
                     }
                 }
             )
         }
 
-        if (showRenameWorkspaceDialog) {
+        if (isVisible && showRenameWorkspaceDialog) {
             AlertDialog(
                 onDismissRequest = {
                     if (!isRenamingWorkspace) {
@@ -1080,6 +1072,7 @@ fun WorkspaceManager(
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         OutlinedTextField(
                             value = renameWorkspaceInput,
+                            enabled = !isRenamingWorkspace,
                             onValueChange = {
                                 renameWorkspaceInput = it
                                 renameWorkspaceError = null
@@ -1102,19 +1095,19 @@ fun WorkspaceManager(
                     TextButton(
                         enabled = !isRenamingWorkspace,
                         onClick = {
-                            if (unsavedFiles.isNotEmpty()) {
+                            if (editorState.unsavedFiles.isNotEmpty() || editorState.savingFiles.isNotEmpty() || editorState.isRestoring) {
                                 renameWorkspaceError =
                                     context.getString(R.string.workspace_rename_save_first)
                                 return@TextButton
                             }
+                            val requestedName = renameWorkspaceInput
                             isRenamingWorkspace = true
                             coroutineScope.launch {
-                                runCatching {
-                                    actualViewModel.renameWorkspace(
+                                try {
+                                    val result = actualViewModel.renameWorkspace(
                                         chatId = currentChat.id,
-                                        newWorkspaceName = renameWorkspaceInput
+                                        newWorkspaceName = requestedName
                                     )
-                                }.onSuccess { result ->
                                     actualViewModel.showToast(
                                         context.getString(
                                             R.string.workspace_rename_success,
@@ -1123,12 +1116,13 @@ fun WorkspaceManager(
                                     )
                                     showRenameWorkspaceDialog = false
                                     renameWorkspaceError = null
-                                }.onFailure { error ->
+                                } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                                    throw cancelled
+                                } catch (error: Exception) {
                                     renameWorkspaceError =
                                         error.message
                                             ?: context.getString(R.string.workspace_rename_failed)
-                                }
-                                isRenamingWorkspace = false
+                                } finally { isRenamingWorkspace = false }
                             }
                         }
                     ) {
@@ -1150,19 +1144,18 @@ fun WorkspaceManager(
         }
         
         // 关闭文件确认对话框
-        if (fileToCloseIndex != -1) {
-            val file = openFiles.getOrNull(fileToCloseIndex)
+        if (isVisible && fileToClosePath != null) {
+            val file = editorState.openFiles.find { it.path == fileToClosePath }
             if (file != null) {
                 AlertDialog(
-                    onDismissRequest = { fileToCloseIndex = -1 },
+                    onDismissRequest = { if (file.path !in editorState.savingFiles) fileToClosePath = null },
                     title = { Text(context.getString(R.string.save_changes_question)) },
                     text = { Text(context.getString(R.string.file_modified_save_prompt, file.name)) },
                     confirmButton = {
                         TextButton(
+                            enabled = file.path !in editorState.savingFiles,
                             onClick = {
-                                saveFile(file)
-                                unsavedFiles = unsavedFiles - file.path
-                                confirmCloseFile(fileToCloseIndex)
+                                saveFile(file, closeAfterSave = true)
                             }
                         ) {
                             Text(context.getString(R.string.save))
@@ -1170,12 +1163,14 @@ fun WorkspaceManager(
                     },
                     dismissButton = {
                         Row {
-                            TextButton(onClick = { fileToCloseIndex = -1 }) {
+                            TextButton(enabled = file.path !in editorState.savingFiles, onClick = { fileToClosePath = null }) {
                                 Text(context.getString(R.string.cancel))
                             }
                             TextButton(
+                                enabled = file.path !in editorState.savingFiles,
                                 onClick = {
-                                    confirmCloseFile(fileToCloseIndex)
+                                    editorState.close(file.path)
+                                    fileToClosePath = null
                                 }
                             ) {
                                 Text(context.getString(R.string.dont_save))
@@ -1187,8 +1182,9 @@ fun WorkspaceManager(
         }
 
         val commandDialogState = workspaceCommandExecutionState
-        if (commandDialogState != null &&
+        if (isVisible && commandDialogState != null &&
             commandDialogState.workspacePath == workspacePath &&
+            commandDialogState.workspaceEnvironment == workspaceEnv &&
             commandDialogState.isVisible
         ) {
             WorkspaceCommandExecutionDialog(
@@ -1203,6 +1199,14 @@ fun WorkspaceManager(
                     context.copyPlainTextToClipboard("Kiyori terminal output", output)
                     actualViewModel.showToast(context.getString(R.string.copied_to_clipboard))
                 }
+            )
+        }
+        if (isVisible && editorState.isRestoring) {
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text(context.getString(R.string.workspace_restoring)) },
+                text = { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) },
+                confirmButton = {},
             )
         }
     }
@@ -1220,8 +1224,11 @@ private fun WorkspaceCommandExecutionDialog(
         state.outputEntries.joinToString(separator = "\n")
     }
 
-    LaunchedEffect(state.outputEntries.size) {
-        if (state.outputEntries.isNotEmpty()) {
+    var previousOutputSize by remember(state.commandId) { mutableIntStateOf(0) }
+    LaunchedEffect(state.outputEntries.size, state.omittedOutputEntries) {
+        val wasAtBottom = (listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) >= previousOutputSize - 2
+        previousOutputSize = state.outputEntries.size
+        if (state.outputEntries.isNotEmpty() && wasAtBottom) {
             listState.animateScrollToItem(state.outputEntries.lastIndex)
         }
     }
@@ -1271,18 +1278,19 @@ private fun WorkspaceCommandExecutionDialog(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = stringResource(
-                        if (!state.isRunning) {
-                            R.string.workspace_command_finished
-                        } else if (state.isCancelling) {
-                            R.string.workspace_command_cancelling
-                        } else {
-                            R.string.workspace_command_running
-                        }
-                    ),
+                    text = when {
+                        !state.isRunning && state.exitCode != null -> stringResource(R.string.workspace_command_exit_code, state.exitCode)
+                        !state.isRunning -> stringResource(R.string.workspace_command_result_unconfirmed)
+                        state.isCancelling -> stringResource(R.string.workspace_command_cancelling)
+                        else -> stringResource(R.string.workspace_command_running)
+                    },
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
+                    color = if (!state.isRunning && state.exitCode != 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                 )
+                if (state.omittedOutputEntries > 0) {
+                    Text(stringResource(R.string.workspace_command_output_limited, state.omittedOutputEntries),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 if (state.isRunning) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
@@ -1378,7 +1386,6 @@ private fun WorkspaceCommandExecutionDialog(
     }
 }
 
-@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun ExpandableFabMenu(
     isExpanded: Boolean,
@@ -1392,122 +1399,60 @@ fun ExpandableFabMenu(
     onUnbindClick: () -> Unit,
     renameEnabled: Boolean = false,
     onRenameWorkspaceClick: () -> Unit,
-    canFormat: Boolean = false
+    canFormat: Boolean = false,
+    canUndo: Boolean = false,
+    canRedo: Boolean = false,
 ) {
-    val context = LocalContext.current
-    
-    BoxWithConstraints(
-        modifier = Modifier.fillMaxSize()
-    ) {
+    BoxWithConstraints(Modifier.fillMaxSize().padding(16.dp)) {
         val density = LocalDensity.current
-        val maxWidthPx = with(density) { maxWidth.toPx() }
-        val maxHeightPx = with(density) { maxHeight.toPx() }
-        
-        // 使用 rememberLocal 持久化FAB位置，默认为null表示使用默认右下角位置
-        var fabPosition by rememberLocal<FabPosition?>("fab_menu_offset", null)
-        
-        // 计算实际的显示位置：如果没有自定义位置，使用右下角
-        val actualX = fabPosition?.x ?: 0f
-        val actualY = fabPosition?.y ?: 0f
-        
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .offset { IntOffset(actualX.roundToInt(), actualY.roundToInt()) }
-                    .pointerInput(Unit) {
-                        detectDragGestures { change, dragAmount ->
-                            change.consume()
-                            val currentPos = fabPosition ?: FabPosition(0f, 0f)
-                            val paddingPx = with(density) { 16.dp.toPx() }
-                            fabPosition = FabPosition(
-                                x = (currentPos.x + dragAmount.x).coerceIn(
-                                    -(maxWidthPx - paddingPx * 2 - 100f),
-                                    0f
-                                ),
-                                y = (currentPos.y + dragAmount.y).coerceIn(
-                                    -(maxHeightPx - paddingPx * 2 - 100f),
-                                    0f
-                                )
-                            )
-                        }
-                    },
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.Bottom
+        val minX = -with(density) { (maxWidth - 56.dp).coerceAtLeast(0.dp).toPx() }
+        val minY = -with(density) { (maxHeight - 56.dp).coerceAtLeast(0.dp).toPx() }
+        val menuMaxHeight = maxHeight.coerceAtLeast(48.dp)
+        var savedPosition by rememberLocal<FabPosition?>("fab_menu_offset", null)
+        var draggingPosition by remember { mutableStateOf<FabPosition?>(null) }
+        fun bounded(position: FabPosition?) = FabPosition(
+            (position?.x ?: 0f).takeIf { it.isFinite() }?.coerceIn(minX, 0f) ?: 0f,
+            (position?.y ?: 0f).takeIf { it.isFinite() }?.coerceIn(minY, 0f) ?: 0f,
+        )
+        val position = bounded(draggingPosition ?: savedPosition)
+        Box(Modifier.align(Alignment.BottomEnd).offset { IntOffset(position.x.roundToInt(), position.y.roundToInt()) }) {
+            FloatingActionButton(
+                onClick = onToggle,
+                modifier = Modifier.pointerInput(minX, minY) {
+                    detectDragGestures(
+                        onDragStart = { draggingPosition = bounded(savedPosition) },
+                        onDragEnd = { savedPosition = bounded(draggingPosition); draggingPosition = null },
+                        onDragCancel = { draggingPosition = null },
+                    ) { change, amount ->
+                        change.consume()
+                        val current = bounded(draggingPosition ?: savedPosition)
+                        draggingPosition = bounded(FabPosition(current.x + amount.x, current.y + amount.y))
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
             ) {
-        // 展开的菜单项
-        if (isExpanded) {
-            FabMenuItem(icon = Icons.AutoMirrored.Filled.Undo, text = context.getString(R.string.undo), onClick = onUndoClick)
-            Spacer(modifier = Modifier.height(12.dp))
-            FabMenuItem(icon = Icons.AutoMirrored.Filled.Redo, text = context.getString(R.string.redo), onClick = onRedoClick)
-            Spacer(modifier = Modifier.height(12.dp))
-            if (canFormat) {
-                FabMenuItem(icon = Icons.Default.AutoFixHigh, text = context.getString(R.string.format_code), onClick = onFormatClick)
-                Spacer(modifier = Modifier.height(12.dp))
+                Icon(if (isExpanded) Icons.Default.Close else Icons.Default.MoreVert,
+                    contentDescription = stringResource(if (isExpanded) R.string.workspace_close_menu else R.string.workspace_open_menu))
             }
-            FabMenuItem(icon = Icons.Default.Folder, text = context.getString(R.string.files), onClick = onFileManagerClick)
-            Spacer(modifier = Modifier.height(12.dp))
-            if (exportEnabled) {
-                FabMenuItem(icon = Icons.Default.Upload, text = context.getString(R.string.export), onClick = onExportClick)
-                Spacer(modifier = Modifier.height(12.dp))
+            DropdownMenu(expanded = isExpanded, onDismissRequest = onToggle,
+                modifier = Modifier.widthIn(min = 200.dp, max = 280.dp).heightIn(max = menuMaxHeight)) {
+                DropdownMenuItem(text = { Text(stringResource(R.string.undo)) },
+                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.Undo, null) }, enabled = canUndo, onClick = { onToggle(); onUndoClick() })
+                DropdownMenuItem(text = { Text(stringResource(R.string.redo)) },
+                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.Redo, null) }, enabled = canRedo, onClick = { onToggle(); onRedoClick() })
+                if (canFormat) DropdownMenuItem(text = { Text(stringResource(R.string.format_code)) },
+                    leadingIcon = { Icon(Icons.Default.AutoFixHigh, null) }, onClick = { onToggle(); onFormatClick() })
+                HorizontalDivider()
+                DropdownMenuItem(text = { Text(stringResource(R.string.files)) },
+                    leadingIcon = { Icon(Icons.Default.Folder, null) }, onClick = { onToggle(); onFileManagerClick() })
+                if (exportEnabled) DropdownMenuItem(text = { Text(stringResource(R.string.export)) },
+                    leadingIcon = { Icon(Icons.Default.Upload, null) }, onClick = { onToggle(); onExportClick() })
+                if (renameEnabled) DropdownMenuItem(text = { Text(stringResource(R.string.workspace_rename_action)) },
+                    leadingIcon = { Icon(Icons.Default.Edit, null) }, onClick = { onToggle(); onRenameWorkspaceClick() })
+                DropdownMenuItem(text = { Text(stringResource(R.string.unbind)) },
+                    leadingIcon = { Icon(Icons.Default.LinkOff, null) }, onClick = { onToggle(); onUnbindClick() })
             }
-            if (renameEnabled) {
-                FabMenuItem(
-                    icon = Icons.Default.Edit,
-                    text = context.getString(R.string.workspace_rename_action),
-                    onClick = onRenameWorkspaceClick
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-            FabMenuItem(icon = Icons.Default.LinkOff, text = context.getString(R.string.unbind), onClick = onUnbindClick)
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-
-        // 主切换按钮
-        FloatingActionButton(
-            onClick = onToggle,
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary
-        ) {
-            Icon(
-                imageVector = if (isExpanded) Icons.Default.Close else Icons.Default.MoreVert,
-                contentDescription = if (isExpanded) stringResource(R.string.workspace_close_menu) else stringResource(R.string.workspace_open_menu)
-            )
-        }
-            }
-        }
-    }
-}
-
-@Composable
-fun FabMenuItem(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, onClick: () -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            shadowElevation = 2.dp,
-            modifier = Modifier.clickable(onClick = onClick)
-        ) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-            )
-        }
-        FloatingActionButton(
-            onClick = onClick,
-            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 0.dp)
-        ) {
-            Icon(imageVector = icon, contentDescription = text)
         }
     }
 }
@@ -1533,12 +1478,12 @@ fun VSCodeTab(
 
     Box(
             modifier =
-                    Modifier.height(36.dp)
+                    Modifier.height(48.dp).widthIn(max = 240.dp)
                             .background(
                                     backgroundColor,
                                     shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
                             )
-                            .clickable(onClick = onClick)
+                            .selectable(selected = isActive, role = Role.Tab, onClick = onClick)
     ) {
         Column(
                 modifier = Modifier.fillMaxHeight(),
@@ -1570,19 +1515,19 @@ fun VSCodeTab(
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(
                         onClick = onClose,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         if (isUnsaved) {
                             Icon(
                                 Icons.Filled.FiberManualRecord,
-                                contentDescription = stringResource(R.string.workspace_unsaved),
+                                contentDescription = stringResource(R.string.workspace_close_unsaved_tab, title),
                                 modifier = Modifier.size(8.dp),
                                 tint = contentColor.copy(alpha = 0.9f)
                             )
                         } else {
                             Icon(
                                 Icons.Default.Close,
-                                contentDescription = stringResource(R.string.workspace_close),
+                                contentDescription = stringResource(R.string.workspace_close_tab, title),
                                 modifier = Modifier.size(14.dp),
                                 tint = contentColor.copy(alpha = 0.7f)
                             )

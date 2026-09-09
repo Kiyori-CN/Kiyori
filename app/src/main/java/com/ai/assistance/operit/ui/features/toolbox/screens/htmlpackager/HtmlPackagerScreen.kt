@@ -2,6 +2,7 @@ package com.ai.assistance.operit.ui.features.toolbox.screens.htmlpackager
 
 import android.content.Context
 import android.net.Uri
+import android.provider.DocumentsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -32,6 +33,11 @@ import com.ai.assistance.operit.ui.features.chat.components.WindowsExportDialog
 import com.ai.assistance.operit.ui.features.chat.components.exportAndroidApp
 import com.ai.assistance.operit.ui.features.chat.components.exportWindowsApp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -59,6 +65,50 @@ fun HtmlPackagerScreen(onGoBack: () -> Unit) {
     var exportProgress by remember { mutableStateOf(0f) }
     var exportStatus by remember { mutableStateOf("") }
     var exportResult by remember { mutableStateOf<Result<String>?>(null) }
+    var exportJob by remember { mutableStateOf<Job?>(null) }
+    DisposableEffect(Unit) { onDispose { exportJob?.cancel() } }
+
+    fun startExport(export: suspend (File) -> Unit) {
+        if (exportJob != null) return
+        val sourceUri = webProjectUri ?: return
+        val entryName = selectedIndexFile?.name ?: return
+        showProgressDialog = true
+        exportProgress = 0f
+        exportStatus = context.getString(R.string.export_copy_web_content)
+        exportResult = null
+        exportJob = coroutineScope.launch {
+            val owner = currentCoroutineContext()[Job]
+            var temporary: File? = null
+            try {
+                val directory = withContext(Dispatchers.IO) {
+                    val target = File(context.cacheDir, "html_packager_${java.util.UUID.randomUUID()}")
+                    temporary = target
+                    check(target.mkdirs()) { "Unable to create HTML export directory" }
+                    val sourceDocumentUri = DocumentsContract.buildDocumentUriUsingTree(sourceUri, DocumentsContract.getTreeDocumentId(sourceUri))
+                    copyDocumentTreeTo(context, sourceDocumentUri, target)
+                    val original = File(target, entryName)
+                    check(com.ai.assistance.operit.ui.features.chat.webview.workspace.isWorkspaceEntryNameValid(entryName) && original.isFile) { "Selected entry file is unavailable" }
+                    val index = File(target, "index.html")
+                    if (original.name != "index.html") {
+                        check(!index.exists() || index.delete()) { "Unable to replace the temporary index file" }
+                        check(original.renameTo(index)) { "Unable to prepare the selected entry file" }
+                    }
+                    target
+                }
+                export(directory)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) {
+                exportResult = Result.failure(error)
+                showProgressDialog = false
+                showCompleteDialog = true
+            } finally {
+                withContext(NonCancellable + Dispatchers.IO) {
+                    temporary?.let { if (it.exists() && !it.deleteRecursively()) com.ai.assistance.operit.util.AppLogger.w("HtmlPackager", "Unable to remove temporary export directory") }
+                }
+                if (exportJob === owner) exportJob = null
+            }
+        }
+    }
 
     val folderPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
@@ -151,7 +201,7 @@ fun HtmlPackagerScreen(onGoBack: () -> Unit) {
             // Step 3: Package
             Button(
                 onClick = { showExportPlatformDialog = true },
-                enabled = selectedIndexFile != null,
+                enabled = selectedIndexFile != null && exportJob == null,
                 modifier = Modifier.fillMaxWidth().height(56.dp)
             ) {
                 Icon(Icons.Default.Build, contentDescription = "Package", modifier = Modifier.padding(end = 8.dp))
@@ -174,130 +224,41 @@ fun HtmlPackagerScreen(onGoBack: () -> Unit) {
         )
     }
 
+    val workDirForDialog = remember(webProjectUri) {
+        context.cacheDir.resolve("html_export_${java.util.UUID.nameUUIDFromBytes(webProjectUri.toString().toByteArray())}")
+    }
     if (showExportDialog && webProjectUri != null && selectedIndexFile != null) {
-        val workDirForDialog = context.cacheDir.resolve("dialog_workdir_${System.currentTimeMillis()}")
         AndroidExportDialog(
             workDir = workDirForDialog,
             onDismiss = { showExportDialog = false },
             onExport = { packageName, appName, iconUri, versionName, versionCode ->
                 showExportDialog = false
-                showProgressDialog = true
-                coroutineScope.launch {
-                    val externalFilesDir = context.getExternalFilesDir(null)
-                        ?: throw IllegalStateException("External files directory not available.")
-                    val tempWorkDir = File(externalFilesDir, "html_packager_temp_${System.currentTimeMillis()}")
-                    try {
-                        withContext(Dispatchers.IO) {
-                            if (tempWorkDir.exists()) tempWorkDir.deleteRecursively()
-                            tempWorkDir.mkdirs()
-
-                            // 2. 将用户选择的文件夹内容 (Uri) 完整复制到这个临时文件夹
-                            val sourceFolder = DocumentFile.fromTreeUri(context, webProjectUri!!)!!
-                            copyDocumentTreeTo(context, sourceFolder, tempWorkDir)
-
-                            // 3. 将选定的主 HTML 文件重命名为 index.html
-                            val originalFile = File(tempWorkDir, selectedIndexFile!!.name!!)
-                            val indexFile = File(tempWorkDir, "index.html")
-                            if (originalFile.exists() && !originalFile.name.equals("index.html", ignoreCase = true)) {
-                                if (indexFile.exists()) indexFile.delete()
-                                if (!originalFile.renameTo(indexFile)) {
-                                    throw IOException("Failed to rename index file.")
-                                }
-                            }
-                        }
-
-                        // 4. 使用临时文件夹的绝对路径调用导出接口
-                        exportAndroidApp(
-                            context = context,
-                            packageName = packageName,
-                            appName = appName,
-                            versionName = versionName,
-                            versionCode = versionCode,
-                            iconUri = iconUri,
-                            webContentDir = tempWorkDir, // 使用包含绝对路径的File对象
-                            onProgress = { progress, status ->
-                                exportProgress = progress
-                                exportStatus = status
-                            },
-                            onComplete = { success, filePath, errorMessage ->
-                                exportResult = if (success && filePath != null) Result.success(filePath) else Result.failure(Exception(errorMessage))
-                                showProgressDialog = false
-                                showCompleteDialog = true
-                            }
-                        )
-                    } catch (e: Exception) {
-                        exportResult = Result.failure(e)
-                        showProgressDialog = false
-                        showCompleteDialog = true
-                    } finally {
-                        // 5. 无论成功与否，都清理临时文件夹
-                        withContext(Dispatchers.IO) {
-                            if (tempWorkDir.exists()) {
-                                tempWorkDir.deleteRecursively()
-                            }
-                        }
-                    }
+                startExport { directory ->
+                    exportAndroidApp(context, packageName, appName, versionName, versionCode, iconUri, directory,
+                        onProgress = { progress, status -> exportProgress = progress; exportStatus = status },
+                        onComplete = { success, path, error ->
+                            exportResult = if (success && path != null) Result.success(path) else Result.failure(IOException(error))
+                            showProgressDialog = false
+                            showCompleteDialog = true
+                        })
                 }
             }
         )
     }
-
     if (showWindowsExportDialog && webProjectUri != null && selectedIndexFile != null) {
-        val workDirForDialog = context.cacheDir.resolve("windows_dialog_workdir_${System.currentTimeMillis()}")
         WindowsExportDialog(
             workDir = workDirForDialog,
             onDismiss = { showWindowsExportDialog = false },
             onExport = { appName, iconUri ->
                 showWindowsExportDialog = false
-                showProgressDialog = true
-                coroutineScope.launch {
-                    val externalFilesDir = context.getExternalFilesDir(null)
-                        ?: throw IllegalStateException("External files directory not available.")
-                    val tempWorkDir = File(externalFilesDir, "html_packager_temp_${System.currentTimeMillis()}")
-                    try {
-                        withContext(Dispatchers.IO) {
-                            if (tempWorkDir.exists()) tempWorkDir.deleteRecursively()
-                            tempWorkDir.mkdirs()
-
-                            val sourceFolder = DocumentFile.fromTreeUri(context, webProjectUri!!)!!
-                            copyDocumentTreeTo(context, sourceFolder, tempWorkDir)
-
-                            val originalFile = File(tempWorkDir, selectedIndexFile!!.name!!)
-                            val indexFile = File(tempWorkDir, "index.html")
-                            if (originalFile.exists() && !originalFile.name.equals("index.html", ignoreCase = true)) {
-                                if (indexFile.exists()) indexFile.delete()
-                                if (!originalFile.renameTo(indexFile)) {
-                                    throw IOException("Failed to rename index file.")
-                                }
-                            }
-                        }
-
-                        exportWindowsApp(
-                            context = context,
-                            appName = appName,
-                            iconUri = iconUri,
-                            webContentDir = tempWorkDir,
-                            onProgress = { progress, status ->
-                                exportProgress = progress
-                                exportStatus = status
-                            },
-                            onComplete = { success, filePath, errorMessage ->
-                                exportResult = if (success && filePath != null) Result.success(filePath) else Result.failure(Exception(errorMessage))
-                                showProgressDialog = false
-                                showCompleteDialog = true
-                            }
-                        )
-                    } catch (e: Exception) {
-                        exportResult = Result.failure(e)
-                        showProgressDialog = false
-                        showCompleteDialog = true
-                    } finally {
-                        withContext(Dispatchers.IO) {
-                            if (tempWorkDir.exists()) {
-                                tempWorkDir.deleteRecursively()
-                            }
-                        }
-                    }
+                startExport { directory ->
+                    exportWindowsApp(context, appName, iconUri, directory,
+                        onProgress = { progress, status -> exportProgress = progress; exportStatus = status },
+                        onComplete = { success, path, error ->
+                            exportResult = if (success && path != null) Result.success(path) else Result.failure(IOException(error))
+                            showProgressDialog = false
+                            showCompleteDialog = true
+                        })
                 }
             }
         )
@@ -307,7 +268,7 @@ fun HtmlPackagerScreen(onGoBack: () -> Unit) {
         ExportProgressDialog(
             progress = exportProgress,
             status = exportStatus,
-            onCancel = { /* Cancel logic can be added here */ }
+            onCancel = { exportJob?.cancel(); showProgressDialog = false }
         )
     }
 
@@ -332,25 +293,41 @@ fun HtmlPackagerScreen(onGoBack: () -> Unit) {
 /**
  * Recursively copies a directory from a Storage Access Framework (SAF) Uri to a local File directory.
  */
-private fun copyDocumentTreeTo(context: Context, sourceDoc: DocumentFile, destDir: File) {
-    if (!destDir.exists()) {
-        destDir.mkdirs()
-    }
-
-    sourceDoc.listFiles().forEach { docFile ->
-        val destFile = File(destDir, docFile.name!!)
-        if (docFile.isDirectory) {
-            copyDocumentTreeTo(context, docFile, destFile)
-        } else {
-            try {
-                context.contentResolver.openInputStream(docFile.uri)?.use { inputStream ->
-                    FileOutputStream(destFile).use { outputStream ->
-                        inputStream.copyTo(outputStream)
+private suspend fun copyDocumentTreeTo(context: Context, sourceUri: Uri, destDir: File, ancestors: Set<String> = emptySet()) {
+    currentCoroutineContext().ensureActive()
+    val id = DocumentsContract.getDocumentId(sourceUri)
+    check(id !in ancestors) { "The document provider returned a directory cycle" }
+    check(destDir.isDirectory || destDir.mkdirs()) { "Unable to create export directory" }
+    val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(sourceUri, id)
+    val columns = arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+        DocumentsContract.Document.COLUMN_DISPLAY_NAME, DocumentsContract.Document.COLUMN_MIME_TYPE)
+    val cursor = context.contentResolver.query(childrenUri, columns, null, null, null)
+        ?: throw IOException("Unable to read the selected document directory")
+    cursor.use {
+        while (it.moveToNext()) {
+            currentCoroutineContext().ensureActive()
+            val childId = it.getString(0) ?: throw IOException("Document ID is missing")
+            val name = it.getString(1) ?: throw IOException("Document name is missing")
+            check(com.ai.assistance.operit.ui.features.chat.webview.workspace.isWorkspaceEntryNameValid(name)) { "Invalid document name" }
+            val childUri = DocumentsContract.buildDocumentUriUsingTree(sourceUri, childId)
+            val target = File(destDir, name)
+            check(!target.exists()) { "The document provider returned duplicate file names" }
+            if (it.getString(2) == DocumentsContract.Document.MIME_TYPE_DIR) {
+                copyDocumentTreeTo(context, childUri, target, ancestors + id)
+            } else {
+                val input = context.contentResolver.openInputStream(childUri)
+                    ?: throw IOException("Unable to read a selected document")
+                input.use { stream ->
+                    FileOutputStream(target).use { output ->
+                        val buffer = ByteArray(32 * 1024)
+                        while (true) {
+                            currentCoroutineContext().ensureActive()
+                            val count = stream.read(buffer)
+                            if (count < 0) break
+                            output.write(buffer, 0, count)
+                        }
                     }
                 }
-            } catch (e: Exception) {
-                // Log or handle error for a single file, but don't stop the whole process
-                com.ai.assistance.operit.util.AppLogger.e("HtmlPackager", "Failed to copy file: ${docFile.name}", e)
             }
         }
     }

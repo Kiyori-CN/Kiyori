@@ -22,6 +22,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -59,11 +61,11 @@ fun CodeEditor(
     softWrap: Boolean = false,
     enableCompletion: Boolean = true,
     showSymbolBar: Boolean = true,
-    symbolBarHeight: Dp = 40.dp,
+    symbolBarHeight: Dp = 48.dp,
     editorRef: ((NativeCodeEditor?) -> Unit)? = null,
     onInteractionStateChanged: ((EditorInteractionState) -> Unit)? = null,
 ) {
-    val theme = getThemeForLanguage(language)
+    val theme = getThemeForLanguage(language, MaterialTheme.colorScheme.background.luminance() < 0.5f)
     val latestCode = rememberUpdatedState(code)
     val latestOnCodeChange = rememberUpdatedState(onCodeChange)
     val latestEditorRef = rememberUpdatedState(editorRef)
@@ -79,6 +81,7 @@ fun CodeEditor(
     var showCompletions by remember { mutableStateOf(false) }
     var popupOffset by remember { mutableStateOf(IntOffset.Zero) }
     var editorWindowOffset by remember { mutableStateOf(IntOffset.Zero) }
+    var editorBottomPx by remember { mutableStateOf(Int.MAX_VALUE) }
     val editorRefState = remember { mutableStateOf<NativeCodeEditor?>(null) }
 
     fun updatePopupAnchor(editor: NativeCodeEditor?) {
@@ -104,6 +107,7 @@ fun CodeEditor(
                             val position = coordinates.positionInWindow()
                             editorWindowOffset =
                                 IntOffset(position.x.roundToInt(), position.y.roundToInt())
+                            editorBottomPx = position.y.roundToInt() + coordinates.size.height
                             if (showCompletions) {
                                 updatePopupAnchor(editorRefState.value)
                             }
@@ -190,12 +194,13 @@ fun CodeEditor(
                         onDismissRequest = {
                             showCompletions = false
                         },
-                        offset = popupOffset
+                        offset = popupOffset,
+                        viewportBottom = editorBottomPx
                     )
                 }
             }
 
-            if (showSymbolBar) {
+            if (showSymbolBar && !readOnly) {
                 Surface(
                     modifier = Modifier.fillMaxWidth().height(symbolBarHeight),
                     color = theme.gutterBackground,
@@ -230,7 +235,7 @@ fun CodeEditor(
 private fun SymbolButton(symbol: String, theme: EditorTheme, onClick: () -> Unit) {
     Box(
         modifier =
-            Modifier.size(40.dp)
+            Modifier.size(48.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .border(width = 1.dp, color = theme.gutterBorder, shape = RoundedCornerShape(8.dp))
                 .clickable(onClick = onClick)

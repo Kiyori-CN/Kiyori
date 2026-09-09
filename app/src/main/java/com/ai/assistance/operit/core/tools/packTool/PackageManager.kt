@@ -37,6 +37,7 @@ import com.ai.assistance.operit.widget.ToolPkgDesktopWidgetHost
 import com.ai.assistance.operit.util.OperitPaths
 import com.ai.assistance.operit.util.ToolPkgWasmRuntime
 import com.kiyori.platform.storage.KiyoriPaths
+import com.kiyori.capability.extensions.market.sameArtifactRuntimePackageId
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.ConcurrentHashMap
@@ -315,6 +316,7 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
     private var externalPackageScanCache: Map<String, ExternalPackageScanCacheEntry> = emptyMap()
 
     private val skillManager by lazy { SkillManager.getInstance(context) }
+    private val packageMetadataJson = Json { ignoreUnknownKeys = true }
 
     private val pluginDenylistRepository by lazy { PluginDenylistRepository(context) }
 
@@ -1060,7 +1062,8 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
         val stagedPackageLoadErrors = LinkedHashMap<String, String>()
         return try {
             when {
-                candidate.fileName.endsWith(".js", ignoreCase = true) && candidate.loadJs != null -> {
+                (candidate.fileName.endsWith(".js", ignoreCase = true) ||
+                    (phase == "external" && isStandalonePackageFileName(candidate.fileName))) && candidate.loadJs != null -> {
                     val packageMetadata =
                         candidate.loadJs.invoke { key, error ->
                             stagedPackageLoadErrors[key] = error
@@ -1249,7 +1252,9 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
     ): ExternalPackageScanResult {
         val inboxFiles =
             if (externalPackagesDir.exists()) {
-                (externalPackagesDir.listFiles() ?: emptyArray()).filter(File::isFile)
+                (externalPackagesDir.listFiles() ?: emptyArray()).filter { file ->
+                    file.isFile && (isStandalonePackageFileName(file.name) || file.name.endsWith(TOOLPKG_EXTENSION, ignoreCase = true))
+                }
             } else {
                 emptyList()
             }
@@ -1281,7 +1286,7 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
                     PackageScanCandidate(
                         fileName = file.name,
                         sourcePath = file.absolutePath,
-                        loadJs = { onError -> loadPackageFromJsFile(file, onError) },
+                        loadJs = { onError -> loadStandalonePackageFile(file, reportPackageLoadError = onError) },
                         loadToolPkg = { onError -> loadToolPkgFromExternalFile(file, onError) }
                     )
                 val signature = buildExternalPackageScanSignature(file)
@@ -1359,6 +1364,7 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
 
     fun getPublishablePackageSources(): List<PublishablePackageSource> {
         ensureInitialized()
+        val standaloneSources = readStandalonePackageSources()
 
         return getTopLevelAvailablePackages()
             .entries
@@ -1372,7 +1378,7 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
                             ?.takeIf { it.sourceType == ToolPkgSourceType.EXTERNAL }
                             ?.sourcePath
                     } else {
-                        findPackageFile(packageName)?.absolutePath
+                        standaloneSources[packageName]?.singleOrNull()?.absolutePath
                     }
                         ?: return@mapNotNull null
 
@@ -1810,6 +1816,23 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
         return true
     }
 
+    private fun loadStandalonePackageFile(
+        file: File,
+        extension: String = file.extension,
+        reportPackageLoadError: (String, String) -> Unit = { key, error -> packageLoadErrors[key] = error }
+    ): ToolPackage? {
+        if (!extension.equals("hjson", ignoreCase = true)) return loadPackageFromJsFile(file, reportPackageLoadError)
+        return try {
+            val metadata = org.json.JSONObject(JsonValue.readHjson(file.readText()).toString())
+            normalizeJsPackageMetadata(metadata)
+            packageMetadataJson.decodeFromString<ToolPackage>(metadata.toString())
+        } catch (error: Exception) {
+            // 配置可能携带认证值，解析错误不能复制原正文到日志或错误列表。
+            reportPackageLoadError(file.nameWithoutExtension, "Invalid HJSON package metadata (${error.javaClass.simpleName})")
+            null
+        }
+    }
+
     /** Loads a complete ToolPackage from a JavaScript file */
     private fun loadPackageFromJsFile(
         file: File,
@@ -2176,8 +2199,7 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
             // 使用修改后的 JSON 字符串进行反序列化
             val jsonString = metadataJson.toString()
 
-            val jsonConfig = Json { ignoreUnknownKeys = true }
-            val packageMetadata = jsonConfig.decodeFromString<ToolPackage>(jsonString)
+            val packageMetadata = packageMetadataJson.decodeFromString<ToolPackage>(jsonString)
 
             // 更新所有工具，使用相同的完整脚本内容，但记录每个工具的函数名
             val tools =
@@ -2402,59 +2424,124 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
     }
 
     private fun importPackageFileFromExternalStorage(filePath: String): String {
+        return try {
+            if (filePath.endsWith(TOOLPKG_EXTENSION, ignoreCase = true)) {
+                installOrUpdateToolPkgArtifact(filePath)
+            } else {
+                installOrUpdateStandaloneArtifact(filePath)
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            AppLogger.e(TAG, "External package import failed (${error.javaClass.simpleName})")
+            "Error importing package: ${error.message}"
+        }
+    }
+
+    fun installOrUpdateStandaloneArtifact(
+        filePath: String,
+        expectedPackageId: String? = null,
+        expectedSha256: String? = null,
+        expectedPreviousSha256: String? = null,
+        checkCancelled: () -> Unit = {}
+    ): String {
+        ensureInitialized()
+        val source = File(filePath)
+        val extension = source.extension.lowercase()
+        val staging = prepareStandalonePackageFile(source, externalPackagesDir, checkCancelled)
+        var failure: Throwable? = null
         try {
-            ensureInitialized()
-
-            val file = File(filePath)
-            if (!file.exists() || !file.canRead()) {
-                return "Cannot access file at path: $filePath"
+            pluginDenylistRejection(staging)?.let { throw IllegalArgumentException(it) }
+            if (expectedSha256 != null) {
+                require(sha256Hex(staging).equals(expectedSha256, ignoreCase = true)) { "Artifact SHA-256 changed before import" }
             }
-
-            val lowerPath = filePath.lowercase()
-            val isToolPkg = lowerPath.endsWith(TOOLPKG_EXTENSION)
-            val isJsLike = lowerPath.endsWith(".js") || lowerPath.endsWith(".ts")
-            val isHjson = lowerPath.endsWith(".hjson")
-
-            if (!isToolPkg && !isJsLike && !isHjson) {
-                return "Only .toolpkg, HJSON, JavaScript (.js) and TypeScript (.ts) package files are supported"
+            val errors = mutableListOf<String>()
+            val metadata = loadStandalonePackageFile(staging, extension) { _, error -> errors.add(error) }
+                ?.copy(isBuiltIn = false)
+                ?: throw IllegalArgumentException(errors.joinToString("; ").ifBlank { "Unable to parse package metadata" })
+            require(metadata.name.isNotBlank()) { "Package name is missing" }
+            if (expectedPackageId != null) {
+                require(sameArtifactRuntimePackageId(metadata.name, expectedPackageId)) { "Package identity does not match the requested artifact" }
             }
-            pluginDenylistRejection(file)?.let { return it }
-
-            if (isToolPkg) {
-                return installOrUpdateToolPkgArtifact(filePath = file.absolutePath)
-            }
-
-            val packageMetadata =
-                if (isHjson) {
-                    val hjsonContent = file.readText()
-                    val metadataJson = org.json.JSONObject(JsonValue.readHjson(hjsonContent).toString())
-                    normalizeJsPackageMetadata(metadataJson)
-                    val jsonString = metadataJson.toString()
-                    val jsonConfig = Json { ignoreUnknownKeys = true }
-                    jsonConfig.decodeFromString<ToolPackage>(jsonString)
-                } else {
-                    loadPackageFromJsFile(file)
-                        ?: return "Failed to parse ${if (lowerPath.endsWith(".ts")) "TypeScript" else "JavaScript"} package file"
+            var destination: File? = null
+            var preferencesChanged = false
+            var activationIssue: String? = null
+            packageScanPublication.invalidate {
+                checkCancelled()
+                val matches = availablePackages.values.filter { candidate ->
+                    if (expectedPackageId == null) candidate.name == metadata.name
+                    else sameArtifactRuntimePackageId(candidate.name, expectedPackageId)
                 }
-
-            if (availablePackages.containsKey(packageMetadata.name)) {
-                return "A package with name '${packageMetadata.name}' already exists in available packages"
-            }
-
-            val destinationFile = File(externalPackagesDir, file.name)
-            if (file.absolutePath != destinationFile.absolutePath) {
-                file.inputStream().use { input ->
-                    destinationFile.outputStream().use { output -> input.copyTo(output) }
+                require(matches.size <= 1) { "Multiple installed packages match this artifact identity" }
+                val previousPackage = matches.singleOrNull()
+                require(previousPackage?.isBuiltIn != true) { "A built-in package cannot be replaced" }
+                require(previousPackage == null || expectedPreviousSha256 != null) { "A package with this name already exists" }
+                require(previousPackage != null || expectedPreviousSha256 == null) { "The previous package changed during download" }
+                require(previousPackage == null || (!toolPkgContainers.containsKey(previousPackage.name) && !toolPkgSubpackageByPackageName.containsKey(previousPackage.name))) {
+                    "A standalone script cannot replace a ToolPkg container or subpackage"
                 }
+                val previousFile = previousPackage?.let { previous ->
+                    findPackageFile(previous.name) ?: error("Installed package source is unavailable")
+                }
+                if (previousFile != null) {
+                    require(sha256Hex(previousFile).equals(expectedPreviousSha256, ignoreCase = true)) { "Installed package changed during download; reload before retrying" }
+                }
+                val target = if (previousFile == null) File(externalPackagesDir, source.name)
+                    else File(externalPackagesDir, previousFile.nameWithoutExtension + "." + extension)
+                val priorEnabled = getEnabledPackageNames()
+                val priorDisabled = getDisabledPackages()
+                val renamed = previousPackage != null && previousPackage.name != metadata.name
+                val wasActive = previousPackage != null && activePackageToolNames.containsKey(previousPackage.name)
+                fun restorePreferences(enabled: List<String>, disabled: List<String>) {
+                    val prefs = context.getSharedPreferences(PACKAGE_PREFS, Context.MODE_PRIVATE)
+                    prefs.edit()
+                        .putString(ENABLED_PACKAGES_KEY, Json.encodeToString(enabled))
+                        .putString(DISABLED_PACKAGES_KEY, Json.encodeToString(disabled))
+                        .apply()
+                    // 这里只更新独立脚本的别名；ToolPkg状态不变，监听回调必须在registry锁外执行。
+                    enabledPackageNamesCache = enabled
+                    enabledPackageNameSetCache = enabled.toSet()
+                }
+                publishStandalonePackageFile(staging, target, previousFile,
+                    publishState = {
+                        previousPackage?.let { previous ->
+                            if (renamed) { availablePackages.remove(previous.name); unregisterPackageTools(previous.name) }
+                        }
+                        availablePackages[metadata.name] = metadata
+                        externalPackageScanCache = emptyMap()
+                        if (renamed) {
+                            restorePreferences(
+                                priorEnabled.map { if (it == previousPackage.name) metadata.name else it },
+                                priorDisabled.map { if (it == previousPackage.name) metadata.name else it }
+                            )
+                            preferencesChanged = true
+                        }
+                        if (wasActive) {
+                            activationIssue = validatePackageEnvironment(metadata, metadata.name)
+                            if (activationIssue == null) registerPackageTools(selectToolPackageState(metadata))
+                            else unregisterPackageTools(metadata.name)
+                        }
+                    },
+                    restoreState = {
+                        availablePackages.remove(metadata.name)
+                        unregisterPackageTools(metadata.name)
+                        previousPackage?.let { availablePackages[it.name] = it }
+                        externalPackageScanCache = emptyMap()
+                        if (renamed) restorePreferences(priorEnabled, priorDisabled)
+                        if (wasActive) registerPackageTools(selectToolPackageState(previousPackage))
+                    }
+                )
+                destination = target
             }
-
-            availablePackages[packageMetadata.name] = packageMetadata.copy(isBuiltIn = false)
-
-            AppLogger.d(TAG, "Successfully imported external package to: ${destinationFile.absolutePath}")
-            return "Successfully imported package: ${packageMetadata.name}\nStored at: ${destinationFile.absolutePath}"
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "Error importing package from external storage", e)
-            return "Error importing package: ${e.message}"
+            if (preferencesChanged) notifyToolPkgRuntimeChangeListeners()
+            activationIssue?.let { throw StandalonePackageInstalledException("Package installed, but reactivation requires configuration: $it") }
+            return "Successfully imported package: ${metadata.name}\nStored at: ${requireNotNull(destination).absolutePath}"
+        } catch (error: Throwable) {
+            failure = error
+            throw error
+        } finally {
+            try { java.nio.file.Files.deleteIfExists(staging.toPath()) }
+            catch (cleanup: Exception) { if (failure != null) failure.addSuppressed(cleanup) else throw cleanup }
         }
     }
 
@@ -3047,83 +3134,7 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
                 getPackageTools(normalizedPackageName)
                     ?: return "Failed to load package data for: $normalizedPackageName"
 
-            // Validate required environment variables, if any
-            if (toolPackage.env.isNotEmpty()) {
-                val missingRequiredEnv = mutableListOf<String>()
-                val missingOptionalEnv = mutableListOf<Pair<String, String>>() // env name, default value
-
-                toolPackage.env.forEach { envVar ->
-                    val envName = envVar.name.trim()
-                    if (envName.isEmpty()) return@forEach
-
-                    val value = try {
-                        when (envVar.scope) {
-                            EnvVarScope.GLOBAL -> envPreferences.getEnv(envName)
-                            EnvVarScope.PACKAGE ->
-                                toolPkgHostEnvironmentRepository.getValue(
-                                    containerPackageName = normalizedPackageName,
-                                    variableName = envName,
-                                )
-                        }
-                    } catch (e: Exception) {
-                        AppLogger.e(
-                            TAG,
-                            "Error reading declared environment variable for package '$normalizedPackageName'",
-                            e
-                        )
-                        null
-                    }
-
-                    if (envVar.required) {
-                        // Check required environment variables
-                        if (value.isNullOrEmpty()) {
-                            missingRequiredEnv.add(envName)
-                        }
-                    } else {
-                        // Check optional environment variables
-                        if (value.isNullOrEmpty()) {
-                            if (envVar.defaultValue != null) {
-                                // Use default value for optional env vars
-                                missingOptionalEnv.add(envName to envVar.defaultValue)
-                                AppLogger.d(
-                                    TAG,
-                                    "Optional env var '$envName' not set for package '$normalizedPackageName', using default value: ${envVar.defaultValue}"
-                                )
-                            } else {
-                                // Optional env var without default value is acceptable
-                                AppLogger.d(
-                                    TAG,
-                                    "Optional env var '$envName' not set for package '$normalizedPackageName' (no default value)"
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Only fail if required environment variables are missing
-                if (missingRequiredEnv.isNotEmpty()) {
-                    val msg =
-                        buildString {
-                            append("Package '")
-                            append(normalizedPackageName)
-                            append("' requires environment variable")
-                            if (missingRequiredEnv.size > 1) append("s")
-                            append(": ")
-                            append(missingRequiredEnv.joinToString(", "))
-                            append(". Please set them before using this package.")
-                        }
-                    AppLogger.w(TAG, msg)
-                    return msg
-                }
-
-                // Log info about optional env vars using defaults
-                if (missingOptionalEnv.isNotEmpty()) {
-                    AppLogger.i(
-                        TAG,
-                        "Package '$normalizedPackageName' will use default values for optional env vars: ${missingOptionalEnv.map { it.first }.joinToString(", ")}"
-                    )
-                }
-            }
+            validatePackageEnvironment(toolPackage, normalizedPackageName)?.let { return it }
 
             // Register the package tools with AIToolHandler
             val selectedPackage = selectToolPackageState(toolPackage)
@@ -3153,6 +3164,88 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
         }
 
         return "Package not found: $normalizedPackageName. Please import it first or register it as an MCP server."
+    }
+
+    private fun validatePackageEnvironment(toolPackage: ToolPackage, normalizedPackageName: String): String? {
+        // Validate required environment variables, if any
+        if (toolPackage.env.isNotEmpty()) {
+            val missingRequiredEnv = mutableListOf<String>()
+            val missingOptionalEnv = mutableListOf<Pair<String, String>>() // env name, default value
+
+            toolPackage.env.forEach { envVar ->
+                val envName = envVar.name.trim()
+                if (envName.isEmpty()) return@forEach
+
+                val value = try {
+                    when (envVar.scope) {
+                        EnvVarScope.GLOBAL -> envPreferences.getEnv(envName)
+                        EnvVarScope.PACKAGE ->
+                            toolPkgHostEnvironmentRepository.getValue(
+                                containerPackageName = normalizedPackageName,
+                                variableName = envName,
+                            )
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e(
+                        TAG,
+                        "Error reading declared environment variable for package '$normalizedPackageName'",
+                        e
+                    )
+                    null
+                }
+
+                if (envVar.required) {
+                    // Check required environment variables
+                    if (value.isNullOrEmpty()) {
+                        missingRequiredEnv.add(envName)
+                    }
+                } else {
+                    // Check optional environment variables
+                    if (value.isNullOrEmpty()) {
+                        if (envVar.defaultValue != null) {
+                            // Use default value for optional env vars
+                            missingOptionalEnv.add(envName to envVar.defaultValue)
+                            AppLogger.d(
+                                TAG,
+                                "Optional env var '$envName' not set for package '$normalizedPackageName', using its declared default value"
+                            )
+                        } else {
+                            // Optional env var without default value is acceptable
+                            AppLogger.d(
+                                TAG,
+                                "Optional env var '$envName' not set for package '$normalizedPackageName' (no default value)"
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Only fail if required environment variables are missing
+            if (missingRequiredEnv.isNotEmpty()) {
+                val msg =
+                    buildString {
+                        append("Package '")
+                        append(normalizedPackageName)
+                        append("' requires environment variable")
+                        if (missingRequiredEnv.size > 1) append("s")
+                        append(": ")
+                        append(missingRequiredEnv.joinToString(", "))
+                        append(". Please set them before using this package.")
+                    }
+                AppLogger.w(TAG, msg)
+                return msg
+            }
+
+            // Log info about optional env vars using defaults
+            if (missingOptionalEnv.isNotEmpty()) {
+                AppLogger.i(
+                    TAG,
+                    "Package '$normalizedPackageName' will use default values for optional env vars: ${missingOptionalEnv.map { it.first }.joinToString(", ")}"
+                )
+            }
+        }
+
+        return null
     }
 
     fun getActivePackageStateId(packageName: String): String? {
@@ -3826,22 +3919,19 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
             }
         }
 
-        val jsFile = File(externalPackagesDir, "$normalizedPackageName.js")
-        if (jsFile.exists()) return jsFile
+        val matches = readStandalonePackageSources()[normalizedPackageName].orEmpty()
+        require(matches.size <= 1) { "Multiple source files declare package '$normalizedPackageName'; resolve the duplicate files first" }
+        return matches.singleOrNull()
+    }
 
-        externalPackagesDir.listFiles()?.forEach { file ->
-            if (!file.isFile) return@forEach
-
-            if (file.name.endsWith(".js", ignoreCase = true)) {
-                val loadedPackage = loadPackageFromJsFile(file)
-                if (loadedPackage?.name == normalizedPackageName) {
-                    return file
-                }
+    private fun readStandalonePackageSources(): Map<String, List<File>> {
+        // 一次列表投影只解析一次文件集合，避免对每个包重新扫描整个目录。
+        return externalPackagesDir.listFiles().orEmpty()
+            .filter { it.isFile && isStandalonePackageFileName(it.name) }
+            .mapNotNull { file ->
+                loadStandalonePackageFile(file, reportPackageLoadError = { _, _ -> })?.name?.let { it to file }
             }
-
-        }
-
-        return null
+            .groupBy({ it.first }, { it.second })
     }
 
     /**

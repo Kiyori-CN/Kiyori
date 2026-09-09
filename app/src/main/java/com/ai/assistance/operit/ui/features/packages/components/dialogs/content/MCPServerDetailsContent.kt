@@ -44,7 +44,7 @@ fun MCPServerDetailsContent(
                 shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
             ) {
                 Text(
-                    text = server.description.takeIf { it.isNotBlank() } ?: stringResource(R.string.mcp_no_description),
+                    text = server.longDescription.takeIf { it.isNotBlank() } ?: server.description.takeIf { it.isNotBlank() } ?: stringResource(R.string.mcp_no_description),
                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = mdFontSize),
                     modifier = Modifier.padding(12.dp)
                 )

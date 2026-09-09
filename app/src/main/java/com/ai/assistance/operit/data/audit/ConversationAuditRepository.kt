@@ -175,6 +175,10 @@ class ConversationAuditRepository private constructor(
             require(request.newContent != currentContent) {
                 "The revised message content is unchanged"
             }
+            // 编辑弹窗绑定打开时的正文；不能覆盖等待保存期间由另一入口写入的新修订。
+            check(request.expectedContent == null || request.expectedContent == currentContent) {
+                "Message content changed while editing; reopen the message before saving"
+            }
 
             val eventRequest =
                 ConversationAuditEventRequest(
@@ -1832,6 +1836,7 @@ data class ConversationMessageRevisionRequest(
     val additionalPayloads: List<ConversationAuditPayloadInput> = emptyList(),
     val sealReason: String = "MESSAGE_REVISED",
     val occurredAt: Long = System.currentTimeMillis(),
+    val expectedContent: String? = null,
 ) {
     init {
         require(chatId.isNotBlank()) { "chatId must not be blank" }

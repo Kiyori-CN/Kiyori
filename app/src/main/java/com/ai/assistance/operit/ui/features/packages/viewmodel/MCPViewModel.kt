@@ -11,13 +11,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import android.net.Uri
 import android.content.Context
 import com.ai.assistance.operit.R
 
 /** ViewModel for MCP 服务器管理，包括安装、卸载等功能 */
 class MCPViewModel(
-    private val repository: MCPRepository,
+    val repository: MCPRepository,
     private val context: Context
 ) : ViewModel() {
 
@@ -33,133 +34,77 @@ class MCPViewModel(
     private val _currentServer = MutableStateFlow<MCPLocalServer.PluginMetadata?>(null)
     val currentServer: StateFlow<MCPLocalServer.PluginMetadata?> = _currentServer.asStateFlow()
 
-    // 插件已安装路径缓存
-    private val installedPathsCache = mutableMapOf<String, String?>()
     
     // 存储选中的ZIP文件URI
     private var selectedZipUri: Uri? = null
 
     init {
+        repository.observeConfiguration(viewModelScope)
         // 同步已安装状态
         viewModelScope.launch { repository.syncInstalledStatus() }
     }
 
-    /** 安装服务器插件 */
-    fun installServer(server: MCPLocalServer.PluginMetadata) {
+    private val _isOperating = MutableStateFlow(false)
+    val isOperating = _isOperating.asStateFlow()
+    private val _isUninstallOperation = MutableStateFlow(false)
+    val isUninstallOperation = _isUninstallOperation.asStateFlow()
+    private var retryOperation: (() -> Unit)? = null
+
+    private fun runOperation(server: MCPLocalServer.PluginMetadata, uninstall: Boolean,
+        operation: suspend ((InstallProgress) -> Unit) -> InstallResult) {
+        if (_isOperating.value) return
+        _isOperating.value = true
+        _isUninstallOperation.value = uninstall
+        _currentServer.value = server
+        _installProgress.value = InstallProgress.Preparing
+        _installResult.value = null
+        retryOperation = { runOperation(server, uninstall, operation) }
         viewModelScope.launch {
-            _currentServer.value = server
-            _installProgress.value = InstallProgress.Preparing
-            _installResult.value = null
-
-            val result =
-                    repository.installMCPServer(server.id) { progress ->
-                        _installProgress.value = progress
-                    }
-
-            _installResult.value = result
-
-            // 清除缓存
-            installedPathsCache.remove(server.id)
-        }
-    }
-    
-    /** 安装服务器插件 - 使用服务器对象（用于导入Git URL） */
-    fun installServerWithObject(server: MCPLocalServer.PluginMetadata) {
-        viewModelScope.launch {
-            _currentServer.value = server
-            _installProgress.value = InstallProgress.Preparing
-            _installResult.value = null
-
-            val result =
-                    repository.installMCPServerWithObject(server) { progress ->
-                        _installProgress.value = progress
-                    }
-
-            _installResult.value = result
-
-            // 清除缓存
-            installedPathsCache.remove(server.id)
-        }
-    }
-    
-    /** 从ZIP文件安装服务器插件 */
-    fun installServerFromZip(server: MCPLocalServer.PluginMetadata, zipFilePath: String) {
-        viewModelScope.launch {
-            _currentServer.value = server
-            _installProgress.value = InstallProgress.Preparing
-            _installResult.value = null
-            
-            if (selectedZipUri == null) {
-                _installResult.value = InstallResult.Error(context.getString(R.string.mcp_error_no_zip_selected))
+            try {
+                _installResult.value = operation { progress ->
+                    // Finished 只能跟随最终结果，不能在元数据持久化前开放关闭入口。
+                    if (progress !is InstallProgress.Finished) _installProgress.value = progress
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) {
+                _installResult.value = InstallResult.Error(context.getString(if (uninstall) R.string.mcp_uninstall_failed else R.string.mcp_install_incomplete))
+            } finally {
                 _installProgress.value = InstallProgress.Finished
-                return@launch
+                _isOperating.value = false
             }
-
-            val result = repository.installMCPServerFromZip(
-                server.id,
-                selectedZipUri!!,
-                server.name,
-                server.description,
-                server.author
-            ) { progress ->
-                _installProgress.value = progress
-            }
-
-            _installResult.value = result
-            
-            // 安装完成后清除URI
-            selectedZipUri = null
-            
-            // 清除缓存
-            installedPathsCache.remove(server.id)
-        }
-    }
-    
-    /** 设置选中的ZIP文件URI */
-    fun setSelectedZipUri(uri: Uri) {
-        selectedZipUri = uri
-    }
-
-    /** 卸载服务器插件 */
-    fun uninstallServer(server: MCPLocalServer.PluginMetadata) {
-        viewModelScope.launch {
-            _currentServer.value = server
-            _installProgress.value = InstallProgress.Preparing
-            _installResult.value = null
-
-            val success = if (server.type == "remote") {
-                repository.removeRemoteServer(server.id)
-            } else {
-                repository.uninstallMCPServer(server.id)
-            }
-
-            _installResult.value =
-                    if (success) {
-                        InstallResult.Success("")
-                    } else {
-                        InstallResult.Error(context.getString(R.string.mcp_uninstall_failed))
-                    }
-
-            _installProgress.value = InstallProgress.Finished
-
-            // 清除缓存
-            installedPathsCache.remove(server.id)
         }
     }
 
-    /** Adds a remote server to the repository */
-    fun addRemoteServer(server: MCPLocalServer.PluginMetadata) {
-        viewModelScope.launch {
-            repository.addRemoteServer(server)
+    fun retryLastOperation() { if (!_isOperating.value) retryOperation?.invoke() }
+
+    fun installServer(server: MCPLocalServer.PluginMetadata) = runOperation(server, false) { progress ->
+        repository.installMCPServer(server.id, progress)
+    }
+
+    fun installServerWithObject(server: MCPLocalServer.PluginMetadata) = runOperation(server, false) { progress ->
+        repository.installMCPServerWithObject(server, progress)
+    }
+
+    fun installServerFromZip(server: MCPLocalServer.PluginMetadata, zipFilePath: String) {
+        val uri = selectedZipUri
+        runOperation(server, false) { progress ->
+            if (uri == null) InstallResult.Error(context.getString(R.string.mcp_error_no_zip_selected))
+            else repository.installMCPServerFromZip(server.id, uri, server.name, server.description, server.author, progress)
         }
     }
 
-    /** Updates a remote server's metadata */
-    fun updateRemoteServer(server: MCPLocalServer.PluginMetadata) {
-        viewModelScope.launch {
-            repository.updateRemoteServer(server)
-        }
+    fun setSelectedZipUri(uri: Uri) { selectedZipUri = uri }
+
+    fun uninstallServer(server: MCPLocalServer.PluginMetadata) = runOperation(server, true) {
+        val success = if (server.type == "remote") repository.removeRemoteServer(server.id) else repository.uninstallMCPServer(server.id)
+        if (success) InstallResult.Success("") else InstallResult.Error(context.getString(R.string.mcp_uninstall_failed))
     }
+
+    /** Await persistence so the editor can preserve its draft on failure. */
+    suspend fun addRemoteServer(server: MCPLocalServer.PluginMetadata) = repository.addRemoteServer(server)
+
+    suspend fun updateRemoteServer(server: MCPLocalServer.PluginMetadata, original: MCPLocalServer.PluginMetadata) =
+        repository.updateRemoteServer(server, original)
 
     suspend fun generatePluginDescription(
         server: MCPLocalServer.PluginMetadata,
@@ -173,23 +118,15 @@ class MCPViewModel(
 
     /** 重置安装状态 */
     fun resetInstallState() {
+        if (_isOperating.value) return
+        retryOperation = null
         _installProgress.value = null
         _installResult.value = null
         _currentServer.value = null
     }
 
     /** 获取已安装插件的路径 */
-    fun getInstalledPath(serverId: String): String? {
-        // 先查缓存
-        if (installedPathsCache.containsKey(serverId)) {
-            return installedPathsCache[serverId]
-        }
-
-        // 从存储库查询
-        val path = repository.getInstalledPluginPath(serverId)
-        installedPathsCache[serverId] = path
-        return path
-    }
+    fun getInstalledPath(serverId: String): String? = repository.getInstalledPluginPath(serverId)
 
     /** 获取本地插件信息，无需网络请求 */
     fun getLocalPluginDetails(serverId: String): MCPLocalServer.PluginMetadata? {
@@ -208,7 +145,6 @@ class MCPViewModel(
         viewModelScope.launch {
             repository.syncInstalledStatus()
             // 清除路径缓存，强制重新读取
-            installedPathsCache.clear()
         }
     }
 
@@ -231,13 +167,12 @@ class MCPViewModel(
 
     /** ViewModel Factory */
     class Factory(
-        private val repository: MCPRepository,
         private val context: Context
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(MCPViewModel::class.java)) {
-                return MCPViewModel(repository, context) as T
+                return MCPViewModel(MCPRepository(context.applicationContext), context.applicationContext) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }

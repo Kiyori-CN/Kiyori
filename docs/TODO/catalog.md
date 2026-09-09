@@ -6,6 +6,7 @@
 | --- | --- |
 | [Academic 学术脚本分组与五源 API](academic_script_catalog/index.md) | `academic_script_catalog` |
 | [已发布用户协议版本确认（历史记录）](agreement_version_confirmation/index.md) | `agreement_version_confirmation` |
+| [AI 对话全界面与交互优化](ai_chat_experience_refinement/index.md) | `ai_chat_experience_refinement` |
 | [AI 对话渲染可靠性与工具内容边界](ai_chat_rendering_reliability/index.md) | `ai_chat_rendering_reliability` |
 | [AI 对话详情与完整审计](ai_conversation_audit/index.md) | `ai_conversation_audit` |
 | [AI 中断后会话损坏：根因、回合收口与恢复方案](ai_interrupted_turn_recovery/index.md) | `ai_interrupted_turn_recovery` |

@@ -13,14 +13,20 @@ import com.ai.assistance.operit.data.api.MarketV2PublisherEntrySummary
 import com.ai.assistance.operit.data.preferences.GitHubAuthPreferences
 import com.ai.assistance.operit.ui.features.packages.market.MarketStatsType
 import com.ai.assistance.operit.util.AppLogger
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 enum class UnifiedMarketManageKind(val types: Set<String>) {
     SCRIPT(setOf(MarketStatsType.SCRIPT.wireValue)),
@@ -32,10 +38,16 @@ enum class UnifiedMarketManageKind(val types: Set<String>) {
 
 class UnifiedMarketManageViewModel(
     private val context: Context,
-    private val kind: UnifiedMarketManageKind
+    private val kind: UnifiedMarketManageKind,
+    private val marketStatsApiService: MarketStatsApiService = MarketStatsApiService(),
+    private val githubAuth: GitHubAuthPreferences = GitHubAuthPreferences.getInstance(context),
 ) : ViewModel() {
-    private val marketStatsApiService = MarketStatsApiService()
-    private val githubAuth = GitHubAuthPreferences.getInstance(context)
+    private var accountGeneration = 0L
+    private var loadedAccountId: Long? = null
+    private var loadJob: Job? = null
+    private var requestJob: Job? = null
+    private val _isMutating = MutableStateFlow(false)
+    val isMutating: StateFlow<Boolean> = _isMutating.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -52,111 +64,131 @@ class UnifiedMarketManageViewModel(
     private val _hasLoaded = MutableStateFlow(false)
     val hasLoaded: StateFlow<Boolean> = _hasLoaded.asStateFlow()
 
-    val isLoggedIn: StateFlow<Boolean> =
-        githubAuth.isLoggedInFlow.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = false
-        )
+    private val _accountId = MutableStateFlow<Long?>(null)
+    val accountId: StateFlow<Long?> = _accountId.asStateFlow()
+    val isLoggedIn: StateFlow<Boolean> = accountId.map { it != null }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    fun loadEntries(refresh: Boolean = false) {
+    init {
         viewModelScope.launch {
-            if (_isLoading.value) return@launch
-            if (refresh && _isRefreshing.value) return@launch
-            if (!refresh && _hasLoaded.value) return@launch
-            if (!githubAuth.isLoggedIn()) {
-                _errorMessage.value = context.getString(R.string.skillmarket_github_login_required)
-                return@launch
-            }
-
-            if (refresh) {
-                _isRefreshing.value = true
-            } else {
-                _isLoading.value = true
-            }
-            _errorMessage.value = null
-
-            try {
-                val userInfo = githubAuth.getCurrentUserInfo()
-                if (userInfo == null) {
-                    _errorMessage.value = context.getString(R.string.skillmarket_unable_get_user_info)
-                    return@launch
-                }
-
-                val loaded =
-                    withContext(Dispatchers.IO) {
-                        kind.types
-                            .flatMap { type ->
-                                marketStatsApiService.getUserPublishedEntries(type).getOrThrow()
-                            }
-                            .filter { entry -> entry.type.lowercase() in kind.types }
-                            .distinctBy { it.id }
-                            .sortedByDescending { it.updatedAt }
-                    }
-                _entries.value = loaded
-            } catch (e: Exception) {
-                _errorMessage.value = e.message ?: context.getString(R.string.market_error_load_failed)
-                AppLogger.e(TAG, "Failed to load managed market entries", e)
-            } finally {
-                _hasLoaded.value = true
-                if (refresh) {
-                    _isRefreshing.value = false
-                } else {
-                    _isLoading.value = false
-                }
+            githubAuth.isLoggedInFlow.combine(githubAuth.userInfoFlow) { loggedIn, user ->
+                if (loggedIn) user?.id else null
+            }.distinctUntilChanged().collect { id ->
+                reset()
+                // 先清除旧账号事实，再通知可见页面加载；隐藏分类不自动联网。
+                _accountId.value = id
             }
         }
     }
 
+    private suspend fun verifyAccount(expected: Long?) {
+        currentCoroutineContext().ensureActive()
+        check(expected != null && githubAuth.isLoggedIn() && githubAuth.getCurrentUserInfo()?.id == expected) {
+            context.getString(R.string.market_account_changed)
+        }
+    }
+
+    fun loadEntries(refresh: Boolean = false) {
+        if (_isLoading.value || _isRefreshing.value || (!refresh && _hasLoaded.value)) return
+        val expected = accountId.value ?: return
+        val generation = accountGeneration
+        if (refresh) _isRefreshing.value = true else _isLoading.value = true
+        _errorMessage.value = null
+        loadJob = viewModelScope.launch {
+            try {
+                verifyAccount(expected)
+                val loaded = kind.types.flatMap { marketStatsApiService.getUserPublishedEntries(it).getOrThrow() }
+                    .filter { it.type.lowercase() in kind.types }.distinctBy { it.id }.sortedByDescending { it.updatedAt }
+                verifyAccount(expected)
+                if (generation != accountGeneration) return@launch
+                _entries.value = loaded
+                loadedAccountId = expected
+                _hasLoaded.value = true
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) {
+                if (generation != accountGeneration) return@launch
+                _errorMessage.value = error.message ?: context.getString(R.string.market_error_load_failed)
+                AppLogger.e(TAG, "Failed to load managed market entries", error)
+            }
+        }.also { job -> job.invokeOnCompletion {
+            if (generation == accountGeneration) {
+                _isLoading.value = false
+                _isRefreshing.value = false
+            }
+        } }
+    }
+
     fun reset() {
+        accountGeneration++
+        loadJob?.cancel()
+        requestJob?.cancel()
+        loadedAccountId = null
         _entries.value = emptyList()
         _hasLoaded.value = false
         _errorMessage.value = null
+        _isLoading.value = false
         _isRefreshing.value = false
+        _isMutating.value = false
     }
+
+    fun cancelPendingRead() { if (!_isMutating.value) requestJob?.cancel() }
 
     fun clearError() {
         _errorMessage.value = null
     }
 
-    fun openEntryDetail(
-        entry: MarketV2PublisherEntrySummary,
-        onLoaded: (MarketV2Entry) -> Unit
-    ) {
-        viewModelScope.launch {
-            if (entry.id.isBlank()) {
-                _errorMessage.value = context.getString(R.string.skillmarket_remove_failed, "entry not found")
-                return@launch
-            }
-
-            _isLoading.value = true
-            _errorMessage.value = null
-            try {
-                val fullEntry =
-                    withContext(Dispatchers.IO) {
-                        marketStatsApiService.getEntry(entry.id).getOrThrow()
-                    }
-                if (fullEntry == null) {
-                    _errorMessage.value = context.getString(R.string.skillmarket_remove_failed, "entry not found")
-                    return@launch
-                }
-                onLoaded(fullEntry)
-            } catch (e: Exception) {
-                _errorMessage.value = e.message ?: context.getString(R.string.market_error_load_failed)
-                AppLogger.e(TAG, "Failed to load full managed market entry ${entry.id}", e)
-            } finally {
-                _isLoading.value = false
-            }
-        }
+    fun openEntryDetail(entry: MarketV2PublisherEntrySummary, onLoaded: (MarketV2Entry) -> Unit) {
+        openEntry(entry, { marketStatsApiService.getEntry(entry.id).getOrThrow()
+            ?: error(context.getString(R.string.market_error_load_failed)) }, onLoaded)
     }
 
-    fun withdrawEntry(entry: MarketV2PublisherEntrySummary) {
-        updateEntryState(
-            entry = entry,
-            stateCode = "withdrawn",
-            action = { marketStatsApiService.withdrawEntry(entry.id) },
-            successMessage = context.getString(R.string.market_manage_removed, entry.title)
-        )
+    fun withdrawEntry(entry: MarketV2PublisherEntrySummary, onSuccess: () -> Unit = {}) {
+        if (_isLoading.value || _isRefreshing.value || entry.id.isBlank()) return
+        val expected = loadedAccountId
+        val generation = accountGeneration
+        _isLoading.value = true
+        _isMutating.value = true
+        _errorMessage.value = null
+        requestJob = viewModelScope.launch {
+            try {
+                verifyAccount(expected)
+                marketStatsApiService.withdrawEntry(entry.id).getOrThrow()
+                verifyAccount(expected)
+                if (generation != accountGeneration) return@launch
+                _entries.value = _entries.value.map { if (it.id == entry.id) it.copy(stateCode = "withdrawn") else it }
+                onSuccess()
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) {
+                if (generation != accountGeneration) return@launch
+                _errorMessage.value = error.message ?: context.getString(R.string.market_error_action_failed)
+                AppLogger.e(TAG, "Failed to withdraw managed market entry", error)
+            }
+        }.also { job -> job.invokeOnCompletion {
+            if (generation == accountGeneration) { _isLoading.value = false; _isMutating.value = false }
+        } }
+    }
+
+    private fun openEntry(entry: MarketV2PublisherEntrySummary, read: suspend () -> MarketV2Entry, onLoaded: (MarketV2Entry) -> Unit) {
+        if (_isLoading.value || _isRefreshing.value || entry.id.isBlank()) return
+        val expected = loadedAccountId
+        val generation = accountGeneration
+        _isLoading.value = true
+        _errorMessage.value = null
+        requestJob = viewModelScope.launch {
+            try {
+                verifyAccount(expected)
+                val fullEntry = read()
+                verifyAccount(expected)
+                if (generation == accountGeneration) onLoaded(fullEntry)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) {
+                if (generation != accountGeneration) return@launch
+                _errorMessage.value = error.message ?: context.getString(R.string.market_error_load_failed)
+                AppLogger.e(TAG, "Failed to load managed market entry detail", error)
+            }
+        }.also { job -> job.invokeOnCompletion {
+            if (generation == accountGeneration) _isLoading.value = false
+        } }
     }
 
     fun openEntryForRevision(
@@ -182,35 +214,8 @@ class UnifiedMarketManageViewModel(
         openOwnedEntryDetail(entry, onLoaded)
     }
 
-    fun openOwnedEntryDetail(
-        entry: MarketV2PublisherEntrySummary,
-        onLoaded: (MarketV2Entry) -> Unit
-    ) {
-        viewModelScope.launch {
-            if (!githubAuth.isLoggedIn()) {
-                _errorMessage.value = context.getString(R.string.skillmarket_github_login_required)
-                return@launch
-            }
-            if (entry.id.isBlank()) {
-                _errorMessage.value = context.getString(R.string.skillmarket_remove_failed, "entry not found")
-                return@launch
-            }
-
-            _isLoading.value = true
-            _errorMessage.value = null
-            try {
-                val fullEntry =
-                    withContext(Dispatchers.IO) {
-                        marketStatsApiService.getMyEntryDetail(entry.id).getOrThrow()
-                    }
-                onLoaded(fullEntry)
-            } catch (e: Exception) {
-                _errorMessage.value = e.message ?: context.getString(R.string.market_error_load_failed)
-                AppLogger.e(TAG, "Failed to load owner detail for managed market entry ${entry.id}", e)
-            } finally {
-                _isLoading.value = false
-            }
-        }
+    fun openOwnedEntryDetail(entry: MarketV2PublisherEntrySummary, onLoaded: (MarketV2Entry) -> Unit) {
+        openEntry(entry, { marketStatsApiService.getMyEntryDetail(entry.id).getOrThrow() }, onLoaded)
     }
 
     private fun revisionGateMessage(entry: MarketV2PublisherEntrySummary): String? {
@@ -249,45 +254,6 @@ class UnifiedMarketManageViewModel(
         return context.getString(R.string.market_manage_revision_cooldown, remainingText)
     }
 
-    private fun updateEntryState(
-        entry: MarketV2PublisherEntrySummary,
-        stateCode: String,
-        action: suspend () -> Result<MarketV2Entry>,
-        successMessage: String
-    ) {
-        viewModelScope.launch {
-            if (!githubAuth.isLoggedIn()) {
-                _errorMessage.value = context.getString(R.string.skillmarket_github_login_required)
-                return@launch
-            }
-            if (entry.id.isBlank()) {
-                _errorMessage.value = context.getString(R.string.skillmarket_remove_failed, "entry not found")
-                return@launch
-            }
-
-            _isLoading.value = true
-            _errorMessage.value = null
-            try {
-                action().fold(
-                    onSuccess = {
-                        _entries.value =
-                            _entries.value.map { existing ->
-                                if (existing.id == entry.id) existing.copy(stateCode = stateCode) else existing
-                            }
-                        Toast.makeText(context, successMessage, Toast.LENGTH_SHORT).show()
-                    },
-                    onFailure = { error ->
-                        _errorMessage.value = error.message ?: context.getString(R.string.market_error_action_failed)
-                    }
-                )
-            } catch (e: Exception) {
-                _errorMessage.value = e.message ?: context.getString(R.string.market_error_action_failed)
-                AppLogger.e(TAG, "Failed to update managed market entry", e)
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
 
     class Factory(
         private val context: Context,
@@ -306,5 +272,4 @@ class UnifiedMarketManageViewModel(
         private const val TAG = "UnifiedMarketManageViewModel"
     }
 }
-
 

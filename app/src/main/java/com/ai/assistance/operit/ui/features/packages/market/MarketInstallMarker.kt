@@ -8,6 +8,10 @@ import com.ai.assistance.operit.data.skill.SkillRepository
 import com.ai.assistance.operit.util.AppLogger
 import com.google.gson.Gson
 import java.io.File
+import java.io.FileOutputStream
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption.ATOMIC_MOVE
+import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 
 data class MarketInstallMarker(
     val entryId: String,
@@ -34,9 +38,24 @@ fun writeMarketInstallMarker(root: File, entry: MarketV2Entry) {
     if (!markerDir.exists() && !markerDir.mkdirs()) {
         throw IllegalStateException("Failed to create market marker dir: ${markerDir.absolutePath}")
     }
-    File(markerDir, MARKET_MARKER_FILE_NAME).writeText(
-        Gson().toJson(MarketInstallMarker(entryId = entry.id, versionId = versionId))
-    )
+    val target = File(markerDir, MARKET_MARKER_FILE_NAME)
+    val content = Gson().toJson(MarketInstallMarker(entryId = entry.id, versionId = versionId))
+    val staging = File.createTempFile(".market_marker_", ".pending", markerDir)
+    var failure: Throwable? = null
+    try {
+        FileOutputStream(staging).use { output ->
+            output.write(content.toByteArray(Charsets.UTF_8))
+            output.fd.sync()
+        }
+        // 列表刷新只能读到完整的新旧版本；写入或发布失败不截断已有安装来源。
+        Files.move(staging.toPath(), target.toPath(), ATOMIC_MOVE, REPLACE_EXISTING)
+    } catch (error: Throwable) {
+        failure = error
+        throw error
+    } finally {
+        try { Files.deleteIfExists(staging.toPath()) }
+        catch (cleanup: Exception) { if (failure != null) failure.addSuppressed(cleanup) else throw cleanup }
+    }
 }
 
 fun resolveMarketLocalInstallStates(
@@ -105,7 +124,9 @@ private fun readInstalledMarketMarkerRoots(
 ): List<MarketInstallMarkerRoot> {
     val roots = buildList {
         val skillRoot = File(SkillRepository.getInstance(context).getSkillsDirectoryPath())
-        addAll(skillRoot.listFiles()?.filter { it.isDirectory }.orEmpty())
+        addAll(skillRoot.listFiles()?.filter {
+            it.isDirectory && !it.name.startsWith(".import_tmp_") && !java.nio.file.Files.isSymbolicLink(it.toPath())
+        }.orEmpty())
 
         val localServer = MCPLocalServer.getInstance(context)
         localServer.getAllPluginMetadata().values.forEach { metadata ->
@@ -130,7 +151,7 @@ private fun readInstalledMarketMarkerRoots(
         .toList()
 }
 
-private fun readMarketInstallMarker(root: File): MarketInstallMarker? {
+internal fun readMarketInstallMarker(root: File): MarketInstallMarker? {
     val markerFile = File(File(root, MARKET_MARKER_DIR_NAME), MARKET_MARKER_FILE_NAME)
     return try {
         // A corrupt marker belongs to one artifact and must not abort the complete market projection.

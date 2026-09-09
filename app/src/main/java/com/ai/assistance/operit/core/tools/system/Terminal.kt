@@ -215,6 +215,10 @@ class Terminal private constructor(private val context: Context) {
         terminalManager.sendInterruptSignal(sessionId)
     }
 
+    /** 固定目标并等待实际写入，不切换用户当前标签。 */
+    suspend fun sendInputAndWait(sessionId: String, input: String) =
+        terminalManager.sendInputToSession(sessionId, input)
+
     /**
      * 检查服务是否已连接 (现在总是返回 true)
      */

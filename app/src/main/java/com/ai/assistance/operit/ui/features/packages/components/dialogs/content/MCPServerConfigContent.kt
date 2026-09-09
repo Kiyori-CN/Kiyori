@@ -1,5 +1,8 @@
 package com.ai.assistance.operit.ui.features.packages.components.dialogs.content
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,14 +45,21 @@ fun MCPServerConfigContent(
     onConfigChanged: (String) -> Unit,
     installedPath: String?,
     onSaveConfig: () -> Unit,
+    saving: Boolean = false,
+    saveResult: Boolean? = null,
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        if (saveResult != null) Text(
+            stringResource(if (saveResult) R.string.config_saved else R.string.mcp_config_save_failed),
+            color = if (saveResult) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
+        )
         if (installedPath != null) {
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
@@ -81,10 +91,11 @@ fun MCPServerConfigContent(
 
         OutlinedTextField(
             value = localPluginConfig,
+            enabled = !saving,
             onValueChange = { onConfigChanged(it) },
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
+                .heightIn(min = 160.dp, max = 280.dp),
             placeholder = {
                 Text(
                     "{\"key\": \"value\"}",
@@ -120,6 +131,7 @@ fun MCPServerConfigContent(
 
         Button(
             onClick = onSaveConfig,
+            enabled = !saving,
             modifier = Modifier.align(Alignment.End),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(
                 horizontal = 12.dp,

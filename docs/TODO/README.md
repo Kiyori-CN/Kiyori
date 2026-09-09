@@ -20,6 +20,7 @@
 | 网络 | [应用代理](application_network_proxy/index.md) | 路由、就绪、故障及真实网络 |
 | AI 运行 | [中断恢复](ai_interrupted_turn_recovery/index.md) · [模型能力](unified_model_capability_and_resumable_execution/index.md) | 提交、取消、重放和工具闭合 |
 | AI 渲染 | [渲染可靠性](ai_chat_rendering_reliability/index.md) | Markdown、公式和工具内容边界 |
+| AI 体验 | [对话全界面与交互优化](ai_chat_experience_refinement/index.md) | 输入、消息、历史、小窗、语音与可达子页 |
 | AI 配置 | [供应商与协议](api_provider_configuration_redesign/index.md) | 配置来源、请求编译与 UI |
 | 扩展 | [内置脚本契约](kiyori_extension_script_brand_migration/index.md) · [Bilibili](bilibili_toolkit/index.md) · [Windows 工具包](windows_toolkit_refinement/index.md) | 品牌、宿主变量与远程连接 |
 | 搜索 | [OpenAI 搜索](openai_hosted_web_search/index.md) | 独立工具配置、证据与请求边界 |

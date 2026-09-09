@@ -40,7 +40,6 @@ import com.ai.assistance.operit.core.tools.EnvVarScope
 import com.ai.assistance.operit.core.tools.PackageTool
 import com.ai.assistance.operit.core.tools.ToolPackage
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
-import com.ai.assistance.operit.data.mcp.MCPRepository
 import com.ai.assistance.operit.data.preferences.EnvPreferences
 import com.ai.assistance.operit.data.preferences.ApiPreferences
 import com.ai.assistance.operit.data.preferences.ToolPkgHostEnvironmentRepository
@@ -137,7 +136,6 @@ fun PackageManagerScreen(
         PackageManager.getInstance(context, toolHandler)
     }
     val scope = rememberCoroutineScope()
-    val mcpRepository = remember { MCPRepository(context) }
     val skillRepository = remember { SkillRepository.getInstance(context.applicationContext) }
 
     val envPreferences = remember { EnvPreferences.getInstance(context) }
@@ -953,63 +951,67 @@ fun PackageManagerScreen(
 
             // Package Details Dialog
             if (showDetails && selectedPackage != null) {
-                PackageDetailsDialog(
-                    packageName = selectedPackage!!,
-                    packageDescription = allAvailablePackages.value[selectedPackage]?.description?.resolve(context)
-                        ?: "",
-                    toolPackage = allAvailablePackages.value[selectedPackage],
-                    packageManager = packageManager,
-                    onRunScript = { toolPackageName, tool ->
-                        selectedToolPackageName = toolPackageName
-                        selectedTool = tool
-                        showScriptExecution = true
-                    },
-                    onOpenToolPkgPluginConfig = { containerPackageName, uiModuleId, title, keepAlive ->
-                        showDetails = false
-                        onOpenToolPkgPluginConfig(containerPackageName, uiModuleId, title, keepAlive)
-                    },
-                    onDismiss = {
-                        showDetails = false
-                        scope.launch {
-                            val imported = withContext(Dispatchers.IO) { packageManager.getEnabledPackageNames() }
-                            importedPackages.value = imported
-                            visibleImportedPackages.value = imported.toList()
-                        }
-                    },
-                    onPackageDeleted = {
-                        showDetails = false
-                        scope.launch {
-                            AppLogger.d(
-                                "PackageManagerScreen",
-                                "onPackageDeleted callback triggered. Refreshing package lists."
-                            )
-                            if (
-                                refreshPackageManagerSnapshot(
-                                    showSuccessMessage = false,
-                                    showFailureMessage = true,
+                key(selectedPackage) {
+                    PackageDetailsDialog(
+                        packageName = selectedPackage!!,
+                        packageDescription = allAvailablePackages.value[selectedPackage]?.description?.resolve(context)
+                            ?: "",
+                        toolPackage = allAvailablePackages.value[selectedPackage],
+                        packageManager = packageManager,
+                        onRunScript = { toolPackageName, tool ->
+                            selectedToolPackageName = toolPackageName
+                            selectedTool = tool
+                            showScriptExecution = true
+                        },
+                        onOpenToolPkgPluginConfig = { containerPackageName, uiModuleId, title, keepAlive ->
+                            showDetails = false
+                            onOpenToolPkgPluginConfig(containerPackageName, uiModuleId, title, keepAlive)
+                        },
+                        onDismiss = {
+                            showDetails = false
+                            scope.launch {
+                                val imported = withContext(Dispatchers.IO) { packageManager.getEnabledPackageNames() }
+                                importedPackages.value = imported
+                                visibleImportedPackages.value = imported.toList()
+                            }
+                        },
+                        onPackageDeleted = {
+                            showDetails = false
+                            scope.launch {
+                                AppLogger.d(
+                                    "PackageManagerScreen",
+                                    "onPackageDeleted callback triggered. Refreshing package lists."
                                 )
-                            ) {
-                                snackbarHostState.showSnackbar("Package deleted successfully.")
+                                if (
+                                    refreshPackageManagerSnapshot(
+                                        showSuccessMessage = false,
+                                        showFailureMessage = true,
+                                    )
+                                ) {
+                                    snackbarHostState.showSnackbar(resources.getString(R.string.pkg_details_deleted))
+                                }
                             }
                         }
-                    }
-                )
+                    )
+                }
             }
 
             // Script Execution Dialog
             if (showScriptExecution && selectedTool != null && selectedPackage != null) {
-                ScriptExecutionDialog(
-                    packageName = selectedToolPackageName ?: selectedPackage!!,
-                    tool = selectedTool!!,
-                    packageManager = packageManager,
-                    initialResult = scriptExecutionResult,
-                    onExecuted = { result -> scriptExecutionResult = result },
-                    onDismiss = {
-                        showScriptExecution = false
-                        scriptExecutionResult = null
-                        selectedToolPackageName = null
-                    }
-                )
+                key(selectedToolPackageName, selectedTool?.name) {
+                    ScriptExecutionDialog(
+                        packageName = selectedToolPackageName ?: selectedPackage!!,
+                        tool = selectedTool!!,
+                        packageManager = packageManager,
+                        initialResult = scriptExecutionResult,
+                        onExecuted = { result -> scriptExecutionResult = result },
+                        onDismiss = {
+                            showScriptExecution = false
+                            scriptExecutionResult = null
+                            selectedToolPackageName = null
+                        }
+                    )
+                }
             }
 
             if (showEnvSheet) {
@@ -1021,32 +1023,19 @@ fun PackageManagerScreen(
                         showEnvSheet = false
                         requestedEnvironmentPackageName = null
                     },
-                    onConfirm = { updated ->
-                        val mergedGlobalValues =
-                            envPreferences.getAllEnv().toMutableMap().apply {
-                                updated.forEach { (key, value) ->
-                                    if (key.scope != EnvVarScope.GLOBAL) {
-                                        return@forEach
-                                    }
-                                    if (value.isBlank()) {
-                                        remove(key.variableName)
-                                    } else {
-                                        this[key.variableName] = value
-                                    }
-                                }
-                            }
-                        envPreferences.setAllEnv(mergedGlobalValues)
-                        updated.forEach { (key, value) ->
-                            if (key.scope == EnvVarScope.PACKAGE) {
-                                toolPkgHostEnvironmentRepository.setValue(
-                                    containerPackageName =
-                                        requireNotNull(key.ownerPackageName),
-                                    variableName = key.variableName,
-                                    value = value,
-                                )
-                            }
+                    onConfirm = { edits ->
+                        withContext(Dispatchers.IO) {
+                            // 两个既有存储分别提交；部分失败留在表单，可按同一目标重试。
+                            envPreferences.compareAndSetEnvs(
+                                edits.filterKeys { it.scope == EnvVarScope.GLOBAL }
+                                    .mapKeys { it.key.variableName }
+                            )
+                            toolPkgHostEnvironmentRepository.compareAndSetValues(
+                                edits.filterKeys { it.scope == EnvVarScope.PACKAGE }
+                                    .mapKeys { requireNotNull(it.key.ownerPackageName) to it.key.variableName }
+                            )
                         }
-                        envVariables = updated
+                        envVariables = envVariables + edits.mapValues { it.value.value }
                     }
                 )
             }
@@ -1055,32 +1044,16 @@ fun PackageManagerScreen(
                 PackageLoadErrorsDialog(
                     errorInfos = packageLoadErrorInfos.value,
                     onDeleteSource = { sourcePath ->
+                        withContext(Dispatchers.IO) { packageManager.deleteExternalPackageSource(sourcePath) }
+                    },
+                    onSourceDeleted = {
                         scope.launch {
-                            val deleted =
-                                withContext(Dispatchers.IO) {
-                                    packageManager.deleteExternalPackageSource(sourcePath)
-                                }
-                            if (!deleted) {
-                                snackbarHostState.showSnackbar(
-                                    message = resources.getString(R.string.package_conflict_delete_failed)
-                                )
-                                return@launch
-                            }
-
-                            val refreshed =
-                                refreshPackageManagerSnapshot(
-                                    showSuccessMessage = false,
-                                    showFailureMessage = true,
-                                )
-
-                            if (refreshed && packageLoadErrorInfos.value.isEmpty()) {
-                                showPackageLoadErrorsDialog = false
-                            }
-                            if (refreshed) {
-                                snackbarHostState.showSnackbar(
-                                    message = resources.getString(R.string.package_conflict_delete_success)
-                                )
-                            }
+                            val refreshed = refreshPackageManagerSnapshot(
+                                showSuccessMessage = false,
+                                showFailureMessage = true,
+                            )
+                            if (refreshed && packageLoadErrorInfos.value.isEmpty()) showPackageLoadErrorsDialog = false
+                            if (refreshed) snackbarHostState.showSnackbar(resources.getString(R.string.package_conflict_delete_success))
                         }
                     },
                     onDismiss = { showPackageLoadErrorsDialog = false }

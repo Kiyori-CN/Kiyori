@@ -20,6 +20,9 @@ import java.net.URI
 import java.net.URL
 import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -73,11 +76,14 @@ class SkillRepository private constructor(private val context: Context) {
 
     fun deleteSkill(skillName: String): Boolean = skillManager.deleteSkill(skillName)
 
-    suspend fun importSkillFromZip(zipFile: File): String {
-        return withContext(Dispatchers.IO) {
-            skillManager.importSkillFromZip(zipFile)
+    suspend fun importSkillFromZip(zipFile: File): String = importSkillFromZipDetailed(zipFile, zipFile.name).message
+
+    suspend fun importSkillFromZipDetailed(zipFile: File, archiveName: String): SkillRepoImportResult =
+        withContext(Dispatchers.IO) {
+            val operationContext = currentCoroutineContext()
+            val result = skillManager.importSkillFromZipDetailed(zipFile, null, archiveName) { operationContext.ensureActive() }
+            SkillRepoImportResult(result.message, result.installedDir)
         }
-    }
 
     suspend fun importSkillFromGitHubRepo(repoUrl: String): String {
         return importSkillFromGitHubRepoDetailed(repoUrl).message
@@ -89,6 +95,13 @@ class SkillRepository private constructor(private val context: Context) {
     )
 
     suspend fun importSkillFromGitHubRepoDetailed(repoUrl: String): SkillRepoImportResult {
+        return importSkillFromGitHubRepoDetailed(repoUrl, null)
+    }
+
+    internal suspend fun importSkillFromGitHubRepoDetailed(
+        repoUrl: String,
+        publication: com.ai.assistance.operit.core.tools.skill.SkillImportPublication?,
+    ): SkillRepoImportResult {
         return withContext(Dispatchers.IO) {
             val target = parseGitHubSkillTarget(repoUrl)
                 ?: return@withContext SkillRepoImportResult(context.getString(R.string.skill_invalid_github_url), null)
@@ -108,37 +121,31 @@ class SkillRepository private constructor(private val context: Context) {
                 downloadFromUrl(zipUrl, outFile)
             }
 
-            val suffix = (target.subDir ?: "repo")
-                .replace('/', '_')
-                .take(60)
-            val fallbackTempFile = File(context.cacheDir, "skill_${owner}_${repoName}_$suffix.zip")
-            if (pooledZip == null) {
-                if (fallbackTempFile.exists()) fallbackTempFile.delete()
-            }
+            val fallbackTempFile = if (pooledZip == null) File.createTempFile("skill_repo_", ".zip", context.cacheDir) else null
 
             try {
                 val zipFile = if (pooledZip != null) {
                     pooledZip
                 } else {
-                    val downloaded = downloadFromUrl(zipUrl, fallbackTempFile)
-                    if (!downloaded || !fallbackTempFile.exists() || fallbackTempFile.length() <= 0L) {
-                        if (fallbackTempFile.exists()) fallbackTempFile.delete()
+                    val downloadFile = requireNotNull(fallbackTempFile)
+                    val downloaded = downloadFromUrl(zipUrl, downloadFile)
+                    if (!downloaded || !downloadFile.exists() || downloadFile.length() <= 0L) {
                         return@withContext SkillRepoImportResult(context.getString(R.string.skill_download_zip_failed), null)
                     }
-                    fallbackTempFile
+                    downloadFile
                 }
 
-                val result = skillManager.importSkillFromZipDetailed(zipFile, target.subDir)
-
-                if (pooledZip == null) {
-                    runCatching { fallbackTempFile.delete() }
-                }
+                val operationContext = currentCoroutineContext()
+                val result = skillManager.importSkillFromZipDetailed(zipFile, target.subDir, "$repoName.zip", publication) { operationContext.ensureActive() }
 
                 SkillRepoImportResult(result.message, result.installedDir)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 AppLogger.e(TAG, "Failed to import skill from GitHub repo", e)
-                if (pooledZip == null && fallbackTempFile.exists()) fallbackTempFile.delete()
                 SkillRepoImportResult(context.getString(R.string.skill_import_failed, e.message ?: "Unknown error"), null)
+            } finally {
+                fallbackTempFile?.let { java.nio.file.Files.deleteIfExists(it.toPath()) }
             }
         }
     }
@@ -147,44 +154,25 @@ class SkillRepository private constructor(private val context: Context) {
         skillId: String,
         description: String,
         content: String,
-        attachmentUris: List<Uri> = emptyList()
-    ): String {
-        return withContext(Dispatchers.IO) {
-            val trimmedId = skillId.trim()
-            val trimmedDescription = description.trim()
-            val trimmedContent = content.trim()
+        attachmentUris: List<Uri> = emptyList(),
+    ): String = importSkillFromDirectInputDetailed(skillId, description, content, attachmentUris).message
 
-            if (trimmedId.isBlank()) {
-                return@withContext context.getString(R.string.skillmgr_direct_skill_id_required)
-            }
-            if (!isValidSkillId(trimmedId)) {
-                return@withContext context.getString(R.string.skillmgr_direct_skill_id_invalid)
-            }
-            if (trimmedContent.isBlank()) {
-                return@withContext context.getString(R.string.skillmgr_direct_content_required)
-            }
-
-            val skillsRootDir = File(getSkillsDirectoryPath())
-            if (!skillsRootDir.exists() && !skillsRootDir.mkdirs()) {
-                return@withContext context.getString(
-                    R.string.skillmgr_direct_create_dir_failed,
-                    skillsRootDir.absolutePath
-                )
-            }
-
-            val finalDir = File(skillsRootDir, trimmedId)
-            if (finalDir.exists()) {
-                return@withContext context.getString(R.string.skill_error_import_duplicate_name, finalDir.name)
-            }
-            if (!finalDir.mkdirs()) {
-                return@withContext context.getString(
-                    R.string.skillmgr_direct_create_dir_failed,
-                    finalDir.absolutePath
-                )
-            }
-
-            try {
-                File(finalDir, "SKILL.md").writeText(
+    suspend fun importSkillFromDirectInputDetailed(
+        skillId: String,
+        description: String,
+        content: String,
+        attachmentUris: List<Uri> = emptyList(),
+    ): SkillRepoImportResult = withContext(Dispatchers.IO) {
+        val trimmedId = skillId.trim()
+        val trimmedDescription = description.trim()
+        val trimmedContent = content.trim()
+        if (trimmedId.isBlank()) return@withContext SkillRepoImportResult(context.getString(R.string.skillmgr_direct_skill_id_required), null)
+        if (!isValidSkillId(trimmedId)) return@withContext SkillRepoImportResult(context.getString(R.string.skillmgr_direct_skill_id_invalid), null)
+        if (trimmedContent.isBlank()) return@withContext SkillRepoImportResult(context.getString(R.string.skillmgr_direct_content_required), null)
+        val operationContext = currentCoroutineContext()
+        try {
+            val result = skillManager.importPreparedSkill(trimmedId, trimmedDescription, { operationContext.ensureActive() }) { staging ->
+                File(staging, "SKILL.md").writeText(
                     buildDirectSkillMarkdown(
                         skillId = trimmedId,
                         description = trimmedDescription,
@@ -193,7 +181,7 @@ class SkillRepository private constructor(private val context: Context) {
                 )
 
                 if (attachmentUris.isNotEmpty()) {
-                    val assetsDir = File(finalDir, "assets")
+                    val assetsDir = File(staging, "assets")
                     if (!assetsDir.exists() && !assetsDir.mkdirs()) {
                         throw IllegalStateException(
                             context.getString(R.string.skillmgr_direct_create_dir_failed, assetsDir.absolutePath)
@@ -213,7 +201,13 @@ class SkillRepository private constructor(private val context: Context) {
 
                         context.contentResolver.openInputStream(uri)?.use { input ->
                             outFile.outputStream().use { output ->
-                                input.copyTo(output)
+                                val buffer = ByteArray(BUFFER_SIZE)
+                                while (true) {
+                                    operationContext.ensureActive()
+                                    val count = input.read(buffer)
+                                    if (count < 0) break
+                                    output.write(buffer, 0, count)
+                                }
                             }
                         } ?: throw IllegalStateException(
                             context.getString(R.string.skillmgr_direct_attachment_read_failed, displayName)
@@ -221,18 +215,12 @@ class SkillRepository private constructor(private val context: Context) {
                     }
                 }
 
-                skillManager.refreshAvailableSkills()
-
-                if (trimmedDescription.isNotBlank()) {
-                    context.getString(R.string.skill_imported_with_desc, finalDir.name, trimmedDescription)
-                } else {
-                    context.getString(R.string.skill_imported, finalDir.name)
-                }
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "Failed to import skill from direct input", e)
-                runCatching { finalDir.deleteRecursively() }
-                context.getString(R.string.skill_import_failed, e.message ?: "Unknown error")
             }
+            SkillRepoImportResult(result.message, result.installedDir)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            SkillRepoImportResult(context.getString(R.string.skill_import_failed, error.message.orEmpty()), null)
         }
     }
 

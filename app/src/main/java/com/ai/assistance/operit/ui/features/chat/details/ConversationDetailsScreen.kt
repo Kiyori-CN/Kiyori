@@ -12,6 +12,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -45,6 +50,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -54,6 +60,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,6 +71,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.Role
+import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.audit.ConversationAuditExportFormat
 import com.ai.assistance.operit.data.audit.ConversationAuditLoadedPayload
@@ -71,12 +80,19 @@ import com.ai.assistance.operit.data.model.ChatMessage
 import com.ai.assistance.operit.data.model.ConversationAuditEntity
 import com.ai.assistance.operit.data.model.ConversationAuditEventEntity
 import com.kiyori.design.theme.KiyoriSettingsTheme
+import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.resolveColors
 import com.kiyori.design.theme.KiyoriUiShapes
 import com.kiyori.design.theme.LocalKiyoriSettingsColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import org.json.JSONObject
 
 private enum class ConversationDetailsTab {
@@ -99,19 +115,27 @@ fun ConversationDetailsScreen(
     hasOlderEvents: Boolean,
     isLoadingOlderEvents: Boolean,
     isGenerating: Boolean,
-    onEditMessage: (message: ChatMessage) -> Unit,
+    onEditMessage: suspend (original: ChatMessage, content: String) -> Boolean,
     onLoadPayloads: suspend (eventId: String) -> List<ConversationAuditLoadedPayload>,
     onLoadOlderEvents: () -> Unit,
-    onExport: (ConversationAuditExportFormat) -> Unit,
-    onAddAnnotation: (String) -> Unit,
+    onExport: suspend (ConversationAuditExportFormat) -> Boolean,
+    onAddAnnotation: suspend (String) -> Boolean,
     onClose: () -> Unit,
+    isLoading: Boolean,
+    loadError: String?,
+    onRetryLoading: () -> Unit,
+    systemBackEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var showAnnotationDialog by rememberSaveable { mutableStateOf(false) }
     var showExportDialog by rememberSaveable { mutableStateOf(false) }
     var annotationText by rememberSaveable { mutableStateOf("") }
+    var isAddingAnnotation by remember { mutableStateOf(false) }
+    var annotationFailed by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     val tabs = remember { ConversationDetailsTab.entries }
+    val tabState = rememberSaveableStateHolder()
     val providerModel =
         remember(messages) {
             messages
@@ -127,12 +151,11 @@ fun ConversationDetailsScreen(
                 }
         }
 
-    BackHandler {
+    BackHandler(enabled = systemBackEnabled) {
         when {
             showExportDialog -> showExportDialog = false
             showAnnotationDialog -> {
-                showAnnotationDialog = false
-                annotationText = ""
+                if (!isAddingAnnotation) showAnnotationDialog = false
             }
             else -> onClose()
         }
@@ -143,7 +166,7 @@ fun ConversationDetailsScreen(
             Column(modifier = Modifier.fillMaxSize()) {
                 AuditHeader(
                     audit = audit,
-                    eventCount = events.size,
+                    eventCount = audit?.eventCount ?: events.size.toLong(),
                     messageCount = messages.size,
                     storedPayloadBytes = storedPayloadBytes,
                     providerModel = providerModel,
@@ -154,88 +177,116 @@ fun ConversationDetailsScreen(
                     selectedTab = tabs[selectedTab],
                     onSelect = { selectedTab = tabs.indexOf(it) },
                 )
-                when (tabs[selectedTab]) {
-                    ConversationDetailsTab.TIMELINE ->
-                        AuditTimeline(
-                            events = events,
-                            hasOlderEvents = hasOlderEvents,
-                            isLoadingOlderEvents = isLoadingOlderEvents,
-                            onLoadOlderEvents = onLoadOlderEvents,
-                            onLoadPayloads = onLoadPayloads,
-                            modifier = Modifier.weight(1f),
-                        )
-                    ConversationDetailsTab.CONVERSATION ->
-                        AuditConversation(
-                            messages = messages,
-                            isGenerating = isGenerating,
-                            onEditMessage = onEditMessage,
-                            modifier = Modifier.weight(1f),
-                        )
-                    ConversationDetailsTab.RAW ->
-                        AuditRaw(
-                            events = events,
-                            hasOlderEvents = hasOlderEvents,
-                            isLoadingOlderEvents = isLoadingOlderEvents,
-                            onLoadOlderEvents = onLoadOlderEvents,
-                            modifier = Modifier.weight(1f),
-                        )
+                if (isLoading) {
+                    androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+                if (loadError != null) {
+                    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(loadError, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.error)
+                        TextButton(onClick = onRetryLoading) { Text(stringResource(R.string.conversation_audit_retry_payload)) }
+                    }
+                }
+                tabState.SaveableStateProvider(tabs[selectedTab].name) {
+                    when (tabs[selectedTab]) {
+                        ConversationDetailsTab.TIMELINE ->
+                            AuditTimeline(
+                                events = events,
+                                hasOlderEvents = hasOlderEvents,
+                                isLoadingOlderEvents = isLoadingOlderEvents,
+                                onLoadOlderEvents = onLoadOlderEvents,
+                                onLoadPayloads = onLoadPayloads,
+                                systemBackEnabled = systemBackEnabled && !showAnnotationDialog && !showExportDialog,
+                                modifier = Modifier.weight(1f),
+                            )
+                        ConversationDetailsTab.CONVERSATION ->
+                            AuditConversation(
+                                messages = messages,
+                                isGenerating = isGenerating,
+                                onEditMessage = onEditMessage,
+                                systemBackEnabled = systemBackEnabled && !showAnnotationDialog && !showExportDialog,
+                                modifier = Modifier.weight(1f),
+                            )
+                        ConversationDetailsTab.RAW ->
+                            AuditRaw(
+                                events = events,
+                                hasOlderEvents = hasOlderEvents,
+                                isLoadingOlderEvents = isLoadingOlderEvents,
+                                onLoadOlderEvents = onLoadOlderEvents,
+                                systemBackEnabled = systemBackEnabled && !showAnnotationDialog && !showExportDialog,
+                                modifier = Modifier.weight(1f),
+                            )
+                    }
                 }
             }
         }
     }
 
-    if (showExportDialog) {
+    if (showExportDialog && systemBackEnabled) {
         KiyoriSettingsTheme {
             ExportConversationDialog(
                 onDismiss = { showExportDialog = false },
-                onExport = { format ->
-                    showExportDialog = false
-                    onExport(format)
-                },
+                onExport = onExport,
             )
         }
     }
 
-    if (showAnnotationDialog) {
+    if (showAnnotationDialog && systemBackEnabled) {
         KiyoriSettingsTheme {
             AlertDialog(
                 onDismissRequest = {
-                    showAnnotationDialog = false
-                    annotationText = ""
+                    if (!isAddingAnnotation) showAnnotationDialog = false
                 },
                 title = { Text(stringResource(R.string.conversation_audit_annotation_title)) },
                 text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             stringResource(R.string.conversation_audit_annotation_description),
                             style = MaterialTheme.typography.bodySmall,
                         )
                         AuditInputField(
                             value = annotationText,
+                            enabled = !isAddingAnnotation,
                             onValueChange = { annotationText = it },
                             placeholder =
                                 stringResource(R.string.conversation_audit_annotation_content),
                             modifier = Modifier.fillMaxWidth().height(180.dp),
                         )
+                        if (annotationFailed) {
+                            Text(stringResource(R.string.conversation_audit_write_failed_draft_kept), color = MaterialTheme.colorScheme.error)
+                        }
                     }
                 },
                 confirmButton = {
                     TextButton(
-                        enabled = annotationText.isNotBlank(),
+                        enabled = annotationText.isNotBlank() && !isAddingAnnotation,
                         onClick = {
-                            onAddAnnotation(annotationText.trim())
-                            showAnnotationDialog = false
-                            annotationText = ""
+                            if (!isAddingAnnotation) {
+                                isAddingAnnotation = true
+                                annotationFailed = false
+                                val submitted = annotationText.trim()
+                                scope.launch {
+                                    try {
+                                        if (onAddAnnotation(submitted)) {
+                                            showAnnotationDialog = false
+                                            annotationText = ""
+                                        } else {
+                                            annotationFailed = true
+                                        }
+                                    } finally {
+                                        isAddingAnnotation = false
+                                    }
+                                }
+                            }
                         },
                     ) {
-                        Text(stringResource(R.string.conversation_audit_annotation_append))
+                        Text(stringResource(if (isAddingAnnotation) R.string.processing else R.string.conversation_audit_annotation_append))
                     }
                 },
                 dismissButton = {
                     TextButton(
+                        enabled = !isAddingAnnotation,
                         onClick = {
                             showAnnotationDialog = false
-                            annotationText = ""
                         }
                     ) {
                         Text(stringResource(R.string.cancel))
@@ -249,7 +300,7 @@ fun ConversationDetailsScreen(
 @Composable
 private fun AuditHeader(
     audit: ConversationAuditEntity?,
-    eventCount: Int,
+    eventCount: Long,
     messageCount: Int,
     storedPayloadBytes: Long,
     providerModel: String?,
@@ -261,9 +312,9 @@ private fun AuditHeader(
     val status = audit?.completenessStatus ?: "BASIC"
     val statusColor =
         when (status) {
-            "COMPLETE" -> Color(0xFF2E7D32)
+            "COMPLETE" -> KiyoriSemanticTone.GREEN.resolveColors().icon
             "IN_PROGRESS" -> colors.accent
-            "PARTIAL", "BASIC" -> Color(0xFFB26A00)
+            "PARTIAL", "BASIC" -> KiyoriSemanticTone.ORANGE.resolveColors().icon
             else -> MaterialTheme.colorScheme.error
         }
     Column(
@@ -383,12 +434,14 @@ private fun AuditTabRow(
 ) {
     val colors = LocalKiyoriSettingsColors.current
     Row(
-        modifier = Modifier.fillMaxWidth().background(colors.cardBackground),
+        modifier = Modifier.fillMaxWidth().background(colors.cardBackground).selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(0.dp),
     ) {
         ConversationDetailsTab.entries.forEach { tab ->
             Column(
-                modifier = Modifier.weight(1f).clickable { onSelect(tab) },
+                modifier = Modifier.weight(1f).heightIn(min = 48.dp).selectable(
+                    selected = tab == selectedTab, role = Role.Tab, onClick = { onSelect(tab) },
+                ),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
@@ -424,6 +477,7 @@ private fun AuditSectionToolbar(
     expanded: Boolean,
     onExpandAll: () -> Unit,
     onCollapseAll: () -> Unit,
+    loadedOnly: Boolean = false,
 ) {
     val colors = LocalKiyoriSettingsColors.current
     Column(
@@ -444,7 +498,7 @@ private fun AuditSectionToolbar(
             Text(
                 text =
                     stringResource(
-                        R.string.conversation_audit_match_count,
+                        if (loadedOnly) R.string.conversation_audit_loaded_match_count else R.string.conversation_audit_match_count,
                         matchingCount,
                         totalCount,
                     ),
@@ -523,7 +577,7 @@ private fun AuditSearchBar(
                 },
             )
             if (value.isNotBlank()) {
-                IconButton(onClick = { onValueChange("") }, modifier = Modifier.size(40.dp)) {
+                IconButton(onClick = { onValueChange("") }, modifier = Modifier.size(48.dp)) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = stringResource(R.string.clear),
@@ -543,6 +597,7 @@ private fun AuditTimeline(
     isLoadingOlderEvents: Boolean,
     onLoadOlderEvents: () -> Unit,
     onLoadPayloads: suspend (eventId: String) -> List<ConversationAuditLoadedPayload>,
+    systemBackEnabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
@@ -565,28 +620,47 @@ private fun AuditTimeline(
     val loadedPayloads = remember { mutableStateMapOf<String, List<ConversationAuditLoadedPayload>>() }
     val loadingPayloads = remember { mutableStateMapOf<String, Boolean>() }
     val payloadErrors = remember { mutableStateMapOf<String, String>() }
+    val payloadJobs = remember { mutableMapOf<String, Job>() }
     var expandedEventIds by remember { mutableStateOf(emptySet<String>()) }
     var previousLastSequence by remember { mutableLongStateOf(0L) }
     var unreadEventCount by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
     val olderItemCount = if (hasOlderEvents || isLoadingOlderEvents) 1 else 0
 
+    fun releasePayloads(eventId: String) {
+        payloadJobs.remove(eventId)?.cancel()
+        loadedPayloads.remove(eventId)
+        loadingPayloads.remove(eventId)
+        payloadErrors.remove(eventId)
+    }
+
     fun requestPayloads(eventId: String) {
         if (loadedPayloads[eventId] != null || loadingPayloads[eventId] == true) return
         loadingPayloads[eventId] = true
         payloadErrors.remove(eventId)
-        scope.launch {
+        val job = scope.launch(start = CoroutineStart.LAZY) {
             try {
-                loadedPayloads[eventId] = onLoadPayloads(eventId)
+                val payloads = onLoadPayloads(eventId)
+                currentCoroutineContext().ensureActive()
+                loadedPayloads[eventId] = payloads
+            } catch (error: CancellationException) {
+                throw error
             } catch (error: Exception) {
-                payloadErrors[eventId] = error.stackTraceToString()
+                currentCoroutineContext().ensureActive()
+                AppLogger.e("ConversationDetails", "Unable to load event payload: $eventId", error)
+                payloadErrors[eventId] = error.javaClass.simpleName
             } finally {
-                loadingPayloads[eventId] = false
+                if (payloadJobs[eventId] === currentCoroutineContext()[Job]) {
+                    loadingPayloads[eventId] = false
+                    payloadJobs.remove(eventId)
+                }
             }
         }
+        payloadJobs[eventId] = job
+        job.start()
     }
 
-    BackHandler(enabled = expandedEventIds.isNotEmpty() || query.isNotBlank()) {
+    BackHandler(enabled = systemBackEnabled && (expandedEventIds.isNotEmpty() || query.isNotBlank())) {
         if (expandedEventIds.isNotEmpty()) {
             expandedEventIds = emptySet()
         } else {
@@ -604,13 +678,14 @@ private fun AuditTimeline(
             }
         val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
         val lastContentIndex = (filtered.lastIndex + olderItemCount).coerceAtLeast(0)
+        val newMatchingCount = filtered.count { it.sequenceNumber > previousLastSequence }
         val wasAtBottom =
-            previousLastSequence == 0L || lastVisible == null || lastVisible >= lastContentIndex - 1
+            previousLastSequence == 0L || lastVisible == null || lastVisible >= lastContentIndex - newMatchingCount - 1
         if (filtered.isNotEmpty() && (previousLastSequence == 0L || newCount > 0 && wasAtBottom)) {
             listState.scrollToItem(lastContentIndex)
             unreadEventCount = 0
         } else if (newCount > 0) {
-            unreadEventCount += newCount
+            unreadEventCount += newMatchingCount
         }
         previousLastSequence = currentLastSequence
     }
@@ -622,12 +697,13 @@ private fun AuditTimeline(
             placeholder = stringResource(R.string.conversation_audit_search_timeline),
             matchingCount = filtered.size,
             totalCount = events.size,
+            loadedOnly = true,
             expanded = filtered.isNotEmpty() && filtered.all { it.eventId in expandedEventIds },
             onExpandAll = { expandedEventIds = expandedEventIds + filtered.map { it.eventId } },
             onCollapseAll = { expandedEventIds = expandedEventIds - filtered.map { it.eventId }.toSet() },
         )
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            if (filtered.isEmpty()) {
+            if (filtered.isEmpty() && !hasOlderEvents && !isLoadingOlderEvents) {
                 EmptyAuditState(
                     text =
                         if (events.isEmpty()) {
@@ -644,6 +720,11 @@ private fun AuditTimeline(
                     contentPadding =
                         androidx.compose.foundation.layout.PaddingValues(bottom = 18.dp),
                 ) {
+                    if (filtered.isEmpty()) {
+                        item(key = "no-matching-loaded-events") {
+                            Text(stringResource(R.string.conversation_audit_no_loaded_matches), modifier = Modifier.padding(16.dp))
+                        }
+                    }
                     if (hasOlderEvents || isLoadingOlderEvents) {
                         item(key = "load-older-events") {
                             TextButton(
@@ -681,6 +762,7 @@ private fun AuditTimeline(
                             payloads = loadedPayloads[event.eventId],
                             payloadError = payloadErrors[event.eventId],
                             onRequestPayloads = { requestPayloads(event.eventId) },
+                            onReleasePayloads = { releasePayloads(event.eventId) },
                             onClick = {
                                 expandedEventIds =
                                     if (event.eventId in expandedEventIds) {
@@ -745,11 +827,16 @@ private fun AuditEventRow(
     payloads: List<ConversationAuditLoadedPayload>?,
     payloadError: String?,
     onRequestPayloads: () -> Unit,
+    onReleasePayloads: () -> Unit,
     onClick: () -> Unit,
 ) {
     val colors = LocalKiyoriSettingsColors.current
     LaunchedEffect(expanded, event.eventId) {
-        if (expanded) onRequestPayloads()
+        if (expanded) onRequestPayloads() else onReleasePayloads()
+    }
+    DisposableEffect(event.eventId) {
+        // payload 可能很大；缓存只随可见事件行存活，离屏/筛选/关闭后释放并取消未完成读取。
+        onDispose { onReleasePayloads() }
     }
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).clickable(onClick = onClick),
@@ -833,7 +920,7 @@ private fun AuditEventRow(
                                     modifier = Modifier.size(20.dp),
                                     strokeWidth = 2.dp,
                                 )
-                            payloadError != null ->
+                            payloadError != null -> {
                                 Text(
                                     text =
                                         stringResource(
@@ -844,6 +931,10 @@ private fun AuditEventRow(
                                     color = MaterialTheme.colorScheme.error,
                                     fontFamily = FontFamily.Monospace,
                                 )
+                                TextButton(onClick = onRequestPayloads) {
+                                    Text(stringResource(R.string.conversation_audit_retry_payload))
+                                }
+                            }
                             payloads.isNullOrEmpty() ->
                                 Text(
                                     stringResource(R.string.conversation_audit_no_payload),
@@ -888,13 +979,17 @@ private fun AuditEventRow(
 private fun AuditConversation(
     messages: List<ChatMessage>,
     isGenerating: Boolean,
-    onEditMessage: (message: ChatMessage) -> Unit,
+    onEditMessage: suspend (original: ChatMessage, content: String) -> Boolean,
+    systemBackEnabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var expandedMessageKeys by remember { mutableStateOf(emptySet<String>()) }
-    var editingMessage by remember { mutableStateOf<ChatMessage?>(null) }
-    var editingText by remember { mutableStateOf("") }
+    var editingMessage by rememberSaveable { mutableStateOf<ChatMessage?>(null) }
+    var editingText by rememberSaveable { mutableStateOf("") }
+    var isSaving by remember { mutableStateOf(false) }
+    var saveFailed by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     val visibleMessages =
         remember(messages) {
             messages.filter { message -> message.sender == "user" || message.sender == "ai" }
@@ -920,12 +1015,14 @@ private fun AuditConversation(
     }
 
     BackHandler(
-        enabled = editingMessage != null || expandedMessageKeys.isNotEmpty() || query.isNotBlank()
+        enabled = systemBackEnabled && (editingMessage != null || expandedMessageKeys.isNotEmpty() || query.isNotBlank())
     ) {
         when {
             editingMessage != null -> {
-                editingMessage = null
-                editingText = ""
+                if (!isSaving) {
+                    editingMessage = null
+                    editingText = ""
+                }
             }
             expandedMessageKeys.isNotEmpty() -> expandedMessageKeys = emptySet()
             else -> query = ""
@@ -968,8 +1065,9 @@ private fun AuditConversation(
                         expanded = messageKey in expandedMessageKeys,
                         isGenerating = isGenerating,
                         onEdit = {
-                            editingMessage = message
+                            editingMessage = message.copy(contentStream = null)
                             editingText = message.content
+                            saveFailed = false
                         },
                         onClick = {
                             expandedMessageKeys =
@@ -985,41 +1083,62 @@ private fun AuditConversation(
         }
     }
 
-    editingMessage?.let { original ->
+    if (systemBackEnabled) editingMessage?.let { original ->
         AlertDialog(
             onDismissRequest = {
-                editingMessage = null
-                editingText = ""
+                if (!isSaving) {
+                    editingMessage = null
+                    editingText = ""
+                }
             },
             title = { Text(stringResource(R.string.edit_message)) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         stringResource(R.string.conversation_audit_edit_description),
                         style = MaterialTheme.typography.bodySmall,
                     )
                     AuditInputField(
                         value = editingText,
+                        enabled = !isSaving,
                         onValueChange = { editingText = it },
                         placeholder = stringResource(R.string.conversation_audit_current_version),
                         modifier = Modifier.fillMaxWidth().height(220.dp),
                     )
+                    if (saveFailed) {
+                        Text(stringResource(R.string.conversation_audit_write_failed_draft_kept), color = MaterialTheme.colorScheme.error)
+                    }
                 }
             },
             confirmButton = {
                 TextButton(
-                    enabled = editingText != original.content,
+                    enabled = !isSaving && !isGenerating && editingText != original.content,
                     onClick = {
-                        onEditMessage(original.copy(content = editingText))
-                        editingMessage = null
-                        editingText = ""
+                        if (!isSaving && !isGenerating) {
+                            isSaving = true
+                            saveFailed = false
+                            val submitted = editingText
+                            scope.launch {
+                                try {
+                                    if (onEditMessage(original, submitted)) {
+                                        editingMessage = null
+                                        editingText = ""
+                                    } else {
+                                        saveFailed = true
+                                    }
+                                } finally {
+                                    isSaving = false
+                                }
+                            }
+                        }
                     },
                 ) {
-                    Text(stringResource(R.string.conversation_audit_save_revision))
+                    Text(stringResource(if (isSaving) R.string.processing else R.string.conversation_audit_save_revision))
                 }
             },
             dismissButton = {
                 TextButton(
+                    enabled = !isSaving,
                     onClick = {
                         editingMessage = null
                         editingText = ""
@@ -1137,6 +1256,7 @@ private fun AuditRaw(
     hasOlderEvents: Boolean,
     isLoadingOlderEvents: Boolean,
     onLoadOlderEvents: () -> Unit,
+    systemBackEnabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
@@ -1159,7 +1279,7 @@ private fun AuditRaw(
             }
         }
 
-    BackHandler(enabled = expandedEventIds.isNotEmpty() || query.isNotBlank()) {
+    BackHandler(enabled = systemBackEnabled && (expandedEventIds.isNotEmpty() || query.isNotBlank())) {
         if (expandedEventIds.isNotEmpty()) {
             expandedEventIds = emptySet()
         } else {
@@ -1174,6 +1294,7 @@ private fun AuditRaw(
             placeholder = stringResource(R.string.conversation_audit_search_raw),
             matchingCount = filtered.size,
             totalCount = entries.size,
+            loadedOnly = true,
             expanded = filtered.isNotEmpty() && filtered.all { it.event.eventId in expandedEventIds },
             onExpandAll = {
                 expandedEventIds = expandedEventIds + filtered.map { it.event.eventId }
@@ -1182,7 +1303,7 @@ private fun AuditRaw(
                 expandedEventIds = expandedEventIds - filtered.map { it.event.eventId }.toSet()
             },
         )
-        if (filtered.isEmpty()) {
+        if (filtered.isEmpty() && !hasOlderEvents && !isLoadingOlderEvents) {
             EmptyAuditState(
                 text =
                     if (entries.isEmpty()) {
@@ -1198,6 +1319,11 @@ private fun AuditRaw(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 18.dp),
                 ) {
+                    if (filtered.isEmpty()) {
+                        item(key = "no-matching-loaded-raw-events") {
+                            Text(stringResource(R.string.conversation_audit_no_loaded_matches), modifier = Modifier.padding(16.dp))
+                        }
+                    }
                     if (hasOlderEvents || isLoadingOlderEvents) {
                         item(key = "load-older-raw-events") {
                             TextButton(
@@ -1290,38 +1416,59 @@ private fun AuditRaw(
 @Composable
 private fun ExportConversationDialog(
     onDismiss: () -> Unit,
-    onExport: (ConversationAuditExportFormat) -> Unit,
+    onExport: suspend (ConversationAuditExportFormat) -> Boolean,
 ) {
     val colors = LocalKiyoriSettingsColors.current
+    var isExporting by remember { mutableStateOf(false) }
+    var exportFailed by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    fun export(format: ConversationAuditExportFormat) {
+        if (isExporting) return
+        isExporting = true
+        exportFailed = false
+        scope.launch {
+            try {
+                if (onExport(format)) onDismiss() else exportFailed = true
+            } finally {
+                isExporting = false
+            }
+        }
+    }
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isExporting) onDismiss() },
         title = { Text(stringResource(R.string.conversation_audit_export_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     stringResource(R.string.conversation_audit_export_description),
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.secondaryText,
                 )
                 ExportOption(
+                    enabled = !isExporting,
                     title = stringResource(R.string.conversation_audit_export_ai_title),
                     description = stringResource(R.string.conversation_audit_export_ai_description),
                     onClick = {
-                        onExport(ConversationAuditExportFormat.AI_DIAGNOSTICS_MARKDOWN)
+                        export(ConversationAuditExportFormat.AI_DIAGNOSTICS_MARKDOWN)
                     },
                 )
                 ExportOption(
+                    enabled = !isExporting,
                     title = stringResource(R.string.conversation_audit_export_package_title),
                     description =
                         stringResource(R.string.conversation_audit_export_package_description),
                     onClick = {
-                        onExport(ConversationAuditExportFormat.COMPLETE_AUDIT_PACKAGE)
+                        export(ConversationAuditExportFormat.COMPLETE_AUDIT_PACKAGE)
                     },
                 )
+                if (isExporting) CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                if (exportFailed) {
+                    Text(stringResource(R.string.conversation_audit_export_failed_retry), color = MaterialTheme.colorScheme.error)
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+            TextButton(enabled = !isExporting, onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
     )
 }
@@ -1331,10 +1478,11 @@ private fun ExportOption(
     title: String,
     description: String,
     onClick: () -> Unit,
+    enabled: Boolean,
 ) {
     val colors = LocalKiyoriSettingsColors.current
     Surface(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick),
         shape = KiyoriUiShapes.field,
         color = colors.pageBackground,
     ) {
@@ -1351,6 +1499,7 @@ private fun AuditInputField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     val colors = LocalKiyoriSettingsColors.current
     Surface(
@@ -1361,6 +1510,7 @@ private fun AuditInputField(
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
+            enabled = enabled,
             modifier = Modifier.fillMaxSize().padding(14.dp),
             textStyle = MaterialTheme.typography.bodyMedium.copy(color = colors.primaryText),
             decorationBox = { innerTextField ->

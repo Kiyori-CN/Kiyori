@@ -1,6 +1,5 @@
 package com.ai.assistance.operit.ui.features.chat.webview.workspace
 
-import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,222 +23,77 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import android.content.Intent
-import android.net.Uri
-import android.provider.DocumentsContract
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
-import com.ai.assistance.operit.data.preferences.ApiPreferences
-import com.ai.assistance.operit.ui.features.chat.webview.createAndResetWorkspaceDirectory
+import com.ai.assistance.operit.ui.features.chat.webview.createWorkspaceFromTemplate
+import com.ai.assistance.operit.ui.features.chat.webview.getWorkspacePath
+import androidx.activity.compose.BackHandler
+import java.io.File
 import kotlinx.coroutines.*
 
 /**
  * VSCode风格的工作区设置组件
  * 用于初始绑定工作区
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun WorkspaceSetup(chatId: String, onBindWorkspace: (String, String?) -> Unit) {
+fun WorkspaceSetup(chatId: String, isVisible: Boolean = true, onBindWorkspace: suspend (String, String?) -> Unit) {
     val context = LocalContext.current
+    val existingWorkspace = remember(chatId) { File(getWorkspacePath(context, chatId)) }
     var showFileBrowser by remember { mutableStateOf(false) }
     var showProjectTypeDialog by remember { mutableStateOf(false) }
     var projectTypeDialogError by remember { mutableStateOf<String?>(null) }
     var isImportingToolPkgTemplate by remember { mutableStateOf(false) }
-
-    var pendingRepoBookmarkUri by remember { mutableStateOf<Uri?>(null) }
-    var repoBookmarkNameInput by remember { mutableStateOf("") }
-    var showRepoBookmarkNameDialog by remember { mutableStateOf(false) }
-    var repoBookmarkNameError by remember { mutableStateOf<String?>(null) }
 
     val scope = rememberCoroutineScope()
     val toolHandler = remember { AIToolHandler.getInstance(context) }
     val packageManager = remember { PackageManager.getInstance(context, toolHandler) }
     var toolPkgWorkspaceTemplates by remember { mutableStateOf<List<PackageManager.ToolPkgWorkspaceTemplate>>(emptyList()) }
 
-    val apiPreferences = remember { ApiPreferences.getInstance(context) }
-    val safBookmarks by apiPreferences.safBookmarksFlow.collectAsState(initial = emptyList())
-
     LaunchedEffect(Unit) {
         toolPkgWorkspaceTemplates = packageManager.getToolPkgWorkspaceTemplates(context)
     }
 
-    fun querySafBookmarkDisplayName(uri: Uri): String {
-        return try {
-            val treeDocId = DocumentsContract.getTreeDocumentId(uri)
-            val docUri = DocumentsContract.buildDocumentUriUsingTree(uri, treeDocId)
-
-            context.contentResolver.query(
-                docUri,
-                arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                val idx = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
-                if (cursor.moveToFirst() && idx >= 0 && !cursor.isNull(idx)) {
-                    cursor.getString(idx)
-                } else {
-                    null
-                }
-            } ?: uri.toString()
-        } catch (_: Exception) {
-            uri.toString()
-        }
-    }
-
-    fun queryRepoBookmarkName(uri: Uri): String {
-        fun normalizeName(raw: String): String {
-            return raw.trim()
-                .lowercase(java.util.Locale.ROOT)
-                .replace(Regex("\\s+"), "_")
-                .ifBlank { "repo" }
-        }
-
-        val providerLabel =
-            runCatching {
-                val authority = uri.authority ?: return@runCatching null
-                val provider = context.packageManager.resolveContentProvider(authority, 0)
-                provider?.applicationInfo?.loadLabel(context.packageManager)?.toString()?.trim()
-            }.getOrNull()
-
-        val raw = providerLabel?.takeIf { it.isNotBlank() } ?: uri.authority ?: "repo"
-        return normalizeName(raw)
-    }
-
-    val bindSafLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocumentTree()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-            runCatching { context.contentResolver.takePersistableUriPermission(uri, flags) }
-            pendingRepoBookmarkUri = uri
-            repoBookmarkNameInput = queryRepoBookmarkName(uri)
-            showRepoBookmarkNameDialog = true
-        }
-    }
-
-    fun bindBuiltInWorkspace(projectType: String?) {
-        val workspaceDir =
-            if (projectType == null) {
-                createAndGetDefaultWorkspace(context, chatId)
-            } else {
-                createAndGetDefaultWorkspace(context, chatId, projectType)
-            }
-        onBindWorkspace(workspaceDir.absolutePath, null)
-        showProjectTypeDialog = false
-        projectTypeDialogError = null
-    }
-
-    fun importToolPkgWorkspaceTemplate(template: PackageManager.ToolPkgWorkspaceTemplate) {
+    fun createAndBind(create: () -> File) {
         if (isImportingToolPkgTemplate) return
         projectTypeDialogError = null
         isImportingToolPkgTemplate = true
         scope.launch {
-            val importAttempt =
-                withContext(Dispatchers.IO) {
-                    val workspaceDir = createAndResetWorkspaceDirectory(context, chatId)
-                    packageManager.importToolPkgWorkspaceTemplate(
-                        containerPackageName = template.containerPackageName,
-                        templateId = template.templateId,
-                        destinationDir = workspaceDir
-                    ).fold(
-                        onSuccess = { Result.success(workspaceDir to it) },
-                        onFailure = {
-                            if (workspaceDir.exists()) {
-                                workspaceDir.deleteRecursively()
-                            }
-                            Result.failure(it)
-                        }
-                    )
-                }
-
-            importAttempt.fold(
-                onSuccess = { (_, result) ->
-                    showProjectTypeDialog = false
-                    onBindWorkspace(result.workspacePath, null)
-                },
-                onFailure = {
-                    projectTypeDialogError =
-                        it.message ?: context.getString(R.string.workspace_template_import_failed)
-                }
-            )
-            isImportingToolPkgTemplate = false
+            try {
+                val directory = withContext(Dispatchers.IO) { create() }
+                onBindWorkspace(directory.absolutePath, null)
+                showProjectTypeDialog = false
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                com.ai.assistance.operit.util.AppLogger.e("WorkspaceSetup", "Failed to create workspace", error)
+                projectTypeDialogError = if (existingWorkspace.exists()) {
+                    context.getString(R.string.workspace_existing_preserved)
+                } else context.getString(R.string.workspace_template_import_failed)
+            } finally {
+                isImportingToolPkgTemplate = false
+            }
         }
     }
 
-    if (showRepoBookmarkNameDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showRepoBookmarkNameDialog = false
-                pendingRepoBookmarkUri = null
-                repoBookmarkNameError = null
-            },
-            title = { Text(context.getString(R.string.repo_bookmark_name)) },
-            text = {
-                TextField(
-                    value = repoBookmarkNameInput,
-                    onValueChange = {
-                        repoBookmarkNameInput = it
-                        repoBookmarkNameError = null
-                    },
-                    label = { Text(context.getString(R.string.repo_bookmark_name_label)) },
-                    singleLine = true,
-                    isError = repoBookmarkNameError != null,
-                    supportingText = {
-                        repoBookmarkNameError?.let { Text(it) }
-                    }
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val uri = pendingRepoBookmarkUri
-                        val name = repoBookmarkNameInput.trim()
-                        if (uri == null) {
-                            showRepoBookmarkNameDialog = false
-                            pendingRepoBookmarkUri = null
-                            repoBookmarkNameError = null
-                            return@TextButton
-                        }
-
-                        if (name.isEmpty()) {
-                            repoBookmarkNameError = context.getString(R.string.repo_bookmark_name_empty)
-                            return@TextButton
-                        }
-
-                        val nameExists = safBookmarks.any {
-                            it.uri != uri.toString() && it.name.equals(name, ignoreCase = true)
-                        }
-                        if (nameExists) {
-                            repoBookmarkNameError = context.getString(R.string.repo_bookmark_name_exists)
-                            return@TextButton
-                        }
-
-                        scope.launch {
-                            apiPreferences.addSafBookmark(uri.toString(), name)
-                            onBindWorkspace("/", "repo:$name")
-                        }
-
-                        showRepoBookmarkNameDialog = false
-                        pendingRepoBookmarkUri = null
-                        repoBookmarkNameError = null
-                    }
-                ) { Text(context.getString(android.R.string.ok)) }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showRepoBookmarkNameDialog = false
-                        pendingRepoBookmarkUri = null
-                        repoBookmarkNameError = null
-                    }
-                ) { Text(context.getString(android.R.string.cancel)) }
-            }
-        )
+    fun bindBuiltInWorkspace(projectType: String?) {
+        createAndBind { createAndGetDefaultWorkspace(context, chatId, projectType) }
     }
 
-    if (showFileBrowser) {
+    fun importToolPkgWorkspaceTemplate(template: PackageManager.ToolPkgWorkspaceTemplate) {
+        createAndBind {
+            createWorkspaceFromTemplate(context, chatId) { directory ->
+                packageManager.importToolPkgWorkspaceTemplate(
+                    containerPackageName = template.containerPackageName,
+                    templateId = template.templateId,
+                    destinationDir = directory,
+                ).getOrThrow()
+            }
+        }
+    }
+
+    BackHandler(enabled = isVisible && showFileBrowser) { showFileBrowser = false }
+    if (isVisible && showFileBrowser) {
         FileBrowser(
             initialPath = context.filesDir.absolutePath, // 默认应用内部目录
             onBindWorkspace = { path, env -> onBindWorkspace(path, env) },
@@ -256,11 +110,12 @@ fun WorkspaceSetup(chatId: String, onBindWorkspace: (String, String?) -> Unit) {
                     enabled = true,
                     onClick = {}
                 ) // 添加点击拦截
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (showProjectTypeDialog) {
+            if (isVisible && showProjectTypeDialog) {
                 AlertDialog(
                     onDismissRequest = {
                         if (!isImportingToolPkgTemplate) {
@@ -287,6 +142,12 @@ fun WorkspaceSetup(chatId: String, onBindWorkspace: (String, String?) -> Unit) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
 
+                            if (existingWorkspace.isDirectory) {
+                                OutlinedButton(
+                                    enabled = !isImportingToolPkgTemplate,
+                                    onClick = { createAndBind { existingWorkspace } },
+                                ) { Text(context.getString(R.string.workspace_rebind_existing)) }
+                            }
                             projectTypeDialogError?.let { error ->
                                 Text(
                                     text = error,
@@ -306,6 +167,7 @@ fun WorkspaceSetup(chatId: String, onBindWorkspace: (String, String?) -> Unit) {
                             Spacer(modifier = Modifier.height(8.dp))
                             
                             ProjectTypeCard(
+                                enabled = !isImportingToolPkgTemplate,
                                 icon = Icons.Default.CreateNewFolder,
                                 title = context.getString(R.string.workspace_project_type_blank_title),
                                 description = context.getString(R.string.workspace_project_type_blank_description),
@@ -316,6 +178,7 @@ fun WorkspaceSetup(chatId: String, onBindWorkspace: (String, String?) -> Unit) {
                             
                             // Office 项目卡片
                             ProjectTypeCard(
+                                enabled = !isImportingToolPkgTemplate,
                                 icon = Icons.Default.Description,
                                 title = context.getString(R.string.workspace_project_type_office_title),
                                 description = context.getString(R.string.workspace_project_type_office_description),
@@ -326,6 +189,7 @@ fun WorkspaceSetup(chatId: String, onBindWorkspace: (String, String?) -> Unit) {
                             
                             // Web 项目卡片
                             ProjectTypeCard(
+                                enabled = !isImportingToolPkgTemplate,
                                 icon = Icons.Default.Language,
                                 title = context.getString(R.string.workspace_project_type_web_title),
                                 description = context.getString(R.string.workspace_project_type_web_description),
@@ -336,6 +200,7 @@ fun WorkspaceSetup(chatId: String, onBindWorkspace: (String, String?) -> Unit) {
 
                             // Android 项目卡片
                             ProjectTypeCard(
+                                enabled = !isImportingToolPkgTemplate,
                                 icon = Icons.Default.PhoneAndroid,
                                 title = context.getString(R.string.workspace_project_type_android_title),
                                 description = context.getString(R.string.workspace_project_type_android_description),
@@ -346,6 +211,7 @@ fun WorkspaceSetup(chatId: String, onBindWorkspace: (String, String?) -> Unit) {
 
                             // Flutter 项目卡片
                             ProjectTypeCard(
+                                enabled = !isImportingToolPkgTemplate,
                                 icon = Icons.Default.Widgets,
                                 title = context.getString(R.string.workspace_project_type_flutter_title),
                                 description = context.getString(R.string.workspace_project_type_flutter_description),
@@ -356,6 +222,7 @@ fun WorkspaceSetup(chatId: String, onBindWorkspace: (String, String?) -> Unit) {
                              
                             // Node.js 项目卡片
                             ProjectTypeCard(
+                                enabled = !isImportingToolPkgTemplate,
                                 icon = Icons.Default.Terminal,
                                 title = context.getString(R.string.workspace_project_type_node_title),
                                 description = context.getString(R.string.workspace_project_type_node_description),
@@ -366,6 +233,7 @@ fun WorkspaceSetup(chatId: String, onBindWorkspace: (String, String?) -> Unit) {
                             
                             // TypeScript 项目卡片
                             ProjectTypeCard(
+                                enabled = !isImportingToolPkgTemplate,
                                 icon = Icons.Default.Code,
                                 title = context.getString(R.string.workspace_project_type_typescript_title),
                                 description = context.getString(R.string.workspace_project_type_typescript_description),
@@ -376,6 +244,7 @@ fun WorkspaceSetup(chatId: String, onBindWorkspace: (String, String?) -> Unit) {
                             
                             // Python 项目卡片
                             ProjectTypeCard(
+                                enabled = !isImportingToolPkgTemplate,
                                 icon = Icons.Default.Code,
                                 title = context.getString(R.string.workspace_project_type_python_title),
                                 description = context.getString(R.string.workspace_project_type_python_description),
@@ -386,6 +255,7 @@ fun WorkspaceSetup(chatId: String, onBindWorkspace: (String, String?) -> Unit) {
                             
                             // Java 项目卡片
                             ProjectTypeCard(
+                                enabled = !isImportingToolPkgTemplate,
                                 icon = Icons.Default.Settings,
                                 title = context.getString(R.string.workspace_project_type_java_title),
                                 description = context.getString(R.string.workspace_project_type_java_description),
@@ -396,6 +266,7 @@ fun WorkspaceSetup(chatId: String, onBindWorkspace: (String, String?) -> Unit) {
                             
                             // Go 项目卡片
                             ProjectTypeCard(
+                                enabled = !isImportingToolPkgTemplate,
                                 icon = Icons.Default.Build,
                                 title = context.getString(R.string.workspace_project_type_go_title),
                                 description = context.getString(R.string.workspace_project_type_go_description),
@@ -414,6 +285,7 @@ fun WorkspaceSetup(chatId: String, onBindWorkspace: (String, String?) -> Unit) {
 
                                 toolPkgWorkspaceTemplates.forEach { template ->
                                     ProjectTypeCard(
+                                        enabled = !isImportingToolPkgTemplate,
                                         icon = Icons.Default.Extension,
                                         title = template.displayName,
                                         description =
@@ -476,10 +348,10 @@ fun WorkspaceSetup(chatId: String, onBindWorkspace: (String, String?) -> Unit) {
             Spacer(modifier = Modifier.height(40.dp))
             
             // VSCode风格的选项卡
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 WorkspaceOption(
                     icon = Icons.Default.CreateNewFolder,
@@ -510,12 +382,13 @@ fun ProjectTypeCard(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     description: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    enabled: Boolean = true,
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         ),
@@ -589,7 +462,7 @@ fun WorkspaceOption(
     Card(
         modifier = Modifier
             .width(160.dp) // 调整大小
-            .height(160.dp)
+            .heightIn(min = 160.dp)
             .clip(RoundedCornerShape(12.dp)) // 更圆的角
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(

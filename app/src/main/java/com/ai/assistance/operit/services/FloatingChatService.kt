@@ -28,8 +28,6 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.api.chat.AIForegroundService
 import com.ai.assistance.operit.api.chat.ChatRuntimeHolder
 import com.ai.assistance.operit.api.chat.ChatRuntimeSlot
-import com.ai.assistance.operit.api.speech.SpeechServiceFactory
-import com.ai.assistance.operit.api.voice.VoiceServiceFactory
 import com.ai.assistance.operit.data.model.AttachmentInfo
 import com.ai.assistance.operit.data.model.ChatMessage
 import com.ai.assistance.operit.data.model.InputProcessingState
@@ -608,23 +606,7 @@ class FloatingChatService : Service(), FloatingWindowCallback {
             } catch (_: Exception) {
             }
 
-            try {
-                CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-                    try {
-                        try {
-                            SpeechServiceFactory.getInstance(applicationContext).cancelRecognition()
-                        } catch (_: Exception) {
-                        }
-                        try {
-                            VoiceServiceFactory.getInstance(applicationContext).stop()
-                        } catch (_: Exception) {
-                        }
-                    } catch (_: Exception) {
-                    }
-                }
-            } catch (_: Exception) {
-            }
-            
+            // 语音资源由组合中的 SpeechInteractionManager 按调用身份释放。
             serviceScope.cancel()
             saveState()
             super.onDestroy()
@@ -657,19 +639,6 @@ class FloatingChatService : Service(), FloatingWindowCallback {
                 false
             )
             chatCore.cancelCurrentMessage()
-        } catch (_: Exception) {
-        }
-        try {
-            serviceScope.launch(Dispatchers.IO) {
-                try {
-                    try {
-                        SpeechServiceFactory.getInstance(applicationContext).cancelRecognition()
-                    } catch (_: Exception) {
-                    }
-                    VoiceServiceFactory.getInstance(applicationContext).stop()
-                } catch (_: Exception) {
-                }
-            }
         } catch (_: Exception) {
         }
         try {

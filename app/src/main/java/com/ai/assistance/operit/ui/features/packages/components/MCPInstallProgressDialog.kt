@@ -1,5 +1,7 @@
 package com.ai.assistance.operit.ui.features.packages.screens.mcp.components
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -41,6 +43,7 @@ import com.kiyori.design.theme.KiyoriUiShapes
 fun MCPInstallProgressDialog(
         installProgress: InstallProgress?,
         onDismissRequest: () -> Unit,
+        onRetry: (() -> Unit)? = null,
         result: InstallResult? = null,
         serverName: String = "",
         operationType: String = ""
@@ -65,7 +68,7 @@ fun MCPInstallProgressDialog(
             title = { Text("$operationType $serverName") },
             text = {
                 Column(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
                         horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     when {
@@ -201,7 +204,9 @@ fun MCPInstallProgressDialog(
                 }
             },
             dismissButton = {
-                if (installProgress !is InstallProgress.Finished && result == null) {
+                if (result is InstallResult.Error && onRetry != null) {
+                    TextButton(onClick = onRetry) { Text(stringResource(R.string.mcp_retry)) }
+                } else if (installProgress !is InstallProgress.Finished && result == null) {
                     TextButton(onClick = onDismissRequest, enabled = false) { Text(stringResource(R.string.mcp_operation_in_progress, operationType)) }
                 }
             }

@@ -95,4 +95,9 @@ object AppLogger {
 
     @JvmStatic
     fun resetLogFile() = KiyoriLogger.resetLogFile()
+
+    suspend fun clearApplicationLog() = KiyoriLogger.clearApplicationLog()
+
+    suspend fun copyApplicationLogSnapshot(destination: File): Boolean =
+        KiyoriLogger.copyApplicationLogSnapshot(destination)
 }

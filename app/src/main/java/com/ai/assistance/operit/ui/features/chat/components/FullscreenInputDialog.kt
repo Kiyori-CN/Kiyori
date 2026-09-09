@@ -10,6 +10,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,7 +35,14 @@ fun FullscreenInputDialog(
 ) {
     val mentionVisualTransformation =
         rememberMentionVisualTransformation(MaterialTheme.typography.bodyLarge)
-    var editorValue by remember { mutableStateOf(value) }
+    var editorValue by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(value) }
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+        keyboardController?.show()
+    }
 
     fun finishEditing() {
         onValueChange(editorValue)
@@ -68,7 +80,8 @@ fun FullscreenInputDialog(
 
                     Text(
                         text = stringResource(R.string.chat_fullscreen_input),
-                        style = MaterialTheme.typography.titleMedium
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
                     )
 
                     IconButton(
@@ -92,8 +105,9 @@ fun FullscreenInputDialog(
                     onValueChange = { editorValue = it },
                     visualTransformation = mentionVisualTransformation,
                     modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f),
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .focusRequester(focusRequester),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,

@@ -37,6 +37,7 @@ import com.ai.assistance.operit.data.mcp.MCPLocalServer
 fun MCPServerDetailsActions(
     server: MCPLocalServer.PluginMetadata,
     isInstalled: Boolean,
+    enabled: Boolean = true,
     onInstall: (MCPLocalServer.PluginMetadata) -> Unit,
     onUninstall: (MCPLocalServer.PluginMetadata) -> Unit
 ) {
@@ -74,6 +75,7 @@ fun MCPServerDetailsActions(
         if (isInstalled) {
             Button(
                 onClick = { onUninstall(server) },
+                enabled = enabled,
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error,
@@ -89,6 +91,7 @@ fun MCPServerDetailsActions(
         } else {
             Button(
                 onClick = { onInstall(server) },
+                enabled = enabled,
                 modifier = Modifier.weight(1f)
             ) {
                 Icon(

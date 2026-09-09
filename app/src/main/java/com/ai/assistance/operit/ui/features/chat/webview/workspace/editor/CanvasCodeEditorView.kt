@@ -356,7 +356,7 @@ class CanvasCodeEditorView @JvmOverloads constructor(
         currentLanguage = language
         completionProvider = CompletionProviderFactory.getProvider(language)
         highlighter.setLanguage(language)
-        setEditorTheme(getThemeForLanguage(language))
+        // 语言只控制高亮分类；颜色由宿主主题持有，不能覆盖浅色设置。
         requestHighlight()
         updateCompletion()
     }

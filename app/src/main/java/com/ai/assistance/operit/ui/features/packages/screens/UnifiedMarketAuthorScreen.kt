@@ -1,6 +1,5 @@
 package com.ai.assistance.operit.ui.features.packages.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,9 +25,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberUpdatedState
+import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +60,8 @@ fun UnifiedMarketAuthorScreen(
     onNavigateToDetail: (MarketV2Entry) -> Unit
 ) {
     val context = LocalContext.current
+    val isCurrentScreen = LocalIsCurrentScreen.current
+    val currentlyVisible by rememberUpdatedState(isCurrentScreen)
     val viewModel: UnifiedMarketAuthorViewModel =
         viewModel(
             key = "market-author-$authorId",
@@ -65,6 +69,7 @@ fun UnifiedMarketAuthorScreen(
         )
     val entries by viewModel.entries.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val openingEntryId by viewModel.openingEntryId.collectAsState()
     val hasLoaded by viewModel.hasLoaded.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val ownedEntries = entries.filter { it.relation.equals("owner", ignoreCase = true) }
@@ -82,11 +87,8 @@ fun UnifiedMarketAuthorScreen(
         viewModel.loadEntries()
     }
 
-    errorMessage?.let { error ->
-        LaunchedEffect(error) {
-            Toast.makeText(context, error, Toast.LENGTH_LONG).show()
-            viewModel.clearError()
-        }
+    LaunchedEffect(isCurrentScreen) {
+        if (!isCurrentScreen) viewModel.cancelOpeningEntry()
     }
 
     LazyColumn(
@@ -102,6 +104,15 @@ fun UnifiedMarketAuthorScreen(
             )
         }
 
+        item {
+            Column {
+                errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                TextButton(enabled = !isLoading, onClick = { viewModel.loadEntries(refresh = true) }) {
+                    Text(stringResource(R.string.refresh))
+                }
+            }
+        }
+
         if (isLoading && !hasLoaded) {
             item {
                 MarketAuthorLoadingCard()
@@ -114,7 +125,9 @@ fun UnifiedMarketAuthorScreen(
                 items(ownedEntries, key = { "owned-${it.id}" }) { entry ->
                     MarketAuthorEntryCard(
                         entry = entry,
-                        onClick = { viewModel.openEntryDetail(entry, onNavigateToDetail) }
+                        enabled = openingEntryId == null,
+                        loading = openingEntryId == entry.id,
+                        onClick = { viewModel.openEntryDetail(entry) { if (currentlyVisible) onNavigateToDetail(it) } }
                     )
                 }
             }
@@ -126,12 +139,14 @@ fun UnifiedMarketAuthorScreen(
                 items(contributedEntries, key = { "contributed-${it.id}" }) { entry ->
                     MarketAuthorEntryCard(
                         entry = entry,
-                        onClick = { viewModel.openEntryDetail(entry, onNavigateToDetail) }
+                        enabled = openingEntryId == null,
+                        loading = openingEntryId == entry.id,
+                        onClick = { viewModel.openEntryDetail(entry) { if (currentlyVisible) onNavigateToDetail(it) } }
                     )
                 }
             }
 
-            if (ownedEntries.isEmpty() && contributedEntries.isEmpty()) {
+            if (hasLoaded && errorMessage == null && ownedEntries.isEmpty() && contributedEntries.isEmpty()) {
                 item {
                     MarketAuthorEmptyCard()
                 }
@@ -214,12 +229,14 @@ private fun MarketAuthorSectionTitle(text: String) {
 @Composable
 private fun MarketAuthorEntryCard(
     entry: MarketV2PublisherEntrySummary,
+    enabled: Boolean,
+    loading: Boolean,
     onClick: () -> Unit
 ) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         shape = KiyoriUiShapes.card,
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp,
@@ -253,7 +270,8 @@ private fun MarketAuthorEntryCard(
             }
 
             MarketAuthorEntryRelationChip(entry.relation)
-            Icon(
+            if (loading) CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+            else Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant

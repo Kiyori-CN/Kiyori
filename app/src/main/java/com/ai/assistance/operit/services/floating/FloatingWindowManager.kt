@@ -199,6 +199,8 @@ class FloatingWindowManager(
         if (isViewAdded) {
             composeView?.let {
                 cancelFocusBeforeExit()
+                // 显式结束组合，确保语音与输入 owner 的 DisposableEffect 在窗口销毁时释放。
+                it.disposeComposition()
                 try {
                     windowManager.removeView(it)
                 } catch (e: Exception) {
