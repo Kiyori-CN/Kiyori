@@ -55,6 +55,7 @@ import com.ai.assistance.operit.util.MediaPoolManager
 import com.ai.assistance.operit.util.HttpMultiPartDownloader
 import com.ai.assistance.operit.util.FFmpegUtil
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -78,6 +79,9 @@ import com.ai.assistance.operit.data.preferences.ModelConfigManager
 import com.ai.assistance.operit.terminal.TerminalManager
 import com.ai.assistance.operit.terminal.provider.filesystem.FileSystemProvider
 import com.ai.assistance.operit.terminal.utils.SSHFileConnectionManager
+import com.ai.assistance.operit.terminal.provider.filesystem.LocalFileSystemProvider
+import com.ai.assistance.operit.terminal.provider.filesystem.PRootMountMapping
+import com.ai.assistance.operit.util.ripgrep.NativeGrepTarget
 import com.ai.assistance.operit.core.tools.defaultTool.PathValidator
 import com.ai.assistance.operit.util.LocaleUtils
 import com.ai.assistance.operit.util.ripgrep.NativeRipgrep
@@ -281,18 +285,65 @@ open class StandardFileSystemTools(protected val context: Context) {
         return trimmed.take(maxChars) + "...(truncated)"
     }
 
+    private fun resolveNativeGrepTarget(path: String, environment: String?): NativeGrepTarget {
+        val env = environment.orEmpty().trim().lowercase().ifEmpty { "android" }
+        require(env == "android" || env == "linux") {
+            "Unsupported search environment '$env'. Use android or linux."
+        }
+        require('\u0000' !in path) { "Search path must not contain NUL" }
+        if (env == "android") return NativeGrepTarget(path, path)
+
+        // 文件提供者可能来自独立 SSH 登录；不能将远端路径误映射到本机同名文件。
+        check(getLinuxFileSystem() is LocalFileSystemProvider) {
+            "Native code search is unavailable for the active SSH file system. " +
+                "Use read_file/read_file_part with environment=linux, or run grep in the matching SSH terminal."
+        }
+        val ubuntuRoot = File(context.filesDir, "usr/var/lib/proot-distro/installed-rootfs/ubuntu")
+        check(ubuntuRoot.isDirectory) {
+            "Local Ubuntu file system is not installed. Set up the terminal environment before Linux search."
+        }
+        return NativeGrepTarget.linux(path) { guestPath ->
+            PRootMountMapping.mapLinuxPathToHostPath(
+                linuxPath = guestPath,
+                ubuntuRoot = ubuntuRoot,
+                homeDir = context.filesDir.absolutePath,
+                appDataDir = context.applicationInfo.dataDir,
+                packageName = context.packageName,
+                chrootEnabled = context.getSharedPreferences("terminal_settings", Context.MODE_PRIVATE)
+                    .getBoolean("chroot_enabled", false)
+            )
+        }
+    }
+
+    private fun validateNativeGrepTarget(target: NativeGrepTarget, environment: String?) {
+        val file = File(target.searchPath)
+        val env = environment.orEmpty().trim().ifBlank { "android" }
+        check(file.exists()) {
+            "Search path does not exist or is inaccessible in $env: ${target.displayPath}. " +
+                "Confirm it with file_exists/list_files using the same environment. " +
+                if (env.equals("android", ignoreCase = true)) {
+                    "For Ubuntu paths such as /root/... or /home/..., explicitly set environment=linux."
+                } else "Check the active Linux file system and file path."
+        }
+        check(file.isFile || file.isDirectory) { "Search path must be a regular file or directory: ${target.displayPath}" }
+        check(file.canRead()) { "Search path is not readable in $env: ${target.displayPath}" }
+    }
+
     private suspend fun searchNativeRipgrepBlocks(
         path: String,
         patterns: List<String>,
         filePattern: String,
         caseInsensitive: Boolean,
         contextLines: Int,
-        maxResults: Int
+        maxResults: Int,
+        environment: String? = null,
+        target: NativeGrepTarget = resolveNativeGrepTarget(path, environment)
     ): Pair<List<RipgrepBlock>, Int> =
         withContext(Dispatchers.IO) {
+            validateNativeGrepTarget(target, environment)
             val rawResult =
                 NativeRipgrep.searchJson(
-                    path = path,
+                    path = target.searchPath,
                     patterns = patterns.toTypedArray(),
                     filePattern = filePattern,
                     caseInsensitive = caseInsensitive,
@@ -300,13 +351,15 @@ open class StandardFileSystemTools(protected val context: Context) {
                     contextLines = contextLines.coerceAtLeast(0),
                     maxResults = maxResults.coerceAtLeast(0)
                 )
-            parseNativeRipgrepBlocks(rawResult)
+            val (blocks, filesSearched) = parseNativeRipgrepBlocks(rawResult, target)
+            Pair(blocks.map { it.copy(filePath = target.displayFilePath(it.filePath)) }, filesSearched)
         }
 
-    private fun parseNativeRipgrepBlocks(output: String): Pair<List<RipgrepBlock>, Int> {
+    private fun parseNativeRipgrepBlocks(output: String, target: NativeGrepTarget): Pair<List<RipgrepBlock>, Int> {
         val json = JSONObject(output)
         if (!json.optBoolean("success", false)) {
-            throw IllegalStateException(json.optString("error").ifBlank { "native ripgrep search failed" })
+            val error = json.optString("error").ifBlank { "native ripgrep search failed" }
+            throw IllegalStateException(error.replace(target.searchPath, target.displayPath))
         }
 
         val blocksJson = json.optJSONArray("blocks")
@@ -444,6 +497,8 @@ open class StandardFileSystemTools(protected val context: Context) {
         }
 
         val completedQueries = AtomicInteger(0)
+        // 一批查询固定一个路径空间，不能在并行查询之间切换本地/SSH 目标。
+        val target = resolveNativeGrepTarget(searchPath, environment)
         val executions =
             coroutineScope {
                 indexedQueries.map { (index, query) ->
@@ -455,7 +510,9 @@ open class StandardFileSystemTools(protected val context: Context) {
                                 filePattern = filePattern,
                                 caseInsensitive = true,
                                 contextLines = 3,
-                                maxResults = perQueryMaxResults
+                                maxResults = perQueryMaxResults,
+                                environment = environment,
+                                target = target
                             )
 
                         if (toolNameForProgress != null && progressSpan > 0f) {
@@ -551,6 +608,8 @@ open class StandardFileSystemTools(protected val context: Context) {
         envLabel: String
     ): ToolResult {
         return try {
+            val target = resolveNativeGrepTarget(path, envLabel)
+            validateNativeGrepTarget(target, envLabel)
             val effectiveMaxResults = maxResults.coerceAtLeast(0)
             if (effectiveMaxResults == 0) {
                 ToolProgressBus.update(toolName, 1f, "Search completed")
@@ -577,7 +636,9 @@ open class StandardFileSystemTools(protected val context: Context) {
                     filePattern = filePattern,
                     caseInsensitive = caseInsensitive,
                     contextLines = contextLines,
-                    maxResults = effectiveMaxResults
+                    maxResults = effectiveMaxResults,
+                    environment = envLabel,
+                    target = target
                 )
             val limitedBlocks = parsedBlocks.take(effectiveMaxResults)
             val fileMatches = groupRipgrepBlocks(limitedBlocks)
@@ -596,6 +657,8 @@ open class StandardFileSystemTools(protected val context: Context) {
                 ),
                 error = ""
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             AppLogger.e(TAG, "Error performing native ripgrep code search", e)
             ToolProgressBus.update(toolName, 1f, "Search failed")
@@ -603,7 +666,7 @@ open class StandardFileSystemTools(protected val context: Context) {
                 toolName = toolName,
                 success = false,
                 result = StringResultData(""),
-                error = "Error performing native grep search: ${e.message}"
+                error = "Code search failed (environment=$envLabel, path=$path): ${e.message}"
             )
         }
     }
@@ -619,6 +682,7 @@ open class StandardFileSystemTools(protected val context: Context) {
         envLabel: String
     ): ToolResult {
         return try {
+            validateNativeGrepTarget(resolveNativeGrepTarget(searchPath, environment), environment)
             val overallStartTime = System.currentTimeMillis()
             ToolProgressBus.update(toolName, 0f, "Preparing search...")
 
@@ -793,13 +857,15 @@ open class StandardFileSystemTools(protected val context: Context) {
                 ),
                 error = ""
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             AppLogger.e(TAG, "Error performing context search", e)
             ToolResult(
                 toolName = toolName,
                 success = false,
                 result = StringResultData(""),
-                error = "Error performing context search: ${e.message}"
+                error = "Context search failed (environment=$envLabel, path=$displayPath): ${e.message}"
             )
         }
     }
@@ -4762,13 +4828,10 @@ open class StandardFileSystemTools(protected val context: Context) {
         }
     }
 
-    /**
-     * Grep代码搜索工具 - 在指定目录中搜索包含指定模式的代码
-     * 依赖 findFiles 和 readFileFull 函数，不直接使用 File 类
-     */
+    /** native ripgrep 搜索；Linux 路径必须先按当前文件系统解析，结果再还原。 */
     open suspend fun grepCode(tool: AITool): ToolResult {
         val path = tool.parameters.find { it.name == "path" }?.value ?: ""
-        val environment = tool.parameters.find { it.name == "environment" }?.value
+        val environment = tool.parameters.find { it.name == "environment" }?.value?.trim()?.lowercase()
         val pattern = tool.parameters.find { it.name == "pattern" }?.value ?: ""
         val filePattern = tool.parameters.find { it.name == "file_pattern" }?.value ?: "*"
         val caseInsensitive =
@@ -4830,7 +4893,7 @@ open class StandardFileSystemTools(protected val context: Context) {
 
     open suspend fun grepContext(tool: AITool): ToolResult {
         val path = tool.parameters.find { it.name == "path" }?.value ?: ""
-        val environment = tool.parameters.find { it.name == "environment" }?.value
+        val environment = tool.parameters.find { it.name == "environment" }?.value?.trim()?.lowercase()
         val intent = tool.parameters.find { it.name == "intent" }?.value ?: ""
         val filePattern = tool.parameters.find { it.name == "file_pattern" }?.value ?: "*"
         val maxResults = tool.parameters.find { it.name == "max_results" }?.value?.toIntOrNull() ?: 10
@@ -4869,6 +4932,7 @@ open class StandardFileSystemTools(protected val context: Context) {
         }
 
         return try {
+            validateNativeGrepTarget(resolveNativeGrepTarget(path, environment), environment)
             val file = File(path)
             if (file.isFile) {
                 grepContextInFile(
@@ -4906,15 +4970,13 @@ open class StandardFileSystemTools(protected val context: Context) {
         maxResults: Int,
         toolName: String
     ): ToolResult {
-        val file = File(path)
-        val parent = file.parent ?: path
         return grepContextAgentic(
             toolName = toolName,
             displayPath = path,
-            searchPath = parent,
+            searchPath = path,
             environment = null,
             intent = intent,
-            filePattern = file.name,
+            filePattern = "*",
             maxResults = maxResults,
             envLabel = "android"
         )

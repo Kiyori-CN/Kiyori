@@ -201,8 +201,8 @@ object SystemToolPrompts {
                 name = "grep_code",
                 description = "Search code content matching a regex pattern in files. Returns matches with surrounding context lines.",
                 parametersStructured = listOf(
-                    ToolParameterSchema(name = "path", type = "string", description = "search path", required = true),
-                    ToolParameterSchema(name = "environment", type = "string", description = "optional, same as read_file environment", required = false),
+                    ToolParameterSchema(name = "path", type = "string", description = "absolute file/directory path; for local Ubuntu use /root/... or ~/... with environment=linux", required = true),
+                    ToolParameterSchema(name = "environment", type = "string", description = "android (default) or linux (local Ubuntu). Must specify linux for Ubuntu paths. Native search does not support an active SSH file system; use read_file/read_file_part or grep in the matching SSH terminal. On path errors verify with file_exists/list_files in the same environment before retrying.", required = false),
                     ToolParameterSchema(name = "pattern", type = "string", description = "regex pattern", required = true),
                     ToolParameterSchema(name = "file_pattern", type = "string", description = "file filter", required = false, default = "\"*\""),
                     ToolParameterSchema(name = "case_insensitive", type = "boolean", description = "boolean", required = false, default = "false"),
@@ -215,7 +215,7 @@ object SystemToolPrompts {
                 description = "Search for relevant content based on intent/context understanding. Supports two modes: 1) Directory mode: when path is a directory, finds most relevant files. 2) File mode: when path is a file, finds most relevant code segments within that file. Uses semantic relevance scoring.",
                 parametersStructured = listOf(
                     ToolParameterSchema(name = "path", type = "string", description = "directory or file path", required = true),
-                    ToolParameterSchema(name = "environment", type = "string", description = "optional, same as read_file environment", required = false),
+                    ToolParameterSchema(name = "environment", type = "string", description = "android (default) or linux (local Ubuntu). Specify linux for /root/... or ~/...; active SSH file systems are not supported by native search. Verify path errors with file_exists/list_files in the same environment before retrying.", required = false),
                     ToolParameterSchema(name = "intent", type = "string", description = "intent or context description string", required = true),
                     ToolParameterSchema(name = "file_pattern", type = "string", description = "file filter for directory mode", required = false, default = "\"*\""),
                     ToolParameterSchema(name = "max_results", type = "integer", description = "maximum items to return", required = false, default = "10")
@@ -348,8 +348,8 @@ object SystemToolPrompts {
                 name = "grep_code",
                 description = "在文件中搜索匹配正则表达式的代码内容，返回带上下文的匹配结果。",
                 parametersStructured = listOf(
-                    ToolParameterSchema(name = "path", type = "string", description = "搜索路径", required = true),
-                    ToolParameterSchema(name = "environment", type = "string", description = "可选，同 read_file 的 environment", required = false),
+                    ToolParameterSchema(name = "path", type = "string", description = "文件或目录的绝对路径；本地 Ubuntu 使用 /root/... 或 ~/... 并指定 environment=linux", required = true),
+                    ToolParameterSchema(name = "environment", type = "string", description = "android（默认）或 linux（本地 Ubuntu）。Ubuntu 路径必须显式指定 linux。native 搜索不支持当前 SSH 文件系统；请用 read_file/read_file_part 或在对应 SSH 终端运行 grep。路径报错后先用同环境的 file_exists/list_files 核实，不要原样重复失败调用。", required = false),
                     ToolParameterSchema(name = "pattern", type = "string", description = "正则表达式模式", required = true),
                     ToolParameterSchema(name = "file_pattern", type = "string", description = "文件过滤", required = false, default = "\"*\""),
                     ToolParameterSchema(name = "case_insensitive", type = "boolean", description = "布尔值", required = false, default = "false"),
@@ -362,7 +362,7 @@ object SystemToolPrompts {
                 description = "基于意图/上下文理解搜索相关内容。支持两种模式：1) 目录模式：当path是目录时，找出最相关的文件。2) 文件模式：当path是文件时，找出该文件内最相关的代码段。使用语义相关性评分。",
                 parametersStructured = listOf(
                     ToolParameterSchema(name = "path", type = "string", description = "目录或文件路径", required = true),
-                    ToolParameterSchema(name = "environment", type = "string", description = "可选，同 read_file 的 environment", required = false),
+                    ToolParameterSchema(name = "environment", type = "string", description = "android（默认）或 linux（本地 Ubuntu）。/root/... 或 ~/... 必须指定 linux；native 搜索不支持当前 SSH 文件系统。路径报错后先用同环境的 file_exists/list_files 核实再重试。", required = false),
                     ToolParameterSchema(name = "intent", type = "string", description = "意图或上下文描述字符串", required = true),
                     ToolParameterSchema(name = "file_pattern", type = "string", description = "目录模式下的文件过滤", required = false, default = "\"*\""),
                     ToolParameterSchema(name = "max_results", type = "integer", description = "返回的最大项数", required = false, default = "10")

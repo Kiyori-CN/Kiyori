@@ -168,6 +168,10 @@
   ID。`tool_invocation_ledger` 仅以真实 provider、response ID 和原始 `call_id` 为键，已运行
   或完成的 provider-native 工具调用不能再次执行；每个 `call_id` 的历史输入最多包含一个
   `function_call` 和一个语义一致的 `function_call_output`。
-- Prompt Cache key 使用 profile revision、精确模型、稳定系统/首用户锚点和 canonical 排序的
+- Prompt Cache key 使用 profile revision、精确模型、稳定 system/developer 前缀和 canonical 排序的
   tool schema，不包含当前用户消息、effort、trace ID 或时间戳。官方 GPT-5.6 Responses 仅在
   大工具集存在足够长尾函数时启用 Tool Search；常用文件、搜索和计算工具保持 eager。
+- 首条用户消息从动态输入变为历史时不改变缓存路由键；同一键仅用于供应商路由，实际命中仍取决于
+  精确输入前缀与供应商策略。编辑消息、压缩历史、修改系统提示或工具定义均可能影响后续命中。
+- Responses 按 SSE 事件边界合并多行 data，再处理 JSON。收到 `response.completed` 后立即收尾，
+  不等待中转关闭连接或额外 `[DONE]`；没有完成事件的 EOF 继续显式失败，不重发未知提交。

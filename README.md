@@ -119,6 +119,11 @@ AI 是任务的讨论与协调入口。你可以为不同用途配置模型、�
 - **角色与上下文**：角色卡、用户偏好、提示词、历史管理、上下文压缩和工作区规则，为任务提供持续背景。
 - **记忆管理**：记忆空间、文档导入、搜索和关联图谱，用于组织可复用的信息；检索效果受内容和配置影响。
 - **过程查看**：“对话详情”提供请求、工具、异常、修订和终态的本地记录，并支持诊断导出。
+
+  在“时间线”搜索错误、工具返回或正文，可查找整段聊天的已记录文本；空格分隔多个关键词。
+  “对话”查看和修订当前消息，“原始事件”检查事件 JSON。“备注”用于保存排障说明，不发送给 AI。
+  导出保存到 `Download/Kiyori/exports/conversation-audit`：Markdown 便于阅读，签名审计包便于验证和导入，
+  两种文件都不加密。工具箱的“应用运行日志”用于启动、网络与服务排障，与单次聊天审计互补。
 - **数据统计**：点击对话栏的上下文圆环，查看上下文占用百分比、当前或最近模型请求的生成速度、累计 token、缓存与数据覆盖，并可复制统计摘要；估算值和供应商已报告用量分别标明。
 - **失败与恢复**：请求失败和提交状态未知会保留可见结果；支持续接的协议按其具体执行契约恢复，不把所有服务都描述为可无条件断点续传。
 
@@ -160,6 +165,11 @@ Kiyori 通过 [KiyoriTerminalCore](https://github.com/Kiyori-CN/KiyoriTerminalCo
 Ubuntu 内的执行身份不等于 Android 系统 Root。`super_admin:terminal` 面向 Ubuntu/PRoot，`super_admin:shell` 面向 Android Shell/Root，后者依赖真实的设备授权。
 
 环境与执行边界见 [平台、存储与终端](docs/doc-src/contracts/platform_storage.md) 和 [代码运行专项](docs/TODO/code_runner_terminal_toolchain/index.md)。
+
+Python 代码运行器接受原始源码，无需手动做 Shell 引号转义；`run_python` 与 `run_python_file`
+按非交互方式运行，标准输入为 EOF，输出默认无缓冲。需要 `input()` 人工输入或交互式解释器时，
+请使用可见终端与 `terminal_input`；`python_flags` 用于 `-O`、`-W`、`-X` 等解释器选项，
+不接受 `-i`、`-c`、`-m` 或 Shell 命令片段。
 
 ### 文件管理与项目工作区
 

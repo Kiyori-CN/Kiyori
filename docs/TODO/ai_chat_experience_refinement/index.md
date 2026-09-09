@@ -6,6 +6,49 @@ status: in_progress
 
 本专项覆盖软件首页右侧 AI 对话及其可达子页面、消息弹层、输入组件、历史选择器、悬浮小窗和语音界面。目标是修复有源码或实测依据的问题，并在既有 Kiyori 视觉体系中完善布局、反馈和操作连续性。本文是本专项唯一进度入口；长期所有权见 [AI 执行契约](../../doc-src/contracts/ai_execution.md) 与 [产品壳契约](../../doc-src/contracts/product_shell.md)。
 
+## 对话详情与执行诊断全面优化（2026-09-10）
+
+- 状态：`verification_pending`；本轮实现、本地回归及最终 Debug APK 已完成，当前任务授权审计后提交推送；真实 UI、Provider 弱网和远程工具现场尚未验收。
+- 目标：检查详情 UI、文案、三视图分工、搜索、导出、批注与编辑；核查错误留证、缓存、流恢复及终端/SSH/Windows 工具边界。
+- 阶段：① 全记录搜索和详情交互；② 导出完整性与诊断信息；③ 传输和工具稳定性复核及有证据的修复；④ 针对性测试、串行 Debug 构建和精确交付。
+- 影响：详情 Composable、审计 repository/exporter、必要的运行时调用链、资源与测试。复用既有状态所有者与不可变事件，不迁移数据库。
+- 边界：不重新 POST 未知提交，不新增模型/端点回退，不操作设备或远端电脑，不把本地模拟当作网络与设备验收。
+- 基线：`main / 9504b5538d174556631ea9890273992f96dc776a`；保留已有删除性能、code_runner、grep 改动，最终分别审查验证。回滚按提交撤回，不改写原始审计数据。
+- 验收：跨分页正文/错误/工具搜索、取消及旧结果隔离；导出修订与 usage 数据；中断保留部分输出与真实错误；相关回归和 APK 通过。UI、真实供应商与终端远程交互保持 `verification_pending`。
+
+本轮实现与结论：
+
+- 保留时间线、当前对话和机器事件三个视图，中文 Raw 改为“原始事件”；导出与备注有文字标签，未加载完成时禁用动作，展示最近异常及跨日期时间。
+- 时间线搜索全聊天事件及 UTF-8 正文，分词 AND、命中片段、逐页扫描和取消隔离；大量命中可继续查找。超长正文分页显示并定位搜索词所在页，完整数据不因 UI 分页截断。
+- 备注事件与 seal 原子提交；关闭详情后停止分页观察。历史重建、payload 解密及正文搜索使用 IO，不建立第二份明文搜索数据库。
+- Markdown 逐段写入，按选中 variant 展示当前对话，同时保留基础 variant 0、其他版本、修订正文及当前投影；增加 usage v2 覆盖率和缓存读写，缺失指标明确为 `not_reported`。
+- 导出文件名先脱敏，明确两种导出都不加密及二进制附件边界；导出完成事件保留当前完整性，不用旧快照覆盖运行状态。审计终态写入失败进一步标记记录中断。
+- 内置 SSH/Windows 长输出的受管临时日志随工具事件脱敏快照；越界、缺失、编码或 8 MiB 限额问题明确标记 `PARTIAL`。未返回数据、远端缓冲截断和 tmux 未采集屏幕仍不可重建。
+- Responses 读取完整 SSE 事件，修复多行 JSON 漏读及完成后继续等 socket 导致误报；保留真实缺少完成事件的失败和 at-most-once 边界。未知状态的用户文案提供下一步，原始异常仍入审计。
+- 缓存键排除首用户锚点在首轮/后续工具请求间的漂移；不改请求正文或伪造缓存命中。实际命中率仍依赖供应商和相同前缀。
+- 工具箱入口改为“应用运行日志”，保留其跨对话诊断用途。已有 Python 非交互/参数引用、Linux grep 路径和删除性能改动纳入此次验证与交付。
+- 2026-09-10 最终定向 JVM：29 套件、125 项，0 失败/错误/跳过；覆盖审计、导出、仓库全文搜索、SSE、Responses 故障注入、缓存键、工具执行、消息收尾、正文分页、终端采集和 grep 路径。最终命令为 `:app:testDebugUnitTest` 配合上述相关 `--tests` 过滤，耗时 4m08s。
+- 同日已有改动验证：SQLite 删除回归 7 项、Rust native 搜索 6 项、真实 Bash/PTY/Python 11 项通过；TypeScript `examples/tsconfig.json --noEmit` 通过，生成 JS 与生产资产逐字节一致。正式准备与文档检查通过。
+- 收尾复核补齐完整包 `chat.json` 与时间线普通聊天投影的凭据脱敏，保留原始签名链；文件名聊天标识改用 SHA-256 前缀。追加导出、归档序列化与脱敏回归 3 套件、10 项全部通过（3m48s），包括标题、基础正文、历史 variant 和快照不被改写。
+- 最终 Debug：`./gradlew.bat :app:assembleDebug --no-daemon --console=plain` 通过（2m10s，238 tasks），单 launcher、脚本代理和播放器打包检查通过。APK 为 `app/build/outputs/apk/debug/app-debug.apk`，2026-09-10 05:59:44 +08:00，485,731,920 bytes，`com.kiyori / 45 / 0.1.0 / arm64-v8a`；SHA-256 `8752D84BBA8151A19619A6F708D8DE695F24FD71DB36175BE68F5FB4B9F02821`，V2 单 signer 及 16 KiB ZIP 对齐通过。
+- 交付范围：50 个文件；terminal 固定 `3a5f22da2afc3b83f47c05907420b8fbd891e76e` 且无修改。未执行 Lint、Release、安装、设备操作、真实 Provider 请求或远程电脑控制。下一现场验收为长对话三视图/搜索/导出/修订、真实弱网及 SSH/Windows 长输出；不承诺任意网络或程序绝不中断。
+- 官方合同核对（2026-09-10）：[Responses background 与续接](https://developers.openai.com/api/docs/guides/background)、[Prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching)。官方同 response 续接需要相应后台/序列能力，不能据此给所有兼容中转开启重发。
+
+## 历史删除性能优化（2026-09-10）
+
+- 状态：实现、针对性验证与 Debug APK 构建完成；现场为 `verification_pending`。本轮未提交、未推送、未操作设备。
+- 目标：降低单条、分组及设置批量删除的等待，保留锁定、共享 payload、当前选择和清理失败语义。
+- 已确认：单条删除同步扫描全库 payload 引用；清理逐文件独立提交元数据；文件操作沿调用线程执行。
+- 已实施：删除事务内收集候选哈希；生命周期锁内按候选重新校验引用；IO 清理与 128 项分块事务；全库查询改用索引存在性检查。
+- 范围：`ChatHistoryManager`、`ConversationAuditRepository`、`ConversationAuditDao`、`ConversationAuditPayloadCleanup` 及针对性测试；不改数据库格式与界面设计。
+- 风险与验证：真实 SQLite 验证共享引用、级联、空集合及查询执行成本，JVM 检查清理失败语义，最后串行构建 APK。回滚仅撤回本轮文件差异，无数据迁移。
+- 现场完成条件：在相同设备与历史数据上复测单条、长对话、分组和批量删除耗时；本地查询结果不代表设备体验。
+- 2026-09-10 本地证据：`ci.test.test_conversation_audit_deletion` 的 7 项测试直接执行源码 DAO SQL 与正式迁移中的七张审计表及索引；SQLite 3.50.4、10,000 个无关 payload，原查询 100,052 VM 指令 / 2.856 ms，定向查询 41 VM 指令 / 0.005 ms，新增候选快照 35 VM 指令。时间为本机五次均值，回归断言使用指令数量，不依赖墙钟阈值。
+- JVM：`ConversationAuditPayloadCleanupTest` 5 项、`ConversationAuditPayloadLifecycleContractTest` 1 项、`ChatDeletionCompletionTest` 6 项、`ChatGroupTargetTest` 12 项全部通过，0 失败/错误/跳过，命令耗时 1m56s。1,000 文件验证 8 批元数据提交；文件/数据库失败与取消不被解释为成功，已删文件的无引用元数据可续清理。
+- 文档检查：512 文件、0 问题；差异空白检查通过。请求取消与当前选择同步保持原有生命周期，不绕过正在执行任务的终止等待。
+- Debug：`./gradlew.bat :app:assembleDebug --no-daemon --console=plain` 通过（1m35s），启动入口、脚本代理和播放器打包检查通过。`app/build/outputs/apk/debug/app-debug.apk`，2026-09-10 04:46:00 +08:00，482,929,358 bytes，`com.kiyori / 45 / 0.1.0`，SHA-256 `F115DCD5B224426513B491FEAE6A92FCBB4194040E54DA948E0AD6153160D34D`。
+- 交付基线：`main` / `9504b5538d174556631ea9890273992f96dc776a`；保留进入任务时已有 README、code_runner、grep 等未提交改动，APK 由当前完整工作区生成，terminal 未修改。未执行设备、远端、Lint、Release 或新鲜克隆验收。
+
 ## 目标与边界
 
 - 从用户的打开、输入、发送、等待、停止、修改、历史切换、语音和退出流程逐项审查；从 Agent 的工具执行、权限等待、流式输出、失败和恢复流程反向验证。

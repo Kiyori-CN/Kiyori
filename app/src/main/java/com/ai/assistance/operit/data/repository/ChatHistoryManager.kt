@@ -1170,37 +1170,41 @@ class ChatHistoryManager private constructor(private val context: Context) {
         target: ChatGroupTarget,
         expected: List<ChatGroupMember>,
         deleteChats: Boolean,
-    ): Set<String> = globalMutex.withLock {
-        val deletedIds = database.withTransaction {
-            val members = chatDao.getAllChatsDirectly()
-                .filter { target.matches(it.group, it.characterCardName, it.characterGroupId) }
-            requireUnchangedChatGroup(expected, members.map { ChatGroupMember(it.id, it.locked) })
-            buildSet {
-                members.forEach { chat ->
-                    if (deleteChats && !chat.locked) {
-                        chatDao.deleteChat(chat.id)
-                        add(chat.id)
-                    } else {
-                        chatDao.updateChatOrderAndGroup(chat.id, chat.displayOrder, null)
+    ): Set<String> = withContext(Dispatchers.IO) {
+        globalMutex.withLock {
+            val payloadHashes = mutableSetOf<String>()
+            val deletedIds = database.withTransaction {
+                val members = chatDao.getAllChatsDirectly()
+                    .filter { target.matches(it.group, it.characterCardName, it.characterGroupId) }
+                requireUnchangedChatGroup(expected, members.map { ChatGroupMember(it.id, it.locked) })
+                buildSet {
+                    members.forEach { chat ->
+                        if (deleteChats && !chat.locked) {
+                            payloadHashes += conversationAuditRepository.getPayloadHashesForChat(chat.id)
+                            chatDao.deleteChat(chat.id)
+                            add(chat.id)
+                        } else {
+                            chatDao.updateChatOrderAndGroup(chat.id, chat.displayOrder, null)
+                        }
                     }
                 }
             }
-        }
-        if (deletedIds.isNotEmpty()) {
-            try {
-                conversationAuditRepository.cleanupUnreferencedPayloads()
-                context.currentChatIdDataStore.edit { preferences ->
-                    if (preferences[PreferencesKeys.CURRENT_CHAT_ID] in deletedIds) {
-                        preferences.remove(PreferencesKeys.CURRENT_CHAT_ID)
+            if (deletedIds.isNotEmpty()) {
+                try {
+                    conversationAuditRepository.cleanupUnreferencedPayloads(payloadHashes)
+                    context.currentChatIdDataStore.edit { preferences ->
+                        if (preferences[PreferencesKeys.CURRENT_CHAT_ID] in deletedIds) {
+                            preferences.remove(PreferencesKeys.CURRENT_CHAT_ID)
+                        }
                     }
+                } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                    throw cancelled
+                } catch (failure: Exception) {
+                    throw ChatGroupCleanupException(deletedIds, failure.javaClass.simpleName)
                 }
-            } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                throw cancelled
-            } catch (failure: Exception) {
-                throw ChatGroupCleanupException(deletedIds, failure.javaClass.simpleName)
             }
+            deletedIds
         }
-        deletedIds
     }
 
     /**
@@ -2495,36 +2499,30 @@ class ChatHistoryManager private constructor(private val context: Context) {
     }
 
     // 删除聊天历史
-    suspend fun deleteChatHistory(chatId: String): Boolean {
+    suspend fun deleteChatHistory(chatId: String): Boolean = withContext(Dispatchers.IO) {
         chatMutex(chatId).withLock {
-            try {
-                val chat = chatDao.getChatById(chatId)
-                if (chat?.locked == true) {
-                    AppLogger.w(TAG, "Chat $chatId is locked; skip deletion")
-                    return false
-                }
-                if (chat == null) {
-                    return false
-                }
-                return completeChatDeletion(
-                    delete = {
-                        // 删除实体的结果是后续清理边界，不能混成一次可重试的失败。
+            var payloadHashes: List<String> = emptyList()
+            completeChatDeletion(
+                delete = {
+                    database.withTransaction {
+                        // 锁定检查与候选引用快照必须和删除原子提交，不能漏掉并发写入的引用。
+                        val chat = chatDao.getChatById(chatId)
+                        if (chat == null || chat.locked) return@withTransaction false
+                        payloadHashes = conversationAuditRepository.getPayloadHashesForChat(chatId)
                         chatDao.deleteChat(chatId)
                         true
-                    },
-                    afterDelete = {
-                        conversationAuditRepository.cleanupUnreferencedPayloads()
-                        context.currentChatIdDataStore.edit { preferences ->
-                            // 在同一次DataStore edit中比较，避免旧读取清掉新聊天选择。
-                            if (preferences[PreferencesKeys.CURRENT_CHAT_ID] == chatId) {
-                                preferences.remove(PreferencesKeys.CURRENT_CHAT_ID)
-                            }
+                    }
+                },
+                afterDelete = {
+                    conversationAuditRepository.cleanupUnreferencedPayloads(payloadHashes)
+                    context.currentChatIdDataStore.edit { preferences ->
+                        // 在同一次DataStore edit中比较，避免旧读取清掉新聊天选择。
+                        if (preferences[PreferencesKeys.CURRENT_CHAT_ID] == chatId) {
+                            preferences.remove(PreferencesKeys.CURRENT_CHAT_ID)
                         }
                     }
-                )
-            } catch (e: Exception) {
-                throw e
-            }
+                }
+            )
         }
     }
 

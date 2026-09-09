@@ -67,12 +67,14 @@ class ConversationAuditExporter(context: Context) {
                     SimpleDateFormat("yyyyMMdd-HHmmss-SSS", Locale.ROOT)
                         .format(Date(snapshot.exportedAt))
                 val safeTitle =
-                    snapshot.chat.title
+                    ConversationAuditRedactor.redactText(snapshot.chat.title).value
                         .replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]"), "_")
                         .trim()
                         .take(48)
                         .ifBlank { "conversation" }
-                val baseName = "$timestamp-$safeTitle-${snapshot.chat.id.take(8)}"
+                // 导入的聊天 ID 不一定是 UUID，不能把其中的路径分隔符拼入导出目标。
+                val chatSuffix = ConversationAuditHasher.sha256(snapshot.chat.id.toByteArray(Charsets.UTF_8)).take(8)
+                val baseName = "$timestamp-$safeTitle-$chatSuffix"
                 val target =
                     when (format) {
                         ConversationAuditExportFormat.AI_DIAGNOSTICS_MARKDOWN ->
@@ -93,6 +95,7 @@ class ConversationAuditExporter(context: Context) {
                             chatId = chatId,
                             category = "IMPORT_EXPORT",
                             eventType = "AUDIT_EXPORTED",
+                            preserveCompleteness = true,
                             actor = "USER",
                             summary =
                                 when (format) {
@@ -151,9 +154,7 @@ class ConversationAuditExporter(context: Context) {
                     zip.writeEntry("manifest.json", manifest(snapshot).toString(2))
                     zip.writeEntry(
                         "chat.json",
-                        archiveJson.encodeToString(
-                            snapshot.toOperitArchivedChat(includeAudit = false)
-                        ),
+                        snapshot.toCredentialRedactedChatJson(archiveJson),
                     )
                     zip.writeEntry(
                         "audit.json",
@@ -163,16 +164,14 @@ class ConversationAuditExporter(context: Context) {
                     )
                     zip.writeEntry(
                         "timeline.md",
-                        timelineMarkdown(
-                            snapshot = snapshot,
-                            inlinePayloads = false,
-                            externalShare = false,
-                        ),
+                        java.io.StringWriter().also { writer ->
+                            ConversationAuditMarkdownRenderer.write(snapshot, writer, inlinePayloads = false, externalShare = false)
+                        }.toString(),
                     )
                     zip.writeEntry(
                         "events.jsonl",
                         snapshot.events.joinToString("\n") { event ->
-                            eventJson(
+                            ConversationAuditMarkdownRenderer.eventJson(
                                 event = event,
                                 refs = snapshot.eventPayloads[event.eventId].orEmpty(),
                             ).toString()
@@ -218,7 +217,7 @@ class ConversationAuditExporter(context: Context) {
                         .toSortedMap()
                         .forEach { (payloadSha256, payload) ->
                             zip.writeEntry(
-                                payloadPath(payloadSha256, payload),
+                                ConversationAuditMarkdownRenderer.payloadPath(payloadSha256, payload),
                                 payload.bytes,
                             )
                         }
@@ -238,13 +237,9 @@ class ConversationAuditExporter(context: Context) {
     ) {
         writeConversationAuditExportFile(target) { temporary ->
             FileOutputStream(temporary).use { output ->
-                output.write(
-                    timelineMarkdown(
-                        snapshot = snapshot,
-                        inlinePayloads = true,
-                        externalShare = true,
-                    ).toByteArray(Charsets.UTF_8)
-                )
+                val writer = output.bufferedWriter(Charsets.UTF_8)
+                ConversationAuditMarkdownRenderer.write(snapshot, writer, inlinePayloads = true, externalShare = true)
+                writer.flush()
                 output.fd.sync()
             }
         }
@@ -256,7 +251,7 @@ class ConversationAuditExporter(context: Context) {
             payloadIndex.put(
                 JSONObject()
                     .put("payloadSha256", payloadSha256)
-                    .put("path", payloadPath(payloadSha256, payload))
+                    .put("path", ConversationAuditMarkdownRenderer.payloadPath(payloadSha256, payload))
                     .put("mediaType", payload.entity.mediaType)
                     .put("encoding", payload.entity.encoding)
                     .put("plainByteCount", payload.entity.plainByteCount)
@@ -328,283 +323,12 @@ class ConversationAuditExporter(context: Context) {
             )
             .put(
                 "note",
-                "Payloads in this export are the already-redacted plaintext represented by the signed audit chain.",
+                "Signed payloads retain their original redacted bytes. Unsigned chat projections and readable timeline text are credential-redacted again at export; recognized patterns are covered, not arbitrary secrets.",
             )
             .put(
                 "aiReviewMarkdown",
                 "The AI diagnostics Markdown is UTF-8 plaintext, additionally pseudonymizes private paths and identity fields, and is not encrypted.",
             )
-
-    private fun timelineMarkdown(
-        snapshot: ConversationAuditExportSnapshot,
-        inlinePayloads: Boolean,
-        externalShare: Boolean,
-    ): String =
-        buildString {
-            appendLine("# Kiyori AI 对话审计")
-            appendLine()
-            appendLine("- Chat ID: `${snapshot.chat.id}`")
-            appendLine(
-                "- 标题: " +
-                    redactForReview(
-                        value = snapshot.chat.title,
-                        mediaType = "text/plain",
-                        externalShare = externalShare,
-                    )
-            )
-            appendLine("- 完整性: `${snapshot.audit.completenessStatus}`")
-            appendLine("- 导出时间: `${snapshot.exportedAt}`")
-            appendLine("- cutoffEventId: `${snapshot.cutoffEventId ?: "none"}`")
-            appendLine("- 事件数: ${snapshot.events.size}")
-            if (inlinePayloads) {
-                appendLine("- 导出格式: 明文 UTF-8 Markdown（未加密）")
-            }
-            appendLine("- 链头: `${snapshot.audit.chainHeadSha256}`")
-            appendLine()
-            appendLine("> 此文档只描述 Kiyori 实际可观察并持久化的事实，不包含 Provider 未返回的内部推理。")
-            if (externalShare) {
-                appendLine(
-                    "> 此 AI 审阅版本额外假名化账户标识和私有路径；完整本机复现数据位于 `.kiyori-audit` 包。"
-                )
-            }
-            appendLine()
-            appendLine("## 当前对话")
-            appendLine()
-            appendLine(
-                "消息数：${snapshot.messages.size}；历史 AI variant：${snapshot.variants.size}。" +
-                    if (externalShare) {
-                        "正文对应导出快照中的当前投影，已按外部 AI 审阅规则处理。"
-                    } else {
-                        "正文对应导出快照中的当前投影。"
-                    }
-            )
-            appendLine()
-            snapshot.messages.sortedBy { it.orderIndex }.forEachIndexed { index, message ->
-                appendLine(
-                    "### ${index + 1}. ${message.sender} · timestamp=${message.timestamp}"
-                )
-                appendLine()
-                appendLine(
-                    "- provider: " +
-                        redactForReview(
-                            value = message.provider.ifBlank { "not_recorded" },
-                            mediaType = "text/plain",
-                            externalShare = externalShare,
-                        )
-                )
-                appendLine(
-                    "- model: " +
-                        redactForReview(
-                            value = message.modelName.ifBlank { "not_recorded" },
-                            mediaType = "text/plain",
-                            externalShare = externalShare,
-                        )
-                )
-                appendLine(
-                    "- tokens: input=${message.inputTokens}, output=${message.outputTokens}, " +
-                        "cachedInput=${message.cachedInputTokens}"
-                )
-                val messageText =
-                    redactForReview(
-                        value = message.content,
-                        mediaType = "text/markdown",
-                        externalShare = externalShare,
-                    )
-                val messageFence = markdownFence(messageText)
-                appendLine("${messageFence}text")
-                appendLine(messageText)
-                appendLine(messageFence)
-                appendLine()
-            }
-            if (snapshot.variants.isNotEmpty()) {
-                appendLine("### 历史 AI variant")
-                appendLine()
-                snapshot.variants
-                    .sortedWith(compareBy({ it.messageTimestamp }, { it.variantIndex }))
-                    .forEach { variant ->
-                        appendLine(
-                            "- timestamp=${variant.messageTimestamp}, variant=${variant.variantIndex}, " +
-                                "provider=" +
-                                redactForReview(
-                                    value = variant.provider.ifBlank { "not_recorded" },
-                                    mediaType = "text/plain",
-                                    externalShare = externalShare,
-                                ) +
-                                ", model=" +
-                                redactForReview(
-                                    value = variant.modelName.ifBlank { "not_recorded" },
-                                    mediaType = "text/plain",
-                                    externalShare = externalShare,
-                                )
-                        )
-                        val variantText =
-                            redactForReview(
-                                value = variant.content,
-                                mediaType = "text/markdown",
-                                externalShare = externalShare,
-                            )
-                        val variantFence = markdownFence(variantText)
-                        appendLine("${variantFence}text")
-                        appendLine(variantText)
-                        appendLine(variantFence)
-                        appendLine()
-                    }
-            }
-            if (snapshot.revisions.isNotEmpty() || snapshot.projections.isNotEmpty()) {
-                appendLine("## 修订与当前投影")
-                appendLine()
-                appendLine("- revisions: ${snapshot.revisions.size}")
-                appendLine("- projections: ${snapshot.projections.size}")
-                snapshot.revisions.forEach { revision ->
-                    appendLine(
-                        "- revision=${revision.revisionId}, timestamp=${revision.messageTimestamp}, " +
-                            "variant=${revision.variantIndex}, sender=${revision.sender}, " +
-                            "source=${revision.source}, auditEvent=${revision.auditEventId}"
-                    )
-                }
-                appendLine()
-            }
-            appendLine("## 审计事件时间线")
-            appendLine()
-            snapshot.events.forEach { event ->
-                appendLine(
-                    "### ${event.sequenceNumber}. ${event.category} / ${event.eventType}"
-                )
-                appendLine()
-                appendLine("- eventId: `${event.eventId}`")
-                appendLine("- occurredAt: `${event.occurredAt}`")
-                appendLine("- actor: `${event.actor}`")
-                event.messageTimestamp?.let { appendLine("- messageTimestamp: `$it`") }
-                event.variantIndex?.let { appendLine("- variantIndex: `$it`") }
-                event.localExecutionId?.let { appendLine("- localExecutionId: `$it`") }
-                event.providerCallId?.let { appendLine("- providerCallId: `$it`") }
-                event.terminalState?.let { appendLine("- terminalState: `$it`") }
-                appendLine(
-                    "- 摘要: " +
-                        redactForReview(
-                            value = event.summary,
-                            mediaType = "text/plain",
-                            externalShare = externalShare,
-                        )
-                )
-                appendLine("- eventSha256: `${event.eventSha256}`")
-                appendLine()
-                snapshot.eventPayloads[event.eventId].orEmpty().forEach { ref ->
-                    val payload = requireNotNull(snapshot.payloads[ref.payloadSha256])
-                    appendLine(
-                        "#### payload `${ref.label}` (${ref.role}, ${payload.entity.mediaType})"
-                    )
-                    appendLine()
-                    if (inlinePayloads && payload.entity.encoding == "utf-8") {
-                        val payloadText =
-                            redactForReview(
-                                value = payload.bytes.toString(Charsets.UTF_8),
-                                mediaType = payload.entity.mediaType,
-                                externalShare = externalShare,
-                            )
-                        val fence = markdownFence(payloadText)
-                        appendLine("${fence}text")
-                        appendLine(payloadText)
-                        appendLine(fence)
-                    } else {
-                        appendLine(
-                            "- 路径: `${payloadPath(ref.payloadSha256, payload)}`"
-                        )
-                        appendLine("- SHA-256: `${ref.payloadSha256}`")
-                        appendLine("- 字节数: ${payload.entity.plainByteCount}")
-                    }
-                    appendLine()
-                }
-            }
-            appendLine("## 机器可读事件 JSONL")
-            appendLine()
-            appendLine("每行对应一个已封印事件；payload 正文在上方按关联关系展开。")
-            appendLine()
-            val eventJsonLines =
-                snapshot.events.joinToString("\n") { event ->
-                    redactForReview(
-                        value =
-                            eventJson(
-                                event = event,
-                                refs = snapshot.eventPayloads[event.eventId].orEmpty(),
-                            ).toString(),
-                        mediaType = "application/json",
-                        externalShare = externalShare,
-                    )
-                }
-            val jsonlFence = markdownFence(eventJsonLines)
-            appendLine("${jsonlFence}jsonl")
-            appendLine(eventJsonLines)
-            appendLine(jsonlFence)
-        }
-
-    private fun redactForReview(
-        value: String,
-        mediaType: String,
-        externalShare: Boolean,
-    ): String =
-        if (externalShare) {
-            ConversationAuditExternalShareRedactor.redact(
-                value = value,
-                mediaType = mediaType,
-            ).value
-        } else {
-            value
-        }
-
-    private fun markdownFence(value: String): String {
-        val longestRun =
-            Regex("`+")
-                .findAll(value)
-                .maxOfOrNull { match -> match.value.length }
-                ?: 0
-        return "`".repeat(maxOf(3, longestRun + 1))
-    }
-
-    private fun eventJson(
-        event: ConversationAuditEventEntity,
-        refs: List<ConversationAuditEventPayloadEntity>,
-    ): JSONObject {
-        val payloadRefs = JSONArray()
-        refs.forEach { ref ->
-            payloadRefs.put(
-                JSONObject()
-                    .put("payloadSha256", ref.payloadSha256)
-                    .put("label", ref.label)
-                    .put("ordinal", ref.ordinal)
-                    .put("role", ref.role)
-            )
-        }
-        return JSONObject()
-            .put("eventId", event.eventId)
-            .put("chatId", event.chatId)
-            .put("sequenceNumber", event.sequenceNumber)
-            .put("occurredAt", event.occurredAt)
-            .put("recordedAt", event.recordedAt)
-            .put("category", event.category)
-            .put("eventType", event.eventType)
-            .put("actor", event.actor)
-            .put("summary", event.summary)
-            .put("messageTimestamp", event.messageTimestamp ?: JSONObject.NULL)
-            .put("variantIndex", event.variantIndex ?: JSONObject.NULL)
-            .put("localExecutionId", event.localExecutionId ?: JSONObject.NULL)
-            .put("providerCallId", event.providerCallId ?: JSONObject.NULL)
-            .put("parentEventId", event.parentEventId ?: JSONObject.NULL)
-            .put("sourceChatId", event.sourceChatId ?: JSONObject.NULL)
-            .put("sourceEventId", event.sourceEventId ?: JSONObject.NULL)
-            .put("previousEventSha256", event.previousEventSha256)
-            .put("eventSha256", event.eventSha256)
-            .put("visibility", event.visibility)
-            .put("terminalState", event.terminalState ?: JSONObject.NULL)
-            .put("payloadRefs", payloadRefs)
-    }
-
-    private fun payloadPath(
-        payloadSha256: String,
-        payload: ConversationAuditSnapshotPayload,
-    ): String =
-        "payloads/$payloadSha256." +
-            if (payload.entity.encoding.equals("utf-8", ignoreCase = true)) "txt" else "bin"
 
     private fun ZipOutputStream.writeEntry(
         path: String,

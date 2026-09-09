@@ -22,6 +22,10 @@ import java.util.Base64
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -353,36 +357,32 @@ class ConversationAuditRepository private constructor(
         chatId: String,
         text: String,
         parentEventId: String? = null,
-    ): ConversationAuditEventEntity {
+    ): ConversationAuditEventEntity = withContext(Dispatchers.IO) {
         require(text.isNotBlank()) { "Conversation audit annotation must not be blank" }
-        val audit = requireNotNull(dao.getAudit(chatId)) {
-            "Conversation audit does not exist: $chatId"
-        }
-        val event =
-            appendEvent(
-                ConversationAuditEventRequest(
+        payloadLifecycleMutex.withLock {
+            chatMutex(chatId).withLock {
+                val audit = requireNotNull(dao.getAudit(chatId)) { "Conversation audit does not exist" }
+                val request = ConversationAuditEventRequest(
                     chatId = chatId,
                     category = "USER_NOTE",
                     eventType = "USER_ANNOTATION_ADDED",
                     actor = "USER",
-                    summary = "用户为对话审计添加了注释",
+                    summary = "用户为对话添加了诊断备注",
                     parentEventId = parentEventId,
-                    completeness =
-                        ConversationAuditCompletenessStatus.valueOf(
-                            audit.completenessStatus
-                        ),
-                    payloads =
-                        listOf(
-                            ConversationAuditPayloadInput.text(
-                                label = "annotation",
-                                role = "user_note",
-                                value = text,
-                            )
-                        ),
+                    completeness = ConversationAuditCompletenessStatus.valueOf(audit.completenessStatus),
+                    payloads = listOf(ConversationAuditPayloadInput.text(
+                        label = "annotation", role = "user_note", value = text,
+                    )),
                 )
-            )
-        seal(chatId, reason = "USER_ANNOTATION_ADDED")
-        return event
+                val storedPayloads = storePayloads(request)
+                // 事件与封印同成同败；封印失败后用户重试不会追加第二份备注。
+                database.withTransaction {
+                    val event = appendEventInsideTransaction(request, storedPayloads)
+                    sealInsideTransaction(chatId, "USER_ANNOTATION_ADDED")
+                    event
+                }
+            }
+        }
     }
 
     suspend fun seal(
@@ -588,7 +588,8 @@ class ConversationAuditRepository private constructor(
     }
 
     suspend fun loadEventPayloads(eventId: String): List<ConversationAuditLoadedPayload> =
-        dao.getEventPayloads(eventId).map { ref ->
+        withContext(Dispatchers.IO) { dao.getEventPayloads(eventId).map { ref ->
+            currentCoroutineContext().ensureActive()
             val payload = requireNotNull(dao.getPayload(ref.payloadSha256))
             ConversationAuditLoadedPayload(
                 label = ref.label,
@@ -598,7 +599,31 @@ class ConversationAuditRepository private constructor(
                 encoding = payload.encoding,
                 bytes = payloadStore.read(payload),
             )
+        } }
+
+    suspend fun searchEventPage(
+        chatId: String,
+        query: String,
+        beforeSequenceExclusive: Long?,
+    ): ConversationAuditSearchPage = withContext(Dispatchers.IO) {
+        require(query.isNotBlank())
+        val matcher = ConversationAuditSearchQuery(query)
+        // 每页有界读取，页间释放解密正文；取消搜索无需等待整段长对话完成。
+        val page = getEventPage(chatId, beforeSequenceExclusive, 100)
+        val matches = page.mapNotNull { event ->
+            currentCoroutineContext().ensureActive()
+            val fields = event.searchFields() + loadEventPayloads(event.eventId).flatMap { payload ->
+                listOf(payload.label, payload.role) +
+                    if (payload.encoding == "utf-8") listOf(payload.bytes.toString(Charsets.UTF_8)) else emptyList()
+            }
+            matcher.match(fields)?.let { ConversationAuditSearchMatch(event, it) }
         }
+        ConversationAuditSearchPage(
+            matches = matches,
+            scannedCount = page.size,
+            nextBeforeSequence = page.lastOrNull()?.sequenceNumber?.takeIf { it > 1L },
+        )
+    }
 
     suspend fun getEventPage(
         chatId: String,
@@ -1517,15 +1542,37 @@ class ConversationAuditRepository private constructor(
     }
 
     suspend fun cleanupUnreferencedPayloads(): Int =
-        payloadLifecycleMutex.withLock {
-            val unreferenced = dao.getUnreferencedPayloads()
-            unreferenced.forEach { payload ->
-                payloadStore.delete(payload)
-                check(dao.deletePayloadMetadata(payload.payloadSha256) == 1) {
-                    "Unreferenced conversation audit payload metadata disappeared"
+        withContext(Dispatchers.IO) {
+            payloadLifecycleMutex.withLock {
+                deleteUnreferencedPayloads(dao.getUnreferencedPayloads())
+            }
+        }
+
+    /** 调用者在删除聊天的 Room 事务内读取，确保并发审计写入不会漏出候选。 */
+    suspend fun getPayloadHashesForChat(chatId: String): List<String> = dao.getPayloadHashesForChat(chatId)
+
+    suspend fun cleanupUnreferencedPayloads(payloadHashes: Collection<String>): Int =
+        withContext(Dispatchers.IO) {
+            // 查询、文件删除和元数据提交必须共用写入方的锁；哈希也可能被其他聊天复用。
+            payloadLifecycleMutex.withLock {
+                var deletedCount = 0
+                payloadHashes.distinct().chunked(AUDIT_PAYLOAD_CLEANUP_BATCH_SIZE).forEach { batch ->
+                    deletedCount += deleteUnreferencedPayloads(dao.getUnreferencedPayloadsAmong(batch))
+                }
+                deletedCount
+            }
+        }
+
+    private suspend fun deleteUnreferencedPayloads(payloads: List<ConversationAuditPayloadEntity>): Int =
+        cleanupAuditPayloadBatches(payloads, deleteFile = payloadStore::delete) { batch ->
+            // 每批一次事务，避免长对话逐文件触发独立数据库提交和列表失效通知。
+            database.withTransaction {
+                batch.forEach { payload ->
+                    check(dao.deletePayloadMetadata(payload.payloadSha256) == 1) {
+                        "Unreferenced conversation audit payload metadata disappeared"
+                    }
                 }
             }
-            unreferenced.size
         }
 
     private suspend fun ensureAuditInsideTransaction(
@@ -1694,6 +1741,7 @@ class ConversationAuditRepository private constructor(
                             audit.completenessStatus
                         ),
                         requested = request.completeness,
+                        preserveCurrent = request.preserveCompleteness,
                     ).name,
                 updatedAt = recordedAt,
                 lastFailureCode = request.failureCode,
@@ -1808,6 +1856,8 @@ data class ConversationAuditEventRequest(
     val failureCode: String? = null,
     val occurredAt: Long = System.currentTimeMillis(),
     val payloads: List<ConversationAuditPayloadInput> = emptyList(),
+    /** 导出等观察性事件不应用旧快照覆盖当前运行状态。 */
+    val preserveCompleteness: Boolean = false,
 ) {
     init {
         require(chatId.isNotBlank()) { "chatId must not be blank" }

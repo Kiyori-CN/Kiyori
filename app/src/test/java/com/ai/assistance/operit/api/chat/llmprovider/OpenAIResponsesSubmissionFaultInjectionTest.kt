@@ -187,6 +187,81 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
     }
 
     @Test
+    fun completedTerminalIsNotOverriddenByFollowingConnectionLoss() = runTest {
+        Mockito.mockStatic(AppLogger::class.java).use {
+            MockWebServer().use { server ->
+                server.start()
+                server.enqueue(
+                    MockResponse()
+                        .setHeader("Content-Type", "text/event-stream")
+                        .setBody(completedResponsesSse("semantic terminal") + "data: " + "x".repeat(64 * 1024))
+                        .setSocketPolicy(SocketPolicy.DISCONNECT_DURING_RESPONSE_BODY)
+                )
+                val repository = mock<ProviderExecutionRepository>()
+                val provider = createDeepSeekResponsesProvider(server, repository)
+                val received = StringBuilder()
+
+                provider.sendMessage(
+                    context = createContext(),
+                    chatHistory = testHistory("complete with response.completed"),
+                    modelParameters = emptyList(),
+                    enableThinking = true,
+                    stream = true,
+                    availableTools = null,
+                    preserveThinkInHistory = false,
+                    providerRequestContext = requestContext("local-deepseek-completed"),
+                    onTokensUpdated = { _, _, _ -> },
+                    onNonFatalError = {},
+                    enableRetry = true,
+                ).collect(received::append)
+
+                val request = requireNotNull(server.takeRequest(5, TimeUnit.SECONDS))
+                assertEquals("text/event-stream", request.getHeader("Accept"))
+                assertEquals(1, server.requestCount)
+                assertEquals("semantic terminal", received.toString())
+                verifyNoInteractions(repository)
+            }
+        }
+    }
+
+    @Test
+    fun multilineCompletedEventIsParsedAsOneSseEvent() = runTest {
+        Mockito.mockStatic(AppLogger::class.java).use {
+            MockWebServer().use { server ->
+                server.start()
+                server.enqueue(
+                    MockResponse()
+                        .setHeader("Content-Type", "text/event-stream")
+                        .setBody(org.json.JSONObject(completedResponsesEventJson("semantic terminal")).toString(2).lineSequence().joinToString("\n") { "data: $it" } + "\n\n")
+                )
+                val repository = mock<ProviderExecutionRepository>()
+                val provider = createDeepSeekResponsesProvider(server, repository)
+                val received = StringBuilder()
+
+                provider.sendMessage(
+                    context = createContext(),
+                    chatHistory = testHistory("complete with response.completed"),
+                    modelParameters = emptyList(),
+                    enableThinking = true,
+                    stream = true,
+                    availableTools = null,
+                    preserveThinkInHistory = false,
+                    providerRequestContext = requestContext("local-deepseek-completed"),
+                    onTokensUpdated = { _, _, _ -> },
+                    onNonFatalError = {},
+                    enableRetry = true,
+                ).collect(received::append)
+
+                val request = requireNotNull(server.takeRequest(5, TimeUnit.SECONDS))
+                assertEquals("text/event-stream", request.getHeader("Accept"))
+                assertEquals(1, server.requestCount)
+                assertEquals("semantic terminal", received.toString())
+                verifyNoInteractions(repository)
+            }
+        }
+    }
+
+    @Test
     fun deepSeekResponsesNonStreaming_sendsJsonAccept() = runTest {
         Mockito.mockStatic(AppLogger::class.java).use {
             MockWebServer().use { server ->

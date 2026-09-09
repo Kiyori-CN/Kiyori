@@ -3035,7 +3035,7 @@ class ChatViewModel(
                     return@launch
                 }
                 val chatId = awaitWorkspaceChatId() ?: return@launch
-                conversationAuditRepository.reconstructLegacyAuditIfNeeded(chatId)
+                withContext(Dispatchers.IO) { conversationAuditRepository.reconstructLegacyAuditIfNeeded(chatId) }
                 val messages = chatHistoryDelegate.getChatHistory(chatId)
                 currentCoroutineContext().ensureActive()
                 if (currentChatId.value != chatId || panelGeneration != openingPanelGeneration) return@launch
@@ -3064,7 +3064,9 @@ class ChatViewModel(
     private fun startConversationAuditPaging() {
         conversationAuditPagingJob?.cancel()
         conversationAuditPagingJob = viewModelScope.launch {
-            chatHistoryDelegate.currentChatId.collectLatest { chatId ->
+            combine(chatHistoryDelegate.currentChatId, _panelMode) { chatId, panel ->
+                chatId.takeIf { panel == ChatPanelMode.DETAILS }
+            }.distinctUntilChanged().collectLatest { chatId ->
                 conversationAuditPagingGeneration++
                 _currentConversationAuditEvents.value = emptyList()
                 _currentConversationAuditMessages.value = emptyList()
@@ -3242,6 +3244,9 @@ class ChatViewModel(
             throw e
         }
 
+    suspend fun searchConversationAudit(chatId: String, query: String, beforeSequence: Long?) =
+        conversationAuditRepository.searchEventPage(chatId, query, beforeSequence)
+
     suspend fun addConversationAuditAnnotation(chatId: String, text: String): Boolean {
         return try {
             check(currentChatId.value == chatId) { context.getString(R.string.chat_draft_changed_before_send) }
@@ -3268,7 +3273,7 @@ class ChatViewModel(
         return try {
             check(currentChatId.value == chatId) { context.getString(R.string.chat_draft_changed_before_send) }
             val result = conversationAuditExporter.export(chatId, format)
-            uiStateDelegate.showToast(context.getString(R.string.conversation_audit_exported, result.eventCount, result.file.name))
+            uiStateDelegate.showToast(context.getString(R.string.conversation_audit_exported, result.eventCount, result.file.absolutePath))
             true
         } catch (e: CancellationException) {
             throw e

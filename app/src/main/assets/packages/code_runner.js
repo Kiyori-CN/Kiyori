@@ -110,7 +110,7 @@
     },
     {
       name: run_python
-      description: { zh: "运行自定义 Python 脚本。会捕获 print 函数的输出。", en: "Run custom Python scripts. Captures output from print()." }
+      description: { zh: "以临时文件非交互运行 Python 源码，无需 Shell 转义；捕获输出，标准输入为 EOF。需要交互时使用 super_admin:terminal。", en: "Run Python source non-interactively from a temporary file, without shell escaping. Captures output; stdin is EOF. Use super_admin:terminal for interactive programs." }
       parameters: [
         {
           name: script
@@ -120,7 +120,7 @@
         },
         {
           name: python_flags
-          description: { zh: "Python 解释器选项，默认为空。可自定义如 -O（优化）、-u（无缓冲）等", en: "Python interpreter flags (default: empty). Examples: -O (optimize), -u (unbuffered)." }
+          description: { zh: "以空格分隔的解释器选项，支持引号包裹值，如 -O -W 'ignore::UserWarning' -X utf8；不执行 Shell 展开，不接受 -i/-c/-m 或帮助/版本选项。输出默认无缓冲。", en: "Space-separated interpreter options with quoted values, e.g. -O -W 'ignore::UserWarning' -X utf8. No shell expansion, -i/-c/-m, help or version modes. Output is unbuffered by default." }
           type: string
           required: false
         },
@@ -134,7 +134,7 @@
     },
     {
       name: run_python_file
-      description: { zh: "运行 Python 文件。会捕获 print 函数的输出。", en: "Run a Python file. Captures output from print()." }
+      description: { zh: "非交互运行 Ubuntu 会话中的 Python 文件，保留相对路径语义；捕获输出，标准输入为 EOF。需要交互时使用 super_admin:terminal。", en: "Run a Python file in the Ubuntu session non-interactively, retaining relative paths. Captures output; stdin is EOF. Use super_admin:terminal for interactive programs." }
       parameters: [
         {
           name: file_path
@@ -144,7 +144,7 @@
         },
         {
           name: python_flags
-          description: { zh: "Python 解释器选项，默认为空。可自定义如 -O（优化）、-u（无缓冲）等", en: "Python interpreter flags (default: empty). Examples: -O (optimize), -u (unbuffered)." }
+          description: { zh: "以空格分隔的解释器选项，支持引号包裹值，如 -O -W 'ignore::UserWarning' -X utf8；不执行 Shell 展开，不接受 -i/-c/-m 或帮助/版本选项。输出默认无缓冲。", en: "Space-separated interpreter options with quoted values, e.g. -O -W 'ignore::UserWarning' -X utf8. No shell expansion, -i/-c/-m, help or version modes. Output is unbuffered by default." }
           type: string
           required: false
         },
@@ -518,6 +518,86 @@ const codeRunner = (function () {
             .filter(part => part.length > 0)
             .map(part => `'${escapeForShell(part)}'`)
             .join(" ");
+    }
+    function buildPythonFlags(raw = "") {
+        // 参数是 argv 数据，不是 Shell 程序。先解析引号，再逐项引用；否则 -c 或分号能
+        // 绕过文件执行，-i 则在脚本完成后占用共享 PTY，Ctrl+C 也不会退出解释器。
+        if (typeof raw !== "string" || raw.includes("\0")) {
+            throw new Error("python_flags 必须是不含 NUL 的字符串");
+        }
+        const args = [];
+        let word = "";
+        let quote = "";
+        let started = false;
+        for (let i = 0; i < raw.length; i++) {
+            const char = raw[i];
+            if (char === "\\" && quote !== "'") {
+                const next = raw[i + 1];
+                if (next === undefined)
+                    throw new Error("python_flags 末尾的反斜杠缺少字符");
+                if (quote === '"' && !['"', "\\", "$", "`", "\n"].includes(next)) {
+                    word += char;
+                }
+                else {
+                    i += 1;
+                    if (next !== "\n")
+                        word += next;
+                }
+                started = true;
+            }
+            else if (quote) {
+                if (char === quote)
+                    quote = "";
+                else
+                    word += char;
+            }
+            else if (char === "'" || char === '"') {
+                quote = char;
+                started = true;
+            }
+            else if (/\s/.test(char)) {
+                if (started)
+                    args.push(word);
+                word = "";
+                started = false;
+            }
+            else {
+                word += char;
+                started = true;
+            }
+        }
+        if (quote)
+            throw new Error("python_flags 存在未闭合的引号");
+        if (started)
+            args.push(word);
+        for (let i = 0; i < args.length; i++) {
+            const arg = args[i];
+            if (arg === "--check-hash-based-pycs") {
+                if (!["default", "always", "never"].includes(args[++i] ?? "")) {
+                    throw new Error("python_flags 的 --check-hash-based-pycs 需要 default、always 或 never");
+                }
+            }
+            else if (/^-[bBdEIOPqRsSuvx]*[WX]/.test(arg)) {
+                // -W/-X 消费同 token 的余下字符或下一个完整参数；值中的 -i 等文字不是选项。
+                if (/^-[bBdEIOPqRsSuvx]*[WX]$/.test(arg) && ++i >= args.length) {
+                    throw new Error("python_flags 的 -W/-X 缺少参数值");
+                }
+            }
+            else if (!/^-[bBdEIOPqRsSuvx]+$/.test(arg)) {
+                throw new Error("python_flags 只接受脚本解释器选项；不支持交互、-c/-m、帮助/版本、位置参数或 Shell 语法");
+            }
+        }
+        return args.map(arg => `'${escapeForShell(arg)}'`).join(" ");
+    }
+    function pythonOutput(result) {
+        // stdout/stderr 可以合法打印 Shell 错误示例，不能凭输出正文推翻真实退出码。
+        if (result.timedOut) {
+            throw new Error(`Python 执行超时（命令限时 ${DEFAULT_COMMAND_TIMEOUT_MS} ms），已请求终止；请检查循环、阻塞调用或交互输入。\n${result.output}`);
+        }
+        if (result.exitCode !== 0) {
+            throw new Error(`Python 执行失败（exitCode=${result.exitCode}；标准输入为 EOF）：\n${result.output}`);
+        }
+        return result.output.trim();
     }
     // Helper function to execute JavaScript code and capture logs/completion value.
     async function executeJavaScript(script) {
@@ -977,21 +1057,20 @@ int main() {
         if (!script || script.trim() === "") {
             throw new Error("请提供要执行的 Python 脚本内容");
         }
-        // Use persistent venv interpreter
-        const { pythonBin } = await ensurePersistentVenv();
-        const pythonFlags = params.python_flags || "";
+        const pythonFlags = buildPythonFlags(params.python_flags);
+        if (script.includes("\0") || params.script_args?.includes("\0")) {
+            throw new Error("Python 源码和 script_args 不能包含 NUL");
+        }
         const scriptArgs = buildPipeSeparatedShellArgs(params.script_args);
+        // Validate caller-controlled arguments before initializing the persistent interpreter.
+        const { pythonBin } = await ensurePersistentVenv();
         const tempFilePath = `/tmp/code_runner_${createTempToken("python")}.py`;
         const escapedTempFilePath = escapeForShell(tempFilePath);
         try {
             await writeTextFile(tempFilePath, script);
-            const result = await executeFromHome(`${pythonBin} ${pythonFlags} '${escapedTempFilePath}' ${scriptArgs}`.trim());
-            if (result.exitCode === 0 && !hasError(result.output)) {
-                return result.output.trim();
-            }
-            else {
-                throw new Error(`Python 脚本执行失败:\n${result.output}`);
-            }
+            // 批处理不能继承共享 PTY 的输入，否则 input()/子进程会等待 AI 无法提供的按键。
+            const result = await executeFromHome(`${pythonBin} -u ${pythonFlags} -- '${escapedTempFilePath}' ${scriptArgs} </dev/null`);
+            return pythonOutput(result);
         }
         finally {
             await executeFromHome(`rm -f ${tempFilePath}`).catch(err => console.error(`删除临时文件失败: ${err.message}`));
@@ -1002,22 +1081,21 @@ int main() {
         if (!filePath || filePath.trim() === "") {
             throw new Error("请提供要执行的 Python 文件路径");
         }
-        const escapedPath = escapeForShell(filePath);
+        const pythonFlags = buildPythonFlags(params.python_flags);
+        if (filePath.includes("\0") || params.script_args?.includes("\0")) {
+            throw new Error("Python file_path 和 script_args 不能包含 NUL");
+        }
+        const scriptArgs = buildPipeSeparatedShellArgs(params.script_args);
+        // 即使加 --，Python 仍将单独的 '-' 当作 stdin；显式相对路径保留文件含义。
+        const escapedPath = escapeForShell(filePath.startsWith("-") ? `./${filePath}` : filePath);
         const fileExistsResult = await executeTerminalCommand(`test -f '${escapedPath}'`);
         if (fileExistsResult.exitCode !== 0 || hasError(fileExistsResult.output)) {
             throw new Error(`Python 文件不存在或路径错误: ${filePath}`);
         }
         // Use persistent venv interpreter
         const { pythonBin } = await ensurePersistentVenv();
-        const pythonFlags = params.python_flags || "";
-        const scriptArgs = buildPipeSeparatedShellArgs(params.script_args);
-        const result = await executeTerminalCommand(`${pythonBin} ${pythonFlags} '${escapedPath}' ${scriptArgs}`.trim());
-        if (result.exitCode === 0 && !hasError(result.output)) {
-            return result.output.trim();
-        }
-        else {
-            throw new Error(`Python 文件执行失败:\n${result.output}`);
-        }
+        const result = await executeTerminalCommand(`${pythonBin} -u ${pythonFlags} -- '${escapedPath}' ${scriptArgs} </dev/null`);
+        return pythonOutput(result);
     }
     async function run_ruby(params) {
         const script = params.script;

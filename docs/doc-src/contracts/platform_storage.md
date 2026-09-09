@@ -11,6 +11,14 @@
 - `KiyoriBackupPaths` 是无状态投影，`OperitPaths / OperitBackupDirs` 保持 JVM 兼容门面，不重复计算路径。
 - 不自动读取、合并或删除 `Download/Operit`；旧公共 ToolPkg 数据只在用户选择 SAF 输入并通过包专属验证后导入。
 
+### 代码搜索的路径空间
+
+- `grep_code` 与 `grep_context` 默认使用 Android 路径。本地 Ubuntu 的 `/root/...`、`/home/...`、`~/...` 必须显式传 `environment=linux`；不根据文件是否存在自动切换环境。
+- Linux native 搜索复用 `PRootMountMapping` 的 rootfs 与挂载映射，先在 guest 空间规范化路径，再交给 Android JNI ripgrep。结果文件路径还原为 Linux 路径，`env=linux`，可直接用于同环境的 `read_file` / `read_file_part`；不返回宿主 rootfs 前缀作为文件路径。
+- 单文件上下文搜索直接以该文件为搜索根，不把文件名解释成 glob。目录检索继续使用现有 native 正则、过滤和结果限制。
+- native 搜索只支持 Android 与本地 Ubuntu。当前文件提供者为 SSH 时明确失败并建议同环境读取或在对应 SSH 终端运行 `grep`；不搜索本机同名文件，不安装远端依赖，不静默替换搜索引擎。
+- 未知环境、未安装 Ubuntu、无效路径、路径不存在或不可读均提供原因与下一步。路径失败后 AI 应先用同环境的 `file_exists` / `list_files` 核实；真实错误仍保持失败，不能把不可访问当成零命中。设备上的 PRoot、挂载和符号链接行为需单独验收。
+
 ## 生命周期与日志
 
 - `KiyoriActivityLifecycle` 通过一个 facts 实例持有 Activity 弱引用、created/started 计数与前台状态，唯一注册 Android 回调。
@@ -33,6 +41,9 @@
 - terminal 子模块保留唯一会话与 CommandEnvelope。UTF-8 payload 在 Readline 前编码，由同一 Bash session 解码执行；TAB、引号、Unicode、CR、尾部 LF 保真，NUL 入队前拒绝。
 - cwd 物理失效时先显式恢复到 `$HOME`，失败不执行用户命令；正常 cwd/export/jobs 与原始键盘 TAB/Ctrl+C 语义保持。code_runner 源文件仍按 LF 约定写入。
 - `code_runner_session` 是可见 PTY。Python/pip 使用 `~/.code_runner/py/bin/python`，Node 安装位于 `~/.code_runner/node`；环境信息工具报告实际会话、cwd、解释器、包路径与 rootfs。
+- `run_python` 接收原始 Python 源码并以临时文件执行，无需调用方进行 Shell 转义。它与 `run_python_file` 都是非交互批处理：stdin 为 EOF、输出默认 `-u` 无缓冲；需要按键输入或 REPL 时使用 `super_admin:terminal` / `terminal_input`。
+- `python_flags` 按空白、引号及反斜杠解析为独立参数，再逐项 Shell 引用，不展开变量、命令替换或重定向。接受脚本解释器开关及 `-W`、`-X`、`--check-hash-based-pycs` 的值；交互、`-c`、`-m`、帮助/版本模式、位置参数、缺值、未闭合引号和 NUL 在终端调用前失败。
+- Python 文件路径保留 cwd 语义，前导 `-` 按文件处理；结果以真实退出码及 `timedOut` 判断，普通输出中的 Shell 错误示例不改变成功状态。每条命令默认限时 120000 ms，执行超时明确报告并保留已捕获输出；不把本地测试的中断/复用等同于 Android 现场验收。
 - venv/探针在稳定 `$HOME` 子 shell 执行；用户相对文件路径保持调用方 cwd 语义。Go/Rust 临时构建使用每调用唯一目录；带引号 here-document 在独立 LF 行关闭。
 - 文件型工具共享 Ubuntu 文件系统，Android 文件必须先复制或挂载；ES5 最终表达式与显式 return 继续按各自执行语义处理。
 - 随机 OSC 命令 marker 解析真实退出码，FIFO 事件派发保证输出先于完成；超时作用于目标 session，不切用户标签；writer 失败清状态。

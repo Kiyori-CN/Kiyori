@@ -76,6 +76,7 @@ import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.audit.ConversationAuditExportFormat
 import com.ai.assistance.operit.data.audit.ConversationAuditLoadedPayload
+import com.ai.assistance.operit.data.audit.ConversationAuditSearchPage
 import com.ai.assistance.operit.data.model.ChatMessage
 import com.ai.assistance.operit.data.model.ConversationAuditEntity
 import com.ai.assistance.operit.data.model.ConversationAuditEventEntity
@@ -117,6 +118,7 @@ fun ConversationDetailsScreen(
     isGenerating: Boolean,
     onEditMessage: suspend (original: ChatMessage, content: String) -> Boolean,
     onLoadPayloads: suspend (eventId: String) -> List<ConversationAuditLoadedPayload>,
+    onSearchEvents: suspend (String, Long?) -> ConversationAuditSearchPage,
     onLoadOlderEvents: () -> Unit,
     onExport: suspend (ConversationAuditExportFormat) -> Boolean,
     onAddAnnotation: suspend (String) -> Boolean,
@@ -172,6 +174,7 @@ fun ConversationDetailsScreen(
                     providerModel = providerModel,
                     onExport = { showExportDialog = true },
                     onAddAnnotation = { showAnnotationDialog = true },
+                    actionsEnabled = audit != null && !isLoading,
                 )
                 AuditTabRow(
                     selectedTab = tabs[selectedTab],
@@ -195,6 +198,7 @@ fun ConversationDetailsScreen(
                                 isLoadingOlderEvents = isLoadingOlderEvents,
                                 onLoadOlderEvents = onLoadOlderEvents,
                                 onLoadPayloads = onLoadPayloads,
+                                onSearchEvents = onSearchEvents,
                                 systemBackEnabled = systemBackEnabled && !showAnnotationDialog && !showExportDialog,
                                 modifier = Modifier.weight(1f),
                             )
@@ -306,6 +310,7 @@ private fun AuditHeader(
     providerModel: String?,
     onExport: () -> Unit,
     onAddAnnotation: () -> Unit,
+    actionsEnabled: Boolean,
 ) {
     val colors = LocalKiyoriSettingsColors.current
     val context = LocalContext.current
@@ -342,21 +347,27 @@ private fun AuditHeader(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            IconButton(onClick = onExport) {
+            TextButton(onClick = onExport, enabled = actionsEnabled) {
                 Icon(
                     imageVector = Icons.Default.FileDownload,
                     contentDescription =
                         stringResource(R.string.conversation_audit_export_content_description),
                     tint = colors.accent,
+                    modifier = Modifier.size(18.dp),
                 )
+                Spacer(Modifier.size(4.dp))
+                Text(stringResource(R.string.conversation_audit_export_short))
             }
-            IconButton(onClick = onAddAnnotation) {
+            TextButton(onClick = onAddAnnotation, enabled = actionsEnabled) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.NoteAdd,
                     contentDescription =
                         stringResource(R.string.conversation_audit_annotation_content_description),
                     tint = colors.mutedIcon,
+                    modifier = Modifier.size(18.dp),
                 )
+                Spacer(Modifier.size(4.dp))
+                Text(stringResource(R.string.conversation_audit_note_short))
             }
         }
         Row(
@@ -423,6 +434,11 @@ private fun AuditHeader(
             overflow = TextOverflow.Ellipsis,
             fontFamily = FontFamily.Monospace,
         )
+        audit?.lastFailureCode?.let { failure ->
+            SelectionContainer {
+                Text(stringResource(R.string.conversation_audit_last_failure, failure), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
+        }
     }
     HorizontalDivider(color = colors.divider)
 }
@@ -508,6 +524,7 @@ private fun AuditSectionToolbar(
             )
             TextButton(
                 onClick = if (expanded) onCollapseAll else onExpandAll,
+                enabled = matchingCount > 0,
                 contentPadding =
                     androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp),
             ) {
@@ -597,25 +614,14 @@ private fun AuditTimeline(
     isLoadingOlderEvents: Boolean,
     onLoadOlderEvents: () -> Unit,
     onLoadPayloads: suspend (eventId: String) -> List<ConversationAuditLoadedPayload>,
+    onSearchEvents: suspend (String, Long?) -> ConversationAuditSearchPage,
     systemBackEnabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
-    val filtered =
-        remember(events, query) {
-            val normalized = query.trim()
-            if (normalized.isEmpty()) {
-                events
-            } else {
-                events.filter { event ->
-                    event.eventType.contains(normalized, ignoreCase = true) ||
-                        event.category.contains(normalized, ignoreCase = true) ||
-                        event.actor.contains(normalized, ignoreCase = true) ||
-                        event.summary.contains(normalized, ignoreCase = true) ||
-                        event.eventId.contains(normalized, ignoreCase = true)
-                }
-            }
-        }
+    val search = rememberConversationAuditSearch(query.trim(), onSearchEvents)
+    val searching = query.isNotBlank()
+    val filtered = if (searching) search.matches.map { it.event }.sortedBy { it.sequenceNumber } else events
     val listState = rememberLazyListState()
     val loadedPayloads = remember { mutableStateMapOf<String, List<ConversationAuditLoadedPayload>>() }
     val loadingPayloads = remember { mutableStateMapOf<String, Boolean>() }
@@ -669,6 +675,7 @@ private fun AuditTimeline(
     }
 
     LaunchedEffect(events.lastOrNull()?.sequenceNumber, filtered.size) {
+        if (searching) return@LaunchedEffect
         val currentLastSequence = events.lastOrNull()?.sequenceNumber ?: 0L
         val newCount =
             if (previousLastSequence == 0L) {
@@ -696,17 +703,35 @@ private fun AuditTimeline(
             onQueryChange = { query = it },
             placeholder = stringResource(R.string.conversation_audit_search_timeline),
             matchingCount = filtered.size,
-            totalCount = events.size,
-            loadedOnly = true,
+            totalCount = if (searching) search.scannedCount else events.size,
+            loadedOnly = !searching,
             expanded = filtered.isNotEmpty() && filtered.all { it.eventId in expandedEventIds },
             onExpandAll = { expandedEventIds = expandedEventIds + filtered.map { it.eventId } },
             onCollapseAll = { expandedEventIds = expandedEventIds - filtered.map { it.eventId }.toSet() },
         )
+        if (searching) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(if (search.error) R.string.conversation_audit_search_failed else R.string.conversation_audit_search_scope),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (search.error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                if (search.loading) CircularProgressIndicator(Modifier.padding(8.dp).size(20.dp), strokeWidth = 2.dp)
+                else if (search.hasMore || search.error) TextButton(onClick = { search.request++ }) {
+                    Text(stringResource(if (search.error) R.string.conversation_audit_retry_payload else R.string.conversation_audit_search_more))
+                }
+            }
+        }
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            if (filtered.isEmpty() && !hasOlderEvents && !isLoadingOlderEvents) {
+            if (filtered.isEmpty() && (searching || !hasOlderEvents && !isLoadingOlderEvents)) {
                 EmptyAuditState(
                     text =
-                        if (events.isEmpty()) {
+                        if (searching && search.loading) {
+                            stringResource(R.string.conversation_audit_search_running)
+                        } else if (searching && search.error) {
+                            stringResource(R.string.conversation_audit_search_failed)
+                        } else if (events.isEmpty() && !searching) {
                             stringResource(R.string.conversation_audit_empty)
                         } else {
                             stringResource(R.string.conversation_audit_no_matches)
@@ -725,7 +750,7 @@ private fun AuditTimeline(
                             Text(stringResource(R.string.conversation_audit_no_loaded_matches), modifier = Modifier.padding(16.dp))
                         }
                     }
-                    if (hasOlderEvents || isLoadingOlderEvents) {
+                    if (!searching && (hasOlderEvents || isLoadingOlderEvents)) {
                         item(key = "load-older-events") {
                             TextButton(
                                 enabled = !isLoadingOlderEvents,
@@ -757,6 +782,8 @@ private fun AuditTimeline(
                     ) { event ->
                         AuditEventRow(
                             event = event,
+                            searchExcerpt = if (searching) search.matches.firstOrNull { it.event.eventId == event.eventId }?.excerpt else null,
+                            searchQuery = query.takeIf { searching },
                             expanded = event.eventId in expandedEventIds,
                             loading = loadingPayloads[event.eventId] == true,
                             payloads = loadedPayloads[event.eventId],
@@ -775,7 +802,7 @@ private fun AuditTimeline(
                     }
                 }
             }
-            if (unreadEventCount > 0) {
+            if (unreadEventCount > 0 && !searching) {
                 val colors = LocalKiyoriSettingsColors.current
                 Surface(
                     modifier = Modifier.align(Alignment.BottomCenter).padding(12.dp),
@@ -822,6 +849,8 @@ private fun AuditTimeline(
 @Composable
 private fun AuditEventRow(
     event: ConversationAuditEventEntity,
+    searchExcerpt: String? = null,
+    searchQuery: String? = null,
     expanded: Boolean,
     loading: Boolean,
     payloads: List<ConversationAuditLoadedPayload>?,
@@ -888,7 +917,12 @@ private fun AuditEventRow(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            if (event.visibility == "TOMBSTONE" || event.terminalState == "FAILED") {
+            if (searchExcerpt != null) {
+                SelectionContainer {
+                    Text(searchExcerpt, style = MaterialTheme.typography.bodySmall, color = colors.accent, maxLines = 4, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            if (event.visibility == "TOMBSTONE" || event.terminalState != null) {
                 Text(
                     text =
                         listOfNotNull(
@@ -897,7 +931,7 @@ private fun AuditEventRow(
                             )
                             .joinToString(" · "),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.error,
+                    color = if (event.terminalState == "COMPLETED") KiyoriSemanticTone.GREEN.resolveColors().icon else MaterialTheme.colorScheme.error,
                 )
             }
             if (expanded) {
@@ -908,6 +942,10 @@ private fun AuditEventRow(
                             text =
                                 "eventId=${event.eventId}\n" +
                                     "actor=${event.actor}\n" +
+                                    "localExecutionId=${event.localExecutionId ?: "—"}\n" +
+                                    "providerCallId=${event.providerCallId ?: "—"}\n" +
+                                    "parentEventId=${event.parentEventId ?: "—"}\n" +
+                                    "occurredAt=${java.time.Instant.ofEpochMilli(event.occurredAt)}\n" +
                                     "eventSha256=${event.eventSha256}\n" +
                                     "previousEventSha256=${event.previousEventSha256}",
                             style = MaterialTheme.typography.bodySmall,
@@ -955,17 +993,9 @@ private fun AuditEventRow(
                                         style = MaterialTheme.typography.labelMedium,
                                         color = colors.primaryText,
                                     )
-                                    Text(
-                                        text =
-                                            if (payload.encoding == "utf-8") {
-                                                payload.bytes.toString(Charsets.UTF_8)
-                                            } else {
-                                                stringResource(R.string.conversation_audit_binary_payload)
-                                            },
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontFamily = FontFamily.Monospace,
-                                        color = colors.secondaryText,
-                                    )
+                                    if (payload.encoding == "utf-8") {
+                                        AuditPagedText(remember(payload) { payload.bytes.toString(Charsets.UTF_8) }, searchQuery)
+                                    } else Text(stringResource(R.string.conversation_audit_binary_payload))
                                 }
                         }
                     }
@@ -1213,12 +1243,12 @@ private fun AuditMessageRow(
                 )
             }
             SelectionContainer {
-                Text(
-                    text = message.content,
+                if (expanded) AuditPagedText(message.content) else Text(
+                    text = message.content.take(1200),
                     style = MaterialTheme.typography.bodyMedium,
                     fontFamily = FontFamily.Monospace,
                     color = colors.primaryText,
-                    maxLines = if (expanded) Int.MAX_VALUE else 4,
+                    maxLines = 4,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -1564,7 +1594,7 @@ private fun completenessLabel(status: String): String =
     }
 
 private fun formatTime(timestamp: Long): String =
-    SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(Date(timestamp))
+    SimpleDateFormat("MM-dd HH:mm:ss", Locale.getDefault()).format(Date(timestamp))
 
 private fun eventToJson(event: ConversationAuditEventEntity): String =
     JSONObject()

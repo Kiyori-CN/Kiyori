@@ -2306,7 +2306,7 @@
     <string name="ffmpeg_permission_error">Permission error, cannot access file</string>
 
     <!-- Log Viewer (Logcat) -->
-    <string name="logcat_title">Log Viewer</string>
+    <string name="logcat_title">App runtime logs</string>
     <string name="logcat_start">Start logging</string>
     <string name="logcat_stop">Stop logging</string>
     <string name="logcat_clear">Clear logs</string>
@@ -2331,7 +2331,7 @@
     <string name="logcat_logs_saved">Logs saved to %s</string>
     <string name="logcat_export_title">App Log Export</string>
     <string name="logcat_management">App Log Management</string>
-    <string name="logcat_description">You can export all internal logs during app runtime to a file for debugging and issue analysis.</string>
+    <string name="logcat_description">Export recent app logs to diagnose startup, network, proxy and terminal services. For messages, tool calls and revisions in one AI chat, open Conversation details. Clearing runtime logs does not delete conversation audits.</string>
     <string name="logcat_save_to_file">Save logs to file</string>
     <string name="logcat_clear_all">Clear all logs</string>
     <string name="logcat_clear_current">Clear current application log</string>
@@ -5077,17 +5077,17 @@
     <string name="conversation_details_title">Conversation details</string>
     <string name="conversation_audit_tab_timeline">Timeline</string>
     <string name="conversation_audit_tab_conversation">Conversation</string>
-    <string name="conversation_audit_tab_raw">Raw</string>
-    <string name="conversation_audit_annotation_title">Add audit annotation</string>
-    <string name="conversation_audit_annotation_description">The annotation is appended as a new read-only audit event. It does not modify any original input, output, or tool fact.</string>
+    <string name="conversation_audit_tab_raw">Raw events</string>
+    <string name="conversation_audit_annotation_title">Add diagnostic note</string>
+    <string name="conversation_audit_annotation_description">Record reproduction steps, network changes or expected results. Notes are permanently appended to the audit and exports; they are not sent to AI and do not change messages or tool results.</string>
     <string name="conversation_audit_annotation_content">Annotation</string>
     <string name="conversation_audit_annotation_append">Append annotation</string>
     <string name="conversation_audit_export_content_description">Export conversation audit</string>
-    <string name="conversation_audit_annotation_content_description">Add audit annotation</string>
+    <string name="conversation_audit_annotation_content_description">Add diagnostic note</string>
     <string name="conversation_audit_chain_pending">legacy rebuild pending</string>
     <string name="conversation_audit_provider_not_recorded">Provider / model not recorded</string>
     <string name="conversation_audit_empty">This conversation has no audit events yet</string>
-    <string name="conversation_audit_no_matches">No matches in the loaded events</string>
+    <string name="conversation_audit_no_matches">No matches in the current search scope</string>
     <string name="conversation_audit_load_older">Load earlier events</string>
     <string name="conversation_audit_loading_older">Loading earlier events</string>
     <string name="conversation_audit_load_older_failed">Failed to load earlier audit events: %1$s</string>
@@ -5103,11 +5103,11 @@
     <string name="conversation_audit_speaker_user">User</string>
     <string name="conversation_audit_speaker_ai_variant">AI · variant %1$d</string>
     <string name="conversation_audit_message_token_metadata">timestamp=%1$d · historical actual tokens in=%2$d, out=%3$d</string>
-    <string name="conversation_audit_edit_description">Editing creates an immutable revision and updates the current bubble and future context. Tool facts and historical actual token counts are not rewritten.</string>
+    <string name="conversation_audit_edit_description">Saving updates this message and future AI context, including the cache prefix. Original text and revisions remain. It does not regenerate later answers, undo tools or rewrite usage. Editing tool markup may make history impossible to replay.</string>
     <string name="conversation_audit_current_version">Current version</string>
     <string name="conversation_audit_save_revision">Save revision</string>
-    <string name="conversation_audit_search_raw">Search loaded Raw JSONL events</string>
-    <string name="conversation_audit_completeness_complete">Complete</string>
+    <string name="conversation_audit_search_raw">Search loaded event JSON (use Timeline for text)</string>
+    <string name="conversation_audit_completeness_complete">Recording complete</string>
     <string name="conversation_audit_completeness_in_progress">In progress</string>
     <string name="conversation_audit_completeness_partial">Partially complete</string>
     <string name="conversation_audit_completeness_basic">Basic record</string>
@@ -8409,21 +8409,21 @@
     <string name="chat_memory_rebuild_window_size_value">Message count: %1$d</string>
     <string name="chat_memory_rebuild_confirm_action">Start rebuild</string>
     <string name="conversation_audit_header_subtitle">Readable, searchable execution diagnostics</string>
-    <string name="conversation_audit_header_counts">Events %1$d · Messages %2$d · payload %3$s</string>
+    <string name="conversation_audit_header_counts">%1$d events · %2$d messages · %3$s</string>
     <string name="conversation_audit_header_runtime_compact">Runtime: %1$s · Chain head: %2$s</string>
     <string name="conversation_audit_match_count">Matches %1$d / %2$d</string>
     <string name="conversation_audit_expand_all">Expand all</string>
     <string name="conversation_audit_collapse_all">Collapse all</string>
-    <string name="conversation_audit_search_timeline">Search event type, category, summary, or ID</string>
+    <string name="conversation_audit_search_timeline">Search errors, tool results, text or IDs</string>
     <string name="conversation_audit_search_conversation">Search messages, roles, providers, or models</string>
     <string name="conversation_audit_conversation_empty">This conversation has no messages to display yet</string>
     <string name="conversation_audit_message_index">Message timestamp=%1$d</string>
     <string name="conversation_audit_export_title">Export conversation details</string>
-    <string name="conversation_audit_export_description">Exports always use a verified consistent snapshot, regardless of the current search or pagination.</string>
+    <string name="conversation_audit_export_description">Saved to Download/Kiyori/exports/conversation-audit. Includes all persisted records at export time, regardless of search or pagination. Active output may not be recorded yet.</string>
     <string name="conversation_audit_export_ai_title">Export AI diagnostics (plain-text Markdown)</string>
     <string name="conversation_audit_export_ai_description">UTF-8 plain text with messages, events, and readable payloads for direct AI analysis. Sensitive content is redacted; the export is not encrypted.</string>
     <string name="conversation_audit_export_package_title">Export full audit package (signed ZIP)</string>
-    <string name="conversation_audit_export_package_description">Preserves the event chain, revisions, projections, seals, and binary payloads for local reproduction and import.</string>
+    <string name="conversation_audit_export_package_description">Preserves event chains, revisions, seals and attachments for verification and import. Signatures verify integrity; the ZIP is not encrypted. Review before sharing.</string>
     <string name="message_send_failed_partial">The response stream was interrupted. Content already received has been retained.\nFailed to send message: %1$s</string>
     <string name="web_session_cookie_reader_title">Webpage cookies</string>
     <string name="web_session_cookie_reader_subtitle">Read cookies from the current webpage</string>
@@ -8585,4 +8585,15 @@
     <string name="chat_order_move_failed">The move was not saved. The position or binding may have changed. Check the current list and move the chat again.</string>
     <string name="chat_selection_failed">Could not switch chats. Saving may have failed, the target may have been deleted, or the selection may have changed. Check and try again.</string>
     <string name="chat_selection_read_failed">Could not read the selected chat. The current window is preserved and may be out of date. Reload to recover.</string>
+    <string name="conversation_audit_search_scope">Searches all recorded events and text attachments. Separate keywords with spaces. Results reflect history at search start; clear the query to search again.</string>
+    <string name="conversation_audit_search_failed">Search did not finish. Existing results are retained; retry before concluding there are no matches.</string>
+    <string name="conversation_audit_search_more">Search further</string>
+    <string name="conversation_audit_search_running">Searching history…</string>
+    <string name="conversation_audit_export_short">Export</string>
+    <string name="conversation_audit_text_page">Page %1$d / %2$d · %3$d characters (exports contain all text)</string>
+    <string name="message_responses_submission_unknown">Server completion could not be confirmed. Automatic resubmission was stopped to avoid duplicate requests or tool execution. Review Conversation details and confirm remote state before continuing.</string>
+    <string name="conversation_audit_previous_page">Previous page</string>
+    <string name="conversation_audit_next_page">Next page</string>
+    <string name="conversation_audit_note_short">Note</string>
+    <string name="conversation_audit_last_failure">Latest recorded issue: %1$s</string>
 </resources>

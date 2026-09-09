@@ -1452,6 +1452,9 @@ val actualViewModel: ChatViewModel =
                         detailsChatId != null && actualViewModel.reviseConversationAuditMessage(detailsChatId, original, content)
                     },
                     onLoadPayloads = actualViewModel::loadConversationAuditPayloads,
+                    onSearchEvents = { query, cursor ->
+                        actualViewModel.searchConversationAudit(requireNotNull(detailsChatId), query, cursor)
+                    },
                     onLoadOlderEvents = actualViewModel::loadOlderConversationAuditEvents,
                     onExport = { format ->
                         detailsChatId != null && actualViewModel.exportCurrentConversationAudit(detailsChatId, format)

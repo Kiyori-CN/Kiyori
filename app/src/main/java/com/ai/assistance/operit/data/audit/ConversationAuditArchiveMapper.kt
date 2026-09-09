@@ -15,6 +15,15 @@ import com.ai.assistance.operit.data.model.OperitArchivedMessageVariant
 import java.util.Base64
 import java.time.Instant
 import java.time.ZoneId
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+
+/** 聊天投影没有经过审计入库脱敏；仅处理导出副本，不改写签名链或普通备份入口。 */
+internal fun ConversationAuditExportSnapshot.toCredentialRedactedChatJson(json: Json): String =
+    ConversationAuditRedactor.redactText(
+        json.encodeToString(toOperitArchivedChat(includeAudit = false)),
+        mediaType = "application/json",
+    ).value
 
 fun ConversationAuditExportSnapshot.toOperitArchivedConversationAudit():
     OperitArchivedConversationAudit =

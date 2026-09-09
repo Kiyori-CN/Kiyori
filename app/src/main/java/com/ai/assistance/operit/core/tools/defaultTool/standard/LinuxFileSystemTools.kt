@@ -1212,24 +1212,7 @@ class LinuxFileSystemTools(context: Context) : StandardFileSystemTools(context) 
             )
         }
 
-        val isFile = fs.isFile(path)
-
-        if (isFile) {
-            val parent = path.substringBeforeLast('/', "")
-            val fileName = path.substringAfterLast('/')
-            val searchPath = if (parent.isNotBlank()) parent else "/"
-            return grepContextAgentic(
-                toolName = tool.name,
-                displayPath = path,
-                searchPath = searchPath,
-                environment = "linux",
-                intent = intent,
-                filePattern = fileName,
-                maxResults = maxResults,
-                envLabel = "linux"
-            )
-        }
-
+        // native 支持直接搜索单文件，避免把含 [] 等 glob 字符的文件名当作目录过滤器。
         return grepContextAgentic(
             toolName = tool.name,
             displayPath = path,

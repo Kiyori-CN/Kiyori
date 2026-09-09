@@ -1,5 +1,61 @@
 # code_runner 与终端工具链收口
 
+## Linux 代码搜索路径修复（2026-09-10）
+
+状态：本地修复、定向回归与 Debug APK 已完成；Android/proot 现场保留 `verification_pending`。
+
+2026-09-10 后续交付：本页下方各轮“不提交、不推送”保留其历史授权含义；此次用户明确授权全部提交推送，已有 code_runner/grep 改动纳入[对话详情全面优化](../ai_chat_experience_refinement/index.md)统一复核与交付，最终 APK 和现场边界以该轮记录为准。
+
+- 目标：修复 `/root/build_final.py` 被 Android native grep 错误解释的问题，闭合 `grep_code`、`grep_context` 和后续读取的路径空间。
+- 基线：父仓库 `main / 9504b5538`；已有 Python code_runner 代码、资产、测试与文档改动保持。本轮不提交、不推送、不操作设备、不修改 terminal 子模块。
+- 根因：`LinuxFileSystemTools.grepCode` 把原始 Linux 路径交给 Android JNI；`runGrepCodeBatch` 虽接收 `environment`，调用 native 时未使用它。
+- 方案：复用 `PRootMountMapping`，区分搜索用宿主路径和结果用 guest 路径；规范化 `~/`、斜杠、`.`/`..`，补齐环境、存在性与访问检查。单文件上下文搜索不再经父目录加文件名 glob。
+- 边界：不新增搜索引擎或自动环境切换。SSH native 搜索当前不支持，明确报告并提示读取/对应 SSH 终端，防止搜索本机同名内容。符号链接、真实挂载及 Android UI 调用仍需现场验收。
+- 风险与回滚：路径还原错误会影响后续读取，因此覆盖文件、目录、根、挂载别名、特殊字符、非法路径及前缀碰撞。回滚仅按本轮精确差异撤销，保留先前 code_runner 交付。
+- 计划：定位共享调用链 → 实施映射与错误反馈 → Kotlin 路径和 native 搜索回归 → 文档与差异检查 → 串行 Debug APK → 记录待现场验收。
+
+本地验证证据：
+
+- `cargo +1.88.0 test --manifest-path tools/native_ripgrep/Cargo.toml --locked --target-dir app/build/nativeRipgrepHostTests`：6 项通过，0 失败、0 忽略；真实读写宿主临时夹具，覆盖映射后文件、目录、glob、正则错误、二进制和结果上限，未执行 Android JNI。
+- `gradlew.bat :app:testDebugUnitTest --tests com.ai.assistance.operit.util.ripgrep.NativeGrepTargetTest --no-daemon --console=plain`：10 项通过，0 失败、0 错误、0 跳过；构建 2 分 10 秒。路径转换和结果还原使用纯 JVM 测试，真实 PRoot 挂载另行验收。
+- 正式开发准备检查通过；文档检查 512 文件、0 问题；`git diff --check` 通过，terminal 工作区干净。
+- 最终 `gradlew.bat :app:assembleDebug --no-daemon --console=plain` 通过，2 分 53 秒，238 tasks（31 executed / 207 up-to-date）。APK 为 `app/build/outputs/apk/debug/app-debug.apk`，`480231700` bytes，SHA-256 `90C04BB5483087FF9753EA1CA8BE65D9040AD37EA6C62206BF7B5B1A7E0132B9`。
+- APK 标识为 `com.kiyori / 45 / 0.1.0`，min SDK 26、target SDK 34，仅 `arm64-v8a`；V2 单 signer 验证通过。包内 `liboperit_ripgrep.so` 为 AArch64 ELF，已有 `code_runner.js` 与生产源码资产逐字节一致。
+- 未安装 APK、未操作设备或连接远端；原始调用、PRoot 挂载和符号链接现场保持 `verification_pending`。下一步在目标设备使用 `path=/root/build_final.py, environment=linux` 复测，并核对命中路径可用于后续读取。
+
+## Python 复杂代码与终端等待排查（2026-09-10）
+
+状态：本地修复、回归与 Debug APK 已完成；原始调用及 Android/proot 现场为 `verification_pending`。
+基线父仓库 `9504b5538`、terminal `3a5f22da`，开始时两个工作区干净；本轮不提交、不推送。
+
+- 目标：用真实 Bash/PTY 和 Python 复核复杂引号、长源码、输入等待、参数解析及失败后复用，修复已确认缺陷。
+- 范围：`examples/code_runner.ts`、对应生成 JS/生产资产、定向行为测试和平台契约。保留唯一 TerminalManager、可见会话、持久 venv 与文件路径语义；不提交推送、不操作设备、不更换执行器。
+- 计划：生产资产行为回归 → 根因修复 → 参数/源码/退出码/清理反向审查 → TypeScript 与相关测试 → 串行 Debug APK 及资产核验。
+- 已核对：当前 `run_python` 已经先写 `.py` 再运行，终端已有 ANSI-C payload 编码；不能把任意引号问题直接归因于 `python -c`。`python_flags` 原样拼接、Python 继承 PTY 输入、`hasError` 检查普通输出需要行为验证。
+- 风险与回滚：非交互输入和解释器选项需明确契约；测试需区别本地 PTY 与 Android/proot。源码可按本轮精确差异回滚，设备现场结果保留 `verification_pending`。
+
+### 已复现问题与修复
+
+- 旧生产资产的首轮 8 项真实 Bash/PTY/Python 回归为 3 通过、5 失败。复杂引号、TAB、中文、CRLF 和约 18 KB 长行通过，因此目前不能断言用户现场卡住的根因就是源码引号。
+- `input()` 继承共享 PTY 并等待输入；`-i` 在程序执行完后进入 REPL，Ctrl+C 仍不能让 Shell 返回。两个 Python 入口现为非交互批处理：stdin 指向 `/dev/null`，输出默认 `-u`；交互任务通过已有终端入口处理。
+- `python_flags` 过去直接作为 Shell 片段拼接。现在先解析空白、引号、反斜杠，验证脚本解释器选项与 `-W/-X/--check-hash-based-pycs` 参数，再逐项安全引用；模式切换、Shell 片段、未闭合引号、缺值和 NUL 在终端操作前报错。
+- 成功脚本打印 `bash: sample: command not found` 被旧 `hasError` 误判；Python 结果现以真实退出码和 `timedOut` 判断。超时保留已有输出并明确报告，不宣称一定完成进程终止。
+- 前导 `-` 文件名曾被当作解释器选项；现在用 `--` 和必要的 `./` 保持文件含义，含空格/引号、单独 `-` 及项目相对 cwd 均通过测试。用户文件保留，临时源文件在测试的正常和失败路径清理。
+
+### 本地验证证据（2026-09-10）
+
+- `node node_modules/typescript/bin/tsc -p examples/tsconfig.json --noEmit --pretty false` 通过；按同一 tsconfig 单独生成 code_runner JS，未批量改写其他脚本。
+- 设置 `KIYORI_PTY_WSL_DISTRO=Ubuntu-26.04` 后，`node --test tools/example_packages/code_runner_python.test.mjs tools/example_packages/terminal_input.test.mjs`：20 项通过、0 失败、0 跳过。11 项新测试执行生产 JS 与真实 Bash/PTY/Python；仅 mock pip 就绪探针，超时夹具缩短为 2 秒，不代表实际 Android 120 秒时限实测。
+- `.venv/Scripts/python.exe -B -m unittest ci.test.test_toolpkg_sync`：15 项通过。
+- `:terminal:testDebugUnitTest --tests com.ai.assistance.operit.terminal.CommandEnvelopePtyTest --no-daemon --console=plain`：1 项通过、0 跳过，直接使用生产 Kotlin 编码器验证真实 Readline、长输入、退出码、Ctrl+C 和会话复用。
+- 正式开发准备检查通过；文档检查 512 文件、0 问题；父仓与 terminal 的差异空白检查通过。
+- 串行 `:app:assembleDebug --no-daemon --console=plain` 通过，41 秒、238 tasks。APK 为 `app/build/outputs/apk/debug/app-debug.apk`，`477365123` bytes，SHA-256 `e223f6ee5b9ae178f2d10dbee5338d67709f8cf487009d9a734803fa22aa14b5`；包名 `com.kiyori`、版本 `45 / 0.1.0`、仅 `arm64-v8a`，V2 单 signer 验证通过。
+- APK 内 `assets/packages/code_runner.js` 与 `examples/code_runner.js`、生产源码资产逐字节一致，脚本 SHA-256 `9161b8934518d58c96f6665a2a8015e167fa3eaf458e3774221e8731afd251f1`。
+
+下一验收点：保留原始 `script/python_flags/script_args`，在目标 Android/proot 上用该调用及
+`input()`、执行报错、超时后继续调用复测。不操作设备、不以本地夹具替代用户现场问题闭环，
+不声称任意网络等待、原生阻塞或任意 Python 程序都不会超时。
+
 ## 环境识别、安装闭环与 SSH 一致性（2026-09-09）
 
 状态：代码、本地验证与 Debug APK 已完成；Android/proot 和真实 SSH 为 `verification_pending`。

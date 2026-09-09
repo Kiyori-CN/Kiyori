@@ -12,7 +12,9 @@ object ConversationAuditCompletenessPolicy {
     fun merge(
         current: ConversationAuditCompletenessStatus,
         requested: ConversationAuditCompletenessStatus,
+        preserveCurrent: Boolean = false,
     ): ConversationAuditCompletenessStatus {
+        if (preserveCurrent) return current
         if (
             current != ConversationAuditCompletenessStatus.COMPLETE &&
                 current != ConversationAuditCompletenessStatus.IN_PROGRESS

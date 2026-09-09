@@ -2397,7 +2397,10 @@ class MessageProcessingDelegate(
         val failureKind = AssistantTurnFailurePolicy.classify(error)
         val failureExecutionId = extractMessageFailureExecutionId(error)
         val causeMessage =
-            error.message
+            if (generateSequence<Throwable>(error) { it.cause }.take(8).any {
+                    it is com.ai.assistance.operit.api.chat.llmprovider.OpenAIResponsesSubmissionUnknownException
+                }) context.getString(R.string.message_responses_submission_unknown)
+            else error.message
                 ?.takeIf { it.isNotBlank() }
                 ?: error::class.java.simpleName
         val partialProjection =
@@ -2471,6 +2474,8 @@ class MessageProcessingDelegate(
                         )
                     }.onFailure { auditError ->
                         AppLogger.e(TAG, "失败回合的部分 assistant 投影审计写入失败", auditError)
+                        runCatching { conversationAuditRepository.markRecordingInterrupted(state.chatId) }
+                            .onFailure { AppLogger.e(TAG, "审计记录中断状态保存失败", it) }
                     }
                 }
                 runCatching {
@@ -2494,6 +2499,8 @@ class MessageProcessingDelegate(
                     )
                 }.onFailure { auditError ->
                     AppLogger.e(TAG, "失败回合的审计终态写入失败", auditError)
+                    runCatching { conversationAuditRepository.markRecordingInterrupted(state.chatId) }
+                        .onFailure { AppLogger.e(TAG, "审计记录中断状态保存失败", it) }
                 }
             }
             setChatInputProcessingState(state.chatId, terminal.finalInputState)

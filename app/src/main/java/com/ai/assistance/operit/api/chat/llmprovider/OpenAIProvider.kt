@@ -3170,14 +3170,10 @@ open class OpenAIProvider(
     ) {
         try {
             // 使用 while 循环读取流式响应
+            val eventReader = ServerSentEventReader(reader)
             while (true) {
-                val line = reader.readLine() ?: break
-
-                if (!line.startsWith("data:")) {
-                    continue
-                }
-                
-                val data = line.substring(5).trim()
+                val data = eventReader.readData()?.trim() ?: break
+                if (data.isEmpty()) continue
                 if (data == "[DONE]") {
                     flushImageBuffers(state, emitter)
                     closeAllOpenToolCalls(state, emitter)
@@ -3213,7 +3209,9 @@ open class OpenAIProvider(
                             continue
                         }
                         processResponsesStreamingEvent(context, jsonResponse, state, emitter, onTokensUpdated)
-                        if (responsesPersistenceSession?.executionState?.isTerminal == true) {
+                        // response.completed 已是终态；不能再等待中转关闭 socket 或额外 [DONE]，
+                        // 否则后续 idle timeout 会把已完成回答误报为传输中断。
+                        if (state.hasCompletedResponsesTerminal || responsesPersistenceSession?.executionState?.isTerminal == true) {
                             break
                         }
                         continue
@@ -3226,10 +3224,12 @@ open class OpenAIProvider(
                         }
                     }
                     processResponseChunk(jsonResponse, state, emitter, onTokensUpdated)
+                } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                    throw cancelled
                 } catch (e: IOException) {
                     throw e
                 } catch (e: Exception) {
-                    if (responsesPersistenceSession != null) {
+                    if (useResponsesApi) {
                         throw OpenAIResponsesEventProcessingException(
                             message = "Responses event processing failed",
                             cause = e,

@@ -143,7 +143,7 @@ class OpenAIResponsesProvider(
         AppLogger.d("AIService", "Responses API自动附加prompt_cache_key: $promptCacheKey")
     }
 
-    private fun buildPromptCacheKey(
+    internal fun buildPromptCacheKey(
         messagesArray: JSONArray,
         toolsJson: String?,
         namespace: String,
@@ -153,45 +153,14 @@ class OpenAIResponsesProvider(
         }
 
         val anchorParts = mutableListOf<String>()
-        var assistantOrToolSeen = false
-        val lastMessageIndex = messagesArray.length() - 1
-
         for (i in 0 until messagesArray.length()) {
             val message = messagesArray.optJSONObject(i) ?: continue
             val role = message.optString("role", "")
-            if (role.isEmpty()) {
-                continue
-            }
-
-            if (role == "assistant" || role == "tool") {
-                assistantOrToolSeen = true
-                break
-            }
-
-            if (role == "system" || role == "developer") {
-                anchorParts.add("$role:${canonicalJsonValue(message.opt("content"))}")
-                continue
-            }
-
-            if (role == "user") {
-                // 首轮对话中的唯一 user 消息就是当前动态输入，不能把它写进稳定缓存命名空间。
-                // 有更早历史时，第一个 user anchor 仍可稳定区分不同长期会话前缀。
-                if (i < lastMessageIndex) {
-                    anchorParts.add("$role:${canonicalJsonValue(message.opt("content"))}")
-                }
-                break
-            }
+            if (role != "system" && role != "developer") break
+            anchorParts.add("$role:${canonicalJsonValue(message.opt("content"))}")
         }
-
-        if (anchorParts.isEmpty() && assistantOrToolSeen) {
-            val firstMessage = messagesArray.optJSONObject(0)
-            if (firstMessage != null) {
-                anchorParts.add(
-                    "${firstMessage.optString("role", "unknown")}:" +
-                        canonicalJsonValue(firstMessage.opt("content"))
-                )
-            }
-        }
+        // 用户消息从首轮动态输入变为后续历史时，缓存路由键仍须一致。
+        // 键只分组稳定前缀；供应商仍按精确输入前缀判断命中，不能用键替代正文匹配。
 
         val digestInput =
             buildString {

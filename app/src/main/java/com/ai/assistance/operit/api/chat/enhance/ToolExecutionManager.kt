@@ -47,6 +47,8 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.first
 import org.json.JSONObject
+import com.ai.assistance.operit.data.audit.ConversationAuditSavedOutput
+import com.kiyori.platform.storage.KiyoriPaths
 
 /** Utility class for managing tool executions */
 object ToolExecutionManager {
@@ -1343,13 +1345,19 @@ object ToolExecutionManager {
         if (repository == null || chatId.isNullOrBlank()) {
             return
         }
+        val toolName = resolveDisplayToolName(invocation.tool)
+        val savedOutput = withContext(Dispatchers.IO) {
+            if (ConversationAuditSavedOutput.supports(toolName)) {
+                ConversationAuditSavedOutput.capture(toolName, result.result.toString(), KiyoriPaths.cleanOnExitDir())
+            } else ConversationAuditSavedOutput()
+        }
         repository.appendEvent(
             ConversationAuditEventRequest(
                 chatId = chatId,
                 category = "TOOL",
                 eventType = eventType,
                 actor = "KIYORI",
-                summary = "$summary：${resolveDisplayToolName(invocation.tool)}",
+                summary = "$summary：$toolName" + if (savedOutput.complete) "" else "（输出附件未完整保留）",
                 providerCallId = invocation.providerCallId,
                 terminalState =
                     when (eventType) {
@@ -1357,7 +1365,8 @@ object ToolExecutionManager {
                         "TOOL_CALL_FAILED" -> "FAILED"
                         else -> null
                     },
-                completeness = ConversationAuditCompletenessStatus.IN_PROGRESS,
+                completeness = if (savedOutput.complete) ConversationAuditCompletenessStatus.IN_PROGRESS else ConversationAuditCompletenessStatus.PARTIAL,
+                failureCode = if (savedOutput.complete) null else "TOOL_OUTPUT_ATTACHMENT_UNAVAILABLE",
                 payloads =
                     listOf(
                         ConversationAuditPayloadInput.text(
@@ -1366,7 +1375,7 @@ object ToolExecutionManager {
                             value = encodeToolResult(result),
                             mediaType = "application/json",
                         )
-                    ),
+                    ) + savedOutput.payloads,
             )
         )
     }

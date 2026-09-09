@@ -296,15 +296,47 @@ interface ConversationAuditDao {
         """
         SELECT payload.*
         FROM conversation_audit_payloads AS payload
-        LEFT JOIN conversation_audit_event_payloads AS event_ref
-            ON event_ref.payloadSha256 = payload.payloadSha256
-        LEFT JOIN conversation_message_revisions AS revision_ref
-            ON revision_ref.contentPayloadSha256 = payload.payloadSha256
-        WHERE event_ref.payloadSha256 IS NULL
-            AND revision_ref.contentPayloadSha256 IS NULL
+        WHERE NOT EXISTS (
+            SELECT 1 FROM conversation_audit_event_payloads AS event_ref
+            WHERE event_ref.payloadSha256 = payload.payloadSha256
+        ) AND NOT EXISTS (
+            SELECT 1 FROM conversation_message_revisions AS revision_ref
+            WHERE revision_ref.contentPayloadSha256 = payload.payloadSha256
+        )
         """
     )
     suspend fun getUnreferencedPayloads(): List<ConversationAuditPayloadEntity>
+
+    /** 必须与聊天删除处于同一事务，级联删除后无法再恢复这份候选集合。 */
+    @Query(
+        """
+        SELECT event_ref.payloadSha256 AS payloadSha256
+        FROM conversation_audit_events AS event
+        INNER JOIN conversation_audit_event_payloads AS event_ref ON event_ref.eventId = event.eventId
+        WHERE event.chatId = :chatId
+        UNION
+        SELECT contentPayloadSha256 AS payloadSha256
+        FROM conversation_message_revisions
+        WHERE chatId = :chatId
+        """
+    )
+    suspend fun getPayloadHashesForChat(chatId: String): List<String>
+
+    /** 主键限定候选；两个 NOT EXISTS 在已有引用索引上找到首个引用即停止。 */
+    @Query(
+        """
+        SELECT payload.* FROM conversation_audit_payloads AS payload
+        WHERE payload.payloadSha256 IN (:payloadHashes)
+        AND NOT EXISTS (
+            SELECT 1 FROM conversation_audit_event_payloads AS event_ref
+            WHERE event_ref.payloadSha256 = payload.payloadSha256
+        ) AND NOT EXISTS (
+            SELECT 1 FROM conversation_message_revisions AS revision_ref
+            WHERE revision_ref.contentPayloadSha256 = payload.payloadSha256
+        )
+        """
+    )
+    suspend fun getUnreferencedPayloadsAmong(payloadHashes: List<String>): List<ConversationAuditPayloadEntity>
 
     @Query(
         "DELETE FROM conversation_audit_payloads WHERE payloadSha256 = :payloadSha256"

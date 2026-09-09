@@ -12,6 +12,9 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct SearchResponse {
