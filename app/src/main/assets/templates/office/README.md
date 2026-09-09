@@ -1,4 +1,6 @@
-# Kiyori 办公文档工作区
+# Kiyori Office 工作区
+
+办公文档通过 `com.kiyori.office_suite` ToolPkg 处理。先调用 `office_env_check`，再读取对应 Skill；输入文件先做 outline/read，产物写入 `output/`，不要原地覆盖源文件。
 
 这是一个专业的文档处理工作区，集成了强大的文档转换和排版工具。
 
