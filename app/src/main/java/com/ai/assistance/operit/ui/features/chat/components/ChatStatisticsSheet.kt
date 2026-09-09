@@ -52,10 +52,13 @@ internal fun ChatStatisticsButton(
         targetValue = (ratio ?: 0.0).toFloat().coerceIn(0f, 1f), label = "ChatContextUsage",
     )
     val tone = contextUsageColor(ratio)
-    IconButton(onClick = { expanded = true }, modifier = Modifier.semantics {
+    IconButton(
+        onClick = { expanded = true },
+        // 统计入口与顶栏其他控件保持紧凑高度，避免默认 48dp 槽位撑高整行。
+        modifier = Modifier.requiredSize(36.dp).semantics {
         contentDescription = description
     }) {
-        Box(modifier = Modifier.size(32.dp), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.size(28.dp), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(
                 progress = { progress }, modifier = Modifier.fillMaxSize(), color = tone,
                 strokeWidth = 3.dp, trackColor = MaterialTheme.colorScheme.surfaceVariant,
