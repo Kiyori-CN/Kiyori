@@ -1,0 +1,8 @@
+{
+  "schema_version": 2,
+  "toolpkg_id": "com.kiyori.office_suite",
+  "display_name": {"zh": "办公文档套件", "en": "Office Suite"},
+  "description": {"zh": "在 Linux 工作区安全处理办公文档。", "en": "Safely process office documents in the Linux workspace."},
+  "main": "main.js",
+  "distribution": {"include": ["manifest.json", "main.js", "resources/**", "skills/**"]}
+}
