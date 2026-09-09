@@ -1,2 +1,5 @@
+import sys
+
 from .protocol import main
-main()
+
+sys.exit(main())

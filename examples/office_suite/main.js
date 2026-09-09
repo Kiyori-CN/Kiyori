@@ -1,4 +1,0 @@
-const BEGIN = "__KIYORI_OFFICE_BEGIN__";
-const END = "__KIYORI_OFFICE_END__";
-function validate(args) { if (!args || typeof args.command !== "string") throw new Error("E_INPUT_SCHEMA: command is required"); if (args.env !== "android" && args.env !== "linux") throw new Error("E_INPUT_SCHEMA: env must be android or linux"); return args; }
-export async function office_run(args) { const input=validate(args); const result=await Tools.System.terminal.hiddenExec(`python -m kiyori_office ${input.command} --args-file ${input.argsFile}`, {timeoutMs: input.timeoutMs || 120000, executorKey:"kiyori_office"}); const start=result.output.indexOf(BEGIN), end=result.output.indexOf(END,start); if(start<0||end<0) throw new Error("E_PROTOCOL: office runtime sentinel missing"); return JSON.parse(result.output.slice(start+BEGIN.length,end)); }

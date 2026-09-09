@@ -52,11 +52,13 @@
 | [Kiyori 存储路径与 ToolPkg 数据治理](kiyori_storage_and_toolpkg_data_governance/index.md) | `kiyori_storage_and_toolpkg_data_governance` |
 | [Kiyori 终端与 Ubuntu 身份及首装环境优化](kiyori_terminal_ubuntu_identity_and_setup/index.md) | `kiyori_terminal_ubuntu_identity_and_setup` |
 | [Ubuntu 26.04 内置环境升级](kiyori_ubuntu_26_rootfs_upgrade/index.md) | `kiyori_ubuntu_26_rootfs_upgrade` |
+| [Linux SSH 工具包与终端完善](linux_ssh_refinement/index.md) | `linux_ssh_refinement` |
 | [Markdown/LaTeX 公式兼容性与化学渲染](markdown_latex_rendering_compatibility/index.md) | `markdown_latex_rendering_compatibility` |
 | [市场发布作者验证](market_release_author_verification/index.md) | `market_release_author_verification` |
 | [市场版本范围下载状态](market_version_download_state/index.md) | `market_version_download_state` |
 | [MT 管理器手机存储复刻](mt_file_manager_replica/index.md) | `mt_file_manager_replica` |
 | [Native 依赖 FetchContent 迁移](native_dependency_fetchcontent/index.md) | `native_dependency_fetchcontent` |
+| [办公文档套件专项](office_document_suite/index.md) | `office_document_suite` |
 | [OpenAI 搜索插件化接入](openai_hosted_web_search/index.md) | `openai_hosted_web_search` |
 | [Operit 1.12.0+8/+9 AI 与插件生态兼容更新](operit_1_12_0_plus_8_plus_9_ai_plugin_update/index.md) | `operit_1_12_0_plus_8_plus_9_ai_plugin_update` |
 | [Operit v1.12.1 必要 AI 插件发布更新](operit_1_12_1_ai_update/index.md) | `operit_1_12_1_ai_update` |

@@ -54,7 +54,31 @@
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [README.md](../app/src/main/assets/templates/office/README.md) | Kiyori 办公文档工作区 |
+| [README.md](../app/src/main/assets/templates/office/README.md) | Kiyori Office 工作区 |
+
+## app/src/main/assets/templates/office/assets
+
+| 文档 | 用途或标题 |
+| --- | --- |
+| [README.md](../app/src/main/assets/templates/office/assets/README.md) | assets/ |
+
+## app/src/main/assets/templates/office/output
+
+| 文档 | 用途或标题 |
+| --- | --- |
+| [README.md](../app/src/main/assets/templates/office/output/README.md) | output/ |
+
+## app/src/main/assets/templates/office/source
+
+| 文档 | 用途或标题 |
+| --- | --- |
+| [README.md](../app/src/main/assets/templates/office/source/README.md) | source/ |
+
+## app/src/main/assets/templates/office/templates
+
+| 文档 | 用途或标题 |
+| --- | --- |
+| [README.md](../app/src/main/assets/templates/office/templates/README.md) | templates/ |
 
 ## app/src/main/assets/templates/python
 
@@ -542,6 +566,12 @@
 | --- | --- |
 | [index.md](TODO/kiyori_ubuntu_26_rootfs_upgrade/index.md) | Ubuntu 26.04 内置环境升级 |
 
+## docs/TODO/linux_ssh_refinement
+
+| 文档 | 用途或标题 |
+| --- | --- |
+| [index.md](TODO/linux_ssh_refinement/index.md) | Linux SSH 工具包与终端完善 |
+
 ## docs/TODO/markdown_latex_rendering_compatibility
 
 | 文档 | 用途或标题 |
@@ -578,6 +608,12 @@
 | 文档 | 用途或标题 |
 | --- | --- |
 | [index.md](TODO/native_dependency_fetchcontent/index.md) | Native 依赖 FetchContent 迁移 |
+
+## docs/TODO/office_document_suite
+
+| 文档 | 用途或标题 |
+| --- | --- |
+| [index.md](TODO/office_document_suite/index.md) | 办公文档套件专项 |
 
 ## docs/TODO/openai_hosted_web_search
 
@@ -885,6 +921,36 @@
 | 文档 | 用途或标题 |
 | --- | --- |
 | [README.md](../examples/custom_ai_provider/README.md) | 自定义 AI Provider 示例 |
+
+## examples/office_suite/skills/kiyori-docx
+
+| 文档 | 用途或标题 |
+| --- | --- |
+| [SKILL.md](../examples/office_suite/skills/kiyori-docx/SKILL.md) | DOCX 处理 |
+
+## examples/office_suite/skills/kiyori-office-core
+
+| 文档 | 用途或标题 |
+| --- | --- |
+| [SKILL.md](../examples/office_suite/skills/kiyori-office-core/SKILL.md) | 办公文档处理总纲 |
+
+## examples/office_suite/skills/kiyori-pdf
+
+| 文档 | 用途或标题 |
+| --- | --- |
+| [SKILL.md](../examples/office_suite/skills/kiyori-pdf/SKILL.md) | PDF 处理 |
+
+## examples/office_suite/skills/kiyori-pptx
+
+| 文档 | 用途或标题 |
+| --- | --- |
+| [SKILL.md](../examples/office_suite/skills/kiyori-pptx/SKILL.md) | PPTX 处理 |
+
+## examples/office_suite/skills/kiyori-xlsx
+
+| 文档 | 用途或标题 |
+| --- | --- |
+| [SKILL.md](../examples/office_suite/skills/kiyori-xlsx/SKILL.md) | XLSX 处理 |
 
 ## examples/template_try/resources/workspaces/quick_start
 

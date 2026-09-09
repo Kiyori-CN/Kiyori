@@ -1,0 +1,4522 @@
+{
+  "schemaVersion": 1,
+  "tools": [
+    {
+      "group": "office",
+      "name": "office_workflow_guide",
+      "command": "",
+      "advice": true,
+      "description": {
+        "zh": "办公文档强制工作流（仅提示，无需实现）：先 office_env_check，再读对应 Skill；已有文件先 outline/read 取锚点；写公式的 xlsx 必须 xlsx_recalc；交付前 office_validate + office_render_preview 并用 direct_image 看图；不原地覆盖用户源文件；E_ENV_MISSING 时不得改用「差不多」的替代方案。",
+        "en": "Mandatory office workflow (advice only): office_env_check first, then read the matching Skill; outline/read existing files before editing; formulas require xlsx_recalc; before delivery run office_validate + office_render_preview and inspect pages with direct_image; never overwrite user sources; never substitute an approximate engine after E_ENV_MISSING."
+      },
+      "nextActions": [],
+      "params": [],
+      "inputPaths": [],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "office",
+      "name": "office_env_check",
+      "command": "office_env_check",
+      "advice": false,
+      "description": {
+        "zh": "探测 T1-T4 组件、版本、CJK 字体与磁盘余量；缺失组件按 remedy 处理。",
+        "en": "Probe T1-T4 components, versions, CJK fonts, and free disk; follow remedy for missing parts."
+      },
+      "nextActions": [
+        "office_env_setup"
+      ],
+      "params": [
+        {
+          "name": "verbose",
+          "description": {
+            "zh": "是否返回 PATH 与组件清单",
+            "en": "Return PATH and component list"
+          },
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "inputPaths": [],
+      "requiresEnv": false,
+      "outputKind": "single",
+      "defaultOutputName": "office_env.json",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "office",
+      "name": "office_env_setup",
+      "command": "office_env_setup",
+      "advice": false,
+      "description": {
+        "zh": "返回安装计划；confirm=true 时用可见终端流式执行，失败保留现场不回滚。",
+        "en": "Return an install plan; with confirm=true execute it in a visible terminal, keeping failures in place."
+      },
+      "nextActions": [
+        "office_env_check"
+      ],
+      "params": [
+        {
+          "name": "tier",
+          "description": {
+            "zh": "环境分层 1-4",
+            "en": "Tier 1-4"
+          },
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "components",
+          "description": {
+            "zh": "只安装指定组件",
+            "en": "Install only these components"
+          },
+          "type": "array",
+          "required": false
+        },
+        {
+          "name": "confirm",
+          "description": {
+            "zh": "是否确认执行",
+            "en": "Confirm execution"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "visible",
+          "description": {
+            "zh": "是否使用可见终端",
+            "en": "Use a visible terminal"
+          },
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "inputPaths": [],
+      "requiresEnv": false,
+      "outputKind": "single",
+      "defaultOutputName": "office_env_plan.json",
+      "timeoutMs": 600000
+    },
+    {
+      "group": "office",
+      "name": "office_read",
+      "command": "office_read",
+      "advice": false,
+      "description": {
+        "zh": "统一读取 docx/xlsx/pptx/pdf/csv/md/html/txt；mode=outline 返回导航，禁止一次读爆上下文。",
+        "en": "Read docx/xlsx/pptx/pdf/csv/md/html/txt uniformly; mode=outline returns navigation to protect context."
+      },
+      "nextActions": [
+        "office_validate"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "mode",
+          "description": {
+            "zh": "outline/full/range",
+            "en": "outline/full/range"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "range",
+          "description": {
+            "zh": "页码范围，如 1-3,7",
+            "en": "Page range such as 1-3,7"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "max_chars",
+          "description": {
+            "zh": "输出字符预算，默认 20000",
+            "en": "Character budget; default 20000"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "max_rows",
+          "description": {
+            "zh": "表格最大行数",
+            "en": "Max table rows"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "sheet_name",
+          "description": {
+            "zh": "工作表名",
+            "en": "Sheet name"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "layout",
+          "description": {
+            "zh": "PDF 是否保留版面（需要 pdfplumber）",
+            "en": "Keep PDF layout (requires pdfplumber)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "read.txt",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "office",
+      "name": "office_convert",
+      "command": "office_convert",
+      "advice": false,
+      "description": {
+        "zh": "格式转换；engine 必须显式指定 libreoffice 或 pandoc，缺失时明确报错不切换引擎。",
+        "en": "Convert formats; engine must be explicitly libreoffice or pandoc; missing engines fail instead of switching."
+      },
+      "nextActions": [
+        "office_validate",
+        "office_render_preview"
+      ],
+      "params": [
+        {
+          "name": "from_path",
+          "description": {
+            "zh": "源文件路径",
+            "en": "Source file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "to_format",
+          "description": {
+            "zh": "目标格式，如 pdf/docx",
+            "en": "Target format such as pdf/docx"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "engine",
+          "description": {
+            "zh": "libreoffice 或 pandoc",
+            "en": "libreoffice or pandoc"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "options",
+          "description": {
+            "zh": "额外引擎参数数组",
+            "en": "Extra engine options"
+          },
+          "type": "array",
+          "required": false
+        },
+        {
+          "name": "cjk_font",
+          "description": {
+            "zh": "CJK 字体族",
+            "en": "CJK font family"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "converted.bin",
+      "timeoutMs": 600000
+    },
+    {
+      "group": "office",
+      "name": "office_render_preview",
+      "command": "office_render_preview",
+      "advice": false,
+      "description": {
+        "zh": "产物 → PDF → 分页 JPEG，返回 Android 路径；必须再用 direct_image 逐页看图。",
+        "en": "Render output to PDF then per-page JPEG and return Android paths; inspect every page with direct_image."
+      },
+      "nextActions": [
+        "office_validate"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "pages",
+          "description": {
+            "zh": "页码范围，如 1-3",
+            "en": "Page range such as 1-3"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "dpi",
+          "description": {
+            "zh": "渲染 DPI，默认 150",
+            "en": "Render DPI; default 150"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "max_pages",
+          "description": {
+            "zh": "最多渲染页数，默认 8",
+            "en": "Max pages; default 8"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "multi",
+      "defaultOutputName": "preview",
+      "timeoutMs": 600000
+    },
+    {
+      "group": "office",
+      "name": "office_validate",
+      "command": "office_validate",
+      "advice": false,
+      "description": {
+        "zh": "校验 OOXML 关系/内容类型/媒体引用/公式缓存/pptx sldIdLst/PDF 结构；strict=true 有问题直接失败。",
+        "en": "Validate OOXML relationships, content types, media, formula caches, pptx sldIdLst, and PDF structure; strict=true fails on issues."
+      },
+      "nextActions": [
+        "office_render_preview"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "original_path",
+          "description": {
+            "zh": "模板派生场景的基线文件",
+            "en": "Baseline file for template-derived output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "strict",
+          "description": {
+            "zh": "有问题时返回 E_VALIDATION_FAILED",
+            "en": "Fail with E_VALIDATION_FAILED on issues"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "validate.json",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "office",
+      "name": "office_diff",
+      "command": "office_diff",
+      "advice": false,
+      "description": {
+        "zh": "两个文档转文本后的差异对比。",
+        "en": "Text-level diff between two documents."
+      },
+      "nextActions": [],
+      "params": [
+        {
+          "name": "left",
+          "description": {
+            "zh": "左侧文件",
+            "en": "Left file"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "right",
+          "description": {
+            "zh": "右侧文件",
+            "en": "Right file"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "max_chars",
+          "description": {
+            "zh": "输出预算",
+            "en": "Character budget"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "diff.txt",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "office",
+      "name": "office_workspace_init",
+      "command": "office_workspace_init",
+      "advice": false,
+      "description": {
+        "zh": "创建 source/output/templates/assets 工作区骨架与 AGENTS.md 规则片段。",
+        "en": "Create the source/output/templates/assets workspace skeleton plus an AGENTS.md rule snippet."
+      },
+      "nextActions": [],
+      "params": [
+        {
+          "name": "dir",
+          "description": {
+            "zh": "工作区目录",
+            "en": "Workspace directory"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "inputPaths": [],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "workspace.json",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "office",
+      "name": "office_workspace_clean",
+      "command": "office_workspace_clean",
+      "advice": false,
+      "description": {
+        "zh": "清理指定 task_id 的 Linux 暂存区。",
+        "en": "Clean the Linux staging directory for a task_id."
+      },
+      "nextActions": [],
+      "params": [
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [],
+      "requiresEnv": false,
+      "outputKind": "single",
+      "defaultOutputName": "clean.json",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "docx",
+      "name": "docx_outline",
+      "command": "docx_outline",
+      "advice": false,
+      "description": {
+        "zh": "返回段落索引/样式/层级/表格坐标/章节/图片；所有 DOCX 编辑的前置步骤。",
+        "en": "Return paragraph indices, styles, levels, table coordinates, sections, and images; prerequisite for any DOCX edit."
+      },
+      "nextActions": [
+        "docx_edit",
+        "docx_find_replace"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "max_items",
+          "description": {
+            "zh": "最多返回段落数",
+            "en": "Max paragraphs"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "outline.json",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "docx",
+      "name": "docx_create",
+      "command": "docx_create",
+      "advice": false,
+      "description": {
+        "zh": "从结构化 spec 或 Markdown 生成 DOCX（python-docx）。",
+        "en": "Create a DOCX from a structured spec or Markdown (python-docx)."
+      },
+      "nextActions": [
+        "docx_outline",
+        "office_validate",
+        "office_render_preview"
+      ],
+      "params": [
+        {
+          "name": "spec",
+          "description": {
+            "zh": "结构化 blocks 数组",
+            "en": "Structured blocks array"
+          },
+          "type": "object",
+          "required": false
+        },
+        {
+          "name": "markdown",
+          "description": {
+            "zh": "Markdown 文本",
+            "en": "Markdown text"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "file_name",
+          "description": {
+            "zh": "默认文件名",
+            "en": "Default file name"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "document.docx",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "docx",
+      "name": "docx_from_template",
+      "command": "docx_from_template",
+      "advice": false,
+      "description": {
+        "zh": "{{变量}} 模板填充（业务文档首选路径）；strict=true 时缺失变量直接失败。",
+        "en": "Fill {{variable}} placeholders (preferred for business documents); strict=true fails on missing variables."
+      },
+      "nextActions": [
+        "office_validate",
+        "office_render_preview"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "variables",
+          "description": {
+            "zh": "变量对象",
+            "en": "Variable object"
+          },
+          "type": "object",
+          "required": true
+        },
+        {
+          "name": "strict",
+          "description": {
+            "zh": "缺失变量时失败",
+            "en": "Fail on missing variables"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "filled.docx",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "docx",
+      "name": "docx_edit",
+      "command": "docx_edit",
+      "advice": false,
+      "description": {
+        "zh": "基于锚点的 replace/insert_before/insert_after/delete；必须先 docx_outline 取锚点。",
+        "en": "Anchor-based replace/insert_before/insert_after/delete; call docx_outline first."
+      },
+      "nextActions": [
+        "docx_outline",
+        "office_validate"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "anchor",
+          "description": {
+            "zh": "{index} 或 {text}",
+            "en": "{index} or {text}"
+          },
+          "type": "object",
+          "required": true
+        },
+        {
+          "name": "operation",
+          "description": {
+            "zh": "replace/insert_before/insert_after/delete",
+            "en": "replace/insert_before/insert_after/delete"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "text",
+          "description": {
+            "zh": "写入文本",
+            "en": "Text to write"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "edited.docx",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "docx",
+      "name": "docx_find_replace",
+      "command": "docx_find_replace",
+      "advice": false,
+      "description": {
+        "zh": "跨 run 合并后的查找替换，保留格式；支持正则与表格范围。",
+        "en": "Find/replace after merging runs, preserving formatting; supports regex and table scope."
+      },
+      "nextActions": [
+        "docx_outline",
+        "office_validate",
+        "office_render_preview"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "find",
+          "description": {
+            "zh": "查找内容",
+            "en": "Find text"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "replace",
+          "description": {
+            "zh": "替换内容",
+            "en": "Replacement"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "use_regex",
+          "description": {
+            "zh": "按正则解释 find",
+            "en": "Treat find as regex"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "ignore_case",
+          "description": {
+            "zh": "忽略大小写",
+            "en": "Ignore case"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "scope",
+          "description": {
+            "zh": "all/paragraphs/tables",
+            "en": "all/paragraphs/tables"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "replaced.docx",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "docx",
+      "name": "docx_table",
+      "command": "docx_table",
+      "advice": false,
+      "description": {
+        "zh": "追加表格；列宽与单元格宽度同单位同时设置。",
+        "en": "Append a table; column and cell widths are set together in the same unit."
+      },
+      "nextActions": [
+        "docx_outline",
+        "office_validate"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "rows",
+          "description": {
+            "zh": "二维数组",
+            "en": "2-D array"
+          },
+          "type": "array",
+          "required": true
+        },
+        {
+          "name": "header",
+          "description": {
+            "zh": "首行是否为表头",
+            "en": "Whether the first row is a header"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "style",
+          "description": {
+            "zh": "表格样式名",
+            "en": "Table style name"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "column_widths_cm",
+          "description": {
+            "zh": "列宽数组（cm）",
+            "en": "Column widths in cm"
+          },
+          "type": "array",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "table.docx",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "docx",
+      "name": "docx_insert_image",
+      "command": "docx_insert_image",
+      "advice": false,
+      "description": {
+        "zh": "插入图片，自动按页宽约束。",
+        "en": "Insert an image, constrained to the page width."
+      },
+      "nextActions": [
+        "office_validate",
+        "office_render_preview"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "image_path",
+          "description": {
+            "zh": "图片路径",
+            "en": "Image path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "width_cm",
+          "description": {
+            "zh": "宽度（cm）",
+            "en": "Width in cm"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "alignment",
+          "description": {
+            "zh": "left/center/right",
+            "en": "left/center/right"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path",
+        "image_path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "image.docx",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "docx",
+      "name": "docx_style",
+      "command": "docx_style",
+      "advice": false,
+      "description": {
+        "zh": "页面尺寸/页边距/默认字体/段落样式。",
+        "en": "Page size, margins, default font, and paragraph styles."
+      },
+      "nextActions": [
+        "office_validate",
+        "office_render_preview"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "margins_cm",
+          "description": {
+            "zh": "{top,bottom,left,right}",
+            "en": "{top,bottom,left,right}"
+          },
+          "type": "object",
+          "required": false
+        },
+        {
+          "name": "default_font",
+          "description": {
+            "zh": "{name,size_pt}",
+            "en": "{name,size_pt}"
+          },
+          "type": "object",
+          "required": false
+        },
+        {
+          "name": "paragraph_styles",
+          "description": {
+            "zh": "样式名到配置的映射",
+            "en": "Style name to config map"
+          },
+          "type": "object",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "styled.docx",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "docx",
+      "name": "docx_merge",
+      "command": "docx_merge",
+      "advice": false,
+      "description": {
+        "zh": "合并多个文档；style_mode 显式指定 preserve 或 unified。",
+        "en": "Merge documents; style_mode must be explicitly preserve or unified."
+      },
+      "nextActions": [
+        "office_validate",
+        "office_render_preview"
+      ],
+      "params": [
+        {
+          "name": "paths",
+          "description": {
+            "zh": "至少两个文件路径",
+            "en": "At least two file paths"
+          },
+          "type": "array",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "style_mode",
+          "description": {
+            "zh": "preserve/unified",
+            "en": "preserve/unified"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "file_name",
+          "description": {
+            "zh": "默认文件名",
+            "en": "Default file name"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "paths"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "merged.docx",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "docx",
+      "name": "docx_extract_media",
+      "command": "docx_extract_media",
+      "advice": false,
+      "description": {
+        "zh": "导出内嵌图片到交付目录。",
+        "en": "Export embedded images to the delivery directory."
+      },
+      "nextActions": [
+        "office_read"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "target_dir_name",
+          "description": {
+            "zh": "输出目录名",
+            "en": "Output directory name"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "multi",
+      "defaultOutputName": "media",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "xlsx",
+      "name": "xlsx_info",
+      "command": "xlsx_info",
+      "advice": false,
+      "description": {
+        "zh": "工作表列表、使用范围、命名区域、外部链接、是否含宏。",
+        "en": "Sheet list, used ranges, named ranges, external links, and macro presence."
+      },
+      "nextActions": [
+        "xlsx_read"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "info.json",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "xlsx",
+      "name": "xlsx_read",
+      "command": "xlsx_read",
+      "advice": false,
+      "description": {
+        "zh": "按范围读，同时返回公式与缓存值（两次 load）。",
+        "en": "Read a range and return both formulas and cached values (two loads)."
+      },
+      "nextActions": [
+        "xlsx_write",
+        "xlsx_recalc"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "sheet_name",
+          "description": {
+            "zh": "工作表名",
+            "en": "Sheet name"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "range",
+          "description": {
+            "zh": "单元格范围，如 A1:C10",
+            "en": "Cell range such as A1:C10"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "max_rows",
+          "description": {
+            "zh": "最大行数",
+            "en": "Max rows"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "read.json",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "xlsx",
+      "name": "xlsx_write",
+      "command": "xlsx_write",
+      "advice": false,
+      "description": {
+        "zh": "批量写单元格/区域；写入公式后必须调用 xlsx_recalc（溢出数组函数会被拒绝）。",
+        "en": "Write cells/ranges in bulk; formulas require xlsx_recalc afterwards (spill functions are rejected)."
+      },
+      "nextActions": [
+        "xlsx_recalc",
+        "office_validate"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "sheet_name",
+          "description": {
+            "zh": "工作表名",
+            "en": "Sheet name"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "cells",
+          "description": {
+            "zh": "[{cell,value|formula}]",
+            "en": "[{cell,value|formula}]"
+          },
+          "type": "array",
+          "required": false
+        },
+        {
+          "name": "rows",
+          "description": {
+            "zh": "二维数组",
+            "en": "2-D array"
+          },
+          "type": "array",
+          "required": false
+        },
+        {
+          "name": "start_cell",
+          "description": {
+            "zh": "rows 起点，默认 A1",
+            "en": "Start cell for rows; default A1"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "file_name",
+          "description": {
+            "zh": "新建工作簿的默认文件名",
+            "en": "Default file name for a new workbook"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "workbook.xlsx",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "xlsx",
+      "name": "xlsx_format",
+      "command": "xlsx_format",
+      "advice": false,
+      "description": {
+        "zh": "数字格式、字体、填充、列宽行高、冻结窗格、自动筛选。",
+        "en": "Number formats, fonts, fills, widths/heights, freeze panes, and auto-filter."
+      },
+      "nextActions": [
+        "xlsx_recalc",
+        "office_validate"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "sheet_name",
+          "description": {
+            "zh": "工作表名",
+            "en": "Sheet name"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "number_format",
+          "description": {
+            "zh": "数字格式串",
+            "en": "Number format string"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "font",
+          "description": {
+            "zh": "{name,size,bold,italic,color}",
+            "en": "{name,size,bold,italic,color}"
+          },
+          "type": "object",
+          "required": false
+        },
+        {
+          "name": "fill",
+          "description": {
+            "zh": "{type,color}",
+            "en": "{type,color}"
+          },
+          "type": "object",
+          "required": false
+        },
+        {
+          "name": "column_widths",
+          "description": {
+            "zh": "{列:宽度}",
+            "en": "{column: width}"
+          },
+          "type": "object",
+          "required": false
+        },
+        {
+          "name": "row_heights",
+          "description": {
+            "zh": "{行:高度}",
+            "en": "{row: height}"
+          },
+          "type": "object",
+          "required": false
+        },
+        {
+          "name": "freeze_panes",
+          "description": {
+            "zh": "冻结窗格单元格",
+            "en": "Freeze panes cell"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "auto_filter",
+          "description": {
+            "zh": "自动筛选范围",
+            "en": "Auto-filter range"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "formatted.xlsx",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "xlsx",
+      "name": "xlsx_sheet",
+      "command": "xlsx_sheet",
+      "advice": false,
+      "description": {
+        "zh": "增/删/改名/排序/复制工作表。",
+        "en": "Create, delete, rename, move, or copy sheets."
+      },
+      "nextActions": [
+        "xlsx_write",
+        "office_validate"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "operation",
+          "description": {
+            "zh": "create/delete/rename/move/copy",
+            "en": "create/delete/rename/move/copy"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "name",
+          "description": {
+            "zh": "目标工作表名",
+            "en": "Target sheet name"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "new_name",
+          "description": {
+            "zh": "新名称",
+            "en": "New name"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "index",
+          "description": {
+            "zh": "位置索引",
+            "en": "Position index"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "sheets.xlsx",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "xlsx",
+      "name": "xlsx_recalc",
+      "command": "xlsx_recalc",
+      "advice": false,
+      "description": {
+        "zh": "LibreOffice 重算并回写；total_errors 必须为 0 才可交付。",
+        "en": "Recalculate with LibreOffice and write back; total_errors must be 0 before delivery."
+      },
+      "nextActions": [
+        "office_validate",
+        "office_render_preview"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "recalculated.xlsx",
+      "timeoutMs": 600000
+    },
+    {
+      "group": "xlsx",
+      "name": "xlsx_table",
+      "command": "xlsx_table",
+      "advice": false,
+      "description": {
+        "zh": "把区域转成 Excel Table 并设置样式。",
+        "en": "Convert a range into an Excel Table with a style."
+      },
+      "nextActions": [
+        "xlsx_recalc",
+        "office_validate"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "sheet_name",
+          "description": {
+            "zh": "工作表名",
+            "en": "Sheet name"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "range",
+          "description": {
+            "zh": "表格范围",
+            "en": "Table range"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "table_name",
+          "description": {
+            "zh": "表名",
+            "en": "Table name"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "style",
+          "description": {
+            "zh": "表格样式",
+            "en": "Table style"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "table.xlsx",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "pptx",
+      "name": "pptx_outline",
+      "command": "pptx_outline",
+      "advice": false,
+      "description": {
+        "zh": "幻灯片/形状/占位符/坐标/文本/母版与版式。",
+        "en": "Slides, shapes, placeholders, coordinates, text, masters, and layouts."
+      },
+      "nextActions": [
+        "pptx_edit",
+        "pptx_slide"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "max_slides",
+          "description": {
+            "zh": "最多返回页数",
+            "en": "Max slides"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "outline.json",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "pptx",
+      "name": "pptx_create",
+      "command": "pptx_create",
+      "advice": false,
+      "description": {
+        "zh": "从大纲生成 PPTX；可基于模板版式。",
+        "en": "Create a PPTX from an outline, optionally based on a template."
+      },
+      "nextActions": [
+        "office_validate",
+        "office_render_preview"
+      ],
+      "params": [
+        {
+          "name": "slides",
+          "description": {
+            "zh": "[{title,bullets,layout_index}]",
+            "en": "[{title,bullets,layout_index}]"
+          },
+          "type": "array",
+          "required": true
+        },
+        {
+          "name": "template_path",
+          "description": {
+            "zh": "模板路径",
+            "en": "Template path"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "layout_index",
+          "description": {
+            "zh": "默认版式索引",
+            "en": "Default layout index"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "file_name",
+          "description": {
+            "zh": "默认文件名",
+            "en": "Default file name"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "presentation.pptx",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "pptx",
+      "name": "pptx_template_fill",
+      "command": "pptx_template_fill",
+      "advice": false,
+      "description": {
+        "zh": "基于模板填充 {{变量}}，保留模板设计。",
+        "en": "Fill {{variables}} in a template while preserving its design."
+      },
+      "nextActions": [
+        "office_validate",
+        "office_render_preview"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "variables",
+          "description": {
+            "zh": "变量对象",
+            "en": "Variable object"
+          },
+          "type": "object",
+          "required": true
+        },
+        {
+          "name": "strict",
+          "description": {
+            "zh": "缺失变量时失败",
+            "en": "Fail on missing variables"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "filled.pptx",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "pptx",
+      "name": "pptx_slide",
+      "command": "pptx_slide",
+      "advice": false,
+      "description": {
+        "zh": "增/删/复制/重排幻灯片，维护关系与 <p:sldIdLst>。结构性操作必须在内容编辑之前完成。",
+        "en": "Add/delete/duplicate/reorder slides while maintaining rels and <p:sldIdLst>. Finish structural changes before editing content."
+      },
+      "nextActions": [
+        "pptx_clean",
+        "pptx_edit",
+        "office_validate"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "operation",
+          "description": {
+            "zh": "add/delete/duplicate/move",
+            "en": "add/delete/duplicate/move"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "index",
+          "description": {
+            "zh": "0-based 页索引",
+            "en": "0-based slide index"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "target_index",
+          "description": {
+            "zh": "move 目标位置",
+            "en": "Target index for move"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "layout_index",
+          "description": {
+            "zh": "add 使用的版式",
+            "en": "Layout for add"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "slides.pptx",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "pptx",
+      "name": "pptx_edit",
+      "command": "pptx_edit",
+      "advice": false,
+      "description": {
+        "zh": "编辑指定形状的文本/位置/尺寸/字体；先 pptx_outline 取锚点。",
+        "en": "Edit a shape's text/position/size/font; call pptx_outline first."
+      },
+      "nextActions": [
+        "office_validate",
+        "office_render_preview"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "slide_index",
+          "description": {
+            "zh": "0-based 页索引",
+            "en": "0-based slide index"
+          },
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "shape_index",
+          "description": {
+            "zh": "形状索引",
+            "en": "Shape index"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "shape_name",
+          "description": {
+            "zh": "形状名",
+            "en": "Shape name"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "operation",
+          "description": {
+            "zh": "set_text/append_text/set_position/set_size/set_font",
+            "en": "set_text/append_text/set_position/set_size/set_font"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "text",
+          "description": {
+            "zh": "文本",
+            "en": "Text"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "size_pt",
+          "description": {
+            "zh": "字号",
+            "en": "Font size"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "bold",
+          "description": {
+            "zh": "是否加粗",
+            "en": "Bold"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "color_rgb",
+          "description": {
+            "zh": "RGB 颜色",
+            "en": "RGB color"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "left_emu",
+          "description": {
+            "zh": "左边距 EMU",
+            "en": "Left EMU"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "top_emu",
+          "description": {
+            "zh": "上边距 EMU",
+            "en": "Top EMU"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "width_emu",
+          "description": {
+            "zh": "宽度 EMU",
+            "en": "Width EMU"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "height_emu",
+          "description": {
+            "zh": "高度 EMU",
+            "en": "Height EMU"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "edited.pptx",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "pptx",
+      "name": "pptx_notes",
+      "command": "pptx_notes",
+      "advice": false,
+      "description": {
+        "zh": "演讲者备注读写。",
+        "en": "Read or write speaker notes."
+      },
+      "nextActions": [
+        "office_validate"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "operation",
+          "description": {
+            "zh": "read/write",
+            "en": "read/write"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "slide_index",
+          "description": {
+            "zh": "0-based 页索引",
+            "en": "0-based slide index"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "text",
+          "description": {
+            "zh": "备注文本",
+            "en": "Notes text"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "notes.pptx",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "pptx",
+      "name": "pptx_media",
+      "command": "pptx_media",
+      "advice": false,
+      "description": {
+        "zh": "插入图片，未给尺寸时按页宽 80% 等比缩放。",
+        "en": "Insert an image; without explicit size it scales to 80% of slide width."
+      },
+      "nextActions": [
+        "office_validate",
+        "office_render_preview"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "slide_index",
+          "description": {
+            "zh": "0-based 页索引",
+            "en": "0-based slide index"
+          },
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "image_path",
+          "description": {
+            "zh": "图片路径",
+            "en": "Image path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "left_emu",
+          "description": {
+            "zh": "左边距 EMU",
+            "en": "Left EMU"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "top_emu",
+          "description": {
+            "zh": "上边距 EMU",
+            "en": "Top EMU"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "width_emu",
+          "description": {
+            "zh": "宽度 EMU",
+            "en": "Width EMU"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "height_emu",
+          "description": {
+            "zh": "高度 EMU",
+            "en": "Height EMU"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path",
+        "image_path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "media.pptx",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "pptx",
+      "name": "pptx_clean",
+      "command": "pptx_clean",
+      "advice": false,
+      "description": {
+        "zh": "清理无引用内容；会删除不在 <p:sldIdLst> 中的 slide，必须在结构性操作之后调用。",
+        "en": "Clean unreferenced content; deletes slides absent from <p:sldIdLst>, so call it after structural operations."
+      },
+      "nextActions": [
+        "office_validate",
+        "office_render_preview"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "cleaned.pptx",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "pdf",
+      "name": "pdf_info",
+      "command": "pdf_info",
+      "advice": false,
+      "description": {
+        "zh": "页数、尺寸、元数据、是否加密、是否含文本层、表单字段数。",
+        "en": "Page count, size, metadata, encryption, text layer, and form field count."
+      },
+      "nextActions": [
+        "pdf_extract",
+        "pdf_to_images"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "info.json",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "pdf",
+      "name": "pdf_extract",
+      "command": "pdf_extract",
+      "advice": false,
+      "description": {
+        "zh": "文本/版面/表格提取，支持页范围；版面与表格需要 pdfplumber。",
+        "en": "Extract text/layout/tables with page ranges; layout and tables need pdfplumber."
+      },
+      "nextActions": [
+        "pdf_to_images"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "range",
+          "description": {
+            "zh": "页范围，如 1-3,7",
+            "en": "Page range such as 1-3,7"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "mode",
+          "description": {
+            "zh": "text/layout/tables",
+            "en": "text/layout/tables"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "max_chars",
+          "description": {
+            "zh": "输出预算",
+            "en": "Character budget"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "extract.txt",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "pdf",
+      "name": "pdf_merge",
+      "command": "pdf_merge",
+      "advice": false,
+      "description": {
+        "zh": "按顺序合并多个 PDF。",
+        "en": "Merge PDFs in order."
+      },
+      "nextActions": [
+        "office_validate"
+      ],
+      "params": [
+        {
+          "name": "paths",
+          "description": {
+            "zh": "至少两个 PDF 路径",
+            "en": "At least two PDF paths"
+          },
+          "type": "array",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "paths"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "merged.pdf",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "pdf",
+      "name": "pdf_split",
+      "command": "pdf_split",
+      "advice": false,
+      "description": {
+        "zh": "按页范围拆分成单页文件。",
+        "en": "Split into single-page files by range."
+      },
+      "nextActions": [
+        "office_validate"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "range",
+          "description": {
+            "zh": "页范围",
+            "en": "Page range"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "multi",
+      "defaultOutputName": "split",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "pdf",
+      "name": "pdf_rotate",
+      "command": "pdf_rotate",
+      "advice": false,
+      "description": {
+        "zh": "按 90 度倍数旋转指定页。",
+        "en": "Rotate selected pages by a multiple of 90 degrees."
+      },
+      "nextActions": [
+        "office_validate"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "angle",
+          "description": {
+            "zh": "旋转角度",
+            "en": "Rotation angle"
+          },
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "range",
+          "description": {
+            "zh": "页范围",
+            "en": "Page range"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "rotated.pdf",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "pdf",
+      "name": "pdf_reorder",
+      "command": "pdf_reorder",
+      "advice": false,
+      "description": {
+        "zh": "按完整排列重排页面。",
+        "en": "Reorder pages using a complete permutation."
+      },
+      "nextActions": [
+        "office_validate"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "order",
+          "description": {
+            "zh": "1..N 的排列",
+            "en": "Permutation of 1..N"
+          },
+          "type": "array",
+          "required": true
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "reordered.pdf",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "pdf",
+      "name": "pdf_delete_pages",
+      "command": "pdf_delete_pages",
+      "advice": false,
+      "description": {
+        "zh": "删除指定页，拒绝删除全部页面。",
+        "en": "Delete pages; refuses to delete every page."
+      },
+      "nextActions": [
+        "office_validate"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "range",
+          "description": {
+            "zh": "页范围",
+            "en": "Page range"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "trimmed.pdf",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "pdf",
+      "name": "pdf_form_list",
+      "command": "pdf_form_list",
+      "advice": false,
+      "description": {
+        "zh": "枚举表单字段与取值。",
+        "en": "Enumerate form fields and values."
+      },
+      "nextActions": [
+        "pdf_form_fill"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "form.json",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "pdf",
+      "name": "pdf_form_fill",
+      "command": "pdf_form_fill",
+      "advice": false,
+      "description": {
+        "zh": "填写表单字段；strict=true 时未知字段直接失败。",
+        "en": "Fill form fields; strict=true fails on unknown fields."
+      },
+      "nextActions": [
+        "office_validate"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "values",
+          "description": {
+            "zh": "字段名到取值",
+            "en": "Field name to value"
+          },
+          "type": "object",
+          "required": true
+        },
+        {
+          "name": "strict",
+          "description": {
+            "zh": "未知字段时失败",
+            "en": "Fail on unknown fields"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "filled.pdf",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "pdf",
+      "name": "pdf_watermark",
+      "command": "pdf_watermark",
+      "advice": false,
+      "description": {
+        "zh": "添加水印；中文必须提供可用 CJK 字体，否则报 E_ENV_MISSING。",
+        "en": "Add a watermark; Chinese text requires a usable CJK font or fails with E_ENV_MISSING."
+      },
+      "nextActions": [
+        "office_validate"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "text",
+          "description": {
+            "zh": "水印文字",
+            "en": "Watermark text"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "size",
+          "description": {
+            "zh": "字号",
+            "en": "Font size"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "opacity",
+          "description": {
+            "zh": "透明度 0-1",
+            "en": "Opacity 0-1"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "angle",
+          "description": {
+            "zh": "旋转角度",
+            "en": "Rotation angle"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "cjk_font",
+          "description": {
+            "zh": "CJK 字体族",
+            "en": "CJK font family"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "watermarked.pdf",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "pdf",
+      "name": "pdf_encrypt",
+      "command": "pdf_encrypt",
+      "advice": false,
+      "description": {
+        "zh": "加密 PDF。",
+        "en": "Encrypt a PDF."
+      },
+      "nextActions": [
+        "office_validate"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "password",
+          "description": {
+            "zh": "密码",
+            "en": "Password"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "algorithm",
+          "description": {
+            "zh": "加密算法",
+            "en": "Encryption algorithm"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "encrypted.pdf",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "pdf",
+      "name": "pdf_decrypt",
+      "command": "pdf_decrypt",
+      "advice": false,
+      "description": {
+        "zh": "解密 PDF；密码错误明确报错，不反复尝试。",
+        "en": "Decrypt a PDF; a wrong password fails explicitly without retries."
+      },
+      "nextActions": [
+        "office_validate"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "password",
+          "description": {
+            "zh": "密码",
+            "en": "Password"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "decrypted.pdf",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "pdf",
+      "name": "pdf_to_images",
+      "command": "pdf_to_images",
+      "advice": false,
+      "description": {
+        "zh": "PDF 转 JPEG（pdftoppm）；扫描件优先出图后自己看。",
+        "en": "Convert PDF to JPEG with pdftoppm; for scans prefer looking at rendered pages."
+      },
+      "nextActions": [
+        "office_read"
+      ],
+      "params": [
+        {
+          "name": "path",
+          "description": {
+            "zh": "Linux 或 Android 文件路径",
+            "en": "Linux or Android file path"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "range",
+          "description": {
+            "zh": "页范围",
+            "en": "Page range"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "dpi",
+          "description": {
+            "zh": "DPI，默认 150",
+            "en": "DPI; default 150"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "max_pages",
+          "description": {
+            "zh": "最多页数",
+            "en": "Max pages"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [
+        "path"
+      ],
+      "requiresEnv": true,
+      "outputKind": "multi",
+      "defaultOutputName": "images",
+      "timeoutMs": 300000
+    },
+    {
+      "group": "pdf",
+      "name": "pdf_create",
+      "command": "pdf_create",
+      "advice": false,
+      "description": {
+        "zh": "生成 PDF；engine 必须显式指定 reportlab/pandoc/weasyprint，中文会先探测 CJK 字体。",
+        "en": "Create a PDF; engine must be explicitly reportlab/pandoc/weasyprint and CJK fonts are probed first."
+      },
+      "nextActions": [
+        "office_validate",
+        "office_render_preview"
+      ],
+      "params": [
+        {
+          "name": "engine",
+          "description": {
+            "zh": "reportlab/pandoc/weasyprint",
+            "en": "reportlab/pandoc/weasyprint"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "blocks",
+          "description": {
+            "zh": "[{type,text}]",
+            "en": "[{type,text}]"
+          },
+          "type": "array",
+          "required": false
+        },
+        {
+          "name": "source_path",
+          "description": {
+            "zh": "外部引擎的源文件",
+            "en": "Source file for external engines"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "file_name",
+          "description": {
+            "zh": "默认文件名",
+            "en": "Default file name"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "cjk_font",
+          "description": {
+            "zh": "CJK 字体族",
+            "en": "CJK font family"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "margin_cm",
+          "description": {
+            "zh": "页边距（cm）",
+            "en": "Margin in cm"
+          },
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "output_path",
+          "description": {
+            "zh": "产物路径；省略时写入交付目录",
+            "en": "Output path; defaults to the delivery directory"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "env",
+          "description": {
+            "zh": "路径所属环境，必须显式传入 android 或 linux，禁止推断",
+            "en": "Path environment; must be explicitly android or linux, never inferred"
+          },
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "output_env",
+          "description": {
+            "zh": "产物目标环境，默认 android（交付目录）；写入 Linux 时必须显式传 linux",
+            "en": "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output"
+          },
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "overwrite",
+          "description": {
+            "zh": "目标已存在时是否覆盖，默认 false",
+            "en": "Overwrite an existing target; default false"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "task_id",
+          "description": {
+            "zh": "复用同一个 Linux 暂存区",
+            "en": "Reuse the same Linux staging directory"
+          },
+          "type": "string",
+          "required": false
+        }
+      ],
+      "inputPaths": [],
+      "requiresEnv": true,
+      "outputKind": "single",
+      "defaultOutputName": "document.pdf",
+      "timeoutMs": 600000
+    }
+  ]
+}

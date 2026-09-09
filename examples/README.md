@@ -10,6 +10,7 @@
 | 调用 AssemblyScript WASM | [toolpkg_wasm_demo](toolpkg_wasm_demo/README.md) |
 | 在 Android 加载 APK 逆向运行资源 | [APK 逆向资源](apktool/resources/apktool/README.md) |
 | 连接 Windows 代理 | [Kiyori PC Agent](windows_control/resources/pc_agent/kiyori-pc-agent/README.md) |
+| 处理 Word/Excel/PPT/PDF | [办公文档套件](office_suite/manifest.json) · [工作区模板](../app/src/main/assets/templates/office/README.md) |
 | 查询共享 API 与结果类型 | [类型总入口](types/index.d.ts) · [API 文档](../docs/doc-src/package-dev/index.md) |
 | 了解包结构、资源与生命周期 | [ToolPkg 格式](../docs/TOOLPKG_FORMAT_GUIDE.md) |
 
