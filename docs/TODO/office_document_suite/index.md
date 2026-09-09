@@ -118,3 +118,58 @@ Formal development readiness: PASS
 - LibreOffice 在 PRoot arm64 下体积大、首启慢：`office_env_check` 返回磁盘余量与预计体积，安装走可见终端；失败明确报错不降级。
 - T2/T3 安装需要网络与用户确认：`office_env_setup` 只给计划，`confirm=true` 由 JS 层流式执行。
 - 第二期建议顺序：`office_render_preview` 真机验收 → `xlsx_chart` / `pptx_thumbnail` → Compose 控制台 UI → 文件管理长按接入。
+
+## 11. 真机测试问题修复（2026-09-09 第二轮）
+
+首轮真机测试报告「套件基本不可用」，定位到三条根因并已修复：
+
+### 根因 1：宿主注入参数污染 Python 校验（P0-1 / P0-2 / P0-3 共同根因）
+
+`JsToolManager.buildRuntimeParams` 会向 ToolPkg 函数注入 `__operit_package_name`、
+`__operit_package_state`、`__operit_toolpkg_subpackage_id`、`containerPackageName`、
+`toolPkgId` 等内部参数。JS 层原先用 `Object.entries(input)` 全量转发，被 Python 侧
+`additionalProperties: false` 拒绝——这解释了「`office_env_check` 任何参数都失败」，
+以及「同一参数时好时坏」（注入项只在部分调用上下文出现）。
+
+修复：`runtime.ts` 新增 `HOST_INJECTED_PARAMS` 与 `collectBusinessParams`，
+只转发工具声明的字段与协议字段；`argspec.py` 对 `__` 前缀字段与 `task_id`/`allow_roots`
+一律放行，两层职责不再交叉。
+
+### 根因 2：单一来源漂移（P0-3 / P1）
+
+`xlsx_write.path` 在 METADATA 中标为必填，但文档与实现都支持「省略时新建工作簿」；
+`office_env_setup.tier`、`office_read.with_anchors`、`office_convert.in_place/timeout_ms`
+等字段在工具与 schema 之间不一致。
+
+修复：`spec/tools.json` 作为唯一来源重新生成；新增 CI 契约测试
+`test_tool_params_match_python_schema_properties` 与
+`test_required_params_match_python_schema_required`，任何后续漂移都会失败。
+
+### 根因 3：文件搬运静默失败（P0-2）
+
+`Tools.Files.copy` 返回结构化失败而不是抛异常，原实现忽略返回值，导致后续步骤
+报出无法定位的 `Failed to read source file`；`/sdcard` 与 `/storage/emulated/0`
+别名也未做探测。
+
+修复：新增 `assertFileOperation` 把所有文件操作失败转成带路径的 `E_PATH_INVALID`；
+`androidPathCandidates` 按「原样 → 真实路径 → 兼容别名」顺序探测并报告全部候选。
+
+### 诊断信息改进（P1）
+
+包层错误消息现在直接包含字段名与原因，例如
+`参数不符合 office_env_check 的 JSON Schema：args.task_id 不是已登记字段`，
+并在 `data.issues` 给出 `field`/`reason`/`expected`/`actual` 结构化清单；
+`env` 统一大小写归一，消除「系统层放行、业务层报错」。
+
+### 本轮验证
+
+```text
+python -m pytest examples/office_suite/resources/runtime/kiyori_office/tests -q
+76 passed（新增 test_host_injection.py 9 项）
+
+node --test tools/example_packages/office_suite.test.mjs
+12 passed（JS 薄层注入过滤、别名探测、结构化失败）
+
+python -m unittest discover -s ci\test -p "test_office_suite_contract.py"
+11 passed（新增参数/必填同源门禁）
+```

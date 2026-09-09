@@ -50,6 +50,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "office_env_check",
+      params: ["verbose"],
       defaultOutputName: "office_env.json",
       requiresEnv: false,
       timeoutMs: 300000,
@@ -61,14 +62,16 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
       zh: "\u8fd4\u56de\u5b89\u88c5\u8ba1\u5212\uff1bconfirm=true \u65f6\u7528\u53ef\u89c1\u7ec8\u7aef\u6d41\u5f0f\u6267\u884c\uff0c\u5931\u8d25\u4fdd\u7559\u73b0\u573a\u4e0d\u56de\u6eda\u3002",
       en: "Return an install plan; with confirm=true execute it in a visible terminal, keeping failures in place.",
       params: [
-        { name: "tier", zh: "\u73af\u5883\u5206\u5c42 1-4", en: "Tier 1-4", type: "number", required: true },
+        { name: "tier", zh: "\u73af\u5883\u5206\u5c42 1-4\uff0c\u9ed8\u8ba4 1", en: "Tier 1-4; default 1", type: "number", required: false },
         { name: "components", zh: "\u53ea\u5b89\u88c5\u6307\u5b9a\u7ec4\u4ef6", en: "Install only these components", type: "array", required: false },
         { name: "confirm", zh: "\u662f\u5426\u786e\u8ba4\u6267\u884c", en: "Confirm execution", type: "boolean", required: false },
         { name: "visible", zh: "\u662f\u5426\u4f7f\u7528\u53ef\u89c1\u7ec8\u7aef", en: "Use a visible terminal", type: "boolean", required: false },
+        { name: "timeout_ms", zh: "\u5b89\u88c5\u8d85\u65f6\u6beb\u79d2\uff0c\u9ed8\u8ba4 600000", en: "Install timeout in ms; default 600000", type: "number", required: false },
       ]
     },
     spec: {
       command: "office_env_setup",
+      params: ["tier", "components", "confirm", "visible", "timeout_ms"],
       defaultOutputName: "office_env_plan.json",
       requiresEnv: false,
       timeoutMs: 600000,
@@ -89,10 +92,12 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
         { name: "sheet_name", zh: "\u5de5\u4f5c\u8868\u540d", en: "Sheet name", type: "string", required: false },
         { name: "layout", zh: "PDF \u662f\u5426\u4fdd\u7559\u7248\u9762\uff08\u9700\u8981 pdfplumber\uff09", en: "Keep PDF layout (requires pdfplumber)", type: "boolean", required: false },
         { name: "task_id", zh: "\u590d\u7528\u540c\u4e00\u4e2a Linux \u6682\u5b58\u533a", en: "Reuse the same Linux staging directory", type: "string", required: false },
+        { name: "with_anchors", zh: "\u662f\u5426\u8fd4\u56de\u5bfc\u822a\u951a\u70b9\uff0c\u9ed8\u8ba4 true", en: "Return navigation anchors; default true", type: "boolean", required: false },
       ]
     },
     spec: {
       command: "office_read",
+      params: ["path", "env", "mode", "range", "max_chars", "max_rows", "sheet_name", "layout", "task_id", "with_anchors"],
       inputPaths: ["path"],
       defaultOutputName: "read.txt",
       timeoutMs: 300000,
@@ -114,10 +119,13 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
         { name: "options", zh: "\u989d\u5916\u5f15\u64ce\u53c2\u6570\u6570\u7ec4", en: "Extra engine options", type: "array", required: false },
         { name: "cjk_font", zh: "CJK \u5b57\u4f53\u65cf", en: "CJK font family", type: "string", required: false },
         { name: "task_id", zh: "\u590d\u7528\u540c\u4e00\u4e2a Linux \u6682\u5b58\u533a", en: "Reuse the same Linux staging directory", type: "string", required: false },
+        { name: "in_place", zh: "\u539f\u5730\u7f16\u8f91\uff08\u4ec5 Linux \u5de5\u4f5c\u533a\uff0c\u4ecd\u9700\u4e34\u65f6\u6587\u4ef6\u539f\u5b50\u66ff\u6362\uff09", en: "Edit in place (Linux workspace only; still atomic replacement)", type: "boolean", required: false },
+        { name: "timeout_ms", zh: "\u8f6c\u6362\u8d85\u65f6\u6beb\u79d2\uff0c\u9ed8\u8ba4 600000", en: "Conversion timeout in ms; default 600000", type: "number", required: false },
       ]
     },
     spec: {
       command: "office_convert",
+      params: ["from_path", "to_format", "engine", "env", "output_path", "output_env", "overwrite", "options", "cjk_font", "task_id", "in_place", "timeout_ms"],
       defaultOutputName: "converted.bin",
       timeoutMs: 600000,
     }
@@ -139,6 +147,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "office_render_preview",
+      params: ["path", "env", "output_env", "pages", "dpi", "max_pages", "task_id"],
       inputPaths: ["path"],
       outputKind: "multi",
       defaultOutputName: "preview",
@@ -160,6 +169,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "office_validate",
+      params: ["path", "env", "original_path", "strict", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "validate.json",
       timeoutMs: 300000,
@@ -180,6 +190,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "office_diff",
+      params: ["left", "right", "env", "max_chars", "task_id"],
       defaultOutputName: "diff.txt",
       timeoutMs: 300000,
     }
@@ -198,6 +209,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "office_workspace_init",
+      params: ["dir", "env", "output_env", "overwrite"],
       defaultOutputName: "workspace.json",
       timeoutMs: 300000,
     }
@@ -213,6 +225,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "office_workspace_clean",
+      params: ["task_id"],
       defaultOutputName: "clean.json",
       requiresEnv: false,
       timeoutMs: 300000,
@@ -232,6 +245,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "docx_outline",
+      params: ["path", "env", "max_items", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "outline.json",
       timeoutMs: 300000,
@@ -255,6 +269,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "docx_create",
+      params: ["spec", "markdown", "file_name", "output_path", "env", "output_env", "overwrite", "task_id"],
       defaultOutputName: "document.docx",
       timeoutMs: 300000,
     }
@@ -277,6 +292,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "docx_from_template",
+      params: ["path", "env", "variables", "strict", "output_path", "output_env", "overwrite", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "filled.docx",
       timeoutMs: 300000,
@@ -302,6 +318,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "docx_edit",
+      params: ["path", "env", "anchor", "operation", "text", "output_path", "output_env", "overwrite", "in_place", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "edited.docx",
       timeoutMs: 300000,
@@ -329,6 +346,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "docx_find_replace",
+      params: ["path", "env", "find", "replace", "use_regex", "ignore_case", "scope", "output_path", "output_env", "overwrite", "in_place", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "replaced.docx",
       timeoutMs: 300000,
@@ -355,6 +373,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "docx_table",
+      params: ["path", "env", "rows", "header", "style", "column_widths_cm", "output_path", "output_env", "overwrite", "in_place", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "table.docx",
       timeoutMs: 300000,
@@ -380,6 +399,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "docx_insert_image",
+      params: ["path", "env", "image_path", "width_cm", "alignment", "output_path", "output_env", "overwrite", "in_place", "task_id"],
       inputPaths: ["path", "image_path"],
       defaultOutputName: "image.docx",
       timeoutMs: 300000,
@@ -405,6 +425,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "docx_style",
+      params: ["path", "env", "margins_cm", "default_font", "paragraph_styles", "output_path", "output_env", "overwrite", "in_place", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "styled.docx",
       timeoutMs: 300000,
@@ -428,6 +449,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "docx_merge",
+      params: ["paths", "env", "style_mode", "file_name", "output_path", "output_env", "overwrite", "task_id"],
       inputPaths: ["paths"],
       defaultOutputName: "merged.docx",
       timeoutMs: 300000,
@@ -448,6 +470,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "docx_extract_media",
+      params: ["path", "env", "output_env", "target_dir_name", "task_id"],
       inputPaths: ["path"],
       outputKind: "multi",
       defaultOutputName: "media",
@@ -467,6 +490,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "xlsx_info",
+      params: ["path", "env", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "info.json",
       timeoutMs: 300000,
@@ -488,6 +512,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "xlsx_read",
+      params: ["path", "env", "sheet_name", "range", "max_rows", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "read.json",
       timeoutMs: 300000,
@@ -499,7 +524,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
       zh: "\u6279\u91cf\u5199\u5355\u5143\u683c/\u533a\u57df\uff1b\u5199\u5165\u516c\u5f0f\u540e\u5fc5\u987b\u8c03\u7528 xlsx_recalc\uff08\u6ea2\u51fa\u6570\u7ec4\u51fd\u6570\u4f1a\u88ab\u62d2\u7edd\uff09\u3002",
       en: "Write cells/ranges in bulk; formulas require xlsx_recalc afterwards (spill functions are rejected).",
       params: [
-        { name: "path", zh: "Linux \u6216 Android \u6587\u4ef6\u8def\u5f84", en: "Linux or Android file path", type: "string", required: true },
+        { name: "path", zh: "\u5df2\u6709\u5de5\u4f5c\u7c3f\u8def\u5f84\uff1b\u7701\u7565\u65f6\u65b0\u5efa\u5de5\u4f5c\u7c3f", en: "Existing workbook path; omitted creates a new workbook", type: "string", required: false },
         { name: "env", zh: "\u8def\u5f84\u6240\u5c5e\u73af\u5883\uff0c\u5fc5\u987b\u663e\u5f0f\u4f20\u5165 android \u6216 linux\uff0c\u7981\u6b62\u63a8\u65ad", en: "Path environment; must be explicitly android or linux, never inferred", type: "string", required: true },
         { name: "sheet_name", zh: "\u5de5\u4f5c\u8868\u540d", en: "Sheet name", type: "string", required: false },
         { name: "cells", zh: "[{cell,value|formula}]", en: "[{cell,value|formula}]", type: "array", required: false },
@@ -515,6 +540,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "xlsx_write",
+      params: ["path", "env", "sheet_name", "cells", "rows", "start_cell", "file_name", "output_path", "output_env", "overwrite", "in_place", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "workbook.xlsx",
       timeoutMs: 300000,
@@ -545,6 +571,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "xlsx_format",
+      params: ["path", "env", "sheet_name", "number_format", "font", "fill", "column_widths", "row_heights", "freeze_panes", "auto_filter", "output_path", "output_env", "overwrite", "in_place", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "formatted.xlsx",
       timeoutMs: 300000,
@@ -571,6 +598,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "xlsx_sheet",
+      params: ["path", "env", "operation", "name", "new_name", "index", "output_path", "output_env", "overwrite", "in_place", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "sheets.xlsx",
       timeoutMs: 300000,
@@ -593,6 +621,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "xlsx_recalc",
+      params: ["path", "env", "output_path", "output_env", "overwrite", "in_place", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "recalculated.xlsx",
       timeoutMs: 600000,
@@ -619,6 +648,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "xlsx_table",
+      params: ["path", "env", "sheet_name", "range", "table_name", "style", "output_path", "output_env", "overwrite", "in_place", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "table.xlsx",
       timeoutMs: 300000,
@@ -638,6 +668,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "pptx_outline",
+      params: ["path", "env", "max_slides", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "outline.json",
       timeoutMs: 300000,
@@ -662,6 +693,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "pptx_create",
+      params: ["slides", "template_path", "layout_index", "file_name", "output_path", "env", "output_env", "overwrite", "task_id"],
       defaultOutputName: "presentation.pptx",
       timeoutMs: 300000,
     }
@@ -684,6 +716,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "pptx_template_fill",
+      params: ["path", "env", "variables", "strict", "output_path", "output_env", "overwrite", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "filled.pptx",
       timeoutMs: 300000,
@@ -710,6 +743,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "pptx_slide",
+      params: ["path", "env", "operation", "index", "target_index", "layout_index", "output_path", "output_env", "overwrite", "in_place", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "slides.pptx",
       timeoutMs: 300000,
@@ -744,6 +778,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "pptx_edit",
+      params: ["path", "env", "slide_index", "shape_index", "shape_name", "operation", "text", "size_pt", "bold", "color_rgb", "left_emu", "top_emu", "width_emu", "height_emu", "output_path", "output_env", "overwrite", "in_place", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "edited.pptx",
       timeoutMs: 300000,
@@ -769,6 +804,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "pptx_notes",
+      params: ["path", "env", "operation", "slide_index", "text", "output_path", "output_env", "overwrite", "in_place", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "notes.pptx",
       timeoutMs: 300000,
@@ -797,6 +833,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "pptx_media",
+      params: ["path", "env", "slide_index", "image_path", "left_emu", "top_emu", "width_emu", "height_emu", "output_path", "output_env", "overwrite", "in_place", "task_id"],
       inputPaths: ["path", "image_path"],
       defaultOutputName: "media.pptx",
       timeoutMs: 300000,
@@ -819,6 +856,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "pptx_clean",
+      params: ["path", "env", "output_path", "output_env", "overwrite", "in_place", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "cleaned.pptx",
       timeoutMs: 300000,
@@ -837,6 +875,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "pdf_info",
+      params: ["path", "env", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "info.json",
       timeoutMs: 300000,
@@ -858,6 +897,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "pdf_extract",
+      params: ["path", "env", "range", "mode", "max_chars", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "extract.txt",
       timeoutMs: 300000,
@@ -879,6 +919,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "pdf_merge",
+      params: ["paths", "env", "output_path", "output_env", "overwrite", "task_id"],
       inputPaths: ["paths"],
       defaultOutputName: "merged.pdf",
       timeoutMs: 300000,
@@ -899,6 +940,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "pdf_split",
+      params: ["path", "env", "range", "output_env", "task_id"],
       inputPaths: ["path"],
       outputKind: "multi",
       defaultOutputName: "split",
@@ -924,6 +966,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "pdf_rotate",
+      params: ["path", "env", "angle", "range", "output_path", "output_env", "overwrite", "in_place", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "rotated.pdf",
       timeoutMs: 300000,
@@ -947,6 +990,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "pdf_reorder",
+      params: ["path", "env", "order", "output_path", "output_env", "overwrite", "in_place", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "reordered.pdf",
       timeoutMs: 300000,
@@ -970,6 +1014,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "pdf_delete_pages",
+      params: ["path", "env", "range", "output_path", "output_env", "overwrite", "in_place", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "trimmed.pdf",
       timeoutMs: 300000,
@@ -988,6 +1033,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "pdf_form_list",
+      params: ["path", "env", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "form.json",
       timeoutMs: 300000,
@@ -1012,6 +1058,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "pdf_form_fill",
+      params: ["path", "env", "values", "strict", "output_path", "output_env", "overwrite", "in_place", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "filled.pdf",
       timeoutMs: 300000,
@@ -1039,6 +1086,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "pdf_watermark",
+      params: ["path", "env", "text", "size", "opacity", "angle", "cjk_font", "output_path", "output_env", "overwrite", "in_place", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "watermarked.pdf",
       timeoutMs: 300000,
@@ -1063,6 +1111,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "pdf_encrypt",
+      params: ["path", "env", "password", "algorithm", "output_path", "output_env", "overwrite", "in_place", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "encrypted.pdf",
       timeoutMs: 300000,
@@ -1086,6 +1135,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "pdf_decrypt",
+      params: ["path", "env", "password", "output_path", "output_env", "overwrite", "in_place", "task_id"],
       inputPaths: ["path"],
       defaultOutputName: "decrypted.pdf",
       timeoutMs: 300000,
@@ -1108,6 +1158,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "pdf_to_images",
+      params: ["path", "env", "range", "dpi", "max_pages", "output_env", "task_id"],
       inputPaths: ["path"],
       outputKind: "multi",
       defaultOutputName: "images",
@@ -1135,6 +1186,7 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
     },
     spec: {
       command: "pdf_create",
+      params: ["engine", "blocks", "source_path", "file_name", "cjk_font", "margin_cm", "output_path", "env", "output_env", "overwrite", "task_id"],
       defaultOutputName: "document.pdf",
       timeoutMs: 600000,
     }

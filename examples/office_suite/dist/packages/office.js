@@ -50,11 +50,11 @@
         {
           "name": "tier",
           "description": {
-            "zh": "环境分层 1-4",
-            "en": "Tier 1-4"
+            "zh": "环境分层 1-4，默认 1",
+            "en": "Tier 1-4; default 1"
           },
           "type": "number",
-          "required": true
+          "required": false
         },
         {
           "name": "components",
@@ -81,6 +81,15 @@
             "en": "Use a visible terminal"
           },
           "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "timeout_ms",
+          "description": {
+            "zh": "安装超时毫秒，默认 600000",
+            "en": "Install timeout in ms; default 600000"
+          },
+          "type": "number",
           "required": false
         }
       ]
@@ -171,6 +180,15 @@
             "en": "Reuse the same Linux staging directory"
           },
           "type": "string",
+          "required": false
+        },
+        {
+          "name": "with_anchors",
+          "description": {
+            "zh": "是否返回导航锚点，默认 true",
+            "en": "Return navigation anchors; default true"
+          },
+          "type": "boolean",
           "required": false
         }
       ]
@@ -270,6 +288,24 @@
             "en": "Reuse the same Linux staging directory"
           },
           "type": "string",
+          "required": false
+        },
+        {
+          "name": "in_place",
+          "description": {
+            "zh": "原地编辑（仅 Linux 工作区，仍需临时文件原子替换）",
+            "en": "Edit in place (Linux workspace only; still atomic replacement)"
+          },
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "timeout_ms",
+          "description": {
+            "zh": "转换超时毫秒，默认 600000",
+            "en": "Conversion timeout in ms; default 600000"
+          },
+          "type": "number",
           "required": false
         }
       ]

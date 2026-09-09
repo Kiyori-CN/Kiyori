@@ -122,11 +122,11 @@
         {
           "name": "path",
           "description": {
-            "zh": "Linux 或 Android 文件路径",
-            "en": "Linux or Android file path"
+            "zh": "已有工作簿路径；省略时新建工作簿",
+            "en": "Existing workbook path; omitted creates a new workbook"
           },
           "type": "string",
-          "required": true
+          "required": false
         },
         {
           "name": "env",

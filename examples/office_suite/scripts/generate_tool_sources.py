@@ -113,6 +113,11 @@ def render_specs(tools: list[dict]) -> str:
         lines.append("    },")
         lines.append("    spec: {")
         lines.append("      command: %s," % json.dumps(tool["command"]))
+        if tool.get("params"):
+            lines.append(
+                "      params: [%s],"
+                % ", ".join(json.dumps(param["name"]) for param in tool["params"])
+            )
         if tool.get("inputPaths"):
             lines.append(
                 "      inputPaths: [%s]," % ", ".join(json.dumps(item) for item in tool["inputPaths"])

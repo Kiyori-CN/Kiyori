@@ -19,6 +19,11 @@ SCHEMA_INDEX = SCHEMA_DIR / "commands.json"
 _SCHEMA_CACHE: Dict[str, Dict[str, Any]] = {}
 _INDEX_CACHE: Optional[Dict[str, Any]] = None
 
+# 协议层内部字段：由 JS 层注入，不属于业务参数，任何命令都必须接受。
+# 统一在这里放行，避免「同一字段在某些命令被拒、某些命令通过」的两层职责错位。
+# 注意：in_place 等有业务语义的字段不在此列，必须由命令 schema 显式声明。
+INTERNAL_FIELDS = frozenset({"allow_roots", "task_id"})
+
 _TYPES = {
     "string": str,
     "integer": int,
@@ -84,79 +89,156 @@ def validate_args(command: str, args: Dict[str, Any], schema_name: Optional[str]
     schema = load_schema(schema_name)
     if schema is None:
         return
-    errors: List[str] = []
-    _validate(schema, args, "args", errors)
-    if errors:
+    issues: List[Dict[str, Any]] = []
+    _validate(schema, args, "args", issues)
+    if issues:
+        # 消息本身必须带字段名：宿主可能只展示 message 而丢弃 detail，
+        # 之前「参数不符合 ... JSON Schema」无法自查的问题即源于此。
+        summary = "; ".join(_describe(issue) for issue in issues[:5])
+        if len(issues) > 5:
+            summary += "（其余 %d 项见 data.issues）" % (len(issues) - 5)
         raise OfficeError(
             "E_INPUT_SCHEMA",
-            "参数不符合 %s 的 JSON Schema" % command,
-            detail="; ".join(errors[:20]),
-            remedy="按 detail 修正参数后重试；不要用字符串强转掩盖类型错误",
+            "参数不符合 %s 的 JSON Schema：%s" % (command, summary),
+            detail="; ".join(_describe(issue) for issue in issues[:20]),
+            data={"issues": issues, "command": command},
+            remedy="按 field/expected/actual 修正参数后重试；不要用字符串强转掩盖类型错误",
         )
 
 
-def _validate(schema: Dict[str, Any], value: Any, path: str, errors: List[str]) -> None:
+def _describe(issue: Dict[str, Any]) -> str:
+    field = issue.get("field", "args")
+    reason = issue.get("reason")
+    if reason == "UNKNOWN_FIELD":
+        return "%s 不是已登记字段" % field
+    if reason == "MISSING":
+        return "%s 缺少必填字段（期望 %s）" % (field, issue.get("expected"))
+    if reason == "ENUM":
+        return "%s 必须是 %s 之一，实际 %r" % (
+            field,
+            issue.get("expected"),
+            issue.get("actual"),
+        )
+    return "%s 期望 %s，实际 %s" % (field, issue.get("expected"), issue.get("actual"))
+
+
+def _issue(
+    field: str,
+    reason: str,
+    *,
+    expected: Any = None,
+    actual: Any = None,
+) -> Dict[str, Any]:
+    return {
+        "field": field,
+        "reason": reason,
+        "expected": expected,
+        "actual": actual,
+    }
+
+
+def _validate(
+    schema: Dict[str, Any], value: Any, path: str, issues: List[Dict[str, Any]]
+) -> None:
     if not isinstance(schema, dict):
         return
     one_of = schema.get("oneOf")
     if isinstance(one_of, list):
         for option in one_of:
-            probe: List[str] = []
+            probe: List[Dict[str, Any]] = []
             _validate(option, value, path, probe)
             if not probe:
                 return
-        errors.append("%s 不满足 oneOf 中的任一分支" % path)
+        issues.append(_issue(path, "INVALID_TYPE", expected="oneOf", actual=_actual(value)))
         return
 
     expected = schema.get("type")
     if isinstance(expected, str):
         if not _matches_type(expected, value):
-            errors.append("%s 期望 %s，实际 %s" % (path, expected, type(value).__name__))
+            issues.append(
+                _issue(path, "INVALID_TYPE", expected=expected, actual=_actual(value))
+            )
             return
     elif isinstance(expected, list):
         if not any(_matches_type(option, value) for option in expected):
-            errors.append("%s 期望 %s，实际 %s" % (path, expected, type(value).__name__))
+            issues.append(
+                _issue(path, "INVALID_TYPE", expected=expected, actual=_actual(value))
+            )
             return
 
     enum = schema.get("enum")
     if isinstance(enum, list) and value not in enum:
-        errors.append("%s 必须是 %s 之一，实际 %r" % (path, enum, value))
+        issues.append(_issue(path, "ENUM", expected=enum, actual=value))
 
     if isinstance(value, str):
         min_length = schema.get("minLength")
         if isinstance(min_length, int) and len(value) < min_length:
-            errors.append("%s 长度小于 %d" % (path, min_length))
+            issues.append(
+                _issue(path, "TOO_SHORT", expected="length>=%d" % min_length, actual=len(value))
+            )
         max_length = schema.get("maxLength")
         if isinstance(max_length, int) and len(value) > max_length:
-            errors.append("%s 长度大于 %d" % (path, max_length))
+            issues.append(
+                _issue(path, "TOO_LONG", expected="length<=%d" % max_length, actual=len(value))
+            )
         pattern = schema.get("pattern")
         if isinstance(pattern, str) and not re.search(pattern, value):
-            errors.append("%s 不匹配 pattern %s" % (path, pattern))
+            issues.append(_issue(path, "PATTERN", expected=pattern, actual=value))
 
     if isinstance(value, (int, float)) and not isinstance(value, bool):
         minimum = schema.get("minimum")
         if isinstance(minimum, (int, float)) and value < minimum:
-            errors.append("%s 小于最小值 %s" % (path, minimum))
+            issues.append(_issue(path, "TOO_SMALL", expected=minimum, actual=value))
         maximum = schema.get("maximum")
         if isinstance(maximum, (int, float)) and value > maximum:
-            errors.append("%s 大于最大值 %s" % (path, maximum))
+            issues.append(_issue(path, "TOO_LARGE", expected=maximum, actual=value))
 
     if isinstance(value, list) and isinstance(schema.get("items"), dict):
         for index, item in enumerate(value):
-            _validate(schema["items"], item, "%s[%d]" % (path, index), errors)
+            _validate(schema["items"], item, "%s[%d]" % (path, index), issues)
 
     if isinstance(value, dict):
         properties = schema.get("properties")
         properties = properties if isinstance(properties, dict) else {}
         for key in schema.get("required") or []:
             if key not in value:
-                errors.append("%s.%s 是必填字段" % (path, key))
+                field_schema = properties.get(key) or {}
+                issues.append(
+                    _issue(
+                        "%s.%s" % (path, key),
+                        "MISSING",
+                        expected=field_schema.get("type", "any"),
+                        actual=None,
+                    )
+                )
         additional = schema.get("additionalProperties", True)
         for key, item in value.items():
+            if key in INTERNAL_FIELDS or key.startswith("__"):
+                continue
             if key in properties:
-                _validate(properties[key], item, "%s.%s" % (path, key), errors)
+                _validate(properties[key], item, "%s.%s" % (path, key), issues)
             elif additional is False:
-                errors.append("%s.%s 不是已登记字段" % (path, key))
+                issues.append(
+                    _issue("%s.%s" % (path, key), "UNKNOWN_FIELD", actual=_actual(item))
+                )
+
+
+def _actual(value: Any) -> str:
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, int):
+        return "integer"
+    if isinstance(value, float):
+        return "number"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, list):
+        return "array"
+    if isinstance(value, dict):
+        return "object"
+    if value is None:
+        return "null"
+    return type(value).__name__
 
 
 def _matches_type(name: str, value: Any) -> bool:

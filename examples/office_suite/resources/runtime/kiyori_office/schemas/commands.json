@@ -2,684 +2,1876 @@
   "office_env_check": {
     "type": "object",
     "properties": {
-      "verbose": {"type": "boolean"}
+      "verbose": {
+        "type": "boolean"
+      }
     },
     "additionalProperties": false
   },
   "office_env_setup": {
     "type": "object",
     "properties": {
-      "tier": {"type": "integer", "minimum": 1, "maximum": 4},
-      "components": {"type": "array", "items": {"type": "string", "minLength": 1}},
-      "confirm": {"type": "boolean"},
-      "visible": {"type": "boolean"},
-      "timeout_ms": {"type": "integer", "minimum": 1000}
+      "tier": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 4
+      },
+      "components": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "confirm": {
+        "type": "boolean"
+      },
+      "visible": {
+        "type": "boolean"
+      },
+      "timeout_ms": {
+        "type": "integer",
+        "minimum": 1000
+      }
     },
     "additionalProperties": false
   },
   "office_read": {
     "type": "object",
-    "required": ["path"],
+    "required": [
+      "path"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "env": {"type": "string", "enum": ["android", "linux"]},
-      "mode": {"type": "string", "enum": ["outline", "full", "range"]},
-      "range": {"type": "string"},
-      "max_chars": {"type": "integer", "minimum": 1},
-      "max_rows": {"type": "integer", "minimum": 1},
-      "with_anchors": {"type": "boolean"},
-      "sheet_name": {"type": "string"},
-      "layout": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "with_anchors": {
+        "type": "boolean"
+      },
+      "mode": {
+        "type": "string",
+        "enum": [
+          "outline",
+          "full",
+          "range"
+        ]
+      },
+      "range": {
+        "type": "string"
+      },
+      "max_chars": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "max_rows": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "with_anchors": {
+        "type": "boolean"
+      },
+      "sheet_name": {
+        "type": "string"
+      },
+      "layout": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "office_validate": {
     "type": "object",
-    "required": ["path"],
+    "required": [
+      "path"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "original_path": {"type": "string"},
-      "strict": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "original_path": {
+        "type": "string"
+      },
+      "strict": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "office_convert": {
     "type": "object",
-    "required": ["from_path", "to_format", "engine"],
+    "required": [
+      "from_path",
+      "to_format",
+      "engine"
+    ],
     "properties": {
-      "from_path": {"type": "string", "minLength": 1},
-      "to_format": {"type": "string", "minLength": 1},
-      "engine": {"type": "string", "enum": ["libreoffice", "pandoc"]},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "in_place": {"type": "boolean"},
-      "options": {"type": "array", "items": {"type": "string", "minLength": 1}},
-      "cjk_font": {"type": "string"},
-      "timeout_ms": {"type": "integer", "minimum": 1000},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "from_path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "timeout_ms": {
+        "type": "integer",
+        "minimum": 1000
+      },
+      "to_format": {
+        "type": "string",
+        "minLength": 1
+      },
+      "engine": {
+        "type": "string",
+        "enum": [
+          "libreoffice",
+          "pandoc"
+        ]
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "options": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "cjk_font": {
+        "type": "string"
+      },
+      "timeout_ms": {
+        "type": "integer",
+        "minimum": 1000
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "office_render_preview": {
     "type": "object",
-    "required": ["path"],
+    "required": [
+      "path"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "pages": {"type": "string"},
-      "dpi": {"type": "integer", "minimum": 60, "maximum": 400},
-      "max_pages": {"type": "integer", "minimum": 1},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "pages": {
+        "type": "string"
+      },
+      "dpi": {
+        "type": "integer",
+        "minimum": 60,
+        "maximum": 400
+      },
+      "max_pages": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "office_diff": {
     "type": "object",
-    "required": ["left", "right"],
+    "required": [
+      "left",
+      "right"
+    ],
     "properties": {
-      "left": {"type": "string", "minLength": 1},
-      "right": {"type": "string", "minLength": 1},
-      "max_chars": {"type": "integer", "minimum": 1},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "left": {
+        "type": "string",
+        "minLength": 1
+      },
+      "right": {
+        "type": "string",
+        "minLength": 1
+      },
+      "max_chars": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "office_workspace_init": {
     "type": "object",
-    "required": ["dir"],
+    "required": [
+      "dir"
+    ],
     "properties": {
-      "dir": {"type": "string", "minLength": 1},
-      "overwrite": {"type": "boolean"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "dir": {
+        "type": "string",
+        "minLength": 1
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "office_workspace_clean": {
     "type": "object",
     "properties": {
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "docx_outline": {
     "type": "object",
-    "required": ["path"],
+    "required": [
+      "path"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "max_items": {"type": "integer", "minimum": 0},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "max_items": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "docx_create": {
     "type": "object",
     "properties": {
-      "spec": {"type": "object"},
-      "markdown": {"type": "string"},
-      "file_name": {"type": "string"},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "spec": {
+        "type": "object"
+      },
+      "markdown": {
+        "type": "string"
+      },
+      "file_name": {
+        "type": "string"
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "docx_from_template": {
     "type": "object",
-    "required": ["path", "variables"],
+    "required": [
+      "path",
+      "variables"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "variables": {"type": "object"},
-      "strict": {"type": "boolean"},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "variables": {
+        "type": "object"
+      },
+      "strict": {
+        "type": "boolean"
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "docx_edit": {
     "type": "object",
-    "required": ["path", "anchor", "operation"],
+    "required": [
+      "path",
+      "anchor",
+      "operation"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "anchor": {"type": "object"},
-      "operation": {"type": "string", "enum": ["replace", "insert_before", "insert_after", "delete"]},
-      "text": {"type": "string"},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "in_place": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "anchor": {
+        "type": "object"
+      },
+      "operation": {
+        "type": "string",
+        "enum": [
+          "replace",
+          "insert_before",
+          "insert_after",
+          "delete"
+        ]
+      },
+      "text": {
+        "type": "string"
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "docx_find_replace": {
     "type": "object",
-    "required": ["path", "find"],
+    "required": [
+      "path",
+      "find"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "find": {"type": "string", "minLength": 1},
-      "replace": {"type": "string"},
-      "use_regex": {"type": "boolean"},
-      "ignore_case": {"type": "boolean"},
-      "scope": {"type": "string", "enum": ["all", "paragraphs", "tables"]},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "in_place": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "find": {
+        "type": "string",
+        "minLength": 1
+      },
+      "replace": {
+        "type": "string"
+      },
+      "use_regex": {
+        "type": "boolean"
+      },
+      "ignore_case": {
+        "type": "boolean"
+      },
+      "scope": {
+        "type": "string",
+        "enum": [
+          "all",
+          "paragraphs",
+          "tables"
+        ]
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "docx_table": {
     "type": "object",
-    "required": ["path", "rows"],
+    "required": [
+      "path",
+      "rows"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "rows": {"type": "array", "items": {"type": "array"}},
-      "header": {"type": "boolean"},
-      "style": {"type": "string"},
-      "column_widths_cm": {"type": "array", "items": {"type": "number"}},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "in_place": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "rows": {
+        "type": "array",
+        "items": {
+          "type": "array"
+        }
+      },
+      "header": {
+        "type": "boolean"
+      },
+      "style": {
+        "type": "string"
+      },
+      "column_widths_cm": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        }
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "docx_insert_image": {
     "type": "object",
-    "required": ["path", "image_path"],
+    "required": [
+      "path",
+      "image_path"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "image_path": {"type": "string", "minLength": 1},
-      "width_cm": {"type": "number", "minimum": 0.1},
-      "alignment": {"type": "string", "enum": ["left", "center", "right", "justify"]},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "in_place": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "image_path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "width_cm": {
+        "type": "number",
+        "minimum": 0.1
+      },
+      "alignment": {
+        "type": "string",
+        "enum": [
+          "left",
+          "center",
+          "right",
+          "justify"
+        ]
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "docx_style": {
     "type": "object",
-    "required": ["path"],
+    "required": [
+      "path"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "margins_cm": {"type": "object"},
-      "default_font": {"type": "object"},
-      "paragraph_styles": {"type": "object"},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "in_place": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "margins_cm": {
+        "type": "object"
+      },
+      "default_font": {
+        "type": "object"
+      },
+      "paragraph_styles": {
+        "type": "object"
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "docx_merge": {
     "type": "object",
-    "required": ["paths"],
+    "required": [
+      "paths"
+    ],
     "properties": {
-      "paths": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 2},
-      "style_mode": {"type": "string", "enum": ["preserve", "unified"]},
-      "file_name": {"type": "string"},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "paths": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "minItems": 2
+      },
+      "style_mode": {
+        "type": "string",
+        "enum": [
+          "preserve",
+          "unified"
+        ]
+      },
+      "file_name": {
+        "type": "string"
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "docx_extract_media": {
     "type": "object",
-    "required": ["path"],
+    "required": [
+      "path"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "target_dir_name": {"type": "string"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "target_dir_name": {
+        "type": "string"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "xlsx_info": {
     "type": "object",
-    "required": ["path"],
+    "required": [
+      "path"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "xlsx_read": {
     "type": "object",
-    "required": ["path"],
+    "required": [
+      "path"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "sheet_name": {"type": "string"},
-      "range": {"type": "string"},
-      "max_rows": {"type": "integer", "minimum": 1},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "sheet_name": {
+        "type": "string"
+      },
+      "range": {
+        "type": "string"
+      },
+      "max_rows": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "xlsx_write": {
     "type": "object",
     "properties": {
-      "path": {"type": "string"},
-      "file_name": {"type": "string"},
-      "sheet_name": {"type": "string"},
-      "cells": {"type": "array", "items": {"type": "object"}},
-      "rows": {"type": "array", "items": {"type": "array"}},
-      "start_cell": {"type": "string"},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "in_place": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string"
+      },
+      "file_name": {
+        "type": "string"
+      },
+      "sheet_name": {
+        "type": "string"
+      },
+      "cells": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "rows": {
+        "type": "array",
+        "items": {
+          "type": "array"
+        }
+      },
+      "start_cell": {
+        "type": "string"
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "xlsx_format": {
     "type": "object",
-    "required": ["path"],
+    "required": [
+      "path"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "sheet_name": {"type": "string"},
-      "number_format": {"type": "string"},
-      "font": {"type": "object"},
-      "fill": {"type": "object"},
-      "column_widths": {"type": "object"},
-      "row_heights": {"type": "object"},
-      "freeze_panes": {"type": "string"},
-      "auto_filter": {"type": "string"},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "in_place": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "sheet_name": {
+        "type": "string"
+      },
+      "number_format": {
+        "type": "string"
+      },
+      "font": {
+        "type": "object"
+      },
+      "fill": {
+        "type": "object"
+      },
+      "column_widths": {
+        "type": "object"
+      },
+      "row_heights": {
+        "type": "object"
+      },
+      "freeze_panes": {
+        "type": "string"
+      },
+      "auto_filter": {
+        "type": "string"
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "xlsx_sheet": {
     "type": "object",
-    "required": ["path", "operation"],
+    "required": [
+      "path",
+      "operation"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "operation": {"type": "string", "enum": ["create", "delete", "rename", "move", "copy"]},
-      "name": {"type": "string"},
-      "new_name": {"type": "string"},
-      "index": {"type": "integer", "minimum": 0},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "in_place": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "operation": {
+        "type": "string",
+        "enum": [
+          "create",
+          "delete",
+          "rename",
+          "move",
+          "copy"
+        ]
+      },
+      "name": {
+        "type": "string"
+      },
+      "new_name": {
+        "type": "string"
+      },
+      "index": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "xlsx_recalc": {
     "type": "object",
-    "required": ["path"],
+    "required": [
+      "path"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "in_place": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "xlsx_table": {
     "type": "object",
-    "required": ["path"],
+    "required": [
+      "path"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "sheet_name": {"type": "string"},
-      "range": {"type": "string"},
-      "table_name": {"type": "string"},
-      "style": {"type": "string"},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "in_place": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "sheet_name": {
+        "type": "string"
+      },
+      "range": {
+        "type": "string"
+      },
+      "table_name": {
+        "type": "string"
+      },
+      "style": {
+        "type": "string"
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "pptx_outline": {
     "type": "object",
-    "required": ["path"],
+    "required": [
+      "path"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "max_slides": {"type": "integer", "minimum": 0},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "max_slides": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "pptx_create": {
     "type": "object",
-    "required": ["slides"],
+    "required": [
+      "slides"
+    ],
     "properties": {
-      "slides": {"type": "array", "items": {"type": "object"}, "minItems": 1},
-      "template_path": {"type": "string"},
-      "layout_index": {"type": "integer", "minimum": 0},
-      "file_name": {"type": "string"},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "slides": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        },
+        "minItems": 1
+      },
+      "template_path": {
+        "type": "string"
+      },
+      "layout_index": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "file_name": {
+        "type": "string"
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "pptx_template_fill": {
     "type": "object",
-    "required": ["path", "variables"],
+    "required": [
+      "path",
+      "variables"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "variables": {"type": "object"},
-      "strict": {"type": "boolean"},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "variables": {
+        "type": "object"
+      },
+      "strict": {
+        "type": "boolean"
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "pptx_slide": {
     "type": "object",
-    "required": ["path", "operation"],
+    "required": [
+      "path",
+      "operation"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "operation": {"type": "string", "enum": ["add", "delete", "duplicate", "move"]},
-      "index": {"type": "integer", "minimum": 0},
-      "target_index": {"type": "integer", "minimum": 0},
-      "layout_index": {"type": "integer", "minimum": 0},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "in_place": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "operation": {
+        "type": "string",
+        "enum": [
+          "add",
+          "delete",
+          "duplicate",
+          "move"
+        ]
+      },
+      "index": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "target_index": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "layout_index": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "pptx_edit": {
     "type": "object",
-    "required": ["path", "slide_index"],
+    "required": [
+      "path",
+      "slide_index"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "slide_index": {"type": "integer", "minimum": 0},
-      "shape_index": {"type": "integer", "minimum": 0},
-      "shape_name": {"type": "string"},
-      "operation": {"type": "string", "enum": ["set_text", "append_text", "set_position", "set_size", "set_font"]},
-      "text": {"type": "string"},
-      "size_pt": {"type": "number", "minimum": 1},
-      "bold": {"type": "boolean"},
-      "color_rgb": {"type": "string"},
-      "left_emu": {"type": "integer"},
-      "top_emu": {"type": "integer"},
-      "width_emu": {"type": "integer"},
-      "height_emu": {"type": "integer"},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "in_place": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "slide_index": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "shape_index": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "shape_name": {
+        "type": "string"
+      },
+      "operation": {
+        "type": "string",
+        "enum": [
+          "set_text",
+          "append_text",
+          "set_position",
+          "set_size",
+          "set_font"
+        ]
+      },
+      "text": {
+        "type": "string"
+      },
+      "size_pt": {
+        "type": "number",
+        "minimum": 1
+      },
+      "bold": {
+        "type": "boolean"
+      },
+      "color_rgb": {
+        "type": "string"
+      },
+      "left_emu": {
+        "type": "integer"
+      },
+      "top_emu": {
+        "type": "integer"
+      },
+      "width_emu": {
+        "type": "integer"
+      },
+      "height_emu": {
+        "type": "integer"
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "pptx_notes": {
     "type": "object",
-    "required": ["path"],
+    "required": [
+      "path"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "operation": {"type": "string", "enum": ["read", "write"]},
-      "slide_index": {"type": "integer", "minimum": 0},
-      "text": {"type": "string"},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "in_place": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "operation": {
+        "type": "string",
+        "enum": [
+          "read",
+          "write"
+        ]
+      },
+      "slide_index": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "text": {
+        "type": "string"
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "pptx_media": {
     "type": "object",
-    "required": ["path", "slide_index", "image_path"],
+    "required": [
+      "path",
+      "slide_index",
+      "image_path"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "slide_index": {"type": "integer", "minimum": 0},
-      "image_path": {"type": "string", "minLength": 1},
-      "left_emu": {"type": "integer"},
-      "top_emu": {"type": "integer"},
-      "width_emu": {"type": "integer"},
-      "height_emu": {"type": "integer"},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "in_place": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "slide_index": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "image_path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "left_emu": {
+        "type": "integer"
+      },
+      "top_emu": {
+        "type": "integer"
+      },
+      "width_emu": {
+        "type": "integer"
+      },
+      "height_emu": {
+        "type": "integer"
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "pptx_clean": {
     "type": "object",
-    "required": ["path"],
+    "required": [
+      "path"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "in_place": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "pdf_info": {
     "type": "object",
-    "required": ["path"],
+    "required": [
+      "path"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "pdf_extract": {
     "type": "object",
-    "required": ["path"],
+    "required": [
+      "path"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "range": {"type": "string"},
-      "mode": {"type": "string", "enum": ["text", "layout", "tables"]},
-      "max_chars": {"type": "integer", "minimum": 1},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "range": {
+        "type": "string"
+      },
+      "mode": {
+        "type": "string",
+        "enum": [
+          "text",
+          "layout",
+          "tables"
+        ]
+      },
+      "max_chars": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "pdf_merge": {
     "type": "object",
-    "required": ["paths"],
+    "required": [
+      "paths"
+    ],
     "properties": {
-      "paths": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 2},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "paths": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "minItems": 2
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "pdf_split": {
     "type": "object",
-    "required": ["path", "range"],
+    "required": [
+      "path",
+      "range"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "range": {"type": "string", "minLength": 1},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "range": {
+        "type": "string",
+        "minLength": 1
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "pdf_rotate": {
     "type": "object",
-    "required": ["path", "angle"],
+    "required": [
+      "path",
+      "angle"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "angle": {"type": "integer"},
-      "range": {"type": "string"},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "in_place": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "angle": {
+        "type": "integer"
+      },
+      "range": {
+        "type": "string"
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "pdf_reorder": {
     "type": "object",
-    "required": ["path", "order"],
+    "required": [
+      "path",
+      "order"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "order": {"type": "array", "items": {"type": "integer", "minimum": 1}, "minItems": 1},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "in_place": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "order": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "minItems": 1
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "pdf_delete_pages": {
     "type": "object",
-    "required": ["path", "range"],
+    "required": [
+      "path",
+      "range"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "range": {"type": "string", "minLength": 1},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "in_place": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "range": {
+        "type": "string",
+        "minLength": 1
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "pdf_form_list": {
     "type": "object",
-    "required": ["path"],
+    "required": [
+      "path"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "pdf_form_fill": {
     "type": "object",
-    "required": ["path", "values"],
+    "required": [
+      "path",
+      "values"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "values": {"type": "object"},
-      "strict": {"type": "boolean"},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "in_place": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "values": {
+        "type": "object"
+      },
+      "strict": {
+        "type": "boolean"
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "pdf_watermark": {
     "type": "object",
-    "required": ["path", "text"],
+    "required": [
+      "path",
+      "text"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "text": {"type": "string", "minLength": 1},
-      "size": {"type": "number", "minimum": 4},
-      "opacity": {"type": "number", "minimum": 0, "maximum": 1},
-      "angle": {"type": "number"},
-      "cjk_font": {"type": "string"},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "in_place": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "text": {
+        "type": "string",
+        "minLength": 1
+      },
+      "size": {
+        "type": "number",
+        "minimum": 4
+      },
+      "opacity": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "angle": {
+        "type": "number"
+      },
+      "cjk_font": {
+        "type": "string"
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "pdf_encrypt": {
     "type": "object",
-    "required": ["path", "password"],
+    "required": [
+      "path",
+      "password"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "password": {"type": "string", "minLength": 1},
-      "algorithm": {"type": "string"},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "in_place": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "password": {
+        "type": "string",
+        "minLength": 1
+      },
+      "algorithm": {
+        "type": "string"
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "pdf_decrypt": {
     "type": "object",
-    "required": ["path", "password"],
+    "required": [
+      "path",
+      "password"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "password": {"type": "string"},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "in_place": {"type": "boolean"},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "password": {
+        "type": "string"
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "in_place": {
+        "type": "boolean"
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "pdf_to_images": {
     "type": "object",
-    "required": ["path"],
+    "required": [
+      "path"
+    ],
     "properties": {
-      "path": {"type": "string", "minLength": 1},
-      "range": {"type": "string"},
-      "dpi": {"type": "integer", "minimum": 60, "maximum": 400},
-      "max_pages": {"type": "integer", "minimum": 1},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "range": {
+        "type": "string"
+      },
+      "dpi": {
+        "type": "integer",
+        "minimum": 60,
+        "maximum": 400
+      },
+      "max_pages": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   },
   "pdf_create": {
     "type": "object",
-    "required": ["engine"],
+    "required": [
+      "engine"
+    ],
     "properties": {
-      "engine": {"type": "string", "enum": ["reportlab", "pandoc", "weasyprint"]},
-      "blocks": {"type": "array", "items": {"type": "object"}},
-      "source_path": {"type": "string"},
-      "file_name": {"type": "string"},
-      "output_path": {"type": "string"},
-      "overwrite": {"type": "boolean"},
-      "cjk_font": {"type": "string"},
-      "margin_cm": {"type": "number", "minimum": 0},
-      "task_id": {"type": "string"},
-      "allow_roots": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      "engine": {
+        "type": "string",
+        "enum": [
+          "reportlab",
+          "pandoc",
+          "weasyprint"
+        ]
+      },
+      "blocks": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "source_path": {
+        "type": "string"
+      },
+      "file_name": {
+        "type": "string"
+      },
+      "output_path": {
+        "type": "string"
+      },
+      "overwrite": {
+        "type": "boolean"
+      },
+      "cjk_font": {
+        "type": "string"
+      },
+      "margin_cm": {
+        "type": "number",
+        "minimum": 0
+      },
+      "task_id": {
+        "type": "string"
+      },
+      "allow_roots": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "additionalProperties": false
   }

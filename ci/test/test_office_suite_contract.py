@@ -20,7 +20,11 @@ MANIFEST_FILE = PACKAGE_ROOT / "manifest.json"
 sys.path.insert(0, str(RUNTIME_ROOT))
 
 from kiyori_office import protocol  # noqa: E402
-from kiyori_office.argspec import load_schema  # noqa: E402
+from kiyori_office.argspec import INTERNAL_FIELDS, load_schema  # noqa: E402
+
+# env / output_env 由 JS 薄层消费（决定跨环境搬运），不会进入 Python args，
+# 因此它们只出现在工具元数据，不出现在 Python schema。
+JS_LAYER_FIELDS = frozenset({"env", "output_env"})
 
 
 class OfficeSuiteContractTest(unittest.TestCase):
@@ -82,6 +86,59 @@ class OfficeSuiteContractTest(unittest.TestCase):
         self.assertIn("xlsx_write", by_name)
         self.assertIn("xlsx_recalc", by_name)
         self.assertIn("xlsx_recalc", by_name["xlsx_write"].get("nextActions", []))
+
+    def test_tool_params_match_python_schema_properties(self) -> None:
+        """工具声明的参数必须与 Python schema 完全一致，防止两层定义漂移。"""
+
+        for tool in self.tools:
+            command = tool["command"]
+            if not command:
+                continue
+            schema = load_schema(protocol.commands()[command].schema)
+            properties = set((schema or {}).get("properties", {}))
+            declared = {
+                param["name"]
+                for param in tool["params"]
+                if param["name"] not in JS_LAYER_FIELDS
+            }
+            self.assertEqual(
+                declared - properties,
+                set(),
+                "工具 %s 声明了 schema 未登记的字段：%s"
+                % (
+                    tool["name"],
+                    sorted(declared - properties),
+                ),
+            )
+            extra = properties - declared - set(INTERNAL_FIELDS)
+            self.assertEqual(
+                extra,
+                set(),
+                "schema %s 存在工具未声明的字段：%s" % (command, sorted(extra)),
+            )
+
+    def test_required_params_match_python_schema_required(self) -> None:
+        for tool in self.tools:
+            command = tool["command"]
+            if not command:
+                continue
+            schema = load_schema(protocol.commands()[command].schema) or {}
+            declared_required = {
+                param["name"]
+                for param in tool["params"]
+                if param["required"] and param["name"] not in JS_LAYER_FIELDS
+            }
+            schema_required = set(schema.get("required", []))
+            self.assertEqual(
+                declared_required,
+                schema_required,
+                "工具 %s 的 required 与 schema 不一致：仅工具=%s 仅 schema=%s"
+                % (
+                    tool["name"],
+                    sorted(declared_required - schema_required),
+                    sorted(schema_required - declared_required),
+                ),
+            )
 
     def test_manifest_distribution_and_resources(self) -> None:
         self.assertEqual(self.manifest["schema_version"], 2)
