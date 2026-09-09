@@ -26,36 +26,45 @@ class ActivePromptManager private constructor(context: Context) {
 
     suspend fun getActivePrompt(): ActivePrompt = activePromptFlow.first()
 
-    suspend fun setActivePrompt(prompt: ActivePrompt) {
+    private val activation = PromptActivationCoordinator()
+
+    suspend fun setActivePrompt(prompt: ActivePrompt, stillValid: () -> Boolean = { true }): Boolean =
+        activation.activate(stillValid) { checkCurrent -> applyPrompt(prompt, checkCurrent) }
+
+    private suspend fun applyPrompt(prompt: ActivePrompt, checkCurrent: () -> Unit) {
         when (prompt) {
             is ActivePrompt.CharacterGroup -> {
-                characterGroupCardManager.setActiveCharacterGroupCard(prompt.id)
-                characterCardManager.clearActiveCharacterCard()
+                characterGroupCardManager.writeActiveCharacterGroupCard(prompt.id, checkCurrent)
+                characterCardManager.writeActiveCharacterCard(null, checkCurrent)
             }
             is ActivePrompt.CharacterCard -> {
-                characterCardManager.setActiveCharacterCard(prompt.id)
-                characterGroupCardManager.setActiveCharacterGroupCard(null)
+                characterCardManager.writeActiveCharacterCard(prompt.id, checkCurrent)
+                characterGroupCardManager.writeActiveCharacterGroupCard(null, checkCurrent)
             }
         }
+        checkCurrent()
     }
 
-    suspend fun activateForChatBinding(characterCardName: String?, characterGroupId: String?) {
-        val normalizedGroupId = characterGroupId?.trim()?.takeIf { it.isNotBlank() }
-        if (!normalizedGroupId.isNullOrBlank()) {
-            setActivePrompt(ActivePrompt.CharacterGroup(normalizedGroupId))
-            return
-        }
+    // 兼容工具的“只清空角色卡”语义，同时共享所有激活请求的串行边界。
+    suspend fun clearActiveCharacterCard(): Boolean = activation.activate({ true }) { checkCurrent ->
+        characterCardManager.writeActiveCharacterCard(null, checkCurrent)
+    }
 
-        val normalizedCardName = characterCardName?.trim()?.takeIf { it.isNotBlank() }
-        if (normalizedCardName != null) {
-            val targetCard = characterCardManager.findCharacterCardByName(normalizedCardName)
-            if (targetCard != null) {
-                setActivePrompt(ActivePrompt.CharacterCard(targetCard.id))
-                return
-            }
+    suspend fun activateForChatBinding(
+        characterCardName: String?,
+        characterGroupId: String?,
+        stillValid: () -> Boolean = { true },
+    ): Boolean = activation.activate(stillValid) { checkCurrent ->
+        val groupId = characterGroupId?.trim()?.takeIf { it.isNotBlank() }
+        val prompt = if (groupId != null) {
+            ActivePrompt.CharacterGroup(groupId)
+        } else {
+            val cardName = characterCardName?.trim()?.takeIf { it.isNotBlank() }
+            val card = cardName?.let { characterCardManager.findCharacterCardByName(it) }
+            ActivePrompt.CharacterCard(card?.id ?: CharacterCardManager.DEFAULT_CHARACTER_CARD_ID)
         }
-
-        setActivePrompt(ActivePrompt.CharacterCard(CharacterCardManager.DEFAULT_CHARACTER_CARD_ID))
+        checkCurrent()
+        applyPrompt(prompt, checkCurrent)
     }
 
     suspend fun resolveActiveCardIdForSend(): String {

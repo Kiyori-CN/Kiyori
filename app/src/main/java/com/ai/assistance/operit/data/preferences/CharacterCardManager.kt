@@ -384,23 +384,34 @@ class CharacterCardManager private constructor(private val context: Context) {
     
     // 设置活跃角色卡
     suspend fun setActiveCharacterCard(id: String) {
-        dataStore.edit { preferences ->
-            preferences[ACTIVE_CHARACTER_CARD_ID] = id
+        check(ActivePromptManager.getInstance(context).setActivePrompt(ActivePrompt.CharacterCard(id))) {
+            "Character activation was superseded; preferences may have changed"
         }
-
-        // 切换到对应角色卡的主题
-        switchToCharacterCardTheme(id)
-        // 切换到对应角色卡的Waifu模式配置
-        switchToCharacterCardWaifuSettings(id)
     }
 
-    // 清空活跃角色卡
     suspend fun clearActiveCharacterCard() {
-        dataStore.edit { preferences ->
-            preferences.remove(ACTIVE_CHARACTER_CARD_ID)
+        check(ActivePromptManager.getInstance(context).clearActiveCharacterCard()) {
+            "Character activation was superseded; preferences may have changed"
         }
     }
-    
+
+    internal suspend fun writeActiveCharacterCard(id: String?, checkCurrent: () -> Unit) {
+        dataStore.edit { preferences ->
+            checkCurrent()
+            if (id == null) preferences.remove(ACTIVE_CHARACTER_CARD_ID)
+            else preferences[ACTIVE_CHARACTER_CARD_ID] = id
+        }
+        checkCurrent()
+        if (id != null) {
+            // 所有衍生写入也核对同一资格；禁止吞掉取消或部分持久化失败。
+            if (userPreferencesManager.hasCharacterCardTheme(id)) {
+                userPreferencesManager.switchToCharacterCardTheme(id, checkCurrent)
+            }
+            checkCurrent()
+            waifuPreferences.switchToCharacterCardWaifuSettings(id, checkCurrent)
+        }
+    }
+
     // 组合提示词（角色设定 + 其他内容 + 标签 + 高级自定义）
     suspend fun combinePrompts(
         characterCardId: String,
@@ -1244,20 +1255,6 @@ class CharacterCardManager private constructor(private val context: Context) {
     /**
      * 切换到指定角色卡的主题配置
      */
-    private suspend fun switchToCharacterCardTheme(characterCardId: String) {
-        try {
-            // 检查角色卡是否有专属主题配置
-            if (userPreferencesManager.hasCharacterCardTheme(characterCardId)) {
-                userPreferencesManager.switchToCharacterCardTheme(characterCardId)
-                AppLogger.d("CharacterCardManager", "已切换到角色卡 $characterCardId 的专属主题")
-            } else {
-                AppLogger.d("CharacterCardManager", "角色卡 $characterCardId 没有专属主题配置，保持当前主题")
-            }
-        } catch (e: Exception) {
-            AppLogger.e("CharacterCardManager", "切换角色卡主题失败", e)
-        }
-    }
-
     /**
      * 为当前活跃角色卡保存主题配置
      */
@@ -1334,21 +1331,6 @@ class CharacterCardManager private constructor(private val context: Context) {
     /**
      * 切换到指定角色卡的Waifu模式配置
      */
-    private suspend fun switchToCharacterCardWaifuSettings(characterCardId: String) {
-        try {
-            // 始终调用切换方法，即使角色卡没有配置也会清空当前配置，避免保留上一个角色卡的设置
-            waifuPreferences.switchToCharacterCardWaifuSettings(characterCardId)
-            
-            if (waifuPreferences.hasCharacterCardWaifuSettings(characterCardId)) {
-                AppLogger.d("CharacterCardManager", "已切换到角色卡 $characterCardId 的Waifu模式配置")
-            } else {
-                AppLogger.d("CharacterCardManager", "角色卡 $characterCardId 没有Waifu模式配置，已清空当前配置")
-            }
-        } catch (e: Exception) {
-            AppLogger.e("CharacterCardManager", "切换角色卡Waifu模式配置失败", e)
-        }
-    }
-
     /**
      * 为当前活跃角色卡保存Waifu模式配置
      */

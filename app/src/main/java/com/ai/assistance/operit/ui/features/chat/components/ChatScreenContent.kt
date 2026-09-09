@@ -190,6 +190,10 @@ fun ChatScreenContent(
     val hasOlderDisplayHistory by actualViewModel.hasOlderDisplayHistory.collectAsState()
     val hasNewerDisplayHistory by actualViewModel.hasNewerDisplayHistory.collectAsState()
     val isLoadingDisplayWindow by actualViewModel.isLoadingDisplayWindow.collectAsState()
+    val selectionReadState by actualViewModel.currentChatSelectionReadState.collectAsState()
+    val chatWindowLoadFailure by actualViewModel.chatWindowLoadFailure.collectAsState()
+    val workspaceRewindState by actualViewModel.workspaceRewindState.collectAsState()
+    val workspaceRewindRunning = workspaceRewindState is com.ai.assistance.operit.ui.features.chat.viewmodel.WorkspaceRewindState.Running
     
     // 监听朗读状态
     val isSpeechSessionActive by actualViewModel.isSpeechSessionActive.collectAsState()
@@ -283,6 +287,11 @@ fun ChatScreenContent(
                         hasOlderDisplayHistory = hasOlderDisplayHistory,
                         hasNewerDisplayHistory = hasNewerDisplayHistory,
                         isLoadingDisplayWindow = isLoadingDisplayWindow,
+                        selectionReadFailure = selectionReadState as? com.ai.assistance.operit.data.repository.ChatSelectionReadState.Failed,
+                        onRetrySelectionRead = actualViewModel::retryCurrentChatSelection,
+                        loadFailure = chatWindowLoadFailure,
+                        onRetryDisplayWindow = actualViewModel::retryChatWindowLoad,
+                        onDismissDisplayWindowFailure = actualViewModel::dismissChatWindowLoadFailure,
                         onLoadOlderDisplayWindow = {
                             actualViewModel.loadOlderMessagesForCurrentChat()
                         },
@@ -402,6 +411,11 @@ fun ChatScreenContent(
                         hasOlderDisplayHistory = hasOlderDisplayHistory,
                         hasNewerDisplayHistory = hasNewerDisplayHistory,
                         isLoadingDisplayWindow = isLoadingDisplayWindow,
+                        selectionReadFailure = selectionReadState as? com.ai.assistance.operit.data.repository.ChatSelectionReadState.Failed,
+                        onRetrySelectionRead = actualViewModel::retryCurrentChatSelection,
+                        loadFailure = chatWindowLoadFailure,
+                        onRetryDisplayWindow = actualViewModel::retryChatWindowLoad,
+                        onDismissDisplayWindowFailure = actualViewModel::dismissChatWindowLoadFailure,
                         onLoadOlderDisplayWindow = {
                             actualViewModel.loadOlderMessagesForCurrentChat()
                         },
@@ -1006,64 +1020,60 @@ fun ChatScreenContent(
 
         // 当需要编辑消息时，显示消息编辑器
         if (editingMessageIndex.value != null && editingTarget != null) {
-            MessageEditor(
-                editingMessageContent = editingMessageContent,
-                onCancel = {
-                    editingMessageIndex.value = null
-                    editingMessageContent.value = ""
-                },
-                onSave = saveEdit@{
-                    val target = editingTarget
-                    val index = chatHistory.indexOfFirst { it.timestamp == target?.timestamp }
-                    if (index < 0 || target == null) {
-                        actualViewModel.showToast(context.getString(R.string.chat_invalid_message_index))
-                        return@saveEdit
-                    }
-                    val editedMessage = target.copy(
-                        content = editingMessageContent.value,
-                        contentStream = null,
-                    )
-                    actualViewModel.updateMessage(index, editedMessage)
-                    editingMessageIndex.value = null
-                    editingMessageContent.value = ""
-                },
-                onResend = resendEdit@{
-                    val index = chatHistory.indexOfFirst { it.timestamp == editingTarget?.timestamp }
-                    if (index < 0) {
-                        actualViewModel.showToast(context.getString(R.string.chat_invalid_message_index))
-                        return@resendEdit
-                    }
-                    if (index >= 0) {
-                        val currentChat = chatHistories.find { it.id == currentChatId }
-                        val hasWorkspace = !currentChat?.workspace.isNullOrBlank()
-
-                        if (hasWorkspace) {
-                            pendingRewindTimestamp = chatHistory.getOrNull(index)?.timestamp
-                            pendingRewindContent = editingMessageContent.value
-                        } else {
-                            // 没有绑定工作区时，直接执行编辑并重发，无需确认弹窗
-                            actualViewModel.rewindAndResendMessage(index, editingMessageContent.value)
+            key(currentChatId, editingTarget?.timestamp, editingTarget?.selectedVariantIndex) {
+                MessageEditor(
+                    editingMessageContent = editingMessageContent,
+                    onCancel = {
+                        // 重发是异步的；在服务报告前置失败或结果未知前保留编辑草稿。
+                        // 成功后的输入清理由消息处理状态观察负责，不能在启动协程后立即丢稿。
+                    },
+                    onSave = saveEdit@{ submittedContent ->
+                        val target = editingTarget
+                        val index = chatHistory.indexOfFirst { it.timestamp == target?.timestamp }
+                        if (index < 0 || target == null) {
+                            actualViewModel.showToast(context.getString(R.string.chat_invalid_message_index))
+                            return@saveEdit false
                         }
-                    }
-                    editingMessageIndex.value = null
-                    editingMessageContent.value = ""
-                },
-                showResendButton = editingMessageType == "user"
-            )
+                        actualViewModel.reviseConversationAuditMessage(currentChatId, target, submittedContent)
+                    },
+                    onResend = resendEdit@{
+                        val index = chatHistory.indexOfFirst { it.timestamp == editingTarget?.timestamp }
+                        if (index < 0) {
+                            actualViewModel.showToast(context.getString(R.string.chat_invalid_message_index))
+                            return@resendEdit
+                        }
+                        if (index >= 0) {
+                            val currentChat = chatHistories.find { it.id == currentChatId }
+                            val hasWorkspace = !currentChat?.workspace.isNullOrBlank()
+
+                            if (hasWorkspace) {
+                                pendingRewindTimestamp = chatHistory.getOrNull(index)?.timestamp
+                                pendingRewindContent = editingMessageContent.value
+                            } else {
+                                // 没有绑定工作区时，直接执行编辑并重发，无需确认弹窗
+                                actualViewModel.rewindAndResendMessage(index, editingMessageContent.value)
+                            }
+                        }
+                        editingMessageIndex.value = null
+                        editingMessageContent.value = ""
+                    },
+                    showResendButton = editingMessageType == "user"
+                )
+            }
         }
 
         if (pendingRollbackTimestamp != null) {
             WorkspaceChangeConfirmDialog(
                 mode = WorkspaceChangeConfirmMode.ROLLBACK,
                 changes = rollbackPreview,
-                isLoading = rollbackPreviewLoading,
+                isLoading = rollbackPreviewLoading || workspaceRewindRunning,
                 errorMessage = rollbackPreviewError,
                 onConfirm = {
                     val index = chatHistory.indexOfFirst { it.timestamp == pendingRollbackTimestamp }.takeIf { it >= 0 }
                     if (index != null) {
                         actualViewModel.rollbackToMessage(index)
                     }
-                    pendingRollbackTimestamp = null
+                    // 保留确认上下文，直到回滚任务给出实际终态；避免失败后无法重试。
                 },
                 onDismiss = {
                     pendingRollbackTimestamp = null
@@ -1075,7 +1085,7 @@ fun ChatScreenContent(
             WorkspaceChangeConfirmDialog(
                 mode = WorkspaceChangeConfirmMode.EDIT_AND_RESEND,
                 changes = rewindPreview,
-                isLoading = rewindPreviewLoading,
+                isLoading = rewindPreviewLoading || workspaceRewindRunning,
                 errorMessage = rewindPreviewError,
                 onConfirm = {
                     val index = chatHistory.indexOfFirst { it.timestamp == pendingRewindTimestamp }.takeIf { it >= 0 }
@@ -1083,8 +1093,7 @@ fun ChatScreenContent(
                     if (index != null && content != null) {
                         actualViewModel.rewindAndResendMessage(index, content)
                     }
-                    pendingRewindTimestamp = null
-                    pendingRewindContent = null
+                    // 重发可能已截断历史但尚未完成派发，保留快照和失败入口。
                 },
                 onDismiss = {
                     pendingRewindTimestamp = null
@@ -1136,32 +1145,23 @@ fun ChatHistorySelectorPanel(
                     actualViewModel.showChatHistorySelector(false)
                 },
                 onSelectChat = { chatId ->
-                    actualViewModel.switchChat(chatId)
-                    // 切换聊天后也自动收起侧边框
-                    actualViewModel.showChatHistorySelector(false)
+                    val selected = actualViewModel.switchChatAwait(chatId)
+                    if (selected) actualViewModel.showChatHistorySelector(false)
+                    selected
                 },
-                onDeleteChat = { chatId -> actualViewModel.deleteChatHistory(chatId) },
-                onUpdateChatTitle = { chatId, newTitle ->
-                    actualViewModel.updateChatTitle(chatId, newTitle)
-                },
-                onUpdateChatBinding = { chatId, characterCardName, characterGroupId ->
-                    actualViewModel.updateChatCharacterBinding(chatId, characterCardName, characterGroupId)
+                onDeleteChat = { chatId -> actualViewModel.deleteChatHistoryAwait(chatId) },
+                onEditChatMetadata = { original, newTitle, characterCardName, characterGroupId ->
+                    actualViewModel.editChatMetadata(original, newTitle, characterCardName, characterGroupId)
                 },
                 onCreateGroup = { groupName, characterCardName, characterGroupId ->
-                    actualViewModel.createGroup(groupName, characterCardName, characterGroupId)
+                    actualViewModel.createGroupAwait(groupName, characterCardName, characterGroupId)
                 },
-                onUpdateChatOrderAndGroup = { reorderedHistories, movedItem, targetGroup ->
-                    actualViewModel.updateChatOrderAndGroup(
-                            reorderedHistories,
-                            movedItem,
-                            targetGroup
-                    )
+                onMoveChat = actualViewModel::moveChat,
+                onUpdateGroupName = { target, newName ->
+                    actualViewModel.renameChatGroup(target, newName)
                 },
-                onUpdateGroupName = { oldName, newName, characterCardName ->
-                    actualViewModel.updateGroupName(oldName, newName, characterCardName)
-                },
-                onDeleteGroup = { groupName, deleteChats, characterCardName ->
-                    actualViewModel.deleteGroup(groupName, deleteChats, characterCardName)
+                onDeleteGroup = { target, deleteChats ->
+                    actualViewModel.deleteChatGroup(target, deleteChats)
                 },
                 chatHistories = chatHistories,
                 currentId = currentChatId,

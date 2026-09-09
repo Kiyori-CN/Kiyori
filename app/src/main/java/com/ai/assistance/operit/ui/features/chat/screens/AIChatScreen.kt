@@ -70,6 +70,9 @@ import com.ai.assistance.operit.ui.features.chat.components.style.input.common.C
 import com.ai.assistance.operit.ui.features.chat.components.style.input.common.ChatInputSubmitActions
 import com.ai.assistance.operit.ui.features.chat.components.style.input.classic.ClassicChatSettingsBar
 import com.ai.assistance.operit.ui.features.chat.components.style.input.common.PendingQueueMessageItem
+import com.ai.assistance.operit.ui.features.chat.components.style.input.common.launchPendingQueueSubmission
+import com.ai.assistance.operit.data.repository.ChatGroupScope
+import com.ai.assistance.operit.data.repository.matchesBinding
 import com.ai.assistance.operit.ui.features.chat.components.style.bubble.BubbleImageStyleConfig
 import com.ai.assistance.operit.ui.features.chat.components.AndroidExportDialog
 import com.ai.assistance.operit.ui.features.chat.components.ExportCompleteDialog
@@ -95,6 +98,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import com.ai.assistance.operit.data.preferences.CharacterCardManager
@@ -534,18 +538,14 @@ val actualViewModel: ChatViewModel =
                     is ActivePrompt.CharacterGroup -> {
                         val group = activeCharacterGroup ?: return@remember emptyList()
                         chatHistories.filter { history ->
-                            history.characterGroupId == group.id
+                            ChatGroupScope.Group(group.id).matchesBinding(history.characterCardName, history.characterGroupId)
                         }
                     }
                     is ActivePrompt.CharacterCard -> {
                         val activeCard = activeCharacterCard ?: return@remember emptyList()
                         chatHistories.filter { history ->
-                            val historyCard = history.characterCardName
-                            if (activeCard.isDefault) {
-                                historyCard == null || historyCard == activeCard.name
-                            } else {
-                                historyCard == activeCard.name
-                            }
+                            ChatGroupScope.Card(activeCard.name, activeCard.isDefault)
+                                .matchesBinding(history.characterCardName, history.characterGroupId)
                         }
                     }
                 }
@@ -1807,7 +1807,14 @@ private fun ChatInputBottomBar(
     val waifuMergeBuffer = remember(currentChatId) { mutableStateListOf<String>() }
     val latestQueueBlocked = rememberUpdatedState(isQueueBlocked)
     val latestCurrentChatId = rememberUpdatedState(currentChatId)
-    var submitHookJob by remember { mutableStateOf<Job?>(null) }
+    var submitHookJob by remember(currentChatId) { mutableStateOf<Job?>(null) }
+    val queuedSubmitJobs = remember(currentChatId) { mutableSetOf<Job>() }
+    DisposableEffect(currentChatId) {
+        onDispose {
+            submitHookJob?.cancel()
+            queuedSubmitJobs.toList().forEach { it.cancel() }
+        }
+    }
 
     fun buildChatInputHookContext(
         eventName: String,
@@ -1948,7 +1955,20 @@ private fun ChatInputBottomBar(
 
     val sendQueuedItemNow: (String, PendingQueueMessageItem, Boolean) -> Unit =
         { queueChatId, item, cancelCurrentConversation ->
-            coroutineScope.launch {
+            val job = launchPendingQueueSubmission(
+                scope = coroutineScope,
+                restore = { restorePendingQueueItem(queueChatId, item) },
+                onFailure = { failure, dispatched ->
+                    AppLogger.e("AIChatScreen", "Queued submission failed (dispatched=$dispatched): ${failure.javaClass.simpleName}")
+                    if (latestCurrentChatId.value == queueChatId) {
+                        actualViewModel.showToast(context.getString(
+                            if (dispatched) R.string.chat_queue_dispatch_result_unconfirmed
+                            else R.string.chat_input_hook_failed
+                        ))
+                    }
+                },
+            ) { markDispatched ->
+                if (latestCurrentChatId.value != queueChatId) return@launchPendingQueueSubmission
                 val submitDecision =
                     ChatInputHookRegistry.dispatchSubmitRequested(
                         buildChatInputHookContext(
@@ -1961,15 +1981,17 @@ private fun ChatInputBottomBar(
                             chatId = queueChatId
                         )
                     )
+                currentCoroutineContext().ensureActive()
+                if (latestCurrentChatId.value != queueChatId) return@launchPendingQueueSubmission
                 when (submitDecision.action) {
                     ChatInputSubmitActions.BLOCK -> {
-                        restorePendingQueueItem(queueChatId, item)
                         showChatInputHookMessage(submitDecision.message)
-                        return@launch
+                        return@launchPendingQueueSubmission
                     }
                     ChatInputSubmitActions.CONSUME -> {
+                        markDispatched()
                         showChatInputHookMessage(submitDecision.message)
-                        return@launch
+                        return@launchPendingQueueSubmission
                     }
                 }
                 showChatInputHookMessage(submitDecision.noticeMessage)
@@ -1985,7 +2007,10 @@ private fun ChatInputBottomBar(
                     snapshotFlow { latestQueueBlocked.value }.first { !it }
                 }
 
+                currentCoroutineContext().ensureActive()
+                if (latestCurrentChatId.value != queueChatId) return@launchPendingQueueSubmission
                 focusManager.clearFocus()
+                markDispatched()
                 actualViewModel.sendTextMessage(finalText, chatId = queueChatId)
                 if (latestCurrentChatId.value == queueChatId) {
                     onRequestAutoScrollToBottom()
@@ -2002,6 +2027,8 @@ private fun ChatInputBottomBar(
                     )
                 )
             }
+            queuedSubmitJobs.add(job)
+            job.invokeOnCompletion { queuedSubmitJobs.remove(job) }
         }
 
     LaunchedEffect(isQueueBlocked, pendingQueueMessages.size, currentChatId) {
@@ -2050,7 +2077,7 @@ private fun ChatInputBottomBar(
                 return@launch
             }
 
-            val submitDecision =
+            val submitDecision = try {
                 ChatInputHookRegistry.dispatchSubmitRequested(
                     buildChatInputHookContext(
                         eventName = ChatInputEvents.SUBMIT_REQUESTED,
@@ -2059,6 +2086,13 @@ private fun ChatInputBottomBar(
                         submitSource = "send"
                     )
                 )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                AppLogger.e("AIChatScreen", "Input submission preparation failed: ${failure.javaClass.simpleName}")
+                actualViewModel.showToast(context.getString(R.string.chat_input_hook_failed))
+                return@launch
+            }
             currentCoroutineContext().ensureActive()
             if (actualViewModel.currentChatId.value != submittedChatId ||
                 actualViewModel.userMessage.value.text != submittedDraft ||

@@ -16,6 +16,55 @@ status: in_progress
 
 ## 观察基线与来源
 
+### 当前续审基线（2026-09-09 13:45 +08:00）
+
+本轮为上一交付的继续审查，整体仍为 `in_progress`。父仓库 `main` / `4b1be98686075019bba32e392bd4e9af4612ca77`，terminal `main` / `53a8ea5b1bb747bb2caa4dcc6c447631aa650480`；两个工作区均清洁，`git ls-remote origin refs/heads/main` 分别与本地 HEAD、跟踪 ref 一致。可选夜间构建子模块未初始化，不属于本轮构建依赖。
+
+本节及[续审矩阵](01_surface_inventory.md#当前续审矩阵)负责当前状态；下方旧批次中的“待修”“正在构建”“尚未提交”等表述只描述当时观察，不能直接推定当前缺陷或完成。历史 APK 和测试数量不作为本轮源码验证证据。
+
+| 阶段 | 当前真实进度 | 下一验收点 |
+| --- | --- | --- |
+| A / P0 | 规则、正式契约、日记续段、双仓远端与入口恢复；活动矩阵已校准，定位组继续逐叶展开 | 文档与阶段构建已通过；进入B |
+| B / P1–P5 | 上轮首批实现存在；剩余菜单、输入、历史、浮窗与语音消费者尚未逐叶复核 | 按用户动作与共享 owner 逐项审查，必要修复、定向测试、APK |
+| C / P6a | 已核实绑定/解绑为等待服务 async 结果，DAO 有原绑定比较；其余旧结论须逐项核实 | 工作区创建/冲突/恢复，终端设置/日志/会话叶子 |
+| D / P6b | 正式审计契约与当前入口恢复；上轮修订/导出不等于本轮完整反审 | 三 Tab、payload、修订、批注、统计、导出与敏感边界 |
+| E / P6c | 脚本发布改造存在；disablePackage 仍在锁外读取和分别写入关联名单 | 发布状态与引擎释放顺序设计，再闭合各扩展与市场叶子 |
+| F / P6d | 当前目录明确注册 16 个原生工具箱入口，另有动态 ToolPkg 项 | 按注册项而非文件名逐页确认；SQL Canvas 等残余范围 |
+| G / P6e | 列表已有读取代次；详情 loadWorkflow 无目标代次，写入仍需审查 | 详情/日志身份、写入互斥与草稿、节点/连接、执行、导入导出 |
+| H / P6f | 搜索有局部代次；loadMemoryGraph 与搜索仍可互相覆盖，改查询不撤销旧请求 | 统一现有 ViewModel 的图谱发布资格，再审文档/文件夹/链接/索引 |
+| I / P6g | 模型、提示词、角色、语音、备份页面和既有配置 owner 已定位 | 参数与保存边界、每个选择/编辑弹层及持久化失败 |
+| J / P7 | 上轮交付 refs 已核实；本轮尚未形成候选提交 | 全矩阵对账、正式检查、最新 APK、精确双仓审计与 main 推送 |
+
+执行优先级：先 B 收口主链，再依次 C–I；每个增量完成相关测试、`git diff --check`、文档检查、串行 `:app:assembleDebug` 和 APK 元数据核验才进入下一实现增量。最终执行正式准备检查；候选提交形成后检查链接、仓库卫生、本地化及 fresh clone。terminal 有变更时先独立测试、审计、提交并推送，再记录父 gitlink。没有源码变更的领域以实际阅读符号和无变更理由闭合，不制造修改。
+
+已确认高风险点：registry 关联状态丢更新及引擎释放锁顺序；工作流详情迟到发布；记忆搜索与文件夹图谱竞争。工作区文件系统与 SQL、市场文件与元数据无共同事务是设计边界，需验证部分失败反馈，不能承诺原子回滚。回滚点为上述已推送双仓基线及每个增量精确差异；不重置工作区、不覆盖并发用户修改。设备、IME、TalkBack、SAF、真实语音、SSH、OEM 浮窗与市场服务均未操作，继续 `verification_pending`。
+
+### 本轮阶段证据
+
+本轮阶段 A 验证：文档检查501文件0问题，`git diff --check`通过；`:app:assembleDebug --no-daemon --console=plain`于2026-09-09通过（59s，238任务中20执行、218 up-to-date），launcher及两项runtime packaging验证通过。此阶段只修改文档，APK复用构建缓存、未重新打包；实际产物486090601 bytes，时间13:26:17 +08:00，SHA-256 `1EA82785CFE5BCF9E227605E847C4B98C724FBE5AAD41C90F0764DAA6FA7A3D4`，aapt核实`com.kiyori / 45 / 0.1.0 / arm64-v8a`。不能把此产物用于后续代码增量验收。
+
+阶段 B 首增量：历史标题/角色绑定弹窗原先分别派发异步写入并立即关闭，失败丢草稿且可能产生半次保存。现改为`ChatMetadataSnapshot/mergeChatMetadataEdit → ChatHistoryManager.editChatMetadata → ChatHistoryDelegate → ChatViewModel → ChatHistorySelector`，同一聊天锁与Room事务内比较原值、合并实际修改、成功后关闭；失败保留正文，显示安全错误，取消继续传播，未保存关闭需确认。原列表Flow负责投影，保留其他兼容入口。`:app:testDebugUnitTest --tests '*ChatMetadataEditTest' --no-daemon --console=plain`通过（2m5s），7项执行、0失败/错误/跳过；文档501/0及diff检查通过。`:app:assembleDebug --no-daemon --console=plain`通过（2m21s），新APK时间2026-09-09 14:07:19 +08:00，494437403 bytes，SHA-256 `E935E2478548ECD422D3E489ECAE0647FB62C3F98D241369F172172763A58A85`，aapt核实`com.kiyori/45/0.1.0/arm64-v8a`，launcher/runtime packaging通过。Room事务故障与实际IME仍待设备验证。历史分组/删除/重排与消息正文编辑的异步关闭仍在下一增量队列，不计为关闭。
+
+阶段 B 消息编辑增量：`ChatScreenContent/MessageEditor`保存委托原审计修订并检查原文，失败留草稿、保存中禁用重复操作；组合按chat/timestamp/variant隔离，取消后不发布旧结果。解析器保留标签间逐字空白，输入回调同步更新编辑值；模式切换不触发Effect写回。`testDebugUnitTest --tests '*MessageEditorContentTest' --tests '*ConversationAuditTextChangeTest'`通过（1m32s），新增4项与原审计4项合计8通过、0失败/错误/跳过。文档501/0及diff检查通过；Debug构建通过（56s），APK时间2026-09-09 14:17:07 +08:00，494438699 bytes，SHA-256 `E2A8CDE52ECE718C430AC4D43F32D61F0CF320B75C219497A16C0328564D6E6A`，`com.kiyori/45/0.1.0/arm64-v8a`，launcher/runtime packaging通过。编辑重发、分组/删除/重排仍未闭合。
+
+阶段 B 输入插件/队列增量：提交hook异常安全传播并阻断发送；队列临时移出项在准备失败、切chat取消及协程尚未启动即取消时归还原owner，保持稳定ID顺序，不复活已删除聊天。插件明确消费或开始调用发送后不恢复，异常提示区分准备失败和派发后结果待核对，不将未知提交当作未发送。`testDebugUnitTest --tests '*ChatInputHookSubmissionTest' --tests '*PendingQueueSubmissionTest' --tests '*PendingMessageQueueStoreTest'`最终13项通过（3+6+4，0失败/错误/跳过，1m35s）；文档501/0及diff检查通过。Debug构建通过（3m55s），APK时间2026-09-09 14:33:37 +08:00，494440159 bytes，SHA-256 `9F9E7B1AB5E224518C813B68391038CD7723B29023D0599DC661E80AD7FA4634`，`com.kiyori/45/0.1.0/arm64-v8a`，launcher/runtime packaging通过。主/浮窗共享发送owner仍需继续审查。
+
+阶段 B 历史删除增量：`ChatHistorySelector → ChatViewModel.deleteChatHistoryAwait → ChatHistoryDelegate.deleteChatHistoryAwait → ChatHistoryManager`等待实际结果，执行期间保留确认并禁重复操作，不提前隐藏条目。`completeChatDeletion`区分删除前失败与实体已删后的清理失败；后者清除原待发队列并显示部分完成，不在原确认里重复删除。DataStore清除选择在同次edit中比较ID；数据库预检异常不再误报锁定。`testDebugUnitTest --tests '*ChatDeletionCompletionTest' --tests '*PendingMessageQueueStoreTest'`通过（2m13s）：6+4共10项，0失败/错误/跳过。文档换行检查曾发现3项CRLF，已修正并复验501文件0问题，diff检查通过。Debug构建通过（2m14s），APK时间2026-09-09 14:43:02 +08:00，494442143 bytes，SHA-256 `4A207572276FC28272C02EB0561740FE3B0888D9275F60A40CBB5AADFE69D205`，`com.kiyori/45/0.1.0/arm64-v8a`，launcher/runtime packaging通过。分组/重排和消息重发仍未闭合。下一高优先级已确认：`GroupTarget/HistoryListItem.Header`只携带角色名，角色群组和未绑定分类丢失scope；`ChatDao`的null角色入口操作全局同名分组。须显式保留全部/角色卡/角色群组/未绑定范围，贯通改名、删除、等待结果与后台执行停止。
+
+阶段 B 分组范围/改名/删除增量：`ChatGroupScope/ChatGroupTarget`统一原生分类匹配，修复群组/未绑定操作落入全局同名SQL，以及默认角色当前分类混入群组聊天。Header携带显式scope；角色资料尚未加载时不生成替代操作范围。`renameChatGroup/deleteChatGroup`在原manager事务中提交，服务先停止待删成员并迁移当前chat，事务重新核对成员/锁定快照；锁定聊天移到未分组，清理失败明确部分完成。UI等待结果、保留失败草稿、改名未保存关闭确认，删除执行期间禁重复操作；旧Web协议入口保留。`testDebugUnitTest --tests '*ChatGroupTargetTest' --tests '*ChatDeletionCompletionTest'`通过（1m54s），11+6共17项，0失败/错误/跳过；文档501/0及diff检查通过。Debug构建通过（2m22s），APK时间2026-09-09 15:00:26 +08:00，494444643 bytes，SHA-256 `31F22B5694726DDFF63961BED15C06FD1D37709ADEFC41B9FE48BC0FD75C6F3E`，`com.kiyori/45/0.1.0/arm64-v8a`，launcher/runtime packaging通过。分组创建与历史重排、消息重发仍待下一增量。
+
+阶段 B 分组创建增量：`createGroupAwait/completeChatCreation`先使用原仓储创建（不顺带设置全局选择），再根据原选择身份申请切换；`compareAndSetCurrentChatId`在DataStore同次edit内比较，迟到创建不抢回新选择。UI固定打开时绑定、等待结果、失败保留名称、未保存关闭确认；角色资料未加载时不替代为未绑定。创建已提交但选择失败明确提示已创建，禁重复创建。首轮测试样本漏传messages导致编译失败，补齐后6+11共17项通过（1m5s，0失败/错误/跳过）。随后兼容反审确认旧Web改名可留下空白名称，已允许精确定位以便修复，不匹配null未分组；最终`testDebugUnitTest --tests '*ChatCreationCompletionTest' --tests '*ChatGroupTargetTest'`通过（1m16s），6+12共18项，0失败/错误/跳过。旧VM/服务层分组fire-and-forget无调用入口已移除，Web仓储兼容入口保留。文档501/0与diff检查通过；最终Debug构建通过（50s），APK时间2026-09-09 15:15:55 +08:00，494446579 bytes，SHA-256 `CBCF46195F757759F2F6546EFA9C2F3E49345C6CB1EF2908DD37CCF781B1D89F`，`com.kiyori/45/0.1.0/arm64-v8a`，launcher/runtime packaging通过。`loadChatMessages`吞异常和取消、旧collector迟到发布/加载状态仍须下一增量处理；创建完成不代表此项已关闭。历史重排与消息重发继续待审。
+
+阶段 B7 聊天窗口增量（2026-09-09）：原窗口控制器复用原chatId/history Flow，统一选择/刷新/前后分页/最新/定位的请求资格与消息边界快照；旧完成、失败、取消不能重置新请求。实时更新（含同一stream对象）使旧SQL读取失效，原内容保留并显示手动重载。global collector改collectLatest，null清窗口，chatExists异常传播；开场白持久化后按快照发布。ChatArea错误条包含安全文案、重载与关闭，重试原子消费错误并固定目标，失败提示存在时阻止自动最新窗口请求。首轮控制器12项通过（1m51s，0失败/错误/跳过），最终控制器14项全部通过（4m35s，0失败/错误/跳过）；补齐MainActivity启动取消传播及WebChatHttpBridge安全500错误边界，Debug APK构建通过（5m10s），launcher与两项runtime packaging验证通过。产物时间2026-09-09 15:58:04 +08:00，494448207 bytes，SHA-256 `E74C4B68F6702D70490043E25FA34DE5D658CA617DCE0E628283694B8DC1FD17`，aapt核实`com.kiyori/45/0.1.0/arm64-v8a`；文档501/0、diff通过。用户疑似误改仅确认controller第60行末尾3个空格，已修复并保留本轮实现。选择提交失败反馈、历史重排及消息重发仍属后续审查，不宣称阶段B全部完成。
+
+阶段 B8 历史移动增量（2026-09-09）：确认筛选/折叠子集被当作完整列表乐观回写，跨角色拖动分开派发绑定和顺序保存，350ms debounce子任务失败不进入外层catch。新增`ChatOrderMove/ChatPositionSnapshot`，原Room事务校验移动项与锚点位置/绑定，完整当前列表内移动单项，只更新顺序及移动项的组/绑定；其他字段、隐藏项和置顶类别保留。移除原生整表投影与debounce，UI等待服务持有结果，拖拽与上下移动共用提交，菜单内进度/错误可见。Web旧列表协议保持，内部改为事务内只写指定列。`testDebugUnitTest --tests com.ai.assistance.operit.data.repository.ChatOrderMoveTest`通过（2m3s），12项执行、0失败/错误/跳过；补充菜单错误与置顶边界禁用后，Debug APK构建通过（2m24s）；launcher与两项runtime packaging通过。产物时间2026-09-09 16:12:05 +08:00，494448863 bytes，SHA-256 `C5D2FCEAC0397391E9F64A8EA55FF814DB25CDFB8753839DF90CD8AF0A8AA51E`，aapt核实`com.kiyori/45/0.1.0/arm64-v8a`；文档501/0及diff通过。Room真实并发、连续拖动手感、TalkBack和大字体仍为`verification_pending`。
+
+阶段 B9 选择提交/观察恢复增量（2026-09-09，本批本地验证通过）：接完历史入口 suspend 等待、原聊天统计快照、选择互斥与 DataStore 原值比较；共享 CurrentChatSelectionObserver 保留最后有效选择，显式 Loading/Ready/Failed，失败身份控制重载且无静默重试。主到浮窗改为 collectLatest 和实际结果等待，来源协程取消撤销本地读取资格；浮窗返回主应用等待持久化并禁重复点击。选择投影等待有5秒失败终态，不把超时当未写入或自动重发。69129集中测试通过（10m5s）：新增6项观察与原窗口14项合计20通过、0失败/错误/跳过；44644曾因R引用缺失编译失败，已修复。另将统计读取明确绑定原窗口chatId，避免统计collector迟到读错聊天。最终APK15997构建通过（6m3s，238任务中27执行），launcher与两项runtime packaging通过；实际产物2026-09-09 17:01:19 +08:00，494450227 bytes，SHA-256 `35B28A8F223FCC00EA4577D05FF8F7061ADCB4720D9A0B53E02CC6A9DF93BDCD`，`com.kiyori/45/0.1.0/arm64-v8a`。文档501/0、diff检查通过；父与terminal未提交推送，terminal仍干净。自动角色切换现已在角色查找及双偏好写入间核对聊天资格；若聊天已切换，后续清理写入会停止。主题/Waifu管理器内部的单次DataStore事务仍可能在资格变化后完成，按部分完成事实保留，不伪造原子跨存储。编辑重发/回滚部分完成和其余B域叶子仍未闭合，不将B9整体标记完成。
+
+B9 编辑重发/回滚增量（2026-09-09，继续实施）：编辑器不再在启动异步回档/重发后立即清除输入草稿；工作区确认上下文暂不因调用协程而提前丢失。当前已新增 workspaceRewindState（Idle/Running/Succeeded/Failed/Unknown）并将执行中状态接入确认弹层禁用重复确认；索引/消息类型前置失败不会误留Running。成功/未知终态的上下文收口与派发观察仍需完成。角色激活协调器已统一请求代次、取消和原偏好写入资格；`:app:compileDebugKotlin` 通过（2m53s）。
+
+### 上一轮起点（历史）
+
 2026-09-09：`main` / `1ea07fd9193ac56b711eb9c2e8434313b87ff04a`，父仓库干净；terminal 固定 `88681c2d3c7bab2aec093b7b85f0451de85fc64e` 且干净。当前 chat 与 floating UI 目录共 202 个文件。
 
 - 视觉优先级：[UI 设计来源](../../doc-src/decisions/0003_ui_design_source_hierarchy.md)、[固定主题](../../doc-src/decisions/0007_professional_browser_theme.md) 与当前 `com.kiyori.design.theme`。

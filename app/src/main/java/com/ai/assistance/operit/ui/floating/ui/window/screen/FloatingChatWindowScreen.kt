@@ -446,6 +446,7 @@ private fun TitleBar(
     val errorColor = MaterialTheme.colorScheme.error
     val onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant
     val coroutineScope = rememberCoroutineScope()
+    var returningToMain by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -520,31 +521,42 @@ private fun TitleBar(
                     TitleBarButton(
                         icon = Icons.Default.Home,
                         description = stringResource(R.string.floating_back_to_main),
+                        enabled = !returningToMain,
                         onClick = {
                             val context = floatContext.chatService
                             if (context == null) {
                                 floatContext.onClose()
                             } else {
+                                returningToMain = true
                                 coroutineScope.launch {
                                     try {
-                                        context.getChatCore().syncCurrentChatIdToGlobal()
-                                    val intent = Intent(
-                                        context,
-                                        com.ai.assistance.operit.ui.main.MainActivity::class.java
-                                    ).apply {
-                                        flags =
-                                            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-                                    }
-                                    context.startActivity(intent)
+                                        if (!context.getChatCore().syncCurrentChatIdToGlobalAwait()) {
+                                            context.getChatCore().getUiStateDelegate().showErrorMessage(
+                                                context.getString(R.string.chat_selection_failed)
+                                            )
+                                            return@launch
+                                        }
+                                        val intent = Intent(
+                                            context,
+                                            com.ai.assistance.operit.ui.main.MainActivity::class.java
+                                        ).apply {
+                                            flags =
+                                                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                                        }
+                                        context.startActivity(intent)
                                         floatContext.onClose()
                                     } catch (error: CancellationException) {
                                         throw error
                                     } catch (error: Exception) {
                                         AppLogger.e(
                                             "FloatingChatWindow",
-                                            "启动 MainActivity 失败",
-                                            error,
+                                            "Return to main failed: ${error.javaClass.simpleName}",
                                         )
+                                        context.getChatCore().getUiStateDelegate().showErrorMessage(
+                                            context.getString(R.string.chat_selection_failed)
+                                        )
+                                    } finally {
+                                        returningToMain = false
                                     }
                                 }
                             }
@@ -569,10 +581,12 @@ private fun TitleBar(
 private fun TitleBarButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     description: String,
+    enabled: Boolean = true,
     onClick: () -> Unit
 ) {
     IconButton(
         onClick = onClick,
+        enabled = enabled,
         modifier = Modifier.size(40.dp)
     ) {
         Icon(
@@ -1413,4 +1427,3 @@ private fun ProcessingStatusIndicator(floatContext: FloatContext) {
         }
     }
 }
-

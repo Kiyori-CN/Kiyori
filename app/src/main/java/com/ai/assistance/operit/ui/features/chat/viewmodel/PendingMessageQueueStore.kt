@@ -50,11 +50,13 @@ internal class PendingMessageQueueStore {
 
     fun restore(chatId: String, message: PendingQueueMessageItem) {
         synchronized(lock) {
+            // 删除聊天会撤销整个队列；旧提交的取消回调不能重新创建它。
+            if (chatId !in _states.value) return
             updateState(chatId) { state ->
                 if (state.messages.any { item -> item.id == message.id }) {
                     state
                 } else {
-                    state.copy(messages = listOf(message) + state.messages)
+                    state.copy(messages = (state.messages + message).sortedBy { it.id })
                 }
             }
         }

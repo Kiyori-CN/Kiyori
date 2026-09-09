@@ -103,6 +103,21 @@ class WebChatHttpBridge(
     private val uploadsById = ConcurrentHashMap<String, UploadedAttachmentEntry>()
 
     fun handleApi(session: NanoHTTPD.IHTTPSession): NanoHTTPD.Response {
+        return try {
+            routeApi(session)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            // 仓储读取失败不能伪装成不存在，也不将SQL/路径等内部异常交给HTTP客户端。
+            AppLogger.e(TAG, "Web chat request failed: ${failure.javaClass.simpleName}")
+            jsonResponse(
+                NanoHTTPD.Response.Status.INTERNAL_ERROR,
+                WebErrorResponse("Chat request failed"),
+            ).withCors()
+        }
+    }
+
+    private fun routeApi(session: NanoHTTPD.IHTTPSession): NanoHTTPD.Response {
         cleanupExpiredEntries()
 
         if (session.uri.startsWith(ASSET_ROUTE_PREFIX)) {

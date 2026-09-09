@@ -53,6 +53,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.async
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
@@ -118,6 +119,14 @@ enum class ChatHistoryDisplayMode {
     BY_CHARACTER_CARD,
     BY_FOLDER,
     CURRENT_CHARACTER_ONLY
+}
+
+sealed interface WorkspaceRewindState {
+    data object Idle : WorkspaceRewindState
+    data class Running(val chatId: String, val timestamp: Long, val resend: Boolean) : WorkspaceRewindState
+    data class Succeeded(val chatId: String, val timestamp: Long, val resend: Boolean) : WorkspaceRewindState
+    data class Failed(val chatId: String, val timestamp: Long, val resend: Boolean, val historyChanged: Boolean) : WorkspaceRewindState
+    data class Unknown(val chatId: String, val timestamp: Long) : WorkspaceRewindState
 }
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -312,6 +321,12 @@ class ChatViewModel(
     val isLoadingDisplayWindow: StateFlow<Boolean> by lazy {
         chatHistoryDelegate.isLoadingDisplayWindow
     }
+    val currentChatSelectionReadState by lazy { chatHistoryDelegate.currentChatSelectionReadState }
+
+    fun retryCurrentChatSelection(failure: com.ai.assistance.operit.data.repository.ChatSelectionReadState.Failed) =
+        chatHistoryDelegate.retryCurrentChatSelection(failure)
+
+    val chatWindowLoadFailure by lazy { chatHistoryDelegate.chatWindowLoadFailure }
 
     // 消息处理相关
     val userMessage: StateFlow<TextFieldValue> by lazy { messageProcessingDelegate.userMessage }
@@ -601,7 +616,7 @@ class ChatViewModel(
                         ::messageCoordinationDelegate.isInitialized &&
                         (messageCoordinationDelegate.isSummarizing.value ||
                          messageCoordinationDelegate.isSendTriggeredSummarizing.value)
-                    ) {
+) {
                         val targetChatId =
                             if (messageCoordinationDelegate.isSummarizing.value) {
                                 messageCoordinationDelegate.summarizingChatId.value
@@ -747,22 +762,39 @@ class ChatViewModel(
     }
 
     fun switchChat(chatId: String) {
-        chatHistoryDelegate.switchChat(chatId)
-        chatRuntimeHolder.syncMainChatSelectionToFloating(chatId)
-
-        // 预览由实际当前聊天与绑定的观察器更新，不抢在异步切换完成前使用请求目标。
-
-        if (_autoSwitchCharacterCard.value) {
-            viewModelScope.launch {
-                autoSwitchCharacterTargetForChat(chatId)
+        viewModelScope.launch {
+            try {
+                if (!switchChatAwait(chatId)) uiStateDelegate.showToast(context.getString(R.string.chat_selection_failed))
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                AppLogger.e(TAG, "Chat selection failed: ${failure.javaClass.simpleName}")
+                uiStateDelegate.showToast(context.getString(R.string.chat_selection_failed))
             }
         }
+    }
+
+    suspend fun switchChatAwait(chatId: String): Boolean {
+        if (!chatHistoryDelegate.switchChatAwait(chatId)) return false
+        // 浮窗已有实际选择观察器；不能在持久化之前再发一次请求目标同步。
+        if (_autoSwitchCharacterCard.value && currentChatId.value == chatId) {
+            autoSwitchCharacterTargetForChat(chatId)
+        }
+        return currentChatId.value == chatId
     }
 
     fun loadOlderMessagesForCurrentChat() {
         viewModelScope.launch {
             chatHistoryDelegate.loadOlderMessagesForCurrentChat()
         }
+    }
+
+    fun retryChatWindowLoad(failure: com.ai.assistance.operit.services.core.ChatWindowLoadFailure) {
+        viewModelScope.launch { chatHistoryDelegate.retryChatWindowLoad(failure) }
+    }
+
+    fun dismissChatWindowLoadFailure(failure: com.ai.assistance.operit.services.core.ChatWindowLoadFailure) {
+        chatHistoryDelegate.dismissChatWindowLoadFailure(failure)
     }
 
     fun loadNewerMessagesForCurrentChat() {
@@ -787,14 +819,33 @@ class ChatViewModel(
         chatHistoryDelegate.revealMessageForCurrentChat(targetTimestamp)
 
     fun deleteChatHistory(chatId: String) {
-        chatHistoryDelegate.deleteChatHistory(chatId) { deleted ->
-            if (deleted) {
-                pendingMessageQueueStore.removeChat(chatId)
-            } else {
-                uiStateDelegate.showToast(context.getString(R.string.chat_locked_cannot_delete))
+        viewModelScope.launch {
+            try {
+                if (!deleteChatHistoryAwait(chatId)) {
+                    uiStateDelegate.showToast(context.getString(R.string.chat_delete_not_permitted))
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                AppLogger.e(TAG, "Chat deletion failed: ${failure.javaClass.simpleName}")
+                uiStateDelegate.showToast(context.getString(
+                    if (failure is com.ai.assistance.operit.data.repository.ChatDeletionCleanupException)
+                        R.string.chat_delete_cleanup_failed else R.string.chat_delete_failed
+                ))
             }
         }
     }
+
+    suspend fun deleteChatHistoryAwait(chatId: String): Boolean = viewModelScope.async {
+        try {
+            val deleted = chatHistoryDelegate.deleteChatHistoryAwait(chatId)
+            if (deleted) pendingMessageQueueStore.removeChat(chatId)
+            deleted
+        } catch (partial: com.ai.assistance.operit.data.repository.ChatDeletionCleanupException) {
+            pendingMessageQueueStore.removeChat(chatId)
+            throw partial
+        }
+    }.await()
 
     fun clearCurrentChat() {
         chatHistoryDelegate.clearCurrentChat { deleted ->
@@ -832,7 +883,8 @@ class ChatViewModel(
         try {
             activePromptManager.activateForChatBinding(
                 characterCardName = targetHistory.characterCardName,
-                characterGroupId = targetHistory.characterGroupId
+                characterGroupId = targetHistory.characterGroupId,
+                stillValid = { currentChatId.value == chatId },
             )
         } catch (error: CancellationException) {
             throw error
@@ -1237,6 +1289,8 @@ class ChatViewModel(
      * @param editedContent 编辑后的消息内容（如果有）
      */
     private var workspaceRewindJob: Job? = null
+    private val _workspaceRewindState = MutableStateFlow<WorkspaceRewindState>(WorkspaceRewindState.Idle)
+    val workspaceRewindState: StateFlow<WorkspaceRewindState> = _workspaceRewindState.asStateFlow()
 
     private suspend fun resolveRewindTimestamp(chatId: String, targetTimestamp: Long): Long {
         // 显示窗口可能分页或从定位器跳转，不能把窗口首条误认为全历史首条。
@@ -1287,7 +1341,9 @@ class ChatViewModel(
         if (workspaceRewindJob?.isActive == true) return
         val operationChatId = currentChatId.value ?: return
         val operationHistory = chatHistory.value.toList()
+        _workspaceRewindState.value = WorkspaceRewindState.Idle
         workspaceRewindJob = viewModelScope.launch {
+            var historyChanged = false
             try {
                 // 获取当前聊天历史
                 check(currentChatId.value == operationChatId) { context.getString(R.string.chat_draft_changed_before_send) }
@@ -1307,11 +1363,13 @@ class ChatViewModel(
                     uiStateDelegate.showErrorMessage(context.getString(R.string.chat_only_user_message_allowed))
                     return@launch
                 }
+                _workspaceRewindState.value = WorkspaceRewindState.Running(operationChatId, targetMessage.timestamp, true)
 
                 val timestampOfFirstDeletedMessage = currentHistory[index].timestamp
                 check(truncateForWorkspaceRewind(operationChatId, timestampOfFirstDeletedMessage)) {
                     context.getString(R.string.chat_draft_changed_before_send)
                 }
+                historyChanged = true
                 check(currentChatId.value == operationChatId) {
                     context.getString(R.string.chat_draft_changed_before_send)
                 }
@@ -1319,11 +1377,13 @@ class ChatViewModel(
                 // 使用修改后的消息内容来发送
                 messageProcessingDelegate.updateUserMessage(editedContent)
                 sendUserMessage()
+                _workspaceRewindState.value = WorkspaceRewindState.Unknown(operationChatId, timestampOfFirstDeletedMessage)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 AppLogger.e(TAG, "回档并重新发送消息失败", e)
                 uiStateDelegate.showErrorMessage(context.getString(R.string.chat_rewind_failed, e.message ?: ""))
+                _workspaceRewindState.value = WorkspaceRewindState.Failed(operationChatId, operationHistory.getOrNull(index)?.timestamp ?: 0L, true, historyChanged)
             }
         }
     }
@@ -1345,7 +1405,9 @@ class ChatViewModel(
         if (workspaceRewindJob?.isActive == true) return
         val operationChatId = currentChatId.value ?: return
         val operationHistory = chatHistory.value.toList()
+        _workspaceRewindState.value = WorkspaceRewindState.Idle
         workspaceRewindJob = viewModelScope.launch {
+            var historyChanged = false
             try {
                 check(currentChatId.value == operationChatId) { context.getString(R.string.chat_draft_changed_before_send) }
                 val currentHistory = operationHistory
@@ -1362,12 +1424,14 @@ class ChatViewModel(
                     uiStateDelegate.showErrorMessage(context.getString(R.string.chat_only_user_message_allowed))
                     return@launch
                 }
+                _workspaceRewindState.value = WorkspaceRewindState.Running(operationChatId, targetMessage.timestamp, false)
 
                 // 删除目标消息及其之后的所有消息
                 val timestampOfFirstDeletedMessage = currentHistory[index].timestamp
                 check(truncateForWorkspaceRewind(operationChatId, timestampOfFirstDeletedMessage)) {
                     context.getString(R.string.chat_draft_changed_before_send)
                 }
+                historyChanged = true
                 check(currentChatId.value == operationChatId) {
                     context.getString(R.string.chat_draft_changed_before_send)
                 }
@@ -1376,11 +1440,13 @@ class ChatViewModel(
                 updateUserMessage(TextFieldValue(plainText))
 
                 uiStateDelegate.showToast(context.getString(R.string.chat_rolled_back_message_in_input))
+                _workspaceRewindState.value = WorkspaceRewindState.Succeeded(operationChatId, timestampOfFirstDeletedMessage, false)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 AppLogger.e(TAG, "回滚到指定消息失败", e)
                 uiStateDelegate.showErrorMessage(context.getString(R.string.chat_rollback_failed, e.message ?: ""))
+                _workspaceRewindState.value = WorkspaceRewindState.Failed(operationChatId, operationHistory.getOrNull(index)?.timestamp ?: 0L, false, historyChanged)
             }
         }
     }
@@ -2524,6 +2590,23 @@ class ChatViewModel(
         // 这样可以在界面切换时保持服务器的连续运行
     }
 
+    suspend fun editChatMetadata(
+        original: ChatHistory,
+        title: String,
+        characterCardName: String?,
+        characterGroupId: String?,
+    ) {
+        chatHistoryDelegate.editChatMetadata(
+            original.id,
+            com.ai.assistance.operit.data.repository.ChatMetadataSnapshot(
+                original.title, original.characterCardName, original.characterGroupId,
+            ),
+            com.ai.assistance.operit.data.repository.ChatMetadataSnapshot(
+                title, characterCardName, characterGroupId,
+            ),
+        )
+    }
+
     /** 更新指定聊天的标题 */
     fun updateChatTitle(chatId: String, newTitle: String) {
         chatHistoryDelegate.updateChatTitle(chatId, newTitle)
@@ -2910,29 +2993,26 @@ class ChatViewModel(
         return lowered.contains("path") || lowered.contains("file") || lowered.contains("dir")
     }
 
-    /** 更新聊天顺序和分组 */
-    fun updateChatOrderAndGroup(
-        reorderedHistories: List<ChatHistory>,
-        movedItem: ChatHistory,
-        targetGroup: String?
-    ) {
-        chatHistoryDelegate.updateChatOrderAndGroup(reorderedHistories, movedItem, targetGroup)
-    }
+    suspend fun moveChat(move: com.ai.assistance.operit.data.repository.ChatOrderMove) =
+        chatHistoryDelegate.moveChat(move)
 
     /** 创建新分组（通过创建新聊天实现） */
-    fun createGroup(groupName: String, characterCardName: String?, characterGroupId: String? = null) {
-        chatHistoryDelegate.createGroup(groupName, characterCardName, characterGroupId)
-    }
+    suspend fun createGroupAwait(groupName: String, characterCardName: String?, characterGroupId: String?) =
+        chatHistoryDelegate.createGroupAwait(groupName, characterCardName, characterGroupId)
 
     /** 重命名分组 */
-    fun updateGroupName(oldName: String, newName: String, characterCardName: String?) {
-        chatHistoryDelegate.updateGroupName(oldName, newName, characterCardName)
+    suspend fun renameChatGroup(target: com.ai.assistance.operit.data.repository.ChatGroupTarget, newName: String) {
+        chatHistoryDelegate.renameChatGroup(target, newName)
     }
 
-    /** 删除分组 */
-    fun deleteGroup(groupName: String, deleteChats: Boolean, characterCardName: String?) {
-        chatHistoryDelegate.deleteGroup(groupName, deleteChats, characterCardName)
-    }
+    suspend fun deleteChatGroup(target: com.ai.assistance.operit.data.repository.ChatGroupTarget, deleteChats: Boolean) = viewModelScope.async {
+        try {
+            chatHistoryDelegate.deleteChatGroup(target, deleteChats).forEach(pendingMessageQueueStore::removeChat)
+        } catch (partial: com.ai.assistance.operit.data.repository.ChatGroupCleanupException) {
+            partial.deletedChatIds.forEach(pendingMessageQueueStore::removeChat)
+            throw partial
+        }
+    }.await()
 
     fun onWorkspaceButtonClick() {
         toggleWebView()

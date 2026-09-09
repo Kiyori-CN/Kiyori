@@ -24,6 +24,9 @@ object ChatInputSubmitActions {
     const val CONSUME = "consume"
 }
 
+/** 不携带插件原始异常或正文，避免凭据通过错误提示和诊断外泄。 */
+class ChatInputSubmitHookException : IllegalStateException("Input submission hook failed")
+
 data class ChatInputHookContext(
     val context: Context,
     val eventName: String,
@@ -99,8 +102,8 @@ object ChatInputHookRegistry {
                 runCatching { hook.onEvent(current) }
                     .getOrElse { error ->
                         if (error is CancellationException) throw error
-                        AppLogger.e(TAG, "Chat input submit hook failed: hook=${hook.id}", error)
-                        null
+                        AppLogger.e(TAG, "Chat input submit hook failed: ${error.javaClass.simpleName}")
+                        throw ChatInputSubmitHookException()
                     }
             if (resultOrNull == null) {
                 continue

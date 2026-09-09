@@ -160,18 +160,17 @@ class CharacterGroupCardManager private constructor(private val context: Context
         runCatching { customEmojiRepository.deleteCharacterGroupEmojis(groupId) }
     }
 
-    suspend fun setActiveCharacterGroupCard(groupId: String?) {
+    internal suspend fun writeActiveCharacterGroupCard(groupId: String?, checkCurrent: () -> Unit) {
         dataStore.edit { preferences ->
-            if (groupId.isNullOrBlank()) {
-                preferences.remove(ACTIVE_CHARACTER_GROUP_ID)
-            } else {
-                preferences[ACTIVE_CHARACTER_GROUP_ID] = groupId
-            }
+            checkCurrent()
+            if (groupId.isNullOrBlank()) preferences.remove(ACTIVE_CHARACTER_GROUP_ID)
+            else preferences[ACTIVE_CHARACTER_GROUP_ID] = groupId
         }
-
+        checkCurrent()
         if (!groupId.isNullOrBlank()) {
-            runCatching { userPreferencesManager.switchToCharacterGroupTheme(groupId) }
-            runCatching { waifuPreferences.switchToCharacterGroupWaifuSettings(groupId) }
+            userPreferencesManager.switchToCharacterGroupTheme(groupId, checkCurrent)
+            checkCurrent()
+            waifuPreferences.switchToCharacterGroupWaifuSettings(groupId, checkCurrent)
         }
     }
 

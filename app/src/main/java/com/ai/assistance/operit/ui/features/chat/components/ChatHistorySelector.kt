@@ -3,8 +3,6 @@ package com.ai.assistance.operit.ui.features.chat.components
 import android.net.Uri
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -53,6 +51,7 @@ import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DriveFileRenameOutline
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -108,11 +107,15 @@ import com.ai.assistance.operit.data.model.CharacterCard
 import com.ai.assistance.operit.data.model.CharacterGroupCard
 import com.ai.assistance.operit.data.model.ActivePrompt
 import com.ai.assistance.operit.data.repository.ChatHistoryManager
+import com.ai.assistance.operit.data.repository.ChatGroupScope
+import com.ai.assistance.operit.data.repository.ChatGroupTarget
 import com.ai.assistance.operit.data.preferences.CharacterCardManager
 import com.ai.assistance.operit.data.preferences.CharacterGroupCardManager
 import com.ai.assistance.operit.ui.common.rememberLocal
 import me.saket.swipe.SwipeAction
 import me.saket.swipe.SwipeableActionsBox
+import com.ai.assistance.operit.data.repository.ChatOrderMove
+import com.ai.assistance.operit.data.repository.ChatPositionSnapshot
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import androidx.compose.foundation.clickable
@@ -123,6 +126,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.graphics.Brush
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ensureActive
 import com.ai.assistance.operit.util.AppLogger
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -134,11 +138,6 @@ import coil.compose.rememberAsyncImagePainter
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.flowOf
-
-private data class GroupTarget(
-    val groupName: String,
-    val characterCardName: String?
-)
 
 private fun resolveBindingForCreate(
     historyDisplayMode: ChatHistoryDisplayMode,
@@ -165,7 +164,7 @@ private sealed interface HistoryListItem {
         val key: String, 
         val name: String, 
         val groupValue: String?,
-        val characterCardName: String? = null
+        val scope: ChatGroupScope? = ChatGroupScope.All
     ) : HistoryListItem
     data class Item(val history: ChatHistory) : HistoryListItem
 }
@@ -428,14 +427,13 @@ private fun HistoryQuickScroller(
 fun ChatHistorySelector(
         modifier: Modifier = Modifier,
         onNewChat: (characterCardName: String?, characterGroupId: String?) -> Unit,
-        onSelectChat: (String) -> Unit,
-        onDeleteChat: (String) -> Unit,
-        onUpdateChatTitle: (chatId: String, newTitle: String) -> Unit,
-        onUpdateChatBinding: (chatId: String, characterCardName: String?, characterGroupId: String?) -> Unit,
-        onCreateGroup: (groupName: String, characterCardName: String?, characterGroupId: String?) -> Unit,
-        onUpdateChatOrderAndGroup: (reorderedHistories: List<ChatHistory>, movedItem: ChatHistory, targetGroup: String?) -> Unit,
-        onUpdateGroupName: (oldName: String, newName: String, characterCardName: String?) -> Unit,
-        onDeleteGroup: (groupName: String, deleteChats: Boolean, characterCardName: String?) -> Unit,
+        onSelectChat: suspend (String) -> Boolean,
+        onDeleteChat: suspend (String) -> Boolean,
+        onEditChatMetadata: suspend (original: ChatHistory, newTitle: String, characterCardName: String?, characterGroupId: String?) -> Unit,
+        onCreateGroup: suspend (groupName: String, characterCardName: String?, characterGroupId: String?) -> com.ai.assistance.operit.data.repository.ChatGroupCreationResult,
+        onMoveChat: suspend (ChatOrderMove) -> Unit,
+        onUpdateGroupName: suspend (target: ChatGroupTarget, newName: String) -> Unit,
+        onDeleteGroup: suspend (target: ChatGroupTarget, deleteChats: Boolean) -> Unit,
         chatHistories: List<ChatHistory>,
         currentId: String?,
         activeStreamingChatIds: Set<String> = emptySet(),
@@ -457,12 +455,13 @@ fun ChatHistorySelector(
     var chatItemActionTarget by remember { mutableStateOf<ChatHistory?>(null) }
     var showNewGroupDialog by remember { mutableStateOf(false) }
     var newGroupName by remember { mutableStateOf("") }
+    var newGroupBinding by remember { mutableStateOf<Pair<String?, String?>>(null to null) }
     var collapsedGroups by rememberLocal("chat_history_collapsed_groups", emptySet<String>())
     var collapsedCharacters by rememberLocal("chat_history_collapsed_characters", emptySet<String>())
 
-    var groupActionTarget by remember { mutableStateOf<GroupTarget?>(null) }
-    var groupToRename by remember { mutableStateOf<GroupTarget?>(null) }
-    var groupToDelete by remember { mutableStateOf<GroupTarget?>(null) }
+    var groupActionTarget by remember { mutableStateOf<ChatGroupTarget?>(null) }
+    var groupToRename by remember { mutableStateOf<ChatGroupTarget?>(null) }
+    var groupToDelete by remember { mutableStateOf<ChatGroupTarget?>(null) }
     var hasLongPressedGroup by rememberLocal("has_long_pressed_group", defaultValue = false)
     
     // 搜索相关状态
@@ -477,63 +476,139 @@ fun ChatHistorySelector(
     val characterCardManager = remember { CharacterCardManager.getInstance(context) }
     val characterGroupCardManager = remember { CharacterGroupCardManager.getInstance(context) }
     val coroutineScope = rememberCoroutineScope()
-    val deleteAnimationDurationMs = 220L
+    var selectingChat by remember { mutableStateOf(false) }
+    var selectionError by remember { mutableStateOf(false) }
+    fun selectChat(id: String) {
+        if (selectingChat) return
+        selectingChat = true
+        selectionError = false
+        coroutineScope.launch {
+            try {
+                selectionError = !onSelectChat(id)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                AppLogger.e("ChatHistorySelector", "Chat selection failed: ${failure.javaClass.simpleName}")
+                selectionError = true
+            } finally {
+                selectingChat = false
+            }
+        }
+    }
+    var moveSaving by remember { mutableStateOf(false) }
+    var moveError by remember { mutableStateOf<String?>(null) }
+
+    suspend fun submitMove(original: ChatHistory, target: ChatHistory, ordered: List<ChatHistory>): Boolean {
+        if (moveSaving) return false
+        val index = ordered.indexOfFirst { it.id == original.id }
+        if (index < 0) return false
+        // 置顶是独立排序桶；锚点只取同桶可见项，隐藏项由仓储完整列表保留。
+        val next = ordered.drop(index + 1).firstOrNull { it.pinned == original.pinned }
+        val previous = ordered.take(index).lastOrNull { it.pinned == original.pinned }
+        val anchor = (next ?: previous)?.let { item -> chatHistories.firstOrNull { it.id == item.id } }
+        val move = ChatOrderMove(
+            original = ChatPositionSnapshot.from(original),
+            anchor = anchor?.let(ChatPositionSnapshot::from),
+            beforeAnchor = next != null,
+            targetGroup = target.group,
+            targetCardName = target.characterCardName,
+            targetCharacterGroupId = target.characterGroupId,
+        )
+        moveSaving = true
+        moveError = null
+        return try {
+            onMoveChat(move)
+            true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            AppLogger.e("ChatHistorySelector", "Chat move failed: ${failure.javaClass.simpleName}")
+            moveError = context.getString(R.string.chat_order_move_failed)
+            false
+        } finally {
+            moveSaving = false
+        }
+    }
+
     var deletingChatIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var chatDeleteError by remember { mutableStateOf<String?>(null) }
+    var chatDeletedWithCleanupError by remember { mutableStateOf(false) }
     var availableCharacterCards by remember { mutableStateOf<List<CharacterCard>>(emptyList()) }
     var availableCharacterGroups by remember { mutableStateOf<List<CharacterGroupCard>>(emptyList()) }
     var resolvedGroupNameById by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
 
     fun promptDeleteChat(history: ChatHistory) {
         if (history.locked) {
-            onDeleteChat(history.id)
+            android.widget.Toast.makeText(context, R.string.chat_locked_cannot_delete, android.widget.Toast.LENGTH_SHORT).show()
             return
         }
         if (deletingChatIds.contains(history.id)) {
             return
         }
+        chatDeleteError = null
+        chatDeletedWithCleanupError = false
         chatToDelete = history
     }
 
     fun requestDeleteChat(history: ChatHistory) {
         if (history.locked) {
-            onDeleteChat(history.id)
+            chatDeleteError = context.getString(R.string.chat_locked_cannot_delete)
             return
         }
         if (deletingChatIds.contains(history.id)) {
             return
         }
         deletingChatIds = deletingChatIds + history.id
+        chatDeleteError = null
         coroutineScope.launch {
-            delay(deleteAnimationDurationMs)
-            onDeleteChat(history.id)
+            try {
+                val deleted = onDeleteChat(history.id)
+                kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                if (deleted) chatToDelete = null
+                else chatDeleteError = context.getString(R.string.chat_delete_not_permitted)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (partial: com.ai.assistance.operit.data.repository.ChatDeletionCleanupException) {
+                chatDeletedWithCleanupError = true
+                chatDeleteError = context.getString(R.string.chat_delete_cleanup_failed)
+            } catch (failure: Exception) {
+                AppLogger.e("ChatHistorySelector", "Chat deletion failed: ${failure.javaClass.simpleName}")
+                chatDeleteError = context.getString(R.string.chat_delete_failed)
+            } finally {
+                deletingChatIds = deletingChatIds - history.id
+            }
         }
     }
 
     if (chatToDelete != null) {
         val deletingChat = chatToDelete!!
+        val deleting = deletingChat.id in deletingChatIds
         AlertDialog(
-            onDismissRequest = { chatToDelete = null },
+            onDismissRequest = { if (!deleting) chatToDelete = null },
             title = { Text(stringResource(R.string.confirm_delete_chat)) },
             text = {
-                Text(
-                    text = stringResource(R.string.delete_chat_confirmation, deletingChat.title)
-                )
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Text(text = stringResource(R.string.delete_chat_confirmation, deletingChat.title))
+                    chatDeleteError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    if (deleting) CircularProgressIndicator()
+                }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        requestDeleteChat(deletingChat)
-                        chatToDelete = null
+                        if (chatDeletedWithCleanupError) chatToDelete = null
+                        else requestDeleteChat(deletingChat)
                     },
+                    enabled = !deleting,
                     colors = ButtonDefaults.textButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
                     )
                 ) {
-                    Text(stringResource(R.string.confirm_delete_action))
+                    Text(stringResource(if (chatDeletedWithCleanupError) R.string.close else R.string.confirm_delete_action))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { chatToDelete = null }) {
+                TextButton(onClick = { chatToDelete = null }, enabled = !deleting) {
                     Text(stringResource(R.string.cancel))
                 }
             }
@@ -651,6 +726,8 @@ fun ChatHistorySelector(
                     groupNameById,
                     groupPrefix,
                     historyDisplayMode,
+                    activePrompt,
+                    availableCharacterCards,
                     activeCharacterCardName
             ) {
                 fun characterKey(name: String) = "character::$name"
@@ -722,7 +799,11 @@ fun ChatHistorySelector(
                                                                     key = gKey,
                                                                     name = displayName,
                                                                     groupValue = groupValue,
-                                                                    characterCardName = bindingBucket.characterCardName
+                                                                    scope = when {
+                                                                        bindingBucket.characterGroupId != null -> ChatGroupScope.Group(bindingBucket.characterGroupId)
+                                                                        bindingBucket.characterCardName != null -> ChatGroupScope.Card(bindingBucket.characterCardName)
+                                                                        else -> ChatGroupScope.Unbound
+                                                                    }
                                                             )
                                                     val items =
                                                             if (collapsedGroups.contains(gKey)) {
@@ -751,18 +832,21 @@ fun ChatHistorySelector(
                             .flatMap { (groupValue, histories) ->
                                 val displayName = groupValue ?: ungroupedText
                                 val gKey = groupKey(null, groupValue)
-                                // 在仅显示当前角色卡模式下，使用当前角色卡名称
-                                val effectiveCharacterCardName = if (historyDisplayMode == ChatHistoryDisplayMode.CURRENT_CHARACTER_ONLY) {
-                                    activeCharacterCardName
-                                } else {
-                                    null
-                                }
+                                val scope = if (historyDisplayMode == ChatHistoryDisplayMode.CURRENT_CHARACTER_ONLY) {
+                                    when (val prompt = activePrompt) {
+                                        is ActivePrompt.CharacterGroup -> ChatGroupScope.Group(prompt.id)
+                                        is ActivePrompt.CharacterCard -> {
+                                            val card = availableCharacterCards.firstOrNull { it.id == prompt.id }
+                                            card?.let { ChatGroupScope.Card(it.name, it.isDefault) }
+                                        }
+                                    }
+                                } else ChatGroupScope.All
                                 val header =
                                         HistoryListItem.Header(
                                                 key = gKey,
                                                 name = displayName,
                                                 groupValue = groupValue,
-                                                characterCardName = effectiveCharacterCardName
+                                                scope = scope
                                         )
                                 val items =
                                         if (collapsedGroups.contains(gKey)) {
@@ -777,6 +861,7 @@ fun ChatHistorySelector(
             }
 
     val reorderableState = rememberReorderableLazyListState(actualLazyListState) { from, to ->
+        if (moveSaving) return@rememberReorderableLazyListState
         val movedItem = flatItems.getOrNull(from.index) as? HistoryListItem.Item
                 ?: return@rememberReorderableLazyListState
 
@@ -823,21 +908,7 @@ fun ChatHistorySelector(
                 newOrderedHistories.find { it.id == movedItem.history.id }
                         ?: return@rememberReorderableLazyListState
 
-        // 如果角色卡绑定发生了变化，需要额外通知
-        if (historyDisplayMode == ChatHistoryDisplayMode.BY_CHARACTER_CARD &&
-            (
-                finalMovedItem.characterCardName != movedItem.history.characterCardName ||
-                    finalMovedItem.characterGroupId != movedItem.history.characterGroupId
-            )
-        ) {
-            onUpdateChatBinding(
-                finalMovedItem.id,
-                finalMovedItem.characterCardName,
-                finalMovedItem.characterGroupId
-            )
-        }
-
-        onUpdateChatOrderAndGroup(newOrderedHistories, finalMovedItem, finalMovedItem.group)
+        submitMove(movedItem.history, finalMovedItem, newOrderedHistories)
     }
 
     if (chatItemActionTarget != null) {
@@ -849,7 +920,13 @@ fun ChatHistorySelector(
                 chatHistories.firstOrNull { it.id == target.id } ?: target
             }
         }
-        Dialog(onDismissRequest = { chatItemActionTarget = null }) {
+        val moveMenuIndex = filteredHistories.indexOfFirst { it.id == chatItemActionTarget?.id }
+        val moveMenuChat = filteredHistories.getOrNull(moveMenuIndex)
+        val canMoveUp = moveMenuChat != null && moveMenuIndex > 0 &&
+            filteredHistories[moveMenuIndex - 1].pinned == moveMenuChat.pinned
+        val canMoveDown = moveMenuChat != null && moveMenuIndex < filteredHistories.lastIndex &&
+            filteredHistories[moveMenuIndex + 1].pinned == moveMenuChat.pinned
+        Dialog(onDismissRequest = { if (!moveSaving) chatItemActionTarget = null }) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -887,6 +964,13 @@ fun ChatHistorySelector(
 
                     Spacer(modifier = Modifier.height(16.dp))
                     
+                    if (moveSaving) {
+                        LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 24.dp))
+                    }
+                    moveError?.let { error ->
+                        Text(error, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 24.dp))
+                    }
+
                     // 编辑选项
                     Surface(
                         modifier = Modifier
@@ -896,7 +980,7 @@ fun ChatHistorySelector(
                             .semantics {
                                 contentDescription = context.getString(R.string.edit_title)
                             }
-                            .clickable {
+                            .clickable(enabled = !moveSaving) {
                                 chatToEdit = chatItemActionTarget
                                 chatItemActionTarget = null
                             },
@@ -935,19 +1019,19 @@ fun ChatHistorySelector(
                             .semantics {
                                 contentDescription = context.getString(R.string.move_up)
                             }
-                            .clickable {
-                                val targetChat = chatItemActionTarget!!
+                            .clickable(enabled = !moveSaving && canMoveUp) {
+                                val targetChat = moveMenuChat ?: return@clickable
                                 val currentIndex = filteredHistories.indexOfFirst { it.id == targetChat.id }
-                                if (currentIndex > 0) {
+                                if (!moveSaving && currentIndex > 0) {
                                     val newHistories = filteredHistories.toMutableList()
                                     newHistories.removeAt(currentIndex)
                                     newHistories.add(currentIndex - 1, targetChat)
-                                    val reorderedHistories = newHistories.mapIndexed { index, history ->
-                                        history.copy(displayOrder = index.toLong())
+                                    coroutineScope.launch {
+                                        if (submitMove(targetChat, targetChat, newHistories) && chatItemActionTarget?.id == targetChat.id) {
+                                            chatItemActionTarget = null
+                                        }
                                     }
-                                    onUpdateChatOrderAndGroup(reorderedHistories, targetChat, targetChat.group)
                                 }
-                                chatItemActionTarget = null
                             },
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     ) {
@@ -984,19 +1068,19 @@ fun ChatHistorySelector(
                             .semantics {
                                 contentDescription = context.getString(R.string.move_down)
                             }
-                            .clickable {
-                                val targetChat = chatItemActionTarget!!
+                            .clickable(enabled = !moveSaving && canMoveDown) {
+                                val targetChat = moveMenuChat ?: return@clickable
                                 val currentIndex = filteredHistories.indexOfFirst { it.id == targetChat.id }
-                                if (currentIndex >= 0 && currentIndex < filteredHistories.size - 1) {
+                                if (!moveSaving && currentIndex >= 0 && currentIndex < filteredHistories.size - 1) {
                                     val newHistories = filteredHistories.toMutableList()
                                     newHistories.removeAt(currentIndex)
                                     newHistories.add(currentIndex + 1, targetChat)
-                                    val reorderedHistories = newHistories.mapIndexed { index, history ->
-                                        history.copy(displayOrder = index.toLong())
+                                    coroutineScope.launch {
+                                        if (submitMove(targetChat, targetChat, newHistories) && chatItemActionTarget?.id == targetChat.id) {
+                                            chatItemActionTarget = null
+                                        }
                                     }
-                                    onUpdateChatOrderAndGroup(reorderedHistories, targetChat, targetChat.group)
                                 }
-                                chatItemActionTarget = null
                             },
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     ) {
@@ -1038,7 +1122,7 @@ fun ChatHistorySelector(
                                         context.getString(R.string.pin_chat)
                                     }
                             }
-                            .clickable {
+                            .clickable(enabled = !moveSaving) {
                                 val targetChat = resolvedTargetChat!!
                                 val newPinned = !targetChat.pinned
                                 coroutineScope.launch {
@@ -1086,7 +1170,7 @@ fun ChatHistorySelector(
                                         context.getString(R.string.lock_chat)
                                     }
                             }
-                            .clickable {
+                            .clickable(enabled = !moveSaving) {
                                 val targetChat = resolvedTargetChat ?: chatItemActionTarget!!
                                 val newLocked = !targetChat.locked
                                 coroutineScope.launch {
@@ -1129,7 +1213,7 @@ fun ChatHistorySelector(
                             .semantics {
                                 contentDescription = context.getString(R.string.delete)
                             }
-                            .clickable {
+                            .clickable(enabled = !moveSaving) {
                                 promptDeleteChat(chatItemActionTarget!!)
                                 chatItemActionTarget = null
                             },
@@ -1298,42 +1382,99 @@ fun ChatHistorySelector(
     }
 
     if (groupToRename != null) {
-        var newGroupNameText by remember(groupToRename) { mutableStateOf(groupToRename!!.groupName) }
+        val target = groupToRename!!
+        var newGroupNameText by remember(target) { mutableStateOf(target.groupName) }
+        var saving by remember(target) { mutableStateOf(false) }
+        var error by remember(target) { mutableStateOf<String?>(null) }
+        var discard by remember(target) { mutableStateOf(false) }
+        fun closeRename() {
+            if (saving) return
+            if (newGroupNameText != target.groupName) discard = true else groupToRename = null
+        }
         AlertDialog(
-            onDismissRequest = { groupToRename = null },
+            onDismissRequest = { closeRename() },
             title = { Text(stringResource(R.string.rename_group)) },
             text = {
-                OutlinedTextField(
-                    value = newGroupNameText,
-                    onValueChange = { newGroupNameText = it },
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.new_group_name)) },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    OutlinedTextField(
+                        value = newGroupNameText,
+                        onValueChange = { newGroupNameText = it },
+                        enabled = !saving,
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.new_group_name)) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    if (saving) CircularProgressIndicator()
+                }
             },
             confirmButton = {
                 Button(
-                    enabled = newGroupNameText.isNotBlank(),
+                    enabled = newGroupNameText.isNotBlank() && !saving,
                     onClick = {
-                        if (newGroupNameText.isNotBlank() && newGroupNameText.trim() != groupToRename!!.groupName) {
-                            onUpdateGroupName(
-                                groupToRename!!.groupName, 
-                                newGroupNameText.trim(),
-                                groupToRename!!.characterCardName
-                            )
+                        if (!saving) {
+                            saving = true
+                            error = null
+                            val submitted = newGroupNameText.trim()
+                            coroutineScope.launch {
+                                try {
+                                    if (submitted != target.groupName) onUpdateGroupName(target, submitted)
+                                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                                    if (groupToRename == target) groupToRename = null
+                                } catch (cancelled: CancellationException) {
+                                    throw cancelled
+                                } catch (failure: Exception) {
+                                    AppLogger.e("ChatHistorySelector", "Group rename failed: ${failure.javaClass.simpleName}")
+                                    error = context.getString(if (failure is com.ai.assistance.operit.data.repository.ChatGroupChangedException)
+                                        R.string.chat_group_changed else R.string.chat_group_operation_failed)
+                                } finally { saving = false }
+                            }
                         }
-                        groupToRename = null
                     }
                 ) { Text(stringResource(R.string.save)) }
             },
             dismissButton = {
-                TextButton(onClick = { groupToRename = null }) { Text(stringResource(R.string.cancel)) }
+                TextButton(onClick = { closeRename() }, enabled = !saving) { Text(stringResource(R.string.cancel)) }
             }
         )
+        if (discard) {
+            AlertDialog(
+                onDismissRequest = { discard = false },
+                title = { Text(stringResource(R.string.pkg_env_discard_title)) },
+                text = { Text(stringResource(R.string.chat_group_discard)) },
+                confirmButton = { TextButton(onClick = { groupToRename = null }) { Text(stringResource(R.string.pkg_env_discard)) } },
+                dismissButton = { TextButton(onClick = { discard = false }) { Text(stringResource(R.string.cancel)) } },
+            )
+        }
     }
 
     if (groupToDelete != null) {
-        Dialog(onDismissRequest = { groupToDelete = null }) {
+        val target = groupToDelete!!
+        var deleting by remember(target) { mutableStateOf(false) }
+        var error by remember(target) { mutableStateOf<String?>(null) }
+        var partial by remember(target) { mutableStateOf(false) }
+        fun deleteSelectedGroup(deleteChats: Boolean) {
+            if (deleting || partial) return
+            deleting = true
+            error = null
+            coroutineScope.launch {
+                try {
+                    onDeleteGroup(target, deleteChats)
+                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                    if (groupToDelete == target) groupToDelete = null
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (failure: com.ai.assistance.operit.data.repository.ChatGroupCleanupException) {
+                    partial = true
+                    error = context.getString(R.string.chat_group_cleanup_failed)
+                } catch (failure: Exception) {
+                    AppLogger.e("ChatHistorySelector", "Group deletion failed: ${failure.javaClass.simpleName}")
+                    error = context.getString(if (failure is com.ai.assistance.operit.data.repository.ChatGroupChangedException)
+                        R.string.chat_group_changed else R.string.chat_group_operation_failed)
+                } finally { deleting = false }
+            }
+        }
+        Dialog(onDismissRequest = { if (!deleting) groupToDelete = null }) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1347,7 +1488,7 @@ fun ChatHistorySelector(
                 )
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
@@ -1383,15 +1524,12 @@ fun ChatHistorySelector(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    if (deleting) CircularProgressIndicator()
+
                     TextButton(
-                        onClick = {
-                            onDeleteGroup(
-                                groupToDelete!!.groupName, 
-                                true,
-                                groupToDelete!!.characterCardName
-                            )
-                            groupToDelete = null
-                        },
+                        onClick = { deleteSelectedGroup(true) },
+                        enabled = !deleting && !partial,
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.medium,
                         colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
@@ -1424,14 +1562,8 @@ fun ChatHistorySelector(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     TextButton(
-                        onClick = {
-                            onDeleteGroup(
-                                groupToDelete!!.groupName, 
-                                false,
-                                groupToDelete!!.characterCardName
-                            )
-                            groupToDelete = null
-                        },
+                        onClick = { deleteSelectedGroup(false) },
+                        enabled = !deleting && !partial,
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.medium
                     ) {
@@ -1463,6 +1595,7 @@ fun ChatHistorySelector(
 
                     TextButton(
                         onClick = { groupToDelete = null },
+                        enabled = !deleting,
                         modifier = Modifier.align(Alignment.End)
                     ) {
                         Text(stringResource(R.string.cancel))
@@ -1481,7 +1614,17 @@ fun ChatHistorySelector(
         var selectedCharacterGroupId by remember(editingChat) {
             mutableStateOf(editingChat.characterGroupId)
         }
-        var bindingMenuExpanded by remember { mutableStateOf(false) }
+        var bindingMenuExpanded by remember(editingChat) { mutableStateOf(false) }
+        var savingMetadata by remember(editingChat) { mutableStateOf(false) }
+        var metadataError by remember(editingChat) { mutableStateOf<String?>(null) }
+        var confirmDiscardMetadata by remember(editingChat) { mutableStateOf(false) }
+        fun requestCloseMetadata() {
+            if (savingMetadata) return
+            if (newTitle != editingChat.title ||
+                selectedCharacterCardName != editingChat.characterCardName ||
+                selectedCharacterGroupId != editingChat.characterGroupId
+            ) confirmDiscardMetadata = true else chatToEdit = null
+        }
         data class ChatBindingOption(
             val label: String,
             val characterCardName: String?,
@@ -1528,13 +1671,17 @@ fun ChatHistorySelector(
         val dropdownClickSource = remember { MutableInteractionSource() }
 
         AlertDialog(
-                onDismissRequest = { chatToEdit = null },
+                onDismissRequest = { requestCloseMetadata() },
                 title = { Text(stringResource(R.string.edit_title)) },
                 text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(
+                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
                         OutlinedTextField(
                                 value = newTitle,
                                 onValueChange = { newTitle = it },
+                                enabled = !savingMetadata,
                                 label = { Text(stringResource(R.string.new_title)) },
                                 modifier = Modifier.fillMaxWidth()
                         )
@@ -1542,6 +1689,7 @@ fun ChatHistorySelector(
                             OutlinedTextField(
                                     value = selectedBindingLabel,
                                     onValueChange = {},
+                                    enabled = !savingMetadata,
                                     readOnly = true,
                                     label = { Text(bindingLabel) },
                                     trailingIcon = {
@@ -1560,6 +1708,7 @@ fun ChatHistorySelector(
                                     modifier = Modifier
                                             .matchParentSize()
                                             .clickable(
+                                                    enabled = !savingMetadata,
                                                     interactionSource = dropdownClickSource,
                                                     indication = null
                                             ) { bindingMenuExpanded = !bindingMenuExpanded }
@@ -1586,36 +1735,67 @@ fun ChatHistorySelector(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        metadataError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     }
                 },
                 confirmButton = {
                     Button(
+                            enabled = !savingMetadata && newTitle.isNotBlank(),
                             onClick = {
-                                if (newTitle != editingChat.title) {
-                                    onUpdateChatTitle(editingChat.id, newTitle)
+                                if (!savingMetadata) {
+                                    savingMetadata = true
+                                    metadataError = null
+                                    bindingMenuExpanded = false
+                                    val titleSnapshot = newTitle
+                                    val cardSnapshot = selectedCharacterCardName
+                                    val groupSnapshot = selectedCharacterGroupId
+                                    coroutineScope.launch {
+                                        try {
+                                            onEditChatMetadata(editingChat, titleSnapshot, cardSnapshot, groupSnapshot)
+                                            // 不允许旧弹窗的完成回调关闭后来打开的目标。
+                                            if (chatToEdit === editingChat) chatToEdit = null
+                                        } catch (cancelled: CancellationException) {
+                                            throw cancelled
+                                        } catch (failure: Exception) {
+                                            AppLogger.e("ChatHistorySelector", "Metadata save failed: ${failure.javaClass.simpleName}")
+                                            metadataError = context.getString(
+                                                if (failure is com.ai.assistance.operit.data.repository.ChatMetadataConflictException)
+                                                    R.string.chat_metadata_edit_conflict
+                                                else R.string.chat_metadata_edit_failed
+                                            )
+                                        } finally {
+                                            savingMetadata = false
+                                        }
+                                    }
                                 }
-                                if (
-                                    selectedCharacterCardName != editingChat.characterCardName ||
-                                    selectedCharacterGroupId != editingChat.characterGroupId
-                                ) {
-                                    onUpdateChatBinding(
-                                        editingChat.id,
-                                        selectedCharacterCardName,
-                                        selectedCharacterGroupId
-                                    )
-                                }
-                                chatToEdit = null
                             }
                     ) {
-                        Text(stringResource(R.string.save))
+                        Text(stringResource(if (savingMetadata) R.string.chat_metadata_saving else R.string.save))
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { chatToEdit = null }) {
+                    TextButton(enabled = !savingMetadata, onClick = { requestCloseMetadata() }) {
                         Text(stringResource(R.string.cancel))
                     }
                 }
         )
+        if (confirmDiscardMetadata) {
+            AlertDialog(
+                onDismissRequest = { confirmDiscardMetadata = false },
+                title = { Text(stringResource(R.string.pkg_env_discard_title)) },
+                text = { Text(stringResource(R.string.chat_metadata_discard_message)) },
+                confirmButton = {
+                    TextButton(onClick = { chatToEdit = null }) {
+                        Text(stringResource(R.string.pkg_env_discard))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { confirmDiscardMetadata = false }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                },
+            )
+        }
     }
 
     if (showSettingsDialog) {
@@ -1829,50 +2009,102 @@ fun ChatHistorySelector(
     }
 
     if (showNewGroupDialog) {
+        var creating by remember { mutableStateOf(false) }
+        var error by remember { mutableStateOf<String?>(null) }
+        var createdButNotSelected by remember { mutableStateOf(false) }
+        var discard by remember { mutableStateOf(false) }
+        fun closeCreate() {
+            if (creating) return
+            if (!createdButNotSelected && newGroupName.isNotBlank()) discard = true
+            else { newGroupName = ""; showNewGroupDialog = false }
+        }
         AlertDialog(
-                onDismissRequest = { showNewGroupDialog = false },
-                title = { Text(stringResource(R.string.new_group)) },
-                text = {
+            onDismissRequest = { closeCreate() },
+            title = { Text(stringResource(R.string.new_group)) },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     OutlinedTextField(
-                            value = newGroupName,
-                            onValueChange = { newGroupName = it },
-                            singleLine = true,
-                            label = { Text(stringResource(R.string.group_name)) },
-                            modifier = Modifier.fillMaxWidth()
+                        value = newGroupName,
+                        onValueChange = { newGroupName = it },
+                        enabled = !creating && !createdButNotSelected,
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.group_name)) },
+                        modifier = Modifier.fillMaxWidth()
                     )
-                },
-                confirmButton = {
-                    Button(
-                            enabled = newGroupName.isNotBlank(),
-                            onClick = {
-                                if (newGroupName.isNotBlank()) {
-                                    val normalizedGroupName = newGroupName.trim()
-                                    if (normalizedGroupName.isBlank()) {
-                                        return@Button
+                    error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    if (creating) CircularProgressIndicator()
+                }
+            },
+            confirmButton = {
+                Button(
+                    enabled = !creating && (createdButNotSelected || newGroupName.isNotBlank()),
+                    onClick = {
+                        if (createdButNotSelected) closeCreate()
+                        else if (!creating) {
+                            creating = true
+                            error = null
+                            val submitted = newGroupName.trim()
+                            val binding = newGroupBinding
+                            coroutineScope.launch {
+                                try {
+                                    val result = onCreateGroup(submitted, binding.first, binding.second)
+                                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                                    if (!result.selected) {
+                                        android.widget.Toast.makeText(context, R.string.chat_group_created_selection_changed, android.widget.Toast.LENGTH_LONG).show()
                                     }
-                                    val (characterCardName, characterGroupId) = resolveBindingForCreate(
-                                        historyDisplayMode = historyDisplayMode,
-                                        activePrompt = activePrompt,
-                                        activeCharacterCardName = activeCharacterCardName
-                                    )
-                                    onCreateGroup(normalizedGroupName, characterCardName, characterGroupId)
                                     newGroupName = ""
                                     showNewGroupDialog = false
-                                }
+                                } catch (cancelled: CancellationException) {
+                                    throw cancelled
+                                } catch (partial: com.ai.assistance.operit.data.repository.ChatCreationSelectionException) {
+                                    createdButNotSelected = true
+                                    error = context.getString(R.string.chat_group_created_selection_failed)
+                                } catch (failure: Exception) {
+                                    AppLogger.e("ChatHistorySelector", "Group creation failed: ${failure.javaClass.simpleName}")
+                                    error = context.getString(R.string.chat_group_operation_failed)
+                                } finally { creating = false }
                             }
-                    ) {
-                        Text(stringResource(R.string.create))
+                        }
                     }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showNewGroupDialog = false }) {
-                        Text(stringResource(R.string.cancel))
-                    }
+                ) { Text(stringResource(if (createdButNotSelected) R.string.close else R.string.create)) }
+            },
+            dismissButton = {
+                if (!createdButNotSelected) {
+                    TextButton(onClick = { closeCreate() }, enabled = !creating) { Text(stringResource(R.string.cancel)) }
                 }
+            }
         )
+        if (discard) {
+            AlertDialog(
+                onDismissRequest = { discard = false },
+                title = { Text(stringResource(R.string.pkg_env_discard_title)) },
+                text = { Text(stringResource(R.string.chat_group_discard)) },
+                confirmButton = { TextButton(onClick = { newGroupName = ""; showNewGroupDialog = false }) { Text(stringResource(R.string.pkg_env_discard)) } },
+                dismissButton = { TextButton(onClick = { discard = false }) { Text(stringResource(R.string.cancel)) } },
+            )
+        }
     }
 
     Column(modifier = modifier) {
+        if (moveSaving || selectingChat) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        }
+        if (selectionError) {
+            Text(
+                stringResource(R.string.chat_selection_failed),
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+            )
+        }
+        moveError?.let { error ->
+            Surface(color = MaterialTheme.colorScheme.errorContainer) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Text(error, color = MaterialTheme.colorScheme.onErrorContainer)
+                    TextButton(onClick = { moveError = null }) { Text(stringResource(R.string.close)) }
+                }
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1955,7 +2187,15 @@ fun ChatHistorySelector(
                 Text(stringResource(R.string.new_chat))
             }
             IconButton(
-                onClick = { showNewGroupDialog = true },
+                onClick = {
+                    if (historyDisplayMode != ChatHistoryDisplayMode.BY_FOLDER &&
+                        activePrompt is ActivePrompt.CharacterCard && activeCharacterCardName == null) {
+                        android.widget.Toast.makeText(context, R.string.chat_group_binding_loading, android.widget.Toast.LENGTH_SHORT).show()
+                    } else {
+                        newGroupBinding = resolveBindingForCreate(historyDisplayMode, activePrompt, activeCharacterCardName)
+                        showNewGroupDialog = true
+                    }
+                },
                 modifier = Modifier.size(40.dp)
             ) {
                 Icon(
@@ -2253,10 +2493,10 @@ fun ChatHistorySelector(
                                                 }
                                             },
                                             onLongPress = {
-                                                if (item.name != ungroupedText) {
-                                                    groupActionTarget = GroupTarget(
+                                                if (item.groupValue != null && item.scope != null) {
+                                                    groupActionTarget = ChatGroupTarget(
                                                         groupName = item.name,
-                                                        characterCardName = item.characterCardName
+                                                        scope = item.scope
                                                     )
                                                     hasLongPressedGroup = true
                                                 }
@@ -2291,7 +2531,7 @@ fun ChatHistorySelector(
                                                 color = MaterialTheme.colorScheme.onSurface,
                                                 modifier = Modifier.clearAndSetSemantics {}
                                             )
-                                            if (item.name != ungroupedText && !hasLongPressedGroup) {
+                                            if (item.groupValue != null && item.scope != null && !hasLongPressedGroup) {
                                                 Text(
                                                     text = " (" + stringResource(R.string.long_press_manage) + ")",
                                                     style = MaterialTheme.typography.bodySmall,
@@ -2342,7 +2582,6 @@ fun ChatHistorySelector(
                             key = item.history.id,
                             animateItemModifier = Modifier.animateItem(placementSpec = null)
                         ) { isDragging ->
-                            val isDeleting = deletingChatIds.contains(item.history.id)
                             val isSelected = item.history.id == currentId
                             val containerColor = if (isSelected) {
                                 MaterialTheme.colorScheme.primaryContainer
@@ -2355,14 +2594,8 @@ fun ChatHistorySelector(
                                 MaterialTheme.colorScheme.onSurface
                             }
 
-                            androidx.compose.animation.AnimatedVisibility(
-                                visible = !isDeleting,
-                                exit =
-                                    shrinkVertically(
-                                        animationSpec = tween(deleteAnimationDurationMs.toInt()),
-                                        shrinkTowards = Alignment.Top
-                                    ) + fadeOut(animationSpec = tween(deleteAnimationDurationMs.toInt()))
-                            ) {
+                            // Room真实删除后由列表更新移除条目；不提前隐藏尚未删除的聊天。
+                            Box {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -2418,7 +2651,7 @@ fun ChatHistorySelector(
                                                             }
                                                             .pointerInput(Unit) {
                                                                 detectTapGestures(
-                                                                    onTap = { onSelectChat(item.history.id) },
+                                                                    onTap = { selectChat(item.history.id) },
                                                                     onLongPress = { chatItemActionTarget = item.history }
                                                                 )
                                                             },

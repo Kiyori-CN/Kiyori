@@ -414,8 +414,10 @@ class MainActivity : ComponentActivity() {
                     "已按用户偏好在启动时创建新的空白聊天"
                 },
             )
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
-            AppLogger.e(TAG, "启动时创建空白聊天失败", e)
+            AppLogger.e(TAG, "启动时创建空白聊天失败: ${e.javaClass.simpleName}")
         }
     }
 

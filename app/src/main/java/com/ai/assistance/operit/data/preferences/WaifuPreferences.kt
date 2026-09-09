@@ -233,8 +233,9 @@ class WaifuPreferences private constructor(private val context: Context) {
         }
     }
 
-    private suspend fun switchToWaifuSettingsByPrefix(prefix: String) {
+    private suspend fun switchToWaifuSettingsByPrefix(prefix: String, checkCurrent: () -> Unit) {
         context.waifuDataStore.edit { preferences ->
+            checkCurrent()
             getAllBooleanWaifuKeys().forEach { key ->
                 val cardKey = booleanPreferencesKey("${prefix}${key.name}")
                 if (preferences.contains(cardKey)) {
@@ -297,8 +298,8 @@ class WaifuPreferences private constructor(private val context: Context) {
         )
     }
 
-    suspend fun switchToCharacterCardWaifuSettings(characterCardId: String) {
-        switchToWaifuSettingsByPrefix(getCharacterCardWaifuPrefix(characterCardId))
+    suspend fun switchToCharacterCardWaifuSettings(characterCardId: String, checkCurrent: () -> Unit = {}) {
+        switchToWaifuSettingsByPrefix(getCharacterCardWaifuPrefix(characterCardId), checkCurrent)
     }
 
     suspend fun saveCurrentWaifuSettingsToCharacterCard(characterCardId: String) {
@@ -327,8 +328,8 @@ class WaifuPreferences private constructor(private val context: Context) {
         )
     }
 
-    suspend fun switchToCharacterGroupWaifuSettings(characterGroupId: String) {
-        switchToWaifuSettingsByPrefix(getCharacterGroupWaifuPrefix(characterGroupId))
+    suspend fun switchToCharacterGroupWaifuSettings(characterGroupId: String, checkCurrent: () -> Unit = {}) {
+        switchToWaifuSettingsByPrefix(getCharacterGroupWaifuPrefix(characterGroupId), checkCurrent)
     }
 
     suspend fun saveCurrentWaifuSettingsToCharacterGroup(characterGroupId: String) {

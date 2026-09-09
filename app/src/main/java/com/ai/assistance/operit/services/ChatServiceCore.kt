@@ -132,15 +132,20 @@ class ChatServiceCore(
                 }
             },
             getChatStatistics = {
-                val (inputTokens, outputTokens) = tokenStatisticsDelegate.getCumulativeTokenCounts()
-                val windowSize = tokenStatisticsDelegate.getLastCurrentWindowSize()
+                // 窗口选择可能先于统计组件的 Flow collector 更新，不能借用后者的隐式 activeChatId。
+                val targetChatId = chatHistoryDelegate.currentChatId.value
+                val (inputTokens, outputTokens) = tokenStatisticsDelegate.getCumulativeTokenCounts(targetChatId)
+                val windowSize = tokenStatisticsDelegate.getLastCurrentWindowSize(targetChatId)
                 Triple(inputTokens, outputTokens, windowSize)
             },
             getProviderUsageAggregate = {
-                tokenStatisticsDelegate.getCumulativeProviderUsage()
+                tokenStatisticsDelegate.getCumulativeProviderUsage(chatHistoryDelegate.currentChatId.value)
             },
             onScrollToBottom = {
                 messageProcessingDelegate.scrollToBottom()
+            },
+            onSelectionFailed = {
+                uiStateDelegate.showErrorMessage(context.getString(com.ai.assistance.operit.R.string.chat_selection_failed))
             }
         )
 
@@ -380,12 +385,22 @@ class ChatServiceCore(
         chatHistoryDelegate.switchChat(chatId, syncToGlobal = false)
     }
 
+    suspend fun switchChatLocalAwait(chatId: String, stillRequested: () -> Boolean): Boolean =
+        chatHistoryDelegate.switchChatAwait(chatId, syncToGlobal = false, stillRequested = stillRequested)
+
     /**
      * 将当前本地 chatId 写回全局 currentChatId，用于“返回主应用”时同步。
      */
     fun syncCurrentChatIdToGlobal() {
         val chatId = chatHistoryDelegate.currentChatId.value ?: return
         chatHistoryDelegate.switchChat(chatId, syncToGlobal = true)
+    }
+
+    suspend fun syncCurrentChatIdToGlobalAwait(): Boolean {
+        val chatId = chatHistoryDelegate.currentChatId.value ?: return true
+        return chatHistoryDelegate.switchChatAwait(chatId, syncToGlobal = true) {
+            chatHistoryDelegate.currentChatId.value == chatId
+        }
     }
 
     /** 删除聊天历史 */

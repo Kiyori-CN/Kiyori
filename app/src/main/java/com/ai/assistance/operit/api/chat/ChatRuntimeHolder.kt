@@ -5,6 +5,11 @@ import com.ai.assistance.operit.services.ChatServiceCore
 import com.ai.assistance.operit.services.core.ChatSelectionMode
 import com.ai.assistance.operit.util.AppLogger
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.job
+import kotlinx.coroutines.flow.collectLatest
+import com.ai.assistance.operit.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -121,6 +126,8 @@ class ChatRuntimeHolder private constructor(context: Context) {
                         TAG,
                         "跨 Session smart 同步完成: $sourceSlot -> $targetSlot, chatId=$chatId, input=$inputTokens, output=$outputTokens, window=$windowSize"
                     )
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
                 } catch (e: Exception) {
                     AppLogger.e(
                         TAG,
@@ -132,15 +139,6 @@ class ChatRuntimeHolder private constructor(context: Context) {
         }
     }
 
-    fun syncMainChatSelectionToFloating(chatId: String) {
-        if (chatId.isBlank()) return
-        syncChatSelection(
-            sourceSlot = ChatRuntimeSlot.MAIN,
-            targetSlot = ChatRuntimeSlot.FLOATING,
-            chatId = chatId
-        )
-    }
-
     private fun registerChatSelectionSync(
         sourceSlot: ChatRuntimeSlot,
         targetSlot: ChatRuntimeSlot
@@ -149,37 +147,38 @@ class ChatRuntimeHolder private constructor(context: Context) {
 
         runtimeScope.launch {
             sourceCore.currentChatId
-                .collect { chatId ->
+                .collectLatest { chatId ->
                     if (chatId.isNullOrBlank()) {
-                        return@collect
+                        return@collectLatest
                     }
                     syncChatSelection(sourceSlot, targetSlot, chatId)
                 }
         }
     }
 
-    private fun syncChatSelection(
+    private suspend fun syncChatSelection(
         sourceSlot: ChatRuntimeSlot,
         targetSlot: ChatRuntimeSlot,
         chatId: String
     ) {
+        val sourceCore = getCore(sourceSlot)
         val targetCore = getCore(targetSlot)
-        if (targetCore.currentChatId.value == chatId) {
-            return
-        }
-
+        val requestJob = currentCoroutineContext().job
+        if (targetCore.currentChatId.value == chatId) return
         try {
-            targetCore.switchChatLocal(chatId)
-            AppLogger.d(
-                TAG,
-                "跨 Session 当前聊天同步: $sourceSlot -> $targetSlot, chatId=$chatId"
-            )
-        } catch (e: Exception) {
-            AppLogger.e(
-                TAG,
-                "跨 Session 当前聊天同步失败: $sourceSlot -> $targetSlot, chatId=$chatId",
-                e
-            )
+            val selected = targetCore.switchChatLocalAwait(chatId) {
+                requestJob.isActive && sourceCore.currentChatId.value == chatId
+            }
+            if (!selected && requestJob.isActive && sourceCore.currentChatId.value == chatId) {
+                targetCore.getUiStateDelegate().showErrorMessage(appContext.getString(R.string.chat_selection_failed))
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            AppLogger.e(TAG, "Cross-session selection failed: ${failure.javaClass.simpleName}")
+            if (requestJob.isActive && sourceCore.currentChatId.value == chatId) {
+                targetCore.getUiStateDelegate().showErrorMessage(appContext.getString(R.string.chat_selection_failed))
+            }
         }
     }
 

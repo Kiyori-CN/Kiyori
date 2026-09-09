@@ -1651,8 +1651,9 @@ class UserPreferencesManager private constructor(private val context: Context) {
         }
     }
 
-    private suspend fun switchToThemeByPrefix(prefix: String) {
+    private suspend fun switchToThemeByPrefix(prefix: String, checkCurrent: () -> Unit) {
         context.userPreferencesDataStore.edit { preferences ->
+            checkCurrent()
             getAllStringThemeKeys().forEach { key ->
                 val cardKey = stringPreferencesKey("${prefix}${key.name}")
                 if (preferences.contains(cardKey)) {
@@ -1724,8 +1725,8 @@ class UserPreferencesManager private constructor(private val context: Context) {
         )
     }
 
-    suspend fun switchToCharacterCardTheme(characterCardId: String) {
-        switchToThemeByPrefix(getCharacterCardThemePrefix(characterCardId))
+    suspend fun switchToCharacterCardTheme(characterCardId: String, checkCurrent: () -> Unit = {}) {
+        switchToThemeByPrefix(getCharacterCardThemePrefix(characterCardId), checkCurrent)
     }
 
     suspend fun saveCurrentThemeToCharacterCard(characterCardId: String) {
@@ -1754,8 +1755,8 @@ class UserPreferencesManager private constructor(private val context: Context) {
         )
     }
 
-    suspend fun switchToCharacterGroupTheme(characterGroupId: String) {
-        switchToThemeByPrefix(getCharacterGroupThemePrefix(characterGroupId))
+    suspend fun switchToCharacterGroupTheme(characterGroupId: String, checkCurrent: () -> Unit = {}) {
+        switchToThemeByPrefix(getCharacterGroupThemePrefix(characterGroupId), checkCurrent)
     }
 
     suspend fun saveCurrentThemeToCharacterGroup(characterGroupId: String) {

@@ -8,6 +8,60 @@ status: in_progress
 
 状态“待查”表示仅定位了源文件与声明；“已审”必须在阶段记录中附问题或无变更结论以及证据。所有现场验证目前为 `verification_pending`。
 
+## 当前续审矩阵
+
+观察日期：2026-09-09，源码基线为父 `4b1be9868`、terminal `53a8ea5b`。下表是本轮活动矩阵，后续按实际回调继续拆到叶子；尚未展开的分组明确作为调查队列，不能计为完成。下方原文件表是定位索引，旧增量表是历史证据，均不覆盖本表的当前验收状态。
+
+为保持可读性，关联字段合并为单元格：入口/退出分别给出来源和返回；边界包含读写、异步与生命周期；场景分别写用户与 Agent；验证分列测试、构建、现场。每行回滚点 `R0` 指本节双仓基线上的精确文件差异，禁止全树重置。`A0` 表示本轮只有源码定位或阅读，尚未测试、尚未构建；`V0` 表示现场 `verification_pending`，原因是本轮未授权设备或真实服务操作。它们是各行完整字段的共同取值，不是通过标记。
+
+| 阶段/叶子或调查分组 | 页面/组件与涉及文件 | 入口 / 退出 | 真实状态 owner | 读写/异步/生命周期边界 | 缺陷分类与触发条件 | 用户场景 / Agent场景 | 优先级/依赖 | 风险/回滚点 | 实施状态 | 测试状态 | 构建状态 | 现场状态及原因 | 下一步 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| P2 消息正文保存/模式切换/关闭 | MessageEditor、ChatScreenContent、ChatViewModel.reviseConversationAuditMessage | 消息菜单 → 编辑/标签 / 保存或放弃确认 | 原编辑值与审计仓储 | chat/timestamp/variant、原文校验、组合scope | 已关闭本地缺陷：等待保存、保留空白、同步写入输入值 | 修改消息 / 工具XML正文 | 高；原审计链 | 原文和草稿丢失/R0 | 已实施本地验证 | 新增4项+审计4项通过，0失败错误跳过 | E2A8CDE5，14:17:07通过 | V0：IME/窄屏/Room | 编辑重发仍待审 |
+| P1 插件异常/排队取消 | ChatInputHookRegistry、PendingQueueSubmission、AIChatScreen、PendingMessageQueueStore | 发送或队列发送 / 返回输入 | 原输入与队列owner | hook挂起、移出队列、取消/派发边界 | 已实施：异常阻断、未派发取消恢复、删除chat不复活、未知提交不恢复 | 插件检查草稿 / 插件提交回调 | 最高；发送链 | 意外发送/队列丢失/R0 | 已实施本地验证 | 13通过，0失败错误跳过 | 9F9E7B1A，14:33:37通过 | V0：真实插件 | 继续共享owner及历史操作 |
+| P3 历史聊天删除/确认 | ChatHistorySelector、ChatViewModel、ChatHistoryDelegate、ChatHistoryManager、ChatDeletionCompletion | 历史滑动/菜单 → 删除确认 / 成功或错误确认 | 原服务/Room/队列owner | chatId、服务持有提交、实体删除/后续清理边界 | 已证实：提前隐藏关闭；清理失败混为未删；旧偏好读取可能清新选择 | 删除历史 / 后台生成停止与审计清理 | 高；原历史锁/审计 | 部分完成及重复操作/R0 | 已实施本地验证 | 10通过，0失败错误跳过 | 4A207572，14:43:02通过 | V0：Room/Keystore/实际切chat | 验证后继续分组/重排 |
+| P3 新建分组/名称/绑定/取消 | ChatHistorySelector、ChatCreationCompletion、ChatViewModel、ChatHistoryDelegate、ChatHistoryManager | 新建分组 → 表单 / 创建结果或放弃 | 原Room/服务/选择collector | 打开时绑定、创建与选择分离、DataStore原值比较 | 已证实：异步创建立即丢草稿；选择失败可能重复创建 | 新建历史分组 / 并发切chat | 高；原审计创建事务 | 重复创建/抢选择/R0 | 已实施本地验证 | 最终18通过，0失败错误跳过 | CBCF4619，15:15:55通过 | V0：DataStore/Room/IME | 核对构建后继续加载与重排 |
+| P3 选择/加载/分页/错误/重试/关闭 | ChatHistoryDelegate、CurrentChatWindowController、ChatViewModel、ChatScreenContent、ChatArea | 历史选择/新建/定位/翻页 → 安全错误条 / 重载或关闭 | 原服务/Room/窗口投影 | collectLatest、chatId/代次、原子读取快照与重试、实时更新撤销读取 | 已实施：旧加载发布及取消、空选择清理、stream竞争、迟到关闭/重试隔离 | 快速切chat与重载 / 后台生成与定位 | 最高；历史owner | 加载错报/旧任务发布/R0 | 已实施本地验证 | 最终14通过，0失败/错误/跳过 | E74C4B68，15:58:04通过 | V0：实际并发/Room/大字体/TalkBack | 选择提交/历史重排继续反审；窗口真实并发/视觉待现场 |
+| P3/P4 选择提交/偏好读取/返回主应用 | ChatHistoryDelegate、CurrentChatSelectionObserver、ChatRuntimeHolder、历史入口与浮窗标题栏 | 历史选择/浮窗返回 → 等待结果 / 失败保留与手动重载 | 原DataStore/服务/runtime | 选择互斥、原值比较、错误身份、来源协程资格与取消读取 | 已实施：读取失败不清选择、失败不关闭入口、返回等待持久化 | 偏好I/O失败/连续切换/浮窗返回 | 最高；历史owner | 提交后观察未知/R0 | 本批本地验证通过；角色同步仍待修 | 69129：6项观察+14项窗口全部通过 | 15997通过，17:01:19，35B28A8F | V0：真实DataStore故障/OEM窗口 | 接角色多偏好写入与编辑重发/回滚 |
+
+| P3 拖拽/上移/下移/跨组绑定 | ChatHistorySelector、ChatOrderMove、ChatViewModel、ChatHistoryDelegate、ChatHistoryManager、ChatDao | 历史拖动或条目菜单 → 移动 / 成功或错误重试 | 原服务/Room Flow | 单项/锚点快照、同事务顺序与绑定、服务持有 | 已实施：过滤子集整表回写、拆分绑定和排序、debounce异常无终态 | 筛选/折叠后移动 / 并发元数据与删除 | 最高；原历史owner | 隐藏项消失/部分保存/旧字段覆盖/R0 | 已实施本地验证 | 12通过，0失败/错误/跳过 | C5D2FCEA，16:12:05通过 | V0：Room并发/连续拖动/大字体/TalkBack | 继续选择持久化和消息重发；拖动及真实并发待现场 |
+| P3 分组改名/删除范围与结果 | ChatGroupTarget/Scope、HistoryListItem.Header、ChatHistorySelector、ChatHistoryDelegate、ChatHistoryManager | 分组长按 → 改名/两种删除 / 返回历史 | 原服务/Room | 分组名+绑定分类、批量写入、停止活动chat、异步结果 | 已实施：显式scope、默认角色排除群组；等待结果；成员/锁定事务比较 | 管理群组历史 / 后台生成与删除并发 | 最高；历史删除等待链 | 错分类修改/误删/R0 | 已实施本地验证 | 17通过，0失败错误跳过 | 31F22B56，15:00:26通过 | V0：Room/实际并发 | 核对结果后继续创建/重排 |
+| P3 历史标题/绑定编辑 | ChatHistorySelector、ChatMetadataEdit、ChatHistoryManager、ChatHistoryDelegate、ChatViewModel | 历史长按/滑动 → 编辑 / 保存或取消、放弃确认 | 原ChatHistoryManager及Room Flow | chatId、原值快照、同chat锁与事务、服务持有提交 | 已关闭本地缺陷：原双异步调用立即关闭；失败与并发修改边界已修复 | 编辑标题与角色 / 自动标题或绑定写入并发 | 高；既有DAO/Room | Room现场故障仍待验/R0 | 已实施本地验证 | 7通过/0失败错误跳过 | E935E247，14:07:19通过 | V0：IME/大字体/数据库设备 | 继续分组和删除；现场单独验收 |
+| P6a 绑定/解绑 | WorkspaceSetup、ChatHistoryDelegate、ChatDao | 顶栏工作区 → 目录选择 / 返回聊天 | ChatViewModel → 服务 → ChatHistoryManager | async.await 后发布；SQL 比较原路径/环境 | 已有等待实现；原值获取时机属调查线索 | 绑定已有目录 / 工具更改绑定 | 高；目录provider | 迟到绑定及冲突/R0 | 部分源码核实 | A0 | A0 | V0：SAF/SSH | 追踪点击快照及失败草稿 |
+| P6a 创建/模板/重新绑定 | WorkspaceSetup、WorkspaceUtils、WorkspaceCreation | 未绑定工作区 → 模板确认 / 成功或取消 | 现有工作区创建服务 | staging发布与绑定非共同事务 | 设计约束；模板成功但绑定失败 | 重用旧目录 / 模板工具 | 高；绑定链 | 部分完成/R0 | 调查队列 | A0 | A0 | V0：文件provider | 复核每个确认回调 |
+| P6a 文件/书签/管理模式 | FileManager、WorkspaceEditorState | 文件面板 → 新建/改名/删除/书签 / 关闭面板 | 原文件provider与编辑状态 | 路径/环境、dirty、异步持久化 | 调查线索；失败/并发编辑/移除被引用书签 | 管理文件 / 文件工具刷新 | 高；绑定 | 文件丢失/R0 | 调查队列 | A0 | A0 | V0：SAF | 逐个操作和错误路径 |
+| P6a 回滚/恢复 | WorkspaceBackupManager、ChatHistoryDelegate | 消息回滚确认 / 聊天 | 历史锁及备份owner | 先文件恢复、SQL、后清理清单 | 设计约束：无跨文件/SQL事务 | 回滚重发 / 工具文件改动 | 高；消息身份 | 部分恢复/R0 | 调查队列 | A0 | A0 | V0：文件I/O | 注入中间失败并核对反馈 |
+| P6a 命令/预览/导出 | WorkspaceManager、ExportDialogs | 工作区菜单 / 结果关闭 | 现有终端、预览、导出owner | chat/环境/commandId与取消清理 | 调查线索；切chat/配置/关闭 | 预览与打包 / 执行命令 | 高；provider | 错目标执行/R0 | 调查队列 | A0 | A0 | V0：命令/存储 | 核对任务身份及终态 |
+| P6a 终端设置/SSH/源 | TerminalScreen、SettingsScreen、SSHConfigScreen | 终端设置 → 编辑/环境 / Back | TerminalManager与配置manager | 保存等待、字段保留、setup路由 | 上轮已有修复，待源码反审 | 配置连接 / 终端调用 | 高；子模块规则 | 配置/锁顺序/R0 | 调查队列 | A0 | A0 | V0：真实SSH | 核对持久化/日志/初始化 |
+| P6a 会话/键盘 | TerminalHome、CanvasTerminalCompose、VirtualKeyboardCustomizationDialog | 会话/键盘菜单 / 终端 | TerminalManager、输入队列 | 当前session、原始按键与销毁 | 调查线索；切session时输入/关闭 | 粘贴选择 / 并发命令 | 高；子模块 | 错会话/R0 | 调查队列 | A0 | A0 | V0：设备键盘 | 逐按钮复核 |
+| P6b 时间线/payload/Raw | ConversationDetailsScreen | 顶栏详情 → Tab/展开/复制 / 关闭 | ConversationAuditRepository与详情投影 | chat/eventId、分页、解密取消 | 调查线索；切chat/失败/敏感文本 | 诊断详情 / Provider审计 | 高；审计契约 | 错内容/泄密/R0 | 入口与契约核实 | A0 | A0 | V0：Keystore/TalkBack | 逐Tab与payload链检查 |
+| P6b 修订/批注/导出/统计 | ConversationDetailsScreen、ConversationAuditExporter | 详情动作 → 表单 / 结果或取消 | 原审计owner | 原文比较、staging、实际写入结果 | 设计约束；发布文件后审计失败 | 保存诊断 / 读取审计 | 高；时间线 | 部分完成/R0 | 调查队列 | A0 | A0 | V0：实际存储 | 检查冲突/取消/敏感脱敏 |
+| P6c registry启用/禁用/删除 | PackageManager、ToolPkgManager | 扩展详情或市场动作 / 列表 | 唯一PackageManager/ToolPkgManager | initLock、引擎线程、关联偏好 | 已证实：disablePackage锁外读改写关联名单；并发可丢更新 | 快速启停 / 工具调用期间卸载 | 最高；引擎释放设计 | 死锁/旧清理伤新实例/R0 | 待实现 | A0 | A0 | V0：QuickJS设备 | 先拆状态发布与资源释放 |
+| P6c Skill导入/详情/删除 | SkillConfigScreen、SkillManager | Skill标签 → GitHub/ZIP/手动/详情 / 关闭 | SkillManager mutationLock | staging、单目录名、no-follow | 调查线索；取消/重名/刷新失败 | 安装技能 / Skill调用 | 高；registry | 部分文件发布/R0 | 调查队列 | A0 | A0 | V0：下载/SAF | 复核所有导入结果及弹层 |
+| P6c MCP配置/部署/导入 | MCPConfigScreen、MCPDeployViewModel、MCPRepository | MCP标签 → 编辑/部署/ZIP / 关闭 | MCPLocalServer/MCPManager与ViewModel | 配置锁、pluginId/代次、观察scope | 调查线索；后台草稿/部署取消 | 编辑服务 / MCP调用 | 高；终端/配置 | 部分部署/R0 | 调查队列 | A0 | A0 | V0：服务/SSH | 配置状态文件与后台确认 |
+| P6c 脚本/ToolPkg详情与执行 | PackageDetailsDialog、ScriptExecutionDialog | 扩展 → 参数/工具 / 关闭 | PackageManager与执行owner | 包身份、参数快照、任务释放 | 调查线索；流式回传/切子包 | 测试脚本 / 工具执行 | 高；registry | 重复副作用/R0 | 调查队列 | A0 | A0 | V0：脚本运行 | 核对取消及失败保留 |
+| P6c 市场列表/详情/账号 | UnifiedMarket各Screen/ViewModel | 扩展市场 → 作者/通知/管理/评论 / Back | 原市场ViewModel与认证缓存 | 账号/条目/页代次及可见性 | 调查线索；切账号/旧请求 | 浏览安装 / 扩展更新 | 高；registry/缓存 | 错账号结果/R0 | 调查队列 | A0 | A0 | V0：真实市场 | 按页拆筛选、确认、重试 |
+| P6c 发布/登记恢复 | ArtifactPublishScreen、RepoMarketPublishScreen | 市场发布 → 表单/确认 / Back | 原发布ViewModel | 上传后未知登记、跨进程边界 | 设计约束：当前恢复只在ViewModel | 发布制品 / 不执行真实发布 | 高；持久化设计 | 重复发布/R0 | 调查队列 | A0 | A0 | V0：真实发布未授权 | 明确跨进程恢复合同 |
+| P6d SQL单元格/滚动 | SqlViewerScreen/ViewModel | 工具箱SQL → 查询/单元格 / Back | SqlViewerViewModel | 查询快照、Canvas语义、分页 | 调查线索；复杂SQL/长值/TalkBack | 查看数据库 / SQL工具 | 高；SQL查询计划 | 不可读结果/R0 | 调查队列 | A0 | A0 | V0：数据库设备 | 补单元格与语义审查 |
+| P6d Shell/日志/ToolTester | 对应Screen/ViewModel | 工具箱 → 运行/确认/结果 / Back | 各原ViewModel | 执行占位、日志队列、批次停止 | 调查线索；隐藏页面/清理/取消 | 诊断 / 工具批量 | 高；日志/执行owner | 外部副作用/R0 | 调查队列 | A0 | A0 | V0：Shell/SAF | 反审首批剩余边界 |
+| P6d TTS/STT | TextToSpeechScreen、SpeechToTextScreen | 工具箱/语音设置 → 测试 / Back | SpeechServiceFactory/VoiceServiceFactory | 录音/播放lease、权限、离页 | 调查线索；共享资源交接 | 语音测试 / 语音工具 | 高；P5 | 抢资源/R0 | 调查队列 | A0 | A0 | V0：真实语音 | 逐动作/错误/取消 |
+| P6d 权限/默认助手/进程 | AppPermissionsScreen、DefaultAssistantGuideScreen、ProcessLimitRemoverScreen | 工具箱 → 系统设置/确认 / 恢复 | 原权限快照与系统owner | Activity结果、实际权限与命令范围 | 调查线索；拒绝/无可用Activity | 授权 / 权限工具 | 高；系统入口 | 错报授权/R0 | 调查队列 | A0 | A0 | V0：OEM/系统 | 区分说明与执行状态 |
+| P6d UI调试/自动化/Token | UIDebuggerScreen、AutoGlm两页、TokenConfigWebViewScreen | 工具箱 → 子控件 / Back | 原调试/自动化/配置owner | 后台可见性、执行及WebView释放 | 调查线索；离页/失败/重复运行 | 调试 / 自动化 | 高；原运行时 | 后台执行/R0 | 调查队列 | A0 | A0 | V0：设备/网络 | 按16项目录逐页拆分 |
+| P6d FFmpeg/HTML | FFmpegToolboxScreen、HtmlPackagerScreen | 工具箱 → 文件/参数/导出 / Back | 原FFmpeg/打包owner | provider、输入快照、取消清理 | 调查线索；长任务/失败 | 媒体与打包 / 文件工具 | 高；文件权限 | 部分产物/R0 | 调查队列 | A0 | A0 | V0：实际文件 | 核对入口可达子动作 |
+| P6e 列表/新建/模板/批删 | WorkflowListScreen、WorkflowViewModel | 抽屉工作流 → 新建/模板/选择 / Back | WorkflowViewModel/WorkflowRepository | 列表代次已有；写入互斥待审 | 调查线索；快速重复/离页迟到导航 | 创建工作流 / 管理工具 | 高；仓储 | 重复创建/R0 | 部分源码核实 | A0 | A0 | V0：实际调度 | 逐确认等待与草稿 |
+| P6e 详情/日志读取 | WorkflowDetailScreen、WorkflowViewModel.loadWorkflow | 列表条目 → 日志 / Back | 同一WorkflowViewModel | 当前详情与最新执行记录异步发布 | 已证实：loadWorkflow无目标代次，失败清日志且无日志错误反馈 | 切换详情 / 后台执行刷新 | 高；列表 | 迟到覆盖/R0 | 待实现 | A0 | A0 | V0：实际执行 | 绑定workflowId/代次 |
+| P6e 节点/连接/变量/触发器 | NodeDialog、ConnectionMenu、ScheduleConfigDialog | 编辑器 → 配置/删除 / 返回画布 | WorkflowViewModel/Repository | 节点/边ID、版本、整图读改写 | 调查线索；并发移动/编辑/非法连接 | 编辑图 / 工作流工具 | 最高；仓储 | 丢更新/非法执行/R0 | 调查队列 | A0 | A0 | V0：调度/触发器 | 拆类型校验和持久化 |
+| P6e 运行/停止/导入导出 | WorkflowDetailScreen、WorkflowListScreen | 运行或文件动作 / 完成/取消 | 现有执行器与仓储 | workflowId、重复运行、外部结果 | 调查线索；取消/覆盖/页面退出 | 运行图 / 工作流调用 | 高；节点与执行器 | 重复副作用/R0 | 调查队列 | A0 | A0 | V0：真实工作流 | 核对实际支持功能和确认 |
+| P6f 搜索/图谱/文件夹切换 | MemoryScreen、MemoryViewModel | 记忆库 → 搜索/文件夹 / 清空/Back | MemoryViewModel/MemoryRepository | 多链写入同一graph，查询变更不失效旧请求 | 已证实：loadMemoryGraph和search独立发布；快速切换可覆写 | 查询/浏览 / 记忆工具刷新 | 最高；图谱owner | 旧结果覆盖/R0 | 待实现 | A0 | A0 | V0：索引/设备 | 统一原owner内发布资格 |
+| P6f 文件夹创建/改名/删除 | FolderNavigator、MemoryViewModel | 文件夹菜单 → 确认 / 导航 | MemoryRepository及profile owner | 路径/引用/索引刷新 | 调查线索；嵌套路径/失败 | 管理目录 / 写记忆 | 高；图谱发布 | 引用/索引漂移/R0 | 调查队列 | A0 | A0 | V0：ObjectBox设备 | 逐菜单等待与部分失败 |
+| P6f 文档/编辑/链接/边/批删 | DocumentViewDialog、EditMemoryDialog、MemoryDialogs | 文档或图节点 → 弹层 / 关闭 | MemoryViewModel/Repository | memoryId/chunkId/edgeId、原值与离页 | 调查线索；编辑冲突/关闭迟到结果 | 编辑知识 / 记忆工具 | 高；仓储 | 丢草稿/孤儿链接/R0 | 调查队列 | A0 | A0 | V0：真实文档 | 逐保存删除与冲突 |
+| P6f 搜索设置/模拟/测试/导入 | MemorySearchSettingsDialog、MemorySearchSimulationDialog、ToolTestDialog | 记忆工具栏 → 表单/结果 / 关闭 | 原搜索配置与MemoryRepository | 配置/向量索引/请求代次/文件输入 | 调查线索；失败/重复/服务变更 | 调优搜索 / 检索工具 | 高；搜索发布 | 索引状态不一致/R0 | 调查队列 | A0 | A0 | V0：SAF/向量服务 | 核对每层配置和结果 |
+| P6g 模型/协议/参数/能力 | ModelConfigScreen、ModelApiSettingsSection、ModelParametersSection | AI设置 → 模型/选择器 / Back | ModelConfigManager/FunctionalConfigManager | configId、保存协调器、测试请求 | 设计约束：不改协议、不能默认替代非法值 | 配置模型 / 请求编译 | 高；模型能力owner | 误提交/凭据泄露/R0 | owner与入口核实 | A0 | A0 | V0：模型服务 | 逐字段/弹层/保存失败 |
+| P6g 提示词/角色/群组/用户 | ModelPromptsSettingsScreen及CharacterCardDialog等 | AI设置 → 编辑/绑定/导入 / Back | CharacterCard/Group、PromptTag、ActivePrompt managers | 身份、导入、并发保存与草稿 | 调查线索；切目标/迟到导入 | 个性化 / Prompt消费 | 高；原配置owner | 错绑定/R0 | owner与入口核实 | A0 | A0 | V0：文件/设备 | 逐16个提示词弹层等 |
+| P6g 外观/上下文/工具/语音 | ThemeSettings、ContextSummary、ToolPermission、SpeechServicesSettings | 来源保持设置 → 选择/编辑 / Back | 各既有偏好/语音owner | 持久化、共享语音、后台弹层 | 设计约束：固定全局主题，局部AI外观 | 设置 / 工具权限及上下文 | 高；P5/设置来源 | 错权限/共享资源/R0 | 调查队列 | A0 | A0 | V0：语音/视觉 | 按设置路由拆叶子 |
+| P6g 历史/备份/恢复/统计 | ChatHistorySettings、ChatBackupSettings、BackupDialogs、TokenUsageStatistics | AI设置 → 选择/确认 / 结果 | ChatHistoryManager与原备份owner | 数据库/文件/SAF、冲突/取消/结果等待 | 调查线索；导入失败/切chat/重名 | 备份恢复 / 对话数据 | 最高；审计/存储 | 数据丢失/R0 | 调查队列 | A0 | A0 | V0：SAF/恢复设备 | 核对全部格式与部分完成 |
+
+当前原生工具箱目录来自 `ScreenRouteRegistry.hostEntryDefinitions`：ToolTester、TextToSpeech、SpeechToText、AppPermissions、DefaultAssistantGuide、Terminal、UIDebugger、FFmpegToolbox、ShellExecutor、Logcat、SqlViewer、TokenConfig、ProcessLimitRemover、HtmlPackager、AutoGlmOneClick、AutoGlmTool，共16项。`AppRouteCatalog` 继续合并 PackageManager 提供的动态 ToolPkg；无注册示例不能仅凭类名加入“可达且已审”计数。新增可达性发现须更新本表。
+
 ## 对话主界面、输入与消息
 
 | 文件 | 页面或容器声明 | 行内弹层调用数 | 状态 |

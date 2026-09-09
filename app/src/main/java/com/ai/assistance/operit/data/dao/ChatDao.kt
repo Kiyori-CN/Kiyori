@@ -149,6 +149,10 @@ interface ChatDao {
     @Query("UPDATE chats SET displayOrder = :displayOrder, `group` = :group, updatedAt = :timestamp WHERE id = :chatId")
     suspend fun updateChatOrderAndGroup(chatId: String, displayOrder: Long, group: String?, timestamp: Long = System.currentTimeMillis())
 
+    /** 排序不改变聊天最近编辑时间，也不覆盖其他元数据。 */
+    @Query("UPDATE chats SET displayOrder = :displayOrder WHERE id = :chatId")
+    suspend fun updateChatDisplayOrder(chatId: String, displayOrder: Long)
+
     /** 批量更新聊天的顺序和分组 */
     @Update
     suspend fun updateChats(chats: List<ChatEntity>)

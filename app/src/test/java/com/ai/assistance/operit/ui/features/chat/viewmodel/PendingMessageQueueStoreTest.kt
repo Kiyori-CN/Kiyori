@@ -6,6 +6,28 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PendingMessageQueueStoreTest {
+    @Test fun lateRestoreDoesNotRecreateDeletedChat() {
+        val store = PendingMessageQueueStore()
+        store.enqueue("chat", "pending", true)
+        val item = store.states.value.getValue("chat").messages.single()
+        store.remove("chat", item.id)
+        store.removeChat("chat")
+        store.restore("chat", item)
+        assertFalse("chat" in store.states.value)
+    }
+
+    @Test fun outOfOrderCancellationRestoresOriginalQueueOrderWithoutDuplicates() {
+        val store = PendingMessageQueueStore()
+        listOf("first", "second", "third").forEach { store.enqueue("chat", it, true) }
+        val items = store.states.value.getValue("chat").messages
+        store.remove("chat", items[0].id)
+        store.remove("chat", items[1].id)
+        store.restore("chat", items[0])
+        store.restore("chat", items[1])
+        store.restore("chat", items[0])
+        assertEquals(items, store.states.value.getValue("chat").messages)
+    }
+
     @Test
     fun queueRemainsAvailableWhenAnotherChatIsVisited() {
         val store = PendingMessageQueueStore()

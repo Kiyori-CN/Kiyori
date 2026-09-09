@@ -46,6 +46,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.util.AppLogger
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 
 /**
  * 消息编辑器组件，用于编辑包含XML标签的消息
@@ -83,9 +88,8 @@ fun parseMessageContentForEditor(content: String): List<ParsedMessagePart> {
         val startIndex = matchResult.range.first
         if (startIndex > lastIndex) {
             val textPart = content.substring(lastIndex, startIndex)
-            if (textPart.isNotBlank()) {
-                parts.add(ParsedMessagePart(PartType.TEXT, textPart, null, null))
-            }
+            // XML 之间的空白仍是用户正文，忽略它会在仅打开编辑器时删掉换行。
+            parts.add(ParsedMessagePart(PartType.TEXT, textPart, null, null))
         }
         val tag = matchResult.groupValues[1]
         val attributes = matchResult.groupValues[2]
@@ -96,9 +100,7 @@ fun parseMessageContentForEditor(content: String): List<ParsedMessagePart> {
 
     if (lastIndex < content.length) {
         val trailingText = content.substring(lastIndex)
-        if (trailingText.isNotBlank()) {
-            parts.add(ParsedMessagePart(PartType.TEXT, trailingText, null, null))
-        }
+        parts.add(ParsedMessagePart(PartType.TEXT, trailingText, null, null))
     }
     return parts
 }
@@ -118,34 +120,56 @@ fun recomposeMessageFromParts(parts: List<ParsedMessagePart>): String {
 fun MessageEditor(
     editingMessageContent: MutableState<String>,
     onCancel: () -> Unit,
-    onSave: () -> Unit,
+    onSave: suspend (String) -> Boolean,
     onResend: () -> Unit,
     showResendButton: Boolean
 ) {
     val context = LocalContext.current
-    val initialParts = remember(editingMessageContent.value) {
+    val initialParts = remember {
         parseMessageContentForEditor(editingMessageContent.value)
     }
     var partsState by remember { mutableStateOf(initialParts) }
     var partToEdit by remember { mutableStateOf<Pair<Int, ParsedMessagePart>?>(null) }
     var showCreateTagDialog by remember { mutableStateOf(false) }
     var isRawEditMode by remember { mutableStateOf(false) }
+    val initialContent = remember { editingMessageContent.value }
+    var saving by remember { mutableStateOf(false) }
+    var saveFailed by remember { mutableStateOf(false) }
+    var confirmDiscard by remember { mutableStateOf(false) }
+    val editorScope = rememberCoroutineScope()
 
-    LaunchedEffect(partsState) {
-        if (!isRawEditMode) {
-            editingMessageContent.value = recomposeMessageFromParts(partsState)
-        }
+    fun updateParts(parts: List<ParsedMessagePart>) {
+        partsState = parts
+        // 在输入回调内同步正文；不能等下一帧的Effect，否则立即保存会漏掉最后一次输入。
+        editingMessageContent.value = recomposeMessageFromParts(parts)
     }
-
-    LaunchedEffect(isRawEditMode) {
-        if (!isRawEditMode) {
-            // Just switched from raw to visual editor, re-parse the content
-            partsState = parseMessageContentForEditor(editingMessageContent.value)
+    fun requestClose() {
+        if (saving) return
+        if (editingMessageContent.value != initialContent) confirmDiscard = true else onCancel()
+    }
+    fun save() {
+        if (saving) return
+        saving = true
+        saveFailed = false
+        val submittedContent = editingMessageContent.value
+        editorScope.launch {
+            try {
+                val saved = onSave(submittedContent)
+                currentCoroutineContext().ensureActive()
+                if (saved) onCancel() else saveFailed = true
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                AppLogger.e("MessageEditor", "Save failed: ${failure.javaClass.simpleName}")
+                saveFailed = true
+            } finally {
+                saving = false
+            }
         }
     }
 
     Dialog(
-        onDismissRequest = onCancel,
+        onDismissRequest = { requestClose() },
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(
@@ -169,20 +193,25 @@ fun MessageEditor(
                 ) {
                     Text(
                         context.getString(R.string.edit_message),
+                        modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        TextButton(onClick = { isRawEditMode = !isRawEditMode }) {
+                        TextButton(enabled = !saving, onClick = {
+                            if (isRawEditMode) partsState = parseMessageContentForEditor(editingMessageContent.value)
+                            isRawEditMode = !isRawEditMode
+                        }) {
                             Text(if (isRawEditMode) context.getString(R.string.visual) else context.getString(R.string.plain_text))
                         }
 
                         IconButton(
-                            onClick = onCancel,
+                            onClick = { requestClose() },
+                            enabled = !saving,
                             modifier = Modifier
-                                .size(40.dp)
+                                .size(48.dp)
                                 .clip(CircleShape)
                         ) {
                             Icon(
@@ -204,6 +233,7 @@ fun MessageEditor(
                     if (isRawEditMode) {
                         OutlinedTextField(
                             value = editingMessageContent.value,
+                            enabled = !saving,
                             onValueChange = { editingMessageContent.value = it },
                             modifier = Modifier
                                 .fillMaxSize()
@@ -248,10 +278,11 @@ fun MessageEditor(
                                         Box(modifier = Modifier.padding(bottom = 8.dp)) {
                                             OutlinedTextField(
                                                 value = part.content,
+                                                enabled = !saving,
                                                 onValueChange = { newText ->
                                                     val updatedParts = partsState.toMutableList()
                                                     updatedParts[index] = part.copy(content = newText)
-                                                    partsState = updatedParts
+                                                    updateParts(updatedParts)
                                                 },
                                                 modifier = Modifier
                                                     .fillMaxWidth()
@@ -272,10 +303,11 @@ fun MessageEditor(
                                             ActionIconButton(
                                                 icon = Icons.Default.Delete,
                                                 contentDescription = context.getString(R.string.delete),
+                                                enabled = !saving,
                                                 onClick = {
                                                     val updatedParts = partsState.toMutableList()
                                                     updatedParts.removeAt(index)
-                                                    partsState = updatedParts
+                                                    updateParts(updatedParts)
                                                 },
                                                 modifier = Modifier
                                                     .align(Alignment.TopEnd)
@@ -286,11 +318,12 @@ fun MessageEditor(
                                     PartType.XML -> {
                                         XmlTagItem(
                                             part = part,
+                                            enabled = !saving,
                                             onClick = { partToEdit = index to part },
                                             onDelete = {
                                                 val updatedParts = partsState.toMutableList()
                                                 updatedParts.removeAt(index)
-                                                partsState = updatedParts
+                                                updateParts(updatedParts)
                                             }
                                         )
                                         Spacer(modifier = Modifier.height(8.dp))
@@ -299,7 +332,7 @@ fun MessageEditor(
                             }
 
                             // Add part buttons
-                            Row(
+                            FlowRow(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 4.dp),
@@ -307,7 +340,8 @@ fun MessageEditor(
                             ) {
                                 // Add text button
                                 OutlinedButton(
-                                    onClick = { partsState = partsState + ParsedMessagePart(PartType.TEXT, "") },
+                                    onClick = { updateParts(partsState + ParsedMessagePart(PartType.TEXT, "")) },
+                                    enabled = !saving,
                                     shape = RoundedCornerShape(16.dp),
                                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
                                     colors = ButtonDefaults.outlinedButtonColors(
@@ -317,7 +351,7 @@ fun MessageEditor(
                                 ) {
                                     Icon(
                                         Icons.Default.Add,
-                                        contentDescription = context.getString(R.string.add_text),
+                                        contentDescription = null,
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
@@ -330,6 +364,7 @@ fun MessageEditor(
                                 // Add tag button
                                 OutlinedButton(
                                     onClick = { showCreateTagDialog = true },
+                                    enabled = !saving,
                                     shape = RoundedCornerShape(16.dp),
                                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
                                     colors = ButtonDefaults.outlinedButtonColors(
@@ -339,7 +374,7 @@ fun MessageEditor(
                                 ) {
                                     Icon(
                                         Icons.Outlined.Tag,
-                                        contentDescription = context.getString(R.string.add_tag),
+                                        contentDescription = null,
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
@@ -353,17 +388,24 @@ fun MessageEditor(
                     }
                 }
 
-                // Action buttons
-                Row(
+                if (saveFailed) {
+                    Text(
+                        context.getString(R.string.chat_message_edit_save_failed),
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
+                }
+                // 长按钮在窄屏和大字体下换行，保持每个动作可达。
+                FlowRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextButton(
-                        onClick = onCancel,
+                        onClick = { requestClose() },
+                        enabled = !saving,
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         Text(
@@ -377,14 +419,15 @@ fun MessageEditor(
 
                     if (showResendButton) {
                         OutlinedButton(
-                            onClick = onSave,
+                            onClick = { save() },
+                            enabled = !saving,
                             shape = RoundedCornerShape(16.dp),
                             border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
                                 width = 1.dp
                             )
                         ) {
                             Text(
-                                context.getString(R.string.save),
+                                context.getString(if (saving) R.string.chat_metadata_saving else R.string.save),
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Medium
                             )
@@ -394,6 +437,7 @@ fun MessageEditor(
 
                         Button(
                             onClick = onResend,
+                            enabled = !saving,
                             shape = RoundedCornerShape(16.dp),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                             colors = ButtonDefaults.buttonColors(
@@ -414,11 +458,12 @@ fun MessageEditor(
                         }
                     } else {
                         Button(
-                            onClick = onSave,
+                            onClick = { save() },
+                            enabled = !saving,
                             shape = RoundedCornerShape(16.dp)
                         ) {
                             Text(
-                                context.getString(R.string.update_memory),
+                                context.getString(if (saving) R.string.chat_metadata_saving else R.string.save),
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Medium
                             )
@@ -439,13 +484,26 @@ fun MessageEditor(
             },
             onSave = { updatedPart ->
                 if (partToEdit != null) {
-                    partsState = partsState.toMutableList().apply { set(partToEdit!!.first, updatedPart) }
+                    updateParts(partsState.toMutableList().apply { set(partToEdit!!.first, updatedPart) })
                 } else {
-                    partsState = partsState + updatedPart
+                    updateParts(partsState + updatedPart)
                 }
                 partToEdit = null
                 showCreateTagDialog = false
             }
+        )
+    }
+    if (confirmDiscard) {
+        AlertDialog(
+            onDismissRequest = { confirmDiscard = false },
+            title = { Text(context.getString(R.string.pkg_env_discard_title)) },
+            text = { Text(context.getString(R.string.chat_message_edit_discard)) },
+            confirmButton = {
+                TextButton(onClick = onCancel) { Text(context.getString(R.string.pkg_env_discard)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDiscard = false }) { Text(context.getString(R.string.cancel)) }
+            },
         )
     }
 }
@@ -453,6 +511,7 @@ fun MessageEditor(
 @Composable
 private fun XmlTagItem(
     part: ParsedMessagePart,
+    enabled: Boolean,
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -513,12 +572,14 @@ private fun XmlTagItem(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     ActionIconButton(
                         icon = Icons.Default.Edit,
+                        enabled = enabled,
                         contentDescription = context.getString(R.string.edit),
                         onClick = onClick
                     )
 
                     ActionIconButton(
                         icon = Icons.Default.Delete,
+                        enabled = enabled,
                         contentDescription = context.getString(R.string.delete),
                         onClick = onDelete
                     )
@@ -564,12 +625,14 @@ private fun ActionIconButton(
     icon: ImageVector,
     contentDescription: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     IconButton(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier
-            .size(40.dp)
+            .size(48.dp)
             .clip(CircleShape)
     ) {
         Icon(

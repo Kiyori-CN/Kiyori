@@ -5,7 +5,6 @@ import android.net.Uri
 import androidx.room.withTransaction
 import com.ai.assistance.operit.util.AppLogger
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.ai.assistance.operit.R
@@ -829,25 +828,14 @@ class ChatHistoryManager private constructor(private val context: Context) {
         }
     }
 
-    // 获取当前聊天ID
-    private val _currentChatIdFlow: Flow<String?> =
-        context.currentChatIdDataStore.data
-            .catch { exception ->
-                if (exception is IOException) {
-                    emit(emptyPreferences())
-                } else {
-                    throw exception
-                }
-            }
-            .map { preferences -> preferences[PreferencesKeys.CURRENT_CHAT_ID] }
+    private val currentSelectionObserver = CurrentChatSelectionObserver(
+        CoroutineScope(Dispatchers.IO + SupervisorJob()),
+    ) { context.currentChatIdDataStore.data.map { it[PreferencesKeys.CURRENT_CHAT_ID] } }
+    val currentChatIdFlow = currentSelectionObserver.currentChatId
+    val currentChatSelectionReadState = currentSelectionObserver.state
 
-    // 转换为StateFlow以便共享
-    val currentChatIdFlow =
-        _currentChatIdFlow.stateIn(
-            CoroutineScope(Dispatchers.IO + SupervisorJob()),
-            SharingStarted.Lazily,
-            null
-        )
+    fun retryCurrentChatSelection(expected: ChatSelectionReadState.Failed) =
+        currentSelectionObserver.retry(expected)
 
     /**
      * 读取 DataStore 已持久化的当前会话 ID。
@@ -855,7 +843,8 @@ class ChatHistoryManager private constructor(private val context: Context) {
      * 启动流程不能直接读取惰性 StateFlow 的初始 null，否则可能把尚未发出首个持久化值的
      * 既有安装误判为没有当前会话。
      */
-    suspend fun readPersistedCurrentChatId(): String? = _currentChatIdFlow.first()
+    suspend fun readPersistedCurrentChatId(): String? =
+        context.currentChatIdDataStore.data.first()[PreferencesKeys.CURRENT_CHAT_ID]
 
     private fun validateArchivedMessageVariants(
         message: ChatMessage,
@@ -1126,23 +1115,92 @@ class ChatHistoryManager private constructor(private val context: Context) {
      */
     suspend fun updateChatOrderAndGroup(updatedHistories: List<ChatHistory>) {
         globalMutex.withLock {
-            try {
-                val timestamp = System.currentTimeMillis()
-                val entitiesToUpdate = updatedHistories.map { history ->
-                    // Find the original entity to keep other fields intact
-                    val originalEntity = chatDao.getChatById(history.id)
-                    originalEntity?.copy(
-                        displayOrder = history.displayOrder,
-                        group = history.group,
-                        updatedAt = timestamp
-                    ) ?: ChatEntity.fromChatHistory(history.copy(updatedAt = LocalDateTime.now()))
+            database.withTransaction {
+                // Web兼容入口仍接受原列表协议；只写指定列，不能以旧整行快照覆盖并发元数据。
+                updatedHistories.forEach { history ->
+                    chatDao.updateChatOrderAndGroup(history.id, history.displayOrder, history.group)
                 }
-                chatDao.updateChats(entitiesToUpdate)
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "Failed to update chat order and group", e)
-                throw e
             }
         }
+    }
+
+    suspend fun moveChat(move: ChatOrderMove) {
+        globalMutex.withLock {
+            database.withTransaction {
+                val original = chatDao.getAllChatsDirectly().map { it.toChatHistory(emptyList()) }
+                val updated = applyChatOrderMove(original, move)
+                val originalById = original.associateBy { it.id }
+                updated.forEach { chat ->
+                    val previous = originalById.getValue(chat.id)
+                    if (chat.displayOrder != previous.displayOrder) {
+                        chatDao.updateChatDisplayOrder(chat.id, chat.displayOrder)
+                    }
+                    if (chat.id == move.original.id) {
+                        if (chat.group != previous.group) chatDao.updateChatGroup(chat.id, chat.group)
+                        if (chat.characterCardName != previous.characterCardName || chat.characterGroupId != previous.characterGroupId) {
+                            chatDao.updateChatCharacterBinding(chat.id, chat.characterCardName, chat.characterGroupId)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    suspend fun getChatGroupMembers(target: ChatGroupTarget): List<ChatGroupMember> =
+        chatDao.getAllChatsDirectly()
+            .filter { target.matches(it.group, it.characterCardName, it.characterGroupId) }
+            .map { ChatGroupMember(it.id, it.locked) }
+
+    suspend fun renameChatGroup(target: ChatGroupTarget, newName: String) {
+        require(newName.isNotBlank())
+        globalMutex.withLock {
+            database.withTransaction {
+                val members = chatDao.getAllChatsDirectly()
+                    .filter { target.matches(it.group, it.characterCardName, it.characterGroupId) }
+                if (members.isEmpty()) throw ChatGroupChangedException()
+                members.forEach { chat ->
+                    chatDao.updateChatOrderAndGroup(chat.id, chat.displayOrder, newName.trim())
+                }
+            }
+        }
+    }
+
+    /** 停止运行与切换选择在服务层完成；事务内再次比较，不能删除后来加入/解锁的成员。 */
+    suspend fun deleteChatGroup(
+        target: ChatGroupTarget,
+        expected: List<ChatGroupMember>,
+        deleteChats: Boolean,
+    ): Set<String> = globalMutex.withLock {
+        val deletedIds = database.withTransaction {
+            val members = chatDao.getAllChatsDirectly()
+                .filter { target.matches(it.group, it.characterCardName, it.characterGroupId) }
+            requireUnchangedChatGroup(expected, members.map { ChatGroupMember(it.id, it.locked) })
+            buildSet {
+                members.forEach { chat ->
+                    if (deleteChats && !chat.locked) {
+                        chatDao.deleteChat(chat.id)
+                        add(chat.id)
+                    } else {
+                        chatDao.updateChatOrderAndGroup(chat.id, chat.displayOrder, null)
+                    }
+                }
+            }
+        }
+        if (deletedIds.isNotEmpty()) {
+            try {
+                conversationAuditRepository.cleanupUnreferencedPayloads()
+                context.currentChatIdDataStore.edit { preferences ->
+                    if (preferences[PreferencesKeys.CURRENT_CHAT_ID] in deletedIds) {
+                        preferences.remove(PreferencesKeys.CURRENT_CHAT_ID)
+                    }
+                }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                throw ChatGroupCleanupException(deletedIds, failure.javaClass.simpleName)
+            }
+        }
+        deletedIds
     }
 
     /**
@@ -2311,6 +2369,26 @@ class ChatHistoryManager private constructor(private val context: Context) {
         }
     }
 
+    /** 历史编辑在同一事务中比较原值并提交，不能出现标题成功而绑定失败的半次保存。 */
+    suspend fun editChatMetadata(
+        chatId: String,
+        original: ChatMetadataSnapshot,
+        edited: ChatMetadataSnapshot,
+    ): ChatMetadataSnapshot = chatMutex(chatId).withLock {
+        database.withTransaction {
+            val chat = chatDao.getChatById(chatId) ?: throw ChatMetadataConflictException()
+            val current = ChatMetadataSnapshot(chat.title, chat.characterCardName, chat.characterGroupId)
+            val merged = mergeChatMetadataEdit(current, original, edited)
+            if (merged.title != current.title) chatDao.updateChatTitle(chatId, merged.title)
+            if (merged.characterCardName != current.characterCardName ||
+                merged.characterGroupId != current.characterGroupId
+            ) {
+                chatDao.updateChatCharacterBinding(chatId, merged.characterCardName, merged.characterGroupId)
+            }
+            merged
+        }
+    }
+
     // 更新聊天标题
     suspend fun updateChatTitle(chatId: String, title: String) {
         chatMutex(chatId).withLock {
@@ -2375,6 +2453,18 @@ class ChatHistoryManager private constructor(private val context: Context) {
     }
 
     // 设置当前聊天ID
+    suspend fun compareAndSetCurrentChatId(expectedId: String?, chatId: String?): Boolean {
+        var selected = false
+        context.currentChatIdDataStore.edit { preferences ->
+            if (preferences[PreferencesKeys.CURRENT_CHAT_ID] == expectedId) {
+                if (chatId == null) preferences.remove(PreferencesKeys.CURRENT_CHAT_ID)
+                else preferences[PreferencesKeys.CURRENT_CHAT_ID] = chatId
+                selected = true
+            }
+        }
+        return selected
+    }
+
     suspend fun setCurrentChatId(chatId: String) {
         context.currentChatIdDataStore.edit { preferences ->
             preferences[PreferencesKeys.CURRENT_CHAT_ID] = chatId
@@ -2391,24 +2481,16 @@ class ChatHistoryManager private constructor(private val context: Context) {
     // 检查聊天是否存在
     suspend fun chatExists(chatId: String): Boolean {
         return kotlinx.coroutines.withContext(Dispatchers.IO) {
-            try {
-                chatDao.getChatById(chatId) != null
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "Failed to check chat existence for chat $chatId", e)
-                false
-            }
+            // 读取失败或取消不能被当作聊天不存在并清掉当前选择。
+            chatDao.getChatById(chatId) != null
         }
     }
 
     suspend fun canDeleteChatHistory(chatId: String): Boolean {
         return withContext(Dispatchers.IO) {
-            try {
-                val chat = chatDao.getChatById(chatId)
-                chat != null && chat.locked != true
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "Failed to check whether chat $chatId can be deleted", e)
-                false
-            }
+            // 读取失败和取消不是“聊天已锁定”；交给调用方保留真实失败状态。
+            val chat = chatDao.getChatById(chatId)
+            chat != null && chat.locked != true
         }
     }
 
@@ -2424,18 +2506,22 @@ class ChatHistoryManager private constructor(private val context: Context) {
                 if (chat == null) {
                     return false
                 }
-                // 删除聊天实体（级联删除所有消息）
-                chatDao.deleteChat(chatId)
-                conversationAuditRepository.cleanupUnreferencedPayloads()
-
-                // 如果删除的是当前聊天，清除当前聊天ID
-                val currentChatId = currentChatIdFlow.first()
-                if (currentChatId == chatId) {
-                    context.currentChatIdDataStore.edit { preferences ->
-                        preferences.remove(PreferencesKeys.CURRENT_CHAT_ID)
+                return completeChatDeletion(
+                    delete = {
+                        // 删除实体的结果是后续清理边界，不能混成一次可重试的失败。
+                        chatDao.deleteChat(chatId)
+                        true
+                    },
+                    afterDelete = {
+                        conversationAuditRepository.cleanupUnreferencedPayloads()
+                        context.currentChatIdDataStore.edit { preferences ->
+                            // 在同一次DataStore edit中比较，避免旧读取清掉新聊天选择。
+                            if (preferences[PreferencesKeys.CURRENT_CHAT_ID] == chatId) {
+                                preferences.remove(PreferencesKeys.CURRENT_CHAT_ID)
+                            }
+                        }
                     }
-                }
-                return true
+                )
             } catch (e: Exception) {
                 throw e
             }

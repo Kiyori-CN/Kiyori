@@ -47,6 +47,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import com.ai.assistance.operit.services.core.ChatWindowLoadFailure
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -192,6 +198,11 @@ fun ChatArea(
     hasOlderDisplayHistory: Boolean = false,
     hasNewerDisplayHistory: Boolean = false,
     isLoadingDisplayWindow: Boolean = false,
+    selectionReadFailure: com.ai.assistance.operit.data.repository.ChatSelectionReadState.Failed? = null,
+    onRetrySelectionRead: ((com.ai.assistance.operit.data.repository.ChatSelectionReadState.Failed) -> Unit)? = null,
+    loadFailure: ChatWindowLoadFailure? = null,
+    onRetryDisplayWindow: ((ChatWindowLoadFailure) -> Unit)? = null,
+    onDismissDisplayWindowFailure: ((ChatWindowLoadFailure) -> Unit)? = null,
     onLoadOlderDisplayWindow: (() -> Unit)? = null,
     onLoadNewerDisplayWindow: (() -> Unit)? = null,
     onShowLatestDisplayWindow: (() -> Unit)? = null,
@@ -223,6 +234,9 @@ fun ChatArea(
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
+    val visibleLoadFailure = loadFailure?.takeIf { it.chatId == currentChatId }
+    var failureHeightPx by remember(currentChatId, visibleLoadFailure, selectionReadFailure) { mutableStateOf(0) }
+    val failureHeight = with(density) { failureHeightPx.toDp() }
     val coroutineScope = rememberCoroutineScope()
     val preferencesManager = remember { UserPreferencesManager.getInstance(context) }
     val showMessageTokenStats by
@@ -260,6 +274,7 @@ fun ChatArea(
             autoScrollToBottom &&
                 hasNewerDisplayHistory &&
                 !isLoadingDisplayWindow &&
+                visibleLoadFailure == null && selectionReadFailure == null &&
                 onShowLatestDisplayWindow != null
         ) {
             onShowLatestDisplayWindow.invoke()
@@ -382,8 +397,18 @@ fun ChatArea(
                     .padding(horizontal = horizontalPadding)
                     .verticalScroll(scrollState)
                     .background(Color.Transparent)
-                    .padding(top = topPadding, bottom = bottomPadding),
+                    .padding(top = topPadding + failureHeight, bottom = bottomPadding),
         ) {
+            if (isLoadingDisplayWindow) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    Text(stringResource(R.string.loading), modifier = Modifier.padding(start = 8.dp))
+                }
+            }
             if (hasOlderDisplayHistory) {
                 Text(
                     text = stringResource(id = R.string.load_more_history),
@@ -534,6 +559,48 @@ fun ChatArea(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        if (visibleLoadFailure != null || selectionReadFailure != null) {
+            val failure = visibleLoadFailure
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = topPadding)
+                    .onGloballyPositioned { failureHeightPx = it.size.height }
+                    .semantics { liveRegion = LiveRegionMode.Polite },
+                color = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+            ) {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Text(
+                        stringResource(
+                            if (selectionReadFailure != null) R.string.chat_selection_read_failed
+                            else if (failure?.historyChanged == true) R.string.chat_window_history_changed
+                            else R.string.chat_window_load_failed,
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    FlowRow {
+                        TextButton(
+                            enabled = !isLoadingDisplayWindow,
+                            onClick = {
+                                if (selectionReadFailure != null) {
+                                    onRetrySelectionRead?.invoke(selectionReadFailure)
+                                } else if (failure != null) {
+                                    failure.targetTimestamp?.let { pendingJumpToMessageTimestamp = it }
+                                    onRetryDisplayWindow?.invoke(failure)
+                                }
+                            },
+                        ) { Text(stringResource(R.string.chat_window_retry)) }
+                        if (selectionReadFailure == null && failure != null) {
+                            TextButton(onClick = { onDismissDisplayWindowFailure?.invoke(failure) }) {
+                                Text(stringResource(R.string.close))
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         ChatScrollNavigator(
