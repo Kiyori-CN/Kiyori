@@ -202,6 +202,10 @@ Python 代码运行器接受原始源码，无需手动做 Shell 引号转义；
 
 扩展系统让能力可以按任务组合，而不必把所有功能都固化到 Android 主应用中。
 
+**办公文档套件**支持 Word、Excel、PowerPoint 和 PDF 的生成与编辑。AI 可直接读取分页预览图，
+按锚点修改论文中的公式、图片和图表，或在已有 PPT 中追加原生元素、调整样式、分组及基础动画转场。
+启用方式、环境要求与验收边界见 [办公套件指南](docs/user-guide/extensions.md#办公文档套件)。
+
 | 类型 | 用途与资料 |
 | --- | --- |
 | **脚本** | 通过 JavaScript 与宿主 API 提供工具；TypeScript 可作为源码开发语言。见 [脚本开发指南](docs/SCRIPT_DEV_GUIDE.md)。 |

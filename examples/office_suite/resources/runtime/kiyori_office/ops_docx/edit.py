@@ -88,7 +88,7 @@ def docx_edit(args: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(anchor, dict):
         raise OfficeError("E_INPUT_SCHEMA", "anchor 必须是对象")
     operation = str(args.get("operation") or "")
-    if operation not in ("replace", "insert_before", "insert_after", "delete"):
+    if operation not in ("replace", "insert_before", "insert_after", "delete", "insert_blocks_before", "insert_blocks_after", "set_formula", "replace_image", "set_chart"):
         raise OfficeError(
             "E_INPUT_SCHEMA",
             "operation 必须是 replace/insert_before/insert_after/delete",
@@ -97,8 +97,67 @@ def docx_edit(args: Dict[str, Any]) -> Dict[str, Any]:
 
     document = _open_document(source)
     paragraph = _resolve_paragraph(document, anchor)
-    _check_plain_paragraph(document, paragraph, operation)
-    if operation == "replace":
+    if operation in {"set_formula", "replace_image", "set_chart"}:
+        from docx.oxml.ns import qn
+        index=args.get("object_index",0)
+        if type(index) is not int or index<0:
+            raise OfficeError("E_INPUT_SCHEMA", "object_index 必须为非负整数")
+        if operation=="set_formula":
+            objects=paragraph._p.xpath('.//m:oMath')
+        elif operation=="replace_image":
+            objects=paragraph._p.xpath('.//a:blip')
+        else:
+            objects=list(paragraph._p.iter('{http://schemas.openxmlformats.org/drawingml/2006/chart}chart'))
+        if index>=len(objects):
+            raise OfficeError("E_ANCHOR_NOT_FOUND", "指定段落中不存在该对象索引")
+        target=objects[index]
+        if operation=="set_formula":
+            from ..math import parse_omml
+            target.getparent().replace(target,parse_omml(args.get('omml')))
+        elif operation=="replace_image":
+            if target.get(qn('r:link')):
+                raise OfficeError('E_FORMAT_UNSUPPORTED','不替换外部链接图片')
+            image=resolve_path(args.get('image_path'),args=args,field='image_path',must_exist=True)
+            old=target.get(qn('r:embed'))
+            rid,_=document.part.get_or_add_image(str(image))
+            target.set(qn('r:embed'),rid)
+            if old and not any(node.get(qn('r:embed'))==old for node in document.element.iter()):
+                document.part.drop_rel(old)
+        else:
+            from .chart import edit_chart
+            if not set(args)&{'chart_data','chart_style'}:
+                raise OfficeError('E_INPUT_SCHEMA','set_chart 需要 chart_data/chart_style')
+            edit_chart(document,target,args)
+    else:
+        _check_plain_paragraph(document, paragraph, operation.replace("_blocks", ""))
+    if operation in ("insert_blocks_before", "insert_blocks_after"):
+        if "text" in args:
+            raise OfficeError("E_INPUT_SCHEMA", "insert_blocks 使用 blocks，不能同时提供 text")
+        from .create import _append_spec
+        from docx.shared import Pt
+        from docx.section import Section
+        from docx.oxml.ns import qn
+        # 分节属性定义它之前的内容；插入图片必须按锚点所在节计算宽高。
+        after = operation == "insert_blocks_after"
+        cursor = paragraph._p.getnext() if after else paragraph._p
+        section = None
+        while cursor is not None:
+            properties = cursor.find(".//" + qn("w:sectPr")) if cursor.tag != qn("w:sectPr") else cursor
+            if properties is not None:
+                section = Section(properties, document.part)
+                break
+            cursor = cursor.getnext()
+        before = set(document.element.body)
+        _append_spec(document, {"blocks": args.get("blocks")}, Pt, args=args, section=section)
+        added = [node for node in document.element.body if node not in before]
+        reference = paragraph._p
+        for node in added:
+            if after:
+                reference.addnext(node)
+                reference = node
+            else:
+                paragraph._p.addprevious(node)
+    elif operation == "replace":
         if "text" not in args:
             raise OfficeError("E_INPUT_SCHEMA", "replace 需要 text")
         merge_runs(paragraph)
@@ -114,7 +173,7 @@ def docx_edit(args: Dict[str, Any]) -> Dict[str, Any]:
             paragraph._element.addprevious(new_paragraph._element)
         else:
             paragraph._element.addnext(new_paragraph._element)
-    else:
+    elif operation == "delete":
         paragraph._element.getparent().remove(paragraph._element)
 
     output.parent.mkdir(parents=True, exist_ok=True)

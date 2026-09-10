@@ -411,6 +411,25 @@ def _check_pptx(archive: zipfile.ZipFile, names: set, summary: Dict[str, Any]) -
                 issues.append(_issue('SLIDE_RELATION_INVALID', '页面关系缺失或重复：%s -> %s' % (identity, target),
                                      '%s#slide[%d]' % (presentation, index)))
             seen_targets.add(target)
+    for entry in slide_parts:
+        try:
+            slide = ElementTree.fromstring(archive.read(entry))
+        except ElementTree.ParseError as exc:
+            issues.append(_issue('SLIDE_XML_INVALID', '页面 XML 无法解析', '%s: %s' % (entry, exc)))
+            continue
+        ids = [node.get('id') for node in slide.iter(namespace + 'cNvPr')]
+        if len(ids) != len(set(ids)):
+            issues.append(_issue('SHAPE_ID_DUPLICATE', '页内对象 ID 重复，增量编辑或动画定位不可靠', entry))
+        time_ids = [node.get('id') for node in slide.iter(namespace + 'cTn')]
+        if len(time_ids) != len(set(time_ids)):
+            issues.append(_issue('ANIMATION_TIME_ID_DUPLICATE', '动画时间节点 ID 重复', entry))
+        for kind in ('spTgt', 'bldP'):
+            for node in slide.iter(namespace + kind):
+                if node.get('spid') not in ids:
+                    issues.append(_issue('ANIMATION_TARGET_MISSING', '动画引用不存在的对象', '%s#%s' % (entry,node.get('spid'))))
+        for node in slide.iter(namespace + 'tn'):
+            if node.get('val') not in time_ids:
+                issues.append(_issue('ANIMATION_TIME_TARGET_MISSING', '动画引用不存在的时间节点', '%s#%s' % (entry,node.get('val'))))
     for entry in sorted(name for name in names if name.startswith("ppt/charts/chart")):
         if not entry.endswith(".xml"):
             continue

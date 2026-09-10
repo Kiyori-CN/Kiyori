@@ -45,6 +45,7 @@ export type OfficeEnvelope = {
 };
 
 export type OfficeArtifact = {
+  page?: number;
   role: string;
   path: string;
   env: string;

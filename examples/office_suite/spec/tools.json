@@ -387,8 +387,8 @@
       "command": "office_render_preview",
       "advice": false,
       "description": {
-        "zh": "产物 → PDF → 分页 JPEG，返回 Android 路径；必须再用 direct_image 逐页看图。",
-        "en": "Render output to PDF then per-page JPEG and return Android paths; inspect every page with direct_image."
+        "zh": "Word/PPT/PDF 转分页图片，直接附加多模态图像和页码；每次最多8页，需真正看图后验收。PPT 附结构版面诊断。",
+        "en": "Render Word/PPT/PDF pages and attach multimodal images with page numbers, at most 8 per call; actual image review is required. PPT includes layout diagnostics."
       },
       "nextActions": [
         "office_validate"
@@ -474,6 +474,24 @@
           },
           "type": "string",
           "required": false
+        },
+        {
+          "name": "layout_report",
+          "type": "boolean",
+          "required": false,
+          "description": {
+            "zh": "默认 true，PPT 返回结构版面诊断",
+            "en": "Default true: include structural layout diagnostics for PPT"
+          }
+        },
+        {
+          "name": "region",
+          "type": "object",
+          "required": false,
+          "description": {
+            "zh": "局部细看：left/top/width/height 为页面归一化 0-1 坐标；返回裁剪图，最长边2048",
+            "en": "Detail crop: left/top/width/height normalized to 0-1 of page; image long edge capped at 2048"
+          }
         }
       ],
       "inputPaths": [
@@ -841,8 +859,8 @@
         {
           "name": "spec",
           "description": {
-            "zh": "含 blocks 与可选 layout 的结构化文档；bullet/number 使用 text 或 runs 创建单项，items 字符串数组创建多项，三者不可混用",
-            "en": "Structured document with blocks and optional layout; bullet/number accepts text or runs for one item, or a string items array for multiple items; do not mix these inputs"
+            "zh": "layout 与 blocks；支持段落、标题、表格(border_style=three_line)、image、chart(原生可编辑)、formula(omml)、caption",
+            "en": "layout and blocks: paragraphs, headings, table(border_style=three_line), image, native editable chart, formula(omml), caption"
           },
           "type": "object",
           "required": false
@@ -1056,8 +1074,8 @@
         {
           "name": "operation",
           "description": {
-            "zh": "replace/insert_before/insert_after/delete",
-            "en": "replace/insert_before/insert_after/delete"
+            "zh": "replace/insert_before/insert_after/delete/insert_blocks_before/insert_blocks_after/set_formula/replace_image/set_chart",
+            "en": "replace/insert_before/insert_after/delete/insert_blocks_before/insert_blocks_after/set_formula/replace_image/set_chart"
           },
           "type": "string",
           "required": true
@@ -1115,10 +1133,65 @@
           },
           "type": "string",
           "required": false
+        },
+        {
+          "name": "blocks",
+          "type": "array",
+          "required": false,
+          "description": {
+            "zh": "锚点前/后插入结构化块：正文、标题、表格、image、formula(omml)、caption",
+            "en": "Structured blocks before/after anchor: paragraphs, headings, tables, image, formula(omml), caption"
+          }
+        },
+        {
+          "name": "chart_data",
+          "type": "object",
+          "required": false,
+          "description": {
+            "zh": "set_chart：{categories,series:[{name,values}]}，更新缓存与嵌入工作簿",
+            "en": "set_chart: {categories,series:[{name,values}]}; updates cache and embedded workbook"
+          }
+        },
+        {
+          "name": "object_index",
+          "type": "number",
+          "required": false,
+          "description": {
+            "zh": "段落内同类对象的0-based索引，默认0",
+            "en": "object_index"
+          }
+        },
+        {
+          "name": "omml",
+          "type": "string",
+          "required": false,
+          "description": {
+            "zh": "set_formula：原生 m:oMath XML",
+            "en": "omml"
+          }
+        },
+        {
+          "name": "image_path",
+          "type": "string",
+          "required": false,
+          "description": {
+            "zh": "replace_image：替换图片内容，保留位置和大小",
+            "en": "image_path"
+          }
+        },
+        {
+          "name": "chart_style",
+          "type": "object",
+          "required": false,
+          "description": {
+            "zh": "set_chart：与PPT相同图表样式字段",
+            "en": "chart_style"
+          }
         }
       ],
       "inputPaths": [
-        "path"
+        "path",
+        "image_path"
       ],
       "requiresEnv": true,
       "outputKind": "single",
@@ -2766,6 +2839,15 @@
           },
           "type": "string",
           "required": false
+        },
+        {
+          "name": "layout_report",
+          "type": "boolean",
+          "required": false,
+          "description": {
+            "zh": "返回分组、图层、越界、可能溢出与遮挡报告；不等于视觉验收",
+            "en": "Report groups, z-order, bounds and possible overflow/overlap; not visual acceptance"
+          }
         }
       ],
       "inputPaths": [
@@ -2793,8 +2875,8 @@
         {
           "name": "slides",
           "description": {
-            "zh": "页面数组：title/bullets/layout_index/title_size_pt/body_size_pt；可选 background_rgb、notes、elements。elements 支持 text/shape/table，厘米位置尺寸 left_cm/top_cm/width_cm/height_cm；文本支持 paragraphs 与字体排版。先读 pptx 指引。 chart 元素支持 column/bar/line/pie，categories 为分类数组，series:[{name,values}]，生成原生可编辑图表。",
-            "en": "Slide specs with title/bullets/layout_index and optional background_rgb, notes, elements. Elements: editable text/shape/table with left_cm/top_cm/width_cm/height_cm and paragraph styling. Read pptx guide. chart elements accept column/bar/line/pie, categories, series:[{name,values}] for native editable charts."
+            "zh": "元素支持 text/shape/image/table/chart/formula(omml)/icon；style/table_style/chart_style、theme、transition/animations 详见 office_read_guide(format=pptx)",
+            "en": "Elements: text/shape/image/table/chart/formula(omml)/icon. See office_read_guide(format=pptx) for styling, theme, transitions and animations."
           },
           "type": "array",
           "required": true
@@ -2878,6 +2960,15 @@
           "description": {
             "zh": "幻灯片尺寸厘米 {width,height}；16:9 示例 {width:33.867,height:19.05}。",
             "en": "Slide dimensions in cm {width,height}; 16:9 example {width:33.867,height:19.05}."
+          }
+        },
+        {
+          "name": "theme",
+          "type": "object",
+          "required": false,
+          "description": {
+            "zh": "元素默认字体：font_name/size_pt/color_rgb/bold，元素字段覆盖默认值",
+            "en": "Element font defaults: font_name/size_pt/color_rgb/bold; explicit element fields win"
           }
         }
       ],
@@ -3113,8 +3204,8 @@
       "command": "pptx_edit",
       "advice": false,
       "description": {
-        "zh": "编辑指定形状的文本/位置/尺寸/字体；先 pptx_outline 取锚点。",
-        "en": "Edit a shape's text/position/size/font; call pptx_outline first."
+        "zh": "增量编辑既有页面：添加元素、稳定ID定位、表格图表样式、图层分组、转场动画；无需重建整份。",
+        "en": "Edit existing slides incrementally: add elements, stable IDs, table/chart styles, grouping, z-order, transitions and animations."
       },
       "nextActions": [
         "office_validate",
@@ -3169,8 +3260,8 @@
         {
           "name": "operation",
           "description": {
-            "zh": "set_text/append_text/set_position/set_size/set_font",
-            "en": "set_text/append_text/set_position/set_size/set_font"
+            "zh": "set_text/append_text/set_position/set_size/set_font/add_elements/delete/set_style/set_table/set_chart/z_order/group/ungroup/set_transition/set_animations/replace_image",
+            "en": "set_text/append_text/set_position/set_size/set_font/add_elements/delete/set_style/set_table/set_chart/z_order/group/ungroup/set_transition/set_animations/replace_image"
           },
           "type": "string",
           "required": false
@@ -3291,10 +3382,155 @@
           },
           "type": "string",
           "required": false
+        },
+        {
+          "name": "theme",
+          "type": "object",
+          "required": false,
+          "description": {
+            "zh": "元素默认字体：font_name/size_pt/color_rgb/bold，元素字段覆盖默认值",
+            "en": "Element font defaults: font_name/size_pt/color_rgb/bold; explicit element fields win"
+          }
+        },
+        {
+          "name": "shape_id",
+          "type": "number",
+          "required": false,
+          "description": {
+            "zh": "稳定对象ID，可定位组内对象；由 outline 返回",
+            "en": "Stable object ID, including grouped children; returned by outline"
+          }
+        },
+        {
+          "name": "elements",
+          "type": "array",
+          "required": false,
+          "description": {
+            "zh": "元素支持 text/shape/image/table/chart/formula(omml)/icon；style/table_style/chart_style、theme、transition/animations 详见 office_read_guide(format=pptx)",
+            "en": "Elements: text/shape/image/table/chart/formula(omml)/icon. See office_read_guide(format=pptx) for styling, theme, transitions and animations."
+          }
+        },
+        {
+          "name": "style",
+          "type": "object",
+          "required": false,
+          "description": {
+            "zh": "set_style：fill_rgb/gradient/opacity/shadow/line_rgb/line_width_pt/corner_radius",
+            "en": "set_style: fill_rgb/gradient/opacity/shadow/line_rgb/line_width_pt/corner_radius"
+          }
+        },
+        {
+          "name": "table_style",
+          "type": "object",
+          "required": false,
+          "description": {
+            "zh": "set_table：表头/正文/斑马纹填充、边框、字体与行列尺寸；详见 pptx 指导",
+            "en": "set_table: header/body/band fills, borders, fonts and row/column sizes; see pptx guide"
+          }
+        },
+        {
+          "name": "cells",
+          "type": "array",
+          "required": false,
+          "description": {
+            "zh": "set_table：[{row,column,text}]，0-based，仅修改指定单元格",
+            "en": "set_table: [{row,column,text}], zero-based; updates only selected cells"
+          }
+        },
+        {
+          "name": "chart_style",
+          "type": "object",
+          "required": false,
+          "description": {
+            "zh": "set_chart：series_colors/point_colors/legend_position/data_labels/gridlines/number_format/minimum_scale/maximum_scale",
+            "en": "set_chart: series_colors/point_colors/legend_position/data_labels/gridlines/number_format/minimum_scale/maximum_scale"
+          }
+        },
+        {
+          "name": "z_index",
+          "type": "number",
+          "required": false,
+          "description": {
+            "zh": "z_order：同一组内图层索引，0为底层",
+            "en": "z_order: sibling stacking index, zero is the bottom"
+          }
+        },
+        {
+          "name": "shape_ids",
+          "type": "array",
+          "required": false,
+          "description": {
+            "zh": "group：连续顶层对象ID数组",
+            "en": "group: IDs of consecutive top-level shapes"
+          }
+        },
+        {
+          "name": "group_name",
+          "type": "string",
+          "required": false,
+          "description": {
+            "zh": "group：新组合名称",
+            "en": "group: new group name"
+          }
+        },
+        {
+          "name": "transition",
+          "type": "object",
+          "required": false,
+          "description": {
+            "zh": "set_transition：effect/speed/direction/advance_on_click/advance_after_ms",
+            "en": "set_transition: effect/speed/direction/advance_on_click/advance_after_ms"
+          }
+        },
+        {
+          "name": "animations",
+          "type": "array",
+          "required": false,
+          "description": {
+            "zh": "set_animations：替换该页动画，空数组清除；fade/wipe/appear，详见指导",
+            "en": "set_animations: replace slide animation list, empty clears; fade/wipe/appear; see guide"
+          }
+        },
+        {
+          "name": "chart_data",
+          "type": "object",
+          "required": false,
+          "description": {
+            "zh": "set_chart：{categories,series:[{name,values}]}，更新缓存与嵌入工作簿",
+            "en": "set_chart: {categories,series:[{name,values}]}; updates cache and embedded workbook"
+          }
+        },
+        {
+          "name": "image_path",
+          "type": "string",
+          "required": false,
+          "description": {
+            "zh": "replace_image：替换图片内容，保留位置尺寸裁剪和对象身份",
+            "en": "replace_image: replace content while retaining position, size, crop and identity"
+          }
+        },
+        {
+          "name": "font_name",
+          "type": "string",
+          "required": false,
+          "description": {
+            "zh": "set_font：中西文字体名",
+            "en": "set_font: Latin and East Asian font family"
+          }
+        },
+        {
+          "name": "italic",
+          "type": "boolean",
+          "required": false,
+          "description": {
+            "zh": "set_font：斜体",
+            "en": "set_font: italic"
+          }
         }
       ],
       "inputPaths": [
-        "path"
+        "path",
+        "image_path"
       ],
       "requiresEnv": true,
       "outputKind": "single",
@@ -4826,8 +5062,8 @@
         {
           "name": "blocks",
           "description": {
-            "zh": "报告块数组：heading/title/paragraph/bullet(items)/spacer",
-            "en": "Blocks: heading/title/paragraph/bullet(items)/spacer"
+            "zh": "ReportLab blocks：heading/title/paragraph/bullet/spacer/image/table；公式排版用显式 pandoc 源或 Word 转 PDF",
+            "en": "ReportLab blocks: heading/title/paragraph/bullet/spacer/image/table; math via explicit pandoc source or Word-to-PDF conversion"
           },
           "type": "array",
           "required": false
@@ -4921,6 +5157,77 @@
       "outputKind": "single",
       "defaultOutputName": "document.pdf",
       "timeoutMs": 600000
+    },
+    {
+      "group": "pptx",
+      "name": "pptx_measure_text",
+      "command": "pptx_measure_text",
+      "advice": false,
+      "description": {
+        "zh": "创建前估算文字高度与溢出风险；不读取字形，不能代替真实渲染。",
+        "en": "Estimate text height and overflow risk before creation; heuristic, not font shaping or rendered proof."
+      },
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": {
+            "zh": "测量文字",
+            "en": "text"
+          }
+        },
+        {
+          "name": "width_cm",
+          "type": "number",
+          "required": true,
+          "description": {
+            "zh": "文本框宽度 cm",
+            "en": "width_cm"
+          }
+        },
+        {
+          "name": "height_cm",
+          "type": "number",
+          "required": false,
+          "description": {
+            "zh": "可选高度 cm",
+            "en": "height_cm"
+          }
+        },
+        {
+          "name": "size_pt",
+          "type": "number",
+          "required": false,
+          "description": {
+            "zh": "字号 pt，默认18",
+            "en": "size_pt"
+          }
+        },
+        {
+          "name": "margin_cm",
+          "type": "number",
+          "required": false,
+          "description": {
+            "zh": "内边距 cm，默认0.1",
+            "en": "margin_cm"
+          }
+        },
+        {
+          "name": "line_spacing",
+          "type": "number",
+          "required": false,
+          "description": {
+            "zh": "行距倍数，默认1.2",
+            "en": "line_spacing"
+          }
+        }
+      ],
+      "inputPaths": [],
+      "requiresEnv": false,
+      "outputKind": "single",
+      "defaultOutputName": "",
+      "timeoutMs": 300000
     }
   ]
 }

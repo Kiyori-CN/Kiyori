@@ -2,6 +2,23 @@
 
 本页覆盖 registry 生命周期、宿主接口与工作区边界。开发 API 见 [脚本指南](../../SCRIPT_DEV_GUIDE.md)、[ToolPkg 格式](../../TOOLPKG_FORMAT_GUIDE.md) 和 [宿主类型入口](../package-dev/index.md)。
 
+## 办公文档套件
+
+`com.kiyori.office_suite` 由 ToolPkg 管理；TypeScript 层只处理参数、文件搬运与工具结果，
+格式处理统一在 `kiyori_office`。结构化块中的图片也通过同一搬运入口，遵循实际输入与输出环境。
+页面预览使用现有 ImagePool 与媒体链接解析，自动把页图附入多模态上下文；每次最多 8 页，
+2048 长边图可结合归一化区域裁剪读取细节。图像注册失败不能以 OCR 文本代替成功。
+
+Word/PPT 的创建与增量编辑共用原生对象实现。图表数据修改同时更新缓存与嵌入工作簿，
+先分离共享可变部件；删除不再引用的对象时移除对应关系。默认另存，原地写入需要显式参数。
+PPT 动画与转场保存在原生时间线中，普通内容编辑保留既有动效；显式设置动画会替换该页列表。
+结构报告和文本高度估算不等同于真实字体布局，静态图片也不证明放映行为。
+
+参数与制作流程见随包 [PPT 指引](../../../examples/office_suite/skills/kiyori-pptx/SKILL.md)、
+[Word 指引](../../../examples/office_suite/skills/kiyori-docx/SKILL.md)、
+[通用指引](../../../examples/office_suite/skills/kiyori-office-core/SKILL.md)；
+验收证据与设备边界见 [办公套件专项](../../TODO/office_document_suite/index.md)。
+
 ## Registry 与执行上下文
 
 - `PackageManager` 使用 `PackageScanPublicationGate` 与 `initLock`；异步扫描入队前登记 generation，扫描只返回局部缓存和快照，代际检查、缓存、asset snapshot、registry 与 runtime 更新在同一发布锁内完成。

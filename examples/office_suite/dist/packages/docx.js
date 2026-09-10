@@ -68,8 +68,8 @@
         {
           "name": "spec",
           "description": {
-            "zh": "含 blocks 与可选 layout 的结构化文档；bullet/number 使用 text 或 runs 创建单项，items 字符串数组创建多项，三者不可混用",
-            "en": "Structured document with blocks and optional layout; bullet/number accepts text or runs for one item, or a string items array for multiple items; do not mix these inputs"
+            "zh": "layout 与 blocks；支持段落、标题、表格(border_style=three_line)、image、chart(原生可编辑)、formula(omml)、caption",
+            "en": "layout and blocks: paragraphs, headings, table(border_style=three_line), image, native editable chart, formula(omml), caption"
           },
           "type": "object",
           "required": false
@@ -257,8 +257,8 @@
         {
           "name": "operation",
           "description": {
-            "zh": "replace/insert_before/insert_after/delete",
-            "en": "replace/insert_before/insert_after/delete"
+            "zh": "replace/insert_before/insert_after/delete/insert_blocks_before/insert_blocks_after/set_formula/replace_image/set_chart",
+            "en": "replace/insert_before/insert_after/delete/insert_blocks_before/insert_blocks_after/set_formula/replace_image/set_chart"
           },
           "type": "string",
           "required": true
@@ -316,6 +316,60 @@
           },
           "type": "string",
           "required": false
+        },
+        {
+          "name": "blocks",
+          "type": "array",
+          "required": false,
+          "description": {
+            "zh": "锚点前/后插入结构化块：正文、标题、表格、image、formula(omml)、caption",
+            "en": "Structured blocks before/after anchor: paragraphs, headings, tables, image, formula(omml), caption"
+          }
+        },
+        {
+          "name": "chart_data",
+          "type": "object",
+          "required": false,
+          "description": {
+            "zh": "set_chart：{categories,series:[{name,values}]}，更新缓存与嵌入工作簿",
+            "en": "set_chart: {categories,series:[{name,values}]}; updates cache and embedded workbook"
+          }
+        },
+        {
+          "name": "object_index",
+          "type": "number",
+          "required": false,
+          "description": {
+            "zh": "段落内同类对象的0-based索引，默认0",
+            "en": "object_index"
+          }
+        },
+        {
+          "name": "omml",
+          "type": "string",
+          "required": false,
+          "description": {
+            "zh": "set_formula：原生 m:oMath XML",
+            "en": "omml"
+          }
+        },
+        {
+          "name": "image_path",
+          "type": "string",
+          "required": false,
+          "description": {
+            "zh": "replace_image：替换图片内容，保留位置和大小",
+            "en": "image_path"
+          }
+        },
+        {
+          "name": "chart_style",
+          "type": "object",
+          "required": false,
+          "description": {
+            "zh": "set_chart：与PPT相同图表样式字段",
+            "en": "chart_style"
+          }
         }
       ]
     },

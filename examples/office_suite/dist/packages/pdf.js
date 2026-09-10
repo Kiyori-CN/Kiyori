@@ -1022,8 +1022,8 @@
         {
           "name": "blocks",
           "description": {
-            "zh": "报告块数组：heading/title/paragraph/bullet(items)/spacer",
-            "en": "Blocks: heading/title/paragraph/bullet(items)/spacer"
+            "zh": "ReportLab blocks：heading/title/paragraph/bullet/spacer/image/table；公式排版用显式 pandoc 源或 Word 转 PDF",
+            "en": "ReportLab blocks: heading/title/paragraph/bullet/spacer/image/table; math via explicit pandoc source or Word-to-PDF conversion"
           },
           "type": "array",
           "required": false

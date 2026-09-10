@@ -32,7 +32,9 @@ def require_pypdf() -> None:
 
 def _open(path: Path) -> "PdfReader":
     require_pypdf()
-    if not path.read_bytes()[:5] == b"%PDF-":
+    with path.open("rb") as header:
+        is_pdf = header.read(5) == b"%PDF-"
+    if not is_pdf:
         raise OfficeError(
             "E_FORMAT_UNSUPPORTED",
             "文件不是 PDF（缺少 %PDF- 头）",

@@ -181,9 +181,38 @@ def layout_warnings(config):
     return []
 
 
-def format_table(table, rows, *, header=True, widths=None):
+def format_table(table, rows, *, header=True, widths=None, border_style=None):
     from docx.oxml import OxmlElement
     from docx.shared import Cm
+    from docx.oxml.ns import qn
+
+    if border_style is not None:
+        if border_style not in {"three_line", "grid"}:
+            raise OfficeError("E_INPUT_SCHEMA", "border_style 必须为 three_line/grid")
+        properties = table._tbl.tblPr
+        old = properties.find(qn("w:tblBorders"))
+        if old is not None:
+            properties.remove(old)
+        borders = OxmlElement("w:tblBorders")
+        for side in ("top", "left", "bottom", "right", "insideH", "insideV"):
+            edge = OxmlElement("w:" + side)
+            edge.set(qn("w:val"), "single" if border_style == "grid" or side in {"top", "bottom"} else "nil")
+            edge.set(qn("w:sz"), "12" if side in {"top", "bottom"} else "4")
+            edge.set(qn("w:color"), "000000")
+            borders.append(edge)
+        properties.append(borders)
+        if border_style == "three_line":
+            for cell in table.rows[0].cells:
+                props = cell._tc.get_or_add_tcPr()
+                borders = props.find(qn("w:tcBorders"))
+                if borders is None:
+                    borders = OxmlElement("w:tcBorders")
+                    props.append(borders)
+                bottom = OxmlElement("w:bottom")
+                bottom.set(qn("w:val"), "single")
+                bottom.set(qn("w:sz"), "6")
+                bottom.set(qn("w:color"), "000000")
+                borders.append(bottom)
 
     if header:
         properties = table.rows[0]._tr.get_or_add_trPr()

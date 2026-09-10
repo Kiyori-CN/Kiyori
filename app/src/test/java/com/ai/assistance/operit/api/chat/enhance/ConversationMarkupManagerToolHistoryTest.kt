@@ -12,6 +12,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ConversationMarkupManagerToolHistoryTest {
+    @org.junit.Test
+    fun officePreviewJson_keepsMultimodalPagesOutsideTruncatedToolPayload() {
+        val raw = """{"data":{"report":"${"x".repeat(80_000)}","visual_pages":[{"page":3,"image":"<link type=\"image\" id=\"office-page-3\"></link>"}]}}"""
+        val message = ConversationMarkupManager.buildBoundedToolResultMessage(listOf(
+            ToolResult(toolName = "office_render_preview", success = true, result = StringResultData(raw))
+        ))
+        org.junit.Assert.assertTrue(message.contains("<link type=\"image\" id=\"office-page-3\"></link>"))
+    }
     @Test
     fun boundedParallelResultsRetainEveryCompleteProtocolEnvelope() {
         val results =

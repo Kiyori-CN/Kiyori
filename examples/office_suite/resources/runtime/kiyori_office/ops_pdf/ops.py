@@ -593,6 +593,9 @@ def pdf_create_command(args: Dict[str, Any]) -> Dict[str, Any]:
         items = block.get("items")
         if isinstance(items, list):
             text_payload_parts.extend(str(item) for item in items)
+        if isinstance(block.get("rows"), list):
+            text_payload_parts.extend(str(cell) for row in block["rows"] if isinstance(row, list) for cell in row)
+        text_payload_parts.append(str(block.get("caption") or ""))
     text_payload = "".join(text_payload_parts)
     has_cjk = any(ord(char) > 127 for char in text_payload)
     font_name = "Helvetica"
@@ -656,6 +659,46 @@ def pdf_create_command(args: Dict[str, Any]) -> Dict[str, Any]:
                 )
         elif kind == "spacer":
             flowables.append(Spacer(1, float(block.get("height_cm") or 0.5) * cm))
+        elif kind == "image":
+            from reportlab.platypus import Image as PdfImage, KeepTogether
+            from PIL import Image
+            from ..ops_docx.layout import number
+            image = resolve_path(block.get("image_path"), args=args, field="image_path", must_exist=True)
+            usable_width = A4[0] - 2 * float(args.get("margin_cm") or 2) * cm
+            usable_height = A4[1] - 2 * float(args.get("margin_cm") or 2) * cm - 24
+            with Image.open(image) as picture:
+                ratio = picture.height / picture.width
+            width = number(block["width_cm"], "image.width_cm", 0.1, 100)*cm if "width_cm" in block else min(usable_width, usable_height/ratio)
+            if width > usable_width or width*ratio > usable_height:
+                raise OfficeError("E_INPUT_SCHEMA", "图片尺寸超出 PDF 正文区域")
+            objects = [PdfImage(str(image), width=width, height=width*ratio)]
+            if block.get("caption"):
+                objects.append(Paragraph(block["caption"], body_style))
+            flowables.append(KeepTogether(objects))
+        elif kind == "table":
+            from reportlab.platypus import Table, TableStyle
+            from reportlab.lib import colors
+            from ..ops_docx.layout import table_rows, number
+            rows = block.get("rows")
+            columns = table_rows(rows)
+            if any(len(row) != columns for row in rows):
+                raise OfficeError("E_INPUT_SCHEMA", "PDF table.rows 必须是矩形数组")
+            usable_width = A4[0] - 2 * float(args.get("margin_cm") or 2) * cm
+            widths = block.get("column_widths_cm")
+            if widths is not None:
+                if not isinstance(widths,list) or len(widths) != columns:
+                    raise OfficeError("E_INPUT_SCHEMA", "column_widths_cm 数量必须与列数一致")
+                widths = [number(value,"column_widths_cm",0.1,50)*cm for value in widths]
+                if sum(widths)>usable_width:
+                    raise OfficeError("E_INPUT_SCHEMA", "表格宽度超出正文")
+            else:
+                widths = [usable_width/columns]*columns
+            from xml.sax.saxutils import escape
+            table = Table([[Paragraph(escape('' if value is None else str(value)),body_style) for value in row] for row in rows], colWidths=widths, repeatRows=1)
+            table.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('LINEABOVE',(0,0),(-1,0),1,colors.black),
+                                      ('LINEBELOW',(0,0),(-1,0),0.5,colors.black),('LINEBELOW',(0,-1),(-1,-1),1,colors.black),
+                                      ('BOTTOMPADDING',(0,0),(-1,-1),6)]))
+            flowables.append(table)
         else:
             raise OfficeError(
                 "E_INPUT_SCHEMA",

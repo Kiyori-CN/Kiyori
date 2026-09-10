@@ -7,7 +7,7 @@ description: PowerPoint/.pptx 的高质量可编辑布局、原生图表、生�
 
 ## 1. 标准流程
 
-1. `pptx_outline` 看幻灯片、版式、形状、占位符与坐标。
+1. `pptx_outline(layout_report=true)` 看幻灯片、版式、稳定 shape_id、图层、分组与版面风险。
 2. 结构性操作（增/删/复制/重排）先做完：`pptx_slide`。
 3. 再编辑内容：`pptx_edit` / `pptx_notes` / `pptx_media`。
 4. 最后 `pptx_clean` → `office_validate` → `office_render_preview` → 逐页看图。
@@ -57,5 +57,47 @@ description: PowerPoint/.pptx 的高质量可编辑布局、原生图表、生�
 - `table` 提供非空矩形 `rows`；`chart` 支持 `column/bar/line/pie`，`categories` 与各 `series[].values` 长度一致，饼图仅一个系列；均为 Office 可编辑对象。组合图、数据透视和复杂图表格式仍不在此入口范围。
 - `pptx_media` 只指定宽或高时按比例补另一维；全省略时适配剩余页面区域。EMU 参数与厘米换算为 `1 cm = 360000 EMU`；显式越界会报错。
 - `pptx_edit(set_text)` 保留首段/首个 run 的字体与外观，换行生成真实段落；这不等于保留多种混合 run 样式，需要精确保留时优先模板填充。
-- 外部模板可能有重名形状；`shape_name` 多处命中会拒绝编辑并返回候选索引，改用 `shape_index` 定位顶层对象。组合对象内文本可用模板填充；当前 `pptx_edit` 不提供组内索引路径。
+- 外部模板可能有重名形状；`shape_name` 多处命中会拒绝编辑并返回候选索引，改用 `shape_index` 定位顶层对象。组内对象用版面报告的稳定 `shape_id` 精确定位；索引在增删或重排后需要重新读取。
 - 每页只承载一个清晰结论；统一内容边距、字号层级和颜色语义。图表标明单位、统计口径与来源；备注容纳细节。完成结构校验后逐页看预览，检查中文字体、遮挡、表格行高和图例可读性，再交付可编辑源文件与按需生成的 PDF。
+
+## 6. 增量编辑、主题与原生样式
+
+新增元素用 `pptx_edit(operation=add_elements,slide_index=...,elements=[...])`，与创建共用元素参数。
+不要为加一张图表重建整份文件。`set_style`、`set_table`、`set_chart`、`replace_image` 分别修改目标对象；
+`set_table(cells=[{row:1,column:0,text:"新值"}])` 只修改指定单元格，行列索引从 0 开始。
+`set_chart(chart_data={categories:[...],series:[{name,values}]})` 同时更新图表缓存和嵌入工作簿；
+共享图表先分离，不改变其他页面的引用。复杂组合图、外部链接数据源不在数据编辑范围。
+
+- 文档或页面 `theme` 设置 `font_name/size_pt/color_rgb/bold/italic` 等字体与段落默认值，页面覆盖文档，元素覆盖页面；图片不应用文字默认值。主题不会重新设计已有模板。
+- `table_style`：`header_fill_rgb/header_color_rgb/body_fill_rgb/band_fill_rgb/border_rgb/border_width_pt/font_name/size_pt/color_rgb/column_widths_cm/row_heights_cm`。使用真表格；不以一组文本框冒充可维护的表格。
+- `chart_style`：`series_colors` 与系列数一致，`point_colors` 用于单系列且与数据点数一致；`legend_position=none/top/bottom/left/right`、`legend_font_size_pt`、`gridlines`、`number_format`、`minimum_scale/maximum_scale`。`background_rgb/plot_fill_rgb/border_rgb` 接受 RGB 或 `none`。图表无显式标题时不自动生成系列标题。
+- `data_labels` 属于 `chart_style`，支持 `show_value/show_percentage/show_category/position/number_format/size_pt/color_rgb`；位置可取 `center/inside_end/outside_end/best_fit`，最终适用效果取决于图表类型并须预览。
+- `style` 用于文本框和形状：`fill_rgb` 或 `gradient={colors:["123456","ABCDEF"],angle:45}`，二者互斥；`opacity` 为 0-1；`shadow={color_rgb,opacity,blur_pt,distance_pt,angle}`；`line_rgb/line_width_pt`。`corner_radius` 为圆角矩形的 0-0.5 相对调整值，不是厘米。
+- `image` 元素指定 `image_path` 与 `fit=contain/cover/stretch`，默认等比完整显示；`crop={left,right,top,bottom}` 是四边裁去的比例。`replace_image(image_path=...)` 保留目标的尺寸、位置、裁剪与身份，换图后重新检查构图。
+- `icon` 元素指定 `icon=check/arrow_right/chart/document/download/play/code/search`、`color_rgb/line_width_pt`；它们是随包原创可编辑路径，无需网络或字体图标。不要拿圆点替代语义图标。
+- `formula` 元素指定原生 `omml`（`m:oMath` XML）和位置尺寸，可设置字号等文字参数；不要把 LaTeX 字符串直接当作 OMML。PPT/Word 使用可编辑公式，PDF 通过转换保留视觉；复杂公式逐项检查根号、上下标和分式。
+
+`z_order(z_index=0)` 把对象放到所属组底层；`group(shape_ids=[...],group_name=...)` 接受连续顶层图层，
+避免成组悄悄改变遮挡关系。`ungroup` 支持未旋转/翻转/缩放的组合，保留平移；不支持的变换明确拒绝。
+删除被动画或连接线引用的对象前，先处理引用。未共享的旧媒体关系随删除移除。
+
+## 7. 动画、转场与视觉终审
+
+每页创建 spec 可指定 `transition` 与 `animations`；已有页通过 `set_transition` / `set_animations` 修改。
+`set_animations` **替换该页整份动画列表**，`[]` 明确清除。普通文字、样式和图片编辑保留已有动效。
+
+```json
+{
+  "transition": {"effect":"fade", "speed":"med", "advance_on_click":true},
+  "animations": [
+    {"shape_name":"title", "effect":"fade", "trigger":"on_click", "duration_ms":500},
+    {"shape_name":"chart", "effect":"wipe", "direction":"up", "trigger":"after_previous", "duration_ms":600, "delay_ms":100}
+  ]
+}
+```
+
+- 转场支持 `none/fade/push/wipe/split/cover/uncover`，`speed=slow/med/fast`。`push/wipe/cover/uncover` 可设 `direction=l/r/u/d`；`advance_after_ms` 设置自动换页时间。
+- 动画支持 `fade/wipe/appear`，`trigger=on_click/with_previous/after_previous`，`exit=true` 表示退出；wipe 方向为 `up/down/left/right`。以内容解释顺序为依据使用适量动效，不批量堆叠装饰。
+- 暂不提供 Morph、运动路径、逐字动画或任意复杂时间线编辑。静态 PDF/PNG 不播放动画，不得用静态预览宣称放映已验收；在目标 PowerPoint/WPS 中确认点击、先后次序和自动换页。
+- `pptx_measure_text(text,width_cm,height_cm,size_pt,...)` 提供创建前的高度估算；`measurement_kind=heuristic_not_font_shaping` 明确表示它没有执行真实字体排版。长文本优先改信息结构、拆页、扩大区域，不自动缩字。
+- 报告中的 `OUT_OF_BOUNDS`、`POSSIBLE_TEXT_OVERFLOW` 与 `overlaps` 分别处理。`containment` 常见于文字置于面板之上，必须结合实际图像判断；不能把“零几何问题”当作美观证明。大纲返回真实 `layout_index` 和版式名称，内置模板的空白页应为 `6 / Blank`。

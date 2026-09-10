@@ -53,7 +53,7 @@ def docx_create(args: Dict[str, Any]) -> Dict[str, Any]:
     if markdown:
         _append_markdown(document, str(markdown), Pt)
     else:
-        _append_spec(document, spec, Pt)
+        _append_spec(document, spec, Pt, args=args)
 
     output.parent.mkdir(parents=True, exist_ok=True)
     atomic_save(document, output)
@@ -71,7 +71,7 @@ def docx_create(args: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _append_spec(document, spec: Any, pt) -> None:
+def _append_spec(document, spec: Any, pt, *, args=None, section=None) -> None:
     if not isinstance(spec, dict) or not isinstance(spec.get("blocks"), list):
         raise OfficeError(
             "E_INPUT_SCHEMA",
@@ -87,8 +87,11 @@ def _append_spec(document, spec: Any, pt) -> None:
             "heading": content | {"level"}, "title": content | {"level"},
             "paragraph": content | {"style"},
             "bullet": content | {"items"}, "number": content | {"items"},
-            "table": {"type", "rows", "style", "header", "column_widths_cm"},
+            "table": {"type", "rows", "style", "header", "column_widths_cm", "border_style"},
             "page_break": {"type"},
+            "image": {"type", "image_path", "width_cm", "alignment", "caption", "alt_text"},
+            "formula": {"type", "omml", "alignment", "number"},
+            "caption": {"type", "text", "label", "number"},
         }
         if kind in allowed:
             # 内容字段拼错不能被当作空段落发布；错误精确到块索引。
@@ -141,9 +144,36 @@ def _append_spec(document, spec: Any, pt) -> None:
                     raise OfficeError("E_INPUT_SCHEMA", "table.rows[%d] 必须是数组" % row_index)
                 for column_index, value in enumerate(row):
                     table.cell(row_index, column_index).text = "" if value is None else str(value)
-            format_table(table, rows, header=block.get("header", True), widths=block.get("column_widths_cm"))
+            format_table(table, rows, header=block.get("header", True), widths=block.get("column_widths_cm"), border_style=block.get("border_style"))
         elif kind == "page_break":
             document.add_page_break()
+        elif kind == "image":
+            from .media import append_image
+            image = resolve_path(block.get("image_path"), args=args or {}, field="image_path", must_exist=True)
+            append_image(document, image, block, section)
+        elif kind == "chart":
+            from .chart import append_chart
+            append_chart(document, block, section)
+        elif kind == "formula":
+            from ..math import parse_omml
+            paragraph = document.add_paragraph()
+            paragraph_style(paragraph.paragraph_format, {"alignment": block.get("alignment", "center"), "first_line_indent_cm": 0, "keep_together": True})
+            if "number" in block:
+                from docx.enum.text import WD_TAB_ALIGNMENT
+                from docx.shared import Emu
+                active_section = section or document.sections[-1]
+                available = active_section.page_width-active_section.left_margin-active_section.right_margin
+                paragraph_style(paragraph.paragraph_format, {"alignment":"left"})
+                paragraph.paragraph_format.tab_stops.add_tab_stop(Emu(available//2),WD_TAB_ALIGNMENT.CENTER)
+                paragraph.paragraph_format.tab_stops.add_tab_stop(Emu(available),WD_TAB_ALIGNMENT.RIGHT)
+                paragraph.add_run("\t")
+            paragraph._p.append(parse_omml(block.get("omml")))
+            if "number" in block:
+                paragraph.add_run("\t(" + str(block["number"]) + ")")
+        elif kind == "caption":
+            paragraph = document.add_paragraph(style="Caption")
+            paragraph_style(paragraph.paragraph_format, {"alignment": "center", "first_line_indent_cm": 0, "keep_together": True})
+            paragraph.add_run(" ".join(str(block[k]) for k in ("label", "number", "text") if k in block))
         else:
             raise OfficeError(
                 "E_INPUT_SCHEMA",

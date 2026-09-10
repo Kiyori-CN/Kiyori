@@ -631,7 +631,7 @@ export async function runOfficeTool(
     return await createAndroidWorkspace(input);
   }
   const paths = await ensureRuntime();
-  if (["office_workspace_status", "office_workspace_clean", "office_env_check"].includes(command)) {
+  if (["office_workspace_status", "office_workspace_clean", "office_env_check", "pptx_measure_text"].includes(command)) {
     return await runControlCommand(paths, spec, input);
   }
   const leaseToken = newTaskId();
@@ -746,6 +746,29 @@ async function runPreparedOfficeTool(spec: ToolSpec, input: Record<string, unkno
     allowRoots.push(staged.staged.replace(/\/[^/]*$/, ""));
   }
 
+  // 结构化块中的图片同样走既有跨环境搬运；不能把 Android 路径透传给 Python。
+  async function stageElements(value: unknown, slot: string): Promise<unknown> {
+    if (Array.isArray(value)) {
+      const staged: unknown[] = [];
+      for (let index = 0; index < value.length; index++) staged.push(await stageElements(value[index], `${slot}-${index}`));
+      return staged;
+    }
+    if (!value || typeof value !== "object") return value;
+    const object = { ...(value as Record<string, unknown>) };
+    if (object.type === "image" && typeof object.image_path === "string") {
+      const staged = await stageInput(paths, taskDir, object.image_path, env, slot);
+      object.image_path = staged.staged;
+      allowRoots.push(staged.staged.replace(/\/[^/]*$/, ""));
+    }
+    for (const key of ["blocks", "elements"]) {
+      if (key in object) object[key] = await stageElements(object[key], `${slot}-${key}`);
+    }
+    return object;
+  }
+  for (const key of ["spec", "slides", "elements", "blocks"]) {
+    if (key in payload) payload[key] = await stageElements(payload[key], key);
+  }
+
   if (command === "office_workspace_init") {
     // dir 指向「待创建」的目录，不能作为输入暂存（暂存要求源文件已存在），
     // 但必须进入 allow_roots，否则 Linux 工作区会被 Python 判为越出允许根目录。
@@ -850,6 +873,31 @@ async function runPreparedOfficeTool(spec: ToolSpec, input: Record<string, unkno
     } catch (error) {
       return toFailure(command, error);
     }
+  }
+  // 返回真实池链接而不只是磁盘路径。宿主解析器支持 JSON 中转义的 link；
+  // 注册不等于视觉审阅完成，失败保留产物并明确指出未获得图像。
+  if (command === "office_render_preview" || command === "pdf_to_images") {
+    const visualPages: Array<{ path: string; env: string; image: string; page?: number }> = [];
+    for (const item of artifacts.slice(0, 8)) {
+      if (item.env !== "android" && item.env !== "linux") throw new Error("E_PROTOCOL: 图片产物缺少有效环境");
+      let content: string;
+      try {
+        const read = await Tools.Files.read({ path: item.path, environment: item.env, direct_image: true });
+        content = read.content ?? "";
+      } catch (error) {
+        console.error("office visual image registration failed", error instanceof Error ? error.name : "unknown");
+        return { success: false, command, code: "E_ENGINE_FAILED", artifacts,
+          message: "页面已渲染，但图像读取失败；未完成视觉检查。", data: { ...data, visual_pages: visualPages } };
+      }
+      if (!/<link\b[^>]*type=["']image["'][^>]*>/.test(content)) {
+        return { success: false, command, code: "E_ENGINE_FAILED", artifacts,
+          message: "页面已渲染，但图像注册失败；未完成视觉检查。", data: { ...data, visual_pages: visualPages } };
+      }
+      visualPages.push({ path: item.path, env: item.env, page: item.page, image: content });
+    }
+    data.visual_pages = visualPages;
+    data.visual_review_status = "images_attached_review_required";
+    data.remaining_visual_pages = Math.max(0, artifacts.length - visualPages.length);
   }
   return {
     success: true,

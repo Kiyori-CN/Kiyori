@@ -104,23 +104,32 @@ def text_frame(frame, paragraphs, config):
             set_font(run.font, values)
 
 
-def add_elements(prs, slide, elements):
+def add_elements(prs, slide, elements, *, args=None, theme=None):
     from pptx.util import Cm
     from pptx.enum.shapes import MSO_SHAPE
     if not isinstance(elements, list):
         raise OfficeError("E_INPUT_SCHEMA", "elements 必须是数组")
+    if len(elements) > 500:
+        raise OfficeError("E_BUDGET_EXCEEDED", "一次最多插入500个元素，请分批处理")
+    theme = validate_theme(theme)
+    added = []
     for index, spec in enumerate(elements):
         if not isinstance(spec, dict):
             raise OfficeError("E_INPUT_SCHEMA", "elements[] 必须是对象")
         kind = spec.get("type", "text")
+        if theme:
+            spec = {**theme, **spec} if kind != "image" else spec
         common = {"type", "name", "left_cm", "top_cm", "width_cm", "height_cm"}
         typography = {"font_name", "size_pt", "bold", "italic", "color_rgb", "alignment", "vertical_alignment",
                       "margin_cm", "space_before_pt", "space_after_pt", "line_spacing"}
         allowed = {
-            "text": common | typography | {"text", "paragraphs", "fill_rgb"},
-            "shape": common | typography | {"text", "paragraphs", "fill_rgb", "line_rgb", "shape"},
-            "table": common | typography | {"rows"},
-            "chart": common | typography | {"chart_type", "categories", "series", "title"},
+            "text": common | typography | {"text", "paragraphs", "fill_rgb", "style"},
+            "shape": common | typography | {"text", "paragraphs", "fill_rgb", "line_rgb", "shape", "style"},
+            "table": common | typography | {"rows", "table_style"},
+            "chart": common | typography | {"chart_type", "categories", "series", "title", "chart_style"},
+            "image": common | {"image_path", "fit", "crop"},
+            "formula": common | typography | {"omml"},
+            "icon": common | typography | {"icon", "line_width_pt"},
         }
         if kind not in allowed or set(spec) - allowed[kind]:
             raise OfficeError("E_INPUT_SCHEMA", "elements[%d] 类型或字段不支持：%s" % (index, sorted(set(spec) - allowed.get(kind, set()))))
@@ -181,6 +190,9 @@ def add_elements(prs, slide, elements):
                 data.add_series(item["name"], values)
             shape = slide.shapes.add_chart(types[chart_type], *box, data)
             chart = shape.chart
+            chart.has_title = "title" in spec
+            from .style import chart_style
+            chart_style(chart, {"background_rgb": "none", "border_rgb": "none"})
             chart.has_legend = len(series) > 1 or chart_type == "pie"
             if chart.has_legend:
                 chart.legend.position = XL_LEGEND_POSITION.BOTTOM
@@ -192,6 +204,45 @@ def add_elements(prs, slide, elements):
             if chart_type != "pie":
                 set_font(chart.category_axis.tick_labels.font, spec)
                 set_font(chart.value_axis.tick_labels.font, spec)
+        elif kind == "image":
+            from ..paths import resolve_path
+            from PIL import Image
+            path = resolve_path(spec.get("image_path"), args=args or {}, field="image_path", must_exist=True)
+            fit = spec.get("fit", "contain")
+            if fit not in ("contain", "cover", "stretch"):
+                raise OfficeError("E_INPUT_SCHEMA", "image.fit 必须为 contain/cover/stretch")
+            with Image.open(path) as image:
+                ratio = image.width / image.height
+            if fit == "contain":
+                w = min(width, round(height * ratio))
+                h = round(w / ratio)
+                shape = slide.shapes.add_picture(str(path), left + (width-w)//2, top + (height-h)//2, w, h)
+            else:
+                shape = slide.shapes.add_picture(str(path), *box)
+                if fit == "cover":
+                    if ratio > width / height:
+                        shape.crop_left = shape.crop_right = (1 - width / height / ratio) / 2
+                    else:
+                        shape.crop_top = shape.crop_bottom = (1 - ratio / (width / height)) / 2
+            if "crop" in spec:
+                from .style import checked
+                crop = checked(spec["crop"], {"left", "right", "top", "bottom"}, "crop")
+                for side, value in crop.items():
+                    setattr(shape, "crop_" + side, measure(value, "crop." + side, 0, 0.99))
+                if shape.crop_left + shape.crop_right >= 1 or shape.crop_top + shape.crop_bottom >= 1:
+                    raise OfficeError("E_INPUT_SCHEMA", "裁剪后必须保留可见区域")
+        elif kind == "icon":
+            from .icons import add_icon
+            shape = add_icon(slide, box, spec)
+        elif kind == "formula":
+            from ..math import parse_omml
+            from lxml import etree
+            shape = slide.shapes.add_textbox(*box)
+            set_font(shape.text_frame.paragraphs[0].font, spec)
+            # a14:m 是 PowerPoint 的原生可编辑 Office Math 容器。
+            math = etree.Element("{http://schemas.microsoft.com/office/drawing/2010/main}m", nsmap={"a14": "http://schemas.microsoft.com/office/drawing/2010/main"})
+            math.append(parse_omml(spec.get("omml")))
+            shape.text_frame.paragraphs[0]._p.append(math)
         else:
             raise OfficeError("E_INPUT_SCHEMA", "elements[].type 必须是 text/shape/table/chart")
         if "name" in spec:
@@ -205,3 +256,22 @@ def add_elements(prs, slide, elements):
             shape.line.color.rgb = rgb(spec["line_rgb"])
         elif kind == "shape":
             shape.line.fill.background()
+        from .style import shape_style, table_style, chart_style
+        if "style" in spec:
+            shape_style(shape, spec["style"])
+        if "table_style" in spec:
+            table_style(shape.table, spec["table_style"])
+        if "chart_style" in spec:
+            chart_style(shape.chart, {**{k:v for k,v in spec.items() if k in {"font_name", "size_pt", "color_rgb"}}, **spec["chart_style"]})
+        added.append(shape)
+    return added
+
+
+def validate_theme(theme):
+    if theme is None:
+        return {}
+    allowed = {"font_name", "size_pt", "bold", "italic", "color_rgb", "alignment", "vertical_alignment",
+               "margin_cm", "space_before_pt", "space_after_pt", "line_spacing"}
+    if not isinstance(theme, dict) or set(theme) - allowed:
+        raise OfficeError("E_INPUT_SCHEMA", "theme 仅接受字体与段落默认值")
+    return theme

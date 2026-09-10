@@ -330,8 +330,8 @@
     {
       "name": "office_render_preview",
       "description": {
-        "zh": "产物 → PDF → 分页 JPEG，返回 Android 路径；必须再用 direct_image 逐页看图。",
-        "en": "Render output to PDF then per-page JPEG and return Android paths; inspect every page with direct_image."
+        "zh": "Word/PPT/PDF 转分页图片，直接附加多模态图像和页码；每次最多8页，需真正看图后验收。PPT 附结构版面诊断。",
+        "en": "Render Word/PPT/PDF pages and attach multimodal images with page numbers, at most 8 per call; actual image review is required. PPT includes layout diagnostics."
       },
       "parameters": [
         {
@@ -414,6 +414,24 @@
           },
           "type": "string",
           "required": false
+        },
+        {
+          "name": "layout_report",
+          "type": "boolean",
+          "required": false,
+          "description": {
+            "zh": "默认 true，PPT 返回结构版面诊断",
+            "en": "Default true: include structural layout diagnostics for PPT"
+          }
+        },
+        {
+          "name": "region",
+          "type": "object",
+          "required": false,
+          "description": {
+            "zh": "局部细看：left/top/width/height 为页面归一化 0-1 坐标；返回裁剪图，最长边2048",
+            "en": "Detail crop: left/top/width/height normalized to 0-1 of page; image long edge capped at 2048"
+          }
         }
       ]
     },

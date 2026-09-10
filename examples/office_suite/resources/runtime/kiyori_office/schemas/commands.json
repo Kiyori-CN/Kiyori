@@ -213,6 +213,12 @@
           "type": "string",
           "minLength": 1
         }
+      },
+      "layout_report": {
+        "type": "boolean"
+      },
+      "region": {
+        "type": "object"
       }
     },
     "additionalProperties": false
@@ -413,7 +419,12 @@
           "replace",
           "insert_before",
           "insert_after",
-          "delete"
+          "delete",
+          "insert_blocks_before",
+          "insert_blocks_after",
+          "set_formula",
+          "replace_image",
+          "set_chart"
         ]
       },
       "text": {
@@ -437,6 +448,29 @@
           "type": "string",
           "minLength": 1
         }
+      },
+      "blocks": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        },
+        "minItems": 1
+      },
+      "chart_data": {
+        "type": "object"
+      },
+      "object_index": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "omml": {
+        "type": "string"
+      },
+      "image_path": {
+        "type": "string"
+      },
+      "chart_style": {
+        "type": "object"
       }
     },
     "additionalProperties": false
@@ -1059,6 +1093,9 @@
           "type": "string",
           "minLength": 1
         }
+      },
+      "layout_report": {
+        "type": "boolean"
       }
     },
     "additionalProperties": false
@@ -1121,6 +1158,9 @@
             "maximum": 142.24
           }
         }
+      },
+      "theme": {
+        "type": "object"
       }
     },
     "additionalProperties": false
@@ -1244,7 +1284,18 @@
           "append_text",
           "set_position",
           "set_size",
-          "set_font"
+          "set_font",
+          "add_elements",
+          "delete",
+          "set_style",
+          "set_table",
+          "set_chart",
+          "z_order",
+          "group",
+          "ungroup",
+          "set_transition",
+          "set_animations",
+          "replace_image"
         ]
       },
       "text": {
@@ -1292,6 +1343,71 @@
           "type": "string",
           "minLength": 1
         }
+      },
+      "theme": {
+        "type": "object"
+      },
+      "shape_id": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "elements": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        },
+        "minItems": 1
+      },
+      "style": {
+        "type": "object"
+      },
+      "table_style": {
+        "type": "object"
+      },
+      "cells": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "chart_style": {
+        "type": "object"
+      },
+      "z_index": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "shape_ids": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "group_name": {
+        "type": "string",
+        "minLength": 1
+      },
+      "transition": {
+        "type": "object"
+      },
+      "animations": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "image_path": {
+        "type": "string"
+      },
+      "font_name": {
+        "type": "string"
+      },
+      "italic": {
+        "type": "boolean"
+      },
+      "chart_data": {
+        "type": "object"
       }
     },
     "additionalProperties": false
@@ -2039,5 +2155,33 @@
         "maximum": 50
       }
     }
+  },
+  "pptx_measure_text": {
+    "type": "object",
+    "required": [
+      "text",
+      "width_cm"
+    ],
+    "properties": {
+      "text": {
+        "type": "string"
+      },
+      "width_cm": {
+        "type": "number"
+      },
+      "height_cm": {
+        "type": "number"
+      },
+      "size_pt": {
+        "type": "number"
+      },
+      "margin_cm": {
+        "type": "number"
+      },
+      "line_spacing": {
+        "type": "number"
+      }
+    },
+    "additionalProperties": false
   }
 }

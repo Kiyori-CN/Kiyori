@@ -28,8 +28,9 @@ description: 处理 Word/Excel/PPT/PDF 的总入口。任何涉及 .docx/.xlsx/.
 
 1. 含公式的 xlsx：全部编辑完成后 `xlsx_recalc`，`total_errors` 与 `missing_cache_count` 必须为 0。
 2. `office_validate(strict=true)` —— 有 issue 就按代码和位置修复；完整清单在 `data.issues`，失败主消息也提供定位。
-3. `office_render_preview` 出图，然后用 `Tools.Files.read({ path, direct_image: true })` 逐页看一遍。
+3. `office_render_preview` 自动附加 `data.visual_pages[].image` 多模态图像，按 `page` 逐页看一遍。
    重点看：文字溢出/被截断、元素重叠、中文方框、空占位符、残留 `{{变量}}` 或 Lorem ipsum。
+   返回 `images_attached_review_required` 只表示图片已附加，必须实际看图才能宣称视觉检查通过；OCR、字符画、颜色均值和几何报告都不等于看过图。
 4. 产物复制到用户可见位置（默认 `${KIYORI_DOWNLOAD_DIR}/Office/`），
    用 `Tools.Files.share` 或 `open` 交付，并在回答中给出完整路径。
 
@@ -41,6 +42,9 @@ description: 处理 Word/Excel/PPT/PDF 的总入口。任何涉及 .docx/.xlsx/.
 - TeX 安装的 `mktexlsr` / `updmap-sys` / `fmtutil --all` 可能持续数分钟；无新输出不表示死锁。先只读查看进程、锁和日志；不要用可能取消前台命令的超时等待来代替进度检查，不自动终止 apt/dpkg 或重装。安装空间是保守估计，以实际计划和磁盘状态为准。
 - `fonts.system_font_families` 是 fontconfig 确认的系统中文字体族，供 XeLaTeX 选择；`fonts.reportlab_font_families` 是 ReportLab CID 字体。`font_families` 是兼容汇总，不可直接把第一项当作所有引擎的通用字体。只发现文件、尚未注册字体时按 `fontconfig_detail` 排查，不能从文件名猜族名。
 - 结构校验不证明版式美观。预览默认最多 8 页，长文档使用 `pages` 分批，记录已检查页码；缺少引擎或现场检查时标为待验证。
+- 预览图最长边限制为 2048。公式或密集图表细看时，指定 `region={left,top,width,height}`（0-1 页面归一化坐标）和较高 `dpi`，获取局部图；分页与局部图分别记录覆盖范围。`remaining_pages` 表示本次未覆盖页，不是整个任务累计未检查页。
+- `Tools.Files.read({path,environment:"linux",direct_image:true})` 可以直接读取 Ubuntu/当前 Linux 文件提供者的图片；Android 使用 `environment:"android"`。显式视觉注册失败会报错，不替换成 OCR。模型本身及其当前配置必须支持图像输入。
+- PPT 预览默认附版面报告；Word/PDF 可显式 `layout_report=true` 获取 PDF 字词坐标、字号与图片框（需要 pdfplumber），不把 PDF 字词框误认为原 Word 文本框。
 - 不把 `xlsx_format` 放到最后一次重算之后：openpyxl 保存会清除已有公式缓存。所有写入完成后再重算，并检查错误数和缺失缓存数。
 - 当前不支持原生批注/修订、OCR、组合图表或数据透视编辑。先说明能力边界；不要调用不存在的工具。
 - 工具箱“办公文档”分为文件操作、存储管理、环境与帮助。支持手机文件选择、结构/校验/预览/转 PDF 和独立输出设置；预览可指定页码（一次最多 8 页），返回文档可继续选中检查；复杂生成与编辑通过 AI 工具完成。

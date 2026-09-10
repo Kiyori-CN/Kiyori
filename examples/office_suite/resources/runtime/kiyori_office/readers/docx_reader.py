@@ -65,6 +65,37 @@ def _iter_block_items(document: "DocxDocument"):
             yield Table(child, document)
 
 
+def _paragraph_objects(paragraph, document):
+    from lxml import etree
+    from docx.oxml.ns import qn
+    result = []
+    for index, formula in enumerate(paragraph._p.xpath('.//m:oMath')):
+        xml = etree.tostring(formula, encoding='unicode')
+        result.append({'type': 'formula', 'object_index': index, 'omml': xml[:12000], 'truncated': len(xml)>12000})
+    for index, image in enumerate(paragraph._p.xpath('.//a:blip')):
+        result.append({'type': 'image', 'object_index': index, 'external': image.get(qn('r:link')) is not None})
+    namespace = '{http://schemas.openxmlformats.org/drawingml/2006/chart}'
+    for index, chart in enumerate(paragraph._p.iter(namespace+'chart')):
+        entry = {'type': 'chart', 'object_index': index}
+        relation = document.part.rels.get(chart.get(qn('r:id')))
+        if relation is not None and not relation.is_external:
+            root = etree.fromstring(relation.target_part.blob)
+            series = []
+            for series_node in root.iter(namespace+'ser'):
+                value = {}
+                for field, tag in (('name','tx'),('categories','cat'),('values','val')):
+                    parent = series_node.find(namespace+tag)
+                    if parent is not None:
+                        values = [node.text for node in parent.iter(namespace+'v')]
+                        value[field] = values[:100]
+                        if len(values)>100:
+                            value['truncated'] = True
+                series.append(value)
+            entry['cached_series'] = series
+        result.append(entry)
+    return result
+
+
 def docx_outline(path: Path, *, max_items: int = 0) -> Dict[str, Any]:
     """返回段落索引、样式、层级、表格坐标与章节信息。"""
 
@@ -98,6 +129,7 @@ def docx_outline(path: Path, *, max_items: int = 0) -> Dict[str, Any]:
                 "style": style_name,
                 "heading_level": level,
                 "runs": len(block.runs),
+                "objects": _paragraph_objects(block, document),
             }
             paragraphs.append(item)
             if level is not None and text.strip():

@@ -1,6 +1,20 @@
 # 办公文档套件专项
 
-状态：进行中（已扩展随包指导、办公控制台、原生图表与数据完整性保护；本地验证见第 14 节，设备验收保持 verification_pending）。
+## 本轮计划（2026-09-10）
+
+目标：页面图像直接进入多模态上下文；增量编辑既有 Word/PPT，完善论文对象与原生设计能力。
+沿用现有 ImagePool、ToolPkg 搬运、Python 原子保存；不改变协议身份、不操作设备。
+
+1. 视觉：Linux direct_image、预览自动注册图片、分页与版面诊断。
+2. PPT：共用元素插入、对象样式、图层/分组、主题、可解释文本测量、动画和转场。
+3. Word：锚点插入结构化内容，公式、图片与论文排版；保留现有复杂对象。
+4. 回归：结构与保真测试、JS 搬运测试、真实渲染检查、串行 Debug APK。
+5. 审计允许清单后提交推送 main，核对远端；PowerPoint 放映与 Android 多模态现场保持独立验收。
+
+风险：Office 私有扩展及渲染器差异；静态图不能验证动效，几何估算不能证明字形真实溢出。
+回滚点为本轮基线提交 `968481bbb7badcb631a757bb935028ec52da52e1`，原文件编辑继续默认另存。
+
+状态：本轮源码与本地构建已完成，提交推送交付按本轮授权执行；最新能力与证据见第 20 节。Android / PRoot 多模态与完整放映验收保持 `verification_pending`。
 
 ## 1. 目标
 
@@ -36,12 +50,12 @@
 | `office_env_setup` 实际执行安装 | 只返回计划，`executed: false` | Python 侧不调用 apt/pip；执行由 JS 层可见 PTY 负责，保证可独立测试 |
 | `pdf_ocr`（T4） | 未实现，`pdf_to_images` 已可用 | 设计文档把 T4 列为第三期 |
 
-## 5. 已实现命令（50 条 Python 命令，52 个 ToolPkg 工具条目）
+## 5. 已实现命令（51 条 Python 命令，53 个 ToolPkg 工具条目）
 
 - `office`：`office_workflow_guide`（advice）、`office_read_guide`（随包资源读取）、`office_env_check`、`office_env_setup`、`office_read`、`office_convert`、`office_render_preview`、`office_validate`、`office_diff`、`office_workspace_init`、`office_workspace_status`、`office_workspace_clean`。
 - `docx`：`docx_outline`、`docx_create`、`docx_from_template`、`docx_edit`、`docx_find_replace`、`docx_table`、`docx_insert_image`、`docx_style`、`docx_merge`、`docx_extract_media`。
 - `xlsx`：`xlsx_info`、`xlsx_read`、`xlsx_write`、`xlsx_format`、`xlsx_sheet`、`xlsx_recalc`、`xlsx_table`、`xlsx_chart`。
-- `pptx`：`pptx_outline`、`pptx_create`、`pptx_template_fill`、`pptx_slide`、`pptx_edit`、`pptx_notes`、`pptx_media`、`pptx_clean`。
+- `pptx`：`pptx_outline`、`pptx_create`、`pptx_template_fill`、`pptx_slide`、`pptx_edit`、`pptx_notes`、`pptx_media`、`pptx_clean`、`pptx_measure_text`。
 - `pdf`：`pdf_info`、`pdf_extract`、`pdf_merge`、`pdf_split`、`pdf_rotate`、`pdf_reorder`、`pdf_delete_pages`、`pdf_form_list`、`pdf_form_fill`、`pdf_watermark`、`pdf_encrypt`、`pdf_decrypt`、`pdf_to_images`、`pdf_create`。
 
 设计文档中的 `xlsx_import`/`xlsx_export`、`xlsx_aggregate`、`docx_comment`、`docx_track_changes`、`pptx_thumbnail`、`pdf_stamp`、`pdf_compress`、`pdf_ocr` 属第二/三期，尚未实现。`xlsx_chart` 已实现五种基础图表，组合图表与数据透视编辑尚未实现。
@@ -52,7 +66,7 @@
 - `Tools.Files.copy(source, destination, recursive, sourceEnvironment, destEnvironment)` 支持跨环境复制，Android → Linux 与 Linux → Android 均已使用。
 - `Tools.Files.write(path, content, append, environment)` 用于写 args.json 与 bootstrap 脚本；参数一律走 JSON 文件，不使用 `python -c`。
 - `ToolPkg.readResource(key, outputFileName, internal)` 对 `mime: inode/directory` 的资源会先打 zip 再返回路径，因此运行时以目录资源分发，JS 侧解压到 `~/kiyori_office/runtime`。
-- `Tools.Files.read({ path, direct_image: true })` 是视觉验收通道；`office_render_preview` 返回 Android 路径供其使用。
+- `Tools.Files.read({ path, direct_image: true })` 是视觉通道；预览按 artifact 的实际环境自动注册图像，返回图片链接，仍要求模型逐页审阅。
 - `SkillManager` 扫描 `OperitPaths.skillsDir()`（用户 `Kiyori/skills`），只支持目录/ZIP/手动导入；本期不改宿主扫描机制。
 - ToolPkg 资产生成任务为 `:app:generateBundledToolPkgAssets`，由 `tools/example_packages/packages_whitelist.txt` 驱动，`app/build.gradle.kts` 已接入 debug/release 变体。
 - `linux_ssh` 等既有包使用 `Tools.System.terminal.hiddenExec`；office 额外固定 `localOnly: true`，避免文档被路由到未安装运行时的 SSH 目标。
@@ -574,3 +588,34 @@ $env:PYTHONDONTWRITEBYTECODE='1'
 - 两份本轮修改 Skill 校验通过；文档检查 512 文件 / 0 问题、formal readiness PASS、`git diff --check` 通过。79 个候选文件均属于办公交付范围，敏感扫描无命中，无异常大文件、链接或嵌套 Git；开发机 `work/office-delivery-20260910` 保留审计和构建证据，不提交。
 - 本轮提交前，本地与 `origin/main`、远端 main 均为基线 `8896560e767245ec9423ac2cae72b1c46c1d2e0a`，terminal 干净。候选提交、新鲜克隆与推送对账在形成提交后执行，结果记录于本次交付回复和任务日记。
 - 本次源码修复和本地验证已完成；用户报告覆盖其设备上的上一版核心流程。本轮新列表真实设备渲染仍为 `verification_pending`，未安装或操作设备；原生公式/文献管理等第 17 节后续能力未纳入本轮交付。
+
+## 20. 多模态视觉、原生对象与演示编辑（2026-09-10）
+
+本轮基线 `main / 968481bbb7badcb631a757bb935028ec52da52e1`，开始时工作区干净。用户明确授权本轮办公改动全部提交推送 `origin/main`；不修改 terminal、不安装或操作设备。套件版本更新为 `0.2.0`，应用版本保持原值。
+
+### 交付能力
+
+- 视觉：Linux 显式 `direct_image` 通过当前文件提供者读取图片并注册到既有 ImagePool；Android 注册失败不再静默转 OCR。`office_render_preview` / `pdf_to_images` 自动附带真实图像链接，支持页码、每批最多 8 页、2048 像素最长边和 region 局部放大。结构报告包含 PPT 对象框、字号、越界与重叠提示；Word/PDF 可显式获取 PDF 字词/图片框。附件成功仅表示 `images_attached_review_required`，不冒充视觉终审通过。
+- 增量编辑：PPT 共用元素插入，支持稳定 `shape_id` 定位、组内对象、删除/换图/样式/真实表格与图表编辑、图层顺序、分组/解除组合；Word 支持按锚点插入结构块和按对象索引修改公式、图片、原生图表。原文件仍走既有原子另存，非法操作不发布半成品。
+- 原生排版：Word/PPT 支持 OMML；Word 图表包含独立嵌入工作簿，选定图表修改先隔离共享部件；图片比例、题注、公式编号制表位、Word/PDF 三线表与 PDF 重复表头可用。复杂 PDF 公式继续走显式 Pandoc/XeLaTeX 或 Word 转换，不把原始 LaTeX 当作渲染结果。
+- PPT 设计：系列/数据点配色、标签/图例/坐标轴/网格线、表格填充/边框/字号/行列尺寸、形状渐变/透明度/阴影/相对圆角、图片 contain/cover/stretch 与裁剪、8 个原创可编辑线性图标、文档/页面/元素默认值。`pptx_measure_text` 提供明确标记的启发式测高，使用控制命令避免制造工作副本。
+- 动效：原生转场 `none/fade/push/wipe/split/cover/uncover`；动画 `fade/wipe/appear`，支持点击、与前项同时、前项后和退出。普通编辑保留原有动画，`set_animations` 显式替换当前页完整列表。校验重复时间/对象 ID 和悬空引用，删除被动画或连接线引用的对象会拒绝。
+- 同步工具元数据唯一源、生成 TypeScript/dist、四份随包指导、用户入口和扩展契约；现为 51 条 Python 命令、53 个工具条目。
+
+### 验证证据
+
+- 完整 Python 办公测试：243 项通过、0 失败/跳过；JS/控制台 47 项、工具/schema 契约 13 项通过，TypeScript 编译成功。测试覆盖真实 OOXML 保存回读、共享图表/工作簿隔离、旧媒体关系清理、原子失败、公式/图标、结构报告和图像搬运。
+- 图像链接与工具历史相关 JVM：7 个套件、37 项通过，无失败/错误/跳过；包含长 JSON 截断后转义图片链接仍进入多模态输入的回归。
+- 本机 Microsoft PowerPoint 打开 3 页样例、导出并逐页查看 PNG，识别 2 个动画和转场；保存回读保留 `clickEffect/afterEffect`、`fade/wipe(up)` 和相对延时。以 PowerPoint 自身生成的 XML 校正动画层级和可见性节点。静态视觉检查发现并修复默认图表标题、图标继承阴影和表格边框节点顺序。
+- 本机 Word 打开样例识别 1 个 OMath、2 个 InlineShapes、1 张表格，导出 2 页 PDF 并逐页查看。真实 Poppler 调用生产预览完成局部裁剪，pdfplumber 返回第 1 页 31 个词。该验证使用实际存在的开发机 CMap，不更改生产 Linux 探测规则。
+- 用户报告的 `layout_index=6` 却显示其他布局未复现；回归和实际 PowerPoint 均确认内置索引 6 为 Blank，没有宣称修复未经复现的元数据缺陷。
+- 最终 `:app:assembleDebug --no-daemon --console=plain`：`BUILD SUCCESSFUL in 57s`，238 项任务（26 执行、212 up-to-date）。第一次构建正确拦截测试产生的 `__pycache__`；已将确认只有字节码的目录可恢复移至忽略的 `work/` 后重建，未绕过检查。后续仓库 Python 回归使用 `.venv` 和 `-B -m pytest`，防止污染打包资源。
+- APK：`app/build/outputs/apk/debug/app-debug.apk`，485,731,920 bytes，2026-09-10 13:06:08（Asia/Shanghai），`com.kiyori / 0.1.0 / 45`；SHA-256 `8f83df3d597cf6a481dc49b53da7629ca3d00e32bebc6b32d37fb7f87073478a`。
+- APK 内 `assets/packages/office_suite.toolpkg` 为 262,010 bytes、78 个文件，manifest 版本 `0.2.0`；全部文件与工作区逐字节一致，无 `__pycache__` 或 `.pyc`。
+- 四份 Skill 校验、formal readiness、文档检查与差异空白检查通过。候选提交、新鲜克隆及远端核对结果在交付回复和任务日记记录。
+
+### 剩余边界与下一步
+
+当前工程实现和本地构建完成；Android / PRoot、实际模型供应商接收图片、复杂真实模板编辑、WPS/其他播放器及完整放映仍为 `verification_pending`。优先以用户真实论文和已有 PPT 完成“读取—局部修改—渲染—模型逐页审阅—再次修改”闭环，并在 PowerPoint 放映确认时序，再扩大高级能力。
+
+文本测量和重叠报告是诊断提示，不能证明真实字形排版或审美质量；组合旋转/缩放等不支持的解除操作显式拒绝。未实现 Morph、运动路径、逐字动画、任意复杂时间线、图片羽化或完整图标库；自动文献管理也不在本轮交付范围。上述限制在随包指导中保留，不以位图占位或静默降级冒充支持。

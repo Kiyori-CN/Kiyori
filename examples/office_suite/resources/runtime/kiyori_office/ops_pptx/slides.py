@@ -67,7 +67,10 @@ def _set_text_frame(text_frame, lines: List[str], size_pt=None) -> None:
                 run.font.size = Pt(measure(size_pt, "size_pt", 1, 400))
 
 
-def _apply_slide_spec(prs, spec: Dict[str, Any], layout_index: int) -> None:
+def _apply_slide_spec(prs, spec: Dict[str, Any], layout_index: int, *, args=None, theme=None) -> None:
+    from .style import checked
+    from .layout import validate_theme
+    checked(spec, {"layout_index", "title", "bullets", "title_size_pt", "body_size_pt", "background_rgb", "elements", "theme", "notes", "transition", "animations"}, "slides[]")
     layouts = prs.slide_layouts
     if layout_index < 0 or layout_index >= len(layouts):
         raise OfficeError(
@@ -107,7 +110,12 @@ def _apply_slide_spec(prs, spec: Dict[str, Any], layout_index: int) -> None:
         slide.background.fill.solid()
         slide.background.fill.fore_color.rgb = rgb(spec["background_rgb"])
     if "elements" in spec:
-        add_elements(prs, slide, spec["elements"])
+        add_elements(prs, slide, spec["elements"], args=args, theme={**validate_theme(theme), **validate_theme(spec.get("theme"))})
+    from .motion import transition, animations
+    if "transition" in spec:
+        transition(slide, spec["transition"])
+    if "animations" in spec:
+        animations(slide, spec["animations"])
     if "notes" in spec:
         if not isinstance(spec["notes"], str):
             raise OfficeError("E_INPUT_SCHEMA", "notes 必须是字符串")
@@ -144,7 +152,7 @@ def pptx_create(args: Dict[str, Any]) -> Dict[str, Any]:
     for index, spec in enumerate(slides):
         if not isinstance(spec, dict):
             raise OfficeError("E_INPUT_SCHEMA", "slides[%d] 必须是对象" % index)
-        _apply_slide_spec(prs, spec, int(spec.get("layout_index", default_layout)))
+        _apply_slide_spec(prs, spec, int(spec.get("layout_index", default_layout)), args=args, theme=args.get("theme"))
     output.parent.mkdir(parents=True, exist_ok=True)
     atomic_save(prs, output)
     outline = pptx_outline(output)

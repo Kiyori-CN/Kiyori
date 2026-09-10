@@ -133,8 +133,8 @@ exports.OFFICE_TOOLS = {
     "office_render_preview": {
         meta: {
             name: "office_render_preview",
-            zh: "\u4ea7\u7269 \u2192 PDF \u2192 \u5206\u9875 JPEG\uff0c\u8fd4\u56de Android \u8def\u5f84\uff1b\u5fc5\u987b\u518d\u7528 direct_image \u9010\u9875\u770b\u56fe\u3002",
-            en: "Render output to PDF then per-page JPEG and return Android paths; inspect every page with direct_image.",
+            zh: "Word/PPT/PDF \u8f6c\u5206\u9875\u56fe\u7247\uff0c\u76f4\u63a5\u9644\u52a0\u591a\u6a21\u6001\u56fe\u50cf\u548c\u9875\u7801\uff1b\u6bcf\u6b21\u6700\u591a8\u9875\uff0c\u9700\u771f\u6b63\u770b\u56fe\u540e\u9a8c\u6536\u3002PPT \u9644\u7ed3\u6784\u7248\u9762\u8bca\u65ad\u3002",
+            en: "Render Word/PPT/PDF pages and attach multimodal images with page numbers, at most 8 per call; actual image review is required. PPT includes layout diagnostics.",
             params: [
                 { name: "path", zh: "Linux \u6216 Android \u6587\u4ef6\u8def\u5f84", en: "Linux or Android file path", type: "string", required: true },
                 { name: "env", zh: "\u8f93\u5165\u6587\u4ef6\u6240\u5728\u73af\u5883\uff1aandroid=\u624b\u673a\u6587\u4ef6\uff0clinux=Ubuntu\u8def\u5f84\uff1b\u4ec5\u51b3\u5b9a\u5982\u4f55\u8bfb\u53d6\u6587\u4ef6\uff0c\u529e\u516c\u5f15\u64ce\u59cb\u7ec8\u5728\u672c\u673aUbuntu\u6267\u884c\u3002", en: "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu.", type: "string", required: true },
@@ -145,11 +145,13 @@ exports.OFFICE_TOOLS = {
                 { name: "output_path", zh: "\u4ea7\u7269\u76ee\u5f55\uff1b\u7701\u7565\u65f6\u5199\u5165\u4ea4\u4ed8\u76ee\u5f55", en: "Output directory; defaults to the delivery directory", type: "string", required: false },
                 { name: "overwrite", zh: "\u76ee\u6807\u76ee\u5f55\u975e\u7a7a\u65f6\u662f\u5426\u8986\u76d6\uff0c\u9ed8\u8ba4 false", en: "Overwrite a non-empty target directory; default false", type: "boolean", required: false },
                 { name: "task_id", zh: "\u590d\u7528\u540c\u4e00\u4e2a Linux \u6682\u5b58\u533a", en: "Reuse the same Linux staging directory", type: "string", required: false },
+                { name: "layout_report", zh: "\u9ed8\u8ba4 true\uff0cPPT \u8fd4\u56de\u7ed3\u6784\u7248\u9762\u8bca\u65ad", en: "Default true: include structural layout diagnostics for PPT", type: "boolean", required: false },
+                { name: "region", zh: "\u5c40\u90e8\u7ec6\u770b\uff1aleft/top/width/height \u4e3a\u9875\u9762\u5f52\u4e00\u5316 0-1 \u5750\u6807\uff1b\u8fd4\u56de\u88c1\u526a\u56fe\uff0c\u6700\u957f\u8fb92048", en: "Detail crop: left/top/width/height normalized to 0-1 of page; image long edge capped at 2048", type: "object", required: false },
             ]
         },
         spec: {
             command: "office_render_preview",
-            params: ["path", "env", "output_env", "pages", "dpi", "max_pages", "output_path", "overwrite", "task_id"],
+            params: ["path", "env", "output_env", "pages", "dpi", "max_pages", "output_path", "overwrite", "task_id", "layout_report", "region"],
             inputPaths: ["path"],
             outputKind: "multi",
             defaultOutputName: "preview",
@@ -281,7 +283,7 @@ exports.OFFICE_TOOLS = {
             zh: "\u4ece\u7ed3\u6784\u5316 spec \u6216 Markdown \u751f\u6210 DOCX\uff08python-docx\uff09\u3002",
             en: "Create a DOCX from a structured spec or Markdown (python-docx).",
             params: [
-                { name: "spec", zh: "\u542b blocks \u4e0e\u53ef\u9009 layout \u7684\u7ed3\u6784\u5316\u6587\u6863\uff1bbullet/number \u4f7f\u7528 text \u6216 runs \u521b\u5efa\u5355\u9879\uff0citems \u5b57\u7b26\u4e32\u6570\u7ec4\u521b\u5efa\u591a\u9879\uff0c\u4e09\u8005\u4e0d\u53ef\u6df7\u7528", en: "Structured document with blocks and optional layout; bullet/number accepts text or runs for one item, or a string items array for multiple items; do not mix these inputs", type: "object", required: false },
+                { name: "spec", zh: "layout \u4e0e blocks\uff1b\u652f\u6301\u6bb5\u843d\u3001\u6807\u9898\u3001\u8868\u683c(border_style=three_line)\u3001image\u3001chart(\u539f\u751f\u53ef\u7f16\u8f91)\u3001formula(omml)\u3001caption", en: "layout and blocks: paragraphs, headings, table(border_style=three_line), image, native editable chart, formula(omml), caption", type: "object", required: false },
                 { name: "markdown", zh: "Markdown \u6587\u672c", en: "Markdown text", type: "string", required: false },
                 { name: "file_name", zh: "\u9ed8\u8ba4\u6587\u4ef6\u540d", en: "Default file name", type: "string", required: false },
                 { name: "output_path", zh: "\u4ea7\u7269\u8def\u5f84\uff1b\u7701\u7565\u65f6\u5199\u5165\u4ea4\u4ed8\u76ee\u5f55", en: "Output path; defaults to the delivery directory", type: "string", required: false },
@@ -331,19 +333,25 @@ exports.OFFICE_TOOLS = {
                 { name: "path", zh: "Linux \u6216 Android \u6587\u4ef6\u8def\u5f84", en: "Linux or Android file path", type: "string", required: true },
                 { name: "env", zh: "\u8f93\u5165\u6587\u4ef6\u6240\u5728\u73af\u5883\uff1aandroid=\u624b\u673a\u6587\u4ef6\uff0clinux=Ubuntu\u8def\u5f84\uff1b\u4ec5\u51b3\u5b9a\u5982\u4f55\u8bfb\u53d6\u6587\u4ef6\uff0c\u529e\u516c\u5f15\u64ce\u59cb\u7ec8\u5728\u672c\u673aUbuntu\u6267\u884c\u3002", en: "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu.", type: "string", required: true },
                 { name: "anchor", zh: "{index} \u6216 {text}", en: "{index} or {text}", type: "object", required: true },
-                { name: "operation", zh: "replace/insert_before/insert_after/delete", en: "replace/insert_before/insert_after/delete", type: "string", required: true },
+                { name: "operation", zh: "replace/insert_before/insert_after/delete/insert_blocks_before/insert_blocks_after/set_formula/replace_image/set_chart", en: "replace/insert_before/insert_after/delete/insert_blocks_before/insert_blocks_after/set_formula/replace_image/set_chart", type: "string", required: true },
                 { name: "text", zh: "\u5199\u5165\u6587\u672c", en: "Text to write", type: "string", required: false },
                 { name: "output_path", zh: "\u4ea7\u7269\u8def\u5f84\uff1b\u7701\u7565\u65f6\u5199\u5165\u4ea4\u4ed8\u76ee\u5f55", en: "Output path; defaults to the delivery directory", type: "string", required: false },
                 { name: "output_env", zh: "\u4ea7\u7269\u76ee\u6807\u73af\u5883\uff0c\u9ed8\u8ba4 android\uff08\u4ea4\u4ed8\u76ee\u5f55\uff09\uff1b\u5199\u5165 Linux \u65f6\u5fc5\u987b\u663e\u5f0f\u4f20 linux", en: "Artifact environment; defaults to android delivery directory, and must be explicitly linux for Linux output", type: "string", required: false },
                 { name: "overwrite", zh: "\u76ee\u6807\u5df2\u5b58\u5728\u65f6\u662f\u5426\u8986\u76d6\uff0c\u9ed8\u8ba4 false", en: "Overwrite an existing target; default false", type: "boolean", required: false },
                 { name: "in_place", zh: "\u539f\u5730\u7f16\u8f91\uff08\u4ec5 Linux \u5de5\u4f5c\u533a\uff0c\u4ecd\u9700\u4e34\u65f6\u6587\u4ef6\u539f\u5b50\u66ff\u6362\uff09", en: "Edit in place (Linux workspace only; still atomic replacement)", type: "boolean", required: false },
                 { name: "task_id", zh: "\u590d\u7528\u540c\u4e00\u4e2a Linux \u6682\u5b58\u533a", en: "Reuse the same Linux staging directory", type: "string", required: false },
+                { name: "blocks", zh: "\u951a\u70b9\u524d/\u540e\u63d2\u5165\u7ed3\u6784\u5316\u5757\uff1a\u6b63\u6587\u3001\u6807\u9898\u3001\u8868\u683c\u3001image\u3001formula(omml)\u3001caption", en: "Structured blocks before/after anchor: paragraphs, headings, tables, image, formula(omml), caption", type: "array", required: false },
+                { name: "chart_data", zh: "set_chart\uff1a{categories,series:[{name,values}]}\uff0c\u66f4\u65b0\u7f13\u5b58\u4e0e\u5d4c\u5165\u5de5\u4f5c\u7c3f", en: "set_chart: {categories,series:[{name,values}]}; updates cache and embedded workbook", type: "object", required: false },
+                { name: "object_index", zh: "\u6bb5\u843d\u5185\u540c\u7c7b\u5bf9\u8c61\u76840-based\u7d22\u5f15\uff0c\u9ed8\u8ba40", en: "object_index", type: "number", required: false },
+                { name: "omml", zh: "set_formula\uff1a\u539f\u751f m:oMath XML", en: "omml", type: "string", required: false },
+                { name: "image_path", zh: "replace_image\uff1a\u66ff\u6362\u56fe\u7247\u5185\u5bb9\uff0c\u4fdd\u7559\u4f4d\u7f6e\u548c\u5927\u5c0f", en: "image_path", type: "string", required: false },
+                { name: "chart_style", zh: "set_chart\uff1a\u4e0ePPT\u76f8\u540c\u56fe\u8868\u6837\u5f0f\u5b57\u6bb5", en: "chart_style", type: "object", required: false },
             ]
         },
         spec: {
             command: "docx_edit",
-            params: ["path", "env", "anchor", "operation", "text", "output_path", "output_env", "overwrite", "in_place", "task_id"],
-            inputPaths: ["path"],
+            params: ["path", "env", "anchor", "operation", "text", "output_path", "output_env", "overwrite", "in_place", "task_id", "blocks", "chart_data", "object_index", "omml", "image_path", "chart_style"],
+            inputPaths: ["path", "image_path"],
             defaultOutputName: "edited.docx",
             timeoutMs: 300000,
         }
@@ -724,11 +732,12 @@ exports.OFFICE_TOOLS = {
                 { name: "env", zh: "\u8f93\u5165\u6587\u4ef6\u6240\u5728\u73af\u5883\uff1aandroid=\u624b\u673a\u6587\u4ef6\uff0clinux=Ubuntu\u8def\u5f84\uff1b\u4ec5\u51b3\u5b9a\u5982\u4f55\u8bfb\u53d6\u6587\u4ef6\uff0c\u529e\u516c\u5f15\u64ce\u59cb\u7ec8\u5728\u672c\u673aUbuntu\u6267\u884c\u3002", en: "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu.", type: "string", required: true },
                 { name: "max_slides", zh: "\u6700\u591a\u8fd4\u56de\u9875\u6570", en: "Max slides", type: "number", required: false },
                 { name: "task_id", zh: "\u590d\u7528\u540c\u4e00\u4e2a Linux \u6682\u5b58\u533a", en: "Reuse the same Linux staging directory", type: "string", required: false },
+                { name: "layout_report", zh: "\u8fd4\u56de\u5206\u7ec4\u3001\u56fe\u5c42\u3001\u8d8a\u754c\u3001\u53ef\u80fd\u6ea2\u51fa\u4e0e\u906e\u6321\u62a5\u544a\uff1b\u4e0d\u7b49\u4e8e\u89c6\u89c9\u9a8c\u6536", en: "Report groups, z-order, bounds and possible overflow/overlap; not visual acceptance", type: "boolean", required: false },
             ]
         },
         spec: {
             command: "pptx_outline",
-            params: ["path", "env", "max_slides", "task_id"],
+            params: ["path", "env", "max_slides", "task_id", "layout_report"],
             inputPaths: ["path"],
             defaultOutputName: "outline.json",
             timeoutMs: 300000,
@@ -740,7 +749,7 @@ exports.OFFICE_TOOLS = {
             zh: "\u4ece\u5927\u7eb2\u751f\u6210 PPTX\uff1b\u53ef\u57fa\u4e8e\u6a21\u677f\u7248\u5f0f\u3002",
             en: "Create a PPTX from an outline, optionally based on a template.",
             params: [
-                { name: "slides", zh: "\u9875\u9762\u6570\u7ec4\uff1atitle/bullets/layout_index/title_size_pt/body_size_pt\uff1b\u53ef\u9009 background_rgb\u3001notes\u3001elements\u3002elements \u652f\u6301 text/shape/table\uff0c\u5398\u7c73\u4f4d\u7f6e\u5c3a\u5bf8 left_cm/top_cm/width_cm/height_cm\uff1b\u6587\u672c\u652f\u6301 paragraphs \u4e0e\u5b57\u4f53\u6392\u7248\u3002\u5148\u8bfb pptx \u6307\u5f15\u3002 chart \u5143\u7d20\u652f\u6301 column/bar/line/pie\uff0ccategories \u4e3a\u5206\u7c7b\u6570\u7ec4\uff0cseries:[{name,values}]\uff0c\u751f\u6210\u539f\u751f\u53ef\u7f16\u8f91\u56fe\u8868\u3002", en: "Slide specs with title/bullets/layout_index and optional background_rgb, notes, elements. Elements: editable text/shape/table with left_cm/top_cm/width_cm/height_cm and paragraph styling. Read pptx guide. chart elements accept column/bar/line/pie, categories, series:[{name,values}] for native editable charts.", type: "array", required: true },
+                { name: "slides", zh: "\u5143\u7d20\u652f\u6301 text/shape/image/table/chart/formula(omml)/icon\uff1bstyle/table_style/chart_style\u3001theme\u3001transition/animations \u8be6\u89c1 office_read_guide(format=pptx)", en: "Elements: text/shape/image/table/chart/formula(omml)/icon. See office_read_guide(format=pptx) for styling, theme, transitions and animations.", type: "array", required: true },
                 { name: "template_path", zh: "\u6a21\u677f\u8def\u5f84", en: "Template path", type: "string", required: false },
                 { name: "layout_index", zh: "\u9ed8\u8ba4\u7248\u5f0f\u7d22\u5f15", en: "Default layout index", type: "number", required: false },
                 { name: "file_name", zh: "\u9ed8\u8ba4\u6587\u4ef6\u540d", en: "Default file name", type: "string", required: false },
@@ -750,11 +759,12 @@ exports.OFFICE_TOOLS = {
                 { name: "overwrite", zh: "\u76ee\u6807\u5df2\u5b58\u5728\u65f6\u662f\u5426\u8986\u76d6\uff0c\u9ed8\u8ba4 false", en: "Overwrite an existing target; default false", type: "boolean", required: false },
                 { name: "task_id", zh: "\u590d\u7528\u540c\u4e00\u4e2a Linux \u6682\u5b58\u533a", en: "Reuse the same Linux staging directory", type: "string", required: false },
                 { name: "slide_size_cm", zh: "\u5e7b\u706f\u7247\u5c3a\u5bf8\u5398\u7c73 {width,height}\uff1b16:9 \u793a\u4f8b {width:33.867,height:19.05}\u3002", en: "Slide dimensions in cm {width,height}; 16:9 example {width:33.867,height:19.05}.", type: "object", required: false },
+                { name: "theme", zh: "\u5143\u7d20\u9ed8\u8ba4\u5b57\u4f53\uff1afont_name/size_pt/color_rgb/bold\uff0c\u5143\u7d20\u5b57\u6bb5\u8986\u76d6\u9ed8\u8ba4\u503c", en: "Element font defaults: font_name/size_pt/color_rgb/bold; explicit element fields win", type: "object", required: false },
             ]
         },
         spec: {
             command: "pptx_create",
-            params: ["slides", "template_path", "layout_index", "file_name", "output_path", "env", "output_env", "overwrite", "task_id", "slide_size_cm"],
+            params: ["slides", "template_path", "layout_index", "file_name", "output_path", "env", "output_env", "overwrite", "task_id", "slide_size_cm", "theme"],
             inputPaths: ["template_path"],
             defaultOutputName: "presentation.pptx",
             timeoutMs: 300000,
@@ -814,15 +824,15 @@ exports.OFFICE_TOOLS = {
     "pptx_edit": {
         meta: {
             name: "pptx_edit",
-            zh: "\u7f16\u8f91\u6307\u5b9a\u5f62\u72b6\u7684\u6587\u672c/\u4f4d\u7f6e/\u5c3a\u5bf8/\u5b57\u4f53\uff1b\u5148 pptx_outline \u53d6\u951a\u70b9\u3002",
-            en: "Edit a shape's text/position/size/font; call pptx_outline first.",
+            zh: "\u589e\u91cf\u7f16\u8f91\u65e2\u6709\u9875\u9762\uff1a\u6dfb\u52a0\u5143\u7d20\u3001\u7a33\u5b9aID\u5b9a\u4f4d\u3001\u8868\u683c\u56fe\u8868\u6837\u5f0f\u3001\u56fe\u5c42\u5206\u7ec4\u3001\u8f6c\u573a\u52a8\u753b\uff1b\u65e0\u9700\u91cd\u5efa\u6574\u4efd\u3002",
+            en: "Edit existing slides incrementally: add elements, stable IDs, table/chart styles, grouping, z-order, transitions and animations.",
             params: [
                 { name: "path", zh: "Linux \u6216 Android \u6587\u4ef6\u8def\u5f84", en: "Linux or Android file path", type: "string", required: true },
                 { name: "env", zh: "\u8f93\u5165\u6587\u4ef6\u6240\u5728\u73af\u5883\uff1aandroid=\u624b\u673a\u6587\u4ef6\uff0clinux=Ubuntu\u8def\u5f84\uff1b\u4ec5\u51b3\u5b9a\u5982\u4f55\u8bfb\u53d6\u6587\u4ef6\uff0c\u529e\u516c\u5f15\u64ce\u59cb\u7ec8\u5728\u672c\u673aUbuntu\u6267\u884c\u3002", en: "Input file location: android=phone files, linux=Ubuntu paths. Controls input reading; office engines always execute in local Ubuntu.", type: "string", required: true },
                 { name: "slide_index", zh: "0-based \u9875\u7d22\u5f15", en: "0-based slide index", type: "number", required: true },
                 { name: "shape_index", zh: "\u5f62\u72b6\u7d22\u5f15", en: "Shape index", type: "number", required: false },
                 { name: "shape_name", zh: "\u9876\u5c42\u552f\u4e00\u5f62\u72b6\u540d\uff1b\u591a\u5904\u547d\u4e2d\u65f6\u62a5\u9519\uff0c\u4f7f\u7528 shape_index \u6d88\u9664\u6b67\u4e49", en: "Unique top-level shape name; use shape_index if the name is ambiguous", type: "string", required: false },
-                { name: "operation", zh: "set_text/append_text/set_position/set_size/set_font", en: "set_text/append_text/set_position/set_size/set_font", type: "string", required: false },
+                { name: "operation", zh: "set_text/append_text/set_position/set_size/set_font/add_elements/delete/set_style/set_table/set_chart/z_order/group/ungroup/set_transition/set_animations/replace_image", en: "set_text/append_text/set_position/set_size/set_font/add_elements/delete/set_style/set_table/set_chart/z_order/group/ungroup/set_transition/set_animations/replace_image", type: "string", required: false },
                 { name: "text", zh: "\u6587\u672c", en: "Text", type: "string", required: false },
                 { name: "size_pt", zh: "\u5b57\u53f7", en: "Font size", type: "number", required: false },
                 { name: "bold", zh: "\u662f\u5426\u52a0\u7c97", en: "Bold", type: "boolean", required: false },
@@ -836,12 +846,28 @@ exports.OFFICE_TOOLS = {
                 { name: "overwrite", zh: "\u76ee\u6807\u5df2\u5b58\u5728\u65f6\u662f\u5426\u8986\u76d6\uff0c\u9ed8\u8ba4 false", en: "Overwrite an existing target; default false", type: "boolean", required: false },
                 { name: "in_place", zh: "\u539f\u5730\u7f16\u8f91\uff08\u4ec5 Linux \u5de5\u4f5c\u533a\uff0c\u4ecd\u9700\u4e34\u65f6\u6587\u4ef6\u539f\u5b50\u66ff\u6362\uff09", en: "Edit in place (Linux workspace only; still atomic replacement)", type: "boolean", required: false },
                 { name: "task_id", zh: "\u590d\u7528\u540c\u4e00\u4e2a Linux \u6682\u5b58\u533a", en: "Reuse the same Linux staging directory", type: "string", required: false },
+                { name: "theme", zh: "\u5143\u7d20\u9ed8\u8ba4\u5b57\u4f53\uff1afont_name/size_pt/color_rgb/bold\uff0c\u5143\u7d20\u5b57\u6bb5\u8986\u76d6\u9ed8\u8ba4\u503c", en: "Element font defaults: font_name/size_pt/color_rgb/bold; explicit element fields win", type: "object", required: false },
+                { name: "shape_id", zh: "\u7a33\u5b9a\u5bf9\u8c61ID\uff0c\u53ef\u5b9a\u4f4d\u7ec4\u5185\u5bf9\u8c61\uff1b\u7531 outline \u8fd4\u56de", en: "Stable object ID, including grouped children; returned by outline", type: "number", required: false },
+                { name: "elements", zh: "\u5143\u7d20\u652f\u6301 text/shape/image/table/chart/formula(omml)/icon\uff1bstyle/table_style/chart_style\u3001theme\u3001transition/animations \u8be6\u89c1 office_read_guide(format=pptx)", en: "Elements: text/shape/image/table/chart/formula(omml)/icon. See office_read_guide(format=pptx) for styling, theme, transitions and animations.", type: "array", required: false },
+                { name: "style", zh: "set_style\uff1afill_rgb/gradient/opacity/shadow/line_rgb/line_width_pt/corner_radius", en: "set_style: fill_rgb/gradient/opacity/shadow/line_rgb/line_width_pt/corner_radius", type: "object", required: false },
+                { name: "table_style", zh: "set_table\uff1a\u8868\u5934/\u6b63\u6587/\u6591\u9a6c\u7eb9\u586b\u5145\u3001\u8fb9\u6846\u3001\u5b57\u4f53\u4e0e\u884c\u5217\u5c3a\u5bf8\uff1b\u8be6\u89c1 pptx \u6307\u5bfc", en: "set_table: header/body/band fills, borders, fonts and row/column sizes; see pptx guide", type: "object", required: false },
+                { name: "cells", zh: "set_table\uff1a[{row,column,text}]\uff0c0-based\uff0c\u4ec5\u4fee\u6539\u6307\u5b9a\u5355\u5143\u683c", en: "set_table: [{row,column,text}], zero-based; updates only selected cells", type: "array", required: false },
+                { name: "chart_style", zh: "set_chart\uff1aseries_colors/point_colors/legend_position/data_labels/gridlines/number_format/minimum_scale/maximum_scale", en: "set_chart: series_colors/point_colors/legend_position/data_labels/gridlines/number_format/minimum_scale/maximum_scale", type: "object", required: false },
+                { name: "z_index", zh: "z_order\uff1a\u540c\u4e00\u7ec4\u5185\u56fe\u5c42\u7d22\u5f15\uff0c0\u4e3a\u5e95\u5c42", en: "z_order: sibling stacking index, zero is the bottom", type: "number", required: false },
+                { name: "shape_ids", zh: "group\uff1a\u8fde\u7eed\u9876\u5c42\u5bf9\u8c61ID\u6570\u7ec4", en: "group: IDs of consecutive top-level shapes", type: "array", required: false },
+                { name: "group_name", zh: "group\uff1a\u65b0\u7ec4\u5408\u540d\u79f0", en: "group: new group name", type: "string", required: false },
+                { name: "transition", zh: "set_transition\uff1aeffect/speed/direction/advance_on_click/advance_after_ms", en: "set_transition: effect/speed/direction/advance_on_click/advance_after_ms", type: "object", required: false },
+                { name: "animations", zh: "set_animations\uff1a\u66ff\u6362\u8be5\u9875\u52a8\u753b\uff0c\u7a7a\u6570\u7ec4\u6e05\u9664\uff1bfade/wipe/appear\uff0c\u8be6\u89c1\u6307\u5bfc", en: "set_animations: replace slide animation list, empty clears; fade/wipe/appear; see guide", type: "array", required: false },
+                { name: "chart_data", zh: "set_chart\uff1a{categories,series:[{name,values}]}\uff0c\u66f4\u65b0\u7f13\u5b58\u4e0e\u5d4c\u5165\u5de5\u4f5c\u7c3f", en: "set_chart: {categories,series:[{name,values}]}; updates cache and embedded workbook", type: "object", required: false },
+                { name: "image_path", zh: "replace_image\uff1a\u66ff\u6362\u56fe\u7247\u5185\u5bb9\uff0c\u4fdd\u7559\u4f4d\u7f6e\u5c3a\u5bf8\u88c1\u526a\u548c\u5bf9\u8c61\u8eab\u4efd", en: "replace_image: replace content while retaining position, size, crop and identity", type: "string", required: false },
+                { name: "font_name", zh: "set_font\uff1a\u4e2d\u897f\u6587\u5b57\u4f53\u540d", en: "set_font: Latin and East Asian font family", type: "string", required: false },
+                { name: "italic", zh: "set_font\uff1a\u659c\u4f53", en: "set_font: italic", type: "boolean", required: false },
             ]
         },
         spec: {
             command: "pptx_edit",
-            params: ["path", "env", "slide_index", "shape_index", "shape_name", "operation", "text", "size_pt", "bold", "color_rgb", "left_emu", "top_emu", "width_emu", "height_emu", "output_path", "output_env", "overwrite", "in_place", "task_id"],
-            inputPaths: ["path"],
+            params: ["path", "env", "slide_index", "shape_index", "shape_name", "operation", "text", "size_pt", "bold", "color_rgb", "left_emu", "top_emu", "width_emu", "height_emu", "output_path", "output_env", "overwrite", "in_place", "task_id", "theme", "shape_id", "elements", "style", "table_style", "cells", "chart_style", "z_index", "shape_ids", "group_name", "transition", "animations", "chart_data", "image_path", "font_name", "italic"],
+            inputPaths: ["path", "image_path"],
             defaultOutputName: "edited.pptx",
             timeoutMs: 300000,
         }
@@ -1238,7 +1264,7 @@ exports.OFFICE_TOOLS = {
             en: "Create a PDF; engine must be explicitly reportlab/pandoc/weasyprint and CJK fonts are probed first.",
             params: [
                 { name: "engine", zh: "reportlab/pandoc/weasyprint", en: "reportlab/pandoc/weasyprint", type: "string", required: true },
-                { name: "blocks", zh: "\u62a5\u544a\u5757\u6570\u7ec4\uff1aheading/title/paragraph/bullet(items)/spacer", en: "Blocks: heading/title/paragraph/bullet(items)/spacer", type: "array", required: false },
+                { name: "blocks", zh: "ReportLab blocks\uff1aheading/title/paragraph/bullet/spacer/image/table\uff1b\u516c\u5f0f\u6392\u7248\u7528\u663e\u5f0f pandoc \u6e90\u6216 Word \u8f6c PDF", en: "ReportLab blocks: heading/title/paragraph/bullet/spacer/image/table; math via explicit pandoc source or Word-to-PDF conversion", type: "array", required: false },
                 { name: "source_path", zh: "\u5916\u90e8\u5f15\u64ce\u7684\u6e90\u6587\u4ef6", en: "Source file for external engines", type: "string", required: false },
                 { name: "file_name", zh: "\u9ed8\u8ba4\u6587\u4ef6\u540d", en: "Default file name", type: "string", required: false },
                 { name: "cjk_font", zh: "\u4e2d\u6587\u5b57\u4f53\u65cf\uff1bPandoc \u8def\u7ebf\u5fc5\u987b\u662f fonts.system_font_families \u4e2d\u7684\u771f\u5b9e\u65cf\u540d\uff0c\u4e0d\u80fd\u4f20\u5b57\u4f53\u6587\u4ef6\u540d\u6216 STSong-Light", en: "CJK font family; Pandoc requires an actual fonts.system_font_families entry, not a filename or STSong-Light", type: "string", required: false },
@@ -1256,6 +1282,28 @@ exports.OFFICE_TOOLS = {
             inputPaths: ["source_path"],
             defaultOutputName: "document.pdf",
             timeoutMs: 600000,
+        }
+    },
+    "pptx_measure_text": {
+        meta: {
+            name: "pptx_measure_text",
+            zh: "\u521b\u5efa\u524d\u4f30\u7b97\u6587\u5b57\u9ad8\u5ea6\u4e0e\u6ea2\u51fa\u98ce\u9669\uff1b\u4e0d\u8bfb\u53d6\u5b57\u5f62\uff0c\u4e0d\u80fd\u4ee3\u66ff\u771f\u5b9e\u6e32\u67d3\u3002",
+            en: "Estimate text height and overflow risk before creation; heuristic, not font shaping or rendered proof.",
+            params: [
+                { name: "text", zh: "\u6d4b\u91cf\u6587\u5b57", en: "text", type: "string", required: true },
+                { name: "width_cm", zh: "\u6587\u672c\u6846\u5bbd\u5ea6 cm", en: "width_cm", type: "number", required: true },
+                { name: "height_cm", zh: "\u53ef\u9009\u9ad8\u5ea6 cm", en: "height_cm", type: "number", required: false },
+                { name: "size_pt", zh: "\u5b57\u53f7 pt\uff0c\u9ed8\u8ba418", en: "size_pt", type: "number", required: false },
+                { name: "margin_cm", zh: "\u5185\u8fb9\u8ddd cm\uff0c\u9ed8\u8ba40.1", en: "margin_cm", type: "number", required: false },
+                { name: "line_spacing", zh: "\u884c\u8ddd\u500d\u6570\uff0c\u9ed8\u8ba41.2", en: "line_spacing", type: "number", required: false },
+            ]
+        },
+        spec: {
+            command: "pptx_measure_text",
+            params: ["text", "width_cm", "height_cm", "size_pt", "margin_cm", "line_spacing"],
+            defaultOutputName: "",
+            requiresEnv: false,
+            timeoutMs: 300000,
         }
     },
 };

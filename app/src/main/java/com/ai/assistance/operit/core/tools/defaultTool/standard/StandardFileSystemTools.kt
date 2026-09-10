@@ -1142,7 +1142,7 @@ open class StandardFileSystemTools(protected val context: Context) {
                 }
             }
 
-            "jpg", "jpeg", "png", "gif", "bmp" -> {
+            "jpg", "jpeg", "png", "gif", "bmp", "webp" -> {
                 // 获取可选的intent参数和direct_image参数
                 val intent = tool.parameters.find { it.name == "intent" }?.value
                 val directImage = tool.parameters.find { it.name == "direct_image" }?.value?.toBoolean() ?: false
@@ -1157,7 +1157,8 @@ open class StandardFileSystemTools(protected val context: Context) {
                     try {
                         val imageId = ImagePoolManager.addImage(path)
                         if (imageId == "error") {
-                            AppLogger.e(TAG, "Failed to register image for direct_image, falling back to intent/OCR: $path")
+                            return ToolResult(toolName = tool.name, success = false,
+                                result = StringResultData(""), error = "Image registration failed; direct_image requires actual image content")
                         } else {
                             val link = "<link type=\"image\" id=\"$imageId\"></link>"
                             AppLogger.d(TAG, "Generated image link for direct_image: $link")
@@ -1173,9 +1174,10 @@ open class StandardFileSystemTools(protected val context: Context) {
                             )
                         }
                     } catch (e: Exception) {
-                        AppLogger.e(TAG, "Error generating direct image link, falling back to intent/OCR", e)
+                        AppLogger.e(TAG, "Error generating direct image link", e)
+                        return ToolResult(toolName = tool.name, success = false,
+                            result = StringResultData(""), error = "Image registration failed: ${e.message}")
                     }
-                    // 如果生成图片链接失败，则继续走下面的 intent/OCR 逻辑
                 }
 
                 // 情况2：提供了 intent，使用后端识图模型

@@ -20,6 +20,35 @@ from ..paths import (
 from ..protocol import OfficeError, engine_version, register
 from ..readers.docx_reader import require_docx
 
+
+def append_image(document, image, config, section=None):
+    from .layout import number, paragraph_style
+    from docx.shared import Cm, Emu
+    from PIL import Image
+    section = section or document.sections[-1]
+    available_width = section.page_width - section.left_margin - section.right_margin
+    available_height = section.page_height - section.top_margin - section.bottom_margin
+    with Image.open(image) as picture:
+        ratio = picture.height / picture.width
+    if "width_cm" in config:
+        width = Cm(number(config["width_cm"], "width_cm", 0.01, 100))
+        if width > available_width or width * ratio > available_height:
+            raise OfficeError("E_INPUT_SCHEMA", "图片显式尺寸超出正文区域，请减小 width_cm")
+    else:
+        width = min(available_width, int(available_height / ratio))
+    paragraph = document.add_paragraph()
+    paragraph_style(paragraph.paragraph_format, {"alignment": config.get("alignment", "center"), "first_line_indent_cm": 0})
+    picture = paragraph.add_run().add_picture(str(image), width=Emu(int(width)))
+    if "alt_text" in config:
+        if not isinstance(config["alt_text"], str):
+            raise OfficeError("E_INPUT_SCHEMA", "alt_text 必须是字符串")
+        picture._inline.docPr.set("descr", config["alt_text"])
+    if config.get("caption"):
+        paragraph.paragraph_format.keep_with_next = True
+        caption = document.add_paragraph(config["caption"], style="Caption")
+        paragraph_style(caption.paragraph_format, {"alignment": "center", "first_line_indent_cm": 0})
+    return int(width)
+
 @register(
     "docx_insert_image",
     schema="docx_insert_image",
@@ -46,26 +75,7 @@ def docx_insert_image(args: Dict[str, Any]) -> Dict[str, Any]:
         in_place=bool(args.get("in_place")),
     )
     document = docx.Document(str(source))
-    paragraph = document.add_paragraph()
-    run = paragraph.add_run()
-    from .layout import number
-    from PIL import Image
-    from docx.shared import Emu
-
-    section = document.sections[-1]  # 图片追加在最后一节，不能使用第一页的纸张尺寸。
-    available_width = section.page_width - section.left_margin - section.right_margin
-    available_height = section.page_height - section.top_margin - section.bottom_margin
-    with Image.open(image) as picture:
-        ratio = picture.height / picture.width
-    if "width_cm" in args:
-        width = Cm(number(args["width_cm"], "width_cm", 0.01, 100))
-        if width > available_width or width * ratio > available_height:
-            raise OfficeError("E_INPUT_SCHEMA", "图片显式尺寸超出正文区域，请减小 width_cm")
-    else:
-        width = min(available_width, int(available_height / ratio))
-    run.add_picture(str(image), width=Emu(int(width)))
-    if args.get("alignment"):
-        paragraph.alignment = getattr(WD_ALIGN_PARAGRAPH, str(args["alignment"]).upper())
+    width = append_image(document, image, args)
     output.parent.mkdir(parents=True, exist_ok=True)
     atomic_save(document, output)
     return {

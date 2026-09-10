@@ -108,9 +108,16 @@ function createHost(options = {}) {
           calls.files.push({ op: 'delete', path, recursive, env });
           return options.deleteResult ?? { successful: true };
         },
-        read: async ({ path }) => ({ content: path.includes('.local-provider-')
-          ? (options.wrongProvider ? 'another machine' : path.split('.local-provider-')[1])
-          : '# Office guide\nRead the actual file before editing.' }),
+        read: async ({ path, environment, direct_image }) => {
+          calls.files.push({ op: 'read', path, env: environment, direct_image });
+          if (direct_image) {
+            if (options.imageThrows) throw new Error('image registration failed');
+            return { content: options.imageContent ?? '<link type="image" id="page-image"></link>' };
+          }
+          return { content: path.includes('.local-provider-')
+            ? (options.wrongProvider ? 'another machine' : path.split('.local-provider-')[1])
+            : '# Office guide\nRead the actual file before editing.' };
+        },
         move: async (source, destination, env) => {
           calls.files.push({ op: 'move', source, destination, env });
           return { successful: true };
@@ -166,6 +173,53 @@ function lastArgsPayload(host) {
 }
 
 const envelope = value => '__KIYORI_OFFICE_BEGIN__' + JSON.stringify(value) + '__KIYORI_OFFICE_END__';
+
+test('preview attaches actual multimodal links from the delivered environment', async () => {
+  for (const output_env of ['linux', 'android']) {
+    const { host, result } = await runTool('office_render_preview', { env: 'linux', path: '/root/a.pdf', output_env }, {
+      envelope: envelope({ ok: true, command: 'office_render_preview', data: { pages: [3], target_dir: '/root/out' },
+        artifacts: [{ path: '/root/out/page.jpg', env: 'linux', bytes: 24, role: 'output', page: 3 }] }),
+      info: () => ({ exists: true, size: 24 })
+    });
+    assert.equal(result.success, true, JSON.stringify(result));
+    assert.match(result.data.visual_pages[0].image, /<link type="image"/);
+    assert.equal(result.data.visual_pages[0].page, 3);
+    assert.equal(result.data.visual_review_status, 'images_attached_review_required');
+    assert.equal(host.calls.files.find(c => c.direct_image).env, output_env);
+  }
+});
+
+test('OCR or failed image registration cannot pass visual preview', async () => {
+  for (const failure of [{ imageContent: 'OCR text only' }, { imageThrows: true }]) {
+    const { result } = await runTool('office_render_preview', { env: 'linux', path: '/root/a.pdf', output_env: 'linux' }, {
+      ...failure,
+      envelope: envelope({ ok: true, command: 'office_render_preview', artifacts: [{ path: '/root/out/page.jpg', env: 'linux', bytes: 24 }] })
+    });
+    assert.equal(result.success, false);
+    assert.equal(result.code, 'E_ENGINE_FAILED');
+    assert.equal(result.artifacts[0].path, '/root/out/page.jpg');
+  }
+});
+
+test('nested Android images are staged independently without mutating caller data', async () => {
+  const elements = [{ type: 'image', image_path: '/sdcard/one/pic.png' }, { type: 'image', image_path: '/sdcard/two/pic.png' }];
+  const { host, result } = await runTool('pptx_create', { env: 'android', slides: [{ elements }] }, {
+    existing: ['/storage/emulated/0/one/pic.png', '/storage/emulated/0/two/pic.png']
+  });
+  assert.equal(result.success, true, JSON.stringify(result));
+  const payload = lastArgsPayload(host);
+  assert.notEqual(payload.slides[0].elements[0].image_path, payload.slides[0].elements[1].image_path);
+  assert.match(payload.slides[0].elements[0].image_path, /^\/root\//);
+  assert.equal(elements[0].image_path, '/sdcard/one/pic.png');
+});
+
+test('text dry-run creates no document work directory or lease', async () => {
+  const { host, result } = await runTool('pptx_measure_text', { text: 'measure me', width_cm: 5 });
+  assert.equal(result.success, true);
+  assert.equal(host.calls.leases.length, 0);
+  assert.equal(host.calls.files.some(c => c.path?.includes('/work/')), false);
+  assert.ok(host.calls.files.some(c => c.op === 'delete' && c.path.includes('/control/args-')));
+});
 
 test('task lease spans Android staging and final delivery', async () => {
   const { host, result } = await runTool('office_convert', { task_id: 'demo', env: 'android', from_path: '/sdcard/a.docx', engine: 'libreoffice', to_format: 'pdf' }, {

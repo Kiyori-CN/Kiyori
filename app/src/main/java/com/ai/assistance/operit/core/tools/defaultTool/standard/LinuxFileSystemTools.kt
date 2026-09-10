@@ -146,9 +146,26 @@ class LinuxFileSystemTools(context: Context) : StandardFileSystemTools(context) 
 
             val fileExt = path.substringAfterLast('.', "").lowercase()
             
-            // 特殊文件类型处理（图片、PDF等）暂时不支持在Linux环境
-            // 因为这些需要Android本地文件访问
-            if (fileExt in listOf("doc", "docx", "pdf", "jpg", "jpeg", "png", "gif", "bmp")) {
+            // 使用当前文件提供者读取字节，不能把 Linux/SSH 路径当作 Android 路径。
+            // 显式视觉读取失败必须报错，OCR 文本不能冒充已看到页面。
+            if (fileExt in listOf("jpg", "jpeg", "png", "gif", "bmp", "webp") &&
+                tool.parameters.any { it.name == "direct_image" && it.value.toBoolean() }) {
+                val provider = fs
+                val size = provider.getFileSize(path)
+                require(size in 1..(20L * 1024 * 1024)) { "Image must be between 1 byte and 20 MiB; render fewer pixels per page" }
+                val bytes = provider.readFileBytes(path) ?: error("Failed to read image bytes")
+                require(bytes.size.toLong() == size) { "Image changed while reading; retry with a stable file" }
+                val mime = if (fileExt == "jpg") "image/jpeg" else "image/$fileExt"
+                val id = com.ai.assistance.operit.util.ImagePoolManager.addImageFromBase64(
+                    android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP), mime
+                )
+                check(id != "error") { "Image registration failed; no OCR substitution was performed" }
+                return ToolResult(toolName = tool.name, success = true,
+                    result = FileContentData(path = path, content = "<link type=\"image\" id=\"$id\"></link>",
+                        size = size, env = "linux"), error = "")
+            }
+
+            if (fileExt in listOf("doc", "docx", "pdf", "jpg", "jpeg", "png", "gif", "bmp", "webp")) {
                 return ToolResult(
                     toolName = tool.name,
                     success = false,
@@ -365,7 +382,7 @@ class LinuxFileSystemTools(context: Context) : StandardFileSystemTools(context) 
             val fileExt = path.substringAfterLast('.', "").lowercase()
 
             // 特殊文件类型不支持
-            if (fileExt in listOf("doc", "docx", "pdf", "jpg", "jpeg", "png", "gif", "bmp")) {
+            if (fileExt in listOf("doc", "docx", "pdf", "jpg", "jpeg", "png", "gif", "bmp", "webp")) {
                 // 对于特殊类型，先尝试读取完整文件
                 return readFileFull(tool)
             }

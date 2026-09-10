@@ -50,6 +50,7 @@ def pptx_outline(path: Path, *, max_slides: int = 0) -> Dict[str, Any]:
         for shape_index, shape in enumerate(slide.shapes):
             entry: Dict[str, Any] = {
                 "index": shape_index,
+                "shape_id": shape.shape_id,
                 "name": shape.shape_name if hasattr(shape, "shape_name") else shape.name,
                 "type": str(shape.shape_type),
                 "has_text_frame": bool(shape.has_text_frame),
@@ -93,6 +94,7 @@ def pptx_outline(path: Path, *, max_slides: int = 0) -> Dict[str, Any]:
                 "shapes": shapes,
                 "shape_count": len(shapes),
                 "notes": notes_text,
+                "layout_index": next((i for i, layout in enumerate(presentation.slide_layouts) if layout.part is slide.slide_layout.part), None),
             }
         )
     payload: Dict[str, Any] = {

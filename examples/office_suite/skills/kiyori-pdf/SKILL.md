@@ -5,6 +5,11 @@ description: PDF 的读取、提取、页级操作、表单、水印、加解密
 
 # PDF 处理
 
+预览会自动附加多模态页图，一次最多 8 页；小字号和公式使用 `office_render_preview(region=...)` 局部细看。
+`layout_report=true` 返回字词坐标、字号与图片框，需要 pdfplumber；它不代表真实视觉审阅。
+ReportLab 创建支持 `image`（`image_path/width_cm/caption`）和可换行、重复表头的三线 `table`（`rows/column_widths_cm`）。
+复杂数学排版使用显式 Pandoc/XeLaTeX 源或带原生公式的 Word 转 PDF；不得把普通 LaTeX 字符串作为已渲染公式交付。
+
 ## 1. 标准流程
 
 1. `pdf_info`：页数、尺寸、元数据、是否加密、是否有文本层、表单字段。
