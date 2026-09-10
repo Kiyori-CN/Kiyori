@@ -112,6 +112,7 @@ class LinuxFileSystemTools(context: Context) : StandardFileSystemTools(context) 
 
     /** 读取Linux文件的完整内容 */
     override suspend fun readFileFull(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "read_mode" }) return executeBoundedTextRead(tool, "linux")
         val path = tool.parameters.find { it.name == "path" }?.value ?: ""
         val textOnly = tool.parameters.find { it.name == "text_only" }?.value?.toBoolean() ?: false
         PathValidator.validateLinuxPath(path, tool.name)?.let { return it }
@@ -665,6 +666,7 @@ class LinuxFileSystemTools(context: Context) : StandardFileSystemTools(context) 
 
     /** 删除Linux文件或目录 */
     override suspend fun deleteFile(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "delete_mode" }) return executeManagedFileTool(tool, "linux")
         val path = tool.parameters.find { it.name == "path" }?.value ?: ""
         val recursive = tool.parameters.find { it.name == "recursive" }?.value?.toBoolean() ?: false
         PathValidator.validateLinuxPath(path, tool.name)?.let { return it }
@@ -750,6 +752,7 @@ class LinuxFileSystemTools(context: Context) : StandardFileSystemTools(context) 
 
     /** 移动/重命名Linux文件 */
     override suspend fun moveFile(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "move_mode" }) return executeNoReplaceRenameTool(tool, "linux")
         val sourcePath = tool.parameters.find { it.name == "source" }?.value ?: ""
         val destPath = tool.parameters.find { it.name == "destination" }?.value ?: ""
         PathValidator.validateLinuxPath(sourcePath, tool.name, "source")?.let { return it }
@@ -836,6 +839,7 @@ class LinuxFileSystemTools(context: Context) : StandardFileSystemTools(context) 
 
     /** 复制Linux文件或目录 */
     override suspend fun copyFile(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "copy_mode" }) return executeNoReplaceCopyTool(tool, "linux")
         val sourcePath = tool.parameters.find { it.name == "source" }?.value ?: ""
         val destPath = tool.parameters.find { it.name == "destination" }?.value ?: ""
         val recursive = tool.parameters.find { it.name == "recursive" }?.value?.toBoolean() ?: true
@@ -908,6 +912,7 @@ class LinuxFileSystemTools(context: Context) : StandardFileSystemTools(context) 
 
     /** 创建Linux目录 */
     override suspend fun makeDirectory(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "create_mode" }) return com.ai.assistance.operit.core.tools.defaultTool.standard.executeNoReplaceCreateTool(tool, directory = true, backendEnvironment = "linux")
         val path = tool.parameters.find { it.name == "path" }?.value ?: ""
         val createParents = tool.parameters.find { it.name == "create_parents" }?.value?.toBoolean() ?: false
         PathValidator.validateLinuxPath(path, tool.name)?.let { return it }
@@ -978,8 +983,12 @@ class LinuxFileSystemTools(context: Context) : StandardFileSystemTools(context) 
 
     /** 在Linux文件系统中查找文件 */
     override suspend fun findFiles(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "search_mode" }) return executeFileManagerSearch(tool, "linux")
         val basePath = tool.parameters.find { it.name == "path" }?.value ?: ""
         val pattern = tool.parameters.find { it.name == "pattern" }?.value ?: ""
+        // 与 Android/SAF 一致，0 表示只枚举当前目录；不能把用户条件硬编码成递归和区分大小写。
+        val maxDepth = tool.parameters.find { it.name == "max_depth" }?.value?.toIntOrNull() ?: -1
+        val caseInsensitive = tool.parameters.find { it.name == "case_insensitive" }?.value?.toBoolean() ?: false
         PathValidator.validateLinuxPath(basePath, tool.name, "path")?.let { return it }
 
         if (basePath.isBlank()) {
@@ -1013,7 +1022,7 @@ class LinuxFileSystemTools(context: Context) : StandardFileSystemTools(context) 
 
             if (!fs.isDirectory(basePath)) {
                 val fileName = basePath.substringAfterLast('/')
-                val regex = globToRegex(pattern, caseInsensitive = false)
+                val regex = globToRegex(pattern, caseInsensitive = caseInsensitive)
                 val files = if (regex.matches(fileName)) listOf(basePath) else emptyList()
 
                 ToolProgressBus.update(tool.name, 1f, "Search completed, found ${files.size}")
@@ -1029,8 +1038,8 @@ class LinuxFileSystemTools(context: Context) : StandardFileSystemTools(context) 
             val files = fs.findFiles(
                 basePath = basePath,
                 pattern = pattern,
-                maxDepth = -1,
-                caseInsensitive = false
+                maxDepth = maxDepth,
+                caseInsensitive = caseInsensitive
             )
 
             ToolProgressBus.update(tool.name, 1f, "Search completed, found ${files.size}")
@@ -1055,6 +1064,7 @@ class LinuxFileSystemTools(context: Context) : StandardFileSystemTools(context) 
 
     /** 获取Linux文件信息 */
     override suspend fun fileInfo(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "info_mode" }) return executeManagedFileTool(tool, "linux")
         val path = tool.parameters.find { it.name == "path" }?.value ?: ""
         PathValidator.validateLinuxPath(path, tool.name)?.let { return it }
 

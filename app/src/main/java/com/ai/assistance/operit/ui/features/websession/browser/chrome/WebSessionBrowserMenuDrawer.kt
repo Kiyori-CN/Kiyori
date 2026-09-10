@@ -283,7 +283,7 @@ private fun RowScope.MenuCell(action: MenuAction) {
 }
 
 @Composable
-private fun BottomMenuAction(
+internal fun BottomMenuAction(
     title: String,
     iconResId: Int,
     onClick: () -> Unit,

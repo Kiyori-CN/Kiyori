@@ -185,5 +185,7 @@ endif()
 
 enable_16kb_page_alignment(streamnative)
 if(ANDROID)
+    add_library(kiyori_fileops SHARED fileops/native_no_replace_commit.cpp)
+    enable_16kb_page_alignment(kiyori_fileops)
     enable_16kb_page_alignment(toolpkgwasm)
 endif()

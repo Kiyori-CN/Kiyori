@@ -66,6 +66,7 @@ internal fun WebSessionMinimizedIndicator(
     onLongPressGestureFinished: () -> Unit,
     onConfirmBrowserDownload: (String) -> Unit,
     onCancelBrowserDownload: (String) -> Unit,
+    idleIcon: androidx.compose.ui.graphics.vector.ImageVector = Icons.Filled.Language,
 ) {
     val dragModifier =
         Modifier.pointerInput(onDragBy) {
@@ -261,7 +262,7 @@ internal fun WebSessionMinimizedIndicator(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = if (activeDownloadCount > 0) Icons.Filled.Download else Icons.Filled.Language,
+                imageVector = if (activeDownloadCount > 0) Icons.Filled.Download else idleIcon,
                 contentDescription = null,
                 tint = primaryColor.copy(alpha = 0.76f),
                 modifier =

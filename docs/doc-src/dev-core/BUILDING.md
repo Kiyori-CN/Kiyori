@@ -22,6 +22,10 @@ Windows、Linux 与 macOS 开发者；仓库当前不提供公开 Release/AAB �
 当前应用 APK 只打包 `arm64-v8a`。Debug 构建、静态 APK 审计和自动化测试不能替代真机、
 Release 签名、商店发布或用户验收。
 
+`app/src/main/cpp/fileops/` 的最小文件提交 JNI 通过既有 CMake 入口生成 `libkiyori_fileops.so`，
+跟随 APK 打包并使用 16 KB ELF 页面对齐；不需要手动物化预编译库。它只提供原子不覆盖提交，
+具体文件系统支持与行为必须在 Android 现场验收。
+
 ## 工具链基线
 
 项目和 CI 使用以下受控基线：

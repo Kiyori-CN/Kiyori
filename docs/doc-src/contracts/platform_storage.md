@@ -4,6 +4,48 @@
 
 ## 路径与备份
 
+文件管理器由既有 `FileManagerViewModel` 持有双位置会话，Shell 保留其设置往返和应用内最小化生命周期；文件执行仍经 `AIToolHandler`。
+ApiPreferences 持有书签、目录工作区、网络分组及加密网络配置；网络文件工具只支持原生目录浏览，其他操作明确拒绝。
+文件管理器删除默认同卷移至应用回收站，恢复不覆盖；未加密 ZIP 可经暂存校验后解压发布。详细限制见文件管理器设计。
+固定左右双栏消费同一窗格状态，非活动栏由淡灰内阴影衬托；存储位置、路径和统计位于顶栏下方的独立行。目录内筛选只投影已加载条目；选择随成功快照核对，
+历史导航清除旧目录选择，已隐藏或被筛掉的项目不得继续参与批量操作。根边界不提供无效上级动作。
+新建通过 `create_file` / `make_directory` 的显式 `create_mode=no_replace` 原子创建空项目；仅支持
+应用可访问的 Android 普通路径，同名返回冲突，既有未传模式的工具行为保持兼容。不支持的环境
+明确拒绝，不能忽略模式退回旧创建链；未知结果阻止原弹窗再次提交。
+创建捕获弹窗打开时的位置，结果只刷新仍显示该位置的窗格；搜索独立持有取消和结果代际，
+搜索结果跳转保留原环境和窗格。名称只允许单个目录项。产品与后续数据安全目标见
+[内置文件管理器设计](../architecture/kiyori_file_manager.md)，阶段证据见对应专项。
+
+顶栏统一搜索消费同一 ViewModel 表单，Android `find_files search_mode=manager` 支持当前目录/递归、
+名称/大小/时间/UTF-8内容/大小写/正则/隐藏项，元数据随结果一次返回。扫描、结果、读取和匹配预算必须可观察，
+取消与代际阻止晚到发布；条件错误不能执行。Linux/SAF 名称搜索保持原工具路径，未实现的高级条件显式拒绝。
+文件结果定位筛选与书签共用现有窗格投影；删除 A/B 第三行，筛选调整/清除进入顶栏搜索。
+
+文本编辑复用现有 `CodeEditor`，草稿、读取代际及保存状态属于 `FileManagerViewModel`。
+`read_file_full` 的显式 `read_mode=bounded_utf8` 限制为应用身份可读的 Android 普通路径，
+最多读取 1 MiB 加一字节判断超限，严格 UTF-8 解码，拒绝直接链接、二进制和观察到的读取中变化；
+Linux/SAF 明确拒绝此模式。未传模式的旧工具调用保持兼容。
+文本另存使用 `create_file` 的 `create_mode=no_replace_text`，只接受同一大小上限的 UTF-8 内容，
+写入目标父目录的 `.kiyori-text-*` 暂存并刷盘，再复用原子不覆盖提交；原文件不写入。
+同名、清理失败与未知结果必须可见，不自动重试。该增量不承诺断电事务、进程恢复或原地编辑保存。
+
+Android 标准文件工具的递归复制统一调用 `copyLocalDirectory`：枚举失败、子目录失败和类型冲突
+向上传播，拒绝源等于目标、目标位于源树内以及直接遇到的符号链接。既有同名普通文件替换语义
+暂时保留；这不构成跨进程原子不覆盖保证，也不覆盖 Linux/SAF/特权 Shell 的其他实现。
+文件管理器复制显式使用 `copy_mode=no_replace`，Android 应用可访问路径通过同卷暂存、内容校验和
+`renameat2(RENAME_NOREPLACE)` 提交；其余后端拒绝不支持模式，不进入旧覆盖分支。传输会话捕获
+确认时的批次与位置，提供跳过/改名保留冲突决策、完成当前项后停止及逐项结果；未知结果不自动重试。
+同目录重命名通过 `move_mode=rename_no_replace` 复用原子提交，失败不会执行复制后删源；名称与位置
+固定、未知结果禁止原弹窗重复提交。跨目录移动使用 `move_mode=move_no_replace`，仅同文件系统内原子不覆盖移动，
+`EXDEV` 明确失败，不做复制后删源。双栏传输统一捕获来源、目标和批次，未知移动项不继续保留在待执行剪切列表。
+`delete_mode=checked` 按确认的元数据树指纹复核，原子隔离至同目录暂存后再核对并删除；部分失败保留确切隔离位置，
+不自动删除或覆盖原路径后来出现的项目。`zip_mode=no_replace` 校验源树、保留根项目和空目录、同卷暂存刷盘后原子提交。
+`info_mode=manager/manager_sha256` 返回有界树统计或普通文件 SHA-256；上述新模式仅支持应用可访问的 Android 路径，
+不支持的后端明确失败。树检查拒绝链接/特殊文件，最多 100000 项和 128 层；元数据指纹不是内容快照或恶意并发事务保证。
+普通书签复用 `ApiPreferences` 的独立 DataStore 键，与 SAF 授权分离；分享复用 FileProvider 只读 URI 与系统选择器。
+覆盖替换、回收站与持久恢复尚未开放，完整限制与错误码见
+[文件管理器设计](../architecture/kiyori_file_manager.md)。
+
 - `com.kiyori.platform.storage.KiyoriPaths` 持有公开 Downloads/Pictures、内部/cache/files/backup、Browser 下载、ToolPkg 私有 generation、构建事务、内容寻址运行目录和创建/校验逻辑。
 - `KiyoriPublicStore` 是 MediaStore 与 Android 8/9 公共文件唯一写入者，`KiyoriStorageService` 暴露该能力及 host-bound ToolPkg 存储。
 - ToolPkg 私有/cache 操作不接受任意调用方 package ID，不返回内部绝对路径。显式 SAF 导入经过包专属 migrator 和原子 generation 激活。

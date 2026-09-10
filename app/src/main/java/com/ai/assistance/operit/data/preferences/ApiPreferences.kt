@@ -230,6 +230,10 @@ class ApiPreferences private constructor(private val context: Context) {
         val CUSTOM_PARAMETERS = stringPreferencesKey("custom_parameters")
 
         private val SAF_BOOKMARKS_JSON = stringPreferencesKey("saf_bookmarks_json")
+        private val FILE_MANAGER_NETWORKS_JSON = stringPreferencesKey("file_manager_networks_json")
+        private val FILE_MANAGER_NETWORK_GROUPS_JSON = stringPreferencesKey("file_manager_network_groups_json")
+        private val FILE_MANAGER_WORKSPACES_JSON = stringPreferencesKey("file_manager_workspaces_json")
+        private val FILE_MANAGER_BOOKMARKS_JSON = stringPreferencesKey("file_manager_bookmarks_json")
 
         // 默认空的自定义参数列表
         const val DEFAULT_CUSTOM_PARAMETERS = "[]"
@@ -247,6 +251,81 @@ class ApiPreferences private constructor(private val context: Context) {
         val uri: String,
         val name: String
     )
+
+    @Serializable
+    data class FileBookmark(val name: String, val path: String, val environment: String? = null, val directory: Boolean = true)
+
+    val fileNetworksFlow: Flow<List<com.ai.assistance.operit.core.tools.defaultTool.standard.NetworkStorageProfile>> = context.apiDataStore.data.map {
+        Json.decodeFromString(it[FILE_MANAGER_NETWORKS_JSON] ?: "[]")
+    }
+    val fileNetworkGroupsFlow: Flow<List<String>> = context.apiDataStore.data.map {
+        Json.decodeFromString(it[FILE_MANAGER_NETWORK_GROUPS_JSON] ?: "[]")
+    }
+    suspend fun saveFileNetwork(profile: com.ai.assistance.operit.core.tools.defaultTool.standard.NetworkStorageProfile) {
+        require(profile.name.isNotBlank() && profile.endpoint.isNotBlank())
+        context.apiDataStore.edit {
+            val existing = Json.decodeFromString<List<com.ai.assistance.operit.core.tools.defaultTool.standard.NetworkStorageProfile>>(it[FILE_MANAGER_NETWORKS_JSON] ?: "[]")
+            it[FILE_MANAGER_NETWORKS_JSON] = Json.encodeToString(existing.filterNot { p -> p.id == profile.id } + profile)
+        }
+    }
+    suspend fun removeFileNetwork(id: String) {
+        context.apiDataStore.edit {
+            val existing = Json.decodeFromString<List<com.ai.assistance.operit.core.tools.defaultTool.standard.NetworkStorageProfile>>(it[FILE_MANAGER_NETWORKS_JSON] ?: "[]")
+            it[FILE_MANAGER_NETWORKS_JSON] = Json.encodeToString(existing.filterNot { p -> p.id == id })
+        }
+    }
+    suspend fun addFileNetworkGroup(name: String) {
+        require(name.isNotBlank())
+        context.apiDataStore.edit {
+            val existing = Json.decodeFromString<List<String>>(it[FILE_MANAGER_NETWORK_GROUPS_JSON] ?: "[]")
+            it[FILE_MANAGER_NETWORK_GROUPS_JSON] = Json.encodeToString((existing + name.trim()).distinct())
+        }
+    }
+
+    val fileWorkspacesFlow: Flow<List<FileBookmark>> = context.apiDataStore.data.map { preferences ->
+        Json.decodeFromString<List<FileBookmark>>(preferences[FILE_MANAGER_WORKSPACES_JSON] ?: "[]")
+    }
+
+    suspend fun addFileWorkspace(workspace: FileBookmark) {
+        require(workspace.directory && workspace.name.isNotBlank() && workspace.path.startsWith('/'))
+        context.apiDataStore.edit { preferences ->
+            val existing = Json.decodeFromString<List<FileBookmark>>(preferences[FILE_MANAGER_WORKSPACES_JSON] ?: "[]")
+            preferences[FILE_MANAGER_WORKSPACES_JSON] = Json.encodeToString(existing.filterNot {
+                it.path == workspace.path && it.environment == workspace.environment
+            } + workspace)
+        }
+    }
+
+    suspend fun removeFileWorkspace(workspace: FileBookmark) {
+        context.apiDataStore.edit { preferences ->
+            val existing = Json.decodeFromString<List<FileBookmark>>(preferences[FILE_MANAGER_WORKSPACES_JSON] ?: "[]")
+            preferences[FILE_MANAGER_WORKSPACES_JSON] = Json.encodeToString(existing.filterNot {
+                it.path == workspace.path && it.environment == workspace.environment
+            })
+        }
+    }
+
+    val fileBookmarksFlow: Flow<List<FileBookmark>> = context.apiDataStore.data.map { preferences ->
+        Json.decodeFromString<List<FileBookmark>>(preferences[FILE_MANAGER_BOOKMARKS_JSON] ?: "[]")
+    }
+
+    suspend fun addFileBookmark(bookmark: FileBookmark) {
+        require(bookmark.name.isNotBlank() && bookmark.path.startsWith('/'))
+        context.apiDataStore.edit { preferences ->
+            val existing = Json.decodeFromString<List<FileBookmark>>(preferences[FILE_MANAGER_BOOKMARKS_JSON] ?: "[]")
+            val updated = existing.filterNot { it.path == bookmark.path && it.environment == bookmark.environment } + bookmark
+            preferences[FILE_MANAGER_BOOKMARKS_JSON] = Json.encodeToString(updated)
+        }
+    }
+
+    suspend fun removeFileBookmark(bookmark: FileBookmark) {
+        context.apiDataStore.edit { preferences ->
+            val existing = Json.decodeFromString<List<FileBookmark>>(preferences[FILE_MANAGER_BOOKMARKS_JSON] ?: "[]")
+            preferences[FILE_MANAGER_BOOKMARKS_JSON] = Json.encodeToString(existing.filterNot {
+                it.path == bookmark.path && it.environment == bookmark.environment
+            })
+        }
+    }
 
     val safBookmarksFlow: Flow<List<SafBookmark>> =
         context.apiDataStore.data.map { preferences ->

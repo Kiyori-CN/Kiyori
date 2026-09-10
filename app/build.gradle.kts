@@ -1286,6 +1286,7 @@ dependencies {
     // Document conversion libraries
     implementation(libs.itextg)
     implementation(libs.pdfbox)
+    implementation(libs.jsch)
     implementation(libs.zip4j)
     
     // 图片加载库

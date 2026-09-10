@@ -29,6 +29,16 @@
 
 快照不能代替迁移设计。只有对应契约变化属于已确认里程碑、正式文档已同步，且差异说明旧值、新值与原因时，才更新快照。
 
+2026-09-10 文件管理器 M3j 审阅更新了 Shell/root 哈希、三个 Shell 桥接 import，以及原子文件 JNI 的
+`Java_com_ai_assistance_operit_` 计数 8→9、`System.loadLibrary(` 计数 9→10；新增符号为
+`NativeNoReplaceCommit_renameNoReplace` 和 `kiyori_fileops`。主题消费者按实际文件页与悬浮球新增，
+语义色 import 104→109，保持精确消费者约束。共用抽屉几何位于 design 层，AI 页面没有反向依赖 Shell。
+
+同次审查核对 `213be2b` 后补齐四个既有快照遗漏：Application 初始化哈希、MainActivity 源码哈希、
+ToolExecutionManager 的 KiyoriPaths 引用、StandardFileSystemTools 的 `terminal_settings` 读取。
+前两个文件和 ToolExecutionManager 与该 HEAD 完全一致，偏好读取也已存在于 HEAD；本次没有改变这些行为，
+只同步机器记录。相关代码与测试验收见[文件管理器专项](../../docs/TODO/mt_file_manager_replica/index.md)。
+
 ## 验证
 
 本地与 CI 使用同一只读入口：

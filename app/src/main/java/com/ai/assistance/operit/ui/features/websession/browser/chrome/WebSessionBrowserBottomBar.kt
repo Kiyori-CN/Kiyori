@@ -97,11 +97,28 @@ internal fun WebSessionBrowserBottomBar(
 }
 
 @Composable
-private fun RowScope.BrowserBottomBarAction(
+internal fun RowScope.BrowserBottomBarAction(
     iconResId: Int,
     contentDescription: String,
     onClick: () -> Unit,
     enabled: Boolean = true,
+) {
+    BrowserBottomBarSlot(contentDescription, onClick, enabled) {
+        Icon(
+            painter = painterResource(iconResId),
+            contentDescription = null,
+            modifier = Modifier.size(WEB_SESSION_BROWSER_BOTTOM_ICON_SIZE_DP.dp),
+        )
+    }
+}
+
+/** 浏览器与文件管理器共用触摸区域、间距和禁用色，图标由各自领域提供。 */
+@Composable
+internal fun RowScope.BrowserBottomBarSlot(
+    contentDescription: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    content: @Composable () -> Unit,
 ) {
     Box(
         modifier = Modifier.weight(1f).alpha(if (enabled) 1f else 0.38f),
@@ -119,11 +136,7 @@ private fun RowScope.BrowserBottomBarAction(
                     },
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                painter = painterResource(iconResId),
-                contentDescription = null,
-                modifier = Modifier.size(WEB_SESSION_BROWSER_BOTTOM_ICON_SIZE_DP.dp),
-            )
+            content()
         }
     }
 }

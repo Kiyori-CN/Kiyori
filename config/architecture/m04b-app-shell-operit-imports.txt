@@ -5,8 +5,11 @@ com.ai.assistance.operit.ui.features.agreement.screens.KiyoriLegalDocument
 com.ai.assistance.operit.ui.features.agreement.screens.KiyoriLegalDocumentScreen
 com.ai.assistance.operit.ui.features.agreement.screens.KiyoriLegalDocumentsScreen
 com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.FileManagerScreen
+com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.KiyoriFileManagerMinimizedIndicator
+com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.rememberFileManagerViewModel
 com.ai.assistance.operit.ui.main.AiHomeQuickAction
 com.ai.assistance.operit.ui.main.components.LocalKiyoriAiHostSystemBackEnabled
+com.ai.assistance.operit.ui.main.components.LocalKiyoriOpenFileManager
 com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 com.ai.assistance.operit.ui.main.shell.KiyoriAdBlockSettingsPage
 com.ai.assistance.operit.ui.main.shell.KiyoriBookmarkDrawerHost

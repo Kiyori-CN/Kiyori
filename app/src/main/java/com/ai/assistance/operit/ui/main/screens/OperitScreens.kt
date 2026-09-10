@@ -1439,7 +1439,12 @@ sealed class Screen(
                 onError: (String) -> Unit,
                 onGestureConsumed: (Boolean) -> Unit
         ) {
-            FileManagerToolScreen(navController = navController)
+            val openFileManager = com.ai.assistance.operit.ui.main.components.LocalKiyoriOpenFileManager.current
+            if (openFileManager != null) {
+                androidx.compose.runtime.LaunchedEffect(Unit) { onGoBack(); openFileManager() }
+            } else {
+                FileManagerToolScreen(navController = navController, onOpenSettings = { navigateTo(Settings) }, onOpenAiDialogue = { navigateTo(AiChat) })
+            }
         }
     }
 

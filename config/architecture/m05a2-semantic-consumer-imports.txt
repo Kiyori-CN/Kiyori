@@ -40,6 +40,11 @@ app/src/main/java/com/ai/assistance/operit/ui/features/token/TokenConfigWebViewS
 app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/ToolboxScreen.kt	com.kiyori.design.theme.kiyoriSemanticToneForStableId
 app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/apppermissions/AppPermissionsScreen.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/apppermissions/AppPermissionsScreen.kt	com.kiyori.design.theme.resolveColors
+app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileContextMenu.kt	com.kiyori.design.theme.KiyoriSemanticTone
+app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileManagerChrome.kt	com.kiyori.design.theme.KiyoriSemanticTone
+app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileManagerCopyUi.kt	com.kiyori.design.theme.KiyoriSemanticTone
+app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileManagerDualPane.kt	com.kiyori.design.theme.KiyoriSemanticTone
+app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/SearchDialogs.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/processlimit/ProcessLimitRemoverScreen.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/processlimit/ProcessLimitRemoverScreen.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/shellexecutor/ShellExecutorScreen.kt	com.kiyori.design.theme.KiyoriSemanticTone

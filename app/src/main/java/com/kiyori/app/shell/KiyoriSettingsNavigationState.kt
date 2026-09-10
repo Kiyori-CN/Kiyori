@@ -5,6 +5,7 @@ import java.util.UUID
 
 enum class KiyoriSettingsOrigin {
     BOTTOM_NAVIGATION,
+    FILE_MANAGER,
     BROWSER_HOME,
     AI_HOST,
     EXTERNAL_BROWSER_PRESENTATION,
@@ -44,6 +45,7 @@ data class KiyoriSettingsNavigationState(
                 ) {
                     "Bottom navigation settings cannot use a source-overlay presentation"
                 }
+            KiyoriSettingsOrigin.FILE_MANAGER,
             KiyoriSettingsOrigin.BROWSER_HOME,
             KiyoriSettingsOrigin.AI_HOST,
             KiyoriSettingsOrigin.EXTERNAL_BROWSER_PRESENTATION,
@@ -84,6 +86,7 @@ data class KiyoriSettingsNavigationState(
                 when (origin) {
                     KiyoriSettingsOrigin.BOTTOM_NAVIGATION ->
                         KiyoriSettingsPresentation.PRIMARY_ROOT
+                    KiyoriSettingsOrigin.FILE_MANAGER,
                     KiyoriSettingsOrigin.BROWSER_HOME,
                     KiyoriSettingsOrigin.AI_HOST,
                     KiyoriSettingsOrigin.EXTERNAL_BROWSER_PRESENTATION,
@@ -107,6 +110,7 @@ data class KiyoriSettingsNavigationState(
                 when (origin) {
                     KiyoriSettingsOrigin.BOTTOM_NAVIGATION ->
                         KiyoriSettingsPresentation.PRIMARY_ROOT
+                    KiyoriSettingsOrigin.FILE_MANAGER,
                     KiyoriSettingsOrigin.BROWSER_HOME,
                     KiyoriSettingsOrigin.AI_HOST,
                     KiyoriSettingsOrigin.EXTERNAL_BROWSER_PRESENTATION,

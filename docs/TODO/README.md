@@ -14,6 +14,7 @@
 | 领域 | 专项入口 | 关注点 |
 | --- | --- | --- |
 | 工程基线 | [正式开发准备](formal_development_readiness/index.md) | 五份准备清单、构建、设备和发行边界 |
+| 文件管理 | [内置文件管理器](mt_file_manager_replica/index.md) | 原创交互、可靠操作、存储与专业工具 |
 | 架构 | [全项目架构重构](kiyori_architecture_refactor/index.md) | 真实状态所有者、包方向和阶段验收 |
 | 浏览器 | [产品能力收口](kiyori_browser_product_completion/index.md) | 搜索、广告、媒体与交互 |
 | 窗口与设置返回 | [导航及会话恢复](kiyori_browser_navigation_and_session_restoration/index.md) | 历史、来源、Back 与恢复 |

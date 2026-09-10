@@ -26,6 +26,8 @@ Kiyori 同时拥有两类设计来源：当前 Operit AI 原版界面提供成�
 ## 影响
 
 - 新页面不得建立与 Operit 并行的硬编码颜色、Typography、Shape 或通用组件体系
+- 2026-09-10 文件管理器采用[原创产品方案](../architecture/kiyori_file_manager.md)：双位置等通用能力保留，
+  页面组合、按钮和文案重新设计；此前 MT 截图几何不再作为当前 UI 验收依据，仍复用 Kiyori 主题 token。
 - UI 评审需要同时检查功能来源和视觉来源
 - 浏览器页面可以按旧 Kiyori 进行 source-port，但不能原样保留其独立硬编码主题
 - 上游 Operit UI 更新需要先评估是否改变 Kiyori 共用的视觉 token 或组件合同

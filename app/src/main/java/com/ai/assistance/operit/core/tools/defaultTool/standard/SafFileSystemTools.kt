@@ -273,6 +273,7 @@ class SafFileSystemTools(
     }
 
     suspend fun copyFile(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "copy_mode" }) return executeNoReplaceCopyTool(tool, "saf")
         val sourcePath = tool.parameters.find { it.name == "source" }?.value ?: ""
         val destPath = tool.parameters.find { it.name == "destination" }?.value ?: ""
         val recursive = tool.parameters.find { it.name == "recursive" }?.value?.toBoolean() ?: true
@@ -531,6 +532,7 @@ class SafFileSystemTools(
     }
 
     suspend fun moveFile(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "move_mode" }) return executeNoReplaceRenameTool(tool, "saf")
         val sourcePath = tool.parameters.find { it.name == "source" }?.value ?: ""
         val destPath = tool.parameters.find { it.name == "destination" }?.value ?: ""
         val environment = tool.parameters.find { it.name == "environment" }?.value
@@ -711,6 +713,7 @@ class SafFileSystemTools(
     }
 
     suspend fun makeDirectory(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "create_mode" }) return com.ai.assistance.operit.core.tools.defaultTool.standard.executeNoReplaceCreateTool(tool, directory = true, backendEnvironment = "saf")
         val path = tool.parameters.find { it.name == "path" }?.value ?: ""
         val environment = tool.parameters.find { it.name == "environment" }?.value
         val envLabel = resolveEnvLabel(environment)
@@ -1254,6 +1257,7 @@ class SafFileSystemTools(
     }
 
     suspend fun fileInfo(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "info_mode" }) return executeManagedFileTool(tool, "saf")
         val path = tool.parameters.find { it.name == "path" }?.value ?: ""
         val environment = tool.parameters.find { it.name == "environment" }?.value
         val envLabel = resolveEnvLabel(environment)
@@ -1308,6 +1312,7 @@ class SafFileSystemTools(
     }
 
     suspend fun deleteFile(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "delete_mode" }) return executeManagedFileTool(tool, "saf")
         val path = tool.parameters.find { it.name == "path" }?.value ?: ""
         val environment = tool.parameters.find { it.name == "environment" }?.value
         val envLabel = resolveEnvLabel(environment)
@@ -1349,6 +1354,7 @@ class SafFileSystemTools(
     }
 
     suspend fun findFiles(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "search_mode" }) return executeFileManagerSearch(tool, "saf")
         val path = tool.parameters.find { it.name == "path" }?.value ?: ""
         val pattern = tool.parameters.find { it.name == "pattern" }?.value ?: ""
         val environment = tool.parameters.find { it.name == "environment" }?.value
@@ -1527,6 +1533,7 @@ class SafFileSystemTools(
     }
 
     suspend fun readFileFull(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "read_mode" }) return executeBoundedTextRead(tool, "saf")
         val path = tool.parameters.find { it.name == "path" }?.value ?: ""
         val textOnly = tool.parameters.find { it.name == "text_only" }?.value?.toBoolean() ?: false
         val environment = tool.parameters.find { it.name == "environment" }?.value

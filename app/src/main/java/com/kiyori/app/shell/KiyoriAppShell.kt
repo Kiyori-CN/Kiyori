@@ -45,7 +45,11 @@ import com.ai.assistance.operit.ui.features.agreement.screens.KiyoriLegalDocumen
 import com.ai.assistance.operit.ui.features.agreement.screens.KiyoriLegalDocumentScreen
 import com.ai.assistance.operit.ui.features.agreement.screens.KiyoriLegalDocumentsScreen
 import com.ai.assistance.operit.ui.features.about.screens.KiyoriOpenSourceLicensesPage
+import com.ai.assistance.operit.ui.main.components.LocalKiyoriOpenFileManager
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.KiyoriFileManagerMinimizedIndicator
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.FileManagerScreen
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.rememberFileManagerViewModel
+import androidx.compose.ui.platform.LocalContext
 import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 import com.ai.assistance.operit.ui.main.shell.KiyoriBookmarkDrawerHost
 import com.ai.assistance.operit.ui.main.shell.KiyoriBrowserSettingsPage
@@ -198,6 +202,11 @@ internal fun KiyoriAppShell(
             }
     }
 
+    val fileManagerUiState = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
+    LaunchedEffect(state.fileManagerSessionOpen) {
+        if (!state.fileManagerSessionOpen) fileManagerUiState.removeState("file-manager")
+    }
+    val fileManagerViewModel = if (state.fileManagerSessionOpen || state.child == KiyoriShellChild.FILE_MANAGER) rememberFileManagerViewModel(LocalContext.current) else null
     val shellChildOverlayVisible = shouldAnimateKiyoriShellChildOverlay(state)
     val dispatchShellBack: () -> Unit = {
         val transition = latestState.handleBack()
@@ -406,7 +415,7 @@ internal fun KiyoriAppShell(
                                 SoftwareHomePage.fromPagerIndex(pagerState.settledPage),
                         ),
                 ) {
-                    aiHost()
+                    CompositionLocalProvider(LocalKiyoriOpenFileManager provides { onStateChange(latestState.openFileManager()) }) { aiHost() }
                 }
             }
         }
@@ -438,13 +447,28 @@ internal fun KiyoriAppShell(
                             onSubmitSearch = onSubmitWebSearch,
                             modifier = Modifier.fillMaxSize(),
                         )
-                    KiyoriShellChild.FILE_MANAGER ->
+                    KiyoriShellChild.FILE_MANAGER -> fileManagerUiState.SaveableStateProvider("file-manager") {
                         FileManagerScreen(
                             onBack = { onStateChange(state.closeChild()) },
+                            onOpenSettings = { onStateChange(state.openSettings(origin = KiyoriSettingsOrigin.FILE_MANAGER)) },
+                            sessionViewModel = fileManagerViewModel,
+                            onOpenAiDialogue = {
+                                onOpenAiHome()
+                                onStateChange(state.minimizeFileManager())
+                            },
                         )
+                    }
                     null -> Unit
                 }
             }
+        }
+
+        if (state.fileManagerMinimized && state.child != KiyoriShellChild.FILE_MANAGER) {
+            KiyoriFileManagerMinimizedIndicator(
+                onRestore = { onStateChange(latestState.openFileManager()) },
+                onClose = { onStateChange(latestState.closeMinimizedFileManager()) },
+                modifier = Modifier.fillMaxSize().zIndex(15f),
+            )
         }
 
         if (shouldPresentKiyoriSettingsOverlay(state)) {

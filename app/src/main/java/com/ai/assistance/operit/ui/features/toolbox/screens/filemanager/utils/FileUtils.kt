@@ -6,9 +6,10 @@ import com.ai.assistance.operit.util.AppLogger
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.automirrored.filled.TextSnippet
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.*
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerFileKind
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.fileManagerFileKind
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.Color
 import com.ai.assistance.operit.core.tools.DirectoryListingData
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileItem
 import java.text.SimpleDateFormat
@@ -17,83 +18,22 @@ import kotlin.math.log10
 import kotlin.math.pow
 import kotlinx.serialization.json.Json
 
-/** 获取文件图标 */
-fun getFileIcon(file: FileItem): ImageVector {
-    return if (file.isDirectory) {
-        Icons.Default.Folder
-    } else {
-        when {
-            file.name.endsWith(".pdf") -> Icons.Default.PictureAsPdf
-            file.name.endsWith(".jpg", ignoreCase = true) ||
-                    file.name.endsWith(".jpeg", ignoreCase = true) ||
-                    file.name.endsWith(".png", ignoreCase = true) ||
-                    file.name.endsWith(".gif", ignoreCase = true) ||
-                    file.name.endsWith(".bmp", ignoreCase = true) -> Icons.Default.Image
-            file.name.endsWith(".mp3", ignoreCase = true) ||
-                    file.name.endsWith(".wav", ignoreCase = true) ||
-                    file.name.endsWith(".ogg", ignoreCase = true) -> Icons.Default.AudioFile
-            file.name.endsWith(".mp4", ignoreCase = true) ||
-                    file.name.endsWith(".avi", ignoreCase = true) ||
-                    file.name.endsWith(".mkv", ignoreCase = true) ||
-                    file.name.endsWith(".mov", ignoreCase = true) -> Icons.Default.VideoFile
-            file.name.endsWith(".zip", ignoreCase = true) ||
-                    file.name.endsWith(".rar", ignoreCase = true) ||
-                    file.name.endsWith(".7z", ignoreCase = true) ||
-                    file.name.endsWith(".tar", ignoreCase = true) -> Icons.Default.FolderZip
-            file.name.endsWith(".txt", ignoreCase = true) -> Icons.AutoMirrored.Filled.TextSnippet
-            file.name.endsWith(".doc", ignoreCase = true) ||
-                    file.name.endsWith(".docx", ignoreCase = true) -> Icons.Default.Description
-            file.name.endsWith(".xls", ignoreCase = true) ||
-                    file.name.endsWith(".xlsx", ignoreCase = true) -> Icons.Default.TableChart
-            file.name.endsWith(".ppt", ignoreCase = true) ||
-                    file.name.endsWith(".pptx", ignoreCase = true) -> Icons.Default.Description
-            file.name.endsWith(".js", ignoreCase = true) ||
-                    file.name.endsWith(".py", ignoreCase = true) ||
-                    file.name.endsWith(".html", ignoreCase = true) ||
-                    file.name.endsWith(".css", ignoreCase = true) ||
-                    file.name.endsWith(".xml", ignoreCase = true) -> Icons.Default.Code
-            else -> Icons.AutoMirrored.Filled.InsertDriveFile
-        }
-    }
-}
-
-/** MT 风格的文件类型色，图标形状和底色同时表达常见扩展名。 */
-fun getFileIconColor(file: FileItem): Color {
-    if (file.isDirectory || file.name == "..") return Color(0xFF2B2B2B)
-    return when {
-        file.name.endsWith(".pdf", ignoreCase = true) -> Color(0xFFE51C23)
-        file.name.endsWith(".mp3", ignoreCase = true) ||
-            file.name.endsWith(".wav", ignoreCase = true) ||
-            file.name.endsWith(".ogg", ignoreCase = true) -> Color(0xFFE8323B)
-        file.name.endsWith(".mp4", ignoreCase = true) ||
-            file.name.endsWith(".avi", ignoreCase = true) ||
-            file.name.endsWith(".mkv", ignoreCase = true) ||
-            file.name.endsWith(".mov", ignoreCase = true) -> Color(0xFF858585)
-        file.name.endsWith(".jpg", ignoreCase = true) ||
-            file.name.endsWith(".jpeg", ignoreCase = true) ||
-            file.name.endsWith(".png", ignoreCase = true) ||
-            file.name.endsWith(".gif", ignoreCase = true) ||
-            file.name.endsWith(".bmp", ignoreCase = true) -> Color(0xFF858585)
-        file.name.endsWith(".doc", ignoreCase = true) ||
-            file.name.endsWith(".docx", ignoreCase = true) -> Color(0xFF3769BD)
-        file.name.endsWith(".ppt", ignoreCase = true) ||
-            file.name.endsWith(".pptx", ignoreCase = true) -> Color(0xFFD8665B)
-        file.name.endsWith(".xls", ignoreCase = true) ||
-            file.name.endsWith(".xlsx", ignoreCase = true) -> Color(0xFF64A900)
-        file.name.endsWith(".zip", ignoreCase = true) ||
-            file.name.endsWith(".rar", ignoreCase = true) ||
-            file.name.endsWith(".7z", ignoreCase = true) ||
-            file.name.endsWith(".tar", ignoreCase = true) -> Color(0xFF7D5A4E)
-        file.name.endsWith(".js", ignoreCase = true) ||
-            file.name.endsWith(".md", ignoreCase = true) ||
-            file.name.endsWith(".txt", ignoreCase = true) ||
-            file.name.endsWith(".json", ignoreCase = true) ||
-            file.name.endsWith(".xml", ignoreCase = true) ||
-            file.name.endsWith(".html", ignoreCase = true) ||
-            file.name.endsWith(".css", ignoreCase = true) -> Color(0xFF3769BD)
-        file.name.endsWith(".py", ignoreCase = true) -> Color(0xFF3769BD)
-        else -> Color(0xFF607D8B)
-    }
+/** 图标与语义色使用同一个文件类别，避免相同扩展名出现不同分类。 */
+fun getFileIcon(file: FileItem): ImageVector = when (fileManagerFileKind(file)) {
+    FileManagerFileKind.PARENT -> Icons.Rounded.ArrowUpward
+    FileManagerFileKind.FOLDER -> Icons.Rounded.Folder
+    FileManagerFileKind.IMAGE -> Icons.Rounded.Image
+    FileManagerFileKind.AUDIO -> Icons.Rounded.AudioFile
+    FileManagerFileKind.VIDEO -> Icons.Rounded.VideoFile
+    FileManagerFileKind.PDF -> Icons.Rounded.PictureAsPdf
+    FileManagerFileKind.DOCUMENT -> Icons.Rounded.Description
+    FileManagerFileKind.SHEET -> Icons.Rounded.TableChart
+    FileManagerFileKind.PRESENTATION -> Icons.Rounded.Slideshow
+    FileManagerFileKind.ARCHIVE -> Icons.Rounded.FolderZip
+    FileManagerFileKind.CODE -> Icons.Rounded.Code
+    FileManagerFileKind.TEXT -> Icons.AutoMirrored.Filled.TextSnippet
+    FileManagerFileKind.PACKAGE -> Icons.Rounded.Android
+    FileManagerFileKind.FILE -> Icons.AutoMirrored.Filled.InsertDriveFile
 }
 
 /** 获取文件类型描述 */
@@ -129,12 +69,12 @@ fun getFileType(context: Context, fileName: String): String {
 
 /** 格式化文件大小 */
 fun formatFileSize(size: Long): String {
-    if (size <= 0) return "0 B"
+    if (size <= 0) return "0.00B"
 
-    val units = arrayOf("B", "KB", "MB", "GB", "TB")
-    val digitGroups = (log10(size.toDouble()) / log10(1024.0)).toInt()
+    val units = arrayOf("B", "K", "M", "G", "T", "P", "E")
+    val digitGroups = (log10(size.toDouble()) / log10(1024.0)).toInt().coerceIn(0, units.lastIndex)
 
-    return String.format(java.util.Locale.getDefault(), "%.1f %s", size / 1024.0.pow(digitGroups.toDouble()), units[digitGroups])
+    return String.format(java.util.Locale.US, "%.2f%s", size / 1024.0.pow(digitGroups.toDouble()), units[digitGroups])
 }
 
 /** 格式化日期 */

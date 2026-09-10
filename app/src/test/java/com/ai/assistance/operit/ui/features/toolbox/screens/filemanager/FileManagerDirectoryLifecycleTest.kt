@@ -78,8 +78,8 @@ class FileManagerDirectoryLifecycleTest {
         directory.requests[0].response.complete(listing("stale"))
         scheduler.runCurrent()
 
-        assertEquals(listOf("..", "fresh"), model.leftPaneState.files.map { it.name })
-        assertEquals(listOf("..", "right"), model.rightPaneState.files.map { it.name })
+        assertEquals(listOf("fresh"), model.leftPaneState.files.map { it.name })
+        assertEquals(listOf("right"), model.rightPaneState.files.map { it.name })
         assertFalse(model.leftPaneState.isLoading)
         assertNull(model.leftPaneState.error)
     }
@@ -123,7 +123,7 @@ class FileManagerDirectoryLifecycleTest {
         scheduler.runCurrent()
 
         assertEquals(INITIAL_PATH, model.leftPaneState.path)
-        assertEquals(listOf("..", "returned"), model.leftPaneState.files.map { it.name })
+        assertEquals(listOf("returned"), model.leftPaneState.files.map { it.name })
     }
 
     @Test
@@ -193,7 +193,7 @@ class FileManagerDirectoryLifecycleTest {
         assertSame(directoryDispatcher, request.dispatcher)
         assertEquals("list_files", request.tool.name)
         assertEquals(mapOf("path" to "/", "environment" to "repo:documents"), request.tool.parameters.associate { it.name to it.value })
-        assertEquals(listOf("..", "folder", "large", "small"), model.leftPaneState.files.map { it.name })
+        assertEquals(listOf("folder", "small", "large"), model.leftPaneState.files.map { it.name })
         val large = model.leftPaneState.files.single { it.name == "large" }
         assertEquals(1_700_000_000_000L, large.lastModified)
         assertEquals("1700000000", large.lastModifiedLabel)
@@ -244,6 +244,58 @@ class FileManagerDirectoryLifecycleTest {
         scheduler.runCurrent()
         model.saveScrollPosition(FileManagerPane.LEFT, location, FileManagerScrollPosition())
         assertEquals(recorded, model.scrollPosition(FileManagerPane.LEFT, location))
+    }
+
+    @Test fun `automatic refresh skips pending reads without cancelling them`() = runTest(mainDispatcher) {
+        val directory = ControlledDirectory()
+        val model = createModel(directory)
+        scheduler.runCurrent()
+        model.refreshVisibleDirectories()
+        scheduler.runCurrent()
+        assertEquals(2, directory.requests.size)
+        assertFalse(directory.requests.any { it.cancelled })
+    }
+
+    @Test fun `background refresh preserves selection and loading geometry then reconciles removed files`() = runTest(mainDispatcher) {
+        val directory = ControlledDirectory()
+        val model = createModel(directory)
+        scheduler.runCurrent()
+        directory.requests[0].response.complete(listing("keep", "removed"))
+        directory.requests[1].response.complete(listing())
+        scheduler.runCurrent()
+        model.selectAll()
+        model.refreshVisibleDirectories()
+        scheduler.runCurrent()
+        assertFalse(model.leftPaneState.isLoading)
+        assertEquals(2, model.selectedFiles.size)
+        model.refreshVisibleDirectories()
+        scheduler.runCurrent()
+        assertEquals(4, directory.requests.size)
+        directory.requests[2].response.complete(listing("keep", "new"))
+        directory.requests[3].response.complete(listing())
+        scheduler.runCurrent()
+        assertEquals(listOf("keep"), model.selectedFiles.map { it.name })
+        assertEquals(listOf("keep", "new"), model.files.map { it.name })
+    }
+
+    @Test fun `navigation supersedes background refresh even if provider ignores cancellation`() = runTest(mainDispatcher) {
+        val directory = ControlledDirectory(ignoreCancellationAt = setOf(2))
+        val model = createModel(directory)
+        scheduler.runCurrent()
+        directory.requests[0].response.complete(listing("old"))
+        directory.requests[1].response.complete(listing())
+        scheduler.runCurrent()
+        model.refreshVisibleDirectories()
+        scheduler.runCurrent()
+        model.navigateToPath("/new")
+        scheduler.runCurrent()
+        directory.requests[4].response.complete(listing("current"))
+        directory.requests[2].response.complete(listing("stale"))
+        directory.requests[3].response.complete(listing())
+        scheduler.runCurrent()
+        assertEquals("/new", model.currentPath)
+        assertTrue(model.files.any { it.name == "current" })
+        assertFalse(model.files.any { it.name == "stale" })
     }
 
     private fun createModel(directory: ControlledDirectory): FileManagerViewModel =

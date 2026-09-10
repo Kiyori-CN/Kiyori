@@ -434,6 +434,11 @@ fun KiyoriApp(
         navigationContextId: String? = null,
     ) {
         isNavigatingBack = false
+        // 兼容旧工具入口，但所有新导航都交给同一个 Shell 文件会话。
+        if (newScreen == Screen.FileManager) {
+            updateShellState(shellState.openFileManager())
+            return
+        }
         val settingsNavigationContext =
             resolveKiyoriSettingsNavigationContext(
                 requestedSource = source,

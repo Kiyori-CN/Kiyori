@@ -54,6 +54,9 @@ data class FileManagerPaneState(
     val error: String? = null,
     val backStack: List<FileManagerLocation> = emptyList(),
     val forwardStack: List<FileManagerLocation> = emptyList(),
+    /** 当前目录完整快照；files 是同一快照的可见投影，不重新读取存储来筛选。 */
+    val entries: List<FileItem> = emptyList(),
+    val filterQuery: String = "",
 )
 
 internal fun fileManagerBackAction(

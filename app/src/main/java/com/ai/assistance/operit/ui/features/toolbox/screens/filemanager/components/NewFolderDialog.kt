@@ -1,33 +1,27 @@
 package com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.Surface
+import androidx.compose.material3.Button
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.fileManagerNameError
 
-/** MT 文件管理器的单一建项弹窗；文件与文件夹由底部动作明确区分。 */
+/** 单一提交入口；失败保留输入，布局随字体增长。 */
 @Composable
 fun FileManagerNewEntryDialog(
     showDialog: Boolean,
@@ -36,77 +30,40 @@ fun FileManagerNewEntryDialog(
     onCreateFile: () -> Unit,
     onCreateFolder: () -> Unit,
     onDismiss: () -> Unit,
+    isCreating: Boolean,
+    error: String?,
+    unknown: Boolean,
 ) {
     if (!showDialog) return
-
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Surface(
-            modifier = Modifier.width(310.dp).height(151.dp),
-            shape = RoundedCornerShape(3.dp),
-            color = Color.White,
-            contentColor = Color.Black,
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 24.dp, top = 21.dp, end = 24.dp),
-            ) {
-                Text(
-                    text = "新建",
-                    style = TextStyle(fontSize = 20.sp, lineHeight = 24.sp),
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                BasicTextField(
+    var folder by rememberSaveable { mutableStateOf(true) }
+    val validation = fileManagerNameError(entryName)
+    AlertDialog(
+        onDismissRequest = { if (!isCreating) onDismiss() },
+        title = { Text("创建新项目") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = folder, onClick = { folder = true }, label = { Text("文件夹") }, enabled = !isCreating && !unknown)
+                    FilterChip(selected = !folder, onClick = { folder = false }, label = { Text("空白文件") }, enabled = !isCreating && !unknown)
+                }
+                OutlinedTextField(
                     value = entryName,
                     onValueChange = onEntryNameChange,
-                    modifier = Modifier.fillMaxWidth().height(32.dp),
+                    enabled = !isCreating && !unknown,
+                    label = { Text(if (folder) "文件夹名称" else "文件名称（包含扩展名）") },
+                    supportingText = { Text(error ?: validation ?: if (folder) "在当前目录创建" else "按输入名称创建，不自动添加扩展名") },
+                    isError = error != null || (entryName.isNotEmpty() && validation != null),
                     singleLine = true,
-                    textStyle = TextStyle(fontSize = 16.sp, lineHeight = 20.sp, color = Color.Black),
-                    cursorBrush = SolidColor(Color(0xFF42A5F5)),
-                    decorationBox = { innerTextField ->
-                        Box(
-                            modifier = Modifier.fillMaxWidth().height(32.dp),
-                            contentAlignment = Alignment.CenterStart,
-                        ) {
-                            innerTextField()
-                        }
-                    },
+                    modifier = Modifier.fillMaxWidth(),
                 )
-                Spacer(modifier = Modifier.height(2.dp).fillMaxWidth().background(Color(0xFF42A5F5)))
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    // MT 的三个动作不是等分排布；按同尺寸截图的文字投影校准，并让触摸槽随文字一起移动。
-                    TextButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.height(48.dp).offset(x = (-12.5).dp),
-                        contentPadding = PaddingValues(start = 7.dp, end = 0.dp),
-                    ) {
-                        Text("取消", color = Color(0xFF42A5F5), fontSize = 14.sp, lineHeight = 20.sp)
-                    }
-                    Spacer(modifier = Modifier.weight(1f))
-                    TextButton(
-                        onClick = onCreateFile,
-                        modifier = Modifier.height(48.dp).offset(x = 33.dp),
-                        contentPadding = PaddingValues(0.dp),
-                    ) {
-                        Text("文件", color = Color(0xFF42A5F5), fontSize = 14.sp, lineHeight = 20.sp)
-                    }
-                    Spacer(modifier = Modifier.width(32.dp))
-                    TextButton(
-                        onClick = onCreateFolder,
-                        modifier = Modifier.height(48.dp).offset(x = 8.dp),
-                        contentPadding = PaddingValues(0.dp),
-                    ) {
-                        Text("文件夹", color = Color(0xFF42A5F5), fontSize = 14.sp, lineHeight = 20.sp)
-                    }
-                }
             }
-        }
-    }
+        },
+        confirmButton = {
+            Button(
+                enabled = !isCreating && !unknown && validation == null,
+                onClick = { if (folder) onCreateFolder() else onCreateFile() },
+            ) { Text(if (isCreating) "正在创建…" else "创建") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !isCreating) { Text(if (unknown) "关闭并检查" else "取消") } },
+    )
 }

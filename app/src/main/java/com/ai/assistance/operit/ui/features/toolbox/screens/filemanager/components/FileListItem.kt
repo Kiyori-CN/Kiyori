@@ -2,43 +2,38 @@ package com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.compone
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileItem
-import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.utils.getFileIcon
-import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.utils.getFileIconColor
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.utils.formatFileSize
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -46,20 +41,7 @@ import kotlin.math.abs
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-enum class DisplayMode {
-    SINGLE_COLUMN,
-    TWO_COLUMNS,
-    THREE_COLUMNS,
-}
-
-private val unselectedFileRowColor = Color(0xFFFAFAFA)
-private val selectedFileRowColor = Color(0xFF7DBEDC)
-private val pressedFileRowColor = Color(0xFFE0E0E0)
-
-/**
- * MT 风格的文件项：行本身是连续的浅色带状区域，水平滑动负责多选。
- * 点击和长按仍由 combinedClickable 处理，三类手势不会改变既有打开/菜单入口。
- */
+/** 图标独占左侧，名称最多四行，时间与大小共享右侧单行；触摸区域至少 48 dp。 */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FileListItem(
@@ -68,212 +50,123 @@ fun FileListItem(
     onItemClick: () -> Unit,
     onItemLongClick: () -> Unit,
     onSwipeRight: () -> Unit = {},
+    onToggleSelection: () -> Unit = onSwipeRight,
     itemSize: Float = 1f,
-    displayMode: DisplayMode = DisplayMode.SINGLE_COLUMN,
-    compact: Boolean = false,
-    postClickFeedbackDurationMillis: Long = 0L,
+    selectionMode: Boolean = false,
 ) {
-    val isCompactTwoColumn = compact && displayMode == DisplayMode.TWO_COLUMNS
-    val baseHeight = if (isCompactTwoColumn) 40.dp else 72.dp
-    val baseIconSize = if (isCompactTwoColumn) 28.dp else {
-        when (displayMode) {
-            DisplayMode.SINGLE_COLUMN -> 40.dp
-            DisplayMode.TWO_COLUMNS -> 36.dp
-            DisplayMode.THREE_COLUMNS -> 32.dp
-        }
+    val baseHeight = 48.dp
+    val scale = itemSize.coerceIn(0.8f, 1.3f)
+    val iconSize = 30.dp * scale
+    val leftPadding = 5.dp
+    val iconGap = 5.dp
+    val maxDrag = leftPadding + iconSize
+    val dateLabel = remember(file.lastModified, file.lastModifiedLabel) {
+        if (file.lastModified > 0) SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(file.lastModified))
+        else file.lastModifiedLabel.trim()
     }
-    val basePadding = if (isCompactTwoColumn) 5.dp else {
-        when (displayMode) {
-            DisplayMode.SINGLE_COLUMN -> 12.dp
-            DisplayMode.TWO_COLUMNS -> 8.dp
-            DisplayMode.THREE_COLUMNS -> 6.dp
-        }
-    }
-    val baseSpacing = if (isCompactTwoColumn) 4.dp else {
-        when (displayMode) {
-            DisplayMode.SINGLE_COLUMN -> 8.dp
-            DisplayMode.TWO_COLUMNS -> 6.dp
-            DisplayMode.THREE_COLUMNS -> 4.dp
-        }
-    }
-    val baseTextSize = if (isCompactTwoColumn) 14.sp else {
-        when (displayMode) {
-            DisplayMode.SINGLE_COLUMN -> 16.sp
-            DisplayMode.TWO_COLUMNS -> 14.sp
-            DisplayMode.THREE_COLUMNS -> 12.sp
-        }
-    }
-    val titleLineHeight = if (isCompactTwoColumn) 17.sp else MaterialTheme.typography.bodyLarge.lineHeight
-    val metadataLineHeight = if (isCompactTwoColumn) 12.sp else MaterialTheme.typography.bodySmall.lineHeight
-    val metadataTextSize = if (isCompactTwoColumn) 10.sp else baseTextSize * 0.82f
-    val dateLabel = formatDate(file)
-    val hasMetadata = file.name != ".." && dateLabel.isNotBlank()
-    var dragOffset by remember { mutableFloatStateOf(0f) }
+    val latestSwipe by rememberUpdatedState(onSwipeRight)
+    val latestLongClick by rememberUpdatedState(onItemLongClick)
+    val latestClick by rememberUpdatedState(onItemClick)
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val clickFeedbackScope = rememberCoroutineScope()
-    var clickFeedback by remember { mutableStateOf(false) }
-
+    val pressed by interactionSource.collectIsPressedAsState()
+    var clickPending by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
+    var dragDistance by remember(file.name) { mutableFloatStateOf(0f) }
+    var dragging by remember(file.name) { mutableStateOf(false) }
+    val rowOffset by animateFloatAsState(dragDistance, animationSpec = if (dragging) snap() else spring(), label = "fileRowReturn")
+    val showPress = (pressed || clickPending) && !dragging
+    // 固定窗格裁切整行位移，图标、名称、元信息与背景同步移动，不侵入另一栏。
+    Box(Modifier.fillMaxWidth().clipToBounds()) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(baseHeight * itemSize)
-            .graphicsLayer { translationX = dragOffset }
-            .pointerInput(file.name) {
+        modifier = Modifier.fillMaxWidth()
+            .heightIn(min = (baseHeight * scale).coerceAtLeast(48.dp))
+            .graphicsLayer { translationX = rowOffset }
+            .drawWithContent {
+                drawContent()
+                if (showPress) {
+                    val depth = 4.dp.toPx().coerceAtMost(size.height / 2)
+                    val shadow = Color.Black.copy(alpha = 0.12f)
+                    drawRect(Brush.verticalGradient(listOf(shadow, Color.Transparent), endY = depth),
+                        size = Size(size.width, depth))
+                    drawRect(Brush.verticalGradient(listOf(Color.Transparent, shadow), startY = size.height - depth, endY = size.height),
+                        topLeft = Offset(0f, size.height - depth), size = Size(size.width, depth))
+                }
+            }
+            .semantics {
+                selected = isSelected
+                if (file.name != "..") customActions = listOf(
+                    CustomAccessibilityAction(if (isSelected) "取消选择" else "选择此项目") { onToggleSelection(); true },
+                )
+            }
+            .pointerInput(file.name, maxDrag) {
                 detectHorizontalDragGestures(
-                    onDragStart = {
-                        dragOffset = 0f
-                    },
-                    onHorizontalDrag = { change, dragAmount ->
-                        // 两个方向统一使用左滑隐藏左侧图标所需的距离作为最大位移。
-                        val maxOffset = if (isCompactTwoColumn) {
-                            ((basePadding + baseIconSize) * itemSize).toPx()
-                        } else {
-                            160.dp.toPx()
+                    onDragStart = { dragging = true },
+                    onHorizontalDrag = { change, amount ->
+                        if (file.name != "..") {
+                            dragDistance = (dragDistance + amount).coerceIn(-maxDrag.toPx(), maxDrag.toPx())
+                            change.consume()
                         }
-                        dragOffset = (dragOffset + dragAmount).coerceIn(-maxOffset, maxOffset)
-                        change.consume()
                     },
                     onDragEnd = {
-                        val selectionThreshold = if (isCompactTwoColumn) {
-                            (baseIconSize * itemSize).toPx() * 0.55f
-                        } else {
-                            48.dp.toPx()
+                        // 阈值使用 dp，左右完全一致；短横移和取消不改变选择，也不触发打开。
+                        if (abs(dragDistance) >= maxDrag.toPx() * 0.65f) {
+                            latestSwipe()
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         }
-                        // 左右滑动均建立同一选择语义，松手后由状态层处理连续范围。
-                        if (abs(dragOffset) >= selectionThreshold) onSwipeRight()
-                        dragOffset = 0f
+                        dragDistance = 0f
+                        dragging = false
                     },
-                    onDragCancel = { dragOffset = 0f },
+                    onDragCancel = { dragDistance = 0f; dragging = false },
                 )
             }
             .combinedClickable(
                 interactionSource = interactionSource,
-                indication = null,
+                indication = LocalIndication.current,
+                onClickLabel = if (selectionMode && file.name != "..") "切换选择" else "打开",
                 onClick = {
-                    if (postClickFeedbackDurationMillis > 0L) {
-                        clickFeedback = true
-                        clickFeedbackScope.launch {
-                            delay(postClickFeedbackDurationMillis)
-                            onItemClick()
-                            clickFeedback = false
+                    if (!clickPending) {
+                        clickPending = true
+                        scope.launch {
+                            // 快速点击也保留一小段可见反馈；行离开组合时取消，防止迟到点击打开旧目录。
+                            try { delay(80); latestClick() }
+                            finally { clickPending = false }
                         }
-                    } else {
-                        onItemClick()
                     }
                 },
-                onLongClick = onItemLongClick,
+                onLongClickLabel = "文件操作",
+                onLongClick = {
+                    if (file.name != ".." && !clickPending) {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        latestLongClick()
+                    }
+                },
             ),
         color = when {
-            isPressed || clickFeedback -> pressedFileRowColor
-            isSelected -> selectedFileRowColor
-            else -> unselectedFileRowColor
+            showPress && isSelected -> MaterialTheme.colorScheme.primaryContainer
+            showPress -> MaterialTheme.colorScheme.surfaceContainerHighest
+            isSelected -> MaterialTheme.colorScheme.primaryContainer
+            dragDistance != 0f -> MaterialTheme.colorScheme.surfaceContainerHighest
+            else -> MaterialTheme.colorScheme.surface
         },
-        contentColor = Color.Black,
         shape = RectangleShape,
-        tonalElevation = 0.dp,
-        shadowElevation = if (isPressed || clickFeedback) 2.dp else 0.dp,
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = basePadding * itemSize, vertical = 4.dp * itemSize),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Surface(
-                modifier = Modifier.size(baseIconSize * itemSize),
-                color = getFileIconColor(file),
-                contentColor = Color.White,
-                shape = RoundedCornerShape(if (isCompactTwoColumn) 4.dp else 8.dp),
-                tonalElevation = 0.dp,
-            ) {
-                Icon(
-                    imageVector = getFileIcon(file),
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(baseIconSize * 0.2f * itemSize),
+        Row(Modifier.padding(start = leftPadding, end = 4.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            FileManagerFileBadge(file, iconSize)
+            Spacer(Modifier.width(iconGap))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(if (file.name == "..") "上一级" else file.name,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 12.sp * scale, lineHeight = 16.sp * scale),
+                    maxLines = 4, overflow = TextOverflow.Ellipsis)
+                if (file.name != "..") FileManagerFittedText(
+                    text = listOfNotNull(dateLabel.ifBlank { "修改时间未知" },
+                        formatFileSize(file.size).takeUnless { file.isDirectory }).joinToString(" "),
+                    modifier = Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp * scale, lineHeight = 13.sp * scale),
                 )
-            }
-
-            Spacer(modifier = Modifier.width(baseSpacing * itemSize))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = file.name,
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontSize = baseTextSize * itemSize,
-                        lineHeight = titleLineHeight * itemSize,
-                    ),
-                    color = Color.Black,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (hasMetadata) {
-                    Spacer(modifier = Modifier.height(2.dp * itemSize))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Start,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = dateLabel,
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontSize = metadataTextSize * itemSize,
-                                lineHeight = metadataLineHeight * itemSize,
-                            ),
-                            color = Color(0xFF757575),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        if (!file.isDirectory) {
-                            Spacer(modifier = Modifier.width(6.dp * itemSize))
-                            Text(
-                                text = formatFileSize(file.size),
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontSize = metadataTextSize * itemSize,
-                                    lineHeight = metadataLineHeight * itemSize,
-                                ),
-                                color = Color(0xFF757575),
-                                maxLines = 1,
-                            )
-                        }
-                    }
-                }
             }
         }
     }
-}
-
-private fun formatFileSize(size: Long): String = when {
-    size <= 0 -> "0B"
-    size < 1024 -> "${size}B"
-    size < 1024 * 1024 -> "${size / 1024}KB"
-    size < 1024 * 1024 * 1024 -> "${size / (1024 * 1024)}MB"
-    else -> "${size / (1024 * 1024 * 1024)}GB"
-}
-
-private fun formatDate(file: FileItem): String {
-    if (file.lastModified > 0) {
-        return SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-            .format(Date(file.lastModified))
     }
-    val raw = file.lastModifiedLabel.trim()
-    if (raw.isBlank()) return ""
-    val parsed = listOf(
-        "yyyy-MM-dd HH:mm:ss.SSS",
-        "yyyy-MM-dd HH:mm:ss",
-        "yyyy-MM-dd HH:mm",
-        "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'",
-    ).asSequence().mapNotNull { pattern ->
-        runCatching {
-            SimpleDateFormat(pattern, Locale.US).apply {
-                if (pattern.endsWith("'Z'")) timeZone = java.util.TimeZone.getTimeZone("UTC")
-            }.parse(raw)
-        }.getOrNull()
-    }.firstOrNull()
-    return parsed?.let {
-        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(it)
-    } ?: raw
 }

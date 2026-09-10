@@ -601,7 +601,7 @@
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [index.md](TODO/mt_file_manager_replica/index.md) | MT 管理器手机存储复刻 |
+| [index.md](TODO/mt_file_manager_replica/index.md) | Kiyori 内置文件管理器开发 |
 
 ## docs/TODO/native_dependency_fetchcontent
 
@@ -794,6 +794,7 @@
 | [browser_extension_development.md](doc-src/architecture/browser_extension_development.md) | AI 浏览器扩展与脚本开发 |
 | [browser_plugin_platform.md](doc-src/architecture/browser_plugin_platform.md) | 浏览器插件平台与插件中心架构 |
 | [chat_runtime_foreground_service_plan.md](doc-src/architecture/chat_runtime_foreground_service_plan.md) | 双 Session 聊天 Runtime 上移到前台服务方案 |
+| [kiyori_file_manager.md](doc-src/architecture/kiyori_file_manager.md) | Kiyori 内置文件管理器设计 |
 | [kiyori_product_shell_and_navigation.md](doc-src/architecture/kiyori_product_shell_and_navigation.md) | Kiyori 产品壳与导航架构 |
 | [memory_candidate_scoring_formula.md](doc-src/architecture/memory_candidate_scoring_formula.md) | 记忆机制说明（简化版） |
 | [model_capability_and_resumable_execution.md](doc-src/architecture/model_capability_and_resumable_execution.md) | 统一模型能力与可恢复执行架构 |

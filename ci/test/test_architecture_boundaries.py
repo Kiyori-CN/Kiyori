@@ -2190,6 +2190,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
         imports_by_consumer: dict[str, set[str]] = {}
         expected_import_consumers = {
             "KiyoriBrowserTheme": {
+                "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/KiyoriFileManagerMinimizedIndicator.kt",
                 "app/src/main/java/com/kiyori/app/shell/KiyoriAppShell.kt",
                 "app/src/main/java/com/ai/assistance/operit/ui/features/player/"
                 "PlayerActivity.kt",
@@ -2197,6 +2198,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
                 "browser/WebSessionBrowserScreen.kt",
             },
             "KiyoriSettingsTheme": {
+                "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/FileManagerScreen.kt",
                 "app/src/main/java/com/ai/assistance/operit/ui/features/chat/details/"
                 "ConversationDetailsScreen.kt",
                 "app/src/main/java/com/kiyori/app/shell/KiyoriAppShell.kt",
@@ -2518,7 +2520,12 @@ class ArchitectureBoundaryTest(unittest.TestCase):
         player_path = next(
             iter(M05A2_EXPECTED_QUALIFIED_REFERENCES["KiyoriSemanticColors"])
         )
-        legacy_production_consumer_count = M05A2_PRODUCTION_CONSUMER_COUNT - 4
+        # Five file-manager pages each consume only the existing semantic tone.
+        file_manager_paths = [
+            "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/" + name
+            for name in ("FileContextMenu.kt", "FileManagerChrome.kt", "FileManagerCopyUi.kt", "FileManagerDualPane.kt", "SearchDialogs.kt")
+        ]
+        legacy_production_consumer_count = M05A2_PRODUCTION_CONSUMER_COUNT - 4 - len(file_manager_paths)
         assistant_experience_path = (
             "app/src/main/java/com/ai/assistance/operit/ui/features/"
             "semantic/AssistantExperienceSettingsPages.kt"
@@ -2544,7 +2551,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             permission_presentation_path,
             network_proxy_path,
             more_features_path,
-        ]
+        ] + file_manager_paths
         test_paths = [
             "app/src/test/java/com/ai/assistance/operit/ui/semantic/"
             f"SemanticConsumer{index}.kt"
@@ -2566,6 +2573,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             # shared onboarding/Settings permission presentation, network proxy, and
             # More Features as tone-only consumers.
             if relative_path in {
+                *file_manager_paths,
                 assistant_experience_path,
                 permission_presentation_path,
                 network_proxy_path,

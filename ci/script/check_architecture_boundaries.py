@@ -407,6 +407,7 @@ M05A1_DECLARATION_OWNERS = {
 }
 M05A1_EXPECTED_IMPORT_CONSUMERS = {
     "KiyoriBrowserTheme": {
+        "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/KiyoriFileManagerMinimizedIndicator.kt",
         "app/src/main/java/com/kiyori/app/shell/KiyoriAppShell.kt",
         "app/src/main/java/com/ai/assistance/operit/ui/features/player/"
         "PlayerActivity.kt",
@@ -414,6 +415,7 @@ M05A1_EXPECTED_IMPORT_CONSUMERS = {
         "browser/WebSessionBrowserScreen.kt",
     },
     "KiyoriSettingsTheme": {
+        "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/FileManagerScreen.kt",
         "app/src/main/java/com/ai/assistance/operit/ui/features/chat/details/"
         "ConversationDetailsScreen.kt",
         "app/src/main/java/com/kiyori/app/shell/KiyoriAppShell.kt",
@@ -526,9 +528,9 @@ M05A2_CONSUMER_IMPORT_SNAPSHOT = (
     "m05a2-semantic-consumer-imports.txt"
 )
 M05A2_DESIGN_PACKAGE = "com.kiyori.design.theme"
-M05A2_PRODUCTION_CONSUMER_COUNT = 56
+M05A2_PRODUCTION_CONSUMER_COUNT = 61
 M05A2_EXTERNAL_TEST_CONSUMER_COUNT = 4
-M05A2_CONSUMER_IMPORT_COUNT = 104
+M05A2_CONSUMER_IMPORT_COUNT = 109
 M05A2_MOVED_IMPORT_SYMBOLS = {
     "KiyoriSemanticTone",
     "kiyoriSemanticToneForStableId",
@@ -968,6 +970,7 @@ M05E_HASHED_PATHS = (
     M05E_OPERIT_BACKUP_DIRS_PATH,
 )
 M05E_DIRECT_PATH_CONSUMER_PATHS = (
+    "app/src/main/java/com/ai/assistance/operit/api/chat/enhance/ToolExecutionManager.kt",
     M05E_OPERIT_PATHS_PATH,
     M05E_KIYORI_BACKUP_PATHS_PATH,
     M05B_LEGACY_FACADE_PATH,
@@ -1012,6 +1015,7 @@ M05E_DIRECT_BACKUP_CONSUMER_PATHS = (
     "ChatBackupSettingsScreen.kt",
 )
 M05E_LEGACY_OPERIT_CONSUMER_PATHS = (
+    "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/FileManagerScreen.kt",
     "app/src/main/java/com/ai/assistance/operit/api/chat/llmprovider/"
     "GeminiProvider.kt",
     "app/src/main/java/com/ai/assistance/operit/api/chat/llmprovider/"

@@ -1493,6 +1493,7 @@ open class StandardFileSystemTools(protected val context: Context) {
      * function does not enforce a size limit.
      */
     open suspend fun readFileFull(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "read_mode" }) return executeBoundedTextRead(tool)
         val path = tool.parameters.find { it.name == "path" }?.value ?: ""
         val environment = tool.parameters.find { it.name == "environment" }?.value
         val textOnly = tool.parameters.find { it.name == "text_only" }?.value?.toBoolean() ?: false
@@ -2149,6 +2150,7 @@ open class StandardFileSystemTools(protected val context: Context) {
 
     /** Delete a file or directory */
     open suspend fun deleteFile(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "delete_mode" }) return executeManagedFileTool(tool, "android")
         val path = tool.parameters.find { it.name == "path" }?.value ?: ""
         val environment = tool.parameters.find { it.name == "environment" }?.value
         val recursive =
@@ -2344,6 +2346,7 @@ open class StandardFileSystemTools(protected val context: Context) {
 
     /** Move or rename a file or directory */
     open suspend fun moveFile(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "move_mode" }) return executeNoReplaceRenameTool(tool)
         val sourcePath = tool.parameters.find { it.name == "source" }?.value ?: ""
         val destPath = tool.parameters.find { it.name == "destination" }?.value ?: ""
         val environment = tool.parameters.find { it.name == "environment" }?.value
@@ -2498,31 +2501,13 @@ open class StandardFileSystemTools(protected val context: Context) {
         }
     }
 
-    /** Helper method to recursively copy a directory */
-    private fun copyDirectory(sourceDir: File, destDir: File): Boolean {
-        try {
-            if (!destDir.exists()) {
-                destDir.mkdirs()
-            }
-
-            sourceDir.listFiles()?.forEach { file ->
-                val destFile = File(destDir, file.name)
-                if (file.isDirectory) {
-                    copyDirectory(file, destFile)
-                } else {
-                    file.inputStream().use { input ->
-                        destFile.outputStream().use { output ->
-                            input.copyTo(output)
-                        }
-                    }
-                }
-            }
-
-            return true
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "Error copying directory", e)
-            return false
-        }
+    /** 子目录失败不得被丢弃，否则 moveFile 会把不完整复制当成成功并删除源。 */
+    private fun copyDirectory(sourceDir: File, destDir: File): Boolean = try {
+        copyLocalDirectory(sourceDir, destDir)
+        true
+    } catch (e: Exception) {
+        AppLogger.e(TAG, "Directory copy failed: " + e.javaClass.simpleName)
+        false
     }
 
     /**
@@ -2838,6 +2823,7 @@ open class StandardFileSystemTools(protected val context: Context) {
 
     /** Copy a file or directory */
     open suspend fun copyFile(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "copy_mode" }) return executeNoReplaceCopyTool(tool)
         val sourcePath = tool.parameters.find { it.name == "source" }?.value ?: ""
         val destPath = tool.parameters.find { it.name == "destination" }?.value ?: ""
         val sourceEnvironment = tool.parameters.find { it.name == "source_environment" }?.value
@@ -3052,6 +3038,7 @@ open class StandardFileSystemTools(protected val context: Context) {
 
     /** Create a directory */
     open suspend fun makeDirectory(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "create_mode" }) return com.ai.assistance.operit.core.tools.defaultTool.standard.executeNoReplaceCreateTool(tool, directory = true, backendEnvironment = "android")
         val path = tool.parameters.find { it.name == "path" }?.value ?: ""
         val environment = tool.parameters.find { it.name == "environment" }?.value
         val createParents =
@@ -3175,6 +3162,7 @@ open class StandardFileSystemTools(protected val context: Context) {
 
     /** Search for files matching a pattern */
     open suspend fun findFiles(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "search_mode" }) return executeFileManagerSearch(tool)
         val path = tool.parameters.find { it.name == "path" }?.value ?: ""
         val environment = tool.parameters.find { it.name == "environment" }?.value
         val pattern = tool.parameters.find { it.name == "pattern" }?.value ?: ""
@@ -3463,6 +3451,7 @@ open class StandardFileSystemTools(protected val context: Context) {
 
     /** Get file information */
     open suspend fun fileInfo(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "info_mode" }) return executeManagedFileTool(tool, "android")
         val path = tool.parameters.find { it.name == "path" }?.value ?: ""
         val environment = tool.parameters.find { it.name == "environment" }?.value
 
@@ -3600,6 +3589,7 @@ open class StandardFileSystemTools(protected val context: Context) {
 
     /** Zip files or directories */
     open suspend fun zipFiles(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "zip_mode" }) return executeManagedFileTool(tool, "android")
         val sourcePath = tool.parameters.find { it.name == "source" }?.value ?: ""
         val zipPath = tool.parameters.find { it.name == "destination" }?.value ?: ""
         val environment = tool.parameters.find { it.name == "environment" }?.value
@@ -3911,6 +3901,7 @@ open class StandardFileSystemTools(protected val context: Context) {
 
     /** Create a file by delegating to apply_file with type=create */
     open suspend fun createFile(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "create_mode" }) return executeNoReplaceCreateTool(tool, directory = false)
         val path = tool.parameters.find { it.name == "path" }?.value ?: ""
         val environment = tool.parameters.find { it.name == "environment" }?.value
         val newContent = tool.parameters.find { it.name == "new" }?.value ?: ""

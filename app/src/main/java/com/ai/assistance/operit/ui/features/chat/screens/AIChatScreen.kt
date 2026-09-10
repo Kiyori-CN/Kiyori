@@ -20,6 +20,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.Code
@@ -987,42 +988,14 @@ val actualViewModel: ChatViewModel =
                     }
                 }
 
-                // Web开发模式切换按钮
+                val openFileManager = com.ai.assistance.operit.ui.main.components.LocalKiyoriOpenFileManager.current
                 IconButton(
-                        modifier = Modifier.size(uiTokens.touchTarget).clip(KiyoriUiShapes.control),
-                        enabled = !isWorkspacePreparing,
-                        onClick = {
-                            actualViewModel.onWorkspaceButtonClick()
-                        },
-                        colors =
-                            IconButtonDefaults.iconButtonColors(
-                                containerColor =
-                                    if (showWebView) {
-                                        workspaceColors.container
-                                    } else {
-                                        Color.Transparent
-                                    },
-                                contentColor = workspaceColors.icon,
-                                disabledContainerColor = Color.Transparent,
-                                disabledContentColor = workspaceColors.icon.copy(alpha = 0.38f),
-                            ),
+                    modifier = Modifier.size(uiTokens.touchTarget).clip(KiyoriUiShapes.control),
+                    enabled = openFileManager != null,
+                    onClick = { openFileManager?.invoke() },
+                    colors = IconButtonDefaults.iconButtonColors(contentColor = workspaceColors.icon),
                 ) {
-                    if (isWorkspacePreparing) {
-                        CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                                color = workspaceColors.icon,
-                        )
-                    } else {
-                        Icon(
-                                imageVector =
-                                if (hasBoundWorkspace) Icons.Default.Code
-                                else Icons.Default.CodeOff,
-                                contentDescription =
-                                if (hasBoundWorkspace) stringResource(R.string.workspace)
-                                else stringResource(R.string.setup_workspace),
-                        )
-                    }
+                    Icon(Icons.Default.Folder, contentDescription = "文件管理器")
                 }
             }
         }

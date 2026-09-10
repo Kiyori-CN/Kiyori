@@ -29,6 +29,7 @@ app/src/main/java/com/ai/assistance/operit/ui/features/chat/components/ExportDia
 app/src/main/java/com/ai/assistance/operit/ui/features/chat/webview/LocalWebServer.kt
 app/src/main/java/com/ai/assistance/operit/ui/features/chat/webview/WorkspaceUtils.kt
 app/src/main/java/com/ai/assistance/operit/ui/features/settings/screens/ChatHistorySettingsScreen.kt
+app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/FileManagerScreen.kt
 app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/tooltester/ToolTesterScreen.kt
 app/src/main/java/com/ai/assistance/operit/util/ImagePoolManager.kt
 app/src/main/java/com/ai/assistance/operit/util/MediaPoolManager.kt

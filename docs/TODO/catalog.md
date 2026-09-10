@@ -56,7 +56,7 @@
 | [Markdown/LaTeX 公式兼容性与化学渲染](markdown_latex_rendering_compatibility/index.md) | `markdown_latex_rendering_compatibility` |
 | [市场发布作者验证](market_release_author_verification/index.md) | `market_release_author_verification` |
 | [市场版本范围下载状态](market_version_download_state/index.md) | `market_version_download_state` |
-| [MT 管理器手机存储复刻](mt_file_manager_replica/index.md) | `mt_file_manager_replica` |
+| [Kiyori 内置文件管理器开发](mt_file_manager_replica/index.md) | `mt_file_manager_replica` |
 | [Native 依赖 FetchContent 迁移](native_dependency_fetchcontent/index.md) | `native_dependency_fetchcontent` |
 | [办公文档套件专项](office_document_suite/index.md) | `office_document_suite` |
 | [OpenAI 搜索插件化接入](openai_hosted_web_search/index.md) | `openai_hosted_web_search` |

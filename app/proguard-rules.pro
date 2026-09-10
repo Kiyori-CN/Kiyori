@@ -100,3 +100,6 @@
 -keep class is.xyz.mpv.MPVLib$** { *; }
 -keep class is.xyz.mpv.MPVNode { *; }
 -keep class is.xyz.mpv.MPVNode$** { *; }
+
+# 文件原子不覆盖 JNI 名称属于固定调用边界。
+-keep class com.ai.assistance.operit.core.tools.defaultTool.standard.NativeNoReplaceCommit { *; }

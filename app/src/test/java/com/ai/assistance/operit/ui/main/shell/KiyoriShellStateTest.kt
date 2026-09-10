@@ -82,6 +82,39 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class KiyoriShellStateTest {
+    @org.junit.Test
+    fun fileManagerSettingsReturnsToRetainedSessionWithoutBottomBar() {
+        val manager = KiyoriShellState().openFileManager()
+        val settings = manager.openSettings(origin = KiyoriSettingsOrigin.FILE_MANAGER)
+        assertEquals(null, settings.child)
+        assertFalse(settings.showsBottomBar)
+        assertTrue(settings.fileManagerSessionOpen)
+        assertEquals(KiyoriSettingsPresentation.SOURCE_OVERLAY, settings.settingsNavigation?.presentation)
+        assertEquals(manager, settings.handleBack().state)
+    }
+
+    @Test fun fileManagerNestedSettingsPreservesItsOriginalSettingsParent() {
+        val parent = KiyoriShellState().openSettings(KiyoriSettingsOrigin.BOTTOM_NAVIGATION).openSettingsRoute(KiyoriSettingsRoute.MORE_FEATURES)
+        val manager = parent.openFileManager()
+        val nested = manager.openSettings(KiyoriSettingsOrigin.FILE_MANAGER)
+        assertEquals(nested, restoreKiyoriShellState(nested.toKiyoriShellSaveableValues()))
+        assertEquals(manager, nested.closeSettingsRoute())
+        assertEquals(parent, nested.closeSettingsRoute().closeChild())
+    }
+
+    @Test fun fileManagerMinimizationSurvivesSaveRestoreAndIndependentBrowserNavigation() {
+        val minimized = KiyoriShellState().openFileManager().minimizeFileManager()
+        assertEquals(SoftwareHomePage.AI_HOME, minimized.softwareHomePage)
+        assertTrue(minimized.fileManagerMinimized)
+        assertEquals(minimized, restoreKiyoriShellState(minimized.toKiyoriShellSaveableValues()))
+        val browser = minimized.openBrowser(KiyoriBrowserReturnTarget.AI_HOME)
+        assertTrue(browser.fileManagerMinimized)
+        val restored = browser.openFileManager()
+        assertFalse(restored.fileManagerMinimized); assertTrue(restored.fileManagerSessionOpen)
+        assertEquals(browser.browserReturnTarget, restored.browserReturnTarget)
+        assertFalse(restored.closeChild().fileManagerSessionOpen)
+    }
+
     @Test
     fun `settings presentation assigns Back ownership to its active host`() {
         val presentations =

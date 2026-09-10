@@ -163,11 +163,13 @@ fun ToolCard(tool: Tool) {
 /** 显示文件管理器工具屏幕 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FileManagerToolScreen(navController: NavController) {
+fun FileManagerToolScreen(navController: NavController, onOpenSettings: () -> Unit, onOpenAiDialogue: () -> Unit) {
         CustomScaffold() { paddingValues ->
                 Box(modifier = Modifier.padding(paddingValues)) {
                         FileManagerScreen(
-                                onBack = { navController.popBackStack() }
+                                onBack = { navController.popBackStack() },
+                                onOpenSettings = onOpenSettings,
+                                onOpenAiDialogue = onOpenAiDialogue,
                         )
                 }
         }

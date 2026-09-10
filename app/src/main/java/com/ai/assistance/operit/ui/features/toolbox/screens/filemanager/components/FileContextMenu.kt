@@ -1,260 +1,154 @@
 package com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components
 
-import android.view.WindowManager
-import android.view.Gravity
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material.icons.automirrored.rounded.DriveFileMove
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.material3.*
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CollectionsBookmark
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.ContentCut
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Done
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.DialogWindowProvider
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.*
+import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone
+import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuIconBadge
+import com.ai.assistance.operit.R
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.compose.ui.Alignment
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileItem
-import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerPane
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.utils.formatFileSize
+import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.KiyoriUiShapes
 
-private val fileMenuTextColor = Color(0xFF111111)
-private val fileMenuDisabledColor = Color(0xFFB0B0B0)
-private val fileMenuAccentColor = Color(0xFF42A5F5)
-
-/**
- * MT 风格的居中长按菜单。按钮暂时只保留视觉和点击目标，业务动作在后续增量接回。
- */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FileContextMenu(
-    showMenu: Boolean,
-    onDismissRequest: () -> Unit,
-    contextMenuFile: FileItem?,
-    sourcePane: FileManagerPane,
-    leftPath: String,
-    rightPath: String,
-    leftEnvironment: String?,
-    rightEnvironment: String?,
+    showMenu: Boolean, onDismissRequest: () -> Unit, contextMenuFile: FileItem?,
+    fullPath: String, environmentLabel: String, onExit: () -> Unit, onSettings: () -> Unit, onSelect: () -> Unit, onOpen: () -> Unit,
+    onCopy: () -> Unit, onRename: () -> Unit, writing: Boolean,
+    onMove: () -> Unit, onDelete: () -> Unit, onTools: () -> Unit, onZip: () -> Unit,
+    onProperties: () -> Unit, onShare: () -> Unit, onBookmark: () -> Unit,
+    onExtract: () -> Unit, onWorkspace: () -> Unit, onAiDialogue: () -> Unit, allSelected: Boolean,
+    localActions: Boolean, selectionCount: Int,
+    onClearSelection: () -> Unit, onSelectAll: () -> Unit,
+    onPaste: () -> Unit, canPaste: Boolean, onShowTask: () -> Unit, hasTask: Boolean,
 ) {
-    if (!showMenu || contextMenuFile == null) return
-
-    val isFolder = contextMenuFile.isDirectory
-    val sourcePath = if (sourcePane == FileManagerPane.LEFT) leftPath else rightPath
-    val targetPath = if (sourcePane == FileManagerPane.LEFT) rightPath else leftPath
-    val sourceEnvironment = if (sourcePane == FileManagerPane.LEFT) leftEnvironment else rightEnvironment
-    val targetEnvironment = if (sourcePane == FileManagerPane.LEFT) rightEnvironment else leftEnvironment
-    val moveEnabled = !isFolder || sourcePath != targetPath || sourceEnvironment != targetEnvironment
-    val copyMoveArrow = if (sourcePane == FileManagerPane.LEFT) "->" else "<-"
-    val copyMoveArrowBeforeLabel = sourcePane == FileManagerPane.RIGHT
-    // 更新后的同尺寸截图显示 Kiyori 菜单整体比 MT 低 65 px；用 dp 固化目标设备上的窗口偏移。
-    val menuVerticalOffsetPx = with(LocalDensity.current) {
-        (-18.5).dp.roundToPx()
-    }
-
-    Dialog(
-        onDismissRequest = onDismissRequest,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
-        SideEffect {
-            dialogWindow?.let { window ->
-                window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-                window.setDimAmount(0f)
-                window.setGravity(Gravity.CENTER)
-                window.attributes = window.attributes.apply { y = menuVerticalOffsetPx }
-            }
+    if (!showMenu) return
+    val hasItem = contextMenuFile != null
+    var visible by remember { mutableStateOf(false) }
+    var closing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val latestDismiss by rememberUpdatedState(onDismissRequest)
+    fun close(action: (() -> Unit)? = null) {
+        if (closing) return
+        closing = true
+        visible = false
+        scope.launch {
+            delay(140)
+            latestDismiss()
+            action?.invoke()
         }
-        Surface(
-            modifier = Modifier.width(320.dp).height(269.dp),
-            shape = RoundedCornerShape(3.dp),
-            color = Color(0xFFFAFAFA),
-            contentColor = fileMenuTextColor,
-            shadowElevation = 8.dp,
-        ) {
-            Column {
-                Box(modifier = Modifier.fillMaxWidth().height(28.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = "带",
-                            modifier = Modifier.padding(start = 10.dp),
-                            style = TextStyle(fontSize = 12.sp, lineHeight = 16.sp),
-                            color = Color(0xFF666666),
-                        )
-                        Text(
-                            text = " • ",
-                            style = TextStyle(fontSize = 12.sp, lineHeight = 16.sp),
-                            color = fileMenuAccentColor,
-                        )
-                        Text(
-                            text = "的菜单表示可以长按触发单窗口操作",
-                            modifier = Modifier.weight(1f),
-                            style = TextStyle(fontSize = 12.sp, lineHeight = 16.sp),
-                            color = Color(0xFF666666),
-                            maxLines = 1,
-                            softWrap = false,
-                            overflow = TextOverflow.Clip,
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clickable(onClick = onDismissRequest),
-                            contentAlignment = Alignment.Center,
+    }
+    LaunchedEffect(Unit) { visible = true }
+    val actions = listOf(
+        MenuAction("复制", Icons.Rounded.ContentCopy, WebSessionBrowserMenuTone.ADD_BOOKMARK, !writing && hasItem, onCopy),
+        MenuAction("移动", Icons.AutoMirrored.Rounded.DriveFileMove, WebSessionBrowserMenuTone.BOOKMARKS, !writing && localActions && hasItem, onMove),
+        MenuAction("粘贴", Icons.Rounded.ContentPaste, WebSessionBrowserMenuTone.HISTORY, canPaste, onPaste),
+        MenuAction("删除", Icons.Rounded.DeleteOutline, WebSessionBrowserMenuTone.AD_MARKING, !writing && localActions && hasItem, onDelete),
+        MenuAction("重命名", Icons.Rounded.DriveFileRenameOutline, WebSessionBrowserMenuTone.PLUGINS, !writing && localActions && hasItem, onRename),
+        MenuAction("压缩", Icons.Rounded.FolderZip, WebSessionBrowserMenuTone.USER_AGENT, !writing && localActions && hasItem, onZip),
+        MenuAction("解压", Icons.Rounded.Unarchive, WebSessionBrowserMenuTone.FLOATING_SNIFFER, !writing && localActions && hasItem && contextMenuFile?.isDirectory == false, onExtract),
+        MenuAction("分享", Icons.Rounded.Share, WebSessionBrowserMenuTone.NETWORK_LOG, !writing && localActions && hasItem, onShare),
+        MenuAction("属性", Icons.Rounded.Info, WebSessionBrowserMenuTone.DIAGNOSTICS, hasItem, onProperties),
+        MenuAction("工具箱", Icons.Rounded.Build, WebSessionBrowserMenuTone.TOOLBOX, hasItem, onTools),
+        MenuAction(if (allSelected) "全不选" else "全选", Icons.Rounded.SelectAll, WebSessionBrowserMenuTone.INCOGNITO, true, if (allSelected) onClearSelection else onSelectAll),
+        MenuAction("打开方式", Icons.AutoMirrored.Rounded.OpenInNew, WebSessionBrowserMenuTone.PAGE_SOURCE, hasItem && contextMenuFile?.isDirectory == false, onOpen),
+        MenuAction("加书签", Icons.Rounded.BookmarkAdd, WebSessionBrowserMenuTone.DOWNLOADS, hasItem, onBookmark),
+        MenuAction("加工作区", Icons.Rounded.CreateNewFolder, WebSessionBrowserMenuTone.SITE_CONFIG, contextMenuFile?.isDirectory == true, onWorkspace),
+        MenuAction("AI对话", Icons.Rounded.Chat, WebSessionBrowserMenuTone.AI_DIALOGUE, !writing, onAiDialogue),
+    )
+    // 复用浏览器菜单几何和动画：无展开锚点，手势只滚动内容，不能把菜单上拉为全屏。
+    Dialog(onDismissRequest = { close() }, properties = DialogProperties(
+        usePlatformDefaultWidth = false, dismissOnBackPress = false, dismissOnClickOutside = false,
+    )) {
+        val window = (LocalView.current.parent as? DialogWindowProvider)?.window
+        // 遮罩由菜单动画唯一绘制，避免 Dialog 再叠一层 dim 导致比浏览器菜单更暗。
+        SideEffect { window?.setDimAmount(0f) }
+        BackHandler { close() }
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            AnimatedVisibility(visible, enter = fadeIn(tween(140)), exit = fadeOut(tween(120))) {
+                Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.42f)).clickable { close() })
+            }
+            val maximumHeight = maxHeight * 0.85f
+            AnimatedVisibility(visible, Modifier.align(Alignment.BottomCenter),
+                enter = fadeIn(tween(160)) + slideInVertically(tween(180)) { it / 4 },
+                exit = fadeOut(tween(120)) + slideOutVertically(tween(140)) { it / 4 }) {
+                Surface(shape = KiyoriUiShapes.sheet, color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 8.dp, modifier = Modifier.fillMaxWidth().heightIn(max = maximumHeight)) {
+                    Column(Modifier.fillMaxWidth().navigationBarsPadding().verticalScroll(rememberScrollState())
+                        .padding(start = WEB_SESSION_BROWSER_MENU_START_PADDING_DP.dp, top = WEB_SESSION_BROWSER_MENU_TOP_PADDING_DP.dp,
+                            end = WEB_SESSION_BROWSER_MENU_END_PADDING_DP.dp, bottom = WEB_SESSION_BROWSER_MENU_BOTTOM_PADDING_DP.dp),
+                        verticalArrangement = Arrangement.spacedBy(WEB_SESSION_BROWSER_MENU_ROW_SPACING_DP.dp)) {
+                        actions.chunked(5).forEach { row ->
+                            Row(Modifier.fillMaxWidth()) {
+                                row.forEach { action ->
+                                    Surface(onClick = { close(action.action) }, enabled = action.enabled && !closing,
+                                        color = MaterialTheme.colorScheme.surface, shape = KiyoriUiShapes.control,
+                                        modifier = Modifier.weight(1f).alpha(if (action.enabled) 1f else 0.38f)) {
+                                        Column(Modifier.padding(horizontal = WEB_SESSION_BROWSER_MENU_CELL_HORIZONTAL_PADDING_DP.dp,
+                                            vertical = WEB_SESSION_BROWSER_MENU_CELL_VERTICAL_PADDING_DP.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                            WebSessionBrowserMenuIconBadge(imageVector = action.icon, tone = action.tone, contentDescription = null, containerSize = WEB_SESSION_BROWSER_MENU_ICON_CONTAINER_SIZE_DP.dp, iconSize = WEB_SESSION_BROWSER_MENU_ICON_SIZE_DP.dp)
+                                            Spacer(Modifier.height(WEB_SESSION_BROWSER_MENU_ICON_LABEL_SPACING_DP.dp))
+                                            Text(action.label, Modifier.fillMaxWidth().height(WEB_SESSION_BROWSER_MENU_LABEL_HEIGHT_DP.dp),
+                                                fontSize = WEB_SESSION_BROWSER_MENU_LABEL_SIZE_SP.sp, maxLines = 2,
+                                                textAlign = TextAlign.Center, overflow = TextOverflow.Ellipsis)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Row(
+                            Modifier.fillMaxWidth().padding(
+                                start = WEB_SESSION_BROWSER_MENU_BOTTOM_ROW_HORIZONTAL_PADDING_DP.dp,
+                                top = WEB_SESSION_BROWSER_MENU_BOTTOM_ROW_TOP_PADDING_DP.dp,
+                                end = WEB_SESSION_BROWSER_MENU_BOTTOM_ROW_HORIZONTAL_PADDING_DP.dp,
+                            ), verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "关闭",
-                                tint = Color(0xFF666666),
-                                modifier = Modifier.size(10.dp),
-                            )
+                            Box(Modifier.weight(WEB_SESSION_BROWSER_MENU_BOTTOM_SIDE_SLOT_WEIGHT.toFloat()), contentAlignment = Alignment.Center) {
+                                BottomMenuAction("关闭", R.drawable.ic_kiyori_tool_power, { close(onExit) }, WebSessionBrowserMenuTone.EXIT_BROWSER)
+                            }
+                            Box(Modifier.weight(WEB_SESSION_BROWSER_MENU_BOTTOM_CENTER_SLOT_WEIGHT.toFloat()), contentAlignment = Alignment.Center) {
+                                BottomMenuAction("收起", R.drawable.ic_kiyori_tool_collapse, { close() }, WebSessionBrowserMenuTone.COLLAPSE)
+                            }
+                            Box(Modifier.weight(WEB_SESSION_BROWSER_MENU_BOTTOM_SIDE_SLOT_WEIGHT.toFloat()), contentAlignment = Alignment.Center) {
+                                BottomMenuAction("设置", R.drawable.ic_kiyori_tool_settings, { close(onSettings) }, WebSessionBrowserMenuTone.SETTINGS)
+                            }
                         }
                     }
                 }
-                HorizontalDivider(thickness = 1.dp, color = Color(0xFFE0E0E0))
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    FileContextMenuRow(
-                        left = {
-                            FileContextMenuAction(
-                                icon = Icons.Default.ContentCopy,
-                                label = "复制",
-                                arrow = copyMoveArrow,
-                                arrowBeforeLabel = copyMoveArrowBeforeLabel,
-                            )
-                        },
-                        right = {
-                            FileContextMenuAction(
-                                icon = Icons.Default.ContentCut,
-                                label = "移动",
-                                arrow = copyMoveArrow,
-                                arrowBeforeLabel = copyMoveArrowBeforeLabel,
-                                enabled = moveEnabled,
-                            )
-                        },
-                    )
-                    FileContextMenuRow(
-                        left = { FileContextMenuAction(Icons.Default.Delete, "删除") },
-                        right = { FileContextMenuAction(Icons.Default.Edit, "重命名") },
-                    )
-                    FileContextMenuRow(
-                        left = { FileContextMenuAction(Icons.Default.Build, "工具") },
-                        right = { FileContextMenuAction(Icons.Default.FileDownload, "压缩") },
-                    )
-                    FileContextMenuRow(
-                        left = { FileContextMenuAction(Icons.Default.Error, "属性") },
-                        right = { FileContextMenuAction(Icons.Default.Share, "分享", enabled = !isFolder) },
-                    )
-                    FileContextMenuRow(
-                        left = { FileContextMenuAction(Icons.Default.Done, "打开方式…", enabled = !isFolder) },
-                        right = { FileContextMenuAction(Icons.Default.CollectionsBookmark, "添加书签") },
-                    )
-                }
             }
         }
     }
 }
 
-@Composable
-private fun FileContextMenuRow(
-    left: @Composable () -> Unit,
-    right: @Composable () -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().height(48.dp),
-    ) {
-        Box(modifier = Modifier.weight(1f).fillMaxHeight()) { left() }
-        Box(modifier = Modifier.weight(1f).fillMaxHeight()) { right() }
-    }
-}
-
-@Composable
-private fun FileContextMenuAction(
-    icon: ImageVector,
-    label: String,
-    arrow: String? = null,
-    arrowBeforeLabel: Boolean = false,
-    enabled: Boolean = true,
-) {
-    val tint = if (enabled) fileMenuTextColor else fileMenuDisabledColor
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(48.dp)
-            .clickable(enabled = enabled) {}
-            .padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
-        Spacer(modifier = Modifier.width(8.dp))
-        if (arrow != null && arrowBeforeLabel) {
-            Text(
-                text = arrow,
-                style = TextStyle(fontSize = 16.sp, lineHeight = 20.sp),
-                color = tint,
-                maxLines = 1,
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-        }
-        Text(
-            text = label,
-            style = TextStyle(fontSize = 16.sp, lineHeight = 20.sp),
-            color = tint,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Clip,
-        )
-        if (arrow != null && !arrowBeforeLabel) {
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-                text = arrow,
-                style = TextStyle(fontSize = 16.sp, lineHeight = 20.sp),
-                color = tint,
-                maxLines = 1,
-            )
-        }
-        if (arrow != null) {
-            Spacer(modifier = Modifier.width(4.dp))
-            Box(
-                modifier = Modifier
-                    .size(3.dp)
-                    .background(
-                        color = if (enabled) fileMenuAccentColor else fileMenuDisabledColor,
-                        shape = CircleShape,
-                    ),
-            )
-        }
-    }
-}
+private data class MenuAction(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val tone: WebSessionBrowserMenuTone, val enabled: Boolean, val action: () -> Unit)

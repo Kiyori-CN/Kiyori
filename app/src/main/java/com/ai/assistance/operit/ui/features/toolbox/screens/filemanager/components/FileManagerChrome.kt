@@ -1,220 +1,155 @@
 package com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components
 
 import android.os.Environment
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import com.ai.assistance.operit.R
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.*
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.CreateNewFolder
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material.icons.filled.Terminal
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.ai.assistance.operit.R
-import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerPane
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.*
+import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.KiyoriUiShapes
+import androidx.compose.foundation.clickable
+import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 
-private val fileManagerChromeColor = Color(0xFF303030)
-private val fileManagerChromeTextColor = Color.White
-private val fileManagerContentColor = Color(0xFFFAFAFA)
-
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun FileManagerTopBar(
-    currentPath: String,
-    folderCount: Int,
-    fileCount: Int,
-    selectedCount: Int,
-    storageLabel: String,
-    isSearching: Boolean,
-    onExitFileManager: () -> Unit,
-    onPathClick: () -> Unit,
-    onOpenStorageDrawer: () -> Unit,
-    onRefresh: () -> Unit,
-    onShowSearchDialog: () -> Unit,
-    onSelectAll: () -> Unit,
-    onToggleHiddenFiles: () -> Unit,
-    onSelectSort: () -> Unit,
-    onOpenLinux: () -> Unit,
-    onNew: () -> Unit,
-    onExitSearch: () -> Unit,
+    currentPath: String, environmentLabel: String,
+    folderCount: Int, fileCount: Int, selectedCount: Int, storageLabel: String,
+    isSearching: Boolean, showHiddenFiles: Boolean, sortMode: FileManagerSortMode,
+    onExitFileManager: () -> Unit, onPathClick: () -> Unit, onOpenStorageDrawer: () -> Unit,
+    onShowSearchDialog: () -> Unit, onSelectAll: () -> Unit,
+    onClearSelection: () -> Unit, onToggleHiddenFiles: () -> Unit,
+    onSelectSort: (FileManagerSortMode) -> Unit, onOpenLinux: () -> Unit,
+    onNew: () -> Unit, onExitSearch: () -> Unit, canCreate: Boolean,
+    sortDescending: Boolean, onToggleSortDirection: () -> Unit,
+    onInvertSelection: () -> Unit,
+    filterLabel: String = "",
+    clipboardCount: Int, onPaste: () -> Unit, onClearClipboard: () -> Unit,
+    hasTask: Boolean, onShowTask: () -> Unit,
 ) {
-    var overflowExpanded by remember { mutableStateOf(false) }
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = fileManagerChromeColor,
-        contentColor = fileManagerChromeTextColor,
-        tonalElevation = 0.dp,
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().statusBarsPadding()) {
-            Row(
-                // 退出键保持原位；右侧溢出键贴齐右端与左侧形成对称，路径独占剩余宽度。
-                modifier = Modifier.fillMaxWidth().height(40.dp).offset(y = 2.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(
-                    onClick = onExitFileManager,
-                    modifier = Modifier.size(40.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "退出文件管理器",
-                        tint = fileManagerChromeTextColor,
-                    )
-                }
-                IconButton(
-                    onClick = onOpenStorageDrawer,
-                    // 只移动图标绘制位置，不缩小触摸槽，避免左上两个按钮互相抢占点击区域。
-                    modifier = Modifier.size(40.dp).offset(x = (-6).dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Menu,
-                        contentDescription = "打开存储位置",
-                        tint = fileManagerChromeTextColor,
-                    )
-                }
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable(onClick = onPathClick)
-                        .padding(horizontal = 4.dp),
-                ) {
-                    Text(
-                        text = if (currentPath == "/") "/" else "${currentPath.trimEnd('/')}/",
-                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        color = fileManagerChromeTextColor,
-                    )
-                }
-                IconButton(
-                    onClick = { overflowExpanded = true },
-                    modifier = Modifier.size(40.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "更多文件管理操作",
-                        tint = fileManagerChromeTextColor,
-                    )
-                }
-                DropdownMenu(
-                    expanded = overflowExpanded,
-                    onDismissRequest = { overflowExpanded = false },
-                ) {
-                    FileManagerMenuItem(Icons.Default.Refresh, stringResource(R.string.refresh)) {
-                        overflowExpanded = false
-                        onRefresh()
-                    }
-                    FileManagerMenuItem(Icons.Default.Search, stringResource(R.string.search)) {
-                        overflowExpanded = false
-                        onShowSearchDialog()
-                    }
-                    FileManagerMenuItem(Icons.Default.SelectAll, "全选") {
-                        overflowExpanded = false
-                        onSelectAll()
-                    }
-                    FileManagerMenuItem(Icons.Default.VisibilityOff, stringResource(R.string.file_manager_show_hidden)) {
-                        overflowExpanded = false
-                        onToggleHiddenFiles()
-                    }
-                    FileManagerMenuItem(Icons.AutoMirrored.Filled.Sort, stringResource(R.string.file_manager_sort)) {
-                        overflowExpanded = false
-                        onSelectSort()
-                    }
-                    FileManagerMenuItem(Icons.Default.Terminal, "Linux") {
-                        overflowExpanded = false
-                        onOpenLinux()
-                    }
-                    FileManagerMenuItem(Icons.Default.CreateNewFolder, stringResource(R.string.file_manager_new)) {
-                        overflowExpanded = false
-                        onNew()
-                    }
+    var showOptions by remember { mutableStateOf(false) }
+    var afterOptionsClose by remember { mutableStateOf<(() -> Unit)?>(null) }
+    Column(Modifier.fillMaxWidth().statusBarsPadding()) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onExitFileManager) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回文件管理首页") }
+            Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
+                Text("文件管理", style = MaterialTheme.typography.titleMedium)
+                Text(environmentLabel, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            FilledTonalIconButton(onClick = onShowSearchDialog) {
+                BadgedBox(badge = { if (filterLabel.isNotEmpty()) Badge() }) {
+                    Icon(Icons.Rounded.Search, if (filterLabel.isEmpty()) "搜索当前位置" else "搜索；当前列表已定位 $filterLabel")
                 }
             }
-            // 统计信息独占全宽行，避免被左右操作按钮压缩；字号与文件项时间保持一致。
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(16.dp)
-                    .offset(y = (-8).dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = buildString {
-                        if (selectedCount > 0) append("已选：$selectedCount  ")
-                        append("文件夹：$folderCount  文件：$fileCount  $storageLabel")
-                    },
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp, lineHeight = 12.sp),
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Clip,
-                    color = fileManagerChromeTextColor.copy(alpha = 0.76f),
-                )
+            IconButton(onClick = { showOptions = true }) {
+                BadgedBox(badge = { if (clipboardCount > 0 || hasTask) Badge() }) {
+                    Icon(Icons.Rounded.Tune, "浏览选项与文件任务")
+                }
             }
-            if (isSearching) {
-                HorizontalDivider(color = fileManagerChromeTextColor.copy(alpha = 0.16f))
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.Default.Search, contentDescription = null, tint = fileManagerChromeTextColor)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(R.string.searching),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = fileManagerChromeTextColor,
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    IconButton(onClick = onExitSearch, modifier = Modifier.size(40.dp)) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back),
-                            tint = fileManagerChromeTextColor,
+        }
+        Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onOpenStorageDrawer, modifier = Modifier.padding(start = 4.dp)) {
+                    Icon(Icons.Rounded.Storage, "切换存储位置", tint = MaterialTheme.colorScheme.primary)
+                }
+                Surface(onClick = onPathClick, color = MaterialTheme.colorScheme.surface, modifier = Modifier.weight(1f)) {
+                    Column(Modifier.padding(vertical = 4.dp, horizontal = 4.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(currentPath, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        FileManagerFittedText(
+                            text = buildString {
+                                append("文件夹: $folderCount 文件: $fileCount")
+                                if (selectedCount > 0) append(" 已选: $selectedCount")
+                                if (storageLabel.isNotBlank()) append(" $storageLabel")
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            style = MaterialTheme.typography.labelSmall,
                         )
+                    }
+                }
+            }
+        }
+    }
+    if (showOptions) KiyoriModalBottomDrawer(onDismissRequest = {
+        showOptions = false
+        afterOptionsClose?.invoke()
+        afterOptionsClose = null
+    }) { dismissDrawer ->
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("浏览选项", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+                IconButton(onClick = dismissDrawer) { Icon(Icons.Rounded.Close, "关闭浏览选项") }
+            }
+            Text("点击打开 · 左右滑动选择 · 长按操作", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (storageLabel.isNotBlank()) Text(storageLabel, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            FileManagerOptionGroup("排序", Icons.AutoMirrored.Filled.Sort, KiyoriSemanticTone.BLUE) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FileManagerSortMode.entries.forEach { mode ->
+                        FilterChip(selected = mode == sortMode, onClick = { onSelectSort(mode) }, label = { Text(when (mode) {
+                            FileManagerSortMode.NAME -> "名称"
+                            FileManagerSortMode.SIZE -> "大小"
+                            FileManagerSortMode.MODIFIED -> "修改时间"
+                        }) })
+                    }
+                }
+                TextButton(onClick = onToggleSortDirection) {
+                    Icon(if (sortDescending) Icons.Rounded.ArrowDownward else Icons.Rounded.ArrowUpward, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp)); Text(if (sortDescending) "降序排列" else "升序排列")
+                }
+            }
+            Surface(shape = KiyoriUiShapes.card) {
+                Column {
+                    ListItem(headlineContent = { Text("显示隐藏项目") }, supportingContent = { Text("名称以点开头的文件和文件夹") },
+                        leadingContent = { FileManagerIconBadge(Icons.Rounded.Visibility, KiyoriSemanticTone.CYAN, 36.dp) },
+                        trailingContent = { Switch(checked = showHiddenFiles, onCheckedChange = null) },
+                        modifier = Modifier.clickable(onClick = onToggleHiddenFiles))
+                    HorizontalDivider(Modifier.padding(start = 68.dp))
+                    FileManagerActionRow("全选可见项目", icon = Icons.Rounded.SelectAll, tone = KiyoriSemanticTone.GREEN) {
+                        afterOptionsClose = onSelectAll; dismissDrawer()
+                    }
+                    FileManagerActionRow("清空当前选择", icon = Icons.Rounded.Deselect, tone = KiyoriSemanticTone.BLUE, enabled = selectedCount > 0) {
+                        afterOptionsClose = onClearSelection; dismissDrawer()
+                    }
+                    FileManagerActionRow("粘贴到当前目录（$clipboardCount 项）", icon = Icons.Rounded.ContentPaste, tone = KiyoriSemanticTone.BLUE, enabled = clipboardCount > 0 && canCreate) {
+                        afterOptionsClose = onPaste; dismissDrawer()
+                    }
+                    FileManagerActionRow("清空剪贴板", icon = Icons.Rounded.Clear, tone = KiyoriSemanticTone.ORANGE, enabled = clipboardCount > 0) {
+                        afterOptionsClose = onClearClipboard; dismissDrawer()
+                    }
+                    FileManagerActionRow("传输任务", icon = Icons.Rounded.SwapHoriz, tone = KiyoriSemanticTone.CYAN, enabled = hasTask) {
+                        afterOptionsClose = onShowTask; dismissDrawer()
+                    }
+                    FileManagerActionRow("反向选择", icon = Icons.Rounded.Checklist, tone = KiyoriSemanticTone.PURPLE) {
+                        afterOptionsClose = onInvertSelection; dismissDrawer()
+                    }
+                }
+            }
+            Surface(shape = KiyoriUiShapes.card) {
+                Column {
+                    FileManagerActionRow("新建文件或文件夹", icon = Icons.Rounded.CreateNewFolder, tone = KiyoriSemanticTone.ORANGE, enabled = canCreate) {
+                        afterOptionsClose = onNew; dismissDrawer()
+                    }
+                    FileManagerActionRow("浏览 Linux 文件", icon = Icons.Rounded.Terminal, tone = KiyoriSemanticTone.CYAN) {
+                        afterOptionsClose = onOpenLinux; dismissDrawer()
                     }
                 }
             }
@@ -223,88 +158,52 @@ fun FileManagerTopBar(
 }
 
 @Composable
-private fun FileManagerMenuItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    onClick: () -> Unit,
-) {
-    DropdownMenuItem(
-        text = { Text(label) },
-        leadingIcon = { Icon(icon, contentDescription = null) },
-        onClick = onClick,
-    )
+private fun FileManagerOptionGroup(title: String, icon: ImageVector, tone: KiyoriSemanticTone, content: @Composable ColumnScope.() -> Unit) {
+    Surface(shape = KiyoriUiShapes.card, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                FileManagerIconBadge(icon, tone, 32.dp)
+                Text(title, style = MaterialTheme.typography.titleSmall)
+            }
+            Spacer(Modifier.height(8.dp))
+            content()
+        }
+    }
 }
 
 @Composable
 fun FileManagerBottomBar(
-    canGoBack: Boolean,
-    canGoForward: Boolean,
-    activePane: FileManagerPane,
-    onBack: () -> Unit,
-    onForward: () -> Unit,
-    onNew: () -> Unit,
-    onMirrorPath: () -> Unit,
-    onNavigateUp: () -> Unit,
+    canGoBack: Boolean, canGoForward: Boolean, activePane: FileManagerPane,
+    onBack: () -> Unit, onForward: () -> Unit, onNew: () -> Unit,
+    onMirrorPath: () -> Unit, onOpenMenu: () -> Unit, canCreate: Boolean,
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = fileManagerContentColor,
-        contentColor = Color.Black,
-        tonalElevation = 0.dp,
-    ) {
-        Row(
-            // 去掉左右内缩后五个中心点按参考图约 252px 等距分布，右侧操作自然向右展开。
-            modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 0.dp, vertical = 2.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBack, enabled = canGoBack, modifier = Modifier.size(48.dp)) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                    contentDescription = "活动窗格后退",
-                    tint = if (canGoBack) Color(0xFF646464) else Color(0xFFC8C8C8),
-                )
+    Surface(color = MaterialTheme.colorScheme.background, contentColor = MaterialTheme.colorScheme.onSurface) {
+        Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(
+            start = WEB_SESSION_BROWSER_BOTTOM_HORIZONTAL_PADDING_DP.dp,
+            top = WEB_SESSION_BROWSER_BOTTOM_TOP_PADDING_DP.dp,
+            end = WEB_SESSION_BROWSER_BOTTOM_HORIZONTAL_PADDING_DP.dp,
+            bottom = WEB_SESSION_BROWSER_BOTTOM_BOTTOM_PADDING_DP.dp,
+        ), verticalAlignment = Alignment.CenterVertically) {
+            BrowserBottomBarAction(R.drawable.ic_kiyori_browser_bottom_back, "后退", onBack, canGoBack)
+            BrowserBottomBarAction(R.drawable.ic_kiyori_browser_bottom_forward, "前进", onForward, canGoForward)
+            BrowserBottomBarSlot("新建", onNew, canCreate) {
+                Icon(Icons.Rounded.Add, null, Modifier.size(WEB_SESSION_BROWSER_BOTTOM_ICON_SIZE_DP.dp))
             }
-            IconButton(onClick = onForward, enabled = canGoForward, modifier = Modifier.size(48.dp)) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = "活动窗格前进",
-                    tint = if (canGoForward) Color(0xFF646464) else Color(0xFFC8C8C8),
-                )
-            }
-            IconButton(onClick = onNew, modifier = Modifier.size(48.dp)) {
-                Icon(Icons.Default.Add, contentDescription = "新建", tint = Color(0xFF646464))
-            }
-            IconButton(onClick = onMirrorPath, modifier = Modifier.size(48.dp)) {
-                // 当前栏使用灰色箭头，另一栏使用深黑箭头，点击后由当前栏同步路径。
-                val activeArrowColor = Color(0xFFBEBEBE)
-                val inactiveArrowColor = Color(0xFF646464)
-                val leftArrowColor = if (activePane == FileManagerPane.LEFT) activeArrowColor else inactiveArrowColor
-                val rightArrowColor = if (activePane == FileManagerPane.RIGHT) activeArrowColor else inactiveArrowColor
-                Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "同步活动路径到另一栏",
-                        tint = leftArrowColor,
-                        // 图片样式：左箭头位于下方，尾部靠近中心。
-                        modifier = Modifier.size(16.dp).offset(x = (-9).dp, y = 4.dp),
-                    )
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = rightArrowColor,
-                        // 图片样式：右箭头位于上方，尾部靠近中心。
-                        modifier = Modifier.size(16.dp).offset(x = 9.dp, y = (-4).dp),
-                    )
+            BrowserBottomBarSlot(if (activePane == FileManagerPane.LEFT) "将左栏位置同步到右栏" else "将右栏位置同步到左栏", onMirrorPath) {
+                // 同一 SyncAlt 图标分上下半部着色，保持原有箭头轮廓及位置。
+                val ink = LocalContentColor.current
+                val upper = if (activePane == FileManagerPane.LEFT) ink else ink.copy(alpha = 0.38f)
+                val lower = if (activePane == FileManagerPane.RIGHT) ink else ink.copy(alpha = 0.38f)
+                Box(Modifier.size(WEB_SESSION_BROWSER_BOTTOM_ICON_SIZE_DP.dp)) {
+                    Icon(Icons.Rounded.SyncAlt, null, Modifier.fillMaxSize().drawWithContent {
+                        clipRect(bottom = size.height / 2f) { this@drawWithContent.drawContent() }
+                    }, tint = upper)
+                    Icon(Icons.Rounded.SyncAlt, null, Modifier.fillMaxSize().drawWithContent {
+                        clipRect(top = size.height / 2f) { this@drawWithContent.drawContent() }
+                    }, tint = lower)
                 }
             }
-            IconButton(onClick = onNavigateUp, modifier = Modifier.size(48.dp)) {
-                Icon(
-                    Icons.Default.ArrowUpward,
-                    contentDescription = stringResource(R.string.file_manager_navigate_up),
-                    tint = Color(0xFF646464),
-                )
-            }
+            BrowserBottomBarAction(R.drawable.ic_kiyori_tool_toolbox, "菜单", onOpenMenu)
         }
     }
 }
@@ -312,9 +211,13 @@ fun FileManagerBottomBar(
 data class FileManagerStorageEntry(
     val title: String,
     val path: String,
+
     val environment: String? = null,
     val subtitle: String? = null,
     val bookmarkUri: String? = null,
+    val fileBookmark: com.ai.assistance.operit.data.preferences.ApiPreferences.FileBookmark? = null,
+    val category: String = "本地",
+    val network: com.ai.assistance.operit.core.tools.defaultTool.standard.NetworkStorageProfile? = null,
 )
 
 @Composable
@@ -323,70 +226,92 @@ fun FileManagerStorageDrawer(
     onSelect: (FileManagerStorageEntry) -> Unit,
     onAddBookmark: () -> Unit,
     onDeleteBookmark: (FileManagerStorageEntry) -> Unit,
+    onDismiss: () -> Unit,
+    onRecycleBin: () -> Unit,
+    currentPath: String,
+    currentEnvironment: String?,
+    onAddNetwork: () -> Unit = {},
+    onAddNetworkGroup: () -> Unit = {},
+    networkGroups: List<String> = emptyList(),
+    onEditNetwork: (com.ai.assistance.operit.core.tools.defaultTool.standard.NetworkStorageProfile) -> Unit = {},
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(0.86f),
-        color = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        tonalElevation = 3.dp,
-    ) {
-        Column(
-            modifier = Modifier.statusBarsPadding().navigationBarsPadding().padding(vertical = 16.dp),
-        ) {
-            Text(
-                text = "存储位置",
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+    var showAdd by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
+        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Kiyori", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+            Box {
+                IconButton(onClick = { showAdd = true }) { Icon(Icons.Rounded.MoreVert, "添加存储或分组") }
+                DropdownMenu(expanded = showAdd, onDismissRequest = { showAdd = false }) {
+                    DropdownMenuItem(text = { Text("本地存储") }, onClick = { showAdd = false; onAddBookmark() })
+                    DropdownMenuItem(text = { Text("网络存储") }, onClick = { showAdd = false; onAddNetwork() })
+                    DropdownMenuItem(text = { Text("网络分组") }, onClick = { showAdd = false; onAddNetworkGroup() })
+                }
+            }
+        }
+        listOf("本地", "网络", "书签", "工作区", "工具").forEach { category ->
+            var expanded by androidx.compose.runtime.saveable.rememberSaveable(category) { mutableStateOf(true) }
+            ListItem(
+                headlineContent = { Text(category, style = MaterialTheme.typography.titleSmall) },
+                trailingContent = { Icon(if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, if (expanded) "收起$category" else "展开$category") },
+                modifier = Modifier.clickable { expanded = !expanded },
             )
-            entries.forEach { entry ->
-                DropdownMenuItem(
-                    text = {
-                        Column {
-                            Text(entry.title)
-                            entry.subtitle?.let { subtitle ->
-                                Text(
-                                    text = subtitle,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+            if (expanded) {
+                val items = entries.filter { it.category == category }
+                items.filter { category != "网络" }.forEach { entry ->
+                    ListItem(
+                        headlineContent = { Text(entry.title, style = MaterialTheme.typography.bodyMedium) },
+                        supportingContent = { entry.subtitle?.let { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
+                        leadingContent = { Icon(when (category) {
+                            "网络" -> Icons.Rounded.Cloud
+                            "书签" -> Icons.Rounded.Bookmark
+                            "工作区" -> Icons.Rounded.Workspaces
+                            else -> if (entry.environment == "linux") Icons.Rounded.Terminal else Icons.Rounded.Folder
+                        }, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        trailingContent = {
+                            if (entry.bookmarkUri != null || entry.fileBookmark != null) IconButton(onClick = { onDeleteBookmark(entry) }) {
+                                Icon(Icons.Rounded.Close, "移除${entry.title}", Modifier.size(18.dp))
                             }
-                        }
-                    },
-                    leadingIcon = { Icon(Icons.Default.Folder, contentDescription = null) },
-                    trailingIcon = if (entry.bookmarkUri != null) {
-                        {
-                            IconButton(onClick = { onDeleteBookmark(entry) }) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "删除 ${entry.title}",
-                                )
-                            }
-                        }
-                    } else {
-                        null
-                    },
-                    onClick = { onSelect(entry) },
-                    modifier = Modifier.fillMaxWidth(),
+                        },
+                        colors = ListItemDefaults.colors(containerColor = if (entry.path == currentPath && entry.environment == currentEnvironment)
+                            MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surface),
+                        modifier = Modifier.padding(start = 12.dp, end = 8.dp).clickable { onSelect(entry) },
+                    )
+                }
+                if (category == "网络") {
+                    (listOf("") + networkGroups + items.mapNotNull { it.network?.group }).distinct().forEach { group ->
+                        var groupExpanded by androidx.compose.runtime.saveable.rememberSaveable(group) { mutableStateOf(true) }
+                        val grouped = items.filter { it.network?.group == group }
+                        if (group.isNotEmpty()) ListItem(
+                            headlineContent = { Text(group, style = MaterialTheme.typography.labelLarge) },
+                            trailingContent = { Icon(if (groupExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null) },
+                            modifier = Modifier.padding(start = 20.dp).clickable { groupExpanded = !groupExpanded },
+                        )
+                        if (groupExpanded) grouped.forEach { entry -> ListItem(
+                            headlineContent = { Text(entry.title, style = MaterialTheme.typography.bodyMedium) },
+                            supportingContent = { Text(entry.subtitle.orEmpty(), style = MaterialTheme.typography.bodySmall) },
+                            leadingContent = { Icon(Icons.Rounded.Cloud, null) },
+                            trailingContent = { Row {
+                                IconButton(onClick = { entry.network?.let(onEditNetwork) }) { Icon(Icons.Rounded.Edit, "编辑${entry.title}", Modifier.size(18.dp)) }
+                                IconButton(onClick = { onDeleteBookmark(entry) }) { Icon(Icons.Rounded.Close, "移除${entry.title}", Modifier.size(18.dp)) }
+                            } },
+                            modifier = Modifier.padding(start = 20.dp).clickable { onSelect(entry) },
+                        ) }
+                    }
+                    if (items.isEmpty()) TextButton(onClick = onAddNetwork, modifier = Modifier.padding(start = 16.dp)) { Text("添加网络存储") }
+                }
+                if (category == "书签" && items.isEmpty()) Text("长按项目 → 加书签", Modifier.padding(start = 28.dp, bottom = 12.dp), style = MaterialTheme.typography.bodySmall)
+                if (category == "工具") ListItem(
+                    headlineContent = { Text("回收站") }, leadingContent = { Icon(Icons.Rounded.RestoreFromTrash, null) },
+                    modifier = Modifier.padding(start = 12.dp).clickable(onClick = onRecycleBin),
                 )
             }
-            DropdownMenuItem(
-                text = { Text("添加本地存储") },
-                leadingIcon = { Icon(Icons.Default.CreateNewFolder, contentDescription = null) },
-                onClick = onAddBookmark,
-                modifier = Modifier.fillMaxWidth(),
-            )
         }
     }
 }
 
-fun defaultFileManagerStorageEntries(workspacePath: String): List<FileManagerStorageEntry> =
-    listOf(
-        FileManagerStorageEntry(
-            title = "手机存储",
-            path = Environment.getExternalStorageDirectory().absolutePath,
-            subtitle = Environment.getExternalStorageDirectory().absolutePath,
-        ),
-        FileManagerStorageEntry("Linux", "/", environment = "linux", subtitle = "Linux 文件系统"),
-        FileManagerStorageEntry("根目录", "/", subtitle = "设备文件系统"),
-        FileManagerStorageEntry("工作区", workspacePath, subtitle = workspacePath),
-    )
+fun defaultFileManagerStorageEntries(workspacePath: String): List<FileManagerStorageEntry> = listOf(
+    FileManagerStorageEntry("根目录", "/", subtitle = "访问范围由系统权限决定"),
+    FileManagerStorageEntry("内部存储", Environment.getExternalStorageDirectory().absolutePath),
+    FileManagerStorageEntry("Linux", "/", environment = "linux"),
+    FileManagerStorageEntry("默认工作区", workspacePath, category = "工作区"),
+)

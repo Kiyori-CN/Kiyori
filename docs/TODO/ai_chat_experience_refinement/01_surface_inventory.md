@@ -168,7 +168,7 @@ status: in_progress
 | [DefaultAssistantGuideScreen.kt](../../../app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/defaultassistant/DefaultAssistantGuideScreen.kt) | `DefaultAssistantGuideScreen`、`DefaultAssistantGuideContent` | 0 | 待查 |
 | [FFmpegToolboxScreen.kt](../../../app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/ffmpegtoolbox/FFmpegToolboxScreen.kt) | `FFmpegToolboxScreen` | 0 | 待查 |
 | [FileContextMenu.kt](../../../app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileContextMenu.kt) | `FileContextMenu` | 1 | 待查 |
-| [FileListContent.kt](../../../app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileListContent.kt) | `FileListContent` | 0 | 待查 |
+| [FileManagerDualPane.kt](../../../app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileManagerDualPane.kt) | `FileManagerDualPane`（原 `FileListContent` 已移除） | 0 | 待查 |
 | [FileManagerChrome.kt](../../../app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileManagerChrome.kt) | 行内弹层 | 1 | 待查 |
 | [NewFolderDialog.kt](../../../app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/NewFolderDialog.kt) | `FileManagerNewEntryDialog` | 1 | 待查 |
 | [SearchDialogs.kt](../../../app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/SearchDialogs.kt) | `SearchDialog`、`SearchResultsDialog` | 2 | 待查 |

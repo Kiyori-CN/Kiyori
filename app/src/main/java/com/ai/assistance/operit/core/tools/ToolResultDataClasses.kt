@@ -565,7 +565,10 @@ data class FileOperationData(
         val env: String = "android",
         val path: String,
         val successful: Boolean,
-        val details: String
+        val details: String,
+        val errorCode: String? = null,
+        val destination: String? = null,
+        val stagingPath: String? = null,
 ) : ToolResultData() {
     override fun toString(): String {
         return "[$env] $details"

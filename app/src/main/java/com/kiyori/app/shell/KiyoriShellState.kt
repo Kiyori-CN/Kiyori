@@ -61,6 +61,9 @@ data class KiyoriShellState(
     val softwareHomePage: SoftwareHomePage = SoftwareHomePage.HOME,
     val child: KiyoriShellChild? = null,
     val settingsNavigation: KiyoriSettingsNavigationState? = null,
+    val fileManagerSessionOpen: Boolean = false,
+    val fileManagerMinimized: Boolean = false,
+    val fileManagerParentSettings: KiyoriSettingsNavigationState? = null,
     val isAiDrawerOpen: Boolean = false,
     val isBookmarkDrawerOpen: Boolean = false,
     val isHistoryDrawerOpen: Boolean = false,
@@ -71,7 +74,7 @@ data class KiyoriShellState(
 ) {
     val showsBottomBar: Boolean
         get() =
-            child == null && !isAiDrawerOpen && !isBookmarkDrawerOpen && !isHistoryDrawerOpen &&
+            child == null && settingsNavigation?.origin != KiyoriSettingsOrigin.FILE_MANAGER && !isAiDrawerOpen && !isBookmarkDrawerOpen && !isHistoryDrawerOpen &&
                 !isDownloadDrawerOpen &&
                 primaryDestination != PrimaryDestination.BROWSER_HOME &&
                 (primaryDestination != PrimaryDestination.SOFTWARE_HOME ||
@@ -196,6 +199,8 @@ data class KiyoriShellState(
     fun openFileManager(): KiyoriShellState =
         copy(
             child = KiyoriShellChild.FILE_MANAGER,
+            fileManagerSessionOpen = true,
+            fileManagerMinimized = false,
             isAiDrawerOpen = false,
             isBookmarkDrawerOpen = false,
             isHistoryDrawerOpen = false,
@@ -203,7 +208,16 @@ data class KiyoriShellState(
         )
 
     fun closeChild(): KiyoriShellState =
-        copy(child = null)
+        copy(child = null,
+            fileManagerSessionOpen = if (child == KiyoriShellChild.FILE_MANAGER) false else fileManagerSessionOpen,
+            fileManagerMinimized = if (child == KiyoriShellChild.FILE_MANAGER) false else fileManagerMinimized)
+
+    fun minimizeFileManager(): KiyoriShellState =
+        showSoftwareHomePage(SoftwareHomePage.AI_HOME).copy(fileManagerSessionOpen = true, fileManagerMinimized = true)
+
+    fun closeMinimizedFileManager(): KiyoriShellState =
+        copy(fileManagerSessionOpen = false, fileManagerMinimized = false)
+
 
     fun openSettings(
         origin: KiyoriSettingsOrigin,
@@ -217,6 +231,7 @@ data class KiyoriShellState(
                     primaryDestination
                 },
             child = null,
+            fileManagerParentSettings = if (origin == KiyoriSettingsOrigin.FILE_MANAGER && settingsNavigation?.origin != KiyoriSettingsOrigin.FILE_MANAGER) settingsNavigation else fileManagerParentSettings,
             settingsNavigation =
                 KiyoriSettingsNavigationState.start(
                     origin = origin,
@@ -281,6 +296,7 @@ data class KiyoriShellState(
                         KiyoriSettingsOrigin.EXTERNAL_BROWSER_PRESENTATION,
                         -> KiyoriBrowserReturnTarget.SOFTWARE_HOME
                         KiyoriSettingsOrigin.AI_HOST -> KiyoriBrowserReturnTarget.AI_HOME
+                        KiyoriSettingsOrigin.FILE_MANAGER -> KiyoriBrowserReturnTarget.FILE_MANAGEMENT_HOME
                     },
         )
 
@@ -296,6 +312,7 @@ data class KiyoriShellState(
                 KiyoriSettingsOrigin.EXTERNAL_BROWSER_PRESENTATION,
                 -> PrimaryDestination.BROWSER_HOME
                 KiyoriSettingsOrigin.AI_HOST -> PrimaryDestination.SOFTWARE_HOME
+                KiyoriSettingsOrigin.FILE_MANAGER -> PrimaryDestination.FILE_MANAGEMENT_HOME
             }
         return copy(
             primaryDestination = restoredPrimary,
@@ -324,6 +341,7 @@ data class KiyoriShellState(
             return copy(settingsNavigation = navigation.popRoute())
         }
         return when (navigation.origin) {
+            KiyoriSettingsOrigin.FILE_MANAGER -> copy(settingsNavigation = fileManagerParentSettings, fileManagerParentSettings = null).openFileManager()
             KiyoriSettingsOrigin.BOTTOM_NAVIGATION ->
                 showSoftwareHomePage(SoftwareHomePage.HOME)
             KiyoriSettingsOrigin.BROWSER_HOME,
@@ -451,6 +469,12 @@ internal fun KiyoriShellState.toKiyoriShellSaveableValues(): List<Any> =
         settingsNavigation?.origin?.name.orEmpty(),
         settingsNavigation?.routes?.joinToString(ROUTE_SEPARATOR) { route -> route.name }.orEmpty(),
         settingsNavigation?.presentation?.name.orEmpty(),
+        fileManagerSessionOpen,
+        fileManagerMinimized,
+        fileManagerParentSettings?.sessionId.orEmpty(),
+        fileManagerParentSettings?.origin?.name.orEmpty(),
+        fileManagerParentSettings?.routes?.joinToString(ROUTE_SEPARATOR) { it.name }.orEmpty(),
+        fileManagerParentSettings?.presentation?.name.orEmpty(),
     )
 
 internal fun restoreKiyoriShellState(values: List<Any>): KiyoriShellState =
@@ -461,6 +485,13 @@ internal fun restoreKiyoriShellState(values: List<Any>): KiyoriShellState =
             (values[2] as String)
                 .takeIf { name -> name.isNotEmpty() }
                 ?.let(KiyoriShellChild::valueOf),
+        fileManagerSessionOpen = values.getOrNull(13) as? Boolean ?: (values[2] == KiyoriShellChild.FILE_MANAGER.name),
+        fileManagerMinimized = values.getOrNull(14) as? Boolean ?: false,
+        fileManagerParentSettings = (values.getOrNull(15) as? String)?.takeIf { it.isNotBlank() }?.let { id ->
+            KiyoriSettingsNavigationState(id, KiyoriSettingsOrigin.valueOf(values[16] as String),
+                (values[17] as String).split(ROUTE_SEPARATOR).map(KiyoriSettingsRoute::valueOf),
+                KiyoriSettingsPresentation.valueOf(values[18] as String))
+        },
         isAiDrawerOpen = values[3] as Boolean,
         isBookmarkDrawerOpen = values[4] as Boolean,
         isHistoryDrawerOpen = values[5] as Boolean,
@@ -583,20 +614,7 @@ internal fun calculateKiyoriAiDrawerWidthDp(
     windowWidthDp: Float,
     separatingFoldLeftDp: Float? = null,
 ): Float {
-    require(windowWidthDp > 0f) { "windowWidthDp must be positive" }
-    val contractWidth =
-        when {
-            windowWidthDp < 600f -> windowWidthDp * 0.75f
-            windowWidthDp < 840f -> 320f
-            else -> 360f
-        }
-    val leftPhysicalRegionWidth =
-        separatingFoldLeftDp?.takeIf { foldLeft -> foldLeft > 0f }
-    return if (leftPhysicalRegionWidth == null) {
-        contractWidth
-    } else {
-        minOf(contractWidth, leftPhysicalRegionWidth)
-    }
+    return com.kiyori.design.theme.calculateKiyoriDrawerWidthDp(windowWidthDp, separatingFoldLeftDp)
 }
 
 private const val ROUTE_SEPARATOR = "\u001F"

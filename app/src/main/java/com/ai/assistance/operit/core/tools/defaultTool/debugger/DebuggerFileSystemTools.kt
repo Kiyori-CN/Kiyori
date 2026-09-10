@@ -450,6 +450,7 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
      * This function does not enforce a size limit.
      */
     override suspend fun readFileFull(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "read_mode" }) return super.readFileFull(tool)
         val environment = tool.parameters.find { it.name == "environment" }?.value
         if (environment == "linux") {
             return super.readFileFull(tool)
@@ -1138,6 +1139,7 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
 
     /** Delete a file or directory */
     override suspend fun deleteFile(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "delete_mode" }) return super.deleteFile(tool)
         val environment = tool.parameters.find { it.name == "environment" }?.value
         if (environment == "linux") {
             return super.deleteFile(tool)
@@ -1369,6 +1371,7 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
 
     /** Move or rename a file or directory */
     override suspend fun moveFile(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "move_mode" }) return super.moveFile(tool)
         val environment = tool.parameters.find { it.name == "environment" }?.value
         if (environment == "linux") {
             return super.moveFile(tool)
@@ -1452,6 +1455,8 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
 
     /** Copy a file or directory */
     override suspend fun copyFile(tool: AITool): ToolResult {
+        // 严格模式由应用身份执行，不退回会覆盖目标的提权 cp；无访问权限时明确失败。
+        if (tool.parameters.any { it.name == "copy_mode" }) return super.copyFile(tool)
         // 检查是否是 Linux 环境或跨环境操作
         val environment = tool.parameters.find { it.name == "environment" }?.value
         val sourceEnvironment = tool.parameters.find { it.name == "source_environment" }?.value
@@ -1621,6 +1626,7 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
 
     /** Create a directory */
     override suspend fun makeDirectory(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "create_mode" }) return com.ai.assistance.operit.core.tools.defaultTool.standard.executeNoReplaceCreateTool(tool, directory = true, backendEnvironment = "android")
         val environment = tool.parameters.find { it.name == "environment" }?.value
         if (environment == "linux") {
             return super.makeDirectory(tool)
@@ -1747,6 +1753,7 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
 
     /** Search for files matching a pattern */
     override suspend fun findFiles(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "search_mode" }) return super.findFiles(tool)
         val environment = tool.parameters.find { it.name == "environment" }?.value
         if (environment == "linux") {
             return super.findFiles(tool)
@@ -1928,6 +1935,7 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
 
     /** Get file information */
     override suspend fun fileInfo(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "info_mode" }) return super.fileInfo(tool)
         val environment = tool.parameters.find { it.name == "environment" }?.value
         if (environment == "linux") {
             return super.fileInfo(tool)
@@ -2104,6 +2112,7 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
 
     /** Zip files or directories */
     override suspend fun zipFiles(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "zip_mode" }) return super.zipFiles(tool)
         val environment = tool.parameters.find { it.name == "environment" }?.value
         if (environment == "linux") {
             return super.zipFiles(tool)
