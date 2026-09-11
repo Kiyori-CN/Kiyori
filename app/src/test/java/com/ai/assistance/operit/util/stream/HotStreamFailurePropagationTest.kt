@@ -19,6 +19,95 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HotStreamFailurePropagationTest {
+    @Test
+    fun reentrantPublicationAndCloseReachEveryObserverInOrder() = runBlocking {
+        val shared = MutableSharedStreamImpl<Int>(replay = Int.MAX_VALUE)
+        val observed = mutableListOf<Int>()
+        val first = launch(Dispatchers.Unconfined) {
+            shared.collect { value ->
+                if (value == 1) {
+                    shared.emit(2)
+                    shared.close()
+                }
+            }
+        }
+        val second = launch(Dispatchers.Unconfined) { shared.collect { observed.add(it) } }
+        shared.emit(1)
+        first.join()
+        second.join()
+        assertEquals(listOf(1, 2), shared.replayCache)
+        assertEquals(shared.replayCache, observed)
+    }
+
+    @Test
+    fun cancelledProducerCannotPublishEvenWithoutSubscribers() = runBlocking {
+        val shared = MutableSharedStreamImpl<Int>(replay = Int.MAX_VALUE)
+        val outcome = CompletableDeferred<Boolean>()
+        val producer = launch {
+            cancel()
+            outcome.complete(runCatching { shared.emit(1) }.isFailure)
+        }
+        producer.join()
+        assertTrue(outcome.await())
+        assertTrue(shared.replayCache.isEmpty())
+    }
+
+    @Test
+    fun concurrentPublishersAndClosingPreserveIdenticalLiveAndReplayOrder() = runBlocking {
+        withTimeout(10_000) {
+            repeat(20) {
+                val shared = MutableSharedStreamImpl<Int>(replay = Int.MAX_VALUE)
+                val live = mutableListOf<Int>()
+                val collector = launch(Dispatchers.Default) { shared.collect { live.add(it) } }
+                while (shared.subscriptionCount != 1) yield()
+                val start = CompletableDeferred<Unit>()
+                val writers = (0..3).map { writer ->
+                    launch(Dispatchers.Default) {
+                        start.await()
+                        repeat(500) { index -> shared.emit(writer * 500 + index) }
+                    }
+                }
+                val closer = launch(Dispatchers.Default) {
+                    start.await()
+                    while (shared.replayCache.size < 100) yield()
+                    shared.close()
+                }
+                start.complete(Unit)
+                writers.forEach { it.join() }
+                closer.join()
+                collector.join()
+                assertEquals(shared.replayCache, live)
+                assertEquals(live.size, live.toSet().size)
+            }
+        }
+    }
+
+    @Test
+    fun departingObserversCannotCancelTheProducerOrRemainingCollector() = runBlocking {
+        withTimeout(10_000) {
+            val shared = MutableSharedStreamImpl<Int>(replay = Int.MAX_VALUE)
+            val live = mutableListOf<Int>()
+            val survivor = launch(Dispatchers.Default) { shared.collect { live.add(it) } }
+            while (shared.subscriptionCount != 1) yield()
+            val changingObservers = launch(Dispatchers.Default) {
+                repeat(500) {
+                    val observer = launch { shared.collect { yield() } }
+                    yield()
+                    observer.cancel()
+                    observer.join()
+                }
+            }
+            val producer = async(Dispatchers.Default) {
+                runCatching { repeat(10_000) { shared.emit(it); if (it % 10 == 0) yield() } }
+            }
+            assertTrue(producer.await().isSuccess)
+            changingObservers.join()
+            shared.close()
+            survivor.join()
+            assertEquals((0 until 10_000).toList(), live)
+        }
+    }
+
     private class DiagnosticFailure(
         message: String,
         override val messageFailureExecutionId: String? = "execution-123456789",

@@ -622,11 +622,12 @@ export const OFFICE_TOOLS: Record<string, ToolEntry> = {
         { name: "in_place", zh: "\u539f\u5730\u7f16\u8f91\uff08\u4ec5 Linux \u5de5\u4f5c\u533a\uff0c\u4ecd\u9700\u4e34\u65f6\u6587\u4ef6\u539f\u5b50\u66ff\u6362\uff09", en: "Edit in place (Linux workspace only; still atomic replacement)", type: "boolean", required: false },
         { name: "task_id", zh: "\u590d\u7528\u540c\u4e00\u4e2a Linux \u6682\u5b58\u533a", en: "Reuse the same Linux staging directory", type: "string", required: false },
         { name: "range", zh: "\u4ec5\u683c\u5f0f\u5316\u6b64\u77e9\u5f62\u533a\u57df\uff0c\u5982 A1:D20\uff1b\u7701\u7565\u4e3a\u5df2\u7528\u533a\u57df\uff0c\u6700\u591a 100000 \u5355\u5143\u683c", en: "Format only this rectangle, e.g. A1:D20; defaults to used range, capped at 100000 cells", type: "string", required: false },
+        { name: "print_setup", zh: "\u6253\u5370\u8bbe\u7f6e\uff1a{print_area:\"A1:Q35\",orientation:\"landscape\",paper_size:\"A4\",fit_to_width:1,fit_to_height:0}\uff1b0=\u4e0d\u9650\u9875\u6570\uff0c\u6253\u5370\u533a\u987b\u8986\u76d6\u56fe\u8868\u3002", en: "Print settings: {print_area:\"A1:Q35\",orientation:\"landscape\",paper_size:\"A4\",fit_to_width:1,fit_to_height:0}; 0 means unlimited pages. Include chart bounds in the print area.", type: "object", required: false },
       ]
     },
     spec: {
       command: "xlsx_format",
-      params: ["path", "env", "sheet_name", "number_format", "font", "fill", "column_widths", "row_heights", "freeze_panes", "auto_filter", "output_path", "output_env", "overwrite", "in_place", "task_id", "range"],
+      params: ["path", "env", "sheet_name", "number_format", "font", "fill", "column_widths", "row_heights", "freeze_panes", "auto_filter", "output_path", "output_env", "overwrite", "in_place", "task_id", "range", "print_setup"],
       inputPaths: ["path"],
       defaultOutputName: "formatted.xlsx",
       timeoutMs: 300000,

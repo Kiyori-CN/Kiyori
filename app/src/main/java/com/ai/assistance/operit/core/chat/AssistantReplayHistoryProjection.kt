@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.core.chat
 
 import com.ai.assistance.operit.data.model.ChatMessage
+import com.ai.assistance.operit.api.chat.llmprovider.MediaLinkParser
 import com.ai.assistance.operit.core.chat.hooks.PromptTurn
 import com.ai.assistance.operit.core.chat.hooks.PromptTurnKind
 import com.ai.assistance.operit.util.ChatMarkupRegex
@@ -134,6 +135,7 @@ object AssistantReplayHistoryProjector {
         val transactionCalls = mutableListOf<TransactionCall>()
         val resultRanges = mutableListOf<IntRange>()
         val replacements = mutableListOf<ContentReplacement>()
+        val transactionImageSuffixes = mutableListOf<String>()
         var transactionStart: Int? = null
         var resultsStarted = false
         var transactionResultsInProviderOrder = true
@@ -146,15 +148,28 @@ object AssistantReplayHistoryProjector {
                 transactionCalls.isNotEmpty() &&
                     content.substring(cursor, marker.range.first).isNotBlank()
             ) {
-                return truncate(
-                    content = content,
-                    index = requireNotNull(transactionStart),
-                    reason =
-                        AssistantReplayHistoryProjectionReason.TOOL_TRANSACTION_TEXT_BOUNDARY,
-                    transactionCalls = transactionCalls,
-                    replacements = replacements,
-                    reorderedTransactionCount = reorderedTransactionCount,
-                )
+                val betweenResults = content.substring(cursor, marker.range.first)
+                // 预览工具将图片链接放在结果信封外。只接纳紧随真实结果的纯图片附件；
+                // 等全部调用闭合后再移到事务末尾，避免附件被误判为 assistant 文本边界。
+                if (
+                    resultsStarted && MediaLinkParser.hasImageLinks(betweenResults) &&
+                        MediaLinkParser.removeImageLinks(betweenResults).isBlank()
+                ) {
+                    transactionImageSuffixes.add(betweenResults)
+                    replacements.add(
+                        ContentReplacement(cursor until marker.range.first, "")
+                    )
+                } else {
+                    return truncate(
+                        content = content,
+                        index = requireNotNull(transactionStart),
+                        reason =
+                            AssistantReplayHistoryProjectionReason.TOOL_TRANSACTION_TEXT_BOUNDARY,
+                        transactionCalls = transactionCalls,
+                        replacements = replacements,
+                        reorderedTransactionCount = reorderedTransactionCount,
+                    )
+                }
             }
             val block = ChatMarkupRegex.toolOrToolResultBlock.find(content, marker.range.first)
             if (block == null || block.range.first != marker.range.first) {
@@ -290,6 +305,17 @@ object AssistantReplayHistoryProjector {
                         MatchedToolResult(range = block.range, value = canonicalResult)
                     resultRanges.add(block.range)
                     if (transactionCalls.all { it.result != null }) {
+                        val movedImages = transactionImageSuffixes.isNotEmpty()
+                        if (transactionImageSuffixes.isNotEmpty()) {
+                            replacements.add(
+                                ContentReplacement(
+                                    (block.range.last + 1)..block.range.last,
+                                    transactionImageSuffixes.joinToString(""),
+                                )
+                            )
+                            reorderedTransactionCount += 1
+                            transactionImageSuffixes.clear()
+                        }
                         val resultsInCallOrder =
                             transactionCalls.map { requireNotNull(it.result).value }
                         val resultRangesInCallOrder =
@@ -298,7 +324,7 @@ object AssistantReplayHistoryProjector {
                             resultRanges.zip(resultsInCallOrder).forEach { (range, value) ->
                                 replacements.add(ContentReplacement(range = range, value = value))
                             }
-                            reorderedTransactionCount += 1
+                            if (!movedImages) reorderedTransactionCount += 1
                         } else {
                             transactionCalls.forEach { call ->
                                 val result = requireNotNull(call.result)

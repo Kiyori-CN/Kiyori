@@ -2155,6 +2155,9 @@ class MessageProcessingDelegate(
                         revisionMutex.withLock {
                             revisionTracker.currentContent().toString()
                         }
+                    // 定时保存可能尚未覆盖最后一段。先封存原始尾部，再由完成/失败路径生成
+                    // 可重放投影，否则未闭合工具参数被投影截断后，在审计中也无从查证。
+                    persistStreamingAuditSnapshot(state, resolveFinalContent(state.aiMessage))
                 }
             }
 
@@ -2177,47 +2180,63 @@ class MessageProcessingDelegate(
         state: SendUserMessageTurnState,
         contentSnapshot: String,
     ) {
-        if (state.effectivePersistTurn) {
-            val textChange =
-                resolveConversationAuditTextChange(
-                    previous = state.lastAuditedContent,
-                    current = contentSnapshot,
-                )
-            if (textChange != null) {
-                conversationAuditRepository.appendEvent(
-                    ConversationAuditEventRequest(
-                        chatId = state.chatId,
-                        category = "PROVIDER",
-                        eventType = textChange.eventType,
-                        actor = "PROVIDER",
-                        summary =
-                            if (textChange.isRevision) {
-                                "Provider 修订了已接收的流式文本"
-                            } else {
-                                "收到 ${textChange.value.length} 个可见文本字符"
-                            },
-                        messageTimestamp = state.aiMessage.timestamp,
-                        variantIndex = 0,
-                        completeness = ConversationAuditCompletenessStatus.IN_PROGRESS,
-                        payloads =
-                            listOf(
-                                ConversationAuditPayloadInput.text(
-                                    label = textChange.payloadLabel,
-                                    role = "assistant",
-                                    value = textChange.value,
-                                )
-                            ),
-                    )
-                )
-                state.lastAuditedContent = contentSnapshot
-            }
-        }
+        persistStreamingAuditSnapshot(state, contentSnapshot)
         val projectedContent = AssistantReplayHistoryProjector.project(contentSnapshot).content
         if (AssistantReplayHistoryProjector.isDurable(projectedContent)) {
             addMessageToChat(
                 state.chatId,
                 state.aiMessage.copy(content = projectedContent)
             )
+        }
+    }
+
+    private suspend fun persistStreamingAuditSnapshot(
+        state: SendUserMessageTurnState,
+        contentSnapshot: String,
+    ) {
+        try {
+            if (state.effectivePersistTurn) {
+                val textChange =
+                    resolveConversationAuditTextChange(
+                        previous = state.lastAuditedContent,
+                        current = contentSnapshot,
+                    )
+                if (textChange != null) {
+                    conversationAuditRepository.appendEvent(
+                        ConversationAuditEventRequest(
+                            chatId = state.chatId,
+                            category = "PROVIDER",
+                            eventType = textChange.eventType,
+                            actor = "PROVIDER",
+                            summary =
+                                if (textChange.isRevision) {
+                                    "Provider 修订了已接收的流式文本"
+                                } else {
+                                    "收到 ${textChange.value.length} 个可见文本字符"
+                                },
+                            messageTimestamp = state.aiMessage.timestamp,
+                            variantIndex = 0,
+                            completeness = ConversationAuditCompletenessStatus.IN_PROGRESS,
+                            payloads =
+                                listOf(
+                                    ConversationAuditPayloadInput.text(
+                                        label = textChange.payloadLabel,
+                                        role = "assistant",
+                                        value = textChange.value,
+                                    )
+                                ),
+                        )
+                    )
+                    state.lastAuditedContent = contentSnapshot
+                }
+            }
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (auditError: Exception) {
+            // 审计故障必须可见，但不能冒充 Provider 断流，也不能阻断聊天正文的保存。
+            AppLogger.e(TAG, "流式原始正文审计保存失败", auditError)
+            runCatching { conversationAuditRepository.markRecordingInterrupted(state.chatId) }
+                .onFailure { AppLogger.e(TAG, "审计记录中断状态保存失败", it) }
         }
     }
 

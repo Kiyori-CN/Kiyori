@@ -625,6 +625,54 @@ class AssistantReplayHistoryProjectionTest {
         assertFalse(repairs.single().projection.truncated)
     }
 
+    @Test
+    fun parallelPreviewAttachmentsMoveAfterClosedResultsWithoutLosingFinalAnswer() {
+        val calls = call("preview", "1") + call("read", "2")
+        val image = "\n<link type=\"image\" id=\"office-page-3\"></link>\n"
+        val first = result("read", "2")
+        val second = result("preview", "1")
+        val answer = "测评完成，交付全部文件。"
+        val prefix = "历史".repeat(100_000)
+        val projection = AssistantReplayHistoryProjector.project(
+            prefix + calls + first + image + second + answer
+        )
+
+        assertFalse(projection.truncated)
+        assertEquals(prefix + calls + second + first + image + answer, projection.content)
+        assertEquals(1, projection.reorderedTransactionCount)
+        assertUnchanged(projection.content)
+        assertEquals(projection.content, AssistantReplayHistoryProjector.requireClosed(
+            projection.content, "assistant_completion"
+        ))
+    }
+
+    @Test
+    fun streamingPreviewAttachmentsWaitForRealTerminalResult() {
+        val toolCall = call("preview", "1")
+        val image = "\n<link type=\"image\" id=\"page-1\"></link>\n"
+        val intermediate = result("preview", "1", providerResultTerminal = false)
+        val terminal = result("preview", "1", providerResultTerminal = true)
+        val projection = AssistantReplayHistoryProjector.project(
+            toolCall + intermediate + image + terminal + "完成"
+        )
+        assertFalse(projection.truncated)
+        assertEquals(toolCall + terminal + image + "完成", projection.content)
+        assertUnchanged(projection.content)
+        assertTrue(AssistantReplayHistoryProjector.project(toolCall + intermediate + image).truncated)
+    }
+
+    @Test
+    fun attachmentsDoNotExcuseTextMissingResultsOrMismatchedIdentity() {
+        val image = "<link type=\"image\" id=\"page-1\"></link>"
+        val first = call("one", "1") + call("two", "2") + result("one", "1")
+        listOf(
+            first + image + "unexpected text" + result("two", "2"),
+            first + image + result("two", "wrong"),
+            first + image + call("three", "3"),
+            call("one", "1") + image + result("one", "1"),
+        ).forEach { assertTrue(AssistantReplayHistoryProjector.project(it).truncated) }
+    }
+
     private fun assertUnchanged(content: String) {
         val projection = AssistantReplayHistoryProjector.project(content)
         assertFalse(projection.changed)

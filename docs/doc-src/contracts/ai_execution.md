@@ -107,6 +107,15 @@
   follow-up 失败不得取消长期父 scope、并行污染其他独立回合或使后续发送继承旧异常；
   `launch + join()` 不得作为失败传播合同。`processStreamCompletion` 不得把异常改写为
   `Idle`，当前响应轮零输出不得投影为 `Completed`。
+- 共享流在同一临界区登记 replay、订阅快照与终态，由单个发布者按队列交付；恢复观察者时
+  不持有状态锁。观察者退出、同步重入或迟到订阅不能打断生产者、打乱正文或越过关闭信号；
+  生产者自身取消仍阻止后续发布。
+- SSE 的完整 `data` 行在后续分块读取异常时先交付，随后仍传播原始 IO 异常；缓冲尾部 JSON
+  也被截断时保留传输原因。只有真实 `response.completed` 可以判为完成，缺终态仍保留未知
+  结果语义。明确 `failed/incomplete/cancelled/error` 及本地协议处理错误不得统一包装成提交未知。
+- 流退出前补写原始正文的最后一个审计 delta/revision，再生成工具闭合投影；审计故障保留
+  `RECORDING_INTERRUPTED` 和日志，不能替换 Provider 的真实失败或阻止独立的聊天正文保存。
+  对话标题在截长前剥离思考及私有 `<meta>`；attempt 分别记录思考/可见字符与已知 response ID。
 - `MessageProcessingDelegate.completeAssistantResponse` 是普通发送进入成功终态前的最终
   内容 owner。它必须从共享流重放和消息状态重建最终正文，记录 chunk 数、可见字符数、
   provider、model、provider request context 和最后输入状态；空白正文以
@@ -123,7 +132,9 @@
   `provider_tool_name`；跨消息结果不能原地规范化展示别名，因此不会作为安全闭合证据。并行工具的
   live result 按完成顺序到达，投影必须把终态结果匹配到整组 pending calls，
   并只在 durable 副本中规范为原调用顺序；即时拒绝和实际执行结果交回 Provider 前也必须共同恢复
-  invocation 顺序，结果缺失或无 owner 结果直接失败。已经有序的完整事务逐字保留。未闭合、
+  invocation 顺序，结果缺失或无 owner 结果直接失败。工具结果后独立输出的纯图片链接属于附件，
+  并行或流式结果尚未闭合时由同一投影暂存位置，全部真实终态到齐后移到事务末尾；普通文字
+  不获得此豁免。已经有序且附件位于事务外的完整事务逐字保留。未闭合、
   截断、孤立结果、无法唯一匹配或身份冲突从所属事务起移除整个后缀，不生成工具结果。正常完成
   owner 必须保存闭合检查返回的规范化正文，不能校验后写回原始错序正文。实时
   `contentStream` 与 conversation audit 继续保存原始完成顺序；

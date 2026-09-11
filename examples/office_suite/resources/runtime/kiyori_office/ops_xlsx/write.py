@@ -311,6 +311,33 @@ def xlsx_format(args: Dict[str, Any]) -> Dict[str, Any]:
         sheet.auto_filter.ref = str(autofilter)
         applied.append("auto_filter")
 
+    print_setup = args.get("print_setup")
+    if print_setup:
+        if "print_area" in print_setup:
+            area = print_setup["print_area"]
+            try:
+                left, top, right, bottom = range_boundaries(area)
+                if None in (left, top, right, bottom) or not (1 <= left <= right <= 16384 and 1 <= top <= bottom <= 1048576):
+                    raise ValueError("需要有限矩形范围")
+            except (ValueError, TypeError) as exc:
+                raise OfficeError("E_INPUT_SCHEMA", "print_setup.print_area 必须是 A1:Q35 这样的有限矩形范围") from exc
+            sheet.print_area = area
+        if "orientation" in print_setup:
+            sheet.page_setup.orientation = print_setup["orientation"]
+        if "paper_size" in print_setup:
+            sizes = {"A4": sheet.PAPERSIZE_A4, "A3": sheet.PAPERSIZE_A3,
+                     "letter": sheet.PAPERSIZE_LETTER, "legal": sheet.PAPERSIZE_LEGAL}
+            sheet.page_setup.paperSize = sizes[print_setup["paper_size"]]
+        if "fit_to_width" in print_setup or "fit_to_height" in print_setup:
+            # Excel 同时保留 scale 与 fit 参数时渲染器选择可能不同；显式启用 fit 模式。
+            sheet.sheet_properties.pageSetUpPr.fitToPage = True
+            sheet.page_setup.scale = None
+            if "fit_to_width" in print_setup:
+                sheet.page_setup.fitToWidth = print_setup["fit_to_width"]
+            if "fit_to_height" in print_setup:
+                sheet.page_setup.fitToHeight = print_setup["fit_to_height"]
+        applied.append("print_setup")
+
     output.parent.mkdir(parents=True, exist_ok=True)
     atomic_save(workbook, output)
     return {

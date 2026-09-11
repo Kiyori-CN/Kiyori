@@ -1,5 +1,34 @@
 # 办公文档套件专项
 
+## 测评修复（2026-09-11）
+
+后续 AI 稳定性修复已生成包含本节办公修改的新 APK；最新产物哈希及 79 个随包文件核验见
+[EOF 断流复查](../ai_interrupted_turn_recovery/index.md#eof-断流与全链路稳定性复查2026-09-11-第二轮)。
+本节下方 APK 哈希保留为当轮历史构建证据。
+
+目标：修复测评暴露的图表合并、字体选择、打印布局设置与公式缓存提示，并联动修复多模态
+预览结果导致的 AI 历史闭合异常。基线 `main` / `f5319136040bf294935006cc7c86bbce44aa88b7`，工作区干净。
+范围限于现有工具与重放投影，不引入 OCR、新状态所有者或自动重试；不操作设备、不提交推送。
+
+1. 修复并行/流式结果之间的页图附件投影，验证最终文本完整保留及真正缺失结果仍失败。
+2. 复制 DOCX 原生图表关系及独立工作簿，保留图片与 OMML，核验源文件不变及输出关系有效。
+3. 统一 ReportLab 字体注册，明确不支持字体；增加显式 XLSX 打印设置及公式缺缓存提示。
+4. 执行相关 JVM/Python/JS 回归、生成工具描述、文档检查，串行构建并核验 APK。
+
+风险：Office 渲染器分页及 CFF/TTC 字体支持存在差异；打印区必须由调用方覆盖图表。
+原文件继续默认另存，失败不覆盖输入。状态：实现、本地回归与 Debug 构建完成；Android/PRoot 和现场长对话
+复测保持 `verification_pending`。历史报告的“图片/OMML 全部不能合并”不作为当前能力结论，
+应分别以部件回归和现场样本验证。
+
+2026-09-11 验证证据：
+
+- 办公运行时 `python -m pytest examples/office_suite/resources/runtime/kiyori_office/tests -q`：254 passed；最终字体注册调整后重跑 PDF、字体和测评回归：39 passed。
+- `node --test tools/example_packages/office_suite.test.mjs tools/example_packages/office_console.test.mjs`：47 passed；`test_office_suite_contract.py`：13 passed；工具描述生成和 TypeScript 编译通过。
+- AI 投影、工具结果格式化、压缩契约三组 JVM 测试：63 passed。文档检查 517 文件、0 问题；三个随包 Skill 校验通过；正式准备检查 PASS。
+- 首次打包因 pytest 产生 `__pycache__` 被正确拒绝；缓存移动到忽略的 `work/`，没有放宽打包规则。
+- `./gradlew.bat :app:assembleDebug --no-daemon --console=plain`：BUILD SUCCESSFUL（51 秒）。标准 Debug APK 为 487,349,430 bytes，SHA-256 `c91d1aa48957cf18d1d99b0f1e04f0a2a38a3129171e929b8611e899d2607982`。
+- APK 中 `office_suite.toolpkg` 为 267,125 bytes；49 个运行时/描述/指引文件与工作区逐字节一致，未包含 pyc 或缓存目录。未安装或执行设备/PRoot 验收，未提交推送。
+
 ## 本轮计划（2026-09-10）
 
 目标：页面图像直接进入多模态上下文；增量编辑既有 Word/PPT，完善论文对象与原生设计能力。

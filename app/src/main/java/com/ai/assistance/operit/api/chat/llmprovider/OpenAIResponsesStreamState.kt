@@ -322,6 +322,14 @@ internal class OpenAIResponsesExecutionState private constructor(
 internal class OpenAIResponsesProtocolException(message: String) :
     IllegalStateException(message)
 
+internal class OpenAIResponsesMissingTerminalException(message: String) : IOException(message)
+
+/** 服务端已明确返回失败终态，与未收到终态的断流分开，不能改写为提交未知。 */
+internal class OpenAIResponsesTerminalException(
+    val eventType: String,
+    message: String,
+) : IOException(message)
+
 internal class OpenAIResponsesTransportInterruptedException(
     val responseId: String,
     val lastAppliedSequence: Long,

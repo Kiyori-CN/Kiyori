@@ -7,6 +7,7 @@ import com.ai.assistance.operit.core.tools.StringResultData
 import com.ai.assistance.operit.core.tools.ToolExecutionLimits
 import com.ai.assistance.operit.data.model.ToolResult
 import com.ai.assistance.operit.util.ChatMarkupRegex
+import com.ai.assistance.operit.core.chat.AssistantReplayHistoryProjector
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -97,5 +98,14 @@ class ConversationMarkupManagerToolHistoryTest {
         assertTrue(message.length <= ToolExecutionLimits.MAX_FINAL_TOOL_RESULT_MESSAGE_CHARS)
         assertEquals(2, ChatMarkupRegex.toolOrToolResultBlock.findAll(message).count())
         assertTrue(message.contains("<link type=\"image\" id=\"image-1\"></link>"))
+        val calls = results.joinToString("\n") {
+            "<tool name=\"${it.toolName}\"></tool>"
+        }
+        val completed = AssistantReplayHistoryProjector.requireClosed(
+            calls + message + "\n最终测评报告", "assistant_completion"
+        )
+        assertTrue(completed.endsWith("\n最终测评报告"))
+        assertTrue(completed.contains("<link type=\"image\" id=\"image-1\"></link>"))
+        assertEquals(completed, AssistantReplayHistoryProjector.project(completed).content)
     }
 }

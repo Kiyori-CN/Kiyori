@@ -197,7 +197,10 @@ def _xlsx_to_text(read: Dict[str, Any]) -> str:
             cells = []
             for cell in row:
                 if "formula" in cell:
-                    cells.append("%s=%s" % (cell["formula"], cell.get("cached_value")))
+                    cached = cell.get("cached_value")
+                    cells.append("%s → %s" % (
+                        cell["formula"], cached if cached is not None else "[缓存未提供；请先 xlsx_recalc]"
+                    ))
                 else:
                     cells.append("" if cell["value"] is None else str(cell["value"]))
             blocks.append("\t".join(cells))

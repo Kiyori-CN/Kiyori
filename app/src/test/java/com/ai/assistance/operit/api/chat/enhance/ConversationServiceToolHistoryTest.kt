@@ -8,6 +8,15 @@ import org.junit.Test
 
 class ConversationServiceToolHistoryTest {
     @Test
+    fun titleRemovesReasoningMetadataBeforeLengthLimit() {
+        val title = "论文自我介绍与办公套件测试"
+        val metadata = "<meta provider=\"openai:responses_reasoning\">${"a".repeat(200)}</meta>"
+        assertEquals(title, ConversationService.sanitizeConversationTitle("<think>reason</think>" + title + metadata))
+        assertEquals(title, ConversationService.sanitizeConversationTitle(metadata + "\n" + title))
+        assertEquals("", ConversationService.sanitizeConversationTitle(metadata))
+    }
+
+    @Test
     fun parallelResultsAreMergedIntoOneProviderTurnWhileCallsRemainDistinct() {
         val firstCall = PromptTurn(PromptTurnKind.TOOL_CALL, "<tool name=\"one\"></tool>")
         val secondCall = PromptTurn(PromptTurnKind.TOOL_CALL, "<tool name=\"two\"></tool>")

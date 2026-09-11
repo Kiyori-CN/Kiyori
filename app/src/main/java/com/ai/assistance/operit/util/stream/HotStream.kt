@@ -8,6 +8,8 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 /** 共享Stream接口，类似于SharedFlow */
 interface SharedStream<T> : Stream<T> {
@@ -73,6 +75,12 @@ class MutableSharedStreamImpl<T>(
     private val replayBuffer = ArrayDeque<T>()
     private val subscribers = linkedMapOf<Long, Channel<SharedEvent<T>>>()
     private val stateLock = Any()
+    private data class Publication<T>(
+        val event: SharedEvent<T>,
+        val targets: List<Channel<SharedEvent<T>>>,
+    )
+    private val publications = ArrayDeque<Publication<T>>()
+    private var publishing = false
     private var nextSubscriberId = 0L
     private var closeCause: Throwable? = null
     private var isClosed = false
@@ -105,34 +113,21 @@ class MutableSharedStreamImpl<T>(
         get() = synchronized(stateLock) { replayBuffer.toList() }
 
     override suspend fun emit(value: T) {
-        val subscriberChannels =
-            synchronized(stateLock) {
-                if (isClosed) {
-                    emptyList()
-                } else {
-                    appendToReplayBufferLocked(value)
-                    subscribers.values.toList()
-                }
-            }
-
-        for (channel in subscriberChannels) {
-            channel.send(SharedEvent.Value(value))
-        }
+        currentCoroutineContext().ensureActive()
+        tryEmit(value)
     }
 
     override fun tryEmit(value: T): Boolean {
-        val subscriberChannels =
-            synchronized(stateLock) {
-                if (isClosed) {
-                    return false
-                }
-                appendToReplayBufferLocked(value)
-                subscribers.values.toList()
+        val shouldPublish = synchronized(stateLock) {
+            if (isClosed) {
+                return false
             }
-
-        subscriberChannels.forEach { channel ->
-            channel.trySend(SharedEvent.Value(value))
+            appendToReplayBufferLocked(value)
+            // 订阅通道为 UNLIMITED，发布不挂起。与 replay/close 使用同一临界区，
+            // 保证活跃订阅和迟到重放顺序一致；已退出观察者不能取消仍在输出的主流。
+            enqueuePublicationLocked(SharedEvent.Value(value))
         }
+        if (shouldPublish) drainPublications()
         return true
     }
 
@@ -143,19 +138,38 @@ class MutableSharedStreamImpl<T>(
     }
 
     fun close(cause: Throwable? = null) {
-        val subscriberChannels =
-            synchronized(stateLock) {
-                if (isClosed) {
-                    return
-                }
-                isClosed = true
-                closeCause = cause
-                subscribers.values.toList()
+        val shouldPublish = synchronized(stateLock) {
+            if (isClosed) {
+                return
             }
+            isClosed = true
+            closeCause = cause
+            enqueuePublicationLocked(SharedEvent.Completion(cause))
+        }
+        if (shouldPublish) drainPublications()
+    }
 
-        subscriberChannels.forEach { channel ->
-            channel.trySend(SharedEvent.Completion(cause))
-            channel.close()
+    private fun enqueuePublicationLocked(event: SharedEvent<T>): Boolean {
+        publications.addLast(Publication(event, subscribers.values.toList()))
+        if (publishing) return false
+        publishing = true
+        return true
+    }
+
+    private fun drainPublications() {
+        // Unconfined 观察者可能在 trySend 内同步退出、再次发布或关闭。单个发布者按队列
+        // 交付目标快照，重入事件排到当前事件之后；恢复观察者时不持有状态锁。
+        while (true) {
+            val publication = synchronized(stateLock) {
+                if (publications.isEmpty()) {
+                    publishing = false
+                    null
+                } else publications.removeFirst()
+            } ?: return
+            publication.targets.forEach { channel ->
+                channel.trySend(publication.event)
+                if (publication.event is SharedEvent.Completion) channel.close()
+            }
         }
     }
 

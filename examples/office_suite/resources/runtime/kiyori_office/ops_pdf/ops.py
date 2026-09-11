@@ -443,10 +443,7 @@ def pdf_watermark_command(args: Dict[str, Any]) -> Dict[str, Any]:
     info = pdf_info(source)
     font_name = "Helvetica"
     if any(ord(char) > 127 for char in text):
-        fonts = require_cjk_fonts(purpose="PDF 中文水印")
-        # 系统字体族并未在 ReportLab 注册。保持与 pdf_create 一致的 CID
-        # 默认字体，安装 Noto 不能改变水印默认值并导致 setFont 失败。
-        font_name = str(args.get("cjk_font") or "STSong-Light")
+        font_name = _register_reportlab_cjk_font(args.get("cjk_font"), purpose="PDF 中文水印")
     watermark_buffer = io.BytesIO()
     pdf_canvas = canvas.Canvas(watermark_buffer, pagesize=A4)
     if font_name in ("STSong-Light", "STSong"):
@@ -564,9 +561,6 @@ def pdf_create_command(args: Dict[str, Any]) -> Dict[str, Any]:
     from reportlab.lib.pagesizes import A4  # type: ignore
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet  # type: ignore
     from reportlab.lib.units import cm  # type: ignore
-    from reportlab.pdfbase import pdfmetrics  # type: ignore
-    from reportlab.pdfbase.cidfonts import UnicodeCIDFont  # type: ignore
-    from reportlab.pdfbase.ttfonts import TTFont  # type: ignore
     from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer  # type: ignore
 
     task_id = resolve_task_id(args)
@@ -600,20 +594,7 @@ def pdf_create_command(args: Dict[str, Any]) -> Dict[str, Any]:
     has_cjk = any(ord(char) > 127 for char in text_payload)
     font_name = "Helvetica"
     if has_cjk:
-        fonts = require_cjk_fonts(purpose="中文 PDF 生成")
-        font_name = str(args.get("cjk_font") or "STSong-Light")
-        if font_name in ("STSong-Light", "STSong"):
-            pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
-        else:
-            ttf_path = _find_font_file(fonts["fonts"], font_name)
-            if not ttf_path:
-                raise OfficeError(
-                    "E_ENV_MISSING",
-                    "找不到可用于 ReportLab 的 CJK 字体文件: %s" % font_name,
-                    detail="fonts=%s" % fonts["fonts"][:5],
-                    remedy="用 TTF/OTF 字体文件并通过 cjk_font 指定字体族，或使用 STSong-Light",
-                )
-            pdfmetrics.registerFont(TTFont(font_name, ttf_path))
+        font_name = _register_reportlab_cjk_font(args.get("cjk_font"), purpose="中文 PDF 生成")
 
     styles = getSampleStyleSheet()
     body_style = ParagraphStyle(
@@ -728,6 +709,40 @@ def pdf_create_command(args: Dict[str, Any]) -> Dict[str, Any]:
         },
         "engine_version": engine_version("reportlab"),
     }
+
+
+def _register_reportlab_cjk_font(requested, *, purpose: str) -> str:
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+    from reportlab.pdfbase.ttfonts import TTFont
+
+    fonts = require_cjk_fonts(purpose=purpose)
+    family = str(requested or 'STSong-Light')
+    if family in ('STSong', 'STSong-Light'):
+        pdfmetrics.registerFont(UnicodeCIDFont('STSong-Light'))
+        return 'STSong-Light'
+    # Fontconfig 的族名与文件名不是一回事；先精确解析已探测的族名，禁止静默换字体。
+    path = next((item['file'] for item in fonts.get('fontconfig_fonts', [])
+                 if item['family'].casefold() == family.casefold()), None)
+    path = path or _find_font_file(fonts.get('fonts', []), family)
+    if not path:
+        raise OfficeError('E_INPUT_SCHEMA', '找不到已探测的中文字体族: %s' % family,
+                          remedy='运行 office_env_check 查看字体；可显式使用 STSong-Light，或安装兼容的 TrueType 中文字体。')
+    try:
+        font = TTFont(family, path)
+        with open(path, 'rb') as handle:
+            is_collection = handle.read(4) == b'ttcf'
+        # TTC 的首个 face 可能是 JP 而请求的是 SC；不能把首个 face 改名后冒充目标字体。
+        actual_family = font.face.familyName
+        if isinstance(actual_family, bytes):
+            actual_family = actual_family.decode('utf-8', errors='replace')
+        if is_collection and actual_family.casefold() != family.casefold():
+            raise ValueError('TTC 首个 face 为 %s，无法确认请求的 %s' % (actual_family, family))
+        pdfmetrics.registerFont(font)
+    except Exception as exc:
+        raise OfficeError('E_FORMAT_UNSUPPORTED', 'ReportLab 不支持此字体文件: %s' % family,
+                          detail=str(exc), remedy='CFF/部分 TTC 字体无法嵌入；请显式使用 STSong-Light 或 TrueType 中文字体。') from exc
+    return family
 
 
 def _find_font_file(candidates: List[str], family: str) -> Optional[str]:

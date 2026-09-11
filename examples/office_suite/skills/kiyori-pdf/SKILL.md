@@ -34,7 +34,7 @@ ReportLab 创建支持 `image`（`image_path/width_cm/caption`）和可换行、
   按 remedy 安装 `poppler-data`（Tier2）后重跑 `office_env_check`。
 - ReportLab 内置字体没有 Unicode 上下标字形：用 `<sub>` / `<super>`；中文需注册 CJK 字体（工具已处理）。
 - `office_convert(engine=pandoc,to_format=pdf)` 与 `pdf_create(engine=pandoc)` 共用已确认的系统中文字体族选择。自动选择优先 Noto Sans CJK SC；显式 `cjk_font` 必须来自 `office_env_check` 的 `fonts.system_font_families`。缺少 fontconfig 或可用字体族会报依赖错误；不要传 `NotoSansCJK-Regular.ttc` 等文件名，也不要传 CID 字体 `STSong-Light` 给 XeLaTeX。
-- ReportLab 的中文创建和水印默认使用 `STSong-Light`；安装 Noto 不会自动改变它。系统可用字体不等于已注册的 ReportLab 字体，TTC/CFF 集合也不能直接当普通 TTF 使用；显式选择其他字体需核对该入口的支持及真实渲染，不承诺自动注册任意字体。
+- ReportLab 的中文创建和水印共用字体注册，默认 `STSong-Light`，兼容别名 `STSong`。其他 `cjk_font` 按已探测的字体族解析到文件并注册；未知字体报 `E_INPUT_SCHEMA`，无法嵌入的 CFF/部分 TTC 报 `E_FORMAT_UNSUPPORTED`。此时显式选 `STSong-Light` 或兼容的 TrueType 中文字体；工具不静默替换字体。安装 Noto 不代表它可被 ReportLab 嵌入，最后必须看图。
 - 中文 Pandoc 路线需要 `xelatex`、`xeCJK.sty` 和实际中文字体。T4 计划包含 `texlive-lang-chinese`；排查样式包使用 `kpsewhich xeCJK.sty`。`tesseract` 安装后可由用户授权的脚本执行 OCR，但套件尚无原生 OCR 工具。
 - 加密 PDF 密码错误只报一次错，不要反复尝试。
 - 删除页面时必须至少保留一页；重排必须给出完整排列。

@@ -16,6 +16,7 @@ description: Word/.docx 的论文与报告排版、创建、模板填充、读�
 
 ## 2. 高频坑
 
+- `docx_merge` 支持正文、表格、图片、OMML 与原生图表；图表及嵌入工作簿复制到独立部件，避免多个源文件使用相同部件名而串改数据。编号、批注、脚注、正文分节及未知嵌入关系仍明确拒绝；同名异义样式需确认后显式用 `style_mode=unified`。合并后仍须校验并预览。
 - **Word 会把一句话拆成多个 `<w:r>`**：不要按 run 逐段匹配文本，`docx_find_replace` 已内置 run 合并；
   但如果你自己判断「文档里有这句话」，请以 `docx_outline` 的段落文本为准。
 - 锚点文本命中多处会报 `E_ANCHOR_NOT_FOUND`：改用 `anchor.index` 精确定位；`allow_multiple=true` 仅选择首个匹配，不表示批量修改。

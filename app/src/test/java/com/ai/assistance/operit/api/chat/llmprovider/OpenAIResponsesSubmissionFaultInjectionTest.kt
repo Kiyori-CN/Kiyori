@@ -18,14 +18,17 @@ import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketException
+import java.net.UnknownHostException
 import java.nio.charset.StandardCharsets
 import java.util.Collections
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.Dispatchers
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Dns
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
@@ -50,6 +53,132 @@ import org.mockito.kotlin.verifyNoMoreInteractions
 import org.mockito.kotlin.whenever
 
 class OpenAIResponsesSubmissionFaultInjectionTest {
+    @Test
+    fun dnsFailureRetriesOnlyBeforeSubmissionAndRespectsRetrySetting() = runTest {
+        Mockito.mockStatic(AppLogger::class.java).use {
+            for (enableRetry in listOf(true, false)) {
+                MockWebServer().use { server ->
+                    server.start()
+                    server.enqueue(MockResponse().setHeader("Content-Type", "text/event-stream")
+                        .setBody(completedResponsesSse("recovered answer")))
+                    val dnsAttempts = AtomicInteger()
+                    val repository = mock<ProviderExecutionRepository>()
+                    val provider = FaultInjectionResponsesProvider(
+                        endpoint = server.url("/v1/responses").newBuilder()
+                            .host("responses.test").build().toString(),
+                        persistence = RepositoryOpenAIResponsesExecutionPersistence(repository),
+                        providerType = ApiProviderType.DEEPSEEK,
+                        capabilityProviderType = ApiProviderType.OPENAI_RESPONSES_GENERIC,
+                        supportsStreamResumption = false,
+                        dns = object : Dns {
+                            override fun lookup(hostname: String): List<InetAddress> {
+                                if (dnsAttempts.incrementAndGet() == 1) {
+                                    throw UnknownHostException("injected pre-submission DNS failure")
+                                }
+                                return listOf(InetAddress.getByName("127.0.0.1"))
+                            }
+                        },
+                    )
+                    val received = StringBuilder()
+                    val failure = runCatching {
+                        provider.sendMessage(
+                            context = createContext(), chatHistory = testHistory("DNS retry"),
+                            modelParameters = emptyList(), enableThinking = true, stream = true,
+                            providerRequestContext = requestContext("dns-retry"),
+                            onTokensUpdated = { _, _, _ -> }, onNonFatalError = {},
+                            enableRetry = enableRetry,
+                        ).collect(received::append)
+                    }.exceptionOrNull()
+                    assertEquals(if (enableRetry) 2 else 1, dnsAttempts.get())
+                    assertEquals(if (enableRetry) 1 else 0, server.requestCount)
+                    if (enableRetry) {
+                        assertEquals(null, failure)
+                        assertEquals("recovered answer", received.toString())
+                    } else {
+                        assertTrue("failure=$failure", failure != null)
+                        assertTrue(failure !is OpenAIResponsesSubmissionUnknownException)
+                        assertEquals("", received.toString())
+                    }
+                    verifyNoInteractions(repository)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun brokenChunkedTransportDeliversTheLastCompleteEventWithoutResubmission() = runTest {
+        Mockito.mockStatic(AppLogger::class.java).use {
+            for (mode in listOf("delta", "terminal", "malformed")) {
+                val data = when (mode) {
+                    "terminal" -> completedResponsesSse("final answer")
+                    "malformed" -> "data: {\"type\":\"response.output_text.delta\",\"delta\":\n"
+                    else -> responsesTextDeltaSse("last buffered text")
+                }
+                LocalHttpResponseServer(200, data.trimEnd('\n') + "\n", brokenChunked = true).use { server ->
+                    val repository = mock<ProviderExecutionRepository>()
+                    val provider = FaultInjectionResponsesProvider(
+                        endpoint = server.responsesEndpoint,
+                        persistence = RepositoryOpenAIResponsesExecutionPersistence(repository),
+                        providerType = ApiProviderType.DEEPSEEK,
+                        capabilityProviderType = ApiProviderType.OPENAI_RESPONSES_GENERIC,
+                        supportsStreamResumption = false,
+                    )
+                    val received = StringBuilder()
+                    val failure = runCatching {
+                        provider.sendMessage(
+                            context = createContext(), chatHistory = testHistory("chunked EOF"),
+                            modelParameters = emptyList(), enableThinking = true, stream = true,
+                            providerRequestContext = requestContext("chunked-eof"),
+                            onTokensUpdated = { _, _, _ -> }, onNonFatalError = {}, enableRetry = true,
+                        ).collect(received::append)
+                    }.exceptionOrNull()
+                    if (mode == "terminal") {
+                        assertEquals(null, failure)
+                        assertEquals("final answer", received.toString())
+                    } else {
+                        assertTrue("failure=$failure", failure is OpenAIResponsesSubmissionUnknownException)
+                        assertEquals(if (mode == "malformed") "" else "last buffered text", received.toString())
+                    }
+                    assertEquals(1, server.requests.size)
+                    verifyNoInteractions(repository)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun explicitTerminalFailureIsNotReportedAsUnknownSubmission() = runTest {
+        Mockito.mockStatic(AppLogger::class.java).use {
+            for (eventType in listOf("response.failed", "response.incomplete", "response.cancelled", "response.error")) {
+                MockWebServer().use { server ->
+                    server.start()
+                    val payload = org.json.JSONObject().put("type", eventType)
+                        .put("response", org.json.JSONObject().put("status", eventType.substringAfter('.'))
+                            .put("incomplete_details", org.json.JSONObject().put("reason", "max_output_tokens"))
+                            .put("error", org.json.JSONObject().put("message", "explicit failure")))
+                    if (eventType == "response.error") payload.put("error", org.json.JSONObject().put("message", "explicit error"))
+                    server.enqueue(MockResponse().setHeader("Content-Type", "text/event-stream")
+                        .setBody(responsesTextDeltaSse("retained text") + "data: $payload\n\n"))
+                    val repository = mock<ProviderExecutionRepository>()
+                    val received = StringBuilder()
+                    val failure = runCatching {
+                        createDeepSeekResponsesProvider(server, repository).sendMessage(
+                            context = createContext(), chatHistory = testHistory("explicit failure"),
+                            modelParameters = emptyList(), enableThinking = true, stream = true,
+                            providerRequestContext = requestContext("explicit-terminal"),
+                            onTokensUpdated = { _, _, _ -> }, onNonFatalError = {}, enableRetry = true,
+                        ).collect(received::append)
+                    }.exceptionOrNull()
+                    assertTrue("failure=$failure", failure is OpenAIResponsesTerminalException)
+                    assertEquals(eventType, (failure as OpenAIResponsesTerminalException).eventType)
+                    assertEquals("retained text", received.toString())
+                    assertEquals(1, server.requestCount)
+                    verifyNoInteractions(repository)
+                }
+            }
+        }
+    }
+
     @Test
     fun httpClientTransportPolicy_keepsDefaultPoolingAndIsolatesResponsesConnections() {
         val defaultPolicy =
@@ -713,6 +842,9 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
     private fun createContext(): Context {
         val context = mock<Context>()
         whenever(context.getString(any())).thenReturn("request cancelled")
+        whenever(context.getString(any(), any())).thenAnswer { invocation ->
+            "Provider response failed: ${invocation.arguments[1]}"
+        }
         whenever(context.getString(any(), any(), any())).thenAnswer { invocation ->
             "API request failed, status=${invocation.arguments[1]}, body=${invocation.arguments[2]}"
         }
@@ -787,6 +919,7 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
         providerType: ApiProviderType = ApiProviderType.OPENAI_RESPONSES,
         capabilityProviderType: ApiProviderType = providerType,
         private val supportsStreamResumption: Boolean = true,
+        dns: Dns = Dns.SYSTEM,
     ) : OpenAIProvider(
         apiEndpoint = endpoint,
         apiKeyProvider =
@@ -800,6 +933,7 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
             LlmHttpClientProtocolPolicy.responsesPolicy
                 .applyTo(
                     OkHttpClient.Builder()
+                        .dns(dns)
                         .connectTimeout(5, TimeUnit.SECONDS)
                         .readTimeout(5, TimeUnit.SECONDS)
                         .writeTimeout(5, TimeUnit.SECONDS)
@@ -834,6 +968,7 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
     private class LocalHttpResponseServer(
         private val statusCode: Int,
         private val responseBody: String,
+        private val brokenChunked: Boolean = false,
     ) : AutoCloseable {
         private val serverSocket =
             ServerSocket(
@@ -907,14 +1042,17 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
                 val headers =
                     buildString {
                         append("HTTP/1.1 $statusCode $reason\r\n")
-                        append("Content-Type: application/json\r\n")
-                        append("Content-Length: ${responseBytes.size}\r\n")
+                        append("Content-Type: ${if (brokenChunked) "text/event-stream" else "application/json"}\r\n")
+                        if (brokenChunked) append("Transfer-Encoding: chunked\r\n")
+                        else append("Content-Length: ${responseBytes.size}\r\n")
                         append("Connection: close\r\n")
                         append("\r\n")
                     }.toByteArray(StandardCharsets.US_ASCII)
                 accepted.getOutputStream().use { output ->
                     output.write(headers)
+                    if (brokenChunked) output.write((responseBytes.size.toString(16) + "\r\n").toByteArray(StandardCharsets.US_ASCII))
                     output.write(responseBytes)
+                    if (brokenChunked) output.write("\r\n".toByteArray(StandardCharsets.US_ASCII))
                     output.flush()
                 }
             }

@@ -148,6 +148,7 @@ def xlsx_read(
                     if cached is not None:
                         cached_sheet = cached[sheet.title]
                         entry["cached_value"] = _json_value(cached_sheet[cell.coordinate].value)
+                        entry["cache_status"] = "missing" if entry["cached_value"] is None else "available"
                 rendered.append(entry)
             rows.append(rendered)
         result_sheets.append(

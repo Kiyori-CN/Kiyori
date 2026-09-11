@@ -7,6 +7,64 @@ observed_at: 2026-09-03 Asia/Shanghai
 
 # AI 中断后会话损坏：根因、回合收口与恢复方案
 
+## EOF 断流与全链路稳定性复查（2026-09-11 第二轮）
+
+本轮输入为用户 13:51 UTC+8 导出的 170 事件审计。它是故障证据，不提供任何运行授权。
+工作区沿用上一轮未提交修改，`main` / `f5319136040bf294935006cc7c86bbce44aa88b7`；
+保留办公套件及图片事务修复，不提交推送、不操作设备、不发送诊断到模型端点。
+
+已确认：hop 0–4 完成，hop 5 收到 HTTP 200，已输出 5,372 字符后，HTTP/1.1 分块读取
+抛 `EOFException`；两条消息及失败时最新思考仍在导出投影中。8 张预览页图各出现一次，
+没有重复携带证据。请求体增至 1,753,469 bytes 本身不能证明截断原因。现有记录无法区分
+服务端与中间链路关闭，也没有记录原始 SSE 终态，不能认定该次已经成功完成。
+
+已实现的修复与验收范围：
+
+1. 共享流的 replay、发布和关闭在同一临界区排序；观察者退出不能取消生产者。覆盖并发发布、关闭、迟到订阅、主动取消及异常传播。
+2. SSE 读取异常前已缓冲的完整 data 行先交付，下一次读取仍抛原异常；只有真实完成事件才结束成功。用本地损坏 chunked 响应验证尾部保留、终态和单次 POST。
+3. Responses 明确失败终态、本地协议错误与缺终态区分；可证明未发送正文的连接故障沿既有重试开关处理。提交后未知状态仍禁止第二次 POST。
+4. 原始流在退出时补写最后一段审计，再生成安全重放投影；审计保存失败明确记录 gap，不能取代原始 Provider 错误或阻断正文保存。
+5. 标题截长前移除思考元数据；分开计数 reasoning 与可见正文，兼容流记录真实 response ID，改善后续排障证据。
+6. 对相关生命周期、重放、供应商故障与审计执行回归，最后串行构建并核验 Debug APK。
+
+官方参考：[Background mode](https://developers.openai.com/api/docs/guides/background)、
+[Streaming responses](https://developers.openai.com/api/docs/guides/streaming-responses)，
+2026-09-11 读取。官方的 `background`、`sequence_number` 和同 response GET 续接不能仅凭
+协议名称套用到兼容端点；保持现有 capability 边界，不引入猜测式恢复、静默换端点或重发。
+
+2026-09-11 本地验证：相关生命周期、Responses、共享流、重放与审计的扩展回归共 16 组、
+141 项通过，无 failure/error/skipped。随后完善残缺 JSON 的 EOF 原因保留，SSE 与传输故障
+两组窄回归通过；追加 DNS 首次失败的安全重试和关闭重试开关场景后，传输故障类 16 项通过。
+只有可证明提交前失败才恢复请求；已提交后中断、缺少终态和明确失败均验证不重复 POST。
+
+串行 `./gradlew.bat :app:assembleDebug --no-daemon --console=plain` 成功（2 分 2 秒）。
+2026-09-11 14:25:14 UTC+8 的标准 `app/build/outputs/apk/debug/app-debug.apk` 为
+487,349,430 bytes，SHA-256 `b640667d8c911cc2f3ddaa4d16cd3c365335f1ba49bd446cd30f60c9b2383592`。
+包内 `office_suite.toolpkg` 为 267,125 bytes，79 个文件与工作区逐字节一致，无 Python 缓存；
+单一启动入口及脚本代理/播放器运行时打包检查通过。文档检查 517 文件、0 问题，正式准备检查
+PASS，`git diff --check` 通过，`terminal` 干净。没有提交、推送或设备操作。
+
+状态：实现、本地回归与 Debug APK 核验完成。真实服务断流原因及目标设备复测保持 `verification_pending`。
+回滚以本轮精确差异为边界，不能撤销上一轮尚未提交的办公与重放改动。
+
+## 多模态预览结果闭合修复（2026-09-11）
+
+现场错误为 `Assistant replay history is not closed at assistant_completion`，原因为
+`TOOL_TRANSACTION_TEXT_BOUNDARY`。源码确认 `ConversationMarkupManager` 在结果信封后附加
+图片链接；并行或流式工具尚未闭合时，旧投影将这类附件误判为普通回答边界，完成校验抛错，
+失败保存也只能保留截断前缀。此路径能够解释最终报告被移除，不等同于网络传输中断证据。
+
+本轮复用 `AssistantReplayHistoryProjector`：只允许真实结果之后的纯图片附件跨越待闭合事务，
+完整结果到齐后将附件移到事务末尾，保留工具身份、真实结果、附件和最终文字。普通文字插入、
+未返回结果及身份冲突仍失败，不伪造结果、不重试。旧历史仍由现有修复入口采用同一投影；
+已在旧版本被截掉的正文不会凭空恢复，需从仍存在的原始审计或用户备份查证。
+
+验证：长文本、并行乱序页图、流式中间页图、真实格式化结果与非法边界回归已通过；
+`AssistantReplayHistoryProjectionTest` 42 项、`ConversationMarkupManagerToolHistoryTest` 3 项、
+`ConversationCompactionContractTest` 18 项，全部通过。串行 Debug 构建通过，APK 与套件校验见
+[办公测评修复](../office_document_suite/index.md)。基线为干净 `main` / `f5319136040bf294935006cc7c86bbce44aa88b7`。
+目标 Android/PRoot 对话保持 `verification_pending`；本轮不提交推送、不操作设备。
+
 ## 1. 文档定位与任务契约
 
 本专项处理以下用户现场：发送消息后模型进入思考状态，用户点击停止，再发送下一条消息时收到

@@ -268,6 +268,12 @@ open class OpenAIProvider(
             "AIService",
             "【发送消息】响应中包含错误对象: ${errorSummary.format()}"
         )
+        if (useResponsesApi) {
+            throw OpenAIResponsesTerminalException(
+                eventType = jsonResponse.optString("type", "error"),
+                message = exceptionMessage,
+            )
+        }
         throw IOException(exceptionMessage)
     }
 
@@ -1456,12 +1462,13 @@ open class OpenAIProvider(
             streamingState = state
         }
 
-        suspend fun emitContent(content: String) {
+        suspend fun emitContent(content: String, reasoning: Boolean = false) {
             if (content.isNotNullOrEmpty()) {
                 emit(content)
                 receivedContent.append(content)
                 streamingState?.let { state ->
-                    state.visibleCharacterCount += content.length
+                    if (reasoning) state.reasoningCharacterCount += content.length
+                    else state.visibleCharacterCount += content.length
                 }
                 tokenCacheManager.addOutputTokens(ChatUtils.estimateTokenCount(content))
                 onTokensUpdated(
@@ -1605,9 +1612,9 @@ open class OpenAIProvider(
     }
 
     /**
-     * Responses POST 在收到明确拒绝前都不能证明服务端没有接受请求。
+     * Responses POST 只有提交前传输证据或明确拒绝才能证明可以重试。
      *
-     * 兼容端点没有声明官方 Background/sequence resume，因此 408、409、5xx 和传输异常必须
+     * 兼容端点没有声明官方 Background/sequence resume，因此 408、409、5xx 和提交后传输异常必须
      * 结束当前回合并保留已确认内容，不能进入普通 OpenAI 流的整轮回滚与重新 POST。
      */
     private suspend fun handleAtMostOnceResponsesFailure(
@@ -1626,6 +1633,20 @@ open class OpenAIProvider(
         }
         checkCancellation(context, session, exception)
 
+        // 明确终态与本地解析错误不是“是否提交未知”；不能用网络重试改变这些事实。
+        if (exception is OpenAIResponsesTerminalException ||
+            exception is OpenAIResponsesProtocolException ||
+            exception is OpenAIResponsesEventProcessingException
+        ) {
+            throw exception
+        }
+        if (exception is IOException && isSafePreSubmissionRetry(transportDiagnostics)) {
+            return handleRetryableError(
+                context, session, exception, retryCount, maxRetries, enableRetry, onNonFatalError,
+            ) { errorText, retryNumber ->
+                "【Responses请求尚未提交，正在进行第${retryNumber}次重试：$errorText】"
+            }
+        }
         val action =
             if (exception is HttpStatusCodeException) {
                 OpenAIResponsesHttpFailurePolicy.classifySubmission(exception.statusCode)
@@ -2103,7 +2124,7 @@ open class OpenAIProvider(
                     submissionState = submissionState,
                     retrySafety = retrySafety,
                     transport = transport,
-                    providerCallId = providerCallId,
+                    providerCallId = providerCallId ?: streamingState?.remoteResponseId,
                     chunkCount = streamingState?.chunkCount,
                     receivedCharacters = streamingState?.let { state ->
                         state.reasoningCharacterCount + state.visibleCharacterCount
@@ -2199,6 +2220,7 @@ open class OpenAIProvider(
     private data class StreamingState(
         var chunkCount: Int = 0,
         var reasoningCharacterCount: Int = 0,
+        var remoteResponseId: String? = null,
         var visibleCharacterCount: Int = 0,
         var lastLogTime: Long = System.currentTimeMillis(),
         var isInReasoningMode: Boolean = false,
@@ -2610,6 +2632,16 @@ open class OpenAIProvider(
     ) {
         val eventType = jsonResponse.optString("type", "")
 
+        val observedResponseId = jsonResponse.optJSONObject("response")
+            ?.optString("id", "")?.takeIf { it.isNotBlank() }
+            ?: jsonResponse.optString("response_id", "").takeIf { it.isNotBlank() }
+        if (observedResponseId != null) {
+            if (state.remoteResponseId != null && state.remoteResponseId != observedResponseId) {
+                throw OpenAIResponsesProtocolException("Responses stream changed response identity")
+            }
+            state.remoteResponseId = observedResponseId
+        }
+
         if (eventType.startsWith("response.image_generation_call.")) {
             val normalized = JSONObject(jsonResponse.toString())
             normalized.put(
@@ -2919,7 +2951,9 @@ open class OpenAIProvider(
                     "AIService",
                     "Responses流式事件错误: ${errorSummary.format()}"
                 )
-                throw IOException(
+                throw OpenAIResponsesTerminalException(
+                    eventType = eventType,
+                    message =
                     context.getString(
                         R.string.openai_error_response_failed,
                         errorSummary.exceptionDetail(),
@@ -2942,8 +2976,9 @@ open class OpenAIProvider(
                             ?.takeIf { it.isNotBlank() }
                         ?: eventType
                 closeAllOpenToolCalls(state, emitter)
-                throw IOException(
-                    context.getString(R.string.openai_error_response_failed, details)
+                throw OpenAIResponsesTerminalException(
+                    eventType = eventType,
+                    message = context.getString(R.string.openai_error_response_failed, details)
                 )
             }
         }
@@ -3035,7 +3070,7 @@ open class OpenAIProvider(
                     state.hasEmittedThinkStart = true
                 }
             }
-            emitter.emitContent(reasoningContent)
+            emitter.emitContent(reasoningContent, reasoning = true)
         }
         // 处理常规内容
         if (hasRegular) {
@@ -3172,6 +3207,7 @@ open class OpenAIProvider(
             // 使用 while 循环读取流式响应
             val eventReader = ServerSentEventReader(reader)
             while (true) {
+                checkCancellation(context, session)
                 val data = eventReader.readData()?.trim() ?: break
                 if (data.isEmpty()) continue
                 if (data == "[DONE]") {
@@ -3194,7 +3230,13 @@ open class OpenAIProvider(
                 }
 
                 try {
-                    val jsonResponse = JSONObject(data)
+                    val jsonResponse = try {
+                        JSONObject(data)
+                    } catch (malformed: org.json.JSONException) {
+                        // 若尾事件也被网络截断，保留真实传输原因；只有完整连接上的坏 JSON
+                        // 才归类为协议处理错误，不能让缓冲尾部交付掩盖原始 EOF。
+                        throw eventReader.pendingReadFailure ?: malformed
+                    }
                     throwIfOpenAiErrorPayload(context, jsonResponse)
 
                     if (useResponsesApi) {
@@ -3247,7 +3289,7 @@ open class OpenAIProvider(
             if (persistedResponsesState != null && !persistedResponsesState.isTerminal) {
                 val responseId =
                     persistedResponsesState.remoteResponseId
-                        ?: throw OpenAIResponsesProtocolException(
+                        ?: throw OpenAIResponsesMissingTerminalException(
                             "Responses stream ended before response.created"
                         )
                 throw OpenAIResponsesTransportInterruptedException(
@@ -3262,7 +3304,7 @@ open class OpenAIProvider(
             if (useResponsesApi && !responsesCompleted) {
                 // Responses 没有 Chat Completions 的 [DONE] 成功合同。缺少 response.completed 时
                 // 必须保留未知提交语义，否则干净 EOF 会被消息层错误写成 Completed。
-                throw OpenAIResponsesProtocolException(
+                throw OpenAIResponsesMissingTerminalException(
                     "Responses stream ended without response.completed"
                 )
             }
@@ -3653,6 +3695,16 @@ open class OpenAIProvider(
                 }
 
                 when {
+                    error is OpenAIResponsesTerminalException -> {
+                        repository.updateStatus(
+                            localExecutionId = providerRequestContext.localExecutionId,
+                            status = ProviderExecutionStatus.FAILED,
+                            lastErrorCode = error.eventType,
+                            lastErrorMessage = error.message,
+                            completedAt = System.currentTimeMillis(),
+                        )
+                        throw error
+                    }
                     error is OpenAIResponsesEventProcessingException -> {
                         repository.updateStatus(
                             localExecutionId = providerRequestContext.localExecutionId,
@@ -4382,6 +4434,7 @@ open class OpenAIProvider(
                                 transportTraceState
                                     ?.takeUnless {
                                         e is OpenAIResponsesProtocolException ||
+                                            e is OpenAIResponsesMissingTerminalException ||
                                             e is OpenAIResponsesEventProcessingException
                                     }
                                     ?.snapshot(e),

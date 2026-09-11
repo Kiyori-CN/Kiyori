@@ -3,6 +3,47 @@
 from ..protocol import OfficeError
 
 
+def copy_chart_for_merge(source, package, copied):
+    """图表与可变工作簿使用独立 OPC 部件；不能复用源包名称或直接复制 rId。"""
+    from pathlib import PurePosixPath
+    from docx.opc.part import Part
+    from docx.opc.packuri import PackURI
+    from lxml import etree
+
+    if source in copied:
+        return copied[source]
+    used = {str(part.partname) for part in package.iter_parts()}
+    used.update(str(part.partname) for part in copied.values())
+    original = PurePosixPath(str(source.partname))
+    index = 1
+    name = str(original)
+    while name in used:
+        name = str(original.with_name("%s_merge%d%s" % (original.stem, index, original.suffix)))
+        index += 1
+    target = Part(PackURI(name), source.content_type, source.blob, package)
+    copied[source] = target
+    mapping = {}
+    for relation in source.rels.values():
+        kind = relation.reltype.rsplit('/', 1)[-1]
+        if kind not in ('package', 'image', 'chartStyle', 'chartColorStyle'):
+            raise OfficeError('E_FORMAT_UNSUPPORTED', '图表包含未支持的关系类型', detail=relation.reltype)
+        if relation.is_external:
+            mapping[relation.rId] = target.relate_to(relation.target_ref, relation.reltype, is_external=True)
+        else:
+            child = copy_chart_for_merge(relation.target_part, package, copied)
+            mapping[relation.rId] = target.relate_to(child, relation.reltype)
+    if mapping:
+        root = etree.fromstring(source.blob)
+        for node in root.iter():
+            for key, value in list(node.attrib.items()):
+                if key.startswith('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}'):
+                    if value not in mapping:
+                        raise OfficeError('E_FORMAT_UNSUPPORTED', '图表关系引用不存在', detail=value)
+                    node.set(key, mapping[value])
+        target._blob = etree.tostring(root, xml_declaration=True, encoding='UTF-8', standalone=True)
+    return target
+
+
 def append_chart(document, block, section=None):
     from pptx import Presentation
     from docx.oxml import parse_xml

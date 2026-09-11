@@ -378,6 +378,15 @@
             "zh": "仅格式化此矩形区域，如 A1:D20；省略为已用区域，最多 100000 单元格",
             "en": "Format only this rectangle, e.g. A1:D20; defaults to used range, capped at 100000 cells"
           }
+        },
+        {
+          "name": "print_setup",
+          "description": {
+            "zh": "打印设置：{print_area:\"A1:Q35\",orientation:\"landscape\",paper_size:\"A4\",fit_to_width:1,fit_to_height:0}；0=不限页数，打印区须覆盖图表。",
+            "en": "Print settings: {print_area:\"A1:Q35\",orientation:\"landscape\",paper_size:\"A4\",fit_to_width:1,fit_to_height:0}; 0 means unlimited pages. Include chart bounds in the print area."
+          },
+          "type": "object",
+          "required": false
         }
       ]
     },

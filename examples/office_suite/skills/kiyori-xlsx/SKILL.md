@@ -8,7 +8,7 @@ description: Excel/.xlsx 的读取、写入、区域格式化、原生图表、�
 ## 1. 标准流程
 
 1. `xlsx_info` 看工作表、命名区域、外部链接、是否含宏。
-2. 读数据用 `xlsx_read`：同时返回公式与缓存值，`cached_value=null` 说明公式尚未重算。
+2. 读数据用 `xlsx_read`：同时返回公式与缓存值；`cache_status=missing` / `cached_value=null` 表示缓存未提供，不能当作计算结果。`office_read` 会在公式旁提示先 `xlsx_recalc`。
 3. 写入用 `xlsx_write`（值或公式）→ `xlsx_format` → 按需 `xlsx_chart` → **`xlsx_recalc`**。
    新建工作簿时 `sheet_name` 直接作为默认表名（不必先建再改名）；已有工作簿上
    `sheet_name` 必须已存在，否则报 `E_INPUT_SCHEMA`。
@@ -38,5 +38,6 @@ description: Excel/.xlsx 的读取、写入、区域格式化、原生图表、�
 
 ## 4. 交付检查
 
+- 面向 PDF/打印时，在最后重算前调用 `xlsx_format(print_setup={print_area:"A1:Q35",orientation:"landscape",paper_size:"A4",fit_to_width:1,fit_to_height:0})`。打印区须覆盖图表全部宽高，`0` 表示该方向不限页数；两方向都为 `1` 会缩到一页，需确认字仍可读。工具不自动猜测打印区或改图表尺寸。
 - `xlsx_recalc`：`total_errors == 0` 且 `missing_cache_count == 0`。
 - `office_render_preview`：检查列宽截断、数字格式、图表与打印区域。

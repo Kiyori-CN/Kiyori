@@ -64,6 +64,26 @@ class ConversationService(
     ) {
 
     companion object {
+        internal fun sanitizeConversationTitle(rawTitle: String): String {
+            // 元数据可能紧跟标题正文；必须先移除再截长，否则会把半个协议标签持久化成标题。
+            val firstLine = ChatUtils.removeThinkingContent(rawTitle)
+                .replace(ChatMarkupRegex.metaTag, "")
+                .lineSequence()
+                .map { it.trim() }
+                .firstOrNull { it.isNotBlank() }
+                .orEmpty()
+            return firstLine
+                .replace(Regex("^[#*`_>\\-\\s]+"), "")
+                .replace(Regex("[#*`_]+$"), "")
+                .replace(Regex("[\\p{Cntrl}&&[^\\n\\t]]"), "")
+                .replace(Regex("\\s+"), " ")
+                .trim()
+                .trim('"', '\'', '“', '”', '‘', '’', '「', '」', '『', '』')
+                .trimEnd('.', '。', '!', '！', '?', '？', ':', '：', ';', '；', ',', '，')
+                .take(40)
+                .trim()
+        }
+
         private const val TAG = "ConversationService"
         private const val APPLY_FILE_TOOL_NAME = "apply_file"
         private val fileRequestContentRegex = Regex(
@@ -470,24 +490,6 @@ class ConversationService(
             AppLogger.e(TAG, "生成对话标题时出错", e)
             ""
         }
-    }
-
-    private fun sanitizeConversationTitle(rawTitle: String): String {
-        val firstLine = rawTitle
-            .lineSequence()
-            .map { it.trim() }
-            .firstOrNull { it.isNotBlank() }
-            .orEmpty()
-        return firstLine
-            .replace(Regex("^[#*`_>\\-\\s]+"), "")
-            .replace(Regex("[#*`_]+$"), "")
-            .replace(Regex("[\\p{Cntrl}&&[^\\n\\t]]"), "")
-            .replace(Regex("\\s+"), " ")
-            .trim()
-            .trim('"', '\'', '“', '”', '‘', '’', '「', '」', '『', '』')
-            .trimEnd('.', '。', '!', '！', '?', '？', ':', '：', ';', '；', ',', '，')
-            .take(40)
-            .trim()
     }
 
     private fun buildSummaryPreparedHistory(

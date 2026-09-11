@@ -937,6 +937,42 @@
       "range": {
         "type": "string",
         "minLength": 1
+      },
+      "print_setup": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "print_area": {
+            "type": "string",
+            "minLength": 1
+          },
+          "orientation": {
+            "type": "string",
+            "enum": [
+              "portrait",
+              "landscape"
+            ]
+          },
+          "paper_size": {
+            "type": "string",
+            "enum": [
+              "A4",
+              "A3",
+              "letter",
+              "legal"
+            ]
+          },
+          "fit_to_width": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "fit_to_height": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          }
+        }
       }
     },
     "additionalProperties": false

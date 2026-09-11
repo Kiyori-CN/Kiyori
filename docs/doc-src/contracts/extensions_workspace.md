@@ -30,6 +30,12 @@ Word/PPT 的创建与增量编辑共用原生对象实现。图表数据修改�
 PPT 动画与转场保存在原生时间线中，普通内容编辑保留既有动效；显式设置动画会替换该页列表。
 结构报告和文本高度估算不等同于真实字体布局，静态图片也不证明放映行为。
 
+DOCX 合并支持图片、OMML 与独立复制的原生图表/工作簿，未知嵌入关系仍拒绝。
+XLSX 通过 `xlsx_format.print_setup` 显式设置打印区、纸张、方向与适配页数；调用方负责覆盖图表，
+最后保存后重算并预览。公式缺缓存保留 null 与明确提示，不写成计算结果或自动重算。
+ReportLab 创建与水印共用字体注册：默认 CID `STSong-Light`，显式系统字体先解析文件，
+未知或无法嵌入时给出输入/格式错误，不静默换字体。
+
 参数与制作流程见随包 [PPT 指引](../../../examples/office_suite/skills/kiyori-pptx/SKILL.md)、
 [Word 指引](../../../examples/office_suite/skills/kiyori-docx/SKILL.md)、
 [通用指引](../../../examples/office_suite/skills/kiyori-office-core/SKILL.md)；

@@ -349,11 +349,16 @@ def docx_merge(args: Dict[str, Any]) -> Dict[str, Any]:
         # Body XML 中的 rId/样式/编号属于源包，不能直接拼接，否则图片和链接会
         # 指向另一份文档的关系。对无法保持语义的高级对象明确拒绝，不生成坏文件。
         relation_map = {}
+        copied_chart_parts = {}
+        drawing_id = base.part.next_id
         for element in incoming.element.body.iterchildren():
             if element.tag.split("}")[-1] == "sectPr":
                 continue
             cloned = copy_module.deepcopy(element)
             for node in cloned.iter():
+                if node.tag == qn('wp:docPr'):
+                    node.set('id', str(drawing_id))
+                    drawing_id += 1
                 if node.tag in (qn('w:footnoteReference'), qn('w:endnoteReference'), qn('w:commentReference'), qn('w:numPr'), qn('w:sectPr')):
                     raise OfficeError("E_FORMAT_UNSUPPORTED", "合并包含编号、批注、脚注或分节，当前无法保证保真", remedy="保留原文件；需要保留这些结构时请在 Word/WPS 合并")
                 if node.tag in (qn('w:pStyle'), qn('w:rStyle'), qn('w:tblStyle')):
@@ -374,6 +379,10 @@ def docx_merge(args: Dict[str, Any]) -> Dict[str, Any]:
                             relation_map[value] = base.part.relate_to(rel.target_ref, rel.reltype, is_external=True)
                         elif rel.reltype.endswith('/image'):
                             relation_map[value] = base.part.get_or_add_image(BytesIO(rel.target_part.blob))[0]
+                        elif rel.reltype.endswith('/chart'):
+                            from .chart import copy_chart_for_merge
+                            chart = copy_chart_for_merge(rel.target_part, base.part.package, copied_chart_parts)
+                            relation_map[value] = base.part.relate_to(chart, rel.reltype)
                         else:
                             raise OfficeError("E_FORMAT_UNSUPPORTED", "合并包含不支持的嵌入对象", detail=rel.reltype)
                     node.set(key, relation_map[value])
