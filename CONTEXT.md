@@ -30,6 +30,7 @@
 | 对话审计 | `ConversationAuditRepository` 持有不可变事件、修订、加密 payload 与 seal | [完整审计](docs/doc-src/dev-core/AI_CONVERSATION_AUDIT.md) |
 | 扩展 | PackageManager、ToolPkgManager、SkillManager、MCPManager 各自管理所属 registry 与生命周期 | [扩展与工作区](docs/doc-src/contracts/extensions_workspace.md) |
 | 平台 | `KiyoriPaths`、`KiyoriLogger`、权限目录及终端分别持有路径、日志、权限事实和会话 | [平台与存储](docs/doc-src/contracts/platform_storage.md) |
+| AI 产物 | `KiyoriArtifactStoragePolicy` 持有默认保存偏好；`ArtifactStorageAccess` 只投影已有对话工作区，工具不复制路径状态 | [产物存储](docs/doc-src/contracts/artifact_storage.md) |
 
 ## 高频不变量
 

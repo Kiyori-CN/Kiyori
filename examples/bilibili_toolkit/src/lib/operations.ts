@@ -1,4 +1,4 @@
-import { contextRoot, DEFAULT_OUTPUT_ROOT, ensureDirectory, writeJsonArtifact, writeTextArtifact } from "./artifacts";
+import { contextRoot, defaultOutputRoot, ensureDirectory, writeJsonArtifact, writeTextArtifact } from "./artifacts";
 import { BilibiliClient } from "./client";
 import { BilibiliError, failureDetails } from "./errors";
 import { danmakuXml, fetchDanmakuSegments } from "./danmaku";
@@ -663,7 +663,7 @@ function parseFormats(value: string | undefined, supported: string[]): string[] 
 
 function outputRoot(value: string | undefined): string {
   return value === undefined
-    ? DEFAULT_OUTPUT_ROOT
+    ? defaultOutputRoot()
     : requireSafeAbsoluteAndroidPath(value, "output_root");
 }
 

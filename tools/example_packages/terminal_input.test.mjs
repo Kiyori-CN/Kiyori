@@ -11,6 +11,7 @@ async function loadPackage(name) {
         complete: value => completions.push(value),
         console,
         getChatId: () => "input-regression",
+        getArtifactPaths: () => ({ android: '/sdcard/Download/Kiyori/workspace', linux: '/workspace', linuxIsLocal: true }),
         Tools: { System: { terminal: {
             create: async name => ({ sessionId: name }),
             exec: async (...args) => {

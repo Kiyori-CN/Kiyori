@@ -35,6 +35,20 @@ import org.json.JSONArray
  * @param context Application context for tools that need it
  */
 fun registerAllTools(handler: AIToolHandler, context: Context) {
+    handler.registerTool(
+        name = "get_artifact_paths",
+        descriptionGenerator = { "Read AI artifact storage directories" },
+        executor = { tool ->
+            try {
+                val paths = com.kiyori.platform.storage.KiyoriArtifactStoragePolicy.roots(context)
+                ToolResult(toolName = tool.name, success = true,
+                    result = StringResultData(org.json.JSONObject().put("android", paths.android).put("linux", paths.linux).toString()))
+            } catch (error: IllegalArgumentException) {
+                ToolResult(toolName = tool.name, success = false, result = StringResultData(""),
+                    error = "Invalid artifact storage settings; repair them in AI settings: ${error.message}")
+            }
+        }
+    )
 
     // Helper function to wrap UI tool execution with visibility changes
     suspend fun executeUiToolWithVisibility(

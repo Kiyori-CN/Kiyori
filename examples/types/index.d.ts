@@ -288,6 +288,11 @@ declare global {
     function getCallerCardId(): string | undefined;
 
     const KIYORI_DOWNLOAD_DIR: string;
+
+    /** Live artifact defaults, with the current call's bound workspace taking precedence in its environment.
+     * Does not create directories. Explicit destinations take precedence over these defaults.
+     */
+    function getArtifactPaths(): { android: string; linux: string; linuxIsLocal: boolean };
     const KIYORI_CLEAN_ON_EXIT_DIR: string;
 
     // Utility objects

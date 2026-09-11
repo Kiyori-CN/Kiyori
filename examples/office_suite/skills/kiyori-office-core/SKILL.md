@@ -31,8 +31,8 @@ description: 处理 Word/Excel/PPT/PDF 的总入口。任何涉及 .docx/.xlsx/.
 3. `office_render_preview` 自动附加 `data.visual_pages[].image` 多模态图像，按 `page` 逐页看一遍。
    重点看：文字溢出/被截断、元素重叠、中文方框、空占位符、残留 `{{变量}}` 或 Lorem ipsum。
    返回 `images_attached_review_required` 只表示图片已附加，必须实际看图才能宣称视觉检查通过；OCR、字符画、颜色均值和几何报告都不等于看过图。
-4. 产物复制到用户可见位置（默认 `${KIYORI_DOWNLOAD_DIR}/Office/`），
-   用 `Tools.Files.share` 或 `open` 交付，并在回答中给出完整路径。
+4. 产物复制到用户可见位置（默认 AI 产物保存位置的 `office/<task_id>/`，两端各自取本环境根目录），
+  用 `Tools.Files.share` 或 `open` 交付，并在回答中给出完整路径。
 
 ## 路径、安装与真实状态
 

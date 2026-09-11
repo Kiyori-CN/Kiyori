@@ -20,6 +20,9 @@ import com.ai.assistance.operit.core.tools.packTool.PackageManager
 import com.ai.assistance.operit.core.tools.packTool.TOOLPKG_EVENT_MESSAGE_PROCESSING
 import com.ai.assistance.operit.core.tools.packTool.ToolPkgApiCompatibility
 import com.ai.assistance.operit.core.tools.packTool.ToolPkgApiVersion
+import com.ai.assistance.operit.terminal.TerminalManager
+import com.ai.assistance.operit.terminal.provider.type.TerminalType
+import com.ai.assistance.operit.terminal.utils.SSHConfigManager
 import com.ai.assistance.operit.ui.main.navigation.AppRouteDiscoveryGateway
 import com.ai.assistance.operit.ui.main.navigation.AppRouterGateway
 import com.ai.assistance.operit.ui.main.navigation.RouteEntrySource
@@ -1624,6 +1627,20 @@ class JsEngine(
                 binaryDataRegistry = binaryDataRegistry,
                 binaryHandlePrefix = BINARY_HANDLE_PREFIX
             )
+        }
+
+        @JavascriptInterface
+        fun getArtifactPathsForCall(callId: String): String {
+            val session = requireNotNull(resolveExecutionSession(callId)) { "Artifact paths require an active call" }
+            val paths = com.ai.assistance.operit.core.tools.ArtifactStorageAccess.paths(context, session.packageChatId)
+            // 决定命令去向的是运行中的 provider。终端页选中的会话可能属于另一环境，未应用的
+            // SSH 偏好也不能作准；provider 尚未建立时才回退到会话选择与已保存偏好。
+            val manager = TerminalManager.getInstance(context)
+            val terminalType = manager.activeEnvironmentType.value
+                ?: manager.terminalState.value.currentSession?.terminalType
+                ?: if (SSHConfigManager(context).isEnabled()) TerminalType.SSH else TerminalType.LOCAL
+            return JSONObject().put("android", paths.android).put("linux", paths.linux)
+                .put("linuxIsLocal", terminalType != TerminalType.SSH).toString()
         }
 
         @JavascriptInterface

@@ -43,6 +43,7 @@ private fun buildExecutionPreludeSource(): String {
         var done = function() { return __operitInvokeCallRuntime('done', arguments); };
         var complete = function() { return __operitInvokeCallRuntime('complete', arguments); };
         var getEnv = function() { return __operitInvokeCallRuntime('getEnv', arguments); };
+        var getArtifactPaths = function() { return __operitInvokeCallRuntime('getArtifactPaths', arguments); };
         var getPluginConfigDir = function() { return __operitInvokeCallRuntime('getPluginConfigDir', arguments); };
         var getState = function() { return __operitInvokeCallRuntime('getState', arguments); };
         var getLang = function() { return __operitInvokeCallRuntime('getLang', arguments); };
@@ -621,6 +622,9 @@ internal fun buildExecutionRuntimeBridgeScript(): String {
                         getEnv: function(key) {
                             var value = NativeInterface.getEnvForCall(callId, text(key).trim());
                             return value == null || value === '' ? undefined : text(value);
+                        },
+                        getArtifactPaths: function() {
+                            return JSON.parse(NativeInterface.getArtifactPathsForCall(callId));
                         },
                         getPluginConfigDir: function(pluginId) {
                             var explicitId = pluginId == null ? '' : text(pluginId).trim();

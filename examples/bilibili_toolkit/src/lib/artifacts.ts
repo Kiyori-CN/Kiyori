@@ -2,11 +2,13 @@ import { requireSafeAbsoluteAndroidPath, safePathComponent } from "./json";
 import type { JsonValue, VideoContext } from "./types";
 import { BilibiliError } from "./errors";
 
-export const DEFAULT_OUTPUT_ROOT = "/sdcard/Download/Kiyori/Bilibili";
+export function defaultOutputRoot(): string {
+  return requireSafeAbsoluteAndroidPath(getArtifactPaths().android, "artifact_root") + "/bilibili";
+}
 
 export function contextRoot(
   context: VideoContext,
-  outputRoot = DEFAULT_OUTPUT_ROOT
+  outputRoot = defaultOutputRoot()
 ): string {
   const root = requireSafeAbsoluteAndroidPath(outputRoot, "output_root");
   const identity =

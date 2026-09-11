@@ -3,6 +3,7 @@ package com.kiyori.platform.storage
 import android.content.Context
 import android.os.Environment
 import java.io.File
+import java.io.IOException
 
 /**
  * AI 产生的可交付文件的唯一策略 owner。
@@ -14,65 +15,76 @@ object KiyoriArtifactStoragePolicy {
     private const val PREFS = "kiyori_artifact_storage"
     private const val KEY_ANDROID_ROOT = "android_root"
     private const val KEY_LINUX_ROOT = "linux_root"
-    private const val DEFAULT_ANDROID_ROOT = "Download/Kiyori/workspace"
-    private const val DEFAULT_LINUX_ROOT = "/workspace"
 
     data class Roots(val android: String, val linux: String)
 
+    fun normalizeRoots(androidRoot: String?, linuxRoot: String?): Roots = Roots(
+        ArtifactPathRules.androidRoot(androidRoot, Environment.getExternalStorageDirectory().absolutePath),
+        ArtifactPathRules.linuxRoot(linuxRoot),
+    )
+
     fun roots(context: Context): Roots {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val android = normalizeAndroidRoot(prefs.getString(KEY_ANDROID_ROOT, null))
-        val linux = normalizeLinuxRoot(prefs.getString(KEY_LINUX_ROOT, null))
-        return Roots(android = android, linux = linux)
+        return normalizeRoots(prefs.getString(KEY_ANDROID_ROOT, null), prefs.getString(KEY_LINUX_ROOT, null))
     }
 
     fun setRoots(context: Context, androidRoot: String, linuxRoot: String) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putString(KEY_ANDROID_ROOT, normalizeAndroidRoot(androidRoot))
-            .putString(KEY_LINUX_ROOT, normalizeLinuxRoot(linuxRoot))
-            .apply()
+        val normalized = normalizeRoots(androidRoot, linuxRoot)
+        val saved = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putString(KEY_ANDROID_ROOT, normalized.android)
+            .putString(KEY_LINUX_ROOT, normalized.linux).commit()
+        if (!saved) throw IOException("Unable to persist artifact storage settings")
     }
 
     fun reset(context: Context) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .remove(KEY_ANDROID_ROOT).remove(KEY_LINUX_ROOT).apply()
+        val defaults = normalizeRoots(null, null)
+        setRoots(context, defaults.android, defaults.linux)
     }
 
     fun androidAbsoluteRoot(context: Context): File {
-        val relative = roots(context).android.removePrefix("Download/")
-        return File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), relative)
+        return File(roots(context).android)
     }
 
+    /** 设置页必须能够打开并修复旧版本存入的非法值，不能静默切换输出目标。 */
+    fun savedInputs(context: Context): Roots {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        return Roots(prefs.getString(KEY_ANDROID_ROOT, null).orEmpty(), prefs.getString(KEY_LINUX_ROOT, null).orEmpty())
+    }
+
+    fun reserveAndroidOutput(context: Context, category: String, relativeName: String): File =
+        ArtifactPathRules.reserveUniqueFile(File(androidAbsoluteRoot(context), category), relativeName)
+
     fun prompt(context: Context, english: Boolean): String {
-        val roots = roots(context)
+        val roots = try {
+            roots(context)
+        } catch (error: IllegalArgumentException) {
+            return if (english) {
+                "Artifact storage settings are invalid. Ask the user to repair AI artifact storage settings or specify an absolute destination; do not invent a default directory."
+            } else {
+                "产物保存设置无效。请用户在 AI 产物保存位置设置中修正，或明确指定绝对目标路径；不要自行选择默认目录。"
+            }
+        }
         return if (english) {
-            """ARTIFACT STORAGE POLICY (ENFORCED)
+            """ARTIFACT STORAGE POLICY
 - Unless the user explicitly gives another destination, every generated or exported artifact (documents, scripts, reports, archives, images, videos, downloads and scaffolding) MUST be written below Android `${roots.android}` or Ubuntu `${roots.linux}`.
 - Never create project files in `/root`, `/`, the app private files directory, the terminal home directory, or an unspecified current directory. Do not use relative paths for writes.
-- Create a task-specific subdirectory using a short kebab-case name, then use descriptive lowercase names with an extension; avoid `test`, `new`, `output`, timestamps alone, or overwriting an existing file.
+- Create a descriptive task subdirectory, separate deliverables from temporary work, use descriptive filenames (Unicode supported) with correct extensions, and do not overwrite existing deliverables without permission.
 - Before writing, state the resolved absolute destination and use the matching environment (`android` or `linux`). After writing, report the final absolute path and verify the file exists.
 - A user-provided path or an explicitly selected workspace takes precedence; do not silently relocate it.
+- Installed runtimes, virtual environments, package caches and ToolPkg private data retain their managed locations. Do not move dependencies into delivery directories.
+- Bundled scripts read live defaults through getArtifactPaths(). Android and Ubuntu are separate filesystems. Arbitrary shell/third-party/MCP code is not sandboxed by this policy: pass explicit output arguments. Remote SSH/MCP does not share local directories.
 """.trimIndent()
         } else {
-            """产物保存策略（强制执行）
+            """产物保存策略
 - 除非用户明确指定其他位置，所有生成或导出的产物（文档、脚本、报告、压缩包、图片、视频、下载内容和脚手架）必须写入 Android `${roots.android}` 或 Ubuntu `${roots.linux}` 下。
 - 禁止把项目文件写入 `/root`、`/`、应用私有 files 目录、终端 home 或未指定的当前目录；写入时不得使用相对路径。
-- 先创建任务专用的短横线命名子目录，再使用有描述性的英文小写文件名和正确扩展名；不要使用 `test`、`new`、`output`、仅时间戳，也不要覆盖已有文件。
+- 创建有意义的任务子目录，分开交付物与过程文件；使用描述性文件名（支持中文等 Unicode）和正确扩展名，未经允许不覆盖已有交付物。
 - 写入前说明解析后的绝对目标路径，并使用匹配的 `environment`（`android` 或 `linux`）；写入后返回最终绝对路径并验证文件存在。
 - 用户明确给出的路径或已选择的工作区优先，不得静默改写。
+- 已安装运行时、虚拟环境、依赖缓存和 ToolPkg 私有数据保持各自管理目录，不把环境依赖搬进交付目录。
+- 内置脚本通过 getArtifactPaths() 读取当前默认值。Android 与 Ubuntu 是独立文件系统。该策略不是任意 Shell、第三方或 MCP 代码的沙箱，调用时必须传递输出参数；远端 SSH/MCP 不共享本地目录。
 """.trimIndent()
         }
     }
 
-    private fun normalizeAndroidRoot(value: String?): String {
-        val raw = value?.trim().orEmpty().ifBlank { DEFAULT_ANDROID_ROOT }
-        require(!raw.startsWith("/") && !raw.contains("..")) { "Android artifact root must be relative to Download" }
-        return raw.trim('/').replace('\\', '/')
-    }
-
-    private fun normalizeLinuxRoot(value: String?): String {
-        val raw = value?.trim().orEmpty().ifBlank { DEFAULT_LINUX_ROOT }
-        require(raw.startsWith("/") && !raw.split('/').contains("..")) { "Linux artifact root must be an absolute path without .." }
-        return "/" + raw.trim('/').replace('\\', '/')
-    }
 }

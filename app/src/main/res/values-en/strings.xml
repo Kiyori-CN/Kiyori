@@ -8611,4 +8611,16 @@
     <string name="test_media_unverified">Connected, but not verified</string>
     <string name="test_result_expand">Expand</string>
     <string name="test_result_collapse">Collapse</string>
+    <string name="kiyori_ai_settings_artifact_storage">AI artifact storage</string>
+    <string name="kiyori_ai_settings_artifact_storage_desc">Default Android and Ubuntu directories for AI outputs</string>
+    <string name="artifact_storage_help">Choose default directories for AI documents, media and scripts. An explicit destination or bound workspace takes precedence.</string>
+    <string name="artifact_storage_android_label">Android directory</string>
+    <string name="artifact_storage_android_help">Use a shared-storage absolute path, such as /storage/emulated/0/Download/Kiyori/workspace. Legacy paths relative to Download are also accepted.</string>
+    <string name="artifact_storage_linux_label">Ubuntu directory</string>
+    <string name="artifact_storage_linux_help">Use a dedicated absolute directory, such as /workspace. System roots and .. segments are rejected.</string>
+    <string name="artifact_storage_boundary">Changes apply to new output requests and new local AI terminal sessions. Existing files and sessions are not moved. Android and Ubuntu are separate filesystems; storage permissions still apply. Environment dependencies keep their managed locations. External tools require explicit output paths.</string>
+    <string name="artifact_storage_saved">Artifact directories saved</string>
+    <string name="artifact_storage_invalid">Could not save. Check the paths and try again.</string>
+    <string name="artifact_storage_save">Save</string>
+    <string name="artifact_storage_reset">Restore defaults</string>
 </resources>

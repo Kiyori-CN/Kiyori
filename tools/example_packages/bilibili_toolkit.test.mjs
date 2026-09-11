@@ -4,6 +4,22 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fixtureService, hostError, loadToolkit, memoryTools, readMetadata, repository, target, video } from "./bilibili_test_support.mjs";
 
+test('artifact defaults are read per call and explicit destinations retain precedence', async () => {
+  const { tools, files } = memoryTools();
+  let root = '/storage/emulated/0/Documents/资料一';
+  const api = await loadToolkit(fixtureService(), tools, { error() {} }, () => ({ android: root, linux: '/workspace' }));
+  const first = await api.bilibili_capture({ target });
+  assert.equal(first.success, true, JSON.stringify(first));
+  assert.ok(first.root.startsWith(root + '/bilibili/'));
+  root = '/storage/emulated/0/Documents/资料二';
+  const second = await api.bilibili_capture({ target });
+  assert.equal(second.success, true, JSON.stringify(second));
+  assert.ok(second.root.startsWith(root + '/bilibili/'));
+  assert.ok(files.has(first.manifest));
+  const explicit = await api.bilibili_capture({ target, output_root: '/sdcard/chosen' });
+  assert.ok(explicit.root.startsWith('/sdcard/chosen/'));
+});
+
 test("all 16 tool schemas expose implemented optional arguments", async () => {
   const meta = await readMetadata();
   assert.equal(meta.tools.length, 16);

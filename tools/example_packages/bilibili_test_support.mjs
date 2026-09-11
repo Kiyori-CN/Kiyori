@@ -17,13 +17,13 @@ export function hostError(code, message, endpoint, apiCode = null) {
   error.details = { success: false, error: { code, message, url: endpoint, http_status: 200, api_code: apiCode, api_message: message, attempts: 1 } };
   return error;
 }
-export async function loadToolkit(services, tools, logger = { error() {} }) {
+export async function loadToolkit(services, tools, logger = { error() {} }, artifactPaths = () => ({ android: '/storage/emulated/0/Download/Kiyori/workspace', linux: '/workspace' })) {
   const output = await build({
     stdin: { contents: 'export * from "./examples/bilibili_toolkit/src/packages/bilibili"; export * from "./examples/bilibili_toolkit/src/lib/danmaku"; export * from "./examples/bilibili_toolkit/src/lib/content"; export * from "./examples/bilibili_toolkit/src/lib/crypto";', resolveDir: repository },
     bundle: true, format: "cjs", platform: "node", target: "es2020", write: false
   });
   const module = { exports: {} };
-  vm.runInNewContext(output.outputFiles[0].text, { module, exports: module.exports, Error, console: logger, ToolPkg: { services: { bilibili: services } }, Tools: tools });
+  vm.runInNewContext(output.outputFiles[0].text, { module, exports: module.exports, Error, console: logger, getArtifactPaths: artifactPaths, ToolPkg: { services: { bilibili: services } }, Tools: tools });
   return module.exports;
 }
 export function memoryTools() {

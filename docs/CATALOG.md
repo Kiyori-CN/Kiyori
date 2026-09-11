@@ -813,6 +813,7 @@
 | [README.md](doc-src/contracts/README.md) | 运行时契约索引 |
 | [ai_execution.md](doc-src/contracts/ai_execution.md) | AI 请求与执行契约 |
 | [ai_interaction.md](doc-src/contracts/ai_interaction.md) | AI 对话交互契约 |
+| [artifact_storage.md](doc-src/contracts/artifact_storage.md) | AI 产物存储契约 |
 | [browser.md](doc-src/contracts/browser.md) | 浏览器运行时契约 |
 | [extensions_workspace.md](doc-src/contracts/extensions_workspace.md) | 扩展、工具与工作区契约 |
 | [media_downloads.md](doc-src/contracts/media_downloads.md) | 媒体、资源目录与下载契约 |

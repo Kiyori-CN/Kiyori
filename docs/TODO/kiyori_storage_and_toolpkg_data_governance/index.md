@@ -1,7 +1,7 @@
 ---
 status: active
 owner: Kiyori storage and ToolPkg runtime
-updated: 2026-08-11
+updated: 2026-09-11
 ---
 
 # Kiyori 存储路径与 ToolPkg 数据治理
@@ -54,6 +54,49 @@ kiyori_storage_and_toolpkg_data_governance/
 7. [PENDING] 目标 Android 设备路径、SAF、MediaStore、市场更新和旧数据导入验收
 
 ## 当前数据边界
+
+## AI 产物默认目录闭环（2026-09-11）
+
+本增量以 `main@ccc4ba4fa` 为基线，修复此前只有提示词与部分浏览器路径的实现。用户授权包含审查并交付其他任务留下的 Responses 图片历史与审计导出改动。
+
+1. [DONE] 调查策略、设置、浏览器输出、Terminal、code_runner、Office、Bilibili 和显式路径工具调用链。
+2. [DONE] 统一绝对根、旧输入兼容、路径校验、可恢复设置 UI，以及实时脚本 API 与既有工作区绑定投影。
+3. [DONE] 接通本地 AI 新会话 cwd、源码执行目录、Office 两端任务目录、Bilibili 默认根及浏览器原子同名分配。
+4. [DONE] 执行路径/并发、Office/Bilibili/PTY、内置包资产同步、Responses 与审计回归，串行构建 Debug APK 并核对提交清单。
+5. [PENDING] Android 权限、SAF、真实 Ubuntu/PRoot、真实 Office/Bilibili 和第三方工具现场验收。
+
+风险与回滚：只改变未指定目标时的默认位置，不迁移现有文件，不搬移虚拟环境/依赖缓存，不重置已有终端；可在设置中恢复旧专用目录。显式目标、覆盖编辑、网络/SAF、人工下载和系统导出保持各自原契约。运行时边界见[产物存储契约](../../doc-src/contracts/artifact_storage.md)。
+
+复查还修正了三处真实缺陷：`getArtifactPaths().linuxIsLocal` 原先取终端页当前选中的会话类型，
+现在以运行中的 provider 为准（provider 未建立时才回退会话与已保存 SSH 偏好），避免 SSH 场景把
+本地 Ubuntu 目录当成本地路径；`code_runner` 在路径校验通过后才新建终端会话，不再为无效路径
+留下空会话；Office skill 与工作区模板中失效的 `${KIYORI_DOWNLOAD_DIR}/Office/` 说明改为实际
+的 `office/<task_id>/` 交付规则。
+
+`tools/example_packages/bilibili_host_runtime_support.mjs` 未跟随 runtime 拆分更新：它只装配了
+6 个 bootstrap 模块中的 4 个，缺 `toolpkg-api-runtime`，也没有 `getArtifactPathsForCall`
+原生面，因此 `bilibili_host_runtime.test.mjs` 7 项全部在 host 构造阶段就失败（与本轮差异无关，
+用 HEAD 版本 bundle 复现同样失败）。本轮按 `buildInitRuntimeModules` 的顺序补齐装配并补上默认
+产物根查询，7 项全部通过；测试 1 也因此真正跑通打包 bundle 的默认输出目录路径。
+
+验证（2026-09-11 Asia/Shanghai，工作区基线 `main@ccc4ba4fa`）：`ArtifactPathRulesTest`、
+`OpenAIResponsesPayloadAdapterTest`、`OpenAIResponsesImageHistoryRequestTest`、
+`ConversationAuditMarkdownRendererTest` 与 `packTool` 契约测试共 100 项全部通过；
+`office_suite`/`bilibili_toolkit`/`terminal_input` 71 项与 PTY `code_runner_python` 12 项通过；
+`bilibili_host_runtime`、`office_console`、`browser_development` 追加 20 项通过（合计 91 项）；
+`examples/code_runner.js` 与 `app/src/main/assets/packages/code_runner.js` 逐字节一致。
+`examples/bilibili_toolkit/dist` 原先漏掉了 `build.mjs` 重编译，CI 的
+`git diff --exit-code -- examples/bilibili_toolkit/dist` 会失败；已重新生成并核对包内
+`dist/packages/bilibili.js` 与工作区逐字节一致。`./gradlew.bat :app:assembleDebug --no-daemon
+--console=plain` 成功，2026-09-11 21:04:17 UTC+8 的 `app/build/outputs/apk/debug/app-debug.apk`
+为 495,731,084 bytes，SHA-256
+`89efbfc3e66ade2a73604d6dd1b36d8d1c257aaa2b00d0fc62eebfe0cb1bb30d`；包内
+`assets/packages/code_runner.js`（70,272 bytes）与 `bilibili_toolkit.toolpkg` 内
+`dist/packages/bilibili.js`（78,199 bytes）均与工作区一致，`office_suite.toolpkg` 为 267,152 bytes。
+`tsc -p examples/tsconfig.json` 仍失败于既有 `examples/java_bridge.ts` 类型声明冲突；
+该文件不在本轮改动范围，未在本次修复。
+
+## 当前存储布局
 
 ```text
 应用私有且不备份/

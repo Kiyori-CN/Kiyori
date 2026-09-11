@@ -411,13 +411,12 @@ async function androidTarget(
   if (explicit) {
     return normalizeAndroidPath(explicit);
   }
-  const base = asText(typeof KIYORI_DOWNLOAD_DIR === "string" ? KIYORI_DOWNLOAD_DIR : "").trim();
-  const root = base || "/sdcard/Download";
+  const root = getArtifactPaths().android;
   const name =
     spec.outputKind === "multi"
       ? `${stripExtension(spec.defaultOutputName)}-${taskId}`
       : spec.defaultOutputName;
-  return normalizeAndroidPath(`${root}/Office/${name}`);
+  return normalizeAndroidPath(`${root}/office/${taskId}/${name}`);
 }
 
 function stripExtension(name: string): string {
@@ -447,13 +446,15 @@ async function deliverArtifacts(
     );
   }
   const outputEnv: FileEnv = declared === "linux" ? "linux" : "android";
-  if (outputEnv === "linux") {
+  if (outputEnv === "linux" && (asText(params.output_path).trim() || params.in_place === true)) {
     return artifacts;
   }
   if (artifacts.length === 0) {
     return artifacts;
   }
-  let target = await androidTarget(params, spec, taskId);
+  let target = outputEnv === "android"
+    ? await androidTarget(params, spec, taskId)
+    : `${getArtifactPaths().linux}/office/${taskId}/${spec.outputKind === "multi" ? stripExtension(spec.defaultOutputName) : spec.defaultOutputName}`;
   // 默认交付名必须来自实际产物（例如 convert 到 PDF），不能用固定 output.docx。
   if (!asText(params.output_path).trim() && spec.outputKind !== "multi") {
     target = target.replace(/\/[^/]*$/, `/${baseName(artifacts[0].path)}`);
@@ -464,12 +465,12 @@ async function deliverArtifacts(
   const baseDir = multi && typeof data.target_dir === "string" ? asText(data.target_dir) : "";
 
   if (multi) {
-    const exists = await Tools.Files.exists(target, "android");
+    const exists = await Tools.Files.exists(target, outputEnv);
     if (exists && exists.exists && !overwrite) {
       throw new Error(`E_PATH_EXISTS: 目标目录已存在且未设置 overwrite=true: ${target}`);
     }
   }
-  assertFileOperation(await Tools.Files.mkdir(targetDir, true, "android"), "创建交付目录", targetDir);
+  assertFileOperation(await Tools.Files.mkdir(targetDir, true, outputEnv), "创建交付目录", targetDir);
 
   const delivered: OfficeArtifact[] = [];
   for (const item of artifacts) {
@@ -477,7 +478,7 @@ async function deliverArtifacts(
       ? `${target}/${baseDir ? relativeTo(baseDir, item.path) : baseName(item.path)}`
       : target;
     if (!multi) {
-      const exists = await Tools.Files.exists(destination, "android");
+      const exists = await Tools.Files.exists(destination, outputEnv);
       if (exists && exists.exists && !overwrite) {
         throw new Error(
           `E_PATH_EXISTS: 目标文件已存在且未设置 overwrite=true: ${destination}`
@@ -486,28 +487,28 @@ async function deliverArtifacts(
     }
     const parent = destination.replace(/\/[^/]*$/, "");
     if (parent) {
-      assertFileOperation(await Tools.Files.mkdir(parent, true, "android"), "创建产物目录", parent);
+      assertFileOperation(await Tools.Files.mkdir(parent, true, outputEnv), "创建产物目录", parent);
     }
     const pending = `${destination}.office-${newTaskId()}.tmp`;
     try {
       assertFileOperation(
-        await Tools.Files.copy(item.path, pending, false, "linux", "android"),
-        "回搬产物到 Android",
+        await Tools.Files.copy(item.path, pending, false, "linux", outputEnv),
+        "复制办公产物到交付目录",
         pending
       );
-      await verifyDeliveredSize(item, pending);
+      await verifyDeliveredSize(item, pending, outputEnv);
       // 验证副本后再调用宿主 move；宿主存储后端的最终发布仍需设备验证。
-      assertFileOperation(await Tools.Files.move(pending, destination, "android"), "发布办公产物", destination);
+      assertFileOperation(await Tools.Files.move(pending, destination, outputEnv), "发布办公产物", destination);
     } catch (error) {
       try {
-        const exists = await Tools.Files.exists(pending, "android");
-        if (exists.exists) assertFileOperation(await Tools.Files.deleteFile(pending, false, "android"), "清理本次临时产物", pending);
+        const exists = await Tools.Files.exists(pending, outputEnv);
+        if (exists.exists) assertFileOperation(await Tools.Files.deleteFile(pending, false, outputEnv), "清理本次临时产物", pending);
       } catch (cleanupError) {
         throw new Error(`${asText(error instanceof Error ? error.message : error)}；临时副本清理失败：${pending}`);
       }
       throw error;
     }
-    delivered.push({ ...item, path: destination, env: "android" });
+    delivered.push({ ...item, path: destination, env: outputEnv });
   }
   return delivered;
 }
@@ -524,12 +525,13 @@ function hasArtifacts(envelope: OfficeEnvelope): boolean {
  */
 async function verifyDeliveredSize(
   artifact: OfficeArtifact,
-  destination: string
+  destination: string,
+  environment: FileEnv
 ): Promise<void> {
   if (!Number.isFinite(artifact.bytes) || artifact.bytes < 0) {
     throw new Error("E_PROTOCOL: 运行时产物缺少有效 bytes，不能跳过交付校验");
   }
-  const info = await Tools.Files.info(destination, "android");
+  const info = await Tools.Files.info(destination, environment);
   if (!info || info.exists === false) {
     throw new Error(`E_PATH_INVALID: 交付产物未落盘 target=${destination}`);
   }
@@ -681,11 +683,11 @@ async function runControlCommand(paths: CachedPaths, spec: ToolSpec, input: Reco
     completed = true;
     const envelope = parseEnvelope(executed.output);
     if (envelope.ok && executed.exitCode !== 0) throw new Error(`E_ENGINE_FAILED: 管理命令退出码 ${executed.exitCode}`);
-    const base = asText(typeof KIYORI_DOWNLOAD_DIR === "string" ? KIYORI_DOWNLOAD_DIR : "").trim() || "/sdcard/Download";
+    const base = getArtifactPaths().android;
     outcome = !envelope.ok ? { ...envelopeFailure(envelope) } : { success: true, command: spec.command, message: `${spec.command} 执行完成`,
       data: { ...envelope.data, execution_env: "linux", runtime_root: paths.runtimeDir,
         work_root: `${paths.home}/kiyori_office/work`, control_root: controlDir,
-        default_delivery_dir: normalizeAndroidPath(`${base}/Office`) },
+        default_delivery_dir: normalizeAndroidPath(`${base}/office`) },
       artifacts: [], warnings: envelope.warnings ?? [], next_actions: envelope.next_actions ?? [] };
   } catch (error) {
     outcome = { ...toFailure(spec.command, error) };

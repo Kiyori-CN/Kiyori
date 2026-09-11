@@ -33,8 +33,10 @@ async function fixture(t) {
         return JSON.parse(reply.value);
     }
     const completions = [], calls = [];
+    const artifactRoot = JSON.parse((await exec("python3 -c 'import os,json; print(json.dumps(os.path.join(os.environ[\"HOME\"], \"AI artifacts\")))'")).output.trim());
     const context = vm.createContext({
         exports: {}, console: { error() {} }, complete: value => completions.push(value),
+        getArtifactPaths: () => ({ android: '/unused', linux: artifactRoot, linuxIsLocal: true }),
         Tools: { System: { terminal: {
             create: async () => ({ sessionId: "code_runner_session" }),
             exec: async (sessionId, command) => {
@@ -47,7 +49,7 @@ async function fixture(t) {
     });
     vm.runInContext(await readFile(new URL("../../app/src/main/assets/packages/code_runner.js", import.meta.url), "utf8"), context);
     return {
-        exec, calls,
+        exec, calls, artifactRoot,
         async run(params, tool = "run_python") {
             await context.exports[tool](params);
             return completions.at(-1);
@@ -56,6 +58,16 @@ async function fixture(t) {
 }
 
 const pty = (name, fn) => test(name, { skip: windows && !distro, timeout: 30000 }, fn);
+
+pty('relative Python output stays in the configured artifact directory while HOME retains dependencies', async t => {
+    const f = await fixture(t);
+    const result = await f.run({ script: "import os,json,pathlib; pathlib.Path('报告.txt').write_text('ok'); print(json.dumps({'cwd': os.getcwd(), 'home': os.environ['HOME']}))" });
+    assert.equal(result.success, true, JSON.stringify(result));
+    const state = JSON.parse(result.data);
+    assert.equal(state.cwd, f.artifactRoot + '/code-runner');
+    assert.notEqual(state.cwd, state.home);
+    assert.equal((await f.run({ script: "from pathlib import Path; print(Path('报告.txt').read_text())" })).data, 'ok');
+});
 
 pty("complex quotes, tabs, Unicode, CRLF and a long line execute unchanged", async t => {
     const f = await fixture(t);

@@ -3475,8 +3475,15 @@ internal fun StandardBrowserSessionTools.writeBrowserTextOutput(
     extension: String
 ): String {
     val resolved = resolveBrowserOutputFile(filename, defaultPrefix, extension)
-    resolved.parentFile?.mkdirs()
-    resolved.writeText(content)
+    try {
+        resolved.parentFile?.mkdirs()
+        resolved.writeText(content)
+    } catch (error: Exception) {
+        if (!File(filename).isAbsolute && !resolved.delete()) {
+            error.addSuppressed(java.io.IOException("Cannot remove incomplete artifact: $resolved"))
+        }
+        throw error
+    }
     return resolved.absolutePath
 }
 
@@ -3487,32 +3494,17 @@ internal fun StandardBrowserSessionTools.resolveBrowserOutputFile(
 ): File {
     // Browser snapshots and screenshots are user-visible artifacts. Keep them in the
     // configured AI workspace instead of the cache, which can be deleted silently.
-    val baseDir = File(KiyoriArtifactStoragePolicy.androidAbsoluteRoot(context), "browser").apply { mkdirs() }
     if (!filename.isNullOrBlank()) {
         val candidate = File(filename)
         return if (candidate.isAbsolute) {
             candidate
         } else {
-            File(baseDir, sanitizeBrowserOutputName(filename))
+            val name = if (candidate.extension.isBlank()) "$filename.$extension" else filename
+            KiyoriArtifactStoragePolicy.reserveAndroidOutput(context, "browser", name)
         }
     }
-    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-    return allocateBrowserOutputFile(baseDir, "${defaultPrefix}_$timestamp", extension)
-}
-
-private fun sanitizeBrowserOutputName(value: String): String =
-    value.replace('\\', '/').substringAfterLast('/').replace(Regex("[^A-Za-z0-9._-]"), "_")
-        .trim('.', ' ').ifBlank { "artifact" }
-
-private fun allocateBrowserOutputFile(baseDir: File, stem: String, extension: String): File {
-    val safeStem = sanitizeBrowserOutputName(stem).substringBeforeLast('.', sanitizeBrowserOutputName(stem))
-    var index = 0
-    while (true) {
-        val suffix = if (index == 0) "" else "_$index"
-        val candidate = File(baseDir, "$safeStem$suffix.$extension")
-        if (!candidate.exists()) return candidate
-        index++
-    }
+    val timestamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(Date())
+    return KiyoriArtifactStoragePolicy.reserveAndroidOutput(context, "browser", "$defaultPrefix-$timestamp.$extension")
 }
 
 internal fun StandardBrowserSessionTools.takeScreenshot(
@@ -3525,23 +3517,33 @@ internal fun StandardBrowserSessionTools.takeScreenshot(
     return runOnMainSync {
         ensureSessionAttachedOnMain(session.id)
         val resolvedType = if (type == "jpg") "jpeg" else type
-        val output = resolveBrowserOutputFile(filename, "page", if (resolvedType == "png") "png" else "jpg")
-        output.parentFile?.mkdirs()
         val bitmap =
             when {
                 fullPage -> captureFullPageBitmap(session.webView)
                 ref != null -> captureElementBitmap(session.webView, ref)
                 else -> captureViewportBitmap(session.webView)
             }
-        FileOutputStream(output).use { stream ->
-            bitmap.compress(
-                if (resolvedType == "png") Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG,
-                92,
-                stream
-            )
+        try {
+            val output = resolveBrowserOutputFile(filename, "page", if (resolvedType == "png") "png" else "jpg")
+            try {
+                output.parentFile?.mkdirs()
+                FileOutputStream(output).use { stream ->
+                    check(bitmap.compress(
+                        if (resolvedType == "png") Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG,
+                        92,
+                        stream
+                    )) { "Screenshot encoding failed" }
+                }
+                output.absolutePath
+            } catch (error: Exception) {
+                if ((filename.isNullOrBlank() || !File(filename).isAbsolute) && !output.delete()) {
+                    error.addSuppressed(java.io.IOException("Cannot remove incomplete artifact: $output"))
+                }
+                throw error
+            }
+        } finally {
+            bitmap.recycle()
         }
-        bitmap.recycle()
-        output.absolutePath
     }
 }
 

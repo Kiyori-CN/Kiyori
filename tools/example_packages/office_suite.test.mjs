@@ -61,6 +61,7 @@ function createHost(options = {}) {
       throw new Error(`unexpected require: ${id}`);
     },
     getEnv: () => '',
+    getArtifactPaths: () => options.artifactPaths ?? ({ android: '/storage/emulated/0/Download/Kiyori/workspace', linux: '/workspace' }),
     ToolPkg: {
       readResource: async () => '/data/cache/kiyori_office_runtime.zip'
     },
@@ -174,6 +175,34 @@ function lastArgsPayload(host) {
 
 const envelope = value => '__KIYORI_OFFICE_BEGIN__' + JSON.stringify(value) + '__KIYORI_OFFICE_END__';
 
+test('default deliveries use configured roots, task isolation and the real extension in both environments', async () => {
+  for (const output_env of ['android', 'linux']) {
+    const artifactPaths = { android: '/storage/emulated/0/Documents/中文资料', linux: '/work/中文资料' };
+    const options = { artifactPaths,
+      envelope: envelope({ ok: true, command: 'docx_create', artifacts: [
+        { path: '/root/kiyori_office/work/t1/out/report.pdf', env: 'linux', bytes: 42, role: 'output' }
+      ], data: {} }), info: () => ({ exists: true, size: 42 }) };
+    const first = await runTool('docx_create', { markdown: 'x', env: 'linux', output_env, task_id: 't1' }, options);
+    assert.equal(first.result.success, true, JSON.stringify(first.result));
+    assert.equal(first.result.artifacts[0].path, `${artifactPaths[output_env]}/office/t1/report.pdf`);
+    assert.equal(first.result.artifacts[0].env, output_env);
+    assert.equal(lastArgsPayload(first.host).output_path, undefined);
+    const second = await runTool('docx_create', { markdown: 'x', env: 'linux', output_env, task_id: 't2' }, options);
+    assert.equal(second.result.artifacts[0].path, `${artifactPaths[output_env]}/office/t2/report.pdf`);
+  }
+});
+
+test('an explicit Android delivery does not consult default artifact settings', async () => {
+  const { result } = await runTool('docx_create', { markdown: 'x', env: 'linux', output_path: '/sdcard/chosen/report.docx' }, {
+    artifactPaths: { android: '/storage/emulated/0/unused', linux: '/unused' },
+    envelope: envelope({ ok: true, command: 'docx_create', artifacts: [
+      { path: '/root/out/report.docx', env: 'linux', bytes: 42, role: 'output' }
+    ], data: {} }), info: () => ({ exists: true, size: 42 })
+  });
+  assert.equal(result.success, true, JSON.stringify(result));
+  assert.match(result.artifacts[0].path, /\/chosen\/report.docx$/);
+});
+
 test('preview attaches actual multimodal links from the delivered environment', async () => {
   for (const output_env of ['linux', 'android']) {
     const { host, result } = await runTool('office_render_preview', { env: 'linux', path: '/root/a.pdf', output_env }, {
@@ -193,11 +222,12 @@ test('OCR or failed image registration cannot pass visual preview', async () => 
   for (const failure of [{ imageContent: 'OCR text only' }, { imageThrows: true }]) {
     const { result } = await runTool('office_render_preview', { env: 'linux', path: '/root/a.pdf', output_env: 'linux' }, {
       ...failure,
+      info: () => ({ exists: true, size: 24 }),
       envelope: envelope({ ok: true, command: 'office_render_preview', artifacts: [{ path: '/root/out/page.jpg', env: 'linux', bytes: 24 }] })
     });
     assert.equal(result.success, false);
     assert.equal(result.code, 'E_ENGINE_FAILED');
-    assert.equal(result.artifacts[0].path, '/root/out/page.jpg');
+    assert.match(result.artifacts[0].path, /^\/workspace\/office\/[^/]+\/.+\/page.jpg$/);
   }
 });
 

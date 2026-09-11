@@ -8562,6 +8562,16 @@
     <string name="kiyori_ai_settings_lan_automation">局域网与自动化</string>
     <string name="kiyori_ai_settings_lan_automation_desc">管理本地 HTTP/Web 对话服务、端口、令牌和调用示例</string>
     <string name="kiyori_ai_settings_artifact_storage">AI 产物保存位置</string>
+    <string name="artifact_storage_help">设置 AI 文档、媒体与脚本的默认保存目录。明确指定的目标或已绑定工作区优先。</string>
+    <string name="artifact_storage_android_label">Android 目录</string>
+    <string name="artifact_storage_android_help">填写共享存储绝对路径，例如 /storage/emulated/0/Download/Kiyori/workspace；兼容旧版相对 Download 的输入。</string>
+    <string name="artifact_storage_linux_label">Ubuntu 目录</string>
+    <string name="artifact_storage_linux_help">填写专用绝对目录，例如 /workspace；不允许系统根目录或 .. 路径段。</string>
+    <string name="artifact_storage_boundary">保存后用于新产物请求和新建的本地 AI 终端会话，不移动已有文件和会话。Android 与 Ubuntu 是独立文件系统，仍需对应存储权限。环境依赖保持原管理目录；外部工具需显式传入输出路径。</string>
+    <string name="artifact_storage_saved">已保存产物目录</string>
+    <string name="artifact_storage_invalid">保存失败，请检查路径后重试。</string>
+    <string name="artifact_storage_save">保存</string>
+    <string name="artifact_storage_reset">恢复默认</string>
     <string name="kiyori_ai_settings_artifact_storage_desc">设置 AI 生成、导出、下载和脚手架文件的 Android 与 Ubuntu 默认目录</string>
     <string name="kiyori_avatar_settings_title">虚拟形象</string>
     <string name="kiyori_avatar_configuration_desc">选择形象模型，调整显示位置，并管理动作与情绪映射</string>

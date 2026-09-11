@@ -36,6 +36,13 @@ export async function hostRuntime(service, tools = memoryTools().tools, modules 
         logs.push(args[1]);
       } else if (method === "getEnvForCall") {
         return "";
+      } else if (method === "getArtifactPathsForCall") {
+        // 打包脚本在没有显式 output_root 时读取默认产物目录；夹具给出与偏好默认值一致的根。
+        return JSON.stringify({
+          android: "/storage/emulated/0/Download/Kiyori/workspace",
+          linux: "/workspace",
+          linuxIsLocal: true
+        });
       } else if (method === "readToolPkgTextResource") {
         return modules[args[1]] ?? null;
       } else if (method === "callToolAsyncForExecution") {
@@ -67,7 +74,13 @@ export async function hostRuntime(service, tools = memoryTools().tools, modules 
   };
   const run = (source, filename) => vm.runInContext(source, context, { filename });
   run(await kotlinScript("quickjs/src/main/java/com/ai/assistance/operit/core/tools/javascript/QuickJsNativeCompatScriptBuilder.kt", "buildQuickJsCompatScript"), "compat.js");
-  for (const name of ["buildRuntimeExposeScript", "buildRuntimeCallRegistryScript", "buildRuntimeErrorScript", "buildRuntimeToolCallScript"]) {
+  // 与 buildInitRuntimeModules 的装配顺序一致：ToolPkg API runtime 必须在 registration 与
+  // JsTools 之前加载，否则 __operitToolPkgApi 缺失会让整组 host 测试无法启动。
+  for (const name of ["buildRuntimeExposeScript", "buildRuntimeCallRegistryScript"]) {
+    run(await kotlinScript(hostDirectory + "/JsInitRuntimeScriptBuilder.kt", name), name + ".js");
+  }
+  run(await kotlinScript(hostDirectory + "/JsToolPkgApiRuntime.kt", "buildToolPkgApiRuntimeScript"), "toolpkg-api-runtime.js");
+  for (const name of ["buildRuntimeErrorScript", "buildRuntimeToolCallScript"]) {
     run(await kotlinScript(hostDirectory + "/JsInitRuntimeScriptBuilder.kt", name), name + ".js");
   }
   const prelude = await kotlinScript(hostDirectory + "/JsExecutionScriptBuilder.kt", "buildExecutionPreludeSource");

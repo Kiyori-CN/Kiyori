@@ -26,7 +26,7 @@ workspace/
 ## 路径与环境
 
 - 所有路径工具必须显式传 `env`（`android` / `linux`），禁止推断。
-- `output_env` 默认 `android`：产物回搬到 `${KIYORI_DOWNLOAD_DIR}/Office/`；要写 Linux 路径时显式传 `linux`。
+- `output_env` 默认 `android`：产物回搬到 AI 产物保存位置的 `<android 根>/office/<task_id>/`；显式传 `linux` 时交付到 `<Ubuntu 根>/office/<task_id>/`。两端根目录以「AI 设置 → AI 产物保存位置」为准。
 - 暂存区位于 Linux `~/kiyori_office/work/<task_id>/`，可用 `office_workspace_clean` 清理。
 - 工具箱“办公文档”可查看环境、阅读指引、读取与预览文件；安装先查看计划，经授权后点击确认，执行过程保留在可见终端。
 

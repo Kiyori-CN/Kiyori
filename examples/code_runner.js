@@ -370,6 +370,21 @@ const codeRunner = (function () {
     async function executeFromHome(command, timeoutMs = DEFAULT_COMMAND_TIMEOUT_MS) {
         return executeTerminalCommand(buildSubshellCommand("$HOME", command), timeoutMs);
     }
+    // 运行用户源码与安装依赖是不同职责：依赖仍留在 HOME，源码的相对输出进入产物区。
+    async function executeInArtifactDirectory(command, timeoutMs = DEFAULT_COMMAND_TIMEOUT_MS) {
+        const paths = getArtifactPaths();
+        if (!paths.linuxIsLocal) {
+            throw new Error("Default artifact directory is local to Ubuntu; use an explicit remote terminal command and working directory for SSH");
+        }
+        const root = paths.linux;
+        if (!root.startsWith("/") || /[\0\r\n\\]/.test(root) || root.split("/").includes("..")) {
+            throw new Error("Invalid Linux artifact directory");
+        }
+        const directory = `${root.replace(/\/+$/, "")}/code-runner`;
+        // 校验通过后再建会话，避免路径无效时留下一个没有用途的终端会话。
+        const session = await Tools.System.terminal.create(CODE_RUNNER_SESSION_NAME);
+        return Tools.System.terminal.exec(session.sessionId, `mkdir -p -- '${escapeForShell(directory)}' && ${buildSubshellCommand(directory, command)}`, timeoutMs);
+    }
     // Ensure a persistent Python venv under ~/.code_runner/py and return python/pip paths
     async function ensurePersistentVenv() {
         const venvDir = "~/.code_runner/py";
@@ -1020,7 +1035,7 @@ int main() {
         const tempFilePath = `${workspaceDir}/${tempFileName}`;
         try {
             await writeTextFile(tempFilePath, script);
-            const result = await executeTerminalCommand(buildSubshellCommand(workspaceDir, `NODE_PATH=${workspaceDir}/node_modules node ${nodeFlags} ${tempFileName}`.trim()));
+            const result = await executeInArtifactDirectory(`NODE_PATH=${workspaceDir}/node_modules node ${nodeFlags} ${tempFilePath}`.trim());
             if (result.exitCode === 0 && !hasError(result.output)) {
                 return result.output.trim();
             }
@@ -1044,7 +1059,7 @@ int main() {
             throw new Error(`JavaScript 文件不存在或路径错误: ${filePath}`);
         }
         const nodeFlags = params.node_flags || "";
-        const result = await executeTerminalCommand(buildSubshellCommand(workspaceDir, `NODE_PATH=${workspaceDir}/node_modules node ${nodeFlags} '${escapedPath}'`.trim()));
+        const result = await executeTerminalCommand(`NODE_PATH=${workspaceDir}/node_modules node ${nodeFlags} '${escapedPath}'`.trim());
         if (result.exitCode === 0 && !hasError(result.output)) {
             return result.output.trim();
         }
@@ -1069,7 +1084,7 @@ int main() {
         try {
             await writeTextFile(tempFilePath, script);
             // 批处理不能继承共享 PTY 的输入，否则 input()/子进程会等待 AI 无法提供的按键。
-            const result = await executeFromHome(`${pythonBin} -u ${pythonFlags} -- '${escapedTempFilePath}' ${scriptArgs} </dev/null`);
+            const result = await executeInArtifactDirectory(`${pythonBin} -u ${pythonFlags} -- '${escapedTempFilePath}' ${scriptArgs} </dev/null`);
             return pythonOutput(result);
         }
         finally {
@@ -1106,7 +1121,7 @@ int main() {
         const tempFilePath = `/tmp/code_runner_${createTempToken("ruby")}.rb`;
         try {
             await writeTextFile(tempFilePath, script);
-            const result = await executeFromHome(`ruby ${rubyFlags} ${tempFilePath}`);
+            const result = await executeInArtifactDirectory(`ruby ${rubyFlags} ${tempFilePath}`);
             if (result.exitCode === 0 && !hasError(result.output)) {
                 return result.output.trim();
             }
@@ -1152,7 +1167,7 @@ int main() {
             if (compileResult.exitCode !== 0 || hasError(compileResult.output)) {
                 throw new Error(`Go 代码编译失败:\n${compileResult.output}`);
             }
-            const result = await executeFromHome(`${tempDirPath}/main`);
+            const result = await executeInArtifactDirectory(`${tempDirPath}/main`);
             if (result.exitCode === 0 && !hasError(result.output)) {
                 return result.output.trim();
             }
@@ -1223,7 +1238,7 @@ edition = "2021"
                 throw new Error(`Rust 代码编译失败:\n${compileResult.output}`);
             }
             const execPath = `${tempDirPath}/target/${buildMode}/temp_rust_script`;
-            const result = await executeFromHome(execPath, 30000);
+            const result = await executeInArtifactDirectory(execPath, 30000);
             if (result.exitCode === 0 && !hasError(result.output)) {
                 return result.output.trim();
             }
@@ -1274,7 +1289,7 @@ edition = "2021"
                 throw new Error(`Rust 文件编译失败:\n${compileResult.output}`);
             }
             const execPath = `${tempDirPath}/target/${buildMode}/temp_rust_script`;
-            const result = await executeFromHome(execPath, 30000);
+            const result = await executeInArtifactDirectory(execPath, 30000);
             if (result.exitCode === 0 && !hasError(result.output)) {
                 return result.output.trim();
             }
@@ -1300,7 +1315,7 @@ edition = "2021"
             if (compileResult.exitCode !== 0 || hasError(compileResult.output)) {
                 throw new Error(`C 代码编译失败:\n${compileResult.output}`);
             }
-            const result = await executeFromHome(tempExecPath);
+            const result = await executeInArtifactDirectory(tempExecPath);
             if (result.exitCode === 0 && !hasError(result.output)) {
                 return result.output.trim();
             }
@@ -1356,7 +1371,7 @@ edition = "2021"
             if (compileResult.exitCode !== 0 || hasError(compileResult.output)) {
                 throw new Error(`C++ 代码编译失败:\n${compileResult.output}`);
             }
-            const result = await executeFromHome(tempExecPath);
+            const result = await executeInArtifactDirectory(tempExecPath);
             if (result.exitCode === 0 && !hasError(result.output)) {
                 return result.output.trim();
             }

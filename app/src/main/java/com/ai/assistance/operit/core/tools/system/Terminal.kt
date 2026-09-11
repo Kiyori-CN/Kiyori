@@ -23,6 +23,11 @@ import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.last
+import kotlinx.coroutines.withTimeout
+import com.kiyori.platform.storage.KiyoriArtifactStoragePolicy
+import com.kiyori.platform.storage.ArtifactPathRules
+import com.ai.assistance.operit.terminal.provider.type.TerminalType
 import java.util.UUID
 
 /**
@@ -79,6 +84,20 @@ class Terminal private constructor(private val context: Context) {
     suspend fun createSession(title: String? = null): String {
         AppLogger.d(TAG, "Creating new terminal session and waiting for initialization")
         val newSession = terminalManager.createNewSession(title)
+        // 只初始化 AI 新建的本地会话；已有会话和 SSH 的 cwd 属于各自真实终端。
+        // READY 后等待目录命令完成，失败关闭本次新会话，不能在 /root 静默继续执行。
+        if (newSession.terminalType == TerminalType.LOCAL) {
+            try {
+                val command = ArtifactPathRules.initialDirectoryCommand(KiyoriArtifactStoragePolicy.roots(context).linux)
+                val result = withTimeout(30_000L) {
+                    executeCommandFlow(newSession.id, command).filter { it.isCompleted }.last()
+                }
+                check(result.exitCode == 0) { "Cannot initialize AI artifact directory (exit=${result.exitCode})" }
+            } catch (error: Exception) {
+                terminalManager.closeSession(newSession.id)
+                throw error
+            }
+        }
         AppLogger.d(TAG, "Session ${newSession.id} initialized successfully")
         return newSession.id
     }
