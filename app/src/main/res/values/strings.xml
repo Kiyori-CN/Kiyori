@@ -8561,6 +8561,8 @@
     <string name="kiyori_ai_settings_usage_cost_desc">查看模型请求、Token、费用、汇率和自定义定价</string>
     <string name="kiyori_ai_settings_lan_automation">局域网与自动化</string>
     <string name="kiyori_ai_settings_lan_automation_desc">管理本地 HTTP/Web 对话服务、端口、令牌和调用示例</string>
+    <string name="kiyori_ai_settings_artifact_storage">AI 产物保存位置</string>
+    <string name="kiyori_ai_settings_artifact_storage_desc">设置 AI 生成、导出、下载和脚手架文件的 Android 与 Ubuntu 默认目录</string>
     <string name="kiyori_avatar_settings_title">虚拟形象</string>
     <string name="kiyori_avatar_configuration_desc">选择形象模型，调整显示位置，并管理动作与情绪映射</string>
     <string name="kiyori_voice_wakeup_settings_title">语音唤醒</string>

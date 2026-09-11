@@ -56,6 +56,7 @@ internal enum class KiyoriAiAssistantSettingsAction {
     OPEN_TOOL_PERMISSIONS,
     OPEN_TOKEN_USAGE,
     OPEN_EXTERNAL_HTTP_CHAT,
+    OPEN_ARTIFACT_STORAGE,
 }
 
 internal data class KiyoriAiAssistantSettingsEntrySpec(
@@ -211,6 +212,13 @@ internal val kiyoriAiAssistantSettingsGroups =
                         icon = Icons.Default.Cloud,
                         iconTone = KiyoriSemanticTone.CYAN,
                         action = KiyoriAiAssistantSettingsAction.OPEN_EXTERNAL_HTTP_CHAT,
+                    ),
+                    KiyoriAiAssistantSettingsEntrySpec(
+                        titleRes = R.string.kiyori_ai_settings_artifact_storage,
+                        descriptionRes = R.string.kiyori_ai_settings_artifact_storage_desc,
+                        icon = Icons.Default.Dashboard,
+                        iconTone = KiyoriSemanticTone.GREEN,
+                        action = KiyoriAiAssistantSettingsAction.OPEN_ARTIFACT_STORAGE,
                     ),
                 ),
         ),

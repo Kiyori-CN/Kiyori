@@ -20,6 +20,7 @@ import android.widget.Toast
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.StringResultData
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
+import com.kiyori.platform.storage.KiyoriArtifactStoragePolicy
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolResult
 import com.ai.assistance.operit.util.AppLogger
@@ -3484,17 +3485,34 @@ internal fun StandardBrowserSessionTools.resolveBrowserOutputFile(
     defaultPrefix: String,
     extension: String
 ): File {
-    val baseDir = File(context.cacheDir, "browser-output").apply { mkdirs() }
+    // Browser snapshots and screenshots are user-visible artifacts. Keep them in the
+    // configured AI workspace instead of the cache, which can be deleted silently.
+    val baseDir = File(KiyoriArtifactStoragePolicy.androidAbsoluteRoot(context), "browser").apply { mkdirs() }
     if (!filename.isNullOrBlank()) {
         val candidate = File(filename)
         return if (candidate.isAbsolute) {
             candidate
         } else {
-            File(baseDir, filename)
+            File(baseDir, sanitizeBrowserOutputName(filename))
         }
     }
     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-    return File(baseDir, "${defaultPrefix}_$timestamp.$extension")
+    return allocateBrowserOutputFile(baseDir, "${defaultPrefix}_$timestamp", extension)
+}
+
+private fun sanitizeBrowserOutputName(value: String): String =
+    value.replace('\\', '/').substringAfterLast('/').replace(Regex("[^A-Za-z0-9._-]"), "_")
+        .trim('.', ' ').ifBlank { "artifact" }
+
+private fun allocateBrowserOutputFile(baseDir: File, stem: String, extension: String): File {
+    val safeStem = sanitizeBrowserOutputName(stem).substringBeforeLast('.', sanitizeBrowserOutputName(stem))
+    var index = 0
+    while (true) {
+        val suffix = if (index == 0) "" else "_$index"
+        val candidate = File(baseDir, "$safeStem$suffix.$extension")
+        if (!candidate.exists()) return candidate
+        index++
+    }
 }
 
 internal fun StandardBrowserSessionTools.takeScreenshot(

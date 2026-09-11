@@ -51,6 +51,7 @@ import com.ai.assistance.operit.ui.features.settings.screens.ChatBackupSettingsS
 import com.ai.assistance.operit.ui.features.settings.screens.ChatHistorySettingsScreen
 import com.ai.assistance.operit.ui.features.settings.screens.ContextSummarySettingsScreen
 import com.ai.assistance.operit.ui.features.settings.screens.ExternalHttpChatSettingsScreen
+import com.ai.assistance.operit.ui.features.settings.screens.ArtifactStorageSettingsScreen
 import com.ai.assistance.operit.ui.features.settings.screens.FunctionalConfigScreen
 import com.ai.assistance.operit.ui.features.settings.screens.GlobalDisplaySettingsScreen
 import com.ai.assistance.operit.ui.features.settings.screens.GitHubAccountScreen
@@ -634,10 +635,31 @@ sealed class Screen(
                                 TokenUsageStatistics
                             KiyoriAiAssistantSettingsAction.OPEN_EXTERNAL_HTTP_CHAT ->
                                 ExternalHttpChatSettings
+                            KiyoriAiAssistantSettingsAction.OPEN_ARTIFACT_STORAGE ->
+                                ArtifactStorageSettings
                         },
                     )
                 },
             )
+        }
+    }
+
+    data object ArtifactStorageSettings :
+            Screen(
+                navItem = NavItem.Settings,
+                usesEmbeddedSettingsTopBar = true,
+            ) {
+        @Composable
+        override fun Content(
+                navController: NavController,
+                navigateTo: ScreenNavigationHandler,
+                onGoBack: () -> Unit,
+                hasBackgroundImage: Boolean,
+                onLoading: (Boolean) -> Unit,
+                onError: (String) -> Unit,
+                onGestureConsumed: (Boolean) -> Unit
+        ) {
+            ArtifactStorageSettingsScreen(onBackPressed = onGoBack)
         }
     }
 
