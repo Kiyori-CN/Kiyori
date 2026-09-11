@@ -1918,7 +1918,10 @@ class MessageCoordinationDelegate(
                     messages = compactionPlan.sourceMessages,
                     autoContinue = false,
                     isGroupChat = isGroupChat,
-                    summaryCustomRules = summaryCustomRules
+                    summaryCustomRules = summaryCustomRules,
+                    providerRequestContext = com.ai.assistance.operit.api.chat.llmprovider.ProviderRequestContext.create(
+                        originalChatId, compactionPlan.snapshot.rangeEndTimestamp, 0,
+                    ),
                 ) ?: return@launch
                 chatHistoryDelegate.recordConversationCompactionGenerated(
                     snapshot = compactionPlan.snapshot,
@@ -1961,6 +1964,14 @@ class MessageCoordinationDelegate(
                 throw e
             } catch (e: Exception) {
                 AppLogger.e(TAG, "Async summary during send failed: ${e.message}", e)
+                val failureMessage = context.getString(R.string.chat_summarize_generation_failed, e.message ?: "")
+                // 失败属于启动总结的聊天；切换聊天后不能污染新页面，也不能在 finally 清成 Idle。
+                if (messageProcessingDelegate.inputProcessingStateByChatId.value[originalChatId] is InputProcessingState.Summarizing) {
+                    messageProcessingDelegate.setInputProcessingStateForChat(originalChatId, InputProcessingState.Error(failureMessage))
+                }
+                if (chatHistoryDelegate.currentChatId.value == originalChatId) {
+                    uiStateDelegate.showErrorMessage(failureMessage)
+                }
             } finally {
                 _isSendTriggeredSummarizing.value = false
 
@@ -2139,6 +2150,9 @@ class MessageCoordinationDelegate(
                     autoContinue = autoContinue,
                     isGroupChat = effectiveIsGroupChat,
                     summaryCustomRules = summaryCustomRules,
+                    providerRequestContext = com.ai.assistance.operit.api.chat.llmprovider.ProviderRequestContext.create(
+                        currentChatId, compactionPlan.snapshot.rangeEndTimestamp, 0,
+                    ),
                 )
             if (generatedSummary != null) {
                 chatHistoryDelegate.recordConversationCompactionGenerated(

@@ -8,6 +8,8 @@ import com.ai.assistance.operit.data.model.ModelConfigData
 import com.ai.assistance.operit.data.model.ModelParameter
 import com.ai.assistance.operit.data.model.ToolPrompt
 import com.google.gson.GsonBuilder
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * 在真正进入 Provider 前固化最终语义请求。
@@ -35,9 +37,9 @@ object ConversationAuditProviderRequestRecorder {
         modelConfig: ModelConfigData,
         enableThinking: Boolean,
         stream: Boolean,
-    ) {
+    ): Unit = withContext(Dispatchers.IO) {
         // 非持久化独立任务没有聊天审计身份；其诊断仍由原有 Provider 日志 owner 负责。
-        val requestContext = providerRequestContext ?: return
+        val requestContext = providerRequestContext ?: return@withContext
         val snapshot =
             buildSnapshot(
                 providerRequestContext = requestContext,

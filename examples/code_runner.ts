@@ -351,7 +351,6 @@ const codeRunner = (function () {
   const CODE_RUNNER_SESSION_NAME = "code_runner_session";
   const DEFAULT_COMMAND_TIMEOUT_MS = 120000;
   const NODE_WORKSPACE_DIR = "$HOME/.code_runner/node";
-  let writeFileSequence = 0;
   let tempPathSequence = 0;
 
   function createTempToken(prefix: string): string {
@@ -523,31 +522,14 @@ const codeRunner = (function () {
     return str.replace(/'/g, "'\\''");
   }
 
-  function createHereDocMarker(content: string): string {
-    let marker = `__CODE_RUNNER_FILE_${Date.now()}_${writeFileSequence++}__`;
-    while (content.includes(marker)) {
-      marker += "_";
-    }
-    return marker;
-  }
-
-  function buildWriteFileCommand(filePath: string, content: string): string {
-    const marker = createHereDocMarker(content);
-    const normalizedContent = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-    const body = normalizedContent.endsWith("\n") ? normalizedContent : `${normalizedContent}\n`;
-    // Internal workspace paths may intentionally use $HOME; double quotes expand it while keeping the path literal.
-    const pathArgument = filePath.startsWith("$HOME/")
-      ? `"${filePath.replace(/["\\`]/g, "\\$&")}"`
-      : `'${escapeForShell(filePath)}'`;
-    // The delimiter must end with its own LF; executeFromHome wraps this command in a subshell,
-    // so omitting it would concatenate the closing ')' and make Bash treat the heredoc as unterminated.
-    return `cat > ${pathArgument} <<'${marker}'\n${body}${marker}\n`;
-  }
-
   async function writeTextFile(filePath: string, content: string): Promise<void> {
-    const result = await executeFromHome(buildWriteFileCommand(filePath, content));
-    if (result.exitCode !== 0) {
-      throw new Error(`写入临时文件失败：${filePath}\n${result.output}`);
+    // 大段源码经 PTY 的 ANSI-C 命令封装会膨胀，截断后可令 shell 永久等待 heredoc。
+    // 复用当前 Linux 文件提供者写字节，PTY 只负责执行短命令与展示真实输出。
+    const path = filePath.startsWith("$HOME/") ? `~/${filePath.slice(6)}` : filePath;
+    const normalized = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    const result = await Tools.Files.write(path, normalized, false, "linux");
+    if (!result.successful) {
+      throw new Error(`写入临时文件失败：${path}\n${result.details}`);
     }
   }
 

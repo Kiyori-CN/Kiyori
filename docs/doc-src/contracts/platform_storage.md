@@ -82,6 +82,9 @@ Android 标准文件工具的递归复制统一调用 `copyLocalDirectory`：枚
 
 - terminal 子模块保留唯一会话与 CommandEnvelope。UTF-8 payload 在 Readline 前编码，由同一 Bash session 解码执行；TAB、引号、Unicode、CR、尾部 LF 保真，NUL 入队前拒绝。
 - cwd 物理失效时先显式恢复到 `$HOME`，失败不执行用户命令；正常 cwd/export/jobs 与原始键盘 TAB/Ctrl+C 语义保持。code_runner 源文件仍按 LF 约定写入。
+- `code_runner` 通过既有 Linux 文件提供者直接写入 UTF-8 源码，`$HOME/` 内部路径投影为该
+  提供者支持的 `~/` 路径；PTY 只承载执行命令与输出，避免大段中文源码经命令包装膨胀后截断。
+  文件写入失败明确终止，不执行残缺源码；环境和默认产物目录继续由原所有者解析。
 - `code_runner_session` 是可见 PTY。Python/pip 使用 `~/.code_runner/py/bin/python`，Node 安装位于 `~/.code_runner/node`；环境信息工具报告实际会话、cwd、解释器、包路径与 rootfs。
 - `run_python` 接收原始 Python 源码并以临时文件执行，无需调用方进行 Shell 转义。它与 `run_python_file` 都是非交互批处理：stdin 为 EOF、输出默认 `-u` 无缓冲；需要按键输入或 REPL 时使用 `super_admin:terminal` / `terminal_input`。
 - `python_flags` 按空白、引号及反斜杠解析为独立参数，再逐项 Shell 引用，不展开变量、命令替换或重定向。接受脚本解释器开关及 `-W`、`-X`、`--check-hash-based-pycs` 的值；交互、`-c`、`-m`、帮助/版本模式、位置参数、缺值、未闭合引号和 NUL 在终端调用前失败。

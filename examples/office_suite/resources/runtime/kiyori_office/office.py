@@ -17,6 +17,7 @@ from .paths import (
 )
 from .protocol import OfficeError, register
 from .readers import docx_outline, docx_read_text, pdf_extract_text, pdf_info
+from .readers.docx_reader import docx_textboxes
 from .readers import pptx_outline, pptx_read_text, read_tabular, xlsx_info, xlsx_read
 from .readers.tabular import TEXT_SUFFIXES, html_to_text, read_text
 
@@ -62,6 +63,7 @@ def office_read(args: Dict[str, Any]) -> Dict[str, Any]:
     file_format = detect_format(source)
     full_dir = directory / "out"
 
+    warnings: List[Dict[str, Any]] = []
     if file_format == "docx":
         if mode == "outline":
             outline = docx_outline(source)
@@ -69,6 +71,8 @@ def office_read(args: Dict[str, Any]) -> Dict[str, Any]:
                 "%d\t%s\t%s" % (item["index"], item["style"], item["text"])
                 for item in outline["paragraphs"]
             )
+            if outline["textboxes"]:
+                text += "\n" + "\n".join(outline["textboxes"])
             budget = bounded_text(
                 text,
                 max_chars,
@@ -87,8 +91,12 @@ def office_read(args: Dict[str, Any]) -> Dict[str, Any]:
                 },
                 "truncated": budget["truncated"],
                 "full_output_path": budget["full_output_path"],
+                "warnings": ([{"code": "DOCX_TEXT_MAY_BE_IN_TEXTBOXES", "message": "文档包含 %d 个文本框，已纳入 outline 文本；仍建议复核版面" % outline["textbox_count"]}] if outline["textbox_count"] else []),
             }
         text = docx_read_text(source)
+        textbox_count = len(docx_textboxes(source))
+        if textbox_count:
+            warnings.append({"code": "DOCX_TEXT_MAY_BE_IN_TEXTBOXES", "message": "文档包含 %d 个文本框，已纳入读取文本；仍建议复核版面" % textbox_count})
     elif file_format == "xlsx":
         if mode == "outline":
             info = xlsx_info(source)
@@ -174,6 +182,7 @@ def office_read(args: Dict[str, Any]) -> Dict[str, Any]:
         "data": data,
         "truncated": budget["truncated"],
         "full_output_path": budget["full_output_path"],
+        "warnings": warnings,
     }
 
 

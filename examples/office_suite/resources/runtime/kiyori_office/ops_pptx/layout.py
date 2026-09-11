@@ -135,6 +135,13 @@ def add_elements(prs, slide, elements, *, args=None, theme=None):
             raise OfficeError("E_INPUT_SCHEMA", "elements[%d] 类型或字段不支持：%s" % (index, sorted(set(spec) - allowed.get(kind, set()))))
         if "text" in spec and "paragraphs" in spec:
             raise OfficeError("E_INPUT_SCHEMA", "text 与 paragraphs 只能提供一个")
+        missing_geometry = [key for key in ("left_cm", "top_cm", "width_cm", "height_cm") if key not in spec]
+        if missing_geometry:
+            issues = [{"field": "elements[%d].%s" % (index, key), "reason": "MISSING",
+                       "expected": "number", "actual": None} for key in missing_geometry]
+            raise OfficeError("E_INPUT_SCHEMA", "元素缺少必填几何字段：%s" % ", ".join(missing_geometry),
+                              detail="; ".join("%s 缺少必填字段（期望 number）" % item["field"] for item in issues),
+                              data={"issues": issues})
         box = [Cm(measure(spec.get(key), key, 0.01 if key in ("width_cm", "height_cm") else 0))
                for key in ("left_cm", "top_cm", "width_cm", "height_cm")]
         left, top, width, height = box

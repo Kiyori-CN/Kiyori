@@ -26,19 +26,24 @@ async function fixture(t) {
         clearTimeout(timer);
         assert.equal(code, 0, stderr);
     });
-    async function exec(command) {
-        child.stdin.write(JSON.stringify({ command }) + "\n");
+    async function request(value) {
+        child.stdin.write(JSON.stringify(value) + "\n");
         const reply = await replies.next();
         assert.equal(reply.done, false, stderr);
         return JSON.parse(reply.value);
     }
-    const completions = [], calls = [];
+    const exec = command => request({ command });
+    const completions = [], calls = [], writes = [];
     const artifactRoot = JSON.parse((await exec("python3 -c 'import os,json; print(json.dumps(os.path.join(os.environ[\"HOME\"], \"AI artifacts\")))'")).output.trim());
     const context = vm.createContext({
         exports: {}, console: { error() {} }, complete: value => completions.push(value),
         getArtifactPath: env => { assert.equal(env, "linux"); return artifactRoot; },
         getArtifactPaths: () => ({ android: '/unused', linux: artifactRoot, linuxIsLocal: true }),
-        Tools: { System: { terminal: {
+        Tools: { Files: { write: async (path, content, append, env) => {
+            assert.equal(append, false); assert.equal(env, 'linux');
+            writes.push({ path, content });
+            return request({ path, content });
+        } }, System: { terminal: {
             create: async () => ({ sessionId: "code_runner_session" }),
             exec: async (sessionId, command) => {
                 calls.push(command);
@@ -50,7 +55,7 @@ async function fixture(t) {
     });
     vm.runInContext(await readFile(new URL("../../app/src/main/assets/packages/code_runner.js", import.meta.url), "utf8"), context);
     return {
-        exec, calls, artifactRoot,
+        exec, calls, writes, artifactRoot,
         async run(params, tool = "run_python") {
             await context.exports[tool](params);
             return completions.at(-1);
@@ -117,10 +122,19 @@ pty("syntax and runtime errors preserve diagnostics and remove temporary source"
         const result = await f.run({ script });
         assert.equal(result.success, false);
         assert.match(result.message, /SyntaxError|ValueError/);
-        const write = f.calls.findLast(command => command.includes("cat >"));
-        const path = write.match(/\/tmp\/code_runner_[^']+\.py/)[0];
+        const path = f.writes.at(-1).path;
         assert.equal((await f.exec(`test ! -e '${path}'`)).exitCode, 0);
     }
+});
+
+pty("large Unicode source is written outside PTY and executes without truncation", async t => {
+    const f = await fixture(t);
+    const source = "# 论文表格公式中文注释\n".repeat(30000) + "print('large source complete')";
+    const result = await f.run({ script: source });
+    assert.equal(result.success, true, JSON.stringify(result));
+    assert.equal(result.data, 'large source complete');
+    assert.equal(f.writes.at(-1).content, source);
+    assert.ok(f.calls.every(command => !command.includes('论文表格公式中文注释')));
 });
 
 pty("timeouts are explicit and cleanup permits the next Python invocation", async t => {

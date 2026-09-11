@@ -119,6 +119,8 @@ def _describe(issue: Dict[str, Any]) -> str:
         return "%s 不是已登记字段；该层级可用字段：%s" % (field, hint)
     if reason == "MISSING":
         return "%s 缺少必填字段（期望 %s）" % (field, issue.get("expected"))
+    if field.endswith("data_range") and reason == "INVALID_TYPE":
+        return "%s 必须是类似 \"A1:C8\" 的字符串范围，实际 %s" % (field, issue.get("actual"))
     if reason == "ENUM":
         return "%s 必须是 %s 之一，实际 %r" % (
             field,

@@ -145,6 +145,26 @@ interface ConversationAuditDao {
     )
     suspend fun getEventPayloads(eventId: String): List<ConversationAuditEventPayloadEntity>
 
+    @Query("""
+        SELECT refs.* FROM conversation_audit_event_payloads AS refs
+        INNER JOIN conversation_audit_events AS events ON events.eventId = refs.eventId
+        WHERE events.chatId = :chatId AND events.sequenceNumber <= :throughSequenceInclusive
+        ORDER BY events.sequenceNumber, refs.ordinal
+    """)
+    suspend fun getEventPayloadsThroughSequence(
+        chatId: String, throughSequenceInclusive: Long,
+    ): List<ConversationAuditEventPayloadEntity>
+
+    @Query("""
+        SELECT DISTINCT payloads.* FROM conversation_audit_payloads AS payloads
+        INNER JOIN conversation_audit_event_payloads AS refs ON refs.payloadSha256 = payloads.payloadSha256
+        INNER JOIN conversation_audit_events AS events ON events.eventId = refs.eventId
+        WHERE events.chatId = :chatId AND events.sequenceNumber <= :throughSequenceInclusive
+    """)
+    suspend fun getPayloadsThroughSequence(
+        chatId: String, throughSequenceInclusive: Long,
+    ): List<ConversationAuditPayloadEntity>
+
     @Query(
         """
         UPDATE conversation_audits

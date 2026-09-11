@@ -173,7 +173,7 @@ def _convert_libreoffice(
         raise OfficeError(
             "E_ENGINE_FAILED",
             "LibreOffice 转换失败",
-            detail="exit=%s stderr=%s" % (completed.returncode, (completed.stderr or "")[-2000:]),
+            detail="exit=%s stderr_tail=%s" % (completed.returncode, (completed.stderr or "")[-2000:]),
             remedy="检查源文件与 LibreOffice 安装；不要自动切换引擎",
         )
     produced = target_dir / ("%s.%s" % (source.stem, to_format))

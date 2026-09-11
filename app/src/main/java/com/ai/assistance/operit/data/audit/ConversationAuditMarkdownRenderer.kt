@@ -36,6 +36,7 @@ internal object ConversationAuditMarkdownRenderer {
             if (inlinePayloads) {
                 appendLine("- 导出格式: 明文 UTF-8 Markdown（未加密）")
                 appendLine("- 相同 SHA-256 的 payload 正文仅展开一次，后续引用链接到本文件首次正文；事件与修订均保留。")
+                appendLine("- 诊断为有界阅读投影：payload 每项最多 64 KiB、合计最多 8 MiB，优先保留失败证据；消息正文最多展示首尾各 32 Ki 字符。完整正文请另行导出 `.kiyori-audit`。")
             }
             appendLine("- 链头: `${snapshot.audit.chainHeadSha256}`")
             appendLine()
@@ -97,12 +98,12 @@ internal object ConversationAuditMarkdownRenderer {
                 if (message.providerCacheMetricRequestCount > 0) {
                     appendLine("- provider cache: read=${message.providerCacheReadTokens}, write=${message.providerCacheWriteTokens}, measuredPrompt=${message.providerCacheMetricPromptTokens}")
                 } else appendLine("- provider cache: not_reported")
-                val messageText =
+                val messageText = boundedMessage(
                     redactForReview(
                         value = message.content,
                         mediaType = "text/markdown",
                         externalShare = externalShare,
-                    )
+                    ), externalShare)
                 val messageFence = markdownFence(messageText)
                 appendLine("${messageFence}text")
                 appendLine(messageText)
@@ -135,12 +136,12 @@ internal object ConversationAuditMarkdownRenderer {
                                     externalShare = externalShare,
                                 )
                         )
-                        val variantText =
+                        val variantText = boundedMessage(
                             redactForReview(
                                 value = variant.content,
                                 mediaType = "text/markdown",
                                 externalShare = externalShare,
-                            )
+                            ), externalShare)
                         val variantFence = markdownFence(variantText)
                         appendLine("${variantFence}text")
                         appendLine(variantText)
@@ -219,22 +220,18 @@ internal object ConversationAuditMarkdownRenderer {
             appendLine()
             appendLine("每行对应一个已封印事件；payload 正文在上方首次引用处展开，其余关联保留 SHA-256 与正文链接。")
             appendLine()
-            val eventJsonLines =
-                snapshot.events.joinToString("\n") { event ->
+            // JSON 字符串会转义换行，不会生成独立围栏行；逐事件写入避免整条时间线副本。
+            appendLine("```jsonl")
+            snapshot.events.forEach { event ->
+                appendLine(
                     redactForReview(
-                        value =
-                            eventJson(
-                                event = event,
-                                refs = snapshot.eventPayloads[event.eventId].orEmpty(),
-                            ).toString(),
+                        value = eventJson(event, snapshot.eventPayloads[event.eventId].orEmpty()).toString(),
                         mediaType = "application/json",
                         externalShare = externalShare,
                     )
-                }
-            val jsonlFence = markdownFence(eventJsonLines)
-            appendLine("${jsonlFence}jsonl")
-            appendLine(eventJsonLines)
-            appendLine(jsonlFence)
+                )
+            }
+            appendLine("```")
         }
 
     }
@@ -255,11 +252,22 @@ internal object ConversationAuditMarkdownRenderer {
         appendLine()
         appendLine("##### payload-$hash")
         appendLine()
-        val text = redactForReview(payload.bytes.toString(Charsets.UTF_8), payload.entity.mediaType, externalShare)
+        val bytes = payload.bytes
+        if (bytes == null || bytes.size > MAX_DIAGNOSTIC_PAYLOAD_BYTES) {
+            appendLine("- 大型正文未展开或达到总预算（每项 64 KiB、合计 8 MiB）；SHA-256 对应完整原文，请另行导出 `.kiyori-audit`。")
+            return
+        }
+        val text = redactForReview(bytes.toString(Charsets.UTF_8), payload.entity.mediaType, externalShare)
         val fence = markdownFence(text)
         appendLine("${fence}text")
         appendLine(text)
         appendLine(fence)
+    }
+
+    private fun boundedMessage(text: String, enabled: Boolean): String {
+        if (!enabled || text.length <= 65536) return text
+        // 脱敏完成后截取首尾，避免截断凭据边界；尾部保留最终错误与结论。
+        return text.take(32768) + "\n[诊断省略中间 ${text.length - 65536} 字符；完整正文见审计包]\n" + text.takeLast(32768)
     }
 
     private fun redactForReview(

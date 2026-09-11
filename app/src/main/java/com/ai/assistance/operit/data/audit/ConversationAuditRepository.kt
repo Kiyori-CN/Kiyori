@@ -400,7 +400,10 @@ class ConversationAuditRepository private constructor(
             verifyLocked(chatId)
         }
 
-    private suspend fun verifyLocked(chatId: String): ConversationAuditVerificationResult {
+    private suspend fun verifyLocked(
+        chatId: String,
+        onPayloadVerified: ((ConversationAuditPayloadEntity, ByteArray) -> Unit)? = null,
+    ): ConversationAuditVerificationResult {
         val events = dao.getAllEvents(chatId)
         val audit =
             requireNotNull(dao.getAudit(chatId)) {
@@ -421,27 +424,32 @@ class ConversationAuditRepository private constructor(
 
         var previousHash = ConversationAuditHasher.EMPTY_CHAIN_SHA256
         val verifiedPayloadHashes = mutableSetOf<String>()
-        val payloadsBySha256 = mutableMapOf<String, ConversationAuditPayloadEntity>()
+        // 批量读取固定 cutoff 的关联，避免每个事件/正文都排队一次 Room 查询。
+        val refsByEvent = dao.getEventPayloadsThroughSequence(chatId, audit.lastSequenceNumber).groupBy { it.eventId }
+        val payloadsBySha256 = dao.getPayloadsThroughSequence(chatId, audit.lastSequenceNumber)
+            .associateBy { it.payloadSha256 }
         for (event in events) {
+            currentCoroutineContext().ensureActive()
             if (event.previousEventSha256 != previousHash) {
                 return ConversationAuditVerificationResult.Invalid(
                     eventId = event.eventId,
                     reason = "previous_event_hash_mismatch",
                 )
             }
-            val eventPayloadRefs = dao.getEventPayloads(event.eventId)
+            val eventPayloadRefs = refsByEvent[event.eventId].orEmpty()
             eventPayloadRefs.forEach { ref ->
                 val payload =
-                    payloadsBySha256.getOrPut(ref.payloadSha256) {
-                        dao.getPayload(ref.payloadSha256)
+                    payloadsBySha256[ref.payloadSha256]
                             ?: return ConversationAuditVerificationResult.Invalid(
                                 eventId = event.eventId,
                                 reason = "payload_metadata_missing:${ref.payloadSha256}",
                             )
-                    }
                 if (verifiedPayloadHashes.add(ref.payloadSha256)) {
                     try {
-                        payloadStore.read(payload)
+                        val bytes = withContext(Dispatchers.IO) { payloadStore.read(payload) }
+                        onPayloadVerified?.invoke(payload, bytes)
+                    } catch (error: kotlinx.coroutines.CancellationException) {
+                        throw error
                     } catch (error: ConversationAuditKeyUnavailableException) {
                         return ConversationAuditVerificationResult.Invalid(
                             eventId = event.eventId,
@@ -673,15 +681,11 @@ class ConversationAuditRepository private constructor(
     suspend fun createExportSnapshot(
         chatId: String,
         sealReason: String,
+        diagnosticsOnly: Boolean = false,
     ): ConversationAuditExportSnapshot =
         chatMutex(chatId).withLock {
             database.withTransaction {
                 sealInsideTransaction(chatId, sealReason)
-            }
-            val verification = verifyLocked(chatId)
-            require(verification is ConversationAuditVerificationResult.Valid) {
-                val invalid = verification as ConversationAuditVerificationResult.Invalid
-                "Conversation audit verification failed before export: ${invalid.reason}"
             }
             val chat = requireNotNull(database.chatDao().getChatById(chatId)) {
                 "Chat does not exist: $chatId"
@@ -697,9 +701,7 @@ class ConversationAuditRepository private constructor(
                 }
             val eventIds = events.mapTo(mutableSetOf()) { event -> event.eventId }
             val eventPayloads =
-                events.associate { event ->
-                    event.eventId to dao.getEventPayloads(event.eventId)
-                }
+                dao.getEventPayloadsThroughSequence(chatId, audit.lastSequenceNumber).groupBy { it.eventId }
             val revisions =
                 dao.getAllRevisionsForChat(chatId)
                     .filter { revision -> revision.auditEventId in eventIds }
@@ -718,16 +720,46 @@ class ConversationAuditRepository private constructor(
                     eventPayloads.values.flatten().forEach { ref -> add(ref.payloadSha256) }
                     revisions.forEach { revision -> add(revision.contentPayloadSha256) }
                 }
+            val payloadMetadata = dao.getPayloadsThroughSequence(chatId, audit.lastSequenceNumber)
+                .associateBy { it.payloadSha256 }
+            val errorHashes = events.filter { it.category == "ERROR" || it.terminalState == "FAILED" }
+                .flatMap { eventPayloads[it.eventId].orEmpty() }.mapTo(mutableSetOf()) { it.payloadSha256 }
+            var remainingDiagnosticBytes = 8 * 1024 * 1024L
+            val includedBodies = mutableSetOf<String>()
             val payloads =
-                payloadHashes.associateWith { payloadSha256 ->
-                    val entity = requireNotNull(dao.getPayload(payloadSha256)) {
+                // 诊断文本只装载有界正文；完整包仍读取并验证全部原始字节。
+                // 在锁内做决定和读取，避免延迟加载与对话删除/回收产生文件生命周期竞态。
+                payloadHashes.sortedBy { if (it in errorHashes) 0 else 1 }.associateWith { payloadSha256 ->
+                    val entity = requireNotNull(payloadMetadata[payloadSha256] ?: dao.getPayload(payloadSha256)) {
                         "Conversation audit payload metadata is missing: $payloadSha256"
                     }
+                    val includeBody = !diagnosticsOnly || (entity.encoding == "utf-8" &&
+                        entity.plainByteCount <= MAX_DIAGNOSTIC_PAYLOAD_BYTES && entity.plainByteCount <= remainingDiagnosticBytes)
+                    if (diagnosticsOnly && includeBody) remainingDiagnosticBytes -= entity.plainByteCount
+                    if (includeBody) includedBodies.add(payloadSha256)
                     ConversationAuditSnapshotPayload(
                         entity = entity,
-                        bytes = payloadStore.read(entity),
+                        bytes = null,
                     )
+                }.toMutableMap()
+            // 校验与快照共用同一次解密/解压。省略展示的正文仍校验，但不保留在堆中。
+            // 必须在同一聊天锁内完成，任何一项校验失败都不能发布导出文件。
+            val verification = verifyLocked(chatId) { entity, bytes ->
+                if (entity.payloadSha256 in includedBodies) {
+                    payloads[entity.payloadSha256] = ConversationAuditSnapshotPayload(entity, bytes)
                 }
+            }
+            require(verification is ConversationAuditVerificationResult.Valid) {
+                val invalid = verification as ConversationAuditVerificationResult.Invalid
+                "Conversation audit verification failed before export: ${invalid.reason}"
+            }
+            for (hash in includedBodies) {
+                val payload = payloads.getValue(hash)
+                if (payload.bytes == null) {
+                    // 历史导入的 revision-only 正文也必须验证后才进入快照。
+                    payloads[hash] = payload.copy(bytes = withContext(Dispatchers.IO) { payloadStore.read(payload.entity) })
+                }
+            }
             ConversationAuditExportSnapshot(
                 chat = chat,
                 messages = database.chatContentDao().getMessagesForChat(chatId),
@@ -1601,7 +1633,8 @@ class ConversationAuditRepository private constructor(
 
     private suspend fun storePayloads(
         request: ConversationAuditEventRequest,
-    ): List<StoredPayload> =
+    ): List<StoredPayload> = withContext(Dispatchers.IO) {
+        // suspend 本身不切线程；脱敏、压缩、加密与 fsync 必须离开调用方的 UI 线程。
         request.payloads.map { payload ->
             val bytes =
                 if (payload.isText) {
@@ -1626,6 +1659,7 @@ class ConversationAuditRepository private constructor(
                     ),
             )
         }
+    }
 
     private suspend fun appendEventLocked(
         request: ConversationAuditEventRequest,
@@ -1932,8 +1966,11 @@ data class ConversationAuditStorageSummary(
 
 data class ConversationAuditSnapshotPayload(
     val entity: ConversationAuditPayloadEntity,
-    val bytes: ByteArray,
+    /** null 只表示诊断投影省略正文，不能进入完整归档序列化。 */
+    val bytes: ByteArray?,
 )
+
+internal const val MAX_DIAGNOSTIC_PAYLOAD_BYTES = 64 * 1024L
 
 data class ConversationAuditExportSnapshot(
     val chat: ChatEntity,

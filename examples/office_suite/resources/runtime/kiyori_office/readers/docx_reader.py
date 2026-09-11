@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import zipfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -63,6 +64,25 @@ def _iter_block_items(document: "DocxDocument"):
             yield Paragraph(child, document)
         elif tag == "tbl":
             yield Table(child, document)
+
+
+def docx_textboxes(path: Path) -> List[str]:
+    """每个 w:txbxContent 返回一项；段落数不能冒充文本框数量。"""
+    result: List[str] = []
+    try:
+        with zipfile.ZipFile(path) as archive:
+            root = ET.fromstring(archive.read("word/document.xml"))
+    except (KeyError, ET.ParseError, OSError, zipfile.BadZipFile) as exc:
+        raise OfficeError("E_FILE_READ", "无法读取 DOCX 文本框", detail=str(exc)) from exc
+    namespace = {"w": W_NS}
+    for box in root.findall(".//w:txbxContent", namespace):
+        paragraphs = []
+        for paragraph in box.findall(".//w:p", namespace):
+            text = "".join(node.text or "" for node in paragraph.findall(".//w:t", namespace))
+            if text:
+                paragraphs.append(text)
+        result.append("\n".join(paragraphs))
+    return result
 
 
 def _paragraph_objects(paragraph, document):
@@ -183,7 +203,9 @@ def docx_outline(path: Path, *, max_items: int = 0) -> Dict[str, Any]:
         "headings": headings,
         "sections": sections,
         "images": images,
+        "textboxes": docx_textboxes(path),
     }
+    payload["textbox_count"] = len(payload["textboxes"])
     if max_items > 0:
         payload["paragraphs"] = paragraphs[:max_items]
         payload["paragraphs_truncated"] = len(paragraphs) > max_items
@@ -214,4 +236,5 @@ def docx_read_text(path: Path) -> str:
         else:
             for row in block.rows:
                 lines.append("\t".join(cell.text for cell in row.cells))
+    lines.extend(docx_textboxes(path))
     return "\n".join(lines)

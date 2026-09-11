@@ -1976,14 +1976,7 @@ class EnhancedAIService private constructor(private val context: Context) {
                 val warningDisplayContent = "\n$pureThinkingWarning"
                 context.roundManager.appendContent(warningDisplayContent)
                 collector.emit(warningDisplayContent)
-                try {
-                    context.conversationHistory.add(
-                        PromptTurn(kind = PromptTurnKind.TOOL_RESULT, content = pureThinkingWarning)
-                    )
-                } catch (e: Exception) {
-                    AppLogger.e(TAG, "添加纯思考告警到历史记录失败", e)
-                    return
-                }
+                // 警告由后续请求入口添加一次；它不是工具结果，也没有对应的工具调用。
                 AppLogger.w(TAG, "检测到纯思考输出（removeThinking后正文为空），已回传告警给AI继续生成")
                 handleToolInvocation(
                         toolInvocations = emptyList(),
@@ -2029,6 +2022,10 @@ class EnhancedAIService private constructor(private val context: Context) {
                     context.roundManager.updateContent(context.streamBuffer.toString())
                     collector.emit(appendedSuffix)
                 }
+                val invalidation = com.ai.assistance.operit.core.chat.AssistantReplayHistoryProjector
+                    .invalidatedToolRoundMarker(context.roundManager.getCurrentRoundContent())
+                context.roundManager.appendChunk(invalidation)
+                collector.emit(invalidation)
             } else if (finalContent != content) {
                 context.streamBuffer.setLength(0)
                 context.streamBuffer.append(finalContent)
@@ -2053,7 +2050,11 @@ class EnhancedAIService private constructor(private val context: Context) {
                 context.conversationHistory.add(
                     PromptTurn(
                         kind = PromptTurnKind.ASSISTANT,
-                        content = context.roundManager.getCurrentRoundContent()
+                        content = if (truncatedToolRecovery != null) {
+                            // 本轮调用已全部作废。只投影闭合历史，不能把补齐标签的残缺调用重放给供应商。
+                            com.ai.assistance.operit.core.chat.AssistantReplayHistoryProjector
+                                .project(context.roundManager.getCurrentRoundContent()).content
+                        } else context.roundManager.getCurrentRoundContent()
                     )
                 )
             } catch (e: Exception) {
@@ -2471,11 +2472,7 @@ class EnhancedAIService private constructor(private val context: Context) {
 
         // Add tool result to conversation history
         context.conversationHistory.add(
-            PromptTurn(
-                kind = PromptTurnKind.TOOL_RESULT,
-                content = toolResultMessage,
-                toolName = toolNames.ifBlank { null }
-            )
+            ConversationMarkupManager.feedbackHistoryTurn(results, toolResultMessage)
         )
 
         val normalizedChatHistory =
@@ -2880,13 +2877,15 @@ class EnhancedAIService private constructor(private val context: Context) {
     suspend fun generateSummaryResult(
             messages: List<Pair<String, String>>,
             previousSummary: String?,
-            customRules: String? = null
+            customRules: String? = null,
+            providerRequestContext: ProviderRequestContext? = null,
     ): com.ai.assistance.operit.core.chat.GeneratedConversationSummaryContent {
         return conversationService.generateSummaryResultFromPromptTurns(
             messages = messages.toPromptTurns(),
             previousSummary = previousSummary,
             multiServiceManager = multiServiceManager,
             customRules = customRules,
+            providerRequestContext = providerRequestContext,
         )
     }
 

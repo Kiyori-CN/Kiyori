@@ -231,6 +231,21 @@ def test_compact_table_actual_height_cannot_escape_slide(tmp_path):
     assert not output.exists()
 
 
+def test_missing_ppt_geometry_is_structured(tmp_path):
+    result = protocol.run('pptx_create', {'output_path': str(tmp_path/'out.pptx'), 'slides': [
+        {'layout_index': 6, 'elements': [{'type': 'text', 'text': 'missing geometry'}]}]})
+    assert not result['ok'] and result['error']['code'] == 'E_INPUT_SCHEMA'
+    assert result['data']['issues'][0] == {'field': 'elements[0].left_cm', 'reason': 'MISSING', 'expected': 'number', 'actual': None}
+
+
+def test_xlsx_chart_range_rejects_object_with_precise_message(tmp_path):
+    from openpyxl import Workbook
+    source = tmp_path/'source.xlsx'; Workbook().save(source)
+    result = protocol.run('xlsx_chart', {'path': str(source), 'data_range': {'min_row': 1}})
+    assert not result['ok'] and result['error']['code'] == 'E_INPUT_SCHEMA'
+    assert 'A1:C8' in result['error']['message']
+
+
 def test_real_pdf_empty_grid_recovers_text_table_with_warning(tmp_path):
     from reportlab.pdfgen.canvas import Canvas
     import pdfplumber
@@ -252,3 +267,43 @@ def test_real_pdf_empty_grid_recovers_text_table_with_warning(tmp_path):
     assert 'PDF_TABLE_STRATEGY_FALLBACK' in [w['code'] for w in result['warnings']]
     cells = [cell for table in result['data']['tables'] for row in table['rows'] for cell in row]
     assert 'Quarter' in cells and '301' in cells
+
+
+def test_docx_textboxes_are_read_and_reported(tmp_path):
+    from docx import Document
+    import zipfile
+    source = tmp_path/'source.docx'; output = tmp_path/'textbox.docx'
+    document = Document(); document.add_paragraph('正文'); document.save(source)
+    with zipfile.ZipFile(source) as original, zipfile.ZipFile(output, 'w') as updated:
+        for item in original.infolist():
+            data = original.read(item.filename)
+            if item.filename == 'word/document.xml':
+                text = data.decode('utf-8').replace('</w:body>', '<w:p><w:r><w:t>PDF文本框内容</w:t></w:r></w:p></w:txbxContent></w:body>')
+                text = text.replace('<w:p><w:r><w:t>PDF文本框内容', '<w:txbxContent><w:p><w:r><w:t>PDF文本框内容')
+                data = text.encode('utf-8')
+            updated.writestr(item, data)
+    full = protocol.run('office_read', {'path': str(output)})
+    assert full['ok'] and 'PDF文本框内容' in full['data']['text']
+    assert full['data']['total_chars'] >= len('PDF文本框内容')
+    assert full['warnings'][0]['code'] == 'DOCX_TEXT_MAY_BE_IN_TEXTBOXES'
+    outline = protocol.run('docx_outline', {'path': str(output)})
+    assert outline['ok'] and outline['data']['textbox_count'] == 1
+    outline_read = protocol.run('office_read', {'path': str(output), 'mode': 'outline'})
+    assert 'PDF文本框内容' in outline_read['data']['text']
+
+
+def test_textbox_count_is_not_paragraph_count(tmp_path):
+    from docx import Document
+    from docx.oxml import OxmlElement
+    from kiyori_office.readers.docx_reader import docx_textboxes
+    source = tmp_path/'boxes.docx'
+    document = Document()
+    box = OxmlElement('w:txbxContent')
+    for content in ('第一段', '第二段'):
+        paragraph = OxmlElement('w:p'); run = OxmlElement('w:r'); text = OxmlElement('w:t')
+        text.text = content; run.append(text); paragraph.append(run); box.append(paragraph)
+    document._element.body.append(box)
+    document.save(source)
+    assert docx_textboxes(source) == ['第一段\n第二段']
+    result = protocol.run('docx_outline', {'path': str(source)})
+    assert result['ok'] and result['data']['textbox_count'] == 1

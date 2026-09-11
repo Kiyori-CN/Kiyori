@@ -14,6 +14,64 @@ D11 题注重复提示按方案保留可选未实施。回滚以本轮独立提�
 风险：PDF 字段树/外观状态、文本表格识别及不同 Office 渲染器存在差异；文件输出继续原子发布。
 状态：D1–D10 源码修复、本地回归和 Debug 构建完成；PRoot 外部引擎、实际 Office/WPS 视觉效果保持 `verification_pending`。
 
+## 回归报告后续优化（2026-09-12）
+
+本次接手工作区已包含 N1–N3 后续优化；本轮继续复核实现与本地回归，设备效果独立验收：
+
+- N1：`docx_outline` 和 `office_read` 读取并统计 Word `w:txbxContent` 文本框；当存在文本框时返回 `DOCX_TEXT_MAY_BE_IN_TEXTBOXES`，避免 PDF→DOCX 产物被误报为空文档。
+- N2：LibreOffice 与公共外部引擎执行器的失败细节统一使用 `stderr_tail` 字段语义，保留末尾诊断内容，帮助区分源格式不支持与运行环境故障。
+- N3：PPT 几何字段缺失返回结构化 `MISSING` issue；`xlsx_chart.data_range` 明确要求 `A1:C8` 形式字符串。已有 PDF/Pandoc `cjk_font` 的不同语义已在随包指引并列说明。
+
+本轮新增边界回归覆盖文本框、引擎 stderr、缺失字段、图表范围和失败不发布；D11 与 N4 未纳入实现。
+
+## 长会话论文诊断修复（2026-09-12）
+
+目标：闭环真实论文测试中的工具历史中断、总结失败可观察性、长期运行性能、诊断导出与工具错误。
+基线 `main@5d74c4f59`，接手时 30 个未提交文件，包含上述办公优化和前轮未交付修复。
+范围覆盖 AI 历史投影、总结、审计与办公/代码运行器；不改子模块、外部协议或模型重试策略，
+不安装操作设备。回滚使用交付提交的逆向变更，原始诊断不进入仓库。
+
+| 阶段 | 内容与验收 | 状态 |
+| --- | --- | --- |
+| 证据复核 | 原文件 131,591,431 bytes；2,364 事件、171 工具调用、11 工具失败 | DONE |
+| 本地修复 | 警告历史类型、作废调用最终投影、总结失败审计、后台工作、导出预算、源码字节写入、目录拒绝 | DONE |
+| 本地验收 | Kotlin/办公 Python/JS/真实 PTY/SQLite 回归、文档检查、Debug APK 与资产核对 | DONE |
+| 交付 | 精确 38 文件允许清单，排除诊断、日志、APK 和子模块变动 | 具体提交及远端 ref 以 Git 与本轮交付报告为准 |
+| 现场验收 | 相同设备长会话、设置响应、总结断流、导出耗时及 Office 版面 | verification_pending |
+
+已确认与修复：
+
+- 事件 1156 的宿主作废警告被误标 `TOOL_RESULT`，没有结构化结果；改成普通反馈并从后续请求中
+  移除作废调用。补齐最终持久化路径：只对精确匹配且未执行的调用组应用显式作废记录，后续正文不丢失。
+- 总结有两次请求、一次生成/提交，缺少首次失败事实；为总结接入原聊天审计和可见失败，并将
+  历史清理与摘要组装移出主线程。原文件没有用户所报传输异常的完整记录，不能认定远端根因已修复。
+- 审计 payload 写盘改为后台执行；导出批量查询替代逐事件 Room 往返，复用校验读取的字节。
+  Markdown 每项 64 KiB、正文合计 8 MiB，长消息展示首尾；完整审计、事件和 seal 保持。
+  原样本 1,650 个唯一 payload 中，预算模拟保留 1,492 项、省略 158 项，内嵌 payload 从
+  126,746,469 降至 2,779,874 bytes（减少约 97.8%）。这是正文预算模拟，不是设备导出耗时或最终文件大小。
+- `code_runner` 大段源码通过 PTY 的 ANSI-C 包装后膨胀并截断，shell 等待未结束的 heredoc。
+  改用既有 Linux 文件提供者写 UTF-8，PTY 负责执行；大段中文源码纳入真实 PTY 回归。
+- `office_read` 对目录的输入提前返回 `E_PATH_INVALID` 和选择文件指引，避免误导性的复制报错。
+  `in_place` 环境、工作表不存在、占位工具名、缺少 operation、字体/题注字段误用、列表缺少 type、列宽和 PPT
+  越界属于合理输入校验，继续保留；随包 DOCX 指引已有 runs/format 与 caption 的正确写法。
+
+风险与下一门槛：本地验证不能量化目标手机卡顿是否完全消失；完整签名包仍保存全部正文，大小
+随审计增长。现场需在相同设备重复长会话，记录设置操作与导出耗时、峰值内存、错误及 APK SHA-256。
+
+本地验证（2026-09-12）：
+
+- Kotlin 定向回归 19 个 suite、124 项，零失败/错误/跳过，覆盖审计、Provider 工具历史、最终
+  replay 投影、compaction 与宿主警告。最终复跑 `BUILD SUCCESSFUL in 1m22s`。
+- 办公 Python、ToolPkg 契约及 SQLite 查询回归：316 passed、52 subtests passed；办公 JS
+  53/53；WSL `Ubuntu-26.04` 的真实 PTY 13/13，含大段中文源码、错误和超时后清理。
+- 办公 TypeScript 编译、文档检查（518 文件、0 问题）、formal readiness 和 `git diff --check` 通过。
+- 最终串行 `:app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL in 46s`，
+  238 个任务；产物 `app/build/outputs/apk/debug/app-debug.apk`，487,787,852 bytes，SHA-256
+  `ad4f507a7d9b1f9dbb413b1edfac7bb765598eff142b8f53ccbc63da0ac213e0`。
+  包名 `com.kiyori`、版本 `45 / 0.1.0`、min/target/compile SDK `26 / 34 / 37`、仅 `arm64-v8a`；
+  V2 单 signer 和 `zipalign -c -P 16 4` 通过。APK 内办公 ToolPkg 80 个文件与源码一致，代码运行器
+  JS 与两份源码/资产一致。未安装或操作设备，未调用真实模型复测，也未将本地结果描述为远端 CI 通过。
+
 ### 修复结果与方案校正
 
 - PDF 表单使用字段声明的状态与 `NameObject` 写入值和外观，支持布尔/裸状态名及完整嵌套字段名。

@@ -73,6 +73,7 @@ description: Word/.docx 的论文与报告排版、创建、模板填充、读�
 ## 5. 在已有论文中插入和修改对象
 
 `docx_outline` 的段落条目包含 `objects`，给出公式 OMML、图片和图表的 `object_index`，图表还返回有界的缓存系列。
+PDF 经 LibreOffice Writer 导入后可能把文字放在 `w:txbxContent` 文本框；`docx_outline` 会返回 `textbox_count/textboxes`，`office_read` 会纳入读取文本并给出 `DOCX_TEXT_MAY_BE_IN_TEXTBOXES`。这表示文本可读，不替代版面预览。
 先读现有内容再定位；`anchor={index:...}` 与段落内同类对象的 `object_index`（默认 0）共同定位。
 
 - `docx_edit(operation=insert_blocks_before/insert_blocks_after,anchor=...,blocks=[...])` 在锚点前后插入多个块，原段落和其他复杂对象保持。所有插入块使用与 `docx_create.spec.blocks` 相同格式；图片和图表按锚点所在节检查正文宽高。

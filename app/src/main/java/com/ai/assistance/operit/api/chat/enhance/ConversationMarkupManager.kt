@@ -19,6 +19,15 @@ import com.ai.assistance.operit.data.model.ToolResult
 class ConversationMarkupManager {
 
     companion object {
+        /** 宿主警告没有工具事务身份；只有真实执行结果才编译成 Provider tool 消息。 */
+        internal fun feedbackHistoryTurn(results: List<ToolResult>, message: String) =
+            com.ai.assistance.operit.core.chat.hooks.PromptTurn(
+                kind = if (results.isEmpty()) com.ai.assistance.operit.core.chat.hooks.PromptTurnKind.USER
+                    else com.ai.assistance.operit.core.chat.hooks.PromptTurnKind.TOOL_RESULT,
+                content = message,
+                toolName = results.joinToString(", ") { it.toolName }.ifBlank { null },
+            )
+
         private const val TOOL_RESULT_TRUNCATION_SUFFIX =
             "\n[工具结果过长，已截断]"
 

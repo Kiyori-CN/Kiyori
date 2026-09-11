@@ -70,8 +70,8 @@ class ToolPkgRuntimeFilesTest(unittest.TestCase):
         self.assertIn("const setup = await executeFromHome", source)
         self.assertIn("const r2 = await executeFromHome", source)
         self.assertIn("const result = await executeFromHome", source)
-        self.assertIn("const result = await executeFromHome(`${pythonBin}", source)
-        self.assertIn("const result = await executeFromHome(buildWriteFileCommand", source)
+        self.assertIn("const result = await executeInArtifactDirectory(`${pythonBin}", source)
+        self.assertIn('await Tools.Files.write(path, normalized, false, "linux")', source)
         self.assertNotIn("executeTerminalCommand(`${pythonBin} ${pythonFlags} '${escapedTempFilePath}'", source)
 
     def test_code_runner_rust_requires_rustc_and_cargo_from_one_explicit_path(self) -> None:
@@ -81,17 +81,12 @@ class ToolPkgRuntimeFilesTest(unittest.TestCase):
         self.assertIn("rustc --version && cargo --version", source)
         self.assertGreaterEqual(source.count("${RUST_TOOLCHAIN_ENV} && ${CARGO_MIRROR_ENV} && cargo build"), 3)
 
-    def test_code_runner_heredoc_delimiter_is_standalone_before_subshell_close(self) -> None:
+    def test_code_runner_source_writes_do_not_pass_through_pty(self) -> None:
         source = (REPO_ROOT / "examples" / "code_runner.ts").read_text(encoding="utf-8")
 
-        self.assertIn(
-            "return `cat > ${pathArgument} <<'${marker}'\\n${body}${marker}\\n`;",
-            source,
-        )
-        self.assertNotIn(
-            "return `cat > ${pathArgument} <<'${marker}'\\n${body}${marker}`;",
-            source,
-        )
+        self.assertNotIn("buildWriteFileCommand", source)
+        self.assertNotIn("__CODE_RUNNER_FILE_", source)
+        self.assertIn("if (!result.successful)", source)
 
     def test_code_runner_javascript_files_use_ubuntu_and_capture_completion_values(self) -> None:
         source = (REPO_ROOT / "examples" / "code_runner.ts").read_text(encoding="utf-8")

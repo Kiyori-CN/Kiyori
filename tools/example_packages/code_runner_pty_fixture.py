@@ -39,6 +39,13 @@ with tempfile.TemporaryDirectory(prefix="kiyori-python-pty-") as directory:
         assert read_until(fd, b"KIYORI_TEST> ", 5)[1]
         for line in sys.stdin:
             request = json.loads(line)
+            if "path" in request:
+                path = request["path"]
+                if path.startswith("~/"):
+                    path = str(Path(directory) / path[2:])
+                Path(path).write_text(request["content"], encoding="utf-8")
+                print(json.dumps(dict(successful=True, details="written", path=path)), flush=True)
+                continue
             command = request["command"]
             # A data-only ANSI-C envelope models the PTY boundary. The existing
             # CommandEnvelopePtyTest separately validates the production encoder.

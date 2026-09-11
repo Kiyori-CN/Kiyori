@@ -82,6 +82,20 @@ data class AssistantReplayHistoryRepairReport(
  * open calls as a protocol violation. The projector never invents results or retries tools.
  */
 object AssistantReplayHistoryProjector {
+    /** 只为本轮尚未执行的完整调用组生成作废记录，不生成任何工具结果。 */
+    fun invalidatedToolRoundMarker(content: String): String {
+        val projection = project(content)
+        require(projection.reason == AssistantReplayHistoryProjectionReason.MISSING_TOOL_RESULT)
+        val start = requireNotNull(projection.truncationIndex)
+        val calls = content.substring(start).trimEnd()
+        require(!ChatMarkupRegex.toolResultAnyPattern.containsMatchIn(calls))
+        return "<meta name=\"kiyori_invalidated_tool_round\" sha256=\"${toolRoundHash(calls)}\"></meta>"
+    }
+
+    private fun toolRoundHash(content: String): String =
+        java.security.MessageDigest.getInstance("SHA-256")
+            .digest(content.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
+
     /**
      * Classifies a projected assistant without inventing content. Thinking-only output is retained
      * as local evidence but must never become the next provider assistant turn.
@@ -144,6 +158,27 @@ object AssistantReplayHistoryProjector {
 
         while (cursor < content.length) {
             val marker = TOOL_LIKE_TAG_MARKER.find(content, cursor) ?: break
+            val invalidation = INVALIDATED_TOOL_ROUND.matchAt(content, marker.range.first)
+            if (invalidation != null) {
+                val start = transactionStart
+                // 普通警告不能闭合调用。只移除哈希精确匹配且尚无任何结果的整个调用组；
+                // 已执行、部分完成和内容被改写的组仍由下方严格协议拒绝。
+                if (start != null && !resultsStarted && transactionCalls.isNotEmpty() &&
+                    content.substring(cursor, marker.range.first).isBlank() &&
+                    toolRoundHash(content.substring(start, marker.range.first).trimEnd()) == invalidation.groupValues[1]
+                ) {
+                    replacements.add(ContentReplacement(start..invalidation.range.last, ""))
+                    transactionCalls.clear()
+                    transactionStart = null
+                    cursor = invalidation.range.last + 1
+                    continue
+                }
+                // 孤立标记是无效元数据，不允许它影响后面的工具匹配。
+                if (start == null) {
+                    cursor = invalidation.range.last + 1
+                    continue
+                }
+            }
             if (
                 transactionCalls.isNotEmpty() &&
                     content.substring(cursor, marker.range.first).isNotBlank()
@@ -551,10 +586,12 @@ object AssistantReplayHistoryProjector {
 
     private val TOOL_LIKE_TAG_MARKER =
         Regex(
-            "</?(?:${ChatMarkupRegex.TOOL_RESULT_TAG_NAME_REGEX_SOURCE}|" +
+            "<meta name=\"kiyori_invalidated_tool_round\" sha256=\"[a-f0-9]{64}\"></meta>|</?(?:${ChatMarkupRegex.TOOL_RESULT_TAG_NAME_REGEX_SOURCE}|" +
                 "${ChatMarkupRegex.TOOL_TAG_NAME_REGEX_SOURCE})\\b",
             RegexOption.IGNORE_CASE,
         )
+    private val INVALIDATED_TOOL_ROUND =
+        Regex("""<meta name="kiyori_invalidated_tool_round" sha256="([a-f0-9]{64})"></meta>""")
     private val PROVIDER_CALL_ID_ATTRIBUTE =
         Regex("""\bprovider_call_id\s*=\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE)
     private val PROVIDER_TOOL_NAME_ATTRIBUTE =

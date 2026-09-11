@@ -20,6 +20,8 @@ def xlsx_chart(args: Dict[str, Any]) -> Dict[str, Any]:
         raise OfficeError("E_INPUT_SCHEMA", "xlsx_chart 需要 path")
     workbook = _open_workbook(source)
     sheet = _resolve_sheet(workbook, args.get("sheet_name"))
+    if not isinstance(args.get("data_range"), str):
+        raise OfficeError("E_INPUT_SCHEMA", "data_range 必须是类似 \"A1:C8\" 的字符串范围；不能传对象")
     try:
         bounds = range_boundaries(args["data_range"])
         min_col, min_row, max_col, max_row = bounds

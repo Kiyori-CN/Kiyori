@@ -18,7 +18,7 @@ def run_output_command(command, output: Path, output_index: int, *, timeout: flo
                               remedy="先核对暂存区与引擎进程状态，再缩小范围或调整超时") from exc
         if result.returncode != 0:
             raise OfficeError("E_ENGINE_FAILED", "%s 失败" % purpose,
-                              detail="exit=%s stderr=%s" % (result.returncode, (result.stderr or "")[-2000:]))
+                              detail="exit=%s stderr_tail=%s" % (result.returncode, (result.stderr or "")[-2000:]))
         if not temporary.is_file() or temporary.stat().st_size == 0:
             raise OfficeError("E_ENGINE_FAILED", "%s 未产出有效文件" % purpose)
         if validate is not None:

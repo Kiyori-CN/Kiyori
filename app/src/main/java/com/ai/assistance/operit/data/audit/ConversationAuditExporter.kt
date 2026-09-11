@@ -61,6 +61,7 @@ class ConversationAuditExporter(context: Context) {
                     repository.createExportSnapshot(
                         chatId = chatId,
                         sealReason = "EXPORT_SNAPSHOT",
+                        diagnosticsOnly = format == ConversationAuditExportFormat.AI_DIAGNOSTICS_MARKDOWN,
                     )
                 val exportDir = KiyoriPaths.conversationAuditExportsDir()
                 val timestamp =
@@ -218,7 +219,7 @@ class ConversationAuditExporter(context: Context) {
                         .forEach { (payloadSha256, payload) ->
                             zip.writeEntry(
                                 ConversationAuditMarkdownRenderer.payloadPath(payloadSha256, payload),
-                                payload.bytes,
+                                requireNotNull(payload.bytes) { "Complete audit payload was omitted" },
                             )
                         }
                     zip.finish()

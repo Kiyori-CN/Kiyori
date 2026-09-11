@@ -79,3 +79,5 @@ description: 处理 Word/Excel/PPT/PDF 的总入口。任何涉及 .docx/.xlsx/.
 | `E_FORM_FIELD_NOT_FOUND` | PDF 字段不存在；先 pdf_form_list 核对字段名，strict=false 仅忽略未知字段 |
 | `E_VALIDATION_FAILED` | 按 `data.issues` 修正后重新生成 |
 | `E_TIMEOUT` | 先检查进程、暂存区和产物；安装任务先确认 apt/dpkg 是否仍在运行，不能直接重试或取消 |
+
+外部引擎失败的 `detail` 含 `stderr_tail`，应先阅读末尾诊断再判断源格式、组件或环境问题；不要据此自动切换引擎。

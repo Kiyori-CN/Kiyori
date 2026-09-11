@@ -731,7 +731,21 @@ object AIMessageManager {
         messages: List<ChatMessage>,
         autoContinue: Boolean = false,
         isGroupChat: Boolean = false,
-        summaryCustomRules: String? = null
+        summaryCustomRules: String? = null,
+        providerRequestContext: ProviderRequestContext? = null,
+    ): GeneratedConversationSummary? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+        // 长历史的清理、工具裁剪与摘要拼装均为 CPU 工作，手动/自动总结入口不能占用 UI 线程。
+        summarizeMemoryWithUsageOnWorker(enhancedAiService, messages, autoContinue,
+            isGroupChat, summaryCustomRules, providerRequestContext)
+    }
+
+    private suspend fun summarizeMemoryWithUsageOnWorker(
+        enhancedAiService: EnhancedAIService,
+        messages: List<ChatMessage>,
+        autoContinue: Boolean = false,
+        isGroupChat: Boolean = false,
+        summaryCustomRules: String? = null,
+        providerRequestContext: ProviderRequestContext? = null,
     ): GeneratedConversationSummary? {
         val lastSummaryIndex = messages.indexOfLast { it.sender == "summary" }
         val previousSummary = if (lastSummaryIndex != -1) messages[lastSummaryIndex].content.trim() else null
@@ -1122,6 +1136,7 @@ object AIMessageManager {
                     conversationToSummarize,
                     previousSummary,
                     summaryCustomRules,
+                    providerRequestContext,
                 )
             val summary = generated.content
             AppLogger.d(TAG, "AI生成总结完成: ${summary.take(50)}...")

@@ -1,6 +1,13 @@
 package com.ai.assistance.operit.api.chat.enhance
 
 import android.content.Context
+import com.ai.assistance.operit.api.chat.llmprovider.ProviderRequestContext
+import com.ai.assistance.operit.data.audit.ConversationAuditRepository
+import com.ai.assistance.operit.data.audit.ConversationAuditEventRequest
+import com.ai.assistance.operit.data.audit.ConversationAuditPayloadInput
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.core.chat.hooks.PromptHookContext
 import com.ai.assistance.operit.core.chat.hooks.PromptHookRegistry
@@ -197,8 +204,9 @@ class ConversationService(
             messages: List<PromptTurn>,
             previousSummary: String?,
             multiServiceManager: MultiServiceManager,
-            customRules: String? = null
-    ): GeneratedConversationSummaryContent {
+            customRules: String? = null,
+            providerRequestContext: ProviderRequestContext? = null,
+    ): GeneratedConversationSummaryContent = withContext(Dispatchers.Default) {
         try {
             val useEnglish = LocaleUtils.getCurrentLanguage(context).lowercase().startsWith("en")
             val activePromptMetadata = buildActivePromptHookMetadata(context)
@@ -353,7 +361,8 @@ class ConversationService(
                     summaryService.sendMessage(
                             context = context,
                             chatHistory = preparedHistory,
-                            modelParameters = modelParameters
+                            modelParameters = modelParameters,
+                            providerRequestContext = providerRequestContext,
                     )
 
             // 收集流中的所有内容
@@ -414,7 +423,7 @@ class ConversationService(
                 AppLogger.e(TAG, "更新token统计失败", e)
             }
 
-            return GeneratedConversationSummaryContent(
+            return@withContext GeneratedConversationSummaryContent(
                 content = summaryContent,
                 usage =
                     ConversationCompactionUsage(
@@ -425,6 +434,33 @@ class ConversationService(
                     ),
             )
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            // 总结失败必须可从本对话导出复核；不提交半份摘要，也不触发新的 POST。
+            providerRequestContext?.let { request ->
+                try {
+                    ConversationAuditRepository.from(context).appendEvent(
+                        ConversationAuditEventRequest(
+                            chatId = request.chatId,
+                            category = "COMPACTION",
+                            eventType = "COMPACTION_FAILED",
+                            actor = "KIYORI",
+                            summary = "总结生成失败，原始消息与已有摘要保持不变",
+                            messageTimestamp = request.messageTimestamp,
+                            localExecutionId = request.localExecutionId,
+                            terminalState = "FAILED",
+                            preserveCompleteness = true,
+                            payloads = listOf(ConversationAuditPayloadInput.text(
+                                label = "throwable", role = "error", value = e.stackTraceToString(),
+                                mediaType = "text/x-java-stacktrace",
+                            )),
+                        )
+                    )
+                } catch (auditError: Exception) {
+                    if (auditError is CancellationException) throw auditError
+                    e.addSuppressed(auditError)
+                    AppLogger.e(TAG, "记录总结失败审计时出错", auditError)
+                }
+            }
             AppLogger.e(TAG, "生成总结时出错", e)
             // return "对话摘要：生成摘要时出错，但对话仍在继续。"
             throw e

@@ -131,7 +131,9 @@ fun ConversationAuditExportSnapshot.toOperitArchivedConversationAudit():
                         mediaType = payload.entity.mediaType,
                         encoding = payload.entity.encoding,
                         createdAt = payload.entity.createdAt,
-                        bytesBase64 = Base64.getEncoder().encodeToString(payload.bytes),
+                        bytesBase64 = Base64.getEncoder().encodeToString(
+                            requireNotNull(payload.bytes) { "Complete audit payload was omitted" }
+                        ),
                     )
                 },
     )

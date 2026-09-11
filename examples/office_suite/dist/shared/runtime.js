@@ -196,6 +196,9 @@ async function resolveAndroidSource(raw) {
     for (const candidate of candidates) {
         const exists = await Tools.Files.exists(candidate, "android");
         if (exists && exists.exists === true) {
+            if (exists.isDirectory === true) {
+                throw new Error(`E_PATH_INVALID: 源路径是目录 path=${candidate}；office_read 等文档操作需要具体文件，请先用 list_files 选择文件`);
+            }
             return { path: candidate, tried: candidates };
         }
     }
@@ -297,6 +300,9 @@ async function stageInput(paths, taskDir, value, env, slot) {
         const exists = await Tools.Files.exists(source, "linux");
         if (!exists || exists.exists !== true) {
             throw new Error(`E_PATH_INVALID: Linux 源文件不存在 path=${source}；请确认该文件位于 Linux 工作区`);
+        }
+        if (exists.isDirectory === true) {
+            throw new Error(`E_PATH_INVALID: 源路径是目录 path=${source}；文档操作需要具体文件，请先用 list_files 选择文件`);
         }
         return { staged: source, source, aliases: [source] };
     }

@@ -131,6 +131,7 @@ function createHost(options = {}) {
         },
         exists: async (path, env) => {
           calls.files.push({ op: 'exists', path, env });
+          if (options.directory === path) return { exists: true, isDirectory: true };
           if (options.exists) {
             return { exists: await options.exists(path, env) };
           }
@@ -519,6 +520,18 @@ test('missing android source reports every probed candidate', async () => {
   assert.equal(result.code, 'E_PATH_INVALID');
   assert.match(result.message, /\/sdcard\/Download\/missing\.md/);
   assert.match(result.message, /\/storage\/emulated\/0\/Download\/missing\.md/);
+});
+
+test('directory input is rejected before user data is copied or parsed in both environments', async () => {
+  for (const env of ['android', 'linux']) {
+    const path = env === 'android' ? '/sdcard/Download/docs' : '/root/docs';
+    const { host, result } = await runTool('office_read', { path, env }, { directory: path });
+    assert.equal(result.success, false);
+    assert.equal(result.code, 'E_PATH_INVALID');
+    assert.match(result.message, /目录.*list_files/);
+    assert.ok(!host.calls.files.some(call => call.op === 'copy' && call.source === path));
+    assert.ok(!host.calls.hidden.some(call => call.payload?.path === path));
+  }
 });
 
 test('structured copy failure is surfaced instead of continuing', async () => {

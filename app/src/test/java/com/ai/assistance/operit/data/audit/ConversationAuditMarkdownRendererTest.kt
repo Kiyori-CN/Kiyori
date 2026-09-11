@@ -6,6 +6,33 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ConversationAuditMarkdownRendererTest {
+    @Test fun oversizedUnicodePayloadIsOmittedByBytesBeforeDecodingAndSmallErrorsRemain() {
+        val original = snapshotWithPayload("中".repeat(30000), 2)
+        val text = render(original)
+        assertTrue(text.contains("大型正文未展开"))
+        assertFalse(text.contains("中".repeat(100)))
+        assertTrue(text.contains("90000"))
+        val metadataOnly = original.copy(payloads = original.payloads.mapValues { (_, p) -> p.copy(bytes = null) })
+        assertTrue(render(metadataOnly).contains("大型正文未展开"))
+        assertTrue(render(snapshotWithPayload("TOOL_RESULT_WITHOUT_PAYLOAD", 1)).contains("TOOL_RESULT_WITHOUT_PAYLOAD"))
+        try {
+            metadataOnly.toOperitArchivedConversationAudit()
+            org.junit.Assert.fail("A diagnostic-only snapshot must never be serialized as a complete archive")
+        } catch (_: IllegalArgumentException) { }
+    }
+
+    @Test fun longMessageKeepsTailFailureAndRedactsBeforeBounding() {
+        val base = snapshot()
+        val current = base.copy(messages = listOf(base.messages.single().copy(
+            content = "HEAD\n" + "中".repeat(100000) + "\npassword=never-leak\nTAIL_FAILURE")))
+        val text = render(current)
+        assertTrue(text.contains("HEAD"))
+        assertTrue(text.contains("TAIL_FAILURE"))
+        assertTrue(text.contains("诊断省略中间"))
+        assertFalse(text.contains("never-leak"))
+        assertTrue(text.length < 70000)
+    }
+
     private val hash = "a".repeat(64)
     private fun snapshot() = ConversationAuditExportSnapshot(
         chat = ChatEntity(id = "chat", title = "diagnostics"),
@@ -24,7 +51,7 @@ class ConversationAuditMarkdownRendererTest {
     @Test fun repeatedLargeHookPayloadIsExpandedOnceAndEveryEventKeepsItsReference() {
         val body = "unique large hook body\n" + "history content ".repeat(800)
         val base = snapshotWithPayload(body, 100)
-        val before = base.payloads.getValue(hash).bytes.copyOf()
+        val before = requireNotNull(base.payloads.getValue(hash).bytes).copyOf()
         val text = render(base)
         assertEquals(1, Regex("unique large hook body").findAll(text).count())
         assertEquals(99, Regex(Regex.escape("[查看首次正文](#payload-$hash)")).findAll(text).count())
