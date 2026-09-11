@@ -9437,6 +9437,8 @@ def check_m05b_platform_logging(
         "ConditionEvaluatorParseFailureTest.kt",
         "app/src/test/java/com/ai/assistance/operit/api/chat/llmprovider/"
         "OpenAIResponsesSubmissionFaultInjectionTest.kt",
+        "app/src/test/java/com/ai/assistance/operit/api/chat/llmprovider/"
+        "OpenAIResponsesImageHistoryRequestTest.kt",
     }
     if mock_static_sites != expected_mock_static_sites:
         errors.append(

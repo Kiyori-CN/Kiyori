@@ -4,9 +4,100 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class OpenAIResponsesPayloadAdapterTest {
+    @Test
+    fun savedAssistantPreviewImagesRemainUsableWhenSendingAnyNextMessage() {
+        for (nextMessage in listOf("继续", "你好", "查看论文")) {
+            val history = JSONArray()
+            repeat(84) { history.put(JSONObject().put("role", "assistant").put("content", "history $it")) }
+            history.put(assistantMessage("", JSONArray().put(functionCall("preview", "render", "{}"))))
+            history.put(toolMessage("preview", "four preview pages"))
+            val parts = JSONArray()
+            repeat(4) { parts.put(imagePart("data:image/png;base64,page$it")) }
+            parts.put(JSONObject().put("type", "text").put("text", "Original final answer"))
+            history.put(JSONObject().put("role", "assistant").put("content", parts))
+            history.put(JSONObject().put("role", "user").put("content", nextMessage))
+            val original = history.toString()
+            val input = convert(history)
+            assertEquals("function_call", input.getJSONObject(84).getString("type"))
+            assertEquals("function_call_output", input.getJSONObject(85).getString("type"))
+            val attachments = input.getJSONObject(86)
+            assertEquals("user", attachments.getString("role"))
+            assertTrue(attachments.getJSONArray("content").getJSONObject(0).getString("text").contains("assistant history"))
+            assertEquals((0..3).map { "data:image/png;base64,page$it" }, imageUrls(input))
+            assertEquals("assistant", input.getJSONObject(87).getString("role"))
+            assertEquals("Original final answer", input.getJSONObject(87).getJSONArray("content").getJSONObject(0).getString("text"))
+            assertEquals(nextMessage, input.getJSONObject(88).getString("content"))
+            assertEquals(original, history.toString())
+            assertEquals(input.toString(), convert(history).toString())
+        }
+    }
+
+    @Test
+    fun interleavedAssistantTextAndImagesKeepOrderBeforeToolCalls() {
+        val parts = JSONArray().put(JSONObject().put("type", "text").put("text", "before"))
+            .put(imagePart("https://example.test/one.png"))
+            .put(JSONObject().put("type", "text").put("text", "between"))
+            .put(imagePart("https://example.test/two.png"))
+            .put(JSONObject().put("type", "text").put("text", "after"))
+        val message = assistantMessage("", JSONArray().put(functionCall("call", "inspect", "{}")))
+            .put("content", parts)
+        val input = convert(JSONArray().put(message).put(toolMessage("call", "done")))
+        assertEquals(listOf("assistant", "user", "assistant", "user", "assistant"),
+            (0..4).map { input.getJSONObject(it).getString("role") })
+        assertEquals(listOf("before", "between", "after"), (0..4 step 2).map {
+            input.getJSONObject(it).getJSONArray("content").getJSONObject(0).getString("text")
+        })
+        assertEquals("function_call", input.getJSONObject(5).getString("type"))
+        assertEquals("function_call_output", input.getJSONObject(6).getString("type"))
+    }
+
+    @Test
+    fun imageOnlyAssistantAndUserImagesKeepPayloadAndDetail() {
+        for (role in listOf("assistant", "user")) {
+            val images = JSONArray().put(imagePart("https://example.test/image.png"))
+                .put(JSONObject().put("type", "input_image").put("file_id", "file-test").put("detail", "low"))
+            val input = convert(JSONArray().put(JSONObject().put("role", role).put("content", images)))
+            assertEquals(1, input.length())
+            val message = input.getJSONObject(0)
+            assertEquals("user", message.getString("role"))
+            val content = message.getJSONArray("content")
+            val offset = if (role == "assistant") 1 else 0
+            assertEquals("high", content.getJSONObject(offset).getString("detail"))
+            assertEquals("file-test", content.getJSONObject(offset + 1).getString("file_id"))
+            assertEquals("low", content.getJSONObject(offset + 1).getString("detail"))
+        }
+    }
+
+    @Test
+    fun imagesDoNotPermitCrossingAnUnclosedToolTransaction() {
+        assertThrows(ProviderToolHistoryProtocolException::class.java) {
+            convert(JSONArray()
+                .put(assistantMessage("", JSONArray().put(functionCall("call", "render", "{}"))))
+                .put(JSONObject().put("role", "assistant").put("content", JSONArray().put(imagePart("https://example.test/page.png")))))
+        }
+    }
+
+    private fun imagePart(url: String) = JSONObject().put("type", "image_url")
+        .put("image_url", JSONObject().put("url", url).put("detail", "high"))
+
+    private fun imageUrls(input: JSONArray): List<String> = buildList {
+        for (i in 0 until input.length()) {
+            val message = input.getJSONObject(i)
+            val content = message.optJSONArray("content") ?: continue
+            for (j in 0 until content.length()) {
+                val part = content.getJSONObject(j)
+                if (part.optString("type") == "input_image") {
+                    assertEquals("user", message.getString("role"))
+                    add(part.getString("image_url"))
+                }
+            }
+        }
+    }
+
     @Test
     fun assistantTextPrecedesTheAdjacentFunctionCallAndOutputPair() {
         val input =

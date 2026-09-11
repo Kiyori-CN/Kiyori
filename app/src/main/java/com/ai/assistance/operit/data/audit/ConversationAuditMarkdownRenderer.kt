@@ -15,6 +15,7 @@ internal object ConversationAuditMarkdownRenderer {
         inlinePayloads: Boolean,
         externalShare: Boolean,
     ) {
+        val emittedPayloads = mutableSetOf<String>()
         writer.apply {
             appendLine("# Kiyori AI 对话审计")
             appendLine()
@@ -34,6 +35,7 @@ internal object ConversationAuditMarkdownRenderer {
             appendLine("- 事件数: ${snapshot.events.size}")
             if (inlinePayloads) {
                 appendLine("- 导出格式: 明文 UTF-8 Markdown（未加密）")
+                appendLine("- 相同 SHA-256 的 payload 正文仅展开一次，后续引用链接到本文件首次正文；事件与修订均保留。")
             }
             appendLine("- 链头: `${snapshot.audit.chainHeadSha256}`")
             appendLine()
@@ -159,11 +161,7 @@ internal object ConversationAuditMarkdownRenderer {
                     )
                     val payload = requireNotNull(snapshot.payloads[revision.contentPayloadSha256])
                     if (inlinePayloads && payload.entity.encoding == "utf-8") {
-                        val text = redactForReview(payload.bytes.toString(Charsets.UTF_8), payload.entity.mediaType, externalShare)
-                        val fence = markdownFence(text)
-                        appendLine("${fence}text")
-                        appendLine(text)
-                        appendLine(fence)
+                        writeInlinePayload(revision.contentPayloadSha256, payload, emittedPayloads, externalShare)
                     } else appendLine("  payload: `${payloadPath(revision.contentPayloadSha256, payload)}`")
                 }
                 snapshot.projections.forEach { projection ->
@@ -203,16 +201,7 @@ internal object ConversationAuditMarkdownRenderer {
                     )
                     appendLine()
                     if (inlinePayloads && payload.entity.encoding == "utf-8") {
-                        val payloadText =
-                            redactForReview(
-                                value = payload.bytes.toString(Charsets.UTF_8),
-                                mediaType = payload.entity.mediaType,
-                                externalShare = externalShare,
-                            )
-                        val fence = markdownFence(payloadText)
-                        appendLine("${fence}text")
-                        appendLine(payloadText)
-                        appendLine(fence)
+                        writeInlinePayload(ref.payloadSha256, payload, emittedPayloads, externalShare)
                     } else if (inlinePayloads) {
                         appendLine("- 二进制附件未内嵌 Markdown；实际字节仅在完整审计包中。")
                         appendLine("- SHA-256: `${ref.payloadSha256}`；字节数: ${payload.entity.plainByteCount}")
@@ -228,7 +217,7 @@ internal object ConversationAuditMarkdownRenderer {
             }
             appendLine("## 机器可读事件 JSONL")
             appendLine()
-            appendLine("每行对应一个已封印事件；payload 正文在上方按关联关系展开。")
+            appendLine("每行对应一个已封印事件；payload 正文在上方首次引用处展开，其余关联保留 SHA-256 与正文链接。")
             appendLine()
             val eventJsonLines =
                 snapshot.events.joinToString("\n") { event ->
@@ -248,6 +237,29 @@ internal object ConversationAuditMarkdownRenderer {
             appendLine(jsonlFence)
         }
 
+    }
+
+    private fun java.io.Writer.writeInlinePayload(
+        hash: String,
+        payload: ConversationAuditSnapshotPayload,
+        emittedPayloads: MutableSet<String>,
+        externalShare: Boolean,
+    ) {
+        // 存储层已按正文哈希去重，导出也必须复用同一身份。长历史在 Hook 开始/完成与
+        // 反复发送中会被多次引用；逐引用展开会让明文暴增。只缩减展示，不删除封印证据。
+        appendLine("- SHA-256: `$hash`；字节数: ${payload.entity.plainByteCount}")
+        if (!emittedPayloads.add(hash)) {
+            appendLine("- 正文与此前相同：[查看首次正文](#payload-$hash)")
+            return
+        }
+        appendLine()
+        appendLine("##### payload-$hash")
+        appendLine()
+        val text = redactForReview(payload.bytes.toString(Charsets.UTF_8), payload.entity.mediaType, externalShare)
+        val fence = markdownFence(text)
+        appendLine("${fence}text")
+        appendLine(text)
+        appendLine(fence)
     }
 
     private fun redactForReview(

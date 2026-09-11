@@ -110,6 +110,9 @@
 - 共享流在同一临界区登记 replay、订阅快照与终态，由单个发布者按队列交付；恢复观察者时
   不持有状态锁。观察者退出、同步重入或迟到订阅不能打断生产者、打乱正文或越过关闭信号；
   生产者自身取消仍阻止后续发布。
+- Responses 历史中的 assistant 页图/附件在 wire 适配时按原顺序分拆：文本保留 assistant
+  角色，图片使用注明来自 assistant 历史的 user 视觉上下文，不能携带为 assistant `input_image`。
+  保留图片 URL/文件 ID/精度参数；不改写本地气泡、不丢弃附件，不放宽工具事务闭合校验。
 - SSE 的完整 `data` 行在后续分块读取异常时先交付，随后仍传播原始 IO 异常；缓冲尾部 JSON
   也被截断时保留传输原因。只有真实 `response.completed` 可以判为完成，缺终态仍保留未知
   结果语义。明确 `failed/incomplete/cancelled/error` 及本地协议处理错误不得统一包装成提交未知。

@@ -3554,6 +3554,13 @@ class ArchitectureBoundaryTest(unittest.TestCase):
         )
         write(
             "app/src/test/java/com/ai/assistance/operit/api/chat/llmprovider/"
+            "OpenAIResponsesImageHistoryRequestTest.kt",
+            "package com.ai.assistance.operit.api.chat.llmprovider\n"
+            f"import {M05B_OLD_LOGGER_IMPORT}\n"
+            "fun test() = Mockito.mockStatic(AppLogger::class.java)\n",
+        )
+        write(
+            "app/src/test/java/com/ai/assistance/operit/api/chat/llmprovider/"
             "ApiKeyProviderLogPrivacyTest.kt",
             "package com.ai.assistance.operit.api.chat.llmprovider\n"
             f"import {M05B_OLD_LOGGER_IMPORT}\n"

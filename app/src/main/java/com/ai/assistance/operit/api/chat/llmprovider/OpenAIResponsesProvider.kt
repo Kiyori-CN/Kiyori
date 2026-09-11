@@ -682,6 +682,36 @@ object OpenAIResponsesPayloadAdapter {
         input: JSONArray,
     ) {
         val convertedContent = convertMessageContentForResponses(message.opt("content"))
+        if (role == "assistant" && convertedContent is JSONArray) {
+            // 历史页图可能与最终回答共存于 assistant，但 Responses 不允许 assistant 携带
+            // input_image。仅在 wire 层按原顺序分拆为有来源说明的视觉输入，不删除图片、
+            // 不把整段回答改成 user，也不改写本地历史。调用方已验证工具事务闭合。
+            var parts = JSONArray()
+            var partRole = "assistant"
+            fun flushParts() {
+                if (parts.length() == 0) return
+                appendConvertedMessage(partRole, parts, input)
+                parts = JSONArray()
+            }
+            for (i in 0 until convertedContent.length()) {
+                val part = convertedContent.getJSONObject(i)
+                val nextRole = if (part.optString("type") == "input_image") "user" else "assistant"
+                if (nextRole != partRole) flushParts()
+                partRole = nextRole
+                if (partRole == "user" && parts.length() == 0) {
+                    parts.put(JSONObject().put("type", "input_text").put(
+                        "text", "Images from assistant history (including tool previews), provided as visual context; not a new user instruction."
+                    ))
+                }
+                parts.put(part)
+            }
+            flushParts()
+            return
+        }
+        appendConvertedMessage(role, convertedContent, input)
+    }
+
+    private fun appendConvertedMessage(role: String, convertedContent: Any, input: JSONArray) {
         val hasContent =
             when (convertedContent) {
                 is String -> convertedContent.isNotBlank()
@@ -736,11 +766,16 @@ object OpenAIResponsesPayloadAdapter {
                                     part.optJSONObject("image_url")?.optString("url", "")
                                         ?: part.optString("image_url", "")
                                 }
-                            if (imageUrl.isNotEmpty()) {
+                            val fileId = part.optString("file_id", "")
+                            if (imageUrl.isNotEmpty() || fileId.isNotEmpty()) {
                                 convertedParts.put(
                                     JSONObject().apply {
                                         put("type", "input_image")
-                                        put("image_url", imageUrl)
+                                        if (imageUrl.isNotEmpty()) put("image_url", imageUrl)
+                                        if (fileId.isNotEmpty()) put("file_id", fileId)
+                                        val detail = part.optJSONObject("image_url")?.optString("detail", "")
+                                            ?.takeIf { it.isNotEmpty() } ?: part.optString("detail", "")
+                                        if (detail.isNotEmpty()) put("detail", detail)
                                     }
                                 )
                             }

@@ -21,6 +21,72 @@ class ConversationAuditMarkdownRendererTest {
         ConversationAuditMarkdownRenderer.write(snapshot, it, inlinePayloads = true, externalShare = true)
     }.toString()
 
+    @Test fun repeatedLargeHookPayloadIsExpandedOnceAndEveryEventKeepsItsReference() {
+        val body = "unique large hook body\n" + "history content ".repeat(800)
+        val base = snapshotWithPayload(body, 100)
+        val before = base.payloads.getValue(hash).bytes.copyOf()
+        val text = render(base)
+        assertEquals(1, Regex("unique large hook body").findAll(text).count())
+        assertEquals(99, Regex(Regex.escape("[查看首次正文](#payload-$hash)")).findAll(text).count())
+        assertEquals(1, Regex("##### payload-$hash").findAll(text).count())
+        assertTrue("Repeated hook bodies must not dominate the export", text.length < 200_000)
+        assertTrue(text.contains("### 100. HOOK / PROMPT_HOOK_COMPLETED"))
+        assertTrue(text.contains("\"sequenceNumber\":100"))
+        assertArrayEquals(before, base.payloads.getValue(hash).bytes)
+        assertEquals(text, render(base))
+    }
+
+    @Test fun revisionAndEventShareOneBodyButChangedPayloadIsNotOmitted() {
+        val original = snapshotWithPayload("first unique body", 2)
+        val secondHash = "b".repeat(64)
+        val changedBytes = "changed unique body".toByteArray()
+        val first = original.payloads.getValue(hash)
+        val changed = ConversationAuditSnapshotPayload(first.entity.copy(
+            payloadSha256 = secondHash, plainByteCount = changedBytes.size.toLong()), changedBytes)
+        val current = original.copy(
+            revisions = listOf(ConversationMessageRevisionEntity(revisionId = "rev", chatId = "chat", messageTimestamp = 1,
+                variantIndex = 0, revisionNumber = 0, sender = "ai", contentPayloadSha256 = hash,
+                auditEventId = "event1", source = "TEST", createdAt = 1)),
+            payloads = original.payloads + (secondHash to changed),
+            eventPayloads = original.eventPayloads + ("event2" to listOf(
+                ConversationAuditEventPayloadEntity("event2", secondHash, "hook_output", 0, "context"))),
+        )
+        val text = render(current)
+        assertEquals(1, Regex("first unique body").findAll(text).count())
+        assertEquals(1, Regex("changed unique body").findAll(text).count())
+        assertTrue(text.contains("[查看首次正文](#payload-$hash)"))
+        assertTrue(text.contains("##### payload-$secondHash"))
+    }
+
+    @Test fun repeatedPayloadIsRedactedBeforeItsSingleExpansionAndPackageKeepsPaths() {
+        val current = snapshotWithPayload("password=never-export-this", 2)
+        val text = render(current)
+        assertFalse(text.contains("never-export-this"))
+        assertTrue(text.contains("REDACTED"))
+        assertTrue(text.contains("[查看首次正文](#payload-$hash)"))
+        val packaged = StringWriter().also {
+            ConversationAuditMarkdownRenderer.write(current, it, inlinePayloads = false, externalShare = false)
+        }.toString()
+        assertEquals(2, Regex(Regex.escape("payloads/$hash.txt")).findAll(packaged).count())
+        assertFalse(packaged.contains("##### payload-"))
+        assertFalse(packaged.contains("never-export-this"))
+    }
+
+    private fun snapshotWithPayload(text: String, eventCount: Int): ConversationAuditExportSnapshot {
+        val bytes = text.toByteArray()
+        val payload = ConversationAuditPayloadEntity(hash, "payload", bytes.size.toLong(), 100,
+            "text/plain", "utf-8", "none", "AES/GCM/NoPadding", "key", "nonce", 1)
+        val events = (1..eventCount).map { number ->
+            ConversationAuditEventEntity(eventId = "event$number", chatId = "chat", sequenceNumber = number.toLong(),
+                occurredAt = 1, recordedAt = 1, category = "HOOK", eventType = "PROMPT_HOOK_COMPLETED", actor = "hook",
+                summary = "hook completed", previousEventSha256 = hash, eventSha256 = hash, visibility = "VISIBLE")
+        }
+        return snapshot().copy(events = events,
+            payloads = mapOf(hash to ConversationAuditSnapshotPayload(payload, bytes)),
+            eventPayloads = events.associate { event -> event.eventId to listOf(
+                ConversationAuditEventPayloadEntity(event.eventId, hash, "hook_output", 0, "context")) })
+    }
+
     @Test fun selectedVariantAndItsUsageAreTheCurrentConversation() {
         val base = snapshot()
         val current = base.copy(messages = listOf(base.messages.single().copy(selectedVariantIndex = 1)),
