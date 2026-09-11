@@ -30,7 +30,8 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudOff
@@ -39,9 +40,9 @@ import androidx.compose.material.icons.filled.Dehaze
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Grain
 import androidx.compose.material.icons.filled.LocationOff
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.PhotoCamera
+
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.AcUnit
@@ -451,19 +452,19 @@ private fun KiyoriHomeSearchFrame(
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
                     KiyoriHomeToolButton(
-                        icon = Icons.Default.Add,
+                        icon = Icons.Outlined.Add,
                         contentDescription = stringResource(R.string.add_attachment),
                         onClick = { onAiQuickAction(AiHomeQuickAction.OPEN_ATTACHMENTS) },
                         iconSizeDp = KIYORI_HOME_ATTACHMENT_ICON_SIZE_DP,
                         tintAlpha = KIYORI_HOME_ATTACHMENT_ICON_ALPHA,
                     )
                     KiyoriHomeToolButton(
-                        icon = Icons.Default.Mic,
+                        icon = Icons.Outlined.Mic,
                         contentDescription = stringResource(R.string.voice_input),
                         onClick = { onAiQuickAction(AiHomeQuickAction.START_VOICE_SESSION) },
                     )
                     KiyoriHomeToolButton(
-                        icon = Icons.Default.PhotoCamera,
+                        icon = Icons.Outlined.PhotoCamera,
                         contentDescription = stringResource(R.string.attachment_camera),
                         onClick = { onAiQuickAction(AiHomeQuickAction.CAPTURE_PHOTO) },
                     )
@@ -493,7 +494,7 @@ private fun KiyoriSearchAiSegment(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             KiyoriSearchAiSegmentOption(
-                icon = Icons.Default.Search,
+                icon = Icons.Outlined.Search,
                 label = stringResource(R.string.kiyori_shell_search_action),
                 selected = selectedMode == KiyoriSoftwareHomeMode.SEARCH,
                 onClick = { onModeSelected(KiyoriSoftwareHomeMode.SEARCH) },

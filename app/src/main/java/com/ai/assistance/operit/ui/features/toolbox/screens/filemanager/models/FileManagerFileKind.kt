@@ -6,7 +6,7 @@ enum class FileManagerFileKind { PARENT, FOLDER, IMAGE, AUDIO, VIDEO, PDF, DOCUM
 fun fileManagerFileKind(file: FileItem): FileManagerFileKind {
     if (file.name == "..") return FileManagerFileKind.PARENT
     if (file.isDirectory) return FileManagerFileKind.FOLDER
-    return when (file.name.substringAfterLast('.', "").lowercase(java.util.Locale.ROOT)) {
+    return when (file.displayName.substringAfterLast('.', "").lowercase(java.util.Locale.ROOT)) {
         "jpg", "jpeg", "png", "gif", "bmp", "webp", "heic", "heif", "avif", "svg" -> FileManagerFileKind.IMAGE
         "mp3", "wav", "ogg", "flac", "m4a", "aac", "opus" -> FileManagerFileKind.AUDIO
         "mp4", "avi", "mkv", "mov", "webm", "m4v", "ts", "3gp" -> FileManagerFileKind.VIDEO

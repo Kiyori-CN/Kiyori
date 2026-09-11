@@ -4,9 +4,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -211,7 +211,7 @@ private fun ExistingConnectionItem(
                     modifier = Modifier.size(40.dp),
                 ) {
                     Icon(
-                        Icons.Default.Edit,
+                        Icons.Outlined.Edit,
                         contentDescription = stringResource(R.string.workflow_edit_connection_condition)
                     )
                 }
@@ -224,7 +224,7 @@ private fun ExistingConnectionItem(
                     )
                 ) {
                     Icon(
-                        Icons.Default.Delete,
+                        Icons.Outlined.Delete,
                         contentDescription = stringResource(R.string.workflow_delete_connection)
                     )
                 }
@@ -416,7 +416,7 @@ private fun AvailableTargetItem(
                 )
             ) {
                 Icon(
-                    Icons.Default.Add,
+                    Icons.Outlined.Add,
                     contentDescription = stringResource(R.string.workflow_create_connection)
                 )
             }

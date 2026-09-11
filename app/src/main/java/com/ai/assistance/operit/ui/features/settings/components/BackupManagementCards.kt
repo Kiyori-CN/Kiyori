@@ -13,14 +13,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.Delete
+
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Psychology
-import androidx.compose.material.icons.filled.Settings
+
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -182,7 +184,7 @@ fun DataManagementCard(
                 )
                 ManagementButton(
                     text = stringResource(R.string.backup_delete_all),
-                    icon = Icons.Default.Delete,
+                    icon = Icons.Outlined.Delete,
                     onClick = onDelete,
                     isDestructive = true,
                     modifier = Modifier.fillMaxWidth()
@@ -224,7 +226,7 @@ fun DataManagementCard(
                         ChatHistoryOperation.DELETED -> OperationResultCard(
                             title = stringResource(R.string.backup_delete_success),
                             message = operationMessage,
-                            icon = Icons.Default.Delete
+                            icon = Icons.Outlined.Delete
                         )
 
                         ChatHistoryOperation.FAILED -> OperationResultCard(
@@ -345,7 +347,7 @@ fun ModelConfigManagementCard(
             SectionHeader(
                 title = modelConfigTitle,
                 subtitle = stringResource(R.string.backup_model_config_subtitle),
-                icon = Icons.Default.Settings
+                icon = Icons.Outlined.Settings
             )
 
             Text(

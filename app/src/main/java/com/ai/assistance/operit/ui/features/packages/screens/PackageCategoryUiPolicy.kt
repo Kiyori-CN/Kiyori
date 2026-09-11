@@ -5,6 +5,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.AutoMode
@@ -18,10 +21,8 @@ import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Science
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
-import androidx.compose.material.icons.filled.Tune
+
 import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -547,10 +548,10 @@ internal fun PackageCategoryIcon.toImageVector(): ImageVector =
         PackageCategoryIcon.PALETTE -> Icons.Filled.Palette
         PackageCategoryIcon.PLAY_CIRCLE -> Icons.Filled.PlayCircle
         PackageCategoryIcon.SCIENCE -> Icons.Filled.Science
-        PackageCategoryIcon.SEARCH -> Icons.Filled.Search
-        PackageCategoryIcon.SETTINGS -> Icons.Filled.Settings
+        PackageCategoryIcon.SEARCH -> Icons.Outlined.Search
+        PackageCategoryIcon.SETTINGS -> Icons.Outlined.Settings
         PackageCategoryIcon.SMART_TOY -> Icons.Filled.SmartToy
-        PackageCategoryIcon.TUNE -> Icons.Filled.Tune
+        PackageCategoryIcon.TUNE -> Icons.Outlined.Tune
         PackageCategoryIcon.WIDGETS -> Icons.Filled.Widgets
     }
 

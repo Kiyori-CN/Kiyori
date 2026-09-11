@@ -8,7 +8,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.Tune
+
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.HorizontalDivider
@@ -82,7 +83,7 @@ internal fun ThemeSettingsInterfaceTab(
 
     ThemeSettingsSectionTitle(
         title = stringResource(id = R.string.theme_tab_interface),
-        icon = Icons.Default.Tune,
+        icon = Icons.Outlined.Tune,
     )
     Card(
         modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),

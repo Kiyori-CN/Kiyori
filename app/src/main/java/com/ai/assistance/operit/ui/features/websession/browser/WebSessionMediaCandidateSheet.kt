@@ -30,9 +30,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
@@ -207,7 +207,7 @@ private fun BrowserMediaCandidateHeader(
         actions = {
             IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
                 Icon(
-                    imageVector = Icons.Filled.Close,
+                    imageVector = Icons.Outlined.Close,
                     contentDescription = "关闭",
                     modifier = Modifier.size(19.dp),
                 )
@@ -391,7 +391,7 @@ private fun BrowserMediaCandidateCard(
                     contentPadding = PaddingValues(horizontal = 11.dp),
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Download,
+                        imageVector = Icons.Outlined.Download,
                         contentDescription = null,
                         modifier = Modifier.size(15.dp),
                     )
@@ -505,8 +505,8 @@ private fun BrowserMediaCandidateActionDialog(
                     description = "内置音乐播放器尚未实现",
                 )
             }
-            BrowserMediaActionRow(Icons.Filled.Download, "下载资源", KiyoriSemanticTone.GREEN, onDownload)
-            BrowserMediaActionRow(Icons.Filled.ContentCopy, "复制链接", KiyoriSemanticTone.PURPLE, onCopy)
+            BrowserMediaActionRow(Icons.Outlined.Download, "下载资源", KiyoriSemanticTone.GREEN, onDownload)
+            BrowserMediaActionRow(Icons.Outlined.ContentCopy, "复制链接", KiyoriSemanticTone.PURPLE, onCopy)
             BrowserMediaActionRow(
                 icon = Icons.Filled.Info,
                 title = "查看链接",
@@ -634,7 +634,7 @@ private fun BrowserMediaCandidateLinkDialog(
                     contentPadding = PaddingValues(horizontal = 14.dp),
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.ContentCopy,
+                        imageVector = Icons.Outlined.ContentCopy,
                         contentDescription = null,
                         modifier = Modifier.size(15.dp),
                     )

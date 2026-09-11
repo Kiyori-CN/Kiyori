@@ -30,10 +30,10 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.DeleteSweep
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
@@ -242,13 +242,13 @@ internal fun WebSessionBrowserTabOverview(
                             onClick = onNewTab,
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.Add,
+                                imageVector = Icons.Outlined.Add,
                                 contentDescription = stringResource(R.string.web_session_new_tab),
                             )
                         }
                     }
                     TabOverviewBottomAction(
-                        icon = Icons.Filled.DeleteSweep,
+                        icon = Icons.Outlined.DeleteSweep,
                         contentDescription = stringResource(R.string.web_session_clear_profile_tabs),
                         enabled = visibleTabs.isNotEmpty(),
                         onClick = onCloseAllTabs,
@@ -467,7 +467,7 @@ private fun BrowserTabOverviewCard(
                 ) {
                     IconButton(onClick = onClose, modifier = Modifier.size(40.dp)) {
                         Icon(
-                            imageVector = Icons.Filled.Close,
+                            imageVector = Icons.Outlined.Close,
                             contentDescription = stringResource(R.string.close),
                             modifier = Modifier.size(18.dp),
                         )

@@ -15,6 +15,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -219,7 +222,7 @@ fun ProcessLimitRemoverScreen(navController: NavController? = null) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Settings,
+                            imageVector = Icons.Outlined.Settings,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(32.dp)
@@ -271,7 +274,7 @@ fun ProcessLimitRemoverScreen(navController: NavController? = null) {
                             }
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Refresh,
+                                imageVector = Icons.Outlined.Refresh,
                                 contentDescription = stringResource(R.string.process_limit_current_status)
                             )
                         }
@@ -449,7 +452,7 @@ fun ProcessLimitRemoverScreen(navController: NavController? = null) {
                                     contentPadding = PaddingValues(horizontal = 8.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.DeleteSweep,
+                                        imageVector = Icons.Outlined.DeleteSweep,
                                         contentDescription = context.getString(R.string.process_limit_execution_history),
                                         modifier = Modifier.size(16.dp)
                                     )

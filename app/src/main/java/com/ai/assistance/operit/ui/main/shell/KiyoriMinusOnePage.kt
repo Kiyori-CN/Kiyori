@@ -18,10 +18,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.Card
@@ -102,7 +102,7 @@ internal val kiyoriMinusOneDataItems =
         KiyoriMinusOneDataItem(
             title = "下载",
             count = 0,
-            icon = Icons.Default.Download,
+            icon = Icons.Outlined.Download,
             tone = WebSessionBrowserMenuTone.DOWNLOADS,
             action = KiyoriMinusOneDataAction.OPEN_DOWNLOAD_DRAWER,
         ),
@@ -211,7 +211,7 @@ private fun KiyoriMinusOneTopBar(onClose: () -> Unit) {
         )
         IconButton(onClick = onClose, modifier = Modifier.size(40.dp)) {
             Icon(
-                imageVector = Icons.Default.Close,
+                imageVector = Icons.Outlined.Close,
                 contentDescription = "关闭负一屏",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(18.dp),

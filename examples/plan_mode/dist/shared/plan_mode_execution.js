@@ -33,10 +33,15 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PLAN_MODE_START_IMPLEMENTATION_IPC_CHANNEL = void 0;
+exports.PLAN_MODE_IMPLEMENTATION_STATUS_IPC_CHANNEL = exports.PLAN_MODE_START_IMPLEMENTATION_IPC_CHANNEL = void 0;
+exports.getPlanImplementationStatus = getPlanImplementationStatus;
 exports.startPlanImplementation = startPlanImplementation;
 const planModeI18n = __importStar(require("./plan_mode_i18n.js"));
 exports.PLAN_MODE_START_IMPLEMENTATION_IPC_CHANNEL = "plan_mode.start_implementation";
+exports.PLAN_MODE_IMPLEMENTATION_STATUS_IPC_CHANNEL = "plan_mode.implementation_status";
+async function getPlanImplementationStatus(content) {
+    return await ToolPkg.ipc.call(exports.PLAN_MODE_IMPLEMENTATION_STATUS_IPC_CHANNEL, content);
+}
 async function startPlanImplementation(planContent) {
     const text = planModeI18n.resolvePlanModeI18n();
     const normalizedPlanContent = planContent.trim();

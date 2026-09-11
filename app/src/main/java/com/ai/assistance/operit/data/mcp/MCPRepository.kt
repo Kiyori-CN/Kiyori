@@ -819,7 +819,7 @@ class MCPRepository(private val context: Context) {
      *
      * @param successfulPluginIds 加载成功的插件ID列表
      */
-    fun registerToolsForLoadedPlugins(successfulPluginIds: List<String>) {
+    internal fun registerToolsForLoadedPlugins(successfulPluginIds: List<String>, expectedRegistrations: Map<String, McpPluginRuntimeIdentity>) {
         if (successfulPluginIds.isEmpty()) {
             AppLogger.d(TAG, "没有成功加载的插件，无需注册工具")
             return
@@ -835,6 +835,7 @@ class MCPRepository(private val context: Context) {
             try {
                 AppLogger.d(TAG, "正在为插件 $pluginId 注册工具...")
 
+                val registration = expectedRegistrations[pluginId] ?: return@forEach
                 val pluginMetadata = mcpLocalServer.getPluginMetadata(pluginId)
                 if (pluginMetadata == null) {
                     AppLogger.w(TAG, "在MCPLocalServer中找不到插件 $pluginId 的元数据")
@@ -849,40 +850,32 @@ class MCPRepository(private val context: Context) {
                     capabilities = listOf("tools"),
                     extraData = emptyMap()
                 )
-                mcpManager.registerServer(pluginId, serverConfig)
-                AppLogger.d(TAG, "已在MCPManager中注册服务器: $pluginId (类型: ${pluginMetadata.type})")
-
-                // 获取工具信息
-                val toolsToRegister = getToolsForPlugin(pluginId)
+                // 发现阶段不向运行时发布；禁用或编辑可以在网络请求期间立即使结果失效。
+                val toolsToRegister = getToolsForPlugin(pluginId, serverConfig)
 
                 if (toolsToRegister.isEmpty()) {
                     AppLogger.w(TAG, "插件 $pluginId 没有可注册的工具")
                     return@forEach
                 }
 
-                // 统一注册工具
-                toolsToRegister.forEach { toolInfo ->
-                    val prefixedToolName = "$pluginId:${toolInfo.name}"
-
-                    if (toolHandler.getToolExecutor(prefixedToolName) != null) {
-                        AppLogger.d(TAG, "工具 $prefixedToolName 已注册，跳过")
-                        return@forEach
-                    }
-
-                    runBlocking {
+                val published = mcpLocalServer.publishPluginRegistration(pluginId, registration) {
+                    // 覆盖旧工具集，移除服务端已撤回的工具与描述。
+                    unregisterMcpRuntimeTools(context, pluginId)
+                    mcpManager.registerServer(pluginId, serverConfig)
+                    toolsToRegister.forEach { toolInfo ->
                         toolHandler.registerTool(
-                            name = prefixedToolName,
+                            name = "$pluginId:${toolInfo.name}",
                             executor = mcpToolExecutor,
                             descriptionGenerator = { tool ->
-                                val baseDescription = toolInfo.description
-                                val paramsString = if (tool.parameters.isNotEmpty()) {
-                                    "\nParameters: " + tool.parameters.joinToString(", ") { "${it.name}='${it.value}'" }
-                                } else ""
-                                baseDescription + paramsString
+                                val parameters = tool.parameters.joinToString(", ") { "${it.name}='${it.value}'" }
+                                toolInfo.description + if (parameters.isEmpty()) "" else "\nParameters: $parameters"
                             }
                         )
                     }
-                    AppLogger.i(TAG, "成功注册工具: $prefixedToolName")
+                }
+                if (!published) {
+                    AppLogger.d(TAG, "Discarded MCP discovery after configuration changed: $pluginId")
+                    return@forEach
                 }
                 AppLogger.d(TAG, "插件 $pluginId 的工具注册完成，共 ${toolsToRegister.size} 个")
 
@@ -941,7 +934,7 @@ class MCPRepository(private val context: Context) {
         }
     }
 
-    private fun getToolsForPlugin(pluginId: String): List<UnifiedToolInfo> {
+    private fun getToolsForPlugin(pluginId: String, serverConfig: MCPServerConfig): List<UnifiedToolInfo> {
         // 1. 检查缓存
         val cachedTools = mcpLocalServer.getCachedTools(pluginId)
         if (cachedTools != null && cachedTools.isNotEmpty()) {
@@ -953,13 +946,6 @@ class MCPRepository(private val context: Context) {
 
         // 2. 如果没有缓存，动态获取
         AppLogger.d(TAG, "插件 $pluginId 无工具缓存，使用动态连接方式获取")
-        val mcpManager = MCPManager.getInstance(context)
-        val serverConfig = mcpManager.getRegisteredServers()[pluginId]
-        if (serverConfig == null) {
-            AppLogger.e(TAG, "无法在MCPManager中找到服务器 $pluginId 的配置")
-            return emptyList()
-        }
-
         val mcpLoadResult = MCPPackage.loadFromServer(context, serverConfig)
         val mcpPackage = mcpLoadResult.mcpPackage
         if (mcpPackage == null) {

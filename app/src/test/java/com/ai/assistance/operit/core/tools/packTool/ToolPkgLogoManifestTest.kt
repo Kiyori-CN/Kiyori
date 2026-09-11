@@ -102,7 +102,7 @@ class ToolPkgLogoManifestTest {
             artifactSha256 = "test-sha256",
             isBuiltIn = false,
             parseJsPackage = { _, _ -> null },
-            parseMainRegistration = { _, _, _ ->
+            parseMainRegistration = { _, _, _, _ ->
                 ToolPkgMainRegistrationParseResult.Success(ToolPkgMainRegistration())
             },
             reportPackageLoadError = { _, _ -> }

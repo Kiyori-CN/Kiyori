@@ -1,5 +1,11 @@
 package com.ai.assistance.operit.ui.features.chat.components.style.input.classic
 
+import com.kiyori.design.theme.KiyoriUiShapes
+
+import com.kiyori.design.theme.kiyoriSurfaceColors
+
+import com.kiyori.design.theme.KiyoriSurfaceTokens
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -14,19 +20,19 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.outlined.Hub
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Portrait
 import androidx.compose.material.icons.outlined.Speed
-import androidx.compose.material.icons.rounded.Psychology
-import androidx.compose.material.icons.rounded.Save
-import androidx.compose.material.icons.rounded.TipsAndUpdates
-import androidx.compose.material.icons.automirrored.rounded.VolumeUp
-import androidx.compose.material.icons.rounded.Whatshot
+import androidx.compose.material.icons.outlined.Psychology
+import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material.icons.outlined.TipsAndUpdates
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
+import androidx.compose.material.icons.outlined.Whatshot
 import androidx.compose.material.icons.automirrored.outlined.VolumeOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -164,8 +170,8 @@ fun ClassicChatSettingsBar(
     val modelConfigManager = remember { ModelConfigManager(context) }
     val configMappingWithIndex by
             functionalConfigManager.functionConfigMappingWithIndexFlow.collectAsState(initial = emptyMap())
-    var configSummaries by remember { mutableStateOf<List<ModelConfigSummary>>(emptyList()) }
-    LaunchedEffect(Unit) { configSummaries = modelConfigManager.getAllConfigSummaries() }
+    val configSummaries by
+            modelConfigManager.configSummariesFlow.collectAsState(initial = emptyList())
     val currentConfigMapping =
             configMappingWithIndex[FunctionType.CHAT] ?: FunctionConfigMapping(FunctionalConfigManager.DEFAULT_CONFIG_ID, 0)
     val isModelSelectionLockedByCharacterCard = !characterCardBoundChatModelConfigId.isNullOrBlank()
@@ -416,15 +422,13 @@ fun ClassicChatSettingsBar(
                 Box(modifier = Modifier.padding(top = 0.dp, bottom = 76.dp)) {
                     Card(
                         modifier = Modifier.width(280.dp),
-                        shape = RoundedCornerShape(8.dp),
+                        shape = KiyoriUiShapes.control,
                             colors =
                                     CardDefaults.cardColors(
                                             containerColor =
-                                                    MaterialTheme.colorScheme.surface.copy(
-                                                            alpha = 0.95f
-                                                    )
+                                                    kiyoriSurfaceColors().popup
                         ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                        elevation = CardDefaults.cardElevation(defaultElevation = KiyoriSurfaceTokens.popupElevation)
                     ) {
                         Column(
                                 modifier =
@@ -472,8 +476,7 @@ fun ClassicChatSettingsBar(
                             SettingItem(
                                 title = stringResource(R.string.memory_auto_update),
                                     icon =
-                                            if (enableMemoryAutoUpdate) Icons.Rounded.Save
-                                            else Icons.Outlined.Save,
+                                            Icons.Outlined.Save,
                                     iconTint =
                                             if (enableMemoryAutoUpdate)
                                                     MaterialTheme.colorScheme.primary
@@ -601,7 +604,7 @@ fun ClassicChatSettingsBar(
                             )
                             SettingItem(
                                 title = stringResource(R.string.max_mode_title),
-                                icon = if (enableMaxContextMode) Icons.Rounded.Whatshot else Icons.Outlined.Whatshot,
+                                icon = Icons.Outlined.Whatshot,
                                 iconTint = if (enableMaxContextMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                                 isChecked = enableMaxContextMode,
                                 onToggle = onToggleEnableMaxContextMode,
@@ -679,7 +682,7 @@ fun ClassicChatSettingsBar(
                             SettingItem(
                                 title = stringResource(R.string.auto_read_message),
                                     icon =
-                                            if (isAutoReadEnabled) Icons.AutoMirrored.Rounded.VolumeUp
+                                            if (isAutoReadEnabled) Icons.AutoMirrored.Outlined.VolumeUp
                                             else Icons.AutoMirrored.Outlined.VolumeOff,
                                     iconTint =
                                             if (isAutoReadEnabled)
@@ -765,15 +768,13 @@ fun ClassicChatSettingsBar(
                 ) {
                     Card(
                         modifier = Modifier.width(220.dp),
-                        shape = RoundedCornerShape(8.dp),
+                        shape = KiyoriUiShapes.control,
                             colors =
                                     CardDefaults.cardColors(
                                             containerColor =
-                                                    MaterialTheme.colorScheme.surface.copy(
-                                                            alpha = 0.95f
-                                                    )
+                                                    kiyoriSurfaceColors().popup
                         ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                        elevation = CardDefaults.cardElevation(defaultElevation = KiyoriSurfaceTokens.popupElevation)
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
@@ -1028,7 +1029,7 @@ private fun InputMenuToggleSettingItem(
     val toggleTitle =
         if (toggle.titleRes != 0) stringResource(toggle.titleRes)
         else toggle.title.orEmpty()
-    val toggleIcon = MaterialIconNameResolver.resolveOrDefault(toggle.icon, Icons.Outlined.Hub)
+    val toggleIcon = MaterialIconNameResolver.resolveOutlinedOrDefault(toggle.icon, Icons.Outlined.Hub)
     SettingItem(
         title = toggleTitle,
         icon = toggleIcon,
@@ -1105,8 +1106,8 @@ private fun ClassicSettingsFoldSection(
             Spacer(modifier = Modifier.width(6.dp))
             Icon(
                 imageVector =
-                    if (expanded) Icons.Filled.KeyboardArrowUp
-                    else Icons.Filled.KeyboardArrowDown,
+                    if (expanded) Icons.Outlined.KeyboardArrowUp
+                    else Icons.Outlined.KeyboardArrowDown,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 modifier = Modifier.size(20.dp)
@@ -1345,7 +1346,7 @@ private fun ThinkingSettingsItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = Icons.Rounded.Psychology,
+                imageVector = Icons.Outlined.Psychology,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 modifier = Modifier.size(16.dp).clearAndSetSemantics {}
@@ -1382,7 +1383,7 @@ private fun ThinkingSettingsItem(
             }
             Icon(
                 imageVector =
-                        if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                        if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
@@ -1399,8 +1400,7 @@ private fun ThinkingSettingsItem(
                 ThinkingSubSettingItem(
                     title = stringResource(R.string.thinking_mode),
                     icon =
-                        if (enableThinkingMode) Icons.Rounded.Psychology
-                        else Icons.Outlined.Psychology,
+                        Icons.Outlined.Psychology,
                     iconTint =
                         if (enableThinkingMode) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
@@ -1531,8 +1531,8 @@ private fun MemorySelectorItem(
             }
             Icon(
                     imageVector =
-                            if (expanded) Icons.Filled.KeyboardArrowUp
-                            else Icons.Filled.KeyboardArrowDown,
+                            if (expanded) Icons.Outlined.KeyboardArrowUp
+                            else Icons.Outlined.KeyboardArrowDown,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
@@ -1696,7 +1696,7 @@ private fun ModelSelectorItem(
                 )
             }
             Icon(
-                imageVector = if (effectiveExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                imageVector = if (effectiveExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
@@ -1772,7 +1772,7 @@ private fun ModelSelectorItem(
                                         fontSize = 10.sp
                                     )
                                     Icon(
-                                        imageVector = if (isExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                                        imageVector = if (isExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant

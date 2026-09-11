@@ -15,12 +15,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.outlined.UploadFile
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material.icons.filled.UploadFile
+
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -81,7 +83,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Settings
+
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -127,7 +129,7 @@ fun MemorySearchBar(
         )
         IconButton(onClick = onSettingsClick) {
             Icon(
-                Icons.Default.Settings,
+                Icons.Outlined.Settings,
                 contentDescription = stringResource(R.string.memory_search_settings_title),
                 tint = MaterialTheme.colorScheme.secondary
             )
@@ -307,7 +309,7 @@ fun MemoryScreen() {
                         containerColor = MaterialTheme.colorScheme.errorContainer,
                         modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete Selected")
+                        Icon(Icons.Outlined.Delete, contentDescription = "Delete Selected")
                     }
                 }
 
@@ -353,13 +355,13 @@ fun MemoryScreen() {
                     modifier = Modifier.size(48.dp),
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer
                 ) {
-                    Icon(Icons.Default.UploadFile, contentDescription = "Import Document")
+                    Icon(Icons.Outlined.UploadFile, contentDescription = "Import Document")
                 }
                 FloatingActionButton(
                     onClick = { viewModel.startEditing(null) },
                     modifier = Modifier.size(48.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Create Memory")
+                    Icon(Icons.Outlined.Add, contentDescription = "Create Memory")
                 }
             }
         }

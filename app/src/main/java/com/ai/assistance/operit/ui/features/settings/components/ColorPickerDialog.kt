@@ -8,7 +8,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.outlined.ContentPaste
+
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -367,7 +368,7 @@ fun ColorPickerDialog(
                                                     }
                                                 }
                                             ) {
-                                                Icon(Icons.Default.ContentPaste, stringResource(R.string.colorpicker_paste))
+                                                Icon(Icons.Outlined.ContentPaste, stringResource(R.string.colorpicker_paste))
                                             }
                                         }
                                     )

@@ -3,7 +3,8 @@ package com.ai.assistance.operit.ui.features.websession.browser
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Add
+
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -33,7 +34,7 @@ internal fun BrowserPluginAddMenu(
     Box {
         IconButton(onClick = { expanded = true }) {
             Icon(
-                imageVector = Icons.Filled.Add,
+                imageVector = Icons.Outlined.Add,
                 contentDescription = stringResource(R.string.web_session_plugins_add),
             )
         }

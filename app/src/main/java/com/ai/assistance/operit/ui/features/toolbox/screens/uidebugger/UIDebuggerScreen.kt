@@ -5,7 +5,8 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -54,7 +55,7 @@ fun UIDebuggerScreen(
                 }
             ) {
                 Icon(
-                    Icons.AutoMirrored.Filled.OpenInNew,
+                    Icons.AutoMirrored.Outlined.OpenInNew,
                     contentDescription = stringResource(R.string.ui_debugger_launch_floating)
                 )
             }
@@ -69,7 +70,7 @@ fun UIDebuggerScreen(
             verticalArrangement = Arrangement.Center
         ) {
             Icon(
-                Icons.AutoMirrored.Filled.OpenInNew,
+                Icons.AutoMirrored.Outlined.OpenInNew,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.primary

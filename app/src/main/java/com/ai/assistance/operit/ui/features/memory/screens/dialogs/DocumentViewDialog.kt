@@ -13,7 +13,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Search
+
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -89,7 +90,7 @@ fun DocumentViewDialog(
                             onPerformSearch()
                             keyboardController?.hide()
                         }) {
-                            Icon(Icons.Default.Search, contentDescription = "Search")
+                            Icon(Icons.Outlined.Search, contentDescription = "Search")
                         }
                     },
                     keyboardOptions = KeyboardOptions.Default.copy(

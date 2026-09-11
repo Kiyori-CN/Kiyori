@@ -20,13 +20,13 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Article
+import androidx.compose.material.icons.automirrored.outlined.Article
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.CodeOff
-import androidx.compose.material.icons.filled.Terminal
-import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.outlined.Terminal
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -905,7 +905,7 @@ val actualViewModel: ChatViewModel =
                 val browserColors = KiyoriSemanticTone.BLUE.resolveColors()
                 val terminalColors = KiyoriSemanticTone.CYAN.resolveColors()
                 val detailsColors = KiyoriSemanticTone.ORANGE.resolveColors()
-                val workspaceColors = KiyoriSemanticTone.PURPLE.resolveColors()
+                val fileManagerColors = KiyoriSemanticTone.PURPLE.resolveColors()
                 // 共享浏览器入口：进入 Browser Home 时只转挂现有 WebSession，不创建第二个 WebView。
                 IconButton(
                         modifier = Modifier.size(uiTokens.touchTarget).clip(KiyoriUiShapes.control),
@@ -918,9 +918,19 @@ val actualViewModel: ChatViewModel =
                             ),
                 ) {
                     Icon(
-                            imageVector = Icons.Default.Language,
+                            imageVector = Icons.Outlined.Language,
                             contentDescription = stringResource(R.string.kiyori_shell_browser_home),
                     )
+                }
+
+                val openFileManager = com.ai.assistance.operit.ui.main.components.LocalKiyoriOpenFileManager.current
+                IconButton(
+                    modifier = Modifier.size(uiTokens.touchTarget).clip(KiyoriUiShapes.control),
+                    enabled = openFileManager != null,
+                    onClick = { openFileManager?.invoke() },
+                    colors = IconButtonDefaults.iconButtonColors(contentColor = fileManagerColors.icon),
+                ) {
+                    Icon(Icons.Outlined.Folder, contentDescription = "文件管理器")
                 }
 
                 // AI电脑模式切换按钮
@@ -949,7 +959,7 @@ val actualViewModel: ChatViewModel =
                             ),
                 ) {
                     Icon(
-                            imageVector = Icons.Default.Terminal,
+                            imageVector = Icons.Outlined.Terminal,
                             contentDescription = stringResource(R.string.ai_computer),
                     )
                 }
@@ -981,21 +991,11 @@ val actualViewModel: ChatViewModel =
                         }
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Article,
+                            imageVector = Icons.AutoMirrored.Outlined.Article,
                             contentDescription =
                                 stringResource(R.string.conversation_details_title),
                         )
                     }
-                }
-
-                val openFileManager = com.ai.assistance.operit.ui.main.components.LocalKiyoriOpenFileManager.current
-                IconButton(
-                    modifier = Modifier.size(uiTokens.touchTarget).clip(KiyoriUiShapes.control),
-                    enabled = openFileManager != null,
-                    onClick = { openFileManager?.invoke() },
-                    colors = IconButtonDefaults.iconButtonColors(contentColor = workspaceColors.icon),
-                ) {
-                    Icon(Icons.Default.Folder, contentDescription = "文件管理器")
                 }
             }
         }

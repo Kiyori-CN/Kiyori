@@ -146,7 +146,7 @@ fun PluginTabContent(
                             bytes = logo?.bytes,
                             mimeType = logo?.mimeType,
                             fileName = logo?.fileName,
-                            size = 32.dp
+                            size = 24.dp
                         )
                     ReorderableItem(
                         reorderableState,
@@ -169,8 +169,9 @@ fun PluginTabContent(
                                     }
                                 ),
                             shape = RoundedCornerShape(12.dp),
+                            // Keep the dragged item opaque so its elevation shadow is not composited with the page behind it.
                             color = if (isDragging) {
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                MaterialTheme.colorScheme.surfaceVariant
                             } else {
                                 MaterialTheme.colorScheme.surface
                             },
@@ -182,7 +183,11 @@ fun PluginTabContent(
                                     .longPressDraggableHandle(),
                                 colors =
                                     CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                        containerColor = if (isDragging) {
+                                            MaterialTheme.colorScheme.surfaceVariant
+                                        } else {
+                                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                        }
                                     ),
                                 shape = RoundedCornerShape(12.dp)
                             ) {

@@ -17,22 +17,23 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Apps
-import androidx.compose.material.icons.filled.Audiotrack
-import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.BrightnessAuto
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
+import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.Apps
+import androidx.compose.material.icons.outlined.Audiotrack
+import androidx.compose.material.icons.outlined.Backup
+import androidx.compose.material.icons.outlined.BrightnessAuto
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.Widgets
+import androidx.compose.material.icons.outlined.DarkMode
+
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.PlayCircle
+import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -129,7 +130,7 @@ internal val kiyoriSettingsHomeGroups =
         listOf(
             KiyoriSettingsHomeEntry(
                 "我的账号",
-                Icons.Default.AccountCircle,
+                Icons.Outlined.AccountCircle,
                 KiyoriSettingsHomeIconPalette.ACCOUNT_CONNECTION,
                 KiyoriSettingsHomeAction.OPEN_ACCOUNT_CONNECTIONS,
             ),
@@ -141,63 +142,63 @@ internal val kiyoriSettingsHomeGroups =
             ),
             KiyoriSettingsHomeEntry(
                 "小程序",
-                Icons.Default.Apps,
+                Icons.Outlined.Apps,
                 KiyoriSettingsHomeIconPalette.MINI_APP,
             ),
         ),
         listOf(
             KiyoriSettingsHomeEntry(
                 KIYORI_BROWSER_SETTINGS_PAGE_TITLE,
-                Icons.Default.Language,
+                Icons.Outlined.Language,
                 KiyoriSettingsHomeIconPalette.BROWSER,
                 KiyoriSettingsHomeAction.OPEN_BROWSER_SETTINGS,
             ),
             KiyoriSettingsHomeEntry(
                 KIYORI_DOWNLOAD_SETTINGS_PAGE_TITLE,
-                Icons.Default.Download,
+                Icons.Outlined.Download,
                 KiyoriSettingsHomeIconPalette.DOWNLOADS,
                 KiyoriSettingsHomeAction.OPEN_DOWNLOAD_SETTINGS,
             ),
             KiyoriSettingsHomeEntry(
                 "文件管理器",
-                Icons.Default.Folder,
+                Icons.Outlined.Folder,
                 KiyoriSettingsHomeIconPalette.FILE_MANAGER,
             ),
         ),
         listOf(
             KiyoriSettingsHomeEntry(
                 KIYORI_PLAYER_SETTINGS_PAGE_TITLE,
-                Icons.Default.PlayCircle,
+                Icons.Outlined.PlayCircle,
                 KiyoriSettingsHomeIconPalette.VIDEO_PLAYER,
                 KiyoriSettingsHomeAction.OPEN_PLAYER_SETTINGS,
             ),
             KiyoriSettingsHomeEntry(
                 "音乐播放器",
-                Icons.Default.Audiotrack,
+                Icons.Outlined.Audiotrack,
                 KiyoriSettingsHomeIconPalette.MUSIC_PLAYER,
             ),
             KiyoriSettingsHomeEntry(
                 "文档阅读器",
-                Icons.AutoMirrored.Filled.MenuBook,
+                Icons.AutoMirrored.Outlined.MenuBook,
                 KiyoriSettingsHomeIconPalette.DOCUMENT_READER,
             ),
         ),
         listOf(
             KiyoriSettingsHomeEntry(
                 "界面定制",
-                Icons.Default.Palette,
+                Icons.Outlined.Palette,
                 KiyoriSettingsHomeIconPalette.APPEARANCE,
                 KiyoriSettingsHomeAction.OPEN_APPEARANCE_SETTINGS,
             ),
             KiyoriSettingsHomeEntry(
                 "数据备份",
-                Icons.Default.Backup,
+                Icons.Outlined.Backup,
                 KiyoriSettingsHomeIconPalette.DATA_BACKUP,
                 KiyoriSettingsHomeAction.OPEN_DATA_SETTINGS,
             ),
             KiyoriSettingsHomeEntry(
                 "更多功能",
-                Icons.Default.Widgets,
+                Icons.Outlined.Widgets,
                 KiyoriSettingsHomeIconPalette.MORE_FEATURES,
                 KiyoriSettingsHomeAction.OPEN_MORE_FEATURES,
             ),
@@ -327,9 +328,9 @@ private fun KiyoriSettingsThemeShortcut(
             Icon(
                 imageVector =
                     if (effectiveDarkTheme) {
-                        Icons.Default.DarkMode
+                        Icons.Outlined.DarkMode
                     } else {
-                        Icons.Default.LightMode
+                        Icons.Outlined.LightMode
                     },
                 contentDescription = if (effectiveDarkTheme) "深色主题" else "浅色主题",
                 tint = shortcutColor,
@@ -396,9 +397,9 @@ private val KiyoriSettingsQuickTheme.label: String
 private val KiyoriSettingsQuickTheme.icon: ImageVector
     get() =
         when (this) {
-            KiyoriSettingsQuickTheme.FOLLOW_SYSTEM -> Icons.Default.BrightnessAuto
-            KiyoriSettingsQuickTheme.LIGHT -> Icons.Default.LightMode
-            KiyoriSettingsQuickTheme.DARK -> Icons.Default.DarkMode
+            KiyoriSettingsQuickTheme.FOLLOW_SYSTEM -> Icons.Outlined.BrightnessAuto
+            KiyoriSettingsQuickTheme.LIGHT -> Icons.Outlined.LightMode
+            KiyoriSettingsQuickTheme.DARK -> Icons.Outlined.DarkMode
         }
 
 @Composable
@@ -536,7 +537,7 @@ private fun KiyoriSettingsHomeRow(
         )
         if (isInteractive) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
                 contentDescription = null,
                 tint = colors.mutedIcon,
                 modifier = Modifier.size(18.dp),

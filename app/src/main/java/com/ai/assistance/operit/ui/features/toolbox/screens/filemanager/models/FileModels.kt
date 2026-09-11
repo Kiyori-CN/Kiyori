@@ -16,6 +16,9 @@ data class FileItem(
     val fullPath: String? = null,
     /** 原始后端时间标签；当后端不能提供 epoch millis 时仍可显示真实信息。 */
     val lastModifiedLabel: String = "",
+    /** 回收记录以 UUID 作稳定身份，名称与原路径仅用于展示，防止同名项目互相选中。 */
+    val displayName: String = name,
+    val recycledOriginalPath: String? = null,
 )
 
 enum class FileManagerPane {
@@ -64,6 +67,7 @@ internal fun fileManagerBackAction(
     initialStoragePath: String,
 ): FileManagerBackAction = when {
     state.backStack.isNotEmpty() -> FileManagerBackAction.HISTORY
+    state.environment == "recycle" -> FileManagerBackAction.INITIAL_STORAGE
     state.path == initialStoragePath && state.environment == null -> FileManagerBackAction.EXIT
     fileManagerParentPath(state.path) != null -> FileManagerBackAction.PARENT
     else -> FileManagerBackAction.INITIAL_STORAGE

@@ -12,18 +12,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Add
+
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Refresh
+
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
@@ -359,7 +361,7 @@ internal fun KiyoriAdBlockSettingsPage(
                             title = "订阅与更新",
                             description = "自动更新、全部刷新、逐条状态和自定义订阅",
                             kind = KiyoriSettingsRowKind.NAVIGATION,
-                            icon = Icons.Filled.Refresh,
+                            icon = Icons.Outlined.Refresh,
                             iconTone = KiyoriSemanticTone.PURPLE,
                             value = state.subscriptions.size.toString(),
                             onClick = {
@@ -561,7 +563,7 @@ internal fun KiyoriAdBlockSettingsPage(
                             title = "自动更新内置订阅",
                             description = "应用启动时检查已启用且到期的内置订阅，开启新订阅时立即同步",
                             kind = KiyoriSettingsRowKind.TOGGLE,
-                            icon = Icons.Filled.Refresh,
+                            icon = Icons.Outlined.Refresh,
                             iconTone = KiyoriSemanticTone.BLUE,
                             checked = state.autoUpdateBuiltInSubscriptions,
                             onClick = {
@@ -1049,7 +1051,7 @@ private fun AdBlockSearchAndAddSection(
             )
             TextButton(onClick = onAdd) {
                 Icon(
-                    imageVector = Icons.Filled.Add,
+                    imageVector = Icons.Outlined.Add,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
                 )
@@ -1272,7 +1274,7 @@ private fun AdBlockSubscriptionRow(
                     )
                 } else {
                     Icon(
-                        imageVector = Icons.Filled.Refresh,
+                        imageVector = Icons.Outlined.Refresh,
                         contentDescription = "更新订阅",
                         tint = colors.mutedIcon,
                     )
@@ -1377,7 +1379,7 @@ private fun AdBlockSubscriptionDetails(
         ) {
             TextButton(onClick = onRefresh, enabled = actionsEnabled) {
                 Icon(
-                    imageVector = Icons.Filled.Refresh,
+                    imageVector = Icons.Outlined.Refresh,
                     contentDescription = null,
                     modifier = Modifier.size(17.dp),
                 )
@@ -1386,7 +1388,7 @@ private fun AdBlockSubscriptionDetails(
             onEdit?.let { edit ->
                 TextButton(onClick = edit, enabled = actionsEnabled) {
                     Icon(
-                        imageVector = Icons.Filled.Edit,
+                        imageVector = Icons.Outlined.Edit,
                         contentDescription = null,
                         modifier = Modifier.size(17.dp),
                     )
@@ -1396,7 +1398,7 @@ private fun AdBlockSubscriptionDetails(
             onDelete?.let { delete ->
                 TextButton(onClick = delete, enabled = actionsEnabled) {
                     Icon(
-                        imageVector = Icons.Filled.Delete,
+                        imageVector = Icons.Outlined.Delete,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(17.dp),
@@ -1606,7 +1608,7 @@ private fun AdBlockManagedActionButtons(
                 )
             } else {
                 Icon(
-                    imageVector = Icons.Filled.Refresh,
+                    imageVector = Icons.Outlined.Refresh,
                     contentDescription = "刷新",
                     tint = colors.mutedIcon,
                 )
@@ -1616,7 +1618,7 @@ private fun AdBlockManagedActionButtons(
     onEdit?.let { edit ->
         IconButton(onClick = edit, enabled = enabled, modifier = Modifier.size(40.dp)) {
             Icon(
-                imageVector = Icons.Filled.Edit,
+                imageVector = Icons.Outlined.Edit,
                 contentDescription = "编辑",
                 tint = colors.mutedIcon,
             )
@@ -1625,7 +1627,7 @@ private fun AdBlockManagedActionButtons(
     onDelete?.let { delete ->
         IconButton(onClick = delete, enabled = enabled, modifier = Modifier.size(40.dp)) {
             Icon(
-                imageVector = Icons.Filled.Delete,
+                imageVector = Icons.Outlined.Delete,
                 contentDescription = "删除",
                 tint = MaterialTheme.colorScheme.error,
             )

@@ -49,7 +49,8 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
     private val packageManager = PackageManager.getInstance(application, AIToolHandler.getInstance(application))
     private val app = application
     /** 刷新可由事件流、下拉和创建回调同时触发；仅最新读取可发布列表与加载态。 */
-    private val workflowLoadGeneration = AtomicLong(0)
+    private val listReadState = WorkflowReadState()
+    private val detailReadState = WorkflowReadState()
     private val executionGeneration = AtomicLong(0)
 
     var workflows by mutableStateOf<List<Workflow>>(emptyList())
@@ -58,8 +59,9 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
     var toolPkgWorkflowTemplates by mutableStateOf<List<PackageManager.ToolPkgWorkflowTemplate>>(emptyList())
         private set
     
-    var isLoading by mutableStateOf(false)
-        private set
+    private var operationLoading by mutableStateOf(false)
+    val isLoading: Boolean
+        get() = operationLoading || listReadState.isLoading || detailReadState.isLoading
     
     var error by mutableStateOf<String?>(null)
         private set
@@ -100,27 +102,24 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
      * 加载所有工作流
      */
     fun loadWorkflows(showLoading: Boolean = true) {
-        val generation = workflowLoadGeneration.incrementAndGet()
+        val request = listReadState.begin(showLoading)
         viewModelScope.launch {
-            if (showLoading) {
-                isLoading = true
-            }
-            error = null
-            
-            repository.getAllWorkflows().fold(
-                onSuccess = { if (workflowLoadGeneration.get() == generation) workflows = it },
-                onFailure = { if (workflowLoadGeneration.get() == generation) error = it.message ?: app.getString(R.string.workflow_load_failed) }
-            )
-            
-            if (showLoading && workflowLoadGeneration.get() == generation) {
-                isLoading = false
+            try {
+                if (!listReadState.isCurrent(request)) return@launch
+                error = null
+                repository.getAllWorkflows().fold(
+                    onSuccess = { if (listReadState.isCurrent(request)) workflows = it },
+                    onFailure = { if (listReadState.isCurrent(request)) error = it.message ?: app.getString(R.string.workflow_load_failed) }
+                )
+            } finally {
+                listReadState.finish(request)
             }
         }
     }
 
     fun createIntentChatBroadcastTemplateWorkflow(context: Context, onSuccess: (Workflow) -> Unit = {}) {
         viewModelScope.launch {
-            isLoading = true
+            operationLoading = true
             error = null
 
             val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
@@ -138,13 +137,13 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
                 onFailure = { error = it.message ?: app.getString(R.string.workflow_create_failed) }
             )
 
-            isLoading = false
+            operationLoading = false
         }
     }
 
     fun createSpeechTriggerTemplateWorkflow(context: Context, onSuccess: (Workflow) -> Unit = {}) {
         viewModelScope.launch {
-            isLoading = true
+            operationLoading = true
             error = null
 
             val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
@@ -162,13 +161,13 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
                 onFailure = { error = it.message ?: app.getString(R.string.workflow_create_failed) }
             )
 
-            isLoading = false
+            operationLoading = false
         }
     }
 
     fun createErrorBranchTemplateWorkflow(context: Context, onSuccess: (Workflow) -> Unit = {}) {
         viewModelScope.launch {
-            isLoading = true
+            operationLoading = true
             error = null
 
             val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
@@ -186,7 +185,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
                 onFailure = { error = it.message ?: app.getString(R.string.workflow_create_failed) }
             )
 
-            isLoading = false
+            operationLoading = false
         }
     }
 
@@ -200,7 +199,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
         onSuccess: () -> Unit = {}
     ) {
         viewModelScope.launch {
-            isLoading = true
+            operationLoading = true
             error = null
 
             repository.getWorkflowById(workflowId).fold(
@@ -232,13 +231,13 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
                 onFailure = { error = it.message ?: app.getString(R.string.workflow_load_failed) }
             )
 
-            isLoading = false
+            operationLoading = false
         }
     }
 
     fun createChatTemplateWorkflow(context: Context, onSuccess: (Workflow) -> Unit = {}) {
         viewModelScope.launch {
-            isLoading = true
+            operationLoading = true
             error = null
 
             val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
@@ -256,13 +255,13 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
                 onFailure = { error = it.message ?: app.getString(R.string.workflow_create_failed) }
             )
 
-            isLoading = false
+            operationLoading = false
         }
     }
 
     fun createConditionTemplateWorkflow(context: Context, onSuccess: (Workflow) -> Unit = {}) {
         viewModelScope.launch {
-            isLoading = true
+            operationLoading = true
             error = null
 
             val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
@@ -280,13 +279,13 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
                 onFailure = { error = it.message ?: app.getString(R.string.workflow_create_failed) }
             )
 
-            isLoading = false
+            operationLoading = false
         }
     }
 
     fun createLogicAndTemplateWorkflow(context: Context, onSuccess: (Workflow) -> Unit = {}) {
         viewModelScope.launch {
-            isLoading = true
+            operationLoading = true
             error = null
 
             val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
@@ -305,13 +304,13 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
                 onFailure = { error = it.message ?: app.getString(R.string.workflow_create_failed) }
             )
 
-            isLoading = false
+            operationLoading = false
         }
     }
 
     fun createLogicOrTemplateWorkflow(context: Context, onSuccess: (Workflow) -> Unit = {}) {
         viewModelScope.launch {
-            isLoading = true
+            operationLoading = true
             error = null
 
             val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
@@ -330,13 +329,13 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
                 onFailure = { error = it.message ?: app.getString(R.string.workflow_create_failed) }
             )
 
-            isLoading = false
+            operationLoading = false
         }
     }
 
     fun createExtractTemplateWorkflow(context: Context, onSuccess: (Workflow) -> Unit = {}) {
         viewModelScope.launch {
-            isLoading = true
+            operationLoading = true
             error = null
 
             val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
@@ -354,7 +353,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
                 onFailure = { error = it.message ?: app.getString(R.string.workflow_create_failed) }
             )
 
-            isLoading = false
+            operationLoading = false
         }
     }
 
@@ -364,7 +363,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
         onSuccess: (Workflow) -> Unit = {}
     ) {
         viewModelScope.launch {
-            isLoading = true
+            operationLoading = true
             error = null
 
             withContext(Dispatchers.IO) {
@@ -379,7 +378,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
                 }
             )
 
-            isLoading = false
+            operationLoading = false
         }
     }
 
@@ -1008,25 +1007,35 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
      * 根据ID加载工作流
      */
     fun loadWorkflow(id: String, showLoading: Boolean = true) {
+        val request = detailReadState.begin(showLoading)
         viewModelScope.launch {
-            if (showLoading) {
-                isLoading = true
-            }
-            error = null
-            
-            repository.getWorkflowById(id).fold(
-                onSuccess = {
-                    currentWorkflow = it
-                    loadLatestExecutionRecordInternal(id)
-                },
-                onFailure = {
-                    latestExecutionRecord = null
-                    error = it.message ?: app.getString(R.string.workflow_load_failed)
-                }
-            )
-            
-            if (showLoading) {
-                isLoading = false
+            try {
+                if (!detailReadState.isCurrent(request)) return@launch
+                error = null
+                repository.getWorkflowById(id).fold(
+                    onSuccess = { workflow ->
+                        if (detailReadState.isCurrent(request)) {
+                            currentWorkflow = workflow
+                            latestExecutionRecord = null
+                            val record = repository.getLatestExecutionRecord(id)
+                            // 详情切换也需隔离二次读取，旧工作流日志不能覆盖新详情。
+                            if (detailReadState.isCurrent(request)) {
+                                record.fold(
+                                    onSuccess = { latestExecutionRecord = it },
+                                    onFailure = { error = it.message ?: app.getString(R.string.workflow_load_failed) }
+                                )
+                            }
+                        }
+                    },
+                    onFailure = {
+                        if (detailReadState.isCurrent(request)) {
+                            latestExecutionRecord = null
+                            error = it.message ?: app.getString(R.string.workflow_load_failed)
+                        }
+                    }
+                )
+            } finally {
+                detailReadState.finish(request)
             }
         }
     }
@@ -1051,7 +1060,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
      */
     fun createWorkflow(name: String, description: String, onSuccess: (Workflow) -> Unit = {}) {
         viewModelScope.launch {
-            isLoading = true
+            operationLoading = true
             error = null
             
             val workflow = Workflow(
@@ -1068,7 +1077,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
                 onFailure = { error = it.message ?: app.getString(R.string.workflow_create_failed) }
             )
             
-            isLoading = false
+            operationLoading = false
         }
     }
 
@@ -1116,7 +1125,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
      */
     fun updateWorkflow(workflow: Workflow, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
-            isLoading = true
+            operationLoading = true
             error = null
             
             repository.updateWorkflow(workflow).fold(
@@ -1128,7 +1137,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
                 onFailure = { error = it.message ?: app.getString(R.string.workflow_error_update_failed) }
             )
             
-            isLoading = false
+            operationLoading = false
         }
     }
     
@@ -1149,7 +1158,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
         }
 
         viewModelScope.launch {
-            isLoading = true
+            operationLoading = true
             error = null
 
             var hasFailure = false
@@ -1180,7 +1189,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
                 onSuccess()
             }
 
-            isLoading = false
+            operationLoading = false
         }
     }
     
@@ -1259,7 +1268,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
      */
     fun addNode(workflowId: String, node: com.ai.assistance.operit.data.model.WorkflowNode, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
-            isLoading = true
+            operationLoading = true
             error = null
             
             repository.getWorkflowById(workflowId).fold(
@@ -1281,7 +1290,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
                 onFailure = { error = it.message ?: app.getString(R.string.workflow_load_failed) }
             )
             
-            isLoading = false
+            operationLoading = false
         }
     }
     
@@ -1290,7 +1299,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
      */
     fun deleteNode(workflowId: String, nodeId: String, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
-            isLoading = true
+            operationLoading = true
             error = null
             
             repository.getWorkflowById(workflowId).fold(
@@ -1315,7 +1324,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
                 onFailure = { error = it.message ?: app.getString(R.string.workflow_load_failed) }
             )
             
-            isLoading = false
+            operationLoading = false
         }
     }
     
@@ -1324,7 +1333,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
      */
     fun updateNode(workflowId: String, nodeId: String, updatedNode: com.ai.assistance.operit.data.model.WorkflowNode, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
-            isLoading = true
+            operationLoading = true
             error = null
             
             repository.getWorkflowById(workflowId).fold(
@@ -1346,7 +1355,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
                 onFailure = { error = it.message ?: app.getString(R.string.workflow_load_failed) }
             )
             
-            isLoading = false
+            operationLoading = false
         }
     }
     
@@ -1367,7 +1376,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
         onSuccess: () -> Unit = {}
     ) {
         viewModelScope.launch {
-            isLoading = true
+            operationLoading = true
             error = null
             
             repository.getWorkflowById(workflowId).fold(
@@ -1381,7 +1390,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
                     
                     if (connectionExists) {
                         error = app.getString(R.string.workflow_error_connection_exists)
-                        isLoading = false
+                        operationLoading = false
                         return@fold
                     }
                     
@@ -1407,7 +1416,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
                 onFailure = { error = it.message ?: app.getString(R.string.workflow_load_failed) }
             )
             
-            isLoading = false
+            operationLoading = false
         }
     }
     
@@ -1420,7 +1429,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
         onSuccess: () -> Unit = {}
     ) {
         viewModelScope.launch {
-            isLoading = true
+            operationLoading = true
             error = null
             
             repository.getWorkflowById(workflowId).fold(
@@ -1442,7 +1451,7 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
                 onFailure = { error = it.message ?: app.getString(R.string.workflow_load_failed) }
             )
             
-            isLoading = false
+            operationLoading = false
         }
     }
     

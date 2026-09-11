@@ -2,6 +2,7 @@ package com.ai.assistance.operit.ui.features.toolbox.screens.shellexecutor
 
 import android.content.Context
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -131,7 +132,7 @@ class ShellCommandManager(private val context: Context) {
                 command = context.getString(R.string.shell_cmd_properties_cmd),
                 description = context.getString(R.string.shell_cmd_properties_desc),
                 category = CommandCategory.SYSTEM,
-                icon = Icons.Default.Settings
+                icon = Icons.Outlined.Settings
             )
         )
     }

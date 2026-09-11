@@ -11,10 +11,15 @@ class FileManagerScrollIndicatorTest {
         assertNull(fileManagerScrollThumb(1000, 200, -1, 500f, 24f, false, true))
         assertNull(fileManagerScrollThumb(1000, 200, 0, 0f, 24f, false, true))
     }
-    @Test fun `middle position reflects viewport fraction and available travel`() {
+    @Test fun `middle position uses fixed length and remaining travel`() {
         val thumb = fileManagerScrollThumb(1000, 200, 400, 500f, 24f, true, true)!!
-        assertEquals(100f, thumb.height, 0.001f)
-        assertEquals(200f, thumb.top, 0.001f)
+        assertEquals(24f, thumb.height, 0.001f)
+        assertEquals(238f, thumb.top, 0.001f)
+    }
+    @Test fun `estimated content and viewport changes never resize the thumb`() {
+        listOf(800 to 200, 1200 to 220, 50000 to 400).forEach { (content, viewport) ->
+            assertEquals(24f, fileManagerScrollThumb(content, viewport, 100, 500f, 24f, true, true)!!.height, 0.001f)
+        }
     }
     @Test fun `first and last positions pin to track despite estimated offsets`() {
         assertEquals(0f, fileManagerScrollThumb(1000, 200, 50, 500f, 24f, false, true)!!.top, 0.001f)

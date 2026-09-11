@@ -19,6 +19,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.DeleteSweep
+import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.*
@@ -163,7 +166,7 @@ fun ShellExecutorScreen(navController: NavController? = null) {
                                 if (commandInput.isNotEmpty()) {
                                     IconButton(onClick = { commandInput = "" }) {
                                         Icon(
-                                            Icons.Default.Clear,
+                                            Icons.Outlined.Clear,
                                             contentDescription = stringResource(R.string.shell_executor_clear)
                                         )
                                     }
@@ -271,7 +274,7 @@ fun ShellExecutorScreen(navController: NavController? = null) {
                             contentPadding = PaddingValues(horizontal = 8.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.DeleteSweep,
+                                imageVector = Icons.Outlined.DeleteSweep,
                                 contentDescription = stringResource(R.string.shell_executor_clear_history),
                                 modifier = Modifier.size(16.dp)
                             )
@@ -692,7 +695,7 @@ fun CommandResultCard(record: CommandRecord, onReExecute: () -> Unit = {}, canEx
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Refresh,
+                                imageVector = Icons.Outlined.Refresh,
                                 contentDescription = stringResource(R.string.shell_executor_re_execute),
                                 modifier = Modifier.size(14.dp)
                             )

@@ -1,5 +1,7 @@
 package com.ai.assistance.operit.ui.features.workflow.screens
 
+import com.kiyori.design.theme.KiyoriSurfaceTokens
+
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -12,12 +14,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Add
+
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
@@ -158,7 +161,7 @@ fun WorkflowDetailScreen(
                                         stringResource(R.string.workflow_action_trigger)
                                     },
                                     icon = if (isWorkflowRunning) {
-                                        Icons.Default.Close
+                                        Icons.Outlined.Close
                                     } else {
                                         Icons.Default.PlayArrow
                                     },
@@ -191,7 +194,7 @@ fun WorkflowDetailScreen(
                             )
                             SpeedDialAction(
                                 text = stringResource(R.string.workflow_action_add_node),
-                                icon = Icons.Default.Add,
+                                icon = Icons.Outlined.Add,
                                 onClick = {
                                     showAddNodeDialog = true
                                     isFabMenuExpanded = false
@@ -200,7 +203,7 @@ fun WorkflowDetailScreen(
                             )
                             SpeedDialAction(
                                 text = stringResource(R.string.workflow_action_edit_workflow),
-                                icon = Icons.Default.Edit,
+                                icon = Icons.Outlined.Edit,
                                 onClick = {
                                     showEditDialog = true
                                     isFabMenuExpanded = false
@@ -209,7 +212,7 @@ fun WorkflowDetailScreen(
                             )
                             SpeedDialAction(
                                 text = stringResource(R.string.workflow_delete),
-                                icon = Icons.Default.Delete,
+                                icon = Icons.Outlined.Delete,
                                 onClick = {
                                     showDeleteDialog = true
                                     isFabMenuExpanded = false
@@ -227,7 +230,7 @@ fun WorkflowDetailScreen(
                     ) {
                         val rotation by animateFloatAsState(targetValue = if (isFabMenuExpanded) 45f else 0f, label = "fab_icon_rotation")
                         Icon(
-                            Icons.Default.Add,
+                            Icons.Outlined.Add,
                             contentDescription = stringResource(R.string.workflow_open_action_menu),
                             modifier = Modifier.rotate(rotation)
                         )
@@ -250,7 +253,7 @@ fun WorkflowDetailScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         KiyoriSemanticIconBadge(
-                            imageVector = Icons.Default.Close,
+                            imageVector = Icons.Outlined.Close,
                             tone = KiyoriSemanticTone.RED,
                             contentDescription = null,
                             containerSize = 64.dp,
@@ -275,7 +278,7 @@ fun WorkflowDetailScreen(
                                     .fillMaxWidth()
                                     .weight(1f)
                                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                                elevation = CardDefaults.cardElevation(defaultElevation = KiyoriSurfaceTokens.flatElevation),
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                                 ),
@@ -289,7 +292,7 @@ fun WorkflowDetailScreen(
                                     verticalArrangement = Arrangement.Center
                                 ) {
                                     KiyoriSemanticIconBadge(
-                                        imageVector = Icons.Default.Add,
+                                        imageVector = Icons.Outlined.Add,
                                         tone = KiyoriSemanticTone.ORANGE,
                                         contentDescription = null,
                                         containerSize = 72.dp,
@@ -1319,7 +1322,7 @@ fun NodeDialog(
                                         newList.removeAt(index)
                                         actionConfigPairs = newList
                                     }) {
-                                        Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.workflow_delete_param))
+                                        Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.workflow_delete_param))
                                     }
                                 }
 
@@ -1354,7 +1357,7 @@ fun NodeDialog(
                             },
                             modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.workflow_add_param))
+                            Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.workflow_add_param))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(stringResource(R.string.workflow_add_param))
                         }
@@ -1765,7 +1768,7 @@ fun NodeDialog(
                                                         }
                                                     }
                                                 ) {
-                                                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.workflow_delete_concat_item))
+                                                    Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.workflow_delete_concat_item))
                                                 }
                                             }
                                         }

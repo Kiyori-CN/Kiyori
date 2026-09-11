@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -20,7 +21,7 @@ import androidx.compose.material.icons.filled.FindInPage
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.Search
+
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
@@ -80,7 +81,7 @@ internal fun OpenAIWebSearchToolResultDisplay(
         OpenAIWebSearchSummaryHeader(
             title = stringResource(R.string.openai_web_search_evidence_title),
             expanded = state.summaryExpanded,
-            icon = Icons.Default.Search,
+            icon = Icons.Outlined.Search,
             trailing = {
                 AssistChip(
                     onClick = {},
@@ -537,7 +538,7 @@ private fun OpenAIWebSearchSourceRow(
             Icon(
                 imageVector =
                     if (source.url == null) {
-                        Icons.Default.Search
+                        Icons.Outlined.Search
                     } else {
                         Icons.Default.Link
                     },
@@ -594,7 +595,7 @@ private fun OpenAIWebSearchActionRow(
 ) {
     val icon =
         when (action.type) {
-            OpenAIHostedWebSearchEvidenceActionType.SEARCH -> Icons.Default.Search
+            OpenAIHostedWebSearchEvidenceActionType.SEARCH -> Icons.Outlined.Search
             OpenAIHostedWebSearchEvidenceActionType.OPEN_PAGE -> Icons.Default.Language
             OpenAIHostedWebSearchEvidenceActionType.FIND_IN_PAGE ->
                 Icons.Default.FindInPage

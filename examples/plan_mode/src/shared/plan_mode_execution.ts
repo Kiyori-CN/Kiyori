@@ -1,11 +1,18 @@
 import * as planModeI18n from "./plan_mode_i18n.js";
+import type { PlanSubmissionStatus } from "./plan_mode_submission.js";
 
 export type StartPlanImplementationResult = {
   success: boolean;
   error?: string;
+  status?: PlanSubmissionStatus;
 };
 
 export const PLAN_MODE_START_IMPLEMENTATION_IPC_CHANNEL = "plan_mode.start_implementation";
+export const PLAN_MODE_IMPLEMENTATION_STATUS_IPC_CHANNEL = "plan_mode.implementation_status";
+
+export async function getPlanImplementationStatus(content: string): Promise<StartPlanImplementationResult> {
+  return await ToolPkg.ipc.call<string, StartPlanImplementationResult>(PLAN_MODE_IMPLEMENTATION_STATUS_IPC_CHANNEL, content);
+}
 
 export async function startPlanImplementation(
   planContent: string

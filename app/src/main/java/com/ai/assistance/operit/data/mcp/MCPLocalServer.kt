@@ -91,6 +91,7 @@ class MCPLocalServer private constructor(private val context: Context) {
     }
 
     private val configurationLock = Any()
+    private val registrationGeneration = McpRegistrationGeneration()
     private val _configurationReadError = MutableStateFlow(false)
     val configurationReadError: StateFlow<Boolean> = _configurationReadError.asStateFlow()
 
@@ -210,7 +211,8 @@ class MCPLocalServer private constructor(private val context: Context) {
         @SerializedName("cachedTools")
         val cachedTools: List<CachedToolInfo>? = null,
         @SerializedName("toolsCachedTime")
-        val toolsCachedTime: Long = 0L
+        val toolsCachedTime: Long = 0L,
+        val toolCacheConfiguration: String? = null
     )
 
     /**
@@ -253,7 +255,7 @@ class MCPLocalServer private constructor(private val context: Context) {
                 check(sanitized.removedServerIds.isEmpty()) { "Invalid MCP server configuration" }
                 val updated = autoFillMissingMetadata(sanitized.config)
                 if (updated != rawConfig) writeMcpConfigurationFile(mcpConfigFile, gson.toJson(updated))
-                _mcpConfig.value = updated
+                publishMcpConfiguration(updated)
                 _configurationReadError.value = false
             } catch (_: Exception) {
                 _configurationReadError.value = true
@@ -419,10 +421,7 @@ class MCPLocalServer private constructor(private val context: Context) {
         }
         
         if (hasNewStatus) {
-            _serverStatus.value = currentStatus
-            coroutineScope.launch {
-                saveServerStatus()
-            }
+            publishServerStatuses(currentStatus)
         }
     }
 
@@ -438,23 +437,50 @@ class MCPLocalServer private constructor(private val context: Context) {
                 check(!_configurationReadError.value) { "Reload the MCP configuration before editing" }
                 val updated = transform(_mcpConfig.value)
                 writeMcpConfigurationFile(mcpConfigFile, gson.toJson(updated))
-                _mcpConfig.value = updated
+                publishMcpConfiguration(updated)
             }
         }
     }
 
+    /** 调用者持有 configurationLock；配置落盘后先使旧运行时失效，再发布内存配置。 */
+    private fun publishMcpConfiguration(updated: MCPConfig) {
+        val previous = _mcpConfig.value
+        registrationGeneration.advance(previous, updated).forEach { pluginId ->
+            unregisterMcpRuntimeTools(context, pluginId)
+        }
+        _mcpConfig.value = updated
+    }
+
+    internal fun capturePluginRegistration(pluginId: String): McpPluginRuntimeIdentity? =
+        synchronized(configurationLock) {
+            if (_configurationReadError.value) null
+            else registrationGeneration.capture(_mcpConfig.value, pluginId)
+        }
+
+    /** 网络发现不持锁；最终发布与禁用、删除、编辑配置互斥，旧发现结果不能复活工具。 */
+    internal fun publishPluginRegistration(pluginId: String, expected: McpPluginRuntimeIdentity, publish: () -> Unit): Boolean =
+        synchronized(configurationLock) {
+            if (_configurationReadError.value || !expected.enabled ||
+                registrationGeneration.capture(_mcpConfig.value, pluginId) != expected) false
+            else { publish(); true }
+        }
+
     /**
      * 保存服务器状态
      */
-    suspend fun saveServerStatus() {
-        try {
-            val statusJson = gson.toJson(_serverStatus.value)
-            serverStatusFile.writeText(statusJson)
-            AppLogger.d(TAG, "服务器状态已保存")
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "保存服务器状态时出错", e)
+    suspend fun saveServerStatus() = updateServerStatuses { it }
+
+    // 配置、发现缓存和启停状态使用同一锁；先原子落盘再发布，失败不伪装成已保存。
+    private fun publishServerStatuses(updated: Map<String, ServerStatus>) {
+        writeMcpConfigurationFile(serverStatusFile, gson.toJson(updated))
+        _serverStatus.value = updated
+    }
+
+    private suspend fun updateServerStatuses(
+        transform: (Map<String, ServerStatus>) -> Map<String, ServerStatus>
+    ) = withContext(Dispatchers.IO) {
+        synchronized(configurationLock) {
+            publishServerStatuses(transform(_serverStatus.value))
         }
     }
 
@@ -642,36 +668,48 @@ class MCPLocalServer private constructor(private val context: Context) {
         lastStartTime: Long? = null,
         lastStopTime: Long? = null
     ) {
-        val currentStatus = _serverStatus.value.toMutableMap()
-        val existingStatus = currentStatus[serverId] ?: ServerStatus(serverId)
-        
-        val updatedStatus = existingStatus.copy(
-            errorMessage = errorMessage ?: existingStatus.errorMessage,
-            cachedTools = cachedTools ?: existingStatus.cachedTools,
-            toolsCachedTime = if (cachedTools != null) System.currentTimeMillis() else existingStatus.toolsCachedTime,
-            lastStartTime = lastStartTime ?: existingStatus.lastStartTime,
-            lastStopTime = lastStopTime ?: existingStatus.lastStopTime
-        )
-        
-        currentStatus[serverId] = updatedStatus
-        _serverStatus.value = currentStatus
-        saveServerStatus()
+        updateServerStatuses { current ->
+            val currentStatus = current.toMutableMap()
+            val existingStatus = currentStatus[serverId] ?: ServerStatus(serverId)
+            currentStatus[serverId] = existingStatus.copy(
+                errorMessage = errorMessage ?: existingStatus.errorMessage,
+                cachedTools = cachedTools ?: existingStatus.cachedTools,
+                toolsCachedTime = if (cachedTools != null) System.currentTimeMillis() else existingStatus.toolsCachedTime,
+                // 未携带发现凭据的旧状态入口不能给工具缓存背书。
+                toolCacheConfiguration = if (cachedTools != null) null else existingStatus.toolCacheConfiguration,
+                lastStartTime = lastStartTime ?: existingStatus.lastStartTime,
+                lastStopTime = lastStopTime ?: existingStatus.lastStopTime
+            )
+            currentStatus
+        }
         AppLogger.d(TAG, "服务器状态已更新: $serverId")
     }
 
     /**
      * 缓存服务器的工具列表
      */
-    suspend fun cacheServerTools(serverId: String, tools: List<CachedToolInfo>) {
-        updateServerStatus(serverId = serverId, cachedTools = tools)
-        AppLogger.d(TAG, "已缓存服务器 $serverId 的 ${tools.size} 个工具")
+    internal suspend fun cacheServerTools(serverId: String, tools: List<CachedToolInfo>, expected: McpPluginRuntimeIdentity) {
+        withContext(Dispatchers.IO) {
+            publishPluginRegistration(serverId, expected) {
+                val status = _serverStatus.value[serverId] ?: ServerStatus(serverId)
+                publishServerStatuses(_serverStatus.value.toMutableMap().apply {
+                    this[serverId] = status.copy(cachedTools = tools,
+                        toolsCachedTime = System.currentTimeMillis(), toolCacheConfiguration = expected.fingerprint())
+                })
+            }
+        }
     }
 
     /**
      * 获取缓存的工具列表
      */
     fun getCachedTools(serverId: String): List<CachedToolInfo>? {
-        return _serverStatus.value[serverId]?.cachedTools
+        return synchronized(configurationLock) {
+            val identity = capturePluginRegistration(serverId) ?: return@synchronized null
+            val status = _serverStatus.value[serverId] ?: return@synchronized null
+            // 老缓存没有配置指纹时重新发现；绝不把另一个端点或凭据下的工具当作当前事实。
+            status.cachedTools.takeIf { status.toolCacheConfiguration == identity.fingerprint() }
+        }
     }
 
     /**
@@ -680,7 +718,7 @@ class MCPLocalServer private constructor(private val context: Context) {
     fun hasValidToolCache(serverId: String): Boolean {
         val status = _serverStatus.value[serverId] ?: return false
         
-        val cachedTools = status.cachedTools
+        val cachedTools = getCachedTools(serverId)
         val cacheTime = status.toolsCachedTime
         
         if (cachedTools.isNullOrEmpty() || cacheTime <= 0) {
@@ -689,17 +727,14 @@ class MCPLocalServer private constructor(private val context: Context) {
         
         // 缓存有效期为1天
         val oneDayInMillis = 24 * 60 * 60 * 1000L
-        return (System.currentTimeMillis() - cacheTime) < oneDayInMillis
+        return (System.currentTimeMillis() - cacheTime) in 0 until oneDayInMillis
     }
 
     /**
      * 删除服务器状态
      */
     suspend fun removeServerStatus(serverId: String) {
-        val currentStatus = _serverStatus.value.toMutableMap()
-        currentStatus.remove(serverId)
-        _serverStatus.value = currentStatus
-        saveServerStatus()
+        updateServerStatuses { current -> current.toMutableMap().apply { remove(serverId) } }
         AppLogger.d(TAG, "服务器状态已删除: $serverId")
     }
 
@@ -935,8 +970,7 @@ class MCPLocalServer private constructor(private val context: Context) {
                 val statusJson = gson.toJson(status)
                 val typeToken3 = object : TypeToken<Map<String, ServerStatus>>() {}.type
                 val serverStatus = gson.fromJson<Map<String, ServerStatus>>(statusJson, typeToken3)
-                _serverStatus.value = serverStatus
-                saveServerStatus()
+                updateServerStatuses { serverStatus }
             }
             
             AppLogger.d(TAG, "配置导入成功")
@@ -962,20 +996,10 @@ class MCPLocalServer private constructor(private val context: Context) {
             updateMcpConfiguration { current ->
                 current.copy(mcpServers = current.mcpServers.filterKeys { it in current.pluginMetadata }.toMutableMap())
             }
-            val validPluginIds = _mcpConfig.value.pluginMetadata.keys.toSet()
-
-            // 清理无效的服务器状态
-            val statusToRemove = _serverStatus.value.keys.filter { it !in validPluginIds }
-            if (statusToRemove.isNotEmpty()) {
-                val currentStatus = _serverStatus.value.toMutableMap()
-                statusToRemove.forEach { serverId ->
-                    currentStatus.remove(serverId)
-                }
-                _serverStatus.value = currentStatus
-                saveServerStatus()
-                AppLogger.d(TAG, "清理了 ${statusToRemove.size} 个无效的服务器状态")
+            updateServerStatuses { current ->
+                val validPluginIds = _mcpConfig.value.pluginMetadata.keys
+                current.filterKeys { it in validPluginIds }
             }
-            
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (e: Exception) {

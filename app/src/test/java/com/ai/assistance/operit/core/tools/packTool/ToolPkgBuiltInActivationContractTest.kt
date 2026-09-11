@@ -106,7 +106,7 @@ class ToolPkgBuiltInActivationContractTest {
                     category = "Utility",
                 )
             },
-            parseMainRegistration = { _, _, _ ->
+            parseMainRegistration = { _, _, _, _ ->
                 ToolPkgMainRegistrationParseResult.Success(ToolPkgMainRegistration())
             },
             reportPackageLoadError = { key, error ->

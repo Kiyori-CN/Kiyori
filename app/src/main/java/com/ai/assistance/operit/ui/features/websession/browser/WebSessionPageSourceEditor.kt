@@ -22,14 +22,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.Close
+
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -556,7 +557,7 @@ private fun PageSourceEditorHeader(
             }
             IconButton(onClick = onSearch, modifier = Modifier.size(44.dp)) {
                 Icon(
-                    imageVector = Icons.Filled.Search,
+                    imageVector = Icons.Outlined.Search,
                     contentDescription =
                         stringResource(R.string.web_session_userscript_editor_find),
                 )
@@ -567,7 +568,7 @@ private fun PageSourceEditorHeader(
                     modifier = Modifier.size(44.dp),
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.MoreVert,
+                        imageVector = Icons.Outlined.MoreVert,
                         contentDescription = stringResource(R.string.more),
                     )
                 }
@@ -690,7 +691,7 @@ private fun PageSourceEditorMetadata(
                             modifier = Modifier.size(40.dp),
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.Close,
+                                imageVector = Icons.Outlined.Close,
                                 contentDescription = stringResource(R.string.close),
                                 modifier = Modifier.size(17.dp),
                             )
@@ -979,7 +980,7 @@ private fun PageSourceEditorSearchBar(
             )
             IconButton(onClick = onClose, modifier = Modifier.size(40.dp)) {
                 Icon(
-                    imageVector = Icons.Filled.Close,
+                    imageVector = Icons.Outlined.Close,
                     contentDescription = stringResource(R.string.close),
                 )
             }

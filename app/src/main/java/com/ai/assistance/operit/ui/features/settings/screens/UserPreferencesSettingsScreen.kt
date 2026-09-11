@@ -20,12 +20,15 @@ import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.filled.Archive
-import androidx.compose.material.icons.filled.ContentCopy
+
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.MoreVert
+
 import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material.icons.filled.Save
+
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -229,7 +232,7 @@ fun UserPreferencesSettingsScreen(onNavigateBack: () -> Unit) {
                                     strokeWidth = 2.dp
                                 )
                             } else {
-                                Icon(Icons.Default.Save, contentDescription = null)
+                                Icon(Icons.Outlined.Save, contentDescription = null)
                             }
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(stringResource(R.string.save_action))
@@ -318,7 +321,7 @@ fun UserPreferencesSettingsScreen(onNavigateBack: () -> Unit) {
                                 Box {
                                     IconButton(onClick = { showMoreMenu = true }) {
                                         Icon(
-                                            imageVector = Icons.Default.MoreVert,
+                                            imageVector = Icons.Outlined.MoreVert,
                                             contentDescription = stringResource(R.string.more)
                                         )
                                     }
@@ -455,7 +458,7 @@ fun UserPreferencesSettingsScreen(onNavigateBack: () -> Unit) {
                             }
                         }
                     ) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = null)
+                        Icon(Icons.Outlined.ContentCopy, contentDescription = null)
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(stringResource(R.string.copy_content))
                     }

@@ -9,14 +9,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.material.icons.rounded.Search
+
 import com.kiyori.design.theme.KiyoriSemanticTone
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Close
+
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,7 +34,7 @@ import com.kiyori.design.theme.KiyoriUiShapes
 
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.ExpandLess
-import androidx.compose.material.icons.rounded.Tune
+
 import androidx.compose.ui.text.input.KeyboardType
 import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 import com.ai.assistance.operit.core.tools.FileSearchNameMode
@@ -54,9 +57,9 @@ fun SearchDialog(showDialog: Boolean, searchQuery: String, onQueryChange: (Strin
         Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                FileManagerIconBadge(Icons.Rounded.Search, KiyoriSemanticTone.BLUE, 36.dp)
+                FileManagerIconBadge(Icons.Outlined.Search, KiyoriSemanticTone.BLUE, 36.dp)
                 Text("搜索文件", Modifier.weight(1f).padding(start = 12.dp), style = MaterialTheme.typography.titleLarge)
-                IconButton(onClick = dismiss) { Icon(Icons.Default.Close, "关闭搜索") }
+                IconButton(onClick = dismiss) { Icon(Icons.Outlined.Close, "关闭搜索") }
             }
             Text(location, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             OutlinedTextField(value = searchQuery, onValueChange = onQueryChange,
@@ -72,7 +75,7 @@ fun SearchDialog(showDialog: Boolean, searchQuery: String, onQueryChange: (Strin
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (activeFilter.isNotEmpty()) TextButton(onClick = onClearFilter) { Text("清除当前列表定位筛选：$activeFilter") }
             OutlinedButton(onClick = { advanced = !advanced }, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Rounded.Tune, null, Modifier.size(18.dp))
+                Icon(Icons.Outlined.Tune, null, Modifier.size(18.dp))
                 Text("高级功能${if (form.hasAdvancedFilters) " · 已设置" else ""}", Modifier.weight(1f).padding(horizontal = 8.dp))
                 Icon(if (advanced) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null)
             }
@@ -112,7 +115,7 @@ fun SearchDialog(showDialog: Boolean, searchQuery: String, onQueryChange: (Strin
             }
             validation?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             Button(onClick = { submitAfterClose = true; dismiss() }, enabled = validation == null, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Rounded.Search, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("开始搜索")
+                Icon(Icons.Outlined.Search, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("开始搜索")
             }
         }
     }
@@ -167,7 +170,7 @@ fun SearchResultsDialog(
                     Text("搜索结果 · ${searchResults.size}", style = MaterialTheme.typography.titleMedium)
                     IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
                         Icon(
-                            imageVector = Icons.Default.Close,
+                            imageVector = Icons.Outlined.Close,
                             contentDescription = stringResource(R.string.cancel)
                         )
                     }

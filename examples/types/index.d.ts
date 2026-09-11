@@ -74,13 +74,15 @@ import {
     FunctionModelConfigsResultData as _FunctionModelConfigsResultData,
     FunctionModelConfigResultData as _FunctionModelConfigResultData,
     FunctionModelBindingResultData as _FunctionModelBindingResultData,
+    ModelConfigConnectionTestOutcome as _ModelConfigConnectionTestOutcome,
     ModelConfigConnectionTestItemResultData as _ModelConfigConnectionTestItemResultData,
-    ModelConfigConnectionTestResultData as _ModelConfigConnectionTestResultData
+    ModelConfigConnectionTestResultData as _ModelConfigConnectionTestResultData,
+    ChatCallResultData as _ChatCallResultData
 } from './results';
 import { Intent as AndroidIntent, IntentFlag as AndroidIntentFlag, IntentAction as AndroidIntentAction, IntentCategory as AndroidIntentCategory } from './android';
 import { UINode as UINodeClass, UI as UINamespace } from './ui';
 import { Android as AndroidClass } from './android';
-import type { MaterialIconsRegistry as MaterialIconsRegistryType } from './material-icons';
+import type { MaterialIconsRegistry as MaterialIconsRegistryType, MaterialIconName as MaterialIconNameType } from './material-icons';
 import {
     ComposeDslContext as ComposeDslContextType,
     ComposeDslScreen as ComposeDslScreenType,
@@ -228,8 +230,10 @@ declare global {
     type FunctionModelConfigsResultData = _FunctionModelConfigsResultData;
     type FunctionModelConfigResultData = _FunctionModelConfigResultData;
     type FunctionModelBindingResultData = _FunctionModelBindingResultData;
+    type ModelConfigConnectionTestOutcome = _ModelConfigConnectionTestOutcome;
     type ModelConfigConnectionTestItemResultData = _ModelConfigConnectionTestItemResultData;
     type ModelConfigConnectionTestResultData = _ModelConfigConnectionTestResultData;
+    type ChatCallResultData = _ChatCallResultData;
 
     export import Tasker = TaskerType;
 

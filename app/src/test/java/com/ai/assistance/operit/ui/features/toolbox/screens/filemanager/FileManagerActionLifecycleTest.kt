@@ -141,4 +141,46 @@ class FileManagerActionLifecycleTest {
         model.confirmContextAction(); scheduler.runCurrent()
         assertEquals(1, requests.count { it.name == "zip_files" })
     }
+
+    @Test fun `batch deletion freezes all selected sources and records each result`() = runTest(dispatcher) {
+        val model = model(); model.selectAll(); model.beginContextAction(FileManagerActionKind.DELETE); scheduler.runCurrent()
+        assertEquals(2, model.actionState!!.inspections.size)
+        model.activatePane(FileManagerPane.RIGHT); model.navigateToPath("/other"); scheduler.runCurrent()
+        model.confirmContextAction(); scheduler.runCurrent()
+        assertEquals(listOf("/storage/test/note.txt", "/storage/test/second.txt"), requests.filter { it.name == "delete_file" }.map { tool -> tool.parameters.single { it.name == "path" }.value })
+        assertEquals(2, model.actionState!!.results.size)
+        assertTrue(model.actionState!!.completed)
+    }
+
+    @Test fun `unknown batch deletion stops before the next source and cannot replay`() = runTest(dispatcher) {
+        val model = model(); model.selectAll(); model.beginContextAction(FileManagerActionKind.DELETE); scheduler.runCurrent()
+        failWrite = true; model.confirmContextAction(); scheduler.runCurrent()
+        assertEquals(listOf(FileManagerTransferOutcome.UNKNOWN, FileManagerTransferOutcome.NOT_STARTED), model.actionState!!.results.map { it.outcome })
+        model.readActionInspection(false); model.confirmContextAction(); scheduler.runCurrent()
+        assertEquals(1, requests.count { it.name == "delete_file" })
+    }
+
+    @Test fun `batch compression sends every selected source in one atomic archive request`() = runTest(dispatcher) {
+        val model = model(); model.selectAll(); model.beginContextAction(FileManagerActionKind.ZIP); scheduler.runCurrent()
+        model.updateActionName("archive.zip"); model.confirmContextAction(); scheduler.runCurrent()
+        val request = requests.single { it.name == "zip_files" }
+        assertEquals("[\"/storage/test/note.txt\",\"/storage/test/second.txt\"]", request.parameters.single { it.name == "sources" }.value)
+        assertTrue(model.actionState!!.completed)
+    }
+
+    @Test fun `sharing multiple files opens one compression confirmation`() = runTest(dispatcher) {
+        val model = model(); model.selectAll(); model.shareContextItem(); scheduler.runCurrent()
+        assertEquals(2, model.actionState!!.files.size)
+        assertTrue(model.actionState!!.shareAfter)
+        assertNull(model.pendingShare)
+    }
+
+    @Test fun `right context never reads same named selection from left pane`() = runTest(dispatcher) {
+        val model = model(); model.selectAll()
+        model.activatePane(FileManagerPane.RIGHT); model.navigateToPath("/right"); scheduler.runCurrent()
+        model.contextMenuPane = FileManagerPane.RIGHT; model.contextMenuFile = model.files.first { it.name == "note.txt" }
+        model.beginContextAction(FileManagerActionKind.DELETE); scheduler.runCurrent()
+        assertEquals(1, model.actionState!!.files.size)
+        assertEquals("/right", model.actionState!!.location.path)
+    }
 }

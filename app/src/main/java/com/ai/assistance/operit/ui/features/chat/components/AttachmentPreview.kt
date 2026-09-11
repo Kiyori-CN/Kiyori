@@ -15,7 +15,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.Close
+
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PhotoCamera
@@ -124,7 +125,7 @@ private fun AttachmentItem(attachment: AttachmentInfo, onRemove: () -> Unit, onI
             // Remove button
             IconButton(onClick = onRemove, modifier = Modifier.size(40.dp)) {
                 Icon(
-                        imageVector = Icons.Default.Close,
+                        imageVector = Icons.Outlined.Close,
                         contentDescription = "Remove attachment",
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(16.dp)

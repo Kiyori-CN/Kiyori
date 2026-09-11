@@ -1,5 +1,8 @@
 package com.ai.assistance.operit.ui.features.workflow.screens
 
+import com.kiyori.design.theme.KiyoriSurfaceTokens
+import com.kiyori.design.theme.kiyoriSurfaceColors
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -17,9 +20,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Add
+
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Delete
+
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material3.*
@@ -103,7 +108,7 @@ fun WorkflowListScreen(
                             if (selectedCount > 0) {
                                 SpeedDialAction(
                                     text = stringResource(R.string.workflow_delete_selected_with_count, selectedCount),
-                                    icon = Icons.Default.Delete,
+                                    icon = Icons.Outlined.Delete,
                                     onClick = {
                                         showDeleteSelectedDialog = true
                                         isFabMenuExpanded = false
@@ -124,7 +129,7 @@ fun WorkflowListScreen(
                         } else {
                             SpeedDialAction(
                                 text = stringResource(R.string.workflow_create_blank),
-                                icon = Icons.Default.Add,
+                                icon = Icons.Outlined.Add,
                                 onClick = {
                                     showCreateDialog = true
                                     isFabMenuExpanded = false
@@ -164,7 +169,7 @@ fun WorkflowListScreen(
                         label = "fab_icon_rotation"
                     )
                     Icon(
-                        Icons.Default.Add,
+                        Icons.Outlined.Add,
                         contentDescription = stringResource(R.string.workflow_create),
                         modifier = Modifier.rotate(rotation)
                     )
@@ -225,7 +230,7 @@ fun WorkflowListScreen(
                                 ),
                         ) {
                             Icon(
-                                Icons.Default.Add,
+                                Icons.Outlined.Add,
                                 contentDescription = null,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -622,8 +627,8 @@ private fun SpeedDialAction(
     ) {
         Card(
             shape = MaterialTheme.shapes.small,
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            colors = CardDefaults.cardColors(containerColor = kiyoriSurfaceColors().popup),
+            elevation = CardDefaults.cardElevation(defaultElevation = KiyoriSurfaceTokens.popupElevation)
         ) {
             Text(
                 text = text,
@@ -930,7 +935,7 @@ fun CreateWorkflowDialog(
         onDismissRequest = onDismiss,
         icon = {
             KiyoriSemanticIconBadge(
-                imageVector = Icons.Default.Add,
+                imageVector = Icons.Outlined.Add,
                 tone = KiyoriSemanticTone.ORANGE,
                 contentDescription = null,
             )

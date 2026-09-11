@@ -59,6 +59,7 @@ import com.ai.assistance.operit.ui.features.packages.market.GitHubForgePublishSe
 import com.ai.assistance.operit.ui.features.packages.market.PublishArtifactSource
 import com.ai.assistance.operit.ui.features.packages.market.PublishArtifactType
 import com.ai.assistance.operit.ui.features.packages.market.PublishProgressStage
+import com.ai.assistance.operit.ui.features.packages.market.effectiveToolPkgApiVersion
 import com.ai.assistance.operit.ui.features.packages.market.isOperit2VersionAllowed
 import com.kiyori.capability.extensions.market.sameArtifactRuntimePackageId
 import com.ai.assistance.operit.ui.features.packages.screens.artifact.viewmodel.ArtifactMarketViewModel
@@ -74,6 +75,7 @@ private data class ArtifactPublishEditInfo(
     val categoryId: String,
     val allowPublicUpdates: Boolean,
     val version: String,
+    val apiVersion: String?,
     val minSupportedAppVersion: String?,
     val maxSupportedAppVersion: String?,
     val runtimePackageId: String,
@@ -93,6 +95,7 @@ private fun com.ai.assistance.operit.data.api.MarketV2Entry.toArtifactPublishEdi
         categoryId = categoryId,
         allowPublicUpdates = allowPublicUpdates,
         version = versionValue?.version.orEmpty(),
+        apiVersion = versionValue?.apiVersion,
         minSupportedAppVersion = versionValue?.minAppVer,
         maxSupportedAppVersion = versionValue?.maxAppVer,
         runtimePackageId = versionValue?.runtimePackageId.orEmpty(),
@@ -275,6 +278,12 @@ fun ArtifactPublishScreen(
 
     val selectedArtifact = filteredArtifacts.firstOrNull { it.packageName == selectedPackageName }
     val selectedType = selectedArtifact?.type ?: initialInfo?.type
+    val toolPkgApiVersion =
+        when {
+            selectedType != PublishArtifactType.PACKAGE -> null
+            isEditMode -> (initialInfo?.apiVersion).effectiveToolPkgApiVersion()
+            else -> (selectedArtifact?.apiVersion).effectiveToolPkgApiVersion()
+        }
     val isPublishing = publishStage !in listOf(PublishProgressStage.IDLE, PublishProgressStage.COMPLETED)
     val isFormLocked = isPublishing || pendingRegistration != null
     RegisterRouteBackGuard {
@@ -898,6 +907,19 @@ viewModel.clearPendingMarketRegistrationRetry()
                 }
             }
         )
+        toolPkgApiVersion?.let { apiVersionValue ->
+            OutlinedTextField(
+                value = apiVersionValue,
+                onValueChange = {},
+                label = { Text(stringResource(R.string.toolpkg_api_version_label)) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                readOnly = true,
+                supportingText = {
+                    Text(stringResource(R.string.artifact_publish_toolpkg_api_version_readonly))
+                }
+            )
+        }
         OutlinedTextField(
             enabled = !isFormLocked,
             value = minSupportedAppVersion,
@@ -1037,6 +1059,14 @@ viewModel.clearPendingMarketRegistrationRetry()
                             Text(stringResource(R.string.detail_colon, detail))
                         }
                         Text(stringResource(R.string.market_detail_category_label) + ": " + categoryId)
+                        if (initialInfo?.type == PublishArtifactType.PACKAGE) {
+                            Text(
+                                stringResource(
+                                    R.string.toolpkg_api_version_value,
+                                    (initialInfo?.apiVersion).effectiveToolPkgApiVersion()
+                                )
+                            )
+                        }
                         Text(
                             stringResource(
                                 R.string.supported_app_versions_colon,
@@ -1058,6 +1088,9 @@ viewModel.clearPendingMarketRegistrationRetry()
                         }
                         Text(stringResource(R.string.market_detail_category_label) + ": " + categoryId)
                         Text(stringResource(R.string.version_colon, version))
+                        toolPkgApiVersion?.let { apiVersionValue ->
+                            Text(stringResource(R.string.toolpkg_api_version_value, apiVersionValue))
+                        }
                         Text(
                             stringResource(
                                 R.string.artifact_publish_asset_source_confirmation,

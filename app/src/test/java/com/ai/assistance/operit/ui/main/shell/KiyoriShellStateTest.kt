@@ -1003,6 +1003,38 @@ class KiyoriShellStateTest {
     }
 
     @Test
+    fun `file toolbox browser keeps the file session minimized and restorable`() {
+        val files = KiyoriShellState().openFileManager()
+        val browser = files.minimizeFileManager().openBrowser(KiyoriBrowserReturnTarget.AI_HOME)
+
+        assertEquals(PrimaryDestination.BROWSER_HOME, browser.primaryDestination)
+        assertTrue(browser.fileManagerSessionOpen)
+        assertTrue(browser.fileManagerMinimized)
+        assertEquals(null, browser.child)
+        val restored = browser.openFileManager()
+        assertEquals(KiyoriShellChild.FILE_MANAGER, restored.child)
+        assertFalse(restored.fileManagerMinimized)
+        assertEquals(KiyoriBrowserReturnTarget.AI_HOME, restored.browserReturnTarget)
+        assertTrue(browser.exitBrowser().fileManagerMinimized)
+    }
+
+    @Test
+    fun `toolbox password settings hides bottom navigation and returns to the same browser`() {
+        val browser = KiyoriShellState().openBrowser(KiyoriBrowserReturnTarget.AI_HOME)
+        val passwords = browser.openSettings(
+            origin = KiyoriSettingsOrigin.BROWSER_HOME,
+            initialRoute = KiyoriSettingsRoute.BROWSER_PASSWORD_MANAGER,
+        )
+
+        assertFalse(passwords.showsBottomBar)
+        assertEquals(KiyoriSettingsRoute.BROWSER_PASSWORD_MANAGER, passwords.settingsNavigation?.currentRoute)
+        val settingsHome = passwords.closeSettingsRoute()
+        assertEquals(KiyoriSettingsRoute.HOME, settingsHome.settingsNavigation?.currentRoute)
+        assertFalse(settingsHome.showsBottomBar)
+        assertEquals(browser, settingsHome.closeSettingsRoute())
+    }
+
+    @Test
     fun `file manager child preserves its settings session and exclusively owns the foreground`() {
         val settingsOwner =
             KiyoriShellState(
@@ -1013,7 +1045,7 @@ class KiyoriShellStateTest {
 
         assertEquals(KiyoriShellChild.FILE_MANAGER, fileManager.child)
         assertEquals(settingsOwner.settingsNavigation, fileManager.settingsNavigation)
-        assertTrue(shouldAnimateKiyoriShellChildOverlay(fileManager))
+        assertFalse(shouldAnimateKiyoriShellChildOverlay(fileManager))
         assertFalse(shouldPresentKiyoriSettingsOverlay(fileManager))
         assertEquals(settingsOwner, fileManager.closeChild())
         assertEquals(
@@ -1036,6 +1068,18 @@ class KiyoriShellStateTest {
         assertEquals(KiyoriShellChild.FILE_MANAGER, fileManager.child)
         assertFalse(fileManager.showsBottomBar)
         assertEquals(owner, fileManager.closeChild())
+    }
+
+    @Test
+    fun `file manager settings return and minimized restore never play child entrance`() {
+        val manager = KiyoriShellState(primaryDestination = PrimaryDestination.FILE_MANAGEMENT_HOME).openFileManager()
+        val settings = manager.openSettings(KiyoriSettingsOrigin.FILE_MANAGER)
+        assertTrue(shouldPresentKiyoriSettingsOverlay(settings))
+        assertFalse(settings.showsBottomBar)
+        val restored = settings.closeSettingsRoute()
+        assertEquals(manager, restored)
+        assertFalse(shouldAnimateKiyoriShellChildOverlay(restored))
+        assertFalse(shouldAnimateKiyoriShellChildOverlay(manager.minimizeFileManager().openFileManager()))
     }
 
     @Test

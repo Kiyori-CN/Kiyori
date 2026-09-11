@@ -22,8 +22,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.automirrored.filled.Sort
+
 import androidx.compose.material.icons.automirrored.filled.TextSnippet
 import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
@@ -600,7 +604,7 @@ fun FileBrowser(
                             modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
-                                Icons.AutoMirrored.Filled.Sort,
+                                Icons.AutoMirrored.Outlined.Sort,
                                 contentDescription = stringResource(R.string.file_manager_sort),
                                 modifier = Modifier.size(18.dp)
                         )
@@ -631,7 +635,7 @@ fun FileBrowser(
                             modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
-                                Icons.Default.Add,
+                                Icons.Outlined.Add,
                                 contentDescription = stringResource(R.string.file_manager_new),
                                 modifier = Modifier.size(18.dp)
                         )
@@ -642,7 +646,7 @@ fun FileBrowser(
                             modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
-                                Icons.Default.Refresh,
+                                Icons.Outlined.Refresh,
                                 contentDescription = stringResource(R.string.file_manager_refresh),
                                 modifier = Modifier.size(18.dp)
                         )
@@ -712,7 +716,7 @@ fun FileBrowser(
 
                 if (!isManageMode) item {
                     QuickPathChip(
-                        entry = QuickPathEntry(name = "+", path = "", icon = Icons.Default.Add),
+                        entry = QuickPathEntry(name = "+", path = "", icon = Icons.Outlined.Add),
                         isActive = false,
                         onClick = { addSafLauncher.launch(null) }
                     )
@@ -808,7 +812,7 @@ fun FileBrowser(
                                         },
                                         leadingIcon = {
                                             Icon(
-                                                    Icons.Default.Delete,
+                                                    Icons.Outlined.Delete,
                                                     contentDescription = stringResource(R.string.file_manager_delete),
                                                     tint = MaterialTheme.colorScheme.error
                                             )

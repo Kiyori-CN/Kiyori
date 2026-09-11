@@ -23,13 +23,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.Close
+
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
@@ -339,7 +340,7 @@ private fun UserscriptEditorHeader(
             }
             IconButton(onClick = onSearch, modifier = Modifier.size(44.dp)) {
                 Icon(
-                    imageVector = Icons.Filled.Search,
+                    imageVector = Icons.Outlined.Search,
                     contentDescription = stringResource(R.string.web_session_userscript_editor_find),
                 )
             }
@@ -370,7 +371,7 @@ private fun UserscriptEditorHeader(
                     modifier = Modifier.size(44.dp),
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.MoreVert,
+                        imageVector = Icons.Outlined.MoreVert,
                         contentDescription = stringResource(R.string.more),
                     )
                 }
@@ -451,7 +452,7 @@ private fun UserscriptEditorSearchBar(
             )
             IconButton(onClick = onClose, modifier = Modifier.size(40.dp)) {
                 Icon(
-                    imageVector = Icons.Filled.Close,
+                    imageVector = Icons.Outlined.Close,
                     contentDescription = stringResource(R.string.close),
                 )
             }

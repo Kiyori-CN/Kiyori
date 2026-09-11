@@ -18,14 +18,17 @@ import org.junit.Test
  */
 class BuiltInPackageMetadataContractTest {
     @Test
-    fun `all unpublished example package versions use 1_0_0`() {
+    fun `example package versions follow their independent development baselines`() {
         repositoryDirectory("examples")
             .walkTopDown()
             .filter { file -> file.isFile && file.name == "manifest.json" }
             .forEach { manifest ->
+                // 办公套件已随 213be2b36 独立演进至 0.2.0，不能被宿主未发布状态重置。
+                val relative = manifest.relativeTo(repositoryDirectory("examples")).invariantSeparatorsPath
+                val expectedVersion = if (relative == "office_suite/manifest.json") "0.2.0" else "1.0.0"
                 assertEquals(
-                    "${manifest.relativeTo(repositoryDirectory("examples"))} must use version 1.0.0",
-                    "1.0.0",
+                    "$relative must preserve its package version baseline",
+                    expectedVersion,
                     JSONObject(manifest.readText()).getString("version"),
                 )
             }
@@ -118,7 +121,9 @@ class BuiltInPackageMetadataContractTest {
                 val manifest = JSONObject(manifestFile.readText())
 
                 assertTrue("$item must use a Kiyori ToolPkg ID", manifest.getString("toolpkg_id").startsWith("com.kiyori."))
-                assertEquals("$item must use pre-release version 1.0.0", "1.0.0", manifest.getString("version"))
+                // 内置包独立演进，依赖约束必须使用真实版本，不能统一伪装为 1.0.0。
+                assertTrue("$item must declare a numeric semantic version",
+                    Regex("[0-9]+\\.[0-9]+\\.[0-9]+").matches(manifest.getString("version")))
                 assertFalse("$item must not declare manifest author", manifest.has("author"))
                 assertLocalized(manifest.get("display_name"), "$item manifest display_name")
                 assertAgentFacingDescription(manifest.get("description"), "$item manifest description")

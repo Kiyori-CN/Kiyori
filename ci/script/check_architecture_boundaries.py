@@ -407,6 +407,9 @@ M05A1_DECLARATION_OWNERS = {
 }
 M05A1_EXPECTED_IMPORT_CONSUMERS = {
     "KiyoriBrowserTheme": {
+        "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileContextMenu.kt",
+        "app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/chrome/KiyoriToolboxDrawer.kt",
+        "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileManagerChrome.kt",
         "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/KiyoriFileManagerMinimizedIndicator.kt",
         "app/src/main/java/com/kiyori/app/shell/KiyoriAppShell.kt",
         "app/src/main/java/com/ai/assistance/operit/ui/features/player/"
@@ -528,9 +531,9 @@ M05A2_CONSUMER_IMPORT_SNAPSHOT = (
     "m05a2-semantic-consumer-imports.txt"
 )
 M05A2_DESIGN_PACKAGE = "com.kiyori.design.theme"
-M05A2_PRODUCTION_CONSUMER_COUNT = 61
+M05A2_PRODUCTION_CONSUMER_COUNT = 62
 M05A2_EXTERNAL_TEST_CONSUMER_COUNT = 4
-M05A2_CONSUMER_IMPORT_COUNT = 109
+M05A2_CONSUMER_IMPORT_COUNT = 111
 M05A2_MOVED_IMPORT_SYMBOLS = {
     "KiyoriSemanticTone",
     "kiyoriSemanticToneForStableId",

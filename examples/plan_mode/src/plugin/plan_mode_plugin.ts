@@ -18,9 +18,12 @@ import {
   registerSharedMethods,
 } from "../shared/plan_mode_runtime_ipc.js";
 import { appendPrompt, buildExistingPlanPrompt, buildPlanningModePrompt } from "../shared/plan_mode_prompt.js";
-import { type PlanModeRuntime } from "../shared/plan_mode_state.js";
+import { readSingleActiveChatView, type PlanModeRuntime } from "../shared/plan_mode_state.js";
+import { PlanSubmissionCoordinator } from "../shared/plan_mode_submission.js";
+import { readBoundPlanFile, writeBoundPlanFile } from "../shared/plan_mode_plan_file.js";
 import {
   PLAN_MODE_START_IMPLEMENTATION_IPC_CHANNEL,
+  PLAN_MODE_IMPLEMENTATION_STATUS_IPC_CHANNEL,
   type StartPlanImplementationResult,
 } from "../shared/plan_mode_execution.js";
 import {
@@ -29,6 +32,8 @@ import {
 } from "../shared/plan_mode_ask_execution.js";
 import {
   logPlanModeDebug,
+  buildPlanFilePath,
+  resolveChatWorkspace,
 } from "../shared/plan_mode_workspace.js";
 import { onPlanaskXmlRender } from "./planask-xml-render-plugin.js";
 import { onPlantodoXmlRender } from "./plantodo-xml-render-plugin.js";
@@ -41,6 +46,7 @@ const PLAN_MODE_BLOCKED_TOOL_NAMES = new Set([
 ]);
 
 let planModeIpcRegistered = false;
+const planSubmissions = new PlanSubmissionCoordinator();
 
 function usesChatPrompt(payload: ToolPkg.PromptHookEventPayload): boolean {
   const promptFunctionType = payload.promptFunctionType;
@@ -73,19 +79,13 @@ async function handleSubmitPlanaskAnswersIpc(
       };
     }
 
-    void Tools.Chat.sendMessage(
+    await Tools.Chat.sendMessage(
       message,
       activeView.chatId,
       undefined,
       undefined,
-      { runtime: activeView.runtime }
-    ).catch((error) => {
-      const errorText = error instanceof Error
-        ? error.message || "error"
-        : (typeof error === "string" || error == null ? error || "error" : "error");
-      const toastMessage = `${text.askToastAnswerSendFailedPrefix}${errorText}`;
-      void Tools.System.toast(toastMessage);
-    });
+      { runtime: activeView.runtime, wait_for_response: false }
+    );
     await Tools.System.toast(text.askToastAnswerSent);
     return { success: true };
   } catch (error) {
@@ -113,28 +113,25 @@ async function handleStartImplementationIpc(
   }
 
   try {
-    const activeView = await PlanModeShared.getSingleActiveChatView();
+    const activeView = readSingleActiveChatView();
     if (!activeView) {
       await Tools.System.toast(text.toastChatViewMissing);
       return { success: false, error: text.toastChatViewMissing };
     }
-    const written = await PlanModeShared.writePlanFile(activeView.chatId, normalizedPlanContent);
-    await PlanModeShared.disable(written.chatId);
-    void Tools.Chat.sendMessage(
-      text.implementationMessage,
-      written.chatId,
-      undefined,
-      undefined,
-      { runtime: activeView.runtime }
-    ).catch((error) => {
-      const errorText = error instanceof Error
-        ? error.message || "error"
-        : (typeof error === "string" || error == null ? error || "error" : "error");
-      const messageText = `${text.toastPlanSendFailedPrefix}${errorText}`;
-      void Tools.System.toast(messageText);
+    const binding = resolveChatWorkspace(activeView.chatId, activeView.runtime);
+    if (!binding) return { success: false, error: text.toastWorkspaceRequired };
+    const result = await planSubmissions.start(binding, normalizedPlanContent, {
+      read: async (target) => (await readBoundPlanFile({ ...target, path: buildPlanFilePath(target.workspacePath) }))?.content ?? null,
+      write: async (target, content) => {
+        await writeBoundPlanFile({ ...target, path: buildPlanFilePath(target.workspacePath) }, content);
+      },
+      disable: async (chatId) => { await PlanModeShared.disable(chatId); },
+      send: async (target) => {
+        await Tools.Chat.sendMessage(text.implementationMessage, target.chatId, undefined, undefined, { runtime: target.runtime, wait_for_response: false });
+      },
     });
-    void Tools.System.toast(text.toastPlanStarted);
-    return { success: true };
+    if (result.success) await Tools.System.toast(text.toastPlanStarted);
+    return { ...result, error: result.status === "unknown" ? text.toastPlanSubmissionUnknown : result.status === "preparing" ? text.rendererButtonBusy : result.error };
   } catch (error) {
     const errorText = error instanceof Error
       ? error.message || "error"
@@ -159,6 +156,13 @@ function registerPlanModeIpc(): void {
     PLAN_MODE_START_IMPLEMENTATION_IPC_CHANNEL,
     handleStartImplementationIpc
   );
+  ToolPkg.ipc.on<string, StartPlanImplementationResult>(PLAN_MODE_IMPLEMENTATION_STATUS_IPC_CHANNEL, async (content) => {
+    const view = readSingleActiveChatView();
+    const binding = view ? resolveChatWorkspace(view.chatId, view.runtime) : null;
+    if (!binding || !content.trim()) return { success: false };
+    const result = planSubmissions.status(binding, content);
+    return { ...result, error: result.status === "unknown" ? resolvePlanModeI18n().toastPlanSubmissionUnknown : result.error };
+  });
 }
 
 function filterPlanModeTools(

@@ -10,7 +10,7 @@
     "en": "XLSX read/write, formatting, sheet operations, and LibreOffice recalculation."
   },
   "enabledByDefault": false,
-  "category": "Document",
+  "category": "File",
   "tools": [
     {
       "name": "xlsx_info",

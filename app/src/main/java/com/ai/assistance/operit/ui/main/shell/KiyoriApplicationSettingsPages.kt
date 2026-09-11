@@ -3,6 +3,8 @@ package com.ai.assistance.operit.ui.main.shell
 import androidx.annotation.StringRes
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Backup
@@ -18,8 +20,6 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
@@ -96,14 +96,14 @@ internal val kiyoriAiAssistantSettingsGroups =
                     KiyoriAiAssistantSettingsEntrySpec(
                         titleRes = R.string.kiyori_ai_settings_model_api,
                         descriptionRes = R.string.kiyori_ai_settings_model_api_desc,
-                        icon = Icons.Default.Settings,
+                        icon = Icons.Outlined.Settings,
                         iconTone = KiyoriSemanticTone.BLUE,
                         action = KiyoriAiAssistantSettingsAction.OPEN_MODEL_CONFIG,
                     ),
                     KiyoriAiAssistantSettingsEntrySpec(
                         titleRes = R.string.kiyori_ai_settings_function_models,
                         descriptionRes = R.string.kiyori_ai_settings_function_models_desc,
-                        icon = Icons.Default.Tune,
+                        icon = Icons.Outlined.Tune,
                         iconTone = KiyoriSemanticTone.CYAN,
                         action = KiyoriAiAssistantSettingsAction.OPEN_FUNCTIONAL_CONFIG,
                     ),

@@ -14,6 +14,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -857,7 +862,7 @@ fun CharacterCardDialog(
                                 }
 
                                 Icon(
-                                    imageVector = Icons.Default.Tune,
+                                    imageVector = Icons.Outlined.Tune,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp),
                                     tint = MaterialTheme.colorScheme.primary
@@ -1177,7 +1182,7 @@ private fun CharacterCardToolAccessDialog(
                         textStyle = MaterialTheme.typography.bodyMedium,
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.Default.Search,
+                                imageVector = Icons.Outlined.Search,
                                 contentDescription = null
                             )
                         },
@@ -1185,7 +1190,7 @@ private fun CharacterCardToolAccessDialog(
                             if (searchQuery.isNotEmpty()) {
                                 IconButton(onClick = { searchQuery = "" }) {
                                     Icon(
-                                        imageVector = Icons.Default.Close,
+                                        imageVector = Icons.Outlined.Close,
                                         contentDescription = stringResource(R.string.clear)
                                     )
                                 }
@@ -1747,7 +1752,7 @@ fun FullScreenEditDialog(
                     
                     IconButton(onClick = onDismiss) {
                         Icon(
-                            imageVector = Icons.Default.Close,
+                            imageVector = Icons.Outlined.Close,
                             contentDescription = stringResource(R.string.close)
                         )
                     }
@@ -1838,7 +1843,7 @@ fun CompactAvatarPicker(
                 contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Refresh,
+                    imageVector = Icons.Outlined.Refresh,
                     contentDescription = null,
                     modifier = Modifier.size(12.dp)
                 )
@@ -1852,7 +1857,7 @@ fun CompactAvatarPicker(
                 contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Add,
+                    imageVector = Icons.Outlined.Add,
                     contentDescription = null,
                     modifier = Modifier.size(12.dp)
                 )

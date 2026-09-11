@@ -16,8 +16,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Groups
@@ -181,7 +181,7 @@ fun CharacterSelectorPanel(
                                     modifier = Modifier.size(40.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.Sort,
+                                        imageVector = Icons.AutoMirrored.Outlined.Sort,
                                         contentDescription = context.getString(R.string.character_card_sort),
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -247,7 +247,7 @@ fun CharacterSelectorPanel(
                                 modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Edit,
+                                    imageVector = Icons.Outlined.Edit,
                                     contentDescription = context.getString(R.string.edit_character_card),
                                     modifier = Modifier.size(18.dp)
                                 )

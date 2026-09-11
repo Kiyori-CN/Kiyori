@@ -30,15 +30,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Close
+
 import androidx.compose.material.icons.filled.Block
-import androidx.compose.material.icons.filled.Close
+
 import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Search
+
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -385,7 +388,7 @@ private fun BrowserNetworkLogSearchField(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                imageVector = Icons.Filled.Search,
+                imageVector = Icons.Outlined.Search,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(17.dp),
@@ -413,7 +416,7 @@ private fun BrowserNetworkLogSearchField(
             if (value.isNotBlank()) {
                 IconButton(onClick = onClear, modifier = Modifier.size(40.dp)) {
                     Icon(
-                        imageVector = Icons.Filled.Close,
+                        imageVector = Icons.Outlined.Close,
                         contentDescription = stringResource(R.string.clear),
                         modifier = Modifier.size(16.dp),
                     )
@@ -698,7 +701,7 @@ private fun BrowserNetworkLogActionDialog(
             modifier = Modifier.fillMaxWidth().widthIn(max = 360.dp),
         ) {
             BrowserNetworkLogActionRow(
-                icon = Icons.Filled.ContentCopy,
+                icon = Icons.Outlined.ContentCopy,
                 title = stringResource(R.string.web_session_network_log_copy_link),
                 tone = KiyoriSemanticTone.PURPLE,
                 onClick = onCopy,
@@ -737,13 +740,13 @@ private fun BrowserNetworkLogActionDialog(
             }
             if (!isElementEntry && networkUrl) {
                 BrowserNetworkLogActionRow(
-                    icon = Icons.Filled.Download,
+                    icon = Icons.Outlined.Download,
                     title = stringResource(R.string.web_session_network_log_download_resource),
                     tone = KiyoriSemanticTone.GREEN,
                     onClick = onDownload,
                 )
                 BrowserNetworkLogActionRow(
-                    icon = Icons.AutoMirrored.Filled.OpenInNew,
+                    icon = Icons.AutoMirrored.Outlined.OpenInNew,
                     title = stringResource(R.string.web_session_network_log_open_external),
                     tone = KiyoriSemanticTone.BLUE,
                     onClick = onOpenExternal,

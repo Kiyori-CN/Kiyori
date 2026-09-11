@@ -10,8 +10,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Download
+
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -93,7 +94,7 @@ fun MarketStatsSummary(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                Icons.Default.Download,
+                Icons.Outlined.Download,
                 contentDescription = null,
                 modifier = Modifier.size(12.dp),
                 tint = MaterialTheme.colorScheme.primary

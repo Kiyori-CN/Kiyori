@@ -2190,6 +2190,9 @@ class ArchitectureBoundaryTest(unittest.TestCase):
         imports_by_consumer: dict[str, set[str]] = {}
         expected_import_consumers = {
             "KiyoriBrowserTheme": {
+                "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileContextMenu.kt",
+                "app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/chrome/KiyoriToolboxDrawer.kt",
+                "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileManagerChrome.kt",
                 "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/KiyoriFileManagerMinimizedIndicator.kt",
                 "app/src/main/java/com/kiyori/app/shell/KiyoriAppShell.kt",
                 "app/src/main/java/com/ai/assistance/operit/ui/features/player/"

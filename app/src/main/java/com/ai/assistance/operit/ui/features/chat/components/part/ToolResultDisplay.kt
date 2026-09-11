@@ -7,9 +7,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.SubdirectoryArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -147,7 +147,7 @@ private fun ToolResultDetailDialog(
                     // 状态图标
                     Icon(
                             imageVector =
-                                    if (isSuccess) Icons.Default.Check else Icons.Default.Close,
+                                    if (isSuccess) Icons.Default.Check else Icons.Outlined.Close,
                             contentDescription = if (isSuccess) context.getString(R.string.success) else context.getString(R.string.failed),
                             tint =
                                     if (isSuccess) MaterialTheme.colorScheme.primary
@@ -170,7 +170,7 @@ private fun ToolResultDetailDialog(
                     // 复制按钮
                     IconButton(onClick = onCopy) {
                         Icon(
-                                imageVector = Icons.Default.ContentCopy,
+                                imageVector = Icons.Outlined.ContentCopy,
                                 contentDescription = context.getString(R.string.copy_result),
                                 tint = MaterialTheme.colorScheme.primary
                         )

@@ -27,15 +27,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.automirrored.filled.NoteAdd
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.FileDownload
+
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Search
+
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.AlertDialog
@@ -349,7 +351,7 @@ private fun AuditHeader(
             }
             TextButton(onClick = onExport, enabled = actionsEnabled) {
                 Icon(
-                    imageVector = Icons.Default.FileDownload,
+                    imageVector = Icons.Outlined.FileDownload,
                     contentDescription =
                         stringResource(R.string.conversation_audit_export_content_description),
                     tint = colors.accent,
@@ -569,7 +571,7 @@ private fun AuditSearchBar(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Icon(
-                imageVector = Icons.Default.Search,
+                imageVector = Icons.Outlined.Search,
                 contentDescription = null,
                 tint = colors.mutedIcon,
                 modifier = Modifier.size(20.dp),
@@ -596,7 +598,7 @@ private fun AuditSearchBar(
             if (value.isNotBlank()) {
                 IconButton(onClick = { onValueChange("") }, modifier = Modifier.size(48.dp)) {
                     Icon(
-                        imageVector = Icons.Default.Close,
+                        imageVector = Icons.Outlined.Close,
                         contentDescription = stringResource(R.string.clear),
                         tint = colors.mutedIcon,
                         modifier = Modifier.size(18.dp),
@@ -1229,7 +1231,7 @@ private fun AuditMessageRow(
                 if (expanded) {
                     IconButton(enabled = !isGenerating, onClick = onEdit) {
                         Icon(
-                            Icons.Default.Edit,
+                            Icons.Outlined.Edit,
                             contentDescription = stringResource(R.string.edit_message),
                             tint = colors.accent,
                         )

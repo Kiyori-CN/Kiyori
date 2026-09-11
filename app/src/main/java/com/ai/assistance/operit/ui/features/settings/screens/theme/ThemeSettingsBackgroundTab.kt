@@ -124,7 +124,7 @@ internal fun ThemeSettingsBackgroundTab(
 internal data class ThemeSettingsBackgroundRuntime(
     val exoPlayer: ExoPlayer,
     val launchImageCrop: (Uri) -> Unit,
-    val mediaPickerLauncher: ManagedActivityResultLauncher<String, Uri?>,
+    val mediaPickerLauncher: ManagedActivityResultLauncher<Array<String>, Uri?>,
 )
 
 @Composable
@@ -366,7 +366,8 @@ internal fun rememberThemeSettingsBackgroundRuntime(
     }
 
     val mediaPickerLauncher =
-        rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) {
+        // 文档浏览不受 OEM 相册目录过滤影响；选中后继续复制到现有私有存储。
+        rememberLauncherForActivityResult(contract = ActivityResultContracts.OpenDocument()) {
                 uri: Uri? ->
             if (uri != null) {
                 val isVideo = FileUtils.isVideoFile(context, uri)

@@ -19,13 +19,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Store
@@ -283,7 +283,7 @@ fun PermissionLevelCard(
                         modifier = Modifier.align(Alignment.CenterEnd).size(32.dp)
                 ) {
                     Icon(
-                            imageVector = Icons.Default.Refresh,
+                            imageVector = Icons.Outlined.Refresh,
                             contentDescription =
                                     if (isRefreshing) stringResource(R.string.refreshing)
                                     else stringResource(R.string.refresh_permission_status),
@@ -1458,7 +1458,7 @@ private fun FeatureItem(name: String, isSupported: Boolean, modifier: Modifier =
                         "Android/data" -> Icons.Default.Storage
                         "data/data" -> Icons.Default.Storage
                         context.getString(R.string.feature_screen_auto_click) -> Icons.Default.TouchApp
-                        context.getString(R.string.feature_system_permission_modification) -> Icons.Default.Settings
+                        context.getString(R.string.feature_system_permission_modification) -> Icons.Outlined.Settings
                         context.getString(R.string.feature_termux_support) -> Icons.Default.Terminal
                         context.getString(R.string.feature_run_js) -> Icons.Default.Code
                         context.getString(R.string.feature_plugin_market_mcp) -> Icons.Default.Store

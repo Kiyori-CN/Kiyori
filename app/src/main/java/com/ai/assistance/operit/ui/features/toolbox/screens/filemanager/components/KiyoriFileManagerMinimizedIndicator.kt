@@ -2,7 +2,9 @@ package com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.compone
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.outlined.Folder
+import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.resolveColors
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -55,7 +57,8 @@ internal fun KiyoriFileManagerMinimizedIndicator(
                     },
                     onLongPress = { closeEvent(BrowserMinimizedIndicatorCloseEvent.LONG_PRESS_RECOGNIZED) },
                     onLongPressGestureFinished = { closeEvent(BrowserMinimizedIndicatorCloseEvent.GESTURE_FINISHED) },
-                    onConfirmBrowserDownload = {}, onCancelBrowserDownload = {}, idleIcon = Icons.Filled.Folder,
+                    onConfirmBrowserDownload = {}, onCancelBrowserDownload = {}, idleIcon = Icons.Outlined.Folder,
+                    accentColor = KiyoriSemanticTone.PURPLE.resolveColors().icon,
                 )
                 if (closeState.isCloseActionVisible && !closeState.isLongPressGestureActive) Box(Modifier.offset(x = (-18).dp, y = (-18).dp).size(BROWSER_MINIMIZED_INDICATOR_CLOSE_ACTION_SIZE_DP.dp)) {
                     WebSessionMinimizedCloseAction("关闭文件管理器", onClose)

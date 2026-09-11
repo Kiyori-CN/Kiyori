@@ -1,5 +1,9 @@
 package com.kiyori.app.shell
 
+import com.kiyori.design.theme.KIYORI_DRAWER_HEADER_TOP_SPACING_DP
+import com.kiyori.design.theme.KIYORI_DRAWER_HEADER_HORIZONTAL_PADDING_DP
+import com.kiyori.design.theme.KIYORI_DRAWER_HEADER_VERTICAL_PADDING_DP
+import com.ai.assistance.operit.ui.components.KiyoriDrawerTitle
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
@@ -258,7 +262,7 @@ private fun KiyoriAiDrawerContent(
         Column(
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(KIYORI_DRAWER_HEADER_TOP_SPACING_DP.dp))
             KiyoriAiDrawerStatusHeader(
                 isNetworkAvailable = isNetworkAvailable,
                 networkType = networkType,
@@ -336,7 +340,6 @@ private fun KiyoriAiDrawerStatusHeader(
     isNetworkAvailable: Boolean,
     networkType: String,
 ) {
-    val uiTokens = rememberKiyoriUiTokens()
     val statusColors = KiyoriSemanticTone.CYAN.resolveColors()
     val statusColor = statusColors.icon
     val availabilityIndicatorColor =
@@ -346,14 +349,12 @@ private fun KiyoriAiDrawerStatusHeader(
             KiyoriSemanticTone.RED.resolveColors().icon
         }
     Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
+        modifier = Modifier.fillMaxWidth().padding(
+            horizontal = KIYORI_DRAWER_HEADER_HORIZONTAL_PADDING_DP.dp,
+            vertical = KIYORI_DRAWER_HEADER_VERTICAL_PADDING_DP.dp,
+        ),
     ) {
-        Text(
-            text = stringResource(R.string.kiyori_ai_drawer_title),
-            style = MaterialTheme.typography.titleLarge,
-            color = uiTokens.colors.primaryText,
-            fontWeight = FontWeight.Bold,
-        )
+        KiyoriDrawerTitle()
         Spacer(modifier = Modifier.height(10.dp))
         Surface(
             shape = CircleShape,

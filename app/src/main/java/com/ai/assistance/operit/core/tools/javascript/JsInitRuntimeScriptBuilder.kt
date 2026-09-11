@@ -23,6 +23,10 @@ internal fun buildInitRuntimeModules(
             source = buildRuntimeCallRegistryScript()
         ),
         JsBootstrapModule(
+            fileName = "quickjs/init/toolpkg-api-runtime.js",
+            source = buildToolPkgApiRuntimeScript()
+        ),
+        JsBootstrapModule(
             fileName = "quickjs/init/runtime-errors.js",
             source = buildRuntimeErrorScript()
         ),
@@ -123,7 +127,7 @@ private fun buildRuntimeCallRegistryScript(): String {
                 callState.safetyTimeoutFinal = null;
             }
 
-            function registerCallSession(callId, params) {
+            function registerCallSession(callId, params, toolPkgApi) {
                 var resolvedCallId = normalizeCallId(callId);
                 if (!resolvedCallId) {
                     throw new Error('callId is required');
@@ -133,6 +137,10 @@ private fun buildRuntimeCallRegistryScript(): String {
                 var callState = state && typeof state === 'object' ? state : {};
                 callState.callId = resolvedCallId;
                 callState.params = params && typeof params === 'object' ? params : {};
+                callState.toolPkgApi =
+                    toolPkgApi && typeof toolPkgApi === 'object'
+                        ? toolPkgApi
+                        : null;
                 callState.completed = false;
                 callState.safetyTimeout = null;
                 callState.safetyTimeoutFinal = null;
@@ -458,6 +466,8 @@ private fun buildRuntimeToolCallScript(): String {
                 return new Promise(function(resolve, reject) {
                     try {
                         var parsed = parseToolCallArguments(rawArgs);
+                        // Versioned ToolPkg facades validate the manifest API before this raw dispatch.
+                        var nativeParams = parsed.params || {};
                         var callbackId = nextToolCallbackId();
                         var intermediateCallbackId =
                             parsed.options && parsed.options.onIntermediateResult
@@ -497,7 +507,7 @@ private fun buildRuntimeToolCallScript(): String {
                                 asString(windowRef.__operitCurrentCallId || ''),
                                 parsed.type || 'default',
                                 parsed.name,
-                                JSON.stringify(parsed.params || {})
+                                JSON.stringify(nativeParams)
                             );
                         } else {
                             callNative(
@@ -506,7 +516,7 @@ private fun buildRuntimeToolCallScript(): String {
                                 asString(windowRef.__operitCurrentCallId || ''),
                                 parsed.type || 'default',
                                 parsed.name,
-                                JSON.stringify(parsed.params || {})
+                                JSON.stringify(nativeParams)
                             );
                         }
                     } catch (error) {

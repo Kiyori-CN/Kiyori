@@ -199,6 +199,12 @@
 - `ModelConfigConnectionTestItemResultData`
 - `ModelConfigConnectionTestResultData`
 
+模型配置检测的条目 `outcome` 为 `passed`、`unverified` 或 `failed`；单项 `success` 只在
+`passed` 时为真。总结果的 `success` 表示没有硬失败，不能据此断言媒体理解能力；应检查
+`verified`，它只在全部请求的探测都通过时为真。`passedTests`、`unverifiedTests` 和
+`failedTests` 分别统计三种状态，总和为 `totalTests`。媒体响应不匹配测试素材标记时保留
+`unverified`，不伪造失败原因，也不回传模型自由回答作为能力结论。
+
 这一部分主要给 `Tools.SoftwareSettings` 使用。
 
 ### 8. Chat 结果

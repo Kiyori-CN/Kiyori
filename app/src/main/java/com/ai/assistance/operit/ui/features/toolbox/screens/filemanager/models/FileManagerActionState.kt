@@ -2,7 +2,7 @@ package com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models
 
 import com.ai.assistance.operit.core.tools.FileInspectionData
 
-enum class FileManagerActionKind { DELETE, ZIP, EXTRACT, PROPERTIES, TOOLS }
+enum class FileManagerActionKind { DELETE, RESTORE, PURGE, RENAME, ZIP, EXTRACT, PROPERTIES, TOOLS }
 data class FileManagerActionState(
     val id: Long,
     val kind: FileManagerActionKind,
@@ -17,6 +17,9 @@ data class FileManagerActionState(
     val unknown: Boolean = false,
     val stagingPath: String? = null,
     val shareAfter: Boolean = false,
+    val files: List<FileItem> = listOf(file),
+    val inspections: Map<String, FileInspectionData> = emptyMap(),
+    val results: List<FileManagerTransferItemResult> = emptyList(),
 )
 data class FileManagerShareRequest(val path: String, val name: String)
 

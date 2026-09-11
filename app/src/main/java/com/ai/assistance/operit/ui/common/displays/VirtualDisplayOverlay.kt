@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.ArrowCircleDown
 import androidx.compose.material.icons.outlined.Minimize
@@ -826,7 +827,7 @@ class VirtualDisplayOverlay private constructor(private val context: Context, pr
                                             )
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Filled.Close,
+                                                imageVector = Icons.Outlined.Close,
                                                 contentDescription = stringResource(R.string.vd_overlay_a11y_close),
                                                 modifier = Modifier.size(18.dp),
                                                 tint = Color.White
@@ -863,7 +864,7 @@ class VirtualDisplayOverlay private constructor(private val context: Context, pr
                                         }
                                         IconButton(onClick = { hide(cancelAutomation = true) }) {
                                             Icon(
-                                                imageVector = Icons.Filled.Close,
+                                                imageVector = Icons.Outlined.Close,
                                                 contentDescription = stringResource(R.string.vd_overlay_a11y_close),
                                                 modifier = Modifier.size(40.dp)
                                             )
@@ -1110,7 +1111,7 @@ class VirtualDisplayOverlay private constructor(private val context: Context, pr
                                             )
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Filled.Close,
+                                                imageVector = Icons.Outlined.Close,
                                                 contentDescription = stringResource(R.string.vd_overlay_a11y_close),
                                                 modifier = Modifier.size(18.dp),
                                                 tint = Color.White
@@ -1171,7 +1172,7 @@ class VirtualDisplayOverlay private constructor(private val context: Context, pr
                                             )
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Filled.Close,
+                                                imageVector = Icons.Outlined.Close,
                                                 contentDescription = stringResource(R.string.vd_overlay_a11y_close),
                                                 modifier = Modifier.size(18.dp),
                                                 tint = Color.White
@@ -1207,7 +1208,7 @@ class VirtualDisplayOverlay private constructor(private val context: Context, pr
                                         }
                                         IconButton(onClick = { hide(cancelAutomation = true) }) {
                                             Icon(
-                                                imageVector = Icons.Filled.Close,
+                                                imageVector = Icons.Outlined.Close,
                                                 contentDescription = stringResource(R.string.vd_overlay_a11y_close),
                                                 modifier = Modifier.size(40.dp)
                                             )
@@ -1272,7 +1273,7 @@ class VirtualDisplayOverlay private constructor(private val context: Context, pr
                 }
                 IconButton(onClick = onExit) {
                     Icon(
-                        imageVector = Icons.Filled.Close,
+                        imageVector = Icons.Outlined.Close,
                         contentDescription = stringResource(R.string.vd_overlay_a11y_stop_automation),
                         modifier = Modifier.size(18.dp),
                         tint = MaterialTheme.colorScheme.onSurface

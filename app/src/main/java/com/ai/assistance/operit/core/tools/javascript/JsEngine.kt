@@ -18,6 +18,8 @@ import com.ai.assistance.operit.core.chat.messageTimingNow
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
 import com.ai.assistance.operit.core.tools.packTool.TOOLPKG_EVENT_MESSAGE_PROCESSING
+import com.ai.assistance.operit.core.tools.packTool.ToolPkgApiCompatibility
+import com.ai.assistance.operit.core.tools.packTool.ToolPkgApiVersion
 import com.ai.assistance.operit.ui.main.navigation.AppRouteDiscoveryGateway
 import com.ai.assistance.operit.ui.main.navigation.AppRouterGateway
 import com.ai.assistance.operit.ui.main.navigation.RouteEntrySource
@@ -133,6 +135,7 @@ class JsEngine(
         val scriptProxyEligible: Boolean,
         val packageChatId: String?,
         val toolPkgRuntimeKind: String?,
+        val toolPkgApiVersion: ToolPkgApiVersion?,
         val toolPkgLogSnapshot: JsToolPkgExecutionContext.LogSnapshot,
         val executionListener: JsExecutionListener?,
         val pendingErrorDiagnostic: AtomicReference<PendingJsErrorDiagnostic?> =
@@ -351,6 +354,7 @@ class JsEngine(
         envOverrides: Map<String, String>,
         onIntermediateResult: ((Any?) -> Unit)?,
         dispatchIntermediateOnMain: Boolean,
+        toolPkgApiVersion: ToolPkgApiVersion?,
         executionListener: JsExecutionListener?
     ): ExecutionSession {
         return ExecutionSession(
@@ -379,9 +383,41 @@ class JsEngine(
                     ?.trim()
                     ?.lowercase()
                     ?.ifBlank { null },
+            toolPkgApiVersion = toolPkgApiVersion,
             toolPkgLogSnapshot = toolPkgExecutionContext.capture(script, functionName, params),
             executionListener = executionListener
         )
+    }
+
+    private fun resolveToolPkgApiVersionForExecution(
+        params: Map<String, Any?>,
+        explicitApiVersion: String?
+    ): ToolPkgApiVersion? {
+        val explicitVersion = explicitApiVersion?.trim().orEmpty()
+        if (explicitVersion.isNotBlank()) {
+            return ToolPkgApiCompatibility.requireSupported(explicitVersion)
+        }
+
+        val containerPackageName =
+            params["__operit_ui_package_name"]
+                ?.toString()
+                ?.trim()
+                ?.ifBlank { null }
+                ?: return null
+        val declaredVersion =
+            packageManager.getToolPkgContainerDetails(containerPackageName, context)
+                ?.apiVersion
+                ?: return null
+        return ToolPkgApiCompatibility.requireSupported(declaredVersion)
+    }
+
+    private fun buildToolPkgApiContextJson(apiVersion: ToolPkgApiVersion?): Any {
+        return if (apiVersion == null) {
+            JSONObject.NULL
+        } else {
+            JSONObject()
+                .put("apiVersion", apiVersion.toString())
+        }
     }
 
     private fun resolveExecutionSession(callId: String): ExecutionSession? {
@@ -834,6 +870,7 @@ class JsEngine(
             dispatchIntermediateOnMain: Boolean = true,
             timeoutSec: Long? = JsTimeoutConfig.MAIN_TIMEOUT_SECONDS,
             timeoutMillis: Long? = null,
+            toolPkgApiVersion: String? = null,
             executionListener: JsExecutionListener? = null
     ): Any? {
         val effectiveParams = params.toMutableMap()
@@ -886,6 +923,7 @@ class JsEngine(
             }
         }
 
+        val executionApiVersion = resolveToolPkgApiVersionForExecution(effectiveParams, toolPkgApiVersion)
         val callId = nextExecutionCallId()
         val session =
             createExecutionSession(
@@ -896,6 +934,7 @@ class JsEngine(
                 envOverrides = envOverrides,
                 onIntermediateResult = onIntermediateResult,
                 dispatchIntermediateOnMain = dispatchIntermediateOnMain,
+                toolPkgApiVersion = executionApiVersion,
                 executionListener = executionListener
             )
         activeExecutionSessions[callId] = session
@@ -926,6 +965,7 @@ class JsEngine(
                 .put(functionName)
                 .put(safeTimeoutSec ?: JSONObject.NULL)
                 .put(preTimeoutMs ?: JSONObject.NULL)
+                .put(buildToolPkgApiContextJson(session.toolPkgApiVersion))
                 .toString()
         if (shouldLogTiming) {
             logMessageTiming(
@@ -1099,6 +1139,7 @@ class JsEngine(
     fun executeToolPkgMainRegistrationFunction(
         script: String,
         functionName: String,
+        apiVersion: String = ToolPkgApiCompatibility.LEGACY_API_VERSION,
         params: Map<String, Any?> = emptyMap()
     ): ToolPkgMainRegistrationCapture {
         synchronized(toolPkgRegistrationSession) {
@@ -1109,6 +1150,7 @@ class JsEngine(
                         script = script,
                         functionName = functionName,
                         params = params,
+                        toolPkgApiVersion = apiVersion,
                         timeoutSec = 12L
                     )
                 return toolPkgRegistrationSession.finish(executionResult)
@@ -2106,6 +2148,16 @@ class JsEngine(
         @JavascriptInterface
         fun registerToolPkgChatMessageHook(specJson: String) {
             toolPkgRegistrationSession.appendChatMessageHook(specJson)
+        }
+
+        @JavascriptInterface
+        fun registerToolPkgChatMessageMenuItem(specJson: String) {
+            toolPkgRegistrationSession.appendChatMessageMenuItem(specJson)
+        }
+
+        @JavascriptInterface
+        fun registerToolPkgChatRuntimeHook(specJson: String) {
+            toolPkgRegistrationSession.appendChatRuntimeHook(specJson)
         }
 
         @JavascriptInterface

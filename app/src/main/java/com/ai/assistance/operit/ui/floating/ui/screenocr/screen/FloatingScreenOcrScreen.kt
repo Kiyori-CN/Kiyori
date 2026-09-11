@@ -32,8 +32,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
+
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -734,7 +735,7 @@ fun FloatingScreenOcrScreen(floatContext: FloatContext) {
                         containerColor = MaterialTheme.colorScheme.errorContainer,
                         contentColor = MaterialTheme.colorScheme.onErrorContainer
                     ) {
-                        Icon(Icons.Default.Close, context.getString(R.string.cancel))
+                        Icon(Icons.Outlined.Close, context.getString(R.string.cancel))
                     }
 
                     // 确认按钮
@@ -872,7 +873,7 @@ fun FloatingScreenOcrScreen(floatContext: FloatContext) {
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Close,
+                    imageVector = Icons.Outlined.Close,
                     contentDescription = context.getString(R.string.close),
                     tint = Color.White,
                     modifier = Modifier.size(18.dp)

@@ -27,22 +27,25 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.SaveAlt
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Clear
+import androidx.compose.material.icons.outlined.Add
+
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Clear
+
 import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Tune
+
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -514,7 +517,7 @@ internal fun KiyoriNetworkProxySettingsPage(
                                 enabled = controlsEnabled,
                                 onClick = { nodeSortMenuVisible = true },
                             ) {
-                                Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "节点排序")
+                                Icon(Icons.AutoMirrored.Outlined.Sort, contentDescription = "节点排序")
                             }
                             DropdownMenu(
                                 expanded = nodeSortMenuVisible,
@@ -551,7 +554,7 @@ internal fun KiyoriNetworkProxySettingsPage(
                                 }
                             },
                         ) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = "复制代理日志")
+                            Icon(Icons.Outlined.ContentCopy, contentDescription = "复制代理日志")
                         }
                         IconButton(
                             enabled = proxyLogs.isNotEmpty() && activeOperation == null,
@@ -562,7 +565,7 @@ internal fun KiyoriNetworkProxySettingsPage(
                                 logExportLauncher.launch("kiyori-network-proxy-$timestamp.txt")
                             },
                         ) {
-                            Icon(Icons.Default.SaveAlt, contentDescription = "导出代理日志")
+                            Icon(Icons.Outlined.SaveAlt, contentDescription = "导出代理日志")
                         }
                     }
                 }
@@ -574,7 +577,7 @@ internal fun KiyoriNetworkProxySettingsPage(
                         if (scriptCatalogRefreshing) {
                             CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                         } else {
-                            Icon(Icons.Default.Refresh, contentDescription = "刷新脚本")
+                            Icon(Icons.Outlined.Refresh, contentDescription = "刷新脚本")
                         }
                     }
                 }
@@ -678,7 +681,7 @@ internal fun KiyoriNetworkProxySettingsPage(
                                 "订阅规则 ${subscription.summary.ruleCount} 条 · 自定义规则 ${config.customRules.size} 条"
                             } ?: "自定义规则 ${config?.customRules?.size ?: 0} 条；导入订阅后读取订阅规则",
                         kind = KiyoriSettingsRowKind.NAVIGATION,
-                        icon = Icons.Default.Tune,
+                        icon = Icons.Outlined.Tune,
                         iconTone = KiyoriSemanticTone.ORANGE,
                         value = config?.customRules?.size?.takeIf { it > 0 }?.let { "$it 条自定义" },
                         enabled = controlsEnabled,
@@ -694,7 +697,7 @@ internal fun KiyoriNetworkProxySettingsPage(
                                 else -> "已发现 ${discoveredScriptCatalog.size} 个脚本，已配置 ${config?.scriptModes?.size ?: 0} 个规则"
                             },
                         kind = KiyoriSettingsRowKind.NAVIGATION,
-                        icon = Icons.Default.Tune,
+                        icon = Icons.Outlined.Tune,
                         iconTone = KiyoriSemanticTone.PURPLE,
                         value = config?.scriptModes?.size?.takeIf { it > 0 }?.let { "$it 个覆盖" },
                         enabled = controlsEnabled,
@@ -730,7 +733,7 @@ internal fun KiyoriNetworkProxySettingsPage(
                         title = "代理局域网地址",
                         description = "允许私有地址进入 Kiyori 内嵌代理",
                         kind = KiyoriSettingsRowKind.TOGGLE,
-                        icon = Icons.Default.Tune,
+                        icon = Icons.Outlined.Tune,
                         iconTone = KiyoriSemanticTone.ORANGE,
                         checked = config?.proxyPrivateNetworks == true,
                         enabled = controlsEnabled,
@@ -762,7 +765,7 @@ internal fun KiyoriNetworkProxySettingsPage(
                         title = "重置网络代理",
                         description = "停止核心并删除订阅、模块规则和加密配置",
                         kind = KiyoriSettingsRowKind.NAVIGATION,
-                        icon = Icons.Default.Delete,
+                        icon = Icons.Outlined.Delete,
                         iconTone = KiyoriSemanticTone.RED,
                         enabled = activeOperation == null,
                         onClick = { resetDialogVisible = true },
@@ -807,7 +810,7 @@ internal fun KiyoriNetworkProxySettingsPage(
                             onClick = { clearLogDialogVisible = true },
                             modifier = Modifier.align(Alignment.End).padding(horizontal = 8.dp, vertical = 4.dp),
                         ) {
-                            Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Outlined.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("清空日志")
                         }
@@ -844,9 +847,9 @@ internal fun KiyoriNetworkProxySettingsPage(
                             singleLine = true,
                             enabled = controlsEnabled,
                             placeholder = { Text("搜索当前分组节点") },
-                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                            leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                             trailingIcon = if (nodeSearchQuery.isBlank()) null else {
-                                { IconButton(onClick = { nodeSearchQuery = "" }) { Icon(Icons.Default.Clear, contentDescription = "清除搜索") } }
+                                { IconButton(onClick = { nodeSearchQuery = "" }) { Icon(Icons.Outlined.Clear, contentDescription = "清除搜索") } }
                             },
                             colors = kiyoriSettingsOutlinedTextFieldColors(),
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
@@ -925,7 +928,7 @@ internal fun KiyoriNetworkProxySettingsPage(
                             enabled = controlsEnabled,
                             onClick = { openSubscriptionEditor(SubscriptionEditor.AddUrl) },
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("添加订阅地址", fontSize = 12.sp, maxLines = 1)
                         }
@@ -998,9 +1001,9 @@ internal fun KiyoriNetworkProxySettingsPage(
                         singleLine = true,
                         enabled = controlsEnabled,
                         placeholder = { Text("搜索规则类型、匹配内容或目标") },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                        leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                         trailingIcon = if (ruleSearchQuery.isBlank()) null else {
-                            { IconButton(onClick = { ruleSearchQuery = "" }) { Icon(Icons.Default.Clear, contentDescription = "清除搜索") } }
+                            { IconButton(onClick = { ruleSearchQuery = "" }) { Icon(Icons.Outlined.Clear, contentDescription = "清除搜索") } }
                         },
                         colors = kiyoriSettingsOutlinedTextFieldColors(),
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
@@ -1017,7 +1020,7 @@ internal fun KiyoriNetworkProxySettingsPage(
                         enabled = controlsEnabled,
                         onClick = { openCustomRuleEditor(CustomRuleEditor.Add) },
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                         Text("添加自定义规则", fontSize = 12.sp, maxLines = 1)
                     }
@@ -1257,7 +1260,7 @@ internal fun KiyoriNetworkProxySettingsPage(
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(customRuleTypeLabel(customRuleType), modifier = Modifier.weight(1f))
-                            Icon(Icons.Default.MoreVert, contentDescription = "选择规则类型")
+                            Icon(Icons.Outlined.MoreVert, contentDescription = "选择规则类型")
                         }
                         DropdownMenu(
                             expanded = customRuleTypeMenuVisible,
@@ -2020,7 +2023,7 @@ private fun NetworkProxySubscriptionRow(
         }
         Box {
             IconButton(enabled = enabled, onClick = onOpenMenu, modifier = Modifier.size(44.dp)) {
-                Icon(Icons.Default.MoreVert, contentDescription = "管理 ${subscription.displayName}", tint = colors.mutedIcon)
+                Icon(Icons.Outlined.MoreVert, contentDescription = "管理 ${subscription.displayName}", tint = colors.mutedIcon)
             }
             DropdownMenu(expanded = menuExpanded, onDismissRequest = onDismissMenu) {
                 DropdownMenuItem(text = { Text("更新") }, onClick = onUpdate)

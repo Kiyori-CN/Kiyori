@@ -652,6 +652,8 @@
 
 | 文档 | 用途或标题 |
 | --- | --- |
+| [01_september_bugfix_audit.md](TODO/operit_post_1_12_1_sync/01_september_bugfix_audit.md) | Operit 九月修复审计与 Kiyori 根因完善 |
+| [02_plus6_delivery.md](TODO/operit_post_1_12_1_sync/02_plus6_delivery.md) | Operit +6 完整适配与工作树交付 |
 | [index.md](TODO/operit_post_1_12_1_sync/index.md) | Operit v1.12.1 后续更新与最新插件市场适配 |
 
 ## docs/TODO/package_environment_variables_drawer
@@ -795,6 +797,8 @@
 | [browser_plugin_platform.md](doc-src/architecture/browser_plugin_platform.md) | 浏览器插件平台与插件中心架构 |
 | [chat_runtime_foreground_service_plan.md](doc-src/architecture/chat_runtime_foreground_service_plan.md) | 双 Session 聊天 Runtime 上移到前台服务方案 |
 | [kiyori_file_manager.md](doc-src/architecture/kiyori_file_manager.md) | Kiyori 内置文件管理器设计 |
+| [kiyori_iconography.md](doc-src/architecture/kiyori_iconography.md) | Kiyori 图标用途与配色规范 |
+| [kiyori_material_surfaces.md](doc-src/architecture/kiyori_material_surfaces.md) | Kiyori Material 3 材质与表面规范 |
 | [kiyori_product_shell_and_navigation.md](doc-src/architecture/kiyori_product_shell_and_navigation.md) | Kiyori 产品壳与导航架构 |
 | [memory_candidate_scoring_formula.md](doc-src/architecture/memory_candidate_scoring_formula.md) | 记忆机制说明（简化版） |
 | [model_capability_and_resumable_execution.md](doc-src/architecture/model_capability_and_resumable_execution.md) | 统一模型能力与可恢复执行架构 |

@@ -195,6 +195,11 @@ class WebSessionBrowserBackPolicyTest {
         )
         assertFalse(WebSessionBrowserSheetRoute.entries.any { route -> route.name == "READER_MODE" })
         assertEquals(
+            WebSessionBrowserBackAction.CLOSE_SHEET,
+            resolveWebSessionBrowserBackAction(base.copy(textSelectionActions = null, downloadPrompt = null,
+                sheetRoute = WebSessionBrowserSheetRoute.TOOLBOX)),
+        )
+        assertEquals(
             WebSessionBrowserBackAction.CLOSE_SEARCH_ENGINE_PANEL,
             resolveWebSessionBrowserBackAction(
                 base.copy(

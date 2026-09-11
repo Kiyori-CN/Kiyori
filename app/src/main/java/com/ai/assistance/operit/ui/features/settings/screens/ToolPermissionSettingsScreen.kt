@@ -9,8 +9,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -229,7 +229,7 @@ private fun PermissionGroup(
                     Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 IconButton(onClick = { showToolSelector = true }) {
-                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_tool), tint = color)
+                    Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.add_tool), tint = color)
                 }
             }
 
@@ -280,7 +280,7 @@ private fun ToolChip(toolName: String, onRemove: () -> Unit) {
             color = MaterialTheme.colorScheme.onSecondaryContainer
         )
         Icon(
-            imageVector = Icons.Default.Close,
+            imageVector = Icons.Outlined.Close,
             contentDescription = stringResource(R.string.remove_tool),
             modifier = Modifier
                 .size(18.dp)

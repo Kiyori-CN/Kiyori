@@ -20,10 +20,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.outlined.Code
@@ -215,7 +215,7 @@ fun MessageEditor(
                                 .clip(CircleShape)
                         ) {
                             Icon(
-                                Icons.Default.Close,
+                                Icons.Outlined.Close,
                                 contentDescription = context.getString(R.string.cancel),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -301,7 +301,7 @@ fun MessageEditor(
                                                 minLines = 1
                                             )
                                             ActionIconButton(
-                                                icon = Icons.Default.Delete,
+                                                icon = Icons.Outlined.Delete,
                                                 contentDescription = context.getString(R.string.delete),
                                                 enabled = !saving,
                                                 onClick = {
@@ -350,7 +350,7 @@ fun MessageEditor(
                                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                                 ) {
                                     Icon(
-                                        Icons.Default.Add,
+                                        Icons.Outlined.Add,
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp)
                                     )
@@ -571,14 +571,14 @@ private fun XmlTagItem(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     ActionIconButton(
-                        icon = Icons.Default.Edit,
+                        icon = Icons.Outlined.Edit,
                         enabled = enabled,
                         contentDescription = context.getString(R.string.edit),
                         onClick = onClick
                     )
 
                     ActionIconButton(
-                        icon = Icons.Default.Delete,
+                        icon = Icons.Outlined.Delete,
                         enabled = enabled,
                         contentDescription = context.getString(R.string.delete),
                         onClick = onDelete

@@ -21,9 +21,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
+
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.History
@@ -658,7 +659,7 @@ private fun CloseButton(
             }
     ) {
         Icon(
-            imageVector = Icons.Default.Close,
+            imageVector = Icons.Outlined.Close,
             contentDescription = stringResource(R.string.floating_close),
             tint = if (viewModel.closeHover) errorColor else onSurfaceVariantColor,
             modifier = Modifier.size(20.dp)
@@ -989,7 +990,7 @@ private fun InputDialogHeader(viewModel: FloatingChatWindowModeViewModel) {
         )
         IconButton(onClick = { viewModel.hideInputDialog() }) {
             Icon(
-                imageVector = Icons.Default.Close,
+                imageVector = Icons.Outlined.Close,
                 contentDescription = stringResource(R.string.floating_close),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -1116,7 +1117,7 @@ private fun ColumnScope.InputTextField(
                 MaterialTheme.colorScheme.primary
         ) {
             Icon(
-                imageVector = if (isProcessing) Icons.Default.Close else Icons.AutoMirrored.Filled.Send,
+                imageVector = if (isProcessing) Icons.Outlined.Close else Icons.AutoMirrored.Filled.Send,
                 contentDescription = if (isProcessing) stringResource(R.string.floating_chat_cancel) else stringResource(R.string.floating_chat_send),
                 tint = if (isProcessing)
                     MaterialTheme.colorScheme.onError

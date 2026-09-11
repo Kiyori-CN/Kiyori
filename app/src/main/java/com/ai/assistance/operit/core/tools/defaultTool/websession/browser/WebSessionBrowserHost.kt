@@ -812,7 +812,6 @@ internal class WebSessionBrowserHost(
                         sheetRoute = WebSessionBrowserSheetRoute.NONE,
                         pluginRouteStack =
                             listOf(WebSessionBrowserPluginRoute.Overview),
-                        placeholderPage = null,
                         siteConfigDomain = null,
                     )
                 }
@@ -1449,7 +1448,6 @@ internal class WebSessionBrowserHost(
         updateHostState {
             it.copy(
                 sheetRoute = WebSessionBrowserSheetRoute.NONE,
-                placeholderPage = null,
                 webElementAction = null,
                 adMarkingOverlay = WebSessionAdMarkingOverlay.NONE,
                 adMarkingNavigationRequest = null,
@@ -1494,7 +1492,6 @@ internal class WebSessionBrowserHost(
         updateHostState {
             it.copy(
                 sheetRoute = WebSessionBrowserSheetRoute.NONE,
-                placeholderPage = null,
                 webElementAction = null,
                 adMarkingOverlay = WebSessionAdMarkingOverlay.NONE,
                 adMarkingNavigationRequest = null,

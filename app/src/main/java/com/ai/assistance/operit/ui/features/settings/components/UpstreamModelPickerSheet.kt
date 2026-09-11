@@ -17,11 +17,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
-import androidx.compose.material.icons.filled.Clear
+
 import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
@@ -182,7 +183,7 @@ internal fun UpstreamModelPickerSheet(
                         )
                     } else {
                         Icon(
-                            imageVector = Icons.Default.Refresh,
+                            imageVector = Icons.Outlined.Refresh,
                             contentDescription = stringResource(R.string.refresh_models_list),
                             modifier = Modifier.size(20.dp)
                         )
@@ -206,7 +207,7 @@ internal fun UpstreamModelPickerSheet(
                 },
                 leadingIcon = {
                     Icon(
-                        imageVector = Icons.Default.Search,
+                        imageVector = Icons.Outlined.Search,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp)
                     )
@@ -215,7 +216,7 @@ internal fun UpstreamModelPickerSheet(
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { searchQuery = "" }) {
                             Icon(
-                                imageVector = Icons.Default.Clear,
+                                imageVector = Icons.Outlined.Clear,
                                 contentDescription = stringResource(R.string.clear),
                                 modifier = Modifier.size(20.dp)
                             )

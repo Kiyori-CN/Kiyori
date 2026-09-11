@@ -70,8 +70,10 @@ object ToolExecutionManager {
         val resolutionError: String? = null,
     )
 
-    private fun ensureEndsWithNewline(content: String): String {
-        return if (content.endsWith("\n")) content else "$content\n"
+    internal fun ensureOwnLine(content: String): String {
+        // XML 块必须从行首开始；模型正文不保证换行，直接拼接会把工具结果误识别为正文。
+        val separated = if (content.startsWith("\n")) content else "\n$content"
+        return if (separated.endsWith("\n")) separated else "$separated\n"
     }
 
     internal fun providerResultForInvocation(
@@ -721,7 +723,7 @@ object ToolExecutionManager {
                 toolHandler.notifyToolExecutionResult(invocation.tool, deniedResult)
                 val toolResultStatusContent =
                     formatToolResultForMessage(deniedResult, invocation)
-                collector.emit(ensureEndsWithNewline(toolResultStatusContent))
+                collector.emit(ensureOwnLine(toolResultStatusContent))
             }
         }
 
@@ -752,7 +754,7 @@ object ToolExecutionManager {
                 toolHandler.notifyToolExecutionResult(invocation.tool, deniedResult)
                 val toolResultStatusContent =
                     formatToolResultForMessage(deniedResult, invocation)
-                collector.emit(ensureEndsWithNewline(toolResultStatusContent))
+                collector.emit(ensureOwnLine(toolResultStatusContent))
             }
         }
 
@@ -781,7 +783,7 @@ object ToolExecutionManager {
                             )
                             val toolResultStatusContent =
                                 formatToolResultForMessage(it, invocation)
-                            collector.emit(ensureEndsWithNewline(toolResultStatusContent))
+                            collector.emit(ensureOwnLine(toolResultStatusContent))
                         }
                     }
                 }
@@ -806,7 +808,7 @@ object ToolExecutionManager {
                     toolHandler.notifyToolExecutionFinished(invocation.tool)
                     val toolResultStatusContent =
                         formatToolResultForMessage(interceptedResult, invocation)
-                    collector.emit(ensureEndsWithNewline(toolResultStatusContent))
+                    collector.emit(ensureOwnLine(toolResultStatusContent))
                 }
             }
         }
@@ -1011,7 +1013,7 @@ object ToolExecutionManager {
                                 invocation = invocation,
                                 providerResultTerminal = false,
                             )
-                        collector.emit(ensureEndsWithNewline(toolResultStatusContent))
+                        collector.emit(ensureOwnLine(toolResultStatusContent))
                     }
                     bufferedResult = result
                 }
@@ -1057,7 +1059,7 @@ object ToolExecutionManager {
                         invocation = invocation,
                         providerResultTerminal = true,
                     )
-                collector.emit(ensureEndsWithNewline(terminalResultContent))
+                collector.emit(ensureOwnLine(terminalResultContent))
                 appendToolResultAudit(
                     repository = conversationAuditRepository,
                     chatId = callerChatId,
@@ -1271,7 +1273,7 @@ object ToolExecutionManager {
         collector: StreamCollector<String>,
     ) {
         val content = formatToolResultForMessage(result, invocation)
-        collector.emit(ensureEndsWithNewline(content))
+        collector.emit(ensureOwnLine(content))
     }
 
     private fun formatToolResultForMessage(

@@ -1,5 +1,8 @@
 package com.ai.assistance.operit.ui.features.settings.sections
 
+import com.kiyori.design.theme.KiyoriSurfaceTokens
+import com.kiyori.design.theme.kiyoriSurfaceColors
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.expandVertically
@@ -13,6 +16,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -354,8 +361,8 @@ fun ModelParametersSection(
             .fillMaxWidth()
             .padding(vertical = 4.dp),
             shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            colors = CardDefaults.cardColors(containerColor = kiyoriSurfaceColors().card),
+            elevation = CardDefaults.cardElevation(defaultElevation = KiyoriSurfaceTokens.flatElevation)
     ) {
         Column(
                 modifier = Modifier.padding(16.dp),
@@ -369,7 +376,7 @@ fun ModelParametersSection(
                             .clickable { parametersExpanded = !parametersExpanded }
             ) {
                 Icon(
-                        imageVector = Icons.Default.Tune,
+                        imageVector = Icons.Outlined.Tune,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary
                 )
@@ -422,7 +429,7 @@ fun ModelParametersSection(
                             ParameterTab(
                                     id = "custom",
                                     title = customParametersSectionText,
-                                    icon = Icons.Default.Settings,
+                                    icon = Icons.Outlined.Settings,
                                     category = ParameterCategory.OTHER,
                                     isCustom = true
                             )
@@ -1192,7 +1199,7 @@ private fun ParameterItem(
                     if (parameter.isCustom) {
                         IconButton(onClick = onEditClick, modifier = Modifier.size(40.dp)) {
                             Icon(
-                                    imageVector = Icons.Default.Edit,
+                                    imageVector = Icons.Outlined.Edit,
                                     contentDescription = stringResource(R.string.edit_custom_parameter),
                                     modifier = Modifier.size(20.dp),
                                     tint = MaterialTheme.colorScheme.primary
@@ -1203,7 +1210,7 @@ private fun ParameterItem(
                                 modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
-                                    imageVector = Icons.Default.Delete,
+                                    imageVector = Icons.Outlined.Delete,
                                     contentDescription = stringResource(R.string.delete_action),
                                     modifier = Modifier.size(20.dp),
                                     tint = MaterialTheme.colorScheme.error

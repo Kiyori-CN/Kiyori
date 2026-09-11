@@ -161,20 +161,24 @@ export interface JavaBridgeClass {
  * Dynamic package namespace proxy:
  * - e.g. `Java.java.lang.System`
  */
-export interface JavaBridgePackage {
+export type JavaBridgePackage = {
     (...args: JavaBridgeArg[]): JavaBridgeInstance;
     new (...args: JavaBridgeArg[]): JavaBridgeInstance;
 
     readonly path: string;
     toString(): string;
 
+} & JavaBridgeDynamicNamespace;
+
+// 宿主先解析具名方法/属性，其余名称才交给动态包代理；交叉类型保留两者的精确访问类型。
+type JavaBridgeDynamicNamespace = {
     [member: string]: JavaBridgeClass | JavaBridgePackage;
-}
+};
 
 /**
  * Top-level Java/Kotlin bridge API injected by runtime.
  */
-export interface JavaBridgeApi {
+export type JavaBridgeApi = {
     type(className: string): JavaBridgeClass;
     use(className: string): JavaBridgeClass;
     importClass(className: string): JavaBridgeClass;
@@ -197,5 +201,4 @@ export interface JavaBridgeApi {
     getCurrentActivity<T extends JavaBridgeInstance = JavaBridgeInstance>(): T;
     getActivity<T extends JavaBridgeInstance = JavaBridgeInstance>(): T;
 
-    [member: string]: JavaBridgeClass | JavaBridgePackage;
-}
+} & JavaBridgeDynamicNamespace;

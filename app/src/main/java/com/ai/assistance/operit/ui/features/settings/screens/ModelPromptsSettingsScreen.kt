@@ -17,9 +17,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Label
-import androidx.compose.material.icons.automirrored.filled.Sort
+
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -1078,7 +1085,7 @@ fun ModelPromptsSettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.ContentCopy,
+                            imageVector = Icons.Outlined.ContentCopy,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp)
@@ -1116,7 +1123,7 @@ fun ModelPromptsSettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.FileDownload,
+                            imageVector = Icons.Outlined.FileDownload,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp)
@@ -2125,7 +2132,7 @@ fun CharacterCardTab(
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Add,
+                                imageVector = Icons.Outlined.Add,
                                 contentDescription = stringResource(R.string.create_new),
                                 modifier = Modifier.size(18.dp)
                             )
@@ -2148,7 +2155,7 @@ fun CharacterCardTab(
                                 modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.FileDownload,
+                                    imageVector = Icons.Outlined.FileDownload,
                                     contentDescription = stringResource(R.string.import_tavern_card),
                                     modifier = Modifier.size(18.dp)
                                 )
@@ -2165,7 +2172,7 @@ fun CharacterCardTab(
                                         onImportTavernCard()
                                     },
                                     leadingIcon = {
-                                        Icon(Icons.Default.FileDownload, contentDescription = null)
+                                        Icon(Icons.Outlined.FileDownload, contentDescription = null)
                                     }
                                 )
                                 DropdownMenuItem(
@@ -2198,7 +2205,7 @@ fun CharacterCardTab(
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Sort,
+                                imageVector = Icons.AutoMirrored.Outlined.Sort,
                                 contentDescription = stringResource(R.string.character_card_sort),
                                 modifier = Modifier.size(18.dp)
                             )
@@ -2420,7 +2427,7 @@ fun CharacterCardItem(
                             },
                             leadingIcon = {
                                 Icon(
-                                    Icons.Default.Edit,
+                                    Icons.Outlined.Edit,
                                     contentDescription = null,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -2435,7 +2442,7 @@ fun CharacterCardItem(
                             },
                             leadingIcon = {
                                 Icon(
-                                    Icons.Default.ContentCopy,
+                                    Icons.Outlined.ContentCopy,
                                     contentDescription = null,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -2450,7 +2457,7 @@ fun CharacterCardItem(
                             },
                             leadingIcon = {
                                 Icon(
-                                    Icons.Default.Share,
+                                    Icons.Outlined.Share,
                                     contentDescription = null,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -2483,7 +2490,7 @@ fun CharacterCardItem(
                                 },
                                 leadingIcon = {
                                     Icon(
-                                        Icons.Default.Delete,
+                                        Icons.Outlined.Delete,
                                         contentDescription = null,
                                         modifier = Modifier.size(20.dp),
                                         tint = MaterialTheme.colorScheme.error
@@ -2604,7 +2611,7 @@ fun TagTab(
                         onClick = onAddTag,
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(stringResource(R.string.create_new_tag), fontSize = 13.sp)
                     }
@@ -2622,7 +2629,7 @@ fun TagTab(
                         enabled = !isImporting && !isExporting,
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                     ) {
-                        Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Icon(Icons.Outlined.FileDownload, contentDescription = null, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(stringResource(R.string.import_action), fontSize = 12.sp)
                     }
@@ -2632,7 +2639,7 @@ fun TagTab(
                         enabled = !isImporting && !isExporting,
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                     ) {
-                        Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Icon(Icons.Outlined.Share, contentDescription = null, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(stringResource(R.string.export), fontSize = 12.sp)
                     }
@@ -2719,7 +2726,7 @@ fun GroupCardTab(
             Spacer(modifier = Modifier.weight(1f))
             IconButton(onClick = onAddGroup, modifier = Modifier.size(40.dp)) {
                 Icon(
-                    imageVector = Icons.Default.Add,
+                    imageVector = Icons.Outlined.Add,
                     contentDescription = stringResource(R.string.create),
                     modifier = Modifier.size(18.dp)
                 )
@@ -2892,7 +2899,7 @@ private fun GroupCardItem(
                             },
                             leadingIcon = {
                                 Icon(
-                                    Icons.Default.Edit,
+                                    Icons.Outlined.Edit,
                                     contentDescription = null,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -2906,7 +2913,7 @@ private fun GroupCardItem(
                             },
                             leadingIcon = {
                                 Icon(
-                                    Icons.Default.ContentCopy,
+                                    Icons.Outlined.ContentCopy,
                                     contentDescription = null,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -2920,7 +2927,7 @@ private fun GroupCardItem(
                             },
                             leadingIcon = {
                                 Icon(
-                                    Icons.Default.Delete,
+                                    Icons.Outlined.Delete,
                                     contentDescription = null,
                                     modifier = Modifier.size(20.dp),
                                     tint = MaterialTheme.colorScheme.error
@@ -3134,7 +3141,7 @@ private fun GroupCardDialog(
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Add,
+                                imageVector = Icons.Outlined.Add,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp)
                             )
@@ -3188,7 +3195,7 @@ private fun GroupCardDialog(
                                             modifier = Modifier.size(40.dp)
                                         ) {
                                             Icon(
-                                                Icons.Default.Delete,
+                                                Icons.Outlined.Delete,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(16.dp)
                                             )
@@ -3295,14 +3302,14 @@ fun TagItem(
                     onClick = onEdit,
                     modifier = Modifier.size(40.dp)
                 ) {
-                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit), modifier = Modifier.size(16.dp))
+                    Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit), modifier = Modifier.size(16.dp))
                 }
 
                 IconButton(
                     onClick = onDelete,
                     modifier = Modifier.size(40.dp)
                 ) {
-                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete), modifier = Modifier.size(16.dp))
+                    Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.delete), modifier = Modifier.size(16.dp))
                 }
             }
         }

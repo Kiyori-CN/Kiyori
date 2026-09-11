@@ -14,6 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -289,7 +290,7 @@ fun SpeechToTextScreen(navController: NavController) {
                         enabled = recognizedText.isNotBlank()
                     ) {
                         Icon(
-                            imageVector = Icons.Default.ContentCopy,
+                            imageVector = Icons.Outlined.ContentCopy,
                             contentDescription = stringResource(R.string.copy_text),
                             tint = if (recognizedText.isNotBlank()) 
                                 MaterialTheme.colorScheme.primary 

@@ -21,9 +21,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
@@ -147,7 +147,7 @@ fun ActivityMonitorPanel(
                     )
                     IconButton(onClick = onDismiss) {
                         Icon(
-                            imageVector = Icons.Default.Close,
+                            imageVector = Icons.Outlined.Close,
                             contentDescription = stringResource(R.string.activity_monitor_close)
                         )
                     }
@@ -237,7 +237,7 @@ fun ActivityMonitorPanel(
                         enabled = events.isNotEmpty()
                     ) {
                         Icon(
-                            Icons.Default.Clear,
+                            Icons.Outlined.Clear,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )

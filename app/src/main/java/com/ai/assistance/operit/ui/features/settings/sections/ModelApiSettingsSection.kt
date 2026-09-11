@@ -1,5 +1,8 @@
 package com.ai.assistance.operit.ui.features.settings.sections
 
+import com.kiyori.design.theme.KiyoriSurfaceTokens
+import com.kiyori.design.theme.kiyoriSurfaceColors
+
 import android.annotation.SuppressLint
 import android.content.res.Resources
 import com.ai.assistance.operit.util.AppLogger
@@ -17,13 +20,14 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.filled.Api
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Search
+
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -819,8 +823,8 @@ fun ModelApiSettingsSection(
                     .fillMaxWidth()
                     .padding(vertical = 4.dp),
             shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            colors = CardDefaults.cardColors(containerColor = kiyoriSurfaceColors().card),
+            elevation = CardDefaults.cardElevation(defaultElevation = KiyoriSurfaceTokens.flatElevation)
     ) {
         Column(
                 modifier = Modifier.padding(16.dp),
@@ -1790,7 +1794,7 @@ private fun MnnSettingsBlock(
                             )
             ) {
                 Icon(
-                        imageVector = Icons.Default.Download,
+                        imageVector = Icons.Outlined.Download,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                 )
@@ -2118,7 +2122,7 @@ private fun ApiProviderSelectionSheet(
                         placeholder = { Text(stringResource(R.string.search_providers), fontSize = 14.sp) },
                         leadingIcon = {
                             Icon(
-                                    Icons.Default.Search,
+                                    Icons.Outlined.Search,
                                     contentDescription = stringResource(R.string.search),
                                     modifier = Modifier.size(18.dp)
                             )
@@ -2130,7 +2134,7 @@ private fun ApiProviderSelectionSheet(
                                         modifier = Modifier.size(40.dp)
                                 ) {
                                     Icon(
-                                            Icons.Default.Clear,
+                                            Icons.Outlined.Clear,
                                             contentDescription = stringResource(R.string.clear),
                                             modifier = Modifier.size(18.dp)
                                     )

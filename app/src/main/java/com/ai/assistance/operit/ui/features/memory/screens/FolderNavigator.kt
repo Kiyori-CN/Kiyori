@@ -12,6 +12,10 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -87,7 +91,7 @@ private fun ProfileSelector(
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             IconButton(onClick = { showCreateDialog = true }, modifier = Modifier.size(40.dp)) {
-                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.memory_space_create))
+                Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.memory_space_create))
             }
             IconButton(
                 onClick = {
@@ -96,11 +100,11 @@ private fun ProfileSelector(
                 },
                 modifier = Modifier.size(40.dp)
             ) {
-                Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.memory_space_rename))
+                Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.memory_space_rename))
             }
             if (selectedProfileId != "default") {
                 IconButton(onClick = { showDeleteDialog = true }, modifier = Modifier.size(40.dp)) {
-                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.memory_space_delete))
+                    Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.memory_space_delete))
                 }
             }
         }
@@ -297,7 +301,7 @@ fun FolderNavigator(
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Refresh,
+                                imageVector = Icons.Outlined.Refresh,
                                 contentDescription = stringResource(R.string.foldernav_refresh_folders),
                                 tint = MaterialTheme.colorScheme.secondary
                             )

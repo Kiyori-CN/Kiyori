@@ -2105,7 +2105,7 @@ class ChatHistoryManager private constructor(private val context: Context) {
         chatId: String,
         messageTimestamp: Long,
         message: ChatMessage,
-    ): Int {
+    ): ChatMessage {
         return chatMutex(chatId).withLock {
             val baseMessage =
                 chatContentDao.getMessageByTimestamp(chatId, messageTimestamp)
@@ -2120,7 +2120,7 @@ class ChatHistoryManager private constructor(private val context: Context) {
                     chatId = chatId,
                     messageTimestamp = messageTimestamp,
                     variantIndex = nextVariantIndex,
-                    message = message.copy(selectedVariantIndex = nextVariantIndex, variantCount = 1),
+                    message = message.copy(selectedVariantIndex = nextVariantIndex, variantCount = nextVariantIndex),
                 )
             conversationAuditRepository.mutateAndAppendEvent(
                 ConversationAuditEventRequest(
@@ -2173,7 +2173,9 @@ class ChatHistoryManager private constructor(private val context: Context) {
                     )
                 }
             }
-            nextVariantIndex
+            // 审计事务提交后才返回不可变快照；Hook 使用真实基底的时间戳、收藏和角色，
+            // 不能再读一次当前选中变体，否则并发切换会让事件描述另一条消息。
+            variantEntity.applyTo(baseMessage.toChatMessage(), nextVariantIndex)
         }
     }
 

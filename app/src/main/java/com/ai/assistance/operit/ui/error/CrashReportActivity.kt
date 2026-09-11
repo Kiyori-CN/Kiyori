@@ -29,10 +29,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material.icons.outlined.ContentCopy
+
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.RestartAlt
-import androidx.compose.material.icons.filled.Save
+
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -279,7 +281,7 @@ internal fun CrashReportScreen(
                     modifier = Modifier.weight(1f),
                 ) {
                     Icon(
-                        Icons.Default.ContentCopy,
+                        Icons.Outlined.ContentCopy,
                         contentDescription = null,
                         modifier = Modifier.size(ButtonDefaults.IconSize),
                     )
@@ -296,7 +298,7 @@ internal fun CrashReportScreen(
                     modifier = Modifier.weight(1f),
                 ) {
                     Icon(
-                        Icons.Default.Save,
+                        Icons.Outlined.Save,
                         contentDescription = null,
                         modifier = Modifier.size(ButtonDefaults.IconSize),
                     )

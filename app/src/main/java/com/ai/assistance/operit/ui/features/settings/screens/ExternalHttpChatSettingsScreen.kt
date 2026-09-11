@@ -19,10 +19,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.ContentCopy
+
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.Refresh
+
 import androidx.compose.material.icons.filled.Router
 import androidx.compose.material.icons.filled.SettingsEthernet
 import androidx.compose.material.icons.filled.ToggleOn
@@ -287,7 +289,7 @@ adb shell am broadcast \
                     }
                     if (enabled) {
                         TextButton(onClick = { AIForegroundService.ensureRunningForExternalHttp(context) }) {
-                            Icon(Icons.Default.Refresh, contentDescription = null)
+                            Icon(Icons.Outlined.Refresh, contentDescription = null)
                             Text(stringResource(R.string.external_http_chat_restart_service))
                         }
                     }
@@ -363,13 +365,13 @@ adb shell am broadcast \
                             }
                         }
                     ) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = null)
+                        Icon(Icons.Outlined.ContentCopy, contentDescription = null)
                         Text(stringResource(R.string.external_http_chat_copy_token))
                     }
                     TextButton(
                         onClick = { showResetTokenDialog = true }
                     ) {
-                        Icon(Icons.Default.Refresh, contentDescription = null)
+                        Icon(Icons.Outlined.Refresh, contentDescription = null)
                         Text(stringResource(R.string.external_http_chat_reset_token))
                     }
                 }
@@ -432,7 +434,7 @@ adb shell am broadcast \
                         )
                     }
                 ) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = null)
+                    Icon(Icons.Outlined.ContentCopy, contentDescription = null)
                     Text(stringResource(R.string.external_http_chat_copy_web_url))
                 }
             }

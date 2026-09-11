@@ -18,9 +18,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Clear
+
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Tune
+
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -143,7 +145,7 @@ fun SqlViewerScreen(navController: NavController? = null) {
                     .padding(8.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Tune,
+                    imageVector = Icons.Outlined.Tune,
                     contentDescription = stringResource(R.string.sql_viewer_controls)
                 )
             }
@@ -215,7 +217,7 @@ fun SqlViewerScreen(navController: NavController? = null) {
                             },
                             shape = KiyoriUiShapes.control,
                         ) {
-                            Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Outlined.Clear, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(stringResource(R.string.sql_viewer_clear))
                         }

@@ -11,6 +11,7 @@ internal data class RecycledFile(val id: String, val originalPath: String, val d
 internal object LocalFileRecycleBin {
     fun recycle(source: Path, root: Path, fingerprint: String, commit: (Path, Path) -> Unit) {
         require(source.isAbsolute && root.isAbsolute && !root.normalize().startsWith(source.normalize())) { "不能回收根目录或回收站本身" }
+        require(!source.normalize().startsWith(root.normalize())) { "回收站内的项目请使用恢复或彻底删除" }
         check(inspectManagedTree(source).fingerprint == fingerprint) { "项目已经变化，请重新检查" }
         Files.createDirectories(root)
         val entry = Files.createDirectory(root.resolve(UUID.randomUUID().toString()))
@@ -19,7 +20,7 @@ internal object LocalFileRecycleBin {
             setProperty("deletedAt", System.currentTimeMillis().toString())
         }
         try {
-            Files.newOutputStream(entry.resolve("record.properties"), StandardOpenOption.CREATE_NEW).use { metadata.store(it, null) }
+            java.io.FileOutputStream(entry.resolve("record.properties").toFile()).use { metadata.store(it, null); it.fd.sync() }
             commit(source, entry.resolve("payload"))
             if (inspectManagedTree(entry.resolve("payload")).fingerprint != fingerprint) {
                 try { commit(entry.resolve("payload"), source) }
@@ -39,6 +40,7 @@ internal object LocalFileRecycleBin {
 
     fun list(root: Path): List<RecycledFile> {
         if (!Files.exists(root, NOFOLLOW_LINKS)) return emptyList()
+        require(Files.isDirectory(root, NOFOLLOW_LINKS)) { "回收站路径不是实际目录" }
         return Files.newDirectoryStream(root).use { paths ->
             paths.mapNotNull { entry ->
                 if (!Files.isDirectory(entry, NOFOLLOW_LINKS) || !Files.exists(entry.resolve("payload"), NOFOLLOW_LINKS)) null
@@ -60,16 +62,27 @@ internal object LocalFileRecycleBin {
         Files.delete(entry.resolve("record.properties")); Files.delete(entry)
     }
 
-    fun delete(record: RecycledFile, commit: (Path, Path) -> Unit) {
+    fun delete(record: RecycledFile, commit: (Path, Path) -> Unit, fingerprint: String? = null) {
         val entry = checkedEntry(record)
         val payload = entry.resolve("payload")
-        deleteManagedEntry(payload, inspectManagedTree(payload).fingerprint, commit)
+        // 确认快照必须传到底层隔离操作，不能重新采样后把已变化内容当作用户已确认。
+        deleteManagedEntry(payload, fingerprint ?: inspectManagedTree(payload).fingerprint, commit)
         Files.delete(entry.resolve("record.properties")); Files.delete(entry)
     }
 
     private fun checkedEntry(record: RecycledFile): Path {
         UUID.fromString(record.id)
-        return record.root.resolve(record.id).also { require(it.parent == record.root) }
+        return record.root.resolve(record.id).also {
+            require(it.parent == record.root && Files.isDirectory(record.root, NOFOLLOW_LINKS) && Files.isDirectory(it, NOFOLLOW_LINKS)) { "回收记录路径无效" }
+            val persisted = Properties().apply { Files.newInputStream(it.resolve("record.properties"), NOFOLLOW_LINKS).use { input -> load(input) } }
+            check(persisted.getProperty("path") == record.originalPath && persisted.getProperty("deletedAt") == record.deletedAt.toString()) { "回收记录已经变化，请刷新后重试" }
+        }
+    }
+
+    fun recordForPayload(payload: Path): RecycledFile {
+        val entry = requireNotNull(payload.parent)
+        require(payload.fileName.toString() == "payload") { "不是回收项目" }
+        return list(requireNotNull(entry.parent)).single { it.id == entry.fileName.toString() }.also { checkedEntry(it) }
     }
 }
 

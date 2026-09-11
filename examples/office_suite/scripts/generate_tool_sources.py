@@ -147,7 +147,7 @@ def render_package(group: str, tools: list[dict]) -> str:
         "display_name": {"zh": meta["zh"], "en": meta["en"]},
         "description": {"zh": meta["desc_zh"], "en": meta["desc_en"]},
         "enabledByDefault": False,
-        "category": "Document",
+        "category": "File",
         "tools": [
             {
                 "name": tool["name"],

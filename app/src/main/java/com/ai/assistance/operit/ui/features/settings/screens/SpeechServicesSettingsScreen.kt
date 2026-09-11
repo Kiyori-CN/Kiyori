@@ -17,16 +17,18 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Clear
+import androidx.compose.material.icons.outlined.Add
+
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.Edit
+
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -686,7 +688,7 @@ internal fun SpeechServicesSettingsScreen(
                                             if (ttsVoiceIdInput.isNotBlank()) {
                                                 IconButton(onClick = { ttsVoiceIdInput = "" }) {
                                                     Icon(
-                                                        imageVector = Icons.Default.Clear,
+                                                        imageVector = Icons.Outlined.Clear,
                                                         contentDescription = stringResource(R.string.speech_services_simple_tts_voice_clear)
                                                     )
                                                 }
@@ -762,7 +764,7 @@ internal fun SpeechServicesSettingsScreen(
                                         colors = kiyoriSettingsOutlinedTextFieldColors(),
                                     )
                                     IconButton(onClick = { ttsCleanerRegexsState.removeAt(index) }) {
-                                        Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.speech_services_tts_cleaner_delete))
+                                        Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.speech_services_tts_cleaner_delete))
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -776,7 +778,7 @@ internal fun SpeechServicesSettingsScreen(
                                     onClick = { ttsCleanerRegexsState.add("") },
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Icon(Icons.Default.Add, contentDescription = null)
+                                    Icon(Icons.Outlined.Add, contentDescription = null)
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(stringResource(R.string.speech_services_tts_cleaner_add))
                                 }
@@ -1802,7 +1804,7 @@ internal fun SpeechServicesSettingsScreen(
                                                     label = { Text(stringResource(R.string.search)) },
                                                     leadingIcon = {
                                                         Icon(
-                                                            imageVector = Icons.Default.Search,
+                                                            imageVector = Icons.Outlined.Search,
                                                             contentDescription = stringResource(R.string.search),
                                                             modifier = Modifier.size(18.dp)
                                                         )
@@ -1811,7 +1813,7 @@ internal fun SpeechServicesSettingsScreen(
                                                         if (openAiRealtimeVoiceSearchQuery.isNotBlank()) {
                                                             IconButton(onClick = { openAiRealtimeVoiceSearchQuery = "" }) {
                                                                 Icon(
-                                                                    imageVector = Icons.Default.Clear,
+                                                                    imageVector = Icons.Outlined.Clear,
                                                                     contentDescription = stringResource(R.string.clear)
                                                                 )
                                                             }
@@ -2021,7 +2023,7 @@ internal fun SpeechServicesSettingsScreen(
                                                     label = { Text(stringResource(R.string.search_models)) },
                                                     leadingIcon = {
                                                         Icon(
-                                                            imageVector = Icons.Default.Search,
+                                                            imageVector = Icons.Outlined.Search,
                                                             contentDescription = stringResource(R.string.search),
                                                             modifier = Modifier.size(18.dp)
                                                         )
@@ -2030,7 +2032,7 @@ internal fun SpeechServicesSettingsScreen(
                                                         if (openAiModelSearchQuery.isNotBlank()) {
                                                             IconButton(onClick = { openAiModelSearchQuery = "" }) {
                                                                 Icon(
-                                                                    imageVector = Icons.Default.Clear,
+                                                                    imageVector = Icons.Outlined.Clear,
                                                                     contentDescription = stringResource(R.string.clear)
                                                                 )
                                                             }
@@ -2106,7 +2108,7 @@ internal fun SpeechServicesSettingsScreen(
                                                     )
                                                 } else {
                                                     Icon(
-                                                        imageVector = Icons.Default.Refresh,
+                                                        imageVector = Icons.Outlined.Refresh,
                                                         contentDescription = stringResource(R.string.speech_services_openai_models_refresh)
                                                     )
                                                 }
@@ -2214,7 +2216,7 @@ internal fun SpeechServicesSettingsScreen(
                                                     label = { Text(stringResource(R.string.search)) },
                                                     leadingIcon = {
                                                         Icon(
-                                                            imageVector = Icons.Default.Search,
+                                                            imageVector = Icons.Outlined.Search,
                                                             contentDescription = stringResource(R.string.search),
                                                             modifier = Modifier.size(18.dp)
                                                         )
@@ -2223,7 +2225,7 @@ internal fun SpeechServicesSettingsScreen(
                                                         if (openAiVoiceSearchQuery.isNotBlank()) {
                                                             IconButton(onClick = { openAiVoiceSearchQuery = "" }) {
                                                                 Icon(
-                                                                    imageVector = Icons.Default.Clear,
+                                                                    imageVector = Icons.Outlined.Clear,
                                                                     contentDescription = stringResource(R.string.clear)
                                                                 )
                                                             }
@@ -2297,7 +2299,7 @@ internal fun SpeechServicesSettingsScreen(
                                                     )
                                                 } else {
                                                     Icon(
-                                                        imageVector = Icons.Default.Refresh,
+                                                        imageVector = Icons.Outlined.Refresh,
                                                         contentDescription = stringResource(R.string.speech_services_openai_voices_refresh)
                                                     )
                                                 }
@@ -2889,12 +2891,12 @@ private fun SpeechProfileSelector(
                 }
             }
             IconButton(onClick = onCreate) {
-                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.speech_services_profile_create))
+                Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.speech_services_profile_create))
             }
             profiles.firstOrNull { it.id == activeProfileId }?.let { activeProfile ->
                 IconButton(onClick = { onRename(activeProfile) }) {
                     Icon(
-                        Icons.Default.Edit,
+                        Icons.Outlined.Edit,
                         contentDescription = stringResource(R.string.speech_services_profile_rename),
                     )
                 }
@@ -2912,10 +2914,10 @@ private fun SpeechProfileSelector(
             ) {
                 Text(profile.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
                 IconButton(onClick = { onRename(profile) }) {
-                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.speech_services_profile_rename))
+                    Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.speech_services_profile_rename))
                 }
                 IconButton(onClick = { onDelete(profile) }) {
-                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.speech_services_profile_delete))
+                    Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.speech_services_profile_delete))
                 }
             }
         }

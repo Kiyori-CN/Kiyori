@@ -18,11 +18,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Search
+
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -398,7 +399,7 @@ private fun BrowserPluginCenterEmptyState(
     currentPage: Boolean,
 ) {
     WebSessionEmptyState(
-        icon = if (searchActive) Icons.Filled.Search else Icons.Filled.Extension,
+        icon = if (searchActive) Icons.Outlined.Search else Icons.Filled.Extension,
         title =
             when {
                 searchActive -> stringResource(R.string.web_session_plugins_search_empty)

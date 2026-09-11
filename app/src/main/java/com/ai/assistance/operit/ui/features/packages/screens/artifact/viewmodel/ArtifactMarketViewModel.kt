@@ -27,6 +27,7 @@ import com.ai.assistance.operit.ui.features.packages.market.PublishArtifactSourc
 import com.ai.assistance.operit.ui.features.packages.market.PublishArtifactType
 import com.ai.assistance.operit.ui.features.packages.market.PublishAttemptResult
 import com.ai.assistance.operit.ui.features.packages.market.PublishProgressStage
+import com.ai.assistance.operit.ui.features.packages.market.effectiveToolPkgApiVersion
 import com.ai.assistance.operit.ui.features.packages.market.formatSupportedAppVersions
 import com.kiyori.capability.extensions.market.normalizeMarketArtifactId
 import com.ai.assistance.operit.ui.features.packages.market.normalizeAppVersionOrNull
@@ -152,6 +153,7 @@ class ArtifactMarketViewModel(
                                     displayName = source.displayName,
                                     description = source.description,
                                     sourceFile = File(source.sourcePath),
+                                    apiVersion = source.apiVersion,
                                     inferredVersion = source.inferredVersion
                                 )
                             }
@@ -529,7 +531,13 @@ class ArtifactMarketViewModel(
             categoryId = entry.categoryId,
             sourceFileName = assetName,
             minSupportedAppVersion = normalizeAppVersionOrNull(minSupportedAppVersion),
-            maxSupportedAppVersion = normalizeAppVersionOrNull(maxSupportedAppVersion)
+            maxSupportedAppVersion = normalizeAppVersionOrNull(maxSupportedAppVersion),
+            apiVersion =
+                if (type == PublishArtifactType.PACKAGE) {
+                    (versionValue?.apiVersion).effectiveToolPkgApiVersion()
+                } else {
+                    null
+                }
         )
     }
 

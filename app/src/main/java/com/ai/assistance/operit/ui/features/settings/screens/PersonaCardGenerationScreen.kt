@@ -12,6 +12,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.DeleteSweep
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -542,7 +545,7 @@ fun PersonaCardGenerationScreen(
                             onClick = { scope.launch { drawerState.close() } }
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.Close,
+                                imageVector = Icons.Outlined.Close,
                                 contentDescription = context.getString(R.string.close)
                             )
                         }
@@ -595,7 +598,7 @@ fun PersonaCardGenerationScreen(
                         Spacer(Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             TextButton(onClick = { showDeleteConfirm = true }) {
-                                Icon(Icons.Filled.Delete, contentDescription = null)
+                                Icon(Icons.Outlined.Delete, contentDescription = null)
                                 Spacer(Modifier.width(6.dp))
                                 Text(context.getString(R.string.delete_current_character_card))
                             }
@@ -857,7 +860,7 @@ fun PersonaCardGenerationScreen(
             ) {
                 IconButton(onClick = { showClearHistoryConfirm = true }) {
                     Icon(
-                        imageVector = Icons.Filled.DeleteSweep,
+                        imageVector = Icons.Outlined.DeleteSweep,
                         contentDescription = context.getString(R.string.clear_chat_history)
                     )
                 }

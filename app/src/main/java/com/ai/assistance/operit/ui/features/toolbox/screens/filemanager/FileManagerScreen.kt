@@ -1,6 +1,8 @@
 package com.ai.assistance.operit.ui.features.toolbox.screens.filemanager
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material.icons.automirrored.rounded.Chat
+import androidx.compose.material.icons.rounded.Language
 import androidx.compose.ui.graphics.luminance
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.fileManagerJoinPath
 import android.content.Context
@@ -13,6 +15,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -99,13 +102,15 @@ fun FileManagerScreen(
     modifier: Modifier = Modifier,
     sessionViewModel: FileManagerViewModel? = null,
     onOpenAiDialogue: () -> Unit,
+    onOpenBrowser: (() -> Unit)? = null,
 ) {
     // 与设置页相同的主题必须包住全部弹层，避免兄弟弹层回到外层主题。
-    KiyoriSettingsTheme { FileManagerContent(onBack, onOpenSettings, modifier, sessionViewModel, onOpenAiDialogue) }
+    KiyoriSettingsTheme { FileManagerContent(onBack, onOpenSettings, modifier, sessionViewModel, onOpenAiDialogue, onOpenBrowser) }
 }
 
 @Composable
-private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, modifier: Modifier, sessionViewModel: FileManagerViewModel?, onOpenAiDialogue: () -> Unit) {
+private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, modifier: Modifier, sessionViewModel: FileManagerViewModel?, onOpenAiDialogue: () -> Unit, onOpenBrowser: (() -> Unit)?) {
+    var showToolbox by remember { mutableStateOf(false) }
     KiyoriStatusBarAppearanceOverride(darkIcons = MaterialTheme.colorScheme.surface.luminance() > 0.5f)
     val context = LocalContext.current
     val viewModel = sessionViewModel ?: rememberFileManagerViewModel(context)
@@ -140,10 +145,11 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
     var networkGroupName by remember { mutableStateOf("") }
     var addingWorkspace by remember { mutableStateOf(false) }
     var showOpenWith by remember { mutableStateOf(false) }
-    var showRecycleBin by remember { mutableStateOf(false) }
     var pendingFileBookmark by remember { mutableStateOf<ApiPreferences.FileBookmark?>(null) }
     var fileBookmarkName by remember { mutableStateOf("") }
     var savingBookmark by remember { mutableStateOf(false) }
+    var pendingStorageRemoval by remember { mutableStateOf<FileManagerStorageEntry?>(null) }
+    var removingStorage by remember { mutableStateOf(false) }
     var showExitWhileCopying by remember { mutableStateOf(false) }
     val exitFileManager = {
         if (viewModel.isWriting) showExitWhileCopying = true else onBack()
@@ -202,7 +208,7 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
                 title = bookmark.name,
                 path = "/",
                 environment = "repo:${bookmark.name}",
-                subtitle = bookmark.uri,
+                subtitle = storageBookmarkDisplayPath(bookmark.uri),
                 bookmarkUri = bookmark.uri,
             )
         } + fileBookmarks.map { bookmark ->
@@ -242,7 +248,10 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
                     onAddNetwork = { editingNetwork = null; showNetworkDialog = true },
                     onEditNetwork = { editingNetwork = it; showNetworkDialog = true },
                     onAddNetworkGroup = { networkGroupName = ""; showNetworkGroup = true },
-                    onRecycleBin = { scope.launch { drawerState.close() }; showRecycleBin = true },
+                    onRecycleBin = {
+                        val pane = viewModel.activePane
+                        scope.launch { drawerState.close(); viewModel.activatePane(pane); viewModel.openRecycleBin() }
+                    },
                     onSelect = { entry ->
                         scope.launch { drawerState.close() }
                         if (entry.category == "工作区" && entry.fileBookmark == null) scope.launch {
@@ -262,32 +271,7 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
                         addBookmarkLauncher.launch(null)
                     },
                     onDeleteBookmark = { entry ->
-                        entry.network?.let { network -> scope.launch {
-                            try { apiPreferences.removeFileNetwork(network.id) }
-                            catch (failure: Exception) { bookmarkError = "移除网络位置失败" }
-                        } }
-
-                        entry.fileBookmark?.let { bookmark -> scope.launch {
-                            try { if (entry.category == "工作区") apiPreferences.removeFileWorkspace(bookmark) else apiPreferences.removeFileBookmark(bookmark) }
-                            catch (error: Exception) { bookmarkError = "移除书签失败，原有记录保留" }
-                        } }
-                        entry.bookmarkUri?.let { bookmarkUri ->
-                            val uri = runCatching { Uri.parse(bookmarkUri) }.getOrNull()
-                            if (uri != null) {
-                                val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                                try {
-                                    context.contentResolver.releasePersistableUriPermission(uri, flags)
-                                } catch (e: Exception) {
-                                    AppLogger.w(FILE_MANAGER_TAG, "释放 SAF 书签权限失败", e)
-                                }
-                            }
-                            scope.launch {
-                                apiPreferences.removeSafBookmark(bookmarkUri)
-                                if (viewModel.currentEnvironment == entry.environment) {
-                                    viewModel.navigateToPath(viewModel.initialPath, null)
-                                }
-                            }
-                        }
+                        pendingStorageRemoval = entry
                     },
                 )
             }
@@ -306,8 +290,6 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
             androidx.compose.foundation.layout.Column(modifier = Modifier.fillMaxSize()) {
                 FileManagerTopBar(
                     currentPath = viewModel.currentPath,
-                    environmentLabel = fileNetworks.firstOrNull { "network:${it.id}" == viewModel.currentEnvironment }?.name
-                        ?: viewModel.currentEnvironment?.takeUnless { it.startsWith("network:") } ?: "手机存储",
                     folderCount = folderCount,
                     fileCount = fileCount,
                     selectedCount = selectedCount,
@@ -333,7 +315,7 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
                     onOpenLinux = { viewModel.navigateToPath("/", "linux") },
                     onNew = viewModel::beginCreateEntry,
                     onExitSearch = viewModel::cancelSearch,
-                    canCreate = !viewModel.isWriting,
+                    canCreate = viewModel.canCreateHere,
                     clipboardCount = viewModel.clipboardFiles.size,
                     onPaste = viewModel::requestPaste,
                     onClearClipboard = viewModel::clearClipboard,
@@ -350,15 +332,13 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
                         itemSize = viewModel.itemSize,
                         leftSelectedFiles = viewModel.selectionForPane(FileManagerPane.LEFT),
                         rightSelectedFiles = viewModel.selectionForPane(FileManagerPane.RIGHT),
+                        leftSelectionMode = viewModel.selectionModeForPane(FileManagerPane.LEFT),
+                        rightSelectionMode = viewModel.selectionModeForPane(FileManagerPane.RIGHT),
                         onPaneClick = viewModel::activatePane,
                         onRetry = { pane -> viewModel.loadPaneDirectory(pane) },
                         onItemClick = { pane, file ->
                             viewModel.activatePane(pane)
-                            if (file.name == "..") {
-                                viewModel.navigateToDirectory(file)
-                            } else {
-                                viewModel.openEntry(file)
-                            }
+                            viewModel.clickEntry(file)
                         },
                         onItemLongClick = { pane, file ->
                             viewModel.activatePane(pane)
@@ -374,7 +354,7 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
                         },
                         onItemSwipeRight = { pane, file ->
                             viewModel.activatePane(pane)
-                            viewModel.toggleSelection(file)
+                            viewModel.selectFile(file)
                         },
                     )
                 }
@@ -387,8 +367,15 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
                     onNew = viewModel::beginCreateEntry,
                     onMirrorPath = viewModel::mirrorActivePaneToOther,
                     onOpenMenu = viewModel::openActionMenu,
-                    canCreate = !viewModel.isWriting,
+                    canCreate = viewModel.canCreateHere,
                 )
+            }
+            // 与遮罩同生命周期的命中层，阻断列表自定义手势，关闭动画期间也不释放。
+            if (drawerState.isOpen || drawerState.targetValue == DrawerValue.Open) {
+                Box(Modifier.fillMaxSize().clickable(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    indication = null,
+                ) { scope.launch { drawerState.close() } })
             }
         }
     }
@@ -398,6 +385,28 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
     BackHandler(enabled = drawerState.isOpen || drawerState.targetValue == DrawerValue.Open) { scope.launch { drawerState.close() } }
 
     FileManagerContentHost(viewModel)
+    pendingStorageRemoval?.let { entry ->
+        AlertDialog(onDismissRequest = { if (!removingStorage) pendingStorageRemoval = null }, title = { Text("移除${entry.title}？") },
+            text = { Text("仅移除此存储入口或收藏记录，不删除文件。${if (entry.bookmarkUri != null) "此应用会释放对应的目录授权。" else ""}") },
+            confirmButton = { TextButton(enabled = !removingStorage && !viewModel.isWriting, onClick = {
+                removingStorage = true
+                scope.launch {
+                    try {
+                        entry.network?.let { apiPreferences.removeFileNetwork(it.id) }
+                        entry.fileBookmark?.let { if (entry.category == "工作区") apiPreferences.removeFileWorkspace(it) else apiPreferences.removeFileBookmark(it) }
+                        entry.bookmarkUri?.let { uri ->
+                            apiPreferences.removeSafBookmark(uri)
+                            try { context.contentResolver.releasePersistableUriPermission(Uri.parse(uri), Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION) }
+                            catch (failure: Exception) { bookmarkError = "入口已移除，但目录授权未能释放，可在系统设置中检查" }
+                        }
+                        if (entry.network != null || entry.bookmarkUri != null) viewModel.detachStorageEnvironment(entry.environment)
+                        pendingStorageRemoval = null
+                    } catch (failure: Exception) { bookmarkError = "移除失败，请重试；未删除任何文件" }
+                    finally { removingStorage = false }
+                }
+            }) { Text(if (removingStorage) "正在移除" else "移除入口") } },
+            dismissButton = { TextButton(enabled = !removingStorage, onClick = { pendingStorageRemoval = null }) { Text("取消") } })
+    }
     FileManagerDestinationDialog(viewModel.transferDraft, viewModel::browseTransferDestination,
         viewModel::useOtherTransferDestination, viewModel::dismissTransferDraft)
     FileManagerActionDialog(viewModel.actionState, !viewModel.isWriting, viewModel::dismissAction,
@@ -460,12 +469,15 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
     if (showBookmarkDialog && pendingBookmarkUri != null) {
         AlertDialog(
             onDismissRequest = {
+                if (savingBookmark) return@AlertDialog
                 showBookmarkDialog = false
                 pendingBookmarkUri = null
                 bookmarkNameError = null
             },
             title = { Text("添加本地存储") },
             text = {
+                androidx.compose.foundation.layout.Column {
+                Text(storageBookmarkDisplayPath(pendingBookmarkUri.toString()), style = MaterialTheme.typography.bodySmall)
                 TextField(
                     value = bookmarkName,
                     onValueChange = {
@@ -476,10 +488,13 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
                     label = { Text("名称") },
                     isError = bookmarkNameError != null,
                     supportingText = { bookmarkNameError?.let { error -> Text(error) } },
+                    enabled = !savingBookmark,
                 )
+                }
             },
             confirmButton = {
                 TextButton(
+                    enabled = !savingBookmark,
                     onClick = {
                         val uri = pendingBookmarkUri ?: return@TextButton
                         val name = bookmarkName.trim()
@@ -493,17 +508,21 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
                             bookmarkNameError = context.getString(R.string.repo_bookmark_name_exists)
                             return@TextButton
                         }
+                        savingBookmark = true
                         scope.launch {
-                            apiPreferences.addSafBookmark(uri.toString(), name)
-                            showBookmarkDialog = false
-                            pendingBookmarkUri = null
-                            bookmarkNameError = null
+                            try {
+                                apiPreferences.addSafBookmark(uri.toString(), name)
+                                showBookmarkDialog = false
+                                pendingBookmarkUri = null
+                                bookmarkNameError = null
+                            } catch (failure: Exception) { bookmarkNameError = "保存失败，请重试" }
+                            finally { savingBookmark = false }
                         }
                     },
                 ) { Text(stringResource(android.R.string.ok)) }
             },
             dismissButton = {
-                TextButton(onClick = {
+                TextButton(enabled = !savingBookmark, onClick = {
                     showBookmarkDialog = false
                     pendingBookmarkUri = null
                     bookmarkNameError = null
@@ -617,11 +636,19 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
             }
         } }, confirmButton = { TextButton(onClick = { showOpenWith = false }) { Text("取消") } },
     )
-    if (showRecycleBin) com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.FileManagerRecycleBinDialog(
-        onDismiss = { showRecycleBin = false },
+    if (showToolbox) com.ai.assistance.operit.ui.features.websession.browser.chrome.KiyoriToolboxDrawer(
+        onDismiss = { showToolbox = false },
+        actions = listOf(
+            com.ai.assistance.operit.ui.features.websession.browser.chrome.KiyoriToolboxAction("AI对话", androidx.compose.material.icons.Icons.AutoMirrored.Rounded.Chat,
+                com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone.AI_DIALOGUE, !viewModel.isWriting, onClick = onOpenAiDialogue),
+            com.ai.assistance.operit.ui.features.websession.browser.chrome.KiyoriToolboxAction("浏览器", androidx.compose.material.icons.Icons.Rounded.Language,
+                com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone.ADD_BOOKMARK, !viewModel.isWriting && onOpenBrowser != null,
+                onClick = { onOpenBrowser?.invoke() }),
+        ),
     )
     val contextState = if (viewModel.contextMenuPane == FileManagerPane.LEFT) viewModel.leftPaneState else viewModel.rightPaneState
-    val contextPath = viewModel.contextMenuFile?.let { fileManagerJoinPath(contextState.path, it.name) }.orEmpty()
+    val contextItems = viewModel.contextItems()
+    val contextPath = viewModel.contextMenuFile?.let { it.recycledOriginalPath ?: fileManagerJoinPath(contextState.path, it.name) } ?: contextState.path
     FileContextMenu(
         showMenu = viewModel.showBottomActionMenu,
         onDismissRequest = { viewModel.showBottomActionMenu = false },
@@ -629,25 +656,30 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
         onExit = exitFileManager,
         onSettings = { if (viewModel.isWriting) showExitWhileCopying = true else onOpenSettings() },
         fullPath = contextPath,
-        selectionCount = if (viewModel.contextMenuFile?.name in viewModel.selectionForPane(viewModel.contextMenuPane).map { it.name }) selectedCount else 0,
-        onClearSelection = viewModel::clearActiveSelection,
-        onSelectAll = viewModel::selectAll,
-        onPaste = viewModel::requestPaste,
-        canPaste = viewModel.clipboardFiles.isNotEmpty() && !viewModel.isWriting,
+        selectionCount = contextItems.size,
+        sourceIsLeft = viewModel.contextMenuPane == FileManagerPane.LEFT,
+        recycleBin = contextState.environment == "recycle",
+        onRestore = { viewModel.beginContextAction(FileManagerActionKind.RESTORE) },
+        canSelect = !contextState.isLoading && contextState.error == null && contextState.files.any { it.name != ".." },
+        allArchives = contextItems.isNotEmpty() && contextItems.all { !it.isDirectory && it.name.endsWith(".zip", ignoreCase = true) },
+        onClearSelection = { viewModel.activatePane(viewModel.contextMenuPane); viewModel.clearActiveSelection() },
+        onSelectAll = { viewModel.activatePane(viewModel.contextMenuPane); viewModel.selectAll() },
+        onPaste = { viewModel.activatePane(viewModel.contextMenuPane); viewModel.requestPaste() },
+        canPaste = viewModel.clipboardFiles.isNotEmpty() && !viewModel.isWriting && contextState.environment != "recycle" && !contextState.isLoading && contextState.error == null,
         onShowTask = { viewModel.showTransferDetails = true },
         hasTask = viewModel.transferState.total > 0,
         environmentLabel = contextState.environment ?: "手机",
         onCopy = { viewModel.beginContextTransfer(false) },
         onMove = { viewModel.beginContextTransfer(true) },
-        onDelete = { viewModel.beginContextAction(FileManagerActionKind.DELETE) },
-        onTools = { viewModel.beginContextAction(FileManagerActionKind.TOOLS) },
+        onDelete = { viewModel.beginContextAction(if (contextState.environment == "recycle") FileManagerActionKind.PURGE else FileManagerActionKind.DELETE) },
+        onTools = { showToolbox = true },
         onZip = { viewModel.beginContextAction(FileManagerActionKind.ZIP) },
         onProperties = { viewModel.beginContextAction(FileManagerActionKind.PROPERTIES) },
         onShare = viewModel::shareContextItem,
         localActions = contextState.environment.isNullOrBlank() || contextState.environment == "android",
-        allSelected = viewModel.files.any { it.name != ".." } && viewModel.files.filter { it.name != ".." }.all { file -> viewModel.selectedFiles.any { it.name == file.name } },
+        allSelected = contextState.files.any { it.name != ".." } && contextState.files.filter { it.name != ".." }.all { file -> viewModel.selectionForPane(viewModel.contextMenuPane).any { it.name == file.name } },
         onExtract = { viewModel.beginContextAction(FileManagerActionKind.EXTRACT) },
-        onAiDialogue = onOpenAiDialogue,
+        onInvertSelection = { viewModel.activatePane(viewModel.contextMenuPane); viewModel.invertSelection() },
         onWorkspace = {
             viewModel.contextMenuFile?.takeIf { it.isDirectory }?.let { file ->
                 addingWorkspace = true
@@ -671,6 +703,16 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
             viewModel.showBottomActionMenu = false
         },
     )
+}
+
+private fun storageBookmarkDisplayPath(rawUri: String): String {
+    val uri = Uri.parse(rawUri)
+    if (uri.authority != "com.android.externalstorage.documents") return rawUri
+    val document = runCatching { android.provider.DocumentsContract.getTreeDocumentId(uri) }.getOrNull() ?: return rawUri
+    val volume = document.substringBefore(':')
+    val relative = document.substringAfter(':', "")
+    val root = if (volume == "primary") Environment.getExternalStorageDirectory().absolutePath else "/storage/$volume"
+    return if (relative.isEmpty()) root else "$root/$relative"
 }
 
 @Composable

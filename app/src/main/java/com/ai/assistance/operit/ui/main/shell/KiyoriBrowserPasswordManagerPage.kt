@@ -17,7 +17,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.outlined.ContentCopy
+
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.AlertDialog
@@ -529,7 +530,7 @@ private fun BrowserCredentialValueCard(
         trailingAction?.invoke()
         IconButton(onClick = onCopy) {
             Icon(
-                imageVector = Icons.Rounded.ContentCopy,
+                imageVector = Icons.Outlined.ContentCopy,
                 contentDescription = "复制$label",
             )
         }

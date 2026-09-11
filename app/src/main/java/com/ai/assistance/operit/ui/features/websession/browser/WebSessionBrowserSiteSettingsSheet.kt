@@ -11,8 +11,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.DeleteSweep
+
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.HorizontalDivider
@@ -397,7 +398,7 @@ private fun WebSessionSiteSettingsContent(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.DeleteSweep,
+                        imageVector = Icons.Outlined.DeleteSweep,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
                     )

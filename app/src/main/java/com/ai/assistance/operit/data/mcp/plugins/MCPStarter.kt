@@ -10,6 +10,8 @@ import com.ai.assistance.operit.data.mcp.MCPRepository
 import com.ai.assistance.operit.core.tools.system.Terminal
 import com.google.gson.Gson
 import com.google.gson.JsonParser
+import kotlinx.coroutines.CancellationException
+import com.ai.assistance.operit.data.mcp.McpPluginRuntimeIdentity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -84,6 +86,8 @@ class MCPStarter(private val context: Context) {
             val installed = result != null && result.contains("pnpm")
             pnpmInstalled = installed
             return installed
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "Error checking pnpm installation: ${e.message}")
             pnpmInstalled = false
@@ -399,6 +403,8 @@ class MCPStarter(private val context: Context) {
                 statusCallback(StartStatus.Error("Service $pluginId started but is not active"))
                 return false
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "Error starting plugin", e)
             statusCallback(StartStatus.Error("Start error: ${e.message}"))
@@ -477,6 +483,8 @@ class MCPStarter(private val context: Context) {
                                     AppLogger.d(TAG, "Unregistering disabled plugin '$pluginId' with service name '$serviceNameToUnregister'")
                                     bridge.unregisterMcpService(serviceNameToUnregister)
                                 }
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
                             } catch (e: Exception) {
                                 AppLogger.e(TAG, "Failed to unregister disabled plugin '$pluginId'", e)
                             }
@@ -506,6 +514,8 @@ class MCPStarter(private val context: Context) {
                 val jobs =
                     pluginsToStart.map { pluginId ->
                         async {
+                            val expected = MCPLocalServer.getInstance(context).capturePluginRegistration(pluginId)
+                                ?: return@async
                             val serviceName = registerPlugin(pluginId, progressListener)
                             if (serviceName == null) {
                                 progressListener.onPluginRegistered(pluginId, "", false)
@@ -538,9 +548,13 @@ class MCPStarter(private val context: Context) {
                                     totalPluginsToProcess
                                 )
 
-                                processPlugin(pluginId, serviceName, progressListener)
+                                processPlugin(pluginId, serviceName, progressListener, expected)
                             }
 
+                            if (result.isResponding) {
+                                // 单个服务就绪即发布，不能被另一台慢服务的握手阻塞。
+                                registerToolsForVerifiedPlugins(listOf(result), mapOf(pluginId to expected))
+                            }
                             synchronized(allVerificationResults) {
                                 allVerificationResults.add(result)
                             }
@@ -564,7 +578,6 @@ class MCPStarter(private val context: Context) {
 
                 val successfulResults = allVerificationResults.filter { it.isResponding }
                 if (successfulResults.isNotEmpty()) {
-                    registerToolsForVerifiedPlugins(successfulResults)
                     generateMissingDescriptions(successfulResults)
                 }
 
@@ -577,6 +590,10 @@ class MCPStarter(private val context: Context) {
                     PluginInitStatus.SUCCESS
                 )
 
+            } catch (cancelled: CancellationException) {
+
+                throw cancelled
+
             } catch (e: Exception) {
                 AppLogger.e(TAG, "Error starting plugins", e)
                 progressListener.onAllPluginsStarted(0, 0, PluginInitStatus.OTHER_ERROR)
@@ -587,7 +604,8 @@ class MCPStarter(private val context: Context) {
     private suspend fun processPlugin(
         pluginId: String,
         serviceName: String,
-        progressListener: PluginStartProgressListener
+        progressListener: PluginStartProgressListener,
+        expected: McpPluginRuntimeIdentity
     ): VerificationResult {
         val mcpLocalServer = MCPLocalServer.getInstance(context)
         val mcpRepository = MCPRepository(context)
@@ -619,7 +637,7 @@ class MCPStarter(private val context: Context) {
 
             val result: VerificationResult
             if (success && ready) {
-                cacheToolsFromService(pluginId, serviceName)
+                cacheToolsFromService(pluginId, serviceName, expected)
                 result = VerificationResult(
                     pluginId,
                     serviceName,
@@ -766,6 +784,8 @@ class MCPStarter(private val context: Context) {
                 }
 
             return if (registerResult?.optBoolean("success", false) == true) actualServiceName else null
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "Failed to register plugin $pluginId", e)
             return null
@@ -777,15 +797,21 @@ class MCPStarter(private val context: Context) {
         starterScope.launch {
             try {
                 delay(5000) // Wait for services to initialize
+                val owner = MCPLocalServer.getInstance(context)
+                val expected = owner.getAllPluginMetadata().keys.mapNotNull { id ->
+                    owner.capturePluginRegistration(id)?.let { id to it }
+                }.toMap()
                 val results = verifyAllMcpPlugins()
 
                 // 自动生成空描述的工具包描述
                 generateMissingDescriptions(results)
 
                 // 注册验证成功的插件的工具
-                registerToolsForVerifiedPlugins(results)
+                registerToolsForVerifiedPlugins(results, expected)
 
                 progressListener.onAllPluginsVerified(results)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 AppLogger.e(TAG, "Error verifying plugins", e)
                 progressListener.onAllPluginsVerified(emptyList())
@@ -796,7 +822,7 @@ class MCPStarter(private val context: Context) {
     /**
      * 从服务缓存工具列表
      */
-    private suspend fun cacheToolsFromService(pluginId: String, serviceName: String) {
+    private suspend fun cacheToolsFromService(pluginId: String, serviceName: String, expected: McpPluginRuntimeIdentity) {
         try {
             val mcpLocalServer = MCPLocalServer.getInstance(context)
             
@@ -824,11 +850,13 @@ class MCPStarter(private val context: Context) {
                     )
                 }
                 
-                mcpLocalServer.cacheServerTools(pluginId, cachedTools)
+                mcpLocalServer.cacheServerTools(pluginId, cachedTools, expected)
                 AppLogger.i(TAG, "成功缓存插件 $pluginId 的 ${cachedTools.size} 个工具")
             } else {
                 AppLogger.w(TAG, "插件 $pluginId 没有返回任何工具")
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "缓存插件 $pluginId 的工具列表时出错", e)
         }
@@ -869,6 +897,8 @@ class MCPStarter(private val context: Context) {
                 val error = result?.optJSONObject("error")?.optString("message") ?: "Unknown error"
                 AppLogger.w(TAG, "发送工具缓存到bridge失败: $error")
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "发送插件 $pluginId 的缓存工具到bridge时出错", e)
         }
@@ -878,7 +908,7 @@ class MCPStarter(private val context: Context) {
      * 为验证成功的插件注册工具
      * 这确保只有真正就绪并响应的插件才会注册其工具
      */
-    private suspend fun registerToolsForVerifiedPlugins(results: List<VerificationResult>) {
+    private suspend fun registerToolsForVerifiedPlugins(results: List<VerificationResult>, expected: Map<String, McpPluginRuntimeIdentity>) {
         try {
             val mcpRepository = MCPRepository(context)
             val successfulPluginIds = results
@@ -890,11 +920,13 @@ class MCPStarter(private val context: Context) {
                     TAG,
                     "开始为 ${successfulPluginIds.size} 个验证成功的插件注册工具: $successfulPluginIds"
                 )
-                mcpRepository.registerToolsForLoadedPlugins(successfulPluginIds)
+                mcpRepository.registerToolsForLoadedPlugins(successfulPluginIds, expected)
                 AppLogger.d(TAG, "工具注册流程已完成")
             } else {
                 AppLogger.d(TAG, "没有验证成功的插件，跳过工具注册")
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "注册验证成功插件的工具时出错", e)
         }
@@ -949,10 +981,14 @@ class MCPStarter(private val context: Context) {
                             AppLogger.w(TAG, "插件 ${result.pluginId} 没有可用的工具描述")
                         }
                     }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
                 } catch (e: Exception) {
                     AppLogger.e(TAG, "为插件 ${result.pluginId} 生成描述时出错: ${e.message}", e)
                 }
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "生成缺失描述时出错", e)
         }
@@ -1037,6 +1073,8 @@ class MCPStarter(private val context: Context) {
                     )
                 }
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "Error verifying plugins", e)
         }
@@ -1052,6 +1090,8 @@ class MCPStarter(private val context: Context) {
             val jsonObject = JsonParser.parseString(configJson).asJsonObject
             val mcpServers = jsonObject.getAsJsonObject("mcpServers")
             return mcpServers?.keySet()?.firstOrNull()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "解析配置JSON失败", e)
             return null
@@ -1064,6 +1104,8 @@ class MCPStarter(private val context: Context) {
 
         try {
             return Gson().fromJson(configJson, MCPLocalServer.MCPConfig::class.java)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "解析配置JSON失败", e)
             return null
@@ -1095,6 +1137,8 @@ class MCPStarter(private val context: Context) {
                 )
 
             mcpManager.registerServer(serverName, mcpServerConfig)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "Failed to register server", e)
         }

@@ -1,5 +1,9 @@
 package com.ai.assistance.operit.ui.features.websession.browser
 
+import com.kiyori.design.theme.kiyoriSurfaceColors
+
+import com.kiyori.design.theme.KiyoriSurfaceTokens
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -36,7 +40,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.kiyori.design.theme.KiyoriUiShapes
 
 internal val WebSessionBrowserPopupShape = KiyoriUiShapes.control
-internal val WebSessionBrowserPopupElevation = 8.dp
+internal val WebSessionBrowserPopupElevation = KiyoriSurfaceTokens.popupElevation
 internal val WebSessionBrowserPopupItemHeight = 40.dp
 
 @Composable
@@ -78,14 +82,13 @@ internal fun WebSessionBrowserDialogSurface(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val colors = tone.resolveColors()
     Surface(
         modifier = modifier,
         shape = KiyoriUiShapes.dialog,
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, colors.icon.copy(alpha = 0.2f)),
-        tonalElevation = 2.dp,
-        shadowElevation = 10.dp,
+        color = kiyoriSurfaceColors().popup,
+        border = BorderStroke(KiyoriSurfaceTokens.outlineWidth, kiyoriSurfaceColors().outline),
+        tonalElevation = KiyoriSurfaceTokens.flatElevation,
+        shadowElevation = KiyoriSurfaceTokens.popupElevation,
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             WebSessionBrowserDialogHeader(
@@ -93,7 +96,7 @@ internal fun WebSessionBrowserDialogSurface(
                 tone = tone,
                 title = title,
             )
-            HorizontalDivider(color = colors.icon.copy(alpha = 0.16f))
+            HorizontalDivider(color = kiyoriSurfaceColors().outline)
             content()
         }
     }
@@ -108,7 +111,7 @@ internal fun WebSessionBrowserPopupScrim(
         modifier =
             modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.24f))
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = KiyoriSurfaceTokens.popupScrimAlpha))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -147,11 +150,12 @@ internal fun WebSessionBrowserModalDialog(
                 decorFitsSystemWindows = false,
             ),
     ) {
+        com.ai.assistance.operit.ui.components.KiyoriDialogOwnsScrim()
         Box(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.38f))
+                    .background(kiyoriSurfaceColors().modalScrim)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,

@@ -352,6 +352,7 @@ class JsToolManager private constructor(
         val (packageName, functionName) = parsed
         val script = packageManager.getPackageScript(packageName)
             ?: return "Package not found: $packageName"
+        val toolPkgApiVersion = packageManager.getToolPkgApiVersion(packageName)
 
         val runtimeParams = buildRuntimeParams(
             packageName = packageName,
@@ -362,7 +363,8 @@ class JsToolManager private constructor(
                 engine.executeScriptFunction(
                     script = script,
                     functionName = functionName,
-                    params = runtimeParams
+                    params = runtimeParams,
+                    toolPkgApiVersion = toolPkgApiVersion
                 )?.toString()
                     ?: "null"
             } catch (e: Exception) {
@@ -384,6 +386,7 @@ class JsToolManager private constructor(
         }
 
         val (packageName, functionName) = parsed
+        val toolPkgApiVersion = packageManager.getToolPkgApiVersion(packageName)
         val runtimeParams = try {
             convertToolParameters(tool, packageName, functionName)
         } catch (e: ToolParameterConversionException) {
@@ -422,6 +425,7 @@ class JsToolManager private constructor(
                         script = script,
                         functionName = functionName,
                         params = runtimeParams,
+                        toolPkgApiVersion = toolPkgApiVersion,
                         executionListener = traceListener
                     )
 
@@ -467,6 +471,7 @@ class JsToolManager private constructor(
         }
         if (toolPkgId.isNotBlank()) {
             runtimeOptions["toolPkgId"] = toolPkgId
+            runtimeOptions["__operit_ui_package_name"] = toolPkgId
         }
         if (state.isNotEmpty()) {
             runtimeOptions["state"] = state

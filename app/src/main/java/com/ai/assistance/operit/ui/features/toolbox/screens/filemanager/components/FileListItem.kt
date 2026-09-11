@@ -156,9 +156,13 @@ fun FileListItem(
             FileManagerFileBadge(file, iconSize)
             Spacer(Modifier.width(iconGap))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                Text(if (file.name == "..") "上一级" else file.name,
+                Text(if (file.name == "..") "上一级" else file.displayName,
                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = 12.sp * scale, lineHeight = 16.sp * scale),
                     maxLines = 4, overflow = TextOverflow.Ellipsis)
+                file.recycledOriginalPath?.let { original ->
+                    Text(original, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.StartEllipsis,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 if (file.name != "..") FileManagerFittedText(
                     text = listOfNotNull(dateLabel.ifBlank { "修改时间未知" },
                         formatFileSize(file.size).takeUnless { file.isDirectory }).joinToString(" "),

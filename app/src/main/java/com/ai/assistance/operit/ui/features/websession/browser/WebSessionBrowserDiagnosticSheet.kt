@@ -27,12 +27,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.DeleteSweep
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Search
+
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -150,7 +151,7 @@ internal fun WebSessionBrowserDiagnosticSheet(
                     },
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.ContentCopy,
+                        imageVector = Icons.Outlined.ContentCopy,
                         contentDescription = stringResource(R.string.copy),
                     )
                 }
@@ -160,7 +161,7 @@ internal fun WebSessionBrowserDiagnosticSheet(
                     onClick = { exportLauncher.launch(browserDiagnosticExportFileName()) },
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.FileDownload,
+                        imageVector = Icons.Outlined.FileDownload,
                         contentDescription = stringResource(R.string.export),
                     )
                 }
@@ -170,7 +171,7 @@ internal fun WebSessionBrowserDiagnosticSheet(
                     onClick = { onClear(scope) },
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.DeleteSweep,
+                        imageVector = Icons.Outlined.DeleteSweep,
                         contentDescription = stringResource(R.string.web_session_diagnostics_clear),
                     )
                 }
@@ -371,7 +372,7 @@ private fun DiagnosticSearchField(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                imageVector = Icons.Filled.Search,
+                imageVector = Icons.Outlined.Search,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(17.dp),
@@ -399,7 +400,7 @@ private fun DiagnosticSearchField(
             if (value.isNotBlank()) {
                 IconButton(onClick = onClear, modifier = Modifier.size(40.dp)) {
                     Icon(
-                        imageVector = Icons.Filled.Close,
+                        imageVector = Icons.Outlined.Close,
                         contentDescription = stringResource(R.string.clear),
                         modifier = Modifier.size(16.dp),
                     )

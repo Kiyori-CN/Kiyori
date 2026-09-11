@@ -25,6 +25,9 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.automirrored.filled.PlaylistAddCheck
 import androidx.compose.material3.*
@@ -1304,7 +1307,7 @@ private fun ChatHistoryBatchSelectorCard(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 singleLine = true,
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                 placeholder = { Text(context.getString(R.string.search_by_title_group_card)) },
                 label = { Text(context.getString(R.string.filter_chat_history)) },
                 modifier = Modifier.fillMaxWidth()
@@ -1464,7 +1467,7 @@ private fun ChatHistoryBatchSelectorCard(
                 enabled = hasSelection && !submitting && !deleteInProgress && !memoryRebuildRunning,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(context.getString(R.string.chat_memory_rebuild_action, selectedChatIds.size))
             }
@@ -1485,7 +1488,7 @@ private fun ChatHistoryBatchSelectorCard(
                         color = MaterialTheme.colorScheme.onError
                     )
                 } else {
-                    Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Outlined.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(context.getString(R.string.delete_selected_chats, selectedChatIds.size))
@@ -2042,7 +2045,7 @@ private fun UnboundWorkspaceCard(
                             color = MaterialTheme.colorScheme.onError
                         )
                     } else {
-                        Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Outlined.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(stringResource(R.string.delete_selected_workspaces, selectedWorkspaces.size))

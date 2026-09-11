@@ -11,7 +11,7 @@
     "en": "DOCX outline, creation, template fill, cross-run find/replace, tables, images, and styles."
   },
   "enabledByDefault": false,
-  "category": "Document",
+  "category": "File",
   "tools": [
     {
       "name": "docx_outline",

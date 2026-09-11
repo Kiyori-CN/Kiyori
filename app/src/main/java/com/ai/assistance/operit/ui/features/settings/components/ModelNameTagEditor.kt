@@ -22,15 +22,18 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.DeleteSweep
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Clear
+import androidx.compose.material.icons.outlined.Add
+
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Clear
+
 import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.MoreHoriz
+
 import androidx.compose.material.icons.filled.Reorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -363,7 +366,7 @@ internal fun ModelNameTagEditor(
                     PaddingValues(horizontal = ModelSettingsActionHorizontalPadding)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Add,
+                    imageVector = Icons.Outlined.Add,
                     contentDescription = null,
                     modifier = Modifier.size(ModelSettingsActionIconSize)
                 )
@@ -426,7 +429,7 @@ internal fun ModelNameTagEditor(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.MoreHoriz,
+                            imageVector = Icons.Outlined.MoreHoriz,
                             contentDescription = stringResource(R.string.model_more_actions),
                             modifier = Modifier.size(19.dp)
                         )
@@ -451,7 +454,7 @@ internal fun ModelNameTagEditor(
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.model_copy_all)) },
                         leadingIcon = {
-                            Icon(Icons.Default.ContentCopy, contentDescription = null)
+                            Icon(Icons.Outlined.ContentCopy, contentDescription = null)
                         },
                         onClick = {
                             showMoreMenu = false
@@ -470,7 +473,7 @@ internal fun ModelNameTagEditor(
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.model_clear_all_action)) },
                         leadingIcon = {
-                            Icon(Icons.Default.DeleteSweep, contentDescription = null)
+                            Icon(Icons.Outlined.DeleteSweep, contentDescription = null)
                         },
                         onClick = {
                             showMoreMenu = false
@@ -680,7 +683,7 @@ private fun ModelNameTag(
                 modifier = Modifier.size(40.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Clear,
+                    imageVector = Icons.Outlined.Clear,
                     contentDescription =
                         stringResource(
                             R.string.model_delete_accessibility,

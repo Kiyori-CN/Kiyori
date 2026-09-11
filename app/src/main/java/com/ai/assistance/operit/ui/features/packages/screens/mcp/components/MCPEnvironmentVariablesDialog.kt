@@ -1,5 +1,9 @@
 package com.ai.assistance.operit.ui.features.packages.screens.mcp.components
 
+import com.kiyori.design.theme.kiyoriSurfaceColors
+
+import com.kiyori.design.theme.KiyoriSurfaceTokens
+
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -45,9 +49,9 @@ fun MCPEnvironmentVariablesDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
                 shape = KiyoriUiShapes.dialog,
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 6.dp,
-                shadowElevation = 8.dp,
+                color = kiyoriSurfaceColors().popup,
+                tonalElevation = KiyoriSurfaceTokens.flatElevation,
+                shadowElevation = KiyoriSurfaceTokens.popupElevation,
                 modifier = Modifier.fillMaxWidth().padding(16.dp)
         ) {
             Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(16.dp).fillMaxWidth()) {

@@ -9,8 +9,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Refresh
+
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -75,7 +76,7 @@ fun AvatarPicker(
             shape = KiyoriUiShapes.control,
         ) {
             Icon(
-                imageVector = Icons.Default.Refresh, 
+                imageVector = Icons.Outlined.Refresh,
                 contentDescription = "Reset Avatar", 
                 modifier = Modifier.size(16.dp)
             )

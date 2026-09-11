@@ -1,5 +1,8 @@
 package com.ai.assistance.operit.ui.features.settings.sections
 
+import com.kiyori.design.theme.KiyoriSurfaceTokens
+import com.kiyori.design.theme.kiyoriSurfaceColors
+
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -13,6 +16,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.FileUpload
+import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -235,8 +245,8 @@ fun AdvancedSettingsSection(
             .fillMaxWidth()
             .padding(vertical = 4.dp),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        colors = CardDefaults.cardColors(containerColor = kiyoriSurfaceColors().card),
+        elevation = CardDefaults.cardElevation(defaultElevation = KiyoriSurfaceTokens.flatElevation)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -244,7 +254,7 @@ fun AdvancedSettingsSection(
                 modifier = Modifier.padding(bottom = 8.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Settings,
+                    imageVector = Icons.Outlined.Settings,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -512,7 +522,7 @@ fun AdvancedSettingsSection(
                             onClick = { editingKey = null; showAddKeyDialog = true },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(stringResource(R.string.add_api_key))
                         }
@@ -530,7 +540,7 @@ fun AdvancedSettingsSection(
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Outlined.FileUpload, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(stringResource(R.string.batch_import_keys))
                     }
@@ -541,7 +551,7 @@ fun AdvancedSettingsSection(
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Outlined.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(stringResource(R.string.export_keys))
                     }
@@ -554,7 +564,7 @@ fun AdvancedSettingsSection(
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                         ) {
-                            Icon(Icons.Default.DeleteForever, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Outlined.DeleteForever, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(stringResource(R.string.clear_api_key_pool))
                         }
@@ -659,7 +669,7 @@ private fun ApiKeyItem(
             modifier = Modifier.size(40.dp)
         ) {
             Icon(
-                Icons.Default.Edit, 
+                Icons.Outlined.Edit,
                 contentDescription = stringResource(R.string.edit_api_key), 
                 tint = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.size(16.dp)
@@ -670,7 +680,7 @@ private fun ApiKeyItem(
             modifier = Modifier.size(40.dp)
         ) {
             Icon(
-                Icons.Default.Delete, 
+                Icons.Outlined.Delete,
                 contentDescription = stringResource(R.string.delete_api_key), 
                 tint = MaterialTheme.colorScheme.error,
                 modifier = Modifier.size(16.dp)

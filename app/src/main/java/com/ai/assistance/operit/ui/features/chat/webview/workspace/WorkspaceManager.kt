@@ -24,6 +24,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.ui.semantics.Role
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.*
@@ -553,7 +558,7 @@ fun WorkspaceManager(
                             modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
-                                Icons.Default.Save,
+                                Icons.Outlined.Save,
                                 contentDescription = context.getString(R.string.save)
                             )
                         }
@@ -567,7 +572,7 @@ fun WorkspaceManager(
                                 modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
-                                    if (isPreview) Icons.Default.Edit else Icons.Default.Visibility,
+                                    if (isPreview) Icons.Outlined.Edit else Icons.Default.Visibility,
                                     contentDescription = "Toggle Preview"
                             )
                         }
@@ -599,7 +604,7 @@ fun WorkspaceManager(
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
-                                Icons.Default.Refresh,
+                                Icons.Outlined.Refresh,
                                 contentDescription = stringResource(R.string.web_session_refresh),
                                 modifier = Modifier.size(18.dp)
                             )
@@ -610,7 +615,7 @@ fun WorkspaceManager(
                                 modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
-                                    Icons.Default.Close,
+                                    Icons.Outlined.Close,
                                     contentDescription = stringResource(R.string.workspace_close_preview),
                                     modifier = Modifier.size(18.dp)
                                 )
@@ -949,7 +954,7 @@ fun WorkspaceManager(
                     ) {
                         Text(context.getString(R.string.file_browser), style = MaterialTheme.typography.titleMedium)
                         IconButton(onClick = { showFileManager = false }) {
-                            Icon(Icons.Default.Close, contentDescription = context.getString(R.string.close))
+                            Icon(Icons.Outlined.Close, contentDescription = context.getString(R.string.close))
                         }
                     }
 
@@ -1432,7 +1437,7 @@ fun ExpandableFabMenu(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
             ) {
-                Icon(if (isExpanded) Icons.Default.Close else Icons.Default.MoreVert,
+                Icon(if (isExpanded) Icons.Outlined.Close else Icons.Outlined.MoreVert,
                     contentDescription = stringResource(if (isExpanded) R.string.workspace_close_menu else R.string.workspace_open_menu))
             }
             DropdownMenu(expanded = isExpanded, onDismissRequest = onToggle,
@@ -1449,7 +1454,7 @@ fun ExpandableFabMenu(
                 if (exportEnabled) DropdownMenuItem(text = { Text(stringResource(R.string.export)) },
                     leadingIcon = { Icon(Icons.Default.Upload, null) }, onClick = { onToggle(); onExportClick() })
                 if (renameEnabled) DropdownMenuItem(text = { Text(stringResource(R.string.workspace_rename_action)) },
-                    leadingIcon = { Icon(Icons.Default.Edit, null) }, onClick = { onToggle(); onRenameWorkspaceClick() })
+                    leadingIcon = { Icon(Icons.Outlined.Edit, null) }, onClick = { onToggle(); onRenameWorkspaceClick() })
                 DropdownMenuItem(text = { Text(stringResource(R.string.unbind)) },
                     leadingIcon = { Icon(Icons.Default.LinkOff, null) }, onClick = { onToggle(); onUnbindClick() })
             }
@@ -1526,7 +1531,7 @@ fun VSCodeTab(
                             )
                         } else {
                             Icon(
-                                Icons.Default.Close,
+                                Icons.Outlined.Close,
                                 contentDescription = stringResource(R.string.workspace_close_tab, title),
                                 modifier = Modifier.size(14.dp),
                                 tint = contentColor.copy(alpha = 0.7f)

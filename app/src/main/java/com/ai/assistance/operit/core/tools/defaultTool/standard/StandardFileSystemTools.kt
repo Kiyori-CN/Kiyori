@@ -2346,6 +2346,7 @@ open class StandardFileSystemTools(protected val context: Context) {
 
     /** Move or rename a file or directory */
     open suspend fun moveFile(tool: AITool): ToolResult {
+        if (tool.parameters.any { it.name == "move_mode" && it.value == "restore_recycled" }) return executeManagedFileTool(tool, "android")
         if (tool.parameters.any { it.name == "move_mode" }) return executeNoReplaceRenameTool(tool)
         val sourcePath = tool.parameters.find { it.name == "source" }?.value ?: ""
         val destPath = tool.parameters.find { it.name == "destination" }?.value ?: ""

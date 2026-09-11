@@ -8,6 +8,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -101,7 +106,7 @@ fun MnnModelDownloadScreen(
                 enabled = !isLoading,
             ) {
                 Icon(
-                    imageVector = Icons.Default.Refresh,
+                    imageVector = Icons.Outlined.Refresh,
                     contentDescription = stringResource(R.string.mnn_refresh_models),
                 )
             }
@@ -154,7 +159,7 @@ fun MnnModelDownloadScreen(
                                 scope.launch { refreshModels() }
                             }
                         ) {
-                            Icon(Icons.Default.Refresh, contentDescription = null)
+                            Icon(Icons.Outlined.Refresh, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(stringResource(R.string.mnn_retry))
                         }
@@ -189,12 +194,12 @@ fun MnnModelDownloadScreen(
                                     .padding(horizontal = 12.dp, vertical = 8.dp),
                                 placeholder = { Text(stringResource(R.string.mnn_search_models)) },
                                 leadingIcon = {
-                                    Icon(Icons.Default.Search, contentDescription = null)
+                                    Icon(Icons.Outlined.Search, contentDescription = null)
                                 },
                                 trailingIcon = {
                                     if (searchQuery.isNotEmpty()) {
                                         IconButton(onClick = { searchQuery = "" }) {
-                                            Icon(Icons.Default.Clear, contentDescription = null)
+                                            Icon(Icons.Outlined.Clear, contentDescription = null)
                                         }
                                     }
                                 },
@@ -410,7 +415,7 @@ private fun ModelCard(
                                 enabled = canDelete
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Delete,
+                                    imageVector = Icons.Outlined.Delete,
                                     contentDescription = stringResource(R.string.mnn_delete_model),
                                     tint = if (canDelete) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                                     modifier = Modifier.size(18.dp)
@@ -434,7 +439,7 @@ private fun ModelCard(
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                             ) {
                                 Icon(
-                                    Icons.Default.Download, 
+                                    Icons.Outlined.Download,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -584,7 +589,7 @@ private fun ModelCard(
                                     enabled = canDelete
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Delete,
+                                        imageVector = Icons.Outlined.Delete,
                                         contentDescription = stringResource(R.string.mnn_delete_model),
                                         tint = if (canDelete) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                                         modifier = Modifier.size(18.dp)
@@ -622,7 +627,7 @@ private fun ModelCard(
                             enabled = canDelete
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Delete,
+                                imageVector = Icons.Outlined.Delete,
                                 contentDescription = stringResource(R.string.mnn_delete_model),
                                 tint = if (canDelete) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                                 modifier = Modifier.size(18.dp)
@@ -660,7 +665,7 @@ private fun ModelCard(
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                             ) {
                                 Icon(
-                                    Icons.Default.Refresh, 
+                                    Icons.Outlined.Refresh,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -677,4 +682,3 @@ private fun ModelCard(
         }
     }
 }
-

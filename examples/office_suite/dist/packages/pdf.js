@@ -11,7 +11,7 @@
     "en": "PDF info, extraction, page operations, forms, watermarks, encryption, images, and creation."
   },
   "enabledByDefault": false,
-  "category": "Document",
+  "category": "File",
   "tools": [
     {
       "name": "pdf_info",

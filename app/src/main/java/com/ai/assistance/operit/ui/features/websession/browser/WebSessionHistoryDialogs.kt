@@ -10,10 +10,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.ContentCopy
+
 import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.PlayArrow
@@ -91,7 +92,7 @@ internal fun WebSessionHistoryActionDialog(
                         onClick = onAddBookmark,
                     )
                     HistoryActionRow(
-                        icon = Icons.Filled.ContentCopy,
+                        icon = Icons.Outlined.ContentCopy,
                         title = stringResource(R.string.web_session_history_copy_link),
                         tone = KiyoriSemanticTone.PURPLE,
                         onClick = onCopyLink,
@@ -106,14 +107,14 @@ internal fun WebSessionHistoryActionDialog(
                     )
                     if (sourcePageUrl != null) {
                         HistoryActionRow(
-                            icon = Icons.AutoMirrored.Filled.OpenInNew,
+                            icon = Icons.AutoMirrored.Outlined.OpenInNew,
                             title = stringResource(R.string.web_session_history_open_source_page),
                             tone = KiyoriSemanticTone.GREEN,
                             onClick = onOpenSourcePage,
                         )
                     }
                     HistoryActionRow(
-                        icon = Icons.Filled.ContentCopy,
+                        icon = Icons.Outlined.ContentCopy,
                         title = stringResource(R.string.web_session_history_copy_video_link),
                         tone = KiyoriSemanticTone.PURPLE,
                         onClick = onCopyLink,
@@ -127,7 +128,7 @@ internal fun WebSessionHistoryActionDialog(
                 onClick = onCopyTitle,
             )
             HistoryActionRow(
-                icon = Icons.Filled.Delete,
+                icon = Icons.Outlined.Delete,
                 title = stringResource(R.string.web_session_history_delete_entry),
                 tone = KiyoriSemanticTone.RED,
                 onClick = onDeleteEntry,

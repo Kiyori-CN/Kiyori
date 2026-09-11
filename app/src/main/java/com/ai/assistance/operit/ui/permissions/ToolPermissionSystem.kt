@@ -121,7 +121,8 @@ class ToolPermissionSystem private constructor(private val context: Context) {
     }
     
     // Registry of operation descriptions by tool name
-    private val operationDescriptionRegistry = mutableMapOf<String, (AITool) -> String>()
+    // 插件启动并发注册，权限检查同时读取；不能用普通 HashMap 发布描述函数。
+    private val operationDescriptionRegistry = java.util.concurrent.ConcurrentHashMap<String, (AITool) -> String>()
     
     /**
      * Register a description generator for a tool

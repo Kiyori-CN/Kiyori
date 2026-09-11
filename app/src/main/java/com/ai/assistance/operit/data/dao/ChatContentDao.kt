@@ -396,8 +396,13 @@ abstract class ChatContentDao {
     open suspend fun getVariantsForMessages(
         chatId: String,
         messageTimestamps: List<Long>,
-    ): List<MessageVariantEntity> =
-        materializeVariants(queryVariantsForMessages(chatId, messageTimestamps))
+    ): List<MessageVariantEntity> {
+        // Android 旧版 SQLite 最多绑定 999 个参数，chatId 占用一个。
+        // 先去重排序，使跨批次仍保持原查询的时间戳/变体顺序；稀疏选择不读取区间内无关正文。
+        return messageTimestamps.distinct().sorted().chunked(998).flatMap { batch ->
+            materializeVariants(queryVariantsForMessages(chatId, batch))
+        }
+    }
 
     @Transaction
     open suspend fun getVariantsForMessage(

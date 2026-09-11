@@ -7,6 +7,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -273,7 +275,7 @@ fun GlobalDisplaySettingsScreen(
                             },
                         ) {
                             Icon(
-                                Icons.Default.Save,
+                                Icons.Outlined.Save,
                                 contentDescription = stringResource(R.string.save),
                             )
                         }
@@ -286,7 +288,7 @@ fun GlobalDisplaySettingsScreen(
             // ======= 系统显示设置 =======
             SectionTitle(
                 text = stringResource(R.string.system_display_settings),
-                icon = Icons.Default.Settings
+                icon = Icons.Outlined.Settings
             )
 
             DisplayToggleItem(
@@ -877,7 +879,7 @@ fun GlobalDisplaySettingsScreen(
                                     }
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Save,
+                                        imageVector = Icons.Outlined.Save,
                                         contentDescription = stringResource(id = R.string.save)
                                     )
                                 }

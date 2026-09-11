@@ -37,11 +37,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Crop
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Phone
@@ -759,7 +759,7 @@ private fun MicrophoneButtonWithHints(
         // 左侧编辑提示
         DragHint(
             visible = showDragHints,
-            icon = Icons.Default.Edit,
+            icon = Icons.Outlined.Edit,
             iconColor = MaterialTheme.colorScheme.primary,
             description = stringResource(R.string.floating_edit),
             isLeft = true,
@@ -771,7 +771,7 @@ private fun MicrophoneButtonWithHints(
         // 右侧取消提示
         DragHint(
             visible = showDragHints,
-            icon = Icons.Default.Delete,
+            icon = Icons.Outlined.Delete,
             iconColor = MaterialTheme.colorScheme.error,
             description = stringResource(R.string.floating_cancel),
             isLeft = false,
@@ -989,7 +989,7 @@ private fun MicrophoneButton(
         when {
             isRecording && isDraggingToCancel.value -> {
                 Icon(
-                    imageVector = Icons.Default.Delete,
+                    imageVector = Icons.Outlined.Delete,
                     contentDescription = stringResource(R.string.floating_cancel_recording),
                     tint = Color.White,
                     modifier = Modifier.size(40.dp)
@@ -997,7 +997,7 @@ private fun MicrophoneButton(
             }
             isRecording && isDraggingToEdit.value -> {
                 Icon(
-                    imageVector = Icons.Default.Edit,
+                    imageVector = Icons.Outlined.Edit,
                     contentDescription = stringResource(R.string.floating_edit_recording),
                     tint = Color.White,
                     modifier = Modifier.size(40.dp)

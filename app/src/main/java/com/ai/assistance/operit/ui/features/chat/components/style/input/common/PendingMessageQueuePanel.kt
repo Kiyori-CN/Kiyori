@@ -14,11 +14,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.automirrored.outlined.Send
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -75,7 +75,7 @@ fun PendingMessageQueuePanel(
                     modifier = Modifier.weight(1f)
                 )
                 Icon(
-                    imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    imageVector = if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
                     contentDescription =
                         if (expanded) {
                             stringResource(R.string.collapse)
@@ -115,7 +115,7 @@ fun PendingMessageQueuePanel(
                             ) {
                                 QueueIconAction(
                                     onClick = { onEditMessage(item.id) },
-                                    imageVector = Icons.Default.Edit,
+                                    imageVector = Icons.Outlined.Edit,
                                     contentDescription = stringResource(R.string.edit),
                                     tint = actionIconTint
                                 )
@@ -133,13 +133,13 @@ fun PendingMessageQueuePanel(
                                 ) {
                                     QueueIconAction(
                                         onClick = { onSendMessage(item.id) },
-                                        imageVector = Icons.AutoMirrored.Filled.Send,
+                                        imageVector = Icons.AutoMirrored.Outlined.Send,
                                         contentDescription = stringResource(R.string.send),
                                         tint = actionIconTint
                                     )
                                     QueueIconAction(
                                         onClick = { onDeleteMessage(item.id) },
-                                        imageVector = Icons.Default.Delete,
+                                        imageVector = Icons.Outlined.Delete,
                                         contentDescription = stringResource(R.string.delete),
                                         tint = actionIconTint
                                     )

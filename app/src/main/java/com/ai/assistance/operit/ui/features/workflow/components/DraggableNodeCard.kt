@@ -8,10 +8,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
+
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
+
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -79,22 +81,22 @@ fun DraggableNodeCard(
         )
         is ExecuteNode -> NodeStyle(
             tone = KiyoriSemanticTone.BLUE,
-            icon = Icons.Default.Settings,
+            icon = Icons.Outlined.Settings,
             label = stringResource(R.string.workflow_node_label_execute)
         )
         is ConditionNode -> NodeStyle(
             tone = KiyoriSemanticTone.ORANGE,
-            icon = Icons.Default.Settings,
+            icon = Icons.Outlined.Settings,
             label = stringResource(R.string.workflow_node_label_condition)
         )
         is LogicNode -> NodeStyle(
             tone = KiyoriSemanticTone.PURPLE,
-            icon = Icons.Default.Settings,
+            icon = Icons.Outlined.Settings,
             label = stringResource(R.string.workflow_node_label_logic)
         )
         is ExtractNode -> NodeStyle(
             tone = KiyoriSemanticTone.CYAN,
-            icon = Icons.Default.Settings,
+            icon = Icons.Outlined.Settings,
             label = stringResource(R.string.workflow_node_label_extract)
         )
     }
@@ -273,7 +275,7 @@ fun DraggableNodeCard(
                             }
                             is NodeExecutionState.Skipped -> {
                                 Icon(
-                                    imageVector = Icons.Default.Close,
+                                    imageVector = Icons.Outlined.Close,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.outline,
                                     modifier = Modifier.size(12.dp)
@@ -288,7 +290,7 @@ fun DraggableNodeCard(
                             }
                             is NodeExecutionState.Failed -> {
                                 Icon(
-                                    imageVector = Icons.Default.Close,
+                                    imageVector = Icons.Outlined.Close,
                                     contentDescription = null,
                                     tint = failedColors.icon,
                                     modifier = Modifier.size(12.dp)

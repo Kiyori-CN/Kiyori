@@ -761,6 +761,64 @@ class EnhancedAIService private constructor(private val context: Context) {
         }
     }
 
+    /** 功能调用固定本次配置，不修改可见聊天状态，也不执行返回的工具标记。 */
+    suspend fun callFunctionModel(
+        functionType: FunctionType,
+        turns: List<PromptTurn>,
+        enableThinking: Boolean = false,
+        recordTokenUsage: Boolean = true,
+    ): String {
+        require(turns.isNotEmpty()) { "turns must not be empty" }
+        ensureInitialized()
+        val lease = multiServiceManager.acquireServiceForFunction(functionType)
+        var inputTokens = 0
+        var cachedTokens = 0
+        var outputTokens = 0
+        var completed = false
+        var failure: Throwable? = null
+        try {
+            val output = StringBuilder()
+            lease.service.sendMessage(
+                context = context,
+                chatHistory = turns,
+                modelParameters = lease.modelParameters,
+                enableThinking = enableThinking,
+                stream = false,
+                availableTools = emptyList(),
+                preserveThinkInHistory = true,
+                onTokensUpdated = { input, cached, generated ->
+                    // 回调属于本次请求，共享 service 的计数器可能已被并发调用更新。
+                    inputTokens = input.coerceAtLeast(0)
+                    cachedTokens = cached.coerceAtLeast(0)
+                    outputTokens = generated.coerceAtLeast(0)
+                },
+                enableRetry = false,
+            ).collect { output.append(it) }
+            completed = true
+            return output.toString()
+        } catch (error: Throwable) {
+            failure = error
+            throw error
+        } finally {
+            withContext(kotlinx.coroutines.NonCancellable) {
+                try {
+                    if (recordTokenUsage && (completed || inputTokens > 0 || outputTokens > 0 || cachedTokens > 0)) {
+                        apiPreferences.recordFunctionModelUsage(
+                            lease.service.providerModel, inputTokens, outputTokens, cachedTokens,
+                        )
+                    }
+                } catch (error: Exception) {
+                    val original = failure
+                    if (original == null) throw error
+                    original.addSuppressed(error)
+                    AppLogger.e(TAG, "Failed to persist plugin model usage", error)
+                } finally {
+                    lease.close()
+                }
+            }
+        }
+    }
+
     private fun publishRequestWindowEstimate(windowSize: Int) {
         _requestWindowEstimate.value = windowSize
     }
@@ -1915,8 +1973,9 @@ class EnhancedAIService private constructor(private val context: Context) {
                                         R.string.enhanced_pure_thinking_only_warning
                                 )
                         )
-                context.roundManager.appendContent("\n$pureThinkingWarning")
-                collector.emit(pureThinkingWarning)
+                val warningDisplayContent = "\n$pureThinkingWarning"
+                context.roundManager.appendContent(warningDisplayContent)
+                collector.emit(warningDisplayContent)
                 try {
                     context.conversationHistory.add(
                         PromptTurn(kind = PromptTurnKind.TOOL_RESULT, content = pureThinkingWarning)

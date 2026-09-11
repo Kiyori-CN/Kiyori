@@ -2,8 +2,8 @@ package com.ai.assistance.operit.ui.features.chat.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -73,7 +73,7 @@ fun FullscreenInputDialog(
                 ) {
                     IconButton(onClick = { finishEditing() }) {
                         Icon(
-                            imageVector = Icons.Default.Close,
+                            imageVector = Icons.Outlined.Close,
                             contentDescription = stringResource(R.string.workflow_close)
                         )
                     }
@@ -91,7 +91,7 @@ fun FullscreenInputDialog(
                         }
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Check,
+                            imageVector = Icons.Outlined.Check,
                             contentDescription = stringResource(R.string.save)
                         )
                     }

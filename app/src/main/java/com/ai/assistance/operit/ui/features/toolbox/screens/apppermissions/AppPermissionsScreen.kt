@@ -16,6 +16,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.List
@@ -321,7 +323,7 @@ fun AppPermissionsScreen(navController: NavController) {
                                             placeholder = { Text(context.getString(R.string.file_manager_search_hint)) },
                                             leadingIcon = {
                                                 Icon(
-                                                        Icons.Default.Search,
+                                                        Icons.Outlined.Search,
                                                         contentDescription = context.getString(R.string.search)
                                                 )
                                             },
@@ -329,7 +331,7 @@ fun AppPermissionsScreen(navController: NavController) {
                                                 if (searchQuery.isNotEmpty()) {
                                                     IconButton(onClick = { searchQuery = "" }) {
                                                         Icon(
-                                                                Icons.Default.Clear,
+                                                                Icons.Outlined.Clear,
                                                                 contentDescription = context.getString(R.string.clear)
                                                         )
                                                     }

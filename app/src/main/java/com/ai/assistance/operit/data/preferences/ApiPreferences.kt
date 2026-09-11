@@ -636,6 +636,29 @@ class ApiPreferences private constructor(private val context: Context) {
      * @param outputTokens 新增的输出token
      * @param cachedInputTokens 新增的缓存命中token
      */
+    /** 请求数与 token 一次写盘；中断后保留已经收到的用量，不读取共享模型计数器。 */
+    suspend fun recordFunctionModelUsage(
+        providerModel: String,
+        inputTokens: Int,
+        outputTokens: Int,
+        cachedInputTokens: Int,
+    ) {
+        require(inputTokens >= 0 && outputTokens >= 0 && cachedInputTokens >= 0)
+        context.apiDataStore.edit { preferences ->
+            listOf(
+                getTokenInputKey(providerModel) to inputTokens,
+                getTokenOutputKey(providerModel) to outputTokens,
+                getTokenCachedInputKey(providerModel) to cachedInputTokens,
+            ).forEach { (key, count) ->
+                val previous = readTokenCount(preferences, key.name)
+                removeTokenCountKeys(preferences, key.name)
+                preferences[key] = saturatedProviderUsageLongSum(previous, count.toLong())
+            }
+            val requestKey = getRequestCountKey(providerModel)
+            preferences[requestKey] = saturatedProviderUsageIntSum(preferences[requestKey] ?: 0, 1)
+        }
+    }
+
     suspend fun updateTokensForProviderModel(
             providerModel: String,
             inputTokens: Int,

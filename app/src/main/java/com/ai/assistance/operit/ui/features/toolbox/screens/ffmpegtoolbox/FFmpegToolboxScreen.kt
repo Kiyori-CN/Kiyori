@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -427,7 +428,7 @@ fun TemplateItem(template: CommandTemplate, onSelect: () -> Unit) {
 
             IconButton(onClick = onSelect, modifier = Modifier.size(40.dp)) {
                 Icon(
-                    imageVector = Icons.Default.ContentCopy,
+                    imageVector = Icons.Outlined.ContentCopy,
                     contentDescription = stringResource(R.string.ffmpeg_use_template),
                     tint = MaterialTheme.colorScheme.primary
                 )

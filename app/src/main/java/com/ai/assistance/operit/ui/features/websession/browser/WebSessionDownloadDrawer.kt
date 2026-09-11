@@ -34,13 +34,18 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.AutoFixHigh
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Download
+
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Close
+
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material.icons.filled.Search
+
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -275,7 +280,7 @@ internal fun WebSessionDownloadSheet(
         ) {
             WebSessionDrawerHeader(
                 title = if (batchMode) "已选 ${selectedVisibleItems.size} 项" else "我的下载",
-                leadingIcon = Icons.Filled.Download,
+                leadingIcon = Icons.Outlined.Download,
                 tone = WebSessionBrowserMenuTone.DOWNLOADS,
                 titleActions = {
                     Box(
@@ -765,7 +770,7 @@ private fun DownloadSearchAndFilterBar(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    imageVector = Icons.Filled.Search,
+                    imageVector = Icons.Outlined.Search,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(19.dp),
@@ -798,7 +803,7 @@ private fun DownloadSearchAndFilterBar(
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.Close,
+                            imageVector = Icons.Outlined.Close,
                             contentDescription = "清除搜索",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp),
@@ -1167,7 +1172,7 @@ private fun DownloadSortDialog(
 ) {
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
         WebSessionBrowserDialogSurface(
-            icon = Icons.Filled.Download,
+            icon = Icons.Outlined.Download,
             tone = WebSessionBrowserMenuTone.DOWNLOADS,
             title = "排序方式",
             modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
@@ -1216,7 +1221,7 @@ private fun AddBrowserDownloadDialog(
     var showFullLinkDialog by remember { mutableStateOf(false) }
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
         WebSessionBrowserDialogSurface(
-            icon = Icons.Filled.Download,
+            icon = Icons.Outlined.Download,
             tone = WebSessionBrowserMenuTone.DOWNLOADS,
             title = "添加文件下载",
             modifier = Modifier.fillMaxWidth(0.86f),
@@ -1240,9 +1245,9 @@ private fun AddBrowserDownloadDialog(
                     onValueChange = { suffix = it },
                     trailingIcon = {
                         Icon(
-                            imageVector = Icons.Filled.Description,
+                            imageVector = Icons.Outlined.AutoFixHigh,
                             contentDescription = "提取文件后缀",
-                            tint = Color(0xFF70B7DE),
+                            tint = WebSessionBrowserMenuTone.DOWNLOADS.resolveColors().icon,
                                 modifier =
                                     Modifier
                                         .size(40.dp)
@@ -1280,9 +1285,9 @@ private fun AddBrowserDownloadDialog(
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     Icon(
-                        imageVector = Icons.Filled.Info,
+                        imageVector = Icons.Outlined.Edit,
                         contentDescription = "编辑完整链接",
-                        tint = Color(0xFF51BBD4),
+                        tint = WebSessionBrowserMenuTone.NETWORK_LOG.resolveColors().icon,
                         modifier = Modifier.size(40.dp).clickable { showFullLinkDialog = true },
                     )
                 }
@@ -1416,7 +1421,7 @@ private fun DownloadFullLinkDialog(
     var fullLink by remember(initialValue) { mutableStateOf(initialValue) }
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
         WebSessionBrowserDialogSurface(
-            icon = Icons.Filled.Download,
+            icon = Icons.Outlined.Download,
             tone = WebSessionBrowserMenuTone.DOWNLOADS,
             title = "完整链接",
             modifier = Modifier.fillMaxWidth(0.86f),
@@ -1512,7 +1517,7 @@ private fun DownloadActionDialog(
 ) {
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
         WebSessionBrowserDialogSurface(
-            icon = Icons.Filled.Download,
+            icon = Icons.Outlined.Download,
             tone = WebSessionBrowserMenuTone.DOWNLOADS,
             title = "请选择操作",
             modifier = Modifier.fillMaxWidth(if (columns == 1) 0.74f else 0.84f),
@@ -1565,7 +1570,7 @@ private fun RenameBrowserDownloadDialog(
     var showError by remember(item.id, mode) { mutableStateOf(false) }
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
         WebSessionBrowserDialogSurface(
-            icon = Icons.Filled.Download,
+            icon = Icons.Outlined.Download,
             tone = WebSessionBrowserMenuTone.DOWNLOADS,
             title = if (mode == BrowserDownloadRenameMode.SUFFIX) "修改后缀" else "重命名",
             modifier = Modifier.widthIn(min = 300.dp, max = 380.dp),

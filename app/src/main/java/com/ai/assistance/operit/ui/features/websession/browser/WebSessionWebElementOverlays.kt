@@ -21,18 +21,20 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Close
+
 import androidx.compose.material.icons.filled.AddBox
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Close
+
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Collections
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Language
@@ -413,7 +415,7 @@ private fun webElementActionUi(
     when (action) {
         BrowserWebElementAction.OPEN_NEW_WINDOW ->
             WebElementActionUi(
-                Icons.AutoMirrored.Filled.OpenInNew,
+                Icons.AutoMirrored.Outlined.OpenInNew,
                 "新窗口打开",
                 "在前台新窗口打开链接",
                 WebElementActionTone.PRIMARY,
@@ -445,7 +447,7 @@ private fun webElementActionUi(
             )
         BrowserWebElementAction.SAVE_IMAGE ->
             WebElementActionUi(
-                Icons.Filled.Download,
+                Icons.Outlined.Download,
                 "保存图片",
                 "进入浏览器下载流程",
                 WebElementActionTone.IMAGE,
@@ -500,7 +502,7 @@ private fun webElementActionUi(
             }
         BrowserWebElementAction.COPY_TEXT ->
             WebElementActionUi(
-                Icons.Filled.ContentCopy,
+                Icons.Outlined.ContentCopy,
                 "复制文本",
                 "复制当前元素文本",
                 WebElementActionTone.COPY,
@@ -723,7 +725,7 @@ internal fun WebSessionAdMarkingWorkbench(
                 )
                 IconButton(onClick = onExit, modifier = Modifier.size(40.dp)) {
                     Icon(
-                        imageVector = Icons.Filled.Close,
+                        imageVector = Icons.Outlined.Close,
                         contentDescription = "关闭标记广告",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp),

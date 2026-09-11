@@ -39,8 +39,12 @@ internal fun KiyoriModalBottomDrawer(
                 dismissOnBackPress = false,
                 dismissOnClickOutside = false,
                 usePlatformDefaultWidth = false,
+                // 遮罩必须延伸到状态栏，否则独立 Dialog 窗口会在顶部留下未遮盖的亮色条。
+                // 内容安全区继续由共享抽屉处理，不能靠窗口整体避让系统栏。
+                decorFitsSystemWindows = false,
             ),
     ) {
+        KiyoriDialogOwnsScrim()
         BackHandler(enabled = isVisible, onBack = dismissDrawer)
 
         BoxWithConstraints(modifier = modifier.fillMaxSize()) {

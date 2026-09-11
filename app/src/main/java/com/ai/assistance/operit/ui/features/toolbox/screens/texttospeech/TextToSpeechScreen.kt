@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
@@ -394,7 +395,7 @@ fun TextToSpeechScreen(navController: NavController) {
                                                                                 }
                                                                         ) {
                                                                                 Icon(
-                                                                                        imageVector = Icons.Default.Clear,
+                                                                                        imageVector = Icons.Outlined.Clear,
                                                                                         contentDescription = stringResource(R.string.speech_services_simple_tts_voice_clear)
                                                                                 )
                                                                         }
@@ -633,7 +634,7 @@ fun TextToSpeechScreen(navController: NavController) {
                                                         )
                                                 ) {
                                                         Icon(
-                                                                imageVector = Icons.Default.Clear,
+                                                                imageVector = Icons.Outlined.Clear,
                                                                 contentDescription = stringResource(R.string.tts_clear_error),
                                                                 modifier = Modifier.size(16.dp)
                                                         )

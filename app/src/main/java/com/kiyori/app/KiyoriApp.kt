@@ -930,6 +930,13 @@ fun KiyoriApp(
                     }
                 },
                 browserHome = { modifier, systemBackEnabled ->
+                    androidx.compose.runtime.CompositionLocalProvider(
+                        com.ai.assistance.operit.ui.main.components.LocalKiyoriOpenFileManager provides { updateShellState(shellState.openFileManager()) },
+                        com.ai.assistance.operit.ui.main.components.LocalKiyoriOpenBrowserPasswords provides {
+                            updateShellState(shellState.openSettings(origin = KiyoriSettingsOrigin.BROWSER_HOME,
+                                initialRoute = KiyoriSettingsRoute.BROWSER_PASSWORD_MANAGER))
+                        },
+                    ) {
                     KiyoriBrowserHome(
                         onExitBrowser = {
                             updateShellState(
@@ -967,6 +974,7 @@ fun KiyoriApp(
                         systemBackEnabled = systemBackEnabled,
                         modifier = modifier,
                     )
+                    }
                 },
                 aiHost = {
                     // Browser Home 会先注册自己的系统返回。设置详情在这里接管返回，才能压住

@@ -980,6 +980,52 @@ export interface CircularProgressIndicatorProps extends ComposeCommonProps {
 
 export interface SnackbarHostProps extends ComposeCommonProps {}
 
+/** @since ToolPkg API 1.0.1 */
+export interface DialogProperties {
+  dismissOnBackPress?: boolean;
+  dismissOnClickOutside?: boolean;
+  usePlatformDefaultWidth?: boolean;
+  decorFitsSystemWindows?: boolean;
+}
+
+/** @since ToolPkg API 1.0.1 */
+export interface AlertDialogProps extends ComposeCommonProps {
+  title?: string | ComposeChildren;
+  text?: string | ComposeChildren;
+  markdown?: string;
+  content?: ComposeChildren;
+  icon?: ComposeChildren;
+  confirmButton?: ComposeChildren;
+  dismissButton?: ComposeChildren;
+  confirmText?: string;
+  dismissText?: string;
+  onConfirm?: () => void | Promise<void>;
+  onDismiss?: () => void | Promise<void>;
+  onDismissRequest?: () => void | Promise<void>;
+  closeOnConfirm?: boolean;
+  closeOnDismiss?: boolean;
+  closeOnDismissRequest?: boolean;
+  containerColor?: ComposeColor;
+  iconContentColor?: ComposeColor;
+  titleContentColor?: ComposeColor;
+  textContentColor?: ComposeColor;
+  tonalElevation?: number;
+  shape?: ComposeShape;
+  properties?: DialogProperties;
+}
+
+/** @since ToolPkg API 1.0.1 */
+export interface DialogProps extends ComposeCommonProps {
+  content?: ComposeChildren;
+  onDismissRequest?: () => void | Promise<void>;
+  closeOnDismissRequest?: boolean;
+  containerColor?: ComposeColor;
+  contentColor?: ComposeColor;
+  tonalElevation?: number;
+  shape?: ComposeShape;
+  properties?: DialogProperties;
+}
+
 export interface CanvasProps extends ComposeCommonProps {
   commands?: ComposeCanvasCommand[];
   transform?: ComposeCanvasTransform;
@@ -1052,7 +1098,8 @@ export interface ComposeNode {
 
 export type ComposeChildren = ComposeNode | ComposeNode[] | null | undefined;
 
-export type ComposeNodeFactory<TProps extends Record<string, unknown> = Record<string, unknown>> = (
+// 组件 props 是具名接口，不要求任意字符串索引；保留各组件的精确字段校验。
+export type ComposeNodeFactory<TProps extends object = Record<string, unknown>> = (
   props?: TProps,
   children?: ComposeChildren
 ) => ComposeNode;
@@ -1076,6 +1123,10 @@ export interface ComposeUiFactoryRegistry {
   LinearProgressIndicator: ComposeNodeFactory<LinearProgressIndicatorProps>;
   CircularProgressIndicator: ComposeNodeFactory<CircularProgressIndicatorProps>;
   SnackbarHost: ComposeNodeFactory<SnackbarHostProps>;
+  /** @since ToolPkg API 1.0.1 */
+  AlertDialog: ComposeNodeFactory<AlertDialogProps>;
+  /** @since ToolPkg API 1.0.1 */
+  Dialog: ComposeNodeFactory<DialogProps>;
   Canvas: ComposeNodeFactory<CanvasProps>;
   WebView: ComposeNodeFactory<WebViewProps>;
 }
@@ -1227,7 +1278,7 @@ export interface ComposeDslContext {
    */
   resolveToolName?(request: ComposeResolveToolNameRequest): Promise<string> | string;
 
-  h<TProps extends Record<string, unknown> = Record<string, unknown>>(
+  h<TProps extends object = Record<string, unknown>>(
     type: string,
     props?: TProps,
     children?: ComposeChildren

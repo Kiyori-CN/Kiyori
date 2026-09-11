@@ -22,9 +22,9 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -351,7 +351,7 @@ private fun FullScreenImageDialog(imageUrl: String, imageAlt: String, onDismiss:
                             modifier = Modifier.align(Alignment.TopStart).size(40.dp),
                     ) {
                         Icon(
-                                imageVector = Icons.Default.Close,
+                                imageVector = Icons.Outlined.Close,
                                 contentDescription = stringResource(R.string.common_close),
                                 tint = Color.White
                         )
@@ -388,7 +388,7 @@ private fun FullScreenImageDialog(imageUrl: String, imageAlt: String, onDismiss:
                             )
                         } else {
                             Icon(
-                                    imageVector = Icons.Default.Download,
+                                    imageVector = Icons.Outlined.Download,
                                     contentDescription = stringResource(R.string.save_image),
                                     tint = Color.White
                             )

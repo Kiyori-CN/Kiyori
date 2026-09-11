@@ -8,11 +8,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material.icons.outlined.Clear
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Save
+
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
@@ -213,7 +214,7 @@ internal fun ThemeSettingsFontSection(
                                 modifier = Modifier.weight(1f),
                             ) {
                                 Icon(
-                                    Icons.Default.Add,
+                                    Icons.Outlined.Add,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp),
                                 )
@@ -234,7 +235,7 @@ internal fun ThemeSettingsFontSection(
                                     modifier = Modifier.weight(1f),
                                 ) {
                                     Icon(
-                                        Icons.Default.Clear,
+                                        Icons.Outlined.Clear,
                                         contentDescription = null,
                                         modifier = Modifier.size(18.dp),
                                     )
@@ -382,7 +383,7 @@ internal fun ThemeSettingsAvatarSection(
                             },
                         ) {
                             Icon(
-                                Icons.Default.Clear,
+                                Icons.Outlined.Clear,
                                 contentDescription = stringResource(id = R.string.clear_action),
                             )
                         }
@@ -397,7 +398,7 @@ internal fun ThemeSettingsAvatarSection(
                             },
                         ) {
                             Icon(
-                                Icons.Default.Save,
+                                Icons.Outlined.Save,
                                 contentDescription = stringResource(id = R.string.save_action),
                             )
                         }
@@ -510,7 +511,7 @@ internal fun ThemeSettingsAvatarSection(
                             modifier = Modifier.size(40.dp),
                         ) {
                             Icon(
-                                Icons.Default.Add,
+                                Icons.Outlined.Add,
                                 contentDescription =
                                     stringResource(id = R.string.avatar_corner_increase),
                             )

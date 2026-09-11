@@ -1,5 +1,8 @@
 package com.ai.assistance.operit.ui.features.packages.market
 
+import com.kiyori.design.theme.KiyoriSurfaceTokens
+import com.kiyori.design.theme.kiyoriSurfaceColors
+
 import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
@@ -70,6 +73,7 @@ data class MarketBrowseCardModel(
     val title: String,
     val description: String,
     val logoUrl: String? = null,
+    val toolPkgApiVersion: String? = null,
     val ownerUsername: String = "",
     val thumbsUpCount: Int = 0,
     val heartCount: Int = 0,
@@ -365,8 +369,8 @@ fun MarketBrowseCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth().clickable { onViewDetails() },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        colors = CardDefaults.cardColors(containerColor = kiyoriSurfaceColors().card),
+        elevation = CardDefaults.cardElevation(defaultElevation = KiyoriSurfaceTokens.flatElevation)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
@@ -383,6 +387,16 @@ fun MarketBrowseCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+
+                model.toolPkgApiVersion?.let { apiVersion ->
+                    Text(
+                        text = stringResource(R.string.pkg_toolpkg_api_version, apiVersion),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
 
                 if (model.description.isNotBlank()) {
                     Spacer(modifier = Modifier.height(6.dp))

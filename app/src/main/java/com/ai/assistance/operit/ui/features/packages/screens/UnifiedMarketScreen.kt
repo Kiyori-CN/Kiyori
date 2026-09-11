@@ -1,5 +1,8 @@
 package com.ai.assistance.operit.ui.features.packages.screens
 
+import com.kiyori.design.theme.KiyoriSurfaceTokens
+import com.kiyori.design.theme.kiyoriSurfaceColors
+
 import android.content.Context
 import android.widget.Toast
 import androidx.annotation.StringRes
@@ -23,6 +26,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Api
 import androidx.compose.material.icons.filled.Apps
@@ -37,13 +42,13 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
+
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.automirrored.filled.Comment
-import androidx.compose.material.icons.filled.Refresh
+
 import androidx.compose.material.icons.automirrored.outlined.Login
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.Add
@@ -148,7 +153,7 @@ private val MarketCategoryNameResById =
 
 private val MarketCategoryIconById =
     mapOf(
-        "search_research" to Icons.Default.Search,
+        "search_research" to Icons.Outlined.Search,
         "dev_code" to Icons.Default.Code,
         "automation_workflow" to Icons.Default.AutoAwesome,
         "docs_knowledge" to Icons.Default.Description,
@@ -674,8 +679,8 @@ private fun MarketNotificationsPane(onNavigateToDetail: (MarketV2Entry) -> Unit)
 private fun MarketNotificationCard(notification: MarketV2Notification, onClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        colors = CardDefaults.cardColors(containerColor = kiyoriSurfaceColors().card),
+        elevation = CardDefaults.cardElevation(defaultElevation = KiyoriSurfaceTokens.flatElevation),
         shape = KiyoriUiShapes.control
     ) {
         Row(
@@ -734,7 +739,7 @@ private fun notificationKindIcon(kind: String): ImageVector {
         "comment_new", "comment_reply" -> Icons.AutoMirrored.Filled.Comment
         "review_approved", "entry_curated" -> Icons.Default.CheckCircle
         "review_rejected" -> Icons.Default.Cancel
-        "review_changes" -> Icons.Default.Refresh
+        "review_changes" -> Icons.Outlined.Refresh
         else -> Icons.Default.Notifications
     }
 }

@@ -13,13 +13,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Delete
+
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -119,7 +120,7 @@ internal fun WebSessionUserscriptDetail(
                     enabled = script != null,
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Edit,
+                        imageVector = Icons.Outlined.Edit,
                         contentDescription = stringResource(R.string.web_session_userscript_edit),
                     )
                 }
@@ -128,7 +129,7 @@ internal fun WebSessionUserscriptDetail(
                     enabled = script != null && scriptId !in state.checkingUpdateIds,
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Refresh,
+                        imageVector = Icons.Outlined.Refresh,
                         contentDescription = stringResource(R.string.web_session_userscript_check_update),
                     )
                 }
@@ -247,7 +248,7 @@ internal fun WebSessionUserscriptDetail(
     if (deletePromptVisible) {
         WebSessionBrowserModalDialog(onDismissRequest = { deletePromptVisible = false }) {
             WebSessionBrowserDialogSurface(
-                icon = Icons.Filled.Delete,
+                icon = Icons.Outlined.Delete,
                 tone = WebSessionBrowserMenuTone.PLUGINS,
                 title = stringResource(R.string.web_session_userscript_delete),
                 modifier = Modifier.widthIn(min = 300.dp, max = 380.dp),
@@ -367,7 +368,7 @@ private fun UserscriptDetailContent(
                         )
                     }
                     TextButton(onClick = onDelete) {
-                        Icon(Icons.Filled.Delete, contentDescription = null)
+                        Icon(Icons.Outlined.Delete, contentDescription = null)
                         Text(stringResource(R.string.web_session_userscript_delete))
                     }
                 }
@@ -465,7 +466,7 @@ private fun UserscriptDetailContent(
                         enabled = detail.activeSource?.isNotBlank() == true && !exportingSource,
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.FileDownload,
+                            imageVector = Icons.Outlined.FileDownload,
                             contentDescription = null,
                         )
                         Text(stringResource(R.string.export))

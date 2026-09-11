@@ -20,9 +20,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Visibility
@@ -193,7 +193,7 @@ fun UIDebuggerOverlay(
                                 modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
-                                    Icons.Default.ContentCopy,
+                                    Icons.Outlined.ContentCopy,
                                     contentDescription = stringResource(R.string.uidebugger_copy_activity_name),
                                     modifier = Modifier.size(14.dp),
                                     tint = MaterialTheme.colorScheme.onTertiaryContainer
@@ -206,7 +206,7 @@ fun UIDebuggerOverlay(
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
-                                Icons.Default.Close,
+                                Icons.Outlined.Close,
                                 contentDescription = stringResource(R.string.uidebugger_close_panel),
                                 modifier = Modifier.size(14.dp),
                                 tint = MaterialTheme.colorScheme.onTertiaryContainer
@@ -346,7 +346,7 @@ fun UIDebuggerOverlay(
                     modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
-                        Icons.Default.Close,
+                        Icons.Outlined.Close,
                         contentDescription = stringResource(R.string.pkg_close),
                         tint = MaterialTheme.colorScheme.onErrorContainer,
                         modifier = Modifier.size(20.dp)
@@ -402,7 +402,7 @@ fun UIDebuggerOverlay(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        Icons.Default.Close,
+                        Icons.Outlined.Close,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onErrorContainer,
                         modifier = Modifier.size(20.dp)
@@ -518,7 +518,7 @@ fun ElementInfoPanel(
                 )
                 IconButton(onClick = onDismiss) {
                     Icon(
-                        imageVector = Icons.Default.Close,
+                        imageVector = Icons.Outlined.Close,
                         contentDescription = stringResource(R.string.pkg_close)
                     )
                 }
@@ -574,7 +574,7 @@ fun ElementInfoPanel(
                                 modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
-                                    Icons.Default.ContentCopy,
+                                    Icons.Outlined.ContentCopy,
                                     contentDescription = stringResource(R.string.uidebugger_copy_activity_name),
                                     modifier = Modifier.size(16.dp),
                                     tint = MaterialTheme.colorScheme.onSecondaryContainer

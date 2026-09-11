@@ -113,16 +113,26 @@ internal fun deleteManagedEntry(source: Path, fingerprint: String, commit: (Path
 }
 
 internal fun zipManagedEntry(source: Path, destination: Path, commit: (Path, Path) -> Unit, checkActive: () -> Unit = {}) {
-    val from = source.toAbsolutePath().normalize()
+    zipManagedEntries(listOf(source), destination, commit, checkActive)
+}
+
+internal fun zipManagedEntries(sources: List<Path>, destination: Path, commit: (Path, Path) -> Unit, checkActive: () -> Unit = {}) {
+    require(sources.isNotEmpty() && sources.size <= 100_000) { "请选择 1 至 100000 个项目" }
+    val normalized = sources.map { it.toAbsolutePath().normalize() }
+    require(normalized.map { it.fileName }.distinct().size == normalized.size) { "压缩源包含重复名称" }
     val parent = destination.parent.toRealPath()
     val target = parent.resolve(destination.fileName)
-    require(from.fileName != null && target != from.toRealPath() && !target.startsWith(from.toRealPath())) { "压缩包不能放在源项目内部" }
-    val before = inspectManagedTree(from, checkActive)
+    val snapshots = normalized.associateWith { from ->
+        require(from.fileName != null && target != from.toRealPath() && !target.startsWith(from.toRealPath())) { "压缩包不能放在源项目内部" }
+        inspectManagedTree(from, checkActive)
+    }
+    require(snapshots.values.sumOf { it.entries.size.toLong() } <= 100_000) { "压缩项目总数超过 100000" }
     val staging = Files.createTempDirectory(parent, ".kiyori-zip-")
     val payload = staging.resolve("payload")
     var failure: Throwable? = null
     try {
         ZipOutputStream(Files.newOutputStream(payload, CREATE_NEW, WRITE)).use { zip ->
+            snapshots.forEach { (from, before) ->
             before.entries.forEach { entry ->
                 checkActive()
                 val path = from.resolve(entry.relative)
@@ -136,8 +146,9 @@ internal fun zipManagedEntry(source: Path, destination: Path, commit: (Path, Pat
                 }
                 zip.closeEntry()
             }
+            }
         }
-        check(inspectManagedTree(from, checkActive).fingerprint == before.fingerprint) { "压缩期间源项目发生变化" }
+        snapshots.forEach { (from, before) -> check(inspectManagedTree(from, checkActive).fingerprint == before.fingerprint) { "压缩期间源项目发生变化" } }
         FileChannel.open(payload, WRITE).use { it.force(true) }
         checkActive(); commit(payload, target)
     } catch (error: Throwable) { failure = error }
@@ -173,7 +184,12 @@ internal suspend fun executeManagedFileTool(tool: AITool, backendEnvironment: St
                     root.lastModifiedTime().toMillis(), Files.isReadable(source), Files.isWritable(source), tree.fingerprint, sha))
             }
             "delete_file" -> {
-                if (parameter("delete_mode") == "recycle") {
+                if (parameter("delete_mode") == "purge_recycled") {
+                    val record = LocalFileRecycleBin.recordForPayload(source)
+                    check(inspectManagedTree(source).fingerprint == parameter("fingerprint")) { "回收项目已经变化，请重新检查" }
+                    LocalFileRecycleBin.delete(record, NativeNoReplaceCommit::commit, parameter("fingerprint"))
+                    result(true, "已彻底删除")
+                } else if (parameter("delete_mode") == "recycle") {
                     val trashRoot = requireNotNull(parameter("trash_root")).also { require(it.isNotBlank()) { "此位置没有可用回收站" } }
                     PathValidator.validateAndroidPath(trashRoot, tool.name)?.let { return it }
                     LocalFileRecycleBin.recycle(source, Paths.get(trashRoot), parameter("fingerprint").orEmpty(), NativeNoReplaceCommit::commit)
@@ -184,11 +200,22 @@ internal suspend fun executeManagedFileTool(tool: AITool, backendEnvironment: St
                     result(true, "已永久删除")
                 }
             }
+            "move_file" -> {
+                require(parameter("move_mode") == "restore_recycled")
+                val record = LocalFileRecycleBin.recordForPayload(source)
+                require(record.originalPath == destination) { "恢复目标与原位置不一致" }
+                LocalFileRecycleBin.restore(record, NativeNoReplaceCommit::commit)
+                result(true, "已恢复到原位置")
+            }
             "zip_files" -> {
                 val extracting = parameter("zip_mode") == "extract_no_replace"
                 require(extracting || parameter("zip_mode") == "no_replace")
                 if (extracting) extractManagedZip(source, Paths.get(requireNotNull(destination)), NativeNoReplaceCommit::commit, active)
-                else zipManagedEntry(source, Paths.get(requireNotNull(destination)), NativeNoReplaceCommit::commit, active)
+                else {
+                    val sources = parameter("sources")?.let { kotlinx.serialization.json.Json.decodeFromString<List<String>>(it) } ?: listOf(path)
+                    sources.forEach { value -> PathValidator.validateAndroidPath(value, tool.name)?.let { return it } }
+                    zipManagedEntries(sources.map { Paths.get(it) }, Paths.get(requireNotNull(destination)), NativeNoReplaceCommit::commit, active)
+                }
                 result(true, if (extracting) "ZIP 解压完成，源压缩包保留" else "ZIP 压缩完成，源项目保留")
             }
             else -> result(false, "不支持的操作", FileCopyErrorCode.UNSUPPORTED)

@@ -375,7 +375,8 @@ class KiyoriSettingsPagesTest {
                 "app/src/main/java/com/ai/assistance/operit/ui/features/chat/components/" +
                     "ChatScreenHeader.kt",
             ).readText()
-        assertTrue(chatHeaderSource.contains("padding(horizontal = 16.dp, vertical = 2.dp)"))
+        assertTrue(chatHeaderSource.contains("padding(horizontal = 16.dp, vertical = KIYORI_SECONDARY_BAR_VERTICAL_PADDING_DP.dp)"))
+        assertEquals(2, com.kiyori.design.theme.KIYORI_SECONDARY_BAR_VERTICAL_PADDING_DP)
 
         val settingsUiSource =
             repositoryFile(
@@ -1547,7 +1548,7 @@ class KiyoriSettingsPagesTest {
                 .substringBefore("// 标签栏")
         assertTrue(
             fileManagerRoot.contains(
-                ".background(androidx.compose.ui.graphics.Color(0xFFFAFAFA))",
+                ".background(MaterialTheme.colorScheme.background)",
             ),
         )
         val fileManagerChromeSource =
@@ -1555,7 +1556,8 @@ class KiyoriSettingsPagesTest {
                 "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/" +
                     "filemanager/components/FileManagerChrome.kt",
             ).readText()
-        assertTrue(fileManagerChromeSource.contains(".statusBarsPadding()"))
+        assertTrue(fileManagerChromeSource.contains("windowInsets = WindowInsets.statusBars"))
+        assertTrue(fileManagerChromeSource.contains(".navigationBarsPadding()"))
         assertFalse(
             fileManagerRoot.contains(
                 ".windowInsetsPadding(WindowInsets.safeDrawing)",

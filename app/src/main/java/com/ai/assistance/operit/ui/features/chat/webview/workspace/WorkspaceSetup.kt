@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -256,7 +257,7 @@ fun WorkspaceSetup(chatId: String, isVisible: Boolean = true, onBindWorkspace: s
                             // Java 项目卡片
                             ProjectTypeCard(
                                 enabled = !isImportingToolPkgTemplate,
-                                icon = Icons.Default.Settings,
+                                icon = Icons.Outlined.Settings,
                                 title = context.getString(R.string.workspace_project_type_java_title),
                                 description = context.getString(R.string.workspace_project_type_java_description),
                                 onClick = {

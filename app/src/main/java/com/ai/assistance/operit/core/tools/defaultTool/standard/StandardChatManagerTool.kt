@@ -7,28 +7,30 @@ import android.content.ServiceConnection
 import android.os.Build
 import android.os.IBinder
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.api.chat.EnhancedAIService
 import com.ai.assistance.operit.api.chat.ChatRuntimeHolder
 import com.ai.assistance.operit.api.chat.ChatRuntimeSlot
-import com.ai.assistance.operit.util.AppLogger
-import com.ai.assistance.operit.util.ChatMarkupRegex
-import com.ai.assistance.operit.util.WaifuMessageProcessor
-import com.ai.assistance.operit.util.stream.SharedStream
+import com.ai.assistance.operit.core.chat.hooks.PromptTurn
+import com.ai.assistance.operit.core.chat.hooks.PromptTurnKind
 import com.ai.assistance.operit.core.tools.AgentStatusResultData
+import com.ai.assistance.operit.core.tools.ChatCallResultData
+import com.ai.assistance.operit.core.tools.ChatCallTurnInfo
 import com.ai.assistance.operit.core.tools.ChatCreationResultData
+import com.ai.assistance.operit.core.tools.ChatDeleteResultData
 import com.ai.assistance.operit.core.tools.ChatFindResultData
 import com.ai.assistance.operit.core.tools.ChatListResultData
 import com.ai.assistance.operit.core.tools.ChatMessagesResultData
-import com.ai.assistance.operit.core.tools.CharacterCardListResultData
 import com.ai.assistance.operit.core.tools.ChatServiceStartResultData
 import com.ai.assistance.operit.core.tools.ChatSwitchResultData
 import com.ai.assistance.operit.core.tools.ChatTitleUpdateResultData
-import com.ai.assistance.operit.core.tools.ChatDeleteResultData
+import com.ai.assistance.operit.core.tools.CharacterCardListResultData
 import com.ai.assistance.operit.core.tools.MessageSendResultData
 import com.ai.assistance.operit.core.tools.MessageSendStreamEventData
 import com.ai.assistance.operit.core.tools.StringResultData
 import com.ai.assistance.operit.data.model.ChatHistory
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ChatTurnOptions
+import com.ai.assistance.operit.data.model.FunctionType
 import com.ai.assistance.operit.data.model.InputProcessingState
 import com.ai.assistance.operit.data.model.PromptFunctionType
 import com.ai.assistance.operit.data.model.ToolResult
@@ -38,7 +40,12 @@ import com.ai.assistance.operit.data.repository.ChatHistoryManager
 import com.ai.assistance.operit.services.ChatServiceCore
 import com.ai.assistance.operit.services.FloatingChatService
 import com.ai.assistance.operit.ui.floating.FloatingMode
+import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.util.ChatMarkupRegex
+import com.ai.assistance.operit.util.WaifuMessageProcessor
+import com.ai.assistance.operit.util.stream.SharedStream
 import java.time.ZoneId
+import java.util.Locale
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -51,6 +58,14 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import org.json.JSONArray
+import org.json.JSONObject
+import org.json.JSONTokener
 
 data class MessageSendStreamSession(
     val chatId: String,
@@ -84,6 +99,17 @@ class StandardChatManagerTool(private val context: Context) {
         private const val SERVICE_CONNECTION_TIMEOUT = 15000L // 15秒超时
         private const val RESPONSE_STREAM_ACQUIRE_TIMEOUT = 15000L
         private const val AI_RESPONSE_TIMEOUT = 180000L
+
+
+    }
+
+    private fun chatCallError(tool: AITool, message: String): ToolResult {
+        return ToolResult(
+            toolName = tool.name,
+            success = false,
+            result = StringResultData(""),
+            error = message
+        )
     }
 
     private fun simplifyXmlBlocksForHistory(text: String): String {
@@ -1337,6 +1363,58 @@ class StandardChatManagerTool(private val context: Context) {
         }
     }
 
+    suspend fun callChatModel(tool: AITool): ToolResult {
+        return try {
+            val functionType =
+                ChatCallCodec.parseChatCallFunctionType(
+                    tool.parameters.find { it.name == "function_type" }?.value
+                )
+            val turns =
+                ChatCallCodec.parseChatCallPromptTurns(
+                    tool.parameters.find { it.name == "turns" }?.value
+                )
+            val recordTokenUsage =
+                ChatCallCodec.parseChatCallBoolean(
+                    tool.parameters.find { it.name == "record_token_usage" }?.value,
+                    "recordTokenUsage",
+                    true
+                )
+            val enableThinking =
+                ChatCallCodec.parseChatCallBoolean(
+                    tool.parameters.find { it.name == "enable_thinking" }?.value,
+                    "enableThinking",
+                    false
+                )
+
+            val rawResponse =
+                EnhancedAIService
+                    .getInstance(appContext)
+                    .callFunctionModel(
+                        functionType = functionType,
+                        turns = turns,
+                        enableThinking = enableThinking,
+                        recordTokenUsage = recordTokenUsage
+                    )
+            val output = ChatCallCodec.parseChatCallOutput(rawResponse)
+
+            ToolResult(
+                toolName = tool.name,
+                success = true,
+                result =
+                    ChatCallResultData(
+                        text = output.text,
+                        turns = output.turns,
+                        finishReason = output.finishReason,
+                        metadata = output.metadata
+                    )
+            )
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            AppLogger.e(TAG, "Failed to call chat model", e)
+            chatCallError(tool, "Error calling chat model: ${e.message}")
+        }
+    }
+
     /**
      * 向AI发送消息
      */
@@ -1615,10 +1693,18 @@ class StandardChatManagerTool(private val context: Context) {
 
     suspend fun sendMessageToAI(tool: AITool): ToolResult {
         return try {
+            val waitForResponse = ChatCallCodec.parseChatCallBoolean(
+                tool.parameters.find { it.name == "wait_for_response" }?.value, "wait_for_response", true
+            )
             when (val startResult = startMessageToAIStream(tool)) {
                 is MessageSendStreamStartResult.Failed -> startResult.result
                 is MessageSendStreamStartResult.Started -> {
                     val session = startResult.session
+                    if (!waitForResponse) {
+                        // core 已为这次发送创建新响应流，后续生成由 core 的生命周期持有。
+                        return ToolResult(toolName = tool.name, success = true,
+                            result = MessageSendResultData(chatId = session.chatId, message = session.message))
+                    }
                     val aiResponse =
                         try {
                             withTimeout(session.responseTimeoutMs) {

@@ -8,10 +8,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.ScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.filled.Brightness6
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Keyboard
-import androidx.compose.material.icons.filled.Tune
+
 import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -51,7 +52,7 @@ internal enum class ThemeSettingsTab(
     ),
     CHAT(R.string.theme_tab_chat, Icons.Default.ChatBubble, KiyoriSemanticTone.PURPLE),
     INPUT(R.string.theme_tab_input, Icons.Default.Keyboard, KiyoriSemanticTone.CYAN),
-    INTERFACE(R.string.theme_tab_interface, Icons.Default.Tune, KiyoriSemanticTone.ORANGE),
+    INTERFACE(R.string.theme_tab_interface, Icons.Outlined.Tune, KiyoriSemanticTone.ORANGE),
 }
 
 @Composable

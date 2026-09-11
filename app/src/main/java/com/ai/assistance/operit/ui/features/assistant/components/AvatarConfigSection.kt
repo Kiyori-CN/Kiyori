@@ -13,9 +13,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.filled.AddPhotoAlternate
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
@@ -760,7 +760,7 @@ private fun MoodMappingCard(
                     onEdit?.let { editAction ->
                         IconButton(onClick = editAction) {
                             Icon(
-                                imageVector = Icons.Default.Edit,
+                                imageVector = Icons.Outlined.Edit,
                                 contentDescription = stringResource(R.string.avatar_edit_custom_mood_type)
                             )
                         }
@@ -768,7 +768,7 @@ private fun MoodMappingCard(
                     onDelete?.let { deleteAction ->
                         IconButton(onClick = deleteAction) {
                             Icon(
-                                imageVector = Icons.Default.Delete,
+                                imageVector = Icons.Outlined.Delete,
                                 contentDescription = stringResource(R.string.avatar_delete_custom_mood_type)
                             )
                         }
@@ -1123,7 +1123,7 @@ fun ModelSelector(
                                 }
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Edit,
+                                    imageVector = Icons.Outlined.Edit,
                                     contentDescription = stringResource(R.string.rename)
                                 )
                             }
@@ -1134,7 +1134,7 @@ fun ModelSelector(
                                 }
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Delete,
+                                    imageVector = Icons.Outlined.Delete,
                                     contentDescription = stringResource(R.string.delete)
                                 )
                             }

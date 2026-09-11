@@ -22,7 +22,7 @@ internal enum class WebSessionBrowserSheetRoute {
     MEDIA_CANDIDATES,
     SITE_CONFIG,
     PAGE_SOURCE,
-    PLACEHOLDER,
+    TOOLBOX,
 }
 
 @Immutable
@@ -68,10 +68,6 @@ internal data class BrowserCookieUiState(
     val errorMessage: String? = null,
     val updatedAt: Long? = null,
 )
-
-internal enum class WebSessionBrowserPlaceholderPage {
-    TOOLBOX,
-}
 
 @Immutable
 internal data class WebSessionBrowserTab(
@@ -460,7 +456,6 @@ internal data class WebSessionBrowserHostState(
     val pluginEditorExitPromptDraftId: String? = null,
     val cookieState: BrowserCookieUiState = BrowserCookieUiState(),
     val selectedProfile: WebSessionProfile = WebSessionProfile.NORMAL,
-    val placeholderPage: WebSessionBrowserPlaceholderPage? = null,
     val siteConfigDomain: String? = null,
     val isSearchVisible: Boolean = false,
     val isSearchEnginePanelVisible: Boolean = false,

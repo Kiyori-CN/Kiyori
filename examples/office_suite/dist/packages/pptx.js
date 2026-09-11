@@ -11,7 +11,7 @@
     "en": "PPTX outline, generation, template fill, slide structure maintenance, and shape editing."
   },
   "enabledByDefault": false,
-  "category": "Document",
+  "category": "File",
   "tools": [
     {
       "name": "pptx_outline",

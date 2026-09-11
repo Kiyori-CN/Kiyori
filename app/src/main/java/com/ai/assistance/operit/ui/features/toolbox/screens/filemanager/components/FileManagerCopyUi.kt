@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.*
+import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 
 private fun locationLabel(location: FileManagerLocation): String =
     "${location.environment ?: "手机"} · ${location.path}"
@@ -89,7 +90,7 @@ fun FileManagerTransferDetails(
     onStop: () -> Unit,
 ) {
     if (!visible || state.total == 0) return
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    KiyoriModalBottomDrawer(onDismissRequest = onDismiss) { dismissDrawer ->
         Column(Modifier.fillMaxWidth().heightIn(max = 640.dp).padding(horizontal = 24.dp).padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(if (state.running) (if (state.move) "正在移动" else "正在复制") else (if (state.move) "移动结果" else "复制结果"), style = MaterialTheme.typography.titleLarge)
@@ -131,7 +132,7 @@ fun FileManagerTransferDetails(
                     }
                 }
             }
-            TextButton(onClick = onDismiss) { Text(if (state.running) "继续浏览" else "关闭") }
+            TextButton(onClick = dismissDrawer) { Text(if (state.running) "继续浏览" else "关闭") }
         }
     }
 }

@@ -23,8 +23,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Clear
+
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -142,7 +143,7 @@ fun EditPanel(
                     shape = KiyoriUiShapes.control,
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Clear,
+                        imageVector = Icons.Outlined.Clear,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp)
                     )

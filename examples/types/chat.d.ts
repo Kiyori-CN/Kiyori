@@ -17,8 +17,10 @@ import {
     MessageSendResultData,
     MessageSendStreamEventData,
     ChatMessagesResultData,
+    ChatCallResultData,
     CharacterCardListResultData
 } from './results';
+import type { ToolPkg } from './toolpkg';
 
 /**
  * Chat Manager namespace
@@ -36,6 +38,8 @@ export namespace Chat {
     }
 
     interface SendMessageOptions {
+        /** 默认 true。false 在宿主确认启动本次响应后返回，不等待 AI 完整回复。 */
+        wait_for_response?: boolean;
         runtime?: Runtime;
         persist_turn?: boolean;
         notify_reply?: boolean;
@@ -47,6 +51,31 @@ export namespace Chat {
     interface SendMessageStreamingOptions extends SendMessageOptions {
         waifu?: boolean;
         onIntermediateResult?: (event: MessageSendStreamEventData) => void;
+    }
+
+    export type FunctionModelType =
+        | 'CHAT'
+        | 'SUMMARY'
+        | 'TITLE_GENERATION'
+        | 'MEMORY'
+        | 'UI_CONTROLLER'
+        | 'TRANSLATION'
+        | 'GREP'
+        | 'ROLE_RESPONSE_PLANNER'
+        | 'IMAGE_RECOGNITION'
+        | 'AUDIO_RECOGNITION'
+        | 'VIDEO_RECOGNITION';
+
+    /**
+     * Function model call options.
+     *
+     * @since ToolPkg API 1.0.1
+     */
+    export interface ChatCallOptions {
+        functionType: FunctionModelType;
+        turns: ToolPkg.PromptTurn[];
+        recordTokenUsage?: boolean;
+        enableThinking?: boolean;
     }
 
     /**
@@ -146,6 +175,15 @@ export namespace Chat {
         senderName?: string,
         options?: SendMessageStreamingOptions
     ): Promise<MessageSendResultData>;
+
+    /**
+     * Call a configured function model with structured PromptTurn context.
+     *
+     * The returned `turns` can include `TOOL_CALL` records when the model emits tool XML.
+     *
+     * @since ToolPkg API 1.0.1
+     */
+    function call(options: ChatCallOptions): Promise<ChatCallResultData>;
 
     /**
      * List all character cards

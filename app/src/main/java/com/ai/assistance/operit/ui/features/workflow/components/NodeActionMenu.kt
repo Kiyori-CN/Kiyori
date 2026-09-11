@@ -1,10 +1,12 @@
 package com.ai.assistance.operit.ui.features.workflow.components
 
+import com.kiyori.design.theme.KiyoriSurfaceTokens
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -33,7 +35,7 @@ fun NodeActionMenuDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = KiyoriSurfaceTokens.popupElevation),
             shape = KiyoriUiShapes.dialog,
         ) {
             Column(
@@ -54,7 +56,7 @@ fun NodeActionMenuDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Edit,
+                        imageVector = Icons.Outlined.Edit,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp)
                     )
@@ -106,7 +108,7 @@ fun NodeActionMenuDialog(
                     )
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Delete,
+                        imageVector = Icons.Outlined.Delete,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp)
                     )

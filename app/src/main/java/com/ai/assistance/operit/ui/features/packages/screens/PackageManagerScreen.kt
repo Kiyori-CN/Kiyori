@@ -198,6 +198,7 @@ fun PackageManagerScreen(
     var showPackageLoadErrorsDialog by remember { mutableStateOf(false) }
     var importErrorMessage by remember { mutableStateOf<String?>(null) }
     var pluginOrder by remember { mutableStateOf<List<String>>(emptyList()) }
+    val pluginOrderSaveMutex = remember { Mutex() }
     var skillOrder by remember { mutableStateOf<List<String>>(emptyList()) }
     var showCreateScriptDialog by remember { mutableStateOf(false) }
     var pendingScriptProxyPackageName by remember { mutableStateOf<String?>(null) }
@@ -856,9 +857,20 @@ fun PackageManagerScreen(
                             },
                             pluginOrder = pluginOrder,
                             onSavePluginOrder = { newOrder ->
-                                pluginOrder = newOrder
                                 scope.launch {
-                                    apiPreferences.savePluginOrder(newOrder)
+                                    try {
+                                        pluginOrderSaveMutex.withLock {
+                                            // 落盘成功后再更新运行时顺序；连续拖动按原顺序提交。
+                                            apiPreferences.savePluginOrder(newOrder)
+                                            pluginOrder = newOrder
+                                            packageManager.updateToolPkgPluginOrder(newOrder)
+                                        }
+                                    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                                        throw cancelled
+                                    } catch (error: Exception) {
+                                        AppLogger.e("PackageManagerScreen", "Plugin order save failed", error)
+                                        snackbarHostState.showSnackbar(resources.getString(R.string.save_failed))
+                                    }
                                 }
                             },
                         )
@@ -1214,5 +1226,4 @@ private fun PackageManagerTabLabel(
         )
     }
 }
-
 

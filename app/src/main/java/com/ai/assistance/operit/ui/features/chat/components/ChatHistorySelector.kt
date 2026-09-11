@@ -27,13 +27,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.filled.AccountTree
-import androidx.compose.material.icons.filled.Add
+
 import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
+
 import androidx.compose.material.icons.filled.DragHandle
-import androidx.compose.material.icons.filled.Edit
+
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
@@ -43,12 +47,12 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.Search
+
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.filled.Tune
+
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DriveFileRenameOutline
 import androidx.compose.material3.LinearProgressIndicator
@@ -993,7 +997,7 @@ fun ChatHistorySelector(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Edit,
+                                imageVector = Icons.Outlined.Edit,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier
@@ -2129,7 +2133,7 @@ fun ChatHistorySelector(
                         modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
-                            if (showSearchBox) Icons.Default.SearchOff else Icons.Default.Search,
+                            if (showSearchBox) Icons.Default.SearchOff else Icons.Outlined.Search,
                             contentDescription = stringResource(R.string.search),
                             tint = if (showSearchBox) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.size(20.dp)
@@ -2140,7 +2144,7 @@ fun ChatHistorySelector(
                         modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
-                            Icons.Default.Tune,
+                            Icons.Outlined.Tune,
                             contentDescription = stringResource(R.string.settings),
                             tint = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.size(20.dp)
@@ -2182,7 +2186,7 @@ fun ChatHistorySelector(
                 },
                 modifier = Modifier.weight(1f)
             ) {
-                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.new_chat))
+                Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.new_chat))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.new_chat))
             }
@@ -2225,7 +2229,7 @@ fun ChatHistorySelector(
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Icon(Icons.Default.Search, contentDescription = null)
+                        Icon(Icons.Outlined.Search, contentDescription = null)
                     }
                 },
                 trailingIcon = {
@@ -2556,7 +2560,7 @@ fun ChatHistorySelector(
                             icon = {
                                 Icon(
                                     modifier = Modifier.padding(16.dp),
-                                    imageVector = Icons.Default.Delete,
+                                    imageVector = Icons.Outlined.Delete,
                                     contentDescription = stringResource(R.string.delete),
                                     tint = Color.White
                                 )
@@ -2569,7 +2573,7 @@ fun ChatHistorySelector(
                             icon = {
                                 Icon(
                                     modifier = Modifier.padding(16.dp),
-                                    imageVector = Icons.Default.Edit,
+                                    imageVector = Icons.Outlined.Edit,
                                     contentDescription = stringResource(R.string.edit_title),
                                     tint = Color.White
                                 )

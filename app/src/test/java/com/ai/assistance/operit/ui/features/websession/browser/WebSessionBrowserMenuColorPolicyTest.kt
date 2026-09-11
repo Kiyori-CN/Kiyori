@@ -8,7 +8,7 @@ import org.junit.Test
 
 class WebSessionBrowserMenuColorPolicyTest {
     @Test
-    fun `four menu rows contain eighteen stable action identities`() {
+    fun `primary menu retains eighteen identities and AI moves into toolbox`() {
         val tones = WebSessionBrowserMenuTone.entries
         val tonesByRow = tones.groupBy(WebSessionBrowserMenuTone::rowIndex)
         val expectedRows =
@@ -29,10 +29,10 @@ class WebSessionBrowserMenuColorPolicyTest {
                 ),
                 listOf(
                     WebSessionBrowserMenuTone.INCOGNITO,
+                    WebSessionBrowserMenuTone.READER_MODE,
                     WebSessionBrowserMenuTone.PAGE_SOURCE,
                     WebSessionBrowserMenuTone.AD_MARKING,
                     WebSessionBrowserMenuTone.SITE_CONFIG,
-                    WebSessionBrowserMenuTone.AI_DIALOGUE,
                 ),
                 listOf(
                     WebSessionBrowserMenuTone.EXIT_BROWSER,
@@ -41,7 +41,7 @@ class WebSessionBrowserMenuColorPolicyTest {
                 ),
             )
 
-        assertEquals(18, tones.size)
+        assertEquals(19, tones.size)
         assertEquals(listOf(5, 5, 5, 3), (0..3).map { row -> tonesByRow.getValue(row).size })
         assertEquals(
             expectedRows,
@@ -49,7 +49,7 @@ class WebSessionBrowserMenuColorPolicyTest {
                 tonesByRow.getValue(row).sortedBy(WebSessionBrowserMenuTone::columnIndex)
             },
         )
-        assertFalse(tones.any { tone -> tone.name == "READER_MODE" })
+        assertEquals(listOf(WebSessionBrowserMenuTone.AI_DIALOGUE), tonesByRow.getValue(-1))
         tonesByRow.forEach { (_, rowTones) ->
             assertEquals(
                 rowTones.size,

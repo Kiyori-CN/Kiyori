@@ -447,18 +447,29 @@ internal fun KiyoriAppShell(
                             onSubmitSearch = onSubmitWebSearch,
                             modifier = Modifier.fillMaxSize(),
                         )
-                    KiyoriShellChild.FILE_MANAGER -> fileManagerUiState.SaveableStateProvider("file-manager") {
+                    KiyoriShellChild.FILE_MANAGER, null -> Unit
+                }
+            }
+        }
+
+        // 文件页是固定工作表面。设置返回、悬浮球恢复都直接呈现，不能重播通用 child 的滑入动画。
+        if (state.child == KiyoriShellChild.FILE_MANAGER) {
+            Box(Modifier.fillMaxSize().zIndex(12f)) {
+                KiyoriShellSurfaceThemeBoundary(settingsRoute = null) {
+                    fileManagerUiState.SaveableStateProvider("file-manager") {
                         FileManagerScreen(
                             onBack = { onStateChange(state.closeChild()) },
                             onOpenSettings = { onStateChange(state.openSettings(origin = KiyoriSettingsOrigin.FILE_MANAGER)) },
                             sessionViewModel = fileManagerViewModel,
+                            onOpenBrowser = {
+                                onStateChange(latestState.minimizeFileManager().openBrowser(returnTarget = KiyoriBrowserReturnTarget.AI_HOME))
+                            },
                             onOpenAiDialogue = {
                                 onOpenAiHome()
                                 onStateChange(state.minimizeFileManager())
                             },
                         )
                     }
-                    null -> Unit
                 }
             }
         }
@@ -841,7 +852,7 @@ internal fun shouldPresentKiyoriSettingsOverlay(state: KiyoriShellState): Boolea
 }
 
 internal fun shouldAnimateKiyoriShellChildOverlay(state: KiyoriShellState): Boolean =
-    state.child != null
+    state.child == KiyoriShellChild.FULL_SCREEN_WEB_SEARCH
 
 internal fun shouldAcceptKiyoriHomePagerInput(
     state: KiyoriShellState,

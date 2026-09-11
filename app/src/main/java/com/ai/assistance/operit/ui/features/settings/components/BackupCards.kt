@@ -13,12 +13,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Psychology
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -141,7 +141,7 @@ fun BackupFilesStatisticsCard(
                         contentPadding = PaddingValues(0.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Refresh,
+                            imageVector = Icons.Outlined.Refresh,
                             contentDescription = stringResource(R.string.backup_refresh),
                             modifier = Modifier.size(20.dp)
                         )
@@ -174,7 +174,7 @@ fun BackupFilesStatisticsCard(
                     color = MaterialTheme.colorScheme.secondary
                 )
                 BackupFileStatItem(
-                    icon = Icons.Default.Settings,
+                    icon = Icons.Outlined.Settings,
                     count = modelConfigBackupCount,
                     label = stringResource(R.string.backup_model_config_files),
                     color = MaterialTheme.colorScheme.tertiary

@@ -22,6 +22,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Android
@@ -29,17 +32,17 @@ import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Download
+
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.KeyboardVoice
 import androidx.compose.material.icons.filled.LocalOffer
-import androidx.compose.material.icons.filled.MoreVert
+
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.Search
+
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -91,7 +94,7 @@ internal val kiyoriFileCategoryItems =
         KiyoriFileEntryItem("安装包", "0项", KiyoriSemanticTone.GREEN, Icons.Default.Android),
         KiyoriFileEntryItem("压缩包", "0项", KiyoriSemanticTone.ORANGE, Icons.Default.Folder),
         KiyoriFileEntryItem("标签", "0项", KiyoriSemanticTone.BLUE, Icons.Default.LocalOffer),
-        KiyoriFileEntryItem("下载", "0项", KiyoriSemanticTone.GREEN, Icons.Default.Download),
+        KiyoriFileEntryItem("下载", "0项", KiyoriSemanticTone.GREEN, Icons.Outlined.Download),
     )
 
 internal val kiyoriFileQuickAccessItems =
@@ -176,7 +179,7 @@ private fun KiyoriFileManagementTopBar() {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    Icons.Default.Search,
+                    Icons.Outlined.Search,
                     null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f),
                     modifier = Modifier.size(19.dp),
@@ -199,7 +202,7 @@ private fun KiyoriFileManagementTopBar() {
         Spacer(modifier = Modifier.width(12.dp))
         Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
             Icon(
-                Icons.Default.MoreVert,
+                Icons.Outlined.MoreVert,
                 null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
                 modifier = Modifier.size(20.dp),

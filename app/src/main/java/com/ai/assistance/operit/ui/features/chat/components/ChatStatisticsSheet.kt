@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.ui.features.chat.components
 
+import com.kiyori.design.theme.KIYORI_SECONDARY_BAR_CONTENT_HEIGHT_DP
 import android.widget.Toast
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.*
@@ -55,7 +56,7 @@ internal fun ChatStatisticsButton(
     IconButton(
         onClick = { expanded = true },
         // 统计入口与顶栏其他控件保持紧凑高度，避免默认 48dp 槽位撑高整行。
-        modifier = Modifier.requiredSize(36.dp).semantics {
+        modifier = Modifier.requiredSize(KIYORI_SECONDARY_BAR_CONTENT_HEIGHT_DP.dp).semantics {
         contentDescription = description
     }) {
         Box(modifier = Modifier.size(28.dp), contentAlignment = Alignment.Center) {

@@ -81,7 +81,6 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserHostState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionAdMarkingOverlay
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserNetworkEntry
-import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserPlaceholderPage
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserPluginRoute
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSettings
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSheetRoute
@@ -117,7 +116,6 @@ import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSession
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserTabOverview
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.resolveWebSessionBrowserChromeLayout
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserNetworkLog
-import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserPlaceholderSheet
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserSearchScreen
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserTopBar
 import com.kiyori.design.theme.KiyoriBrowserTheme
@@ -133,7 +131,7 @@ internal fun WebSessionBrowserSheetRoute.isWebSessionBrowserDrawerRoute(): Boole
         this != WebSessionBrowserSheetRoute.PAGE_SOURCE
 
 private fun WebSessionBrowserSheetRoute.isBrowserChildDrawerRoute(): Boolean =
-    isWebSessionBrowserDrawerRoute() && this != WebSessionBrowserSheetRoute.MENU
+    isWebSessionBrowserDrawerRoute() && this != WebSessionBrowserSheetRoute.MENU && this != WebSessionBrowserSheetRoute.TOOLBOX
 
 internal fun shouldOpenConfiguredHomeAfterClearingWindows(homeMode: BrowserHomeMode): Boolean =
     homeMode != BrowserHomeMode.BLANK
@@ -299,6 +297,8 @@ internal fun WebSessionBrowserScreen(
     val context = LocalContext.current
     val density = LocalDensity.current
     val browserState = hostState.browserState
+    val pageTools = rememberBrowserPageTools(webViewHost, browserState.activeDocumentToken, browserState.currentUrl, browserState.pageTitle)
+    BrowserPageToolsUi(pageTools)
     val homeMode = browserSettings.homeMode
     val homeUrl = browserSettings.homeUrl
     val visibleBrowserUrl = browserState.currentUrl.ifBlank { "about:blank" }
@@ -392,7 +392,6 @@ internal fun WebSessionBrowserScreen(
             current.copy(
                 sheetRoute = WebSessionBrowserSheetRoute.NONE,
                 pluginRouteStack = listOf(WebSessionBrowserPluginRoute.Overview),
-                placeholderPage = null,
                 siteConfigDomain = null,
             )
         }
@@ -452,14 +451,6 @@ internal fun WebSessionBrowserScreen(
         // completed before this one-shot request is emitted.
         onLaunchPlayerFullscreen()
         playerSession.acknowledgeFullscreenLaunchRequest(requestId)
-    }
-    val openPlaceholder: (WebSessionBrowserPlaceholderPage) -> Unit = { page ->
-        onHostStateChange { current ->
-            current.copy(
-                sheetRoute = WebSessionBrowserSheetRoute.PLACEHOLDER,
-                placeholderPage = page,
-            )
-        }
     }
     val activeSheetRoute = hostState.sheetRoute
     val pluginEditorRoute =
@@ -974,7 +965,11 @@ internal fun WebSessionBrowserScreen(
         if (mountedDrawerRoute.isWebSessionBrowserDrawerRoute()) {
             // BrowserContent now exists only in the App Shell. The custom drawer keeps the
             // browser-owned drag and viewport contract shared by its child routes.
-            if (mountedDrawerRoute == WebSessionBrowserSheetRoute.MENU) {
+            if (mountedDrawerRoute == WebSessionBrowserSheetRoute.TOOLBOX) {
+                if (activeSheetRoute == WebSessionBrowserSheetRoute.TOOLBOX) BrowserToolboxDrawer(
+                    onDismiss = dismissSheet, onOpenAiDialogue = onOpenAiDialogue, pageTools = pageTools,
+                )
+            } else if (mountedDrawerRoute == WebSessionBrowserSheetRoute.MENU) {
                 WebSessionBrowserMenuDrawer(
                     isVisible = activeSheetRoute == WebSessionBrowserSheetRoute.MENU,
                     isBookmarked = isBookmarked,
@@ -1016,11 +1011,8 @@ internal fun WebSessionBrowserScreen(
                     onOpenUserAgent = { onHostStateChange { it.copy(sheetRoute = WebSessionBrowserSheetRoute.USER_AGENT) } },
                     onOpenNetworkLog = { onHostStateChange { it.copy(sheetRoute = WebSessionBrowserSheetRoute.NETWORK_LOG) } },
                     onOpenDiagnosticLog = { onHostStateChange { it.copy(sheetRoute = WebSessionBrowserSheetRoute.DIAGNOSTICS) } },
-                    onOpenAiDialogue = {
-                        dismissSheet()
-                        onOpenAiDialogue()
-                    },
-                    onOpenToolbox = { openPlaceholder(WebSessionBrowserPlaceholderPage.TOOLBOX) },
+                    onOpenReaderMode = { dismissSheet(); pageTools.open(BrowserPageTool.READER) },
+                    onOpenToolbox = { onHostStateChange { it.copy(sheetRoute = WebSessionBrowserSheetRoute.TOOLBOX) } },
                     incognitoEnabled =
                         browserState.defaultSessionProfile == WebSessionProfile.INCOGNITO ||
                             browserState.incognitoAvailability.isAvailable,
@@ -1041,7 +1033,6 @@ internal fun WebSessionBrowserScreen(
                         onHostStateChange { current ->
                             current.copy(
                                 sheetRoute = WebSessionBrowserSheetRoute.SITE_CONFIG,
-                                placeholderPage = null,
                                 siteConfigDomain = siteConfigDomain,
                             )
                         }
@@ -1789,16 +1780,10 @@ private fun WebSessionBrowserDrawerContent(
                 modifier = Modifier.fillMaxSize(),
             )
 
-        WebSessionBrowserSheetRoute.PLACEHOLDER ->
-            WebSessionBrowserPlaceholderSheet(
-                page = hostState.placeholderPage,
-                onDismiss = onDismiss,
-                modifier = Modifier.fillMaxSize(),
-            )
-
         WebSessionBrowserSheetRoute.NONE,
         WebSessionBrowserSheetRoute.TABS,
         WebSessionBrowserSheetRoute.MENU,
+        WebSessionBrowserSheetRoute.TOOLBOX,
         WebSessionBrowserSheetRoute.USER_AGENT,
         WebSessionBrowserSheetRoute.PAGE_SOURCE -> Unit
         }

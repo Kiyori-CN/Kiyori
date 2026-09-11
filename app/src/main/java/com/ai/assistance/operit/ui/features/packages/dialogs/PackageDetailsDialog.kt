@@ -9,6 +9,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.PlayArrow
@@ -358,6 +360,7 @@ fun PackageDetailsDialog(
                                         )
                                     ) {
                                         Column(modifier = Modifier.padding(12.dp)) {
+                                            Text(text = stringResource(R.string.pkg_toolpkg_api_version, details.apiVersion), style = MaterialTheme.typography.bodySmall)
                                             if (details.version.isNotBlank()) {
                                                 Text(
                                                     text = stringResource(R.string.pkg_toolpkg_version, details.version),
@@ -438,6 +441,36 @@ fun PackageDetailsDialog(
                                         ToolPkgWorkspaceTemplatesCard(
                                             templates = details.workspaceTemplates
                                         )
+                                        if (details.requires.isNotEmpty()) {
+                                            Text(
+                                                text = stringResource(
+                                                    R.string.pkg_toolpkg_requires,
+                                                    details.requires.joinToString(", ") { requirement ->
+                                                        buildString {
+                                                            append(requirement.id)
+                                                            if (requirement.description.isNotBlank()) {
+                                                                append(" — ")
+                                                                append(requirement.description)
+                                                            }
+                                                            val versionRange = when {
+                                                                requirement.minVersion != null && requirement.maxVersion != null ->
+                                                                    "${requirement.minVersion} - ${requirement.maxVersion}"
+                                                                requirement.minVersion != null -> ">= ${requirement.minVersion}"
+                                                                requirement.maxVersion != null -> "<= ${requirement.maxVersion}"
+                                                                else -> null
+                                                            }
+                                                            if (versionRange != null) {
+                                                                append(" [")
+                                                                append(versionRange)
+                                                                append("]")
+                                                            }
+                                                        }
+                                                    }
+                                                ),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
                                     }
 
                                     Spacer(modifier = Modifier.height(8.dp))
@@ -799,7 +832,7 @@ private fun ToolPkgPluginConfigCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Tune,
+                        imageVector = Icons.Outlined.Tune,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
                         tint = MaterialTheme.colorScheme.primary
@@ -1016,7 +1049,7 @@ private fun ToolCard(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Icon(
-                        Icons.Default.Settings,
+                        Icons.Outlined.Settings,
                         contentDescription = null,
                         modifier = Modifier.size(12.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)

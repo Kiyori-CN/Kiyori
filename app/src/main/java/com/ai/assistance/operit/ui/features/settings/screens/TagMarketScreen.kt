@@ -7,7 +7,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Add
+
 import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Security
@@ -200,7 +201,7 @@ private fun PresetTagCard(preset: PresetTagBilingual, context: android.content.C
                 modifier = Modifier.align(Alignment.End),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(stringResource(R.string.tag_add))
             }

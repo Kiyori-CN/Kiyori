@@ -23,8 +23,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -67,6 +67,7 @@ internal fun WebSessionMinimizedIndicator(
     onConfirmBrowserDownload: (String) -> Unit,
     onCancelBrowserDownload: (String) -> Unit,
     idleIcon: androidx.compose.ui.graphics.vector.ImageVector = Icons.Filled.Language,
+    accentColor: Color? = null,
 ) {
     val dragModifier =
         Modifier.pointerInput(onDragBy) {
@@ -127,7 +128,7 @@ internal fun WebSessionMinimizedIndicator(
                     ) {
                         Box(modifier = Modifier.size(28.dp), contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = Icons.Filled.Download,
+                                imageVector = Icons.Outlined.Download,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
                             )
@@ -164,7 +165,7 @@ internal fun WebSessionMinimizedIndicator(
     }
 
     val transition = rememberInfiniteTransition(label = "web-session-indicator")
-    val primaryColor = MaterialTheme.colorScheme.primary
+    val primaryColor = accentColor ?: MaterialTheme.colorScheme.primary
 
     val bobbingDp by
         transition.animateFloat(
@@ -262,7 +263,7 @@ internal fun WebSessionMinimizedIndicator(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = if (activeDownloadCount > 0) Icons.Filled.Download else idleIcon,
+                imageVector = if (activeDownloadCount > 0) Icons.Outlined.Download else idleIcon,
                 contentDescription = null,
                 tint = primaryColor.copy(alpha = 0.76f),
                 modifier =
@@ -329,7 +330,7 @@ internal fun WebSessionMinimizedCloseAction(
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            imageVector = Icons.Filled.Close,
+            imageVector = Icons.Outlined.Close,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.error,
             modifier = Modifier.size(16.dp),

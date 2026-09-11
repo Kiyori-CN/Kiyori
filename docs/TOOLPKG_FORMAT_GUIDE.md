@@ -25,6 +25,22 @@
 | 多语言 | 需手动实现 | 内置支持 |
 | 版本管理 | 无标准 | 内置版本字段 |
 
+### 1.3 API 版本与依赖
+
+`version` 表示插件自己的版本；`api_version` 表示请求的宿主 API，二者均不等于应用产品版本。
+Kiyori 支持 `1.0.0` 和 `1.0.1`；只有缺少 `api_version` 时默认 `1.0.0`，空值、格式错误
+或未知版本会拒绝加载。使用版本化接口（例如 `Tools.Chat.call`、消息菜单、聊天运行时 Hook
+和 Compose 对话框）时应明确声明 `"api_version": "1.0.1"`。
+
+可通过 `requires` 声明包依赖，每项包含 `id`、`description`，以及可选的闭区间
+`min_version` / `max_version`。有版本约束时目标必须有合法的三段版本。优先使用完整包 ID；
+子包短名存在歧义时会拒绝加载，不按发现顺序猜测。依赖先于消费者加载，用户拖动顺序不能
+绕过依赖关系；缺失、版本不符、自依赖和循环均明确报错。
+
+完整接口签名见 [ToolPkg 类型](../examples/types/toolpkg.d.ts)、
+[聊天类型](../examples/types/chat.d.ts) 和 [Compose 类型](../examples/types/compose-dsl.d.ts)。
+运行时所有权、取消与失败边界见 [扩展契约](doc-src/contracts/extensions_workspace.md)。
+
 ## 2. ToolPkg 文件结构
 
 一个典型的 `.toolpkg` 文件的内部结构如下：

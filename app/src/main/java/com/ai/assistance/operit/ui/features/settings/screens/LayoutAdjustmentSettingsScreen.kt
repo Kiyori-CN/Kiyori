@@ -18,7 +18,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.Tune
+
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -96,7 +97,7 @@ fun LayoutAdjustmentSettingsScreen(
 
             SectionTitle(
                 text = stringResource(R.string.layout_adjustment_settings_title),
-                icon = Icons.Default.Tune
+                icon = Icons.Outlined.Tune
             )
 
             SettingsSectionCard(containerColor = sectionContainerColor) {

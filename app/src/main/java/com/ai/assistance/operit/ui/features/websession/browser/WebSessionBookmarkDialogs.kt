@@ -17,10 +17,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Tune
+
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -273,7 +274,7 @@ internal fun WebSessionBookmarkOptionsDialog(
 ) {
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
         WebSessionBrowserDialogSurface(
-            icon = Icons.Filled.Tune,
+            icon = Icons.Outlined.Tune,
             tone = WebSessionBrowserMenuTone.BOOKMARKS,
             title = title,
             modifier = Modifier.widthIn(min = 300.dp, max = 360.dp),

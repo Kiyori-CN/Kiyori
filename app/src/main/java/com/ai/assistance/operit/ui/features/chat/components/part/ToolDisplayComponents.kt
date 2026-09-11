@@ -7,10 +7,11 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.FileOpen
-import androidx.compose.material.icons.filled.Search
+
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Web
 import androidx.compose.material3.*
@@ -548,7 +549,7 @@ private fun getToolIcon(toolName: String): ImageVector {
 
         // 搜索工具
         toolName.contains("search") || toolName.contains("find") || toolName.contains("query") ->
-                Icons.Default.Search
+                Icons.Outlined.Search
 
         // 命令行工具
         toolName.contains("terminal") ||

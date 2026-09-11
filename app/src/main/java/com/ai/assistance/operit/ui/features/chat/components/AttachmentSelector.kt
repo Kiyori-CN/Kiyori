@@ -1,5 +1,9 @@
 package com.ai.assistance.operit.ui.features.chat.components
 
+import com.kiyori.design.theme.kiyoriSurfaceColors
+
+import com.kiyori.design.theme.KiyoriSurfaceTokens
+
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -36,16 +40,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Memory
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material.icons.filled.ScreenshotMonitor
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.Memory
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.ScreenshotMonitor
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Clear
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -185,17 +189,17 @@ fun AttachmentSelectorPanel(
                 val panelItems =
                         listOf(
                                 AttachmentPanelItem(
-                                        icon = Icons.Default.Image,
+                                        icon = Icons.Outlined.Image,
                                         label = context.getString(R.string.attachment_photo),
                                         onClick = { imagePickerLauncher.launch("image/*") }
                                 ),
                                 AttachmentPanelItem(
-                                        icon = Icons.Default.PhotoCamera,
+                                        icon = Icons.Outlined.PhotoCamera,
                                         label = context.getString(R.string.attachment_camera),
                                         onClick = launchCameraCapture
                                 ),
                                 AttachmentPanelItem(
-                                        icon = Icons.Default.Memory,
+                                        icon = Icons.Outlined.Memory,
                                         label = context.getString(R.string.attachment_memory),
                                         onClick = {
                                             onAttachMemory()
@@ -203,12 +207,12 @@ fun AttachmentSelectorPanel(
                                         }
                                 ),
                                 AttachmentPanelItem(
-                                        icon = Icons.Default.Description,
+                                        icon = Icons.Outlined.Description,
                                         label = context.getString(R.string.attachment_file),
                                         onClick = { filePickerLauncher.launch("*/*") }
                                 ),
                                 AttachmentPanelItem(
-                                        icon = Icons.Default.ScreenshotMonitor,
+                                        icon = Icons.Outlined.ScreenshotMonitor,
                                         label = context.getString(R.string.attachment_screen_content),
                                         onClick = {
                                             onAttachScreenContent()
@@ -216,7 +220,7 @@ fun AttachmentSelectorPanel(
                                         }
                                 ),
                                 AttachmentPanelItem(
-                                        icon = Icons.Default.Notifications,
+                                        icon = Icons.Outlined.Notifications,
                                         label = context.getString(R.string.attachment_notifications),
                                         onClick = {
                                             onAttachNotifications()
@@ -224,7 +228,7 @@ fun AttachmentSelectorPanel(
                                         }
                                 ),
                                 AttachmentPanelItem(
-                                        icon = Icons.Default.LocationOn,
+                                        icon = Icons.Outlined.LocationOn,
                                         label = context.getString(R.string.attachment_location),
                                         onClick = {
                                             onAttachLocation()
@@ -232,7 +236,7 @@ fun AttachmentSelectorPanel(
                                         }
                                 ),
                                 AttachmentPanelItem(
-                                        icon = Icons.Default.AutoAwesome,
+                                        icon = Icons.Outlined.AutoAwesome,
                                         label = context.getString(R.string.attachment_package),
                                         onClick = { showPackageDialog = true }
                                 )
@@ -336,7 +340,6 @@ fun AttachmentSelectorPanel(
 @Composable
 fun AttachmentSelectorPopupPanel(
         visible: Boolean,
-        containerColor: Color,
         onAttachImage: (String) -> Unit,
         onAttachFile: (String) -> Unit,
         onAttachScreenContent: () -> Unit,
@@ -401,17 +404,17 @@ fun AttachmentSelectorPopupPanel(
     val panelItems =
             listOf(
                     AttachmentPanelItem(
-                            icon = Icons.Default.Image,
+                            icon = Icons.Outlined.Image,
                             label = context.getString(R.string.attachment_photo),
                             onClick = { imagePickerLauncher.launch("image/*") }
                     ),
                     AttachmentPanelItem(
-                            icon = Icons.Default.PhotoCamera,
+                            icon = Icons.Outlined.PhotoCamera,
                             label = context.getString(R.string.attachment_camera),
                             onClick = launchCameraCapture
                     ),
                     AttachmentPanelItem(
-                            icon = Icons.Default.Memory,
+                            icon = Icons.Outlined.Memory,
                             label = context.getString(R.string.attachment_memory),
                             onClick = {
                                 onAttachMemory()
@@ -419,12 +422,12 @@ fun AttachmentSelectorPopupPanel(
                             }
                     ),
                     AttachmentPanelItem(
-                            icon = Icons.Default.Description,
+                            icon = Icons.Outlined.Description,
                             label = context.getString(R.string.attachment_file),
                             onClick = { filePickerLauncher.launch("*/*") }
                     ),
                     AttachmentPanelItem(
-                            icon = Icons.Default.ScreenshotMonitor,
+                            icon = Icons.Outlined.ScreenshotMonitor,
                             label = context.getString(R.string.attachment_screen_content),
                             onClick = {
                                 onAttachScreenContent()
@@ -432,7 +435,7 @@ fun AttachmentSelectorPopupPanel(
                             }
                     ),
                     AttachmentPanelItem(
-                            icon = Icons.Default.Notifications,
+                            icon = Icons.Outlined.Notifications,
                             label = context.getString(R.string.attachment_notifications),
                             onClick = {
                                 onAttachNotifications()
@@ -440,7 +443,7 @@ fun AttachmentSelectorPopupPanel(
                             }
                     ),
                     AttachmentPanelItem(
-                            icon = Icons.Default.LocationOn,
+                            icon = Icons.Outlined.LocationOn,
                             label = context.getString(R.string.attachment_location),
                             onClick = {
                                 onAttachLocation()
@@ -448,7 +451,7 @@ fun AttachmentSelectorPopupPanel(
                             }
                     ),
                     AttachmentPanelItem(
-                            icon = Icons.Default.AutoAwesome,
+                            icon = Icons.Outlined.AutoAwesome,
                             label = context.getString(R.string.attachment_package),
                             onClick = { showPackageDialog = true }
                     )
@@ -475,9 +478,9 @@ fun AttachmentSelectorPopupPanel(
                 contentAlignment = Alignment.BottomEnd
         ) {
             Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = containerColor,
-                    shadowElevation = 4.dp,
+                    shape = com.kiyori.design.theme.KiyoriUiShapes.control,
+                    color = kiyoriSurfaceColors().popup,
+                    shadowElevation = KiyoriSurfaceTokens.popupElevation,
                     modifier =
                             Modifier.padding(bottom = 44.dp, end = 12.dp)
                                     .width(200.dp)
@@ -747,7 +750,7 @@ fun PackageSelectorDialog(
                                 },
                                 leadingIcon = {
                                     Icon(
-                                            imageVector = Icons.Default.Search,
+                                            imageVector = Icons.Outlined.Search,
                                             contentDescription = context.getString(R.string.search)
                                     )
                                 },
@@ -755,7 +758,7 @@ fun PackageSelectorDialog(
                                     if (searchQuery.isNotEmpty()) {
                                         IconButton(onClick = { searchQuery = "" }) {
                                             Icon(
-                                                    imageVector = Icons.Default.Clear,
+                                                    imageVector = Icons.Outlined.Clear,
                                                     contentDescription = context.getString(R.string.clear_search)
                                             )
                                         }
@@ -788,7 +791,7 @@ fun PackageSelectorDialog(
                                             verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Icon(
-                                                imageVector = Icons.Default.AutoAwesome,
+                                                imageVector = Icons.Outlined.AutoAwesome,
                                                 contentDescription = null,
                                                 tint = MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier.size(20.dp)

@@ -32,7 +32,7 @@ internal fun FileManagerScrollIndicator(listState: LazyListState, modifier: Modi
         val track = (size.height - inset * 2).coerceAtLeast(0f)
         val thumb = fileManagerScrollThumb(
             content = indicator.contentSize, viewport = indicator.viewportSize, offset = indicator.scrollOffset,
-            track = track, minimumThumb = 24.dp.toPx(),
+            track = track, thumbLength = 24.dp.toPx(),
             canScrollBackward = listState.canScrollBackward, canScrollForward = listState.canScrollForward,
         ) ?: return@Canvas
         val width = 3.dp.toPx()

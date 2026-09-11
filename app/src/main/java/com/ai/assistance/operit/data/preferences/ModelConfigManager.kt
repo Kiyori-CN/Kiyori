@@ -23,6 +23,7 @@ import com.ai.assistance.operit.data.model.ApiKeyInfo
 import com.ai.assistance.operit.data.model.decodeModelConfigDataWithLegacyProtocol
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.decodeFromString
@@ -37,7 +38,10 @@ private val Context.modelConfigDataStore: DataStore<Preferences> by
 private val Context.apiDataStore: DataStore<Preferences> by
         preferencesDataStore(name = "api_settings")
 
-class ModelConfigManager(private val context: Context) {
+class ModelConfigManager(
+    private val context: Context,
+    private val configDataStore: DataStore<Preferences> = context.modelConfigDataStore
+) {
 
     // 提供context访问器
     val appContext: Context
@@ -62,13 +66,30 @@ class ModelConfigManager(private val context: Context) {
         isLenient = true
     }
 
-    // 获取所有配置ID列表
+    private fun readConfigIds(preferences: Preferences): List<String> {
+        val value = preferences[CONFIG_LIST_KEY].orEmpty()
+        return if (value.isEmpty()) emptyList() else json.decodeFromString(value)
+    }
+
     val configListFlow: Flow<List<String>> =
-            context.modelConfigDataStore.data.map { preferences ->
-                val configList = preferences[CONFIG_LIST_KEY] ?: ""
-                if (configList.isEmpty()) emptyList()
-                else json.decodeFromString<List<String>>(configList)
+        configDataStore.data.map(::readConfigIds).distinctUntilChanged()
+
+    // 同一次 DataStore 快照同时给出顺序和配置，避免跨次读取拼出不一致的模型列表。
+    // 摘要去重还避免 API Key 轮换等无关写入触发选择器重组。
+    val configSummariesFlow: Flow<List<ModelConfigSummary>> =
+        configDataStore.data.map { preferences ->
+            readConfigIds(preferences).map { id ->
+                val config = readConfig(preferences, id)
+                ModelConfigSummary(
+                    id = config.id,
+                    name = config.name,
+                    modelName = config.modelName,
+                    apiEndpoint = config.apiEndpoint,
+                    apiProviderType = config.apiProviderType,
+                    apiProtocol = config.apiProtocol,
+                )
             }
+        }.distinctUntilChanged()
 
     // 删除获取当前活跃配置ID的流
 
@@ -82,7 +103,7 @@ class ModelConfigManager(private val context: Context) {
             saveConfigToDataStore(defaultConfig)
 
             // 保存配置列表，移除活跃ID
-            context.modelConfigDataStore.edit { preferences ->
+            configDataStore.edit { preferences ->
                 preferences[CONFIG_LIST_KEY] = json.encodeToString(listOf(DEFAULT_CONFIG_ID))
             }
         } else {
@@ -123,17 +144,18 @@ class ModelConfigManager(private val context: Context) {
     // 保存配置
     suspend fun saveModelConfig(config: ModelConfigData) {
         val configKey = stringPreferencesKey("config_${config.id}")
-        context.modelConfigDataStore.edit { preferences ->
+        configDataStore.edit { preferences ->
             preferences[configKey] = json.encodeToString(config)
         }
     }
 
     // 从DataStore加载配置
-    private suspend fun loadConfigFromDataStore(configId: String): ModelConfigData? {
-        val configKey = stringPreferencesKey("config_${configId}")
-        return context.modelConfigDataStore.data.first().let { preferences ->
-            val configJson = preferences[configKey]
-            if (configJson != null) {
+    private suspend fun loadConfigFromDataStore(configId: String): ModelConfigData =
+        readConfig(configDataStore.data.first(), configId)
+
+    private fun readConfig(preferences: Preferences, configId: String): ModelConfigData {
+            val configJson = preferences[stringPreferencesKey("config_${configId}")]
+            return if (configJson != null) {
                 try {
                     json.decodeModelConfigDataWithLegacyProtocol(configJson)
                 } catch (e: Exception) {
@@ -151,13 +173,12 @@ class ModelConfigManager(private val context: Context) {
                     ModelConfigData(id = configId, name = context.getString(R.string.model_config_config_id, configId))
                 }
             }
-        }
     }
 
     // 将配置保存到DataStore
     private suspend fun saveConfigToDataStore(config: ModelConfigData) {
         val configKey = stringPreferencesKey("config_${config.id}")
-        context.modelConfigDataStore.edit { preferences ->
+        configDataStore.edit { preferences ->
             preferences[configKey] = json.encodeToString(config)
         }
     }
@@ -168,7 +189,7 @@ class ModelConfigManager(private val context: Context) {
     ): ModelConfigData {
         val configKey = stringPreferencesKey("config_${configId}")
         var updated: ModelConfigData? = null
-        context.modelConfigDataStore.edit { preferences ->
+        configDataStore.edit { preferences ->
             val current =
                     run {
                         val configJson = preferences[configKey]
@@ -200,9 +221,8 @@ class ModelConfigManager(private val context: Context) {
 
     // 获取指定ID的配置
     fun getModelConfigFlow(configId: String): Flow<ModelConfigData> {
-        return context.modelConfigDataStore.data.map { preferences ->
-            val config = loadConfigFromDataStore(configId) ?: ModelConfigData(id = configId, name = context.getString(R.string.model_config_config_id, configId))
-            config
+        return configDataStore.data.map { preferences ->
+            readConfig(preferences, configId)
         }
     }
 
@@ -223,26 +243,7 @@ class ModelConfigManager(private val context: Context) {
     }
 
     // 获取所有配置的摘要信息
-    suspend fun getAllConfigSummaries(): List<ModelConfigSummary> {
-        val configIds = configListFlow.first()
-        val summaries = mutableListOf<ModelConfigSummary>()
-
-        for (id in configIds) {
-            val config = getModelConfigFlow(id).first()
-            summaries.add(
-                    ModelConfigSummary(
-                            id = config.id,
-                            name = config.name,
-                            modelName = config.modelName,
-                            apiEndpoint = config.apiEndpoint,
-                            apiProviderType = config.apiProviderType,
-                            apiProtocol = config.apiProtocol,
-                    )
-            )
-        }
-
-        return summaries
-    }
+    suspend fun getAllConfigSummaries(): List<ModelConfigSummary> = configSummariesFlow.first()
 
     // 创建新配置
     suspend fun createConfig(name: String): String {
@@ -263,7 +264,7 @@ class ModelConfigManager(private val context: Context) {
 
         // 更新配置列表
         configList.add(configId)
-        context.modelConfigDataStore.edit { preferences ->
+        configDataStore.edit { preferences ->
             preferences[CONFIG_LIST_KEY] = json.encodeToString(configList)
         }
 
@@ -281,7 +282,7 @@ class ModelConfigManager(private val context: Context) {
 
         // 从列表中移除
         configList.remove(configId)
-        context.modelConfigDataStore.edit { preferences ->
+        configDataStore.edit { preferences ->
             // 删除配置记录 - 修复null赋值问题
             preferences.remove(stringPreferencesKey("config_${configId}"))
             // 更新配置列表
@@ -574,6 +575,11 @@ class ModelConfigManager(private val context: Context) {
      */
     suspend fun getModelParametersForConfig(configId: String): List<ModelParameter<*>> {
         val config = getModelConfigFlow(configId).first()
+        return getModelParametersForSnapshot(config)
+    }
+
+    /** 测试与执行已固定配置时，不再次读盘混入另一版本的请求参数。 */
+    fun getModelParametersForSnapshot(config: ModelConfigData): List<ModelParameter<*>> {
         val parameters = mutableListOf<ModelParameter<*>>()
 
         // 映射标准参数
@@ -762,7 +768,7 @@ class ModelConfigManager(private val context: Context) {
             
             // 更新配置列表
             if (newCount > 0) {
-                context.modelConfigDataStore.edit { preferences ->
+                configDataStore.edit { preferences ->
                     preferences[CONFIG_LIST_KEY] = json.encodeToString(existingConfigList)
                 }
             }

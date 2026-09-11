@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.ui.features.chat.components
 
+import com.kiyori.design.theme.KIYORI_SECONDARY_BAR_VERTICAL_PADDING_DP
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
@@ -141,7 +142,7 @@ fun ChatScreenHeader(
                                     else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
                             )
                             // 保留内部按钮的 40dp 触摸目标，只收紧栏本身的上下留白，避免挤占消息区。
-                            .padding(horizontal = 16.dp, vertical = 2.dp),
+                            .padding(horizontal = 16.dp, vertical = KIYORI_SECONDARY_BAR_VERTICAL_PADDING_DP.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {

@@ -18,11 +18,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.RecordVoiceOver
-import androidx.compose.material.icons.filled.Tune
+
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -521,7 +522,7 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                             title = stringResource(R.string.voice_wakeup_regex_title),
                             description = stringResource(R.string.voice_wakeup_regex_desc),
                             kind = KiyoriSettingsRowKind.TOGGLE,
-                            icon = Icons.Default.Tune,
+                            icon = Icons.Outlined.Tune,
                             iconTone = KiyoriSemanticTone.GREEN,
                             checked = wakePhraseRegexEnabled,
                             onClick = {
@@ -660,7 +661,7 @@ internal fun KiyoriVoiceWakeupSettingsPage(
                         title = stringResource(R.string.voice_wakeup_create_new_chat_title),
                         description = stringResource(R.string.voice_wakeup_create_new_chat_desc),
                         kind = KiyoriSettingsRowKind.TOGGLE,
-                        icon = Icons.Default.Tune,
+                        icon = Icons.Outlined.Tune,
                         iconTone = KiyoriSemanticTone.ORANGE,
                         checked = wakeCreateNewChatOnWakeEnabled,
                         onClick = {

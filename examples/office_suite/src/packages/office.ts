@@ -10,7 +10,7 @@
     "en": "Environment probing, unified reading, conversion, preview, validation, diff, and workspace management."
   },
   "enabledByDefault": false,
-  "category": "Document",
+  "category": "File",
   "tools": [
     {
       "name": "office_workflow_guide",

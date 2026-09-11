@@ -16,15 +16,15 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Fullscreen
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.automirrored.filled.Reply
-import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Fullscreen
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.Send
+import androidx.compose.material.icons.automirrored.outlined.Reply
+import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -354,7 +354,7 @@ fun ClassicChatInputSection(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Reply,
+                            imageVector = Icons.AutoMirrored.Outlined.Reply,
                             contentDescription = context.getString(R.string.reply_message),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(16.dp)
@@ -380,7 +380,7 @@ fun ClassicChatInputSection(
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Close,
+                                imageVector = Icons.Outlined.Close,
                                 contentDescription = context.getString(R.string.cancel_reply),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(16.dp)
@@ -613,7 +613,7 @@ fun ClassicChatInputSection(
                                 modifier = Modifier.size(40.dp),
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Fullscreen,
+                                    imageVector = Icons.Outlined.Fullscreen,
                                     contentDescription = stringResource(R.string.chat_fullscreen_input),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(16.dp),
@@ -651,7 +651,7 @@ fun ClassicChatInputSection(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Add,
+                        imageVector = Icons.Outlined.Add,
                         contentDescription = context.getString(R.string.add_attachment),
                         tint =
                         if (showAttachmentPanel)
@@ -739,10 +739,10 @@ fun ClassicChatInputSection(
                     Icon(
                         imageVector =
                         when {
-                            showCancelAction -> Icons.Default.Close
-                            showQueueAction -> Icons.Default.Add
-                            canSendMessage -> Icons.AutoMirrored.Filled.Send
-                            else -> Icons.Default.Mic
+                            showCancelAction -> Icons.Outlined.Close
+                            showQueueAction -> Icons.Outlined.Add
+                            canSendMessage -> Icons.AutoMirrored.Outlined.Send
+                            else -> Icons.Outlined.Mic
                         },
                         contentDescription =
                         when {

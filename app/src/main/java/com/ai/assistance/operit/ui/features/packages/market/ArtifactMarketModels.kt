@@ -5,11 +5,22 @@ import com.ai.assistance.operit.data.api.GitHubRelease
 import com.ai.assistance.operit.data.api.MarketV2Entry
 import com.kiyori.capability.extensions.market.normalizeMarketArtifactId
 import com.kiyori.capability.extensions.market.validateStandaloneArtifactRuntimePackageId
+import com.ai.assistance.operit.data.api.MarketV2Version
 import java.io.File
 import kotlinx.serialization.Serializable
 
 const val OPERIT_MARKET_OWNER = "AAswordman"
 const val OPERIT_FORGE_REPO_NAME = "OperitForge"
+const val LEGACY_TOOLPKG_API_VERSION = "1.0.0"
+
+fun String?.effectiveToolPkgApiVersion(): String {
+    return this?.trim()?.takeIf { it.isNotBlank() } ?: LEGACY_TOOLPKG_API_VERSION
+}
+
+fun MarketV2Version.effectiveToolPkgApiVersion(): String {
+    return apiVersion.effectiveToolPkgApiVersion()
+}
+
 
 private const val SCRIPT_MARKET_LABEL = "script-artifact"
 private const val PACKAGE_MARKET_LABEL = "package-artifact"
@@ -108,7 +119,8 @@ data class LocalPublishableArtifact(
     val sourceFile: File,
     val hasDeclaredAuthorField: Boolean = false,
     val declaredAuthorSlotCount: Int = 0,
-    val inferredVersion: String? = null
+    val inferredVersion: String? = null,
+    val apiVersion: String? = null
 )
 
 sealed interface PublishArtifactSource {
@@ -159,6 +171,7 @@ data class PublishArtifactDescriptor(
     val detail: String,
     val categoryId: String,
     val version: String,
+    val apiVersion: String? = null,
     val allowPublicUpdates: Boolean = true,
     val sourceFile: File,
     val contentType: String,
@@ -189,6 +202,7 @@ data class MarketRegistrationPayload(
     val downloadUrl: String,
     val sha256: String,
     val version: String,
+    val apiVersion: String? = null,
     val displayName: String,
     val description: String,
     val detail: String,
@@ -213,6 +227,7 @@ data class ArtifactMarketMetadata(
     val downloadUrl: String = "",
     val sha256: String = "",
     val version: String = "",
+    val apiVersion: String? = null,
     val displayName: String = "",
     val description: String = "",
     val categoryId: String = "",
@@ -342,6 +357,12 @@ fun buildPublishArtifactDescriptor(
         detail = detail.trim(),
         categoryId = resolvedCategoryId,
         version = cleanVersion,
+        apiVersion =
+            if (type == PublishArtifactType.PACKAGE) {
+                localArtifact.apiVersion.effectiveToolPkgApiVersion()
+            } else {
+                null
+            },
         allowPublicUpdates = allowPublicUpdates,
         sourceFile = localArtifact.sourceFile,
         contentType =
@@ -374,6 +395,15 @@ fun buildPublishReleaseDescriptor(
                 appendLine("Runtime package ID: ${descriptor.runtimePackageId}")
                 appendLine("Display name: ${descriptor.displayName}")
                 appendLine("Version: ${descriptor.version}")
+                if (descriptor.type == PublishArtifactType.PACKAGE) {
+                    appendLine(
+                        "ToolPkg API version: ${descriptor.apiVersion.effectiveToolPkgApiVersion()}"
+                    )
+                } else {
+                    descriptor.apiVersion?.let { apiVersion ->
+                        appendLine("ToolPkg API version: $apiVersion")
+                    }
+                }
                 descriptor.protection?.let { protection ->
                     appendLine("Protection: $protection")
                 }
@@ -392,7 +422,7 @@ fun buildArtifactMarketMetadata(
         projectId = payload.projectId,
         projectDisplayName = payload.projectDisplayName,
         projectDescription = payload.projectDescription,
-        runtimePackageId = payload.runtimePackageId,
+        runtimePackageId = payload.runtimePackageId,
         publisherLogin = payload.publisherLogin,
         releaseOwner = payload.releaseOwner,
         releaseRepository = payload.releaseRepository,
@@ -401,6 +431,12 @@ fun buildArtifactMarketMetadata(
         downloadUrl = payload.downloadUrl,
         sha256 = payload.sha256,
         version = payload.version,
+        apiVersion =
+            if (payload.type == PublishArtifactType.PACKAGE) {
+                payload.apiVersion.effectiveToolPkgApiVersion()
+            } else {
+                null
+            },
         displayName = payload.displayName,
         description = payload.description,
         categoryId = payload.categoryId,

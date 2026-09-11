@@ -1,5 +1,9 @@
 package com.ai.assistance.operit.ui.features.chat.components.style.input.agent
 
+import com.kiyori.design.theme.kiyoriSurfaceColors
+
+import com.kiyori.design.theme.KiyoriSurfaceTokens
+
 import com.ai.assistance.operit.ui.features.chat.components.style.input.common.handleChatEnterKey
 
 import android.net.Uri
@@ -21,17 +25,17 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Reply
-import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.outlined.Reply
+import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.automirrored.outlined.VolumeOff
-import androidx.compose.material.icons.automirrored.rounded.VolumeUp
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Fullscreen
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Whatshot
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Fullscreen
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
+import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.Whatshot
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.DataObject
 import androidx.compose.material.icons.outlined.Hub
@@ -42,10 +46,6 @@ import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.TipsAndUpdates
-import androidx.compose.material.icons.rounded.Psychology
-import androidx.compose.material.icons.rounded.Save
-import androidx.compose.material.icons.rounded.Security
-import androidx.compose.material.icons.rounded.TipsAndUpdates
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -375,7 +375,8 @@ fun AgentChatInputSection(
     val currentModelName by actualViewModel.modelName.collectAsState()
     val configMappingWithIndex by
         functionalConfigManager.functionConfigMappingWithIndexFlow.collectAsState(initial = emptyMap())
-    var configSummaries by remember { mutableStateOf<List<ModelConfigSummary>>(emptyList()) }
+    val configSummaries by
+            modelConfigManager.configSummariesFlow.collectAsState(initial = emptyList())
     val activeProfileId by userPreferencesManager.activeMemorySpaceIdFlow.collectAsState(initial = "default")
     var preferenceProfiles by remember { mutableStateOf<List<MemorySpace>>(emptyList()) }
     val currentConfigMapping =
@@ -400,16 +401,9 @@ fun AgentChatInputSection(
         }
 
     LaunchedEffect(Unit) {
-        configSummaries = modelConfigManager.getAllConfigSummaries()
         val profileIds = userPreferencesManager.memorySpaceListFlow.first()
         preferenceProfiles =
             profileIds.map { profileId -> userPreferencesManager.getMemorySpaceFlow(profileId).first() }
-    }
-
-    LaunchedEffect(showModelSelectorPopup.value) {
-        if (showModelSelectorPopup.value) {
-            configSummaries = modelConfigManager.getAllConfigSummaries()
-        }
     }
 
     val mappedModelName =
@@ -548,12 +542,7 @@ fun AgentChatInputSection(
             hasBackgroundImage -> MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
             else -> MaterialTheme.colorScheme.surface
         }
-    val popupContainerColor =
-        when {
-            isDarkTheme && chatInputTransparent -> darkModeInputColor
-            isDarkTheme -> inputContainerColor
-            else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
-        }
+    val popupContainerColor = kiyoriSurfaceColors().popup
     val queueContainerColor =
         when {
             chatInputTransparent -> MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
@@ -703,7 +692,7 @@ fun AgentChatInputSection(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Reply,
+                            imageVector = Icons.AutoMirrored.Outlined.Reply,
                             contentDescription = context.getString(R.string.reply_message),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(16.dp),
@@ -727,7 +716,7 @@ fun AgentChatInputSection(
 
                         IconButton(onClick = { onClearReply?.invoke() }, modifier = Modifier.size(40.dp)) {
                             Icon(
-                                imageVector = Icons.Default.Close,
+                                imageVector = Icons.Outlined.Close,
                                 contentDescription = context.getString(R.string.cancel_reply),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(16.dp),
@@ -917,7 +906,7 @@ fun AgentChatInputSection(
                         trailingIcon = {
                             IconButton(onClick = { showFullscreenInput.value = true }) {
                                 Icon(
-                                    imageVector = Icons.Default.Fullscreen,
+                                    imageVector = Icons.Outlined.Fullscreen,
                                     contentDescription = stringResource(R.string.chat_fullscreen_input),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -966,9 +955,9 @@ fun AgentChatInputSection(
                                     Icon(
                                         imageVector =
                                             if (showModelSelectorPopup.value) {
-                                                Icons.Default.KeyboardArrowUp
+                                                Icons.Outlined.KeyboardArrowUp
                                             } else {
-                                                Icons.Default.KeyboardArrowDown
+                                                Icons.Outlined.KeyboardArrowDown
                                             },
                                         contentDescription = context.getString(R.string.select_model_config),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1021,7 +1010,7 @@ fun AgentChatInputSection(
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Add,
+                                imageVector = Icons.Outlined.Add,
                                 contentDescription = context.getString(R.string.add_attachment),
                                 tint =
                                     if (showAttachmentPanel) {
@@ -1123,10 +1112,10 @@ fun AgentChatInputSection(
                                 Icon(
                                     imageVector =
                                         when {
-                                            showCancelAction -> Icons.Default.Close
-                                            showQueueAction -> Icons.Default.Add
-                                            canSendMessage -> Icons.AutoMirrored.Filled.Send
-                                            else -> Icons.Default.Mic
+                                            showCancelAction -> Icons.Outlined.Close
+                                            showQueueAction -> Icons.Outlined.Add
+                                            canSendMessage -> Icons.AutoMirrored.Outlined.Send
+                                            else -> Icons.Outlined.Mic
                                         },
                                     contentDescription =
                                         when {
@@ -1237,7 +1226,7 @@ fun AgentChatInputSection(
                             trailingIcon = {
                                 IconButton(onClick = { showFullscreenInput.value = true }) {
                                     Icon(
-                                        imageVector = Icons.Default.Fullscreen,
+                                        imageVector = Icons.Outlined.Fullscreen,
                                         contentDescription = stringResource(R.string.chat_fullscreen_input),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -1286,9 +1275,9 @@ fun AgentChatInputSection(
                                         Icon(
                                             imageVector =
                                                 if (showModelSelectorPopup.value) {
-                                                    Icons.Default.KeyboardArrowUp
+                                                    Icons.Outlined.KeyboardArrowUp
                                                 } else {
-                                                    Icons.Default.KeyboardArrowDown
+                                                    Icons.Outlined.KeyboardArrowDown
                                                 },
                                             contentDescription = context.getString(R.string.select_model_config),
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1341,7 +1330,7 @@ fun AgentChatInputSection(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Add,
+                                    imageVector = Icons.Outlined.Add,
                                     contentDescription = context.getString(R.string.add_attachment),
                                     tint =
                                         if (showAttachmentPanel) {
@@ -1443,10 +1432,10 @@ fun AgentChatInputSection(
                                     Icon(
                                         imageVector =
                                             when {
-                                                showCancelAction -> Icons.Default.Close
-                                                showQueueAction -> Icons.Default.Add
-                                                canSendMessage -> Icons.AutoMirrored.Filled.Send
-                                                else -> Icons.Default.Mic
+                                                showCancelAction -> Icons.Outlined.Close
+                                                showQueueAction -> Icons.Outlined.Add
+                                                canSendMessage -> Icons.AutoMirrored.Outlined.Send
+                                                else -> Icons.Outlined.Mic
                                             },
                                         contentDescription =
                                             when {
@@ -1529,7 +1518,6 @@ fun AgentChatInputSection(
 
             AttachmentSelectorPopupPanel(
                 visible = showAttachmentPanel,
-                containerColor = popupContainerColor,
                 onAttachImage = { filePath -> onAttachmentRequest(filePath) },
                 onAttachFile = { filePath -> onAttachmentRequest(filePath) },
                 onAttachScreenContent = onAttachScreenContent,
@@ -1638,7 +1626,7 @@ private fun AgentModelSelectorPopup(
                     CardDefaults.cardColors(
                         containerColor = popupContainerColor,
                     ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = KiyoriSurfaceTokens.popupElevation),
             ) {
                 Column(
                     modifier =
@@ -1786,7 +1774,7 @@ private fun AgentThinkingSettingsItem(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            imageVector = Icons.Rounded.Psychology,
+            imageVector = Icons.Outlined.Psychology,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             modifier = Modifier.size(16.dp),
@@ -1816,7 +1804,7 @@ private fun AgentThinkingSettingsItem(
             modifier = Modifier.weight(1f),
         )
         Icon(
-            imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+            imageVector = if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
             contentDescription = null,
             modifier = Modifier.size(20.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
@@ -1833,7 +1821,7 @@ private fun AgentThinkingSettingsItem(
         ) {
             AgentThinkingSubSettingItem(
                 title = stringResource(R.string.thinking_mode),
-                icon = if (enableThinkingMode) Icons.Rounded.Psychology else Icons.Outlined.Psychology,
+                icon = Icons.Outlined.Psychology,
                 iconTint =
                     if (enableThinkingMode) {
                         MaterialTheme.colorScheme.primary
@@ -2044,7 +2032,7 @@ private fun AgentMaxContextSettingItem(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            imageVector = Icons.Default.Whatshot,
+            imageVector = Icons.Outlined.Whatshot,
             contentDescription = null,
             tint =
                 if (enableMaxContextMode) {
@@ -2162,7 +2150,7 @@ private fun AgentModelSelectorItem(
         )
         if (allowCollapse) {
             Icon(
-                imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                imageVector = if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
@@ -2249,9 +2237,9 @@ private fun AgentModelSelectorItem(
                                     Icon(
                                         imageVector =
                                             if (isExpanded) {
-                                                Icons.Default.KeyboardArrowUp
+                                                Icons.Outlined.KeyboardArrowUp
                                             } else {
-                                                Icons.Default.KeyboardArrowDown
+                                                Icons.Outlined.KeyboardArrowDown
                                             },
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp),
@@ -2462,7 +2450,7 @@ private fun AgentExtraSettingsPopup(
                     CardDefaults.cardColors(
                         containerColor = popupContainerColor,
                     ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = KiyoriSurfaceTokens.popupElevation),
             ) {
                 Column(
                     modifier =
@@ -2665,7 +2653,7 @@ private fun AgentMemorySelectorItem(
             modifier = Modifier.weight(1f),
         )
         Icon(
-            imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+            imageVector = if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
             contentDescription = null,
             modifier = Modifier.size(20.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
@@ -2731,7 +2719,7 @@ private fun AgentMemorySelectorItem(
             }
             AgentSimpleToggleSettingItem(
                 title = stringResource(R.string.memory_auto_update),
-                icon = if (enableMemoryAutoUpdate) Icons.Rounded.Save else Icons.Outlined.Save,
+                icon = Icons.Outlined.Save,
                 isChecked = enableMemoryAutoUpdate,
                 onToggle = onToggleMemoryAutoUpdate,
                 onInfoClick = onMemoryAutoUpdateInfoClick,
@@ -2802,7 +2790,7 @@ private fun AgentSettingsGroupHeader(
             modifier = Modifier.weight(1f),
         )
         Icon(
-            imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+            imageVector = if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
             contentDescription = null,
             modifier = Modifier.size(20.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
@@ -3003,7 +2991,7 @@ private fun AgentBehaviorSettingsGroupItem(
                 title = stringResource(R.string.auto_read_message),
                 icon =
                     if (isAutoReadEnabled) {
-                        Icons.AutoMirrored.Rounded.VolumeUp
+                        Icons.AutoMirrored.Outlined.VolumeUp
                     } else {
                         Icons.AutoMirrored.Outlined.VolumeOff
                     },
@@ -3133,7 +3121,7 @@ private fun AgentInputMenuToggleSettingItem(
     val toggleTitle =
         if (toggle.titleRes != 0) stringResource(toggle.titleRes)
         else toggle.title.orEmpty()
-    val toggleIcon = MaterialIconNameResolver.resolveOrDefault(toggle.icon, Icons.Outlined.Hub)
+    val toggleIcon = MaterialIconNameResolver.resolveOutlinedOrDefault(toggle.icon, Icons.Outlined.Hub)
     AgentSimpleToggleSettingItem(
         title = toggleTitle,
         icon = toggleIcon,
@@ -3236,7 +3224,7 @@ private fun AgentInfoPopup(
                     CardDefaults.cardColors(
                         containerColor = popupContainerColor,
                     ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = KiyoriSurfaceTokens.popupElevation),
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),

@@ -17,10 +17,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.OpenInBrowser
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -299,7 +299,7 @@ private fun GitHubEmbeddedLoginWebViewDialog(
                                 onClick = onDismissRequest,
                                 enabled = !isCompletingLogin
                             ) {
-                                Icon(Icons.Default.Close, contentDescription = null)
+                                Icon(Icons.Outlined.Close, contentDescription = null)
                             }
                         },
                         actions = {
@@ -307,7 +307,7 @@ private fun GitHubEmbeddedLoginWebViewDialog(
                                 onClick = { webView.reload() },
                                 enabled = !isCompletingLogin
                             ) {
-                                Icon(Icons.Default.Refresh, contentDescription = null)
+                                Icon(Icons.Outlined.Refresh, contentDescription = null)
                             }
                         }
                     )

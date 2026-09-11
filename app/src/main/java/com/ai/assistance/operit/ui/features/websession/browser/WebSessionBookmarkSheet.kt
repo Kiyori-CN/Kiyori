@@ -34,9 +34,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import com.kiyori.design.theme.KiyoriUiShapes
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material3.DropdownMenu
@@ -237,7 +237,7 @@ internal fun WebSessionBookmarkSheet(
                 actions = {
                     Box {
                         IconButton(onClick = { topMenuExpanded = true }) {
-                            Icon(Icons.Filled.MoreVert, contentDescription = "书签更多操作")
+                            Icon(Icons.Outlined.MoreVert, contentDescription = "书签更多操作")
                         }
                         DropdownMenu(
                             expanded = topMenuExpanded,
@@ -638,7 +638,7 @@ private fun BookmarkSearchField(value: String, onValueChange: (String) -> Unit, 
             )
             if (value.isNotBlank()) {
                 IconButton(onClick = onClear, modifier = Modifier.size(40.dp)) {
-                    Icon(Icons.Filled.Close, contentDescription = "清除书签搜索", modifier = Modifier.size(19.dp))
+                    Icon(Icons.Outlined.Close, contentDescription = "清除书签搜索", modifier = Modifier.size(19.dp))
                 }
             }
         }

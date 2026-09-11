@@ -6,8 +6,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Close
+
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -253,7 +254,7 @@ fun EnhancedCodeBlock(code: String, language: String = "", modifier: Modifier = 
                     // 复制按钮
                     IconButton(onClick = handleCopy, modifier = Modifier.size(40.dp)) {
                         Icon(
-                            imageVector = Icons.Default.ContentCopy,
+                            imageVector = Icons.Outlined.ContentCopy,
                             contentDescription = stringResource(R.string.common_copy_code),
                             tint = Color(0xFFAAAAAA),
                             modifier = Modifier.size(16.dp)
@@ -326,7 +327,7 @@ fun EnhancedCodeBlock(code: String, language: String = "", modifier: Modifier = 
                             .padding(12.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Close,
+                            imageVector = Icons.Outlined.Close,
                             contentDescription = stringResource(R.string.common_exit_fullscreen),
                             tint = Color.White
                         )

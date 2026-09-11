@@ -12,6 +12,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -66,7 +68,8 @@ fun CustomEmojiManagementScreen(
 
     // 图片选择器
     val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
+        // 系统文档选择器可浏览 OEM 相册界面隐藏的目录；仍只读取用户选中的 URI。
+        contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
             viewModel.addEmojis(selectedCategory, uris)
@@ -93,9 +96,9 @@ fun CustomEmojiManagementScreen(
         snackbarHostState = snackbarHostState,
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { imagePickerLauncher.launch("image/*") }
+                onClick = { imagePickerLauncher.launch(arrayOf("image/*")) }
             ) {
-                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_emoji))
+                Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.add_emoji))
             }
         }
     ) { paddingValues ->
@@ -169,7 +172,7 @@ fun CustomEmojiManagementScreen(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Add,
+                            imageVector = Icons.Outlined.Add,
                             contentDescription = stringResource(R.string.create_group),
                             modifier = Modifier.size(16.dp)
                         )
@@ -188,7 +191,7 @@ fun CustomEmojiManagementScreen(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Delete,
+                            imageVector = Icons.Outlined.Delete,
                             contentDescription = stringResource(R.string.delete_group),
                             modifier = Modifier.size(16.dp)
                         )
@@ -486,7 +489,7 @@ private fun EmojiCard(
 
             if (showDeleteIcon) {
                 Icon(
-                    Icons.Default.Delete,
+                    Icons.Outlined.Delete,
                     contentDescription = stringResource(R.string.delete),
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -552,4 +555,3 @@ private fun CreateCategoryDialog(
         }
     )
 }
-

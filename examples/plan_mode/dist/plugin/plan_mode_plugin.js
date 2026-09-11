@@ -11,6 +11,9 @@ const plan_mode_constants_js_1 = require("../shared/plan_mode_constants.js");
 const plan_mode_i18n_js_1 = require("../shared/plan_mode_i18n.js");
 const plan_mode_runtime_ipc_js_1 = require("../shared/plan_mode_runtime_ipc.js");
 const plan_mode_prompt_js_1 = require("../shared/plan_mode_prompt.js");
+const plan_mode_state_js_1 = require("../shared/plan_mode_state.js");
+const plan_mode_submission_js_1 = require("../shared/plan_mode_submission.js");
+const plan_mode_plan_file_js_1 = require("../shared/plan_mode_plan_file.js");
 const plan_mode_execution_js_1 = require("../shared/plan_mode_execution.js");
 const plan_mode_ask_execution_js_1 = require("../shared/plan_mode_ask_execution.js");
 const plan_mode_workspace_js_1 = require("../shared/plan_mode_workspace.js");
@@ -23,6 +26,7 @@ const PLAN_MODE_BLOCKED_TOOL_NAMES = new Set([
     "delete_file",
 ]);
 let planModeIpcRegistered = false;
+const planSubmissions = new plan_mode_submission_js_1.PlanSubmissionCoordinator();
 function usesChatPrompt(payload) {
     const promptFunctionType = payload.promptFunctionType;
     if (promptFunctionType !== undefined && promptFunctionType !== "") {
@@ -48,13 +52,7 @@ async function handleSubmitPlanaskAnswersIpc(message) {
                 error: text.toastChatViewMissing,
             };
         }
-        void Tools.Chat.sendMessage(message, activeView.chatId, undefined, undefined, { runtime: activeView.runtime }).catch((error) => {
-            const errorText = error instanceof Error
-                ? error.message || "error"
-                : (typeof error === "string" || error == null ? error || "error" : "error");
-            const toastMessage = `${text.askToastAnswerSendFailedPrefix}${errorText}`;
-            void Tools.System.toast(toastMessage);
-        });
+        await Tools.Chat.sendMessage(message, activeView.chatId, undefined, undefined, { runtime: activeView.runtime, wait_for_response: false });
         await Tools.System.toast(text.askToastAnswerSent);
         return { success: true };
     }
@@ -79,22 +77,27 @@ async function handleStartImplementationIpc(planContent) {
         return { success: false, error: messageText };
     }
     try {
-        const activeView = await plan_mode_runtime_ipc_js_1.PlanModeShared.getSingleActiveChatView();
+        const activeView = (0, plan_mode_state_js_1.readSingleActiveChatView)();
         if (!activeView) {
             await Tools.System.toast(text.toastChatViewMissing);
             return { success: false, error: text.toastChatViewMissing };
         }
-        const written = await plan_mode_runtime_ipc_js_1.PlanModeShared.writePlanFile(activeView.chatId, normalizedPlanContent);
-        await plan_mode_runtime_ipc_js_1.PlanModeShared.disable(written.chatId);
-        void Tools.Chat.sendMessage(text.implementationMessage, written.chatId, undefined, undefined, { runtime: activeView.runtime }).catch((error) => {
-            const errorText = error instanceof Error
-                ? error.message || "error"
-                : (typeof error === "string" || error == null ? error || "error" : "error");
-            const messageText = `${text.toastPlanSendFailedPrefix}${errorText}`;
-            void Tools.System.toast(messageText);
+        const binding = (0, plan_mode_workspace_js_1.resolveChatWorkspace)(activeView.chatId, activeView.runtime);
+        if (!binding)
+            return { success: false, error: text.toastWorkspaceRequired };
+        const result = await planSubmissions.start(binding, normalizedPlanContent, {
+            read: async (target) => (await (0, plan_mode_plan_file_js_1.readBoundPlanFile)({ ...target, path: (0, plan_mode_workspace_js_1.buildPlanFilePath)(target.workspacePath) }))?.content ?? null,
+            write: async (target, content) => {
+                await (0, plan_mode_plan_file_js_1.writeBoundPlanFile)({ ...target, path: (0, plan_mode_workspace_js_1.buildPlanFilePath)(target.workspacePath) }, content);
+            },
+            disable: async (chatId) => { await plan_mode_runtime_ipc_js_1.PlanModeShared.disable(chatId); },
+            send: async (target) => {
+                await Tools.Chat.sendMessage(text.implementationMessage, target.chatId, undefined, undefined, { runtime: target.runtime, wait_for_response: false });
+            },
         });
-        void Tools.System.toast(text.toastPlanStarted);
-        return { success: true };
+        if (result.success)
+            await Tools.System.toast(text.toastPlanStarted);
+        return { ...result, error: result.status === "unknown" ? text.toastPlanSubmissionUnknown : result.status === "preparing" ? text.rendererButtonBusy : result.error };
     }
     catch (error) {
         const errorText = error instanceof Error
@@ -113,6 +116,14 @@ function registerPlanModeIpc() {
     (0, plan_mode_runtime_ipc_js_1.registerSharedMethods)(plan_mode_runtime_ipc_js_1.PlanModeShared);
     ToolPkg.ipc.on(plan_mode_ask_execution_js_1.PLAN_MODE_SUBMIT_ANSWERS_IPC_CHANNEL, handleSubmitPlanaskAnswersIpc);
     ToolPkg.ipc.on(plan_mode_execution_js_1.PLAN_MODE_START_IMPLEMENTATION_IPC_CHANNEL, handleStartImplementationIpc);
+    ToolPkg.ipc.on(plan_mode_execution_js_1.PLAN_MODE_IMPLEMENTATION_STATUS_IPC_CHANNEL, async (content) => {
+        const view = (0, plan_mode_state_js_1.readSingleActiveChatView)();
+        const binding = view ? (0, plan_mode_workspace_js_1.resolveChatWorkspace)(view.chatId, view.runtime) : null;
+        if (!binding || !content.trim())
+            return { success: false };
+        const result = planSubmissions.status(binding, content);
+        return { ...result, error: result.status === "unknown" ? (0, plan_mode_i18n_js_1.resolvePlanModeI18n)().toastPlanSubmissionUnknown : result.error };
+    });
 }
 function filterPlanModeTools(availableTools) {
     return availableTools.filter((tool) => !PLAN_MODE_BLOCKED_TOOL_NAMES.has(tool.name));

@@ -15,10 +15,10 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -78,7 +78,7 @@ fun MemoryAppBar(
             placeholder = { Text(stringResource(R.string.memory_search_hint2), style = MaterialTheme.typography.bodySmall) },
             leadingIcon = {
                 Icon(
-                    Icons.Default.Search,
+                    Icons.Outlined.Search,
                     contentDescription = "Search Icon",
                     modifier = Modifier.size(18.dp)
                 )
@@ -90,7 +90,7 @@ fun MemoryAppBar(
                         modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
-                            Icons.Default.Clear,
+                            Icons.Outlined.Clear,
                             contentDescription = "Clear Search",
                             modifier = Modifier.size(16.dp)
                         )
@@ -113,7 +113,7 @@ fun MemoryAppBar(
 
         // 搜索设置按钮
         IconButton(onClick = onSettingsClick) {
-            Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.memory_search_settings_title))
+            Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.memory_search_settings_title))
         }
 
         // 用户偏好选择器

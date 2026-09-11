@@ -25,17 +25,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Edit
+
 import androidx.compose.material.icons.filled.Extension
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -231,7 +232,7 @@ internal fun WebSessionUserscriptSheet(
                     Box {
                         IconButton(onClick = { settingsMenuExpanded = true }) {
                             Icon(
-                                imageVector = Icons.Filled.MoreVert,
+                                imageVector = Icons.Outlined.MoreVert,
                                 contentDescription = stringResource(R.string.more),
                             )
                         }
@@ -354,7 +355,7 @@ internal fun WebSessionUserscriptSheet(
                         )
                     } else if (visibleCurrentPageEntries.isEmpty()) {
                         WebSessionEmptyState(
-                            icon = if (searchQuery.isBlank()) Icons.Filled.Extension else Icons.Filled.Search,
+                            icon = if (searchQuery.isBlank()) Icons.Filled.Extension else Icons.Outlined.Search,
                             title =
                                 if (searchQuery.isBlank()) {
                                     stringResource(R.string.web_session_plugins_current_page_empty)
@@ -393,7 +394,7 @@ internal fun WebSessionUserscriptSheet(
                     }
                     if (visibleScripts.isEmpty()) {
                         WebSessionEmptyState(
-                            icon = if (searchQuery.isBlank()) Icons.Filled.Description else Icons.Filled.Search,
+                            icon = if (searchQuery.isBlank()) Icons.Filled.Description else Icons.Outlined.Search,
                             title =
                                 if (searchQuery.isBlank()) {
                                     stringResource(R.string.web_session_userscript_none)
@@ -468,7 +469,7 @@ internal fun WebSessionUserscriptSheet(
                         }
                     if (candidates.isEmpty() && state.pendingInstall == null) {
                         WebSessionEmptyState(
-                            icon = Icons.Filled.Refresh,
+                            icon = Icons.Outlined.Refresh,
                             title = stringResource(R.string.web_session_userscript_updates_empty),
                             message = stringResource(R.string.web_session_userscript_updates_empty_summary),
                             tone = WebSessionBrowserMenuTone.PLUGINS,
@@ -585,7 +586,7 @@ internal fun WebSessionUserscriptSheet(
     if (deleteSelectionPrompt) {
         WebSessionBrowserModalDialog(onDismissRequest = { deleteSelectionPrompt = false }) {
             WebSessionBrowserDialogSurface(
-                icon = Icons.Filled.Delete,
+                icon = Icons.Outlined.Delete,
                 tone = WebSessionBrowserMenuTone.PLUGINS,
                 title = stringResource(R.string.web_session_userscript_delete_selected_title),
                 modifier = Modifier.widthIn(min = 300.dp, max = 380.dp),
@@ -625,7 +626,7 @@ internal fun WebSessionUserscriptSheet(
             state.installedScripts.firstOrNull { script -> script.id == scriptId }?.name.orEmpty()
         WebSessionBrowserModalDialog(onDismissRequest = { pendingSingleDeleteId = null }) {
             WebSessionBrowserDialogSurface(
-                icon = Icons.Filled.Delete,
+                icon = Icons.Outlined.Delete,
                 tone = WebSessionBrowserMenuTone.PLUGINS,
                 title = stringResource(R.string.web_session_userscript_delete),
                 modifier = Modifier.widthIn(min = 300.dp, max = 380.dp),
@@ -677,7 +678,7 @@ private fun UserscriptDraftRow(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             WebSessionBrowserMenuIconBadge(
-                imageVector = Icons.Filled.Edit,
+                imageVector = Icons.Outlined.Edit,
                 tone = WebSessionBrowserMenuTone.PLUGINS,
                 contentDescription = null,
                 containerSize = 36.dp,
@@ -734,7 +735,7 @@ private fun UserscriptSelectionHeader(
             }
             IconButton(onClick = onDelete) {
                 Icon(
-                    imageVector = Icons.Filled.Delete,
+                    imageVector = Icons.Outlined.Delete,
                     contentDescription = stringResource(R.string.web_session_userscript_delete),
                     tint = MaterialTheme.colorScheme.error,
                 )
@@ -894,7 +895,7 @@ private fun UserscriptInstalledRow(
                 Box {
                     IconButton(onClick = { menuExpanded = true }) {
                         Icon(
-                            imageVector = Icons.Filled.MoreVert,
+                            imageVector = Icons.Outlined.MoreVert,
                             contentDescription = stringResource(R.string.more),
                         )
                     }
@@ -1008,7 +1009,7 @@ private fun UserscriptUpdateCard(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 WebSessionBrowserMenuIconBadge(
-                    imageVector = Icons.Filled.Refresh,
+                    imageVector = Icons.Outlined.Refresh,
                     tone = WebSessionBrowserMenuTone.PLUGINS,
                     contentDescription = null,
                     containerSize = 36.dp,
@@ -1301,7 +1302,7 @@ private fun UserscriptLogToolbar(
                     modifier = Modifier.weight(1f),
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.ContentCopy,
+                        imageVector = Icons.Outlined.ContentCopy,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
                     )
@@ -1313,7 +1314,7 @@ private fun UserscriptLogToolbar(
                     modifier = Modifier.weight(1f),
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.FileDownload,
+                        imageVector = Icons.Outlined.FileDownload,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
                     )
@@ -1482,7 +1483,7 @@ internal fun UserscriptLogCard(
                         }
                         TextButton(onClick = copyLog) {
                             Icon(
-                                imageVector = Icons.Filled.ContentCopy,
+                                imageVector = Icons.Outlined.ContentCopy,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp),
                             )

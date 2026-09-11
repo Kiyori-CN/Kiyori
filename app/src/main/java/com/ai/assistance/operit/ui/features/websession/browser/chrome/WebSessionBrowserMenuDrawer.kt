@@ -1,5 +1,9 @@
 package com.ai.assistance.operit.ui.features.websession.browser.chrome
 
+import com.kiyori.design.theme.kiyoriSurfaceColors
+
+import com.kiyori.design.theme.KiyoriSurfaceTokens
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -60,7 +64,7 @@ internal fun WebSessionBrowserMenuDrawer(
     onOpenUserAgent: () -> Unit,
     onOpenNetworkLog: () -> Unit,
     onOpenDiagnosticLog: () -> Unit,
-    onOpenAiDialogue: () -> Unit,
+    onOpenReaderMode: () -> Unit,
     onOpenToolbox: () -> Unit,
     incognitoEnabled: Boolean,
     onToggleIncognito: () -> Unit,
@@ -84,7 +88,7 @@ internal fun WebSessionBrowserMenuDrawer(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.42f))
+                    .background(kiyoriSurfaceColors().modalScrim)
                     .clickable(onClick = onCollapse),
             )
         }
@@ -102,10 +106,10 @@ internal fun WebSessionBrowserMenuDrawer(
                         contentDescription = menuTitle
                     },
                 shape = KiyoriUiShapes.sheet,
-                color = MaterialTheme.colorScheme.surface,
+                color = kiyoriSurfaceColors().sheet,
                 contentColor = MaterialTheme.colorScheme.onSurface,
                 tonalElevation = 0.dp,
-                shadowElevation = 8.dp,
+                shadowElevation = KiyoriSurfaceTokens.sheetElevation,
             ) {
                 Column(
                     modifier =
@@ -155,10 +159,10 @@ internal fun WebSessionBrowserMenuDrawer(
                             enabled = incognitoEnabled,
                             tone = WebSessionBrowserMenuTone.INCOGNITO,
                         ),
+                        MenuAction("阅读模式", R.drawable.ic_kiyori_tool_reader, onOpenReaderMode, tone = WebSessionBrowserMenuTone.READER_MODE),
                         MenuAction(stringResource(R.string.web_session_page_source), R.drawable.ic_kiyori_tool_view_source, onOpenPageSource, tone = WebSessionBrowserMenuTone.PAGE_SOURCE),
                         MenuAction(stringResource(R.string.web_session_ad_marking), R.drawable.ic_kiyori_tool_ad_block, onOpenAdMarking, tone = WebSessionBrowserMenuTone.AD_MARKING),
                         MenuAction(stringResource(R.string.web_session_site_config), R.drawable.ic_kiyori_tool_site_config, onOpenSiteConfig, tone = WebSessionBrowserMenuTone.SITE_CONFIG),
-                        MenuAction(stringResource(R.string.web_session_ai_dialogue), R.drawable.ic_kiyori_tool_ai_dialogue, onOpenAiDialogue, tone = WebSessionBrowserMenuTone.AI_DIALOGUE),
                     )
                     Row(
                         modifier =

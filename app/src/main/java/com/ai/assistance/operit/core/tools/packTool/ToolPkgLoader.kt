@@ -40,12 +40,13 @@ internal object ToolPkgLoader {
                         artifactSha256 = scanReport.artifactSha256,
                         isBuiltIn = false,
                         parseJsPackage = parseJsPackage,
-                        parseMainRegistration = { mainScriptText, toolPkgId, mainScriptPath ->
+                        parseMainRegistration = { mainScriptText, toolPkgId, mainScriptPath, apiVersion ->
                             observeMainRegistration {
                                 parseMainRegistration(
                                     mainScriptText,
                                     toolPkgId,
                                     mainScriptPath,
+                                    apiVersion,
                                     jsEngine,
                                 )
                             }.also { observed ->
@@ -107,12 +108,13 @@ internal object ToolPkgLoader {
                     artifactSha256 = artifactSha256,
                     isBuiltIn = true,
                     parseJsPackage = parseJsPackage,
-                    parseMainRegistration = { mainScriptText, toolPkgId, mainScriptPath ->
+                    parseMainRegistration = { mainScriptText, toolPkgId, mainScriptPath, apiVersion ->
                         observeMainRegistration {
                             parseMainRegistration(
                                 mainScriptText,
                                 toolPkgId,
                                 mainScriptPath,
+                                apiVersion,
                                 jsEngine,
                             )
                         }.also { observed ->
@@ -150,12 +152,14 @@ internal object ToolPkgLoader {
         mainScriptText: String,
         toolPkgId: String,
         mainScriptPath: String,
+        apiVersion: String,
         jsEngine: JsEngine
     ): ToolPkgMainRegistrationParseResult {
         return ToolPkgMainRegistrationScriptParser.parse(
             script = mainScriptText,
             toolPkgId = toolPkgId,
             mainScriptPath = mainScriptPath,
+            apiVersion = apiVersion,
             jsEngine = jsEngine
         )
     }

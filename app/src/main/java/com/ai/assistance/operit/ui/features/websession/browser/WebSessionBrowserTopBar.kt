@@ -41,15 +41,16 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.Edit
+
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
@@ -185,7 +186,7 @@ internal fun WebSessionBrowserTopBar(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Icon(
-                            imageVector = if (currentUrl.startsWith("https://")) Icons.Filled.Language else Icons.Filled.Search,
+                            imageVector = if (currentUrl.startsWith("https://")) Icons.Filled.Language else Icons.Outlined.Search,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp),
@@ -219,7 +220,7 @@ internal fun WebSessionBrowserTopBar(
                             }
                         } else {
                             Icon(
-                                imageVector = Icons.Filled.Search,
+                                imageVector = Icons.Outlined.Search,
                                 contentDescription = stringResource(R.string.web_session_search),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(18.dp),
@@ -228,7 +229,7 @@ internal fun WebSessionBrowserTopBar(
                     }
                 }
                 BrowserChromeIconButton(
-                    icon = Icons.Filled.Refresh,
+                    icon = Icons.Outlined.Refresh,
                     contentDescription = stringResource(R.string.web_session_refresh),
                     onClick = onRefresh,
                 )
@@ -287,7 +288,7 @@ private fun WebSessionSearchEngineQuickSwitchBar(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = Icons.Filled.Close,
+                imageVector = Icons.Outlined.Close,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(15.dp),
@@ -636,7 +637,7 @@ internal fun WebSessionBrowserSearchScreen(
                             )
                             if (draft.isNotBlank()) {
                                 BrowserChromeIconButton(
-                                    icon = Icons.Filled.Close,
+                                    icon = Icons.Outlined.Close,
                                     contentDescription =
                                         stringResource(R.string.web_session_clear_search),
                                     onClick = { onDraftChange("") },
@@ -647,7 +648,7 @@ internal fun WebSessionBrowserSearchScreen(
                         }
                     }
                     BrowserChromeIconButton(
-                        icon = Icons.Filled.Search,
+                        icon = Icons.Outlined.Search,
                         contentDescription = stringResource(R.string.web_session_search_submit),
                         onClick = ::submitSearch,
                         iconSizeDp = WEB_SESSION_SEARCH_SCREEN_SUBMIT_ICON_SIZE_DP,
@@ -1070,12 +1071,12 @@ private fun CurrentUrlActions(
             )
         }
         UrlActionButton(
-            icon = Icons.Filled.ContentCopy,
+            icon = Icons.Outlined.ContentCopy,
             title = stringResource(R.string.web_session_copy_current_url),
             onClick = onCopy,
         )
         UrlActionButton(
-            icon = Icons.Filled.Edit,
+            icon = Icons.Outlined.Edit,
             title = stringResource(R.string.web_session_edit_current_url),
             onClick = onEdit,
         )
@@ -1279,7 +1280,7 @@ private fun SearchHistoryTag(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = Icons.Filled.Close,
+                    imageVector = Icons.Outlined.Close,
                     contentDescription =
                         stringResource(R.string.web_session_delete_search_history_item),
                     tint = deleteColors.icon,

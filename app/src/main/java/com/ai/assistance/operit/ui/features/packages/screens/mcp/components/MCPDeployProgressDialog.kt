@@ -1,5 +1,9 @@
 package com.ai.assistance.operit.ui.features.packages.screens.mcp.components
 
+import com.kiyori.design.theme.kiyoriSurfaceColors
+
+import com.kiyori.design.theme.KiyoriSurfaceTokens
+
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -62,8 +66,8 @@ fun MCPDeployProgressDialog(
         Surface(
                 modifier = Modifier.fillMaxWidth().wrapContentHeight(),
                 shape = KiyoriUiShapes.dialog,
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 6.dp
+                color = kiyoriSurfaceColors().popup,
+                tonalElevation = KiyoriSurfaceTokens.flatElevation
         ) {
             Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp)) {
                 // 标题区域

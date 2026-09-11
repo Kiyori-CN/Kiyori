@@ -2,10 +2,14 @@ com.ai.assistance.operit.R
 com.ai.assistance.operit.core.tools.AIToolHandler
 com.ai.assistance.operit.core.tools.packTool.PackageManager
 com.ai.assistance.operit.data.repository.WorkflowRepository
+com.ai.assistance.operit.ui.components.KiyoriDrawerTitle
 com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 com.ai.assistance.operit.ui.main.navigation.LocalAppNavigationModel
 com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 com.ai.assistance.operit.ui.main.navigation.NavigationSurface
+com.kiyori.design.theme.KIYORI_DRAWER_HEADER_HORIZONTAL_PADDING_DP
+com.kiyori.design.theme.KIYORI_DRAWER_HEADER_TOP_SPACING_DP
+com.kiyori.design.theme.KIYORI_DRAWER_HEADER_VERTICAL_PADDING_DP
 com.kiyori.design.theme.KiyoriSemanticTone
 com.kiyori.design.theme.KiyoriUiShapes
 com.kiyori.design.theme.rememberKiyoriUiTokens

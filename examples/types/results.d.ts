@@ -6,6 +6,7 @@
  */
 
 import { BaseResult } from './core';
+import type { ToolPkg } from './toolpkg';
 
 // ============================================================================
 // Calculation and Date Result Types
@@ -1538,9 +1539,14 @@ export interface FunctionModelBindingResultData {
     toString(): string;
 }
 
+export type ModelConfigConnectionTestOutcome = 'passed' | 'unverified' | 'failed';
+
 export interface ModelConfigConnectionTestItemResultData {
     type: string;
+    /** True only when this individual probe is verified as passed. */
     success: boolean;
+    /** passed = verified; unverified = request succeeded but capability was not proven; failed = request or tool call failed. */
+    outcome: ModelConfigConnectionTestOutcome;
     error?: string | null;
 }
 
@@ -1551,9 +1557,13 @@ export interface ModelConfigConnectionTestResultData {
     requestedModelIndex: number;
     actualModelIndex: number;
     testedModelName: string;
+    /** True when no probe had a hard failure. Media probes may still be unverified. */
     success: boolean;
+    /** True only when every requested probe is verified as passed. */
+    verified: boolean;
     totalTests: number;
     passedTests: number;
+    unverifiedTests: number;
     failedTests: number;
     tests: ModelConfigConnectionTestItemResultData[];
     toString(): string;
@@ -1738,6 +1748,31 @@ export interface ChatMessagesResultData {
     messages: ChatMessageInfo[];
     start?: number;
     end?: number;
+    toString(): string;
+}
+
+/**
+ * Function model call finish reason.
+ *
+ * @since ToolPkg API 1.0.1
+ */
+export type ChatCallFinishReason = 'stop' | 'tool_call';
+
+/**
+ * Function model call result data.
+ *
+ * `text` contains assistant text with protocol metadata and tool XML removed.
+ * `turns` preserves assistant text and model-emitted tool calls as PromptTurn-shaped records.
+ * `metadata.protocolMeta` contains provider protocol entries with `provider` and raw `payload`.
+ *
+ * @since ToolPkg API 1.0.1
+ */
+export interface ChatCallResultData {
+    text: string;
+    turns: ToolPkg.PromptTurn[];
+    finishReason: ChatCallFinishReason;
+    metadata: ToolPkg.JsonObject;
+    receivedAt: number;
     toString(): string;
 }
 

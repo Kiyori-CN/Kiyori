@@ -6,7 +6,7 @@
 
 import {
     DirectoryListingData, FileContentData, BinaryFileContentData, FileOperationData, FileExistsData,
-    FindFilesResultData, FileInfoData, FileConversionResultData, FileFormatConversionsResultData,
+    FindFilesResultData, FileInfoData,
     HttpResponseData, VisitWebResultData,
     SleepResultData, SystemSettingData, AppOperationData, AppListData,
     DeviceInfoResultData, NotificationData, LocationData, BluetoothStateData, BluetoothBondedDevicesData,
@@ -17,7 +17,7 @@ import {
     FilePartContentData, FileApplyResultData, WorkflowListResultData, WorkflowResultData, WorkflowDetailResultData,
     ChatServiceStartResultData, ChatCreationResultData, ChatListResultData, ChatFindResultData, AgentStatusResultData,
     ChatSwitchResultData, ChatTitleUpdateResultData, ChatDeleteResultData, MessageSendResultData, MemoryQueryResultData, MemoryLinkResultData, MemoryLinkQueryResultData, GrepResultData,
-    ChatMessagesResultData, CharacterCardListResultData,
+    ChatMessagesResultData, ChatCallResultData, CharacterCardListResultData,
     EnvironmentVariableReadResultData, EnvironmentVariableWriteResultData,
     SandboxPackageResultItem, SandboxPackagesResultData, SandboxPackageUpdateResultData,
     McpRestartLogPluginResultItem, McpRestartWithLogsResultData,
@@ -204,6 +204,7 @@ export interface ToolResultMap {
 
     'send_message_to_ai': MessageSendResultData;
     'send_message_to_ai_streaming': MessageSendResultData;
+    'call_chat_model': ChatCallResultData;
     'list_character_cards': CharacterCardListResultData;
     'get_chat_messages': ChatMessagesResultData;
     'get_chat_messages_range': ChatMessagesResultData;

@@ -2,6 +2,9 @@
 
 ## 视觉原则
 
+全软件图标的轮廓/填充用途、状态与配色约束见[图标规范](../../doc-src/architecture/kiyori_iconography.md)。
+实色表面、轻阴影、模态遮罩与圆角分工见[Material 3 材质规范](../../doc-src/architecture/kiyori_material_surfaces.md)。
+
 Kiyori 的现代化不是把每个区域染成不同颜色，而是让用户在中性、稳定的表面上快速识别对象。
 页面背景、工具栏、抽屉、正文卡片和浏览器 chrome 使用固定主题的 surface 层级；彩色只作为
 小面积、高信息密度的识别信号。

@@ -15,10 +15,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ContentCopy
+
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Refresh
+
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -90,7 +92,7 @@ internal fun WebSessionBrowserCookieSheet(
                     enabled = cookieReaderEnabled && supported,
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Refresh,
+                        imageVector = Icons.Outlined.Refresh,
                         contentDescription = stringResource(R.string.web_session_cookie_reader_refresh),
                     )
                 }
@@ -158,7 +160,7 @@ internal fun WebSessionBrowserCookieSheet(
                     )
                 header == null ->
                     WebSessionEmptyState(
-                        icon = Icons.Filled.Refresh,
+                        icon = Icons.Outlined.Refresh,
                         title = stringResource(R.string.web_session_cookie_reader_not_loaded_title),
                         message = stringResource(R.string.web_session_cookie_reader_not_loaded_message),
                         tone = WebSessionBrowserMenuTone.PLUGINS,
@@ -198,7 +200,7 @@ internal fun WebSessionBrowserCookieSheet(
                             },
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.ContentCopy,
+                                imageVector = Icons.Outlined.ContentCopy,
                                 contentDescription = stringResource(R.string.web_session_cookie_reader_copy_all),
                             )
                         }

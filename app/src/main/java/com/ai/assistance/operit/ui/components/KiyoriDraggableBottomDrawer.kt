@@ -1,5 +1,9 @@
 package com.ai.assistance.operit.ui.components
 
+import com.kiyori.design.theme.kiyoriSurfaceColors
+
+import com.kiyori.design.theme.KiyoriSurfaceTokens
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -119,7 +123,7 @@ internal fun KiyoriDraggableBottomDrawer(
                 Modifier
                     .fillMaxSize()
                     .background(
-                        MaterialTheme.colorScheme.scrim.copy(alpha = 0.44f * visibleFraction),
+                        MaterialTheme.colorScheme.scrim.copy(alpha = KiyoriSurfaceTokens.modalScrimAlpha * visibleFraction),
                     )
                     .clickable(
                         enabled = isVisible,
@@ -206,7 +210,7 @@ internal fun KiyoriDraggableBottomDrawer(
                         )
                     },
             shape = KiyoriUiShapes.sheet,
-            color = MaterialTheme.colorScheme.surface,
+            color = kiyoriSurfaceColors().sheet,
             contentColor = MaterialTheme.colorScheme.onSurface,
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,

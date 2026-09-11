@@ -16,6 +16,8 @@ function Screen(ctx) {
     const [xmlContent] = ctx.useState("xmlContent", "");
     const submittingState = useStateValue(ctx, "submitting", false);
     const startedState = useStateValue(ctx, "started", false);
+    const statusChecked = useStateValue(ctx, "statusChecked", false);
+    const submissionBlocked = useStateValue(ctx, "submissionBlocked", false);
     const closedState = useStateValue(ctx, "closed", false);
     const errorState = useStateValue(ctx, "error", "");
     const expandedState = useStateValue(ctx, "expanded", false);
@@ -29,13 +31,14 @@ function Screen(ctx) {
     const previewMarkdown = visibleLines.join("\n");
     const rootKey = ready ? "plantodo-ready" : "plantodo-streaming";
     const handleStart = async () => {
-        if (submittingState.value) {
+        if (submittingState.value || startedState.value || submissionBlocked.value || !statusChecked.value) {
             return;
         }
         errorState.set("");
         submittingState.set(true);
         const result = await (0, plan_mode_execution_js_1.startPlanImplementation)(planContent);
         submittingState.set(false);
+        submissionBlocked.set(result.status === "unknown");
         if (result.success) {
             startedState.set(true);
             return;
@@ -157,7 +160,7 @@ function Screen(ctx) {
                         style: "bodyMedium",
                         color: "onSurfaceVariant",
                     }),
-                ...(ready && !startedState.value && lines.length
+                ...(ready && statusChecked.value && !submissionBlocked.value && !startedState.value && lines.length
                     ? [
                         ctx.UI.Row({
                             fillMaxWidth: true,
@@ -219,9 +222,22 @@ function Screen(ctx) {
         key: rootKey,
         fillMaxWidth: true,
         spacing: 12,
-        onLoad: () => {
+        onLoad: async () => {
             if (parsed.closed && !closedState.value) {
                 closedState.set(true);
+            }
+            if (!ready || !planContent)
+                return;
+            try {
+                const result = await (0, plan_mode_execution_js_1.getPlanImplementationStatus)(planContent);
+                startedState.set(result.success);
+                submissionBlocked.set(result.status === "unknown");
+                errorState.set(result.error ?? "");
+                statusChecked.set(true);
+            }
+            catch {
+                console.error("[plantodo] could not read authoritative submission status");
+                errorState.set(text.toastPlanSubmissionUnknown);
             }
         },
     }, children);

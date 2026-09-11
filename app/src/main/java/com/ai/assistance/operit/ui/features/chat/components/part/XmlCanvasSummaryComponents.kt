@@ -12,9 +12,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.SubdirectoryArrowRight
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ripple
@@ -186,10 +186,10 @@ internal fun CanvasToolResultRow(
             if (isSuccess) {
                 Icons.Default.Check
             } else {
-                Icons.Default.Close
+                Icons.Outlined.Close
             }
         )
-    val copyPainter = rememberVectorPainter(Icons.Default.ContentCopy)
+    val copyPainter = rememberVectorPainter(Icons.Outlined.ContentCopy)
     val summaryColor =
         if (isSuccess) {
             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
