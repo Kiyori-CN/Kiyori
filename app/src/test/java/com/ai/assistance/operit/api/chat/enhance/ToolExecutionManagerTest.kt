@@ -8,8 +8,28 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Test
+import kotlinx.coroutines.launch
 
 class ToolExecutionManagerTest {
+    @Test
+    fun runtimeChatContextSurvivesDispatcherChangesAndDoesNotLeakBetweenCalls() = kotlinx.coroutines.runBlocking {
+        val contexts = (1..12).map { ToolExecutionManager.ToolRuntimeContext(callerChatId = "chat-$it") }
+        kotlinx.coroutines.coroutineScope {
+            val jobs = contexts.map { context ->
+                launch {
+                    ToolExecutionManager.withToolRuntimeContext(context) {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                            kotlinx.coroutines.delay(5)
+                            assertEquals(context.callerChatId, ToolExecutionManager.currentToolRuntimeContext()?.callerChatId)
+                        }
+                    }
+                    assertEquals(null, ToolExecutionManager.currentToolRuntimeContext())
+                }
+            }
+            jobs.forEach { it.join() }
+        }
+    }
+
     @Test
     fun providerResult_usesOriginalInvocationNameInsteadOfDisplayName() {
         val invocation =

@@ -36,6 +36,7 @@ async function fixture(t) {
     const artifactRoot = JSON.parse((await exec("python3 -c 'import os,json; print(json.dumps(os.path.join(os.environ[\"HOME\"], \"AI artifacts\")))'")).output.trim());
     const context = vm.createContext({
         exports: {}, console: { error() {} }, complete: value => completions.push(value),
+        getArtifactPath: env => { assert.equal(env, "linux"); return artifactRoot; },
         getArtifactPaths: () => ({ android: '/unused', linux: artifactRoot, linuxIsLocal: true }),
         Tools: { System: { terminal: {
             create: async () => ({ sessionId: "code_runner_session" }),

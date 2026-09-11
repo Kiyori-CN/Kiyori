@@ -52,6 +52,7 @@ function createHost(options = {}) {
   vm.runInContext(PROTOCOL_SOURCE, protocolContext);
   const context = vm.createContext({
     exports: {},
+    Error,
     console,
     module: { exports: {} },
     require: id => {
@@ -61,6 +62,7 @@ function createHost(options = {}) {
       throw new Error(`unexpected require: ${id}`);
     },
     getEnv: () => '',
+    getArtifactPath: env => { if (options.artifactError) throw new Error(options.artifactError); return (options.artifactPaths ?? { android: "/storage/emulated/0/Download/Kiyori/workspace", linux: "/workspace" })[env]; },
     getArtifactPaths: () => options.artifactPaths ?? ({ android: '/storage/emulated/0/Download/Kiyori/workspace', linux: '/workspace' }),
     ToolPkg: {
       readResource: async () => '/data/cache/kiyori_office_runtime.zip'
@@ -190,6 +192,34 @@ test('default deliveries use configured roots, task isolation and the real exten
     const second = await runTool('docx_create', { markdown: 'x', env: 'linux', output_env, task_id: 't2' }, options);
     assert.equal(second.result.artifacts[0].path, `${artifactPaths[output_env]}/office/t2/report.pdf`);
   }
+});
+
+test('invalid default destination fails before initializing or writing runtime files', async () => {
+  const { result, host } = await runTool('docx_create', { markdown: 'x', env: 'linux' }, { artifactError: 'SAF workspace is not a local path' });
+  assert.equal(result.success, false);
+  assert.match(result.message, /SAF workspace/);
+  assert.equal(host.calls.hidden.length, 0);
+  assert.equal(host.calls.files.length, 0);
+});
+
+test('environment checks remain usable when delivery settings are invalid', async () => {
+  const { result } = await runTool('office_env_check', {}, { artifactError: 'Invalid Android default' });
+  assert.equal(result.success, true, JSON.stringify(result));
+  assert.equal(result.data.default_delivery_dir, undefined);
+  assert.match(result.data.default_delivery_error, /Invalid Android default/);
+});
+
+test('failed delivery preserves generated Linux artifacts and recovery location', async () => {
+  const artifact = { path: '/root/kiyori_office/work/task1/out/report.docx', env: 'linux', bytes: 42, role: 'output' };
+  const { result } = await runTool('docx_create', { markdown: 'x', env: 'linux', task_id: 'task1' }, {
+    envelope: envelope({ ok: true, command: 'docx_create', artifacts: [artifact], data: {} }),
+    copyResult: { successful: false },
+  });
+  assert.equal(result.success, false);
+  assert.equal(result.artifacts[0].path, artifact.path);
+  assert.equal(result.artifacts[0].env, 'linux');
+  assert.equal(result.data.delivery_status, 'failed');
+  assert.equal(result.data.task_id, 'task1');
 });
 
 test('an explicit Android delivery does not consult default artifact settings', async () => {

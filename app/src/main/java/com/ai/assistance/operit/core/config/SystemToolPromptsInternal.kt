@@ -64,7 +64,8 @@ object SystemToolPromptsInternal {
                                         type = "string",
                                         description = "terminal session name",
                                         required = true
-                                    )
+                                    ),
+                                    ToolParameterSchema(name = "working_directory", type = "string", description = "Initial directory for a NEW session only: absolute path or ~ for managed HOME operations. Existing sessions keep their cwd.", required = false)
                                 )
                         ),
                         ToolPrompt(
@@ -3076,7 +3077,8 @@ object SystemToolPromptsInternal {
                                         type = "string",
                                         description = "终端会话名称",
                                         required = true
-                                    )
+                                    ),
+                                    ToolParameterSchema(name = "working_directory", type = "string", description = "Initial directory for a NEW session only: absolute path or ~ for managed HOME operations. Existing sessions keep their cwd.", required = false)
                                 )
                         ),
                         ToolPrompt(

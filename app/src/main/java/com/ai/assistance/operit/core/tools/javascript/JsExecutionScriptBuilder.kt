@@ -44,6 +44,7 @@ private fun buildExecutionPreludeSource(): String {
         var complete = function() { return __operitInvokeCallRuntime('complete', arguments); };
         var getEnv = function() { return __operitInvokeCallRuntime('getEnv', arguments); };
         var getArtifactPaths = function() { return __operitInvokeCallRuntime('getArtifactPaths', arguments); };
+        var getArtifactPath = function() { return __operitInvokeCallRuntime('getArtifactPath', arguments); };
         var getPluginConfigDir = function() { return __operitInvokeCallRuntime('getPluginConfigDir', arguments); };
         var getState = function() { return __operitInvokeCallRuntime('getState', arguments); };
         var getLang = function() { return __operitInvokeCallRuntime('getLang', arguments); };
@@ -625,6 +626,10 @@ internal fun buildExecutionRuntimeBridgeScript(): String {
                         },
                         getArtifactPaths: function() {
                             return JSON.parse(NativeInterface.getArtifactPathsForCall(callId));
+                        },
+                        getArtifactPath: function(environment) {
+                            if (environment !== 'android' && environment !== 'linux') throw new Error('Expected android or linux environment');
+                            return NativeInterface.getArtifactPathForCall(callId, environment);
                         },
                         getPluginConfigDir: function(pluginId) {
                             var explicitId = pluginId == null ? '' : text(pluginId).trim();

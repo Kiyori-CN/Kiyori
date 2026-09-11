@@ -54,8 +54,53 @@ class ArtifactPathRulesTest {
         }
     }
 
+    @Test fun categoryDirectorySymlinkCannotRedirectArtifactsOutsideConfiguredRoot() {
+        val base = temporary.newFolder("root")
+        val outside = temporary.newFolder("outside")
+        java.nio.file.Files.createSymbolicLink(File(base, "browser").toPath(), outside.toPath())
+        assertThrows(IllegalArgumentException::class.java) {
+            ArtifactPathRules.reserveCategorizedFile(base, "browser", "report.txt")
+        }
+        assertFalse(File(outside, "report.txt").exists())
+    }
+
     @Test fun terminalCommandQuotesLiteralPathsAndRequiresSuccessfulCreation() {
         assertEquals("mkdir -p -- '/work/a'\\''b \$(x)' && cd -- '/work/a'\\''b \$(x)'",
             ArtifactPathRules.initialDirectoryCommand("/work/a'b \$(x)"))
+    }
+
+    @Test fun workspaceProjectionIsEnvironmentSpecificAndDoesNotReadOverriddenDefault() {
+        assertEquals("/root/project", ArtifactPathRules.projectRoot({ error("must not read invalid default") }, "linux", "/root//project/", " Linux "))
+        assertEquals("/android/default", ArtifactPathRules.projectRoot({ "/android/default" }, "android", "/root/project", "linux"))
+        assertEquals("/data/user/0/app/workspace", ArtifactPathRules.projectRoot({ error("unused") }, "android", "/data/user/0/app/workspace", null))
+        assertEquals("/workspace", ArtifactPathRules.projectRoot({ "/workspace" }, "linux", null, null))
+    }
+
+    @Test fun uriAndNetworkWorkspacesNeverBecomeLocalPaths() {
+        for (path in listOf("content://provider/tree/primary%3AFiles", "repo:workspace", "~/project", "/work/../root", "/")) {
+            assertThrows(path, IllegalArgumentException::class.java) {
+                ArtifactPathRules.projectRoot({ "/default" }, "android", path, "android")
+            }
+        }
+        for (env in listOf("sftp", "smb", "ssh:test")) {
+            assertThrows(IllegalArgumentException::class.java) { ArtifactPathRules.projectRoot({ "/default" }, "linux", "/remote", env) }
+        }
+        for (path in listOf("content://provider/tree/folder", "C:/folder", "report?.pdf")) {
+            assertThrows(IllegalArgumentException::class.java) { ArtifactPathRules.androidRoot(path, external) }
+        }
+    }
+
+    @Test fun primaryDocumentTreeSelectionPreservesUnicodeButRejectsOtherProvidersAndRoots() {
+        assertEquals("$external/Documents/季度 报告", ArtifactPathRules.primaryTreeRoot("com.android.externalstorage.documents", "primary:Documents/季度 报告", external))
+        for (id in listOf("primary:", "primary:Download", "primary:Android/data", "primary:../escape", "1234-ABCD:Reports")) {
+            assertThrows(IllegalArgumentException::class.java) { ArtifactPathRules.primaryTreeRoot("com.android.externalstorage.documents", id, external) }
+        }
+        assertThrows(IllegalArgumentException::class.java) { ArtifactPathRules.primaryTreeRoot("cloud.provider", "primary:Reports", external) }
+    }
+
+    @Test fun virtualLinuxFilesystemsCannotBeSelected() {
+        for (path in listOf("/proc", "/proc/self", "/dev/shm", "/sys/kernel", "/boot", "/run", "/lib")) {
+            assertThrows(path, IllegalArgumentException::class.java) { ArtifactPathRules.linuxRoot(path) }
+        }
     }
 }

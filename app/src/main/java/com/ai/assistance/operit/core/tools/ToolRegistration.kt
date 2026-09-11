@@ -40,12 +40,19 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
         descriptionGenerator = { "Read AI artifact storage directories" },
         executor = { tool ->
             try {
-                val paths = com.kiyori.platform.storage.KiyoriArtifactStoragePolicy.roots(context)
+                val environment = tool.parameters.find { it.name == "environment" }?.value?.trim()?.takeIf { it.isNotEmpty() }
+                val data = org.json.JSONObject().put("linuxIsLocal", ArtifactStorageAccess.linuxIsLocal(context))
+                if (environment != null) {
+                    data.put(environment, ArtifactStorageAccess.root(context, environment))
+                } else {
+                    val paths = ArtifactStorageAccess.paths(context)
+                    data.put("android", paths.android).put("linux", paths.linux)
+                }
                 ToolResult(toolName = tool.name, success = true,
-                    result = StringResultData(org.json.JSONObject().put("android", paths.android).put("linux", paths.linux).toString()))
+                    result = StringResultData(data.toString()))
             } catch (error: IllegalArgumentException) {
                 ToolResult(toolName = tool.name, success = false, result = StringResultData(""),
-                    error = "Invalid artifact storage settings; repair them in AI settings: ${error.message}")
+                    error = "Cannot resolve artifact destination: ${error.message}. Check the environment, workspace or AI storage settings.")
             }
         }
     )

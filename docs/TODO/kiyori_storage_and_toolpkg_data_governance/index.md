@@ -55,6 +55,42 @@ kiyori_storage_and_toolpkg_data_governance/
 
 ## 当前数据边界
 
+## AI 产物位置深度复查（2026-09-11）
+
+基线 `main@80156b864`，工作区干净。本轮授权实现、验证、提交和推送，不操作设备。
+
+1. [DONE] 统一原生工具、脚本和浏览器的调用工作区投影，校验 SAF/网络边界；按环境读取，避免不相关的非法偏好阻断输出。
+2. [DONE] 设置页按 Android/Ubuntu 分组，提供目录选择、字段错误、路径预览、草稿恢复默认和离开保护，复用既有设置主题。
+3. [DONE] 复查 Office、Bilibili、code_runner 的默认交付、环境安装与失败恢复；增加有意义的回归。
+4. [DONE] 定向验证、串行 Debug APK 构建与内置脚本核验；最终提交/远端 ref 以本轮 Git 交付记录为准。
+5. [PENDING] 真机目录选择、权限、软键盘、返回、Ubuntu 与实际产物现场验收。
+
+风险与回滚：复用现有偏好、对话绑定和终端 provider；不迁移已有文件或依赖，不改写显式目标。
+本轮提交可独立回退。自动检查只证明本地逻辑与构建，现场验收保留 `verification_pending`。
+
+本轮修复包括原生查询/浏览器缺工作区投影、异步脚本丢失调用上下文、SAF URI 被误作本地目录、
+两端偏好互相阻断、保存失败仍更新内存、Snackbar 占用操作状态、分类目录符号链接越界、
+Office 生成前未解析目标及交付失败丢失恢复路径、Rust 文件执行误用默认目录。
+代码运行器所有内联语言先解析本次目标，避免无效目录仍触发依赖准备或源码暂存；环境安装通过
+新会话的显式 HOME/工作目录保持原受管位置。文档合同见[产物存储](../../doc-src/contracts/artifact_storage.md)。
+
+UI 复用 `KiyoriSettingsWorkspacePage`、`KiyoriSettingsGroupSection`、Material3 与现有
+AppContent IME/当前页标记；参考 Operit `f323d6c50fa661837fad06d4618462861779b562` 的
+`ContextSummarySettingsScreen` 表单控件与主题使用，按两端路径及保存草稿需求重新组织内容。
+
+验证（2026-09-11 Asia/Shanghai）：路径/符号链接、偏好提交回滚、并发调用上下文共 18 项 Kotlin
+测试通过；Office/Bilibili/真实 JS 宿主 72 项、终端输入/Office 控制台/浏览器 30 项通过，
+真实 WSL PTY 12 项通过且无跳过。`tsc --noEmit -p examples/tsconfig.json` 与
+`tsc -p tools/compose_dsl/tsconfig.contracts.json` 通过；旧 Java 桥接递归声明展开导致包链索引
+消失的问题以递归接口修正，不增加 `any` 或断言。Office 与 Bilibili 类型检查/构建通过，
+生成分发文件与源码资产同步。
+
+Debug 构建 `./gradlew.bat :app:assembleDebug --no-daemon --console=plain` 通过；
+`app/build/outputs/apk/debug/app-debug.apk` 为 487,787,852 bytes，SHA-256
+`9c2b035e22caa1eefe33da57547203267af3198bbccd4baea60fb4d3c98c9f74`。
+已核对 `com.kiyori / 45 / 0.1.0` 以及 APK 内 `code_runner.js`、Office runtime、Bilibili
+bundle 与工作区逐字节一致。没有安装 APK、修改设备权限或执行真实下载。
+
 ## AI 产物默认目录闭环（2026-09-11）
 
 本增量以 `main@ccc4ba4fa` 为基线，修复此前只有提示词与部分浏览器路径的实现。用户授权包含审查并交付其他任务留下的 Responses 图片历史与审计导出改动。

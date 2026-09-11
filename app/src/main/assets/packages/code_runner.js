@@ -357,7 +357,7 @@ const codeRunner = (function () {
     }
     // Keep one real PTY session so the software terminal can show code_runner commands and output.
     async function executeTerminalCommand(command, timeoutMs = DEFAULT_COMMAND_TIMEOUT_MS) {
-        const session = await Tools.System.terminal.create(CODE_RUNNER_SESSION_NAME);
+        const session = await Tools.System.terminal.create(CODE_RUNNER_SESSION_NAME, "~");
         return await Tools.System.terminal.exec(session.sessionId, command, timeoutMs);
     }
     function buildSubshellCommand(directory, command) {
@@ -371,18 +371,17 @@ const codeRunner = (function () {
         return executeTerminalCommand(buildSubshellCommand("$HOME", command), timeoutMs);
     }
     // 运行用户源码与安装依赖是不同职责：依赖仍留在 HOME，源码的相对输出进入产物区。
-    async function executeInArtifactDirectory(command, timeoutMs = DEFAULT_COMMAND_TIMEOUT_MS) {
-        const paths = getArtifactPaths();
-        if (!paths.linuxIsLocal) {
-            throw new Error("Default artifact directory is local to Ubuntu; use an explicit remote terminal command and working directory for SSH");
-        }
-        const root = paths.linux;
+    function resolveArtifactRoot() {
+        const root = getArtifactPath("linux");
         if (!root.startsWith("/") || /[\0\r\n\\]/.test(root) || root.split("/").includes("..")) {
             throw new Error("Invalid Linux artifact directory");
         }
+        return root;
+    }
+    async function executeInArtifactDirectory(command, root, timeoutMs = DEFAULT_COMMAND_TIMEOUT_MS) {
         const directory = `${root.replace(/\/+$/, "")}/code-runner`;
         // 校验通过后再建会话，避免路径无效时留下一个没有用途的终端会话。
-        const session = await Tools.System.terminal.create(CODE_RUNNER_SESSION_NAME);
+        const session = await Tools.System.terminal.create(CODE_RUNNER_SESSION_NAME, root);
         return Tools.System.terminal.exec(session.sessionId, `mkdir -p -- '${escapeForShell(directory)}' && ${buildSubshellCommand(directory, command)}`, timeoutMs);
     }
     // Ensure a persistent Python venv under ~/.code_runner/py and return python/pip paths
@@ -1029,13 +1028,15 @@ int main() {
         if (!script || script.trim() === "") {
             throw new Error("请提供要执行的 JavaScript 脚本内容");
         }
+        // 先锁定本次产物目标，再安装依赖、写暂存源码或编译。
+        const artifactRoot = resolveArtifactRoot();
         const { workspaceDir } = await ensurePersistentNodeWorkspace();
         const nodeFlags = params.node_flags || "";
         const tempFileName = `temp_script_node_${createTempToken("node")}.js`;
         const tempFilePath = `${workspaceDir}/${tempFileName}`;
         try {
             await writeTextFile(tempFilePath, script);
-            const result = await executeInArtifactDirectory(`NODE_PATH=${workspaceDir}/node_modules node ${nodeFlags} ${tempFilePath}`.trim());
+            const result = await executeInArtifactDirectory(`NODE_PATH=${workspaceDir}/node_modules node ${nodeFlags} ${tempFilePath}`.trim(), artifactRoot);
             if (result.exitCode === 0 && !hasError(result.output)) {
                 return result.output.trim();
             }
@@ -1072,6 +1073,8 @@ int main() {
         if (!script || script.trim() === "") {
             throw new Error("请提供要执行的 Python 脚本内容");
         }
+        // 先锁定本次产物目标，再安装依赖、写暂存源码或编译。
+        const artifactRoot = resolveArtifactRoot();
         const pythonFlags = buildPythonFlags(params.python_flags);
         if (script.includes("\0") || params.script_args?.includes("\0")) {
             throw new Error("Python 源码和 script_args 不能包含 NUL");
@@ -1084,7 +1087,7 @@ int main() {
         try {
             await writeTextFile(tempFilePath, script);
             // 批处理不能继承共享 PTY 的输入，否则 input()/子进程会等待 AI 无法提供的按键。
-            const result = await executeInArtifactDirectory(`${pythonBin} -u ${pythonFlags} -- '${escapedTempFilePath}' ${scriptArgs} </dev/null`);
+            const result = await executeInArtifactDirectory(`${pythonBin} -u ${pythonFlags} -- '${escapedTempFilePath}' ${scriptArgs} </dev/null`, artifactRoot);
             return pythonOutput(result);
         }
         finally {
@@ -1117,11 +1120,13 @@ int main() {
         if (!script || script.trim() === "") {
             throw new Error("请提供要执行的 Ruby 脚本内容");
         }
+        // 先锁定本次产物目标，再安装依赖、写暂存源码或编译。
+        const artifactRoot = resolveArtifactRoot();
         const rubyFlags = params.ruby_flags || "";
         const tempFilePath = `/tmp/code_runner_${createTempToken("ruby")}.rb`;
         try {
             await writeTextFile(tempFilePath, script);
-            const result = await executeInArtifactDirectory(`ruby ${rubyFlags} ${tempFilePath}`);
+            const result = await executeInArtifactDirectory(`ruby ${rubyFlags} ${tempFilePath}`, artifactRoot);
             if (result.exitCode === 0 && !hasError(result.output)) {
                 return result.output.trim();
             }
@@ -1157,6 +1162,8 @@ int main() {
         if (!script || script.trim() === "") {
             throw new Error("请提供要执行的 Go 代码内容");
         }
+        // 先锁定本次产物目标，再安装依赖、写暂存源码或编译。
+        const artifactRoot = resolveArtifactRoot();
         const buildFlags = params.build_flags || "";
         const tempDirPath = `/tmp/code_runner_${createTempToken("go")}`;
         const tempFilePath = `${tempDirPath}/main.go`;
@@ -1167,7 +1174,7 @@ int main() {
             if (compileResult.exitCode !== 0 || hasError(compileResult.output)) {
                 throw new Error(`Go 代码编译失败:\n${compileResult.output}`);
             }
-            const result = await executeInArtifactDirectory(`${tempDirPath}/main`);
+            const result = await executeInArtifactDirectory(`${tempDirPath}/main`, artifactRoot);
             if (result.exitCode === 0 && !hasError(result.output)) {
                 return result.output.trim();
             }
@@ -1214,6 +1221,8 @@ int main() {
         if (!script || script.trim() === "") {
             throw new Error("请提供要执行的 Rust 代码内容");
         }
+        // 先锁定本次产物目标，再安装依赖、写暂存源码或编译。
+        const artifactRoot = resolveArtifactRoot();
         const rustConfig = await ensureRustConfigured();
         if (!rustConfig.success) {
             throw new Error(rustConfig.message);
@@ -1238,7 +1247,7 @@ edition = "2021"
                 throw new Error(`Rust 代码编译失败:\n${compileResult.output}`);
             }
             const execPath = `${tempDirPath}/target/${buildMode}/temp_rust_script`;
-            const result = await executeInArtifactDirectory(execPath, 30000);
+            const result = await executeInArtifactDirectory(execPath, artifactRoot, 30000);
             if (result.exitCode === 0 && !hasError(result.output)) {
                 return result.output.trim();
             }
@@ -1289,7 +1298,7 @@ edition = "2021"
                 throw new Error(`Rust 文件编译失败:\n${compileResult.output}`);
             }
             const execPath = `${tempDirPath}/target/${buildMode}/temp_rust_script`;
-            const result = await executeInArtifactDirectory(execPath, 30000);
+            const result = await executeTerminalCommand(execPath, 30000);
             if (result.exitCode === 0 && !hasError(result.output)) {
                 return result.output.trim();
             }
@@ -1306,6 +1315,8 @@ edition = "2021"
         if (!script || script.trim() === "") {
             throw new Error("请提供要执行的 C 代码内容");
         }
+        // 先锁定本次产物目标，再安装依赖、写暂存源码或编译。
+        const artifactRoot = resolveArtifactRoot();
         const compileFlags = params.compile_flags || "-O3 -march=native -fopenmp";
         const tempFilePath = `/tmp/code_runner_${createTempToken("c")}.c`;
         const tempExecPath = `/tmp/code_runner_${createTempToken("c_exec")}`;
@@ -1315,7 +1326,7 @@ edition = "2021"
             if (compileResult.exitCode !== 0 || hasError(compileResult.output)) {
                 throw new Error(`C 代码编译失败:\n${compileResult.output}`);
             }
-            const result = await executeInArtifactDirectory(tempExecPath);
+            const result = await executeInArtifactDirectory(tempExecPath, artifactRoot);
             if (result.exitCode === 0 && !hasError(result.output)) {
                 return result.output.trim();
             }
@@ -1362,6 +1373,8 @@ edition = "2021"
         if (!script || script.trim() === "") {
             throw new Error("请提供要执行的 C++ 代码内容");
         }
+        // 先锁定本次产物目标，再安装依赖、写暂存源码或编译。
+        const artifactRoot = resolveArtifactRoot();
         const compileFlags = params.compile_flags || "-O3 -march=native -fopenmp";
         const tempFilePath = `/tmp/code_runner_${createTempToken("cpp")}.cpp`;
         const tempExecPath = `/tmp/code_runner_${createTempToken("cpp_exec")}`;
@@ -1371,7 +1384,7 @@ edition = "2021"
             if (compileResult.exitCode !== 0 || hasError(compileResult.output)) {
                 throw new Error(`C++ 代码编译失败:\n${compileResult.output}`);
             }
-            const result = await executeInArtifactDirectory(tempExecPath);
+            const result = await executeInArtifactDirectory(tempExecPath, artifactRoot);
             if (result.exitCode === 0 && !hasError(result.output)) {
                 return result.output.trim();
             }

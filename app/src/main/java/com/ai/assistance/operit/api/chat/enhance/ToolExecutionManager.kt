@@ -61,7 +61,8 @@ object ToolExecutionManager {
 
     data class ToolRuntimeContext(
         val callerCardId: String? = null,
-        val toolExposureMode: ToolExposureMode = ToolExposureMode.FULL
+        val toolExposureMode: ToolExposureMode = ToolExposureMode.FULL,
+        val callerChatId: String? = null,
     )
 
     private data class ResolvedToolTarget(
@@ -164,6 +165,10 @@ object ToolExecutionManager {
 
     internal fun currentToolRuntimeContext(): ToolRuntimeContext? =
         toolRuntimeContextThreadLocal.get()
+
+    /** 脚本异步桥跨线程时显式携带调用上下文，不读取当前界面选中的对话。 */
+    internal suspend fun <T> withToolRuntimeContext(context: ToolRuntimeContext?, block: suspend () -> T): T =
+        withContext(toolRuntimeContextThreadLocal.asContextElement(context)) { block() }
 
     private fun addPackageContextParamIfMissing(
         params: MutableList<ToolParameter>,
@@ -689,7 +694,8 @@ object ToolExecutionManager {
         val toolRuntimeContext =
             ToolRuntimeContext(
                 callerCardId = callerCardId,
-                toolExposureMode = toolExposureMode
+                toolExposureMode = toolExposureMode,
+                callerChatId = callerChatId,
             )
         val providerExecutionRepository =
             if (

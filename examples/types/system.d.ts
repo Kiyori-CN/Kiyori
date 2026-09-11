@@ -273,7 +273,8 @@ export namespace System {
          * @param sessionName The name for the session.
          * @returns Promise resolving to the session creation result.
          */
-        function create(sessionName?: string): Promise<TerminalSessionCreationResultData>;
+        /** workingDirectory applies only to a new session; absolute path or ~ for managed HOME operations. */
+        function create(sessionName?: string, workingDirectory?: string): Promise<TerminalSessionCreationResultData>;
 
         /**
          * Execute a command in a terminal session.

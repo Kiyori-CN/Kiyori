@@ -165,6 +165,10 @@ The file manager lets you inspect and organize actual data. A workspace connects
 
 Establish the target directory, file scope, and overwrite intent before batch operations. See [extensions and workspaces](docs/doc-src/contracts/extensions_workspace.md).
 
+Configure **AI settings → AI artifact save location** to choose the default Android and local Ubuntu directories. They start at shared-storage `Download/Kiyori/workspace` and Ubuntu `/workspace`. Office, Bilibili, browser exports and the code runner organize outputs below these roots; explicit destinations and matching conversation workspaces take precedence. Android and Ubuntu are separate filesystems, and existing files, sessions and installed dependencies are not moved.
+
+Use **Choose folder** for an internal shared-storage folder or enter a path. **Restore defaults** updates the draft; **Save** applies it. **Check write access** creates the directory, writes and reads a temporary file, then removes that file. The folder picker does not grant direct Shell access. Cloud and SD card URIs are not supported as this default path. See the [artifact storage contract](docs/doc-src/contracts/artifact_storage.md) for tool and environment boundaries.
+
 ### Player, downloads, and media processing
 
 Media capabilities span discovery, saving, playback, and tool-based processing.

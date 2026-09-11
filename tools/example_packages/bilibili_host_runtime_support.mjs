@@ -36,6 +36,9 @@ export async function hostRuntime(service, tools = memoryTools().tools, modules 
         logs.push(args[1]);
       } else if (method === "getEnvForCall") {
         return "";
+      } else if (method === "getArtifactPathForCall") {
+        assert.equal(args[1], "android");
+        return "/storage/emulated/0/Download/Kiyori/workspace";
       } else if (method === "getArtifactPathsForCall") {
         // 打包脚本在没有显式 output_root 时读取默认产物目录；夹具给出与偏好默认值一致的根。
         return JSON.stringify({

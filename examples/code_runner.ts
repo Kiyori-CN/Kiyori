@@ -361,7 +361,7 @@ const codeRunner = (function () {
 
   // Keep one real PTY session so the software terminal can show code_runner commands and output.
   async function executeTerminalCommand(command: string, timeoutMs: number = DEFAULT_COMMAND_TIMEOUT_MS): Promise<import("./types/results").TerminalCommandResultData> {
-    const session = await Tools.System.terminal.create(CODE_RUNNER_SESSION_NAME);
+    const session = await Tools.System.terminal.create(CODE_RUNNER_SESSION_NAME, "~");
     return await Tools.System.terminal.exec(session.sessionId, command, timeoutMs);
   }
 
@@ -378,18 +378,18 @@ const codeRunner = (function () {
   }
 
   // 运行用户源码与安装依赖是不同职责：依赖仍留在 HOME，源码的相对输出进入产物区。
-  async function executeInArtifactDirectory(command: string, timeoutMs: number = DEFAULT_COMMAND_TIMEOUT_MS): Promise<import("./types/results").TerminalCommandResultData> {
-    const paths = getArtifactPaths();
-    if (!paths.linuxIsLocal) {
-      throw new Error("Default artifact directory is local to Ubuntu; use an explicit remote terminal command and working directory for SSH");
-    }
-    const root = paths.linux;
+  function resolveArtifactRoot(): string {
+    const root = getArtifactPath("linux");
     if (!root.startsWith("/") || /[\0\r\n\\]/.test(root) || root.split("/").includes("..")) {
       throw new Error("Invalid Linux artifact directory");
     }
+    return root;
+  }
+
+  async function executeInArtifactDirectory(command: string, root: string, timeoutMs: number = DEFAULT_COMMAND_TIMEOUT_MS): Promise<import("./types/results").TerminalCommandResultData> {
     const directory = `${root.replace(/\/+$/, "")}/code-runner`;
     // 校验通过后再建会话，避免路径无效时留下一个没有用途的终端会话。
-    const session = await Tools.System.terminal.create(CODE_RUNNER_SESSION_NAME);
+    const session = await Tools.System.terminal.create(CODE_RUNNER_SESSION_NAME, root);
     return Tools.System.terminal.exec(session.sessionId, `mkdir -p -- '${escapeForShell(directory)}' && ${buildSubshellCommand(directory, command)}`, timeoutMs);
   }
 
@@ -1073,13 +1073,16 @@ int main() {
       throw new Error("请提供要执行的 JavaScript 脚本内容");
     }
 
+    // 先锁定本次产物目标，再安装依赖、写暂存源码或编译。
+    const artifactRoot = resolveArtifactRoot();
+
     const { workspaceDir } = await ensurePersistentNodeWorkspace();
     const nodeFlags = params.node_flags || "";
     const tempFileName = `temp_script_node_${createTempToken("node")}.js`;
     const tempFilePath = `${workspaceDir}/${tempFileName}`;
     try {
       await writeTextFile(tempFilePath, script);
-      const result = await executeInArtifactDirectory(`NODE_PATH=${workspaceDir}/node_modules node ${nodeFlags} ${tempFilePath}`.trim());
+      const result = await executeInArtifactDirectory(`NODE_PATH=${workspaceDir}/node_modules node ${nodeFlags} ${tempFilePath}`.trim(), artifactRoot);
       if (result.exitCode === 0 && !hasError(result.output)) {
         return result.output.trim();
       } else {
@@ -1089,6 +1092,7 @@ int main() {
       await executeFromHome(`rm -f ${tempFilePath}`).catch(err => console.error(`删除临时文件失败: ${err.message}`));
     }
   }
+
 
   async function run_javascript_node_file(params: { file_path: string; node_flags?: string }) {
     const filePath = params.file_path;
@@ -1119,6 +1123,9 @@ int main() {
       throw new Error("请提供要执行的 Python 脚本内容");
     }
 
+    // 先锁定本次产物目标，再安装依赖、写暂存源码或编译。
+    const artifactRoot = resolveArtifactRoot();
+
     const pythonFlags = buildPythonFlags(params.python_flags);
     if (script.includes("\0") || params.script_args?.includes("\0")) {
       throw new Error("Python 源码和 script_args 不能包含 NUL");
@@ -1131,12 +1138,13 @@ int main() {
     try {
       await writeTextFile(tempFilePath, script);
       // 批处理不能继承共享 PTY 的输入，否则 input()/子进程会等待 AI 无法提供的按键。
-      const result = await executeInArtifactDirectory(`${pythonBin} -u ${pythonFlags} -- '${escapedTempFilePath}' ${scriptArgs} </dev/null`);
+      const result = await executeInArtifactDirectory(`${pythonBin} -u ${pythonFlags} -- '${escapedTempFilePath}' ${scriptArgs} </dev/null`, artifactRoot);
       return pythonOutput(result);
     } finally {
       await executeFromHome(`rm -f ${tempFilePath}`).catch(err => console.error(`删除临时文件失败: ${err.message}`));
     }
   }
+
 
   async function run_python_file(params: { file_path: string; python_flags?: string; script_args?: string }) {
     const filePath = params.file_path;
@@ -1169,11 +1177,14 @@ int main() {
       throw new Error("请提供要执行的 Ruby 脚本内容");
     }
 
+    // 先锁定本次产物目标，再安装依赖、写暂存源码或编译。
+    const artifactRoot = resolveArtifactRoot();
+
     const rubyFlags = params.ruby_flags || "";
     const tempFilePath = `/tmp/code_runner_${createTempToken("ruby")}.rb`;
     try {
       await writeTextFile(tempFilePath, script);
-      const result = await executeInArtifactDirectory(`ruby ${rubyFlags} ${tempFilePath}`);
+      const result = await executeInArtifactDirectory(`ruby ${rubyFlags} ${tempFilePath}`, artifactRoot);
       if (result.exitCode === 0 && !hasError(result.output)) {
         return result.output.trim();
       } else {
@@ -1183,6 +1194,7 @@ int main() {
       await executeFromHome(`rm -f ${tempFilePath}`).catch(err => console.error(`删除临时文件失败: ${err.message}`));
     }
   }
+
 
   async function run_ruby_file(params: { file_path: string; ruby_flags?: string }) {
     const filePath = params.file_path;
@@ -1212,6 +1224,9 @@ int main() {
       throw new Error("请提供要执行的 Go 代码内容");
     }
 
+    // 先锁定本次产物目标，再安装依赖、写暂存源码或编译。
+    const artifactRoot = resolveArtifactRoot();
+
     const buildFlags = params.build_flags || "";
     const tempDirPath = `/tmp/code_runner_${createTempToken("go")}`;
     const tempFilePath = `${tempDirPath}/main.go`;
@@ -1225,7 +1240,7 @@ int main() {
         throw new Error(`Go 代码编译失败:\n${compileResult.output}`);
       }
 
-      const result = await executeInArtifactDirectory(`${tempDirPath}/main`);
+      const result = await executeInArtifactDirectory(`${tempDirPath}/main`, artifactRoot);
 
       if (result.exitCode === 0 && !hasError(result.output)) {
         return result.output.trim();
@@ -1236,6 +1251,7 @@ int main() {
       await executeFromHome(`rm -rf ${tempDirPath}`).catch(err => console.error(`删除临时目录失败: ${err.message}`));
     }
   }
+
 
   async function run_go_file(params: { file_path: string; build_flags?: string }) {
     const filePath = params.file_path;
@@ -1276,6 +1292,9 @@ int main() {
       throw new Error("请提供要执行的 Rust 代码内容");
     }
 
+    // 先锁定本次产物目标，再安装依赖、写暂存源码或编译。
+    const artifactRoot = resolveArtifactRoot();
+
     const rustConfig = await ensureRustConfigured();
     if (!rustConfig.success) {
       throw new Error(rustConfig.message);
@@ -1303,7 +1322,7 @@ edition = "2021"
       }
 
       const execPath = `${tempDirPath}/target/${buildMode}/temp_rust_script`;
-      const result = await executeInArtifactDirectory(execPath, 30000);
+      const result = await executeInArtifactDirectory(execPath, artifactRoot, 30000);
       if (result.exitCode === 0 && !hasError(result.output)) {
         return result.output.trim();
       } else {
@@ -1313,6 +1332,7 @@ edition = "2021"
       await executeFromHome(`rm -rf ${tempDirPath}`).catch(err => console.error(`删除临时目录失败: ${err.message}`));
     }
   }
+
 
   async function run_rust_file(params: { file_path: string; cargo_flags?: string }) {
     const filePath = params.file_path;
@@ -1358,7 +1378,7 @@ edition = "2021"
       }
 
       const execPath = `${tempDirPath}/target/${buildMode}/temp_rust_script`;
-      const result = await executeInArtifactDirectory(execPath, 30000);
+      const result = await executeTerminalCommand(execPath, 30000);
       if (result.exitCode === 0 && !hasError(result.output)) {
         return result.output.trim();
       } else {
@@ -1375,6 +1395,9 @@ edition = "2021"
       throw new Error("请提供要执行的 C 代码内容");
     }
 
+    // 先锁定本次产物目标，再安装依赖、写暂存源码或编译。
+    const artifactRoot = resolveArtifactRoot();
+
     const compileFlags = params.compile_flags || "-O3 -march=native -fopenmp";
     const tempFilePath = `/tmp/code_runner_${createTempToken("c")}.c`;
     const tempExecPath = `/tmp/code_runner_${createTempToken("c_exec")}`;
@@ -1386,7 +1409,7 @@ edition = "2021"
         throw new Error(`C 代码编译失败:\n${compileResult.output}`);
       }
 
-      const result = await executeInArtifactDirectory(tempExecPath);
+      const result = await executeInArtifactDirectory(tempExecPath, artifactRoot);
       if (result.exitCode === 0 && !hasError(result.output)) {
         return result.output.trim();
       } else {
@@ -1396,6 +1419,7 @@ edition = "2021"
       await executeFromHome(`rm -f ${tempFilePath} ${tempExecPath}`).catch(err => console.error(`删除临时文件失败: ${err.message}`));
     }
   }
+
 
   async function run_c_file(params: { file_path: string; compile_flags?: string }) {
     const filePath = params.file_path;
@@ -1435,6 +1459,9 @@ edition = "2021"
       throw new Error("请提供要执行的 C++ 代码内容");
     }
 
+    // 先锁定本次产物目标，再安装依赖、写暂存源码或编译。
+    const artifactRoot = resolveArtifactRoot();
+
     const compileFlags = params.compile_flags || "-O3 -march=native -fopenmp";
     const tempFilePath = `/tmp/code_runner_${createTempToken("cpp")}.cpp`;
     const tempExecPath = `/tmp/code_runner_${createTempToken("cpp_exec")}`;
@@ -1446,7 +1473,7 @@ edition = "2021"
         throw new Error(`C++ 代码编译失败:\n${compileResult.output}`);
       }
 
-      const result = await executeInArtifactDirectory(tempExecPath);
+      const result = await executeInArtifactDirectory(tempExecPath, artifactRoot);
       if (result.exitCode === 0 && !hasError(result.output)) {
         return result.output.trim();
       } else {
@@ -1456,6 +1483,7 @@ edition = "2021"
       await executeFromHome(`rm -f ${tempFilePath} ${tempExecPath}`).catch(err => console.error(`删除临时文件失败: ${err.message}`));
     }
   }
+
 
   async function run_cpp_file(params: { file_path: string; compile_flags?: string }) {
     const filePath = params.file_path;

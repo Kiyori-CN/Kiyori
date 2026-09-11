@@ -1,5 +1,7 @@
 package com.ai.assistance.operit.core.tools.javascript
 
+import com.ai.assistance.operit.core.tools.ArtifactStorageAccess
+import com.ai.assistance.operit.api.chat.enhance.ToolExecutionManager
 import android.content.Context
 import android.graphics.Bitmap
 import android.os.Looper
@@ -137,6 +139,7 @@ class JsEngine(
         val packageName: String?,
         val scriptProxyEligible: Boolean,
         val packageChatId: String?,
+        val toolRuntimeContext: ToolExecutionManager.ToolRuntimeContext,
         val toolPkgRuntimeKind: String?,
         val toolPkgApiVersion: ToolPkgApiVersion?,
         val toolPkgLogSnapshot: JsToolPkgExecutionContext.LogSnapshot,
@@ -360,6 +363,9 @@ class JsEngine(
         toolPkgApiVersion: ToolPkgApiVersion?,
         executionListener: JsExecutionListener?
     ): ExecutionSession {
+        val callerContext = ToolExecutionManager.currentToolRuntimeContext()
+        val callerChatId = callerContext?.callerChatId
+            ?: params["__operit_package_chat_id"]?.toString()?.trim()?.ifBlank { null }
         return ExecutionSession(
             callId = callId,
             future = CompletableFuture(),
@@ -375,11 +381,11 @@ class JsEngine(
                 params[KiyoriScriptNetworkCallIdentity.RUNTIME_ELIGIBLE_PARAMETER]
                     ?.toString()
                     ?.equals("true", ignoreCase = true) == true,
-            packageChatId =
-                params["__operit_package_chat_id"]
-                    ?.toString()
-                    ?.trim()
-                    ?.ifBlank { null },
+            packageChatId = callerChatId,
+            toolRuntimeContext = (callerContext
+                ?: ToolExecutionManager.ToolRuntimeContext(
+                    callerCardId = params["__operit_package_caller_card_id"]?.toString()?.takeIf { it.isNotBlank() },
+                )).copy(callerChatId = callerChatId),
             toolPkgRuntimeKind =
                 params["__operit_toolpkg_runtime_kind"]
                     ?.toString()
@@ -1632,15 +1638,18 @@ class JsEngine(
         @JavascriptInterface
         fun getArtifactPathsForCall(callId: String): String {
             val session = requireNotNull(resolveExecutionSession(callId)) { "Artifact paths require an active call" }
-            val paths = com.ai.assistance.operit.core.tools.ArtifactStorageAccess.paths(context, session.packageChatId)
-            // 决定命令去向的是运行中的 provider。终端页选中的会话可能属于另一环境，未应用的
-            // SSH 偏好也不能作准；provider 尚未建立时才回退到会话选择与已保存偏好。
-            val manager = TerminalManager.getInstance(context)
-            val terminalType = manager.activeEnvironmentType.value
-                ?: manager.terminalState.value.currentSession?.terminalType
-                ?: if (SSHConfigManager(context).isEnabled()) TerminalType.SSH else TerminalType.LOCAL
+            val paths = ArtifactStorageAccess.paths(context, session.packageChatId)
             return JSONObject().put("android", paths.android).put("linux", paths.linux)
-                .put("linuxIsLocal", terminalType != TerminalType.SSH).toString()
+                .put("linuxIsLocal", ArtifactStorageAccess.linuxIsLocal(context)).toString()
+        }
+
+        @JavascriptInterface
+        fun getArtifactPathForCall(callId: String, environment: String): String {
+            val session = requireNotNull(resolveExecutionSession(callId)) { "Artifact paths require an active call" }
+            require(environment != "linux" || ArtifactStorageAccess.linuxIsLocal(context)) {
+                "Default artifact directory is local to Ubuntu; specify an explicit remote destination for SSH"
+            }
+            return ArtifactStorageAccess.root(context, environment, session.packageChatId)
         }
 
         @JavascriptInterface
@@ -2695,6 +2704,7 @@ class JsEngine(
                     sendToolResult(callback, result, isError)
                 },
                 trustedParameters = trustedScriptProxyParameters(executionCallId),
+                runtimeContext = scriptToolRuntimeContext(executionCallId),
             )
         }
 
@@ -2760,7 +2770,13 @@ class JsEngine(
                     sendToolResult(callback, result, isError)
                 },
                 trustedParameters = trustedScriptProxyParameters(executionCallId),
+                runtimeContext = scriptToolRuntimeContext(executionCallId),
             )
+        }
+
+        private fun scriptToolRuntimeContext(executionCallId: String?): ToolExecutionManager.ToolRuntimeContext? {
+            val session = executionCallId?.let(::resolveExecutionSession) ?: return null
+            return session.toolRuntimeContext
         }
 
         private fun trustedScriptProxyParameters(executionCallId: String?): Map<String, String> {

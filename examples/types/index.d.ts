@@ -293,6 +293,8 @@ declare global {
      * Does not create directories. Explicit destinations take precedence over these defaults.
      */
     function getArtifactPaths(): { android: string; linux: string; linuxIsLocal: boolean };
+    /** Resolve one local output environment without reading the other preference. Linux rejects SSH. */
+    function getArtifactPath(environment: "android" | "linux"): string;
     const KIYORI_CLEAN_ON_EXIT_DIR: string;
 
     // Utility objects

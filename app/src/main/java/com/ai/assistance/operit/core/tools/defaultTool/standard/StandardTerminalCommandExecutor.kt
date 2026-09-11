@@ -82,7 +82,8 @@ class StandardTerminalCommandExecutor(private val context: Context) {
                     }
 
                     // 如果 Terminal 中不存在，则创建新会话
-                    val newSessionId = terminal.createSession(sessionName)
+                    val workingDirectory = tool.parameters.find { it.name == "working_directory" }?.value?.takeIf { it.isNotBlank() }
+                    val newSessionId = terminal.createSession(sessionName, workingDirectory)
                     sessionNameToIdMap[sessionName] = newSessionId
 
                     ToolResult(

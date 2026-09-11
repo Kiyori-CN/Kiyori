@@ -25,7 +25,7 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.withTimeout
-import com.kiyori.platform.storage.KiyoriArtifactStoragePolicy
+import com.ai.assistance.operit.core.tools.ArtifactStorageAccess
 import com.kiyori.platform.storage.ArtifactPathRules
 import com.ai.assistance.operit.terminal.provider.type.TerminalType
 import java.util.UUID
@@ -81,14 +81,19 @@ class Terminal private constructor(private val context: Context) {
     /**
      * 创建新的终端会话 - 同步等待初始化完成
      */
-    suspend fun createSession(title: String? = null): String {
+    suspend fun createSession(title: String? = null, workingDirectory: String? = null): String {
         AppLogger.d(TAG, "Creating new terminal session and waiting for initialization")
+        val chatId = ArtifactStorageAccess.currentChatId()
+        val explicitCommand = workingDirectory?.let {
+            if (it == "~") "cd -- \"\$HOME\"" else ArtifactPathRules.initialDirectoryCommand(it)
+        }
         val newSession = terminalManager.createNewSession(title)
-        // 只初始化 AI 新建的本地会话；已有会话和 SSH 的 cwd 属于各自真实终端。
+        // 默认只初始化 AI 新建的本地会话；明确指定目录时也可初始化新 SSH 会话。
+        // 复用会话不会走这里，其 cwd 属于实际终端。
         // READY 后等待目录命令完成，失败关闭本次新会话，不能在 /root 静默继续执行。
-        if (newSession.terminalType == TerminalType.LOCAL) {
+        if (explicitCommand != null || newSession.terminalType == TerminalType.LOCAL) {
             try {
-                val command = ArtifactPathRules.initialDirectoryCommand(KiyoriArtifactStoragePolicy.roots(context).linux)
+                val command = explicitCommand ?: ArtifactPathRules.initialDirectoryCommand(ArtifactStorageAccess.root(context, "linux", chatId))
                 val result = withTimeout(30_000L) {
                     executeCommandFlow(newSession.id, command).filter { it.isCompleted }.last()
                 }

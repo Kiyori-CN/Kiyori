@@ -3,7 +3,7 @@ import type { JsonValue, VideoContext } from "./types";
 import { BilibiliError } from "./errors";
 
 export function defaultOutputRoot(): string {
-  return requireSafeAbsoluteAndroidPath(getArtifactPaths().android, "artifact_root") + "/bilibili";
+  return requireSafeAbsoluteAndroidPath(getArtifactPath("android"), "artifact_root") + "/bilibili";
 }
 
 export function contextRoot(

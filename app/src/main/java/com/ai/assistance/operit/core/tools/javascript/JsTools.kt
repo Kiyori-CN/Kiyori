@@ -827,7 +827,7 @@ fun getJsToolsDefinition(): String {
                 shell: (command) => toolCall("execute_shell", { command }),
                 // 执行终端命令 - 一次性收集输出
                 terminal: {
-                    create: (sessionName) => toolCall("create_terminal_session", { session_name: sessionName }),
+                    create: (sessionName, workingDirectory) => toolCall("create_terminal_session", { session_name: sessionName, working_directory: workingDirectory }),
                     exec: (sessionId, command, timeoutMs, options = {}) => {
                         const params = { session_id: sessionId, command };
                         if (timeoutMs !== undefined && timeoutMs !== null) {

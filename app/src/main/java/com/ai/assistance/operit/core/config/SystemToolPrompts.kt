@@ -44,8 +44,8 @@ object SystemToolPrompts {
         tools = listOf(
             ToolPrompt(
                 name = "get_artifact_paths",
-                description = "Read current absolute Android and local Ubuntu artifact roots without creating files. Use a task subdirectory; explicit destinations and bound workspaces take precedence. Remote SSH/MCP uses separate paths.",
-                parametersStructured = emptyList()
+                description = "Read current absolute Android and local Ubuntu artifact roots without creating files. Use a task subdirectory; explicit destinations and bound workspaces take precedence. Returns the bound workspace for its environment and current defaults otherwise; linuxIsLocal identifies the active provider. Remote SSH/MCP uses separate paths.",
+                parametersStructured = listOf(ToolParameterSchema(name = "environment", type = "string", description = "Optional android or linux; resolve only that environment", required = false))
             ),
             ToolPrompt(
                 name = "sleep",
@@ -74,8 +74,8 @@ object SystemToolPrompts {
         tools = listOf(
             ToolPrompt(
                 name = "get_artifact_paths",
-                description = "读取当前 Android 与本地 Ubuntu 产物绝对根目录，不创建文件。请使用任务子目录；明确目标与已绑定工作区优先。远端 SSH/MCP 需使用独立路径。",
-                parametersStructured = emptyList()
+                description = "读取当前 Android 与本地 Ubuntu 产物绝对根目录，不创建文件。请使用任务子目录；明确目标与已绑定工作区优先。返回对应环境的工作区或当前默认值，linuxIsLocal 表示当前终端是否本地。远端 SSH/MCP 需使用独立路径。",
+                parametersStructured = listOf(ToolParameterSchema(name = "environment", type = "string", description = "Optional android or linux; resolve only that environment", required = false))
             ),
             ToolPrompt(
                 name = "sleep",

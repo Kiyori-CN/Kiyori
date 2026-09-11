@@ -171,9 +171,10 @@ export type JavaBridgePackage = {
 } & JavaBridgeDynamicNamespace;
 
 // 宿主先解析具名方法/属性，其余名称才交给动态包代理；交叉类型保留两者的精确访问类型。
-type JavaBridgeDynamicNamespace = {
+// 递归索引用 interface 保留身份；type alias 与可调用交叉类型在联合展开时会丢失下一层索引。
+interface JavaBridgeDynamicNamespace {
     [member: string]: JavaBridgeClass | JavaBridgePackage;
-};
+}
 
 /**
  * Top-level Java/Kotlin bridge API injected by runtime.

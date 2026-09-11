@@ -405,13 +405,14 @@ async function stageInput(
 async function androidTarget(
   params: Record<string, unknown>,
   spec: ToolSpec,
-  taskId: string
+  taskId: string,
+  defaultRoot?: string
 ): Promise<string> {
   const explicit = asText(params.output_path).trim();
   if (explicit) {
     return normalizeAndroidPath(explicit);
   }
-  const root = getArtifactPaths().android;
+  const root = defaultRoot ?? getArtifactPath("android");
   const name =
     spec.outputKind === "multi"
       ? `${stripExtension(spec.defaultOutputName)}-${taskId}`
@@ -437,7 +438,8 @@ async function deliverArtifacts(
   params: Record<string, unknown>,
   spec: ToolSpec,
   taskId: string,
-  data: Record<string, unknown>
+  data: Record<string, unknown>,
+  defaultRoot?: string
 ): Promise<OfficeArtifact[]> {
   const declared = asText(params.output_env).trim();
   if (declared && declared !== "android" && declared !== "linux") {
@@ -453,8 +455,8 @@ async function deliverArtifacts(
     return artifacts;
   }
   let target = outputEnv === "android"
-    ? await androidTarget(params, spec, taskId)
-    : `${getArtifactPaths().linux}/office/${taskId}/${spec.outputKind === "multi" ? stripExtension(spec.defaultOutputName) : spec.defaultOutputName}`;
+    ? await androidTarget(params, spec, taskId, defaultRoot)
+    : `${defaultRoot ?? getArtifactPath("linux")}/office/${taskId}/${spec.outputKind === "multi" ? stripExtension(spec.defaultOutputName) : spec.defaultOutputName}`;
   // 默认交付名必须来自实际产物（例如 convert 到 PDF），不能用固定 output.docx。
   if (!asText(params.output_path).trim() && spec.outputKind !== "multi") {
     target = target.replace(/\/[^/]*$/, `/${baseName(artifacts[0].path)}`);
@@ -632,6 +634,14 @@ export async function runOfficeTool(
     // Android 工作区不能交给 Linux 侧创建：/sdcard 路径不属于允许根。
     return await createAndroidWorkspace(input);
   }
+  // 在初始化运行时与生成文件前解析本次默认目标；执行期间改设置只影响下一次请求。
+  const declaredOutput = asText(input.output_env).trim();
+  const producesArtifacts = spec.outputKind != null || declaresParam(spec, "output_path");
+  if (producesArtifacts && declaredOutput && declaredOutput !== "android" && declaredOutput !== "linux") {
+    throw new Error("E_INPUT_SCHEMA: output_env 必须显式传入 android 或 linux");
+  }
+  const deliveryRoot = producesArtifacts && !asText(input.output_path).trim() && input.in_place !== true
+    ? getArtifactPath(declaredOutput === "linux" ? "linux" : "android") : undefined;
   const paths = await ensureRuntime();
   if (["office_workspace_status", "office_workspace_clean", "office_env_check", "pptx_measure_text"].includes(command)) {
     return await runControlCommand(paths, spec, input);
@@ -640,7 +650,7 @@ export async function runOfficeTool(
   await changeTaskLease(paths, taskId, leaseToken, "acquire");
   let outcome: Record<string, unknown>;
   try {
-    outcome = await runPreparedOfficeTool(spec, input, env, paths, taskId, leaseToken);
+    outcome = await runPreparedOfficeTool(spec, input, env, paths, taskId, leaseToken, deliveryRoot);
   } catch (error) {
     outcome = { ...toFailure(command, error) };
   }
@@ -683,11 +693,18 @@ async function runControlCommand(paths: CachedPaths, spec: ToolSpec, input: Reco
     completed = true;
     const envelope = parseEnvelope(executed.output);
     if (envelope.ok && executed.exitCode !== 0) throw new Error(`E_ENGINE_FAILED: 管理命令退出码 ${executed.exitCode}`);
-    const base = getArtifactPaths().android;
+    // 环境检查/清理已经执行，默认交付设置损坏不能把成功的管理操作伪装成失败。
+    let deliveryDirectory: string | undefined;
+    let deliveryError: string | undefined;
+    try { deliveryDirectory = normalizeAndroidPath(`${getArtifactPath("android")}/office`); }
+    catch (error) {
+      deliveryError = error instanceof Error ? error.message : "Cannot resolve artifact directory";
+      console.error("office default delivery path unavailable", deliveryError);
+    }
     outcome = !envelope.ok ? { ...envelopeFailure(envelope) } : { success: true, command: spec.command, message: `${spec.command} 执行完成`,
       data: { ...envelope.data, execution_env: "linux", runtime_root: paths.runtimeDir,
         work_root: `${paths.home}/kiyori_office/work`, control_root: controlDir,
-        default_delivery_dir: normalizeAndroidPath(`${base}/office`) },
+        ...(deliveryDirectory ? { default_delivery_dir: deliveryDirectory } : { default_delivery_error: deliveryError }) },
       artifacts: [], warnings: envelope.warnings ?? [], next_actions: envelope.next_actions ?? [] };
   } catch (error) {
     outcome = { ...toFailure(spec.command, error) };
@@ -706,7 +723,7 @@ async function runControlCommand(paths: CachedPaths, spec: ToolSpec, input: Reco
 }
 
 async function runPreparedOfficeTool(spec: ToolSpec, input: Record<string, unknown>, env: FileEnv,
-  paths: CachedPaths, taskId: string, leaseToken: string): Promise<Record<string, unknown>> {
+  paths: CachedPaths, taskId: string, leaseToken: string, deliveryRoot?: string): Promise<Record<string, unknown>> {
   const command = spec.command;
   const taskDir = `${paths.home}/kiyori_office/work/${taskId}`;
   assertFileOperation(await Tools.Files.mkdir(`${taskDir}/out`, true, "linux"), "创建任务输出目录", taskDir);
@@ -871,9 +888,11 @@ async function runPreparedOfficeTool(spec: ToolSpec, input: Record<string, unkno
   let artifacts = envelope.artifacts || [];
   if (hasArtifacts(envelope)) {
     try {
-      artifacts = await deliverArtifacts(artifacts, input.in_place === true ? { ...input, output_env: "linux" } : input, spec, taskId, data);
+      artifacts = await deliverArtifacts(artifacts, input.in_place === true ? { ...input, output_env: "linux" } : input, spec, taskId, data, deliveryRoot);
     } catch (error) {
-      return toFailure(command, error);
+      // 交付失败时仍保留真实 Linux 产物及任务目录，便于修复权限后搬运，避免重新生成。
+      return { ...toFailure(command, error), artifacts,
+        data: { ...data, work_dir: taskDir, task_id: taskId, delivery_status: "failed" } };
     }
   }
   // 返回真实池链接而不只是磁盘路径。宿主解析器支持 JSON 中转义的 link；
@@ -958,7 +977,7 @@ async function executeSetup(paths: CachedPaths, taskDir: string, taskId: string,
   const marker = `${taskDir}/local-install-marker`;
   const token = newTaskId();
   assertFileOperation(await Tools.Files.write(marker, token, false, "linux"), "写入本地安装身份", marker);
-  const session = await Tools.System.terminal.create(`Office setup ${taskId}`);
+  const session = await Tools.System.terminal.create(`Office setup ${taskId}`, paths.home);
   if (!session.sessionId) throw new Error("E_ENGINE_FAILED: 无法创建可见安装终端");
   for (const command of plan.commands as string[]) {
     const guarded = `test "$(cat ${shellQuote(marker)} 2>/dev/null)" = ${shellQuote(token)} && (${command})`;

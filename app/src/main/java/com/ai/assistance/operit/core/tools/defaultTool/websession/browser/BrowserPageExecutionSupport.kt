@@ -20,7 +20,8 @@ import android.widget.Toast
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.StringResultData
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
-import com.kiyori.platform.storage.KiyoriArtifactStoragePolicy
+import com.kiyori.platform.storage.ArtifactPathRules
+import com.ai.assistance.operit.core.tools.ArtifactStorageAccess
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolResult
 import com.ai.assistance.operit.util.AppLogger
@@ -3490,7 +3491,8 @@ internal fun StandardBrowserSessionTools.writeBrowserTextOutput(
 internal fun StandardBrowserSessionTools.resolveBrowserOutputFile(
     filename: String?,
     defaultPrefix: String,
-    extension: String
+    extension: String,
+    chatId: String? = ArtifactStorageAccess.currentChatId(),
 ): File {
     // Browser snapshots and screenshots are user-visible artifacts. Keep them in the
     // configured AI workspace instead of the cache, which can be deleted silently.
@@ -3500,11 +3502,11 @@ internal fun StandardBrowserSessionTools.resolveBrowserOutputFile(
             candidate
         } else {
             val name = if (candidate.extension.isBlank()) "$filename.$extension" else filename
-            KiyoriArtifactStoragePolicy.reserveAndroidOutput(context, "browser", name)
+            ArtifactPathRules.reserveCategorizedFile(File(ArtifactStorageAccess.root(context, "android", chatId)), "browser", name)
         }
     }
     val timestamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(Date())
-    return KiyoriArtifactStoragePolicy.reserveAndroidOutput(context, "browser", "$defaultPrefix-$timestamp.$extension")
+    return ArtifactPathRules.reserveCategorizedFile(File(ArtifactStorageAccess.root(context, "android", chatId)), "browser", "$defaultPrefix-$timestamp.$extension")
 }
 
 internal fun StandardBrowserSessionTools.takeScreenshot(
@@ -3514,6 +3516,7 @@ internal fun StandardBrowserSessionTools.takeScreenshot(
     fullPage: Boolean,
     ref: String?
 ): String {
+    val chatId = ArtifactStorageAccess.currentChatId()
     return runOnMainSync {
         ensureSessionAttachedOnMain(session.id)
         val resolvedType = if (type == "jpg") "jpeg" else type
@@ -3524,7 +3527,7 @@ internal fun StandardBrowserSessionTools.takeScreenshot(
                 else -> captureViewportBitmap(session.webView)
             }
         try {
-            val output = resolveBrowserOutputFile(filename, "page", if (resolvedType == "png") "png" else "jpg")
+            val output = resolveBrowserOutputFile(filename, "page", if (resolvedType == "png") "png" else "jpg", chatId)
             try {
                 output.parentFile?.mkdirs()
                 FileOutputStream(output).use { stream ->

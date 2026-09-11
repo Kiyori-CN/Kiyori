@@ -23,7 +23,7 @@ export async function loadToolkit(services, tools, logger = { error() {} }, arti
     bundle: true, format: "cjs", platform: "node", target: "es2020", write: false
   });
   const module = { exports: {} };
-  vm.runInNewContext(output.outputFiles[0].text, { module, exports: module.exports, Error, console: logger, getArtifactPaths: artifactPaths, ToolPkg: { services: { bilibili: services } }, Tools: tools });
+  vm.runInNewContext(output.outputFiles[0].text, { module, exports: module.exports, Error, console: logger, getArtifactPaths: artifactPaths, getArtifactPath: env => artifactPaths()[env], ToolPkg: { services: { bilibili: services } }, Tools: tools });
   return module.exports;
 }
 export function memoryTools() {

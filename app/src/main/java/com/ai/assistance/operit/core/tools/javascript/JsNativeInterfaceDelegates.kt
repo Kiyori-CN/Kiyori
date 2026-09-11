@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.core.tools.javascript
 
+import com.ai.assistance.operit.api.chat.enhance.ToolExecutionManager
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -856,6 +857,7 @@ internal object JsNativeInterfaceDelegates {
         binaryDataThreshold: Int,
         sendToolResult: (callbackId: String, result: String, isError: Boolean) -> Unit,
         trustedParameters: Map<String, String> = emptyMap(),
+        runtimeContext: ToolExecutionManager.ToolRuntimeContext? = null,
     ) {
         val parsed =
             try {
@@ -872,7 +874,11 @@ internal object JsNativeInterfaceDelegates {
 
         Thread {
             try {
-                val result = toolHandler.executeTool(parsed.aiTool)
+                val result = runBlocking {
+                    ToolExecutionManager.withToolRuntimeContext(runtimeContext) {
+                        toolHandler.executeTool(parsed.aiTool)
+                    }
+                }
                 // Expected tool failures are data, not bridge exceptions. The serialized error is
                 // the single user-facing record; this layer logs only preparation/execution faults.
                 val resultJson =
@@ -907,6 +913,7 @@ internal object JsNativeInterfaceDelegates {
         sendToolResult: (callbackId: String, result: String, isError: Boolean) -> Unit,
         sendIntermediateResult: (callbackId: String, result: String, isError: Boolean) -> Unit,
         trustedParameters: Map<String, String> = emptyMap(),
+        runtimeContext: ToolExecutionManager.ToolRuntimeContext? = null,
     ) {
         val parsed =
             try {
@@ -925,18 +932,20 @@ internal object JsNativeInterfaceDelegates {
             try {
                 var pendingFinalResult: ToolResult? = null
                 runBlocking {
-                    toolHandler.executeToolAndStream(parsed.aiTool).collect { result ->
-                        val previous = pendingFinalResult
-                        pendingFinalResult = result
-                        if (previous != null) {
-                            val intermediateJson =
-                                serializeToolExecutionResult(
-                                    result = previous,
-                                    binaryDataRegistry = binaryDataRegistry,
-                                    binaryHandlePrefix = binaryHandlePrefix,
-                                    binaryDataThreshold = binaryDataThreshold
-                                )
-                            sendIntermediateResult(intermediateCallbackId, intermediateJson, !previous.success)
+                    ToolExecutionManager.withToolRuntimeContext(runtimeContext) {
+                        toolHandler.executeToolAndStream(parsed.aiTool).collect { result ->
+                            val previous = pendingFinalResult
+                            pendingFinalResult = result
+                            if (previous != null) {
+                                val intermediateJson =
+                                    serializeToolExecutionResult(
+                                        result = previous,
+                                        binaryDataRegistry = binaryDataRegistry,
+                                        binaryHandlePrefix = binaryHandlePrefix,
+                                        binaryDataThreshold = binaryDataThreshold
+                                    )
+                                sendIntermediateResult(intermediateCallbackId, intermediateJson, !previous.success)
+                            }
                         }
                     }
                 }
