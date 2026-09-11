@@ -10,6 +10,7 @@ import com.ai.assistance.operit.core.tools.packTool.PackageManager
 import com.ai.assistance.operit.data.preferences.ApiPreferences
 import com.ai.assistance.operit.data.skill.SkillRepository
 import com.ai.assistance.operit.core.workspace.WorkspaceRuleFileReader
+import com.kiyori.platform.storage.KiyoriArtifactStoragePolicy
 import com.ai.assistance.operit.util.LocaleUtils
 
 object SystemPromptConfig {
@@ -376,11 +377,18 @@ AVAILABLE_TOOLS_SECTION""".trimIndent()
         workspaceRuleFileName = workspaceRuleFile?.name,
         workspaceRuleFileContent = workspaceRuleFile?.content.orEmpty()
     )
+    val artifactPolicy = KiyoriArtifactStoragePolicy.prompt(context, useEnglish)
 
     // Build prompt with appropriate sections
     var prompt = templateToUse
         .replace("ACTIVE_PACKAGES_SECTION", if (enableTools) packagesSection.toString() else "")
-        .replace("WORKSPACE_GUIDELINES_SECTION", workspaceGuidelines)
+        .replace(
+            "WORKSPACE_GUIDELINES_SECTION",
+            listOf(workspaceGuidelines, artifactPolicy).filter { it.isNotBlank() }.joinToString("\n\n")
+        )
+    if (!prompt.contains(artifactPolicy)) {
+        prompt += "\n\n$artifactPolicy"
+    }
 
     // Determine the available tools string based on tool visibility and recognition capabilities.
     // 当使用Tool Call API时，不在系统提示词中包含工具描述（工具已通过API的tools字段发送）
