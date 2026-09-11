@@ -150,7 +150,13 @@ def add_elements(prs, slide, elements, *, args=None, theme=None):
                 raise OfficeError("E_INPUT_SCHEMA", "shape 必须是 rectangle/rounded_rectangle/oval")
             shape = slide.shapes.add_shape(kinds[name], *box)
             if "text" in spec or "paragraphs" in spec:
-                text_frame(shape.text_frame, spec.get("paragraphs", [spec.get("text", "")]), spec)
+                # D8：text_frame() 的 vertical_alignment 默认值是 "top"，这对
+                # 文本框（type=text）符合阅读习惯，但套在形状（矩形/圆角矩形/
+                # 椭圆）里的文字会贴着容器顶部，观感偏离容器中心。调用方没有
+                # 显式传 vertical_alignment 时，形状元素改用 "middle"；一旦
+                # 调用方显式指定，仍以调用方的值为准。
+                shape_spec = spec if "vertical_alignment" in spec else {**spec, "vertical_alignment": "middle"}
+                text_frame(shape.text_frame, shape_spec.get("paragraphs", [shape_spec.get("text", "")]), shape_spec)
         elif kind == "table":
             rows = spec.get("rows")
             if not isinstance(rows, list) or not rows or not all(isinstance(row, list) and row for row in rows) or len({len(row) for row in rows}) != 1:
@@ -158,6 +164,14 @@ def add_elements(prs, slide, elements, *, args=None, theme=None):
             if len(rows) * len(rows[0]) > 2000:
                 raise OfficeError("E_BUDGET_EXCEEDED", "PPT 单表超过 2000 个单元格")
             shape = slide.shapes.add_table(len(rows), len(rows[0]), *box)
+            # D9：python-pptx 的 add_table 会把传入的 height 平均分给每一行；
+            # 本工具将 height_cm 作为预留版面；未指定行高时采用 0.8cm 紧凑行高。
+            # 这是工具默认值，不保证任意长文本都能容纳；需预览并显式调整行高。
+            has_explicit_row_heights = isinstance(spec.get("table_style"), dict) and "row_heights_cm" in spec["table_style"]
+            if not has_explicit_row_heights:
+                default_row_height = Cm(0.8)
+                for table_row in shape.table.rows:
+                    table_row.height = default_row_height
             for r, row in enumerate(rows):
                 for c, value in enumerate(row):
                     text_frame(shape.table.cell(r, c).text_frame, ["" if value is None else str(value)], spec)
@@ -261,6 +275,9 @@ def add_elements(prs, slide, elements, *, args=None, theme=None):
             shape_style(shape, spec["style"])
         if "table_style" in spec:
             table_style(shape.table, spec["table_style"])
+        if kind == "table" and (shape.left + shape.width > prs.slide_width or shape.top + shape.height > prs.slide_height):
+            # 行高设置会改变真实表格尺寸，必须重新核验，不能仅检查传入的预留框。
+            raise OfficeError("E_INPUT_SCHEMA", "表格实际行列尺寸超出幻灯片，请调整 row_heights_cm/column_widths_cm 或拆页")
         if "chart_style" in spec:
             chart_style(shape.chart, {**{k:v for k,v in spec.items() if k in {"font_name", "size_pt", "color_rgb"}}, **spec["chart_style"]})
         added.append(shape)

@@ -159,7 +159,8 @@ def test_docx_template_missing_nested_variable_does_not_publish(tmp_path):
     doc.save(source)
     result = run('docx_from_template', source, output, variables={})
     assert not result['ok']
-    assert result['error']['code'] == 'E_ANCHOR_NOT_FOUND'
+    # D6：模板变量缺失是独立语义，不再复用「锚点未找到」的错误码。
+    assert result['error']['code'] == 'E_TEMPLATE_VAR_MISSING'
     assert not output.exists()
 
 

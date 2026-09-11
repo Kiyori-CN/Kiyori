@@ -110,7 +110,13 @@ def _describe(issue: Dict[str, Any]) -> str:
     field = issue.get("field", "args")
     reason = issue.get("reason")
     if reason == "UNKNOWN_FIELD":
-        return "%s 不是已登记字段" % field
+        # D10：之前只说「不是已登记字段」，不给出该层级实际支持哪些字段，
+        # 调用方（尤其是把字段放错层级，如把 transition 放到顶层而不是
+        # slides[i] 内）只能去翻 schema 源文件。expected 此处是该层级
+        # properties 的字段名列表（见下方 _issue 调用处）。
+        available = issue.get("expected") or []
+        hint = "、".join(available) if available else "（该层级不接受任何字段）"
+        return "%s 不是已登记字段；该层级可用字段：%s" % (field, hint)
     if reason == "MISSING":
         return "%s 缺少必填字段（期望 %s）" % (field, issue.get("expected"))
     if reason == "ENUM":
@@ -219,7 +225,12 @@ def _validate(
                 _validate(properties[key], item, "%s.%s" % (path, key), issues)
             elif additional is False:
                 issues.append(
-                    _issue("%s.%s" % (path, key), "UNKNOWN_FIELD", actual=_actual(item))
+                    _issue(
+                        "%s.%s" % (path, key),
+                        "UNKNOWN_FIELD",
+                        expected=sorted(properties),
+                        actual=_actual(item),
+                    )
                 )
 
 

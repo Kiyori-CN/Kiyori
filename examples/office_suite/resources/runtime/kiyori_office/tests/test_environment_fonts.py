@@ -55,6 +55,7 @@ def test_both_pandoc_routes_use_confirmed_family(tmp_path, monkeypatch, command)
     result = protocol.run(command, args)
     assert result['ok'], result
     assert 'CJKmainfont=Noto Sans CJK SC' in commands[0]
+    assert result['engine'] == result['data']['engine'] == 'pandoc'
 
 
 def test_unregistered_font_file_does_not_select_cid_for_xelatex(tmp_path, monkeypatch):

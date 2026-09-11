@@ -26,6 +26,11 @@ ReportLab 创建支持 `image`（`image_path/width_cm/caption`）和可换行、
 
 ## 3. 高频坑
 
+- 表格默认用线条策略；仅识别到的所有表格文本全空时尝试文本策略，成功切换返回 `PDF_TABLE_STRATEGY_FALLBACK`。仍有全空表格时返回 `PDF_TABLE_TEXT_EMPTY`；不要把空结果当作原表无内容。文本策略的行列边界仍需对照页图核验。
+- `pdf_form_list` 的 `available_states` 列出复选框/单选组实际状态。复选框接受 true/false、Yes/On 等别名；自定义状态名优先匹配。多选项单选组必须明确选择实际状态（如 `/Option2`），不能用 true 任意选择。不可填写的按钮或非法状态报 `E_INPUT_SCHEMA`；`filled` 不含被忽略的未知字段。
+- PDF 转 DOCX/ODT/HTML 显式使用 `office_convert(engine=libreoffice)`，工具为这些目标启用 Writer PDF 导入；转换可用不表示原布局或编辑结构完全保真，必须预览核对。
+- `pdf_create(engine=weasyprint)` 依赖 Tier2 的 `weasyprint`，可先生成 `office_env_setup(tier=2,components=["weasyprint"])` 计划。`pdf_create` 与 `office_convert` 顶层 `engine` 表示实际执行引擎。
+
 - **中文缺 CJK 字体**会渲染成方框：`pdf_create` / `pdf_watermark` 生成前会探测并拦截（`E_ENV_MISSING`）。
   优先从 Android `/system/fonts` 复制字体到 Linux `~/.fonts` 再 `fc-cache -f`，不要无脑 apt 装几百 MB。
 - **缺 poppler-data 会让中文 PDF 预览静默变空白图**：`pdftoppm` 只打印

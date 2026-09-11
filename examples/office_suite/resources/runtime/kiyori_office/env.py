@@ -36,7 +36,7 @@ TIER_COMPONENTS: Dict[int, List[str]] = {
         "Pillow",
         "cryptography",
     ],
-    2: ["pandoc", "poppler-utils", "poppler-data", "cjk-fonts"],
+    2: ["pandoc", "poppler-utils", "poppler-data", "cjk-fonts", "weasyprint"],
     3: ["libreoffice"],
     4: ["tesseract-ocr", "texlive-xetex"],
 }
@@ -531,6 +531,11 @@ def build_plan(tier: int, components: Optional[List[str]] = None) -> Dict[str, A
     if "poppler-data" in selected:
         # 缺它会让中文 PDF 预览静默变成空白图，必须与 poppler-utils 一起装。
         apt_packages.append("poppler-data")
+    if "weasyprint" in selected:
+        # pdf_create(engine=weasyprint) 之前把 remedy 指向 Tier2，但 Tier2 的
+        # 安装计划里从未包含 weasyprint，用户按提示装完仍然失败（D4）。
+        # weasyprint 需要 pango/cairo/gdk-pixbuf，用 apt 装比 pip 更省心。
+        apt_packages.append("weasyprint")
     if "libreoffice" in selected:
         apt_packages.append("libreoffice-core libreoffice-writer libreoffice-calc libreoffice-impress")
     if "tesseract-ocr" in selected:

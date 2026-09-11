@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -201,12 +202,17 @@ class OfficeSuiteContractTest(unittest.TestCase):
             "E_FORMAT_UNSUPPORTED",
             "E_DOC_CORRUPT",
             "E_ANCHOR_NOT_FOUND",
+            "E_TEMPLATE_VAR_MISSING",
+            "E_FORM_FIELD_NOT_FOUND",
             "E_VALIDATION_FAILED",
             "E_ENGINE_FAILED",
             "E_TIMEOUT",
             "E_BUDGET_EXCEEDED",
         }
         self.assertTrue(expected.issubset(set(protocol.ERROR_CODES)))
+        for path in ("src/shared/protocol.ts", "dist/shared/protocol.js"):
+            codes = set(re.findall(r'"(E_[A-Z_]+)"', (PACKAGE_ROOT / path).read_text(encoding="utf-8")))
+            self.assertEqual(codes, set(protocol.ERROR_CODES), path)
 
 
 if __name__ == "__main__":

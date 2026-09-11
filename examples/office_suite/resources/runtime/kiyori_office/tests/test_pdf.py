@@ -61,8 +61,54 @@ def test_acroform_fill_roundtrip_and_unknown_field_protection(tmp_path):
     original = output.read_bytes()
     rejected = protocol.run('pdf_form_fill', {'path': str(output), 'output_path': str(output),
                                              'in_place': True, 'values': {'missing': 'x'}})
-    assert not rejected['ok'] and rejected['error']['code'] == 'E_ANCHOR_NOT_FOUND'
+    # D6：表单字段不存在不再复用「锚点未找到」的错误码。
+    assert not rejected['ok'] and rejected['error']['code'] == 'E_FORM_FIELD_NOT_FOUND'
     assert output.read_bytes() == original
+
+
+def test_acroform_checkbox_accepts_bool_and_friendly_strings(tmp_path):
+    """回归 D1：真实调用方几乎不会传 pypdf 内部的裸状态名（如 "/Yes"），而是
+    传布尔值或不带前导 "/" 的常见词（True / "Yes" / "On"）。旧实现把这些值
+    原样交给 pypdf 的 update_page_form_field_values，对 /Btn 字段执行
+    NameObject(value) 时因缺少前导 "/" 而生成非法 PDF 名称，写盘后再读回
+    /AS 变成 None——勾选框视觉上仍是未选中，但返回值却把字段列入 filled。"""
+    from reportlab.pdfgen.canvas import Canvas
+    from pypdf import PdfReader
+    source = tmp_path / 'checkbox.pdf'
+    canvas = Canvas(str(source))
+    canvas.acroForm.checkbox(name='agree', x=40, y=700, checked=False)
+    canvas.showPage()
+    canvas.save()
+
+    for index, value in enumerate((True, "Yes", "On", "yes")):
+        output = tmp_path / ("checkbox-%d.pdf" % index)
+        result = protocol.run(
+            'pdf_form_fill',
+            {'path': str(source), 'output_path': str(output), 'values': {'agree': value}},
+        )
+        assert result['ok'], (value, result)
+        assert result['data']['filled'] == ['agree']
+        widget = PdfReader(output).pages[0]['/Annots'][0].get_object()
+        assert widget.get('/V') == '/Yes', (value, widget.get('/V'))
+        assert widget.get('/AS') == '/Yes', (value, widget.get('/AS'))
+
+    off_output = tmp_path / 'checkbox-off.pdf'
+    off_result = protocol.run(
+        'pdf_form_fill',
+        {'path': str(source), 'output_path': str(off_output), 'values': {'agree': False}},
+    )
+    assert off_result['ok'], off_result
+    off_widget = PdfReader(off_output).pages[0]['/Annots'][0].get_object()
+    assert off_widget.get('/AS') == '/Off'
+
+    bad_output = tmp_path / 'checkbox-bad.pdf'
+    bad_result = protocol.run(
+        'pdf_form_fill',
+        {'path': str(source), 'output_path': str(bad_output), 'values': {'agree': 'maybe'}},
+    )
+    assert not bad_result['ok']
+    assert bad_result['error']['code'] == 'E_INPUT_SCHEMA'
+    assert not bad_output.exists()
 
 
 def _make_pdf(path, pages=2, text="Hello Kiyori"):

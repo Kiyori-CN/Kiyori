@@ -148,7 +148,8 @@ def test_docx_from_template_fills_and_reports_missing(tmp_path):
         {"path": str(path), "variables": {"customer": "甲"}, "output_path": str(tmp_path / "b.docx")},
     )
     assert strict["ok"] is False
-    assert strict["error"]["code"] == "E_ANCHOR_NOT_FOUND"
+    # D6：模板变量缺失是独立语义，不再借用「锚点未找到」的错误码。
+    assert strict["error"]["code"] == "E_TEMPLATE_VAR_MISSING"
 
 
 def test_docx_merge_keeps_all_paragraphs(tmp_path):

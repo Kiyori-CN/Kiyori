@@ -75,5 +75,7 @@ description: 处理 Word/Excel/PPT/PDF 的总入口。任何涉及 .docx/.xlsx/.
 | `E_PATH_INVALID` | 路径越界或不存在；确认 `env` 与文件位置后重试 |
 | `E_PATH_EXISTS` | 目标已存在；改名或显式 `overwrite=true` |
 | `E_ANCHOR_NOT_FOUND` | 重新 `*_outline` 取锚点，不要盲改 |
+| `E_TEMPLATE_VAR_MISSING` | DOCX/PPTX 模板缺少变量；补齐 variables，或显式 strict=false 保留未填内容 |
+| `E_FORM_FIELD_NOT_FOUND` | PDF 字段不存在；先 pdf_form_list 核对字段名，strict=false 仅忽略未知字段 |
 | `E_VALIDATION_FAILED` | 按 `data.issues` 修正后重新生成 |
 | `E_TIMEOUT` | 先检查进程、暂存区和产物；安装任务先确认 apt/dpkg 是否仍在运行，不能直接重试或取消 |

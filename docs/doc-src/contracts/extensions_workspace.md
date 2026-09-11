@@ -22,6 +22,12 @@
 
 `com.kiyori.office_suite` 由 ToolPkg 管理；TypeScript 层只处理参数、文件搬运与工具结果，
 格式处理统一在 `kiyori_office`。结构化块中的图片也通过同一搬运入口，遵循实际输入与输出环境。
+
+动态引擎命令 `office_convert` / `pdf_create` 的顶层 `engine` 返回实际执行引擎。
+DOCX/PPTX 缺模板变量报 `E_TEMPLATE_VAR_MISSING`，PDF 未知字段报 `E_FORM_FIELD_NOT_FOUND`；
+锚点定位继续使用 `E_ANCHOR_NOT_FOUND`。PDF 按钮以实际外观状态填写，歧义或不可填写状态显式拒绝。
+表格仅在默认策略得到全空表格时尝试文本策略，并返回切换或仍为空的告警；不承诺文本聚类保持原表结构。
+Tier2 安装计划包含 `weasyprint`，安装仍遵守用户确认契约。布局与填写参数见随包指引。
 页面预览使用现有 ImagePool 与媒体链接解析，自动把页图附入多模态上下文；每次最多 8 页，
 2048 长边图可结合归一化区域裁剪读取细节。图像注册失败不能以 OCR 文本代替成功。
 

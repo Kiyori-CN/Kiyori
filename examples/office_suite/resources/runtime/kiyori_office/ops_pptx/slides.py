@@ -463,9 +463,17 @@ def pptx_template_fill(args: Dict[str, Any]) -> Dict[str, Any]:
                         replace_in_frame(cell.text_frame)
     for slide in prs.slides:
         fill_shapes(slide.shapes)
+        # D5：演讲者备注此前完全不参与扫描——{{note}} 会原样保留，且
+        # strict=true 也不会把它计入 missing，属于「契约不一致」。备注是
+        # pptx_notes 已经支持读写的普通文本框，直接复用同一套替换逻辑；
+        # 用 has_notes_slide 判断，避免给没有备注的幻灯片凭空新建空备注页。
+        if slide.has_notes_slide:
+            notes_frame = slide.notes_slide.notes_text_frame
+            if notes_frame is not None:
+                replace_in_frame(notes_frame)
     if missing and bool(args.get("strict", True)):
         raise OfficeError(
-            "E_ANCHOR_NOT_FOUND",
+            "E_TEMPLATE_VAR_MISSING",
             "模板变量缺少取值",
             detail="missing=%s" % ", ".join(missing),
             remedy="补齐 variables，或显式设置 strict=false",

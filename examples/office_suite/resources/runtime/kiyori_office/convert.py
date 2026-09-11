@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List
 
-from .env import require_binary, require_libreoffice_for_source
+from .env import require_binary, require_libreoffice, require_libreoffice_for_source
 from .paths import atomic_output, artifact, resolve_output_path, resolve_path, resolve_task_id, task_dir
 from .protocol import OfficeError, engine_version
 from .engines import run_output_command
@@ -47,6 +47,11 @@ PANDOC_OUTPUTS = {
     "epub": "epub",
     "csv": "csv",
 }
+
+# PDF → 这些目标格式时，soffice 必须显式加 --infilter=writer_pdf_import，
+# 否则无头模式把 PDF 当 Draw 文档打开，找不到 Writer 语义的导出过滤器（D3）。
+# 只覆盖 filter_map 中实际存在的 Writer 家族目标；xlsx/pptx 等不适用。
+WRITER_TARGET_FORMATS = {"docx", "odt", "html"}
 
 # to_format 允许写 "plain"/"markdown"/"latex" 这类 pandoc 读写器名，
 # 但产物文件名要用真实后缀，否则会写出 document.plain 这种无法打开的路径。
@@ -108,9 +113,12 @@ def _convert_libreoffice(
 ) -> Dict[str, Any]:
     # 先确认源文件所需的 LibreOffice 组件（Writer/Calc/Impress），
     # 只装 Writer 时转 xlsx/pptx 会以 E_ENGINE_FAILED 失败，必须先报 E_ENV_MISSING。
-    state = require_libreoffice_for_source(
-        source.suffix, purpose="office_convert(libreoffice)"
-    )
+    writer_pdf_import = source.suffix.lower() == ".pdf" and to_format in WRITER_TARGET_FORMATS
+    if writer_pdf_import:
+        # PDF 没有固定源组件；Writer 导入路线必须确认 Writer，而非任意已装组件。
+        state = require_libreoffice(purpose="office_convert(libreoffice)", component="writer")
+    else:
+        state = require_libreoffice_for_source(source.suffix, purpose="office_convert(libreoffice)")
     soffice = state["path"]
     filter_map = {
         "pdf": "pdf",
@@ -139,6 +147,14 @@ def _convert_libreoffice(
         "--nolockcheck",
         "--nodefault",
         "-env:UserInstallation=%s" % profile.resolve().as_uri(),
+    ]
+    # soffice 无头模式对 PDF 源文件默认以 Draw 文档打开，导出过滤器只能选
+    # Draw 语义的目标（pdf/odg/svg…）；目标是 Writer 语义格式时必须显式加
+    # --infilter=writer_pdf_import 让它以 Writer 文档导入，否则必然报
+    # "no export filter ... found, aborting."（见缺陷 D3）。
+    if writer_pdf_import:
+        command.append("--infilter=writer_pdf_import")
+    command += [
         "--convert-to",
         filter_map[to_format],
         "--outdir",
@@ -174,6 +190,10 @@ def _convert_libreoffice(
     with atomic_output(output) as temporary:
         shutil.copy2(produced, temporary)
     return {
+        # 顶层 engine 必须显式给出：office_convert 以静态 engine="external"
+        # 注册（见 protocol.py dispatch），只有 handler 自己在结果顶层写
+        # "engine" 才不会被那个占位值覆盖（同一类问题见 D7）。
+        "engine": "libreoffice",
         "artifacts": [artifact(output, role="in_place" if args.get("in_place") else "output")],
         "data": {
             "engine": "libreoffice",
@@ -230,6 +250,7 @@ def _convert_pandoc(
     run_output_command(command, output, command.index("-o") + 1,
                        timeout=int(args.get("timeout_ms") or 600000) / 1000, purpose="pandoc 转换")
     return {
+        "engine": "pandoc",
         "artifacts": [artifact(output, role="in_place" if args.get("in_place") else "output")],
         "data": {
             "engine": "pandoc",

@@ -19,6 +19,7 @@ description: PowerPoint/.pptx 的高质量可编辑布局、原生图表、生�
 - 有模板时优先 `pptx_template_fill`，保留模板设计；无模板才 `pptx_create`。
 - 删除页若被其他页、母版、自定义放映或节列表引用，会返回 `E_FORMAT_UNSUPPORTED` 和 `incoming_references`，文件不变。先在支持导航编辑的软件中明确移除或重定向引用，再删除；工具不会自动改跳转目标。无入站引用的增删、移动和复制可以正常进行。
 - 模板填充递归覆盖组合对象中的文本框/表格；软换行和自动域是边界，不会把边界两侧拼成变量。替换值中的 `{{...}}` 不递归展开；返回实际 `replacements`。
+- 已存在的演讲者备注同样参与变量替换和缺失检查；没有备注页时不创建新页。严格模式缺变量报 `E_TEMPLATE_VAR_MISSING`，非严格模式保留占位符并列入 `missing_variables`。
 
 ## 3. 质量规则
 
@@ -70,6 +71,7 @@ description: PowerPoint/.pptx 的高质量可编辑布局、原生图表、生�
 
 - 文档或页面 `theme` 设置 `font_name/size_pt/color_rgb/bold/italic` 等字体与段落默认值，页面覆盖文档，元素覆盖页面；图片不应用文字默认值。主题不会重新设计已有模板。
 - `table_style`：`header_fill_rgb/header_color_rgb/body_fill_rgb/band_fill_rgb/border_rgb/border_width_pt/font_name/size_pt/color_rgb/column_widths_cm/row_heights_cm`。使用真表格；不以一组文本框冒充可维护的表格。
+- 新建形状文字默认垂直居中，文本框默认贴顶；元素或主题显式 `vertical_alignment` 优先。表格未指定 `row_heights_cm` 时采用每行 0.8cm 的工具默认值，不按预留 `height_cm` 均分；显式行高仍准确保留。长文本需预览后调整行高，不保证渲染器自动撑高。
 - `chart_style`：`series_colors` 与系列数一致，`point_colors` 用于单系列且与数据点数一致；`legend_position=none/top/bottom/left/right`、`legend_font_size_pt`、`gridlines`、`number_format`、`minimum_scale/maximum_scale`。`background_rgb/plot_fill_rgb/border_rgb` 接受 RGB 或 `none`。图表无显式标题时不自动生成系列标题。
 - `data_labels` 属于 `chart_style`，支持 `show_value/show_percentage/show_category/position/number_format/size_pt/color_rgb`；位置可取 `center/inside_end/outside_end/best_fit`，最终适用效果取决于图表类型并须预览。
 - `style` 用于文本框和形状：`fill_rgb` 或 `gradient={colors:["123456","ABCDEF"],angle:45}`，二者互斥；`opacity` 为 0-1；`shadow={color_rgb,opacity,blur_pt,distance_pt,angle}`；`line_rgb/line_width_pt`。`corner_radius` 为圆角矩形的 0-0.5 相对调整值，不是厘米。

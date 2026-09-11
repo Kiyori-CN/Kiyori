@@ -77,7 +77,7 @@ def docx_from_template(args: Dict[str, Any]) -> Dict[str, Any]:
 
     if missing and strict:
         raise OfficeError(
-            "E_ANCHOR_NOT_FOUND",
+            "E_TEMPLATE_VAR_MISSING",
             "模板变量缺少取值",
             detail="missing=%s" % ", ".join(missing),
             remedy="补齐 variables，或显式设置 strict=false 保留原样",

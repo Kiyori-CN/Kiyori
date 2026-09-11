@@ -1,5 +1,49 @@
 # 办公文档套件专项
 
+## Claude 方案复核与修复（2026-09-11）
+
+目标：落实用户提供方案中的 D1–D10，核验真实文件状态、错误协议与最终 APK，并按本轮授权全部提交推送 `origin/main`。
+基线 `702e1ba0b4afa95259dc17574ebf40f1034ca8ba`，父仓库和 terminal 干净；不修改子模块，不安装或操作设备。
+D11 题注重复提示按方案保留可选未实施。回滚以本轮独立提交的逆向变更处理。
+
+1. 复核并应用修复：PDF 表单/表格、转换引擎、Tier2、PPT 备注及布局、错误码与参数诊断。
+2. 补全单选组歧义、全空表格告警、无正文备注页等边界；同步 JS 错误码与随包指引。
+3. 执行完整办公 Python 回归、JS 与协议契约检查，再串行构建并核验 APK 内 ToolPkg。
+4. 审计精确文件清单、候选提交和远端状态，提交推送并对账。
+
+风险：PDF 字段树/外观状态、文本表格识别及不同 Office 渲染器存在差异；文件输出继续原子发布。
+状态：D1–D10 源码修复、本地回归和 Debug 构建完成；PRoot 外部引擎、实际 Office/WPS 视觉效果保持 `verification_pending`。
+
+### 修复结果与方案校正
+
+- PDF 表单使用字段声明的状态与 `NameObject` 写入值和外观，支持布尔/裸状态名及完整嵌套字段名。
+  自定义状态优先于布尔别名，多选项单选组的 true、pushbutton 或无可写控件字段显式拒绝。
+  `pdf_form_list.available_states` 给出合法状态，`filled` 排除 non-strict 忽略的未知字段。
+- 全空网格按方案尝试文本策略，成功切换告警；仍为空也告警，不把空文本当作原页无内容。
+  本轮真实生成的错位网格 PDF 验证了两种策略差异；用户原报告附带 PDF 未提供，未宣称复测该原件。
+- PDF→DOCX/ODT/HTML 指定 Writer 导入并先检查 Writer 组件；动态引擎返回实际 engine。
+  Tier2 计划补全 weasyprint。外部引擎测试使用替身核验命令、产物交付及结果信封，不冒充真实转换或 apt 安装。
+- PPT 备注参与模板替换及严格缺失检查，保留无备注页/无正文占位符的合法文件。
+  形状默认居中，文本框默认贴顶，显式值优先；表格默认每行 0.8cm，显式行高保留，真实尺寸越界拒绝。
+  0.8cm 是工具默认值，不采纳方案中“PowerPoint 默认且保证自动撑高”的未经本轮验证说法。
+- Python、TypeScript 和 dist 同步新错误码，契约测试阻止再次漂移；未知字段诊断列出当前层级合法字段。
+  同步三份随包指引与扩展契约。D11 重复题注提示按方案不实施。
+
+### 本轮验证与交付证据
+
+- 项目 `.venv` 使用本专项已有的本机附加依赖入口，所有 Python 命令使用 `-B`；未安装依赖。
+  基线办公测试 254 项通过；最终办公运行时 283 项、工具/schema/错误码契约 13 项，共 296 项通过，0 失败/跳过。
+  新增 29 项运行时回归，覆盖真实 PDF/OOXML 保存回读、状态歧义、失败不覆盖、表格策略及布局边界。
+- TypeScript 编译成功；`node --test tools/example_packages/office_suite.test.mjs tools/example_packages/office_console.test.mjs`：49 项通过。
+  文档检查 518 文件、0 问题；三份随包 Skill 校验通过，formal readiness 与 `git diff --check` 通过。
+- 串行 `./gradlew.bat :app:assembleDebug --no-daemon --console=plain`：`BUILD SUCCESSFUL in 49s`，238 项任务（24 执行）。
+  APK 为 `app/build/outputs/apk/debug/app-debug.apk`，495,731,084 bytes，2026-09-11 22:59:47（Asia/Shanghai），`com.kiyori / 0.1.0 / 45`。
+  SHA-256：`c14222aaf77e5358a0ec6cb005d9b3179b4d718e7c0e2dbef0df593df956166c`。
+- APK 内办公 ToolPkg 为 278,898 bytes、80 文件，全部与工作区逐字节一致，无 pyc 或 Python 缓存；V2 签名、单签名者和 16 KB ZIP 对齐通过。
+- 交付候选为 21 个办公相关文件，敏感与异常文件扫描无命中，terminal 保持干净；构建与审计记录保留在忽略的 `work/office-fix-plan-20260911`。
+  候选提交、新鲜克隆和提交推送对账在形成提交后执行，结果见本次交付回复与任务日记。
+  不操作设备、不运行 Release/Lint 或无关 JVM 测试，设备与真实外部引擎验收保持待验证。
+
 ## 测评修复（2026-09-11）
 
 后续 AI 稳定性修复已生成包含本节办公修改的新 APK；最新产物哈希及 79 个随包文件核验见

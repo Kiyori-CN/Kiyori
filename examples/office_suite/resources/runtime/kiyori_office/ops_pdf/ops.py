@@ -109,6 +109,19 @@ def pdf_extract_command(args: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+# 线条策略可能只识别出空网格；仅此时尝试方案约定的文本策略，并显式告警。
+# 文本聚类不保证重建原表格边界，调用方仍需对照原页核验。
+_TABLE_TEXT_FALLBACK_SETTINGS = {"vertical_strategy": "text", "horizontal_strategy": "text"}
+
+
+def _table_rows_are_empty(rows: List[List[Any]]) -> bool:
+    for row in rows or []:
+        for cell in row or []:
+            if cell is not None and str(cell).strip():
+                return False
+    return True
+
+
 def _extract_tables(source: Path, pages: List[int], directory: Path, args: Dict[str, Any]) -> Dict[str, Any]:
     try:
         import pdfplumber  # type: ignore
@@ -120,9 +133,25 @@ def _extract_tables(source: Path, pages: List[int], directory: Path, args: Dict[
             remedy="调用 office_env_setup 安装 pdfplumber，或改用 mode=text",
         ) from exc
     tables: List[Dict[str, Any]] = []
+    fallback_pages: List[int] = []
+    empty_pages: List[int] = []
     with pdfplumber.open(str(source)) as pdf:
         for page_number in pages:
-            for table_index, table in enumerate(pdf.pages[page_number - 1].extract_tables() or []):
+            page = pdf.pages[page_number - 1]
+            page_tables = page.extract_tables() or []
+            if page_tables and all(_table_rows_are_empty(table) for table in page_tables):
+                # 识别到表格结构但所有单元格都是空文本：不能当作成功结果直接
+                # 返回（调用方会以为这份 PDF 确实没有文字），先按 D2 的建议
+                # 回退到按文本位置聚类的策略，只有它也拿到内容才采用。
+                fallback_tables = page.extract_tables(_TABLE_TEXT_FALLBACK_SETTINGS) or []
+                if fallback_tables and not all(
+                    _table_rows_are_empty(table) for table in fallback_tables
+                ):
+                    page_tables = fallback_tables
+                    fallback_pages.append(page_number)
+            if any(_table_rows_are_empty(table) for table in page_tables):
+                empty_pages.append(page_number)
+            for table_index, table in enumerate(page_tables):
                 tables.append(
                     {
                         "page": page_number,
@@ -130,13 +159,31 @@ def _extract_tables(source: Path, pages: List[int], directory: Path, args: Dict[
                         "rows": table,
                     }
                 )
+    warnings = []
+    if empty_pages:
+        warnings.append({
+            "code": "PDF_TABLE_TEXT_EMPTY",
+            "message": "第 %s 页仍有表格未提取到文本，请对照原页检查；空结果不证明原表没有内容"
+            % ", ".join(str(p) for p in empty_pages),
+        })
+    if fallback_pages:
+        warnings.append(
+            {
+                "code": "PDF_TABLE_STRATEGY_FALLBACK",
+                "message": (
+                    "第 %s 页默认线条策略识别到表格结构但单元格文本为空，已自动回退为"
+                    "按文本位置聚类的策略重新提取" % ", ".join(str(p) for p in fallback_pages)
+                ),
+            }
+        )
     return {
+        "warnings": warnings,
         "data": {
             "tables": tables,
             "table_count": len(tables),
             "pages": pages,
             "work_dir": str(directory),
-        }
+        },
     }
 
 
@@ -327,9 +374,94 @@ def pdf_form_list_command(args: Dict[str, Any]) -> Dict[str, Any]:
                 "value": str(field.get("/V", "")),
                 "flags": int(field.get("/Ff", 0) or 0),
                 "options": [str(item) for item in field.get("/Opt", []) or []],
+                "available_states": [str(item) for item in field.get("/_States_", []) or []],
             }
         )
     return {"data": {"fields": entries, "field_count": len(entries)}}
+
+
+def _resolve_button_state(states: List[str], requested: Any) -> Optional[str]:
+    """把布尔值/常见同义词/裸状态名统一解析成字段真实的 /AP 状态名（含前导"/"）。
+
+    pypdf 的 PdfWriter.update_page_form_field_values 对 /Btn 字段直接执行
+    ``NameObject(value)``：value 必须已经是形如 "/Yes" 的合法 PDF 名称，传入
+    Python bool、或不带前导"/"的裸单词（"Yes"/"On"）都会生成非法 NameObject，
+    /AS 因此在回读时变成 None——这是 D1「复选框填写静默失败」的直接成因。
+    调用方必须在交给 pypdf 之前把值归一化到字段自己声明的状态名。
+    """
+
+    # 自定义导出值优先于友好布尔别名，例如单选组中的 Yes/No 是两个不同选项。
+    if isinstance(requested, str):
+        candidate = requested.strip()
+        candidate = candidate if candidate.startswith("/") else "/" + candidate
+        if candidate in states:
+            return candidate
+        matches = [state for state in states if state.casefold() == candidate.casefold()]
+        if len(matches) == 1:
+            return matches[0]
+    on_states = [state for state in states if state != "/Off"]
+    boolean: Optional[bool] = None
+    if isinstance(requested, bool):
+        boolean = requested
+    elif isinstance(requested, str):
+        lowered = requested.strip().lower()
+        if lowered in ("true", "yes", "on", "1", "checked", "y"):
+            boolean = True
+        elif lowered in ("false", "no", "off", "0", "unchecked", "n", ""):
+            boolean = False
+    if boolean is True:
+        return on_states[0] if len(on_states) == 1 else None
+    if boolean is False:
+        return "/Off" if "/Off" in states else None
+    return None
+
+
+def _apply_button_values(page, resolved: Dict[str, str]) -> set:
+    """直接在 widget 注解上写 /V 与 /AS（均为 NameObject），绕开
+    update_page_form_field_values 对 /Btn 字段的 TextStringObject/裸名称问题。
+    同时处理单选组常见的父字段（含 /Kids）结构：/V 写在父字段，每个子
+    widget 的 /AS 按自身是否拥有该状态的外观流决定，命中则设为该状态，
+    否则回落 /Off（与 PDF 规范中「未选中的兄弟项必须是 /Off」一致）。
+    """
+
+    from pypdf.generic import NameObject
+
+    annots = page.get("/Annots")
+    applied = set()
+    if not annots:
+        return applied
+    for annot_ref in annots:
+        widget = annot_ref.get_object()
+        if widget.get("/Subtype") != "/Widget":
+            continue
+        # get_fields 使用完整字段名；只比较最近 /T 会漏写嵌套字段或串写同名字段。
+        names, seen = [], set()
+        node, field = widget, None
+        while node is not None:
+            if id(node) in seen:
+                raise OfficeError("E_DOC_CORRUPT", "PDF 表单字段父链存在循环")
+            seen.add(id(node))
+            if node.get("/T") is not None:
+                names.insert(0, str(node["/T"]))
+                if field is None:
+                    field = node
+            parent = node.get("/Parent")
+            node = parent.get_object() if parent is not None else None
+        name = ".".join(names)
+        if name not in resolved:
+            continue
+        state = resolved[name]
+        appearances = ((widget.get("/AP") or {}).get("/N")) or {}
+        if hasattr(appearances, "get_object"):
+            appearances = appearances.get_object()
+        widget_state = state if state in appearances else "/Off"
+        if widget_state not in appearances:
+            raise OfficeError("E_INPUT_SCHEMA", "表单控件缺少合法外观状态", detail=name)
+        field[NameObject("/V")] = NameObject(state)
+        widget[NameObject("/AS")] = NameObject(widget_state)
+        if state in appearances:
+            applied.add(name)
+    return applied
 
 
 @register("pdf_form_fill", schema="pdf_form_fill", engine="pypdf", next_actions=["office_validate"])
@@ -340,24 +472,64 @@ def pdf_form_fill_command(args: Dict[str, Any]) -> Dict[str, Any]:
         raise OfficeError("E_INPUT_SCHEMA", "values 必须是非空对象")
     task_id, directory, output = _prepare_output(args, source.name)
     reader = _open_reader(source)
-    available = set((reader.get_fields() or {}).keys())
+    fields = reader.get_fields() or {}
+    available = set(fields.keys())
     unknown = [name for name in values if name not in available]
     if unknown and bool(args.get("strict", True)):
         raise OfficeError(
-            "E_ANCHOR_NOT_FOUND",
+            "E_FORM_FIELD_NOT_FOUND",
             "表单字段不存在",
             detail="unknown=%s available=%s" % (unknown, sorted(available)),
             remedy="先用 pdf_form_list 获取字段名，或设置 strict=false",
         )
+
+    # /Btn（复选框/单选框）必须单独处理：见 _resolve_button_state 的说明（D1）。
+    button_values: Dict[str, str] = {}
+    text_choice_values: Dict[str, Any] = {}
+    unresolved: List[Dict[str, Any]] = []
+    for name, requested in values.items():
+        if name not in fields:
+            continue  # 已计入 unknown；non-strict 时按原行为忽略未知字段
+        field = fields[name]
+        if str(field.get("/FT", "")) == "/Btn":
+            states = [str(state) for state in (field.get("/_States_") or [])]
+            # Pushbutton 没有可填写的选中状态，不能将 false 伪装为填写成功。
+            resolved_state = None if int(field.get("/Ff", 0)) & 65536 else _resolve_button_state(states, requested)
+            if resolved_state is None:
+                unresolved.append(
+                    {"field": name, "requested": requested, "available_states": states}
+                )
+                continue
+            button_values[name] = resolved_state
+        else:
+            text_choice_values[name] = requested
+
+    if unresolved:
+        # 宁可显式失败也不要把「未生效」的字段放进 filled——这正是 D1 的危害：
+        # 调用方原先会看到 filled 里有 agree，误以为写入成功。
+        raise OfficeError(
+            "E_INPUT_SCHEMA",
+            "复选框/单选框取值无法解析为该字段的合法状态",
+            detail=str(unresolved),
+            remedy="复选框可用 true/false；多选项单选组必须指定实际状态名；可用状态见 available_states 或 pdf_form_list；不支持填写按钮",
+        )
+
     writer = _writer()
     writer.append(reader)
+    applied_buttons = set()
     for page in writer.pages:
         try:
-            writer.update_page_form_field_values(page, values)
+            if text_choice_values:
+                writer.update_page_form_field_values(page, text_choice_values)
         except Exception as exc:
             raise OfficeError(
                 "E_ENGINE_FAILED", "表单填写失败", detail=str(exc)
             ) from exc
+        if button_values:
+            applied_buttons.update(_apply_button_values(page, button_values))
+    if set(button_values) - applied_buttons:
+        raise OfficeError("E_INPUT_SCHEMA", "字段没有可写入所选状态的页面控件",
+                          detail=str(sorted(set(button_values) - applied_buttons)))
     try:
         writer.set_need_appearances_writer(True)
     except Exception:
@@ -366,9 +538,10 @@ def pdf_form_fill_command(args: Dict[str, Any]) -> Dict[str, Any]:
     with atomic_output(output) as temporary:
         with temporary.open("wb") as handle:
             writer.write(handle)
+    filled = sorted(set(button_values) | set(text_choice_values))
     return {
         "artifacts": [artifact(output, role="in_place" if args.get("in_place") else "output")],
-        "data": {"filled": sorted(values), "unknown": unknown, "work_dir": str(directory)},
+        "data": {"filled": filled, "unknown": unknown, "work_dir": str(directory)},
         "engine_version": engine_version("pypdf"),
     }
 
@@ -787,6 +960,12 @@ def _create_with_external_engine(args: Dict[str, Any], engine: str) -> Dict[str,
     run_output_command(command, output, command.index("-o") + 1 if engine == "pandoc" else -1,
                        timeout=600, purpose="%s 生成 PDF" % engine, validate=pdf_info)
     return {
+        # pdf_create 以静态 engine="reportlab" 注册（见 protocol.py dispatch：
+        # entry.engine 只在结果顶层缺 "engine" 键时才回填）。走 pandoc/weasyprint
+        # 分支时如果不在这里显式给出顶层 engine，返回值永远被回填成
+        # "reportlab"，即便 data.engine 是对的——这正是 D7 的根因。
+        "engine": engine,
         "artifacts": [artifact(output)],
         "data": {"engine": engine, "pages": pdf_info(output)["pages"], "work_dir": str(directory)},
+        "engine_version": engine_version(engine),
     }

@@ -35,6 +35,11 @@ ERROR_CODES = (
     "E_TIMEOUT",
     "E_BUDGET_EXCEEDED",
     "E_PROTOCOL",
+    # D6：E_ANCHOR_NOT_FOUND 原先被同时用于「段落/形状锚点未找到」「模板变量
+    # 缺失」「表单字段不存在」三种不同语义，调用方只能靠 message 文本分支。
+    # 拆出两个新码，E_ANCHOR_NOT_FOUND 收窄为「按锚点定位段落/形状」专用。
+    "E_TEMPLATE_VAR_MISSING",
+    "E_FORM_FIELD_NOT_FOUND",
 )
 
 
