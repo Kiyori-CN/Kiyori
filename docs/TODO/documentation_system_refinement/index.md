@@ -1,5 +1,5 @@
 ---
-status: in_progress
+status: completed
 updated: 2026-09-12
 ---
 
@@ -26,7 +26,7 @@ updated: 2026-09-12
 | 01 文档调查 | README / CONTEXT / docs / 模块与工具说明；区分现行事实、历史和第三方材料 | 全量清单、格式/链接扫描、关键源码与历史核对 | 已完成 |
 | 02 文档实施 | 精简入口、详细用户指南、定位一致性、CI 验证路径及历史分层 | 工作区文档检查、候选树链接检查、相关检查器回归 | 已完成；候选树复核在阶段 04 |
 | 03 全仓质量 | Python CI、Node 离线测试与类型检查、ToolPkg 重建、buildSrc 和九模块 JVM/Lint/AndroidTest 编译 | 实际报告、失败修复及必要回归，保留有依据的警告说明 | 已完成 |
-| 04 交付 | 最终 Debug APK、候选提交、固定子模块及远端 ref | APK 元数据/签名/对齐，fresh clone，精确提交与推送核对 | 验证中 |
+| 04 交付 | 最终 Debug APK、候选提交、固定子模块及远端 ref | APK 元数据/签名/对齐，fresh clone，精确提交与推送核对 | 已完成；设备与远端 Actions 分别验收 |
 
 性能和稳定性审查重点为主线程工作量、无界数据、取消与代际、资源释放及错误可观察性。
 源码与本地测试只能证明对应路径；流畅度、系统权限、真实网络和设备生命周期继续保留
@@ -79,7 +79,19 @@ APK 为 `app/build/outputs/apk/debug/app-debug.apk`，写入时间 2026-09-12 03
 唯一 MainActivity launcher、arm64、V2 单签名与 16 KiB ZIP 对齐通过。54 个 `.so` 和 shell
 launcher 的 164 个 ELF `PT_LOAD` 均至少 16 KiB；无重复 ZIP 项、重复 native basename 或
 `libsudo.so`，模板 AAPT2 只有共享位置的一份。Windows 控制 / Bilibili / Office ToolPkg 分别
-核对 51 / 3 / 80 个包内文件，与当前源文件一致。候选提交检查和父仓推送待下述交付记录核实。
+核对 51 / 3 / 80 个包内文件，与当前源文件一致。NDK `llvm-readelf` 独立复核 55 个 ELF 文件、
+164 个 LOAD 段全部至少 16 KiB 对齐。
+
+### 本轮 Git 交付
+
+主体提交 `7f8d695237c3139d1bab1aa1ed4fe8ba274805d3` 相对本轮起点运行候选树卫生、
+Markdown 链接及本地化检查，均为 0 errors / 0 warnings；无旧断链抵扣。新鲜克隆检查通过，
+固定的 terminal 提交可从远端初始化，克隆后工作区干净。
+
+主体提交已推送 `origin/main`；本地 HEAD、跟踪分支和 `git ls-remote` 的远端 main 一致。
+本页与总索引的后续收尾提交只记录已取得的证据，最终 SHA 以 Git 与交付报告为准。
+父仓与 terminal 已核实均为 Kiyori 独立公开仓库（非 GitHub fork）；仓库公开不等于产品已发布。
+本轮本地维护与交付目标已完成，设备、真实服务和远端 Actions 的待验收状态没有由本轮关闭。
 
 ### 保留诊断与验收边界
 
