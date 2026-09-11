@@ -63,6 +63,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -72,6 +73,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalContext
 import com.ai.assistance.operit.ui.common.copyPlainTextToClipboard
 import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
@@ -242,7 +244,7 @@ fun ChatArea(
     val context = LocalContext.current
     val density = LocalDensity.current
     val visibleLoadFailure = loadFailure?.takeIf { it.chatId == currentChatId }
-    var failureHeightPx by remember(currentChatId, visibleLoadFailure, selectionReadFailure) { mutableStateOf(0) }
+    var failureHeightPx by remember(currentChatId, visibleLoadFailure, selectionReadFailure) { mutableIntStateOf(0) }
     val failureHeight = with(density) { failureHeightPx.toDp() }
     val coroutineScope = rememberCoroutineScope()
     val preferencesManager = remember { UserPreferencesManager.getInstance(context) }
@@ -252,7 +254,7 @@ fun ChatArea(
         preferencesManager.showMessageTimingStats.collectAsState(initial = false)
     val showMessageTimestamp by
         preferencesManager.showMessageTimestamp.collectAsState(initial = false)
-    var viewportHeightPx by remember { mutableStateOf(0) }
+    var viewportHeightPx by remember { mutableIntStateOf(0) }
     val messageAnchors = remember(currentChatId) { mutableStateMapOf<Long, ChatScrollMessageAnchor>() }
     var pendingJumpToMessageTimestamp by remember(currentChatId) { mutableStateOf<Long?>(null) }
     val lastMessage = chatHistory.lastOrNull()
@@ -1460,6 +1462,7 @@ private fun MessageFooterBar(
     val hasPrevious = message.selectedVariantIndex > 0
     val hasNext = message.selectedVariantIndex < message.variantCount - 1
     val context = LocalContext.current
+    val observableResources = LocalResources.current
     val tokenSummary =
         remember(message.inputTokens, message.cachedInputTokens, message.outputTokens) {
             val totalTokens = message.inputTokens + message.outputTokens
@@ -1483,7 +1486,7 @@ private fun MessageFooterBar(
         }
     val messageTimeSummary =
         remember(message.completedAt) {
-            context.getString(
+            observableResources.getString(
                 R.string.chat_message_timestamp_compact,
                 formatCompactTimestamp(message.completedAt),
             )

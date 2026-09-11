@@ -92,6 +92,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -227,7 +228,7 @@ internal fun KiyoriOnboardingScreen(
     var runtimeRequestInFlight by remember { mutableStateOf(false) }
     var waitingForExternalSettings by remember { mutableStateOf(false) }
     var authorizationNeedsContinue by remember { mutableStateOf(false) }
-    var authorizationGeneration by remember { mutableStateOf(0) }
+    var authorizationGeneration by remember { mutableIntStateOf(0) }
     var completionDispatched by remember { mutableStateOf(false) }
 
     fun persistSelection(selection: Set<KiyoriPermissionId>) {
@@ -1077,7 +1078,7 @@ private data class OnboardingFeatureCard(
 
 @Composable
 private fun OnboardingFeatureGrid(cards: List<OnboardingFeatureCard>) {
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
+    Box(Modifier.fillMaxWidth()) {
         // 常规字号保持设计稿的 2×2 布局；从 1.3 倍起改为单列，避免压缩字号或截断标题。
         val columns = if (LocalDensity.current.fontScale >= 1.3f) 1 else 2
         Column(verticalArrangement = Arrangement.spacedBy(KiyoriOnboardingMetrics.GridGap.dp)) {
@@ -2261,7 +2262,7 @@ private fun OnboardingToggle(
         Box(
             modifier =
                 Modifier
-                    .offset(x = thumbOffset, y = 2.dp)
+                    .offset { androidx.compose.ui.unit.IntOffset(thumbOffset.roundToPx(), 2.dp.roundToPx()) }
                     .size(18.dp)
                     .clip(CircleShape)
                     .background(androidx.compose.ui.graphics.Color.White),

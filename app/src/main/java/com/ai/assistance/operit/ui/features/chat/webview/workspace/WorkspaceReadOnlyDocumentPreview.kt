@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -245,6 +246,7 @@ private fun WorkspacePdfPage(
     pageIndex: Int
 ) {
     val context = LocalContext.current
+    val observableResources = LocalResources.current
     val pageState by produceState(
         initialValue = WorkspacePdfPageRenderState(),
         key1 = sourceFile?.absolutePath,
@@ -263,11 +265,11 @@ private fun WorkspacePdfPage(
                 pageState.loading -> CircularProgressIndicator(modifier = Modifier.padding(24.dp))
                 bitmap != null -> Image(
                     bitmap = bitmap.asImageBitmap(),
-                    contentDescription = context.getString(R.string.workspace_pdf_page, pageIndex + 1),
+                    contentDescription = observableResources.getString(R.string.workspace_pdf_page, pageIndex + 1),
                     modifier = Modifier.fillMaxWidth(), contentScale = ContentScale.FillWidth
                 )
                 else -> Text(
-                    text = context.getString(R.string.workspace_pdf_page_failed, pageIndex + 1),
+                    text = observableResources.getString(R.string.workspace_pdf_page_failed, pageIndex + 1),
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.errorContainer).padding(24.dp)
                 )

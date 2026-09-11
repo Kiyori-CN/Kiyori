@@ -4,6 +4,9 @@
 
 ## 快速入口
 
+日常开发与交付验证见 [全仓质量验证](doc-src/dev-core/QUALITY_VALIDATION.md)；用户文件操作见
+[文件、工作区与 AI 产物](user-guide/files_and_workspaces.md)。
+
 | 目标 | 文档 |
 | --- | --- |
 | 了解产品定位与当前能力 | [`README.md`](../README.md) |

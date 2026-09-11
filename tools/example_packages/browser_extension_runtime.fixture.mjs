@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 
 // stdin 是 JVM 测试直接调用生产 Kotlin generator 得到的源码，避免复制一份待测 bootstrap。
+// 这是 JVM 子进程夹具，不属于 node --test 的独立测试集合。
 let source = '';
 for await (const chunk of process.stdin) source += chunk;
 function page(url) {

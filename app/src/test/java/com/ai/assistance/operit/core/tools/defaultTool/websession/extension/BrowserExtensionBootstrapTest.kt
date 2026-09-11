@@ -17,8 +17,8 @@ class BrowserExtensionBootstrapTest {
                 action = BrowserExtensionAction("Toggle")),
             files = base.files + ("main.css" to "div { color: blue; }"),
         ) }
-        val script = sequenceOf(File("tools/example_packages/browser_extension_runtime.test.mjs"),
-            File("../tools/example_packages/browser_extension_runtime.test.mjs")).first { it.isFile }
+        val script = sequenceOf(File("tools/example_packages/browser_extension_runtime.fixture.mjs"),
+            File("../tools/example_packages/browser_extension_runtime.fixture.mjs")).first { it.isFile }
         val process = ProcessBuilder("node", script.canonicalPath).redirectErrorStream(true).start()
         process.outputStream.bufferedWriter(Charsets.UTF_8).use { it.write(BrowserExtensionBootstrap.source(bundle, "__testBridge")) }
         val ended = process.waitFor(20, TimeUnit.SECONDS)

@@ -173,54 +173,15 @@ Python 代码运行器接受原始源码，无需手动做 Shell 引号转义；
 
 ### 文件管理与项目工作区
 
-在「AI 设置 → AI 产物保存位置」中可修改生成文件的默认目录：Android 默认为共享存储的 `Download/Kiyori/workspace`，本地 Ubuntu 默认为 `/workspace`。Office、Bilibili、浏览器输出和代码运行器按工具或任务分目录保存；明确指定的目标或已绑定工作区优先。修改设置不搬移已有文件，也不改变运行环境和依赖的安装位置。Android 与 Ubuntu 是独立文件系统，跨环境需要显式复制；外部脚本与远端工具需传入对应输出路径。详细范围见[产物存储契约](docs/doc-src/contracts/artifact_storage.md)。
+文件管理器提供双栏浏览、搜索、选择、复制、移动、回收站、ZIP、书签和本地预览。
+两栏分别保留目录与选择，设置往返和应用内最小化保留当前会话。手机目录、Ubuntu、
+SAF 与网络目录的支持范围不同，操作前按页面实际能力确认。
 
-Android 可通过「选择文件夹」选取本机内部共享存储目录，也可手动输入。页面显示默认输出示例；「恢复默认」只修改输入，点击「保存」后生效。「检查写入」会创建目录并读写、清理一个临时文件；失败时请检查存储权限和可用空间。目录选择不授予 Shell 直接访问权限，云盘与 SD 卡 URI 暂不支持作为这个默认位置。
+将 AI 对话绑定到工作目录后，文件工具可使用该工作区；项目规则沿用 `AGENT.md` /
+`AGENTS.md` 与 `.operit/config.json` 契约。AI 产物默认保存位置可在
+**设置 → AI 助手 → AI 产物保存位置** 修改；已有文件、工作区绑定和终端会话不会随之搬移。
 
-文件管理用于查看和整理实际数据，工作区则把目录与 AI 对话联系起来。
-
-- 底栏第四项“文件管理 → 手机存储”进入文件列表；始终等宽显示左右两个位置，
-  轻触任一栏激活，非活动栏的淡灰内阴影衬托当前操作栏；各自保留目录、选择和历史。
-  界面与设置页共用主题，文件类型使用有色图标；右上角“浏览选项”集中调整排序和显示规则。
-  前台自动刷新，选中只改变背景及统计数量，图标保留；粘贴和传输记录从菜单访问，不插入额外操作条。
-  顶部保留标题、搜索与浏览选项，下方独立一行显示存储位置按钮、路径及统计，不显示 A/B 行；底栏五项统一等分。
-  顶栏搜索统一查找入口：默认当前目录，可勾选搜索子目录。高级功能提供大小预设或 MiB 范围、修改时间预设或日期范围、
-  UTF-8 文件内容、大小写、名称通配符/正则与隐藏项；结果显示扫描统计和限制，目录结果直接进入，文件结果定位到父目录。
-  文件定位筛选可在顶栏搜索中清除，搜索图标显示提示点。初始点击打开，首次左滑或右滑选中并进入当前栏选择模式；
-  此后点击切换选中状态，点击取消最后一项就恢复点击打开；系统回退也可清空两栏选择。
-  左右滑动时整行同步位移，只选中、不取消；再次滑动另一项，将本次起点到该项之间的可见项目全部加入选择。
-  每完成一个区间就清除起点，下一次滑动重新指定新区间的首文件，原有选择保留；重复滑动同一起点不会取消选中。
-  浏览选项提供全选和反选，隐藏或筛掉的项目退出当前选择。文件名最多四行，时间与两位小数大小同行显示，按宽度适配字号。
-  文件行点击带按下变色和阴影反馈；切换目录不闪现加载图标或顶部进度条。左右列表各有贴右边的滚动位置滑块，无整列阴影轨道，滑动时显示、停止后淡出。
-  手机高级搜索最多扫描 100000 项、显示 2000 个结果，内容读取限 4 MiB UTF-8；超限、不可读和非文本会明确报告。
-  Linux/SAF 保留名称搜索，高级大小/时间/内容/正则条件暂不支持；搜索关闭会取消并拒绝晚到结果。
-  “全选/全不选”和“清空当前选择”仅影响活动栏；显式清空也退出该栏选择模式，两栏的选择及滑动范围互相独立。
-  “新建”先选择文件夹或空白文件，失败时保留名称；长按显示复制、移动、删除、重命名、工具、压缩、属性、分享和添加书签。
-  存储位置从左侧限宽抽屉切换，浏览选项使用浏览器通用底部抽屉；长按菜单为浏览器同款三行五列菜单，不能上拉为全屏。
-  底栏第5项为“菜单”，打开时保留两栏选择，文件操作针对当前栏；无选择时需要文件对象的动作置灰。
-  菜单第四行仅保留浏览器同款“关闭 / 收起 / 设置”图标按钮。设置页隐藏主底栏，返回保留文件管理器状态。
-  底栏使用浏览器同款无文字灰黑按钮；菜单提供复制、移动、粘贴、归档、打开方式、书签、目录工作区及 AI 对话。
-  AI 对话入口将文件管理器收起为应用内悬浮球，可与浏览器悬浮球共存；AI 顶栏第四个按钮可重新打开文件管理器。
-  应用可访问的手机文件中，音视频进入内置播放器、图片进入可缩放预览、文本进入原生编辑器；
-  文本目前支持不超过 1 MiB 的 UTF-8 文件，可在原目录另存不覆盖的副本，关闭未保存修改时提示确认。
-  PDF、办公文档、归档等其他格式交给系统已注册的应用打开；Linux/SAF 内容打开和原文件编辑保存仍待完善。
-  存储抽屉按本地、网络、书签、工作区、工具分类；可配置 FTP、FTPS、SFTP、WebDAV 和 S3 兼容网络目录。当前网络支持连接与目录浏览，远程打开和写入尚未接入。
-  文件管理器正按[原创产品方案](docs/doc-src/architecture/kiyori_file_manager.md)持续完善，阶段能力与验收见专项记录。
-  长按已选项目可复制或移动当前栏整组选择，长按未选项目则单独处理。选择“浏览目标目录”后，
-  在浏览选项点击“粘贴到当前目录”并确认，或直接选择“使用另一位置”，核对完整来源和目标后执行。同名可跳过或改名保留两份，不合并、不覆盖。
-  长按菜单还可在当前目录重命名，已有同名项目会保留，失败后可修改输入继续处理。
-  新建空文件和文件夹使用不覆盖创建，同名提示冲突；结果未确认时需关闭弹窗检查目录。
-  当前严格文件操作支持应用可访问的手机目录；移动限同一文件系统，跨文件系统失败并保留源项目。传输停止会等待当前项目完成。
-  删除先统计完整清单再确认，默认移至应用回收站，可恢复原位置或再次确认永久删除；跨卷失败保留源文件，卸载应用会清除回收站。属性显示大小、数量、时间和读写能力，工具可复制名称、路径及计算文件 SHA-256。
-  压缩生成同目录的不覆盖 ZIP，保留源项目、Unicode 名称与空目录；未加密 ZIP 可安全解压到新目录，同名不覆盖。分享文件调用系统分享面板，分享文件夹先确认生成 ZIP；压缩包保留在原目录。
-  文件与目录书签保存在存储侧抽屉，文件书签定位到父目录并筛选文件名。Linux/SAF 严格写入、跨文件系统移动、更多归档格式与任务持久恢复仍在完善；真实设备权限和文件系统支持待现场验证。
-- 底层文件工具提供读写、复制、移动、删除、归档等能力，可由已授权的 AI 工具调用；文件管理界面按当前环境显示能力与明确错误。
-- 使用 Android 授权目录与现有文件访问能力；可访问范围取决于系统版本、授权和所选环境。
-- 将对话绑定到工作目录，读取项目文件、观察变更，并把相关内容组织为上下文。
-- 按工作区约定读取根目录的 `AGENT.md` / `AGENTS.md`，保留现有 `.operit/config.json` 工作区格式。
-- 通过文件管理、下载和工作区入口检查产物，避免只依赖模型对“已完成”的文字描述。
-
-批量处理前应明确目标目录、文件范围和覆盖意图。详细契约见 [扩展与工作区](docs/doc-src/contracts/extensions_workspace.md)。
+操作步骤、搜索限制、冲突处理和跨环境路径见 [文件与工作区指南](docs/user-guide/files_and_workspaces.md)。
 
 ### 播放器、下载与媒体处理
 
@@ -367,27 +328,8 @@ AI 首页和 AI 顶层页面显示菜单，深层页面逐级返回。从浏览�
 
 ## 从源码构建
 
-此处给出源码到 APK 的主要路径。完整依赖准备、平台差异、native 输入和排障步骤以 [构建指南](docs/doc-src/dev-core/BUILDING.md) 为准。
-
-### 1. 准备工具链
-
-以下基线核对于 2026-09-06；后续以仓库配置和 CI 为准。
-
-| 工具 | 基线 |
-| --- | --- |
-| JDK | 21；应用 Java/Kotlin 字节码目标为 JVM 17 |
-| Gradle | 使用仓库提供的 Wrapper |
-| Android SDK | Platform 37；应用 target SDK 34 |
-| Android Build Tools | 36.0.0 |
-| Android NDK | 28.2.13676358 |
-| CMake | 3.22.1 |
-| Rust | 1.88.0，target `aarch64-linux-android` |
-| Node.js | 22，使用 npm 和已提交的 lockfile |
-| Python | Python 3，仓库检查使用项目 `.venv` |
-
-版本来源：[Gradle 版本目录](gradle/libs.versions.toml)、[Wrapper](gradle/wrapper/gradle-wrapper.properties)、[Gradle 属性](gradle.properties) 与 [CI 工作流](.github/workflows)。
-
-### 2. 获取源码与终端子模块
+完整安装步骤与唯一工具链清单见 [构建指南](docs/doc-src/dev-core/BUILDING.md)。主要依赖包括
+JDK 21、Android SDK/NDK、CMake、Rust、Node.js 和项目 Python `.venv`；具体版本以仓库配置为准。
 
 ```bash
 git clone https://github.com/Kiyori-CN/Kiyori.git
@@ -397,51 +339,21 @@ git submodule sync -- terminal
 git submodule update --init --recursive terminal
 ```
 
-**只初始化常规构建需要的 `terminal`。** 不要对整仓使用 `git clone --recurse-submodules`；可选私有夜间构建子模块不属于普通 Debug 构建。
+只初始化常规构建需要的 `terminal`；可选私有夜间构建子模块不属于 Debug 构建入口。
+克隆后按指南准备 `local.properties`、npm 依赖、WebChat、示例与大型 Android 输入。
+`libs.zip`、`models.zip`、`subpack.zip`、`jniLibs.zip` 并非都在 Git 中，不能跳过其校验。
 
-### 3. 准备构建输入
-
-克隆源码后，还需要按 [完整构建指南](docs/doc-src/dev-core/BUILDING.md) 完成以下准备：
-
-1. 安装固定 Android SDK、NDK、CMake 和 Rust target，配置 Java 与 Android 环境。
-2. 安装根工具、WebChat 与所需示例工程的 npm 依赖，建立项目 `.venv`。
-3. 参考 `local.properties.example` 创建未跟踪的本地配置，不覆盖已经存在的私人配置。
-4. 获取并通过受控脚本准备 `libs.zip`、`models.zip`、`subpack.zip` 和 `jniLibs.zip`，验证所选播放器等 native 输入。
-5. 生成 WebChat 和指南要求的示例输入；目录型生产 ToolPkg 由 Gradle 构建任务生成。
-
-**仅克隆源码不足以完成构建。** 大型 AAR、模型、JNI 和子包输入不全部存放在 Git 中；不要将这些受保护输入当作普通缓存删除，也不要通过跳过输入校验处理缺失依赖。
-
-### 4. 生成 Debug APK
-
-Linux / macOS：
-
-```bash
-./gradlew :app:assembleDebug --no-daemon --console=plain
-```
-
-Windows PowerShell：
+准备完成后，在仓库根目录构建：
 
 ```powershell
 .\gradlew.bat :app:assembleDebug --no-daemon --console=plain
 ```
 
-标准产物：
+Linux/macOS 使用 `./gradlew`。标准产物为 `app/build/outputs/apk/debug/app-debug.apk`。
+安装前核对应用标识、版本、ABI、签名与打包结果，步骤见 [APK 核验](docs/doc-src/dev-core/BUILDING.md#9-独立核验-apk)。
+处理签名冲突前先备份数据；Debug 构建不代替真机或正式发行验收。
 
-```text
-app/build/outputs/apk/debug/app-debug.apk
-```
-
-### 5. 安装与核验
-
-将 APK 传到兼容设备安装，或在已经连接并授权 ADB 的开发设备上执行：
-
-```bash
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-```
-
-不同签名的同包名 APK 不能直接覆盖安装；处理签名冲突前先备份数据。构建后应核对 APK 的应用标识、版本、ABI、签名与打包结果，再进行启动和实际操作测试。详细命令见 [APK 核验](docs/doc-src/dev-core/BUILDING.md#9-独立核验-apk)。
-
-文档或代码贡献的验证入口见 [贡献指南](docs/doc-src/dev-core/CONTRIBUTING.md) 与 [CI 指南](ci/README.md)。构建成功证明本机构建链通过，不替代真机体验或正式发行验收。
+开发检查见 [贡献指南](docs/doc-src/dev-core/CONTRIBUTING.md) 与 [全仓质量验证](docs/doc-src/dev-core/QUALITY_VALIDATION.md)。
 
 ## 架构与仓库导览
 
@@ -457,29 +369,19 @@ Kiyori 采用 Kotlin、Jetpack Compose 与 Android 原生能力构建产品界�
 
 ### 主要目录
 
-```text
-Kiyori/
-├── app/              Android 主应用、产品壳、AI、浏览器、文件与媒体集成
-├── terminal/         KiyoriTerminalCore 子模块，Ubuntu 终端与会话能力
-├── llama/            llama.cpp 端侧推理模块
-├── mnn/              MNN 推理及语音相关 native 能力
-├── quickjs/          JavaScript 引擎与宿主桥
-├── dragonbones/      DragonBones 动画模块
-├── mmd/              MMD 模型、物理与渲染
-├── fbx/              FBX 解析与渲染集成
-├── showerclient/     虚拟显示、输入与截图客户端
-├── web-chat/         WebChat 前端
-├── examples/         脚本、ToolPkg 与配套工具示例
-├── buildSrc/         Gradle 自定义任务与行为测试
-├── tools/            开发、构建、环境与诊断工具
-├── ci/               可复现检查、依赖准备与测试
-├── config/           机器可读的架构与工程约束
-└── docs/             用户指南、正式设计、专项计划与许可证资料
-```
+| 目录 | 职责 |
+| --- | --- |
+| `app/` | 产品壳、AI 与浏览器、文件、媒体集成 |
+| `terminal/` | 固定 gitlink 的 KiyoriTerminalCore |
+| `llama/`、`mnn/`、`quickjs/` | 端侧推理与脚本运行时 |
+| `dragonbones/`、`mmd/`、`fbx/`、`showerclient/` | 动画、模型与虚拟显示模块 |
+| `web-chat/`、`examples/` | WebChat、脚本、ToolPkg 与配套工具 |
+| `buildSrc/`、`tools/`、`ci/`、`config/` | 构建任务、宿主工具、验证与架构约束 |
+| `docs/` | 用户指南、正式设计、专项与历史证据 |
 
-根 settings 声明九个 Android 模块；`buildSrc` 属于构建工程，不进入 APK。`com.kiyori` 承载产品、平台与集成边界，`com.ai.assistance.operit` 中仍保留 AI 和部分产品实现，目录名称不能简单等同于功能归属。
-
-完整说明见 [项目上下文](CONTEXT.md)、[仓库架构](docs/doc-src/architecture/repository_architecture.md)、[目录规范](docs/doc-src/dev-core/REPOSITORY_LAYOUT.md) 与 [运行时契约](docs/doc-src/contracts/README.md)。
+九个 Android 模块由根 settings 声明，`buildSrc` 不进入 APK。实际包归属与兼容边界见
+[项目上下文](CONTEXT.md)、[仓库架构](docs/doc-src/architecture/repository_architecture.md)
+与 [目录规范](docs/doc-src/dev-core/REPOSITORY_LAYOUT.md)。
 
 ## 数据、隐私与权限
 
@@ -515,68 +417,16 @@ Android 系统权限、工具是否允许调用、具体操作风险是不同层
 
 ## 常见问题
 
-<details>
-<summary><strong>Kiyori 已经实现 AGI，或者可以完全自主操作手机了吗？</strong></summary>
-
-AGI 是长期研发方向。当前交付的是集成模型、工具和 Android 工作环境的开发中应用。可执行范围由已实现的工具、模型能力、系统权限与真实设备条件共同决定，全面人机协作仍在持续建设。
-
-</details>
-
-<details>
-<summary><strong>有官方 APK 下载吗？为什么没有 Release 安装说明？</strong></summary>
-
-目前尚未公开发行，请从本仓库构建开发 APK。Release 签名、发行渠道和发布验收是独立工作，不能用 Debug 构建代替。请勿将第三方 APK 视为官方发行。
-
-</details>
-
-<details>
-<summary><strong>必须配置 API Key、Root 或 Shizuku 才能使用吗？</strong></summary>
-
-普通浏览不要求模型 Key，普通使用也不要求提前授予全部特权。云模型需要相应服务认证；设备内推理需要模型文件；Shizuku/Root 仅服务依赖这些执行身份的能力。按照实际使用的功能逐项配置。
-
-</details>
-
-<details>
-<summary><strong>支持离线、电脑上的模型和所有兼容 API 吗？</strong></summary>
-
-兼容的 MNN 或 llama.cpp 模型可使用设备内推理路径；电脑或服务器上的模型需要手机能访问到对应服务。协议兼容不等于所有功能兼容，应分别验证工具调用、视觉、思考与恢复等能力。联网工具仍需要网络。
-
-</details>
-
-<details>
-<summary><strong>AI、浏览器和终端是否使用同一个工作现场？</strong></summary>
-
-人工浏览与 AI 网页工具共享真实网页会话，代码运行器的终端执行路径使用可见会话，文件工具与文件管理复用已有能力。这些连接有明确的会话、路径与权限边界；播放器等其他领域的全部能力并不因此自动成为可调用的 AI 工具。
-
-</details>
-
-<details>
-<summary><strong>能直接安装 Chrome 扩展，或使用全部 Playwright API 吗？</strong></summary>
-
-不能作此假设。Kiyori 有自己的用户脚本、浏览器插件和工具接口，支持范围以实现与契约为准。Chrome 扩展、用户脚本、ToolPkg 和 MCP 是不同的扩展形式。
-
-</details>
-
-<details>
-<summary><strong>为什么 APK 安装失败，或者不能覆盖旧 Operit？</strong></summary>
-
-先检查 Android 版本、ARM64 支持、剩余空间和 APK 签名。Kiyori 的 application ID 为 `com.kiyori`，与 Operit 是独立应用，不能直接覆盖旧安装；同包名的不同签名 APK 也不能直接覆盖。处理前先备份数据，迁移使用显式导入。
-
-</details>
-
-<details>
-<summary><strong>构建通过为什么仍有功能待验证？</strong></summary>
-
-编译与打包无法证明真机触控、系统限制、解码、网络服务或模型行为全部正确。项目分别记录自动检查、构建、设备和外部环境证据；`verification_pending` 表示仍需完成对应现场验收。
-
-</details>
-
-<details>
-<summary><strong>反馈问题时应提供哪些信息？</strong></summary>
-
-提供设备型号、Android 版本、Kiyori 版本或源码提交、相关模型与工具、最短复现步骤、预期和实际行为，以及必要的脱敏日志。构建问题还应提供命令、工具链版本和首个根因错误。提交前检查截图、导出和日志中的私人内容。
-
-</details>
+| 问题 | 说明与下一步 |
+| --- | --- |
+| 已经实现 AGI 或完全自主操作手机了吗？ | AGI 是长期研发方向。当前执行范围取决于工具实现、模型、权限与设备条件。 |
+| 有官方 APK 吗？ | 尚未公开发行；从源码构建开发 APK，不把第三方 APK 当作官方发行。 |
+| 必须有 API Key、Root 或 Shizuku 吗？ | 普通浏览不需要；云模型需认证，端侧推理需模型，特权按功能启用。 |
+| 能离线或连接电脑上的模型吗？ | 端侧推理与远程服务分别配置；手机上的 `localhost` 指手机本身。联网工具仍需网络。 |
+| 支持 Chrome 扩展与完整 Playwright 吗？ | 当前提供 Kiyori 扩展格式、用户脚本与项目实现的浏览器 API 子集。 |
+| 安装失败或不能覆盖旧 Operit？ | 检查系统、ARM64、空间和签名；Kiyori 为独立 application ID，旧数据通过显式备份导入。 |
+| 为什么构建通过仍待验证？ | 自动检查不能证明触控、解码、系统权限和外部服务正确；现场结果分别记录。 |
+| 如何反馈问题？ | 提供提交/版本、设备、最短复现步骤、预期与实际结果及脱敏日志。见 [反馈要求](docs/doc-src/dev-core/CONTRIBUTING.md#提交-issue)。 |
 
 ## 文档与贡献
 

@@ -6322,6 +6322,15 @@ class KiyoriPathsTest {
                 "Shizuku\nRoot\n"
             ),
         }
+        current_keys = (
+            "onb_p1_headline", "onb_p2_headline", "onb_p3_headline", "onb_p4_headline",
+            "onb_p6_cta", "onb_p6_chip_none", "onb_card_adblock_title",
+            "onb_card_model_title", "onb_card_workflow_title", "onb_p2_lede",
+        )
+        files[KIYORI_FIRST_RUN_SCREEN_PATH] += "\n".join(f"R.string.{key}" for key in current_keys)
+        files["app/src/main/res/values/strings_onboarding_redesign.xml"] = "\n".join(
+            f'<string name="{key}">fixture</string>' for key in current_keys
+        )
         for relative_path, text in files.items():
             path = root / relative_path
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -6368,18 +6377,18 @@ class KiyoriPathsTest {
             self.assertEqual(errors, [])
 
     def test_kiyori_first_run_flow_requires_current_feature_copy(self) -> None:
-        for feature in ("广告拦截器", "模型配置", "首页搜索", "工作流"):
+        for feature in ("onb_card_adblock_title", "onb_card_model_title", "onb_p2_lede", "onb_card_workflow_title"):
             with self.subTest(feature=feature), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 self.write_kiyori_first_run_layout(root)
-                strings = root / "app/src/main/res/values/strings.xml"
+                strings = root / "app/src/main/res/values/strings_onboarding_redesign.xml"
                 strings.write_text(
                     strings.read_text(encoding="utf-8").replace(feature, ""),
                     encoding="utf-8",
                 )
                 errors: list[str] = []
                 check_kiyori_first_run_flow(root, errors)
-                self.assertTrue(any(f"fact contract missing: {feature}" in error for error in errors))
+                self.assertTrue(any(f"defined and consumed: {feature}" in error for error in errors))
 
     def test_kiyori_first_run_flow_requires_permission_selection_summary(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

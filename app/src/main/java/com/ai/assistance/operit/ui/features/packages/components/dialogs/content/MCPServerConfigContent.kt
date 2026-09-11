@@ -45,9 +45,9 @@ fun MCPServerConfigContent(
     onConfigChanged: (String) -> Unit,
     installedPath: String?,
     onSaveConfig: () -> Unit,
+    modifier: Modifier = Modifier,
     saving: Boolean = false,
-    saveResult: Boolean? = null,
-    modifier: Modifier = Modifier
+    saveResult: Boolean? = null
 ) {
     Column(
         modifier = modifier

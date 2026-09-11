@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.ai.assistance.operit.R
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -48,6 +49,7 @@ import java.io.IOException
 @Composable
 fun HtmlPackagerScreen(onGoBack: () -> Unit) {
     val context = LocalContext.current
+    val observableResources = LocalResources.current
     val coroutineScope = rememberCoroutineScope()
     val toolHandler = AIToolHandler.getInstance(context)
 
@@ -74,7 +76,7 @@ fun HtmlPackagerScreen(onGoBack: () -> Unit) {
         val entryName = selectedIndexFile?.name ?: return
         showProgressDialog = true
         exportProgress = 0f
-        exportStatus = context.getString(R.string.export_copy_web_content)
+        exportStatus = observableResources.getString(R.string.export_copy_web_content)
         exportResult = null
         exportJob = coroutineScope.launch {
             val owner = currentCoroutineContext()[Job]

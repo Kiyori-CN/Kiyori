@@ -989,7 +989,6 @@
     <string name="package_tools">Included Tools</string>
     <string name="package_import_success">Package imported successfully</string>
     <string name="package_import_error">Package import failed</string>
-    <string name="no_packages_available">No packages available</string>
     <string name="no_script_packages_available">No script packages available</string>
     <string name="no_packages_imported">No packages imported yet</string>
     <string name="remove_package">Remove Package</string>
@@ -1059,14 +1058,9 @@
     <string name="market_agreement_content">The Operit plugin market indexes and distributes third-party extensions. Publishers must have the right to submit their work and grant the market permission to store, display, download, and install it. Public visibility does not itself grant an open-source license or redistribution rights. Users must follow the author’s license and review plugin permissions, file access, environment variables, network behavior, and external services before installation. Publishers and commenters must not expose credentials, personal data, advertising, payment requests, group invitations, or unrelated links. Operit does not guarantee the security, legality, compatibility, accuracy, availability, or continued hosting of third-party extensions. Violating entries, comments, or accounts may be restricted, hidden, or removed. A substantive agreement update requires acceptance again.</string>
 
     <!-- File Manager -->
-    <string name="files_selected">%1$d files selected</string>
     <string name="file_count">%1$d items</string>
 
     <!-- Search Dialog -->
-    <string name="search_files">Search Files</string>
-    <string name="searching">Searching...</string>
-    <string name="case_sensitive">Case sensitive</string>
-    <string name="use_wildcard">Use wildcard</string>
     <string name="search">Search</string>
 
     <!-- File Operations -->
@@ -1982,10 +1976,6 @@
     <string name="enter_complete_remote_info">Please enter complete remote service information and name</string>
     <string name="connect">Connect</string>
     <string name="import_action">Import</string>
-    <string name="select_mcp_plugin_zip_title">Select MCP Plugin ZIP Package</string>
-    <string name="use_system_file_picker">Please use the system file picker to select a .zip format MCP plugin package</string>
-    <string name="choose_mcp_plugin_zip">Choose MCP Plugin ZIP Package</string>
-    <string name="open_file_picker">Open File Picker</string>
     <string name="start_plugin">Start Plugin</string>
     <string name="mcp_management">MCP Management</string>
     <string name="running">Running</string>
@@ -2329,11 +2319,9 @@
     <string name="logcat_no_logs">No log data</string>
     <string name="logcat_permission_required">Log read permission required</string>
     <string name="logcat_logs_saved">Logs saved to %s</string>
-    <string name="logcat_export_title">App Log Export</string>
     <string name="logcat_management">App Log Management</string>
     <string name="logcat_description">Export recent app logs to diagnose startup, network, proxy and terminal services. For messages, tool calls and revisions in one AI chat, open Conversation details. Clearing runtime logs does not delete conversation audits.</string>
     <string name="logcat_save_to_file">Save logs to file</string>
-    <string name="logcat_clear_all">Clear all logs</string>
     <string name="logcat_clear_current">Clear current application log</string>
     <string name="logcat_clear_current_confirm">Clear the current application log file? Exported files and separate plugin logs will be kept. New logs are recorded as the app continues running.</string>
     <string name="logcat_cleared">Current application log cleared</string>
@@ -2685,7 +2673,6 @@
     <string name="permission_error_desc">Error getting permissions: %s</string>
 
     <!-- Tool Tester Screen -->
-    <string name="parameters_label">Parameters:</string>
     <string name="detailed_result">Detailed Result:</string>
     <string name="retest">Retest</string>
 
@@ -2772,7 +2759,6 @@
 
     <!-- Additional missing strings -->
     <string name="ai_tools_availability_test">AI Tools Availability Test</string>
-    <string name="ai_tools_grouped_desc">AI tools grouped by category</string>
     <string name="batch_testing_in_progress">Batch testing in progress</string>
     <string name="ffmpeg_common_parameters">FFmpeg Common Parameters</string>
     <string name="ffmpeg_create_gif">Create GIF</string>
@@ -2836,12 +2822,9 @@
     <string name="skillmarket_removed_from_market">Removed from market</string>
     <string name="skillmarket_login_failed">Login failed: %1$s</string>
     <string name="skillmarket_logout_failed">Logout failed: %1$s</string>
-    <string name="skillmarket_remove_failed">Remove failed: %1$s</string>
     <string name="skillmgr_refreshed">Refreshed</string>
     <string name="skillmgr_only_zip_files">Only .zip files are supported</string>
-    <string name="skillmgr_import_failed">Import failed: %1$s</string>
     <string name="skillmgr_deleted">Deleted: %1$s</string>
-    <string name="skillmgr_delete_failed">Delete failed: %1$s</string>
     <string name="skillmgr_no_skills_found">No Skills found. Please place Skill folders in: %1$s, and ensure they contain SKILL.md.</string>
     <string name="skillmgr_cannot_read_file">Cannot read file</string>
     <string name="skillmgr_delete">Delete</string>
@@ -2899,15 +2882,12 @@
     <string name="folder_navigator_folder">Folder</string>
     <string name="folder_navigator_all">All</string>
     <string name="file_manager_main_directory">Main Directory</string>
-    <string name="file_manager_search_failed">Search failed</string>
-    <string name="file_manager_search_error">Search error: %1$s</string>
     <string name="workflow_node">Node</string>
     <string name="mcp_server">MCP Server</string>
     <string name="mcp_install">Install</string>
     <string name="mcp_uninstall">Uninstall</string>
     <string name="script_error">Error: %1$s</string>
     <string name="script_missing_params">Missing parameters: %1$s</string>
-    <string name="script_flow_error">Flow error: %1$s</string>
     <string name="mcp_plugin_details">Plugin Details</string>
     <string name="mcp_config_settings">Config Settings</string>
     <string name="mcp_no_description">No description</string>
@@ -3137,7 +3117,6 @@
     <string name="workspace_close_menu">Close Menu</string>
     <string name="workspace_open_menu">Open Menu</string>
     <string name="workspace_unsaved">Unsaved</string>
-    <string name="workspace_close">Close</string>
     <string name="workspace_close_preview">Close Preview</string>
     <string name="workspace_project_suffix">Project</string>
     <string name="workspace_click_buttons_below">Click buttons below to execute commands</string>
@@ -3208,8 +3187,6 @@
     <string name="export_extract_template">Extracting app template...</string>
     <string name="export_copy_web_content">Copying web content...</string>
     <string name="export_pack_app">Packaging app...</string>
-    <string name="export_cleanup_temp_files">Cleaning up temporary files...</string>
-    <string name="export_process_failed">Export process failed: %1$s</string>
     <string name="export_invalid_package_name_format">Invalid format. Example: com.example.app</string>
     <string name="export_invalid_version_format">Invalid format. Example: 1.0.0</string>
     <string name="export_apk_extract_dir_missing">APK extracted directory does not exist</string>
@@ -3224,7 +3201,6 @@
     <string name="workspace_opening">Opening workspace...</string>
     <string name="workspace_opening_hint">Starting the local preview service, please wait</string>
     <string name="chat_update_workspace_server_failed">Failed to update web workspace: %1$s</string>
-    <string name="chat_stop_workspace_server_failed">Failed to stop web workspace: %1$s</string>
     <string name="chat_terminal_requires_android_8">Terminal features require Android 8.0 or higher</string>
     <string name="chat_create_dedicated_terminal_session_failed">Failed to create dedicated terminal session</string>
     <string name="chat_create_workspace_terminal_session_failed">Failed to create workspace terminal session</string>
@@ -3232,7 +3208,6 @@
     <string name="workspace_command_already_running">A workspace command is already running</string>
     <string name="workspace_command_running">Command running</string>
     <string name="workspace_command_cancelling">Cancelling command...</string>
-    <string name="workspace_command_finished">Execution complete</string>
     <string name="workspace_command_waiting_output">Waiting for command output...</string>
     <string name="workspace_command_no_output">Command produced no output</string>
     <string name="workspace_command_hide">Hide</string>
@@ -4198,7 +4173,6 @@
     <string name="only_alphanumeric_underscore_plugin_id">Only alphanumeric characters and underscores allowed, this name will be used as plugin ID</string>
     <string name="install_command">Install Command</string>
     <string name="install_config">Install Config</string>
-    <string name="please_fill_all_required_fields">Please fill in all required fields</string>
     <string name="update_plugin">Update Plugin</string>
     <string name="publish_to_market">Publish to Market</string>
     <string name="confirm_update">Confirm Update</string>
@@ -4279,7 +4253,6 @@
     <string name="repository_colon">Repository: %1$s</string>
     <string name="install_command_colon">Install Command: %1$s</string>
     <string name="update_failed_with_error">Update failed: %1$s</string>
-    <string name="publish_failed_with_error">Publish failed: %1$s</string>
     <string name="mcp_plugin_update_success_message">Your MCP plugin information has been successfully updated.</string>
     <string name="mcp_plugin_publish_success_message">Your MCP plugin has been successfully published to the market and is awaiting approval before being discoverable by other users.</string>
 
@@ -4396,7 +4369,6 @@
     <string name="mcp_plugin_post_comment">Post</string>
     <string name="mcp_plugin_cancel">Cancel</string>
     <string name="mcp_plugin_refresh_comments">Refresh Comments</string>
-    <string name="mcp_plugin_unknown_author">Unknown</string>
 
     <!-- Advanced Settings Section -->
     <string name="advanced_settings">Advanced Settings</string>
@@ -4702,7 +4674,6 @@
     <string name="add_tag">Add Tag</string>
     <string name="add_to_tag_library">Add \'%1$s\' to your tag library.</string>
     <string name="save_and_resend">Save and Resend</string>
-    <string name="update_memory">Update Memory</string>
     <string name="chat_message">Chat Message</string>
     <string name="chat_scroll_position_label">Message %1$d / %2$d</string>
     <string name="chat_scroll_position_compact">%1$d/%2$d</string>
@@ -6175,7 +6146,6 @@
     <string name="skillmarket_network_error">Network error: %1$s</string>
     <string name="skillmarket_load_more_failed">Failed to load more: %1$s</string>
     <string name="skillmarket_github_login_required">Please login to GitHub first</string>
-    <string name="skillmarket_unable_get_user_info">Unable to get user info</string>
     <string name="skillmarket_load_published_failed">Failed to load published Skills: %1$s</string>
     <string name="skillmarket_load_comments_failed">Failed to load comments: %1$s</string>
     <string name="skillmarket_post_comment_failed">Failed to post comment: %1$s</string>
@@ -6246,15 +6216,6 @@
 
     <!-- MCP Repository -->
     <string name="mcp_repository_server_not_found">Cannot find corresponding server information</string>
-    <string name="mcp_repository_install_error">Error during installation: %1$s</string>
-    <string name="mcp_repository_invalid_github_url">Invalid GitHub repository URL</string>
-    <string name="mcp_repository_download_zip_failed">Failed to download repository ZIP file</string>
-    <string name="mcp_repository_extract_repo_failed">Failed to extract repository files</string>
-    <string name="mcp_repository_no_repo_dir">No repository directory found after extraction</string>
-    <string name="mcp_repository_plugin_install_error">Error installing plugin: %1$s</string>
-    <string name="mcp_repository_cannot_read_zip">Cannot read ZIP file</string>
-    <string name="mcp_repository_extract_local_zip_failed">Failed to extract local ZIP file</string>
-    <string name="mcp_repository_install_local_zip_error">Error installing local ZIP plugin: %1$s</string>
     <string name="mcp_repository_use_load_plugins">Use loadPluginsFromMCPLocalServer instead</string>
 
     <!-- Web Visit Tool UI -->
@@ -6389,7 +6350,6 @@
     <string name="skill_error_cannot_read_file">Cannot read file: %1$s</string>
     <string name="skill_error_only_support_zip">Only .zip files are supported</string>
     <string name="skill_error_cannot_access_dir">Cannot access skills directory: %1$s</string>
-    <string name="skill_error_create_tmp_dir_failed">Failed to create temp directory: %1$s</string>
     <string name="skill_error_import_invalid_path">Import failed: invalid path</string>
     <string name="skill_error_import_path_not_found">Import failed: path not found: %1$s</string>
     <string name="skill_error_import_no_skill_md">Import failed: SKILL.md not found in zip</string>
@@ -6422,7 +6382,6 @@
     <!-- MCP Deploy -->
     <string name="mcp_deploy_error_cannot_get_path">Cannot get plugin path: %1$s</string>
     <string name="mcp_deploy_error_cannot_determine">Cannot determine how to deploy this plugin, please check README for manual deployment</string>
-    <string name="mcp_deploy_error_analysis_failed">Error analyzing plugin: %1$s</string>
     <string name="mcp_deploy_status_preparing">Preparing plugin deployment</string>
     <string name="mcp_deploy_output_prefix">Output:</string>
 
@@ -6751,9 +6710,6 @@
     <string name="mnn_download_paused">Download paused</string>
 
     <!-- MCPBridge -->
-    <string name="mcp_send_command">Send bridge command</string>
-    <string name="mcp_service_label">Service</string>
-    <string name="mcp_other_params">Other parameters</string>
     <string name="mcp_command_response">Response</string>
     <string name="mcp_success">Success</string>
     <string name="mcp_failed">Failed</string>
@@ -6883,7 +6839,6 @@
     <string name="message_image_capture_failed">Image capture failed: %1$s</string>
 
     <!-- WorkspaceConfig -->
-    <string name="workspace_browser_preview">Browser Preview</string>
 
     <!-- PerformEdit -->
     <string name="perform_edit_edittext_empty">EditText cannot be empty</string>
@@ -6997,10 +6952,7 @@
 
     <!-- MCPLocalServer -->
     <string name="mcp_local_auto_detected_server">MCP server auto-detected from configuration file</string>
-    <string name="mcp_local_json_format_error">JSON format error: %1$s</string>
     <string name="mcp_local_no_mcp_servers_field">mcpServers field not found in configuration</string>
-    <string name="mcp_local_mcp_servers_empty">mcpServers is empty in configuration</string>
-    <string name="mcp_local_merge_config_failed">Failed to merge configuration: %1$s</string>
 
     <!-- ChatHistoryManager -->
     <string name="chat_history_parent_not_exist">Parent conversation does not exist: %1$s</string>
@@ -7520,7 +7472,6 @@
     <string name="workflow_log_execution_cancelled">Workflow "%1$s" execution cancelled</string>
     <string name="package_conflict_delete_source">Delete Source File</string>
     <string name="package_conflict_delete_success">Conflicting package source deleted</string>
-    <string name="package_conflict_delete_failed">Failed to delete conflicting package source</string>
 
     <!-- Character group strings synced from values/strings.xml -->
     <string name="action_assign_to_group">Assign to Character Group</string>
@@ -7610,8 +7561,6 @@
     <string name="market_detail_status_closed">Closed</string>
     <string name="market_detail_open_page">Open page</string>
     <string name="market_detail_post_comment">Post comment</string>
-    <string name="market_detail_deleting_comment">Deleting comment</string>
-    <string name="market_detail_deleting_comment_message">Please wait while the change syncs to the server…</string>
     <string name="market_detail_like_action">Like</string>
     <string name="market_detail_favorite_action">Favorite</string>
     <string name="market_detail_category_label">Category</string>
@@ -7685,7 +7634,6 @@
     <string name="market_agreement_entry">Market agreement</string>
     <string name="market_notifications_empty_title">No messages yet</string>
     <string name="market_notifications_empty_description">Market messages will appear here.</string>
-    <string name="market_manage_removed">Submitted removal request for "%1$s"</string>
     <string name="market_manage_submit_revision">Submit revised version</string>
     <string name="market_manage_revision_cooldown">The revised version is still in the review-return cooldown. Please wait %1$s.</string>
     <string name="market_manage_revision_time_invalid">The market did not return a valid revision availability time. Refresh and try again later.</string>
@@ -8089,9 +8037,6 @@
     <string name="web_session_ad_marking">Mark ads</string>
     <string name="web_session_site_config">Site settings</string>
     <string name="web_session_exit_browser">Exit browser</string>
-    <string name="web_session_placeholder_status">This feature is not connected yet</string>
-    <string name="web_session_placeholder_runtime_unchanged">This page does not change the current webpage, tabs, cookies, or AI control state.</string>
-    <string name="web_session_placeholder_toolbox">The browser menu is the single menu entry point. A separate second toolbox has not been defined.</string>
     <string name="web_session_browser_menu_button">Browser menu button</string>
     <string name="web_session_browser_menu_title">Browser drawer menu</string>
     <string name="web_session_network_log">Network log</string>
@@ -8213,8 +8158,6 @@
     <string name="kiyori_onboarding_agreement_accept">Agree and continue</string>
     <string name="kiyori_onboarding_agreement_decline">Disagree and exit</string>
 
-    <string name="kiyori_onboarding_permissions_title">Permissions and device capabilities</string>
-    <string name="kiyori_onboarding_permissions_desc">Complete Kiyori\'s supported authorization here. Android runtime permissions can be requested together; special access and advanced capabilities require confirmation in the system or corresponding manager.</string>
     <string name="kiyori_onboarding_permission_action_failed">Could not open the authorization entry for “%1$s.” Check whether the device supports it.</string>
 
     <string name="kiyori_onboarding_permission_status_granted">Granted</string>
@@ -8409,7 +8352,7 @@
     <string name="chat_memory_rebuild_window_size_value">Message count: %1$d</string>
     <string name="chat_memory_rebuild_confirm_action">Start rebuild</string>
     <string name="conversation_audit_header_subtitle">Readable, searchable execution diagnostics</string>
-    <string name="conversation_audit_header_counts">%1$d events · %2$d messages · %3$s</string>
+    <string name="conversation_audit_header_counts">Events: %1$d · Messages: %2$d · %3$s</string>
     <string name="conversation_audit_header_runtime_compact">Runtime: %1$s · Chain head: %2$s</string>
     <string name="conversation_audit_match_count">Matches %1$d / %2$d</string>
     <string name="conversation_audit_expand_all">Expand all</string>
@@ -8478,11 +8421,11 @@
     <string name="conversation_audit_export_failed_retry">Export did not complete. Check the error before trying again.</string>
     <string name="conversation_audit_load_failed">Conversation details could not be loaded. You can reload them.</string>
     <string name="conversation_audit_export_recording_failed">The export file was created, but its completion record or seal failed. Check the file before exporting again: %1$s</string>
-    <string name="conversation_audit_loaded_match_count">Loaded events: %1$d / %2$d matches</string>
+    <string name="conversation_audit_loaded_match_count">Matches in loaded events: %1$d / %2$d</string>
     <string name="workspace_command_exit_code">Finished · exit code %1$d</string>
     <string name="workspace_command_result_unconfirmed">Result unconfirmed. Check the terminal before retrying.</string>
     <string name="workspace_command_cancel_unconfirmed">The command has not been confirmed stopped. Check the terminal. No other command was interrupted.</string>
-    <string name="workspace_command_output_limited">Showing recent output; %1$d earlier entries omitted.</string>
+    <string name="workspace_command_output_limited">Showing recent output. Earlier entries omitted: %1$d.</string>
     <string name="workspace_binding_changed">The workspace binding changed or the chat was deleted. Reopen it before continuing.</string>
     <string name="workspace_binding_failed">Unable to save the workspace binding. Check it before retrying.</string>
     <string name="workspace_binding_saving">Saving…</string>
@@ -8490,7 +8433,7 @@
     <string name="export_icon_load_failed">Unable to load the selected icon. Select it again.</string>
     <string name="workspace_command_requires_local_terminal">This workspace uses Android local storage and cannot run through an SSH terminal. Apply a local connection in terminal settings and try again.</string>
     <string name="workspace_pdf_page">PDF page %1$d</string>
-    <string name="workspace_pdf_page_failed">Page %1$d could not be rendered. Reopen the file to try again.</string>
+    <string name="workspace_pdf_page_failed">Unable to render page %1$d. Reopen the file to try again.</string>
     <string name="workspace_config_load_failed">Workspace configuration is invalid or unavailable. Check .operit/config.json and directory permissions, then reload.</string>
     <string name="workspace_command_environment_changed">The file connection and terminal connection changed or do not match. Check the connection and reload the workspace configuration before running the command.</string>
     <string name="workspace_open_files">Open files</string>
@@ -8526,7 +8469,7 @@
     <string name="mcp_unsaved_config">Unsaved configuration</string>
     <string name="mcp_discard_config">Closing will discard these configuration edits.</string>
     <string name="mcp_config_save_failed">Could not save. Check the configuration format. The original configuration may have changed or been removed. Your draft is preserved.</string>
-    <string name="mcp_output_omitted">Omitted %1$d earlier output lines; showing the latest 2000.</string>
+    <string name="mcp_output_omitted">Showing the latest 2000 output lines. Earlier lines omitted: %1$d.</string>
     <string name="mcp_env_pending">Add the variable you are entering or clear its fields before confirming. Names must be unique letters, digits and underscores, and cannot begin with a digit.</string>
     <string name="mcp_install_metadata_failed">Plugin files were published, but configuration saving or old-directory cleanup did not finish. Refresh the list and verify before retrying.</string>
     <string name="mcp_install_incomplete">Import did not finish. Check the repository URL, ZIP contents, file permissions and available space.</string>
@@ -8549,7 +8492,7 @@
     <string name="market_withdraw_title">Withdraw this market entry?</string>
     <string name="market_withdraw_action">Withdraw entry</string>
     <string name="tool_tester_intro">Inspect tool parameters and actual responses. Batch tests use the network and test files; run system and UI operations individually.</string>
-    <string name="tool_tester_batch_scope">Run %1$d tests sequentially. They contact picsum.photos, httpbin.org and www.baidu.com, upload the generated test text, and read device information, cookies and memory query results.\n\nTest files are written and cleaned only in this session directory:\n%2$s\n\nSystem settings, notifications, location, volume, taps and swipes are excluded. Stopping or leaving only stops subsequent tests; completed actions are not undone. Use the cleanup case for remaining files.</string>
+    <string name="tool_tester_batch_scope">Run the selected tests sequentially (count: %1$d). They contact picsum.photos, httpbin.org and www.baidu.com, upload the generated test text, and read device information, cookies and memory query results.\n\nTest files are written and cleaned only in this session directory:\n%2$s\n\nSystem settings, notifications, location, volume, taps and swipes are excluded. Stopping or leaving only stops subsequent tests; completed actions are not undone. Use the cleanup case for remaining files.</string>
     <string name="tool_tester_manual">Run individually · excluded from batch tests</string>
     <string name="tool_tester_stop_next">Stop subsequent tests</string>
     <string name="tool_tester_stopping">Waiting for the current tool; no further tests will start</string>
@@ -8560,7 +8503,7 @@
     <string name="tool_tester_skipped">Not executed</string>
     <string name="tool_tester_interrupted">Result unconfirmed</string>
     <string name="tool_tester_interrupted_detail">Waiting was interrupted. Check the actual outcome before running the tool again.</string>
-    <string name="tool_tester_full_text">View full text (%1$d characters)</string>
+    <string name="tool_tester_full_text">View full text (characters: %1$d)</string>
     <string name="chat_metadata_saving">Saving…</string>
     <string name="chat_input_hook_failed">Could not prepare the message for sending. Your input or queued message is preserved. Check the input plugin and retry.</string>
     <string name="chat_message_edit_save_failed">The message could not be saved. Your input is preserved. Review the error and retry; if the original message changed, copy your edits and reopen it.</string>
@@ -8590,7 +8533,7 @@
     <string name="conversation_audit_search_more">Search further</string>
     <string name="conversation_audit_search_running">Searching history…</string>
     <string name="conversation_audit_export_short">Export</string>
-    <string name="conversation_audit_text_page">Page %1$d / %2$d · %3$d characters (exports contain all text)</string>
+    <string name="conversation_audit_text_page">Page %1$d / %2$d · Characters: %3$d (exports contain all text)</string>
     <string name="message_responses_submission_unknown">Server completion could not be confirmed. Automatic resubmission was stopped to avoid duplicate requests or tool execution. Review Conversation details and confirm remote state before continuing.</string>
     <string name="conversation_audit_previous_page">Previous page</string>
     <string name="conversation_audit_next_page">Next page</string>

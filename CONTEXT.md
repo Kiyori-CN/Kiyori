@@ -6,13 +6,16 @@
 
 | 项目 | 定义 |
 | --- | --- |
-| Kiyori | 以网页访问和内容处理为中心的 Android 浏览器，负责应用壳、导航、设置、下载、文件与媒体体验 |
+| Kiyori | 面向 Android 的人机协作应用；当前由产品壳、共享浏览器、文件/媒体及 Operit AI 运行时组成，AGI 是长期研发方向 |
 | Operit AI | 内置 AI 子系统，负责对话、模型、工具、工作流、记忆与扩展运行时 |
 | Android application ID | `com.kiyori` |
 | 产品版本 | 由 `app/build.gradle.kts` 声明；与市场兼容版本独立 |
 | 仓库 | `Kiyori-CN/Kiyori`；持续开发分支为 `main` |
 | 终端 | `terminal/` 是 KiyoriTerminalCore 子模块，父仓库锁定 gitlink |
 | 当前发行状态 | 未发布；不接收 Operit 更新、补丁或远程公告 |
+
+协作愿景不表示已经实现通用智能，也不改变下列唯一运行时与兼容边界。
+定位演进见 [设计决策](docs/doc-src/decisions/0001_kiyori_product_positioning.md)。
 
 ## 唯一所有权
 

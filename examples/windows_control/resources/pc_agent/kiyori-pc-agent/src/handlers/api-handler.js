@@ -284,6 +284,7 @@ function createApiHandler({
           return true;
         }
         sendJson(res, 200, { ok: true, version: versionInfo.agentVersion, mode: "http-agent",
+          protocolVersion: versionInfo.protocolVersion,
           capabilities: ["files", "file-move", "file-copy", "file-mkdir", "process-sessions"],
           runtimeBindAddress: runtimeInfo.runtimeBindAddress ? runtimeInfo.runtimeBindAddress() : config.bindAddress,
           port: runtimeInfo.runtimePort ? runtimeInfo.runtimePort() : config.port });

@@ -138,8 +138,8 @@ fun BottomControlBar(
     onToggleTtsMute: () -> Unit,
     onSendClick: () -> Unit,
     volumeLevel: Float,
-    isPreparingMessage: Boolean = false,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isPreparingMessage: Boolean = false
 ) {
     // 底部输入模式：false = 文本输入框；true = 整条变成“按住说话”按钮
     var isHoldToSpeakMode by remember { mutableStateOf(false) }

@@ -2,7 +2,7 @@ const http = require("http");
 const os = require("os");
 const { PROJECT_ROOT, PUBLIC_DIR, DATA_DIR, LOGS_DIR, CONFIG_PATH, RUNTIME_PATH, RUNTIME_LOG_PATH } = require("./config/paths");
 const { DEFAULT_CONFIG, PRESET_COMMANDS, STATIC_CONTENT_TYPES } = require("./config/constants");
-const { AGENT_VERSION } = require("./config/version");
+const { AGENT_VERSION, AGENT_PROTOCOL_VERSION } = require("./config/version");
 const { createRuntimeLogger } = require("./lib/logger");
 const { createStaticFileServer, sendNotFound, sendJson } = require("./lib/http-utils");
 const { allowManagementRequest } = require("./lib/request-policy");
@@ -45,7 +45,7 @@ const apiHandler = createApiHandler({
     runtimeBindAddress: () => listener.snapshot().bindAddress,
     listenerState: () => listener.snapshot()
   },
-  versionInfo: { agentVersion: AGENT_VERSION }
+  versionInfo: { agentVersion: AGENT_VERSION, protocolVersion: AGENT_PROTOCOL_VERSION }
 });
 
 function handleRequest(management) {

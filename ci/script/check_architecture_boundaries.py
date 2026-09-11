@@ -6171,18 +6171,11 @@ def check_kiyori_first_run_flow(
     for token in (
         "kiyori_onboarding_user_agreement_content",
         "kiyori_onboarding_privacy_policy_content",
-        "kiyori_onboarding_welcome_title",
-        "kiyori_onboarding_browser_title",
-        "kiyori_onboarding_ai_title",
-        "kiyori_onboarding_files_title",
-        "网页浏览器",
         "文件下载器",
         "视频播放器",
-        "广告拦截器",
         "模型配置",
         "AI 助手",
         "语音服务",
-        "首页搜索",
         "工具箱",
         "文件管理器",
         "终端",
@@ -6192,7 +6185,6 @@ def check_kiyori_first_run_flow(
         "Kiyori UI 自动化服务",
         "GPL-3.0-or-later",
         "集成 Operit AI",
-        "kiyori_onboarding_permissions_authorize_and_enter",
         "日常运行时权限",
         "Shizuku",
         "Root",
@@ -6204,6 +6196,19 @@ def check_kiyori_first_run_flow(
                 "ARCH037 Kiyori agreement fact contract missing: "
                 f"{token}"
             )
+    # 引导已使用独立资源文件；同时核验资源定义与真实 UI 消费，避免旧文案撑住检查。
+    onboarding_path = root / "app/src/main/res/values/strings_onboarding_redesign.xml"
+    if not onboarding_path.is_file():
+        errors.append("ARCH037 current onboarding resources missing")
+        return
+    onboarding_text = onboarding_path.read_text(encoding="utf-8")
+    for token in (
+        "onb_p1_headline", "onb_p2_headline", "onb_p3_headline", "onb_p4_headline",
+        "onb_p6_cta", "onb_p6_chip_none", "onb_card_adblock_title",
+        "onb_card_model_title", "onb_card_workflow_title", "onb_p2_lede",
+    ):
+        if f'name="{token}"' not in onboarding_text or f"R.string.{token}" not in screen_code:
+            errors.append(f"ARCH037 current onboarding resource must be defined and consumed: {token}")
     if "AI 浏览器 · 内容工作台" in agreement_text:
         errors.append(
             "ARCH037 obsolete welcome eyebrow still present: AI 浏览器 · 内容工作台"

@@ -139,7 +139,7 @@ rustup toolchain install 1.88.0
 rustup target add aarch64-linux-android --toolchain 1.88.0
 ```
 
-### Native source snapshots
+### Native 源码快照
 
 直接与 Kiyori JNI 代码共同编译的 llama.cpp 与 MNN 使用精确上游 commit：
 
@@ -261,7 +261,7 @@ Linux / macOS：
 .venv/bin/python -B ci/script/prepare_mpv_player_dependency.py --repository .
 ```
 
-Selected dual M9 native source closure qualification:
+所选 M9 双播放器 native 依赖闭合验证：
 
 ```powershell
 .\.venv\Scripts\python.exe -B ci\script\build_player_native_closure.py `
@@ -313,23 +313,22 @@ Selected dual M9 native source closure qualification:
   --expected-ffmpegkit-sha256 7e6b4c20a93dfb3b90bc7f3c5d724cf657b70e2469ea4f2b1110396a8d345394
 ```
 
-The default prepare command only validates the selected product AAR and fixed FFmpegKit AAR. It does not download
-or recreate the historical mpv product when the selected AAR is absent. The explicit legacy `--mpv-input-aar` mode
-writes only a baseline under `work/`.
+默认准备命令只验证当前选定的产品 AAR 和固定 FFmpegKit AAR；缺少所选 AAR 时，不会下载或
+重建历史 mpv 产品。显式旧版 `--mpv-input-aar` 模式只在 `work/` 下生成基线输入。
 
-The selected player source and candidate commands use `--profile m9_ffmpeg_major_candidate`. Paired promotion
-accepts only that profile and the two fixed product hashes; it audits both candidates, both product-directory
-temporary files and both final product AARs. The source builder records an ignored
-`work/player-native-build/<profile>/source-lock.json`. Windows builds require MSYS2 Bash with Autotools, an isolated
-NDK r29 and SDK path, plus a complete fixed WinLibs host toolchain. The builder checks
-`x86_64-w64-mingw32/include/assert.h`, `stdint.h`, and `stdio.h` before compiling; a partial archive extraction is
-rejected before the FFmpeg host code generators run. NDK 28.2 is only a smoke environment and cannot be used as final
-M8/M9 selection evidence.
+所选播放器的源码构建与候选验证使用 `--profile m9_ffmpeg_major_candidate`。成对晋级只接受
+该 profile 与两个固定产品哈希，并审计两个候选、产品目录中的两个临时文件及最终两个 AAR。
+源码构建器把来源锁定记录写入忽略的 `work/player-native-build/<profile>/source-lock.json`。
 
-FFmpegKit compilation uses the fixed WSL NDK r29 path. The `--native-readelf` argument is different: the closure
-auditor runs as a Windows-host Python process, so it requires a Windows `llvm-readelf.exe` and rejects a `/home/...`
-WSL binary path before touching the workspace. A compatible Windows NDK `llvm-readelf.exe` may inspect the generated
-AArch64 ELF files; it does not change the NDK revision recorded by the built closure.
+Windows 构建需要带 Autotools 的 MSYS2 Bash、隔离的 NDK r29 / SDK 路径和完整的固定 WinLibs
+宿主工具链。编译前检查 `x86_64-w64-mingw32/include/assert.h`、`stdint.h` 与 `stdio.h`；
+归档未完整解压时，在 FFmpeg 宿主代码生成器运行前拒绝构建。NDK 28.2 仅用于冒烟检查，
+不能作为 M8/M9 最终选型验收证据。
+
+FFmpegKit 编译使用固定的 WSL NDK r29。`--native-readelf` 指定的是另一用途的工具：
+依赖闭合审计由 Windows Python 运行，因此必须传入 Windows `llvm-readelf.exe`；
+`/home/...` 等 WSL 可执行文件路径会在修改工作区前被拒绝。兼容的 Windows NDK 工具可以检查
+生成的 AArch64 ELF，但不会改变构建记录中的 NDK 版本。
 
 ## 6. 生成 WebChat 与示例输入
 

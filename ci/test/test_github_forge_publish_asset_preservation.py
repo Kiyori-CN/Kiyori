@@ -38,10 +38,10 @@ class GitHubForgePublishAssetPreservationTest(unittest.TestCase):
         self.assertNotIn("githubApiService.deleteRelease(", registration_block)
         self.assertNotIn("githubApiService.deleteReleaseAsset(", registration_block)
 
-    def test_same_name_asset_replacement_still_removes_only_the_previous_asset(self) -> None:
+    def test_same_version_asset_is_verified_and_never_deleted_for_retry(self) -> None:
         source = SOURCE_PATH.read_text(encoding="utf-8")
         replacement_start = source.index(
-            "    private suspend fun uploadAssetReplacingExisting("
+            "    internal suspend fun ensureReleaseAsset("
         )
         replacement_end = source.index(
             "    private suspend fun registerMarketEntry(",
@@ -49,10 +49,11 @@ class GitHubForgePublishAssetPreservationTest(unittest.TestCase):
         )
         replacement_block = source[replacement_start:replacement_end]
 
-        self.assertIn(
-            "githubApiService.deleteReleaseAsset(owner, repo, existingAsset.id)",
-            replacement_block,
-        )
+        # 同版本内容冲突必须保留既有发布物；JVM 行为测试另核对实际 API 调用。
+        self.assertIn("githubApiService.downloadReleaseAsset(", replacement_block)
+        self.assertIn("existingBytes.contentEquals(content)", replacement_block)
+        self.assertIn("return Result.success(existingAsset)", replacement_block)
+        self.assertNotIn("githubApiService.deleteReleaseAsset(", replacement_block)
         self.assertNotIn("githubApiService.deleteRelease(", replacement_block)
 
 

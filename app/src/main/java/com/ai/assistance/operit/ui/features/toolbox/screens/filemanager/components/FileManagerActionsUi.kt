@@ -68,7 +68,7 @@ fun FileManagerActionDialog(
                 state.inspections[file.name]?.let { info ->
                 Text("${if (info.directory) "文件夹" else "文件"} · ${formatFileSize(info.bytes)}（${info.bytes} 字节）")
                 if (info.directory) Text("${info.files} 个文件 · ${(info.directories - 1).coerceAtLeast(0)} 个子文件夹")
-                Text("修改时间：${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(info.modified))}", style = MaterialTheme.typography.bodySmall)
+                Text("修改时间：${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", androidx.compose.ui.platform.LocalConfiguration.current.locales[0]).format(Date(info.modified))}", style = MaterialTheme.typography.bodySmall)
                 Text("读取：${if (info.readable) "允许" else "不可用"} · 写入：${if (info.writable) "允许" else "不可用"}", style = MaterialTheme.typography.bodySmall)
                 if (!write) {
                     if (!info.directory && state.files.size == 1) OutlinedButton(onClick = { onInspect(true) }, enabled = !state.loading) { Text("计算 SHA-256") }

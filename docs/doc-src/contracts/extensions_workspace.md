@@ -119,6 +119,9 @@ ReportLab 创建与水印共用字体注册：默认 CID `STSong-Light`，显式
 
 - 生产脚本和 ToolPkg metadata 提供双语名称、动作导向描述、明确分类及默认启用字段；声明环境变量的包首次安装默认关闭。
 - 当前未发布内置包版本基线为 `1.0.0`；Search 名称统一为“OpenAI 搜索”“Brave 搜索”，协议 ID 保持稳定。
+- Windows PC Agent 的产品 `version` 与认证响应中的 `protocolVersion` 分开。手机接受稳定
+  `1.1.x` 执行协议；缺少该字段的历史端只接受已有 `version=1.1.x`，旧 `1.0.0` 端不会因为
+  新包也使用 `1.0.0` 而获准。显式未知、空或非字符串协议拒绝，认证只发一次，不降级重试。
 - 学术工具分类为 `Academic`，包含 arXiv、Crossref、PubMed、Semantic Scholar、OpenAlex；名称和 UI 分类不改宿主类型或接口。
 - 市场 identity 属于 `com.kiyori.capability.extensions.market`，API、发布描述与安装匹配共用归一化和独立 ID 验证，UI 不持有这些规则。
 - GitHub Release 资产是已经发布的独立产物；后续市场登记失败报告 `RegistrationFailed`，不能删除 Release 或资产。

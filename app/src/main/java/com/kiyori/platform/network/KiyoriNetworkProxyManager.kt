@@ -3,6 +3,7 @@ package com.kiyori.platform.network
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
+import android.os.Build
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import androidx.core.content.ContextCompat
@@ -167,8 +168,19 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                 }
             }
         }
+        val request = NetworkRequest.Builder().apply {
+            // clearCapabilities 自 API 30 才公开。旧系统移除其三个默认约束，
+            // 同样观察所有网络及 VPN，避免 Android 8–10 启动触发 NoSuchMethodError。
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                clearCapabilities()
+            } else {
+                removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)
+                removeCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED)
+                removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+            }
+        }.build()
         connectivity.registerNetworkCallback(
-            NetworkRequest.Builder().clearCapabilities().build(),
+            request,
             callback,
         )
     }

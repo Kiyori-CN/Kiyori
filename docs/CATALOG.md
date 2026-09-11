@@ -278,6 +278,7 @@
 
 | 文档 | 用途或标题 |
 | --- | --- |
+| [02_lint_baseline_history.md](TODO/documentation_system_refinement/02_lint_baseline_history.md) | Android Lint 基线历史 |
 | [index.md](TODO/documentation_system_refinement/index.md) | 文档体系整理与开发入口优化 |
 
 ## docs/TODO/ffmpeg_runtime_completion
@@ -844,6 +845,7 @@
 | [JAVA_BRIDGE_INTERFACE.md](doc-src/dev-core/JAVA_BRIDGE_INTERFACE.md) | Java Bridge 接口契约 |
 | [PLAYER_ARCHITECTURE.md](doc-src/dev-core/PLAYER_ARCHITECTURE.md) | 播放器架构 |
 | [PLAYER_NATIVE_STACK.md](doc-src/dev-core/PLAYER_NATIVE_STACK.md) | 播放器与 FFmpegKit 原生依赖栈 |
+| [QUALITY_VALIDATION.md](doc-src/dev-core/QUALITY_VALIDATION.md) | 全仓质量验证 |
 | [REPOSITORY_LAYOUT.md](doc-src/dev-core/REPOSITORY_LAYOUT.md) | Kiyori 仓库布局 |
 
 ## docs/doc-src/feature-protocol
@@ -900,6 +902,7 @@
 | --- | --- |
 | [README.md](user-guide/README.md) | Kiyori 使用指南 |
 | [extensions.md](user-guide/extensions.md) | 扩展与工具使用 |
+| [files_and_workspaces.md](user-guide/files_and_workspaces.md) | 文件、工作区与 AI 产物 |
 | [getting_started.md](user-guide/getting_started.md) | 首次使用 |
 | [network_and_media.md](user-guide/network_and_media.md) | 网络、媒体与特权能力 |
 | [privacy_and_data.md](user-guide/privacy_and_data.md) | 隐私、数据与迁移 |

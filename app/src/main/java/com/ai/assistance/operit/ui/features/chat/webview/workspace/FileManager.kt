@@ -37,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.style.TextOverflow
@@ -95,6 +96,7 @@ fun FileBrowser(
         onFileOpen: ((OpenFileInfo) -> Unit)? = null
 ) {
     val context = LocalContext.current
+    val observableResources = LocalResources.current
     val toolHandler = remember { AIToolHandler.getInstance(context) }
     // executeTool 是同步入口；文件 provider 的 I/O 不应阻塞输入、滚动与取消反馈。
     suspend fun executeFileTool(tool: AITool) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
@@ -229,7 +231,7 @@ fun FileBrowser(
                 context.contentResolver.takePersistableUriPermission(uri, flags)
             } catch (error: Exception) {
                 AppLogger.e("WorkspaceFileBrowser", "Failed to persist directory permission", error)
-                operationError = context.getString(R.string.workspace_bookmark_permission_failed)
+                operationError = observableResources.getString(R.string.workspace_bookmark_permission_failed)
                 return@rememberLauncherForActivityResult
             }
             pendingRepoBookmarkUri = uri
@@ -277,7 +279,7 @@ fun FileBrowser(
                         }
 
                         if (name.isEmpty()) {
-                            repoBookmarkNameError = context.getString(R.string.repo_bookmark_name_empty)
+                            repoBookmarkNameError = observableResources.getString(R.string.repo_bookmark_name_empty)
                             return@TextButton
                         }
 
@@ -285,7 +287,7 @@ fun FileBrowser(
                             it.uri != uri.toString() && it.name.equals(name, ignoreCase = true)
                         }
                         if (nameExists) {
-                            repoBookmarkNameError = context.getString(R.string.repo_bookmark_name_exists)
+                            repoBookmarkNameError = observableResources.getString(R.string.repo_bookmark_name_exists)
                             return@TextButton
                         }
 
@@ -301,7 +303,7 @@ fun FileBrowser(
                                 throw error
                             } catch (error: Exception) {
                                 AppLogger.e("WorkspaceFileBrowser", "Failed to save directory bookmark", error)
-                                repoBookmarkNameError = context.getString(R.string.file_manager_operation_failed)
+                                repoBookmarkNameError = observableResources.getString(R.string.file_manager_operation_failed)
                             } finally {
                                 isSavingBookmark = false
                             }
@@ -326,7 +328,7 @@ fun FileBrowser(
         if (isLoading) return
         val name = fileName.trim()
         if (!isWorkspaceEntryNameValid(name) || fileList.any { it.name == name }) {
-            operationError = context.getString(R.string.workspace_entry_name_invalid)
+            operationError = observableResources.getString(R.string.workspace_entry_name_invalid)
             return
         }
         val directory = currentPath
@@ -346,7 +348,7 @@ fun FileBrowser(
                     AITool("write_file", withEnvParams(listOf(ToolParameter("path", path), ToolParameter("content", "")), targetEnvironment))
                 }
                 val result = executeFileTool(tool)
-                check(result.success) { result.error ?: context.getString(R.string.file_manager_operation_failed) }
+                check(result.success) { result.error ?: observableResources.getString(R.string.file_manager_operation_failed) }
                 showCreateFileDialog = false
                 newFileName = ""
                 readDirectory(directory, targetEnvironment)
@@ -354,7 +356,7 @@ fun FileBrowser(
                 throw error
             } catch (error: Exception) {
                 AppLogger.e("WorkspaceFileBrowser", "Failed to create entry", error)
-                operationError = context.getString(R.string.workspace_entry_create_failed)
+                operationError = observableResources.getString(R.string.workspace_entry_create_failed)
             } finally {
                 isLoading = false
             }
@@ -372,14 +374,14 @@ fun FileBrowser(
                 val result = executeFileTool(AITool("delete_file", withEnvParams(listOf(
                     ToolParameter("path", filePath), ToolParameter("recursive", "true"),
                 ), targetEnvironment)))
-                check(result.success) { result.error ?: context.getString(R.string.file_manager_operation_failed) }
+                check(result.success) { result.error ?: observableResources.getString(R.string.file_manager_operation_failed) }
                 pendingDeletePath = null
                 readDirectory(directory, targetEnvironment)
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (error: Exception) {
                 AppLogger.e("WorkspaceFileBrowser", "Failed to delete entry", error)
-                operationError = context.getString(R.string.file_manager_operation_failed)
+                operationError = observableResources.getString(R.string.file_manager_operation_failed)
             } finally {
                 isLoading = false
             }
@@ -422,13 +424,13 @@ fun FileBrowser(
                     )
                     onFileOpen?.invoke(openFileInfo)
                 } else {
-                    operationError = context.getString(R.string.file_manager_operation_failed)
+                    operationError = observableResources.getString(R.string.file_manager_operation_failed)
                 }
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (error: Exception) {
                 AppLogger.e("WorkspaceFileBrowser", "Failed to open file", error)
-                operationError = context.getString(R.string.file_manager_operation_failed)
+                operationError = observableResources.getString(R.string.file_manager_operation_failed)
             } finally {
                 isLoading = false
             }
@@ -502,7 +504,7 @@ fun FileBrowser(
                         try {
                             if (com.ai.assistance.operit.data.repository.ChatHistoryManager.getInstance(context)
                                     .isWorkspaceEnvironmentBound("repo:${bookmark.name}")) {
-                                operationError = context.getString(R.string.workspace_bookmark_in_use)
+                                operationError = observableResources.getString(R.string.workspace_bookmark_in_use)
                                 return@launch
                             }
                             // 系统目录授权也可能被其他功能使用，不随快捷书签一起撤销。
@@ -513,7 +515,7 @@ fun FileBrowser(
                             throw error
                         } catch (error: Exception) {
                             AppLogger.e("WorkspaceFileBrowser", "Failed to remove directory bookmark", error)
-                            operationError = context.getString(R.string.file_manager_operation_failed)
+                            operationError = observableResources.getString(R.string.file_manager_operation_failed)
                         } finally {
                             isSavingBookmark = false
                         }
@@ -847,7 +849,7 @@ fun FileBrowser(
                             coroutineScope.launch {
                                 try { onBindWorkspace(path, env) }
                                 catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
-                                catch (error: Exception) { operationError = error.message ?: context.getString(R.string.workspace_binding_failed) }
+                                catch (error: Exception) { operationError = error.message ?: observableResources.getString(R.string.workspace_binding_failed) }
                                 finally { isBinding = false; isLoading = false }
                             }
                         }

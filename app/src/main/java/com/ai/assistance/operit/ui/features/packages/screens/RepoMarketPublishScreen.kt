@@ -36,6 +36,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.collectAsState
@@ -105,7 +106,7 @@ fun RepoMarketPublishScreen(
     var showConfirmationDialog by remember { mutableStateOf(false) }
     var categoryError by remember { mutableStateOf<String?>(null) }
     var categoryLoading by remember { mutableStateOf(false) }
-    var categoryReload by remember { mutableStateOf(0) }
+    var categoryReload by remember { mutableIntStateOf(0) }
     var showDiscard by rememberSaveable { mutableStateOf(false) }
     var discardApproved by remember { mutableStateOf(false) }
     var categories by remember { mutableStateOf<List<MarketV2ManifestCategory>>(emptyList()) }

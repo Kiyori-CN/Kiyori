@@ -5,6 +5,7 @@ import vm from "node:vm";
 
 async function loadPackage(name, options = {}) {
     const calls = [];
+    const writes = [];
     const completions = [];
     const context = vm.createContext({
         exports: {},
@@ -13,7 +14,7 @@ async function loadPackage(name, options = {}) {
         getChatId: () => "input-regression",
         getArtifactPath: env => { assert.equal(env, "linux"); if (options.artifactError) throw new Error(options.artifactError); return '/workspace'; },
         getArtifactPaths: () => ({ android: '/sdcard/Download/Kiyori/workspace', linux: '/workspace', linuxIsLocal: true }),
-        Tools: { System: { terminal: {
+        Tools: { Files: { write: async (...args) => { writes.push(args); return { successful: true }; } }, System: { terminal: {
             create: async name => ({ sessionId: name }),
             exec: async (...args) => {
                 calls.push(args);
@@ -23,27 +24,30 @@ async function loadPackage(name, options = {}) {
         } } },
     });
     vm.runInContext(await readFile(new URL(`../../app/src/main/assets/packages/${name}.js`, import.meta.url), "utf8"), context);
-    return { tools: context.exports, calls, completions };
+    return { tools: context.exports, calls, writes, completions };
 }
 
 for (const tool of ["run_go", "run_python", "run_javascript_node", "run_ruby", "run_rust", "run_c", "run_cpp"]) {
     test(`${tool}: invalid artifact root fails before dependency setup or temporary writes`, async () => {
-        const { tools, calls, completions } = await loadPackage("code_runner", { artifactError: "invalid root" });
+        const { tools, calls, writes, completions } = await loadPackage("code_runner", { artifactError: "invalid root" });
         await tools[tool]({ script: "anything" });
         assert.equal(completions[0].success, false);
         assert.match(completions[0].message, /invalid root/);
         assert.equal(calls.length, 0);
+        assert.equal(writes.length, 0);
     });
     test(`${tool}: production package preserves TAB/Unicode/quotes in generated source`, async () => {
-        const { tools, calls, completions } = await loadPackage("code_runner");
+        const { tools, calls, writes, completions } = await loadPackage("code_runner");
         // Assert the transport boundary here; this mock does not execute guest language runtimes.
         const script = "first\n\t中文😀 '\"\\$`!\n  spaces\n\t\tlast\n";
         await tools[tool]({ script });
         assert.equal(completions.length, 1);
         assert.equal(completions[0].success, true, JSON.stringify(completions[0]));
-        const writes = calls.filter(([, command]) => command.includes(script));
-        assert.equal(writes.length, 1);
-        assert.ok(writes[0][1].includes(`\n${script}__CODE_RUNNER_FILE_`));
+        const sourceWrites = writes.filter(([, content]) => content === script);
+        assert.equal(sourceWrites.length, 1);
+        assert.equal(sourceWrites[0][2], false);
+        assert.equal(sourceWrites[0][3], "linux");
+        assert.ok(calls.every(([, command]) => !command.includes(script)), "源码不能进入 PTY 命令文本");
         assert.ok(calls.every(([sessionId]) => sessionId === "code_runner_session"));
     });
 }

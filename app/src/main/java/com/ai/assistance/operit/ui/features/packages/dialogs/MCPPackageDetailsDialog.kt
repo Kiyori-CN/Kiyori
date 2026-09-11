@@ -45,6 +45,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -90,7 +91,7 @@ fun MCPPackageDetailsDialog(
     var loadError by remember(server.id) { mutableStateOf<String?>(null) }
     var selectedTool by remember(server.id) { mutableStateOf<PackageTool?>(null) }
 
-    var reloadVersion by remember(server.id) { mutableStateOf(0) }
+    var reloadVersion by remember(server.id) { mutableIntStateOf(0) }
     LaunchedEffect(server.id, installedPath, reloadVersion) {
         isLoading = true
         loadError = null

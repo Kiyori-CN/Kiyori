@@ -38,12 +38,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -131,6 +133,7 @@ fun ArtifactPublishScreen(
     publishContext: ArtifactPublishClusterContext? = null
 ) {
     val context = LocalContext.current
+    val observableResources = LocalResources.current
     val isCurrentScreen = LocalIsCurrentScreen.current
     val scrollState = rememberScrollState()
     val isEditMode = editingEntry != null
@@ -230,7 +233,7 @@ fun ArtifactPublishScreen(
     var showOperit2WarningDialog by remember { mutableStateOf(false) }
     var showSecondForgeConfirm by remember { mutableStateOf(false) }
     var manifestLoadError by remember { mutableStateOf<String?>(null) }
-    var manifestReload by remember { mutableStateOf(0) }
+    var manifestReload by remember { mutableIntStateOf(0) }
     var hasEdits by rememberSaveable { mutableStateOf(false) }
     var showDiscard by rememberSaveable { mutableStateOf(false) }
     var discardApproved by remember { mutableStateOf(false) }
@@ -243,7 +246,7 @@ fun ArtifactPublishScreen(
             if (categories.isEmpty()) manifestLoadError = context.getString(R.string.market_categories_empty)
         } catch (cancelled: CancellationException) { throw cancelled
         } catch (error: Exception) {
-            manifestLoadError = context.getString(R.string.market_error_load_failed)
+            manifestLoadError = observableResources.getString(R.string.market_error_load_failed)
         }
     }
 
@@ -1063,7 +1066,7 @@ viewModel.clearPendingMarketRegistrationRetry()
                             Text(
                                 stringResource(
                                     R.string.toolpkg_api_version_value,
-                                    (initialInfo?.apiVersion).effectiveToolPkgApiVersion()
+                                    initialInfo.apiVersion.effectiveToolPkgApiVersion()
                                 )
                             )
                         }

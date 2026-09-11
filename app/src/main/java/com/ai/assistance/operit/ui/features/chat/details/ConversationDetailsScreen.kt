@@ -128,8 +128,8 @@ fun ConversationDetailsScreen(
     isLoading: Boolean,
     loadError: String?,
     onRetryLoading: () -> Unit,
-    systemBackEnabled: Boolean = true,
     modifier: Modifier = Modifier,
+    systemBackEnabled: Boolean = true,
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var showAnnotationDialog by rememberSaveable { mutableStateOf(false) }

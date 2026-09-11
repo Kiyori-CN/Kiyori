@@ -132,39 +132,6 @@
     <issue
         id="SdCardPath"
         message="Do not hardcode &quot;/sdcard/&quot;; use `Environment.getExternalStorageDirectory().getPath()` instead"
-        errorLine1="    var currentPath by mutableStateOf(&quot;/sdcard&quot;)"
-        errorLine2="                                       ~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/viewmodel/FileManagerViewModel.kt"
-            line="28"
-            column="40"/>
-    </issue>
-
-    <issue
-        id="SdCardPath"
-        message="Do not hardcode &quot;/sdcard/&quot;; use `Environment.getExternalStorageDirectory().getPath()` instead"
-        errorLine1="    var tabs = mutableStateListOf(TabItem(&quot;/sdcard&quot;, context.getString(R.string.file_manager_home), null))"
-        errorLine2="                                           ~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/viewmodel/FileManagerViewModel.kt"
-            line="58"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="SdCardPath"
-        message="Do not hardcode &quot;/sdcard/&quot;; use `Environment.getExternalStorageDirectory().getPath()` instead"
-        errorLine1="    fun addTab(path: String = &quot;/sdcard&quot;, title: String = context.getString(R.string.file_manager_new_tab)) {"
-        errorLine2="                               ~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/viewmodel/FileManagerViewModel.kt"
-            line="219"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="SdCardPath"
-        message="Do not hardcode &quot;/sdcard/&quot;; use `Environment.getExternalStorageDirectory().getPath()` instead"
         errorLine1="                pluginPath.replace(Regex(&quot;^/storage/emulated/\\d+&quot;), &quot;/sdcard&quot;)"
         errorLine2="                                                                      ~~~~~~~">
         <location
@@ -699,28 +666,6 @@
             file="../gradle/libs.versions.toml"
             line="58"
             column="18"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of org.slf4j:slf4j-api than 2.0.9 is available: 2.0.18"
-        errorLine1="slf4j = &quot;2.0.9&quot;"
-        errorLine2="        ~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="59"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of org.slf4j:slf4j-simple than 2.0.9 is available: 2.0.18"
-        errorLine1="slf4j = &quot;2.0.9&quot;"
-        errorLine2="        ~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="59"
-            column="9"/>
     </issue>
 
     <issue
@@ -6666,28 +6611,6 @@
     <issue
         id="LocalContextGetResourceValueCall"
         message="Querying resource values using LocalContext.current"
-        errorLine1="                    TextButton(onClick = onDismiss) { Text(context.getString(R.string.close)) }"
-        errorLine2="                                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/components/ExportDialogs.kt"
-            line="743"
-            column="60"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        Button(onClick = { onOpenFile(filePath) }) { Text(context.getString(R.string.open_file)) }"
-        errorLine2="                                                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/components/ExportDialogs.kt"
-            line="748"
-            column="75"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
         errorLine1="        context.getString(R.string.external_http_chat_token_not_generated)"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -7238,149 +7161,6 @@
     <issue
         id="LocalContextGetResourceValueCall"
         message="Querying resource values using LocalContext.current"
-        errorLine1="                        withContext(Dispatchers.Main) { error = result.error ?: context.getString(R.string.file_error_open_failed) }"
-        errorLine2="                                                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileContextMenu.kt"
-            line="115"
-            column="81"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    withContext(Dispatchers.Main) { error = context.getString(R.string.file_error_open_failed) + &quot;: ${e.message}&quot; }"
-        errorLine2="                                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileContextMenu.kt"
-            line="119"
-            column="61"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        withContext(Dispatchers.Main) { error = result.error ?: context.getString(R.string.file_error_share_failed) }"
-        errorLine2="                                                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileContextMenu.kt"
-            line="149"
-            column="81"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    withContext(Dispatchers.Main) { error = context.getString(R.string.file_error_share_failed) + &quot;: ${e.message}&quot; }"
-        errorLine2="                                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileContextMenu.kt"
-            line="153"
-            column="61"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        withContext(Dispatchers.Main) { error = result.error ?: context.getString(R.string.file_manager_operation_failed) }"
-        errorLine2="                                                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileContextMenu.kt"
-            line="190"
-            column="81"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    withContext(Dispatchers.Main) { error = context.getString(R.string.file_manager_operation_failed) + &quot;: ${e.message}&quot; }"
-        errorLine2="                                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileContextMenu.kt"
-            line="194"
-            column="61"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        withContext(Dispatchers.Main) { error = result.error ?: context.getString(R.string.file_manager_operation_failed) }"
-        errorLine2="                                                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileContextMenu.kt"
-            line="228"
-            column="81"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    withContext(Dispatchers.Main) { error = context.getString(R.string.file_manager_operation_failed) + &quot;: ${e.message}&quot; }"
-        errorLine2="                                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileContextMenu.kt"
-            line="232"
-            column="61"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        withContext(Dispatchers.Main) { error = result.error ?: context.getString(R.string.file_error_compress_failed) }"
-        errorLine2="                                                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileContextMenu.kt"
-            line="270"
-            column="81"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    withContext(Dispatchers.Main) { error = context.getString(R.string.file_error_compress_failed) + &quot;: ${e.message}&quot; }"
-        errorLine2="                                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileContextMenu.kt"
-            line="274"
-            column="61"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        withContext(Dispatchers.Main) { error = result.error ?: context.getString(R.string.file_error_extract_failed) }"
-        errorLine2="                                                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileContextMenu.kt"
-            line="308"
-            column="81"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    withContext(Dispatchers.Main) { error = context.getString(R.string.file_error_extract_failed) + &quot;: ${e.message}&quot; }"
-        errorLine2="                                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileContextMenu.kt"
-            line="312"
-            column="61"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    withContext(Dispatchers.Main) { error = context.getString(R.string.file_error_rename_failed, e.message ?: &quot;Unknown error&quot;) }"
-        errorLine2="                                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileContextMenu.kt"
-            line="365"
-            column="61"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
         errorLine1="                            repoBookmarkNameError = context.getString(R.string.repo_bookmark_name_empty)"
         errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -7420,17 +7200,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/FileManagerScreen.kt"
             line="162"
             column="53"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                ) { Text(context.getString(android.R.string.ok)) }"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/FileManagerScreen.kt"
-            line="174"
-            column="26"/>
     </issue>
 
     <issue
@@ -7662,28 +7431,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/FunctionalConfigScreen.kt"
             line="594"
             column="70"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                                            displayPath = context.getString(R.string.functional_config_test_grep_display_path),"
-        errorLine2="                                                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/FunctionalConfigScreen.kt"
-            line="595"
-            column="75"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                                            candidatesDigest = context.getString(R.string.functional_config_test_grep_candidates_digest),"
-        errorLine2="                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/FunctionalConfigScreen.kt"
-            line="596"
-            column="80"/>
     </issue>
 
     <issue
@@ -9405,61 +9152,6 @@
     <issue
         id="LocalContextGetResourceValueCall"
         message="Querying resource values using LocalContext.current"
-        errorLine1="                                    errorMessage = error.message ?: context.getString(R.string.publish_failed_check_network_repo)"
-        errorLine2="                                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/RepoMarketPublishScreen.kt"
-            line="279"
-            column="69"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            errorMessage = context.getString(R.string.publish_failed_with_error, error.message ?: &quot;&quot;)"
-        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/RepoMarketPublishScreen.kt"
-            line="283"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        errorMessage = context.getString(R.string.please_fill_all_required_fields)"
-        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/RepoMarketPublishScreen.kt"
-            line="310"
-            column="40"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                        ?: context.getString(R.string.publish_failed_check_network_repo)"
-        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/RepoMarketPublishScreen.kt"
-            line="394"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            context.getString(R.string.publish_failed_with_error, error.message ?: &quot;&quot;)"
-        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/RepoMarketPublishScreen.kt"
-            line="399"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
         errorLine1="                                            error = context.getString(R.string.script_missing_params, missingParams.joinToString(&quot;, &quot;))"
         errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -9477,17 +9169,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/packages/dialogs/ScriptExecutionDialog.kt"
             line="275"
             column="61"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                            error = context.getString(R.string.script_execution_error, e.message ?: &quot;&quot;)"
-        errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/dialogs/ScriptExecutionDialog.kt"
-            line="301"
-            column="53"/>
     </issue>
 
     <issue
@@ -10236,61 +9917,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/chat/components/part/ToolResultDisplay.kt"
             line="227"
             column="26"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                Text(context.getString(R.string.ai_tools_availability_test), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)"
-        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/tooltester/ToolTesterScreen.kt"
-            line="96"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                Text(context.getString(R.string.ai_tools_grouped_desc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)"
-        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/tooltester/ToolTesterScreen.kt"
-            line="97"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    label = { Text(context.getString(R.string.test_input_field)) },"
-        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/tooltester/ToolTesterScreen.kt"
-            line="102"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            Text(context.getString(R.string.batch_testing_in_progress))"
-        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/tooltester/ToolTesterScreen.kt"
-            line="131"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        Text(context.getString(R.string.start_comprehensive_test))"
-        errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/tooltester/ToolTesterScreen.kt"
-            line="134"
-            column="30"/>
     </issue>
 
     <issue
@@ -11314,50 +10940,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/chat/webview/workspace/WorkspaceSetup.kt"
             line="469"
             column="24"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    title = context.getString(R.string.create_default_workspace),"
-        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/webview/workspace/WorkspaceSetup.kt"
-            line="486"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    description = context.getString(R.string.create_new_workspace_in_app),"
-        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/webview/workspace/WorkspaceSetup.kt"
-            line="487"
-            column="35"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    title = context.getString(R.string.select_existing_workspace),"
-        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/webview/workspace/WorkspaceSetup.kt"
-            line="496"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    description = context.getString(R.string.select_folder_from_device),"
-        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/webview/workspace/WorkspaceSetup.kt"
-            line="497"
-            column="35"/>
     </issue>
 
     <issue
@@ -12506,17 +12088,6 @@
 
     <issue
         id="MissingTranslation"
-        message="&quot;market_manage_removed&quot; is not translated in &quot;ko&quot; (Korean), &quot;pt&quot; (Portuguese), &quot;ms&quot; (Malay), &quot;id&quot; (Indonesian), &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;market_manage_removed&quot;>已提交移除「%1$s」的请求&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="4279"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
         message="&quot;market_manage_review_dialog_title&quot; is not translated in &quot;ko&quot; (Korean), &quot;pt&quot; (Portuguese), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;id&quot; (Indonesian), &quot;es&quot; (Spanish)"
         errorLine1="    &lt;string name=&quot;market_manage_review_dialog_title&quot;>审核状态&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -12743,28 +12314,6 @@
         <location
             file="src/main/res/values/strings.xml"
             line="4615"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;market_detail_deleting_comment&quot; is not translated in &quot;ko&quot; (Korean), &quot;pt&quot; (Portuguese), &quot;ms&quot; (Malay), &quot;id&quot; (Indonesian), &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;market_detail_deleting_comment&quot;>正在删除评论&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="4636"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;market_detail_deleting_comment_message&quot; is not translated in &quot;ko&quot; (Korean), &quot;pt&quot; (Portuguese), &quot;ms&quot; (Malay), &quot;id&quot; (Indonesian), &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;market_detail_deleting_comment_message&quot;>请稍候，正在同步到服务器…&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="4637"
             column="13"/>
     </issue>
 
@@ -14140,17 +13689,6 @@
         <location
             file="src/main/res/values-en/strings.xml"
             line="5281"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="PluralsCandidate"
-        message="Formatting %d followed by words (&quot;files&quot;): This should probably be a plural rather than a string"
-        errorLine1="    &lt;string name=&quot;toolreg_multipart_request_desc&quot;>Multipart request: %1$s (%2$d files)&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="5522"
             column="5"/>
     </issue>
 
@@ -16066,17 +15604,6 @@
 
     <issue
         id="StaticFieldLeak"
-        message="Do not place Android context classes in static fields (static reference to `MCPManager` which has field `context` pointing to `Context`); this is a memory leak"
-        errorLine1="        @Volatile private var INSTANCE: MCPManager? = null"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/mcp/MCPToolExecutor.kt"
-            line="435"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="StaticFieldLeak"
         message="This field leaks a context object"
         errorLine1="    private val context: Context"
         errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -16395,17 +15922,6 @@
     </issue>
 
     <issue
-        id="StaticFieldLeak"
-        message="Do not place Android context classes in static fields (static reference to `WorkspaceChangeTracker` which has field `context` pointing to `Context`); this is a memory leak"
-        errorLine1="        @Volatile"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/webview/workspace/process/WorkspaceChangeTracker.kt"
-            line="19"
-            column="9"/>
-    </issue>
-
-    <issue
         id="FrequentlyChangingValue"
         message="Reading a value annotated with @FrequentlyChangingValue inside composition"
         errorLine1="    val layoutInfo = listState.layoutInfo"
@@ -16568,17 +16084,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/settings/components/CharacterCardDialog.kt"
             line="1082"
             column="49"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="    var viewportHeightPx by remember { mutableStateOf(0) }"
-        errorLine2="                                       ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/components/ChatArea.kt"
-            line="226"
-            column="40"/>
     </issue>
 
     <issue
@@ -16986,17 +16491,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/MCPConfigScreen.kt"
             line="219"
             column="38"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="    val successfulToolRequests = remember { mutableStateOf(0) }"
-        errorLine2="                                            ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/MCPConfigScreen.kt"
-            line="262"
-            column="45"/>
     </issue>
 
     <issue
@@ -17738,17 +17232,6 @@
 
     <issue
         id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="    var dispatchingCount by remember(containerPackageName, uiModuleId) { mutableStateOf(0) }"
-        errorLine2="                                                                         ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/common/composedsl/ToolPkgComposeDslScreen.kt"
-            line="609"
-            column="74"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
         message="Prefer `mutableLongStateOf` instead of `mutableStateOf`"
         errorLine1="    var nextDispatchTicket by remember(containerPackageName, uiModuleId) { mutableStateOf(1L) }"
         errorLine2="                                                                           ~~~~~~~~~~~~~~">
@@ -17811,28 +17294,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/chat/webview/workspace/WorkspaceImagePreview.kt"
             line="61"
             column="41"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="    var currentFileIndex by remember(workspacePath, workspaceEnv) { mutableStateOf(-1) }"
-        errorLine2="                                                                    ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/webview/workspace/WorkspaceManager.kt"
-            line="286"
-            column="69"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="    var fileToCloseIndex by remember { mutableStateOf(-1) }"
-        errorLine2="                                       ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/webview/workspace/WorkspaceManager.kt"
-            line="337"
-            column="40"/>
     </issue>
 
     <issue
@@ -18041,17 +17502,6 @@
         <location
             file="src/main/res/values/strings.xml"
             line="131"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.initializing` appears to be unused"
-        errorLine1="    &lt;string name=&quot;initializing&quot;>正在初始化...&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="../terminal/src/main/res/values/strings.xml"
-            line="133"
             column="13"/>
     </issue>
 
@@ -20494,17 +19944,6 @@
         <location
             file="src/main/res/values/strings.xml"
             line="1037"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.copy_path` appears to be unused"
-        errorLine1="    &lt;string name=&quot;copy_path&quot;>复制路径&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="1038"
             column="13"/>
     </issue>
 
@@ -24894,17 +24333,6 @@
         <location
             file="src/main/res/values/strings.xml"
             line="2406"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.file_manager_empty_folder` appears to be unused"
-        errorLine1="    &lt;string name=&quot;file_manager_empty_folder&quot;>此文件夹为空&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="2408"
             column="13"/>
     </issue>
 
@@ -36950,72 +36378,6 @@
         <location
             file="src/main/res/values/strings.xml"
             line="7940"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.notification_kind_comment_new` appears to be unused"
-        errorLine1="    &lt;string name=&quot;notification_kind_comment_new&quot;>新评论&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7957"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.notification_kind_comment_reply` appears to be unused"
-        errorLine1="    &lt;string name=&quot;notification_kind_comment_reply&quot;>回复了你的评论&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7958"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.notification_kind_review_approved` appears to be unused"
-        errorLine1="    &lt;string name=&quot;notification_kind_review_approved&quot;>已通过审核&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7959"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.notification_kind_review_rejected` appears to be unused"
-        errorLine1="    &lt;string name=&quot;notification_kind_review_rejected&quot;>未通过审核&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7960"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.notification_kind_review_changes` appears to be unused"
-        errorLine1="    &lt;string name=&quot;notification_kind_review_changes&quot;>需要修改&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7961"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.notification_kind_entry_curated` appears to be unused"
-        errorLine1="    &lt;string name=&quot;notification_kind_entry_curated&quot;>入选精选&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7962"
             column="13"/>
     </issue>
 
@@ -53357,17 +52719,6 @@
     <issue
         id="TypographyEllipsis"
         message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;apk_signing_info&quot;>APK 서명 중...\nAPK: %1$s\nKeystore: %2$s\n키 별칭: %3$s\nSigner: %4$s&lt;/string>"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ko/strings.xml"
-            line="6378"
-            column="37"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
         errorLine1="    &lt;string name=&quot;enhanced_processing_input&quot;>Memproses input...&lt;/string>"
         errorLine2="                                             ~~~~~~~~~~~~~~~~~~">
         <location
@@ -53632,17 +52983,6 @@
     <issue
         id="TypographyEllipsis"
         message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;chat_compressing_history&quot;>기록 압축 중...&lt;/string>"
-        errorLine2="                                            ~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ko/strings.xml"
-            line="6410"
-            column="45"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
         errorLine1="    &lt;string name=&quot;webvisit_help_loading_page&quot;>Loading page, please wait...&lt;/string>"
         errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -53863,78 +53203,12 @@
     <issue
         id="TypographyEllipsis"
         message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;message_workspace_backing_up&quot;>Mencadangkan ruang kerja...&lt;/string>"
-        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-id/strings.xml"
-            line="6541"
-            column="49"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;message_summarizing&quot;>Meringkas memori...&lt;/string>"
-        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-id/strings.xml"
-            line="6546"
-            column="40"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;chat_regenerating_single&quot;>Regenerando esta resposta...&lt;/string>"
-        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-pt-rBR/strings.xml"
-            line="6568"
-            column="45"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
         errorLine1="    &lt;string name=&quot;message_processing&quot;>Memproses mesej...&lt;/string>"
         errorLine2="                                      ~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values-ms/strings.xml"
             line="6601"
             column="39"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;message_workspace_backing_up&quot;>Menyandarkan ruang kerja...&lt;/string>"
-        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ms/strings.xml"
-            line="6602"
-            column="49"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;message_summarizing&quot;>Meringkaskan ingatan...&lt;/string>"
-        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ms/strings.xml"
-            line="6607"
-            column="40"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;script_market_search_placeholder&quot;>Pesquisar por nome, descrição, autor do script...&lt;/string>"
-        errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-pt-rBR/strings.xml"
-            line="6618"
-            column="53"/>
     </issue>
 
     <issue
@@ -54424,56 +53698,12 @@
     <issue
         id="TypographyEllipsis"
         message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;enhanced_receiving_response&quot;>Recibiendo respuesta de la IA...&lt;/string>"
-        errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-es/strings.xml"
-            line="6871"
-            column="48"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
         errorLine1="    &lt;string name=&quot;webvisit_help_loading_page&quot;>正在加载页面，请稍候...&lt;/string>"
         errorLine2="                                              ~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
             line="6875"
             column="47"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;enhanced_receiving_tool_result&quot;>Recibiendo respuesta de la IA después de la ejecución de la herramienta...&lt;/string>"
-        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-es/strings.xml"
-            line="6877"
-            column="51"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;enhanced_processing_input&quot;>Processing input...&lt;/string>"
-        errorLine2="                                             ~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="6892"
-            column="46"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;enhanced_processing_message&quot;>Processing message...&lt;/string>"
-        errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="6893"
-            column="48"/>
     </issue>
 
     <issue
@@ -54650,28 +53880,6 @@
             file="src/main/res/values/strings.xml"
             line="7230"
             column="39"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;apk_signing_info&quot;>正在签名APK...\nAPK: %1$s\n密钥库: %2$s\n密钥别名: %3$s\n签名器: %4$s&lt;/string>"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7240"
-            column="37"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;chat_compressing_history&quot;>正在压缩历史记录...&lt;/string>"
-        errorLine2="                                            ~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7276"
-            column="45"/>
     </issue>
 
     <issue
@@ -55211,17 +54419,6 @@
             file="src/main/java/com/ai/assistance/operit/data/preferences/EnvPreferences.kt"
             line="65"
             column="22"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                                    val uri = runCatching { Uri.parse(bookmark.uri) }.getOrNull()"
-        errorLine2="                                                            ~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/webview/workspace/FileManager.kt"
-            line="627"
-            column="61"/>
     </issue>
 
     <issue
@@ -56080,17 +55277,6 @@
             file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/standard/SafFileSystemTools.kt"
             line="667"
             column="39"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit().remove(KEY_COMMAND_HISTORY).apply()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/shellexecutor/ShellCommandManager.kt"
-            line="212"
-            column="9"/>
     </issue>
 
     <issue

@@ -230,7 +230,7 @@ fun SearchResultsDialog(
                                         )
                                         if (file.lastModified > 0) Text(
                                             (if (file.isDirectory) "文件夹" else formatFileSize(file.size)) + " · " +
-                                                java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(file.lastModified)),
+                                                java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", androidx.compose.ui.platform.LocalConfiguration.current.locales[0]).format(java.util.Date(file.lastModified)),
                                             style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                 }

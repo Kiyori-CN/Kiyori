@@ -93,6 +93,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -476,6 +477,7 @@ fun ChatHistorySelector(
     var showSettingsDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
+    val observableResources = LocalResources.current
     val chatHistoryManager = remember { ChatHistoryManager.getInstance(context) }
     val characterCardManager = remember { CharacterCardManager.getInstance(context) }
     val characterGroupCardManager = remember { CharacterGroupCardManager.getInstance(context) }
@@ -1171,7 +1173,7 @@ fun ChatHistorySelector(
                                     if (resolvedTargetChat?.locked == true) {
                                         context.getString(R.string.unlock_chat)
                                     } else {
-                                        context.getString(R.string.lock_chat)
+                                        observableResources.getString(R.string.lock_chat)
                                     }
                             }
                             .clickable(enabled = !moveSaving) {
@@ -1215,7 +1217,7 @@ fun ChatHistorySelector(
                             .padding(horizontal = 16.dp, vertical = 4.dp)
                             .clip(MaterialTheme.shapes.medium)
                             .semantics {
-                                contentDescription = context.getString(R.string.delete)
+                                contentDescription = observableResources.getString(R.string.delete)
                             }
                             .clickable(enabled = !moveSaving) {
                                 promptDeleteChat(chatItemActionTarget!!)
@@ -1301,7 +1303,7 @@ fun ChatHistorySelector(
                             .padding(horizontal = 16.dp, vertical = 4.dp)
                             .clip(MaterialTheme.shapes.medium)
                             .semantics {
-                                contentDescription = context.getString(R.string.rename_group)
+                                contentDescription = observableResources.getString(R.string.rename_group)
                             }
                             .clickable {
                                 groupToRename = groupActionTarget
@@ -1340,7 +1342,7 @@ fun ChatHistorySelector(
                             .padding(horizontal = 16.dp, vertical = 4.dp)
                             .clip(MaterialTheme.shapes.medium)
                             .semantics {
-                                contentDescription = context.getString(R.string.delete_group)
+                                contentDescription = observableResources.getString(R.string.delete_group)
                             }
                             .clickable {
                                 groupToDelete = groupActionTarget
@@ -1429,7 +1431,7 @@ fun ChatHistorySelector(
                                     throw cancelled
                                 } catch (failure: Exception) {
                                     AppLogger.e("ChatHistorySelector", "Group rename failed: ${failure.javaClass.simpleName}")
-                                    error = context.getString(if (failure is com.ai.assistance.operit.data.repository.ChatGroupChangedException)
+                                    error = observableResources.getString(if (failure is com.ai.assistance.operit.data.repository.ChatGroupChangedException)
                                         R.string.chat_group_changed else R.string.chat_group_operation_failed)
                                 } finally { saving = false }
                             }
@@ -1470,10 +1472,10 @@ fun ChatHistorySelector(
                     throw cancelled
                 } catch (failure: com.ai.assistance.operit.data.repository.ChatGroupCleanupException) {
                     partial = true
-                    error = context.getString(R.string.chat_group_cleanup_failed)
+                    error = observableResources.getString(R.string.chat_group_cleanup_failed)
                 } catch (failure: Exception) {
                     AppLogger.e("ChatHistorySelector", "Group deletion failed: ${failure.javaClass.simpleName}")
-                    error = context.getString(if (failure is com.ai.assistance.operit.data.repository.ChatGroupChangedException)
+                    error = observableResources.getString(if (failure is com.ai.assistance.operit.data.repository.ChatGroupChangedException)
                         R.string.chat_group_changed else R.string.chat_group_operation_failed)
                 } finally { deleting = false }
             }
@@ -1663,7 +1665,7 @@ fun ChatHistorySelector(
                     if (!groupName.isNullOrBlank()) {
                         "$groupPrefix: $groupName"
                     } else {
-                        context.getString(R.string.missing_character_group_id, normalizedGroupId ?: "")
+                        observableResources.getString(R.string.missing_character_group_id, normalizedGroupId ?: "")
                     }
                 }
                 !selectedCharacterCardName.isNullOrBlank() -> selectedCharacterCardName!!
@@ -1762,7 +1764,7 @@ fun ChatHistorySelector(
                                             throw cancelled
                                         } catch (failure: Exception) {
                                             AppLogger.e("ChatHistorySelector", "Metadata save failed: ${failure.javaClass.simpleName}")
-                                            metadataError = context.getString(
+                                            metadataError = observableResources.getString(
                                                 if (failure is com.ai.assistance.operit.data.repository.ChatMetadataConflictException)
                                                     R.string.chat_metadata_edit_conflict
                                                 else R.string.chat_metadata_edit_failed
@@ -2062,10 +2064,10 @@ fun ChatHistorySelector(
                                     throw cancelled
                                 } catch (partial: com.ai.assistance.operit.data.repository.ChatCreationSelectionException) {
                                     createdButNotSelected = true
-                                    error = context.getString(R.string.chat_group_created_selection_failed)
+                                    error = observableResources.getString(R.string.chat_group_created_selection_failed)
                                 } catch (failure: Exception) {
                                     AppLogger.e("ChatHistorySelector", "Group creation failed: ${failure.javaClass.simpleName}")
-                                    error = context.getString(R.string.chat_group_operation_failed)
+                                    error = observableResources.getString(R.string.chat_group_operation_failed)
                                 } finally { creating = false }
                             }
                         }

@@ -531,7 +531,7 @@ private fun permissionGroupStatus(
 }
 
 private fun hasInstalledApplicationsAccess(context: Context): Boolean =
-    ContextCompat.checkSelfPermission(
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.R || ContextCompat.checkSelfPermission(
         context,
         Manifest.permission.QUERY_ALL_PACKAGES,
     ) == PackageManager.PERMISSION_GRANTED

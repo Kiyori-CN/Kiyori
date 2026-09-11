@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import com.ai.assistance.operit.ui.components.CustomScaffold
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -1718,6 +1719,7 @@ private fun ChatInputBottomBar(
     onRequestAutoScrollToBottom: () -> Unit,
 ) {
     val context = LocalContext.current
+    val observableResources = LocalResources.current
     val isCurrentScreen = LocalIsCurrentScreen.current
     val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
@@ -2047,7 +2049,7 @@ private fun ChatInputBottomBar(
             if (currentChatId.isNullOrBlank()) {
                 Toast.makeText(
                     context,
-                    context.getString(R.string.chat_please_create_new_chat),
+                    observableResources.getString(R.string.chat_please_create_new_chat),
                     Toast.LENGTH_SHORT,
                 ).show()
                 return@launch
@@ -2066,7 +2068,7 @@ private fun ChatInputBottomBar(
                 throw cancelled
             } catch (failure: Exception) {
                 AppLogger.e("AIChatScreen", "Input submission preparation failed: ${failure.javaClass.simpleName}")
-                actualViewModel.showToast(context.getString(R.string.chat_input_hook_failed))
+                actualViewModel.showToast(observableResources.getString(R.string.chat_input_hook_failed))
                 return@launch
             }
             currentCoroutineContext().ensureActive()
@@ -2075,7 +2077,7 @@ private fun ChatInputBottomBar(
                 actualViewModel.attachments.value != submittedAttachments ||
                 actualViewModel.replyToMessage.value != submittedReply
             ) {
-                actualViewModel.showToast(context.getString(R.string.chat_draft_changed_before_send))
+                actualViewModel.showToast(observableResources.getString(R.string.chat_draft_changed_before_send))
                 return@launch
             }
             when (submitDecision.action) {

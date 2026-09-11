@@ -41,8 +41,9 @@ function loadTools(httpCall, env = {}) {
 }
 const ok = data => ({ statusCode: 200, content: JSON.stringify(data), url: "https://pc.example.com/bridge" });
 const agentVersion = JSON.parse(fs.readFileSync(path.join(agent, "package.json"), "utf8")).version;
+const { AGENT_PROTOCOL_VERSION: protocolVersion } = require(path.join(agent, "src/config/version.js"));
 const packageVersion = JSON.parse(fs.readFileSync(path.join(root, "examples/windows_control/manifest.json"), "utf8")).version;
-const authenticated = () => ok({ ok: true, mode: "http-agent", version: agentVersion });
+const authenticated = () => ok({ ok: true, mode: "http-agent", version: agentVersion, protocolVersion });
 
 async function terminalHarness(t, overrides = {}) {
   const timeouts = new Map(), intervals = new Map(), events = new Map(), notices = [];
@@ -187,6 +188,19 @@ test("patch compatibility is independent of package version and rejects unreview
   for (const version of ["1.0.0", "1.2.0", "2.1.0", "1.1.02", "1.1.2-beta", "1.1.2+dev", "garbage"]) {
     const result = await loadTools(async () => ok({ ok: true, mode: "http-agent", version })).windows_test_connection();
     assert.equal(result.success, false, version);
+    assert.match(result.error, /PROTOCOL_INCOMPATIBLE/);
+  }
+});
+
+test("explicit authenticated protocol is independent of product version and cannot downgrade", async () => {
+  for (const version of ["1.0.0", "2.0.0"]) {
+    const result = await loadTools(async () => ok({ ok: true, mode: "http-agent", version, protocolVersion: "1.1.0" })).windows_test_connection();
+    assert.equal(result.success, true, result.error);
+    assert.equal(result.agentVersion, version);
+  }
+  for (const protocolVersion of [null, 1.1, "", "1.0.0", "1.2.0", "1.1.1-beta"]) {
+    const result = await loadTools(async () => ok({ ok: true, mode: "http-agent", version: "1.1.2", protocolVersion })).windows_test_connection();
+    assert.equal(result.success, false);
     assert.match(result.error, /PROTOCOL_INCOMPATIBLE/);
   }
 });

@@ -278,7 +278,7 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
         },
         modifier = Modifier.fillMaxSize(),
     ) {
-        BoxWithConstraints(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 // 文件管理器顶栏需要绘制到状态栏物理顶边，内容和底栏各自消费安全区。

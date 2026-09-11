@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalContext
 import com.ai.assistance.operit.ui.common.copyPlainTextToClipboard
 import androidx.compose.ui.platform.LocalDensity
@@ -168,6 +169,7 @@ fun WorkspaceManager(
         onExportClick: (workDir: File) -> Unit
 ) {
     val context = LocalContext.current
+    val observableResources = LocalResources.current
     val webViewRefreshCounter by actualViewModel.webViewRefreshCounter.collectAsState()
     val workspaceCommandExecutionState by actualViewModel.workspaceCommandExecutionState.collectAsState()
     val coroutineScope = rememberCoroutineScope()
@@ -1202,14 +1204,14 @@ fun WorkspaceManager(
                 },
                 onCopyOutput = { output ->
                     context.copyPlainTextToClipboard("Kiyori terminal output", output)
-                    actualViewModel.showToast(context.getString(R.string.copied_to_clipboard))
+                    actualViewModel.showToast(observableResources.getString(R.string.copied_to_clipboard))
                 }
             )
         }
         if (isVisible && editorState.isRestoring) {
             AlertDialog(
                 onDismissRequest = {},
-                title = { Text(context.getString(R.string.workspace_restoring)) },
+                title = { Text(observableResources.getString(R.string.workspace_restoring)) },
                 text = { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) },
                 confirmButton = {},
             )

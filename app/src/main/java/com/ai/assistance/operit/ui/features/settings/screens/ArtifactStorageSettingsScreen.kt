@@ -20,6 +20,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
@@ -45,6 +46,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun ArtifactStorageSettingsScreen(onBackPressed: () -> Unit) {
     val context = LocalContext.current
+    val observableResources = LocalResources.current
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
     val snackbar = remember { SnackbarHostState() }
@@ -101,11 +103,11 @@ fun ArtifactStorageSettingsScreen(onBackPressed: () -> Unit) {
                 linuxRoot = saved.linux
                 busy = false
                 showLeaveDialog = false
-                if (leave) onBackPressed() else scope.launch { snackbar.showSnackbar(context.getString(R.string.artifact_storage_saved)) }
+                if (leave) onBackPressed() else scope.launch { snackbar.showSnackbar(observableResources.getString(R.string.artifact_storage_saved)) }
             } catch (cancelled: CancellationException) { throw cancelled
             } catch (failure: Exception) {
                 AppLogger.e("ArtifactStorageSettings", "Unable to save artifact directories", failure)
-                error = context.getString(R.string.artifact_storage_invalid)
+                error = observableResources.getString(R.string.artifact_storage_invalid)
             } finally { busy = false }
         }
     }
@@ -115,7 +117,7 @@ fun ArtifactStorageSettingsScreen(onBackPressed: () -> Unit) {
                 androidRoot = ArtifactPathRules.primaryTreeRoot(uri.authority, DocumentsContract.getTreeDocumentId(uri), externalRoot)
                 probeResult = null
                 error = null
-            } catch (failure: Exception) { error = context.getString(R.string.artifact_storage_picker_error) }
+            } catch (failure: Exception) { error = observableResources.getString(R.string.artifact_storage_picker_error) }
         }
     }
     KiyoriSettingsWorkspacePage(
@@ -130,7 +132,7 @@ fun ArtifactStorageSettingsScreen(onBackPressed: () -> Unit) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             TextButton(enabled = !busy, onClick = {
                                 focus.clearFocus()
-                                try { picker.launch(null) } catch (failure: Exception) { error = context.getString(R.string.artifact_storage_picker_error) }
+                                try { picker.launch(null) } catch (failure: Exception) { error = observableResources.getString(R.string.artifact_storage_picker_error) }
                             }) {
                                 Icon(Icons.Outlined.FolderOpen, null, Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
@@ -143,11 +145,11 @@ fun ArtifactStorageSettingsScreen(onBackPressed: () -> Unit) {
                                 scope.launch {
                                     try {
                                         withContext(Dispatchers.IO) { KiyoriArtifactStoragePolicy.checkAndroidWrite(path) }
-                                        probeResult = context.getString(R.string.artifact_storage_writable)
+                                        probeResult = observableResources.getString(R.string.artifact_storage_writable)
                                     } catch (cancelled: CancellationException) { throw cancelled
                                     } catch (failure: Exception) {
                                         AppLogger.e("ArtifactStorageSettings", "Directory write check failed", failure)
-                                        probeResult = context.getString(R.string.artifact_storage_not_writable)
+                                        probeResult = observableResources.getString(R.string.artifact_storage_not_writable)
                                     } finally { busy = false }
                                 }
                             }) { Text(stringResource(R.string.artifact_storage_check)) }

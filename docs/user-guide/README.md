@@ -5,6 +5,7 @@
 | 目标 | 指南 |
 | --- | --- |
 | 获取开发版并开始浏览、配置 AI | [首次使用](getting_started.md) |
+| 文件管理、对话工作区与默认输出 | [文件、工作区与 AI 产物](files_and_workspaces.md) |
 | 安装与配置工具、Bilibili 和远程连接 | [扩展与工具](extensions.md) |
 | 应用代理、在线播放缓存与 Shizuku | [网络、媒体与特权能力](network_and_media.md) |
 | 了解联网、诊断导出与旧数据迁移 | [隐私、数据与迁移](privacy_and_data.md) |

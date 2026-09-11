@@ -554,9 +554,9 @@ const windowsControl = (function () {
     function asText(value) {
         return String(value == null ? "" : value);
     }
-    function buildVersionMismatchMessage(remoteVersion) {
+    function buildVersionMismatchMessage(remoteVersion, protocolVersion) {
         return [
-            `PROTOCOL_INCOMPATIBLE: package=${WINDOWS_CONTROL_PACKAGE_VERSION}, agent=${remoteVersion || "unknown"}; supported=1.1.x.`,
+            `PROTOCOL_INCOMPATIBLE: package=${WINDOWS_CONTROL_PACKAGE_VERSION}, agent=${remoteVersion || "unknown"}, protocol=${protocolVersion || "unknown"}; supported=1.1.x.`,
             "手机工具包支持稳定版 1.1.x 电脑协议。请核对双端版本，从新版连接 Windows 页面导出匹配的电脑端。"
         ].join(" ");
     }
@@ -723,10 +723,13 @@ const windowsControl = (function () {
         if (!remoteVersion) {
             throw new Error("Agent version is missing. 请从连接 Windows 页面更新电脑端。");
         }
-        // 产品补丁与协议兼容性分离：1.1.x 保持认证/文件/进程协议，不把双端补丁差异当作断网。
-        // 新主/次版本及预发布版必须显式审查，不能靠宽松比较自动接受。
-        if (!/^1\.1\.(0|[1-9]\d*)$/.test(remoteVersion)) {
-            throw new Error(buildVersionMismatchMessage(remoteVersion));
+        // 新端显式声明执行协议；缺字段时只接受历史已审阅的 1.1.x，不放行旧 1.0.0。
+        // 显式错误或未知协议不能借产品版本绕过检查，也不能发送第二次请求探测。
+        const protocolVersion = Object.prototype.hasOwnProperty.call(health, "protocolVersion")
+            ? (typeof health.protocolVersion === "string" ? health.protocolVersion : "")
+            : remoteVersion;
+        if (!/^1\.1\.(0|[1-9]\d*)$/.test(protocolVersion)) {
+            throw new Error(buildVersionMismatchMessage(remoteVersion, protocolVersion));
         }
         return {
             health,

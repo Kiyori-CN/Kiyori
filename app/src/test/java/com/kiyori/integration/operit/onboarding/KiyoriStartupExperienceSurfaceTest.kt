@@ -138,8 +138,10 @@ class KiyoriStartupExperienceSurfaceTest {
         assertTrue(permissionPageBlock.contains("onClearSelection"))
 
         val defaultStrings =
-            repositoryFile("app/src/main/res/values/strings.xml").readText()
-        assertTrue(defaultStrings.contains("kiyori_onboarding_permissions_clear_all"))
+            repositoryFile("app/src/main/res/values/strings_onboarding_redesign.xml").readText()
+        assertTrue(defaultStrings.contains("name=\"onb_p6_chip_none\""))
+        assertTrue(permissionPageBlock.contains("R.string.onb_p6_chip_none"))
+        assertTrue(permissionPageBlock.contains("enabled = interactionEnabled && selectedCount > 0"))
     }
 
     @Test

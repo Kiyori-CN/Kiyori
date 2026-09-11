@@ -105,6 +105,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -129,6 +130,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.rememberNestedScrollInteropConnection
 import androidx.compose.ui.res.stringResource
@@ -944,7 +946,7 @@ fun ToolPkgComposeDslToolScreen(
     var errorMessage by remember(containerPackageName, uiModuleId) { mutableStateOf<String?>(null) }
     var isLoading by remember(containerPackageName, uiModuleId) { mutableStateOf(true) }
     var isDispatching by remember(containerPackageName, uiModuleId) { mutableStateOf(false) }
-    var dispatchingCount by remember(containerPackageName, uiModuleId) { mutableStateOf(0) }
+    var dispatchingCount by remember(containerPackageName, uiModuleId) { mutableIntStateOf(0) }
     var hasDispatchedInitialOnLoad by
         rememberSaveable(routeInstanceId, containerPackageName, uiModuleId) {
             mutableStateOf(false)
@@ -1635,18 +1637,8 @@ private fun ToolPkgComposeDslDialogSession(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val renderMutex = remember { Mutex() }
-    val currentLanguage =
-        (
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                context.resources.configuration.locales.get(0)
-            } else {
-                @Suppress("DEPRECATION")
-                context.resources.configuration.locale
-            }
-        )?.toLanguageTag()
-            ?.trim()
-            ?.ifBlank { null }
-            ?: "en"
+    val currentLanguage = LocalConfiguration.current.locales[0]?.toLanguageTag()
+        ?.trim()?.ifBlank { null } ?: "en"
     val packageManager = remember {
         PackageManager.getInstance(context, AIToolHandler.getInstance(context))
     }
@@ -1676,7 +1668,7 @@ private fun ToolPkgComposeDslDialogSession(
     }
     var errorMessage by remember(request) { mutableStateOf<String?>(null) }
     var isLoading by remember(request) { mutableStateOf(true) }
-    var dispatchingCount by remember(request) { mutableStateOf(0) }
+    var dispatchingCount by remember(request) { mutableIntStateOf(0) }
     var hasDispatchedInitialOnLoad by remember(request) { mutableStateOf(false) }
     val dispatchGuard = remember(request) { ComposeDslDispatchGuard() }
     var pendingTreeRerenderJob by remember(request) { mutableStateOf<Job?>(null) }
@@ -2166,7 +2158,7 @@ internal fun renderComposeDslNode(
     ) {
         val normalizedType = normalizeToken(node.type)
         if (normalizedType == "canvas") {
-            renderCanvasNode(node, onAction, modifierResolver)
+            RenderCanvasNode(node, onAction, modifierResolver)
             return@CompositionLocalProvider
         }
         if (normalizedType == "webview") {
@@ -2182,7 +2174,7 @@ internal fun renderComposeDslNode(
             return@CompositionLocalProvider
         }
         if (normalizedType == "dialog") {
-            renderComposeDslDialogNode(node, onAction, nodePath, modifierResolver)
+            RenderComposeDslDialogNode(node, onAction, nodePath, modifierResolver)
             return@CompositionLocalProvider
         }
         val renderer = composeDslGeneratedNodeRendererRegistry[normalizedType]
@@ -2437,7 +2429,7 @@ private fun ComposeDslDialogTextButton(
 }
 
 @Composable
-internal fun renderComposeDslDialogNode(
+internal fun RenderComposeDslDialogNode(
     node: ToolPkgComposeDslNode,
     onAction: (String, Any?) -> Unit,
     nodePath: String,
@@ -2626,7 +2618,7 @@ private fun parseCanvasCommands(raw: Any?): List<CanvasCommand> {
 
 @OptIn(ExperimentalTextApi::class)
 @Composable
-private fun renderCanvasNode(
+private fun RenderCanvasNode(
     node: ToolPkgComposeDslNode,
     onAction: (String, Any?) -> Unit,
     modifierResolver: ComposeDslModifierResolver

@@ -5,7 +5,8 @@ Pull Request 和安全边界。环境准备与构建步骤见 [Kiyori Android �
 
 ## 项目定位
 
-Kiyori 是以浏览器为产品中心、以内置 Operit AI 为智能子系统的 Android 应用。贡献时请保持：
+Kiyori 是面向 Android 的人机协作应用，浏览器与内容处理构成核心工作环境，Operit AI
+提供内置智能子系统。贡献时请保持：
 
 - Browser Home 与 AI 浏览器工具继续共用唯一 Browser Runtime
 - 播放器、下载器、设置、存储和权限继续使用既有唯一状态所有者

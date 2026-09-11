@@ -1025,7 +1025,7 @@ fun MCPConfigScreen(
                             val errorMessage = when (importTabIndex) {
                                 0 -> context.getString(R.string.enter_repo_link_and_name)
                                 1 -> context.getString(R.string.select_zip_and_enter_name)
-                                else -> context.getString(R.string.enter_complete_remote_info)
+                                else -> resources.getString(R.string.enter_complete_remote_info)
                             }
                             Toast.makeText(context, errorMessage, Toast.LENGTH_SHORT).show()
                         }
@@ -1305,7 +1305,7 @@ fun MCPConfigScreen(
                                                 try { mcpLocalServer.setServerEnabled(pluginId, isChecked) }
                                                 catch (cancelled: CancellationException) { throw cancelled }
                                                 catch (_: Exception) {
-                                                    Toast.makeText(context, context.getString(R.string.save_failed), Toast.LENGTH_LONG).show()
+                                                    Toast.makeText(context, resources.getString(R.string.save_failed), Toast.LENGTH_LONG).show()
                                                 } finally { updatingEnabled = false }
                                             }
                                         }

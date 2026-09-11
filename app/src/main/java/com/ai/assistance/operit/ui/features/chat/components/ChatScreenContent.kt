@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -166,6 +167,7 @@ fun ChatScreenContent(
 
     // Export state
     val context = LocalContext.current
+    val observableResources = LocalResources.current
     var showExportPlatformDialog by remember(currentChatId) { mutableStateOf(false) }
     var showAndroidExportDialog by remember(currentChatId) { mutableStateOf(false) }
     var showWindowsExportDialog by remember(currentChatId) { mutableStateOf(false) }
@@ -907,7 +909,7 @@ fun ChatScreenContent(
                         showAndroidExportDialog = false
                         showExportProgressDialog = true
                         exportProgress = 0f
-                        exportStatus = context.getString(R.string.chat_starting_export)
+                        exportStatus = observableResources.getString(R.string.chat_starting_export)
 
                         // 启动导出过程
                         exportJob = coroutineScope.launch {
@@ -947,7 +949,7 @@ fun ChatScreenContent(
                         showWindowsExportDialog = false
                         showExportProgressDialog = true
                         exportProgress = 0f
-                        exportStatus = context.getString(R.string.chat_starting_export)
+                        exportStatus = observableResources.getString(R.string.chat_starting_export)
 
                         // 启动导出过程
                         exportJob = coroutineScope.launch {
@@ -1034,7 +1036,7 @@ fun ChatScreenContent(
                         val target = editingTarget
                         val index = chatHistory.indexOfFirst { it.timestamp == target?.timestamp }
                         if (index < 0 || target == null) {
-                            actualViewModel.showToast(context.getString(R.string.chat_invalid_message_index))
+                            actualViewModel.showToast(observableResources.getString(R.string.chat_invalid_message_index))
                             return@saveEdit false
                         }
                         actualViewModel.reviseConversationAuditMessage(currentChatId, target, submittedContent)
@@ -1042,7 +1044,7 @@ fun ChatScreenContent(
                     onResend = resendEdit@{
                         val index = chatHistory.indexOfFirst { it.timestamp == editingTarget?.timestamp }
                         if (index < 0) {
-                            actualViewModel.showToast(context.getString(R.string.chat_invalid_message_index))
+                            actualViewModel.showToast(observableResources.getString(R.string.chat_invalid_message_index))
                             return@resendEdit
                         }
                         if (index >= 0) {

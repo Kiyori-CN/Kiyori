@@ -61,6 +61,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -352,10 +353,10 @@ private fun BrowserChromeIconButton(
     icon: ImageVector,
     contentDescription: String,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
     enabled: Boolean = true,
     actionSizeDp: Int = WEB_SESSION_BROWSER_TOP_ACTION_SIZE_DP,
     iconSizeDp: Int = 21,
-    modifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
@@ -418,7 +419,7 @@ internal fun WebSessionBrowserSearchScreen(
     var isHistoryEditing by remember { mutableStateOf(false) }
     var showClearHistoryConfirmation by remember { mutableStateOf(false) }
     var pendingDeletionIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
-    var inputLineCount by remember { mutableStateOf(1) }
+    var inputLineCount by remember { mutableIntStateOf(1) }
     val inputLineHeightDp = with(density) {
         WEB_SESSION_SEARCH_SCREEN_INPUT_LINE_HEIGHT_SP.sp.toDp()
     }
@@ -892,8 +893,8 @@ private fun WebSessionSearchProfileAction(
     selectedProfile: WebSessionProfile,
     incognitoAvailability: WebSessionIncognitoAvailability,
     onToggle: () -> Unit,
-    actionSizeDp: Int = WEB_SESSION_BROWSER_TOP_ACTION_SIZE_DP,
     modifier: Modifier = Modifier,
+    actionSizeDp: Int = WEB_SESSION_BROWSER_TOP_ACTION_SIZE_DP,
 ) {
     val enabled = incognitoAvailability.isAvailable
     val incognitoSelected = selectedProfile == WebSessionProfile.INCOGNITO

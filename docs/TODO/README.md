@@ -4,6 +4,9 @@
 
 ## 最近整理
 
+2026-09-12 [文档深度整理与全仓质量审查](documentation_system_refinement/index.md)进行中：
+整理现行入口与历史证据，运行完整本地矩阵，修复契约漂移、运行时与验证问题后提交推送。
+
 2026-09-06 [仓库结构与构建职责整理](kiyori_architecture_refactor/23_repository_structure_and_build_logic.md)
 已完成：构建任务独立到 `buildSrc`，工具按职责归位，修复首启旧架构断言，完善目录与命名规则，并通过全量 Python 回归与 Debug APK 审计。
 

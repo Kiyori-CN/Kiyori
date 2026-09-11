@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -81,7 +82,7 @@ fun CodeEditor(
     var showCompletions by remember { mutableStateOf(false) }
     var popupOffset by remember { mutableStateOf(IntOffset.Zero) }
     var editorWindowOffset by remember { mutableStateOf(IntOffset.Zero) }
-    var editorBottomPx by remember { mutableStateOf(Int.MAX_VALUE) }
+    var editorBottomPx by remember { mutableIntStateOf(Int.MAX_VALUE) }
     val editorRefState = remember { mutableStateOf<NativeCodeEditor?>(null) }
 
     fun updatePopupAnchor(editor: NativeCodeEditor?) {

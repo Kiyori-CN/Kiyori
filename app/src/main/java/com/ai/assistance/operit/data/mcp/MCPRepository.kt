@@ -531,8 +531,8 @@ class MCPRepository(private val context: Context) {
         val matchResult = regex.find(repoUrl)
         
         if (matchResult != null && matchResult.groupValues.size >= 3) {
-        val owner = matchResult.groupValues[1]
-        val repo = matchResult.groupValues[2]
+            val owner = matchResult.groupValues[1]
+            val repo = matchResult.groupValues[2]
         
             if (owner.isNotBlank() && repo.isNotBlank()) {
                 return owner to repo

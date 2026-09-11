@@ -2,8 +2,6 @@
 <resources>
     <!-- Kiyori onboarding redesign v1.0, sourced from the 2026-09-08 design package. -->
     <string name="onb_skip" translatable="false">跳过介绍</string>
-    <string name="onb_page_indicator" translatable="false">%1$d / 6</string>
-    <string name="onb_page_a11y" translatable="false">第 %1$d 页，共 6 页：%2$s</string>
     <string name="onb_badge_setup" translatable="false">需先配置</string>
     <string name="onb_badge_wip" translatable="false">逐步完善</string>
     <string name="onb_doc_unread" translatable="false">未读</string>
@@ -123,8 +121,6 @@
     <string name="onb_p6_cta_zero" translatable="false">直接开始使用</string>
     <string name="onb_p6_cta_replay" translatable="false">完成介绍，返回设置</string>
     <string name="onb_p6_secondary" translatable="false">暂不开启，直接开始</string>
-    <string name="onb_p6_recommended_hint" translatable="false">推荐开启</string>
-    <string name="onb_p6_on_demand_hint" translatable="false">用到时再开</string>
     <string name="onb_p6_daily_title" translatable="false">日常使用</string>
     <string name="onb_p6_daily_count" translatable="false">3 项 · 建议开启</string>
     <string name="onb_p6_storage_title" translatable="false">文件与存储</string>

@@ -530,7 +530,7 @@ class KiyoriSettingsPagesTest {
             KIYORI_VOICE_WAKEUP_SETTINGS_PAGE_TITLE_RES,
         )
         assertEquals(
-            listOf(3, 3, 3, 2, 2),
+            listOf(3, 3, 3, 2, 3),
             kiyoriAiAssistantSettingsGroups.map { group -> group.entries.size },
         )
         assertEquals(
@@ -558,6 +558,7 @@ class KiyoriSettingsPagesTest {
                 R.string.kiyori_ai_settings_tool_permissions,
                 R.string.kiyori_ai_settings_usage_cost,
                 R.string.kiyori_ai_settings_lan_automation,
+                R.string.kiyori_ai_settings_artifact_storage,
             ),
             kiyoriAiAssistantSettingsGroups
                 .flatMap { group -> group.entries }

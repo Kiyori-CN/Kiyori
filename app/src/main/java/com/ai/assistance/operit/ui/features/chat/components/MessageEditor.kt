@@ -38,6 +38,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -652,6 +653,7 @@ private fun TagEditorDialog(
     onSave: (ParsedMessagePart) -> Unit
 ) {
     val context = LocalContext.current
+    val observableResources = LocalResources.current
     var tagName by remember { mutableStateOf(part?.tag ?: "") }
     var attributes by remember { mutableStateOf(part?.attributes ?: "") }
     var content by remember { mutableStateOf(part?.content ?: "") }
@@ -797,7 +799,7 @@ private fun TagEditorDialog(
                 OutlinedTextField(
                     value = content,
                     onValueChange = { content = it },
-                    label = { Text(context.getString(R.string.content_label), style=MaterialTheme.typography.bodySmall) },
+                    label = { Text(observableResources.getString(R.string.content_label), style=MaterialTheme.typography.bodySmall) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(120.dp),
@@ -830,7 +832,7 @@ private fun TagEditorDialog(
                         modifier = Modifier.weight(1f)
                     ) {
                         Text(
-                            context.getString(R.string.cancel),
+                            observableResources.getString(R.string.cancel),
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Medium
                         )
@@ -845,7 +847,7 @@ private fun TagEditorDialog(
                         modifier = Modifier.weight(1f)
                     ) {
                         Text(
-                            context.getString(R.string.save),
+                            observableResources.getString(R.string.save),
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Medium
                         )

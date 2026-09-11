@@ -154,20 +154,18 @@ See [platform, storage, and terminal contracts](docs/doc-src/contracts/platform_
 
 ### File management and project workspaces
 
-The file manager lets you inspect and organize actual data. A workspace connects a directory to an AI conversation.
+The file manager provides two-pane browsing, search, selection, copying, moving, a recycle bin, ZIP operations,
+bookmarks, and local previews. Each pane retains its directory and selection. Returning from Settings or
+minimizing within the app preserves the current session. Available operations differ between Android storage,
+Ubuntu, SAF, and network directories.
 
-- The file-manager interface supports directory browsing, tabs and panes, sorting, hidden files, search, file/folder creation, and other connected actions.
-- Underlying file tools provide reading, writing, copying, moving, deletion, and archive operations for authorized AI calls. Some current context-menu buttons still await business-action integration; a visible label alone does not establish readiness.
-- Use Android-authorized directories and existing file-access capabilities. Reachable files depend on the OS version, permissions, and selected environment.
-- Bind a conversation to a working directory, read project files, observe changes, and incorporate relevant content into context.
-- Read root `AGENT.md` / `AGENTS.md` files according to the workspace contract, retaining the existing `.operit/config.json` format.
-- Inspect artifacts through Files, Downloads, and the workspace instead of relying solely on a model's completion message.
+Binding an AI conversation to a directory lets its file tools use that workspace. Project rules retain the
+`AGENT.md` / `AGENTS.md` and `.operit/config.json` contracts. Configure the default output directory under
+**Settings → AI assistant → AI artifact save location**. Changing the default does not move existing files,
+rebind workspaces, or change terminal sessions.
 
-Establish the target directory, file scope, and overwrite intent before batch operations. See [extensions and workspaces](docs/doc-src/contracts/extensions_workspace.md).
-
-Configure **AI settings → AI artifact save location** to choose the default Android and local Ubuntu directories. They start at shared-storage `Download/Kiyori/workspace` and Ubuntu `/workspace`. Office, Bilibili, browser exports and the code runner organize outputs below these roots; explicit destinations and matching conversation workspaces take precedence. Android and Ubuntu are separate filesystems, and existing files, sessions and installed dependencies are not moved.
-
-Use **Choose folder** for an internal shared-storage folder or enter a path. **Restore defaults** updates the draft; **Save** applies it. **Check write access** creates the directory, writes and reads a temporary file, then removes that file. The folder picker does not grant direct Shell access. Cloud and SD card URIs are not supported as this default path. See the [artifact storage contract](docs/doc-src/contracts/artifact_storage.md) for tool and environment boundaries.
+See the [files and workspaces guide](docs/user-guide/files_and_workspaces.md) for operations, search limits,
+conflict handling, and paths across environments.
 
 ### Player, downloads, and media processing
 
@@ -304,27 +302,8 @@ See the [extension guide](docs/user-guide/extensions.md), [network guide](docs/u
 
 ## Building from source
 
-This section outlines the route from source to APK. The [build guide](docs/doc-src/dev-core/BUILDING.md) is authoritative for complete dependency preparation, platform differences, native inputs, and troubleshooting.
-
-### 1. Prepare the toolchain
-
-The following baseline was checked on 2026-09-06. Repository configuration and CI remain authoritative as development continues.
-
-| Tool | Baseline |
-| --- | --- |
-| JDK | 21; application Java/Kotlin bytecode targets JVM 17 |
-| Gradle | Use the supplied Wrapper |
-| Android SDK | Platform 37; application target SDK 34 |
-| Android Build Tools | 36.0.0 |
-| Android NDK | 28.2.13676358 |
-| CMake | 3.22.1 |
-| Rust | 1.88.0, target `aarch64-linux-android` |
-| Node.js | 22, using npm and committed lockfiles |
-| Python | Python 3; repository checks use the project `.venv` |
-
-Version sources: [Gradle version catalog](gradle/libs.versions.toml), [Wrapper](gradle/wrapper/gradle-wrapper.properties), [Gradle properties](gradle.properties), and [CI workflows](.github/workflows).
-
-### 2. Obtain the source and terminal submodule
+The [build guide](docs/doc-src/dev-core/BUILDING.md) is the authoritative setup and toolchain reference.
+Prepare JDK 21, the pinned Android SDK/NDK and CMake, Rust, Node.js, and the repository Python `.venv`.
 
 ```bash
 git clone https://github.com/Kiyori-CN/Kiyori.git
@@ -334,51 +313,23 @@ git submodule sync -- terminal
 git submodule update --init --recursive terminal
 ```
 
-**Initialize only `terminal` for a normal build.** Do not use `git clone --recurse-submodules` for the whole repository. The optional private nightly-build submodule is not required for ordinary Debug builds.
+Initialize only `terminal` for ordinary builds; the optional private nightly-build submodule is separate.
+Follow the guide to prepare local configuration, npm dependencies, WebChat, examples, and the large Android
+inputs. The `libs.zip`, `models.zip`, `subpack.zip`, and `jniLibs.zip` inputs are not all stored in Git.
 
-### 3. Prepare build inputs
-
-After cloning, complete the following steps in the [full build guide](docs/doc-src/dev-core/BUILDING.md):
-
-1. Install the fixed Android SDK, NDK, CMake, and Rust target, and configure Java and Android environment paths.
-2. Install npm dependencies for the root tools, WebChat, and required example projects; create the project `.venv`.
-3. Use `local.properties.example` to create untracked local configuration, preserving any existing private configuration.
-4. Obtain `libs.zip`, `models.zip`, `subpack.zip`, and `jniLibs.zip`, prepare them with the controlled scripts, and validate the selected player and other native inputs.
-5. Generate WebChat and the example inputs required by the guide. Gradle generates directory-based production ToolPkg assets during the build.
-
-**Cloning alone is not sufficient.** Not all large AAR, model, JNI, and subpackage inputs are stored in Git. Do not delete protected inputs as if they were disposable caches, or bypass input validation to work around missing dependencies.
-
-### 4. Build the Debug APK
-
-Linux / macOS:
-
-```bash
-./gradlew :app:assembleDebug --no-daemon --console=plain
-```
-
-Windows PowerShell:
+Build from the repository root after setup:
 
 ```powershell
 .\gradlew.bat :app:assembleDebug --no-daemon --console=plain
 ```
 
-Standard output:
+Use `./gradlew` on Linux/macOS. The output is `app/build/outputs/apk/debug/app-debug.apk`.
+Verify package identity, ABI, signature, and packaging before installing; see
+[APK verification](docs/doc-src/dev-core/BUILDING.md#9-独立核验-apk).
+Back up data before resolving a signing conflict. A Debug build does not establish device or release acceptance.
 
-```text
-app/build/outputs/apk/debug/app-debug.apk
-```
-
-### 5. Install and verify
-
-Transfer the APK to a compatible device, or install it on an already connected and authorized ADB development device:
-
-```bash
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-```
-
-An APK cannot directly replace another build with the same application ID but a different signing key. Back up data before resolving a signature mismatch. Check the APK's application ID, version, ABI, signature, and packaging, then test startup and actual operations. Commands are listed under [APK verification](docs/doc-src/dev-core/BUILDING.md#9-独立核验-apk).
-
-For contribution checks, see the [contribution guide](docs/doc-src/dev-core/CONTRIBUTING.md) and [CI guide](ci/README.md). A successful build establishes local build readiness, not physical-device or production-release acceptance.
+Development checks are described in the [contribution guide](docs/doc-src/dev-core/CONTRIBUTING.md)
+and [repository quality validation](docs/doc-src/dev-core/QUALITY_VALIDATION.md).
 
 ## Architecture and repository guide
 
@@ -394,29 +345,19 @@ Kiyori uses Kotlin, Jetpack Compose, and native Android capabilities for the pro
 
 ### Main directories
 
-```text
-Kiyori/
-├── app/              Android application, shell, AI, browser, files, media integration
-├── terminal/         KiyoriTerminalCore submodule, Ubuntu terminal and sessions
-├── llama/            llama.cpp on-device inference
-├── mnn/              MNN inference and speech-related native capabilities
-├── quickjs/          JavaScript engine and host bridge
-├── dragonbones/      DragonBones animation
-├── mmd/              MMD models, physics, and rendering
-├── fbx/              FBX parsing and rendering integration
-├── showerclient/     Virtual-display, input, and screenshot client
-├── web-chat/         WebChat frontend
-├── examples/         Scripts, ToolPkg, and companion-tool examples
-├── buildSrc/         Custom Gradle tasks and behavioral tests
-├── tools/            Development, build, environment, and diagnostic tools
-├── ci/               Reproducible checks, dependency preparation, and tests
-├── config/           Machine-readable architecture and engineering constraints
-└── docs/             User guides, designs, workstreams, and licensing material
-```
+| Directory | Responsibility |
+| --- | --- |
+| `app/` | Product shell, AI, browser, files, and media integration |
+| `terminal/` | KiyoriTerminalCore pinned by a Git submodule commit |
+| `llama/`, `mnn/`, `quickjs/` | On-device inference and scripting |
+| `dragonbones/`, `mmd/`, `fbx/`, `showerclient/` | Animation, model, and virtual-display modules |
+| `web-chat/`, `examples/` | WebChat, scripts, ToolPkg, and companion tools |
+| `buildSrc/`, `tools/`, `ci/`, `config/` | Build tasks, host tools, validation, and architecture controls |
+| `docs/` | User guides, technical contracts, plans, and historical evidence |
 
-Root settings declares nine Android modules. `buildSrc` is build infrastructure and is not packaged into the APK. `com.kiyori` contains product, platform, and integration boundaries; `com.ai.assistance.operit` still contains AI and some product implementations. Package names alone do not fully define feature ownership.
-
-See [project context](CONTEXT.md), [repository architecture](docs/doc-src/architecture/repository_architecture.md), [layout conventions](docs/doc-src/dev-core/REPOSITORY_LAYOUT.md), and [runtime contracts](docs/doc-src/contracts/README.md).
+Root settings declares nine Android modules; `buildSrc` is not part of the APK.
+See [project context](CONTEXT.md), [repository architecture](docs/doc-src/architecture/repository_architecture.md),
+and [layout conventions](docs/doc-src/dev-core/REPOSITORY_LAYOUT.md) for ownership and compatibility boundaries.
 
 ## Data, privacy, and permissions
 
@@ -452,68 +393,16 @@ See [privacy, data, and migration](docs/user-guide/privacy_and_data.md). The ful
 
 ## Frequently asked questions
 
-<details>
-<summary><strong>Has Kiyori achieved AGI, or can it operate a phone completely autonomously?</strong></summary>
-
-AGI is the long-term research direction. The current product is a developing application integrating models, tools, and an Android working environment. Its execution scope depends on implemented tools, model capabilities, system permissions, and real device conditions. Comprehensive collaboration remains under development.
-
-</details>
-
-<details>
-<summary><strong>Is there an official APK? Why are there no production-release installation instructions?</strong></summary>
-
-There is no public release yet. Build a development APK from this repository. Release signing, distribution channels, and release acceptance are separate work; a Debug build does not replace them. Third-party APKs should not be treated as official releases.
-
-</details>
-
-<details>
-<summary><strong>Do I need an API key, Root, or Shizuku?</strong></summary>
-
-Ordinary browsing does not require a model key or all privileged permissions. Cloud models require their service authentication; on-device inference requires model files. Shizuku/Root is needed only for capabilities that depend on those execution identities. Configure capabilities as you need them.
-
-</details>
-
-<details>
-<summary><strong>Can I work offline, connect a model on my computer, or use any compatible API?</strong></summary>
-
-Compatible MNN or llama.cpp models can use on-device inference. Models on a computer or server need an endpoint reachable from the phone. Protocol compatibility does not guarantee every feature: test tool calls, vision, thinking, and recovery separately. Online tools still require a network connection.
-
-</details>
-
-<details>
-<summary><strong>Do AI, the browser, and the terminal share the same working environment?</strong></summary>
-
-People and AI page tools share real browser sessions. Terminal execution through the code runner uses visible sessions, and the file manager and AI file tools reuse existing capabilities. These connections retain explicit session, path, and permission boundaries. They do not automatically make every player or other subsystem feature callable as an AI tool.
-
-</details>
-
-<details>
-<summary><strong>Can I install Chrome extensions or use the full Playwright API?</strong></summary>
-
-Do not assume that compatibility. Kiyori has its own userscript, browser-plugin, and tool interfaces, with support defined by implementation and contracts. Chrome extensions, userscripts, ToolPkg, and MCP are different extension formats.
-
-</details>
-
-<details>
-<summary><strong>Why does installation fail, or why can't it replace Operit?</strong></summary>
-
-Check Android version, ARM64 support, storage, and signing identity. Kiyori uses `com.kiyori`, so it is a separate application and cannot directly replace an Operit installation. Different signatures for the same package also prevent direct replacement. Back up data first and use explicit import for migration.
-
-</details>
-
-<details>
-<summary><strong>Why do features remain pending verification after a successful build?</strong></summary>
-
-Compilation and packaging cannot prove touch behavior, system restrictions, decoding, network services, or model behavior on real devices. The project distinguishes automated checks, builds, devices, and external environments. `verification_pending` means that the corresponding field acceptance remains outstanding.
-
-</details>
-
-<details>
-<summary><strong>What should a bug report include?</strong></summary>
-
-Provide the device, Android version, Kiyori version or commit, relevant model and tools, minimal reproduction steps, expected and actual behavior, and necessary redacted logs. For build failures, also include the command, toolchain versions, and the first root-cause error. Review screenshots, exports, and logs for private content before submitting.
-
-</details>
+| Question | Answer |
+| --- | --- |
+| Has Kiyori achieved AGI or fully autonomous phone operation? | AGI is a research direction. Execution depends on implemented tools, models, permissions, and device conditions. |
+| Is there an official APK? | No public release is available yet. Build a development APK from source. |
+| Are an API key, Root, or Shizuku required? | Ordinary browsing needs none of them. Configure model authentication, local models, and privileges only for the features you use. |
+| Can I work offline or connect to a desktop model? | Configure local inference and remote services separately. `localhost` on the phone refers to the phone; online tools still need a network. |
+| Are Chrome extensions and all Playwright APIs supported? | Kiyori provides its own extension format, userscripts, and an implemented subset of browser APIs. |
+| Why does installation fail or not replace Operit? | Check Android version, ARM64 support, space, and signing. Kiyori has a separate application ID; migrate through an explicit backup import. |
+| Why is a feature pending after a successful build? | Automated checks cannot prove touch interactions, decoding, system permissions, or external services work on a device. |
+| What should a bug report include? | Version or commit, device, minimal steps, expected and actual behavior, and redacted diagnostics. See [contributing](docs/doc-src/dev-core/CONTRIBUTING.md). |
 
 ## Documentation and contributing
 

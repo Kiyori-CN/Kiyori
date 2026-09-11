@@ -223,12 +223,12 @@ internal fun KiyoriCollapsingSettingsHeader(
     title: String,
     onBack: () -> Unit,
     navigationIcon: KiyoriSettingsNavigationIcon,
-    navigationIconVisible: Boolean = true,
     headerAction: (@Composable () -> Unit)?,
     headerActionWidth: Dp,
     statusBarHeight: androidx.compose.ui.unit.Dp,
     frame: KiyoriCollapsingSettingsHeaderFrame,
     modifier: Modifier = Modifier,
+    navigationIconVisible: Boolean = true,
 ) {
     val colors = LocalKiyoriSettingsColors.current
     Box(

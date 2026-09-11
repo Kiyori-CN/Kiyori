@@ -507,59 +507,8 @@ class KiyoriApplication :
         }
     }
 
-    private fun cleanDirectory(tempDir: File, preserveRootNoMedia: Boolean): Int {
-        if (!tempDir.exists() || !tempDir.isDirectory) {
-            return 0
-        }
-        if (preserveRootNoMedia) {
-            val noMediaFile = File(tempDir, ".nomedia")
-            if (!noMediaFile.exists()) {
-                noMediaFile.createNewFile()
-            }
-        }
-        KiyoriLogger.d(TAG, "开始清理临时文件目录: ${tempDir.absolutePath}")
-        val totalDeleted =
-            deleteRecursively(
-                rootDir = tempDir,
-                file = tempDir,
-                preserveRootNoMedia = preserveRootNoMedia,
-                isRoot = true
-            )
-        KiyoriLogger.d(TAG, "已删除${totalDeleted}个临时文件: ${tempDir.absolutePath}")
-        return totalDeleted
-    }
-
-    private fun deleteRecursively(
-        rootDir: File,
-        file: File,
-        preserveRootNoMedia: Boolean,
-        isRoot: Boolean = false
-    ): Int {
-        var deletedCount = 0
-        if (file.isDirectory) {
-            val children = file.listFiles()
-            children?.forEach { child ->
-                deletedCount += deleteRecursively(
-                    rootDir = rootDir,
-                    file = child,
-                    preserveRootNoMedia = preserveRootNoMedia,
-                    isRoot = false
-                )
-            }
-            if (!isRoot && file.exists()) {
-                file.delete()
-            }
-        } else if (file.isFile) {
-            val isRootNoMedia =
-                preserveRootNoMedia &&
-                    file.parentFile?.absolutePath == rootDir.absolutePath &&
-                    file.name == ".nomedia"
-            if (!isRootNoMedia && file.delete()) {
-                deletedCount++
-            }
-        }
-        return deletedCount
-    }
+    private fun cleanDirectory(tempDir: File, preserveRootNoMedia: Boolean): Int =
+        com.kiyori.platform.storage.TemporaryDirectoryCleaner.clean(tempDir, preserveRootNoMedia)
 
     private fun startGlobalAIForegroundServiceIfNeeded() {
         try {

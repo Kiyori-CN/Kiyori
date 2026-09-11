@@ -12,7 +12,7 @@ data class WorkspaceChangeSnapshot(
     val initialRootStructure: String? = null
 )
 
-class WorkspaceChangeTracker private constructor(private val context: Context) {
+class WorkspaceChangeTracker private constructor() {
     companion object {
         private const val TAG = "WorkspaceChangeTracker"
 
@@ -21,7 +21,7 @@ class WorkspaceChangeTracker private constructor(private val context: Context) {
 
         fun getInstance(context: Context): WorkspaceChangeTracker {
             return instance ?: synchronized(this) {
-                instance ?: WorkspaceChangeTracker(context.applicationContext).also { instance = it }
+                instance ?: WorkspaceChangeTracker().also { instance = it }
             }
         }
     }

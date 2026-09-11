@@ -1,20 +1,21 @@
 package com.ai.assistance.operit.ui.features.chat.webview.workspace
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
 /** 工作区打开文件的唯一内存状态；异步操作以路径和内容快照核对，不依赖标签索引。 */
 internal class WorkspaceEditorState {
     var openFiles by mutableStateOf(emptyList<OpenFileInfo>())
-    var currentFileIndex by mutableStateOf(-1)
+    var currentFileIndex by mutableIntStateOf(-1)
     var unsavedFiles by mutableStateOf(emptySet<String>())
         private set
     var savingFiles by mutableStateOf(emptySet<String>())
         private set
     var isRestoring by mutableStateOf(false)
         private set
-    var refreshGeneration by mutableStateOf(0)
+    var refreshGeneration by mutableIntStateOf(0)
         private set
 
     suspend fun <T> withRewind(block: suspend () -> T): T {
