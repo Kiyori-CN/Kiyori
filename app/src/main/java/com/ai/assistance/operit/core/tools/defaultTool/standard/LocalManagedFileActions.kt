@@ -27,6 +27,12 @@ private fun sameEntry(a: BasicFileAttributes, b: BasicFileAttributes): Boolean =
     a.isDirectory == b.isDirectory && a.isRegularFile == b.isRegularFile && a.fileKey() == b.fileKey() &&
         a.creationTime() == b.creationTime() && a.size() == b.size() && a.lastModifiedTime() == b.lastModifiedTime()
 
+internal fun sameManagedDirectoryIdentity(before: BasicFileAttributes, now: BasicFileAttributes): Boolean =
+    now.isDirectory && now.fileKey() == before.fileKey() &&
+        // Android libcore 在不支持 birthtime 时以 mtime 返回 creationTime。删除子项会改变它，
+        // 不能把自己的写入当作目录被替换；真实 birthtime 存在时仍复核，inode 始终复核。
+        (before.creationTime() == before.lastModifiedTime() || now.creationTime() == before.creationTime())
+
 /** 只统计真实文件树，不跟随链接。超限失败，不能把不完整扫描作为删除确认依据。 */
 internal fun inspectManagedTree(root: Path, checkActive: () -> Unit = {}): ManagedSnapshot {
     val entries = mutableListOf<ManagedEntry>()
@@ -101,8 +107,7 @@ internal fun deleteManagedEntry(source: Path, fingerprint: String, commit: (Path
                 val path = payload.resolve(entry.relative)
                 val now = Files.readAttributes(path, BasicFileAttributes::class.java, NOFOLLOW_LINKS)
                 // 子项删除会改变目录 mtime/size；目录只校验身份，且 delete 遇到新增子项必须失败。
-                check(if (entry.attributes.isDirectory) now.isDirectory && now.fileKey() == entry.attributes.fileKey() &&
-                    now.creationTime() == entry.attributes.creationTime()
+                check(if (entry.attributes.isDirectory) sameManagedDirectoryIdentity(entry.attributes, now)
                     else sameEntry(entry.attributes, now)) { "隔离位置中的项目发生变化" }
                 Files.delete(path)
             }
@@ -158,7 +163,7 @@ internal fun zipManagedEntries(sources: List<Path>, destination: Path, commit: (
     failure?.let { throw it }
 }
 
-internal suspend fun executeManagedFileTool(tool: AITool, backendEnvironment: String = "android"): ToolResult {
+internal suspend fun executeManagedFileTool(tool: AITool, backendEnvironment: String = "android", context: android.content.Context? = null): ToolResult {
     fun parameter(name: String) = tool.parameters.find { it.name == name }?.value
     val path = (parameter("path") ?: parameter("source")).orEmpty()
     val environment = parameter("environment") ?: backendEnvironment
@@ -190,7 +195,8 @@ internal suspend fun executeManagedFileTool(tool: AITool, backendEnvironment: St
                     LocalFileRecycleBin.delete(record, NativeNoReplaceCommit::commit, parameter("fingerprint"))
                     result(true, "已彻底删除")
                 } else if (parameter("delete_mode") == "recycle") {
-                    val trashRoot = requireNotNull(parameter("trash_root")).also { require(it.isNotBlank()) { "此位置没有可用回收站" } }
+                    val trashRoot = (parameter("trash_root") ?: fileRecycleRootForSource(requireNotNull(context), source).toString())
+                        .also { require(it.isNotBlank()) { "此位置没有可用回收站" } }
                     PathValidator.validateAndroidPath(trashRoot, tool.name)?.let { return it }
                     LocalFileRecycleBin.recycle(source, Paths.get(trashRoot), parameter("fingerprint").orEmpty(), NativeNoReplaceCommit::commit)
                     result(true, "已移至回收站")
@@ -204,7 +210,7 @@ internal suspend fun executeManagedFileTool(tool: AITool, backendEnvironment: St
                 require(parameter("move_mode") == "restore_recycled")
                 val record = LocalFileRecycleBin.recordForPayload(source)
                 require(record.originalPath == destination) { "恢复目标与原位置不一致" }
-                LocalFileRecycleBin.restore(record, NativeNoReplaceCommit::commit)
+                LocalFileRecycleBin.restore(record, NativeNoReplaceCommit::commit, parameter("fingerprint"))
                 result(true, "已恢复到原位置")
             }
             "zip_files" -> {
@@ -223,6 +229,8 @@ internal suspend fun executeManagedFileTool(tool: AITool, backendEnvironment: St
     } catch (cancelled: CancellationException) { throw cancelled
     } catch (error: LocalCopyException) { result(false, error.message ?: "操作失败", error.code, error.stagingPath)
     } catch (error: FileAlreadyExistsException) { result(false, "目标已存在，请使用其他名称", FileCopyErrorCode.CONFLICT)
+    } catch (error: AccessDeniedException) { result(false, "没有访问权限：${error.file}。请检查存储权限及目录访问限制。", FileCopyErrorCode.FAILED)
+    } catch (error: NoSuchFileException) { result(false, "项目或父目录不存在：${error.file}。请刷新后重新选择。", FileCopyErrorCode.FAILED)
     } catch (error: LinkageError) { result(false, "原子文件组件不可用", FileCopyErrorCode.UNSUPPORTED)
     } catch (error: Exception) { result(false, error.message ?: "操作失败，请检查权限和文件状态", FileCopyErrorCode.FAILED) }
 }

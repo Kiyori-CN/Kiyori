@@ -20,6 +20,8 @@ data class FileManagerActionState(
     val files: List<FileItem> = listOf(file),
     val inspections: Map<String, FileInspectionData> = emptyMap(),
     val results: List<FileManagerTransferItemResult> = emptyList(),
+    val stopRequested: Boolean = false,
+    val currentName: String? = null,
 )
 data class FileManagerShareRequest(val path: String, val name: String)
 
@@ -27,4 +29,5 @@ data class FileManagerShareRequest(val path: String, val name: String)
 data class FileManagerTransferDraft(
     val files: List<FileItem>, val source: FileManagerLocation, val other: FileManagerLocation,
     val move: Boolean,
+    val sourcePane: FileManagerPane = FileManagerPane.LEFT,
 )

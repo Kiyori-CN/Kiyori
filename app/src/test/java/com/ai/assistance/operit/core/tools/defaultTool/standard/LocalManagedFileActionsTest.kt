@@ -8,6 +8,21 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
 class LocalManagedFileActionsTest {
+
+    @Test fun `Android directory creation time alias does not reject own child deletions`() {
+        fun attributes(modified: Long, key: String, created: Long = modified): java.nio.file.attribute.BasicFileAttributes {
+            val attributes = org.mockito.kotlin.mock<java.nio.file.attribute.BasicFileAttributes>()
+            org.mockito.kotlin.whenever(attributes.isDirectory).thenReturn(true)
+            org.mockito.kotlin.whenever(attributes.fileKey()).thenReturn(key)
+            org.mockito.kotlin.whenever(attributes.lastModifiedTime()).thenReturn(java.nio.file.attribute.FileTime.fromMillis(modified))
+            org.mockito.kotlin.whenever(attributes.creationTime()).thenReturn(java.nio.file.attribute.FileTime.fromMillis(created))
+            return attributes
+        }
+        assertTrue(sameManagedDirectoryIdentity(attributes(10, "inode"), attributes(20, "inode")))
+        assertFalse(sameManagedDirectoryIdentity(attributes(10, "inode"), attributes(20, "replacement")))
+        assertFalse(sameManagedDirectoryIdentity(attributes(10, "inode", 1), attributes(20, "inode", 2)))
+        assertTrue(sameManagedDirectoryIdentity(attributes(10, "inode", 1), attributes(20, "inode", 1)))
+    }
     @get:Rule val folder = TemporaryFolder()
     private val root get() = folder.root.toPath()
     private val commit: (Path, Path) -> Unit = { from, to -> Files.move(from, to) }

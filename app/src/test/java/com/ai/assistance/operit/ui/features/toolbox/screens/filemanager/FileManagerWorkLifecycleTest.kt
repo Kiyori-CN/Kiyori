@@ -58,7 +58,7 @@ class FileManagerWorkLifecycleTest {
             }
         }.also { store.put("manager", it); scheduler.runCurrent() }
 
-    private fun success(name: String) = ToolResult(name, true, StringResultData("ok"))
+    private fun success(name: String) = ToolResult(name, true, FileOperationData(name, path = "/", successful = true, details = "ok"))
     private fun found(path: String) = ToolResult("find_files", true, FindFilesResultData("/", "*", listOf(path)))
 
     @Test fun `invalid names never submit filesystem work and valid unicode is preserved`() = runTest(dispatcher) {
@@ -219,7 +219,7 @@ class FileManagerWorkLifecycleTest {
         model.pasteFiles()
         scheduler.runCurrent()
         assertFalse(model.leftPaneState.isLoading)
-        responses.single().complete(ToolResult("copy_file", false, StringResultData(""), "No space"))
+        responses.single().complete(ToolResult("copy_file", false, FileOperationData("copy", path = "/", successful = false, details = "No space"), "No space"))
         scheduler.runCurrent()
         assertEquals(listOf("copy_file"), requests.map { it.name })
         assertEquals(FileManagerTransferOutcome.FAILED, model.transferState.results.single().outcome)
@@ -275,14 +275,16 @@ class FileManagerWorkLifecycleTest {
         model.pasteFiles()
         scheduler.runCurrent()
         assertTrue(requests.isEmpty())
-        assertEquals(FileManagerTransferOutcome.FAILED, model.transferState.results.single().outcome)
+        assertTrue(model.transferState.results.isEmpty())
+        assertTrue(model.openError!!.contains("无需移动"))
         model.setClipboard(listOf(FileItem("folder", true)), isCut = false)
         model.navigateToPath("/storage/test/folder/child")
         scheduler.runCurrent()
         model.pasteFiles()
         scheduler.runCurrent()
         assertTrue(requests.isEmpty())
-        assertEquals(FileManagerTransferOutcome.FAILED, model.transferState.results.single().outcome)
+        assertTrue(model.transferState.results.isEmpty())
+        assertTrue(model.openError!!.contains("子目录"))
     }
 
 
@@ -294,7 +296,7 @@ class FileManagerWorkLifecycleTest {
     @Test fun `confirmation freezes batch source destination and mode before navigation changes`() = runTest(dispatcher) {
         val model = model()
         model.setClipboard(listOf(FileItem("a.txt", false)), false)
-        model.navigateToPath("/target", "repo:external")
+        model.navigateToPath("/target", "android")
         scheduler.runCurrent()
         model.requestPaste()
         model.setClipboard(listOf(FileItem("replacement", true)), true)
@@ -307,7 +309,7 @@ class FileManagerWorkLifecycleTest {
         assertEquals("/storage/test/a.txt", params["source"])
         assertEquals("/target/a.txt", params["destination"])
         assertEquals("android", params["source_environment"])
-        assertEquals("repo:external", params["dest_environment"])
+        assertEquals("android", params["dest_environment"])
         assertEquals("no_replace", params["copy_mode"])
         responses.single().complete(success("copy_file"))
         scheduler.runCurrent()

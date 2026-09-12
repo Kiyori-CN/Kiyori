@@ -193,9 +193,10 @@ private fun FileManagerPaneColumn(
                         if (!state.isLoading && state.files.none { it.name != ".." }) {
                             Column(Modifier.align(Alignment.Center).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                 FileManagerIconBadge(Icons.Rounded.FolderOpen, KiyoriSemanticTone.ORANGE, 56.dp)
-                                Text(if (state.filterQuery.isNotEmpty()) "没有匹配的项目" else "此目录为空",
+                                Text(if (state.filterQuery.isNotEmpty()) "没有匹配的项目" else if (state.environment == "recycle") "回收站为空" else "此目录为空",
                                     style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 12.dp))
                                 if (state.filterQuery.isNotEmpty()) Text("打开顶栏搜索可调整或清除定位筛选", style = MaterialTheme.typography.bodySmall)
+                                else if (state.environment == "recycle") Text("移至回收站的项目会显示在这里，可恢复或永久删除。", style = MaterialTheme.typography.bodySmall)
                             }
                         }
                         LazyColumn(

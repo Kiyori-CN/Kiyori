@@ -19,15 +19,18 @@ object ToolGetter {
      * @return 根据首选权限级别的文件系统工具实现
      */
     fun getFileSystemTools(context: Context): StandardFileSystemTools {
-        return when (androidPermissionPreferences.getPreferredPermissionLevel()) {
+        val configured = androidPermissionPreferences.getPreferredPermissionLevel()
+        return when (fileSystemPermissionLevel(configured, configured == null && AndroidShellExecutor.isPrivilegedExecutionConfiguredOrAvailable())) {
             AndroidPermissionLevel.ROOT -> RootFileSystemTools(context)
             AndroidPermissionLevel.ADMIN -> AdminFileSystemTools(context)
             AndroidPermissionLevel.DEBUGGER -> DebuggerFileSystemTools(context)
             AndroidPermissionLevel.ACCESSIBILITY -> AccessibilityFileSystemTools(context)
             AndroidPermissionLevel.STANDARD -> StandardFileSystemTools(context)
-            null -> StandardFileSystemTools(context) // 默认使用标准权限级别
         }
     }
+
+    internal fun fileSystemPermissionLevel(configured: AndroidPermissionLevel?, authorizedShizuku: Boolean): AndroidPermissionLevel =
+        configured ?: if (authorizedShizuku) AndroidPermissionLevel.DEBUGGER else AndroidPermissionLevel.STANDARD
 
     /**
      * 获取Shell工具执行器

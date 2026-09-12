@@ -27,7 +27,46 @@ data class FileManagerCopyRequest(
     val source: FileManagerLocation,
     val destination: FileManagerLocation,
     val moveRequested: Boolean = false,
+    val clipboardVersion: Long? = null,
 )
+
+fun fileManagerIsLocal(environment: String?): Boolean = environment.isNullOrBlank() || environment == "android"
+
+fun fileManagerLocationLabel(location: FileManagerLocation): String =
+    "${when {
+        fileManagerIsLocal(location.environment) -> "手机存储"
+        location.environment == "recycle" -> "回收站"
+        location.environment == "linux" -> "Linux"
+        location.environment?.startsWith("network:") == true -> "网络存储"
+        else -> "授权存储"
+    }} · ${location.path}"
+
+/** UI 与提交入口共用能力判断，不能把浏览能力误当作安全写入能力。 */
+fun fileManagerTransferError(request: FileManagerCopyRequest): String? {
+    if (!fileManagerIsLocal(request.source.environment) || !fileManagerIsLocal(request.destination.environment))
+        return "此操作目前仅支持手机存储；请选择手机中的目标目录。"
+    if (!request.source.path.startsWith('/') || !request.destination.path.startsWith('/') ||
+        '\u0000' in request.source.path || '\u0000' in request.destination.path) return "来源和目标必须是完整目录路径。"
+    // 文件工具路径属于 Android，不能用运行测试的 Windows Path 去解释绝对路径或反斜杠。
+    fun normalize(path: String): String {
+        val segments = mutableListOf<String>()
+        path.split('/').forEach { part -> when (part) {
+            "", "." -> Unit
+            ".." -> if (segments.isNotEmpty()) segments.removeAt(segments.lastIndex)
+            else -> segments.add(part)
+        } }
+        return "/" + segments.joinToString("/")
+    }
+    val source = normalize(request.source.path)
+    val destination = normalize(request.destination.path)
+    if (request.moveRequested && source == destination) return "项目已在此目录，无需移动。请选择其他目录。"
+    if (request.files.any { file ->
+        val child = normalize(fileManagerJoinPath(source, file.name))
+        file.isDirectory && (destination == child || destination.startsWith("$child/"))
+    })
+        return "不能把文件夹放入自身或其子目录。请选择其他目录。"
+    return null
+}
 
 data class FileManagerCopyConflict(val sourceName: String, val destinationName: String, val directory: Boolean)
 

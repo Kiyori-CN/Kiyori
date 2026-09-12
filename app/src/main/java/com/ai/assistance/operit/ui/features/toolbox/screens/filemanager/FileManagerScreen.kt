@@ -5,6 +5,7 @@ import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.ui.graphics.luminance
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.fileManagerJoinPath
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.fileManagerIsLocal
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -317,10 +318,13 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
                     onExitSearch = viewModel::cancelSearch,
                     canCreate = viewModel.canCreateHere,
                     clipboardCount = viewModel.clipboardFiles.size,
+                    canPaste = viewModel.canPasteHere,
                     onPaste = viewModel::requestPaste,
                     onClearClipboard = viewModel::clearClipboard,
                     onShowTask = { viewModel.showTransferDetails = true },
                     hasTask = viewModel.transferState.total > 0,
+                    hasActionResult = viewModel.hasActionResult && !viewModel.isWriting,
+                    onShowActionResult = viewModel::showLastActionResult,
                 )
                 Box(modifier = Modifier.weight(1f).fillMaxSize()) {
                     FileManagerDualPane(
@@ -358,6 +362,11 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
                         },
                     )
                 }
+                com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.FileManagerClipboardBar(
+                    count = viewModel.clipboardFiles.size, move = viewModel.isCutOperation,
+                    canPaste = viewModel.canPasteHere, writing = viewModel.isWriting,
+                    onPaste = viewModel::requestPaste, onClear = viewModel::clearClipboard,
+                )
                 FileManagerBottomBar(
                     canGoBack = viewModel.paneCanGoBack(),
                     canGoForward = viewModel.paneCanGoForward(),
@@ -410,7 +419,8 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
     FileManagerDestinationDialog(viewModel.transferDraft, viewModel::browseTransferDestination,
         viewModel::useOtherTransferDestination, viewModel::dismissTransferDraft)
     FileManagerActionDialog(viewModel.actionState, !viewModel.isWriting, viewModel::dismissAction,
-        viewModel::updateActionName, viewModel::confirmContextAction, viewModel::readActionInspection) { value ->
+        viewModel::updateActionName, viewModel::confirmContextAction, viewModel::readActionInspection,
+        viewModel::stopActionAfterCurrent, viewModel::openActionRecycleBin) { value ->
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
         clipboard.setPrimaryClip(android.content.ClipData.newPlainText("文件信息", value))
     }
@@ -458,12 +468,14 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
         state = viewModel.transferState,
         onDismiss = { viewModel.showTransferDetails = false },
         onStop = viewModel::stopTransferAfterCurrent,
+        onOpenDestination = viewModel::openTransferDestination,
     )
     FileManagerCopyConflictDialog(
         conflict = viewModel.copyConflict,
         destination = viewModel.transferState.destination,
         directory = viewModel.copyConflict?.directory == true,
         onResolve = viewModel::resolveCopyConflict,
+        move = viewModel.transferState.move,
         onStop = viewModel::stopTransferAfterCurrent,
     )
     if (showBookmarkDialog && pendingBookmarkUri != null) {
@@ -665,7 +677,8 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
         onClearSelection = { viewModel.activatePane(viewModel.contextMenuPane); viewModel.clearActiveSelection() },
         onSelectAll = { viewModel.activatePane(viewModel.contextMenuPane); viewModel.selectAll() },
         onPaste = { viewModel.activatePane(viewModel.contextMenuPane); viewModel.requestPaste() },
-        canPaste = viewModel.clipboardFiles.isNotEmpty() && !viewModel.isWriting && contextState.environment != "recycle" && !contextState.isLoading && contextState.error == null,
+        canPaste = viewModel.clipboardFiles.isNotEmpty() && !viewModel.isWriting && fileManagerIsLocal(contextState.environment) &&
+            fileManagerIsLocal(viewModel.clipboardSourceEnvironment) && !contextState.isLoading && contextState.error == null,
         onShowTask = { viewModel.showTransferDetails = true },
         hasTask = viewModel.transferState.total > 0,
         environmentLabel = contextState.environment ?: "手机",

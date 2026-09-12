@@ -163,6 +163,7 @@ fun FileListItem(
                     Text(original, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.StartEllipsis,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                if (file.recycleProblem != null) Text("回收记录需检查", fontSize = 10.sp, color = MaterialTheme.colorScheme.error)
                 if (file.name != "..") FileManagerFittedText(
                     text = listOfNotNull(dateLabel.ifBlank { "修改时间未知" },
                         formatFileSize(file.size).takeUnless { file.isDirectory }).joinToString(" "),

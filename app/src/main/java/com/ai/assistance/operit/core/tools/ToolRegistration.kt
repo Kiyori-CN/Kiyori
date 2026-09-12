@@ -1805,7 +1805,8 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
     )
 
     // 文件系统工具
-    val fileSystemTools = ToolGetter.getFileSystemTools(context)
+    // 每次执行重新解析权限，避免首次注册时的普通身份在 Shizuku 授权后继续驻留。
+    fun fileSystemTools() = ToolGetter.getFileSystemTools(context)
 
     // 列出目录内容
     handler.registerTool(
@@ -1817,7 +1818,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 s(R.string.toolreg_list_files_desc, path, envInfo)
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.listFiles(tool) }
+                runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().listFiles(tool) }
             }
     )
 
@@ -1830,7 +1831,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 val envInfo = formatEnvInfo(environment)
                 s(R.string.toolreg_read_file_desc, path, envInfo)
             },
-            executor = { tool -> runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.readFile(tool) } }
+            executor = { tool -> runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().readFile(tool) } }
     )
 
     // 按行号范围读取文件内容
@@ -1851,7 +1852,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 s(R.string.toolreg_read_file_part_desc, rangeInfo, path, envInfo)
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.readFilePart(tool) }
+                runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().readFilePart(tool) }
             }
     )
 
@@ -1864,7 +1865,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 val envInfo = formatEnvInfo(environment)
                 s(R.string.toolreg_read_file_full_desc, path, envInfo)
             },
-            executor = { tool -> runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.readFileFull(tool) } }
+            executor = { tool -> runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().readFileFull(tool) } }
     )
 
     // 读取二进制文件内容（Base64编码）
@@ -1876,7 +1877,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 val envInfo = formatEnvInfo(environment)
                 s(R.string.toolreg_read_file_binary_desc, path, envInfo)
             },
-            executor = { tool -> runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.readFileBinary(tool) } }
+            executor = { tool -> runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().readFileBinary(tool) } }
     )
 
     // 写入文件
@@ -1896,7 +1897,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 s(R.string.toolreg_write_file_desc, operation, path, envInfo)
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.writeFile(tool) }
+                runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().writeFile(tool) }
             }
     )
 
@@ -1910,7 +1911,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
             s(R.string.toolreg_write_file_binary_desc, path, envInfo)
         },
         executor = { tool ->
-            runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.writeFileBinary(tool) }
+            runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().writeFileBinary(tool) }
         }
     )
 
@@ -1930,7 +1931,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                         }
                 s(R.string.toolreg_delete_file_desc, operation, path, envInfo)
             },
-            executor = { tool -> runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.deleteFile(tool) } }
+            executor = { tool -> runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().deleteFile(tool) } }
     )
 
     // UI自动化工具
@@ -2077,7 +2078,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 s(R.string.toolreg_file_exists_desc, path, envInfo)
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.fileExists(tool) }
+                runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().fileExists(tool) }
             }
     )
 
@@ -2091,7 +2092,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 val envInfo = formatEnvInfo(environment)
                 s(R.string.toolreg_move_file_desc, source, destination, envInfo)
             },
-            executor = { tool -> runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.moveFile(tool) } }
+            executor = { tool -> runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().moveFile(tool) } }
     )
 
     // 复制文件或目录
@@ -2111,7 +2112,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 val envInfo = formatEnvArrowInfo(srcEnv, dstEnv)
                 s(R.string.toolreg_copy_file_desc, source, destination, envInfo)
             },
-            executor = { tool -> runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.copyFile(tool) } }
+            executor = { tool -> runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().copyFile(tool) } }
     )
 
     // 创建目录
@@ -2124,7 +2125,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 s(R.string.toolreg_make_directory_desc, path, envInfo)
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.makeDirectory(tool) }
+                runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().makeDirectory(tool) }
             }
     )
 
@@ -2139,7 +2140,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 s(R.string.toolreg_find_files_desc, path, pattern, envInfo)
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.findFiles(tool) }
+                runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().findFiles(tool) }
             }
     )
 
@@ -2152,7 +2153,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 val envInfo = formatEnvInfo(environment)
                 s(R.string.toolreg_file_info_desc, path, envInfo)
             },
-            executor = { tool -> runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.fileInfo(tool) } }
+            executor = { tool -> runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().fileInfo(tool) } }
     )
 
     // 智能应用文件绑定
@@ -2167,7 +2168,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
             executor =
                     object : ToolExecutor {
                         override fun invoke(tool: AITool): ToolResult {
-                            return runBlocking { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.applyFile(tool).last() }
+                            return runBlocking { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().applyFile(tool).last() }
                         }
 
                         override fun invokeAndStream(
@@ -2175,7 +2176,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                         ): kotlinx.coroutines.flow.Flow<ToolResult> {
                             return kotlinx.coroutines.flow.flow {
                                 val networkResult = NetworkFileSystemTools.executeIfNetwork(context, tool)
-                                if (networkResult != null) emit(networkResult) else fileSystemTools.applyFile(tool).collect { emit(it) }
+                                if (networkResult != null) emit(networkResult) else fileSystemTools().applyFile(tool).collect { emit(it) }
                             }
                         }
                     }
@@ -2189,7 +2190,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 val envInfo = formatEnvInfo(environment)
                 "Create file $path$envInfo"
             },
-            executor = { tool -> runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.createFile(tool) } }
+            executor = { tool -> runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().createFile(tool) } }
     )
 
     handler.registerTool(
@@ -2200,7 +2201,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 val envInfo = formatEnvInfo(environment)
                 "Edit file $path$envInfo"
             },
-            executor = { tool -> runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.editFile(tool) } }
+            executor = { tool -> runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().editFile(tool) } }
     )
 
     // 压缩文件/目录
@@ -2213,7 +2214,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 val envInfo = formatEnvInfo(environment)
                 s(R.string.toolreg_zip_files_desc, source, destination, envInfo)
             },
-            executor = { tool -> runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.zipFiles(tool) } }
+            executor = { tool -> runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().zipFiles(tool) } }
     )
 
     // 解压缩文件
@@ -2227,7 +2228,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 s(R.string.toolreg_unzip_files_desc, source, destination, envInfo)
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.unzipFiles(tool) }
+                runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().unzipFiles(tool) }
             }
     )
 
@@ -2240,7 +2241,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 val envInfo = formatEnvInfo(environment)
                 s(R.string.toolreg_open_file_desc, path, envInfo)
             },
-            executor = { tool -> runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.openFile(tool) } }
+            executor = { tool -> runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().openFile(tool) } }
     )
 
     // 分享文件
@@ -2253,7 +2254,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 s(R.string.toolreg_share_file_desc, path, envInfo)
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.shareFile(tool) }
+                runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().shareFile(tool) }
             }
     )
 
@@ -2273,7 +2274,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 }
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.grepCode(tool) }
+                runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().grepCode(tool) }
             }
     )
 
@@ -2289,7 +2290,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 s(R.string.toolreg_grep_context_desc, path, preview, envInfo)
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.grepContext(tool) }
+                runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().grepContext(tool) }
             }
     )
 
@@ -2304,7 +2305,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 s(R.string.toolreg_download_file_desc, url, destination, envInfo)
             },
             executor = { tool ->
-                runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools.downloadFile(tool) }
+                runBlocking(Dispatchers.IO) { NetworkFileSystemTools.executeIfNetwork(context, tool) ?: fileSystemTools().downloadFile(tool) }
             }
     )
 

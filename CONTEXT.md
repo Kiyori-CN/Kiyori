@@ -60,6 +60,7 @@
 - `BuildConfig.OPERIT_MARKET_COMPAT_VERSION` 服务市场 `minAppVer/maxAppVer` 判断，不能用 Kiyori 的 `versionName` 替代。
 - Kiyori 是独立 application ID，不能覆盖旧 Operit 安装；迁移通过用户明确选择的备份或文件入口。
 - 新公开文件写入 `Download/Kiyori` 或 `Pictures/Kiyori`；不自动扫描、合并或删除 `Download/Operit`。设备绑定的凭据和派生缓存按各领域备份边界处理。
+- 共享文件回收使用源存储卷的 `.kiyori-recycle-bin/<applicationId>`，避免跨入 `Android/data` 的挂载限制；共享回收内容手动清理，内部及旧专属回收内容仍受应用数据清理影响。
 - 上游作者、许可证和来源继续准确标注 Operit 及其他项目，不受产品品牌替换规则影响。
 
 ## 按需阅读

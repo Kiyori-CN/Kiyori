@@ -21,28 +21,42 @@ import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.*
 import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 
-private fun locationLabel(location: FileManagerLocation): String =
-    "${location.environment ?: "手机"} · ${location.path}"
+private fun locationLabel(location: FileManagerLocation): String = fileManagerLocationLabel(location)
+
+@Composable
+fun FileManagerClipboardBar(count: Int, move: Boolean, canPaste: Boolean, writing: Boolean,
+    onPaste: () -> Unit, onClear: () -> Unit) {
+    if (count == 0) return
+    Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("待${if (move) "移动" else "复制"} $count 项", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
+            TextButton(onClick = onPaste, enabled = canPaste) { Text("粘贴到此处") }
+            IconButton(onClick = onClear, enabled = !writing) { Icon(Icons.Rounded.Close, "取消待粘贴项目", Modifier.size(20.dp)) }
+        }
+    }
+}
 
 @Composable
 fun FileManagerCopyConfirmation(request: FileManagerCopyRequest?, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     if (request == null) return
     val verb = if (request.moveRequested) "移动" else "复制"
+    val requestError = fileManagerTransferError(request)
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("$verb ${request.files.size} 个项目") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("来源\n${locationLabel(request.source)}")
-                Text("目标\n${locationLabel(request.destination)}")
+                FileManagerLocationCard("来源", request.source)
+                FileManagerLocationCard("目标", request.destination)
                 Text(request.files.take(5).joinToString("\n") { it.name } +
                     if (request.files.size > 5) "\n另有 ${request.files.size - 5} 项" else "")
                 Text(if (request.moveRequested) "同卷移动成功后原位置不再保留。同名会暂停询问，跨文件系统会失败并保留源项目。" else "保留源项目。同名项目会暂停询问，不自动替换或合并。",
                     style = MaterialTheme.typography.bodySmall)
+                requestError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             }
         },
-        confirmButton = { Button(onClick = onConfirm) { Text("开始$verb") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        confirmButton = { Button(onClick = onConfirm, enabled = requestError == null) { Text("开始$verb") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(if (requestError == null) "取消" else "重新选择目录") } },
     )
 }
 
@@ -53,6 +67,7 @@ fun FileManagerCopyConflictDialog(
     directory: Boolean,
     onResolve: (String?) -> Unit,
     onStop: () -> Unit,
+    move: Boolean = false,
 ) {
     if (conflict == null) return
     var newName by rememberSaveable(conflict) { mutableStateOf(fileManagerCopyName(conflict.destinationName, directory)) }
@@ -74,7 +89,7 @@ fun FileManagerCopyConflictDialog(
         },
         confirmButton = {
             Button(onClick = { onResolve(newName) }, enabled = nameError == null && newName != conflict.destinationName) {
-                Text("保留两份")
+                Text(if (move) "改名后移动" else "保留两份")
             }
         },
         dismissButton = { TextButton(onClick = { onResolve(null) }) { Text("跳过此项") } },
@@ -88,6 +103,7 @@ fun FileManagerTransferDetails(
     state: FileManagerTransferState,
     onDismiss: () -> Unit,
     onStop: () -> Unit,
+    onOpenDestination: () -> Unit,
 ) {
     if (!visible || state.total == 0) return
     KiyoriModalBottomDrawer(onDismissRequest = onDismiss) { dismissDrawer ->
@@ -132,6 +148,8 @@ fun FileManagerTransferDetails(
                     }
                 }
             }
+            if (!state.running && state.results.any { it.outcome == FileManagerTransferOutcome.COMPLETED })
+                OutlinedButton(onClick = onOpenDestination, modifier = Modifier.fillMaxWidth()) { Text("查看目标目录") }
             TextButton(onClick = dismissDrawer) { Text(if (state.running) "继续浏览" else "关闭") }
         }
     }

@@ -19,6 +19,7 @@ data class FileItem(
     /** 回收记录以 UUID 作稳定身份，名称与原路径仅用于展示，防止同名项目互相选中。 */
     val displayName: String = name,
     val recycledOriginalPath: String? = null,
+    val recycleProblem: String? = null,
 )
 
 enum class FileManagerPane {

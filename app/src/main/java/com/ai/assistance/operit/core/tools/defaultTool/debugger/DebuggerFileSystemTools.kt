@@ -56,8 +56,9 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
         internal fun isOperitInternalPath(path: String): Boolean {
             val normalizedPath = path.trim()
             val appPackage = BuildConfig.APPLICATION_ID
-            return normalizedPath.startsWith("/data/data/$appPackage") ||
-                AndroidUserPathUtils.isCurrentUserPackageDataPath(normalizedPath, appPackage)
+            return listOf("/data/data/$appPackage", AndroidUserPathUtils.currentUserPackageDataPath(appPackage)).any { own ->
+                normalizedPath == own || normalizedPath.startsWith("$own/")
+            }
         }
     }
     
@@ -122,7 +123,11 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
                 TAG,
                 "Using ls -la command for path (${ShellCommandDiagnostics.describe(normalizedPath)})",
             )
-            val listResult = AndroidShellExecutor.executeShellCommand("ls -la '$normalizedPath'")
+            // 使用当前授权的真实特权身份；目录名中的引号不得逃逸成 Shell 命令。
+            val command = "LC_ALL=C ls -lan -- ${shQuote(normalizedPath)}"
+            val privileged = AndroidShellExecutor.isPrivilegedExecutionConfiguredOrAvailable()
+            val listResult = if (privileged) AndroidShellExecutor.executePrivilegedShellCommand(command)
+                else AndroidShellExecutor.executeShellCommand(command) // 保留显式 ADMIN 的既有执行身份。
 
             if (listResult.success) {
                 AppLogger.d(
@@ -151,7 +156,7 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
                         toolName = tool.name,
                         success = false,
                         result = StringResultData(""),
-                        error = "Failed to list directory: ${listResult.stderr}"
+                        error = "无法读取目录（${if (privileged) "Shizuku / Root" else "当前配置身份"}，退出码 ${listResult.exitCode}）：${listResult.stderr.ifBlank { "系统拒绝访问" }}"
                 )
             }
         } catch (e: Exception) {

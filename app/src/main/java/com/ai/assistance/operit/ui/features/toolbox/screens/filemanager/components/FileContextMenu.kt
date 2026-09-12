@@ -64,7 +64,7 @@ fun FileContextMenu(
     canSelect: Boolean = true, allArchives: Boolean = false,
 ) {
     if (!showMenu) return
-    val hasItem = contextMenuFile != null
+    val hasItem = contextMenuFile != null && selectionCount > 0
     val singleItem = hasItem && selectionCount <= 1
     var visible by remember { mutableStateOf(false) }
     var closing by remember { mutableStateOf(false) }
@@ -82,15 +82,15 @@ fun FileContextMenu(
     }
     LaunchedEffect(Unit) { visible = true }
     val actions = listOf(
-        MenuAction(if (recycleBin) "恢复" else if (sourceIsLeft) "复制 →" else "← 复制", if (recycleBin) Icons.Rounded.Restore else Icons.Outlined.ContentCopy, WebSessionBrowserMenuTone.ADD_BOOKMARK, !writing && hasItem && (localActions || recycleBin), if (recycleBin) onRestore else onCopy),
-        MenuAction(if (sourceIsLeft) "移动 →" else "← 移动", Icons.AutoMirrored.Rounded.DriveFileMove, WebSessionBrowserMenuTone.BOOKMARKS, !writing && localActions && hasItem && !recycleBin, onMove),
+        MenuAction(if (recycleBin) "恢复" else "复制", if (recycleBin) Icons.Rounded.Restore else Icons.Outlined.ContentCopy, WebSessionBrowserMenuTone.ADD_BOOKMARK, !writing && hasItem && (localActions || recycleBin), if (recycleBin) onRestore else onCopy),
+        MenuAction("移动", Icons.AutoMirrored.Rounded.DriveFileMove, WebSessionBrowserMenuTone.BOOKMARKS, !writing && localActions && hasItem && !recycleBin, onMove),
         MenuAction("粘贴", Icons.Outlined.ContentPaste, WebSessionBrowserMenuTone.HISTORY, canPaste, onPaste),
-        MenuAction(if (recycleBin) "彻底删除" else "删除", Icons.Rounded.DeleteOutline, WebSessionBrowserMenuTone.AD_MARKING, !writing && (localActions || recycleBin) && hasItem, onDelete),
+        MenuAction(if (recycleBin) "永久删除" else "删除", Icons.Rounded.DeleteOutline, WebSessionBrowserMenuTone.AD_MARKING, !writing && (localActions || recycleBin) && hasItem, onDelete),
         MenuAction(if (selectionCount > 1) "批量改名" else "重命名", Icons.Rounded.DriveFileRenameOutline, WebSessionBrowserMenuTone.PLUGINS, !writing && localActions && hasItem && !recycleBin, onRename),
         MenuAction("压缩", Icons.Rounded.FolderZip, WebSessionBrowserMenuTone.USER_AGENT, !writing && localActions && hasItem, onZip),
         MenuAction("解压", Icons.Rounded.Unarchive, WebSessionBrowserMenuTone.FLOATING_SNIFFER, !writing && localActions && hasItem && allArchives, onExtract),
         MenuAction("分享", Icons.Outlined.Share, WebSessionBrowserMenuTone.NETWORK_LOG, !writing && localActions && hasItem, onShare),
-        MenuAction("属性", Icons.Rounded.Info, WebSessionBrowserMenuTone.DIAGNOSTICS, hasItem && (localActions || recycleBin), onProperties),
+        MenuAction("属性", Icons.Rounded.Info, WebSessionBrowserMenuTone.DIAGNOSTICS, !writing && hasItem && (localActions || recycleBin), onProperties),
         MenuAction("工具箱", Icons.Rounded.Build, WebSessionBrowserMenuTone.TOOLBOX, !writing, onTools),
         MenuAction(if (allSelected) "全不选" else "全选", Icons.Rounded.SelectAll, WebSessionBrowserMenuTone.INCOGNITO, canSelect, if (allSelected) onClearSelection else onSelectAll),
         MenuAction("反选", Icons.Rounded.FlipToBack, WebSessionBrowserMenuTone.READER_MODE, canSelect, onInvertSelection),

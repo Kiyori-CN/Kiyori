@@ -972,7 +972,7 @@ open class StandardFileSystemTools(protected val context: Context) {
             }
 
             val entries = mutableListOf<DirectoryListingData.FileEntry>()
-            val files = directory.listFiles() ?: emptyArray()
+            val files = directory.listFiles() ?: throw IOException("无法读取目录：$path。请检查存储权限；Android/data 需可用的 Shizuku 或系统允许的访问身份。")
 
             val dateFormat = SimpleDateFormat("MMM dd HH:mm", Locale.US)
 
@@ -2150,7 +2150,7 @@ open class StandardFileSystemTools(protected val context: Context) {
 
     /** Delete a file or directory */
     open suspend fun deleteFile(tool: AITool): ToolResult {
-        if (tool.parameters.any { it.name == "delete_mode" }) return executeManagedFileTool(tool, "android")
+        if (tool.parameters.any { it.name == "delete_mode" }) return executeManagedFileTool(tool, "android", context)
         val path = tool.parameters.find { it.name == "path" }?.value ?: ""
         val environment = tool.parameters.find { it.name == "environment" }?.value
         val recursive =

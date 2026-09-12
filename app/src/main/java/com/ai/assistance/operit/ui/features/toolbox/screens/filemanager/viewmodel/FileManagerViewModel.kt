@@ -81,6 +81,8 @@ class FileManagerViewModel(
         get() = paneState(activePane).environment
     val isRecycleBin: Boolean get() = currentEnvironment == "recycle"
     val canCreateHere: Boolean get() = !isWriting && !isLoading && error == null && !isRecycleBin
+    val canPasteHere: Boolean get() = canCreateHere && fileManagerIsLocal(currentEnvironment) &&
+        fileManagerIsLocal(clipboardSourceEnvironment) && clipboardFiles.isNotEmpty()
 
     fun openRecycleBin() = navigateToPath("/回收站", "recycle")
 
@@ -99,14 +101,26 @@ class FileManagerViewModel(
         contextMenuFile = null; showBottomActionMenu = false
     }
 
-    /** 两个存储根共用一个列表投影，不把 UUID 包装目录暴露为可编辑的普通文件。 */
+    /** 各存储卷及旧记录共用一个列表投影，记录身份包含根位置，避免跨卷 UUID 冲突。 */
     private fun readRecycleEntries(): List<FileItem> =
         com.ai.assistance.operit.core.tools.defaultTool.standard.fileRecycleRoots(context).flatMap { root ->
+            try {
             com.ai.assistance.operit.core.tools.defaultTool.standard.LocalFileRecycleBin.list(root).map { record ->
                 val payload = root.resolve(record.id).resolve("payload")
-                val attributes = java.nio.file.Files.readAttributes(payload, java.nio.file.attribute.BasicFileAttributes::class.java, java.nio.file.LinkOption.NOFOLLOW_LINKS)
-                FileItem(record.id, attributes.isDirectory, attributes.size(), record.deletedAt,
-                    fullPath = payload.toString(), displayName = File(record.originalPath).name, recycledOriginalPath = record.originalPath)
+                try {
+                    check(record.problem == null) { record.problem.orEmpty() }
+                    val attributes = java.nio.file.Files.readAttributes(payload, java.nio.file.attribute.BasicFileAttributes::class.java, java.nio.file.LinkOption.NOFOLLOW_LINKS)
+                    FileItem(payload.toString(), attributes.isDirectory, attributes.size(), record.deletedAt,
+                        fullPath = payload.toString(), displayName = File(record.originalPath).name, recycledOriginalPath = record.originalPath)
+                } catch (failure: Exception) {
+                    FileItem(payload.toString(), false, fullPath = root.resolve(record.id).toString(),
+                        displayName = "需检查的回收项目", recycledOriginalPath = record.originalPath,
+                        recycleProblem = failure.message ?: "无法读取回收内容，请检查记录目录")
+                }
+            }
+            } catch (failure: Exception) {
+                listOf(FileItem(root.toString(), false, fullPath = root.toString(), displayName = "回收位置无法读取",
+                    recycledOriginalPath = root.toString(), recycleProblem = "${failure.message ?: "存储不可用"}；请检查权限或存储连接后刷新。"))
             }
         }
 
@@ -162,6 +176,8 @@ class FileManagerViewModel(
 
     var actionState by mutableStateOf<FileManagerActionState?>(null)
         private set
+    private var lastActionResult by mutableStateOf<FileManagerActionState?>(null)
+    val hasActionResult: Boolean get() = lastActionResult != null || actionState?.results?.isNotEmpty() == true
     var transferDraft by mutableStateOf<FileManagerTransferDraft?>(null)
         private set
     var pendingShare by mutableStateOf<FileManagerShareRequest?>(null)
@@ -181,12 +197,12 @@ class FileManagerViewModel(
     fun beginSelectionTransfer(move: Boolean) = beginTransfer(selectedFiles.toList(), move)
 
     private fun beginTransfer(items: List<FileItem>, move: Boolean) {
-        if (isWriting || isLoading || error != null || isRecycleBin) return
+        if (isWriting || isLoading || error != null || !fileManagerIsLocal(currentEnvironment)) return
         val current = items.mapNotNull { item -> files.firstOrNull { it.name == item.name && it.name != ".." } }
         if (current.isEmpty()) return
         val other = paneState(if (activePane == FileManagerPane.LEFT) FileManagerPane.RIGHT else FileManagerPane.LEFT)
         transferDraft = FileManagerTransferDraft(current, FileManagerLocation(currentPath, currentEnvironment),
-            FileManagerLocation(other.path, other.environment), move)
+            FileManagerLocation(other.path, other.environment), move, activePane)
         showBottomActionMenu = false
     }
 
@@ -196,7 +212,10 @@ class FileManagerViewModel(
         clipboardVersion++
         clipboardFiles.clear(); clipboardFiles.addAll(draft.files)
         clipboardSourcePath = draft.source.path; clipboardSourceEnvironment = draft.source.environment; isCutOperation = draft.move
-        transferDraft = null; clearActiveSelection()
+        transferDraft = null
+        val sourcePane = paneState(draft.sourcePane)
+        if (sourcePane.path == draft.source.path && sourcePane.environment == draft.source.environment)
+            clearPaneSelection(draft.sourcePane)
     }
     fun useOtherTransferDestination() {
         val draft = transferDraft ?: return
@@ -210,6 +229,8 @@ class FileManagerViewModel(
         val file = targets.firstOrNull() ?: return
         val pane = paneState(contextMenuPane)
         if (pane.isLoading || pane.error != null || pane.files.none { it.name == file.name }) return
+        if (pane.environment == "recycle" && kind !in setOf(FileManagerActionKind.RESTORE, FileManagerActionKind.PURGE, FileManagerActionKind.PROPERTIES)) return
+        if (pane.environment != "recycle" && (!fileManagerIsLocal(pane.environment) || kind in setOf(FileManagerActionKind.RESTORE, FileManagerActionKind.PURGE))) return
         actionReadJob?.cancel()
         actionState = FileManagerActionState(++actionGeneration, kind, file, FileManagerLocation(pane.path, pane.environment),
             outputName = when (kind) {
@@ -231,6 +252,7 @@ class FileManagerViewModel(
         actionReadJob = viewModelScope.launch {
             try {
                 val inspections = withContext(directoryDispatcher) { state.files.associate { file ->
+                    check(file.recycleProblem == null) { file.recycleProblem.orEmpty() }
                     val result = executeDirectoryTool(AITool("file_info", withEnvParams(listOf(
                         ToolParameter("path", actionPath(state, file)),
                         ToolParameter("info_mode", if (hash && !file.isDirectory) "manager_sha256" else "manager"),
@@ -255,7 +277,26 @@ class FileManagerViewModel(
         if (state.location.environment == "recycle") requireNotNull(file.fullPath) else fileManagerJoinPath(state.location.path, file.name)
     fun dismissAction() {
         if (actionState?.running == true) return
+        actionState?.takeIf { it.results.isNotEmpty() }?.let { lastActionResult = it }
         actionReadJob?.cancel(); actionState = null; actionGeneration++
+    }
+
+    fun showLastActionResult() {
+        if (isWriting) return
+        val result = lastActionResult ?: return
+        actionReadJob?.cancel()
+        actionState = result.copy(id = ++actionGeneration)
+    }
+
+    fun stopActionAfterCurrent() {
+        actionState?.takeIf { it.running }?.let { actionState = it.copy(stopRequested = true) }
+    }
+
+    fun openActionRecycleBin() {
+        val state = actionState ?: return
+        if (state.running || state.kind != FileManagerActionKind.DELETE || state.results.isEmpty()) return
+        dismissAction()
+        openRecycleBin()
     }
     fun shareContextItem() {
         val file = contextMenuFile ?: return
@@ -285,9 +326,12 @@ class FileManagerViewModel(
                 val results = mutableListOf<FileManagerTransferItemResult>()
                 try {
                     for ((index, file) in batch.withIndex()) {
+                        if (closed || actionState?.stopRequested == true) break
+                        actionState = actionState?.copy(currentName = file.displayName)
                         val source = actionPath(state, file)
                         val target = if (state.kind == FileManagerActionKind.RESTORE) file.recycledOriginalPath.orEmpty()
                             else if (state.kind == FileManagerActionKind.RENAME) fileManagerJoinPath(state.location.path, fileManagerBatchRenameName(file, index, state.outputName))
+                            else if (state.kind == FileManagerActionKind.DELETE || state.kind == FileManagerActionKind.PURGE) ""
                             else if (state.kind == FileManagerActionKind.EXTRACT && batch.size > 1)
                                 fileManagerJoinPath(state.location.path, file.name + "_extracted") else destination
                         val parameters = when (state.kind) {
@@ -295,10 +339,9 @@ class FileManagerViewModel(
                                 ToolParameter("path", source), ToolParameter("recursive", file.isDirectory.toString()),
                                 ToolParameter("delete_mode", if (state.kind == FileManagerActionKind.PURGE) "purge_recycled" else "recycle"),
                                 ToolParameter("fingerprint", requireNotNull(state.inspections[file.name]).fingerprint),
-                                ToolParameter("trash_root", (if (source.startsWith(context.filesDir.absolutePath + "/") || source.startsWith("/data/"))
-                                    context.filesDir.resolve("file-recycle-bin") else context.getExternalFilesDir(null)?.resolve("file-recycle-bin"))?.absolutePath.orEmpty()),
                             )
-                            FileManagerActionKind.RESTORE -> listOf(ToolParameter("source", source), ToolParameter("destination", target), ToolParameter("move_mode", "restore_recycled"))
+                            FileManagerActionKind.RESTORE -> listOf(ToolParameter("source", source), ToolParameter("destination", target), ToolParameter("move_mode", "restore_recycled"),
+                                ToolParameter("fingerprint", requireNotNull(state.inspections[file.name]).fingerprint))
                             FileManagerActionKind.RENAME -> listOf(ToolParameter("source", source), ToolParameter("destination", target), ToolParameter("move_mode", "rename_no_replace"))
                             else -> listOf(ToolParameter("source", source), ToolParameter("destination", target),
                                 ToolParameter("sources", Json.encodeToString(state.files.map { actionPath(state, it) })),
@@ -314,11 +357,12 @@ class FileManagerViewModel(
                                 if (state.location.environment == "recycle") "android" else state.location.environment))) }
                             val operation = result.result as? FileOperationData
                             val status = when {
-                                operation == null || operation.stagingPath != null -> FileManagerTransferOutcome.UNKNOWN
+                                operation == null || operation.stagingPath != null || result.success != operation.successful -> FileManagerTransferOutcome.UNKNOWN
                                 result.success && operation.successful -> FileManagerTransferOutcome.COMPLETED
                                 else -> FileManagerTransferOutcome.FAILED
                             }
-                            FileManagerTransferItemResult(file.displayName, status, result.error, target, operation?.stagingPath)
+                            FileManagerTransferItemResult(file.displayName, status, result.error ?: operation?.details,
+                                target.takeIf { it.isNotEmpty() }, operation?.stagingPath)
                         } catch (failure: Exception) {
                             FileManagerTransferItemResult(file.displayName, FileManagerTransferOutcome.UNKNOWN, "未取得可靠结果，请检查文件；不会自动重试", target)
                         }
@@ -329,17 +373,21 @@ class FileManagerViewModel(
                     }
                 } finally {
                     val submitted = results.size
-                    results += batch.drop(submitted).map { FileManagerTransferItemResult(it.displayName, FileManagerTransferOutcome.NOT_STARTED, "前项结果未知，未提交") }
+                    results += batch.drop(submitted).map { FileManagerTransferItemResult(it.displayName, FileManagerTransferOutcome.NOT_STARTED,
+                        if (results.any { result -> result.outcome == FileManagerTransferOutcome.UNKNOWN }) "前项结果未确认，未提交" else "已停止，未提交") }
                     if (!closed && actionState?.id == state.id) {
                         val completed = results.all { it.outcome == FileManagerTransferOutcome.COMPLETED }
                         actionState = state.copy(running = false, completed = completed, results = results.toList(),
+                            stopRequested = actionState?.stopRequested == true,
                             unknown = results.any { it.outcome == FileManagerTransferOutcome.UNKNOWN },
-                            error = if (completed) null else "部分项目未完成，请查看逐项结果；再次操作前请刷新并重新选择。")
+                            error = if (completed) null else results.firstOrNull { it.outcome == FileManagerTransferOutcome.FAILED || it.outcome == FileManagerTransferOutcome.UNKNOWN }?.let {
+                                "${it.name}：${it.message ?: "结果未确认，请检查来源与回收站"}"
+                            })
                         if (completed && state.shareAfter) pendingShare = FileManagerShareRequest(destination, state.outputName)
                         refreshLocation(state.location)
                         if (state.kind == FileManagerActionKind.DELETE) refreshLocation(FileManagerLocation("/回收站", "recycle"))
                         if (state.kind == FileManagerActionKind.RESTORE) state.files.mapNotNull { it.recycledOriginalPath?.substringBeforeLast('/') }.distinct().forEach { parent ->
-                            refreshLocation(FileManagerLocation(parent, null)); refreshLocation(FileManagerLocation(parent, "android"))
+                            refreshLocation(FileManagerLocation(parent, null))
                         }
                     }
                 }
@@ -1272,13 +1320,14 @@ class FileManagerViewModel(
         if (!canCreateHere || clipboardFiles.isEmpty()) return
         val source = clipboardSourcePath ?: return
         pendingCopy = FileManagerCopyRequest(clipboardFiles.toList(),
-            FileManagerLocation(source, clipboardSourceEnvironment), FileManagerLocation(currentPath, currentEnvironment), isCutOperation)
+            FileManagerLocation(source, clipboardSourceEnvironment), FileManagerLocation(currentPath, currentEnvironment), isCutOperation, clipboardVersion)
     }
 
     fun dismissPaste() { pendingCopy = null }
 
     fun confirmPaste() {
         val request = pendingCopy ?: return
+        if (isWriting || fileManagerTransferError(request) != null) return
         pendingCopy = null
         startCopy(request)
     }
@@ -1288,7 +1337,7 @@ class FileManagerViewModel(
         if (transferState.running || clipboardFiles.isEmpty()) return
         val source = clipboardSourcePath ?: return
         startCopy(FileManagerCopyRequest(clipboardFiles.toList(),
-            FileManagerLocation(source, clipboardSourceEnvironment), FileManagerLocation(currentPath, currentEnvironment), isCutOperation))
+            FileManagerLocation(source, clipboardSourceEnvironment), FileManagerLocation(currentPath, currentEnvironment), isCutOperation, clipboardVersion))
     }
 
     fun stopTransferAfterCurrent() {
@@ -1296,6 +1345,13 @@ class FileManagerViewModel(
         transferState = transferState.copy(stopRequested = true)
         // 等待冲突时没有正在写的项目，可立即停止；已提交工具必须等待真实结果。
         conflictDecision?.complete(null)
+    }
+
+    fun openTransferDestination() {
+        if (transferState.running) return
+        val destination = transferState.destination ?: return
+        showTransferDetails = false
+        navigateToPath(destination.path, destination.environment)
     }
 
     fun resolveCopyConflict(newName: String?) {
@@ -1307,7 +1363,8 @@ class FileManagerViewModel(
         if (isWriting || closed) return
         val batch = request.files.filter { it.name != ".." }.distinctBy { it.name }
         if (batch.isEmpty()) return
-        val clipboardAtStart = clipboardVersion
+        fileManagerTransferError(request)?.let { openError = it; return }
+        val clipboardAtStart = request.clipboardVersion
         transferState = FileManagerTransferState(total = batch.size, running = true,
             source = request.source, destination = request.destination, move = request.moveRequested)
         showTransferDetails = true
@@ -1369,11 +1426,11 @@ class FileManagerViewModel(
                             }
                             val response = copied
                             val operation = response?.result as? FileOperationData
-                            // 移动改变源路径；无结构化结果或互相矛盾的成功标记必须先人工核对，不能当作可重试失败。
-                            if (!itemFinished && submitted && request.moveRequested &&
-                                (operation == null || response?.success != operation.successful)) {
+                            // 写入必须返回一致的结构化终态，不能把字符串成功或矛盾标记当成已完成。
+                            if (!itemFinished && submitted &&
+                                (operation == null || response.success != operation.successful)) {
                                 appendTransferResult(FileManagerTransferItemResult(file.name,
-                                    FileManagerTransferOutcome.UNKNOWN, "移动结果未确认，请检查来源与目标", target, operation?.stagingPath))
+                                    FileManagerTransferOutcome.UNKNOWN, response?.error ?: operation?.details ?: "结果未确认，请检查来源与目标", target, operation?.stagingPath))
                                 itemFinished = true
                             }
                             if (!itemFinished && (response?.success == true || rejected != null ||
@@ -1385,7 +1442,10 @@ class FileManagerViewModel(
                                 itemFinished = true
                             }
                         }
-                        if (itemFinished) continue
+                        if (itemFinished) {
+                            if (transferState.results.lastOrNull()?.let { it.outcome == FileManagerTransferOutcome.UNKNOWN || it.stagingPath != null } == true) stopTransferAfterCurrent()
+                            continue
+                        }
                         // 只有明确且无残留的冲突才能再次提交；用户选择保留两份，仍走同一原子不覆盖入口。
                         if (transferState.stopRequested || closed) break
                         val decision = CompletableDeferred<String?>()
@@ -1499,7 +1559,8 @@ class FileManagerViewModel(
     private fun refreshLocation(location: FileManagerLocation) {
         FileManagerPane.entries.forEach { pane ->
             val state = paneState(pane)
-            if (state.path == location.path && state.environment == location.environment) loadPaneDirectory(pane)
+            if (state.path == location.path && (state.environment == location.environment ||
+                    fileManagerIsLocal(state.environment) && fileManagerIsLocal(location.environment))) loadPaneDirectory(pane)
         }
     }
 

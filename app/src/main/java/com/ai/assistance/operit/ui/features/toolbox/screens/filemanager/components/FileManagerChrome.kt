@@ -64,8 +64,9 @@ fun FileManagerTopBar(
     sortDescending: Boolean, onToggleSortDirection: () -> Unit,
     onInvertSelection: () -> Unit,
     filterLabel: String = "",
-    clipboardCount: Int, onPaste: () -> Unit, onClearClipboard: () -> Unit,
+    clipboardCount: Int, onPaste: () -> Unit, onClearClipboard: () -> Unit, canPaste: Boolean,
     hasTask: Boolean, onShowTask: () -> Unit,
+    hasActionResult: Boolean, onShowActionResult: () -> Unit,
 ) {
     var showOptions by remember { mutableStateOf(false) }
     var afterOptionsClose by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -168,7 +169,7 @@ fun FileManagerTopBar(
                     FileManagerActionRow("清空当前选择", icon = Icons.Rounded.Deselect, tone = KiyoriSemanticTone.BLUE, enabled = selectedCount > 0) {
                         afterOptionsClose = onClearSelection; dismissDrawer()
                     }
-                    FileManagerActionRow("粘贴到当前目录（$clipboardCount 项）", icon = Icons.Outlined.ContentPaste, tone = KiyoriSemanticTone.BLUE, enabled = clipboardCount > 0 && canCreate) {
+                    FileManagerActionRow("粘贴到当前目录（$clipboardCount 项）", icon = Icons.Outlined.ContentPaste, tone = KiyoriSemanticTone.BLUE, enabled = canPaste) {
                         afterOptionsClose = onPaste; dismissDrawer()
                     }
                     FileManagerActionRow("清空剪贴板", icon = Icons.Outlined.Clear, tone = KiyoriSemanticTone.ORANGE, enabled = clipboardCount > 0) {
@@ -176,6 +177,9 @@ fun FileManagerTopBar(
                     }
                     FileManagerActionRow("传输任务", icon = Icons.Rounded.SwapHoriz, tone = KiyoriSemanticTone.CYAN, enabled = hasTask) {
                         afterOptionsClose = onShowTask; dismissDrawer()
+                    }
+                    FileManagerActionRow("最近文件操作", icon = Icons.Rounded.History, tone = KiyoriSemanticTone.ORANGE, enabled = hasActionResult) {
+                        afterOptionsClose = onShowActionResult; dismissDrawer()
                     }
                     FileManagerActionRow("反向选择", icon = Icons.Rounded.Checklist, tone = KiyoriSemanticTone.PURPLE) {
                         afterOptionsClose = onInvertSelection; dismissDrawer()

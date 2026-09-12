@@ -10,7 +10,11 @@
 
 文件管理器由既有 `FileManagerViewModel` 持有双位置会话，Shell 保留其设置往返和应用内最小化生命周期；文件执行仍经 `AIToolHandler`。
 ApiPreferences 持有书签、目录工作区、网络分组及加密网络配置；网络文件工具只支持原生目录浏览，其他操作明确拒绝。
-文件管理器删除默认同卷移至应用回收站，恢复不覆盖；未加密 ZIP 可经暂存校验后解压发布。详细限制见文件管理器设计。
+文件管理器删除默认同卷移至回收站，恢复不覆盖并复核确认指纹。共享卷使用 `.kiyori-recycle-bin/<applicationId>`，
+避开共享目录到 `Android/data` 的跨挂载移动；内部与旧外部专属回收记录继续读取。共享回收内容需手动清理，
+内部与旧专属回收内容受应用数据清理影响。未加密 ZIP 可经暂存校验后解压发布，详细限制见文件管理器设计。
+文件工具每次执行解析当前权限，Shizuku 授权后不继续使用注册时的普通身份；普通目录枚举失败保持错误，
+不能显示为空目录。特权目录读取使用真实 Shizuku/Root Shell，严格写入仍限应用身份可访问路径。
 固定左右双栏消费同一窗格状态，非活动栏由淡灰内阴影衬托；存储位置、路径和统计位于顶栏下方的独立行。目录内筛选只投影已加载条目；选择随成功快照核对，
 历史导航清除旧目录选择，已隐藏或被筛掉的项目不得继续参与批量操作。根边界不提供无效上级动作。
 新建通过 `create_file` / `make_directory` 的显式 `create_mode=no_replace` 原子创建空项目；仅支持
@@ -47,7 +51,7 @@ Android 标准文件工具的递归复制统一调用 `copyLocalDirectory`：枚
 `info_mode=manager/manager_sha256` 返回有界树统计或普通文件 SHA-256；上述新模式仅支持应用可访问的 Android 路径，
 不支持的后端明确失败。树检查拒绝链接/特殊文件，最多 100000 项和 128 层；元数据指纹不是内容快照或恶意并发事务保证。
 普通书签复用 `ApiPreferences` 的独立 DataStore 键，与 SAF 授权分离；分享复用 FileProvider 只读 URI 与系统选择器。
-覆盖替换、回收站与持久恢复尚未开放，完整限制与错误码见
+覆盖替换与任务持久恢复尚未开放，回收站支持恢复及永久删除，完整限制与错误码见
 [文件管理器设计](../architecture/kiyori_file_manager.md)。
 
 - `com.kiyori.platform.storage.KiyoriPaths` 持有公开 Downloads/Pictures、内部/cache/files/backup、Browser 下载、ToolPkg 私有 generation、构建事务、内容寻址运行目录和创建/校验逻辑。

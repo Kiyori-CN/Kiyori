@@ -29,6 +29,8 @@ class FileManagerActionLifecycleTest {
     private var failWrite = false
     private var failRead = false
     private var malformedWrite = false
+    private var operationFailed = false
+    private var contradictoryWrite = false
     @Before fun setup() { whenever(context.filesDir).thenReturn(java.io.File("/private")); whenever(context.getExternalFilesDir(null)).thenReturn(java.io.File("/storage/test/app")); Dispatchers.setMain(dispatcher); log = Mockito.mockStatic(Log::class.java); whenever(context.getString(R.string.file_manager_home)).thenReturn("Home") }
     @After fun cleanup() { store.clear(); scheduler.runCurrent(); Dispatchers.resetMain(); log.close() }
     private fun model() = FileManagerViewModel(context, "/storage/test", dispatcher) { tool ->
@@ -44,7 +46,8 @@ class FileManagerActionLifecycleTest {
             } else {
                 gate?.await()
                 if (failWrite) throw java.io.IOException("unknown")
-                ToolResult(tool.name, true, if (malformedWrite) StringResultData("ok") else FileOperationData(tool.name, "android", "/", true, "done"))
+                ToolResult(tool.name, !operationFailed, if (malformedWrite) StringResultData("ok") else FileOperationData(tool.name, "android", "/", !operationFailed && !contradictoryWrite, "done"),
+                    if (operationFailed) "cross filesystem EXDEV" else null)
             }
         }
     }.also { store.put("manager", it); scheduler.runCurrent(); it.contextMenuFile = it.files.single { f -> f.name == "note.txt" }; it.contextMenuPane = FileManagerPane.LEFT }
@@ -182,5 +185,79 @@ class FileManagerActionLifecycleTest {
         model.beginContextAction(FileManagerActionKind.DELETE); scheduler.runCurrent()
         assertEquals(1, model.actionState!!.files.size)
         assertEquals("/right", model.actionState!!.location.path)
+    }
+
+    @Test fun `recycle request lets backend choose same volume root and surfaces actual failure`() = runTest(dispatcher) {
+        val model = model(); model.beginContextAction(FileManagerActionKind.DELETE); scheduler.runCurrent()
+        operationFailed = true; model.confirmContextAction(); scheduler.runCurrent()
+        val request = requests.single { it.name == "delete_file" }
+        assertFalse(request.parameters.any { it.name == "trash_root" })
+        assertEquals(FileManagerTransferOutcome.FAILED, model.actionState!!.results.single().outcome)
+        assertTrue(model.actionState!!.error!!.contains("EXDEV"))
+        assertNull(model.actionState!!.results.single().destination)
+        model.openActionRecycleBin(); scheduler.runCurrent()
+        assertNull(model.actionState); assertTrue(model.isRecycleBin)
+    }
+
+    @Test fun `contradictory deletion result is unknown and stops the batch`() = runTest(dispatcher) {
+        val model = model(); model.selectAll(); model.beginContextAction(FileManagerActionKind.DELETE); scheduler.runCurrent()
+        contradictoryWrite = true; model.confirmContextAction(); scheduler.runCurrent()
+        assertEquals(listOf(FileManagerTransferOutcome.UNKNOWN, FileManagerTransferOutcome.NOT_STARTED), model.actionState!!.results.map { it.outcome })
+        assertEquals(1, requests.count { it.name == "delete_file" })
+    }
+
+    @Test fun `stop deletion waits for current result and never submits remaining files`() = runTest(dispatcher) {
+        val model = model(); model.selectAll(); model.beginContextAction(FileManagerActionKind.DELETE); scheduler.runCurrent()
+        gate = CompletableDeferred(); model.confirmContextAction(); scheduler.runCurrent()
+        model.stopActionAfterCurrent(); assertTrue(model.isWriting)
+        gate!!.complete(Unit); scheduler.runCurrent()
+        assertEquals(listOf(FileManagerTransferOutcome.COMPLETED, FileManagerTransferOutcome.NOT_STARTED), model.actionState!!.results.map { it.outcome })
+        assertFalse(model.isWriting); assertTrue(model.actionState!!.stopRequested)
+    }
+
+    @Test fun `unstructured copy success stops remaining files instead of reporting success`() = runTest(dispatcher) {
+        val model = model(); model.selectAll(); model.beginContextTransfer(false); model.browseTransferDestination()
+        model.navigateToPath("/target"); scheduler.runCurrent(); malformedWrite = true
+        model.requestPaste(); model.confirmPaste(); scheduler.runCurrent()
+        assertEquals(listOf(FileManagerTransferOutcome.UNKNOWN, FileManagerTransferOutcome.NOT_STARTED), model.transferState.results.map { it.outcome })
+        assertEquals(1, requests.count { it.name == "copy_file" })
+    }
+
+    @Test fun `pending cut confirmation cannot consume a replacement clipboard with identical names`() = runTest(dispatcher) {
+        val model = model(); model.beginContextTransfer(true); model.browseTransferDestination()
+        model.navigateToPath("/target"); scheduler.runCurrent(); model.requestPaste()
+        model.navigateToPath("/storage/test"); scheduler.runCurrent()
+        model.setClipboard(listOf(model.files.first { it.name == "note.txt" }), true)
+        model.confirmPaste(); scheduler.runCurrent()
+        assertEquals(listOf("note.txt"), model.clipboardFiles.map { it.name })
+        assertEquals(FileManagerTransferOutcome.COMPLETED, model.transferState.results.single().outcome)
+    }
+
+    @Test fun `unsupported paste target is explained before any file write`() = runTest(dispatcher) {
+        val model = model(); model.beginContextTransfer(false); model.browseTransferDestination()
+        model.navigateToPath("/", "network:id"); scheduler.runCurrent()
+        assertFalse(model.canPasteHere)
+        model.requestPaste(); assertNotNull(fileManagerTransferError(model.pendingCopy!!))
+        model.confirmPaste(); scheduler.runCurrent(); assertTrue(requests.isEmpty())
+    }
+
+    @Test fun `closed operation results can be reviewed without replaying writes`() = runTest(dispatcher) {
+        val model = model(); model.beginContextAction(FileManagerActionKind.DELETE); scheduler.runCurrent()
+        model.confirmContextAction(); scheduler.runCurrent(); model.dismissAction()
+        assertNull(model.actionState); assertTrue(model.hasActionResult)
+        model.showLastActionResult(); assertTrue(model.actionState!!.completed)
+        model.confirmContextAction(); scheduler.runCurrent()
+        assertEquals(1, requests.count { it.name == "delete_file" })
+    }
+
+    @Test fun `destination browsing clears only the captured source pane even when both show same directory`() = runTest(dispatcher) {
+        val model = model(); model.selectAll()
+        model.activatePane(FileManagerPane.RIGHT); model.selectAll()
+        model.beginContextTransfer(false)
+        assertEquals(FileManagerPane.LEFT, model.transferDraft!!.sourcePane)
+        model.activatePane(FileManagerPane.RIGHT); model.browseTransferDestination()
+        assertTrue(model.selectionForPane(FileManagerPane.LEFT).isEmpty())
+        assertEquals(2, model.selectionForPane(FileManagerPane.RIGHT).size)
+        assertEquals(2, model.clipboardFiles.size)
     }
 }
