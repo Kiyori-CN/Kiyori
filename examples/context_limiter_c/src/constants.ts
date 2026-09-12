@@ -7,6 +7,12 @@ type SupportedPromptTurnKind = Extract<
 >;
 
 export const DEFAULT_FLOOR_LIMIT = 5;
+// UI、Hook 和工具共用整数解释，不能把 1.5 / 5abc 静默截成合法层数。
+export function parseFloorLimit(value: string | number | undefined): number | undefined {
+  if ((typeof value !== 'string' && typeof value !== 'number') || (typeof value === 'string' && !/^\d+$/.test(value.trim()))) return undefined;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
 export const DEFAULT_LIMITER_ENABLED = true;
 export const FLOOR_OPTIONS = [3, 5, 8, 10, 15, 20, 30, 50, 100] as const;
 

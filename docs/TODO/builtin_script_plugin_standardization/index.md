@@ -5,6 +5,59 @@ owner: PackageManager + examples
 
 # 内置脚本与插件规范化
 
+## 2026-09-12 12306 与扩展执行边界深化
+
+基线 `main@90b16fce9`，工作区干净。本轮优先解决 12306 全部八个查询入口的实际故障，
+再修复同类插件参数、异步完成和业务结果问题。允许重新设计内部实现，保持包名、导出名、
+既有参数及文本结果兼容；补充机器可读详情与稳定错误分类，版本仍为 `1.0.0`。
+
+1. 用官网公开只读页面/接口及合成夹具复现初始化耦合、动态查询路径、日期、座席和分页问题。
+2. 分离车站与直达/中转初始化，明确服务器拒绝与登录要求；重做查询校验、日期和结果投影。
+3. 覆盖全部入口和并发、错误、空结果、跨日/多页边界；检查相关插件的终态和参数合同。
+4. 同步生产资产，定向自动验证与串行 Debug APK；精确清单审计后提交推送 main。
+
+公开接口只用于查询，不登录、订票、发消息或操作设备，不绕过登录/访问控制。
+网络、模拟宿主和 Android 现场证据分开记录；回滚点为本轮独立提交的父提交。
+
+### 已实现与本地证据
+
+- 删除旧成都东假编码，按官网 `@` 记录解析车站；车站查询不再依赖中转初始化。
+  官网直达初始化当前声明 `leftTicket/queryG`，实现读取声明而非猜测或硬编码查询后缀。
+  保留原八工具及文本输出，增加结构化详情、可区分的失败阶段与代码。
+- 余票不依赖票价存在；上车日期、跨日排序、两程时间与总历时校验保持一致。
+  中转先筛选再限数，去重、防重复游标，并明确 10 页/500 方案的扫描边界。
+- UI 子代理尊重宿主业务失败，保留并行部分结果、禁止共享虚拟屏会话，并只有一次终态。
+  上下文限制器共用严格整数解析，等待写盘后完成，写入错误不暴露原始配置内容。
+- 共享 HTTP 封装补传连接恢复重试配置；multipart 使用宿主真实字段并继承超时、重定向、
+  重试和拦截器策略；响应头不再截断 URL/时间中的冒号。
+- `node --test --test-reporter=spec tools/example_packages/*.test.mjs`：265 项，250 通过、
+  15 环境条件跳过、0 失败；新增铁路 23 项、插件执行 6 项、HTTP 桥接 5 项，共 34 项全部通过。
+  Windows 监听测试首次出现 `ECONNREFUSED`，随后两次单项及后续全量回归未复现；
+  首次失败的根因尚未确认，未通过删除测试、延长超时或吞错处理。
+- 根 examples 与 context_limiter_c TypeScript `--noEmit` 均通过；正式同步
+  `--mode normal --no-hot-reload`：52/52，首次复制 2 项、重打包 1 项；最后补充非数字输入
+  拒绝后再执行增量同步，重打包 1 项，缺项/删除均为 0，相关 6 项插件测试再次通过。
+- 2026-09-12 12:21（Asia/Shanghai）公开只读验证：上海日期、四个车站入口、
+  2026-09-13 北京南至上海虹桥直达查询成功（显式取 3 条），首条车次返回 13 个经停站。
+  官网车站资源、初始化、`queryG` 与经停接口 HTTP 200；中转初始化 HTTP 302 登录页，
+  正确返回 `AUTH_REQUIRED`。该证据来自同一 JS facade + curl 适配器，未使用 Android 宿主。
+- `check_formal_readiness.py --repository . --require-main` 通过；文档工作区检查 521 文件、
+  0 问题，`git diff --check` 通过。
+- 定向 `:app:testDebugUnitTest`：BuiltInPackageMetadata、SearchPackage、
+  PackageManagerRefreshLifecycle、PackageScanPublicationGate 四类共 16 项，零失败/错误/跳过。
+- 串行 `:app:assembleDebug --no-daemon --console=plain`：`BUILD SUCCESSFUL in 2m 27s`，
+  238 个任务。APK 为 `app/build/outputs/apk/debug/app-debug.apk`，488519234 bytes，SHA-256：
+  `32c05e3a31efcef12b0f455d8c737c06d8f5038fcc75dba56f6d6f46d80209ae`。
+  身份 `com.kiyori / 45 / 0.1.0`，V2 单签名与 16 KiB ZIP 对齐通过。
+- APK 精确包含 52 项生产资产：38 个 JS、14 个 ToolPkg、包内 233 个运行文件，均与对应
+  源码/生成资产逐字节匹配；共享 `OkHttp3.js` 也与本次源码一致。无重复 ZIP 条目、私密
+  `.env` 或根 TS 源目录，14 个 manifest 均为 `1.0.0`。未改动 `terminal` 子模块。
+
+以上为本轮本地与公开只读证据；候选提交链接、新鲜克隆和远端 ref 在 Git 交付步骤独立核对。
+
+真实中转数据仍待官网允许的访问条件；Android 设备上的网络、UI 子代理和长对话 Hook
+仍为 `verification_pending`。不把登录边界验证计作中转业务数据成功，也不把模拟执行计作设备验收。
+
 ## 2026-09-12 全量质量完善
 
 本轮以当前生产白名单的 52 项为范围，继续复用 PackageManager、ToolPkgManager 和已有宿主 API。

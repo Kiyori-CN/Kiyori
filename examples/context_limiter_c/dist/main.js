@@ -13,11 +13,7 @@ function readEnv(key) {
 }
 function readFloorLimit() {
     const raw = readEnv(constants_1.ENV_KEYS.floorLimit);
-    const parsed = Number.parseInt(raw, 10);
-    if (!Number.isFinite(parsed) || parsed < 1) {
-        return constants_1.DEFAULT_FLOOR_LIMIT;
-    }
-    return parsed;
+    return (0, constants_1.parseFloorLimit)(raw) ?? constants_1.DEFAULT_FLOOR_LIMIT;
 }
 function readLimiterEnabled() {
     const raw = readEnv(constants_1.ENV_KEYS.enabled).toLowerCase();

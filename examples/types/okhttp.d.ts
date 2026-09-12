@@ -231,7 +231,9 @@ declare class RequestBuilder {
     formParam(name: string, value: string): RequestBuilder;
 
     /**
-     * Add a multipart form parameter
+     * Add a multipart text field. When contentType is supplied, value is a local
+     * file path uploaded by the host with that MIME type. Text field names must
+     * be unique. Multipart responses do not support streaming callbacks.
      */
     multipartParam(name: string, value: string, contentType?: string): RequestBuilder;
 

@@ -188,25 +188,23 @@ test('Nano Banana terminal failure returns promptly with the submitted task iden
 });
 
 const stations = "var station_names ='@bjb|北京北|VAP|beijingbei|bjb|0|0|北京||';";
-const queryPath = "var lc_search_url = '/otn/lcQuery/query';";
 
-test('12306 failed second initialization step does not poison the next invocation', async () => {
-    const host = httpHost([stations, new Error('unavailable'), stations, queryPath]);
+test('12306 station lookup does not depend on transfer initialization', async () => {
+    const host = httpHost([stations]);
     const script = await load('12306', host.globals);
-    assert.equal((await script.invoke('get_stations_code_in_city', { city: '北京' })).success, false);
     const result = await script.invoke('get_stations_code_in_city', { city: '北京' });
     assert.equal(result.success, true);
     assert.equal(result.data[0].station_code, 'VAP');
-    assert.equal(host.requests.length, 4);
+    assert.equal(host.requests.length, 1);
 });
 
-test('12306 repeated cursor fails without unlimited polling or duplicated output', async () => {
-    const host = httpHost([stations, queryPath, {}, { data: { middleList: [{}], can_query: 'Y', result_index: 0 } }]);
+test('12306 same-station transfer request is rejected before any network call', async () => {
+    const host = httpHost([]);
     const script = await load('12306', host.globals);
     const result = await script.invoke('get_interline_tickets', { date: '2099-01-01', from_station: 'VAP', to_station: 'VAP' });
     assert.equal(result.success, false);
-    assert.match(result.message, /repeated pagination cursor/);
-    assert.equal(host.requests.length, 4);
+    assert.equal(result.error.code, 'INVALID_ARGUMENT');
+    assert.equal(host.requests.length, 0);
 });
 
 test('HTTP upload and request bodies share the bounded response-file contract', async () => {

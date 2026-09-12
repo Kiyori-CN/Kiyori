@@ -60,48 +60,33 @@
 }
 */
 
-import { DEFAULT_FLOOR_LIMIT, ENV_KEYS } from "../constants";
+import { DEFAULT_FLOOR_LIMIT, ENV_KEYS, parseFloorLimit } from "../constants";
 
 interface FloorLimitParams {
   n?: string | number;
 }
 
-function normalizeLimit(value: string | number | undefined): number {
-  const parsed = Number.parseInt(String(value), 10);
-  return parsed;
-}
-
-export function set_floor_limit(params: FloorLimitParams) {
-  const limit = normalizeLimit(params.n);
-  if (!Number.isFinite(limit) || limit < 1) {
-    complete({ success: false, error: "n 必须是大于 0 的整数" });
+export async function set_floor_limit(params: FloorLimitParams): Promise<void> {
+  const limit = parseFloorLimit(params?.n);
+  if (limit === undefined) {
+    complete({ success: false, message: "n 必须是大于 0 的整数", error: "INVALID_ARGUMENT" });
     return;
   }
-
-  Tools.SoftwareSettings.writeEnvironmentVariable(ENV_KEYS.floorLimit, String(limit))
-    .then(() => {
-      complete({
-        success: true,
-        floor_limit: limit,
-        message: `已设置保留最近 ${limit} 个楼层`,
-      });
-    })
-    .catch((error: unknown) => {
-      complete({
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    });
+  try {
+    await Tools.SoftwareSettings.writeEnvironmentVariable(ENV_KEYS.floorLimit, `${limit}`);
+  } catch (_error) {
+    console.error('context_limiter_c: floor limit persistence failed');
+    complete({ success: false, message: '保存楼层数失败，请检查设置后重试。', error: 'WRITE_FAILED' });
+    return;
+  }
+  complete({ success: true, floor_limit: limit, message: `已设置保留最近 ${limit} 个楼层` });
 }
 
 export function get_floor_limit() {
   let current = DEFAULT_FLOOR_LIMIT;
   if (typeof getEnv === "function") {
     const raw = getEnv(ENV_KEYS.floorLimit);
-    const parsed = Number.parseInt(String(raw ?? ""), 10);
-    if (Number.isFinite(parsed) && parsed > 0) {
-      current = parsed;
-    }
+    current = parseFloorLimit(raw) ?? DEFAULT_FLOOR_LIMIT;
   }
 
   complete({

@@ -694,6 +694,8 @@ class StandardHttpTools(private val context: Context) {
                             connectTimeout = connectTimeoutParam?.toLongOrNull() ?: 15,
                             readTimeout = readTimeoutParam?.toLongOrNull() ?: 20,
                             writeTimeout = writeTimeoutParam?.toLongOrNull() ?: 15,
+                            retryOnConnectionFailure =
+                                    tool.parameters.find { it.name == "retry_on_connection_failure" }?.value?.lowercase() != "false",
                             followRedirects = followRedirectsParam?.lowercase() != "false",
                             followSslRedirects = followRedirectsParam?.lowercase() != "false",
                             useCookies = useCookiesParam?.lowercase() != "false",

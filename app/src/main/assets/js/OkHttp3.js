@@ -105,18 +105,44 @@ class OkHttpClient {
             body: modifiedRequest.body,
             body_type: modifiedRequest.bodyType || 'text',
             follow_redirects: this._config.followRedirects,
+            // 必须传到宿主，否则禁用连接恢复重试的写操作仍可能被重新提交。
+            retry_on_connection_failure: this._config.retryOnConnectionFailure,
             connect_timeout: Math.max(1, Math.ceil((this._config.timeouts.connect || 10000) / 1000)),
             read_timeout: Math.max(1, Math.ceil((this._config.timeouts.read || 30000) / 1000)),
             write_timeout: Math.max(1, Math.ceil((this._config.timeouts.write || 30000) / 1000))
         };
 
-        if (options && typeof options.onIntermediateResult === 'function') {
+        const multipart = modifiedRequest.bodyType === 'multipart';
+        if (multipart) {
+            if (options && typeof options.onIntermediateResult === 'function') {
+                throw new Error('Multipart requests do not support streaming responses');
+            }
+            const fields = { ...modifiedRequest.formParams };
+            const files = [];
+            for (const part of modifiedRequest.multipartParams || []) {
+                if (part.contentType) {
+                    files.push({ field_name: part.name, file_path: part.value, content_type: part.contentType });
+                } else {
+                    if (Object.prototype.hasOwnProperty.call(fields, part.name)) {
+                        throw new Error('Duplicate multipart text field: ' + part.name);
+                    }
+                    Object.defineProperty(fields, part.name, { value: part.value, enumerable: true });
+                }
+            }
+            params.form_data = JSON.stringify(fields);
+            params.files = JSON.stringify(files);
+            // boundary 由宿主生成，不能携带先前 formParam 设置的 URL-encoded 类型。
+            params.headers = JSON.stringify(Object.fromEntries(Object.entries(modifiedRequest.headers)
+                .filter(([name]) => name.toLowerCase() !== 'content-type')));
+            delete params.body;
+            delete params.body_type;
+        } else if (options && typeof options.onIntermediateResult === 'function') {
             params.stream = true;
         }
 
         // Execute the request using the underlying http_request tool
         const response = await toolCall({
-            name: "http_request",
+            name: multipart ? "multipart_request" : "http_request",
             params,
             onIntermediateResult:
                 options && typeof options.onIntermediateResult === 'function'
@@ -234,8 +260,10 @@ class RequestBuilder {
     // Add form parameter
     formParam(name, value) {
         this._request.formParams[name] = value;
-        this._request.bodyType = 'form';
-        this._request.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+        if (this._request.bodyType !== 'multipart') {
+            this._request.bodyType = 'form';
+            this._request.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+        }
         return this;
     }
 
@@ -254,23 +282,6 @@ class RequestBuilder {
                 .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
                 .join('&');
             this._request.body = formData;
-        }
-
-        // Handle multipart form data
-        if (this._request.bodyType === 'multipart' && this._request.multipartParams.length > 0) {
-            // Multipart requests are handled differently - we'll use multipart_request tool
-            return {
-                execute: async () => {
-                    const params = {
-                        url: this._request.url,
-                        method: this._request.method,
-                        headers: JSON.stringify(this._request.headers),
-                        fields: JSON.stringify(this._request.multipartParams)
-                    };
-                    const response = await toolCall("multipart_request", params);
-                    return new Response(response);
-                }
-            };
         }
 
         // Return a request object with an execute method
@@ -303,8 +314,11 @@ class Response {
             if (typeof headersString === 'string') {
                 const headerLines = headersString.split('\n');
                 for (const line of headerLines) {
-                    const [name, value] = line.split(':', 2);
-                    if (name && value) {
+                    const separator = line.indexOf(':');
+                    if (separator < 1) continue;
+                    const name = line.slice(0, separator);
+                    const value = line.slice(separator + 1);
+                    if (name) {
                         headers[name.trim()] = value.trim();
                     }
                 }

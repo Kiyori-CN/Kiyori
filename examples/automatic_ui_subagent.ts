@@ -583,6 +583,7 @@ const UIAutomationSubAgentTools = (function () {
 
     async function run_subagent_internal(params: { intent: string, max_steps?: number, agent_id?: string, target_app?: string }): Promise<ToolResponse> {
         const { intent, max_steps, agent_id, target_app } = params;
+        validateRunInput(intent, max_steps);
         const state = getPackageState();
         const isMainScreen = String(state).toLowerCase() === 'main_screen';
 
@@ -619,14 +620,14 @@ const UIAutomationSubAgentTools = (function () {
             targetAppForRun = matched.run;
         }
 
-        const result = await Tools.UI.runSubAgent(intent, max_steps, agentIdToUse, targetAppForRun) as unknown;
-        const agentId = (result as { agentId?: unknown } | null)?.agentId;
+        const result = await Tools.UI.runSubAgent(intent, max_steps, agentIdToUse, targetAppForRun);
+        const agentId = result.agentId;
         if (agentId && String(agentId).trim().length > 0 && String(agentId).trim().toLowerCase() !== 'default') {
             setCachedAgentId(agentId);
         }
         return {
-            success: true,
-            message: 'UI子代理执行完成',
+            success: result.executionSuccess,
+            message: result.executionSuccess ? 'UI 子代理执行完成' : (result.executionError || result.executionMessage || 'UI 子代理未完成目标'),
             data: result,
         };
     }
@@ -654,6 +655,10 @@ const UIAutomationSubAgentTools = (function () {
     }
 
     type Slot = 1 | 2 | 3 | 4;
+    function validateRunInput(intent: string, maxSteps?: number): void {
+        if (typeof intent !== 'string' || !intent.trim()) throw new Error('intent 必须为非空任务描述。');
+        if (maxSteps !== undefined && (!Number.isSafeInteger(maxSteps) || maxSteps < 1 || maxSteps > 2147483647)) throw new Error('max_steps 必须为有效正整数。');
+    }
     type ParallelParams = {
         intent_1: string, target_app_1: string, max_steps_1?: number, agent_id_1?: string,
         intent_2?: string, target_app_2?: string, max_steps_2?: number, agent_id_2?: string,
@@ -686,6 +691,9 @@ const UIAutomationSubAgentTools = (function () {
             })
             .filter((x): x is { index: Slot, targetApp: string | undefined } => Boolean(x));
 
+        if (!activeSlots.length) throw new Error('至少需要一个非空 intent。');
+        for (const slot of activeSlots) validateRunInput(params[`intent_${slot.index}`]!, params[`max_steps_${slot.index}`]);
+
         const missingTargets = activeSlots
             .filter((s) => s.targetApp === undefined || s.targetApp === null || String(s.targetApp).trim().length === 0)
             .map((s) => s.index);
@@ -709,6 +717,10 @@ const UIAutomationSubAgentTools = (function () {
                 message: `并行参数错误：虚拟屏并行模式下，每个启用分支必须显式传入非 'default' 的 agent_id。缺少/非法 agent_id 的分支：${missingAgentIds.map((i) => `#${i}`).join('，')}。`,
             };
         }
+
+        // 不同应用仍不能共享同一个虚拟屏会话，否则并发分支会互相改写界面。
+        const agentIds = activeSlots.map(slot => params[`agent_id_${slot.index}`]!.trim());
+        if (new Set(agentIds).size !== agentIds.length) throw new Error('并行分支必须使用互不相同的 agent_id。');
 
         const installed = await getInstalledApps();
         const resolvedBySlot = new Map<Slot, { key: string, run: string }>();
@@ -746,7 +758,7 @@ const UIAutomationSubAgentTools = (function () {
         }
 
         type ParallelSubAgentResult =
-            | { index: Slot, success: true, result: unknown }
+            | { index: Slot, success: boolean, result: Awaited<ReturnType<typeof Tools.UI.runSubAgent>> }
             | { index: Slot, success: false, error: string };
 
         const tasks = slots
@@ -765,9 +777,10 @@ const UIAutomationSubAgentTools = (function () {
                             maxSteps === undefined ? undefined : Number(maxSteps),
                             agentId === undefined || agentId === null || String(agentId).trim().length === 0 ? undefined : String(agentId).trim(),
                             targetApp
-                        ) as unknown;
-                        return { index: i, success: true, result };
+                        );
+                        return { index: i, success: result.executionSuccess, result };
                     } catch (e: unknown) {
+                        console.error(`UI subagent branch ${i} failed`);
                         return { index: i, success: false, error: errorMessage(e) };
                     }
                 })();
@@ -777,10 +790,12 @@ const UIAutomationSubAgentTools = (function () {
         const results = await Promise.all(tasks);
         const okCount = results.filter((r) => r.success).length;
         return {
-            success: true,
+            success: okCount === results.length,
             message: `并行UI子代理执行完成：成功 ${okCount} 个 / 共 ${results.length} 个`,
             data: {
                 results,
+                completed_count: okCount,
+                failed_count: results.length - okCount,
             },
         };
     }
@@ -803,16 +818,18 @@ const UIAutomationSubAgentTools = (function () {
     }
 
     async function wrapToolExecution<P>(func: (params: P) => Promise<ToolResponse>, params: P) {
+        let result: ToolResponse;
         try {
-            const result = await func(params);
-            complete(result);
+            result = await func(params);
         } catch (error: unknown) {
-            console.error(`Tool ${func.name} failed unexpectedly`, error);
-            complete({
+            console.error(`Tool ${func.name} failed`);
+            result = {
                 success: false,
                 message: `工具执行时发生意外错误: ${errorMessage(error)}`,
-            });
+            };
         }
+        // 完成回调异常不能再被包装成第二个终态，也不能重新执行已产生的 UI 操作。
+        complete(result);
     }
 
     return {

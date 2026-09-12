@@ -1,5 +1,6 @@
 import {
   DEFAULT_FLOOR_LIMIT,
+  parseFloorLimit,
   DEFAULT_LIMITER_ENABLED,
   ENV_KEYS,
   FLOOR_OPTIONS,
@@ -19,11 +20,7 @@ function readEnv(key: (typeof ENV_KEYS)[keyof typeof ENV_KEYS]): string {
 
 function readFloorLimit(): number {
   const raw = readEnv(ENV_KEYS.floorLimit);
-  const parsed = Number.parseInt(raw, 10);
-  if (!Number.isFinite(parsed) || parsed < 1) {
-    return DEFAULT_FLOOR_LIMIT;
-  }
-  return parsed;
+  return parseFloorLimit(raw) ?? DEFAULT_FLOOR_LIMIT;
 }
 
 function readLimiterEnabled(): boolean {
