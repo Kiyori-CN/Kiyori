@@ -7,8 +7,8 @@
         "en": "Extended HTTP Tools"
     },
     "description": {
-        "zh": "允许文件上传，以及 GET/POST 等网络直接访问操作。",
-        "en": "Allows file uploads and direct network access operations such as GET/POST."
+        "zh": "发送 HTTP 请求、上传文件并管理 Cookie。返回响应状态与正文；大型正文保存到文件后按需读取。",
+        "en": "Send HTTP requests, upload files, and manage cookies. Return response status and content; read large response bodies from the saved file as needed."
     },
     "enabledByDefault": true,
     "category": "Network",
@@ -77,12 +77,14 @@ const ExtendedHttpTools = (function () {
         if (params.ignore_ssl !== undefined) toolParams.ignore_ssl = params.ignore_ssl;
 
         const result = await toolCall({ name: "http_request", params: toolParams });
+        return formatHttpResponse(result, 'HTTP 请求');
+    }
+
+    async function formatHttpResponse(result: HttpResponseData, operation: string): Promise<ToolResponse> {
         const success = result.statusCode >= 200 && result.statusCode < 400;
 
         const contentStr = typeof result?.content === "string" ? result.content : "";
         if (contentStr.length > MAX_INLINE_HTTP_RESPONSE_CHARS) {
-            await Tools.Files.mkdir(KIYORI_CLEAN_ON_EXIT_DIR, true);
-
             const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
             const rand = Math.floor(Math.random() * 1_000_000);
 
@@ -93,7 +95,19 @@ const ExtendedHttpTools = (function () {
             else if (ct.includes("xml")) ext = "xml";
 
             const filePath = `${KIYORI_CLEAN_ON_EXIT_DIR}/http_response_${timestamp}_${rand}.${ext}`;
-            await Tools.Files.write(filePath, contentStr, false);
+            try {
+                const directory = await Tools.Files.mkdir(KIYORI_CLEAN_ON_EXIT_DIR, true);
+                if (!directory.successful) throw new Error('mkdir failed');
+                const written = await Tools.Files.write(filePath, contentStr, false);
+                if (!written.successful) throw new Error('write failed');
+            } catch (error) {
+                console.error(`${operation}: response received but response file could not be saved`);
+                return {
+                    success: false,
+                    message: `${operation}已收到响应，但保存大型正文失败。请求可能已产生副作用，请勿自动重复提交。`,
+                    data: { statusCode: result.statusCode, response_received: true, content: contentStr.slice(0, MAX_INLINE_HTTP_RESPONSE_CHARS), content_truncated: true, original_content_chars: contentStr.length },
+                };
+            }
 
             const resultMeta = {
                 url: result?.url,
@@ -107,7 +121,7 @@ const ExtendedHttpTools = (function () {
 
             return {
                 success,
-                message: `HTTP 请求完成；响应内容过大，已保存到文件：${filePath}。请使用 read_file_part 读取指定行范围，或用 grep_code 在该文件中检索关键字。`,
+                message: `${operation}完成；响应正文已保存到文件：${filePath}。请使用 read_file_part 按行读取，或使用 grep_code 检索。`,
                 data: {
                     result: resultMeta,
                     content_saved_to: filePath,
@@ -116,7 +130,7 @@ const ExtendedHttpTools = (function () {
             };
         }
 
-        return { success, message: 'HTTP 请求完成', data: result };
+        return { success, message: `${operation}完成（HTTP ${result.statusCode}）`, data: result };
     }
 
     async function multipart_request(params: {
@@ -137,8 +151,7 @@ const ExtendedHttpTools = (function () {
         if (params.ignore_ssl !== undefined) toolParams.ignore_ssl = params.ignore_ssl;
 
         const result = await toolCall({ name: "multipart_request", params: toolParams });
-        const success = result.statusCode >= 200 && result.statusCode < 400;
-        return { success, message: '文件上传完成', data: result };
+        return formatHttpResponse(result, '文件上传');
     }
 
     async function manage_cookies(params: { action: string; domain?: string; cookies?: string }): Promise<ToolResponse> {
@@ -149,8 +162,8 @@ const ExtendedHttpTools = (function () {
         if (params.cookies !== undefined) toolParams.cookies = params.cookies;
 
         const result = await toolCall({ name: "manage_cookies", params: toolParams });
-        const success = result.statusCode >= 200 && result.statusCode < 400;
-        return { success, message: 'Cookies 操作完成', data: result };
+        // 宿主成功时返回 StringResultData 文本，失败会拒绝 Promise；没有 HTTP 状态码。
+        return { success: true, message: 'Cookie 操作完成', data: result };
     }
 
     async function wrapToolExecution<P>(func: (params: P) => Promise<ToolResponse>, params: P) {
@@ -158,10 +171,10 @@ const ExtendedHttpTools = (function () {
             const result = await func(params);
             complete(result);
         } catch (error: any) {
-            console.error(`Tool ${func.name} failed unexpectedly`, error);
+            console.error(`Tool ${func.name} failed`);
             complete({
                 success: false,
-                message: `工具执行时发生意外错误: ${error.message}`,
+                message: `工具执行失败: ${typeof error?.message === 'string' ? error.message : typeof error === 'string' ? error : '宿主未提供错误说明'}`,
             });
         }
     }

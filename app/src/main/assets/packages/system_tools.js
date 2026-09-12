@@ -485,10 +485,10 @@ const SystemTools = (function () {
             complete(result);
         }
         catch (error) {
-            console.error(`Tool ${func.name} failed unexpectedly`, error);
+            console.error(`Tool ${func.name} failed`);
             complete({
                 success: false,
-                message: `工具执行时发生意外错误: ${error.message}`,
+                message: `工具执行失败: ${typeof error?.message === 'string' ? error.message : typeof error === 'string' ? error : '宿主未提供错误说明'}`,
             });
         }
     }

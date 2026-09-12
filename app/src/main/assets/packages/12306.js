@@ -139,11 +139,16 @@ const ticket12306 = (function () {
         return new Date(now.getTime() + 8 * 60 * 60 * 1000);
     }
     function checkDate(dateStr) {
+        if (typeof dateStr !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr))
+            return false;
         const todayInShanghai = getCurrentShanghaiDate();
         todayInShanghai.setUTCHours(0, 0, 0, 0);
         const parts = dateStr.split('-').map(p => parseInt(p, 10));
         const inputDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
-        return inputDate.getTime() >= todayInShanghai.getTime();
+        return inputDate.getUTCFullYear() === parts[0]
+            && inputDate.getUTCMonth() === parts[1] - 1
+            && inputDate.getUTCDate() === parts[2]
+            && inputDate.getTime() >= todayInShanghai.getTime();
     }
     function parseCookies(cookies) {
         const cookieRecord = {};
@@ -151,7 +156,11 @@ const ticket12306 = (function () {
             return cookieRecord;
         cookies.forEach((cookie) => {
             const keyValuePart = cookie.split(';')[0];
-            const [key, value] = keyValuePart.split('=');
+            const separator = keyValuePart.indexOf('=');
+            if (separator <= 0)
+                return;
+            const key = keyValuePart.slice(0, separator);
+            const value = keyValuePart.slice(separator + 1);
             if (key && value) {
                 cookieRecord[key.trim()] = value.trim();
             }
@@ -502,8 +511,10 @@ const ticket12306 = (function () {
             if (STATIONS)
                 return;
             try {
-                STATIONS = await getStationsInternal();
+                const stations = await getStationsInternal();
                 LCQUERY_PATH = await getLCQueryPath();
+                // 初始化依赖全部读取成功后再发布，防止第二步失败后留下半初始化缓存。
+                STATIONS = stations;
                 CITY_STATIONS = {};
                 for (const station of Object.values(STATIONS)) {
                     const city = station.city;
@@ -612,7 +623,10 @@ const ticket12306 = (function () {
         const cookies = await getCookie();
         if (!cookies)
             throw new Error('Get cookie failed. Check your network.');
-        const limited_num = params.limited_num || 10;
+        const limited_num = params.limited_num ?? 10;
+        if (!Number.isInteger(limited_num) || limited_num < 1 || limited_num > 100) {
+            throw new Error('limited_num must be an integer from 1 to 100.');
+        }
         let interlineData = [];
         const queryParams = {
             'train_date': params.date,
@@ -625,15 +639,25 @@ const ticket12306 = (function () {
             'purpose_codes': '00',
             'channel': 'E',
         };
+        const visitedCursors = new Set();
         while (interlineData.length < limited_num) {
+            if (visitedCursors.has(queryParams.result_index)) {
+                throw new Error('12306 returned a repeated pagination cursor; query stopped.');
+            }
+            visitedCursors.add(queryParams.result_index);
             const response = await make12306Request(`${API_BASE}${LCQUERY_PATH}`, queryParams, { Cookie: formatCookies(cookies) });
             if (!response)
                 throw new Error('Request interline tickets data failed.');
             if (typeof response.data === 'string')
                 return `很抱歉，未查到相关的列车余票。(${response.errorMsg})`;
+            if (!response.data || !Array.isArray(response.data.middleList)) {
+                throw new Error('12306 returned invalid interline ticket data.');
+            }
             interlineData.push(...response.data.middleList);
-            if (response.data.can_query === 'N' || !response.data.middleList || response.data.middleList.length === 0)
+            if (interlineData.length >= limited_num || response.data.can_query === 'N' || response.data.middleList.length === 0)
                 break;
+            if (response.data.result_index == null)
+                throw new Error('12306 returned no pagination cursor.');
             queryParams.result_index = response.data.result_index.toString();
         }
         const interlineTicketsInfo = parseInterlinesInfo(interlineData);

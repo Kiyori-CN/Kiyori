@@ -380,43 +380,6 @@ Run 1-4 independent UI sub-agents in parallel on virtual displays. Give every ac
                     }
                     parameters: []
                 }
-
-                {
-                    name: "run_subagent_main"
-                    description: {
-                        zh: "在主屏幕运行 UI 子代理（强制主屏）。",
-                        en: "Run the UI sub-agent on the main screen (forced main screen)."
-                    }
-                    parameters: [
-                        {
-                            name: "intent"
-                            description: {
-                                zh: "任务意图描述",
-                                en: "Task intent description"
-                            }
-                            type: "string"
-                            required: true
-                        }
-                        {
-                            name: "target_app"
-                            description: {
-                                zh: "目标应用名/包名（可选）",
-                                en: "Target app name/package (optional)"
-                            }
-                            type: "string"
-                            required: false
-                        }
-                        {
-                            name: "max_steps"
-                            description: {
-                                zh: "最大执行步数（默认20）",
-                                en: "Maximum execution steps (default: 20)"
-                            }
-                            type: "number"
-                            required: false
-                        }
-                    ]
-                }
             ]
         }
 

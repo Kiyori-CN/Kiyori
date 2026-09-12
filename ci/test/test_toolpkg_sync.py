@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 import zipfile
 from pathlib import Path
 
@@ -19,10 +20,39 @@ from sync_example_packages import (  # noqa: E402
     _pack_toolpkg_folder,
     _read_whitelist_file,
     _resolve_plan_item_from_roots,
+    _prebuild_examples,
+    _prebuild_planned_child_names,
+    SyncPlanItem,
 )
 
 
 class ToolPkgRuntimeFilesTest(unittest.TestCase):
+    def test_copied_bundle_builds_its_source_project_and_invalidates_on_source_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            examples = root / "examples"
+            child = examples / "bundle"
+            child.mkdir(parents=True)
+            (examples / "tsconfig.json").write_text("{}", encoding="utf-8")
+            (child / "tsconfig.json").write_text("{}", encoding="utf-8")
+            (child / "package.json").write_text('{"scripts":{"build":"node build.js"}}', encoding="utf-8")
+            source = child / "index.ts"
+            source.write_text("export const value = 1;", encoding="utf-8")
+            plan = SyncPlanItem("copy", examples / "bundle.js", "bundle.js")
+            state = {}
+            self.assertEqual(_prebuild_planned_child_names(examples, [plan]), {"bundle"})
+            with patch("sync_example_packages._run_checked_command") as run:
+                _prebuild_examples(root, examples, [plan], dry_run=False, local_state=state)
+                self.assertEqual(run.call_count, 2)
+                self.assertEqual(run.call_args.args[0][-2:], ["run", "build"])
+                self.assertEqual(run.call_args.kwargs["cwd"], child)
+                run.reset_mock()
+                _prebuild_examples(root, examples, [plan], dry_run=False, local_state=state)
+                run.assert_not_called()
+                source.write_text("export const value = 2;", encoding="utf-8")
+                _prebuild_examples(root, examples, [plan], dry_run=False, local_state=state)
+                self.assertEqual(run.call_count, 2)
+
     def test_npm_executable_uses_windows_command_shim(self) -> None:
         self.assertEqual(_npm_executable("win32"), "npm.cmd")
 

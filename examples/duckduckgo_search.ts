@@ -23,7 +23,7 @@ METADATA
                 },
                 {
                     "name": "max_results",
-                    "description": { "zh": "返回的最大结果数 (默认: 10)", "en": "Maximum number of results to return (default: 10)." },
+                    "description": { "zh": "返回结果上限：1–50 的整数（默认 10）。", "en": "Maximum results: an integer from 1 to 50 (default: 10)." },
                     "type": "string",
                     "required": false
                 }
@@ -96,19 +96,19 @@ const duckduckgo = (function () {
     async function search(params: { query: string; max_results?: string }): Promise<string> {
         const { query } = params;
         let max_results = 10;
-        if (params.max_results) {
-            const parsedMaxResults = parseInt(params.max_results, 10);
-            if (!isNaN(parsedMaxResults)) {
-                max_results = parsedMaxResults;
+        if (params.max_results !== undefined) {
+            max_results = Number(params.max_results);
+            if (!Number.isInteger(max_results) || max_results < 1 || max_results > 50) {
+                throw new Error('max_results 必须为 1–50 的整数');
             }
         }
 
-        if (!query) {
+        if (typeof query !== 'string' || !query.trim()) {
             throw new Error("查询不能为空");
         }
 
         await searchRateLimiter.acquire();
-        console.log(`正在从DuckDuckGo搜索: ${query}`);
+        console.log('DuckDuckGo: 开始搜索');
 
         const request = client.newRequest()
             .url(BASE_URL)
@@ -127,8 +127,9 @@ const duckduckgo = (function () {
         const results: { title: string; link: string; snippet: string; position: number }[] = [];
         const resultRegex = /<h2 class="result__title">[\s\S]*?<a.*?href="([^"]+)".*?>([\s\S]+?)<\/a>[\s\S]*?<\/h2>[\s\S]*?<a class="result__snippet".*?>([\s\S]+?)<\/a>/g;
 
-        let match;
-        while ((match = resultRegex.exec(html)) !== undefined) {
+        let match: RegExpExecArray | null;
+        // exec 在遍历结束时返回 null；结果不足上限时也必须正常完成。
+        while ((match = resultRegex.exec(html)) !== null) {
             if (results.length >= max_results) {
                 break;
             }
@@ -142,7 +143,7 @@ const duckduckgo = (function () {
                 try {
                     link = decodeURIComponent(link.split('uddg=')[1].split('&')[0]);
                 } catch (e) {
-                    console.error(`URL 解码失败: ${link}`);
+                    console.error('DuckDuckGo: 结果跳转 URL 解码失败，保留原链接');
                 }
             }
 
@@ -168,7 +169,7 @@ const duckduckgo = (function () {
         }
 
         await fetchRateLimiter.acquire();
-        console.log(`正在抓取内容: ${url}`);
+        console.log('DuckDuckGo: 开始抓取正文');
 
         try {
             const request = client.newRequest()
@@ -197,8 +198,8 @@ const duckduckgo = (function () {
             console.log(`成功抓取并解析内容 (${text.length} 字符)`);
             return text;
         } catch (error) {
-            console.error(`从 ${url} 抓取内容时出错: ${error.message}`);
-            return `错误: 从网页抓取内容时发生意外错误 (${error.message})`;
+            // 错误交给唯一的完成包装器，不能把失败正文当作成功结果。
+            throw error;
         }
     }
 
@@ -233,8 +234,9 @@ const duckduckgo = (function () {
             const result = await func(params);
             complete({ success: true, message: successMessage, data: result });
         } catch (error) {
-            console.error(`函数 ${func.name || '匿名函数'} 执行失败! 错误: ${error.message}`);
-            complete({ success: false, message: `${failMessage}: ${error.message}`, error_stack: error.stack });
+            console.error(`DuckDuckGo: ${func.name} 执行失败`);
+            const detail = typeof error?.message === 'string' ? error.message : '宿主未提供错误说明';
+            complete({ success: false, message: `${failMessage}: ${detail}` });
         }
     }
 

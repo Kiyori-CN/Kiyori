@@ -83,7 +83,7 @@ export interface ToolResultMap {
     'browser_type': string;
     'browser_tabs': string;
     'multipart_request': HttpResponseData;
-    'manage_cookies': HttpResponseData;
+    'manage_cookies': string;
 
     // System operations
     'sleep': SleepResultData;

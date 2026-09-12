@@ -92,10 +92,11 @@ const qwenDraw = (function () {
     function normalizePositiveInt(value, fallback) {
         if (value === undefined || value === null)
             return fallback;
-        const n = typeof value === "number" ? value : parseInt(String(value), 10);
-        if (!Number.isFinite(n) || n <= 0)
-            return fallback;
-        return Math.floor(n);
+        const n = typeof value === "number" ? value : Number(value);
+        if (!Number.isSafeInteger(n) || n <= 0 || n > 2147483647) {
+            throw new Error('轮询时间必须为 1–2147483647 之间的整数毫秒。');
+        }
+        return n;
     }
     function joinUrl(baseUrl, path) {
         const normalizedBase = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
@@ -176,14 +177,10 @@ const qwenDraw = (function () {
     async function ensureDirectories() {
         const dirs = [DRAW_ROOT_DIR, STORAGE_DIR, DRAWS_DIR];
         for (const dir of dirs) {
-            try {
-                const result = await Tools.Files.mkdir(dir);
-                if (!result.successful) {
-                    console.warn(`创建目录失败(可能已存在): ${dir} -> ${result.details}`);
-                }
-            }
-            catch (e) {
-                console.warn(`创建目录异常: ${dir} -> ${getErrorMessage(e)}`);
+            // 宿主对已有目录返回成功；实际失败必须在付费提交前暴露，不能继续生成后丢失产物。
+            const result = await Tools.Files.mkdir(dir, true);
+            if (!result.successful) {
+                throw new Error('无法准备图片或视频输出目录，请检查存储权限与目标路径。');
             }
         }
     }
@@ -299,6 +296,8 @@ const qwenDraw = (function () {
             throw new Error("参数 prompt 不能为空。");
         }
         const prompt = params.prompt.trim();
+        const pollIntervalMs = normalizePositiveInt(params.poll_interval_ms, POLL_INTERVAL_MS);
+        const maxWaitTimeMs = normalizePositiveInt(params.max_wait_time_ms, MAX_WAIT_TIME_MS);
         await ensureDirectories();
         const createResult = await createTask({
             prompt,
@@ -313,8 +312,8 @@ const qwenDraw = (function () {
         const pollResult = await pollTask({
             task_id: createResult.task_id,
             api_base_url: params.api_base_url,
-            poll_interval_ms: params.poll_interval_ms,
-            max_wait_time_ms: params.max_wait_time_ms
+            poll_interval_ms: pollIntervalMs,
+            max_wait_time_ms: maxWaitTimeMs
         });
         const ext = guessExtensionFromUrl(pollResult.image_url);
         const baseName = buildFileName(prompt, params.file_name);

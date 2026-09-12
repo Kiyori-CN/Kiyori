@@ -94,11 +94,11 @@ const nanobananaDraw = (function () {
         if (value === undefined || value === null) {
             return fallback;
         }
-        const n = typeof value === "number" ? value : parseInt(String(value), 10);
-        if (!Number.isFinite(n) || n <= 0) {
-            return fallback;
+        const n = typeof value === "number" ? value : Number(value);
+        if (!Number.isSafeInteger(n) || n <= 0 || n > 2147483647) {
+            throw new Error('轮询时间必须为 1–2147483647 之间的整数毫秒。');
         }
-        return Math.floor(n);
+        return n;
     }
     function getApiKey() {
         const apiKey = getEnv("NANOBANANA_API_KEY");
@@ -318,14 +318,10 @@ const nanobananaDraw = (function () {
     async function ensureDirectories() {
         const dirs = [DRAW_ROOT_DIR, STORAGE_DIR, DRAWS_DIR];
         for (const dir of dirs) {
-            try {
-                const result = await Tools.Files.mkdir(dir);
-                if (!result.successful) {
-                    console.warn(`创建目录失败(可能已存在): ${dir} -> ${result.details}`);
-                }
-            }
-            catch (e) {
-                console.warn(`创建目录异常: ${dir} -> ${getErrorMessage(e)}`);
+            // 宿主对已有目录返回成功；实际失败必须在付费提交前暴露，不能继续生成后丢失产物。
+            const result = await Tools.Files.mkdir(dir, true);
+            if (!result.successful) {
+                throw new Error('无法准备图片或视频输出目录，请检查存储权限与目标路径。');
             }
         }
     }
@@ -419,23 +415,17 @@ const nanobananaDraw = (function () {
                     .body(JSON.stringify({ id: taskId }), "json");
                 const response = await request.build().execute();
                 if (!response.isSuccessful()) {
-                    console.warn(`⚠️ 查询请求未成功 (HTTP ${response.statusCode}): ${response.content}，将重试...`);
-                    await doSleep(pollIntervalMs);
-                    continue;
+                    throw new Error(`查询请求失败 (HTTP ${response.statusCode})`);
                 }
                 let parsed;
                 try {
                     parsed = JSON.parse(response.content);
                 }
                 catch (_error) {
-                    console.warn("⚠️ 解析结果响应失败，将重试");
-                    await doSleep(pollIntervalMs);
-                    continue;
+                    throw new Error('查询结果不是有效 JSON');
                 }
                 if (!isRecord(parsed)) {
-                    console.warn(`查询响应异常: ${JSON.stringify(parsed)}`);
-                    await doSleep(pollIntervalMs);
-                    continue;
+                    throw new Error('查询响应必须为对象');
                 }
                 if (parsed["code"] === -22 || parsed["code"] === "-22") {
                     console.log("任务排队/处理中... (等待服务器生成)");
@@ -443,15 +433,11 @@ const nanobananaDraw = (function () {
                     continue;
                 }
                 if (!isApiSuccessResponse(parsed)) {
-                    console.warn(`⚠️ API 返回异常状态，将重试: ${JSON.stringify(parsed)}`);
-                    await doSleep(pollIntervalMs);
-                    continue;
+                    throw new Error('查询 API 返回失败状态');
                 }
                 const data = extractTaskPayload(parsed);
                 if (!data) {
-                    console.warn(`查询响应异常 (无有效数据): ${JSON.stringify(parsed)}`);
-                    await doSleep(pollIntervalMs);
-                    continue;
+                    throw new Error('查询响应缺少任务数据');
                 }
                 const progress = normalizeProgress(data["progress"]);
                 const status = normalizeStatus(data["status"]);
@@ -460,23 +446,24 @@ const nanobananaDraw = (function () {
                 if (isSuccessStatus(status) || (progress >= 100 && imageUrl.length > 0)) {
                     console.log("✅ 任务完成!");
                     if (imageUrl.length === 0) {
-                        throw new Error("任务完成但响应中未找到图片URL: " + JSON.stringify(data));
+                        throw new Error('任务完成但响应中未找到图片 URL');
                     }
                     return imageUrl;
                 }
                 if (isFailureStatus(status)) {
-                    throw new Error(`任务执行失败: ${JSON.stringify(data)}`);
+                    throw new Error(`任务执行失败，状态：${status}`);
                 }
                 if ((status === "running" || status === "processing") && progress > 0) {
                     console.log(`生成中... 进度: ${progress}%`);
                 }
             }
             catch (error) {
-                console.log(`⚠️ 第${attempt}次查询发生不可预知的异常: ${getErrorMessage(error)}，程序将自动进行下一次尝试...`);
+                // 只有明确的处理中状态继续轮询；终态、认证失败与传输错误不能被吞掉直到超时。
+                throw new Error(`任务 ${taskId} 查询停止：${getErrorMessage(error)}。请核对已有任务，勿重复提交。`);
             }
             await doSleep(pollIntervalMs);
         }
-        throw new Error(`任务超时: 等待超过${Math.ceil(maxWaitTimeMs / 60000)}分钟仍未完成`);
+        throw new Error(`任务 ${taskId} 等待超时，未确认生成结果。请核对已有任务，勿重复提交。`);
     }
     function guessExtensionFromUrl(url) {
         const match = url.match(/\.(png|jpg|jpeg|webp|gif)(?:\?|#|$)/i);

@@ -7,8 +7,8 @@
         "en": "Extended Memory Tools"
     },
     "description": {
-        "zh": "拓展记忆工具包：提供创建/更新/删除/查询/链接记忆，以及更新用户偏好的能力（默认工具中仅保留 query/get/query_links）。",
-        "en": "Extended memory tools: create/update/delete/query/link memories and update user preferences (default tools only keep query/get/query_links)."
+        "zh": "创建、查询、修改和关联记忆，整理记忆目录并更新用户偏好。先查询既有条目，再对明确目标进行写入或删除。",
+        "en": "Create, inspect, update, organize, and link memories, and update user preferences. Query existing entries before modifying or deleting a specific target."
     },
     "category": "Memory",
     "enabledByDefault": true,
@@ -238,10 +238,10 @@ const ExtendedMemoryTools = (function () {
             complete(result);
         }
         catch (error) {
-            console.error(`Tool ${func.name} failed unexpectedly`, error);
+            console.error(`Tool ${func.name} failed`);
             complete({
                 success: false,
-                message: `工具执行时发生意外错误: ${error.message}`,
+                message: `工具执行失败: ${typeof error?.message === 'string' ? error.message : typeof error === 'string' ? error : '宿主未提供错误说明'}`,
             });
         }
     }

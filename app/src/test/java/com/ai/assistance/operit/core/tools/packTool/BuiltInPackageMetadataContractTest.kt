@@ -18,17 +18,15 @@ import org.junit.Test
  */
 class BuiltInPackageMetadataContractTest {
     @Test
-    fun `example package versions follow their independent development baselines`() {
+    fun `example package versions use the fixed development version`() {
         repositoryDirectory("examples")
             .walkTopDown()
             .filter { file -> file.isFile && file.name == "manifest.json" }
             .forEach { manifest ->
-                // 办公套件已随 213be2b36 独立演进至 0.2.0，不能被宿主未发布状态重置。
                 val relative = manifest.relativeTo(repositoryDirectory("examples")).invariantSeparatorsPath
-                val expectedVersion = if (relative == "office_suite/manifest.json") "0.2.0" else "1.0.0"
                 assertEquals(
-                    "$relative must preserve its package version baseline",
-                    expectedVersion,
+                    "$relative must use the fixed development version",
+                    "1.0.0",
                     JSONObject(manifest.readText()).getString("version"),
                 )
             }
@@ -68,6 +66,7 @@ class BuiltInPackageMetadataContractTest {
             assertTrue("Example/asset drift: $item", source.toByteArray().contentEquals(asset.readBytes()))
 
             val metadata = metadata(source)
+            assertToolDeclarations(metadata, source, packageId)
             assertTrue("$packageId metadata name is blank", metadata.getString("name").isNotBlank())
             assertTrue("${metadata.getString("name")} must use snake_case", SNAKE_CASE.matches(metadata.getString("name")))
             assertFalse("$packageId must not declare metadata author", metadata.has("author"))
@@ -121,9 +120,7 @@ class BuiltInPackageMetadataContractTest {
                 val manifest = JSONObject(manifestFile.readText())
 
                 assertTrue("$item must use a Kiyori ToolPkg ID", manifest.getString("toolpkg_id").startsWith("com.kiyori."))
-                // 内置包独立演进，依赖约束必须使用真实版本，不能统一伪装为 1.0.0。
-                assertTrue("$item must declare a numeric semantic version",
-                    Regex("[0-9]+\\.[0-9]+\\.[0-9]+").matches(manifest.getString("version")))
+                assertEquals("$item must use the fixed development version", "1.0.0", manifest.getString("version"))
                 assertFalse("$item must not declare manifest author", manifest.has("author"))
                 assertLocalized(manifest.get("display_name"), "$item manifest display_name")
                 assertAgentFacingDescription(manifest.get("description"), "$item manifest description")
@@ -137,6 +134,7 @@ class BuiltInPackageMetadataContractTest {
                     val source = File(packageDirectory, entry)
                     assertTrue("Missing subpackage entry: $item/$entry", source.isFile)
                     val metadata = metadata(source.readText())
+                    assertToolDeclarations(metadata, source.readText(), "$item/$entry")
                     assertEquals(subpackage.getString("id"), metadata.getString("name"))
                     assertFalse("${item}/${metadata.getString("name")} must not declare author", metadata.has("author"))
                     assertLocalized(metadata.get("display_name"), "$item/${metadata.getString("name")} display_name")
@@ -228,6 +226,42 @@ class BuiltInPackageMetadataContractTest {
         assertTrue(source.contains("terminal.exec(sessionId, command, timeoutMs)"))
         assertTrue(source.contains("options?.map(shellQuote).join(' ')"))
         assertTrue(source.contains("CONVERSION_TIMEOUT_MS"))
+    }
+
+    private fun assertToolDeclarations(metadata: JSONObject, source: String, label: String) {
+        val groups = mutableListOf(metadata.optJSONArray("tools") ?: JSONArray())
+        val states = metadata.optJSONArray("states") ?: JSONArray()
+        for (index in 0 until states.length()) {
+            groups += states.getJSONObject(index).optJSONArray("tools") ?: JSONArray()
+        }
+        groups.forEach { tools ->
+            val toolNames = mutableSetOf<String>()
+            for (index in 0 until tools.length()) {
+                val tool = tools.getJSONObject(index)
+                val name = tool.getString("name")
+                assertTrue("$label duplicate tool $name", toolNames.add(name))
+                assertLocalized(tool.get("description"), "$label/$name description")
+                // advice 由宿主直接返回；其余声明必须能在真实生成入口中找到导出。
+                if (!tool.has("advice")) {
+                    val escaped = Regex.escape(name)
+                    val directExport = Regex("exports(?:\\.$escaped|\\[\"$escaped\"\\]|\\['$escaped'\\])\\s*=").containsMatchIn(source)
+                    // esbuild 的 CommonJS 输出通过 getter 表发布导出，不能误判为缺失。
+                    val bundledExport = source.contains("module.exports") &&
+                        Regex("(?:\\{|,)\\s*$escaped\\s*:\\s*\\(\\)\\s*=>").containsMatchIn(source)
+                    assertTrue("$label missing export $name", directExport || bundledExport)
+                }
+                val parameters = tool.optJSONArray("parameters") ?: JSONArray()
+                val parameterNames = mutableSetOf<String>()
+                for (parameterIndex in 0 until parameters.length()) {
+                    val parameter = parameters.getJSONObject(parameterIndex)
+                    val parameterName = parameter.getString("name")
+                    assertTrue("$label/$name invalid parameter name", parameterName.isNotBlank())
+                    assertTrue("$label/$name duplicate parameter $parameterName", parameterNames.add(parameterName))
+                    assertTrue("$label/$name/$parameterName missing type", parameter.getString("type").isNotBlank())
+                    assertLocalized(parameter.get("description"), "$label/$name/$parameterName description")
+                }
+            }
+        }
     }
 
     private fun assertLocalized(value: Any, label: String) {

@@ -3,12 +3,12 @@
     "name": "ffmpeg",
 
     "display_name": {
-        "zh": "FFmpeg 工具集",
-        "en": "FFmpeg Toolkit"
+        "zh": "FFmpeg 媒体工具",
+        "en": "FFmpeg Media Tools"
     },
     "description": {
-        "zh": "调用 Android com.kiyori:ffmpeg 中的 FFmpegKit/FFprobe；不调用 Ubuntu 或播放器 FFmpeg。",
-        "en": "Use FFmpegKit and FFprobe in Android com.kiyori:ffmpeg; never invoke Ubuntu or player FFmpeg."
+        "zh": "使用 Kiyori 内置 FFmpeg 和 FFprobe 检查、转换与处理手机上的音视频文件。执行参数不是 Shell 命令；需使用 Android 可访问的路径。",
+        "en": "Inspect, convert, and process media files using Kiyori’s built-in FFmpeg and FFprobe. Supply FFmpeg arguments rather than shell commands, and use Android-accessible paths."
     },
     "enabledByDefault": true,
     "category": "Media",

@@ -7,8 +7,8 @@
         "en": "Extended File Tools"
     },
     "description": {
-        "zh": "拓展文件工具包：提供 file_exists / move_file / copy_file / file_info / unzip_files / zip_files / open_file / share_file（默认文件工具中已移除这些项）。",
-        "en": "Extended file tools: file_exists / move_file / copy_file / file_info / unzip_files / zip_files / open_file / share_file (removed from default file tools)."
+        "zh": "检查文件状态，移动、复制、压缩、解压、打开或分享文件。支持 Android 与 Linux 文件环境；跨环境复制需显式指定源和目标环境。",
+        "en": "Inspect, move, copy, archive, extract, open, or share files in Android and Linux environments. Specify source and destination environments for cross-environment copies."
     },
     "category": "File",
     "enabledByDefault": true,
@@ -100,7 +100,8 @@ const ExtendedFileTools = (function () {
 
     async function file_exists(params: { path: string; environment?: FileEnvironment }): Promise<ToolResponse> {
         const result = await Tools.Files.exists(params.path, params.environment);
-        return { success: !!result && (result.exists ?? true), message: '检查完成', data: result };
+        // 不存在也是一次成功的查询；Agent 应消费 data.exists，而不是将其误判为工具故障。
+        return { success: true, message: result.exists ? '文件或目录存在' : '文件或目录不存在', data: result };
     }
 
     async function move_file(params: { source: string; destination: string; environment?: FileEnvironment }): Promise<ToolResponse> {
@@ -148,10 +149,10 @@ const ExtendedFileTools = (function () {
             const result = await func(params);
             complete(result);
         } catch (error: any) {
-            console.error(`Tool ${func.name} failed unexpectedly`, error);
+            console.error(`Tool ${func.name} failed`);
             complete({
                 success: false,
-                message: `工具执行时发生意外错误: ${error.message}`,
+                message: `工具执行失败: ${typeof error?.message === 'string' ? error.message : typeof error === 'string' ? error : '宿主未提供错误说明'}`,
             });
         }
     }

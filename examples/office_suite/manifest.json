@@ -1,15 +1,15 @@
 {
   "schema_version": 2,
   "toolpkg_id": "com.kiyori.office_suite",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "main": "dist/main.js",
   "display_name": {
     "zh": "办公文档套件",
     "en": "Office Suite"
   },
   "description": {
-    "zh": "在 Linux 工作区安全处理 Word/Excel/PowerPoint/PDF：ToolPkg 只做参数校验与跨环境搬运，格式逻辑全部在 Python 运行时。",
-    "en": "Process Word/Excel/PowerPoint/PDF safely in the Linux workspace: the ToolPkg only validates arguments and bridges environments, while all format logic lives in the Python runtime."
+    "zh": "创建、读取、编辑、转换和预览 Word、Excel、PowerPoint 与 PDF 文档。先检查 Linux 办公环境，交付前验证结构并预览页面。",
+    "en": "Create, read, edit, convert, and preview Word, Excel, PowerPoint, and PDF documents. Check the Linux office environment first, then validate structure and preview pages before delivery."
   },
   "enabled_by_default": false,
   "distribution": {

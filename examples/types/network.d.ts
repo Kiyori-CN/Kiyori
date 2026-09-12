@@ -332,20 +332,20 @@ export namespace Net {
          * Get cookies for a domain
          * @param domain - Domain to get cookies for
          */
-        get(domain: string): Promise<HttpResponseData>;
+        get(domain?: string): Promise<string>;
 
         /**
          * Set cookies for a domain
          * @param domain - Domain to set cookies for
          * @param cookies - Cookies to set (can be string or object)
          */
-        set(domain: string, cookies: string | Record<string, string>): Promise<HttpResponseData>;
+        set(domain: string, cookies: string | Record<string, string>): Promise<string>;
 
         /**
          * Clear cookies for a domain
          * @param domain - Domain to clear cookies for
          */
-        clear(domain?: string): Promise<HttpResponseData>;
+        clear(domain?: string): Promise<string>;
     }
 
     /**

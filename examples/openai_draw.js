@@ -122,14 +122,10 @@ const openaiDraw = (function () {
     async function ensureDirectories() {
         const dirs = [DRAW_ROOT_DIR, STORAGE_DIR, DRAWS_DIR];
         for (const dir of dirs) {
-            try {
-                const result = await Tools.Files.mkdir(dir);
-                if (!result.successful) {
-                    console.warn(`创建目录失败(可能已存在): ${dir} -> ${result.details}`);
-                }
-            }
-            catch (e) {
-                console.warn(`创建目录异常: ${dir} -> ${e?.message || e}`);
+            // 宿主对已有目录返回成功；实际失败必须在付费提交前暴露，不能继续生成后丢失产物。
+            const result = await Tools.Files.mkdir(dir, true);
+            if (!result.successful) {
+                throw new Error('无法准备图片或视频输出目录，请检查存储权限与目标路径。');
             }
         }
     }

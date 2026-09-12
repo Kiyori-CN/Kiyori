@@ -256,10 +256,10 @@ const siliconflowDraw = (function () {
     function parsePositiveInteger(value, fieldName) {
         if (value === undefined || value === null || value === "") return undefined;
         const numberValue = Number(value);
-        if (!Number.isFinite(numberValue) || numberValue <= 0) {
+        if (!Number.isSafeInteger(numberValue) || numberValue <= 0 || numberValue > 2147483647) {
             throw new Error(`${fieldName} 必须是正整数。`);
         }
-        return Math.floor(numberValue);
+        return numberValue;
     }
 
     function parseFiniteNumber(value, fieldName) {
@@ -313,13 +313,10 @@ const siliconflowDraw = (function () {
     async function ensureDirectories() {
         const dirs = [DRAW_ROOT_DIR, STORAGE_DIR, DRAWS_DIR, VIDEOS_DIR];
         for (const dir of dirs) {
-            try {
-                const result = await Tools.Files.mkdir(dir);
-                if (!result.successful) {
-                    console.warn(`创建目录失败(可能已存在): ${dir} -> ${result.details}`);
-                }
-            } catch (error) {
-                console.warn(`创建目录异常: ${dir} -> ${getErrorMessage(error)}`);
+            // 宿主对已有目录返回成功；实际失败必须在付费提交前暴露，不能继续生成后丢失产物。
+            const result = await Tools.Files.mkdir(dir, true);
+            if (!result.successful) {
+                throw new Error('无法准备图片或视频输出目录，请检查存储权限与目标路径。');
             }
         }
     }
@@ -544,6 +541,9 @@ const siliconflowDraw = (function () {
     }
 
     async function draw_video(params: VideoParams) {
+        // 等待参数先校验，避免任务已计费提交后才发现调用参数无效。
+        const pollIntervalMs = parsePositiveInteger(params.poll_interval_ms, "poll_interval_ms") || DEFAULT_POLL_INTERVAL_MS;
+        const maxWaitTimeMs = parsePositiveInteger(params.max_wait_time_ms, "max_wait_time_ms") || DEFAULT_MAX_WAIT_TIME_MS;
         const prompt = String(params && params.prompt ? params.prompt : "").trim();
         if (!prompt) {
             throw new Error("prompt 不能为空。");
@@ -553,8 +553,6 @@ const siliconflowDraw = (function () {
 
         const imageInput = await resolveVideoImageInput(params.image_url, params.image_path);
         const createdTask = await createVideoTask(params, imageInput);
-        const pollIntervalMs = parsePositiveInteger(params.poll_interval_ms, "poll_interval_ms") || DEFAULT_POLL_INTERVAL_MS;
-        const maxWaitTimeMs = parsePositiveInteger(params.max_wait_time_ms, "max_wait_time_ms") || DEFAULT_MAX_WAIT_TIME_MS;
         const deadline = Date.now() + maxWaitTimeMs;
 
         let latestStatus = "";

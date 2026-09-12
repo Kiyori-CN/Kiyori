@@ -192,9 +192,11 @@ const xaiDraw = (function () {
 
     function normalizePositiveInteger(value: unknown, fallback: number): number {
         if (value === undefined || value === null || value === "") return fallback;
-        const parsed = typeof value === "number" ? value : parseInt(String(value), 10);
-        if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
-        return Math.floor(parsed);
+        const parsed = typeof value === "number" ? value : Number(value);
+        if (!Number.isSafeInteger(parsed) || parsed <= 0 || parsed > 2147483647) {
+            throw new Error('轮询时间必须为 1–2147483647 之间的整数毫秒。');
+        }
+        return parsed;
     }
 
     function normalizeVideoAspectRatio(value: unknown): string {
@@ -231,13 +233,10 @@ const xaiDraw = (function () {
     async function ensureDirectories(): Promise<void> {
         const dirs = [DRAW_ROOT_DIR, STORAGE_DIR, DRAWS_DIR, VIDEOS_DIR];
         for (const dir of dirs) {
-            try {
-                const result = await Tools.Files.mkdir(dir);
-                if (!result.successful) {
-                    console.warn(`创建目录失败(可能已存在): ${dir} -> ${result.details}`);
-                }
-            } catch (error) {
-                console.warn(`创建目录异常: ${dir} -> ${getErrorMessage(error)}`);
+            // 宿主对已有目录返回成功；实际失败必须在付费提交前暴露，不能继续生成后丢失产物。
+            const result = await Tools.Files.mkdir(dir, true);
+            if (!result.successful) {
+                throw new Error('无法准备图片或视频输出目录，请检查存储权限与目标路径。');
             }
         }
     }
@@ -556,6 +555,8 @@ const xaiDraw = (function () {
     }
 
     async function draw_video(params: VideoParams) {
+        const pollIntervalMs = normalizePositiveInteger(params.poll_interval_ms, DEFAULT_POLL_INTERVAL_MS);
+        const maxWaitTimeMs = normalizePositiveInteger(params.max_wait_time_ms, DEFAULT_MAX_WAIT_TIME_MS);
         const prompt = String(params && params.prompt ? params.prompt : "").trim();
         if (!prompt) {
             throw new Error("prompt 不能为空。");
@@ -571,8 +572,6 @@ const xaiDraw = (function () {
             video_url: resolvedInputs.video_url
         });
 
-        const pollIntervalMs = normalizePositiveInteger(params.poll_interval_ms, DEFAULT_POLL_INTERVAL_MS);
-        const maxWaitTimeMs = normalizePositiveInteger(params.max_wait_time_ms, DEFAULT_MAX_WAIT_TIME_MS);
         const deadline = Date.now() + maxWaitTimeMs;
 
         let latestStatus = createdTask.status;

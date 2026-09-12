@@ -199,14 +199,7 @@ def _prebuild_examples(
     else:
         print("SKIP-PREBUILD(ROOT): no planned root TS outputs")
 
-    planned_child_dirs = sorted(
-        {
-            plan.source
-            for plan in plans
-            if plan.source.is_dir() and plan.source.parent == examples_dir and plan.source.name != "types"
-        },
-        key=lambda p: p.name.lower(),
-    )
+    planned_child_dirs = [examples_dir / name for name in sorted(_prebuild_planned_child_names(examples_dir, plans))]
 
     for child_dir in planned_child_dirs:
         tsconfig = child_dir / "tsconfig.json"
@@ -285,11 +278,19 @@ def _prune_local_sync_state_prebuild(
 
 
 def _prebuild_planned_child_names(examples_dir: Path, plans: list[SyncPlanItem]) -> set[str]:
-    return {
+    names = {
         plan.source.name
         for plan in plans
         if plan.source.is_dir() and plan.source.parent == examples_dir and plan.source.name != "types"
     }
+    # github.js 这类入口由同名子项目打包，根 tsc 不会生成它；复制前必须构建真实源码。
+    for plan in plans:
+        if plan.mode != "copy" or plan.source.parent != examples_dir or plan.source.suffix != ".js":
+            continue
+        child = examples_dir / plan.source.stem
+        if (child / "tsconfig.json").is_file() and (child / "package.json").is_file():
+            names.add(child.name)
+    return names
 
 
 def _read_whitelist_file(path: Path) -> list[str]:

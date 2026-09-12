@@ -2,12 +2,12 @@
 {
     "name": "browser",
     "display_name": {
-        "zh": "Browser 自动化操作",
+        "zh": "浏览器自动化",
         "en": "Browser Automation"
     },
     "description": {
-        "zh": "对齐 Playwright MCP 默认 browser 工具面；Android WebView 的 run_code 提供文档化的 Page 子集。",
-        "en": "Aligned to the default Playwright MCP browser surface; run_code exposes a documented Android WebView Page subset."
+        "zh": "操作 Kiyori 当前共享浏览器会话：读取页面快照、定位元素、填写表单和执行网页操作。run_code 支持范围以 help 返回的 Page 子集为准。",
+        "en": "Operate the current shared Kiyori browser session: inspect snapshots, locate elements, fill forms, and interact with pages. Check help for the supported run_code Page subset."
     },
     "enabledByDefault": true,
     "category": "Automatic",

@@ -356,6 +356,11 @@ const HistoryChat = (function () {
         if (!characterCardNameInput) {
             throw new Error('Missing parameter: character_card_name');
         }
+        const timeoutSec = params.timeout ?? 180;
+        if (!Number.isFinite(timeoutSec) || timeoutSec <= 0 || !Number.isSafeInteger(timeoutSec * 1000)) {
+            throw new Error('timeout must be a finite positive number of seconds with millisecond precision');
+        }
+        const timeoutMs = timeoutSec * 1000;
         let characterCardName = characterCardNameInput;
         let characterCardId = '';
         try {
@@ -373,12 +378,7 @@ const HistoryChat = (function () {
                 throw new Error(`Character card not found: ${characterCardNameInput}`);
             }
         }
-        try {
-            await Tools.Chat.startService();
-        }
-        catch {
-            // ignore service start errors to avoid blocking agent message
-        }
+        await Tools.Chat.startService();
         let chatId = (params?.chat_id ?? '').toString().trim();
         if (!chatId) {
             const lang = (getLang() || '').toLowerCase();
@@ -400,9 +400,6 @@ const HistoryChat = (function () {
                 throw new Error(`Chat ${chatId} 已绑定角色 ${boundName}，不能与 ${characterCardName} 共用会话`);
             }
         }
-        const timeoutRaw = params?.timeout !== undefined ? Number(params.timeout) : 180;
-        const timeoutSec = isNaN(timeoutRaw) || timeoutRaw <= 0 ? 180 : timeoutRaw;
-        const timeoutMs = timeoutSec * 1000;
         const sendMessageOptions = {};
         if (params?.persist_turn !== undefined) {
             sendMessageOptions.persist_turn = params.persist_turn;
@@ -417,19 +414,20 @@ const HistoryChat = (function () {
             sendMessageOptions.disable_warning = params.disable_warning;
         }
         sendMessageOptions.timeout_ms = timeoutMs;
-        const sendPromise = Tools.Chat.sendMessage(message, chatId, characterCardId, getCallerName() || characterCardName, sendMessageOptions);
-        const timeoutPromise = new Promise((resolve) => {
-            setTimeout(() => resolve(null), timeoutMs);
-        });
-        const sendResult = await Promise.race([sendPromise, timeoutPromise]);
-        if (sendResult === null) {
+        // 宿主持有发送与超时事实。额外 Promise.race 会提前伪造“已发送”并留下未清理的计时器。
+        let sendResult;
+        try {
+            sendResult = await Tools.Chat.sendMessage(message, chatId, characterCardId, getCallerName() || characterCardName, sendMessageOptions);
+        }
+        catch (error) {
+            console.error('chat_with_agent: host send failed; inspect the target chat before retrying');
             return {
-                success: true,
-                message: `已发送给 ${characterCardName}，等待响应超时（${timeoutSec}s）`,
+                success: false,
+                message: '发送或等待回复未完成，请查询目标对话状态后决定下一步，勿自动重复发送。',
                 data: {
                     chat_id: chatId,
-                    timeout: true,
-                    hint: '可以通过 agent_status 查看该 agent 是否已处理你的问题。',
+                    submission_state: 'unknown',
+                    hint: '使用 agent_status 和 read_messages 核对目标对话。',
                 },
             };
         }

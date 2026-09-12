@@ -17,7 +17,7 @@ METADATA
             "parameters": [
                 {
                     "name": "format",
-                    "description": { "zh": "日期格式（'short'简短格式, 'medium'中等格式, 'long'完整格式，或自定义格式）", "en": "Date format: 'short', 'medium', 'long', or a custom format." },
+                    "description": { "zh": "日期格式：short、medium（默认）或 long。", "en": "Date format: short, medium (default), or long." },
                     "type": "string",
                     "required": false
                 }
@@ -30,7 +30,7 @@ METADATA
         },
         {
             "name": "set_reminder",
-            "description": { "zh": "创建提醒或待办事项。", "en": "Create a reminder or to-do item." },
+            "description": { "zh": "打开系统日历并填写提醒内容，需用户在日历中确认保存。", "en": "Open a prefilled system calendar event; the user must confirm saving it." },
             "parameters": [
                 {
                     "name": "title",
@@ -442,6 +442,7 @@ const dailyLife = (function () {
             // 处理日期
             if (params.due_date) {
                 const dueDate = new Date(params.due_date);
+                if (!Number.isFinite(dueDate.getTime())) throw new Error('due_date must be a valid ISO date');
                 // 使用毫秒级时间戳
                 const beginTime = dueDate.getTime();
                 const endTime = beginTime + 3600000; // 默认1小时后
@@ -476,7 +477,8 @@ const dailyLife = (function () {
             // 返回结果
             return {
                 success: true,
-                message: "提醒创建成功",
+                message: "已打开日历提醒编辑页，请在日历中确认保存",
+                requires_user_confirmation: true,
                 title: params.title,
                 description: params.description || undefined,
                 due_date: params.due_date || undefined,
@@ -696,11 +698,11 @@ const dailyLife = (function () {
                 ? params.days.filter((day): day is number => typeof day === 'number')
                 : [];
 
-            if (params.hour < 0 || params.hour > 23) {
+            if (!Number.isInteger(params.hour) || params.hour < 0 || params.hour > 23) {
                 throw new Error("Hour must be between 0 and 23");
             }
 
-            if (params.minute < 0 || params.minute > 59) {
+            if (!Number.isInteger(params.minute) || params.minute < 0 || params.minute > 59) {
                 throw new Error("Minute must be between 0 and 59");
             }
 
@@ -743,7 +745,8 @@ const dailyLife = (function () {
             // 返回结果
             return {
                 success: true,
-                message: "闹钟设置成功",
+                message: "已打开闹钟设置页，请核对并确认保存",
+                requires_user_confirmation: true,
                 alarm_time: `${params.hour.toString().padStart(2, '0')}:${params.minute.toString().padStart(2, '0')}`,
                 label: params.message || undefined,
                 repeat_days: params.days || undefined,
@@ -757,9 +760,6 @@ const dailyLife = (function () {
             return {
                 success: false,
                 message: `设置闹钟失败: ${error.message}`,
-                alarm_time: `${params.hour.toString().padStart(2, '0')}:${params.minute.toString().padStart(2, '0')}`,
-                label: params.message || undefined,
-                repeat_days: params.days || undefined,
                 error: error.message
             };
         }
@@ -1480,15 +1480,12 @@ const dailyLife = (function () {
     ): Promise<void> {
         try {
             console.log(`开始执行函数: ${func.name || '匿名函数'}`);
-            console.log(`参数:`, JSON.stringify(params, undefined, 2));
 
             // 执行原始函数
             const result = await func(params);
 
-            console.log(`函数 ${func.name || '匿名函数'} 执行结果:`, JSON.stringify(result, undefined, 2));
-
-            // 如果原始函数已经调用了complete，就不需要再次调用
-            if (result === undefined) return;
+            // 内部函数只返回数据，由此处唯一完成；空结果不能留下无终态调用。
+            if (result === undefined) throw new Error('工具未返回结果');
 
             // 根据结果类型处理
             if (typeof result === "boolean") {
@@ -1498,6 +1495,9 @@ const dailyLife = (function () {
                     message: result ? successMessage : failMessage,
                     additionalInfo: additionalInfo
                 });
+            } else if (result !== null && typeof result === 'object' && typeof result.success === 'boolean') {
+                // 业务失败和需要人工确认的结果必须原样传给 Agent，不能再次包装成成功。
+                complete({ ...result, message: result.message || (result.success ? successMessage : failMessage) });
             } else {
                 // 数据类型结果
                 complete({
@@ -1510,15 +1510,12 @@ const dailyLife = (function () {
         } catch (error) {
             // 详细记录错误信息
             console.error(`函数 ${func.name || '匿名函数'} 执行失败!`);
-            console.error(`错误信息: ${error.message}`);
-            console.error(`错误堆栈: ${error.stack}`);
 
             // 处理错误
             complete({
                 success: false,
-                message: `${failMessage}: ${error.message}`,
-                additionalInfo: additionalInfo,
-                error_stack: error.stack
+                message: `${failMessage}: ${error instanceof Error ? error.message : '宿主返回执行错误'}`,
+                additionalInfo: additionalInfo
             });
         }
     }
