@@ -54,7 +54,7 @@ class FileManagerPreferencesTest {
         assertEquals(1f, store.current.itemSize)
     }
 
-    @Test fun `settings page changes reach both panes and toolbar changes update the same store`() = runTest {
+    @Test fun `hidden preference reaches both panes while session sorting remains independent of defaults`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val models = ViewModelStore()
@@ -77,13 +77,16 @@ class FileManagerPreferencesTest {
                 assertEquals(listOf("visible"), model.rightPaneState.files.map { it.name })
                 store.update { it.copy(showHiddenFiles = true, sortMode = FileManagerSortMode.SIZE, sortDescending = true) }
                 runCurrent()
-                assertEquals(listOf("visible", ".hidden"), model.leftPaneState.files.map { it.name })
-                assertEquals(listOf("visible", ".hidden"), model.rightPaneState.files.map { it.name })
+                assertEquals(listOf(".hidden", "visible"), model.leftPaneState.files.map { it.name })
+                assertEquals(listOf(".hidden", "visible"), model.rightPaneState.files.map { it.name })
+                assertEquals(FileManagerSortMode.NAME, model.sortMode)
                 model.toggleHiddenFiles()
                 model.toggleSortDirection()
                 runCurrent()
                 assertFalse(store.current.showHiddenFiles)
-                assertFalse(store.current.sortDescending)
+                assertTrue(store.current.sortDescending)
+                assertTrue(model.leftPaneState.sortDescending)
+                assertFalse(model.rightPaneState.sortDescending)
                 assertEquals(1.2f, store.current.itemSize)
             } finally {
                 models.clear()

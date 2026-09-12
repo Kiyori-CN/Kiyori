@@ -8,6 +8,7 @@ import com.ai.assistance.operit.core.tools.*
 import com.ai.assistance.operit.data.model.*
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.*
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.viewmodel.FileManagerViewModel
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.viewmodel.FileManagerHistoryStore
 import kotlinx.coroutines.*
 import kotlinx.coroutines.test.*
 import org.junit.*
@@ -18,6 +19,7 @@ import org.mockito.kotlin.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class FileManagerActionLifecycleTest {
+    @get:Rule val temporary = org.junit.rules.TemporaryFolder()
     private val scheduler = TestCoroutineScheduler()
     private val dispatcher = StandardTestDispatcher(scheduler)
     private val context: Context = mock()
@@ -33,7 +35,7 @@ class FileManagerActionLifecycleTest {
     private var contradictoryWrite = false
     @Before fun setup() { whenever(context.filesDir).thenReturn(java.io.File("/private")); whenever(context.getExternalFilesDir(null)).thenReturn(java.io.File("/storage/test/app")); Dispatchers.setMain(dispatcher); log = Mockito.mockStatic(Log::class.java); whenever(context.getString(R.string.file_manager_home)).thenReturn("Home") }
     @After fun cleanup() { store.clear(); scheduler.runCurrent(); Dispatchers.resetMain(); log.close() }
-    private fun model() = FileManagerViewModel(context, "/storage/test", dispatcher) { tool ->
+    private fun model(history: FileManagerHistoryStore? = null) = FileManagerViewModel(context, "/storage/test", dispatcher, historyStore = history) { tool ->
         if (tool.name == "list_files") ToolResult(tool.name, true, DirectoryListingData("/", listOf(
             DirectoryListingData.FileEntry("note.txt", false, 3, "rw", "2026-09-10"),
             DirectoryListingData.FileEntry("second.txt", false, 5, "rw", "2026-09-10"),
@@ -242,11 +244,27 @@ class FileManagerActionLifecycleTest {
     }
 
     @Test fun `closed operation results can be reviewed without replaying writes`() = runTest(dispatcher) {
-        val model = model(); model.beginContextAction(FileManagerActionKind.DELETE); scheduler.runCurrent()
+        val disk = FileManagerHistoryStore(java.io.File(temporary.root, "history.json"), dispatcher)
+        val model = model(disk); model.beginContextAction(FileManagerActionKind.DELETE); scheduler.runCurrent()
         model.confirmContextAction(); scheduler.runCurrent(); model.dismissAction()
-        assertNull(model.actionState); assertTrue(model.hasActionResult)
-        model.showLastActionResult(); assertTrue(model.actionState!!.completed)
+        assertNull(model.actionState)
+        assertEquals("完成", model.history.tasks.single().status)
+        assertEquals("删除", model.history.tasks.single().title)
+        val restored = FileManagerHistoryStore(java.io.File(temporary.root, "history.json"), dispatcher)
+        restored.load()
+        assertEquals(model.history.tasks, restored.state.value.tasks)
         model.confirmContextAction(); scheduler.runCurrent()
+        assertEquals(1, requests.count { it.name == "delete_file" })
+    }
+
+    @Test fun `unknown file operation persists unknown rather than replaying after reconstruction`() = runTest(dispatcher) {
+        val file = java.io.File(temporary.root, "history.json")
+        val model = model(FileManagerHistoryStore(file, dispatcher))
+        model.beginContextAction(FileManagerActionKind.DELETE); scheduler.runCurrent()
+        failWrite = true; model.confirmContextAction(); scheduler.runCurrent()
+        assertEquals("结果待确认", model.history.tasks.single().status)
+        val restored = FileManagerHistoryStore(file, dispatcher); restored.load()
+        assertEquals("结果待确认", restored.state.value.tasks.single().status)
         assertEquals(1, requests.count { it.name == "delete_file" })
     }
 

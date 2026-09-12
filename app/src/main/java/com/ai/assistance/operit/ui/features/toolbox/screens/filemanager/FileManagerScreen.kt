@@ -1,6 +1,8 @@
 package com.ai.assistance.operit.ui.features.toolbox.screens.filemanager
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.ui.graphics.luminance
@@ -112,6 +114,11 @@ fun FileManagerScreen(
 @Composable
 private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, modifier: Modifier, sessionViewModel: FileManagerViewModel?, onOpenAiDialogue: () -> Unit, onOpenBrowser: (() -> Unit)?) {
     var showToolbox by remember { mutableStateOf(false) }
+    var browsePane by remember { mutableStateOf(FileManagerPane.LEFT) }
+    var browseState by remember { mutableStateOf<com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerPaneState?>(null) }
+    var browseKind by remember { mutableStateOf("") }
+    var showSearchHistory by remember { mutableStateOf(false) }
+    var taskPage by remember { mutableStateOf<Boolean?>(null) }
     KiyoriStatusBarAppearanceOverride(darkIcons = MaterialTheme.colorScheme.surface.luminance() > 0.5f)
     val context = LocalContext.current
     val viewModel = sessionViewModel ?: rememberFileManagerViewModel(context)
@@ -296,35 +303,16 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
                     selectedCount = selectedCount,
                     storageLabel = storageLabel,
                     isSearching = viewModel.isSearching,
-                    showHiddenFiles = viewModel.showHiddenFiles,
-                    sortMode = viewModel.sortMode,
-                    sortDescending = viewModel.sortDescending,
-                    onToggleSortDirection = viewModel::toggleSortDirection,
-                    onInvertSelection = viewModel::invertSelection,
+                    refreshing = viewModel.activePaneState.refreshing,
+                    hasFilter = viewModel.activePaneState.hasFilter,
+                    totalCount = viewModel.activePaneState.entries.count { it.name != "." && it.name != ".." && (viewModel.showHiddenFiles || !it.name.startsWith('.')) },
                     onExitFileManager = exitFileManager,
-                    onPathClick = {
-                        pathInput = viewModel.currentPath
-                        showPathDialog = true
-                    },
+                    onPathClick = { pathInput = viewModel.currentPath; showPathDialog = true },
                     onOpenStorageDrawer = { scope.launch { drawerState.open() } },
                     onShowSearchDialog = viewModel::beginSearchDialog,
-                    filterLabel = viewModel.filterQuery,
-                    onSelectAll = { viewModel.selectAll() },
-                    onClearSelection = viewModel::clearActiveSelection,
-                    onToggleHiddenFiles = { viewModel.toggleHiddenFiles() },
-                    onSelectSort = viewModel::selectSortMode,
-                    onOpenLinux = { viewModel.navigateToPath("/", "linux") },
-                    onNew = viewModel::beginCreateEntry,
-                    onExitSearch = viewModel::cancelSearch,
-                    canCreate = viewModel.canCreateHere,
-                    clipboardCount = viewModel.clipboardFiles.size,
-                    canPaste = viewModel.canPasteHere,
-                    onPaste = viewModel::requestPaste,
-                    onClearClipboard = viewModel::clearClipboard,
-                    onShowTask = { viewModel.showTransferDetails = true },
-                    hasTask = viewModel.transferState.total > 0,
-                    hasActionResult = viewModel.hasActionResult && !viewModel.isWriting,
-                    onShowActionResult = viewModel::showLastActionResult,
+                    onShowFilter = { browsePane = viewModel.activePane; browseState = viewModel.activePaneState; browseKind = "filter" },
+                    onShowSort = { browsePane = viewModel.activePane; browseState = viewModel.activePaneState; browseKind = "sort" },
+                    onRefresh = { viewModel.refreshPane() },
                 )
                 Box(modifier = Modifier.weight(1f).fillMaxSize()) {
                     FileManagerDualPane(
@@ -340,6 +328,15 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
                         rightSelectionMode = viewModel.selectionModeForPane(FileManagerPane.RIGHT),
                         onPaneClick = viewModel::activatePane,
                         onRetry = { pane -> viewModel.loadPaneDirectory(pane) },
+                        onRefresh = { pane -> viewModel.refreshPane(pane) },
+                        onAdjustFilter = { pane ->
+                            viewModel.activatePane(pane); browsePane = pane; browseState = viewModel.activePaneState; browseKind = "filter"
+                        },
+                        onClearFilter = { pane ->
+                            val state = if (pane == FileManagerPane.LEFT) viewModel.leftPaneState else viewModel.rightPaneState
+                            viewModel.applyDirectoryFilter(pane, FileManagerLocation(state.path, state.environment),
+                                com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerFilterDraft())
+                        },
                         onItemClick = { pane, file ->
                             viewModel.activatePane(pane)
                             viewModel.clickEntry(file)
@@ -590,14 +587,10 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
         onQueryChange = { viewModel.searchDialogQuery = it },
         form = viewModel.searchForm,
         onFormChange = { viewModel.searchForm = it },
-        location = "${viewModel.currentEnvironment ?: "手机存储"} · ${viewModel.currentPath}",
-        activeFilter = viewModel.filterQuery,
-        onClearFilter = { viewModel.setDirectoryFilter("") },
-        onSearch = {
-            viewModel.searchQuery = viewModel.searchDialogQuery
-            viewModel.showSearchDialog = false
-            viewModel.searchFiles(viewModel.searchDialogQuery)
-        },
+        location = viewModel.searchDialogLocationLabel,
+        onHistory = { showSearchHistory = true },
+        paneLabel = viewModel.searchDialogPaneLabel,
+        onSearch = { viewModel.showSearchDialog = false; viewModel.submitSearchDialog() },
         onDismiss = { viewModel.showSearchDialog = false },
     )
     SearchResultsDialog(
@@ -610,6 +603,7 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
         summary = viewModel.searchSummary,
         limitations = viewModel.searchLimitations,
         onEditSearch = viewModel::editSearch,
+        onRepeatSearch = viewModel::repeatSavedSearch,
     )
     FileManagerNewEntryDialog(
         showDialog = viewModel.showNewEntryDialog,
@@ -648,9 +642,38 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
             }
         } }, confirmButton = { TextButton(onClick = { showOpenWith = false }) { Text("取消") } },
     )
+    browseState?.let { frozen ->
+        if (browseKind == "filter") com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.FileManagerFilterDrawer(
+            browsePane, frozen, onDismiss = { browseKind = ""; browseState = null },
+            onApply = { draft -> viewModel.applyDirectoryFilter(browsePane, FileManagerLocation(frozen.path, frozen.environment), draft) })
+        if (browseKind == "sort") com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.FileManagerSortDrawer(
+            browsePane, frozen, onDismiss = { browseKind = ""; browseState = null },
+            onApply = { mode, descending -> viewModel.applySort(browsePane, mode, descending) })
+    }
+    if (showSearchHistory) com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.FileManagerSearchHistoryDrawer(
+        viewModel.history.searches, viewModel.historyError, { showSearchHistory = false }, viewModel::openSearchRecord, viewModel::removeSearchRecord)
+    taskPage?.let { recent -> com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.FileManagerTaskDrawer(
+        recent, viewModel.history.tasks, viewModel.transferState, viewModel.actionState, viewModel.isWriting,
+        viewModel.copyConflict != null, viewModel.historyError, { taskPage = null },
+        { viewModel.showTransferDetails = true }, viewModel::removeTaskRecord,
+        { location -> viewModel.navigateToPath(location.path, location.environment) }) }
     if (showToolbox) com.ai.assistance.operit.ui.features.websession.browser.chrome.KiyoriToolboxDrawer(
         onDismiss = { showToolbox = false },
         actions = listOf(
+            com.ai.assistance.operit.ui.features.websession.browser.chrome.KiyoriToolboxAction("取消粘贴", Icons.Rounded.ContentPasteOff, com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone.DIAGNOSTICS,
+                viewModel.clipboardFiles.isNotEmpty() && !viewModel.isWriting, onClick = viewModel::clearClipboard),
+            com.ai.assistance.operit.ui.features.websession.browser.chrome.KiyoriToolboxAction(if (viewModel.showHiddenFiles) "显示隐藏 ✓" else "显示隐藏", Icons.Rounded.Visibility, com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone.ADD_BOOKMARK,
+                onClick = viewModel::toggleHiddenFiles),
+            com.ai.assistance.operit.ui.features.websession.browser.chrome.KiyoriToolboxAction("交换窗口", Icons.Rounded.SwapHoriz, com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone.TOOLBOX, !viewModel.isWriting, onClick = {
+                viewModel.saveScrollPosition(FileManagerPane.LEFT, FileManagerLocation(viewModel.leftPaneState.path, viewModel.leftPaneState.environment),
+                    FileManagerScrollPosition(leftListState.firstVisibleItemIndex, leftListState.firstVisibleItemScrollOffset))
+                viewModel.saveScrollPosition(FileManagerPane.RIGHT, FileManagerLocation(viewModel.rightPaneState.path, viewModel.rightPaneState.environment),
+                    FileManagerScrollPosition(rightListState.firstVisibleItemIndex, rightListState.firstVisibleItemScrollOffset))
+                viewModel.swapPanes()
+            }),
+            com.ai.assistance.operit.ui.features.websession.browser.chrome.KiyoriToolboxAction(if (viewModel.transferState.running) "传输任务 · 1" else "传输任务", Icons.Rounded.SyncAlt, com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone.NETWORK_LOG,
+                onClick = { taskPage = false }),
+            com.ai.assistance.operit.ui.features.websession.browser.chrome.KiyoriToolboxAction("最近任务", Icons.Rounded.History, com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone.DIAGNOSTICS, onClick = { taskPage = true }),
             com.ai.assistance.operit.ui.features.websession.browser.chrome.KiyoriToolboxAction("AI对话", androidx.compose.material.icons.Icons.AutoMirrored.Rounded.Chat,
                 com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone.AI_DIALOGUE, !viewModel.isWriting, onClick = onOpenAiDialogue),
             com.ai.assistance.operit.ui.features.websession.browser.chrome.KiyoriToolboxAction("浏览器", androidx.compose.material.icons.Icons.Rounded.Language,
@@ -679,8 +702,6 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
         onPaste = { viewModel.activatePane(viewModel.contextMenuPane); viewModel.requestPaste() },
         canPaste = viewModel.clipboardFiles.isNotEmpty() && !viewModel.isWriting && fileManagerIsLocal(contextState.environment) &&
             fileManagerIsLocal(viewModel.clipboardSourceEnvironment) && !contextState.isLoading && contextState.error == null,
-        onShowTask = { viewModel.showTransferDetails = true },
-        hasTask = viewModel.transferState.total > 0,
         environmentLabel = contextState.environment ?: "手机",
         onCopy = { viewModel.beginContextTransfer(false) },
         onMove = { viewModel.beginContextTransfer(true) },
@@ -735,7 +756,8 @@ internal fun rememberFileManagerViewModel(context: Context): FileManagerViewMode
     val viewModel = remember(store, applicationContext) {
         ViewModelProvider(
             store,
-            viewModelFactory { initializer { FileManagerViewModel(applicationContext, settingsStore = com.ai.assistance.operit.data.preferences.FileManagerPreferences.getInstance(applicationContext)) } },
+            viewModelFactory { initializer { FileManagerViewModel(applicationContext, settingsStore = com.ai.assistance.operit.data.preferences.FileManagerPreferences.getInstance(applicationContext),
+                historyStore = com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.viewmodel.FileManagerHistoryStore.getInstance(applicationContext)) } },
         )[FileManagerViewModel::class.java]
     }
     // 页面有独立退出语义；清理 store 才会取消 ViewModel 的目录读取和文件工作。
@@ -754,16 +776,16 @@ private fun FileManagerPaneScrollEffect(
     val state = if (pane == FileManagerPane.LEFT) viewModel.leftPaneState else viewModel.rightPaneState
     val location = FileManagerLocation(state.path, state.environment)
     val latestState by androidx.compose.runtime.rememberUpdatedState(state)
-    LaunchedEffect(viewModel, pane, location, listState, state.isLoading, state.error, state.filterQuery) {
+    LaunchedEffect(viewModel, pane, location, listState, state.isLoading, state.error, state.scrollKey, state.presentationVersion) {
         if (state.isLoading || state.error != null) return@LaunchedEffect
         // effect 随成功状态提交后运行，并等待新列表布局，不能对加载占位项恢复后立即保存。
         snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it == latestState.files.size }
-        val position = viewModel.scrollPosition(pane, location, state.filterQuery)
+        val position = viewModel.scrollPosition(pane, location, state.scrollKey)
         listState.scrollToItem(position.index.coerceAtMost((state.files.size - 1).coerceAtLeast(0)), position.offset)
         snapshotFlow {
             FileManagerScrollPosition(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset)
         }.collect { current ->
-            viewModel.saveScrollPosition(pane, location, current, state.filterQuery)
+            viewModel.saveScrollPosition(pane, location, current, state.scrollKey, state.presentationVersion)
         }
     }
 }

@@ -61,13 +61,17 @@ class FileManagerViewModel(
     private val initialStoragePath: String = Environment.getExternalStorageDirectory().absolutePath,
     private val directoryDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val settingsStore: FileManagerPreferences? = null,
+    private val historyStore: FileManagerHistoryStore? = null,
     private val executeDirectoryTool: suspend (AITool) -> ToolResult = { tool ->
         AIToolHandler.getInstance(context).executeTool(tool)
     },
 ) : ViewModel() {
 
-    private var leftPane by mutableStateOf(FileManagerPaneState(initialStoragePath, null))
-    private var rightPane by mutableStateOf(FileManagerPaneState(initialStoragePath, null))
+    private fun initialPane() = FileManagerPaneState(initialStoragePath, null,
+        sortMode = settingsStore?.current?.sortMode ?: FileManagerSortMode.NAME,
+        sortDescending = settingsStore?.current?.sortDescending ?: false)
+    private var leftPane by mutableStateOf(initialPane())
+    private var rightPane by mutableStateOf(initialPane())
 
     var activePane by mutableStateOf(FileManagerPane.LEFT)
         private set
@@ -180,8 +184,6 @@ class FileManagerViewModel(
 
     var actionState by mutableStateOf<FileManagerActionState?>(null)
         private set
-    private var lastActionResult by mutableStateOf<FileManagerActionState?>(null)
-    val hasActionResult: Boolean get() = lastActionResult != null || actionState?.results?.isNotEmpty() == true
     var transferDraft by mutableStateOf<FileManagerTransferDraft?>(null)
         private set
     var pendingShare by mutableStateOf<FileManagerShareRequest?>(null)
@@ -281,15 +283,7 @@ class FileManagerViewModel(
         if (state.location.environment == "recycle") requireNotNull(file.fullPath) else fileManagerJoinPath(state.location.path, file.name)
     fun dismissAction() {
         if (actionState?.running == true) return
-        actionState?.takeIf { it.results.isNotEmpty() }?.let { lastActionResult = it }
         actionReadJob?.cancel(); actionState = null; actionGeneration++
-    }
-
-    fun showLastActionResult() {
-        if (isWriting) return
-        val result = lastActionResult ?: return
-        actionReadJob?.cancel()
-        actionState = result.copy(id = ++actionGeneration)
     }
 
     fun stopActionAfterCurrent() {
@@ -327,6 +321,12 @@ class FileManagerViewModel(
         actionState = state.copy(running = true, error = null)
         viewModelScope.launch {
             withContext(NonCancellable) {
+                val taskRecord = beginTaskRecord(when (state.kind) {
+                    FileManagerActionKind.DELETE -> "删除"; FileManagerActionKind.RESTORE -> "恢复"
+                    FileManagerActionKind.PURGE -> "永久删除"; FileManagerActionKind.RENAME -> "重命名"
+                    FileManagerActionKind.ZIP -> "压缩"; FileManagerActionKind.EXTRACT -> "解压"
+                    else -> state.kind.name
+                }, state.location, if (state.kind in setOf(FileManagerActionKind.ZIP, FileManagerActionKind.EXTRACT)) state.location else null, state.files.size)
                 val results = mutableListOf<FileManagerTransferItemResult>()
                 try {
                     for ((index, file) in batch.withIndex()) {
@@ -379,6 +379,7 @@ class FileManagerViewModel(
                     val submitted = results.size
                     results += batch.drop(submitted).map { FileManagerTransferItemResult(it.displayName, FileManagerTransferOutcome.NOT_STARTED,
                         if (results.any { result -> result.outcome == FileManagerTransferOutcome.UNKNOWN }) "前项结果未确认，未提交" else "已停止，未提交") }
+                    finishTaskRecord(taskRecord, results)
                     if (!closed && actionState?.id == state.id) {
                         val completed = results.all { it.outcome == FileManagerTransferOutcome.COMPLETED }
                         actionState = state.copy(running = false, completed = completed, results = results.toList(),
@@ -532,12 +533,12 @@ class FileManagerViewModel(
     val minItemSize = 0.5f
     val maxItemSize = 1.3f
     val itemSizeStep = 0.1f
-    var sortDescending by mutableStateOf(settingsStore?.current?.sortDescending ?: false)
-        private set
+    val sortDescending: Boolean get() = paneState(activePane).sortDescending
     val filterQuery: String get() = paneState(activePane).filterQuery
     val canNavigateUp: Boolean get() = canNavigateUp(activePane)
     var showHiddenFiles by mutableStateOf(settingsStore?.current?.showHiddenFiles ?: true)
-    var sortMode by mutableStateOf(settingsStore?.current?.sortMode ?: FileManagerSortMode.NAME)
+    val sortMode: FileManagerSortMode get() = paneState(activePane).sortMode
+    val activePaneState: FileManagerPaneState get() = paneState(activePane)
 
     // 相同路径可能来自手机、Ubuntu 或不同 SAF 书签，位置必须包含环境和窗格。
     private val scrollPositions = mutableMapOf<Triple<FileManagerPane, FileManagerLocation, String>, FileManagerScrollPosition>()
@@ -575,10 +576,73 @@ class FileManagerViewModel(
     var compressFileName by mutableStateOf("")
 
     // 搜索状态
+    var history by mutableStateOf(FileManagerHistory())
+        private set
+    var historyError by mutableStateOf<String?>(null)
+        private set
+    private var searchDialogLocation: FileManagerLocation? = null
+    private var searchDialogPane = FileManagerPane.LEFT
+    val searchDialogLocationLabel: String get() = fileManagerLocationLabel(searchDialogLocation ?: FileManagerLocation(currentPath, currentEnvironment))
+    val searchDialogPaneLabel: String get() = if (searchDialogPane == FileManagerPane.LEFT) "左列" else "右列"
+
+    private suspend fun saveSearchRecord(record: FileManagerSearchRecord) {
+        try { historyStore?.putSearch(record) }
+        catch (error: Exception) {
+            if (error is CancellationException) throw error
+            historyError = "搜索历史保存失败，请检查应用存储空间"
+            AppLogger.e("FileManagerHistory", "Search history write failed: ${error.javaClass.simpleName}")
+        }
+    }
+    private suspend fun beginTaskRecord(title: String, source: FileManagerLocation, destination: FileManagerLocation?, total: Int): FileManagerTaskRecord {
+        val record = FileManagerTaskRecord(java.util.UUID.randomUUID().toString(), System.currentTimeMillis(), title, source, destination, total)
+        saveTaskRecord(record)
+        return record
+    }
+    private suspend fun saveTaskRecord(record: FileManagerTaskRecord) {
+        try { historyStore?.putTask(record) }
+        catch (error: Exception) {
+            if (error is CancellationException) throw error
+            historyError = "任务历史保存失败，请检查应用存储空间；文件操作结果请查看当前任务"
+            AppLogger.e("FileManagerHistory", "Task history write failed: ${error.javaClass.simpleName}")
+        }
+    }
+    private suspend fun finishTaskRecord(record: FileManagerTaskRecord, results: List<FileManagerTransferItemResult>) =
+        saveTaskRecord(record.copy(status = fileManagerTaskStatus(results), results = results, finishedAt = System.currentTimeMillis()))
+
+    fun removeSearchRecord(id: String? = null) = changeHistory { removeSearch(id) }
+    fun removeTaskRecord(id: String? = null) = changeHistory { removeTask(id) }
+    private fun changeHistory(action: suspend FileManagerHistoryStore.() -> Unit) {
+        viewModelScope.launch {
+            try { historyStore?.action(); historyError = null }
+            catch (error: Exception) {
+                if (error is CancellationException) throw error
+                historyError = "历史记录更新失败，请检查应用存储空间"
+                AppLogger.e("FileManagerHistory", "History update failed: ${error.javaClass.simpleName}")
+            }
+        }
+    }
+    fun openSearchRecord(record: FileManagerSearchRecord) {
+        cancelSearch()
+        showingSavedSearch = true
+        searchOriginPane = activePane
+        searchLocation = record.location
+        searchDialogLocation = record.location
+        searchDialogPane = activePane
+        searchForm = record.form
+        searchQuery = record.query; searchDialogQuery = record.query
+        searchResults.addAll(record.results)
+        searchSummary = "保存的结果 · ${java.text.DateFormat.getDateTimeInstance().format(java.util.Date(record.time))} · ${record.status} · ${fileManagerLocationLabel(record.location)}"
+        searchLimitations = record.limitations
+        searchError = record.error
+        showSearchResultsDialog = true
+    }
+    fun repeatSavedSearch() { searchFiles(searchDialogQuery, searchDialogLocation, searchDialogPane) }
+    fun submitSearchDialog() { searchFiles(searchDialogQuery, searchDialogLocation, searchDialogPane) }
     private var searchJob: Job? = null
     private var searchVersion = 0L
     private var searchLocation: FileManagerLocation? = null
     private var searchOriginPane = FileManagerPane.LEFT
+    private var showingSavedSearch = false
     var searchError by mutableStateOf<String?>(null)
         private set
     var searchQuery by mutableStateOf("")
@@ -600,7 +664,9 @@ class FileManagerViewModel(
         set(value) { searchForm = searchForm.copy(nameMode = if (value) FileSearchNameMode.GLOB else FileSearchNameMode.CONTAINS) }
 
     fun beginSearchDialog() {
-        searchDialogQuery = filterQuery.ifEmpty { searchQuery }
+        searchDialogLocation = FileManagerLocation(currentPath, currentEnvironment)
+        searchDialogPane = activePane
+        searchDialogQuery = searchQuery
         showSearchDialog = true
     }
     fun editSearch() { showSearchResultsDialog = false; showSearchDialog = true }
@@ -665,16 +731,17 @@ class FileManagerViewModel(
         pane: FileManagerPane,
         location: FileManagerLocation,
         position: FileManagerScrollPosition,
-        filter: String = paneState(pane).filterQuery,
+        filter: String = paneState(pane).scrollKey,
+        presentationVersion: Long = paneState(pane).presentationVersion,
     ) {
         val current = paneState(pane)
         if (current.path != location.path || current.environment != location.environment ||
-            current.isLoading || current.error != null || current.filterQuery != filter
+            current.isLoading || current.error != null || current.scrollKey != filter || current.presentationVersion != presentationVersion
         ) return
         scrollPositions[Triple(pane, location, filter)] = position
     }
 
-    fun scrollPosition(pane: FileManagerPane, location: FileManagerLocation, filter: String = paneState(pane).filterQuery): FileManagerScrollPosition =
+    fun scrollPosition(pane: FileManagerPane, location: FileManagerLocation, filter: String = paneState(pane).scrollKey): FileManagerScrollPosition =
         scrollPositions[Triple(pane, location, filter)] ?: FileManagerScrollPosition()
 
     fun paneCanGoBack(pane: FileManagerPane = activePane): Boolean =
@@ -792,15 +859,23 @@ class FileManagerViewModel(
 
     private fun projectPane(pane: FileManagerPane) {
         updatePane(pane) { state -> state.copy(files = fileManagerVisibleEntries(
-            state.entries, state.filterQuery, showHiddenFiles, canNavigateUp(pane),
+            state.entries, "", showHiddenFiles, canNavigateUp(pane), state.filter,
         )) }
         reconcileSelection(pane)
     }
 
     fun setDirectoryFilter(query: String) {
-        if (query == filterQuery) return
-        updatePane(activePane) { it.copy(filterQuery = query) }
+        updatePane(activePane) { it.copy(filter = FileManagerFilter(name = query),
+            filterDraft = FileManagerFilterDraft(name = query), presentationVersion = it.presentationVersion + 1) }
         projectPane(activePane)
+    }
+
+    fun applyDirectoryFilter(pane: FileManagerPane, location: FileManagerLocation, draft: FileManagerFilterDraft) {
+        val state = paneState(pane)
+        if (state.path != location.path || state.environment != location.environment) return
+        val filter = draft.compile()
+        updatePane(pane) { it.copy(filter = filter, filterDraft = draft, presentationVersion = it.presentationVersion + 1) }
+        projectPane(pane)
     }
 
     private fun changeSettings(transform: (FileManagerSettings) -> FileManagerSettings) {
@@ -812,15 +887,11 @@ class FileManagerViewModel(
     }
 
     private fun applySettings(settings: FileManagerSettings) {
-        val sortChanged = sortMode != settings.sortMode || sortDescending != settings.sortDescending
         val hiddenChanged = showHiddenFiles != settings.showHiddenFiles
         showHiddenFiles = settings.showHiddenFiles
-        sortMode = settings.sortMode
-        sortDescending = settings.sortDescending
         itemSize = settings.itemSize
-        // 排序变化沿用目录请求代际，让晚到的旧排序结果不能覆盖新偏好。
-        if (sortChanged) FileManagerPane.entries.forEach { loadPaneDirectory(it) }
-        else if (hiddenChanged) FileManagerPane.entries.forEach(::projectPane)
+        // 设置中的排序仅是新会话默认值，当前两栏保持各自已确认的顺序。
+        if (hiddenChanged) FileManagerPane.entries.forEach(::projectPane)
     }
 
     fun toggleHiddenFiles() = changeSettings { it.copy(showHiddenFiles = !it.showHiddenFiles) }
@@ -829,12 +900,51 @@ class FileManagerViewModel(
 
     fun selectSortMode(mode: FileManagerSortMode) {
         if (sortMode == mode) return
-        changeSettings { it.copy(sortMode = mode, sortDescending = mode != FileManagerSortMode.NAME) }
+        applySort(activePane, mode, mode != FileManagerSortMode.NAME)
     }
 
     fun toggleSortDirection() {
-        changeSettings { it.copy(sortDescending = !it.sortDescending) }
+        applySort(activePane, sortMode, !sortDescending)
     }
+
+    fun applySort(pane: FileManagerPane, mode: FileManagerSortMode, descending: Boolean) {
+        updatePane(pane) { it.copy(sortMode = mode, sortDescending = descending) }
+        // 取消旧排序请求并使用同一目录代际，避免在途读取以旧顺序回写。
+        loadPaneDirectory(pane, background = true)
+    }
+
+    fun refreshPane(pane: FileManagerPane = activePane) {
+        val state = paneState(pane)
+        if (closed || state.isLoading || state.refreshing) return
+        loadPaneDirectory(pane, background = true, manualRefresh = true)
+    }
+
+    /** 对调完整会话投影；旧请求仍属于物理栏，必须先作废，迟到结果不能串栏。 */
+    fun swapPanes() {
+        if (isWriting) return
+        val loading = FileManagerPane.entries.associateWith { paneState(it).isLoading || directoryJobs[it]?.isActive == true }
+        FileManagerPane.entries.forEach { pane ->
+            directoryRequestVersions[pane] = (directoryRequestVersions[pane] ?: 0) + 1
+            directoryJobs.remove(pane)?.cancel()
+        }
+        val oldLeft = leftPane
+        leftPane = rightPane.copy(refreshing = false, presentationVersion = oldLeft.presentationVersion + 1)
+        rightPane = oldLeft.copy(refreshing = false, presentationVersion = rightPane.presentationVersion + 1)
+        val selected = leftSelectedFiles; leftSelectedFiles = rightSelectedFiles; rightSelectedFiles = selected
+        val single = leftSelectedFile; leftSelectedFile = rightSelectedFile; rightSelectedFile = single
+        val anchor = leftSelectionAnchorName; leftSelectionAnchorName = rightSelectionAnchorName; rightSelectionAnchorName = anchor
+        val positions = scrollPositions.toMap(); scrollPositions.clear()
+        positions.forEach { (key, value) -> scrollPositions[Triple(otherPane(key.first), key.second, key.third)] = value }
+        activePane = otherPane(activePane)
+        contextMenuPane = otherPane(contextMenuPane)
+        searchOriginPane = otherPane(searchOriginPane)
+        searchDialogPane = otherPane(searchDialogPane)
+        networkRefreshTimes.clear()
+        FileManagerPane.entries.forEach { pane -> if (loading[otherPane(pane)] == true) loadPaneDirectory(pane, background = !paneState(pane).isLoading) }
+        syncActiveTab(activePane)
+    }
+
+    private fun otherPane(pane: FileManagerPane) = if (pane == FileManagerPane.LEFT) FileManagerPane.RIGHT else FileManagerPane.LEFT
 
     /** 将活动窗格的位置复制给另一栏；焦点和两栏既有内容不交换。 */
     fun mirrorActivePaneToOther() {
@@ -865,12 +975,14 @@ class FileManagerViewModel(
         environment: String? = paneState(pane).environment,
         postLoadError: String? = null,
         background: Boolean = false,
+        manualRefresh: Boolean = false,
     ) {
         directoryJobs.remove(pane)?.cancel()
         val requestVersion = (directoryRequestVersions[pane] ?: 0L) + 1L
         directoryRequestVersions[pane] = requestVersion
-        val requestedSortMode = sortMode
-        val requestedDescending = sortDescending
+        val requestedSortMode = paneState(pane).sortMode
+        val requestedDescending = paneState(pane).sortDescending
+        updatePane(pane) { it.copy(refreshing = manualRefresh) }
         if (!background) updatePane(pane) { state -> state.copy(isLoading = true, error = null) }
         directoryJobs[pane] = viewModelScope.launch {
             withContext(directoryDispatcher) {
@@ -927,8 +1039,9 @@ class FileManagerViewModel(
                             updatePane(pane) { current ->
                                 current.copy(
                                     entries = visibleFiles,
-                                    files = fileManagerVisibleEntries(visibleFiles, current.filterQuery, showHiddenFiles, canNavigateUp(pane)),
+                                    files = fileManagerVisibleEntries(visibleFiles, "", showHiddenFiles, canNavigateUp(pane), current.filter),
                                     isLoading = false,
+                                    refreshing = false,
                                     error = postLoadError,
                                 )
                             }
@@ -938,6 +1051,7 @@ class FileManagerViewModel(
                             updatePane(pane) { current ->
                                 current.copy(
                                     isLoading = false,
+                                    refreshing = false,
                                     error = result?.error ?: context.getString(R.string.file_manager_operation_failed),
                                 )
                             }
@@ -959,6 +1073,7 @@ class FileManagerViewModel(
                             } else {
                                 current.copy(
                                     isLoading = false,
+                                    refreshing = false,
                                     error = "Error: ${e.message}",
                                 )
                             }
@@ -995,7 +1110,7 @@ class FileManagerViewModel(
                 environment = environment,
                 files = emptyList(),
                 entries = emptyList(),
-                filterQuery = "",
+                filter = FileManagerFilter(), filterDraft = FileManagerFilterDraft(),
                 backStack = if (recordHistory) it.backStack + location else it.backStack,
                 forwardStack = if (recordHistory) emptyList() else it.forwardStack,
                 error = null,
@@ -1037,7 +1152,7 @@ class FileManagerViewModel(
             clearSelection()
             return true
         }
-        if (filterQuery.isNotEmpty()) {
+        if (activePaneState.hasFilter) {
             setDirectoryFilter("")
             return true
         }
@@ -1072,7 +1187,7 @@ class FileManagerViewModel(
                 environment = previous.environment,
                 files = emptyList(),
                 entries = emptyList(),
-                filterQuery = "",
+                filter = FileManagerFilter(), filterDraft = FileManagerFilterDraft(),
                 backStack = it.backStack.dropLast(1),
                 forwardStack = it.forwardStack + current,
                 error = null,
@@ -1095,7 +1210,7 @@ class FileManagerViewModel(
                 environment = next.environment,
                 files = emptyList(),
                 entries = emptyList(),
-                filterQuery = "",
+                filter = FileManagerFilter(), filterDraft = FileManagerFilterDraft(),
                 backStack = it.backStack + current,
                 forwardStack = it.forwardStack.dropLast(1),
                 error = null,
@@ -1188,6 +1303,8 @@ class FileManagerViewModel(
         viewModelScope.launch {
             // 已经提交的创建不能因页面清理丢失终态，更不能把未知结果展示为可安全重试。
             withContext(NonCancellable) {
+                val taskRecord = beginTaskRecord(if (directory) "新建文件夹" else "新建文件", location, location, 1)
+                var outcome = FileManagerTransferOutcome.UNKNOWN
                 try {
                     val parameters = listOf(
                         ToolParameter("path", fileManagerJoinPath(location.path, name)),
@@ -1199,6 +1316,7 @@ class FileManagerViewModel(
                             parameters = withEnvParams(parameters, location.environment),
                         ))
                     }
+                    outcome = if (result.success) FileManagerTransferOutcome.COMPLETED else FileManagerTransferOutcome.FAILED
                     if (result.success) {
                         showNewEntryDialog = false
                         creationLocation = null
@@ -1210,6 +1328,7 @@ class FileManagerViewModel(
                     creationUnknown = true
                     creationError = "创建结果未确认，请关闭并检查目录；不会自动重试"
                 } finally {
+                    finishTaskRecord(taskRecord, listOf(FileManagerTransferItemResult(name, outcome, creationError, fileManagerJoinPath(location.path, name))))
                     isCreating = false
                     if (!closed) refreshLocation(location)
                 }
@@ -1228,16 +1347,19 @@ class FileManagerViewModel(
         searchLocation = null
         searchSummary = ""
         searchLimitations = emptyList()
+        showingSavedSearch = false
     }
 
-    fun searchFiles(query: String) {
+    fun searchFiles(query: String, requestedLocation: FileManagerLocation? = null, requestedPane: FileManagerPane = activePane) {
         val options = try { searchForm.options(query) } catch (failure: IllegalArgumentException) {
             searchError = failure.message; return
         }
         cancelSearch()
         val version = searchVersion
-        val location = FileManagerLocation(currentPath, currentEnvironment)
-        val originPane = activePane
+        val location = requestedLocation ?: FileManagerLocation(currentPath, currentEnvironment)
+        val originPane = requestedPane
+        val submittedForm = searchForm
+        searchDialogLocation = location; searchDialogPane = originPane
         val local = location.environment.isNullOrBlank() || location.environment == "android"
         searchQuery = query
         searchDialogQuery = query
@@ -1247,7 +1369,9 @@ class FileManagerViewModel(
         isSearching = true
         showSearchResultsDialog = true
         searchJob = viewModelScope.launch {
+            var record = FileManagerSearchRecord(java.util.UUID.randomUUID().toString(), System.currentTimeMillis(), query, submittedForm, location)
             try {
+                saveSearchRecord(record)
                 val result = withContext(directoryDispatcher) {
                     // 远端/SAF 保留既有名称搜索；未实现的高级条件明确拒绝，不忽略条件返回伪匹配。
                     if (!local) require(options.content.isEmpty() && options.minimumBytes == null && options.maximumBytes == null &&
@@ -1280,19 +1404,51 @@ class FileManagerViewModel(
                     else -> error("搜索结果格式无效")
                 }
                 searchResults.addAll(files)
+                record = record.copy(results = files, total = files.size, status = if (searchLimitations.isEmpty()) "完成" else "部分结果",
+                    summary = searchSummary, limitations = searchLimitations)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (failure: Exception) {
                 if (version == searchVersion && !closed) {
                     AppLogger.e("FileManagerViewModel", "Search failed: ${failure.javaClass.simpleName}")
                     searchError = failure.message ?: "搜索失败，请检查位置和权限"
+                    record = record.copy(status = "失败", error = searchError)
                 }
-            } finally { if (version == searchVersion) isSearching = false }
+            } finally {
+                if (record.status == "搜索中") record = record.copy(status = "已取消")
+                withContext(NonCancellable) { saveSearchRecord(record) }
+                if (version == searchVersion) isSearching = false
+            }
         }
     }
 
     fun navigateToFileDirectory(filePath: String) {
         val location = searchLocation ?: return
         val result = searchResults.firstOrNull { it.fullPath == filePath } ?: return
+        if (showingSavedSearch) {
+            val version = searchVersion
+            val origin = searchOriginPane
+            val parent = filePath.substringBeforeLast('/').ifBlank { "/" }
+            if (isSearching) return
+            isSearching = true
+            searchJob = viewModelScope.launch {
+                try {
+                    val response = withContext(directoryDispatcher) { executeDirectoryTool(AITool("list_files",
+                        withEnvParams(listOf(ToolParameter("path", parent)), location.environment))) }
+                    if (version != searchVersion || closed) return@launch
+                    check(response.success) { response.error ?: "无法核对保存结果，请检查存储与权限" }
+                    val current = (response.result as? DirectoryListingData)?.entries?.firstOrNull { it.name == result.name }
+                    check(current != null && current.isDirectory == result.isDirectory) { "此搜索结果已失效或类型改变，请重新搜索" }
+                    showingSavedSearch = false
+                    isSearching = false
+                    searchOriginPane = origin
+                    navigateToFileDirectory(filePath)
+                } catch (failure: Exception) {
+                    if (failure is CancellationException) throw failure
+                    if (version == searchVersion) searchError = failure.message ?: "无法核对保存结果"
+                } finally { if (version == searchVersion) isSearching = false }
+            }
+            return
+        }
         // 结果属于原搜索环境；切换活动栏后也不能把 SAF/Linux 路径当作手机路径。
         val directoryPath = if (result.isDirectory) filePath else filePath.substringBeforeLast('/').ifBlank { "/" }
         activatePane(searchOriginPane)
@@ -1388,6 +1544,7 @@ class FileManagerViewModel(
             source = request.source, destination = request.destination, move = request.moveRequested)
         showTransferDetails = true
         viewModelScope.launch {
+            val taskRecord = withContext(NonCancellable) { beginTaskRecord(if (request.moveRequested) "移动" else "复制", request.source, request.destination, batch.size) }
             try {
                 for (file in batch) {
                     ensureActive()
@@ -1489,8 +1646,11 @@ class FileManagerViewModel(
                 val notStarted = batch.filterNot { it.name in recorded }.map {
                     FileManagerTransferItemResult(it.name, FileManagerTransferOutcome.NOT_STARTED, "已停止，未提交操作")
                 }
-                transferState = transferState.copy(running = false, currentName = null,
+                val finishedTransfer = transferState.copy(running = false, currentName = null,
                     results = transferState.results + notStarted)
+                // 终态落盘前保持写入锁，避免新任务覆盖后续剪贴板清理使用的批次结果。
+                withContext(NonCancellable) { finishTaskRecord(taskRecord, finishedTransfer.results) }
+                transferState = finishedTransfer
                 if (request.moveRequested && clipboardVersion == clipboardAtStart && isCutOperation &&
                     clipboardSourcePath == request.source.path && clipboardSourceEnvironment == request.source.environment) {
                     val consumed = transferState.results.filter { it.outcome in setOf(FileManagerTransferOutcome.COMPLETED, FileManagerTransferOutcome.UNKNOWN) }.map { it.name }.toSet()
@@ -1544,6 +1704,9 @@ class FileManagerViewModel(
         renameState = renameState.copy(running = true, error = null)
         viewModelScope.launch {
             withContext(NonCancellable) {
+                val taskRecord = beginTaskRecord("重命名", request.location, request.location, 1)
+                var outcome = FileManagerTransferOutcome.UNKNOWN
+                var finalRename = renameState
                 try {
                     val result = withContext(directoryDispatcher) {
                         executeDirectoryTool(AITool("move_file", withEnvParams(listOf(
@@ -1552,8 +1715,9 @@ class FileManagerViewModel(
                             ToolParameter("move_mode", "rename_no_replace"),
                         ), request.location.environment)))
                     }
+                    outcome = if (result.success) FileManagerTransferOutcome.COMPLETED else FileManagerTransferOutcome.FAILED
                     if (result.success) {
-                        renameState = FileManagerRenameState()
+                        finalRename = FileManagerRenameState()
                         // 旧名称选择不能残留，否则下一次批量操作会指向已经不存在的项目。
                         FileManagerPane.entries.forEach { pane ->
                             val state = paneState(pane)
@@ -1563,12 +1727,14 @@ class FileManagerViewModel(
                                 setSelectionAnchor(pane, null)
                             }
                         }
-                    } else renameState = renameState.copy(running = false, error = result.error ?: "重命名失败，请检查名称和权限")
+                    } else finalRename = renameState.copy(running = false, error = result.error ?: "重命名失败，请检查名称和权限")
                 } catch (e: Exception) {
                     AppLogger.e("FileManagerViewModel", "Rename result unavailable: ${e.javaClass.simpleName}")
-                    renameState = renameState.copy(running = false, unknown = true,
+                    finalRename = renameState.copy(running = false, unknown = true,
                         error = "重命名结果未确认，请关闭并检查目录；不会自动重试")
                 } finally {
+                    finishTaskRecord(taskRecord, listOf(FileManagerTransferItemResult(request.name, outcome, finalRename.error, fileManagerJoinPath(request.location.path, name))))
+                    renameState = finalRename
                     if (!closed) refreshLocation(request.location)
                 }
             }
@@ -1590,6 +1756,17 @@ class FileManagerViewModel(
     }
 
     init {
+        historyStore?.let { store ->
+            viewModelScope.launch {
+                try { store.load() }
+                catch (error: Exception) {
+                    if (error is CancellationException) throw error
+                    historyError = "历史记录读取失败，原记录未覆盖"
+                    AppLogger.e("FileManagerHistory", "History read failed: ${error.javaClass.simpleName}")
+                }
+                store.state.collect { history = it }
+            }
+        }
         settingsStore?.let { preferences ->
             viewModelScope.launch { preferences.state.collect { if (!closed) applySettings(it) } }
         }

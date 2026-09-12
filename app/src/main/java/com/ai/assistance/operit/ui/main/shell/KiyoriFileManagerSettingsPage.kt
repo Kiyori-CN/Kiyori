@@ -24,6 +24,7 @@ internal fun fileManagerSortLabel(mode: FileManagerSortMode): String = when (mod
     FileManagerSortMode.NAME -> "名称"
     FileManagerSortMode.SIZE -> "大小"
     FileManagerSortMode.MODIFIED -> "修改时间"
+    FileManagerSortMode.FORMAT -> "文件格式"
 }
 
 @Composable
@@ -39,15 +40,15 @@ internal fun KiyoriFileManagerSettingsPage(
     var showRecycleRules by remember { mutableStateOf(false) }
     KiyoriCollapsingSettingsPage(title = "文件管理器", onBack = onBack, modifier = modifier) {
         item {
-            KiyoriSettingsGroupSection("文件列表", "修改后立即应用到左右两栏，下次打开仍会保留。") {
+            KiyoriSettingsGroupSection("文件列表", "隐藏项目与大小立即应用到两栏；默认排序用于新会话。") {
                 KiyoriSettingsRow("显示隐藏项目", "显示名称以点开头的文件和文件夹", KiyoriSettingsRowKind.TOGGLE,
                     checked = settings.showHiddenFiles, onClick = {
                         preferences.update { it.copy(showHiddenFiles = !it.showHiddenFiles) }
                     })
                 KiyoriSettingsDivider()
-                KiyoriSettingsRow("排序方式", "文件夹始终优先显示", KiyoriSettingsRowKind.NAVIGATION,
+                KiyoriSettingsRow("默认排序方式", "文件夹始终优先显示", KiyoriSettingsRowKind.NAVIGATION,
                     value = fileManagerSortLabel(settings.sortMode), onClick = {
-                        selection = KiyoriSettingsSelection("排序方式", fileManagerSortLabel(settings.sortMode),
+                        selection = KiyoriSettingsSelection("默认排序方式", fileManagerSortLabel(settings.sortMode),
                             FileManagerSortMode.entries.map { mode ->
                                 KiyoriSettingsSelectionOption(fileManagerSortLabel(mode), selected = mode == settings.sortMode,
                                     onSelect = { preferences.update {
@@ -56,14 +57,15 @@ internal fun KiyoriFileManagerSettingsPage(
                             })
                     })
                 KiyoriSettingsDivider()
-                KiyoriSettingsRow("排序方向", "只调整文件夹组内和文件组内的顺序", KiyoriSettingsRowKind.NAVIGATION,
+                KiyoriSettingsRow("默认排序方向", "只调整文件夹组内和文件组内的顺序", KiyoriSettingsRowKind.NAVIGATION,
                     value = if (settings.sortDescending) "降序" else "升序", onClick = {
-                        selection = KiyoriSettingsSelection("排序方向", if (settings.sortDescending) "降序" else "升序",
+                        selection = KiyoriSettingsSelection("默认排序方向", if (settings.sortDescending) "降序" else "升序",
                             listOf(false, true).map { descending ->
                                 KiyoriSettingsSelectionOption(if (descending) "降序" else "升序",
                                     description = when (settings.sortMode) {
                                         FileManagerSortMode.NAME -> if (descending) "名称从后到前" else "名称从前到后"
                                         FileManagerSortMode.SIZE -> if (descending) "大文件在前" else "小文件在前"
+                                        FileManagerSortMode.FORMAT -> if (descending) "扩展名从后到前" else "扩展名从前到后"
                                         FileManagerSortMode.MODIFIED -> if (descending) "最近修改在前" else "较早修改在前"
                                     }, selected = descending == settings.sortDescending,
                                     onSelect = { preferences.update { it.copy(sortDescending = descending) } })

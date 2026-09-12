@@ -8,6 +8,7 @@ data class TabItem(
 )
 
 /** 文件项数据类 */
+@kotlinx.serialization.Serializable
 data class FileItem(
     val name: String,
     val isDirectory: Boolean,
@@ -36,6 +37,7 @@ enum class FileManagerBackAction {
     EXIT,
 }
 
+@kotlinx.serialization.Serializable
 data class FileManagerLocation(
     val path: String,
     val environment: String?,
@@ -56,8 +58,17 @@ data class FileManagerPaneState(
     val forwardStack: List<FileManagerLocation> = emptyList(),
     /** 当前目录完整快照；files 是同一快照的可见投影，不重新读取存储来筛选。 */
     val entries: List<FileItem> = emptyList(),
-    val filterQuery: String = "",
-)
+    val filter: FileManagerFilter = FileManagerFilter(),
+    val filterDraft: FileManagerFilterDraft = FileManagerFilterDraft(),
+    val sortMode: FileManagerSortMode = FileManagerSortMode.NAME,
+    val sortDescending: Boolean = false,
+    val refreshing: Boolean = false,
+    val presentationVersion: Long = 0,
+) {
+    val filterQuery: String get() = filter.name
+    val scrollKey: String get() = if (filter == FileManagerFilter(name = filter.name)) filter.name else filter.toString()
+    val hasFilter: Boolean get() = filter.active
+}
 
 internal fun fileManagerBackAction(
     state: FileManagerPaneState,

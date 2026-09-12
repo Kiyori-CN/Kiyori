@@ -40,6 +40,7 @@ internal fun fileManagerComparator(mode: FileManagerSortMode, descending: Boolea
                 FileManagerSortMode.NAME -> compareFileManagerNames(left.displayName, right.displayName)
                 FileManagerSortMode.SIZE -> left.size.compareTo(right.size)
                 FileManagerSortMode.MODIFIED -> left.lastModified.compareTo(right.lastModified)
+                FileManagerSortMode.FORMAT -> compareFileManagerNames(fileManagerExtension(left.displayName), fileManagerExtension(right.displayName))
             }
             if (fieldOrder != 0) {
                 if (descending) -fieldOrder else fieldOrder
@@ -52,8 +53,9 @@ internal fun fileManagerCanNavigateUp(location: FileManagerLocation, initialPath
 
 internal fun fileManagerVisibleEntries(
     entries: List<FileItem>, query: String, showHidden: Boolean, canNavigateUp: Boolean,
+    filter: FileManagerFilter = FileManagerFilter(),
 ): List<FileItem> = buildList {
     if (canNavigateUp) add(FileItem("..", true))
     addAll(entries.filter { it.name != "." && it.name != ".." &&
-        (showHidden || it.recycledOriginalPath != null || !it.name.startsWith('.')) && it.displayName.contains(query, ignoreCase = true) })
+        (showHidden || it.recycledOriginalPath != null || !it.name.startsWith('.')) && it.displayName.contains(query, ignoreCase = true) && filter.matches(it) })
 }

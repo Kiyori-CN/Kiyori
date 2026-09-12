@@ -68,7 +68,8 @@ class FileManagerSearchLifecycleTest {
         model.searchFiles("note"); scheduler.runCurrent(); responses[1].complete(found("/storage/test/folder/note.txt")); scheduler.runCurrent()
         model.navigateToFileDirectory("/storage/test/folder/note.txt"); scheduler.runCurrent()
         assertEquals("note.txt", model.filterQuery)
-        model.beginSearchDialog(); assertEquals("note.txt", model.searchDialogQuery)
+        model.beginSearchDialog(); assertEquals("note", model.searchDialogQuery)
+        assertEquals("note.txt", model.activePaneState.filterDraft.name)
     }
     @Test fun `invalid conditions never submit and basic remote search retains depth and case semantics`() = runTest(dispatcher) {
         val model = model(); model.searchForm = FileManagerSearchForm(nameMode = FileSearchNameMode.REGEX)

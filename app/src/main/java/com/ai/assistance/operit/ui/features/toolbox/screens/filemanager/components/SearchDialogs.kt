@@ -46,19 +46,20 @@ import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.utils.fo
 @Composable
 fun SearchDialog(showDialog: Boolean, searchQuery: String, onQueryChange: (String) -> Unit,
     form: FileManagerSearchForm, onFormChange: (FileManagerSearchForm) -> Unit,
-    location: String, activeFilter: String, onClearFilter: () -> Unit,
+    location: String, onHistory: () -> Unit, paneLabel: String,
     onSearch: () -> Unit, onDismiss: () -> Unit,
 ) {
     if (!showDialog) return
     var advanced by remember { mutableStateOf(form.hasAdvancedFilters) }
     var submitAfterClose by remember { mutableStateOf(false) }
+    var historyAfterClose by remember { mutableStateOf(false) }
     val validation = remember(searchQuery, form) { runCatching { form.options(searchQuery) }.exceptionOrNull()?.message }
-    KiyoriModalBottomDrawer(onDismissRequest = { onDismiss(); if (submitAfterClose) onSearch() }) { dismiss ->
+    KiyoriModalBottomDrawer(onDismissRequest = { onDismiss(); if (submitAfterClose) onSearch(); if (historyAfterClose) onHistory() }) { dismiss ->
         Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 FileManagerIconBadge(Icons.Outlined.Search, KiyoriSemanticTone.BLUE, 36.dp)
-                Text("搜索文件", Modifier.weight(1f).padding(start = 12.dp), style = MaterialTheme.typography.titleLarge)
+                Text("搜索文件 · $paneLabel", Modifier.weight(1f).padding(start = 12.dp), style = MaterialTheme.typography.titleLarge)
                 IconButton(onClick = dismiss) { Icon(Icons.Outlined.Close, "关闭搜索") }
             }
             Text(location, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -73,7 +74,8 @@ fun SearchDialog(showDialog: Boolean, searchQuery: String, onQueryChange: (Strin
             SearchCheckRow("搜索子目录", form.recursive) { onFormChange(form.copy(recursive = it)) }
             Text(if (form.recursive) "搜索当前位置及其所有可访问的子目录" else "仅搜索当前位置的直接项目", style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (activeFilter.isNotEmpty()) TextButton(onClick = onClearFilter) { Text("清除当前列表定位筛选：$activeFilter") }
+            Text("搜索不受当前列表过滤限制。", style = MaterialTheme.typography.bodySmall)
+            TextButton({ historyAfterClose = true; dismiss() }) { Text("最近搜索与保存结果") }
             OutlinedButton(onClick = { advanced = !advanced }, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Outlined.Tune, null, Modifier.size(18.dp))
                 Text("高级功能${if (form.hasAdvancedFilters) " · 已设置" else ""}", Modifier.weight(1f).padding(horizontal = 8.dp))
@@ -156,6 +158,7 @@ fun SearchResultsDialog(
     summary: String = "",
     limitations: List<String> = emptyList(),
     onEditSearch: () -> Unit = {},
+    onRepeatSearch: () -> Unit = {},
 ) {
     if (showDialog) {
         AlertDialog(
@@ -240,7 +243,7 @@ fun SearchResultsDialog(
                 }
                 }
             },
-            dismissButton = { if (!isSearching) TextButton(onClick = onEditSearch) { Text("修改条件") } },
+            dismissButton = { if (!isSearching) Row { TextButton(onClick = onEditSearch) { Text("修改条件") }; TextButton(onClick = onRepeatSearch) { Text("重新搜索") } } },
             confirmButton = {
                 TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 48.dp)) {
                     Text(if (isSearching) "取消搜索" else "关闭")

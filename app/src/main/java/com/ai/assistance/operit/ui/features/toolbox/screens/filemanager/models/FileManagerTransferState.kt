@@ -2,6 +2,7 @@ package com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models
 
 enum class FileManagerTransferOutcome { COMPLETED, FAILED, COPIED_SOURCE_RETAINED, SKIPPED, NOT_STARTED, UNKNOWN }
 
+@kotlinx.serialization.Serializable
 data class FileManagerTransferItemResult(
     val name: String,
     val outcome: FileManagerTransferOutcome,

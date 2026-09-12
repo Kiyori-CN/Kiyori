@@ -9,6 +9,7 @@ import java.time.ZoneId
 
 enum class FileSearchSizePreset(val label: String) { ANY("任意大小"), SMALL("小于 1 MiB"), MEDIUM("1–100 MiB"), LARGE("至少 100 MiB"), CUSTOM("自定义范围") }
 
+@kotlinx.serialization.Serializable
 data class FileManagerSearchForm(
     val recursive: Boolean = false, val caseSensitive: Boolean = false,
     val nameMode: FileSearchNameMode = FileSearchNameMode.CONTAINS, val content: String = "",

@@ -12,7 +12,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Sort
-import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.FilterAlt
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Edit
@@ -55,21 +56,10 @@ import kotlinx.coroutines.withContext
 fun FileManagerTopBar(
     currentPath: String,
     folderCount: Int, fileCount: Int, selectedCount: Int, storageLabel: String,
-    isSearching: Boolean, showHiddenFiles: Boolean, sortMode: FileManagerSortMode,
+    isSearching: Boolean, refreshing: Boolean, hasFilter: Boolean, totalCount: Int,
     onExitFileManager: () -> Unit, onPathClick: () -> Unit, onOpenStorageDrawer: () -> Unit,
-    onShowSearchDialog: () -> Unit, onSelectAll: () -> Unit,
-    onClearSelection: () -> Unit, onToggleHiddenFiles: () -> Unit,
-    onSelectSort: (FileManagerSortMode) -> Unit, onOpenLinux: () -> Unit,
-    onNew: () -> Unit, onExitSearch: () -> Unit, canCreate: Boolean,
-    sortDescending: Boolean, onToggleSortDirection: () -> Unit,
-    onInvertSelection: () -> Unit,
-    filterLabel: String = "",
-    clipboardCount: Int, onPaste: () -> Unit, onClearClipboard: () -> Unit, canPaste: Boolean,
-    hasTask: Boolean, onShowTask: () -> Unit,
-    hasActionResult: Boolean, onShowActionResult: () -> Unit,
+    onShowSearchDialog: () -> Unit, onShowFilter: () -> Unit, onShowSort: () -> Unit, onRefresh: () -> Unit,
 ) {
-    var showOptions by remember { mutableStateOf(false) }
-    var afterOptionsClose by remember { mutableStateOf<(() -> Unit)?>(null) }
     // 与 AI 使用相同的 TopAppBar 默认高度和状态栏消费方式；栏颜色隔离于设置页灰底。
     KiyoriBrowserTheme {
         Column(Modifier.fillMaxWidth()) {
@@ -81,14 +71,15 @@ fun FileManagerTopBar(
                 },
                 actions = {
                     IconButton(onClick = onShowSearchDialog) {
-                        BadgedBox(badge = { if (filterLabel.isNotEmpty()) Badge() }) {
-                            Icon(Icons.Outlined.Search, if (filterLabel.isEmpty()) "搜索当前位置" else "搜索；当前列表已定位 $filterLabel")
-                        }
+                        BadgedBox(badge = { if (isSearching) Badge() }) { Icon(Icons.Outlined.Search, "搜索当前列") }
                     }
-                    IconButton(onClick = { showOptions = true }) {
-                        BadgedBox(badge = { if (clipboardCount > 0 || hasTask) Badge() }) {
-                            Icon(Icons.Outlined.Tune, "浏览选项与文件任务")
-                        }
+                    IconButton(onClick = onShowFilter) {
+                        BadgedBox(badge = { if (hasFilter) Badge() }) { Icon(Icons.Outlined.FilterAlt, if (hasFilter) "过滤当前列，已启用" else "过滤当前列") }
+                    }
+                    IconButton(onClick = onShowSort) { Icon(Icons.AutoMirrored.Outlined.Sort, "排序当前列") }
+                    IconButton(onClick = onRefresh, enabled = !refreshing) {
+                        if (refreshing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                        else Icon(Icons.Outlined.Refresh, "刷新当前列")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -117,6 +108,7 @@ fun FileManagerTopBar(
                         FileManagerFittedText(
                             text = buildString {
                                 append("文件夹: $folderCount 文件: $fileCount")
+                                if (hasFilter) append(" 显示: ${folderCount + fileCount}/$totalCount")
                                 if (selectedCount > 0) append(" 已选: $selectedCount")
                                 if (storageLabel.isNotBlank()) append(" $storageLabel")
                             },
@@ -126,90 +118,6 @@ fun FileManagerTopBar(
                     }
                 }
             }
-        }
-    }
-    if (showOptions) KiyoriModalBottomDrawer(onDismissRequest = {
-        showOptions = false
-        afterOptionsClose?.invoke()
-        afterOptionsClose = null
-    }) { dismissDrawer ->
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("浏览选项", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
-                IconButton(onClick = dismissDrawer) { Icon(Icons.Outlined.Close, "关闭浏览选项") }
-            }
-            Text("点击打开 · 左右滑动选择 · 长按操作", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (storageLabel.isNotBlank()) Text(storageLabel, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            FileManagerOptionGroup("排序", Icons.AutoMirrored.Outlined.Sort, KiyoriSemanticTone.BLUE) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FileManagerSortMode.entries.forEach { mode ->
-                        FilterChip(selected = mode == sortMode, onClick = { onSelectSort(mode) }, label = { Text(when (mode) {
-                            FileManagerSortMode.NAME -> "名称"
-                            FileManagerSortMode.SIZE -> "大小"
-                            FileManagerSortMode.MODIFIED -> "修改时间"
-                        }) })
-                    }
-                }
-                TextButton(onClick = onToggleSortDirection) {
-                    Icon(if (sortDescending) Icons.Rounded.ArrowDownward else Icons.Rounded.ArrowUpward, null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp)); Text(if (sortDescending) "降序排列" else "升序排列")
-                }
-            }
-            Surface(shape = KiyoriUiShapes.card) {
-                Column {
-                    ListItem(headlineContent = { Text("显示隐藏项目") }, supportingContent = { Text("名称以点开头的文件和文件夹") },
-                        leadingContent = { FileManagerIconBadge(Icons.Rounded.Visibility, KiyoriSemanticTone.CYAN, 36.dp) },
-                        trailingContent = { Switch(checked = showHiddenFiles, onCheckedChange = null) },
-                        modifier = Modifier.clickable(onClick = onToggleHiddenFiles))
-                    HorizontalDivider(Modifier.padding(start = 68.dp))
-                    FileManagerActionRow("全选可见项目", icon = Icons.Rounded.SelectAll, tone = KiyoriSemanticTone.GREEN) {
-                        afterOptionsClose = onSelectAll; dismissDrawer()
-                    }
-                    FileManagerActionRow("清空当前选择", icon = Icons.Rounded.Deselect, tone = KiyoriSemanticTone.BLUE, enabled = selectedCount > 0) {
-                        afterOptionsClose = onClearSelection; dismissDrawer()
-                    }
-                    FileManagerActionRow("粘贴到当前目录（$clipboardCount 项）", icon = Icons.Outlined.ContentPaste, tone = KiyoriSemanticTone.BLUE, enabled = canPaste) {
-                        afterOptionsClose = onPaste; dismissDrawer()
-                    }
-                    FileManagerActionRow("清空剪贴板", icon = Icons.Outlined.Clear, tone = KiyoriSemanticTone.ORANGE, enabled = clipboardCount > 0) {
-                        afterOptionsClose = onClearClipboard; dismissDrawer()
-                    }
-                    FileManagerActionRow("传输任务", icon = Icons.Rounded.SwapHoriz, tone = KiyoriSemanticTone.CYAN, enabled = hasTask) {
-                        afterOptionsClose = onShowTask; dismissDrawer()
-                    }
-                    FileManagerActionRow("最近文件操作", icon = Icons.Rounded.History, tone = KiyoriSemanticTone.ORANGE, enabled = hasActionResult) {
-                        afterOptionsClose = onShowActionResult; dismissDrawer()
-                    }
-                    FileManagerActionRow("反向选择", icon = Icons.Rounded.Checklist, tone = KiyoriSemanticTone.PURPLE) {
-                        afterOptionsClose = onInvertSelection; dismissDrawer()
-                    }
-                }
-            }
-            Surface(shape = KiyoriUiShapes.card) {
-                Column {
-                    FileManagerActionRow("新建文件或文件夹", icon = Icons.Rounded.CreateNewFolder, tone = KiyoriSemanticTone.ORANGE, enabled = canCreate) {
-                        afterOptionsClose = onNew; dismissDrawer()
-                    }
-                    FileManagerActionRow("浏览 Linux 文件", icon = Icons.Rounded.Terminal, tone = KiyoriSemanticTone.CYAN) {
-                        afterOptionsClose = onOpenLinux; dismissDrawer()
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun FileManagerOptionGroup(title: String, icon: ImageVector, tone: KiyoriSemanticTone, content: @Composable ColumnScope.() -> Unit) {
-    Surface(shape = KiyoriUiShapes.card, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                FileManagerIconBadge(icon, tone, 32.dp)
-                Text(title, style = MaterialTheme.typography.titleSmall)
-            }
-            Spacer(Modifier.height(8.dp))
-            content()
         }
     }
 }

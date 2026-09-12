@@ -155,7 +155,9 @@ See [platform, storage, and terminal contracts](docs/doc-src/contracts/platform_
 ### File management and project workspaces
 
 The file manager provides two-pane browsing, search, selection, copying, moving, a recycle bin, ZIP operations,
-bookmarks, and local previews. Each pane retains its directory and selection. Returning from Settings or
+bookmarks, local previews, independent confirmed filters and sorting, per-pane pull-to-refresh, and window swapping from the toolbox.
+Recent searches retain up to 20 records with 1,000 results each; task history retains up to 100 summaries across restarts without replaying operations.
+Each pane retains its directory and selection. Returning from Settings or
 minimizing within the app preserves the current session. Available operations differ between Android storage,
 Ubuntu, SAF, and network directories.
 

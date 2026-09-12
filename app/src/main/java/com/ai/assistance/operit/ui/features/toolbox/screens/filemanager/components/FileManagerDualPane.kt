@@ -67,6 +67,9 @@ fun FileManagerDualPane(
     rightSelectionMode: Boolean,
     onPaneClick: (FileManagerPane) -> Unit,
     onRetry: (FileManagerPane) -> Unit,
+    onRefresh: (FileManagerPane) -> Unit,
+    onAdjustFilter: (FileManagerPane) -> Unit,
+    onClearFilter: (FileManagerPane) -> Unit,
     onItemClick: (FileManagerPane, FileItem) -> Unit,
     onItemLongClick: (FileManagerPane, FileItem) -> Unit,
     onItemSwipeRight: (FileManagerPane, FileItem) -> Unit,
@@ -86,6 +89,9 @@ fun FileManagerDualPane(
             selectionMode = leftSelectionMode,
             onPaneClick = onPaneClick,
             onRetry = onRetry,
+            onRefresh = onRefresh,
+            onAdjustFilter = onAdjustFilter,
+            onClearFilter = onClearFilter,
             onItemClick = onItemClick,
             onItemLongClick = onItemLongClick,
             onItemSwipeRight = onItemSwipeRight,
@@ -103,6 +109,9 @@ fun FileManagerDualPane(
             selectionMode = rightSelectionMode,
             onPaneClick = onPaneClick,
             onRetry = onRetry,
+            onRefresh = onRefresh,
+            onAdjustFilter = onAdjustFilter,
+            onClearFilter = onClearFilter,
             onItemClick = onItemClick,
             onItemLongClick = onItemLongClick,
             onItemSwipeRight = onItemSwipeRight,
@@ -123,6 +132,9 @@ private fun FileManagerPaneColumn(
     selectionMode: Boolean,
     onPaneClick: (FileManagerPane) -> Unit,
     onRetry: (FileManagerPane) -> Unit,
+    onRefresh: (FileManagerPane) -> Unit,
+    onAdjustFilter: (FileManagerPane) -> Unit,
+    onClearFilter: (FileManagerPane) -> Unit,
     onItemClick: (FileManagerPane, FileItem) -> Unit,
     onItemLongClick: (FileManagerPane, FileItem) -> Unit,
     onItemSwipeRight: (FileManagerPane, FileItem) -> Unit,
@@ -166,45 +178,54 @@ private fun FileManagerPaneColumn(
     ) {
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.weight(1f)) {
-                when {
-                    state.error != null -> {
-                        FileManagerDirectoryError(state.path, state.error, onRetry = { onRetry(pane) })
-                    }
-                    else -> {
+                androidx.compose.runtime.key(state.path, state.environment, state.presentationVersion) {
+                    FileManagerPullRefresh(listState, state.refreshing, !state.isLoading, { onRefresh(pane) }) {
+                        when {
+                            state.error != null -> {
+                                FileManagerDirectoryError(state.path, state.error, onRetry = { onRetry(pane) })
+                            }
+                            else -> {
+                                LazyColumn(
+                                    state = listState,
+                                    overscrollEffect = null,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(vertical = 2.dp),
+                                    verticalArrangement = Arrangement.spacedBy(0.dp),
+                                ) {
+                                    items(state.files, key = { file -> "${state.environment}:${state.path}:${file.name}" }, contentType = { "file" }) { file ->
+                                        FileListItem(
+                                            file = file,
+                                            isSelected = file.name in selectedNames,
+                                            selectionMode = selectionMode,
+                                            onItemClick = { onItemClick(pane, file) },
+                                            onItemLongClick = { onItemLongClick(pane, file) },
+                                            onSwipeRight = { onItemSwipeRight(pane, file) },
+                                            onToggleSelection = { onItemToggleSelection(pane, file) },
+                                            itemSize = itemSize,
+                                        )
+                                    }
+                                }
+                            }
+                        }
                         // 未完成的目录读取不是空目录；导航中保持表面，避免闪过图标与加载提示。
-                        if (!state.isLoading && state.files.none { it.name != ".." }) {
+                        if (!state.isLoading && state.error == null && state.files.none { it.name != ".." }) {
                             Column(Modifier.align(Alignment.Center).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                 FileManagerIconBadge(Icons.Rounded.FolderOpen, KiyoriSemanticTone.ORANGE, 56.dp)
-                                Text(if (state.filterQuery.isNotEmpty()) "没有匹配的项目" else if (state.environment == "recycle") "回收站为空" else "此目录为空",
+                                Text(if (state.hasFilter) "没有匹配的项目" else if (state.environment == "recycle") "回收站为空" else "此目录为空",
                                     style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 12.dp))
-                                if (state.filterQuery.isNotEmpty()) Text("打开顶栏搜索可调整或清除定位筛选", style = MaterialTheme.typography.bodySmall)
-                                else if (state.environment == "recycle") Text("移至回收站的项目会显示在这里，可恢复或永久删除。", style = MaterialTheme.typography.bodySmall)
+                                if (state.hasFilter) {
+                                    TextButton({ onAdjustFilter(pane) }) { Text("调整过滤") }
+                                    TextButton({ onClearFilter(pane) }) { Text("清除过滤") }
+                                } else if (state.environment == "recycle") {
+                                    Text("移至回收站的项目会显示在这里，可恢复或永久删除。", style = MaterialTheme.typography.bodySmall)
+                                }
                             }
                         }
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(vertical = 2.dp),
-                            verticalArrangement = Arrangement.spacedBy(0.dp),
-                        ) {
-                            items(state.files, key = { file -> "${state.environment}:${state.path}:${file.name}" }, contentType = { "file" }) { file ->
-                                FileListItem(
-                                    file = file,
-                                    isSelected = file.name in selectedNames,
-                                    selectionMode = selectionMode,
-                                    onItemClick = { onItemClick(pane, file) },
-                                    onItemLongClick = { onItemLongClick(pane, file) },
-                                    onSwipeRight = { onItemSwipeRight(pane, file) },
-                                    onToggleSelection = { onItemToggleSelection(pane, file) },
-                                    itemSize = itemSize,
-                                )
+                        if (!state.isLoading && state.error == null) {
+                            androidx.compose.runtime.key(state.environment, state.path, state.scrollKey) {
+                                FileManagerScrollIndicator(listState, Modifier.fillMaxSize())
                             }
                         }
-                    }
-                }
-                if (!state.isLoading && state.error == null) {
-                    androidx.compose.runtime.key(state.environment, state.path, state.filterQuery) {
-                        FileManagerScrollIndicator(listState, Modifier.fillMaxSize())
                     }
                 }
             }

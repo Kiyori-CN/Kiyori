@@ -59,7 +59,7 @@ fun FileContextMenu(
     onExtract: () -> Unit, onWorkspace: () -> Unit, onInvertSelection: () -> Unit, allSelected: Boolean,
     localActions: Boolean, selectionCount: Int,
     onClearSelection: () -> Unit, onSelectAll: () -> Unit,
-    onPaste: () -> Unit, canPaste: Boolean, onShowTask: () -> Unit, hasTask: Boolean,
+    onPaste: () -> Unit, canPaste: Boolean,
     sourceIsLeft: Boolean = true, recycleBin: Boolean = false, onRestore: () -> Unit = {},
     canSelect: Boolean = true, allArchives: Boolean = false,
 ) {
@@ -91,7 +91,7 @@ fun FileContextMenu(
         MenuAction("解压", Icons.Rounded.Unarchive, WebSessionBrowserMenuTone.FLOATING_SNIFFER, !writing && localActions && hasItem && allArchives, onExtract),
         MenuAction("分享", Icons.Outlined.Share, WebSessionBrowserMenuTone.NETWORK_LOG, !writing && localActions && hasItem, onShare),
         MenuAction("属性", Icons.Rounded.Info, WebSessionBrowserMenuTone.DIAGNOSTICS, !writing && hasItem && (localActions || recycleBin), onProperties),
-        MenuAction("工具箱", Icons.Rounded.Build, WebSessionBrowserMenuTone.TOOLBOX, !writing, onTools),
+        MenuAction("工具箱", Icons.Rounded.Build, WebSessionBrowserMenuTone.TOOLBOX, true, onTools),
         MenuAction(if (allSelected) "全不选" else "全选", Icons.Rounded.SelectAll, WebSessionBrowserMenuTone.INCOGNITO, canSelect, if (allSelected) onClearSelection else onSelectAll),
         MenuAction("反选", Icons.Rounded.FlipToBack, WebSessionBrowserMenuTone.READER_MODE, canSelect, onInvertSelection),
         MenuAction("打开方式", Icons.AutoMirrored.Outlined.OpenInNew, WebSessionBrowserMenuTone.PAGE_SOURCE, singleItem && localActions && contextMenuFile?.isDirectory == false, onOpen),

@@ -29,7 +29,7 @@ class FileManagerSourceContractTest {
         assertFalse(screen.contains("BackHandler(onBack = onBack)"))
         assertTrue(screen.contains("onDispose"))
         assertTrue(screen.contains("KiyoriSettingsTheme { FileManagerContent(onBack, onOpenSettings, modifier, sessionViewModel, onOpenAiDialogue, onOpenBrowser) }"))
-        assertTrue(screen.contains("onClearSelection = viewModel::clearActiveSelection"))
+        assertTrue(screen.contains("viewModel.clearActiveSelection()"))
         assertTrue(screen.contains("viewModel.addSingleSelection(it)"))
     }
 
@@ -40,7 +40,7 @@ class FileManagerSourceContractTest {
         assertTrue(screen.contains("if (state.isLoading || state.error != null) return@LaunchedEffect"))
         assertTrue(screen.contains("listState.layoutInfo.totalItemsCount }.first { it == latestState.files.size }"))
         assertTrue(screen.contains("listState.scrollToItem(position.index.coerceAtMost"))
-        assertTrue(screen.contains("viewModel.saveScrollPosition(pane, location, current, state.filterQuery)"))
+        assertTrue(screen.contains("viewModel.saveScrollPosition(pane, location, current, state.scrollKey, state.presentationVersion)"))
     }
 
     @Test fun `storage statistics are read on IO only while started`() {
@@ -65,7 +65,7 @@ class FileManagerSourceContractTest {
         assertTrue(source("components/FileManagerVisuals.kt").contains("tone.resolveSettingsIconColors()"))
         assertFalse(source("utils/FileUtils.kt").contains("Color(0x"))
         assertTrue(source("components/FileListItem.kt").contains("rememberUpdatedState(onSwipeRight)"))
-        assertTrue(source("components/FileManagerChrome.kt").contains("KiyoriModalBottomDrawer(onDismissRequest"))
+        assertTrue(source("components/FileManagerBrowseDrawers.kt").contains("KiyoriModalBottomDrawer(onDismissRequest"))
         assertTrue(source("components/FileContextMenu.kt").contains("actions.chunked(5)"))
         assertFalse(source("components/FileManagerDualPane.kt").contains("BorderStroke"))
     }
@@ -80,7 +80,8 @@ class FileManagerSourceContractTest {
         assertFalse(screen.contains("FileManagerLocationBar"))
         assertFalse(screen.contains("FileManagerCopyBar"))
         assertFalse(screen.contains("layoutMode"))
-        assertFalse(screen.contains("onRefresh ="))
+        assertTrue(screen.contains("onRefresh = { pane -> viewModel.refreshPane(pane) }"))
+        assertFalse(source("components/FileManagerChrome.kt").contains("showOptions"))
         assertTrue(item.contains("maxLines = 4"))
         assertTrue(item.contains("coerceIn(-maxDrag.toPx(), maxDrag.toPx())"))
         assertTrue(source("components/FileManagerDualPane.kt").contains(".drawWithContent"))
