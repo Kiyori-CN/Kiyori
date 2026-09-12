@@ -1,5 +1,35 @@
 # Kiyori 内置文件管理器开发
 
+## 2026-09-13 存储位置页面完善
+
+状态：实现、定向回归、完整架构检查与 Debug APK 构建完成；设备 `verification_pending`。
+基线 `main / b8aa8ef423b052f3935e9424618fb80df3920c0c`，父仓与 terminal 初始干净。
+本轮授权实现、验证、Debug APK 构建、提交与推送；不操作设备、不改文件后端或 terminal。
+
+1. 统一首页四个位置的彩色图标，移除失效的单色手机资源。
+2. 完善全屏存储位置页的系统栏、安全区、返回、用途与路径说明、容量和无障碍操作。
+3. 只提供内部存储、Linux、工作区和回收站，移除添加位置入口与误导说明。
+4. 复用原偏好处理隐藏、移除与工作区分类状态；显式位置点击准确导航到目标路径。
+5. 定向回归、文档检查与 Debug 构建后审计候选树，提交推送并核对远端。
+
+依赖现有 Shell 文件会话、FileManagerPreferences 和语义图标组件。风险集中在显示状态不一致、
+保留会话误导航及独立 Dialog 系统栏；以对应回归和设备验收分层验证，回滚为本轮提交差异。
+设备的状态栏、大字体、横屏、开关和真实目录访问保持 `verification_pending`。
+
+本地证据（2026-09-13，Asia/Shanghai）：
+
+- 四个内置位置采用统一语义图标；管理页保留独立打开与显示开关区域，移除添加功能及单色手机资源。
+- 修复内部存储恢复到上次位置的问题；显示状态覆盖隐藏、移除及工作区分类，重新开启只调整相关标记。
+- 定向 `:app:testDebugUnitTest` 覆盖 `KiyoriFileStorageTest`、`KiyoriSettingsPagesTest`、
+  `KiyoriShellStateTest`、`FileManagerStorageManagementTest`：4 套 124 项，0 失败、错误或跳过。
+- `test_shell_presentation_contracts.py`：11 项通过。审阅 App Shell 删除旧回调的 3 行差异后更新
+  归一化哈希，将 ARCH049 与对应反向测试改为携带路径和环境的回调契约；完整架构检查 `PASS (phase=m03)`。
+- 正式开发准备、521 份文档检查与 `git diff --check` 通过。
+- `:app:assembleDebug --no-daemon --console=plain`：`BUILD SUCCESSFUL`，唯一 Launcher、脚本代理及播放器打包检查通过。
+  APK `app/build/outputs/apk/debug/app-debug.apk`，488291659 字节，`com.kiyori / 45 / 0.1.0 / arm64-v8a`；
+  V2 单签名与 16 KiB ZIP 对齐通过。SHA-256：`79ACCD22E153BCBEE63598CE873BFC318409CE7D3A12C2C83E1C5C73F96FE260`。
+- 未运行全量 Lint、Release 或设备操作；真实界面、无障碍读屏、Linux/工作区及回收站现场访问单独验收。
+
 ## 2026-09-13 根目录逐级返回与存储首页重构
 
 状态：实现、定向回归、架构门禁与 Debug APK 构建完成；设备 `verification_pending`。

@@ -34,6 +34,7 @@ import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import com.ai.assistance.operit.data.preferences.FileManagerSettings
 import org.junit.Test
 
 class KiyoriSettingsPagesTest {
@@ -1521,15 +1522,15 @@ class KiyoriSettingsPagesTest {
         val linux = rows.single { it.kind == KiyoriFileStorageKind.LINUX }
         val workspace = rows.single { it.kind == KiyoriFileStorageKind.WORKSPACE }
 
-        assertEquals(rows, kiyoriVisibleFileStorageRowItems(rows, emptySet()))
+        assertEquals(rows, kiyoriVisibleFileStorageRowItems(rows, FileManagerSettings()))
 
-        val linuxHidden = kiyoriVisibleFileStorageRowItems(rows, setOf(linux.storageId))
+        val linuxHidden = kiyoriVisibleFileStorageRowItems(rows, FileManagerSettings(drawerHidden = setOf(linux.storageId)))
         assertEquals(
             listOf(KiyoriFileStorageKind.INTERNAL, KiyoriFileStorageKind.WORKSPACE, KiyoriFileStorageKind.RECYCLE_BIN),
             linuxHidden.map(KiyoriFileStorageRowItem::kind),
         )
 
-        val everyoneHidden = kiyoriVisibleFileStorageRowItems(rows, setOf(linux.storageId, workspace.storageId))
+        val everyoneHidden = kiyoriVisibleFileStorageRowItems(rows, FileManagerSettings(drawerHidden = setOf(linux.storageId, workspace.storageId)))
         assertEquals(
             listOf(KiyoriFileStorageKind.INTERNAL, KiyoriFileStorageKind.RECYCLE_BIN),
             everyoneHidden.map(KiyoriFileStorageRowItem::kind),
@@ -1537,7 +1538,7 @@ class KiyoriSettingsPagesTest {
 
         // 固定入口即使意外出现在隐藏集合中也必须继续展示。
         val fixedEntry = rows.single { it.kind == KiyoriFileStorageKind.INTERNAL }
-        assertTrue(fixedEntry in kiyoriVisibleFileStorageRowItems(rows, setOf(fixedEntry.storageId)))
+        assertTrue(fixedEntry in kiyoriVisibleFileStorageRowItems(rows, FileManagerSettings(drawerHidden = setOf(fixedEntry.storageId))))
     }
 
     @Test

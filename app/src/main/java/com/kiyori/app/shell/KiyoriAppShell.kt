@@ -348,9 +348,6 @@ internal fun KiyoriAppShell(
                     onOpenAccountConnections = onOpenAccountConnectionsFromKiyoriSettings,
                     onOpenAiAssistant = onOpenAiAssistantFromKiyoriSettings,
                     onOpenBrowserSettings = onOpenBrowserSettingsFromKiyoriSettings,
-                    onOpenFileManager = {
-                        onStateChange(state.openFileManager())
-                    },
                     onOpenFileManagerLocation = { path, environment ->
                         onStateChange(state.openFileManager(path, environment))
                     },

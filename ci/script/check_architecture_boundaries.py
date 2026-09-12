@@ -1412,7 +1412,7 @@ def check_shell_presentation_contracts(root: Path, errors: list[str]) -> None:
     primary_root = compact(source_braced_block(navigation, r"\bfun\s+KiyoriPrimaryRootPage\b"))
     if (
         "PrimaryDestination.FILE_MANAGEMENT_HOME->{KiyoriFileManagementPage(" not in primary_root
-        or "onOpenPhoneStorage=onOpenFileManager" not in primary_root
+        or "onOpenFileManagerLocation=onOpenFileManagerLocation" not in primary_root
         or "PrimaryDestination.SETTINGS_HOME->{KiyoriSettingsHomePage(" not in primary_root
     ):
         errors.append("ARCH049 primary root must dispatch file and settings pages through shell callbacks")

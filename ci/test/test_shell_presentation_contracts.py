@@ -71,7 +71,9 @@ class ShellPresentationContractsTest(unittest.TestCase):
 
     def test_file_entry_cannot_bypass_shell_callback(self) -> None:
         self.assertTrue(any("dispatch file and settings" in error for error in self.mutated(
-            M04B_PRIMARY_NAVIGATION_PATH, "onOpenPhoneStorage = onOpenFileManager", "onOpenPhoneStorage = { openOtherPage() }",
+            M04B_PRIMARY_NAVIGATION_PATH,
+            "onOpenFileManagerLocation = onOpenFileManagerLocation",
+            "onOpenFileManagerLocation = { _, _ -> openOtherPage() }",
         )))
 
     def test_home_cannot_drop_search_ai_or_window_dispatch(self) -> None:
