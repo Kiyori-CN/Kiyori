@@ -3,15 +3,22 @@ package com.ai.assistance.operit.ui.features.websession.browser
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
@@ -22,9 +29,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,6 +48,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.KiyoriUiShapes
@@ -63,55 +74,101 @@ internal fun WebSessionDrawerHeader(
     navigationIcon: (@Composable () -> Unit)? = null,
     titleActions: @Composable RowScope.() -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {},
-    titleTakesRemainingSpace: Boolean = false,
 ) {
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .heightIn(min = WEB_SESSION_DRAWER_HEADER_HEIGHT_DP.dp)
-                .padding(
-                    start =
-                        if (navigationIcon == null) {
-                            WEB_SESSION_DRAWER_HEADER_START_PADDING_DP.dp
-                        } else {
-                            4.dp
-                        },
-                    end = WEB_SESSION_DRAWER_HEADER_END_PADDING_DP.dp,
-                ),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        navigationIcon?.invoke()
-        WebSessionBrowserMenuIconBadge(
-            imageVector = leadingIcon,
-            tone = tone,
-            contentDescription = null,
-            containerSize = WEB_SESSION_DRAWER_HEADER_ICON_SIZE_DP.dp,
-            iconSize = 18.dp,
-            shape = KiyoriUiShapes.control,
-        )
-        Text(
-            text = title,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier =
-                Modifier
-                    .padding(start = WEB_SESSION_DRAWER_HEADER_TITLE_GAP_DP.dp)
-                    .weight(1f),
-        )
-        titleActions()
-        if (!countText.isNullOrBlank()) {
-            Text(
-                text = countText,
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 10.dp),
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val compact = maxWidth < 380.dp * LocalDensity.current.fontScale
+        val titleContent: @Composable RowScope.() -> Unit = {
+            navigationIcon?.invoke()
+            WebSessionBrowserMenuIconBadge(
+                imageVector = leadingIcon,
+                tone = tone,
+                contentDescription = null,
+                containerSize = WEB_SESSION_DRAWER_HEADER_ICON_SIZE_DP.dp,
+                iconSize = 18.dp,
+                shape = KiyoriUiShapes.control,
             )
+            Text(
+                text = title,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = WEB_SESSION_DRAWER_HEADER_TITLE_GAP_DP.dp).weight(1f),
+            )
+            titleActions()
         }
-        actions()
+        val controls: @Composable RowScope.() -> Unit = {
+            if (!countText.isNullOrBlank()) {
+                Text(
+                    text = countText,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 100.dp).padding(horizontal = 8.dp),
+                )
+            }
+            actions()
+        }
+        val rowModifier = Modifier.fillMaxWidth()
+            .heightIn(min = WEB_SESSION_DRAWER_HEADER_HEIGHT_DP.dp)
+            .padding(start = if (navigationIcon == null) WEB_SESSION_DRAWER_HEADER_START_PADDING_DP.dp else 4.dp,
+                end = WEB_SESSION_DRAWER_HEADER_END_PADDING_DP.dp)
+        Column {
+            Row(modifier = rowModifier, verticalAlignment = Alignment.CenterVertically) {
+                titleContent()
+                if (!compact) controls()
+            }
+            if (compact) {
+                // 窄屏/大字时让标题独占首行，计数和操作始终成组同一行且可横向到达。
+                Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                    .padding(start = 10.dp, end = 8.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically) { controls() }
+            }
+        }
+    }
+}
+
+/**
+ * 底部抽屉头部统一的“带边框按键”样式：历史/网络日志的删除与清空、下载抽屉的新增/全选/批量操作
+ * 共用同一视觉与最小尺寸，避免同一行内出现纯文字链接和有边框按键混搭。
+ * [tone] 为空时使用中性描边（全选/新增等非破坏性操作）；传入 [KiyoriSemanticTone.RED] 等语义色
+ * 表示删除/清空一类的破坏性操作，描边与文字使用该语义色，禁用时统一回退到中性灰。
+ */
+@Composable
+internal fun WebSessionHeaderOutlinedActionButton(
+    title: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    tone: KiyoriSemanticTone? = null,
+    onClick: () -> Unit,
+) {
+    val toneColor = tone?.resolveColors()?.icon
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        shape = KiyoriUiShapes.control,
+        border =
+            BorderStroke(
+                1.dp,
+                when {
+                    !enabled -> MaterialTheme.colorScheme.outlineVariant
+                    toneColor != null -> toneColor.copy(alpha = 0.55f)
+                    else -> MaterialTheme.colorScheme.outlineVariant
+                },
+            ),
+        colors =
+            ButtonDefaults.outlinedButtonColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = toneColor ?: MaterialTheme.colorScheme.onSurface,
+                disabledContainerColor = MaterialTheme.colorScheme.surface,
+                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+            ),
+        contentPadding = PaddingValues(horizontal = 14.dp),
+        modifier = modifier.defaultMinSize(minWidth = 48.dp).heightIn(min = 48.dp),
+    ) {
+        Text(text = title, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -207,7 +264,7 @@ private fun WebSessionSearchFieldContent(
                 IconButton(onClick = onClear, modifier = Modifier.size(40.dp)) {
                     Icon(
                         imageVector = Icons.Outlined.Close,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.clear),
                         modifier = Modifier.size(16.dp),
                     )
                 }

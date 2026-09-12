@@ -278,6 +278,9 @@ class StandardBrowserSessionTools private constructor(
         @Volatile var viewportHeightCssPx: Int? = null
         @Volatile var usesDesktopUserAgentLayout: Boolean = false
         @Volatile var appliedUserAgent: String = ""
+        // 主线程维护；只是当前 WebView 的脚本注册句柄，不持有第二份显示设置。
+        var viewportDocumentStartHandler: androidx.webkit.ScriptHandler? = null
+        var viewportDocumentStartScript: String? = null
         @Volatile var credentialDocumentToken: String = UUID.randomUUID().toString()
         @Volatile var pendingBrowserDocumentStartToken: String? = null
         @Volatile var networkReadyNavigationGeneration: Long = 0L

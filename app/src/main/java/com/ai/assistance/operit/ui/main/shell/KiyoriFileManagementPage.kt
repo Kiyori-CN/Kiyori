@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -22,6 +23,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_BOTTOM_ACTION_SIZE_DP
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_BOTTOM_BOTTOM_PADDING_DP
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_BOTTOM_TOP_PADDING_DP
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -202,6 +206,15 @@ internal fun FileManagerSettings.withKiyoriStorageVisibility(
 internal fun kiyoriDefaultWorkspacePath(configuredPath: String, fallbackPath: String): String =
     configuredPath.ifBlank { fallbackPath }
 
+/**
+ * 悬浮底部导航条自身高度（不含系统导航栏）。用于滚动内容末尾预留净空，
+ * 避免"工作区/回收站"等末行被悬浮条遮挡；系统导航栏高度改由 [Modifier.navigationBarsPadding] 动态处理，
+ * 不再用一个固定猜测值同时覆盖两者，减少不必要的空白。
+ */
+private val KiyoriFloatingBottomBarOwnHeight =
+    (WEB_SESSION_BROWSER_BOTTOM_TOP_PADDING_DP + WEB_SESSION_BROWSER_BOTTOM_ACTION_SIZE_DP +
+        WEB_SESSION_BROWSER_BOTTOM_BOTTOM_PADDING_DP).dp
+
 private fun kiyoriFileStorageIcon(kind: KiyoriFileStorageKind): ImageVector = when (kind) {
     KiyoriFileStorageKind.INTERNAL -> Icons.Filled.Smartphone
     KiyoriFileStorageKind.LINUX -> Icons.Rounded.Terminal
@@ -251,18 +264,19 @@ internal fun KiyoriFileManagementPage(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
                 .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
                 .padding(horizontal = 16.dp),
     ) {
         KiyoriFileManagementTopBar()
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         KiyoriFileEntryGrid(kiyoriFileCategoryItems)
-        Spacer(modifier = Modifier.height(36.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         KiyoriFileSectionHeader("快捷访问")
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         KiyoriFileEntryGrid(kiyoriFileQuickAccessItems)
-        Spacer(modifier = Modifier.height(36.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         KiyoriFileSectionHeader("存储位置", onSeeAllClick = { showStorageLocationsPage = true })
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         visibleStorageRows.forEachIndexed { index, item ->
             KiyoriFileStorageRow(
                 item = item,
@@ -270,10 +284,10 @@ internal fun KiyoriFileManagementPage(
                 onClick = { openStorageRow(item) },
             )
             if (index != visibleStorageRows.lastIndex) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
             }
         }
-        Spacer(modifier = Modifier.height(96.dp))
+        Spacer(modifier = Modifier.height(KiyoriFloatingBottomBarOwnHeight + 12.dp))
     }
 
     if (showStorageLocationsPage) {
@@ -384,7 +398,7 @@ private fun KiyoriFileSectionHeader(title: String, onSeeAllClick: (() -> Unit)? 
 
 @Composable
 private fun KiyoriFileEntryGrid(items: List<KiyoriFileEntryItem>) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items.chunked(4).forEach { rowItems ->
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 rowItems.forEach { item ->
@@ -439,7 +453,7 @@ private fun KiyoriFileStorageRow(
                 .clip(KiyoriUiShapes.card)
                 .clickable(role = Role.Button, onClickLabel = "打开${item.title}", onClick = onClick)
                 .heightIn(min = 48.dp)
-                .padding(horizontal = 4.dp, vertical = 8.dp),
+                .padding(horizontal = 4.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         KiyoriSemanticIconBadge(

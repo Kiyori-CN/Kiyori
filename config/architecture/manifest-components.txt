@@ -109,6 +109,7 @@ mime-type	application/vnd.openxmlformats-officedocument.presentationml.presentat
 mime-type	application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
 mime-type	application/vnd.openxmlformats-officedocument.wordprocessingml.document
 mime-type	application/x-mpegurl
+mime-type	application/xhtml+xml
 mime-type	application/xml
 mime-type	application/zip
 mime-type	audio/*

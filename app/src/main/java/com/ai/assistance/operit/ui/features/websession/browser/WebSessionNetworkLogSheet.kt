@@ -190,22 +190,12 @@ internal fun WebSessionBrowserNetworkLog(
                     entries.size,
                 ),
             actions = {
-            Text(
-                text = stringResource(R.string.web_session_network_log_clear),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color =
-                    if (entries.isEmpty()) {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f)
-                    } else {
-                        KiyoriSemanticTone.RED.resolveColors().icon
-                    },
-                modifier =
-                    Modifier
-                        .height(44.dp)
-                        .clickable(enabled = entries.isNotEmpty(), role = Role.Button, onClick = onClear)
-                        .padding(horizontal = 10.dp, vertical = 13.dp),
-            )
+                WebSessionHeaderOutlinedActionButton(
+                    title = stringResource(R.string.web_session_network_log_clear),
+                    enabled = entries.isNotEmpty(),
+                    tone = KiyoriSemanticTone.RED,
+                    onClick = onClear,
+                )
             },
         )
 

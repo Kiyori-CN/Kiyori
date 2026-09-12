@@ -54,7 +54,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -119,6 +118,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.launch
+import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.KiyoriUiShapes
 
 private val DownloadAccentColor = Color(0xFF27A866)
@@ -337,7 +337,7 @@ internal fun WebSessionDownloadSheet(
                 },
                 actions = {
                     if (batchMode) {
-                        DownloadOutlinedActionButton(
+                        WebSessionHeaderOutlinedActionButton(
                             title = if (allEligibleVisibleItemsSelected) "取消全选" else "全选",
                             enabled = eligibleVisibleTaskIds.isNotEmpty(),
                             onClick = {
@@ -349,10 +349,11 @@ internal fun WebSessionDownloadSheet(
                             },
                         )
                     } else {
-                        DownloadOutlinedActionButton(title = "新增", onClick = { showAddDialog = true })
+                        WebSessionHeaderOutlinedActionButton(title = "新增", onClick = { showAddDialog = true })
                     }
                     Spacer(modifier = Modifier.width(6.dp))
-                    DownloadOutlinedActionButton(
+                    WebSessionHeaderOutlinedActionButton(
+                        tone = if (batchAction != BrowserDownloadBatchAction.CANCEL) KiyoriSemanticTone.RED else null,
                         title =
                             when (batchAction) {
                                 BrowserDownloadBatchAction.DELETE -> "删除"
@@ -662,31 +663,6 @@ internal fun WebSessionDownloadSheet(
                 }
             },
         )
-    }
-}
-
-@Composable
-private fun DownloadOutlinedActionButton(
-    title: String,
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-) {
-    OutlinedButton(
-        onClick = onClick,
-        enabled = enabled,
-        shape = KiyoriUiShapes.control,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        colors =
-            ButtonDefaults.outlinedButtonColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                disabledContainerColor = MaterialTheme.colorScheme.surface,
-                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
-            ),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp),
-        modifier = Modifier.defaultMinSize(minWidth = 0.dp).heightIn(min = 40.dp),
-    ) {
-        Text(text = title, fontSize = 13.sp, fontWeight = FontWeight.Medium)
     }
 }
 

@@ -488,6 +488,10 @@ internal fun KiyoriAppShell(
                             onOpenBrowser = {
                                 onStateChange(latestState.minimizeFileManager().openBrowser(returnTarget = KiyoriBrowserReturnTarget.AI_HOME))
                             },
+                            onOpenBrowserUrl = { url ->
+                                onQueueForegroundBrowserUrl(url)
+                                onStateChange(latestState.minimizeFileManager().openBrowser(returnTarget = KiyoriBrowserReturnTarget.AI_HOME))
+                            },
                             onOpenAiDialogue = {
                                 onOpenAiHome()
                                 onStateChange(state.minimizeFileManager())

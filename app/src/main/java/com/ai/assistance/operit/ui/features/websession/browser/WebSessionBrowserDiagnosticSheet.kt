@@ -132,7 +132,6 @@ internal fun WebSessionBrowserDiagnosticSheet(
             leadingIcon = Icons.Filled.Info,
             tone = WebSessionBrowserMenuTone.DIAGNOSTICS,
             countText = scopeEntries.size.toString(),
-            titleTakesRemainingSpace = true,
             actions = {
                 IconButton(
                     enabled = filteredEntries.isNotEmpty(),

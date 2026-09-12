@@ -37,22 +37,24 @@ class BrowserDisplaySettingsPolicyTest {
     }
 
     @Test
-    fun `force page zoom script owns and restores viewport mutations`() {
-        val enabled = browserForcePageZoomScript(enabled = true)
-        val disabled = browserForcePageZoomScript(enabled = false)
-
-        assertTrue(enabled.contains("user-scalable=yes"))
-        assertTrue(enabled.contains("key !== \"minimum-scale\""))
-        assertTrue(enabled.contains("minimum-scale=$BROWSER_FORCE_PAGE_ZOOM_MIN_SCALE"))
-        assertTrue(enabled.contains("maximum-scale=10.0"))
-        assertTrue(enabled.contains("MutationObserver"))
-        assertTrue(enabled.contains("observer.disconnect()"))
-        assertTrue(enabled.contains("originals.set(record.target"))
-        assertTrue(enabled.contains("originals.forEach"))
-        assertTrue(enabled.contains("created.forEach"))
-        assertTrue(disabled.contains("if (!false)"))
-        assertTrue(disabled.contains("previous.dispose()"))
-        assertFalse(enabled.contains("location.reload"))
+    fun `production viewport script completes reversible DOM lifecycle`() {
+        val fixture = sequenceOf(
+            java.io.File("tools/browser/viewport_override.fixture.mjs"),
+            java.io.File("../tools/browser/viewport_override.fixture.mjs"),
+        ).first { it.isFile }
+        val scripts = org.json.JSONObject()
+            .put("off", browserViewportOverrideScript(false, false))
+            .put("zoom", browserViewportOverrideScript(true, false))
+            .put("desktop", browserViewportOverrideScript(false, true))
+            .put("both", browserViewportOverrideScript(true, true))
+        val process = ProcessBuilder("node", fixture.canonicalPath).redirectErrorStream(true).start()
+        process.outputStream.bufferedWriter(Charsets.UTF_8).use { it.write(scripts.toString()) }
+        val ended = process.waitFor(20, java.util.concurrent.TimeUnit.SECONDS)
+        if (!ended) process.destroyForcibly()
+        assertTrue("Viewport DOM lifecycle timed out", ended)
+        val output = process.inputStream.bufferedReader().use { it.readText() }
+        assertEquals(output, 0, process.exitValue())
+        assertTrue(output, output.contains("PASS:"))
     }
 
     @Test
@@ -84,6 +86,21 @@ class BrowserDisplaySettingsPolicyTest {
                 forcePageZoomEnabled = false,
                 viewportWidthCssPx = 900,
             ),
+        )
+    }
+
+    // D-pc-ua-layout: 会话已经有 AI 显式指定的视口宽度时，PC UA 不应再抢着改写页面 viewport，
+    // 与 useWideViewPort 共用的判定必须保持一致，否则两处代码会逐渐分叉出不一致的行为。
+    @Test
+    fun `desktop viewport override defers to an explicit session viewport width`() {
+        assertTrue(
+            shouldOverrideDesktopViewportForPage(usesDesktopLayout = true, viewportWidthCssPx = null),
+        )
+        assertFalse(
+            shouldOverrideDesktopViewportForPage(usesDesktopLayout = true, viewportWidthCssPx = 900),
+        )
+        assertFalse(
+            shouldOverrideDesktopViewportForPage(usesDesktopLayout = false, viewportWidthCssPx = null),
         )
     }
 }

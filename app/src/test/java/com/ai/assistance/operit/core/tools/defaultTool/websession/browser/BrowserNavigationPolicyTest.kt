@@ -10,6 +10,16 @@ import com.kiyori.platform.network.KiyoriNetworkProxyReadiness
 
 class BrowserNavigationPolicyTest {
     @Test
+    fun `only accepted main frame navigation may change WebView identity and local access`() {
+        assertTrue(shouldApplyBrowserNavigationSettings(true, false, "https"))
+        assertTrue(shouldApplyBrowserNavigationSettings(true, false, "file"))
+        assertTrue(shouldApplyBrowserNavigationSettings(true, false, "content"))
+        assertFalse(shouldApplyBrowserNavigationSettings(false, false, "https"))
+        assertFalse(shouldApplyBrowserNavigationSettings(true, true, "https"))
+        assertFalse(shouldApplyBrowserNavigationSettings(true, false, "intent"))
+        assertFalse(shouldApplyBrowserNavigationSettings(true, false, null))
+    }
+    @Test
     fun `startup proxy barrier only covers remote documents while not ready`() {
         assertTrue(
             shouldAwaitStartupProxyBeforeBrowserNavigation(
@@ -312,5 +322,21 @@ class BrowserNavigationPolicyTest {
                 callbackUrl = "https://example.com/other",
             ),
         )
+    }
+
+    // D-local-file: file:// 必须和 http/https/about 一样被当成"WebView 自行渲染"的 scheme，
+    // 不能落入 handleNavigationOverrideOnMain 的外部应用 Intent 分支——那会把本地 HTML 当成
+    // 深链转发给系统（并因找不到处理者或 FileUriExposedException 而失败）。
+    @Test
+    fun `webview navigable schemes include local files alongside http and about`() {
+        assertTrue(isBrowserInWebViewNavigableScheme("http"))
+        assertTrue(isBrowserInWebViewNavigableScheme("https"))
+        assertTrue(isBrowserInWebViewNavigableScheme("about"))
+        assertTrue(isBrowserInWebViewNavigableScheme("file"))
+        assertTrue(isBrowserInWebViewNavigableScheme("content"))
+        assertFalse(isBrowserInWebViewNavigableScheme("intent"))
+        assertFalse(isBrowserInWebViewNavigableScheme("tel"))
+        assertFalse(isBrowserInWebViewNavigableScheme("market"))
+        assertFalse(isBrowserInWebViewNavigableScheme("mailto"))
     }
 }

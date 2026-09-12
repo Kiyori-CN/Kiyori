@@ -219,8 +219,13 @@ internal fun StandardBrowserSessionTools.configureWebView(
         builtInZoomControls = true
         displayZoomControls = false
         textZoom = browserSettingsStore.current.webTextZoomPercent
+        // 本地访问按当前导航目标启用；普通网络页面不获得应用的本地读取能力。
         allowFileAccess = false
         allowContentAccess = false
+        @Suppress("DEPRECATION")
+        setAllowFileAccessFromFileURLs(false)
+        @Suppress("DEPRECATION")
+        setAllowUniversalAccessFromFileURLs(false)
         cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
         setGeolocationEnabled(true)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -723,6 +728,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
                     scheduleBrowserRecoverySnapshotWrite()
                 }
                 session.currentUrl = url
+                applyBrowserDisplaySettingsOnPage(session)
                 session.adMarkingActive = false
                 session.pageLoaded = false
                 session.isLoading = true
@@ -871,14 +877,16 @@ internal fun StandardBrowserSessionTools.configureWebView(
                     )
                     return true
                 }
-                if (scheme == "http" || scheme == "https" || scheme == "about") {
+                val overridden = handleNavigationOverrideOnMain(request, session)
+                // 子框架、被阻止的跳转和新窗口导航都不能改写当前顶层文档的 UA/本地访问策略。
+                if (shouldApplyBrowserNavigationSettings(request.isForMainFrame, overridden, scheme)) {
                     applySessionUserAgent(
                         session,
                         resolveSessionUserAgent(session, uri.toString()),
                         targetUrl = uri.toString(),
                     )
                 }
-                return handleNavigationOverrideOnMain(request, session)
+                return overridden
             }
 
             override fun shouldInterceptRequest(
@@ -3091,6 +3099,7 @@ internal fun StandardBrowserSessionTools.applySessionUserAgent(
         session.webView.settings.userAgentString = resolvedUserAgent.userAgent
     }
     session.appliedUserAgent = resolvedUserAgent.userAgent
+    applyBrowserLocalAccessSettings(session, targetUrl)
     applyBrowserViewportSettings(session, domainOrUrl = targetUrl)
     if (userAgentChanged || layoutChanged) {
         recordBrowserDiagnostic(
@@ -3118,6 +3127,7 @@ internal fun StandardBrowserSessionTools.applyViewportOverride(session: BrowserT
     val requestedWidth = session.viewportWidthCssPx
     val requestedHeight = session.viewportHeightCssPx
     applyBrowserViewportSettings(session)
+    if (session.pageLoaded) applyBrowserDisplaySettingsOnPage(session)
     browserHost?.setViewportSize(requestedWidth, requestedHeight)
     session.webView.requestLayout()
 }
@@ -3620,6 +3630,10 @@ internal fun StandardBrowserSessionTools.handleNavigationOverrideOnMain(
         // 把点击转换为元素选择，这里消费页面脚本和媒体组件仍可能直接发起的导航。
         return true
     }
+    // 只有已由用户/工具打开的本地文档可继续本地导航，网页与 iframe 不能借此读取应用私有数据。
+    if (isBrowserLocalScheme(scheme)) {
+        return !isBrowserLocalScheme(session.currentUrl.substringBefore(':').lowercase(Locale.ROOT))
+    }
     if (request.isForMainFrame && (scheme == "http" || scheme == "https")) {
         when (
             resolveBrowserExternalNavigationDecision(
@@ -3644,9 +3658,7 @@ internal fun StandardBrowserSessionTools.handleNavigationOverrideOnMain(
         }
     }
     if (
-        scheme != "http" &&
-            scheme != "https" &&
-            scheme != "about" &&
+        !isBrowserInWebViewNavigableScheme(scheme) &&
             !resolveWebSessionSiteFeatureEnabled(
                 settings = browserSettingsStore.current,
                 domainOrUrl = session.currentUrl,
@@ -3659,9 +3671,7 @@ internal fun StandardBrowserSessionTools.handleNavigationOverrideOnMain(
         return true
     }
     if (
-        scheme != "http" &&
-            scheme != "https" &&
-            scheme != "about" &&
+        !isBrowserInWebViewNavigableScheme(scheme) &&
             !shouldLaunchBrowserExternalNavigation(
                 isMainFrame = request.isForMainFrame,
                 hasUserGesture = request.hasGesture(),
@@ -3717,6 +3727,7 @@ internal fun StandardBrowserSessionTools.handleNavigationOverrideOnMain(
             }
         }
         "about" -> false
+        // file/content 已在前面的本地来源检查中返回，不进入外部 Intent 分流。
         "intent" -> handleIntentSchemeOnMain(rawUrl)
         else -> {
             val externalIntent =
@@ -3731,6 +3742,28 @@ internal fun StandardBrowserSessionTools.handleNavigationOverrideOnMain(
             true
         }
     }
+}
+
+/**
+ * WebView 能够并且应当自行渲染的 scheme：普通网页、内部空白页与本地文件。其余 scheme
+ * （tel/mailto/market/intent/自定义 App Link 等）才是"跳转到其他应用"的候选，需要经过
+ * 下面的站点开关与用户手势校验。
+ */
+internal fun isBrowserInWebViewNavigableScheme(scheme: String): Boolean =
+    scheme == "http" || scheme == "https" || scheme == "about" || isBrowserLocalScheme(scheme)
+
+internal fun isBrowserLocalScheme(scheme: String): Boolean = scheme == "file" || scheme == "content"
+
+internal fun shouldApplyBrowserNavigationSettings(isMainFrame: Boolean, overridden: Boolean, scheme: String?): Boolean =
+    isMainFrame && !overridden && scheme != null && isBrowserInWebViewNavigableScheme(scheme)
+
+internal fun StandardBrowserSessionTools.applyBrowserLocalAccessSettings(
+    session: BrowserToolSession,
+    targetUrl: String,
+) {
+    val local = isBrowserLocalScheme(targetUrl.substringBefore(':').lowercase(Locale.ROOT))
+    session.webView.settings.allowFileAccess = local
+    session.webView.settings.allowContentAccess = local
 }
 
 internal fun shouldLaunchBrowserExternalNavigation(
@@ -4015,6 +4048,9 @@ internal fun StandardBrowserSessionTools.closeSession(sessionId: String): Boolea
 
     runOnMainSync<Unit> {
         closePlayerOwnedByBrowserSession(sessionId)
+        session.viewportDocumentStartHandler?.remove()
+        session.viewportDocumentStartHandler = null
+        session.viewportDocumentStartScript = null
         userscriptManager.detachSession(sessionId)
         extensionRuntime.detach(sessionId)
         if (wasActive) {

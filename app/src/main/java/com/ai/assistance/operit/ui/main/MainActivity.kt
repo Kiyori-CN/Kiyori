@@ -307,7 +307,7 @@ class MainActivity : ComponentActivity() {
                         url = command.url,
                         requestId = System.currentTimeMillis(),
                     )
-                    AppLogger.d(TAG, "Received browser URL to open: ${command.url}")
+                    AppLogger.d(TAG, "Received browser navigation request")
                     false
                 }
 

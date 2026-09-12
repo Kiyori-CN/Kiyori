@@ -218,7 +218,7 @@ internal fun WebSessionHistorySheet(
                 },
             actions = {
                 if (batchMode) {
-                    HistoryHeaderAction(
+                    WebSessionHeaderOutlinedActionButton(
                         title =
                             stringResource(
                                 if (allFilteredEntriesSelected) {
@@ -228,7 +228,6 @@ internal fun WebSessionHistorySheet(
                                 }
                             ),
                         enabled = filteredEntryKeys.isNotEmpty(),
-                        color = WebSessionBrowserMenuTone.HISTORY.resolveColors().icon,
                         onClick = {
                             selectedEntryKeys =
                                 if (allFilteredEntriesSelected) {
@@ -238,10 +237,11 @@ internal fun WebSessionHistorySheet(
                                 }
                         },
                     )
-                    HistoryHeaderAction(
+                    Spacer(modifier = Modifier.width(6.dp))
+                    WebSessionHeaderOutlinedActionButton(
                         title = stringResource(R.string.web_session_history_delete),
                         enabled = selectedEntryKeys.isNotEmpty(),
-                        color = KiyoriSemanticTone.RED.resolveColors().icon,
+                        tone = KiyoriSemanticTone.RED,
                         onClick = {
                             deleteRequest =
                                 HistoryDeleteRequest(
@@ -251,10 +251,10 @@ internal fun WebSessionHistorySheet(
                         },
                     )
                 } else {
-                    HistoryHeaderAction(
+                    WebSessionHeaderOutlinedActionButton(
                         title = stringResource(R.string.web_session_history_delete),
                         enabled = selectedCategoryCount > 0,
-                        color = KiyoriSemanticTone.RED.resolveColors().icon,
+                        tone = KiyoriSemanticTone.RED,
                         onClick = { showDeleteRangeSheet = true },
                     )
                 }
@@ -475,35 +475,6 @@ internal fun WebSessionHistorySheet(
             },
         )
     }
-}
-
-@Composable
-private fun HistoryHeaderAction(
-    title: String,
-    enabled: Boolean,
-    color: androidx.compose.ui.graphics.Color,
-    onClick: () -> Unit,
-) {
-    Text(
-        text = title,
-        fontSize = 13.sp,
-        fontWeight = FontWeight.Medium,
-        color =
-            if (enabled) {
-                color
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f)
-            },
-        modifier =
-            Modifier
-                .height(44.dp)
-                .clickable(
-                    enabled = enabled,
-                    role = Role.Button,
-                    onClick = onClick,
-                )
-                .padding(horizontal = 8.dp, vertical = 13.dp),
-    )
 }
 
 @Composable

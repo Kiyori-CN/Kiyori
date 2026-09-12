@@ -33,6 +33,9 @@ Debugger 命令入口统一使用 `/system/bin/sh -c` 解释完整命令，不�
 文件结果定位筛选与书签共用现有窗格投影；删除 A/B 第三行，筛选调整/清除进入顶栏搜索。
 
 文本编辑复用现有 `CodeEditor`，草稿、读取代际及保存状态属于 `FileManagerViewModel`。
+HTML 默认点击仍按源码文本处理；用户可在“打开方式”明确选择“内置浏览器”，通过 Shell 最小化
+文件会话并打开同一 Browser Runtime。该入口只读取应用有权访问的 Android 普通文件，保留原始
+file 基址以访问同目录资源；Linux/网络内容仍需先复制到手机，不新增下载或文件副本所有者。
 `read_file_full` 的显式 `read_mode=bounded_utf8` 限制为应用身份可读的 Android 普通路径，
 最多读取 1 MiB 加一字节判断超限，严格 UTF-8 解码，拒绝直接链接、二进制和观察到的读取中变化；
 Linux/SAF 明确拒绝此模式。未传模式的旧工具调用保持兼容。

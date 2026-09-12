@@ -64,6 +64,7 @@ app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSes
 app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionBrowserPluginSheet.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionBrowserTopBar.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionBrowserTopBar.kt	com.kiyori.design.theme.resolveColors
+app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionDownloadDrawer.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionHistoryDialogs.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionHistoryDialogs.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionHistorySheet.kt	com.kiyori.design.theme.KiyoriSemanticTone

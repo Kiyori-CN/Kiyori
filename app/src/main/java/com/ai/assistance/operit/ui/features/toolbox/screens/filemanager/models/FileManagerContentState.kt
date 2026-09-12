@@ -1,6 +1,6 @@
 package com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models
 
-enum class FileManagerOpenKind { TEXT, MEDIA, IMAGE, SYSTEM }
+enum class FileManagerOpenKind { TEXT, MEDIA, IMAGE, BROWSER, SYSTEM }
 
 /** 扩展名只决定呈现入口；文本读取仍需校验大小、UTF-8 和二进制内容。ts 优先作为源码。 */
 fun fileManagerOpenKind(file: FileItem): FileManagerOpenKind {

@@ -34,7 +34,7 @@ import java.io.File
 
 /** 内容页面只消费文件管理会话；媒体交给唯一 PlayerSession，文本复用现有 NativeCodeEditor。 */
 @Composable
-internal fun FileManagerContentHost(viewModel: FileManagerViewModel) {
+internal fun FileManagerContentHost(viewModel: FileManagerViewModel, onOpenBrowserUrl: ((String) -> Unit)? = null) {
     val context = LocalContext.current
     val request = viewModel.pendingOpen
     val share = viewModel.pendingShare
@@ -64,9 +64,16 @@ internal fun FileManagerContentHost(viewModel: FileManagerViewModel) {
             val uri = withContext(Dispatchers.IO) {
                 val file = File(target.path)
                 check(file.isFile && file.canRead()) { "文件不存在或没有读取权限" }
-                FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                // 应用内直接交给共享浏览器，保留 file 基址以加载同目录 CSS/图片；不经外部 Intent。
+                if (target.kind == FileManagerOpenKind.BROWSER) Uri.fromFile(file)
+                else FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
             }
             when (target.kind) {
+                FileManagerOpenKind.BROWSER -> {
+                    val openBrowser = checkNotNull(onOpenBrowserUrl) { "浏览器入口不可用" }
+                    viewModel.finishOpen(target.id)
+                    openBrowser(uri.toString())
+                }
                 FileManagerOpenKind.MEDIA -> {
                     PlayerSession.getInstance(context).open(
                         PlayerMediaRequest("file-manager-${target.id}-${System.nanoTime()}", uri.toString(), target.name,

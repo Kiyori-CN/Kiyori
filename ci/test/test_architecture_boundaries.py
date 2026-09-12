@@ -2530,7 +2530,11 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/" + name
             for name in ("FileContextMenu.kt", "FileManagerChrome.kt", "FileManagerCopyUi.kt", "FileManagerDualPane.kt", "SearchDialogs.kt", "FileManagerStorageManagement.kt")
         ]
-        legacy_production_consumer_count = M05A2_PRODUCTION_CONSUMER_COUNT - 4 - len(file_manager_paths)
+        download_drawer_path = (
+            "app/src/main/java/com/ai/assistance/operit/ui/features/"
+            "websession/browser/WebSessionDownloadDrawer.kt"
+        )
+        legacy_production_consumer_count = M05A2_PRODUCTION_CONSUMER_COUNT - 5 - len(file_manager_paths)
         assistant_experience_path = (
             "app/src/main/java/com/ai/assistance/operit/ui/features/"
             "semantic/AssistantExperienceSettingsPages.kt"
@@ -2556,7 +2560,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             permission_presentation_path,
             network_proxy_path,
             more_features_path,
-        ] + file_manager_paths
+        ] + file_manager_paths + [download_drawer_path]
         test_paths = [
             "app/src/test/java/com/ai/assistance/operit/ui/semantic/"
             f"SemanticConsumer{index}.kt"
@@ -2579,6 +2583,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             # More Features as tone-only consumers.
             if relative_path in {
                 *file_manager_paths,
+                download_drawer_path,
                 assistant_experience_path,
                 permission_presentation_path,
                 network_proxy_path,

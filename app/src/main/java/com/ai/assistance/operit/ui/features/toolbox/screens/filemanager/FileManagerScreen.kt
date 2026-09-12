@@ -107,13 +107,14 @@ fun FileManagerScreen(
     sessionViewModel: FileManagerViewModel? = null,
     onOpenAiDialogue: () -> Unit,
     onOpenBrowser: (() -> Unit)? = null,
+    onOpenBrowserUrl: ((String) -> Unit)? = null,
 ) {
     // 与设置页相同的主题必须包住全部弹层，避免兄弟弹层回到外层主题。
-    KiyoriSettingsTheme { FileManagerContent(onBack, onOpenSettings, modifier, sessionViewModel, onOpenAiDialogue, onOpenBrowser) }
+    KiyoriSettingsTheme { FileManagerContent(onBack, onOpenSettings, modifier, sessionViewModel, onOpenAiDialogue, onOpenBrowser, onOpenBrowserUrl) }
 }
 
 @Composable
-private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, modifier: Modifier, sessionViewModel: FileManagerViewModel?, onOpenAiDialogue: () -> Unit, onOpenBrowser: (() -> Unit)?) {
+private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, modifier: Modifier, sessionViewModel: FileManagerViewModel?, onOpenAiDialogue: () -> Unit, onOpenBrowser: (() -> Unit)?, onOpenBrowserUrl: ((String) -> Unit)?) {
     var showToolbox by remember { mutableStateOf(false) }
     var showHiddenDrawer by remember { mutableStateOf(false) }
     var browsePane by remember { mutableStateOf(FileManagerPane.LEFT) }
@@ -464,7 +465,7 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
         settingsOwner.update { it.copy(drawerOrder = it.drawerOrder.filterNot { id -> id in ids } + ids) }
         sortedCategory = null
     } }
-    FileManagerContentHost(viewModel)
+    FileManagerContentHost(viewModel, onOpenBrowserUrl)
     pendingStorageRemoval?.let { entry ->
         AlertDialog(onDismissRequest = { if (!removingStorage) pendingStorageRemoval = null }, title = { Text("移除${entry.title}？") },
             text = { Text("仅移除此存储入口或收藏记录，不删除文件。${if (entry.bookmarkUri != null) "此应用会释放对应的目录授权。" else ""}") },
@@ -716,12 +717,13 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
             listOf("文本编辑器" to com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerOpenKind.TEXT,
                 "内置播放器" to com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerOpenKind.MEDIA,
                 "图片查看器" to com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerOpenKind.IMAGE,
+                "内置浏览器" to com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerOpenKind.BROWSER,
                 "其他应用" to com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerOpenKind.SYSTEM).forEach { (label, kind) ->
                 TextButton(onClick = {
                     showOpenWith = false
                     viewModel.activatePane(viewModel.contextMenuPane)
                     viewModel.contextMenuFile?.let { viewModel.openEntry(it, kind) }
-                }) { Text(label) }
+                }, enabled = kind != com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerOpenKind.BROWSER || onOpenBrowserUrl != null) { Text(label) }
             }
         } }, confirmButton = { TextButton(onClick = { showOpenWith = false }) { Text("取消") } },
     )

@@ -204,7 +204,8 @@ internal fun decodeKiyoriMainIntent(
                 when {
                     intentUri == null -> KiyoriMainIntentCommand.None
                     intentUri.scheme.equals("http", ignoreCase = true) ||
-                        intentUri.scheme.equals("https", ignoreCase = true) ->
+                        intentUri.scheme.equals("https", ignoreCase = true) ||
+                        isKiyoriLocalHtmlView(intentUri.scheme, intent.type, intentUri.path) ->
                         KiyoriMainIntentCommand.OpenBrowser(intentUri.toString())
                     else -> KiyoriMainIntentCommand.OpenSharedFile(intentUri)
                 }
@@ -234,6 +235,16 @@ internal fun decodeKiyoriMainIntent(
         command = command,
         processPendingSharedContent = processPendingSharedContent,
     )
+}
+
+/** 只把显式 VIEW 的本地 HTML 交给浏览器；分享、源码文本及其余附件保持原入口。 */
+internal fun isKiyoriLocalHtmlView(scheme: String?, mimeType: String?, path: String?): Boolean {
+    if (!scheme.equals("file", true) && !scheme.equals("content", true)) return false
+    val mime = mimeType?.substringBefore(';')?.trim()?.lowercase(java.util.Locale.ROOT)
+    if (mime == "text/html" || mime == "application/xhtml+xml") return true
+    if (!mime.isNullOrEmpty() && mime != "application/octet-stream") return false
+    val extension = path?.substringAfterLast('.', "")?.lowercase(java.util.Locale.ROOT)
+    return extension == "html" || extension == "htm" || extension == "xhtml"
 }
 
 private fun Intent.readSingleSharedUri(): Uri? {

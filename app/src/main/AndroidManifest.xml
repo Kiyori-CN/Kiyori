@@ -271,6 +271,7 @@
                 <data android:mimeType="image/*" />
                 <data android:mimeType="audio/*" />
                 <data android:mimeType="text/*" />
+                <data android:mimeType="application/xhtml+xml" />
                 <data android:mimeType="application/pdf" />
                 <data android:mimeType="application/json" />
                 <data android:mimeType="application/xml" />

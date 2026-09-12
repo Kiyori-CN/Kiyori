@@ -13,6 +13,30 @@ import org.mockito.kotlin.whenever
 
 class KiyoriMainIntentDecoderTest {
     @Test
+    fun `local html VIEW routes by explicit MIME or untyped file extension`() {
+        assertTrue(isKiyoriLocalHtmlView("content", "text/html; charset=utf-8", "/opaque/42"))
+        assertTrue(isKiyoriLocalHtmlView("FILE", null, "/Download/页面.HTM"))
+        assertTrue(isKiyoriLocalHtmlView("content", "application/xhtml+xml", "/42"))
+        assertTrue(isKiyoriLocalHtmlView("file", "application/octet-stream", "/index.html"))
+        assertFalse(isKiyoriLocalHtmlView("https", "text/html", "/page"))
+        assertFalse(isKiyoriLocalHtmlView("content", "text/plain", "/index.html"))
+        assertFalse(isKiyoriLocalHtmlView("content", null, "/42"))
+        assertFalse(isKiyoriLocalHtmlView("file", null, "/index.html.txt"))
+    }
+
+    @Test
+    fun `content html opens browser without becoming shared attachment`() {
+        val uri = mock<Uri>()
+        whenever(uri.scheme).thenReturn("content")
+        whenever(uri.path).thenReturn("/document/42")
+        whenever(uri.toString()).thenReturn("content://documents/document/42")
+        val intent = mock<Intent>()
+        whenever(intent.action).thenReturn(Intent.ACTION_VIEW)
+        whenever(intent.data).thenReturn(uri)
+        whenever(intent.type).thenReturn("text/html")
+        assertEquals(KiyoriMainIntentCommand.OpenBrowser("content://documents/document/42"), decodeKiyoriMainIntent(intent).command)
+    }
+    @Test
     fun `player and download commands preserve priority and trimmed task id`() {
         val restartIntent = mock<Intent>()
         whenever(restartIntent.action)

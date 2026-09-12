@@ -55,6 +55,14 @@ AI 抽屉精确 import 表同时新增共用标题组件和三个原值不变的
 
 ## 验证
 
+2026-09-13 浏览器补丁整合：审阅本地 HTML 导航链路后，Manifest 精确新增
+`application/xhtml+xml`，M-03 语义树 `82026D3A → CCFB6CBC`；Shell 仅增加原浏览器 URL
+队列接线，归一化哈希 `B924EA30 → 280CA894`；Intent decoder 增加本地 HTML VIEW 分流，
+哈希 `D0FE25C7 → 149051B5`。MainActivity 移除原始 URL 日志，源码哈希
+`677F3ADE → 373057ED`。下载抽屉删除按钮消费既有语义红色，生产消费者 `63 → 64`、
+精确 import `114 → 115`，同步正反例夹具；不新增主题、浏览器或文件会话所有者。
+行为与设备边界见[浏览器补丁整合](../../docs/TODO/kiyori_browser_product_completion/index.md#2026-09-13-浏览器与文件首页补丁整合)。
+
 2026-09-13 文件管理根目录导航与存储首页：审阅 `fileManagerCanNavigateUp()` 移除内部存储边界、
 `FileManagerViewModel.navigateUp()` 同步放开，以及首页携带目标位置打开既有会话后，Shell 状态哈希
 `0A0ABB39 → 35495429`，Shell 归一化哈希 `400A5F39 → 558CC9EC`；`fileManagerBackAction` 的

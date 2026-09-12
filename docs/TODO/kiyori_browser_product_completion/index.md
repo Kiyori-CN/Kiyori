@@ -10,6 +10,45 @@ hikerview_reference: 5de8809049e4710471f9f42642e54550ecf5dbe3
 
 # 浏览器产品能力连续完善
 
+## 2026-09-13 浏览器与文件首页补丁整合
+
+状态：本地实现、自动验证与 Debug APK 已完成；设备 `verification_pending`。
+基线 `cf0ac3130134bf133c4b5b9055f37bde7fa9c9fd`，开始时 main 与 terminal 工作区干净。
+
+目标是审查并整合外部补丁，闭合四项用户问题：文件管理首页密度、浏览器底部抽屉操作、
+本地 HTML 打开与 PC UA 桌面布局。保持唯一 WebSession、原有文件会话、站点设置与 AI 显式视口契约。
+不修改无关 AI/播放器/代理实现，不安装或操作设备；本轮授权测试、Debug 构建、提交及推送 main。
+
+1. 审查 12 文件补丁与当前调用链，修正路径编码、content URI 分流和遗漏的文件打开入口。
+2. 统一可逆 viewport 控制，处理动态 meta、重复应用、开关恢复、页面加载时序及缩放限制；
+   桌面布局只在未显式设置会话宽度时接管。保留强制缩放期间停用 overview 的既有契约。
+3. 收紧首页纵向留白并保留触控面积；审查全部底部抽屉的计数、操作、空态、滚动与系统 Insets。
+4. 执行行为回归、文档检查和串行 Debug 构建，审计候选树及固定子模块后提交推送并核对远端 ref。
+
+风险与回滚：本地文件仍受 Android 权限和来源隔离约束；content 提供方不承诺相对资源访问；
+不同 WebView provider 的页面缩放、触摸与首屏效果必须现场验收。Git 交付可通过反向提交回滚，
+不迁移存储格式、不新增依赖或第二浏览器运行时。设备视觉与真实 GoTab 桌面排版保持 `verification_pending`。
+
+2026-09-13 本地验证证据：
+
+- 定向 JVM 8 个测试类共 `60/60` 通过，零失败、错误或跳过；覆盖地址编码、HTML Intent、
+  导航身份、视口优先级、UA 以及文件会话。`BrowserDisplaySettingsPolicyTest` 通过 Node 执行
+  生产脚本的 DOM 生命周期夹具，覆盖动态改写、重复应用、恢复、延迟 head、标签移除与子框架。
+- 本地 Chromium 移动视口夹具观察到布局 `390 → 980 CSS px`、一栏变三栏、适屏比例
+  `0.397959`；关闭覆盖后恢复作者最新 viewport。该结果不等同于 Android WebView 或真实站点验收。
+- 串行 `:app:assembleDebug --no-daemon --console=plain` 成功，最后一次含源码修改的构建为
+  `1m 53s`、238 tasks；唯一 launcher、脚本代理与播放器 runtime packaging 验证通过。
+  `app/build/outputs/apk/debug/app-debug.apk` 生成于 `2026-09-13 04:35:48 +08:00`，
+  `488291558` bytes，SHA-256 `E4E34FD0B75EE4031C509DFB05B1110C40845655A04343318536580B176D3C00`。
+  `com.kiyori / 45 / 0.1.0`、minSdk 26、targetSdk 34、仅 arm64-v8a，V2 单 signer 与 16 KiB ZIP 对齐通过。
+- 中断恢复审查修复用户指南断表和本地导航不可达旧分支。架构检查首次发现 MIME、Shell、
+  Intent、日志脱敏和语义色消费者快照遗漏，逐项核对后同步，相关 Python 正反例 `10/10` 通过。
+  快照更新原因见[架构控制面](../../../config/architecture/README.md#验证)。
+- 完整 `check_architecture_boundaries.py --repository . --require-main` 复验通过（`phase=m03`），
+  保留精确 Manifest、唯一所有者、消费者 import、持久化及子模块边界检查。
+- 文档检查 `521` 文件、零问题，formal readiness 和差异空白检查通过。Lint、Release、设备安装、
+  真实 GoTab/其他站点与远端 Actions 未作为本轮通过证据。
+
 ## 2026-09-06 广告拦截初始化与悬浮窗 Compose 约束崩溃修复
 
 本轮处理两份 `APP_FATAL` 报告：浏览器设置页在广告规则异步初始化期间切换总开关，绕过详情页
