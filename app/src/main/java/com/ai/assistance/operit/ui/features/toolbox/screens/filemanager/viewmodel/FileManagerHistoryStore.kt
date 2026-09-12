@@ -26,7 +26,10 @@ class FileManagerHistoryStore(private val file: File, private val dispatcher: ko
 
     suspend fun load() = update { it }
 
-    private suspend fun update(transform: (FileManagerHistory) -> FileManagerHistory) = withContext(dispatcher) {
+    private suspend fun update(
+        onCommitted: (FileManagerHistory) -> Unit = {},
+        transform: (FileManagerHistory) -> FileManagerHistory,
+    ) = withContext(dispatcher) {
         mutex.withLock {
             if (!loaded) {
                 val initial = if (!file.exists()) FileManagerHistory() else {
@@ -49,6 +52,8 @@ class FileManagerHistoryStore(private val file: File, private val dispatcher: ko
             require(bytes.size <= 32 * 1024 * 1024) { "文件历史过大，请先清空历史" }
             FileOutputStream(temporary).use { it.write(bytes); it.fd.sync() }
             Files.move(temporary.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+            // 删除标记与磁盘提交在同一锁内发布；写盘失败不能阻止后续结果保存。
+            onCommitted(mutableState.value)
             mutableState.value = next
         }
     }
@@ -63,8 +68,9 @@ class FileManagerHistoryStore(private val file: File, private val dispatcher: ko
         history.copy(tasks = (listOf(record.copy(results = record.results.take(1000), resultCount = record.results.size)) + history.tasks.filterNot { it.id == record.id })
             .sortedByDescending { it.time }.take(100))
     }
-    suspend fun removeSearch(id: String?) = update {
+    suspend fun removeSearch(id: String?) = update(onCommitted = {
         deletedSearches.addAll(if (id == null) it.searches.map { record -> record.id } else listOf(id))
+    }) {
         it.copy(searches = if (id == null) emptyList() else it.searches.filterNot { record -> record.id == id })
     }
     suspend fun removeTask(id: String?) = update { it.copy(tasks = it.tasks.filter { record -> record.finishedAt == null || (id != null && record.id != id) }) }

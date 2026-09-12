@@ -2,6 +2,9 @@ package com.ai.assistance.operit.ui.main.shell
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -15,6 +18,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
@@ -39,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -133,12 +138,18 @@ internal fun KiyoriSettingsRow(
     onClick: () -> Unit,
 ) {
     val colors = LocalKiyoriSettingsColors.current
+    val interaction = when (kind) {
+        KiyoriSettingsRowKind.NAVIGATION -> Modifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+        KiyoriSettingsRowKind.TOGGLE -> Modifier.toggleable(
+            value = checked, enabled = enabled, role = Role.Switch, onValueChange = { onClick() },
+        )
+    }
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
                 .alpha(if (enabled) 1f else 0.42f)
-                .clickable(enabled = enabled, onClick = onClick)
+                .then(interaction)
                 .padding(
                     start = 18.dp,
                     end = 14.dp,
@@ -155,7 +166,7 @@ internal fun KiyoriSettingsRow(
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
                 color = colors.primaryText,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
@@ -163,7 +174,7 @@ internal fun KiyoriSettingsRow(
                 fontSize = 12.sp,
                 lineHeight = 17.sp,
                 color = colors.secondaryText,
-                maxLines = 2,
+                maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 4.dp),
             )
@@ -178,7 +189,7 @@ internal fun KiyoriSettingsRow(
                         color = colors.secondaryText,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(start = 12.dp),
+                        modifier = Modifier.padding(start = 12.dp).widthIn(max = 96.dp),
                     )
                 }
                 Spacer(modifier = Modifier.width(5.dp))
@@ -192,7 +203,7 @@ internal fun KiyoriSettingsRow(
             KiyoriSettingsRowKind.TOGGLE ->
                 Switch(
                     checked = checked,
-                    onCheckedChange = { if (enabled) onClick() },
+                    onCheckedChange = null,
                     enabled = enabled,
                     colors =
                         SwitchDefaults.colors(
@@ -286,7 +297,7 @@ private fun KiyoriSettingsSelectionSheetContent(
             }
             HorizontalDivider(color = colors.divider)
             LazyColumn(
-                modifier = Modifier.fillMaxWidth().weight(1f),
+                modifier = Modifier.fillMaxWidth().weight(1f).selectableGroup(),
                 contentPadding = PaddingValues(bottom = 4.dp),
             ) {
                 itemsIndexed(visibleOptions) { _, option ->
@@ -295,7 +306,7 @@ private fun KiyoriSettingsSelectionSheetContent(
                             Modifier
                                 .fillMaxWidth()
                                 .heightIn(min = KIYORI_SETTINGS_SELECTION_OPTION_MIN_HEIGHT_DP.dp)
-                                .clickable {
+                                .selectable(selected = option.selected, role = Role.RadioButton) {
                                     onSelect(option)
                                     dismissDrawer()
                                 }

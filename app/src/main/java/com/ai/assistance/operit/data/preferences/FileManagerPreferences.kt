@@ -45,6 +45,24 @@ data class FileManagerSettings(
     val defaultWorkspacePath: String = "",
 )
 
+/** 只重置浏览偏好；通过 copy 保留入口身份、别名及今后增加的非浏览字段。 */
+internal fun FileManagerSettings.resetBrowsing(): FileManagerSettings {
+    val defaults = FileManagerSettings()
+    return copy(
+        leftStartPath = defaults.leftStartPath, rightStartPath = defaults.rightStartPath,
+        itemSize = defaults.itemSize, filenameLines = defaults.filenameLines,
+        showSeconds = defaults.showSeconds, showDirectorySizes = defaults.showDirectorySizes,
+        showHiddenFiles = defaults.showHiddenFiles, showManuallyHiddenFiles = defaults.showManuallyHiddenFiles,
+        sortMode = defaults.sortMode, sortDescending = defaults.sortDescending,
+        refreshIntervalSeconds = defaults.refreshIntervalSeconds,
+    )
+}
+
+internal fun FileManagerSettings.resetDrawerLayout(): FileManagerSettings = copy(
+    drawerOrder = emptyList(), drawerHidden = emptySet(), drawerRemoved = emptySet(),
+    showBookmarks = true, showWorkspaces = true,
+)
+
 /** 设置页与双栏共用显示偏好及手动隐藏路径；不保存浏览位置、选择或权限身份。 */
 class FileManagerPreferences internal constructor(private val preferences: SharedPreferences) {
     private val mutableState = MutableStateFlow(read())
