@@ -34,10 +34,18 @@ class FileManagerBrowserPolicyTest {
         assertEquals(listOf("..", " report "), fileManagerVisibleEntries(entries, " report ", true, true).map { it.name })
     }
 
-    @Test fun `initial storage and filesystem roots never offer an inoperative parent`() {
-        assertFalse(fileManagerCanNavigateUp(FileManagerLocation("/storage/test", null), "/storage/test"))
-        assertFalse(fileManagerCanNavigateUp(FileManagerLocation("/", "linux"), "/storage/test"))
-        assertTrue(fileManagerCanNavigateUp(FileManagerLocation("/storage/test/sub", null), "/storage/test"))
+    @Test fun `internal storage keeps stepping up through every ancestor to the filesystem root`() {
+        assertTrue(fileManagerCanNavigateUp(FileManagerLocation("/storage/emulated/0", null)))
+        assertTrue(fileManagerCanNavigateUp(FileManagerLocation("/storage/emulated", null)))
+        assertTrue(fileManagerCanNavigateUp(FileManagerLocation("/storage", null)))
+        assertFalse(fileManagerCanNavigateUp(FileManagerLocation("/", null)))
+    }
+
+    @Test fun `filesystem roots and the recycle bin never offer an inoperative parent`() {
+        assertFalse(fileManagerCanNavigateUp(FileManagerLocation("/", "linux")))
+        assertFalse(fileManagerCanNavigateUp(FileManagerLocation("/回收站", "recycle")))
+        assertFalse(fileManagerCanNavigateUp(FileManagerLocation("/storage/test/sub", "recycle")))
+        assertTrue(fileManagerCanNavigateUp(FileManagerLocation("/storage/test/sub", null)))
     }
 
     @Test fun `compact sizes retain two decimal places and scale through units`() {

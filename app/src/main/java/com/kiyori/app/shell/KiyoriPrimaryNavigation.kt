@@ -141,6 +141,7 @@ internal fun KiyoriPrimaryRootPage(
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
     onOpenFileManager: () -> Unit,
+    onOpenFileManagerLocation: (path: String, environment: String?) -> Unit,
     onOpenPlayerSettings: () -> Unit,
     onOpenFileManagerSettings: () -> Unit,
     onOpenAppearanceSettings: () -> Unit,
@@ -152,6 +153,7 @@ internal fun KiyoriPrimaryRootPage(
         PrimaryDestination.FILE_MANAGEMENT_HOME -> {
             KiyoriFileManagementPage(
                 onOpenPhoneStorage = onOpenFileManager,
+                onOpenFileManagerLocation = onOpenFileManagerLocation,
                 modifier = modifier,
             )
             return

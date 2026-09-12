@@ -922,7 +922,7 @@ class FileManagerViewModel(
     }
 
     fun canNavigateUp(pane: FileManagerPane): Boolean =
-        paneState(pane).let { fileManagerCanNavigateUp(FileManagerLocation(it.path, it.environment), initialStoragePath) }
+        paneState(pane).let { fileManagerCanNavigateUp(FileManagerLocation(it.path, it.environment)) }
 
     private fun reconcileSelection(pane: FileManagerPane) {
         val available = paneState(pane).files.filter { it.name != ".." }.associateBy { it.name }
@@ -1244,12 +1244,11 @@ class FileManagerViewModel(
         )
     }
 
-    // 活动窗格到达手机存储初始目录后，向上按钮保持在边界，不越出文件管理器的初始状态。
+    // 向上按钮到达手机存储初始目录后不再截断，继续沿目录树向上直到系统根目录 "/"。
     fun navigateUp(): Boolean {
         if (isRecycleBin) return navigateBackDirectory()
         val state = paneState(activePane)
         val parentPath = fileManagerParentPath(state.path) ?: return false
-        if (state.path == initialStoragePath && state.environment == null) return false
         navigatePaneTo(activePane, parentPath, state.environment, recordHistory = true)
         return true
     }

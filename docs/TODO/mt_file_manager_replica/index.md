@@ -1,5 +1,37 @@
 # Kiyori 内置文件管理器开发
 
+## 2026-09-13 根目录逐级返回与存储首页重构
+
+状态：实现、定向回归、架构门禁与 Debug APK 构建完成；设备 `verification_pending`。
+基线 `main / faf97a8f3e9c3923175a0f7c8c774ebe3a120b3b`。本轮授权应用外部补丁、验证、构建、提交并推送 main；
+不安装或操作设备，不修改 terminal，不新增文件后端。
+
+1. 放开显式“上一级”：`fileManagerCanNavigateUp()` 去掉内部存储初始目录边界参数，列表首行 `..`
+   可沿 `/storage/emulated/0 → /storage/emulated → /storage → /` 继续向上；物理返回键到达初始目录
+   仍退出文件管理器，`fileManagerBackAction` 未改，两种交互保持独立。
+2. 首页“存储位置”改为 `内部存储 / Linux / 工作区 / 回收站`；固定入口常驻，Linux 与工作区复用
+   `FileManagerPreferences.drawerHidden` 持久化显示状态，“全部”打开全屏入口管理页。
+3. 新增 `KiyoriShellState.openFileManager(path, environment)` 与 Shell 一次性跳转请求；
+   首页入口携带目标位置复用既有 `FileManagerViewModel` 会话，不新增第二套会话、跳转状态或 SAF 选择器。
+
+依赖现有文件会话、`FileManagerPreferences` 与存储抽屉；风险集中在返回语义分歧与迟到跳转，
+以本轮提交差异回滚，不迁移或修改实际文件。
+
+本地证据（2026-09-13，Asia/Shanghai）：
+
+- 外部补丁 8 个文件 `git apply` 干净应用；应用后逐文件与补丁自带 `changed-files/` 参考内容
+  做 LF 归一化 SHA-256 比对，8/8 一致。
+- `:app:compileDebugKotlin` 通过；定向 `:app:testDebugUnitTest` 覆盖文件策略、导航策略、存储管理、
+  设置页、Shell 状态与文件管理设置导航，共 6 套 132 项，0 失败/错误。
+- `:app:assembleDebug --no-daemon --console=plain` 成功，`app/build/outputs/apk/debug/app-debug.apk`
+  488291759 字节，`com.kiyori / 45 / 0.1.0 / arm64-v8a`，V2 单签名与 16 KiB ZIP 对齐通过；
+  SHA-256：`CBFB3E186C269231C20026EBED19A3342BF2FFCD3C4A856E34C264FBA2D3C3EA`。
+- 审阅 Shell 状态与归一化差异后更新精确哈希，并修复上一提交遗留的语义消费者漂移；
+  完整 `check_architecture_boundaries.py --repository . --ownership config/architecture/package-ownership.toml --require-main`
+  通过（`phase=m03`），`ci/test` 架构回归 114 项通过。
+- 未运行 Lint、Release、设备安装或真实外部连接；根目录逐级浏览、首页入口、全屏管理页与跳转
+  现场保持 `verification_pending`，本地成功不代表远端 CI 或设备验收通过。
+
 ## 2026-09-13 文件管理设置深度优化与统一
 
 状态：进行中。基线 `main / 088d9c840871985739b96c4cb60f061b19231ff7`，初始工作区干净。

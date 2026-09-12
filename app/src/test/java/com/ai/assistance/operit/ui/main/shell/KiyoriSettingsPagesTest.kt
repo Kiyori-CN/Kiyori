@@ -1486,7 +1486,7 @@ class KiyoriSettingsPagesTest {
     }
 
     @Test
-    fun `file page preserves category quick access and storage order`() {
+    fun `file page preserves category and quick access order`() {
         assertEquals(
             listOf("图片", "视频", "音频", "文档", "安装包", "压缩包", "标签", "下载"),
             kiyoriFileCategoryItems.map(KiyoriFileEntryItem::title),
@@ -1495,16 +1495,60 @@ class KiyoriSettingsPagesTest {
             listOf("应用集", "WPS Office", "QQ", "微信", "截屏", "录音机", "蓝牙"),
             kiyoriFileQuickAccessItems.map(KiyoriFileEntryItem::title),
         )
-        assertEquals(
-            listOf("手机存储", "云盘", "iCloud", "最近删除"),
-            kiyoriFileStorageItems.map(KiyoriFileStorageItem::title),
-        )
-        assertEquals(
-            listOf("手机存储"),
-            kiyoriFileStorageItems.filter(KiyoriFileStorageItem::usesDeviceCapacity).map(KiyoriFileStorageItem::title),
-        )
         assertTrue(
             (kiyoriFileCategoryItems + kiyoriFileQuickAccessItems).all { item -> item.count == "0项" },
+        )
+    }
+
+    @Test
+    fun `file page storage rows expose internal storage Linux workspace and recycle bin in order`() {
+        val rows = kiyoriFileStorageRowItems("/storage/emulated/0", "/storage/emulated/0/Download/Kiyori/workspace")
+        assertEquals(
+            listOf(
+                KiyoriFileStorageKind.INTERNAL, KiyoriFileStorageKind.LINUX,
+                KiyoriFileStorageKind.WORKSPACE, KiyoriFileStorageKind.RECYCLE_BIN,
+            ),
+            rows.map(KiyoriFileStorageRowItem::kind),
+        )
+        assertEquals(listOf("内部存储", "Linux", "工作区", "回收站"), rows.map(KiyoriFileStorageRowItem::title))
+        assertEquals(listOf(true, false, false, true), rows.map(KiyoriFileStorageRowItem::fixed))
+        assertEquals(rows.size, rows.map(KiyoriFileStorageRowItem::storageId).toSet().size)
+    }
+
+    @Test
+    fun `fixed storage rows survive hiding while Linux and workspace can be toggled off and back on`() {
+        val rows = kiyoriFileStorageRowItems("/storage/emulated/0", "/storage/emulated/0/Download/Kiyori/workspace")
+        val linux = rows.single { it.kind == KiyoriFileStorageKind.LINUX }
+        val workspace = rows.single { it.kind == KiyoriFileStorageKind.WORKSPACE }
+
+        assertEquals(rows, kiyoriVisibleFileStorageRowItems(rows, emptySet()))
+
+        val linuxHidden = kiyoriVisibleFileStorageRowItems(rows, setOf(linux.storageId))
+        assertEquals(
+            listOf(KiyoriFileStorageKind.INTERNAL, KiyoriFileStorageKind.WORKSPACE, KiyoriFileStorageKind.RECYCLE_BIN),
+            linuxHidden.map(KiyoriFileStorageRowItem::kind),
+        )
+
+        val everyoneHidden = kiyoriVisibleFileStorageRowItems(rows, setOf(linux.storageId, workspace.storageId))
+        assertEquals(
+            listOf(KiyoriFileStorageKind.INTERNAL, KiyoriFileStorageKind.RECYCLE_BIN),
+            everyoneHidden.map(KiyoriFileStorageRowItem::kind),
+        )
+
+        // 固定入口即使意外出现在隐藏集合中也必须继续展示。
+        val fixedEntry = rows.single { it.kind == KiyoriFileStorageKind.INTERNAL }
+        assertTrue(fixedEntry in kiyoriVisibleFileStorageRowItems(rows, setOf(fixedEntry.storageId)))
+    }
+
+    @Test
+    fun `default workspace path falls back only when unconfigured`() {
+        assertEquals(
+            "/storage/emulated/0/Download/Kiyori/workspace",
+            kiyoriDefaultWorkspacePath("", "/storage/emulated/0/Download/Kiyori/workspace"),
+        )
+        assertEquals(
+            "/custom/workspace",
+            kiyoriDefaultWorkspacePath("/custom/workspace", "/storage/emulated/0/Download/Kiyori/workspace"),
         )
     }
 

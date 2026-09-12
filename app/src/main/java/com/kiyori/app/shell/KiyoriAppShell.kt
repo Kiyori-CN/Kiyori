@@ -215,6 +215,16 @@ internal fun KiyoriAppShell(
         com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.openFileManagerShortcut(shortcutContext, id, session)
         if (latestState.fileManagerShortcutId == id) latestOnStateChange(latestState.copy(fileManagerShortcutId = null))
     }
+    // 文件管理首页的 Linux / 工作区 / 回收站入口直接携带目标位置打开，不经过桌面快捷方式的哈希解析。
+    LaunchedEffect(state.fileManagerPendingPath, state.fileManagerPendingEnvironment, fileManagerViewModel) {
+        val path = state.fileManagerPendingPath ?: return@LaunchedEffect
+        val environment = state.fileManagerPendingEnvironment
+        val session = fileManagerViewModel ?: return@LaunchedEffect
+        session.navigateToPath(path, environment)
+        if (latestState.fileManagerPendingPath == path && latestState.fileManagerPendingEnvironment == environment) {
+            latestOnStateChange(latestState.copy(fileManagerPendingPath = null, fileManagerPendingEnvironment = null))
+        }
+    }
     val shellChildOverlayVisible = shouldAnimateKiyoriShellChildOverlay(state)
     val dispatchShellBack: () -> Unit = {
         val transition = latestState.handleBack()
@@ -340,6 +350,9 @@ internal fun KiyoriAppShell(
                     onOpenBrowserSettings = onOpenBrowserSettingsFromKiyoriSettings,
                     onOpenFileManager = {
                         onStateChange(state.openFileManager())
+                    },
+                    onOpenFileManagerLocation = { path, environment ->
+                        onStateChange(state.openFileManager(path, environment))
                     },
                     onOpenDownloadSettings = {
                         onStateChange(

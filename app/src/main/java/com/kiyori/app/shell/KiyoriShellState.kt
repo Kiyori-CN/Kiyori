@@ -64,6 +64,8 @@ data class KiyoriShellState(
     val fileManagerSessionOpen: Boolean = false,
     val fileManagerMinimized: Boolean = false,
     val fileManagerShortcutId: String? = null,
+    val fileManagerPendingPath: String? = null,
+    val fileManagerPendingEnvironment: String? = null,
     val fileManagerParentSettings: KiyoriSettingsNavigationState? = null,
     val isAiDrawerOpen: Boolean = false,
     val isBookmarkDrawerOpen: Boolean = false,
@@ -201,11 +203,18 @@ data class KiyoriShellState(
      * Settings session intact when Settings opens it, so closing the child returns to that exact
      * Settings route instead of silently moving the user to another primary destination.
      */
-    fun openFileManager(): KiyoriShellState =
+    /**
+     * [path]/[environment] request the session jump straight to that location once it opens
+     * (e.g. the file management home page's Linux, workspace or recycle bin rows). Omit both to
+     * just resume browsing wherever the session already was.
+     */
+    fun openFileManager(path: String? = null, environment: String? = null): KiyoriShellState =
         copy(
             child = KiyoriShellChild.FILE_MANAGER,
             fileManagerSessionOpen = true,
             fileManagerMinimized = false,
+            fileManagerPendingPath = path,
+            fileManagerPendingEnvironment = environment,
             isAiDrawerOpen = false,
             isBookmarkDrawerOpen = false,
             isHistoryDrawerOpen = false,
@@ -216,13 +225,16 @@ data class KiyoriShellState(
         copy(child = null,
             fileManagerSessionOpen = if (child == KiyoriShellChild.FILE_MANAGER) false else fileManagerSessionOpen,
             fileManagerShortcutId = if (child == KiyoriShellChild.FILE_MANAGER) null else fileManagerShortcutId,
+            fileManagerPendingPath = if (child == KiyoriShellChild.FILE_MANAGER) null else fileManagerPendingPath,
+            fileManagerPendingEnvironment = if (child == KiyoriShellChild.FILE_MANAGER) null else fileManagerPendingEnvironment,
             fileManagerMinimized = if (child == KiyoriShellChild.FILE_MANAGER) false else fileManagerMinimized)
 
     fun minimizeFileManager(): KiyoriShellState =
         showSoftwareHomePage(SoftwareHomePage.AI_HOME).copy(fileManagerSessionOpen = true, fileManagerMinimized = true)
 
     fun closeMinimizedFileManager(): KiyoriShellState =
-        copy(fileManagerSessionOpen = false, fileManagerMinimized = false, fileManagerShortcutId = null)
+        copy(fileManagerSessionOpen = false, fileManagerMinimized = false, fileManagerShortcutId = null,
+            fileManagerPendingPath = null, fileManagerPendingEnvironment = null)
 
 
     fun openSettings(

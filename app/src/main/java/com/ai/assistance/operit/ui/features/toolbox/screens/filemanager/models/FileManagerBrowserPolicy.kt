@@ -48,8 +48,9 @@ internal fun fileManagerComparator(mode: FileManagerSortMode, descending: Boolea
         }
     }
 
-internal fun fileManagerCanNavigateUp(location: FileManagerLocation, initialPath: String): Boolean =
-    location.environment != "recycle" && fileManagerParentPath(location.path) != null && !(location.path == initialPath && location.environment == null)
+/** 到达内部存储初始目录后仍可继续向上，直到系统文件树的真实根目录 "/"。 */
+internal fun fileManagerCanNavigateUp(location: FileManagerLocation): Boolean =
+    location.environment != "recycle" && fileManagerParentPath(location.path) != null
 
 internal fun fileManagerVisibleEntries(
     entries: List<FileItem>, query: String, showHidden: Boolean, canNavigateUp: Boolean,

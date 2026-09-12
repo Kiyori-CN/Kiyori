@@ -55,6 +55,15 @@ AI 抽屉精确 import 表同时新增共用标题组件和三个原值不变的
 
 ## 验证
 
+2026-09-13 文件管理根目录导航与存储首页：审阅 `fileManagerCanNavigateUp()` 移除内部存储边界、
+`FileManagerViewModel.navigateUp()` 同步放开，以及首页携带目标位置打开既有会话后，Shell 状态哈希
+`0A0ABB39 → 35495429`，Shell 归一化哈希 `400A5F39 → 558CC9EC`；`fileManagerBackAction` 的
+物理返回键边界退出语义未变，会话与导航所有者保持单一。
+
+同次审阅修复 `faf97a8` 遗留漂移：`KiyoriFileManagerSettingsPage` 改用 `KiyoriSettingsTheme` 后
+不再消费 `KiyoriSemanticTone` 与 `resolveColors`。M-05A1 的 `KiyoriSettingsTheme` 精确消费者增加该页；
+M-05A2 消费者 import 由 116 降至 114、生产消费者由 64 降至 63，语义色所有者、色调顺序与越层规则不变。
+
 2026-09-12 设置与抽屉管理：审阅一次性文件快捷请求接线及关闭会话清理后，root 哈希
 `89125AFA → 04DE0837`，Shell 状态 `C64A0D5D → 0A0ABB39`，Shell 归一化哈希
 `777A2DDA → 400A5F39`。解析、目录准备及错误提示在文件管理器适配层，Shell 仍复用原会话。

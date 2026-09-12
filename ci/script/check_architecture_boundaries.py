@@ -431,6 +431,8 @@ M05A1_EXPECTED_IMPORT_CONSUMERS = {
         "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
         "KiyoriSettingsUi.kt",
         "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
+        "KiyoriFileManagerSettingsPage.kt",
+        "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
         "KiyoriSettingsWorkspacePage.kt",
     },
     "LocalKiyoriSettingsColors": {
@@ -531,9 +533,9 @@ M05A2_CONSUMER_IMPORT_SNAPSHOT = (
     "m05a2-semantic-consumer-imports.txt"
 )
 M05A2_DESIGN_PACKAGE = "com.kiyori.design.theme"
-M05A2_PRODUCTION_CONSUMER_COUNT = 64
+M05A2_PRODUCTION_CONSUMER_COUNT = 63
 M05A2_EXTERNAL_TEST_CONSUMER_COUNT = 4
-M05A2_CONSUMER_IMPORT_COUNT = 116
+M05A2_CONSUMER_IMPORT_COUNT = 114
 M05A2_MOVED_IMPORT_SYMBOLS = {
     "KiyoriSemanticTone",
     "kiyoriSemanticToneForStableId",
