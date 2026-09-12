@@ -21,6 +21,9 @@ data class FileItem(
     val displayName: String = name,
     val recycledOriginalPath: String? = null,
     val recycleProblem: String? = null,
+    /** 子文件内容总大小，不使用目录 inode 的 stat 长度冒充内容大小。 */
+    val directoryContentSize: Long? = null,
+    val directorySizeUnavailable: Boolean = false,
 )
 
 enum class FileManagerPane {
@@ -64,6 +67,7 @@ data class FileManagerPaneState(
     val sortDescending: Boolean = false,
     val refreshing: Boolean = false,
     val presentationVersion: Long = 0,
+    val directoryRevision: Long = 0,
 ) {
     val filterQuery: String get() = filter.name
     val scrollKey: String get() = if (filter == FileManagerFilter(name = filter.name)) filter.name else filter.toString()

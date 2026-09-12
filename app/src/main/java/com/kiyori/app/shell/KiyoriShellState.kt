@@ -72,6 +72,10 @@ data class KiyoriShellState(
     val browserExitPresentation: KiyoriBrowserExitPresentation =
         KiyoriBrowserExitPresentation.CLOSE,
 ) {
+    // 可见性由保留会话与当前页面推导，所有导航出口都适用；显式关闭才释放会话。
+    val showsFileManagerIndicator: Boolean
+        get() = fileManagerSessionOpen && child != KiyoriShellChild.FILE_MANAGER
+
     val showsBottomBar: Boolean
         get() =
             child == null && settingsNavigation?.origin != KiyoriSettingsOrigin.FILE_MANAGER && !isAiDrawerOpen && !isBookmarkDrawerOpen && !isHistoryDrawerOpen &&
@@ -344,7 +348,10 @@ data class KiyoriShellState(
             return copy(settingsNavigation = navigation.popRoute())
         }
         return when (navigation.origin) {
-            KiyoriSettingsOrigin.FILE_MANAGER -> copy(settingsNavigation = fileManagerParentSettings, fileManagerParentSettings = null).openFileManager()
+            KiyoriSettingsOrigin.FILE_MANAGER -> copy(settingsNavigation = fileManagerParentSettings, fileManagerParentSettings = null).let {
+                // 设置上方的恢复球可能已被显式关闭，Back 不能重新创建已关闭的文件会话。
+                if (fileManagerSessionOpen) it.openFileManager() else it
+            }
             KiyoriSettingsOrigin.BOTTOM_NAVIGATION ->
                 showSoftwareHomePage(SoftwareHomePage.HOME)
             KiyoriSettingsOrigin.BROWSER_HOME,

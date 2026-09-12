@@ -55,6 +55,10 @@ AI 抽屉精确 import 表同时新增共用标题组件和三个原值不变的
 
 ## 验证
 
+2026-09-12 文件悬浮恢复：逐项审阅 Shell 的会话可见性推导、写入中关闭保护和设置返回后不复活已关闭会话。
+状态哈希由 `7150A1AC` 更新为 `C64A0D5D`，Shell 归一化哈希由 `BB3E8918` 更新为 `777A2DDA`；
+没有增加会话或导航所有者，精确 import 与其他边界保持原约束。导航行为由定向 JVM 测试覆盖。
+
 2026-09-12 文件管理设置：审阅新增专属设置页及来源返回后，Shell 归一化哈希由 `89F27AD9`
 更新为 `BB3E8918`，状态哈希由 `C64B7219` 更新为 `7150A1AC`，Shell 精确 import 增加
 `KiyoriFileManagerSettingsPage`。持久化 API 清单仅新增 `FileManagerPreferences` 的

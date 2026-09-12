@@ -20,13 +20,14 @@ internal fun FileManagerBrowseDrawer(title: String, location: String, onDismiss:
     content: @Composable ColumnScope.(dismiss: () -> Unit) -> Unit,
 ) {
     KiyoriModalBottomDrawer(onDismissRequest = onDismiss) { dismiss ->
-        Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
                 IconButton(onClick = dismiss) { Icon(Icons.Outlined.Close, "关闭") }
             }
-            if (location.isNotEmpty()) Text(location, style = MaterialTheme.typography.bodySmall)
+        // 标题与关闭按钮固定；键盘和系统栏由共享宿主消费一次，长表单只滚动正文。
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (location.isNotEmpty()) Text(location, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             content(dismiss)
         }
     }

@@ -44,9 +44,11 @@ internal fun KiyoriFileManagerMinimizedIndicator(
     KiyoriBrowserTheme {
         BoxWithConstraints(modifier.statusBarsPadding().navigationBarsPadding()) {
             val density = LocalDensity.current
-            val maxX = with(density) { (maxWidth - 40.dp).toPx().coerceAtLeast(0f) }
-            val maxY = with(density) { (maxHeight - 40.dp).toPx().coerceAtLeast(0f) }
-            Box(Modifier.offset { IntOffset((xFraction * maxX).roundToInt(), (yFraction * maxY).roundToInt()) }.size(40.dp)) {
+            // 预留右上角关闭按钮的边界，靠边停靠时叉号仍可完整点击。
+            val topInset = with(density) { 18.dp.toPx() }
+            val maxX = with(density) { (maxWidth - 46.dp).toPx().coerceAtLeast(0f) }
+            val maxY = with(density) { (maxHeight - 58.dp).toPx().coerceAtLeast(0f) }
+            Box(Modifier.offset { IntOffset((xFraction * maxX).roundToInt(), (topInset + yFraction * maxY).roundToInt()) }.size(40.dp)) {
                 WebSessionMinimizedIndicator(
                     contentDescription = "恢复文件管理器", activeDownloadCount = 0,
                     hasFailedDownloads = false, downloadPrompt = null,
@@ -58,9 +60,9 @@ internal fun KiyoriFileManagerMinimizedIndicator(
                     onLongPress = { closeEvent(BrowserMinimizedIndicatorCloseEvent.LONG_PRESS_RECOGNIZED) },
                     onLongPressGestureFinished = { closeEvent(BrowserMinimizedIndicatorCloseEvent.GESTURE_FINISHED) },
                     onConfirmBrowserDownload = {}, onCancelBrowserDownload = {}, idleIcon = Icons.Outlined.Folder,
-                    accentColor = KiyoriSemanticTone.PURPLE.resolveColors().icon,
+                    accentColor = androidx.compose.ui.graphics.Color(0xFFB88632),
                 )
-                if (closeState.isCloseActionVisible && !closeState.isLongPressGestureActive) Box(Modifier.offset(x = (-18).dp, y = (-18).dp).size(BROWSER_MINIMIZED_INDICATOR_CLOSE_ACTION_SIZE_DP.dp)) {
+                if (closeState.isCloseActionVisible && !closeState.isLongPressGestureActive) Box(Modifier.offset(x = 18.dp, y = (-18).dp).size(BROWSER_MINIMIZED_INDICATOR_CLOSE_ACTION_SIZE_DP.dp)) {
                     WebSessionMinimizedCloseAction("关闭文件管理器", onClose)
                 }
             }

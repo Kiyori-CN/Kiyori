@@ -4,6 +4,13 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class KiyoriDraggableBottomDrawerPolicyTest {
+    @Test fun `release direction respects a fast reversal and slow drag distance`() {
+        assertEquals(1, kiyoriBottomDrawerDragDirection(-100f, 1200f))
+        assertEquals(-1, kiyoriBottomDrawerDragDirection(100f, -1200f))
+        assertEquals(-1, kiyoriBottomDrawerDragDirection(-100f, 200f))
+        assertEquals(1, kiyoriBottomDrawerDragDirection(100f, -200f))
+        assertEquals(0, kiyoriBottomDrawerDragDirection(0f, 0f))
+    }
     @Test
     fun `content viewport follows the exposed drawer height`() {
         assertEquals(

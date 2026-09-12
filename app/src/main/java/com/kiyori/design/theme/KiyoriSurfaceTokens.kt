@@ -11,7 +11,7 @@ import androidx.compose.ui.unit.dp
 object KiyoriSurfaceTokens {
     val flatElevation = 0.dp
     val popupElevation = 3.dp
-    val sheetElevation = 3.dp
+    val sheetElevation = 0.dp
     val outlineWidth = 0.5.dp
     const val modalScrimAlpha = 0.32f
     const val popupScrimAlpha = 0.16f
@@ -30,7 +30,8 @@ internal fun resolveKiyoriSurfaceColors(scheme: ColorScheme): KiyoriSurfaceColor
     KiyoriSurfaceColors(
         card = scheme.surfaceContainerLow,
         popup = scheme.surfaceContainerHigh,
-        sheet = scheme.surfaceContainerLow,
+        // 拉柄与正文使用同一表面，避免正文单独使用 surface 时形成横向色带。
+        sheet = scheme.surface,
         outline = scheme.outlineVariant,
         modalScrim = scheme.scrim.copy(alpha = KiyoriSurfaceTokens.modalScrimAlpha),
     )

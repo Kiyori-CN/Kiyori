@@ -903,10 +903,8 @@ val actualViewModel: ChatViewModel =
     ) {
         if (isCurrentScreen) {
             setTopBarActions {
-                val browserColors = KiyoriSemanticTone.BLUE.resolveColors()
-                val terminalColors = KiyoriSemanticTone.CYAN.resolveColors()
-                val detailsColors = KiyoriSemanticTone.ORANGE.resolveColors()
-                val fileManagerColors = KiyoriSemanticTone.PURPLE.resolveColors()
+                val actionInk = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) Color.Black else MaterialTheme.colorScheme.onSurface
+                val actionSelection = MaterialTheme.colorScheme.surfaceVariant
                 // 共享浏览器入口：进入 Browser Home 时只转挂现有 WebSession，不创建第二个 WebView。
                 IconButton(
                         modifier = Modifier.size(uiTokens.touchTarget).clip(KiyoriUiShapes.control),
@@ -914,8 +912,8 @@ val actualViewModel: ChatViewModel =
                         onClick = openBrowser,
                         colors =
                             IconButtonDefaults.iconButtonColors(
-                                contentColor = browserColors.icon,
-                                disabledContentColor = browserColors.icon.copy(alpha = 0.38f),
+                                contentColor = actionInk,
+                                disabledContentColor = actionInk.copy(alpha = 0.38f),
                             ),
                 ) {
                     Icon(
@@ -929,7 +927,7 @@ val actualViewModel: ChatViewModel =
                     modifier = Modifier.size(uiTokens.touchTarget).clip(KiyoriUiShapes.control),
                     enabled = openFileManager != null,
                     onClick = { openFileManager?.invoke() },
-                    colors = IconButtonDefaults.iconButtonColors(contentColor = fileManagerColors.icon),
+                    colors = IconButtonDefaults.iconButtonColors(contentColor = actionInk),
                 ) {
                     Icon(Icons.Outlined.Folder, contentDescription = "文件管理器")
                 }
@@ -950,13 +948,13 @@ val actualViewModel: ChatViewModel =
                             IconButtonDefaults.iconButtonColors(
                                 containerColor =
                                     if (showAiComputer) {
-                                        terminalColors.container
+                                        actionSelection
                                     } else {
                                         Color.Transparent
                                     },
-                                contentColor = terminalColors.icon,
+                                contentColor = actionInk,
                                 disabledContainerColor = Color.Transparent,
-                                disabledContentColor = terminalColors.icon.copy(alpha = 0.38f),
+                                disabledContentColor = actionInk.copy(alpha = 0.38f),
                             ),
                 ) {
                     Icon(
@@ -975,13 +973,13 @@ val actualViewModel: ChatViewModel =
                             IconButtonDefaults.iconButtonColors(
                                 containerColor =
                                     if (showConversationDetails) {
-                                        detailsColors.container
+                                        actionSelection
                                     } else {
                                         Color.Transparent
                                     },
-                                contentColor = detailsColors.icon,
+                                contentColor = actionInk,
                                 disabledContainerColor = Color.Transparent,
-                                disabledContentColor = detailsColors.icon.copy(alpha = 0.38f),
+                                disabledContentColor = actionInk.copy(alpha = 0.38f),
                             ),
                 ) {
                     BadgedBox(

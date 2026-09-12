@@ -20,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.resetMain
@@ -62,6 +63,75 @@ class FileManagerDirectoryLifecycleTest {
         scheduler.runCurrent()
         Dispatchers.resetMain()
         logMock.close()
+    }
+
+    @Test
+    fun `manual hiding updates both panes and clears hidden selections without file operations`() = runTest(mainDispatcher) {
+        val directory = ControlledDirectory()
+        val model = createModel(directory)
+        scheduler.runCurrent()
+        directory.requests[0].response.complete(listing("private", "visible"))
+        directory.requests[1].response.complete(listing("private", "visible"))
+        scheduler.runCurrent()
+        model.toggleSelection(model.files.first { it.name == "private" })
+        model.hideSelectedFiles()
+        assertEquals(listOf("visible"), model.leftPaneState.files.map { it.name })
+        assertEquals(listOf("visible"), model.rightPaneState.files.map { it.name })
+        assertTrue(model.selectedFiles.isEmpty())
+        assertEquals(2, directory.requests.size)
+        model.setShowManuallyHidden(true)
+        assertEquals(2, model.files.size)
+        val entry = model.manuallyHiddenFiles.single()
+        model.editHiddenEntry(entry, "/storage/test/visible")
+        model.setShowManuallyHidden(false)
+        assertEquals(listOf("private"), model.files.map { it.name })
+        model.removeHiddenEntry(model.manuallyHiddenFiles.single())
+        assertEquals(2, model.files.size)
+        assertEquals(2, directory.requests.size)
+    }
+
+    @Test
+    fun `visible directory size uses inspected bytes and reuses cache across panes`() = runTest(mainDispatcher) {
+        val directory = ControlledDirectory()
+        val model = createModel(directory)
+        scheduler.runCurrent()
+        val listing = ToolResult("list_files", true, DirectoryListingData(INITIAL_PATH, listOf(entry("folder", true, 4096))))
+        directory.requests[0].response.complete(listing)
+        directory.requests[1].response.complete(listing)
+        scheduler.runCurrent()
+        val scan = launch { model.loadVisibleDirectorySizes(FileManagerPane.LEFT, listOf("folder")) }
+        scheduler.runCurrent()
+        assertEquals("file_info", directory.requests[2].tool.name)
+        directory.requests[2].response.complete(ToolResult("file_info", true, com.ai.assistance.operit.core.tools.FileInspectionData(
+            "$INITIAL_PATH/folder", true, 12345, 2, 1, 0, true, true, "fingerprint")))
+        scan.join()
+        assertEquals(12345L, model.files.single().directoryContentSize)
+        model.loadVisibleDirectorySizes(FileManagerPane.RIGHT, listOf("folder"))
+        assertEquals(12345L, model.rightPaneState.files.single().directoryContentSize)
+        assertEquals(3, directory.requests.size)
+    }
+
+    @Test
+    fun `late directory size cannot overwrite a newer listing and failures never become zero bytes`() = runTest(mainDispatcher) {
+        val directory = ControlledDirectory(ignoreCancellationAt = setOf(2))
+        val model = createModel(directory)
+        scheduler.runCurrent()
+        val folderListing = ToolResult("list_files", true, DirectoryListingData(INITIAL_PATH, listOf(entry("folder", true, 4096))))
+        directory.requests[0].response.complete(folderListing)
+        directory.requests[1].response.complete(folderListing)
+        scheduler.runCurrent()
+        val scan = launch { model.loadVisibleDirectorySizes(FileManagerPane.LEFT, listOf("folder")) }
+        scheduler.runCurrent()
+        model.loadPaneDirectory(FileManagerPane.LEFT)
+        scheduler.runCurrent()
+        directory.requests[3].response.complete(listing("new"))
+        scheduler.runCurrent()
+        directory.requests[2].response.complete(failure("Permission denied"))
+        scan.join()
+        assertEquals(listOf("new"), model.files.map { it.name })
+        model.loadVisibleDirectorySizes(FileManagerPane.RIGHT, listOf("folder"))
+        assertNull(model.rightPaneState.files.single().directoryContentSize)
+        assertTrue(model.rightPaneState.files.single().directorySizeUnavailable)
     }
 
     @Test

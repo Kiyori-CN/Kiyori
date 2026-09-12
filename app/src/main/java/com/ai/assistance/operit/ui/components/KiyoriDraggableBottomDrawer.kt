@@ -89,6 +89,9 @@ internal fun KiyoriDraggableBottomDrawer(
     var drawerValue by remember { mutableStateOf(KiyoriBottomDrawerValue.HIDDEN) }
     var dragStartFraction by remember { mutableFloatStateOf(1f) }
     var dragDistancePx by remember { mutableFloatStateOf(0f) }
+    var isDragging by remember { mutableStateOf(false) }
+    var draggedFraction by remember { mutableFloatStateOf(1f) }
+    val presentedFraction = if (isDragging) draggedFraction else offsetFraction.value
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val statusBarInset = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
@@ -98,10 +101,11 @@ internal fun KiyoriDraggableBottomDrawer(
         val contentViewportHeight =
             resolveKiyoriBottomDrawerContentViewportHeight(
                 drawerHeightDp = drawerHeight.value,
-                offsetFraction = offsetFraction.value.coerceIn(0f, 1f),
+                offsetFraction = presentedFraction.coerceIn(0f, 1f),
             ).dp
 
         LaunchedEffect(isVisible, partialOffsetFraction) {
+            if (isDragging) { offsetFraction.snapTo(draggedFraction); isDragging = false }
             if (isVisible) {
                 if (drawerValue == KiyoriBottomDrawerValue.HIDDEN) {
                     drawerValue = KiyoriBottomDrawerValue.PARTIAL
@@ -117,7 +121,7 @@ internal fun KiyoriDraggableBottomDrawer(
             }
         }
 
-        val visibleFraction = 1f - offsetFraction.value.coerceIn(0f, 1f)
+        val visibleFraction = 1f - presentedFraction.coerceIn(0f, 1f)
         Box(
             modifier =
                 Modifier
@@ -136,12 +140,8 @@ internal fun KiyoriDraggableBottomDrawer(
         val dragState =
             rememberDraggableState { deltaPx ->
                 dragDistancePx += deltaPx
-                scope.launch {
-                    offsetFraction.stop()
-                    offsetFraction.snapTo(
-                        (offsetFraction.value + deltaPx / drawerHeightPx).coerceIn(0f, 1f),
-                    )
-                }
+                // 每个触摸事件同步累加，不为每个像素启动协程，避免动画与拖动互相覆盖。
+                draggedFraction = (dragStartFraction + dragDistancePx / drawerHeightPx).coerceIn(0f, 1f)
             }
         val dragModifier =
             Modifier.draggable(
@@ -151,6 +151,8 @@ internal fun KiyoriDraggableBottomDrawer(
                 onDragStarted = {
                     dragStartFraction = offsetFraction.value
                     dragDistancePx = 0f
+                    draggedFraction = dragStartFraction
+                    isDragging = true
                     scope.launch { offsetFraction.stop() }
                 },
                 onDragStopped = { velocityPxPerSecond ->
@@ -161,13 +163,14 @@ internal fun KiyoriDraggableBottomDrawer(
                         )
                     val movedEnough = abs(dragDistancePx) >= drawerHeightPx * 0.08f
                     val flungEnough = abs(velocityPxPerSecond) >= 900f
-                    val movingUp = dragDistancePx < 0f || velocityPxPerSecond < -900f
-                    val movingDown = dragDistancePx > 0f || velocityPxPerSecond > 900f
+                    val direction = kiyoriBottomDrawerDragDirection(dragDistancePx, velocityPxPerSecond)
+                    val movingUp = direction < 0
+                    val movingDown = direction > 0
                     val targetValue =
                         when {
                             !movedEnough && !flungEnough ->
                                 nearestKiyoriBottomDrawerValue(
-                                    fraction = offsetFraction.value,
+                                    fraction = draggedFraction,
                                     partialOffsetFraction = partialOffsetFraction,
                                 )
                             movingUp -> KiyoriBottomDrawerValue.EXPANDED
@@ -176,7 +179,7 @@ internal fun KiyoriDraggableBottomDrawer(
                             movingDown -> KiyoriBottomDrawerValue.HIDDEN
                             else ->
                                 nearestKiyoriBottomDrawerValue(
-                                    fraction = offsetFraction.value,
+                                    fraction = draggedFraction,
                                     partialOffsetFraction = partialOffsetFraction,
                                 )
                         }
@@ -187,6 +190,8 @@ internal fun KiyoriDraggableBottomDrawer(
                     drawerValue = settledValue
                     scope.launch {
                         offsetFraction.stop()
+                        offsetFraction.snapTo(draggedFraction)
+                        isDragging = false
                         offsetFraction.animateTo(
                             settledValue.offsetFraction(partialOffsetFraction),
                             KiyoriBottomDrawerAnimationSpec,
@@ -206,7 +211,7 @@ internal fun KiyoriDraggableBottomDrawer(
                     .offset {
                         IntOffset(
                             x = 0,
-                            y = (offsetFraction.value * drawerHeightPx).roundToInt(),
+                            y = (presentedFraction * drawerHeightPx).roundToInt(),
                         )
                     },
             shape = KiyoriUiShapes.sheet,
@@ -224,7 +229,7 @@ internal fun KiyoriDraggableBottomDrawer(
                             .fillMaxWidth()
                             .height(KIYORI_BOTTOM_DRAWER_HANDLE_HEIGHT_DP.dp)
                             .then(dragModifier)
-                            .clickable(role = Role.Button) {
+                            .clickable(enabled = isVisible && gesturesEnabled, role = Role.Button) {
                                 val targetValue =
                                     if (drawerValue == KiyoriBottomDrawerValue.EXPANDED) {
                                         KiyoriBottomDrawerValue.PARTIAL
@@ -283,6 +288,15 @@ internal fun resolveKiyoriBottomDrawerContentViewportHeight(
     val visibleDrawerHeightDp = drawerHeightDp * (1f - offsetFraction)
     return (visibleDrawerHeightDp - KIYORI_BOTTOM_DRAWER_HANDLE_HEIGHT_DP).coerceAtLeast(0f)
 }
+
+/** 快速反向甩动以松手速度为准，慢拖才以总位移决定方向。 */
+internal fun kiyoriBottomDrawerDragDirection(distancePx: Float, velocityPxPerSecond: Float): Int =
+    when {
+        abs(velocityPxPerSecond) >= 900f -> if (velocityPxPerSecond < 0f) -1 else 1
+        distancePx < 0f -> -1
+        distancePx > 0f -> 1
+        else -> 0
+    }
 
 internal fun resolveKiyoriBottomDrawerPartialFraction(
     widthDp: Float,

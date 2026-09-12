@@ -48,6 +48,8 @@ import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.KiyoriUiShapes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import com.kiyori.design.theme.rememberKiyoriUiTokens
 import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 import kotlinx.coroutines.withContext
 
@@ -62,6 +64,7 @@ fun FileManagerTopBar(
 ) {
     // 与 AI 使用相同的 TopAppBar 默认高度和状态栏消费方式；栏颜色隔离于设置页灰底。
     KiyoriBrowserTheme {
+        val actionModifier = Modifier.size(rememberKiyoriUiTokens().touchTarget).clip(KiyoriUiShapes.control)
         Column(Modifier.fillMaxWidth()) {
             TopAppBar(
                 windowInsets = WindowInsets.statusBars,
@@ -70,14 +73,14 @@ fun FileManagerTopBar(
                     IconButton(onClick = onExitFileManager) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回文件管理首页") }
                 },
                 actions = {
-                    IconButton(onClick = onShowSearchDialog) {
+                    IconButton(onClick = onShowSearchDialog, modifier = actionModifier) {
                         BadgedBox(badge = { if (isSearching) Badge() }) { Icon(Icons.Outlined.Search, "搜索当前列") }
                     }
-                    IconButton(onClick = onShowFilter) {
+                    IconButton(onClick = onShowFilter, modifier = actionModifier) {
                         BadgedBox(badge = { if (hasFilter) Badge() }) { Icon(Icons.Outlined.FilterAlt, if (hasFilter) "过滤当前列，已启用" else "过滤当前列") }
                     }
-                    IconButton(onClick = onShowSort) { Icon(Icons.AutoMirrored.Outlined.Sort, "排序当前列") }
-                    IconButton(onClick = onRefresh, enabled = !refreshing) {
+                    IconButton(onClick = onShowSort, modifier = actionModifier) { Icon(Icons.AutoMirrored.Outlined.Sort, "排序当前列") }
+                    IconButton(onClick = onRefresh, enabled = !refreshing, modifier = actionModifier) {
                         if (refreshing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                         else Icon(Icons.Outlined.Refresh, "刷新当前列")
                     }

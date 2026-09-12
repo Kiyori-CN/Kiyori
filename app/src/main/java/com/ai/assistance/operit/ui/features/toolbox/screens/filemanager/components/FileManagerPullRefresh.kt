@@ -14,6 +14,8 @@ import androidx.compose.ui.input.nestedscroll.*
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 
 /** 只消费列表未消费的竖向距离，横向选择仍由文件行处理；惯性到顶不会触发。 */
 @Composable
@@ -25,6 +27,11 @@ internal fun FileManagerPullRefresh(listState: LazyListState, refreshing: Boolea
     var settling by remember { mutableStateOf(false) }
     val latestRefresh by rememberUpdatedState(onRefresh)
     val latestEnabled by rememberUpdatedState(enabled && !refreshing)
+    val haptics = LocalHapticFeedback.current
+    val armed = distance >= threshold
+    LaunchedEffect(armed) {
+        if (armed) haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+    }
     val connection = remember(listState, threshold) { object : NestedScrollConnection {
         override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
             if (source != NestedScrollSource.UserInput || available.y >= 0 || distance <= 0 || settling) return Offset.Zero
@@ -49,10 +56,18 @@ internal fun FileManagerPullRefresh(listState: LazyListState, refreshing: Boolea
     } }
     Box(Modifier.fillMaxSize().nestedScroll(connection)) {
         Box(Modifier.fillMaxSize().graphicsLayer { translationY = distance }) { content() }
-        if (distance > 0 || refreshing) Row(Modifier.align(Alignment.TopCenter).padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            if (refreshing) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-            Text(if (refreshing) "刷新中" else if (distance >= threshold) "松开刷新" else "下拉刷新", style = MaterialTheme.typography.labelSmall)
+        if (distance > 0 || refreshing) Surface(
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp).size(32.dp)
+                .graphicsLayer { alpha = if (refreshing) 1f else (distance / (threshold * 0.4f)).coerceIn(0f, 1f) },
+            shape = androidx.compose.foundation.shape.CircleShape,
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                if (refreshing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                else CircularProgressIndicator(progress = { (distance / threshold).coerceIn(0f, 1f) },
+                    modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            }
         }
     }
 }

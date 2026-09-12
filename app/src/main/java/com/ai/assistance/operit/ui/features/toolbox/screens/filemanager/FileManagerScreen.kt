@@ -114,6 +114,7 @@ fun FileManagerScreen(
 @Composable
 private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, modifier: Modifier, sessionViewModel: FileManagerViewModel?, onOpenAiDialogue: () -> Unit, onOpenBrowser: (() -> Unit)?) {
     var showToolbox by remember { mutableStateOf(false) }
+    var showHiddenDrawer by remember { mutableStateOf(false) }
     var browsePane by remember { mutableStateOf(FileManagerPane.LEFT) }
     var browseState by remember { mutableStateOf<com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerPaneState?>(null) }
     var browseKind by remember { mutableStateOf("") }
@@ -135,6 +136,20 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val leftListState = rememberLazyListState()
     val rightListState = rememberLazyListState()
+    // 只观察可见名称与目录代际，大小回写本身不重新触发统计。
+    listOf(FileManagerPane.LEFT to leftListState, FileManagerPane.RIGHT to rightListState).forEach { (pane, list) ->
+        LaunchedEffect(viewModel, pane, list, lifecycleOwner) {
+            lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            snapshotFlow {
+                val state = if (pane == FileManagerPane.LEFT) viewModel.leftPaneState else viewModel.rightPaneState
+                Triple(FileManagerLocation(state.path, state.environment), state.directoryRevision,
+                    if (list.isScrollInProgress) emptyList() else list.layoutInfo.visibleItemsInfo.mapNotNull { state.files.getOrNull(it.index)?.name })
+            }.collectLatest { (_, _, names) ->
+                if (names.isNotEmpty()) { kotlinx.coroutines.delay(150); viewModel.loadVisibleDirectorySizes(pane, names) }
+            }
+            }
+        }
+    }
     val apiPreferences = remember { ApiPreferences.getInstance(context) }
     val safBookmarks by apiPreferences.safBookmarksFlow.collectAsState(initial = emptyList())
     var bookmarkError by remember { mutableStateOf<String?>(null) }
@@ -657,13 +672,19 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
         viewModel.copyConflict != null, viewModel.historyError, { taskPage = null },
         { viewModel.showTransferDetails = true }, viewModel::removeTaskRecord,
         { location -> viewModel.navigateToPath(location.path, location.environment) }) }
+    if (showHiddenDrawer) com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.FileManagerHiddenDrawer(viewModel) { showHiddenDrawer = false }
     if (showToolbox) com.ai.assistance.operit.ui.features.websession.browser.chrome.KiyoriToolboxDrawer(
         onDismiss = { showToolbox = false },
         actions = listOf(
+            com.ai.assistance.operit.ui.features.websession.browser.chrome.KiyoriToolboxAction("AI对话", androidx.compose.material.icons.Icons.AutoMirrored.Rounded.Chat,
+                com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone.AI_DIALOGUE, !viewModel.isWriting, onClick = onOpenAiDialogue),
+            com.ai.assistance.operit.ui.features.websession.browser.chrome.KiyoriToolboxAction("浏览器", androidx.compose.material.icons.Icons.Rounded.Language,
+                com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone.ADD_BOOKMARK, !viewModel.isWriting && onOpenBrowser != null,
+                onClick = { onOpenBrowser?.invoke() }),
             com.ai.assistance.operit.ui.features.websession.browser.chrome.KiyoriToolboxAction("取消粘贴", Icons.Rounded.ContentPasteOff, com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone.DIAGNOSTICS,
                 viewModel.clipboardFiles.isNotEmpty() && !viewModel.isWriting, onClick = viewModel::clearClipboard),
-            com.ai.assistance.operit.ui.features.websession.browser.chrome.KiyoriToolboxAction(if (viewModel.showHiddenFiles) "显示隐藏 ✓" else "显示隐藏", Icons.Rounded.Visibility, com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone.ADD_BOOKMARK,
-                onClick = viewModel::toggleHiddenFiles),
+            com.ai.assistance.operit.ui.features.websession.browser.chrome.KiyoriToolboxAction("隐藏文件", Icons.Rounded.Visibility, com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone.ADD_BOOKMARK,
+                onClick = { showHiddenDrawer = true }),
             com.ai.assistance.operit.ui.features.websession.browser.chrome.KiyoriToolboxAction("交换窗口", Icons.Rounded.SwapHoriz, com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone.TOOLBOX, !viewModel.isWriting, onClick = {
                 viewModel.saveScrollPosition(FileManagerPane.LEFT, FileManagerLocation(viewModel.leftPaneState.path, viewModel.leftPaneState.environment),
                     FileManagerScrollPosition(leftListState.firstVisibleItemIndex, leftListState.firstVisibleItemScrollOffset))
@@ -674,11 +695,6 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
             com.ai.assistance.operit.ui.features.websession.browser.chrome.KiyoriToolboxAction(if (viewModel.transferState.running) "传输任务 · 1" else "传输任务", Icons.Rounded.SyncAlt, com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone.NETWORK_LOG,
                 onClick = { taskPage = false }),
             com.ai.assistance.operit.ui.features.websession.browser.chrome.KiyoriToolboxAction("最近任务", Icons.Rounded.History, com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone.DIAGNOSTICS, onClick = { taskPage = true }),
-            com.ai.assistance.operit.ui.features.websession.browser.chrome.KiyoriToolboxAction("AI对话", androidx.compose.material.icons.Icons.AutoMirrored.Rounded.Chat,
-                com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone.AI_DIALOGUE, !viewModel.isWriting, onClick = onOpenAiDialogue),
-            com.ai.assistance.operit.ui.features.websession.browser.chrome.KiyoriToolboxAction("浏览器", androidx.compose.material.icons.Icons.Rounded.Language,
-                com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone.ADD_BOOKMARK, !viewModel.isWriting && onOpenBrowser != null,
-                onClick = { onOpenBrowser?.invoke() }),
         ),
     )
     val contextState = if (viewModel.contextMenuPane == FileManagerPane.LEFT) viewModel.leftPaneState else viewModel.rightPaneState

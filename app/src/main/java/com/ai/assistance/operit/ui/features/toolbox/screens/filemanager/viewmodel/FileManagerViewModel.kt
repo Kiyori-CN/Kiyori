@@ -55,6 +55,10 @@ import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.f
 
 import com.ai.assistance.operit.data.preferences.FileManagerPreferences
 import com.ai.assistance.operit.data.preferences.FileManagerSettings
+import com.ai.assistance.operit.data.preferences.FileManagerHiddenEntry
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 
 class FileManagerViewModel(
     private val context: Context,
@@ -537,6 +541,10 @@ class FileManagerViewModel(
     val filterQuery: String get() = paneState(activePane).filterQuery
     val canNavigateUp: Boolean get() = canNavigateUp(activePane)
     var showHiddenFiles by mutableStateOf(settingsStore?.current?.showHiddenFiles ?: true)
+    var showManuallyHiddenFiles by mutableStateOf(settingsStore?.current?.showManuallyHiddenFiles ?: false)
+        private set
+    var manuallyHiddenFiles by mutableStateOf(settingsStore?.current?.manuallyHiddenFiles ?: emptySet())
+        private set
     val sortMode: FileManagerSortMode get() = paneState(activePane).sortMode
     val activePaneState: FileManagerPaneState get() = paneState(activePane)
 
@@ -544,6 +552,45 @@ class FileManagerViewModel(
     private val scrollPositions = mutableMapOf<Triple<FileManagerPane, FileManagerLocation, String>, FileManagerScrollPosition>()
     private val directoryJobs = mutableMapOf<FileManagerPane, Job>()
     private val directoryRequestVersions = mutableMapOf<FileManagerPane, Long>()
+    private data class DirectorySizeSnapshot(val recordedAt: Long, val bytes: Long?)
+    private val directorySizes = linkedMapOf<FileManagerLocation, DirectorySizeSnapshot>()
+    private val directorySizeMutex = Mutex()
+
+    /** 仅统计可见目录，双栏共享限量缓存；导航取消、超时和代际检查避免递归扫描拖慢列表。 */
+    suspend fun loadVisibleDirectorySizes(pane: FileManagerPane, names: List<String>) {
+        val initial = paneState(pane)
+        if (closed || initial.isLoading || initial.refreshing || isWriting) return
+        val version = directoryRequestVersions[pane]
+        for (file in initial.files.filter { it.isDirectory && it.name != ".." && it.name in names }) {
+            val location = FileManagerLocation(file.fullPath ?: "${initial.path.trimEnd('/')}/${file.name}", initial.environment)
+            val snapshot = directorySizeMutex.withLock {
+                val cached = directorySizes[location]
+                if (cached != null && System.nanoTime() - cached.recordedAt < 30_000_000_000L) cached
+                else {
+                    val bytes = if (!fileManagerIsLocal(initial.environment) && initial.environment != "recycle") null else try {
+                        // 比自动目录刷新周期短，避免每次自动刷新都在超时前取消同一大目录的统计。
+                        val result = withTimeoutOrNull(2_000L) { withContext(directoryDispatcher) {
+                            executeDirectoryTool(AITool("file_info", withEnvParams(listOf(ToolParameter("path", location.path),
+                                ToolParameter("info_mode", "manager")), if (initial.environment == "recycle") "android" else initial.environment)))
+                        } }
+                        (result?.result as? com.ai.assistance.operit.core.tools.FileInspectionData)
+                            ?.takeIf { result.success && it.directory && it.path == location.path && it.bytes >= 0 }?.bytes
+                    } catch (cancelled: CancellationException) { throw cancelled }
+                    catch (failure: Exception) { AppLogger.e("FileManagerViewModel", "目录大小统计失败", failure); null }
+                    DirectorySizeSnapshot(System.nanoTime(), bytes).also {
+                        directorySizes[location] = it
+                        while (directorySizes.size > 256) directorySizes.remove(directorySizes.keys.first())
+                    }
+                }
+            }
+            val current = paneState(pane)
+            if (closed || directoryRequestVersions[pane] != version || current.path != initial.path || current.environment != initial.environment) return
+            updatePane(pane) { state -> state.copy(entries = state.entries.map {
+                if (it.name == file.name) it.copy(directoryContentSize = snapshot.bytes, directorySizeUnavailable = snapshot.bytes == null) else it
+            }) }
+            projectPane(pane)
+        }
+    }
 
     // 标签页状态保留既有外部行为，当前活动标签跟随活动窗格路径。
     var tabs = mutableStateListOf(TabItem(initialStoragePath, context.getString(R.string.file_manager_home), null))
@@ -859,7 +906,7 @@ class FileManagerViewModel(
 
     private fun projectPane(pane: FileManagerPane) {
         updatePane(pane) { state -> state.copy(files = fileManagerVisibleEntries(
-            state.entries, "", showHiddenFiles, canNavigateUp(pane), state.filter,
+            manuallyVisibleEntries(state.entries, state.path, state.environment), "", showHiddenFiles, canNavigateUp(pane), state.filter,
         )) }
         reconcileSelection(pane)
     }
@@ -882,19 +929,50 @@ class FileManagerViewModel(
         val updated = if (settingsStore != null) {
             settingsStore.update(transform)
             settingsStore.current
-        } else transform(FileManagerSettings(showHiddenFiles, sortMode, sortDescending, itemSize))
+        } else transform(FileManagerSettings(showHiddenFiles, sortMode, sortDescending, itemSize, showManuallyHiddenFiles, manuallyHiddenFiles))
         applySettings(updated)
     }
 
     private fun applySettings(settings: FileManagerSettings) {
-        val hiddenChanged = showHiddenFiles != settings.showHiddenFiles
+        val hiddenChanged = showHiddenFiles != settings.showHiddenFiles ||
+            showManuallyHiddenFiles != settings.showManuallyHiddenFiles || manuallyHiddenFiles != settings.manuallyHiddenFiles
         showHiddenFiles = settings.showHiddenFiles
+        showManuallyHiddenFiles = settings.showManuallyHiddenFiles
+        manuallyHiddenFiles = settings.manuallyHiddenFiles
         itemSize = settings.itemSize
         // 设置中的排序仅是新会话默认值，当前两栏保持各自已确认的顺序。
         if (hiddenChanged) FileManagerPane.entries.forEach(::projectPane)
     }
 
     fun toggleHiddenFiles() = changeSettings { it.copy(showHiddenFiles = !it.showHiddenFiles) }
+
+    fun setShowSystemHidden(show: Boolean) = changeSettings { it.copy(showHiddenFiles = show) }
+    fun setShowManuallyHidden(show: Boolean) = changeSettings { it.copy(showManuallyHiddenFiles = show) }
+
+    fun hideSelectedFiles() {
+        val state = paneState(activePane)
+        if (isWriting || state.environment == "recycle") return
+        val additions = selectedFilesFor(activePane).filter { it.name != ".." }.map {
+            FileManagerHiddenEntry(it.fullPath ?: "${state.path.trimEnd('/')}/${it.name}", state.environment)
+        }
+        changeSettings { it.copy(manuallyHiddenFiles = it.manuallyHiddenFiles + additions, showManuallyHiddenFiles = false) }
+    }
+
+    fun editHiddenEntry(original: FileManagerHiddenEntry, path: String) {
+        require(path.startsWith('/') && path.split('/').none { it == "." || it == ".." || it.contains('\u0000') }) {
+            "请输入具体项目的绝对路径，不使用 . 或 .."
+        }
+        val normalized = "/" + path.split('/').filter { it.isNotEmpty() }.joinToString("/")
+        require(normalized.length > 1) { "请选择具体文件或文件夹，不能隐藏整个根目录" }
+        if (original !in manuallyHiddenFiles) return
+        changeSettings { it.copy(manuallyHiddenFiles = it.manuallyHiddenFiles - original + original.copy(path = normalized)) }
+    }
+
+    fun removeHiddenEntry(entry: FileManagerHiddenEntry) = changeSettings { it.copy(manuallyHiddenFiles = it.manuallyHiddenFiles - entry) }
+
+    private fun manuallyVisibleEntries(entries: List<FileItem>, path: String, environment: String?): List<FileItem> =
+        if (showManuallyHiddenFiles || environment == "recycle" || manuallyHiddenFiles.isEmpty()) entries
+        else entries.filter { file -> manuallyHiddenFiles.none { it.contains(file.fullPath ?: "${path.trimEnd('/')}/${file.name}", environment) } }
 
     fun cycleSortMode() = selectSortMode(FileManagerSortMode.entries[(sortMode.ordinal + 1) % FileManagerSortMode.entries.size])
 
@@ -916,6 +994,7 @@ class FileManagerViewModel(
     fun refreshPane(pane: FileManagerPane = activePane) {
         val state = paneState(pane)
         if (closed || state.isLoading || state.refreshing) return
+        directorySizes.keys.removeAll { it.environment == state.environment && it.path.substringBeforeLast('/') == state.path.trimEnd('/') }
         loadPaneDirectory(pane, background = true, manualRefresh = true)
     }
 
@@ -1039,7 +1118,8 @@ class FileManagerViewModel(
                             updatePane(pane) { current ->
                                 current.copy(
                                     entries = visibleFiles,
-                                    files = fileManagerVisibleEntries(visibleFiles, "", showHiddenFiles, canNavigateUp(pane), current.filter),
+                                    directoryRevision = current.directoryRevision + 1,
+                                    files = fileManagerVisibleEntries(manuallyVisibleEntries(visibleFiles, path, environment), "", showHiddenFiles, canNavigateUp(pane), current.filter),
                                     isLoading = false,
                                     refreshing = false,
                                     error = postLoadError,
@@ -1403,8 +1483,9 @@ class FileManagerViewModel(
                     }.map { FileItem(it.substringAfterLast('/'), isDirectory = false, fullPath = it) }
                     else -> error("搜索结果格式无效")
                 }
-                searchResults.addAll(files)
-                record = record.copy(results = files, total = files.size, status = if (searchLimitations.isEmpty()) "完成" else "部分结果",
+                val displayedFiles = manuallyVisibleEntries(files, location.path, location.environment)
+                searchResults.addAll(displayedFiles)
+                record = record.copy(results = displayedFiles, total = displayedFiles.size, status = if (searchLimitations.isEmpty()) "完成" else "部分结果",
                     summary = searchSummary, limitations = searchLimitations)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (failure: Exception) {
@@ -1455,6 +1536,7 @@ class FileManagerViewModel(
         navigatePaneTo(searchOriginPane, directoryPath, location.environment, recordHistory = true)
         // 用户明确选择了隐藏搜索结果，定位时需同步可见性，否则名称筛选后会得到空列表。
         if (!result.isDirectory && result.name.startsWith('.') && !showHiddenFiles) toggleHiddenFiles()
+        if (!showManuallyHiddenFiles && manuallyHiddenFiles.any { it.contains(filePath, location.environment) }) setShowManuallyHidden(true)
         if (!result.isDirectory) setDirectoryFilter(result.name)
         cancelSearch()
     }

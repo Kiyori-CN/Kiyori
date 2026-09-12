@@ -41,9 +41,14 @@ internal fun KiyoriFileManagerSettingsPage(
     KiyoriCollapsingSettingsPage(title = "文件管理器", onBack = onBack, modifier = modifier) {
         item {
             KiyoriSettingsGroupSection("文件列表", "隐藏项目与大小立即应用到两栏；默认排序用于新会话。") {
-                KiyoriSettingsRow("显示隐藏项目", "显示名称以点开头的文件和文件夹", KiyoriSettingsRowKind.TOGGLE,
+                KiyoriSettingsRow("显示系统隐藏项", "显示名称以点开头的文件和文件夹", KiyoriSettingsRowKind.TOGGLE,
                     checked = settings.showHiddenFiles, onClick = {
                         preferences.update { it.copy(showHiddenFiles = !it.showHiddenFiles) }
+                    })
+                KiyoriSettingsDivider()
+                KiyoriSettingsRow("显示手动隐藏项", "隐藏清单在文件管理器的工具箱中编辑", KiyoriSettingsRowKind.TOGGLE,
+                    checked = settings.showManuallyHiddenFiles, onClick = {
+                        preferences.update { it.copy(showManuallyHiddenFiles = !it.showManuallyHiddenFiles) }
                     })
                 KiyoriSettingsDivider()
                 KiyoriSettingsRow("默认排序方式", "文件夹始终优先显示", KiyoriSettingsRowKind.NAVIGATION,

@@ -18,6 +18,22 @@ import org.mockito.kotlin.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class FileManagerPreferencesTest {
+    @Test fun `manual hiding persists separately and matches path boundaries and environments`() {
+        val disk = preferences()
+        val entry = FileManagerHiddenEntry("/storage/notes", null)
+        val store = FileManagerPreferences(disk)
+        store.update { it.copy(manuallyHiddenFiles = setOf(entry), showManuallyHiddenFiles = true) }
+        store.update { it.copy(showHiddenFiles = false) }
+        val restored = FileManagerPreferences(disk).current
+        assertEquals(setOf(entry), restored.manuallyHiddenFiles)
+        assertTrue(restored.showManuallyHiddenFiles)
+        assertFalse(restored.showHiddenFiles)
+        assertTrue(entry.contains("/storage/notes/a.txt", "android"))
+        assertFalse(entry.contains("/storage/notes-old/a.txt", null))
+        assertFalse(entry.contains("/storage/notes/a.txt", "linux"))
+        assertFalse(entry.contains("/storage/notes/a.txt", "network:one"))
+        assertFalse(entry.contains("/storage/notes/a.txt", "android-other"))
+    }
     private fun preferences(values: MutableMap<String, Any> = mutableMapOf()): SharedPreferences {
         val prefs: SharedPreferences = mock()
         val editor: SharedPreferences.Editor = mock()

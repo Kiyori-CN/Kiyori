@@ -481,10 +481,15 @@ internal fun KiyoriAppShell(
             }
         }
 
-        if (state.fileManagerMinimized && state.child != KiyoriShellChild.FILE_MANAGER) {
+        if (state.showsFileManagerIndicator) {
+            val fileManagerContext = LocalContext.current
             KiyoriFileManagerMinimizedIndicator(
                 onRestore = { onStateChange(latestState.openFileManager()) },
-                onClose = { onStateChange(latestState.closeMinimizedFileManager()) },
+                onClose = {
+                    if (fileManagerViewModel?.isWriting == true) {
+                        android.widget.Toast.makeText(fileManagerContext, "文件操作进行中，请先返回文件管理器处理", android.widget.Toast.LENGTH_SHORT).show()
+                    } else onStateChange(latestState.closeMinimizedFileManager())
+                },
                 modifier = Modifier.fillMaxSize().zIndex(15f),
             )
         }
