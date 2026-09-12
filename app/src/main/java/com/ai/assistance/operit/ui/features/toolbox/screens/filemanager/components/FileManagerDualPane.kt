@@ -168,25 +168,7 @@ private fun FileManagerPaneColumn(
             Box(Modifier.weight(1f)) {
                 when {
                     state.error != null -> {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Column(
-                                modifier = Modifier.padding(12.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Error,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error,
-                                )
-                                Text(
-                                    text = state.error,
-                                    color = MaterialTheme.colorScheme.error,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.padding(top = 8.dp),
-                                )
-                                TextButton(onClick = { onRetry(pane) }) { Text("重新读取") }
-                            }
-                        }
+                        FileManagerDirectoryError(state.path, state.error, onRetry = { onRetry(pane) })
                     }
                     else -> {
                         // 未完成的目录读取不是空目录；导航中保持表面，避免闪过图标与加载提示。

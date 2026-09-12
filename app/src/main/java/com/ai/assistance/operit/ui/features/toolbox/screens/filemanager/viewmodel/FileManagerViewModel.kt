@@ -53,10 +53,14 @@ import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.f
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.*
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.fileManagerJoinPath
 
+import com.ai.assistance.operit.data.preferences.FileManagerPreferences
+import com.ai.assistance.operit.data.preferences.FileManagerSettings
+
 class FileManagerViewModel(
     private val context: Context,
     private val initialStoragePath: String = Environment.getExternalStorageDirectory().absolutePath,
     private val directoryDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val settingsStore: FileManagerPreferences? = null,
     private val executeDirectoryTool: suspend (AITool) -> ToolResult = { tool ->
         AIToolHandler.getInstance(context).executeTool(tool)
     },
@@ -523,16 +527,17 @@ class FileManagerViewModel(
     var clipboardSourceEnvironment by mutableStateOf<String?>(null)
 
     // 显示状态
-    var itemSize by mutableStateOf(1f)
+    var itemSize by mutableStateOf(settingsStore?.current?.itemSize ?: 1f)
+        private set
     val minItemSize = 0.5f
     val maxItemSize = 1.3f
     val itemSizeStep = 0.1f
-    var sortDescending by mutableStateOf(false)
+    var sortDescending by mutableStateOf(settingsStore?.current?.sortDescending ?: false)
         private set
     val filterQuery: String get() = paneState(activePane).filterQuery
     val canNavigateUp: Boolean get() = canNavigateUp(activePane)
-    var showHiddenFiles by mutableStateOf(true)
-    var sortMode by mutableStateOf(FileManagerSortMode.NAME)
+    var showHiddenFiles by mutableStateOf(settingsStore?.current?.showHiddenFiles ?: true)
+    var sortMode by mutableStateOf(settingsStore?.current?.sortMode ?: FileManagerSortMode.NAME)
 
     // 相同路径可能来自手机、Ubuntu 或不同 SAF 书签，位置必须包含环境和窗格。
     private val scrollPositions = mutableMapOf<Triple<FileManagerPane, FileManagerLocation, String>, FileManagerScrollPosition>()
@@ -798,23 +803,37 @@ class FileManagerViewModel(
         projectPane(activePane)
     }
 
-    fun toggleHiddenFiles() {
-        showHiddenFiles = !showHiddenFiles
-        FileManagerPane.entries.forEach(::projectPane)
+    private fun changeSettings(transform: (FileManagerSettings) -> FileManagerSettings) {
+        val updated = if (settingsStore != null) {
+            settingsStore.update(transform)
+            settingsStore.current
+        } else transform(FileManagerSettings(showHiddenFiles, sortMode, sortDescending, itemSize))
+        applySettings(updated)
     }
+
+    private fun applySettings(settings: FileManagerSettings) {
+        val sortChanged = sortMode != settings.sortMode || sortDescending != settings.sortDescending
+        val hiddenChanged = showHiddenFiles != settings.showHiddenFiles
+        showHiddenFiles = settings.showHiddenFiles
+        sortMode = settings.sortMode
+        sortDescending = settings.sortDescending
+        itemSize = settings.itemSize
+        // 排序变化沿用目录请求代际，让晚到的旧排序结果不能覆盖新偏好。
+        if (sortChanged) FileManagerPane.entries.forEach { loadPaneDirectory(it) }
+        else if (hiddenChanged) FileManagerPane.entries.forEach(::projectPane)
+    }
+
+    fun toggleHiddenFiles() = changeSettings { it.copy(showHiddenFiles = !it.showHiddenFiles) }
 
     fun cycleSortMode() = selectSortMode(FileManagerSortMode.entries[(sortMode.ordinal + 1) % FileManagerSortMode.entries.size])
 
     fun selectSortMode(mode: FileManagerSortMode) {
         if (sortMode == mode) return
-        sortMode = mode
-        sortDescending = mode != FileManagerSortMode.NAME
-        FileManagerPane.entries.forEach { loadPaneDirectory(it) }
+        changeSettings { it.copy(sortMode = mode, sortDescending = mode != FileManagerSortMode.NAME) }
     }
 
     fun toggleSortDirection() {
-        sortDescending = !sortDescending
-        FileManagerPane.entries.forEach { loadPaneDirectory(it) }
+        changeSettings { it.copy(sortDescending = !it.sortDescending) }
     }
 
     /** 将活动窗格的位置复制给另一栏；焦点和两栏既有内容不交换。 */
@@ -1571,6 +1590,9 @@ class FileManagerViewModel(
     }
 
     init {
+        settingsStore?.let { preferences ->
+            viewModelScope.launch { preferences.state.collect { if (!closed) applySettings(it) } }
+        }
         loadPaneDirectory(FileManagerPane.LEFT)
         loadPaneDirectory(FileManagerPane.RIGHT)
     }

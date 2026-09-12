@@ -303,7 +303,7 @@ class KiyoriSettingsPagesTest {
                 .flatten()
                 .filter { entry ->
                     entry.title == "文件管理器" &&
-                        entry.action == KiyoriSettingsHomeAction.NONE
+                        entry.action == KiyoriSettingsHomeAction.OPEN_FILE_MANAGER_SETTINGS
                 }
                 .map(KiyoriSettingsHomeEntry::title),
         )
@@ -312,8 +312,8 @@ class KiyoriSettingsPagesTest {
                 "app/src/main/java/com/ai/assistance/operit/ui/main/shell/" +
                     "KiyoriSettingsHomePage.kt",
             ).readText()
-        assertFalse(settingsHomeSource.contains("OPEN_FILE_MANAGER"))
-        assertFalse(settingsHomeSource.contains("onOpenFileManager"))
+        assertTrue(settingsHomeSource.contains("OPEN_FILE_MANAGER_SETTINGS -> onOpenFileManagerSettings()"))
+        assertFalse(settingsHomeSource.contains("onOpenFileManager()"))
         assertEquals(
             listOf("视频播放器"),
             kiyoriSettingsHomeGroups

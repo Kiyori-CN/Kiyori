@@ -16,6 +16,7 @@ enum class KiyoriSettingsRoute {
     BROWSER_TEXT_SIZE,
     BROWSER_PASSWORD_MANAGER,
     DOWNLOAD,
+    FILE_MANAGER,
     PLAYER,
     AD_BLOCK_OVERVIEW,
     AD_BLOCK_URL_RULES,

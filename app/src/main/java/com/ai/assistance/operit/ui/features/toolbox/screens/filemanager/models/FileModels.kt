@@ -27,11 +27,7 @@ enum class FileManagerPane {
     RIGHT,
 }
 
-enum class FileManagerSortMode {
-    NAME,
-    SIZE,
-    MODIFIED,
-}
+typealias FileManagerSortMode = com.ai.assistance.operit.data.preferences.FileManagerSortMode
 
 enum class FileManagerBackAction {
     HISTORY,

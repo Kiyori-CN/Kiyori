@@ -337,7 +337,10 @@ data class KiyoriShellState(
             checkNotNull(settingsNavigation) {
                 "Closing a settings route requires an active settings session."
             }
-        if (navigation.canPopRoute) {
+        // 从文件管理器直达专属设置时，根返回恢复原会话；权限子页仍按实际栈逐级返回。
+        val returnToFileManager = navigation.origin == KiyoriSettingsOrigin.FILE_MANAGER &&
+            navigation.routes == listOf(KiyoriSettingsRoute.HOME, KiyoriSettingsRoute.FILE_MANAGER)
+        if (navigation.canPopRoute && !returnToFileManager) {
             return copy(settingsNavigation = navigation.popRoute())
         }
         return when (navigation.origin) {

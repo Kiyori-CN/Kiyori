@@ -299,7 +299,7 @@ class FileManagerDirectoryLifecycleTest {
     }
 
     private fun createModel(directory: ControlledDirectory): FileManagerViewModel =
-        FileManagerViewModel(context, INITIAL_PATH, directoryDispatcher, directory::execute).also {
+        FileManagerViewModel(context, INITIAL_PATH, directoryDispatcher, executeDirectoryTool = directory::execute).also {
             store.put("file-manager", it)
         }
 

@@ -14,7 +14,7 @@ class FileManagerSourceContractTest {
         assertTrue(screen.contains("viewModel.navigateBack()"))
         assertTrue(screen.contains("onExitFileManager = exitFileManager"))
         assertTrue(screen.contains("val store = remember { ViewModelStore() }"))
-        assertTrue(screen.contains("FileManagerViewModel(applicationContext)"))
+        assertTrue(screen.contains("FileManagerViewModel(applicationContext, settingsStore ="))
         assertTrue(screen.contains("onDispose { store.clear() }"))
         assertTrue(screen.contains("gesturesEnabled = drawerState.isOpen"))
         assertTrue(screen.contains("Modifier.width(storageDrawerWidth)"))

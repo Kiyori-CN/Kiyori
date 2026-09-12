@@ -55,6 +55,11 @@ AI 抽屉精确 import 表同时新增共用标题组件和三个原值不变的
 
 ## 验证
 
+2026-09-12 文件管理设置：审阅新增专属设置页及来源返回后，Shell 归一化哈希由 `89F27AD9`
+更新为 `BB3E8918`，状态哈希由 `C64B7219` 更新为 `7150A1AC`，Shell 精确 import 增加
+`KiyoriFileManagerSettingsPage`。持久化 API 清单仅新增 `FileManagerPreferences` 的
+`kiyori_file_manager` 调用，保存显示偏好，不保存权限、路径或第二份会话。导航往返与双栏同步由行为测试验证。
+
 2026-09-11 材质统一：文件操作菜单局部接入 `KiyoriBrowserTheme`，作为第七个精确消费者，
 使其与浏览器一级菜单、两套二级工具箱共用中性表面材质。列表仍沿用设置主题；新表面 token
 只派生当前 Material ColorScheme，不增加主题状态或放宽跨层依赖。消费者正反例同步覆盖该入口。

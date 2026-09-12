@@ -735,7 +735,7 @@ internal fun rememberFileManagerViewModel(context: Context): FileManagerViewMode
     val viewModel = remember(store, applicationContext) {
         ViewModelProvider(
             store,
-            viewModelFactory { initializer { FileManagerViewModel(applicationContext) } },
+            viewModelFactory { initializer { FileManagerViewModel(applicationContext, settingsStore = com.ai.assistance.operit.data.preferences.FileManagerPreferences.getInstance(applicationContext)) } },
         )[FileManagerViewModel::class.java]
     }
     // 页面有独立退出语义；清理 store 才会取消 ViewModel 的目录读取和文件工作。

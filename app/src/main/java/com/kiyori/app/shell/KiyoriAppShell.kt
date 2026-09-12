@@ -56,6 +56,7 @@ import com.ai.assistance.operit.ui.main.shell.KiyoriBrowserSettingsPage
 import com.ai.assistance.operit.ui.main.shell.KiyoriAdBlockSettingsPage
 import com.ai.assistance.operit.ui.main.shell.KiyoriDownloadDrawerHost
 import com.ai.assistance.operit.ui.main.shell.KiyoriDownloadSettingsPage
+import com.ai.assistance.operit.ui.main.shell.KiyoriFileManagerSettingsPage
 import com.ai.assistance.operit.ui.main.shell.KiyoriHistoryDrawerHost
 import com.ai.assistance.operit.ui.main.shell.KiyoriMinusOnePage
 import com.ai.assistance.operit.ui.main.shell.KiyoriMoreFeaturesSettingsPage
@@ -350,6 +351,12 @@ internal fun KiyoriAppShell(
                         )
                     },
                     onOpenAppearanceSettings = onOpenAppearanceSettingsFromKiyoriSettings,
+                    onOpenFileManagerSettings = {
+                        onStateChange(state.openSettings(
+                            origin = KiyoriSettingsOrigin.BOTTOM_NAVIGATION,
+                            initialRoute = KiyoriSettingsRoute.FILE_MANAGER,
+                        ))
+                    },
                     onOpenDataSettings = onOpenDataSettingsFromKiyoriSettings,
                     onOpenMoreFeatures = {
                         onStateChange(
@@ -459,7 +466,7 @@ internal fun KiyoriAppShell(
                     fileManagerUiState.SaveableStateProvider("file-manager") {
                         FileManagerScreen(
                             onBack = { onStateChange(state.closeChild()) },
-                            onOpenSettings = { onStateChange(state.openSettings(origin = KiyoriSettingsOrigin.FILE_MANAGER)) },
+                            onOpenSettings = { onStateChange(state.openSettings(origin = KiyoriSettingsOrigin.FILE_MANAGER, initialRoute = KiyoriSettingsRoute.FILE_MANAGER)) },
                             sessionViewModel = fileManagerViewModel,
                             onOpenBrowser = {
                                 onStateChange(latestState.minimizeFileManager().openBrowser(returnTarget = KiyoriBrowserReturnTarget.AI_HOME))
@@ -512,6 +519,9 @@ internal fun KiyoriAppShell(
                                     onStateChange(
                                         state.openSettingsRoute(KiyoriSettingsRoute.PLAYER),
                                     )
+                                },
+                                onOpenFileManagerSettings = {
+                                    onStateChange(state.openSettingsRoute(KiyoriSettingsRoute.FILE_MANAGER))
                                 },
                                 onOpenAppearanceSettings =
                                     onOpenAppearanceSettingsFromKiyoriSettings,
@@ -609,6 +619,12 @@ internal fun KiyoriAppShell(
                                     onStateChange(state.openSettingsRoute(route))
                                 },
                                 onOpenBrowserWorkspace = onOpenBrowserWorkspace,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        KiyoriSettingsRoute.FILE_MANAGER ->
+                            KiyoriFileManagerSettingsPage(
+                                onBack = { onStateChange(state.closeSettingsRoute()) },
+                                onOpenPermissions = { onStateChange(state.openSettingsRoute(KiyoriSettingsRoute.PERMISSIONS)) },
                                 modifier = Modifier.fillMaxSize(),
                             )
                         KiyoriSettingsRoute.DOWNLOAD ->

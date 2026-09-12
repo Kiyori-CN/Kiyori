@@ -2,7 +2,6 @@ package com.ai.assistance.operit.core.tools.system.shell
 
 import android.content.Context
 import android.os.ParcelFileDescriptor
-import android.os.RemoteException
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.core.tools.system.AndroidPermissionLevel
 import com.ai.assistance.operit.core.tools.system.ShizukuAuthorizer
@@ -89,170 +88,16 @@ class DebuggerShellExecutor(private val context: Context) : ShellExecutor {
                     return@withContext ShellExecutor.CommandResult(false, "", permStatus.reason)
                 }
 
-                // 使用更精确的方法检测shell操作符
-                if (containsShellOperators(command)) {
-                    AppLogger.d(
-                        TAG,
-                        "Executing command via shell (${ShellCommandDiagnostics.describe(command)})",
-                    )
-                    return@withContext executeWithShell(command)
-                }
-
-                AppLogger.d(TAG, "Executing command (${ShellCommandDiagnostics.describe(command)})")
-
-                // 普通命令执行
-                return@withContext executeCommandDirect(command)
+                // 此接口接收 Shell 源码而非 argv。赋值、内建命令、引号和转义必须由同一个
+                // 系统 Shell 解释；猜测“普通命令”会把 LC_ALL=C 当成可执行文件。
+                executeWithShell(command)
             }
 
-    /**
-     * 检测命令是否包含需要shell解释的特殊操作符
-     * @param command 要检查的命令
-     * @return 是否包含shell操作符
-     */
-    private fun containsShellOperators(command: String): Boolean {
-        // 预处理：标记引号内的内容，避免检测引号内的操作符
-        var inSingleQuotes = false
-        var inDoubleQuotes = false
-        var escaped = false
-        var i = 0
-
-        while (i < command.length) {
-            val c = command[i]
-
-            // 处理转义字符
-            if (c == '\\' && !escaped) {
-                escaped = true
-                i++
-                continue
-            }
-
-            // 处理引号
-            if (c == '\'' && !escaped && !inDoubleQuotes) {
-                inSingleQuotes = !inSingleQuotes
-            } else if (c == '"' && !escaped && !inSingleQuotes) {
-                inDoubleQuotes = !inDoubleQuotes
-            }
-            // 只在不在引号内时检测操作符
-            else if (!inSingleQuotes && !inDoubleQuotes && !escaped) {
-                // 检测管道
-                if (c == '|') {
-                    // 检查是不是 || 操作符
-                    if (i + 1 < command.length && command[i + 1] == '|') {
-                        return true
-                    }
-                    // 单个 | 管道符
-                    return true
-                }
-
-                // 检测 && 操作符
-                if (c == '&') {
-                    // 检查是不是 && 操作符
-                    if (i + 1 < command.length && command[i + 1] == '&') {
-                        return true
-                    }
-                    // 后台运行符号 &
-                    return true
-                }
-
-                // 检测重定向
-                if (c == '>' || c == '<') {
-                    return true
-                }
-
-                // 检测分号
-                if (c == ';') {
-                    return true
-                }
-            }
-
-            escaped = false
-            i++
-        }
-
-        return false
-    }
-
-    /** 直接执行不包含特殊操作符的普通命令 */
-    private suspend fun executeCommandDirect(command: String): ShellExecutor.CommandResult =
-            withContext(Dispatchers.IO) {
-                var process: IRemoteProcess? = null
-                var inputStream: ParcelFileDescriptor? = null
-                var errorStream: ParcelFileDescriptor? = null
-                var processCompleted = false
-
-                try {
-                    val service =
-                            getShizukuService()
-                                    ?: return@withContext ShellExecutor.CommandResult(
-                                            false,
-                                            "",
-                                            "Shizuku service not available"
-                                    )
-
-                    // 拆分命令行参数 - 使用更智能的解析方法
-                    val commandParts = parseCommand(command)
-
-                    // 创建进程
-                    val remoteProcess = service.newProcess(commandParts, null, null)
-                    process = remoteProcess
-
-                    if (remoteProcess == null) {
-                        return@withContext ShellExecutor.CommandResult(false, "", "Failed to create process")
-                    }
-
-                    inputStream = remoteProcess.getInputStream()
-                    errorStream = remoteProcess.getErrorStream()
-
-                    // Drain stdout and stderr together. Reading one pipe to EOF before the other
-                    // can deadlock when a command fills the untouched pipe's kernel buffer.
-                    val (stdout, stderr) = readProcessStreams(inputStream, errorStream)
-                    inputStream = null
-                    errorStream = null
-                    val exitCode = remoteProcess.waitFor()
-                    processCompleted = true
-
-                    // 返回结果
-                    return@withContext ShellExecutor.CommandResult(
-                            exitCode == 0,
-                            stdout,
-                            stderr,
-                            exitCode
-                    )
-                } catch (e: kotlinx.coroutines.CancellationException) {
-                    throw e
-                } catch (e: RemoteException) {
-                    AppLogger.e(TAG, "Remote exception while executing command", e)
-                    return@withContext ShellExecutor.CommandResult(
-                            false,
-                            "",
-                            "Remote exception: ${e.message}"
-                    )
-                } catch (e: Exception) {
-                    AppLogger.e(TAG, "Error executing command", e)
-                    return@withContext ShellExecutor.CommandResult(false, "", "Error: ${e.message}")
-                } finally {
-                    // 安全关闭文件描述符
-                    try {
-                        inputStream?.close()
-                    } catch (e: Exception) {
-                        AppLogger.e(TAG, "Error closing input stream", e)
-                    }
-                    try {
-                        errorStream?.close()
-                    } catch (e: Exception) {
-                        AppLogger.e(TAG, "Error closing error stream", e)
-                    }
-                    if (!processCompleted) {
-                        runCatching { process?.destroy() }
-                            .onFailure { error ->
-                                AppLogger.e(TAG, "Error destroying failed Shizuku process", error)
-                            }
-                    }
-                }
-            }
-
-    /** 通过shell解释器执行包含特殊操作符的命令 */
-    private suspend fun executeWithShell(command: String): ShellExecutor.CommandResult =
+    /** 通过系统 Shell 执行命令；注入服务仅用于验证真实进程边界，不改变外层权限检查。 */
+    internal suspend fun executeWithShell(
+        command: String,
+        service: IShizukuService? = getShizukuService(),
+    ): ShellExecutor.CommandResult =
             withContext(Dispatchers.IO) {
                 var process: IRemoteProcess? = null
                 var inputStream: ParcelFileDescriptor? = null
@@ -260,41 +105,18 @@ class DebuggerShellExecutor(private val context: Context) : ShellExecutor {
                 var processCompleted = false
                 var backgroundProcess = false
                 try {
-                    val service =
-                            getShizukuService()
-                                    ?: return@withContext ShellExecutor.CommandResult(
+                    if (service == null) return@withContext ShellExecutor.CommandResult(
                                             false,
                                             "",
                                             "Shizuku service not available"
                                     )
 
-                    // 检测是否包含重定向操作符进行写入操作
-                    val containsRedirection = command.contains(">")
-
-                    // 处理命令，确保使用完整路径
-                    val processedCommand =
-                            if (command.contains("|") && command.contains("grep")) {
-                                // 替换 'grep' 为 '/system/bin/grep'，确保使用系统grep命令
-                                command.replace(" grep ", " /system/bin/grep ")
-                            } else {
-                                command
-                            }
-
-                    // 构建增强的shell环境和命令
-                    val enhancedCommand =
-                            if (containsRedirection) {
-                                // 为重定向操作添加更多环境支持
-                                "umask 0022 && PATH=\$PATH:/system/bin:/system/xbin:/vendor/bin:/vendor/xbin && $processedCommand"
-                            } else {
-                                processedCommand
-                            }
-
                     // 如果命令以单个'&'结尾（后台运行），我们只负责启动，不阻塞等待
-                    val trimmedForBg = enhancedCommand.trimEnd()
+                    val trimmedForBg = command.trimEnd()
                     val isBackground =
                             trimmedForBg.endsWith("&") && !trimmedForBg.endsWith("&&")
 
-                    val shellArgs = arrayOf("sh", "-e", "-c", enhancedCommand)
+                    val shellArgs = debuggerShellArguments(command)
 
                     // 创建进程
                     val remoteProcess = service.newProcess(shellArgs, null, null)
@@ -441,77 +263,6 @@ class DebuggerShellExecutor(private val context: Context) : ShellExecutor {
         }
     }
 
-    /**
-     * 智能解析命令行，正确处理引号
-     * @param command 完整命令行
-     * @return 解析后的参数数组
-     */
-    private fun parseCommand(command: String): Array<String> {
-        val result = mutableListOf<String>()
-        val currentArg = StringBuilder()
-        var i = 0
-        var inSingleQuotes = false
-        var inDoubleQuotes = false
-
-        while (i < command.length) {
-            val c = command[i]
-
-            // 处理转义字符
-            if (i < command.length - 1 && c == '\\') {
-                val nextChar = command[i + 1]
-                if (nextChar == '\'' || nextChar == '"') {
-                    // 处理转义的引号
-                    currentArg.append(nextChar)
-                    i += 2
-                    continue
-                }
-            }
-
-            // 处理单引号 (只有当不在双引号中时才处理单引号的开始和结束)
-            if (c == '\'' && !inDoubleQuotes) {
-                inSingleQuotes = !inSingleQuotes
-                i++
-                continue
-            }
-
-            // 处理双引号 (只有当不在单引号中时才处理双引号的开始和结束)
-            if (c == '"' && !inSingleQuotes) {
-                inDoubleQuotes = !inDoubleQuotes
-                i++
-                continue
-            }
-
-            // 处理空格 (只有当不在任何引号中时才分割参数)
-            if (c == ' ' && !inSingleQuotes && !inDoubleQuotes) {
-                if (currentArg.isNotEmpty()) {
-                    result.add(currentArg.toString())
-                    currentArg.clear()
-                }
-                i++
-                continue
-            }
-
-            // 正常字符
-            currentArg.append(c)
-            i++
-        }
-
-        // 添加最后一个参数
-        if (currentArg.isNotEmpty()) {
-            result.add(currentArg.toString())
-        }
-
-        // 检查未闭合的引号
-        if (inSingleQuotes || inDoubleQuotes) {
-            AppLogger.w(
-                TAG,
-                "Warning: Unclosed quotes in command (${ShellCommandDiagnostics.describe(command)})",
-            )
-        }
-
-        return result.toTypedArray()
-    }
-
     override suspend fun startProcess(command: String): ShellProcess {
         if (!hasPermission().granted) {
             throw SecurityException("Shizuku permission not granted.")
@@ -531,7 +282,7 @@ private class ShizukuShellProcess(
     private val process: IRemoteProcess
 
     init {
-        val shellArgs = arrayOf("sh", "-c", command)
+        val shellArgs = debuggerShellArguments(command)
         process = service.newProcess(shellArgs, null, null)
             ?: throw IOException("Failed to create Shizuku process")
     }
@@ -600,3 +351,7 @@ private fun flowFromStream(inputStream: InputStream): Flow<String> = callbackFlo
     }
     awaitClose { job.cancel() }
 }
+
+/** 保留命令原文作为单个参数，避免重解析路径中的空格、引号、反斜杠或环境变量赋值。 */
+internal fun debuggerShellArguments(command: String): Array<String> =
+    arrayOf("/system/bin/sh", "-c", command)

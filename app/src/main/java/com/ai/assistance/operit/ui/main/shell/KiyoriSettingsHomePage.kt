@@ -83,6 +83,7 @@ internal enum class KiyoriSettingsHomeAction {
     OPEN_BROWSER_SETTINGS,
     OPEN_DOWNLOAD_SETTINGS,
     OPEN_PLAYER_SETTINGS,
+    OPEN_FILE_MANAGER_SETTINGS,
     OPEN_APPEARANCE_SETTINGS,
     OPEN_DATA_SETTINGS,
     OPEN_MORE_FEATURES,
@@ -163,6 +164,7 @@ internal val kiyoriSettingsHomeGroups =
                 "文件管理器",
                 Icons.Outlined.Folder,
                 KiyoriSettingsHomeIconPalette.FILE_MANAGER,
+                KiyoriSettingsHomeAction.OPEN_FILE_MANAGER_SETTINGS,
             ),
         ),
         listOf(
@@ -212,6 +214,7 @@ internal fun KiyoriSettingsHomePage(
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
     onOpenPlayerSettings: () -> Unit,
+    onOpenFileManagerSettings: () -> Unit,
     onOpenAppearanceSettings: () -> Unit,
     onOpenDataSettings: () -> Unit,
     onOpenMoreFeatures: () -> Unit,
@@ -296,6 +299,7 @@ internal fun KiyoriSettingsHomePage(
                     onOpenBrowserSettings = onOpenBrowserSettings,
                     onOpenDownloadSettings = onOpenDownloadSettings,
                     onOpenPlayerSettings = onOpenPlayerSettings,
+                    onOpenFileManagerSettings = onOpenFileManagerSettings,
                     onOpenAppearanceSettings = onOpenAppearanceSettings,
                     onOpenDataSettings = onOpenDataSettings,
                     onOpenMoreFeatures = onOpenMoreFeatures,
@@ -435,6 +439,7 @@ private fun KiyoriSettingsHomeGroupCard(
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
     onOpenPlayerSettings: () -> Unit,
+    onOpenFileManagerSettings: () -> Unit,
     onOpenAppearanceSettings: () -> Unit,
     onOpenDataSettings: () -> Unit,
     onOpenMoreFeatures: () -> Unit,
@@ -450,6 +455,7 @@ private fun KiyoriSettingsHomeGroupCard(
                 onOpenBrowserSettings = onOpenBrowserSettings,
                 onOpenDownloadSettings = onOpenDownloadSettings,
                 onOpenPlayerSettings = onOpenPlayerSettings,
+                onOpenFileManagerSettings = onOpenFileManagerSettings,
                 onOpenAppearanceSettings = onOpenAppearanceSettings,
                 onOpenDataSettings = onOpenDataSettings,
                 onOpenMoreFeatures = onOpenMoreFeatures,
@@ -475,6 +481,7 @@ private fun KiyoriSettingsHomeRow(
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
     onOpenPlayerSettings: () -> Unit,
+    onOpenFileManagerSettings: () -> Unit,
     onOpenAppearanceSettings: () -> Unit,
     onOpenDataSettings: () -> Unit,
     onOpenMoreFeatures: () -> Unit,
@@ -496,6 +503,7 @@ private fun KiyoriSettingsHomeRow(
                         KiyoriSettingsHomeAction.OPEN_BROWSER_SETTINGS -> onOpenBrowserSettings()
                         KiyoriSettingsHomeAction.OPEN_DOWNLOAD_SETTINGS -> onOpenDownloadSettings()
                         KiyoriSettingsHomeAction.OPEN_PLAYER_SETTINGS -> onOpenPlayerSettings()
+                        KiyoriSettingsHomeAction.OPEN_FILE_MANAGER_SETTINGS -> onOpenFileManagerSettings()
                         KiyoriSettingsHomeAction.OPEN_APPEARANCE_SETTINGS ->
                             onOpenAppearanceSettings()
                         KiyoriSettingsHomeAction.OPEN_DATA_SETTINGS -> onOpenDataSettings()

@@ -34,6 +34,7 @@ app/src/main/java/com/ai/assistance/operit/data/preferences/CustomEmojiPreferenc
 app/src/main/java/com/ai/assistance/operit/data/preferences/DisplayPreferencesManager.kt	preferencesDataStore	"display_preferences"
 app/src/main/java/com/ai/assistance/operit/data/preferences/EnvPreferences.kt	getSharedPreferences	PREFS_NAME
 app/src/main/java/com/ai/assistance/operit/data/preferences/ExternalHttpApiPreferences.kt	preferencesDataStore	"external_http_api_preferences"
+app/src/main/java/com/ai/assistance/operit/data/preferences/FileManagerPreferences.kt	getSharedPreferences	"kiyori_file_manager"
 app/src/main/java/com/ai/assistance/operit/data/preferences/FreeUsagePreferences.kt	getSharedPreferences	PREFS_NAME
 app/src/main/java/com/ai/assistance/operit/data/preferences/FunctionalConfigManager.kt	preferencesDataStore	"functional_configs"
 app/src/main/java/com/ai/assistance/operit/data/preferences/GitHubAuthPreferences.kt	preferencesDataStore	"github_auth_preferences"
