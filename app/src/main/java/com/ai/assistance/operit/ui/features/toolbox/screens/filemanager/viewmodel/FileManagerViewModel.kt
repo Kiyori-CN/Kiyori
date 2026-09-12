@@ -66,16 +66,19 @@ class FileManagerViewModel(
     private val directoryDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val settingsStore: FileManagerPreferences? = null,
     private val historyStore: FileManagerHistoryStore? = null,
+    private val directorySizeClock: () -> Long = System::nanoTime,
     private val executeDirectoryTool: suspend (AITool) -> ToolResult = { tool ->
         AIToolHandler.getInstance(context).executeTool(tool)
     },
 ) : ViewModel() {
 
-    private fun initialPane() = FileManagerPaneState(initialStoragePath, null,
+    private fun initialPane(left: Boolean) = FileManagerPaneState(
+        (if (left) settingsStore?.current?.leftStartPath else settingsStore?.current?.rightStartPath)
+            ?.takeIf { it.isNotBlank() } ?: initialStoragePath, null,
         sortMode = settingsStore?.current?.sortMode ?: FileManagerSortMode.NAME,
         sortDescending = settingsStore?.current?.sortDescending ?: false)
-    private var leftPane by mutableStateOf(initialPane())
-    private var rightPane by mutableStateOf(initialPane())
+    private var leftPane by mutableStateOf(initialPane(true))
+    private var rightPane by mutableStateOf(initialPane(false))
 
     var activePane by mutableStateOf(FileManagerPane.LEFT)
         private set
@@ -511,10 +514,7 @@ class FileManagerViewModel(
                         saving = false, savedContent = document.content, savedPath = destination,
                     ) else document.copy(saving = false, error = result.error ?: "保存失败", unknown = uncertain)
                     if (result.success) {
-                        FileManagerPane.entries.forEach { pane ->
-                            val state = paneState(pane)
-                            if (state.path == parent && state.environment == document.environment) loadPaneDirectory(pane)
-                        }
+                        refreshLocation(FileManagerLocation(parent, document.environment))
                     }
                 } catch (failure: Exception) {
                     if (!closed && textDocument?.id == document.id) textDocument = document.copy(
@@ -552,21 +552,25 @@ class FileManagerViewModel(
     private val scrollPositions = mutableMapOf<Triple<FileManagerPane, FileManagerLocation, String>, FileManagerScrollPosition>()
     private val directoryJobs = mutableMapOf<FileManagerPane, Job>()
     private val directoryRequestVersions = mutableMapOf<FileManagerPane, Long>()
-    private data class DirectorySizeSnapshot(val recordedAt: Long, val bytes: Long?)
+    private data class DirectorySizeSnapshot(val recordedAt: Long, val bytes: Long?, val needsValidation: Boolean = false)
     private val directorySizes = linkedMapOf<FileManagerLocation, DirectorySizeSnapshot>()
     private val directorySizeMutex = Mutex()
+    private var directorySizeInvalidationVersion = 0L
 
-    /** 仅统计可见目录，双栏共享限量缓存；导航取消、超时和代际检查避免递归扫描拖慢列表。 */
-    suspend fun loadVisibleDirectorySizes(pane: FileManagerPane, names: List<String>) {
+    /** 滚动只复用结果；前台目录刷新才定期核验内容，父目录时间不能代表深层子文件大小变化。 */
+    suspend fun loadVisibleDirectorySizes(pane: FileManagerPane, names: List<String>, revalidate: Boolean = false) {
         val initial = paneState(pane)
         if (closed || initial.isLoading || initial.refreshing || isWriting) return
         val version = directoryRequestVersions[pane]
         for (file in initial.files.filter { it.isDirectory && it.name != ".." && it.name in names }) {
             val location = FileManagerLocation(file.fullPath ?: "${initial.path.trimEnd('/')}/${file.name}", initial.environment)
             val snapshot = directorySizeMutex.withLock {
+                if (closed || isWriting || directoryRequestVersions[pane] != version) return@withLock null
                 val cached = directorySizes[location]
-                if (cached != null && System.nanoTime() - cached.recordedAt < 30_000_000_000L) cached
+                if (cached != null && !cached.needsValidation &&
+                    (!revalidate || directorySizeClock() - cached.recordedAt < 30_000_000_000L)) cached
                 else {
+                    val invalidationVersion = directorySizeInvalidationVersion
                     val bytes = if (!fileManagerIsLocal(initial.environment) && initial.environment != "recycle") null else try {
                         // 比自动目录刷新周期短，避免每次自动刷新都在超时前取消同一大目录的统计。
                         val result = withTimeoutOrNull(2_000L) { withContext(directoryDispatcher) {
@@ -577,18 +581,42 @@ class FileManagerViewModel(
                             ?.takeIf { result.success && it.directory && it.path == location.path && it.bytes >= 0 }?.bytes
                     } catch (cancelled: CancellationException) { throw cancelled }
                     catch (failure: Exception) { AppLogger.e("FileManagerViewModel", "目录大小统计失败", failure); null }
-                    DirectorySizeSnapshot(System.nanoTime(), bytes).also {
+                    // 手动刷新或本地写入可以在扫描挂起期间使结果失效，旧扫描不得重新填回缓存。
+                    if (closed || directorySizeInvalidationVersion != invalidationVersion) return@withLock null
+                    DirectorySizeSnapshot(directorySizeClock(), bytes).also {
                         directorySizes[location] = it
                         while (directorySizes.size > 256) directorySizes.remove(directorySizes.keys.first())
                     }
                 }
-            }
+            } ?: return
             val current = paneState(pane)
             if (closed || directoryRequestVersions[pane] != version || current.path != initial.path || current.environment != initial.environment) return
             updatePane(pane) { state -> state.copy(entries = state.entries.map {
                 if (it.name == file.name) it.copy(directoryContentSize = snapshot.bytes, directorySizeUnavailable = snapshot.bytes == null) else it
             }) }
             projectPane(pane)
+        }
+    }
+
+    private fun withDirectorySizes(entries: List<FileItem>, path: String, environment: String?): List<FileItem> =
+        entries.map { file ->
+            if (!file.isDirectory) file else {
+                val location = FileManagerLocation(file.fullPath ?: "${path.trimEnd('/')}/${file.name}", environment)
+                directorySizes[location]?.let { snapshot ->
+                    file.copy(directoryContentSize = snapshot.bytes, directorySizeUnavailable = snapshot.bytes == null)
+                } ?: file
+            }
+        }
+
+    private fun invalidateDirectorySizes(location: FileManagerLocation) {
+        directorySizeInvalidationVersion++
+        directorySizes.replaceAll { key, snapshot ->
+            val sameEnvironment = key.environment == location.environment ||
+                fileManagerIsLocal(key.environment) && fileManagerIsLocal(location.environment)
+            val path = location.path.trimEnd('/')
+            val cachedPath = key.path.trimEnd('/')
+            if (sameEnvironment && (cachedPath == path || cachedPath.startsWith("$path/") || path.startsWith("$cachedPath/")))
+                snapshot.copy(needsValidation = true) else snapshot
         }
     }
 
@@ -994,7 +1022,7 @@ class FileManagerViewModel(
     fun refreshPane(pane: FileManagerPane = activePane) {
         val state = paneState(pane)
         if (closed || state.isLoading || state.refreshing) return
-        directorySizes.keys.removeAll { it.environment == state.environment && it.path.substringBeforeLast('/') == state.path.trimEnd('/') }
+        invalidateDirectorySizes(FileManagerLocation(state.path, state.environment))
         loadPaneDirectory(pane, background = true, manualRefresh = true)
     }
 
@@ -1115,11 +1143,13 @@ class FileManagerViewModel(
                             state.path != path || state.environment != environment
                         ) return@publish
                         if (visibleFiles != null) {
+                            // 新目录快照必须带回已知大小，否则每次自动刷新都会短暂显示“大小 —”。
+                            val sizedFiles = withDirectorySizes(visibleFiles, path, environment)
                             updatePane(pane) { current ->
                                 current.copy(
-                                    entries = visibleFiles,
+                                    entries = sizedFiles,
                                     directoryRevision = current.directoryRevision + 1,
-                                    files = fileManagerVisibleEntries(manuallyVisibleEntries(visibleFiles, path, environment), "", showHiddenFiles, canNavigateUp(pane), current.filter),
+                                    files = fileManagerVisibleEntries(manuallyVisibleEntries(sizedFiles, path, environment), "", showHiddenFiles, canNavigateUp(pane), current.filter),
                                     isLoading = false,
                                     refreshing = false,
                                     error = postLoadError,
@@ -1824,6 +1854,7 @@ class FileManagerViewModel(
     }
 
     private fun refreshLocation(location: FileManagerLocation) {
+        invalidateDirectorySizes(location)
         FileManagerPane.entries.forEach { pane ->
             val state = paneState(pane)
             if (state.path == location.path && (state.environment == location.environment ||

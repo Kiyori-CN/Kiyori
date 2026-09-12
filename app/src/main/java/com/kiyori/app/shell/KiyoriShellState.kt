@@ -63,6 +63,7 @@ data class KiyoriShellState(
     val settingsNavigation: KiyoriSettingsNavigationState? = null,
     val fileManagerSessionOpen: Boolean = false,
     val fileManagerMinimized: Boolean = false,
+    val fileManagerShortcutId: String? = null,
     val fileManagerParentSettings: KiyoriSettingsNavigationState? = null,
     val isAiDrawerOpen: Boolean = false,
     val isBookmarkDrawerOpen: Boolean = false,
@@ -214,13 +215,14 @@ data class KiyoriShellState(
     fun closeChild(): KiyoriShellState =
         copy(child = null,
             fileManagerSessionOpen = if (child == KiyoriShellChild.FILE_MANAGER) false else fileManagerSessionOpen,
+            fileManagerShortcutId = if (child == KiyoriShellChild.FILE_MANAGER) null else fileManagerShortcutId,
             fileManagerMinimized = if (child == KiyoriShellChild.FILE_MANAGER) false else fileManagerMinimized)
 
     fun minimizeFileManager(): KiyoriShellState =
         showSoftwareHomePage(SoftwareHomePage.AI_HOME).copy(fileManagerSessionOpen = true, fileManagerMinimized = true)
 
     fun closeMinimizedFileManager(): KiyoriShellState =
-        copy(fileManagerSessionOpen = false, fileManagerMinimized = false)
+        copy(fileManagerSessionOpen = false, fileManagerMinimized = false, fileManagerShortcutId = null)
 
 
     fun openSettings(

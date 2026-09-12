@@ -2523,11 +2523,11 @@ class ArchitectureBoundaryTest(unittest.TestCase):
         player_path = next(
             iter(M05A2_EXPECTED_QUALIFIED_REFERENCES["KiyoriSemanticColors"])
         )
-        # Five file-manager pages each consume only the existing semantic tone.
+        # 文件设置与入口管理消费既有语义色，不引入新的颜色所有者。
         file_manager_paths = [
             "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/" + name
-            for name in ("FileContextMenu.kt", "FileManagerChrome.kt", "FileManagerCopyUi.kt", "FileManagerDualPane.kt", "SearchDialogs.kt")
-        ]
+            for name in ("FileContextMenu.kt", "FileManagerChrome.kt", "FileManagerCopyUi.kt", "FileManagerDualPane.kt", "SearchDialogs.kt", "FileManagerStorageManagement.kt")
+        ] + ["app/src/main/java/com/ai/assistance/operit/ui/main/shell/KiyoriFileManagerSettingsPage.kt"]
         legacy_production_consumer_count = M05A2_PRODUCTION_CONSUMER_COUNT - 4 - len(file_manager_paths)
         assistant_experience_path = (
             "app/src/main/java/com/ai/assistance/operit/ui/features/"
@@ -2583,6 +2583,8 @@ class ArchitectureBoundaryTest(unittest.TestCase):
                 more_features_path,
             }:
                 imports_by_path[relative_path] = ["KiyoriSemanticTone"]
+                if Path(relative_path).name in {"FileManagerChrome.kt", "FileManagerStorageManagement.kt", "KiyoriFileManagerSettingsPage.kt"}:
+                    imports_by_path[relative_path].append("resolveColors")
                 continue
             if index < stable_id_consumer_indices[0] or index == page_source_consumer_index:
                 symbols.append("KiyoriSemanticTone")

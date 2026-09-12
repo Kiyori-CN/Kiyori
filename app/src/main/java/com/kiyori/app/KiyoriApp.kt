@@ -364,6 +364,15 @@ fun KiyoriApp(
         if (routeNavRequestId == lastHandledRouteRequestId) {
             return@LaunchedEffect
         }
+        if (requestRouteId == com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.FILE_MANAGER_SHORTCUT_ROUTE) {
+            val entryId = routeNavArgs["entryId"] as? String
+            if (entryId != null && entryId.matches(Regex("[0-9a-f]{64}"))) {
+                updateShellState(shellState.openFileManager().copy(fileManagerShortcutId = entryId))
+            }
+            lastHandledRouteRequestId = routeNavRequestId
+            onRouteNavHandled(routeNavRequestId)
+            return@LaunchedEffect
+        }
         val routeKnown = navigationModel.routesById[requestRouteId] != null
         if (
             shouldDeferPendingOperitRoute(

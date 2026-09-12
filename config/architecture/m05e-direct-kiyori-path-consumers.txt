@@ -10,6 +10,7 @@ app/src/main/java/com/ai/assistance/operit/data/backup/RawSnapshotBackupManager.
 app/src/main/java/com/ai/assistance/operit/util/AppLogger.kt
 app/src/main/java/com/ai/assistance/operit/util/OperitPaths.kt
 app/src/main/java/com/kiyori/app/KiyoriApplication.kt
+app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/FileManagerShortcuts.kt
 app/src/main/java/com/kiyori/platform/storage/KiyoriBackupPaths.kt
 app/src/main/java/com/kiyori/platform/storage/KiyoriPublicStore.kt
 app/src/main/java/com/kiyori/platform/storage/ToolPkgLegacyImportCoordinator.kt

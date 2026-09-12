@@ -1,5 +1,72 @@
 # Kiyori 内置文件管理器开发
 
+## 2026-09-12 设置页重建、抽屉管理与彩色动作
+
+状态：实现、定向回归与 Debug APK 构建完成；设备 `verification_pending`。基线 `main / 64e416a500d6970b097a443aeaa046607dab6df4`。
+当前用户授权本轮完整实现、构建、全部提交并推送 main。保留初始 7 个文件的拖柄自动隐藏与目录大小稳定显示改动，纳入本轮回归。
+不安装或操作设备、不更改 terminal、不新增文件后端。
+
+1. 已核对现有设置、抽屉、ApiPreferences、FileManagerPreferences、Shell 和文件工具所有权。
+2. 重建设置页六组信息架构；提供真实偏好、输入校验、清理确认和状态说明。
+3. 关闭抽屉拖动；彩色图标；固定入口保护；长按小菜单、编辑、排序、隐藏与恢复。
+4. 桌面快捷入口只携带记录标识，由原 Shell 文件会话解析；明确已删除与不支持状态。
+5. 定向验证偏好、侧栏投影、生命周期和来源返回，审查架构差异，串行构建 Debug APK。
+6. 审计精确允许清单、敏感内容和子模块，提交候选树，执行新鲜克隆检查，推送并核对远端 ref。
+
+详细 UI、文案、默认值、状态逻辑、截图取舍和设备矩阵见[文件管理设计](../../doc-src/architecture/kiyori_file_manager.md)。
+主要风险是启动位置误覆盖保留会话、SAF 别名改变后端身份、迟到目录结果和快捷入口生命周期；
+分别通过构造期初始化、身份与显示分离、原代际检查和 Shell 一次性请求处理约束。
+回滚按本轮提交差异处理；配置向前兼容读取旧偏好，不迁移实际文件。
+
+本地证据（2026-09-12，Asia/Shanghai）：
+
+- 中断恢复后复核设置消费者、入口身份、回收语义和 Shell 会话；补齐开关/单选无障碍状态、
+  滚动期间目录核验、关闭会话清理快捷请求，以及旧书签编辑后快捷方式与排序不失效。
+- 查证 Material3 1.4.0 的 `NavigationDrawer.kt`：关闭 `gesturesEnabled` 也会禁用遮罩关闭。
+  文件左抽屉改为与 AI 同样的显式遮罩与位移动画，无拖动入口；关闭动画结束前保持触摸隔离，
+  模态期间隐藏背景无障碍节点，Back 在背景处理器之后注册。
+- 最终 `:app:testDebugUnitTest` 定向命令覆盖 `filemanager.*`、`FileManagerPreferencesTest`、
+  `KiyoriShellStateTest`、`KiyoriMainIntentDecoderTest`、`KiyoriDesignThemeTest`，
+  `--no-daemon --console=plain`：22 套、280 项，0 失败/错误/跳过，`BUILD SUCCESSFUL`（1m42s）。
+- 语义消费者与存储路径边界正反例 4 项通过；审阅 Shell 及色彩消费者差异后更新精确记录，
+  完整 `check_architecture_boundaries.py --repository . --ownership config/architecture/package-ownership.toml --require-main`
+  通过（`phase=m03`）。正式准备检查通过；文档检查 521 文件、0 问题；`git diff --check` 通过。
+- 串行 `:app:assembleDebug --no-daemon --console=plain` 成功（1m36s），唯一启动器、脚本代理与播放器打包检查通过。
+  `app/build/outputs/apk/debug/app-debug.apk` 生成于 `23:46:29 +08:00`，`488291759` 字节，
+  `com.kiyori / 45 / 0.1.0 / arm64-v8a`；V2 单签名、16 KiB ZIP 对齐通过。
+  SHA-256：`5AC7D1FAC472CB366EC6BAF1B3B002EDB23391ABD515E2267C46C301EA7C55B3`。
+- 交付精确清单 32 文件，包含初始目录大小与拖柄改动；敏感内容、链接/嵌套仓库、异常大文件、
+  临时产物与子模块审计无异常，terminal 固定 gitlink 不变。APK、日志和私有日记不进入提交。
+- 未运行 Lint、Release、设备安装或真实外部连接；本地成功不代表远端 CI、桌面快捷方式、
+  SAF 权限、深浅色/大字体或触摸现场通过。候选树及远端交付结果以本轮 Git 验证为准。
+
+
+## 2026-09-12 滑块自动隐藏与目录大小稳定显示
+
+状态：实现、定向回归与 Debug APK 构建完成；设备 `verification_pending`。基线 `main / 64e416a500d6970b097a443aeaa046607dab6df4`，初始工作区干净。
+本轮仅修复右侧拖柄与目录大小更新，不提交、不推送、不安装设备；复用现有列表、文件工具与 ViewModel。
+
+1. 拖柄在滚动或拖动时显示，停止 700ms 后用 180ms 淡出；完全隐藏后移除触摸和无障碍节点。
+2. 新列表快照复用已知目录大小；滚动不再因缓存时间到期重新统计，也不反复取消正在扫描的目录。
+3. 已知大小由前台目录刷新驱动后台核验，单位置最多每 30 秒核验一次；内容没变时保持数值。
+   不用父目录修改时间推断深层文件大小。手动刷新及文件管理写入使相关缓存待核验，期间保留上次值。
+4. 复核双栏缓存共享、自动刷新不闪占位、深层大小变化、手动刷新与迟到结果；随后串行构建 Debug APK。
+
+风险与回滚：后台核验仍需递归读取元数据，沿用单目录 2 秒超时和 256 项缓存；超时/权限失败明确显示不可用。
+本轮差异集中于三处文件管理实现、生命周期回归与对应说明，可按本轮差异撤回；设备检查需覆盖隐藏后点按边缘文件行。
+
+本地证据（2026-09-12）：
+
+- `:app:testDebugUnitTest --tests "com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.*" --no-daemon --console=plain`
+  复跑通过：17 套、165 项，0 失败/错误/跳过，含本轮 4 项新增大小回归。
+- 首轮 165 项中历史存储并发测试在 Windows 临时目录 `ATOMIC_MOVE` 报 `AccessDeniedException`；
+  本轮未修改历史存储实现或断言，同组复跑未复现；文件占用来源未确定。
+- 文档检查 521 个文件、0 问题；`git diff --check` 通过。
+- 串行 `:app:assembleDebug --no-daemon --console=plain` 成功（3m04s），唯一启动器、脚本代理与播放器打包检查通过。
+  APK 生成于 `19:12:45 +08:00`，`490637463` 字节，`com.kiyori / 45 / 0.1.0 / arm64-v8a`，V2 单签名与 16 KiB ZIP 对齐通过。
+  SHA-256：`43A33A20E2A18E1AD7B167810D290134E122DF0095C413851796FF5C00D7CFC8`。
+- 最终仅 7 个本轮文件修改，未暂存、提交或推送；terminal 未变。未运行 Lint、Release、设备或远端验收。
+
 ## 2026-09-12 文件交互与全局底部抽屉统一
 
 状态：实现与本地验证完成，设备 `verification_pending`。基线 `main / cc09319c349051012f6894eb4d32dcc2e83da74d`，初始工作区干净。

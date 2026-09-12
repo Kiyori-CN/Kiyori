@@ -6,6 +6,18 @@ import org.junit.Test
 
 /** 架构接线合同；异步正确性由 DirectoryLifecycle/WorkLifecycle 行为测试验证。 */
 class FileManagerSourceContractTest {
+    @Test fun `storage drawer uses explicit modal dismissal independent of swipe gestures`() {
+        val screen = source("FileManagerScreen.kt")
+        val host = source("components/FileManagerStorageManagement.kt").substringBefore("val FileManagerStorageEntry.storageId")
+        assertFalse(screen.contains("ModalNavigationDrawer("))
+        assertTrue(screen.contains("FileManagerModalStorageDrawer("))
+        assertTrue(host.contains("BackHandler(enabled = visible)"))
+        assertTrue(host.contains("onClickLabel = \"关闭存储侧栏\""))
+        assertTrue(host.contains("clearAndSetSemantics"))
+        assertTrue(host.contains("isOpen || fraction > 0f"))
+        assertFalse(host.contains(".draggable("))
+    }
+
     private fun source(name: String): String = File(System.getProperty("user.dir"),
         "src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/$name").readText()
 
@@ -16,9 +28,9 @@ class FileManagerSourceContractTest {
         assertTrue(screen.contains("val store = remember { ViewModelStore() }"))
         assertTrue(screen.contains("FileManagerViewModel(applicationContext, settingsStore ="))
         assertTrue(screen.contains("onDispose { store.clear() }"))
-        assertTrue(screen.contains("gesturesEnabled = drawerState.isOpen"))
+        assertTrue(screen.contains("isOpen = storageDrawerOpen"))
         assertTrue(screen.contains("Modifier.width(storageDrawerWidth)"))
-        assertTrue(screen.contains("BackHandler(enabled = drawerState.isOpen || drawerState.targetValue == DrawerValue.Open)"))
+        assertTrue(screen.contains("onDismiss = { storageDrawerOpen = false }"))
         assertTrue(screen.contains("viewModel.clickEntry(file)"))
         val swipe = screen.substringAfter("onItemSwipeRight = { pane, file ->").substringBefore("},")
         assertTrue(swipe.contains("viewModel.selectFile(file)"))
@@ -82,7 +94,7 @@ class FileManagerSourceContractTest {
         assertFalse(screen.contains("layoutMode"))
         assertTrue(screen.contains("onRefresh = { pane -> viewModel.refreshPane(pane) }"))
         assertFalse(source("components/FileManagerChrome.kt").contains("showOptions"))
-        assertTrue(item.contains("maxLines = 4"))
+        assertTrue(item.contains("maxLines = displaySettings.filenameLines"))
         assertTrue(item.contains("coerceIn(-maxDrag.toPx(), maxDrag.toPx())"))
         assertTrue(source("components/FileManagerDualPane.kt").contains(".drawWithContent"))
         assertFalse(source("components/FileManagerVisuals.kt").contains("Icons.Rounded.Check else icon"))

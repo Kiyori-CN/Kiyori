@@ -39,7 +39,7 @@ class FileManagerPreferencesTest {
         val editor: SharedPreferences.Editor = mock()
         whenever(prefs.edit()).thenReturn(editor)
         whenever(prefs.getBoolean(any(), any())).thenAnswer { values[it.getArgument<String>(0)] ?: it.getArgument<Boolean>(1) }
-        whenever(prefs.getString(any(), any())).thenAnswer { values[it.getArgument<String>(0)] ?: it.getArgument<String>(1) }
+        whenever(prefs.getString(any(), anyOrNull())).thenAnswer { values[it.getArgument<String>(0)] ?: it.getArgument<String?>(1) }
         whenever(prefs.getFloat(any(), any())).thenAnswer { values[it.getArgument<String>(0)] ?: it.getArgument<Float>(1) }
         whenever(editor.putBoolean(any(), any())).thenAnswer { values[it.getArgument(0)] = it.getArgument<Boolean>(1); editor }
         whenever(editor.putString(any(), any())).thenAnswer { values[it.getArgument(0)] = it.getArgument<String>(1); editor }
@@ -54,6 +54,51 @@ class FileManagerPreferencesTest {
         store.update { it.copy(showHiddenFiles = false, sortMode = FileManagerSortMode.MODIFIED, sortDescending = true) }
         store.update { it.copy(itemSize = 1.2f) }
         assertEquals(FileManagerSettings(false, FileManagerSortMode.MODIFIED, true, 1.2f), FileManagerPreferences(disk).current)
+    }
+
+    @Test fun `redesigned settings survive recreation and migrate legacy display preferences`() {
+        val disk = preferences(mutableMapOf("item_size" to 1.2f, "show_hidden" to false))
+        val store = FileManagerPreferences(disk)
+        assertEquals(1.2f, store.current.itemSize)
+        assertFalse(store.current.showHiddenFiles)
+        store.update { it.copy(leftStartPath = "/left", rightStartPath = "/right", filenameLines = 2,
+            showSeconds = false, showDirectorySizes = false, refreshIntervalSeconds = 0,
+            drawerOrder = listOf("a", "b"), drawerHidden = setOf("b"), drawerNames = mapOf("b" to "目录"),
+            showBookmarks = false, newBookmarksOnTop = true) }
+        assertEquals(store.current, FileManagerPreferences(disk).current)
+        val before = store.current
+        assertThrows(IllegalArgumentException::class.java) { store.update { it.copy(filenameLines = 0) } }
+        assertThrows(IllegalArgumentException::class.java) { store.update { it.copy(refreshIntervalSeconds = 1) } }
+        assertThrows(IllegalArgumentException::class.java) { store.update { it.copy(leftStartPath = "/a/../b") } }
+        assertEquals(before, FileManagerPreferences(disk).current)
+        assertTrue(validFileManagerStartPath("/storage/emulated/0/中文 目录"))
+        assertFalse(validFileManagerStartPath("relative"))
+        assertFalse(validFileManagerStartPath("/bad\npath"))
+    }
+
+    @Test fun `startup paths apply only on construction and settings return preserves both locations`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val models = ViewModelStore()
+        Mockito.mockStatic(Log::class.java).use {
+            try {
+                val context: Context = mock()
+                whenever(context.getString(R.string.file_manager_home)).thenReturn("Home")
+                val store = FileManagerPreferences(preferences())
+                store.update { it.copy(leftStartPath = "/left", rightStartPath = "/right") }
+                val model = FileManagerViewModel(context, "/storage", dispatcher, store) { tool ->
+                    ToolResult(tool.name, true, DirectoryListingData(tool.parameters.first { it.name == "path" }.value, emptyList()), "")
+                }
+                models.put("files", model)
+                runCurrent()
+                assertEquals("/left", model.leftPaneState.path)
+                assertEquals("/right", model.rightPaneState.path)
+                store.update { it.copy(leftStartPath = "/changed", rightStartPath = "") }
+                runCurrent()
+                assertEquals("/left", model.leftPaneState.path)
+                assertEquals("/right", model.rightPaneState.path)
+            } finally { models.clear(); Dispatchers.resetMain() }
+        }
     }
 
     @Test fun `invalid display size is rejected without changing saved settings`() {

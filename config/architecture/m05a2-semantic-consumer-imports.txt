@@ -42,8 +42,11 @@ app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/apppermis
 app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/apppermissions/AppPermissionsScreen.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileContextMenu.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileManagerChrome.kt	com.kiyori.design.theme.KiyoriSemanticTone
+app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileManagerChrome.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileManagerCopyUi.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileManagerDualPane.kt	com.kiyori.design.theme.KiyoriSemanticTone
+app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileManagerStorageManagement.kt	com.kiyori.design.theme.KiyoriSemanticTone
+app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/FileManagerStorageManagement.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/KiyoriFileManagerMinimizedIndicator.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/KiyoriFileManagerMinimizedIndicator.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/SearchDialogs.kt	com.kiyori.design.theme.KiyoriSemanticTone
@@ -93,6 +96,8 @@ app/src/main/java/com/ai/assistance/operit/ui/main/shell/KiyoriAdBlockSettingsPa
 app/src/main/java/com/ai/assistance/operit/ui/main/shell/KiyoriApplicationSettingsPages.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/main/shell/KiyoriAssistantExperienceSettingsPages.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/main/shell/KiyoriFileManagementPage.kt	com.kiyori.design.theme.KiyoriSemanticTone
+app/src/main/java/com/ai/assistance/operit/ui/main/shell/KiyoriFileManagerSettingsPage.kt	com.kiyori.design.theme.KiyoriSemanticTone
+app/src/main/java/com/ai/assistance/operit/ui/main/shell/KiyoriFileManagerSettingsPage.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/main/shell/KiyoriMoreFeaturesSettingsPage.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/main/shell/KiyoriNetworkProxySettingsPage.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/main/shell/KiyoriSettingsUi.kt	com.kiyori.design.theme.KiyoriSemanticTone

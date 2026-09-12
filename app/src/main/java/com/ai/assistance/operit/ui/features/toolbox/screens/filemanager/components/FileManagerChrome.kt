@@ -46,6 +46,9 @@ import com.ai.assistance.operit.ui.components.KiyoriDrawerTitle
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.*
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.KiyoriUiShapes
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import com.kiyori.design.theme.resolveColors
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.ui.draw.clip
@@ -74,15 +77,15 @@ fun FileManagerTopBar(
                 },
                 actions = {
                     IconButton(onClick = onShowSearchDialog, modifier = actionModifier) {
-                        BadgedBox(badge = { if (isSearching) Badge() }) { Icon(Icons.Outlined.Search, "搜索当前列") }
+                        BadgedBox(badge = { if (isSearching) Badge() }) { Icon(Icons.Outlined.Search, "搜索当前列", tint = KiyoriSemanticTone.BLUE.resolveColors().icon) }
                     }
                     IconButton(onClick = onShowFilter, modifier = actionModifier) {
-                        BadgedBox(badge = { if (hasFilter) Badge() }) { Icon(Icons.Outlined.FilterAlt, if (hasFilter) "过滤当前列，已启用" else "过滤当前列") }
+                        BadgedBox(badge = { if (hasFilter) Badge() }) { Icon(Icons.Outlined.FilterAlt, if (hasFilter) "过滤当前列，已启用" else "过滤当前列", tint = KiyoriSemanticTone.PURPLE.resolveColors().icon) }
                     }
-                    IconButton(onClick = onShowSort, modifier = actionModifier) { Icon(Icons.AutoMirrored.Outlined.Sort, "排序当前列") }
+                    IconButton(onClick = onShowSort, modifier = actionModifier) { Icon(Icons.AutoMirrored.Outlined.Sort, "排序当前列", tint = KiyoriSemanticTone.ORANGE.resolveColors().icon) }
                     IconButton(onClick = onRefresh, enabled = !refreshing, modifier = actionModifier) {
                         if (refreshing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                        else Icon(Icons.Outlined.Refresh, "刷新当前列")
+                        else Icon(Icons.Outlined.Refresh, "刷新当前列", tint = KiyoriSemanticTone.GREEN.resolveColors().icon)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -176,20 +179,22 @@ data class FileManagerStorageEntry(
     val network: com.ai.assistance.operit.core.tools.defaultTool.standard.NetworkStorageProfile? = null,
 )
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FileManagerStorageDrawer(
     entries: List<FileManagerStorageEntry>,
     onSelect: (FileManagerStorageEntry) -> Unit,
     onAddBookmark: () -> Unit,
-    onDeleteBookmark: (FileManagerStorageEntry) -> Unit,
+    onManageEntry: (FileManagerStorageEntry) -> Unit,
     onDismiss: () -> Unit,
     onRecycleBin: () -> Unit,
     currentPath: String,
     currentEnvironment: String?,
+    showBookmarks: Boolean = true,
+    showWorkspaces: Boolean = true,
     onAddNetwork: () -> Unit = {},
     onAddNetworkGroup: () -> Unit = {},
     networkGroups: List<String> = emptyList(),
-    onEditNetwork: (com.ai.assistance.operit.core.tools.defaultTool.standard.NetworkStorageProfile) -> Unit = {},
 ) {
     var showAdd by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth()
@@ -213,7 +218,9 @@ fun FileManagerStorageDrawer(
                 }
             }
         }
-        listOf("本地", "网络", "书签", "工作区", "工具").forEach { category ->
+        listOf("本地", "网络", "书签", "工作区", "工具").filter {
+            (it != "书签" || showBookmarks) && (it != "工作区" || showWorkspaces)
+        }.forEach { category ->
             var expanded by androidx.compose.runtime.saveable.rememberSaveable(category) { mutableStateOf(true) }
             CompactStorageRow(
                 headlineContent = { Text(category, fontSize = 13.sp, fontWeight = FontWeight.Medium) },
@@ -234,14 +241,17 @@ fun FileManagerStorageDrawer(
                             "书签" -> Icons.Rounded.Bookmark
                             "工作区" -> Icons.Rounded.Workspaces
                             else -> if (entry.environment == "linux") Icons.Rounded.Terminal else Icons.Rounded.Folder
-                        }, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
-                        trailingContent = {
-                            if (entry.bookmarkUri != null || entry.fileBookmark != null) IconButton(onClick = { onDeleteBookmark(entry) }) {
-                                Icon(Icons.Outlined.Close, "移除${entry.title}", Modifier.size(18.dp))
-                            }
-                        },
+                        }, null, tint = when (category) {
+                            "书签" -> KiyoriSemanticTone.ORANGE
+                            "工作区" -> KiyoriSemanticTone.PURPLE
+                            else -> if (entry.environment == "linux") KiyoriSemanticTone.GREEN else KiyoriSemanticTone.BLUE
+                        }.resolveColors().icon) },
                         selected = entry.path == currentPath && entry.environment.orEmpty().removePrefix("android") == currentEnvironment.orEmpty().removePrefix("android"),
-                            modifier = Modifier.padding(start = 12.dp, end = 8.dp).clickable { onSelect(entry) },
+                            modifier = Modifier.padding(start = 12.dp, end = 8.dp).combinedClickable(
+                                onClick = { onSelect(entry) },
+                                onLongClick = if (entry.isFixedLocal) null else ({ onManageEntry(entry) }),
+                                onLongClickLabel = "管理${entry.title}",
+                            ),
                         )
                 }
                 if (category == "网络") {
@@ -256,19 +266,17 @@ fun FileManagerStorageDrawer(
                         if (groupExpanded) grouped.forEach { entry -> CompactStorageRow(
                             headlineContent = { Text(entry.title, fontSize = 12.sp) },
                             supportingContent = { LeadingEllipsisPath(entry.subtitle.orEmpty(), MaterialTheme.typography.bodySmall) },
-                            leadingContent = { Icon(Icons.Rounded.Cloud, null) },
-                            trailingContent = { Row {
-                                IconButton(onClick = { entry.network?.let(onEditNetwork) }) { Icon(Icons.Outlined.Edit, "编辑${entry.title}", Modifier.size(18.dp)) }
-                                IconButton(onClick = { onDeleteBookmark(entry) }) { Icon(Icons.Outlined.Close, "移除${entry.title}", Modifier.size(18.dp)) }
-                            } },
-                            modifier = Modifier.padding(start = 20.dp).clickable { onSelect(entry) },
+                            leadingContent = { Icon(Icons.Rounded.Cloud, null, tint = KiyoriSemanticTone.CYAN.resolveColors().icon) },
+                            modifier = Modifier.padding(start = 20.dp).combinedClickable(
+                                onClick = { onSelect(entry) }, onLongClick = { onManageEntry(entry) }, onLongClickLabel = "管理${entry.title}",
+                            ),
                         ) }
                     }
                     if (items.isEmpty()) TextButton(onClick = onAddNetwork, modifier = Modifier.padding(start = 16.dp)) { Text("添加网络存储") }
                 }
                 if (category == "书签" && items.isEmpty()) Text("长按项目 → 加书签", Modifier.padding(start = 28.dp, bottom = 12.dp), style = MaterialTheme.typography.bodySmall)
                 if (category == "工具") CompactStorageRow(
-                    headlineContent = { Text("回收站", fontSize = 12.sp) }, leadingContent = { Icon(Icons.Rounded.RestoreFromTrash, null) },
+                    headlineContent = { Text("回收站", fontSize = 12.sp) }, leadingContent = { Icon(Icons.Rounded.RestoreFromTrash, null, tint = KiyoriSemanticTone.GREEN.resolveColors().icon) },
                     supportingContent = { Text("恢复或彻底删除", fontSize = 10.sp) },
                     modifier = Modifier.padding(start = 12.dp).clickable(onClick = onRecycleBin),
                 )

@@ -253,7 +253,14 @@ class ApiPreferences private constructor(private val context: Context) {
     )
 
     @Serializable
-    data class FileBookmark(val name: String, val path: String, val environment: String? = null, val directory: Boolean = true)
+    data class FileBookmark(
+        val name: String,
+        val path: String,
+        val environment: String? = null,
+        val directory: Boolean = true,
+        // 旧记录首次编辑时冻结原身份；新入口分配独立 ID，允许重新收藏旧路径。
+        val entryId: String? = null,
+    )
 
     val fileNetworksFlow: Flow<List<com.ai.assistance.operit.core.tools.defaultTool.standard.NetworkStorageProfile>> = context.apiDataStore.data.map {
         Json.decodeFromString(it[FILE_MANAGER_NETWORKS_JSON] ?: "[]")
@@ -265,7 +272,9 @@ class ApiPreferences private constructor(private val context: Context) {
         require(profile.name.isNotBlank() && profile.endpoint.isNotBlank())
         context.apiDataStore.edit {
             val existing = Json.decodeFromString<List<com.ai.assistance.operit.core.tools.defaultTool.standard.NetworkStorageProfile>>(it[FILE_MANAGER_NETWORKS_JSON] ?: "[]")
-            it[FILE_MANAGER_NETWORKS_JSON] = Json.encodeToString(existing.filterNot { p -> p.id == profile.id } + profile)
+            it[FILE_MANAGER_NETWORKS_JSON] = Json.encodeToString(
+                if (existing.any { p -> p.id == profile.id }) existing.map { p -> if (p.id == profile.id) profile else p }
+                else existing + profile)
         }
     }
     suspend fun removeFileNetwork(id: String) {
@@ -290,9 +299,14 @@ class ApiPreferences private constructor(private val context: Context) {
         require(workspace.directory && workspace.name.isNotBlank() && workspace.path.startsWith('/'))
         context.apiDataStore.edit { preferences ->
             val existing = Json.decodeFromString<List<FileBookmark>>(preferences[FILE_MANAGER_WORKSPACES_JSON] ?: "[]")
+            val original = existing.firstOrNull {
+                it.path == workspace.path && it.environment == workspace.environment
+            }
+            val saved = workspace.copy(entryId = original?.let { fileBookmarkIdentity(it, workspace = true) }
+                ?: java.util.UUID.randomUUID().toString())
             preferences[FILE_MANAGER_WORKSPACES_JSON] = Json.encodeToString(existing.filterNot {
                 it.path == workspace.path && it.environment == workspace.environment
-            } + workspace)
+            } + saved)
         }
     }
 
@@ -300,7 +314,7 @@ class ApiPreferences private constructor(private val context: Context) {
         context.apiDataStore.edit { preferences ->
             val existing = Json.decodeFromString<List<FileBookmark>>(preferences[FILE_MANAGER_WORKSPACES_JSON] ?: "[]")
             preferences[FILE_MANAGER_WORKSPACES_JSON] = Json.encodeToString(existing.filterNot {
-                it.path == workspace.path && it.environment == workspace.environment
+                fileBookmarkIdentity(it, workspace = true) == fileBookmarkIdentity(workspace, workspace = true)
             })
         }
     }
@@ -309,12 +323,36 @@ class ApiPreferences private constructor(private val context: Context) {
         Json.decodeFromString<List<FileBookmark>>(preferences[FILE_MANAGER_BOOKMARKS_JSON] ?: "[]")
     }
 
-    suspend fun addFileBookmark(bookmark: FileBookmark) {
+    suspend fun addFileBookmark(bookmark: FileBookmark, atTop: Boolean = false): FileBookmark {
         require(bookmark.name.isNotBlank() && bookmark.path.startsWith('/'))
+        var saved = bookmark
         context.apiDataStore.edit { preferences ->
             val existing = Json.decodeFromString<List<FileBookmark>>(preferences[FILE_MANAGER_BOOKMARKS_JSON] ?: "[]")
-            val updated = existing.filterNot { it.path == bookmark.path && it.environment == bookmark.environment } + bookmark
+            val others = existing.filterNot { it.path == bookmark.path && it.environment == bookmark.environment }
+            val original = existing.firstOrNull {
+                it.path == bookmark.path && it.environment == bookmark.environment
+            }
+            saved = bookmark.copy(entryId = original?.let { fileBookmarkIdentity(it, workspace = false) }
+                ?: java.util.UUID.randomUUID().toString())
+            val updated = if (atTop) listOf(saved) + others else others + saved
             preferences[FILE_MANAGER_BOOKMARKS_JSON] = Json.encodeToString(updated)
+        }
+        return saved
+    }
+
+    /** 在同一次 DataStore 事务内替换，防止编辑取消、保存失败或并发删除造成记录丢失。 */
+    suspend fun editFileManagerBookmark(original: FileBookmark, updated: FileBookmark, workspace: Boolean) {
+        require(updated.name.isNotBlank() && validFileManagerStartPath(updated.path))
+        require(!workspace || updated.directory)
+        val key = if (workspace) FILE_MANAGER_WORKSPACES_JSON else FILE_MANAGER_BOOKMARKS_JSON
+        context.apiDataStore.edit { preferences ->
+            val existing = Json.decodeFromString<List<FileBookmark>>(preferences[key] ?: "[]")
+            check(original in existing) { "入口已被修改或移除，请重新打开编辑" }
+            check(existing.none { it != original && it.path == updated.path && it.environment == updated.environment }) { "此位置已有入口" }
+            require(updated.environment == original.environment) { "不能通过编辑更换存储环境" }
+            preferences[key] = Json.encodeToString(existing.map {
+                if (it == original) updated.copy(entryId = fileBookmarkIdentity(original, workspace)) else it
+            })
         }
     }
 
@@ -322,7 +360,7 @@ class ApiPreferences private constructor(private val context: Context) {
         context.apiDataStore.edit { preferences ->
             val existing = Json.decodeFromString<List<FileBookmark>>(preferences[FILE_MANAGER_BOOKMARKS_JSON] ?: "[]")
             preferences[FILE_MANAGER_BOOKMARKS_JSON] = Json.encodeToString(existing.filterNot {
-                it.path == bookmark.path && it.environment == bookmark.environment
+                fileBookmarkIdentity(it, workspace = false) == fileBookmarkIdentity(bookmark, workspace = false)
             })
         }
     }

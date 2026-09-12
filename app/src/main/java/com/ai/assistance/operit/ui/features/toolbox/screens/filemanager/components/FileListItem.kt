@@ -54,14 +54,15 @@ fun FileListItem(
     itemSize: Float = 1f,
     selectionMode: Boolean = false,
 ) {
+    val displaySettings = LocalFileManagerDisplaySettings.current
     val baseHeight = 48.dp
     val scale = itemSize.coerceIn(0.8f, 1.3f)
     val iconSize = 30.dp * scale
     val leftPadding = 5.dp
     val iconGap = 5.dp
     val maxDrag = leftPadding + iconSize
-    val dateLabel = remember(file.lastModified, file.lastModifiedLabel) {
-        if (file.lastModified > 0) SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(file.lastModified))
+    val dateLabel = remember(file.lastModified, file.lastModifiedLabel, displaySettings.showSeconds) {
+        if (file.lastModified > 0) SimpleDateFormat(if (displaySettings.showSeconds) "yyyy-MM-dd HH:mm:ss" else "yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(file.lastModified))
         else file.lastModifiedLabel.trim()
     }
     val latestSwipe by rememberUpdatedState(onSwipeRight)
@@ -158,7 +159,7 @@ fun FileListItem(
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(if (file.name == "..") "上一级" else file.displayName,
                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = 12.sp * scale, lineHeight = 16.sp * scale),
-                    maxLines = 4, overflow = TextOverflow.Ellipsis)
+                    maxLines = displaySettings.filenameLines, overflow = TextOverflow.Ellipsis)
                 file.recycledOriginalPath?.let { original ->
                     Text(original, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.StartEllipsis,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -167,6 +168,7 @@ fun FileListItem(
                 if (file.name != "..") FileManagerFittedText(
                     text = listOfNotNull(dateLabel.ifBlank { "修改时间未知" },
                         if (!file.isDirectory) formatFileSize(file.size)
+                        else if (!displaySettings.showDirectorySizes) null
                         else file.directoryContentSize?.let(::formatFileSize)
                             ?: if (file.directorySizeUnavailable) "大小不可用" else "大小 —").joinToString(" "),
                     modifier = Modifier.fillMaxWidth(),

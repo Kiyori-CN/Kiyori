@@ -208,6 +208,13 @@ internal fun KiyoriAppShell(
         if (!state.fileManagerSessionOpen) fileManagerUiState.removeState("file-manager")
     }
     val fileManagerViewModel = if (state.fileManagerSessionOpen || state.child == KiyoriShellChild.FILE_MANAGER) rememberFileManagerViewModel(LocalContext.current) else null
+    val shortcutContext = LocalContext.current
+    LaunchedEffect(state.fileManagerShortcutId, fileManagerViewModel) {
+        val id = state.fileManagerShortcutId ?: return@LaunchedEffect
+        val session = fileManagerViewModel ?: return@LaunchedEffect
+        com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.openFileManagerShortcut(shortcutContext, id, session)
+        if (latestState.fileManagerShortcutId == id) latestOnStateChange(latestState.copy(fileManagerShortcutId = null))
+    }
     val shellChildOverlayVisible = shouldAnimateKiyoriShellChildOverlay(state)
     val dispatchShellBack: () -> Unit = {
         val transition = latestState.handleBack()

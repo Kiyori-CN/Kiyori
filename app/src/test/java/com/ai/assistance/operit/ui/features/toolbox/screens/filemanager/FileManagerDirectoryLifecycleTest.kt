@@ -112,6 +112,113 @@ class FileManagerDirectoryLifecycleTest {
     }
 
     @Test
+    fun `refresh preserves directory sizes and scrolling never expires a known result`() = runTest(mainDispatcher) {
+        val directory = ControlledDirectory()
+        val model = createModel(directory)
+        scheduler.runCurrent()
+        directory.requests[0].response.complete(folderListing())
+        directory.requests[1].response.complete(folderListing())
+        scheduler.runCurrent()
+        val scan = launch { model.loadVisibleDirectorySizes(FileManagerPane.LEFT, listOf("folder")) }
+        scheduler.runCurrent()
+        directory.requests[2].response.complete(inspection(12345))
+        scan.join()
+
+        scheduler.advanceTimeBy(60_000)
+        model.refreshVisibleDirectories()
+        scheduler.runCurrent()
+        assertEquals(12345L, model.files.single().directoryContentSize)
+        directory.requests[3].response.complete(folderListing())
+        directory.requests[4].response.complete(folderListing())
+        scheduler.runCurrent()
+        assertEquals(12345L, model.files.single().directoryContentSize)
+        assertEquals(12345L, model.rightPaneState.files.single().directoryContentSize)
+        model.loadVisibleDirectorySizes(FileManagerPane.LEFT, listOf("folder"))
+        model.loadVisibleDirectorySizes(FileManagerPane.RIGHT, listOf("folder"))
+        assertEquals(5, directory.requests.size)
+    }
+
+    @Test
+    fun `background validation updates nested content size without clearing the previous value`() = runTest(mainDispatcher) {
+        val directory = ControlledDirectory()
+        val model = createModel(directory)
+        scheduler.runCurrent()
+        directory.requests[0].response.complete(folderListing())
+        directory.requests[1].response.complete(folderListing())
+        scheduler.runCurrent()
+        val initial = launch { model.loadVisibleDirectorySizes(FileManagerPane.LEFT, listOf("folder")) }
+        scheduler.runCurrent()
+        directory.requests[2].response.complete(inspection(100))
+        initial.join()
+        scheduler.advanceTimeBy(30_000)
+        // 父目录元数据未变，仍必须核验深层文件的实际字节数。
+        val changed = launch { model.loadVisibleDirectorySizes(FileManagerPane.LEFT, listOf("folder"), revalidate = true) }
+        scheduler.runCurrent()
+        assertEquals(100L, model.files.single().directoryContentSize)
+        directory.requests[3].response.complete(inspection(250))
+        changed.join()
+        assertEquals(250L, model.files.single().directoryContentSize)
+        model.loadVisibleDirectorySizes(FileManagerPane.RIGHT, listOf("folder"), revalidate = true)
+        assertEquals(250L, model.rightPaneState.files.single().directoryContentSize)
+        assertEquals(4, directory.requests.size)
+
+        scheduler.advanceTimeBy(30_000)
+        val previous = model.files.single()
+        val unchanged = launch { model.loadVisibleDirectorySizes(FileManagerPane.LEFT, listOf("folder"), revalidate = true) }
+        scheduler.runCurrent()
+        directory.requests[4].response.complete(inspection(250))
+        unchanged.join()
+        assertEquals(previous, model.files.single())
+    }
+
+    @Test
+    fun `manual refresh retains displayed bytes but immediately retries cached size`() = runTest(mainDispatcher) {
+        val directory = ControlledDirectory()
+        val model = createModel(directory)
+        scheduler.runCurrent()
+        directory.requests[0].response.complete(folderListing())
+        directory.requests[1].response.complete(folderListing())
+        scheduler.runCurrent()
+        val initial = launch { model.loadVisibleDirectorySizes(FileManagerPane.LEFT, listOf("folder")) }
+        scheduler.runCurrent()
+        directory.requests[2].response.complete(inspection(100))
+        initial.join()
+        model.refreshPane(FileManagerPane.LEFT)
+        scheduler.runCurrent()
+        directory.requests[3].response.complete(folderListing())
+        scheduler.runCurrent()
+        assertEquals(100L, model.files.single().directoryContentSize)
+        val refreshed = launch { model.loadVisibleDirectorySizes(FileManagerPane.LEFT, listOf("folder")) }
+        scheduler.runCurrent()
+        directory.requests[4].response.complete(inspection(200))
+        refreshed.join()
+        assertEquals(200L, model.files.single().directoryContentSize)
+    }
+
+    @Test
+    fun `manual refresh rejects in flight size cache and retries after late completion`() = runTest(mainDispatcher) {
+        val directory = ControlledDirectory()
+        val model = createModel(directory)
+        scheduler.runCurrent()
+        directory.requests[0].response.complete(folderListing())
+        directory.requests[1].response.complete(folderListing())
+        scheduler.runCurrent()
+        val initial = launch { model.loadVisibleDirectorySizes(FileManagerPane.LEFT, listOf("folder")) }
+        scheduler.runCurrent()
+        model.refreshPane(FileManagerPane.LEFT)
+        scheduler.runCurrent()
+        directory.requests[3].response.complete(folderListing())
+        directory.requests[2].response.complete(inspection(100))
+        initial.join()
+        assertNull(model.files.single().directoryContentSize)
+        val refreshed = launch { model.loadVisibleDirectorySizes(FileManagerPane.LEFT, listOf("folder")) }
+        scheduler.runCurrent()
+        directory.requests[4].response.complete(inspection(200))
+        refreshed.join()
+        assertEquals(200L, model.files.single().directoryContentSize)
+    }
+
+    @Test
     fun `late directory size cannot overwrite a newer listing and failures never become zero bytes`() = runTest(mainDispatcher) {
         val directory = ControlledDirectory(ignoreCancellationAt = setOf(2))
         val model = createModel(directory)
@@ -369,7 +476,8 @@ class FileManagerDirectoryLifecycleTest {
     }
 
     private fun createModel(directory: ControlledDirectory): FileManagerViewModel =
-        FileManagerViewModel(context, INITIAL_PATH, directoryDispatcher, executeDirectoryTool = directory::execute).also {
+        FileManagerViewModel(context, INITIAL_PATH, directoryDispatcher,
+            directorySizeClock = { scheduler.currentTime * 1_000_000 }, executeDirectoryTool = directory::execute).also {
             store.put("file-manager", it)
         }
 
@@ -400,6 +508,13 @@ class FileManagerDirectoryLifecycleTest {
 
     companion object {
         private const val INITIAL_PATH = "/storage/test"
+
+        private fun folderListing() = ToolResult("list_files", true,
+            DirectoryListingData(INITIAL_PATH, listOf(entry("folder", true, 4096))))
+
+        private fun inspection(bytes: Long) = ToolResult("file_info", true,
+            com.ai.assistance.operit.core.tools.FileInspectionData(
+                "$INITIAL_PATH/folder", true, bytes, 2, 1, 0, true, true, "fingerprint"))
 
         private fun entry(name: String, isDirectory: Boolean = false, size: Long = 0, lastModified: String = "") =
             DirectoryListingData.FileEntry(name, isDirectory, size, "rw", lastModified)

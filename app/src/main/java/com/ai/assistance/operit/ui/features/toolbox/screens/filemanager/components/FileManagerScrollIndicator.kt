@@ -1,5 +1,7 @@
 package com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
@@ -17,17 +19,29 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.fileManagerScrollThumb
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 /** 拖柄只投影原列表的位置；合并快速拖动请求，避免积压协程造成松手后继续滚动。 */
 @Composable
 internal fun FileManagerScrollIndicator(listState: LazyListState, modifier: Modifier = Modifier) {
+    var dragging by remember(listState) { mutableStateOf(false) }
+    var visible by remember(listState) { mutableStateOf(false) }
+    LaunchedEffect(listState.isScrollInProgress, dragging) {
+        if (listState.isScrollInProgress || dragging) visible = true
+        else {
+            delay(700)
+            visible = false
+        }
+    }
+    val thumbAlpha by animateFloatAsState(if (visible) 1f else 0f, tween(180), label = "fileScrollThumb")
     val requests = remember(listState) { Channel<Float>(Channel.CONFLATED) }
     DisposableEffect(requests) { onDispose { requests.close() } }
     LaunchedEffect(listState, requests) {
@@ -41,17 +55,19 @@ internal fun FileManagerScrollIndicator(listState: LazyListState, modifier: Modi
         }
     }
     BoxWithConstraints(modifier) {
+        // 淡出完成后移除触摸与无障碍节点，透明拖柄不能继续挡住文件行。
+        if (!visible && thumbAlpha == 0f) return@BoxWithConstraints
         val track = with(LocalDensity.current) { maxHeight.toPx() }
         val thumbLength = with(LocalDensity.current) { 48.dp.toPx() }
         val indicator = listState.scrollIndicatorState ?: return@BoxWithConstraints
         val thumb = fileManagerScrollThumb(indicator.contentSize, indicator.viewportSize, indicator.scrollOffset,
             track, thumbLength, listState.canScrollBackward, listState.canScrollForward) ?: return@BoxWithConstraints
         val travel = (track - thumb.height).coerceAtLeast(1f)
-        var dragging by remember { mutableStateOf(false) }
         var dragFraction by remember { mutableFloatStateOf(0f) }
         val fraction = if (dragging) dragFraction else thumb.top / travel
         Surface(
             modifier = Modifier.align(Alignment.TopEnd)
+                .graphicsLayer { alpha = thumbAlpha }
                 .offset { IntOffset(0, (fraction * travel).roundToInt()) }
                 .width(32.dp).height(with(LocalDensity.current) { thumb.height.toDp() })
                 .semantics {

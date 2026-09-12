@@ -531,9 +531,9 @@ M05A2_CONSUMER_IMPORT_SNAPSHOT = (
     "m05a2-semantic-consumer-imports.txt"
 )
 M05A2_DESIGN_PACKAGE = "com.kiyori.design.theme"
-M05A2_PRODUCTION_CONSUMER_COUNT = 62
+M05A2_PRODUCTION_CONSUMER_COUNT = 64
 M05A2_EXTERNAL_TEST_CONSUMER_COUNT = 4
-M05A2_CONSUMER_IMPORT_COUNT = 111
+M05A2_CONSUMER_IMPORT_COUNT = 116
 M05A2_MOVED_IMPORT_SYMBOLS = {
     "KiyoriSemanticTone",
     "kiyoriSemanticToneForStableId",
@@ -973,6 +973,7 @@ M05E_HASHED_PATHS = (
     M05E_OPERIT_BACKUP_DIRS_PATH,
 )
 M05E_DIRECT_PATH_CONSUMER_PATHS = (
+    "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/FileManagerShortcuts.kt",
     "app/src/main/java/com/ai/assistance/operit/api/chat/enhance/ToolExecutionManager.kt",
     M05E_OPERIT_PATHS_PATH,
     M05E_KIYORI_BACKUP_PATHS_PATH,

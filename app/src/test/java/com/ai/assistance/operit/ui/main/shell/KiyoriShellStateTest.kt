@@ -82,6 +82,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class KiyoriShellStateTest {
+    @Test
+    fun `closing file session discards an unresolved shortcut request`() {
+        val opened = KiyoriShellState().openFileManager().copy(fileManagerShortcutId = "pending")
+        assertEquals(null, opened.closeChild().fileManagerShortcutId)
+        assertEquals(null, opened.minimizeFileManager().closeMinimizedFileManager().fileManagerShortcutId)
+        assertEquals("pending", opened.minimizeFileManager().fileManagerShortcutId)
+    }
+
     @org.junit.Test
     fun fileManagerSettingsReturnsToRetainedSessionWithoutBottomBar() {
         val manager = KiyoriShellState().openFileManager()

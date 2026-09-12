@@ -75,8 +75,9 @@ import com.kiyori.design.theme.KiyoriSettingsTheme
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.catch
+import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.*
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.FileManagerDestinationDialog
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.FileManagerActionDialog
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.FileManagerActionKind
@@ -123,30 +124,50 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
     KiyoriStatusBarAppearanceOverride(darkIcons = MaterialTheme.colorScheme.surface.luminance() > 0.5f)
     val context = LocalContext.current
     val viewModel = sessionViewModel ?: rememberFileManagerViewModel(context)
+    val settingsOwner = remember(context) { com.ai.assistance.operit.data.preferences.FileManagerPreferences.getInstance(context) }
+    val settings by settingsOwner.state.collectAsState()
+    var managedEntry by remember { mutableStateOf<FileManagerStorageEntry?>(null) }
+    var editedEntry by remember { mutableStateOf<FileManagerStorageEntry?>(null) }
+    var sortedCategory by remember { mutableStateOf<String?>(null) }
+    var sortedNetworkGroup by remember { mutableStateOf<String?>(null) }
+    var entryEditError by remember { mutableStateOf<String?>(null) }
+    var entrySaving by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
-    LaunchedEffect(viewModel, lifecycleOwner) {
+    LaunchedEffect(viewModel, lifecycleOwner, settings.refreshIntervalSeconds) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            if (settings.refreshIntervalSeconds == 0) return@repeatOnLifecycle
             while (true) {
                 viewModel.refreshVisibleDirectories()
-                kotlinx.coroutines.delay(3_000)
+                kotlinx.coroutines.delay(settings.refreshIntervalSeconds * 1_000L)
             }
         }
     }
     val scope = rememberCoroutineScope()
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    var storageDrawerOpen by remember { mutableStateOf(false) }
     val leftListState = rememberLazyListState()
     val rightListState = rememberLazyListState()
-    // 只观察可见名称与目录代际，大小回写本身不重新触发统计。
+    // 合并可见项变化但不因每次滑动取消正在统计的目录，避免大目录反复从头扫描。
     listOf(FileManagerPane.LEFT to leftListState, FileManagerPane.RIGHT to rightListState).forEach { (pane, list) ->
-        LaunchedEffect(viewModel, pane, list, lifecycleOwner) {
+        LaunchedEffect(viewModel, pane, list, lifecycleOwner, settings.showDirectorySizes) {
             lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            snapshotFlow {
-                val state = if (pane == FileManagerPane.LEFT) viewModel.leftPaneState else viewModel.rightPaneState
-                Triple(FileManagerLocation(state.path, state.environment), state.directoryRevision,
-                    if (list.isScrollInProgress) emptyList() else list.layoutInfo.visibleItemsInfo.mapNotNull { state.files.getOrNull(it.index)?.name })
-            }.collectLatest { (_, _, names) ->
-                if (names.isNotEmpty()) { kotlinx.coroutines.delay(150); viewModel.loadVisibleDirectorySizes(pane, names) }
-            }
+                if (!settings.showDirectorySizes) return@repeatOnLifecycle
+                var checkedRevision: Pair<FileManagerLocation, Long>? = null
+                snapshotFlow {
+                    val state = if (pane == FileManagerPane.LEFT) viewModel.leftPaneState else viewModel.rightPaneState
+                    Triple(FileManagerLocation(state.path, state.environment), state.directoryRevision,
+                        if (list.isScrollInProgress) emptyList() else list.layoutInfo.visibleItemsInfo.mapNotNull { state.files.getOrNull(it.index)?.name })
+                }.conflate().collect { (location, revision, names) ->
+                    val nextRevision = location to revision
+                    val revalidate = checkedRevision != nextRevision
+                    if (names.isNotEmpty()) {
+                        kotlinx.coroutines.delay(150)
+                        val current = if (pane == FileManagerPane.LEFT) viewModel.leftPaneState else viewModel.rightPaneState
+                        if (!list.isScrollInProgress && FileManagerLocation(current.path, current.environment) == location) {
+                            viewModel.loadVisibleDirectorySizes(pane, names, revalidate = revalidate)
+                            checkedRevision = nextRevision
+                        }
+                    }
+                }
             }
         }
     }
@@ -225,7 +246,7 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
     }
 
     val workspacePath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).resolve("Kiyori/workspace").absolutePath
-    val storageEntries = remember(safBookmarks, fileBookmarks, fileWorkspaces, fileNetworks, workspacePath) {
+    val rawStorageEntries = remember(safBookmarks, fileBookmarks, fileWorkspaces, fileNetworks, workspacePath) {
         defaultFileManagerStorageEntries(workspacePath) + safBookmarks.map { bookmark ->
             FileManagerStorageEntry(
                 title = bookmark.name,
@@ -245,17 +266,20 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
                 category = "网络", network = profile)
         }
     }
+    val storageEntries = remember(rawStorageEntries, settings) { projectFileManagerStorageEntries(rawStorageEntries, settings) }
     val activeFiles = viewModel.files
     val folderCount = activeFiles.count { file -> file.isDirectory && file.name != ".." }
     val fileCount = activeFiles.count { file -> !file.isDirectory }
     val storageLabel = rememberStorageLabel(viewModel)
     val selectedCount = viewModel.selectedFiles.size
 
+    androidx.compose.runtime.CompositionLocalProvider(LocalFileManagerDisplaySettings provides settings) {
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
     val storageDrawerWidth = calculateKiyoriDrawerWidthDp(maxWidth.value).dp
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        gesturesEnabled = drawerState.isOpen,
+    FileManagerModalStorageDrawer(
+        isOpen = storageDrawerOpen,
+        width = storageDrawerWidth,
+        onDismiss = { storageDrawerOpen = false },
         drawerContent = {
             ModalDrawerSheet(
                 modifier = Modifier.width(storageDrawerWidth).statusBarsPadding(),
@@ -265,23 +289,27 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
             ) {
                 FileManagerStorageDrawer(
                     entries = storageEntries,
+                    showBookmarks = settings.showBookmarks, showWorkspaces = settings.showWorkspaces,
                     currentPath = viewModel.currentPath, currentEnvironment = viewModel.currentEnvironment,
-                    onDismiss = { scope.launch { drawerState.close() } },
+                    onDismiss = { scope.launch { storageDrawerOpen = false } },
                     networkGroups = networkGroups,
                     onAddNetwork = { editingNetwork = null; showNetworkDialog = true },
-                    onEditNetwork = { editingNetwork = it; showNetworkDialog = true },
                     onAddNetworkGroup = { networkGroupName = ""; showNetworkGroup = true },
                     onRecycleBin = {
                         val pane = viewModel.activePane
-                        scope.launch { drawerState.close(); viewModel.activatePane(pane); viewModel.openRecycleBin() }
+                        scope.launch { storageDrawerOpen = false; viewModel.activatePane(pane); viewModel.openRecycleBin() }
                     },
                     onSelect = { entry ->
-                        scope.launch { drawerState.close() }
+                        scope.launch { storageDrawerOpen = false }
                         if (entry.category == "工作区" && entry.fileBookmark == null) scope.launch {
                             try {
-                                withContext(Dispatchers.IO) { com.ai.assistance.operit.util.OperitPaths.workspaceDir() }
+                                if (settings.defaultWorkspacePath.isBlank()) withContext(Dispatchers.IO) { com.ai.assistance.operit.util.OperitPaths.workspaceDir() }
                                 viewModel.navigateToPath(entry.path, entry.environment)
-                            } catch (failure: Exception) { bookmarkError = "无法创建默认工作区，请检查存储权限" }
+                            } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+                            catch (failure: Exception) {
+                                AppLogger.e(FILE_MANAGER_TAG, "打开默认工作区失败", failure)
+                                bookmarkError = "无法打开默认工作区，请检查目录与存储权限"
+                            }
                         }
                         val bookmark = entry.fileBookmark
                         if (bookmark != null && !bookmark.directory) {
@@ -290,12 +318,10 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
                         } else if (entry.category != "工作区" || entry.fileBookmark != null) viewModel.navigateToPath(entry.path, entry.environment)
                     },
                     onAddBookmark = {
-                        scope.launch { drawerState.close() }
+                        scope.launch { storageDrawerOpen = false }
                         addBookmarkLauncher.launch(null)
                     },
-                    onDeleteBookmark = { entry ->
-                        pendingStorageRemoval = entry
-                    },
+                    onManageEntry = { managedEntry = it },
                 )
             }
         },
@@ -323,7 +349,7 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
                     totalCount = viewModel.activePaneState.entries.count { it.name != "." && it.name != ".." && (viewModel.showHiddenFiles || !it.name.startsWith('.')) },
                     onExitFileManager = exitFileManager,
                     onPathClick = { pathInput = viewModel.currentPath; showPathDialog = true },
-                    onOpenStorageDrawer = { scope.launch { drawerState.open() } },
+                    onOpenStorageDrawer = { scope.launch { storageDrawerOpen = true } },
                     onShowSearchDialog = viewModel::beginSearchDialog,
                     onShowFilter = { browsePane = viewModel.activePane; browseState = viewModel.activePaneState; browseKind = "filter" },
                     onShowSort = { browsePane = viewModel.activePane; browseState = viewModel.activePaneState; browseKind = "sort" },
@@ -391,20 +417,53 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
                     canCreate = viewModel.canCreateHere,
                 )
             }
-            // 与遮罩同生命周期的命中层，阻断列表自定义手势，关闭动画期间也不释放。
-            if (drawerState.isOpen || drawerState.targetValue == DrawerValue.Open) {
-                Box(Modifier.fillMaxSize().clickable(
-                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                    indication = null,
-                ) { scope.launch { drawerState.close() } })
-            }
+
         }
     }
 
     }
-    // 注册在目录/筛选 Back 之后；打开的模态抽屉先关闭，不误退目录。
-    BackHandler(enabled = drawerState.isOpen || drawerState.targetValue == DrawerValue.Open) { scope.launch { drawerState.close() } }
+    }
 
+
+    managedEntry?.let { entry -> FileManagerStorageMenu(entry, onDismiss = { managedEntry = null }) { action ->
+        managedEntry = null
+        when (action) {
+            "编辑", "重命名" -> if (entry.network != null) { editingNetwork = entry.network; showNetworkDialog = true }
+                else { entryEditError = null; editedEntry = entry }
+            "删除" -> pendingStorageRemoval = entry
+            "隐藏" -> settingsOwner.update { it.copy(drawerHidden = it.drawerHidden + entry.storageId,
+                drawerNames = it.drawerNames + (entry.storageId to entry.title)) }
+            "排序" -> { sortedCategory = entry.category; sortedNetworkGroup = entry.network?.group }
+            "创建快捷方式" -> try {
+                requestFileManagerShortcut(context, entry)
+                Toast.makeText(context, "已请求创建，请在桌面提示中确认", Toast.LENGTH_LONG).show()
+            } catch (failure: Exception) {
+                AppLogger.e(FILE_MANAGER_TAG, "创建存储快捷方式失败", failure)
+                bookmarkError = failure.message ?: "创建快捷方式失败"
+            }
+        }
+    } }
+    editedEntry?.let { entry -> FileManagerStorageEditDialog(entry, entrySaving, entryEditError, { editedEntry = null }) { name, path ->
+        entrySaving = true
+        scope.launch {
+            try {
+                val original = entry.fileBookmark
+                if (original != null) apiPreferences.editFileManagerBookmark(original, original.copy(name = name, path = path), entry.category == "工作区")
+                else settingsOwner.update { it.copy(drawerNames = it.drawerNames + (entry.storageId to name),
+                    defaultWorkspacePath = if (entry.storageId == "default-workspace") path else it.defaultWorkspacePath) }
+                editedEntry = null
+            } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (failure: Exception) {
+                AppLogger.e(FILE_MANAGER_TAG, "编辑存储入口失败", failure)
+                entryEditError = failure.message ?: "保存失败，请重试"
+            } finally { entrySaving = false }
+        }
+    } }
+    sortedCategory?.let { category -> FileManagerStorageSortDialog(
+        storageEntries.filter { category != "网络" || it.network?.group == sortedNetworkGroup }, category, { sortedCategory = null }) { ids ->
+        settingsOwner.update { it.copy(drawerOrder = it.drawerOrder.filterNot { id -> id in ids } + ids) }
+        sortedCategory = null
+    } }
     FileManagerContentHost(viewModel)
     pendingStorageRemoval?.let { entry ->
         AlertDialog(onDismissRequest = { if (!removingStorage) pendingStorageRemoval = null }, title = { Text("移除${entry.title}？") },
@@ -413,6 +472,9 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
                 removingStorage = true
                 scope.launch {
                     try {
+                        if (entry.network == null && entry.fileBookmark == null && entry.bookmarkUri == null) {
+                            settingsOwner.update { it.copy(drawerRemoved = it.drawerRemoved + entry.storageId) }
+                        }
                         entry.network?.let { apiPreferences.removeFileNetwork(it.id) }
                         entry.fileBookmark?.let { if (entry.category == "工作区") apiPreferences.removeFileWorkspace(it) else apiPreferences.removeFileBookmark(it) }
                         entry.bookmarkUri?.let { uri ->
@@ -436,7 +498,7 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
         clipboard.setPrimaryClip(android.content.ClipData.newPlainText("文件信息", value))
     }
-    bookmarkError?.let { message -> AlertDialog(onDismissRequest = { bookmarkError = null }, title = { Text("书签") },
+    bookmarkError?.let { message -> AlertDialog(onDismissRequest = { bookmarkError = null }, title = { Text("存储入口") },
         text = { Text(message) }, confirmButton = { TextButton(onClick = { bookmarkError = null }) { Text("知道了") } }) }
     pendingFileBookmark?.let { bookmark ->
         AlertDialog(onDismissRequest = { if (!savingBookmark) pendingFileBookmark = null }, title = { Text(if (addingWorkspace) "添加工作区" else "添加书签") },
@@ -450,7 +512,13 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
                 scope.launch {
                     try {
                         val entry = bookmark.copy(name = fileBookmarkName.trim())
-                        if (addingWorkspace) apiPreferences.addFileWorkspace(entry) else apiPreferences.addFileBookmark(entry)
+                        if (addingWorkspace) apiPreferences.addFileWorkspace(entry) else {
+                            val saved = apiPreferences.addFileBookmark(entry, atTop = settings.newBookmarksOnTop)
+                            if (settings.newBookmarksOnTop) {
+                                val id = FileManagerStorageEntry(saved.name, saved.path, saved.environment, fileBookmark = saved, category = "书签").storageId
+                                settingsOwner.update { it.copy(drawerOrder = listOf(id) + it.drawerOrder.filterNot { old -> old == id }) }
+                            }
+                        }
                         pendingFileBookmark = null
                     }
                     catch (error: Exception) { bookmarkError = "添加书签失败，请重试" }

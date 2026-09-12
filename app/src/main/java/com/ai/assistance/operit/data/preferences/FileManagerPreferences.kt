@@ -21,6 +21,7 @@ data class FileManagerHiddenEntry(val path: String, val environment: String? = n
 
 enum class FileManagerSortMode { NAME, SIZE, MODIFIED, FORMAT }
 
+@Serializable
 data class FileManagerSettings(
     val showHiddenFiles: Boolean = true,
     val sortMode: FileManagerSortMode = FileManagerSortMode.NAME,
@@ -28,6 +29,20 @@ data class FileManagerSettings(
     val itemSize: Float = 1f,
     val showManuallyHiddenFiles: Boolean = false,
     val manuallyHiddenFiles: Set<FileManagerHiddenEntry> = emptySet(),
+    val leftStartPath: String = "",
+    val rightStartPath: String = "",
+    val filenameLines: Int = 4,
+    val showSeconds: Boolean = true,
+    val showDirectorySizes: Boolean = true,
+    val refreshIntervalSeconds: Int = 3,
+    val showBookmarks: Boolean = true,
+    val showWorkspaces: Boolean = true,
+    val newBookmarksOnTop: Boolean = false,
+    val drawerOrder: List<String> = emptyList(),
+    val drawerHidden: Set<String> = emptySet(),
+    val drawerRemoved: Set<String> = emptySet(),
+    val drawerNames: Map<String, String> = emptyMap(),
+    val defaultWorkspacePath: String = "",
 )
 
 /** 设置页与双栏共用显示偏好及手动隐藏路径；不保存浏览位置、选择或权限身份。 */
@@ -40,6 +55,11 @@ class FileManagerPreferences internal constructor(private val preferences: Share
     fun update(transform: (FileManagerSettings) -> FileManagerSettings) {
         val updated = transform(current)
         require(updated.itemSize.isFinite() && updated.itemSize in 0.5f..1.3f)
+        require(updated.filenameLines in 1..6)
+        require(updated.refreshIntervalSeconds in listOf(0, 3, 10, 30))
+        listOf(updated.leftStartPath, updated.rightStartPath, updated.defaultWorkspacePath).forEach {
+            require(it.isEmpty() || validFileManagerStartPath(it)) { "请输入绝对目录路径，不使用 . 或 .." }
+        }
         if (updated == current) return
         preferences.edit {
             putBoolean("show_hidden", updated.showHiddenFiles)
@@ -48,11 +68,19 @@ class FileManagerPreferences internal constructor(private val preferences: Share
             putFloat("item_size", updated.itemSize)
             putBoolean("show_manual_hidden", updated.showManuallyHiddenFiles)
             putString("manual_hidden_entries", Json.encodeToString(updated.manuallyHiddenFiles))
+            putString("settings_v2", Json.encodeToString(updated))
         }
         mutableState.value = updated
     }
 
-    private fun read(): FileManagerSettings = FileManagerSettings(
+    private fun read(): FileManagerSettings {
+        preferences.getString("settings_v2", null)?.let { stored ->
+            try { return Json { ignoreUnknownKeys = true }.decodeFromString<FileManagerSettings>(stored) }
+            catch (failure: IllegalArgumentException) {
+                com.ai.assistance.operit.util.AppLogger.e("FileManagerPreferences", "无法读取文件管理设置", failure)
+            }
+        }
+        return FileManagerSettings(
         showHiddenFiles = preferences.getBoolean("show_hidden", true),
         sortMode = FileManagerSortMode.entries.firstOrNull {
             it.name == preferences.getString("sort_mode", FileManagerSortMode.NAME.name)
@@ -61,7 +89,8 @@ class FileManagerPreferences internal constructor(private val preferences: Share
         itemSize = preferences.getFloat("item_size", 1f).let { if (it.isFinite()) it.coerceIn(0.5f, 1.3f) else 1f },
         showManuallyHiddenFiles = preferences.getBoolean("show_manual_hidden", false),
         manuallyHiddenFiles = readHiddenEntries(),
-    )
+        )
+    }
 
     private fun readHiddenEntries(): Set<FileManagerHiddenEntry> = try {
         Json.decodeFromString<Set<FileManagerHiddenEntry>>(preferences.getString("manual_hidden_entries", "[]") ?: "[]")
@@ -79,3 +108,10 @@ class FileManagerPreferences internal constructor(private val preferences: Share
         }
     }
 }
+
+fun validFileManagerStartPath(path: String): Boolean = path.startsWith('/') &&
+    path.none { it.isISOControl() } && path.split('/').none { it == "." || it == ".." }
+
+/** 保持旧记录的确定身份；编辑后显式保存，桌面快捷方式与排序继续指向同一入口。 */
+internal fun fileBookmarkIdentity(bookmark: ApiPreferences.FileBookmark, workspace: Boolean): String =
+    bookmark.entryId ?: "${if (workspace) "工作区" else "书签"}:${bookmark.environment.orEmpty()}:${bookmark.path}"
