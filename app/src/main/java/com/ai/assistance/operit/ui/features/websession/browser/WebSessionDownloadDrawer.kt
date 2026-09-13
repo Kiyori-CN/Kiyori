@@ -31,14 +31,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.AutoFixHigh
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
 
@@ -47,8 +45,6 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -66,11 +62,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.luminance
@@ -79,7 +75,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -106,7 +101,6 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browse
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browserDownloadRenameInput
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.buildBrowserDownloadRenameTarget
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.buildBrowserDownloadSections
-import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.extractBrowserDownloadSuffix
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.filterBrowserDownloadDrawerItems
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.formatBytes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.isBrowserDownloadNetworkUrl
@@ -174,7 +168,7 @@ internal fun WebSessionDownloadSheet(
     var selectedTaskIds by remember { mutableStateOf(emptySet<String>()) }
     var showTopMenu by remember { mutableStateOf(false) }
     var showSortDialog by remember { mutableStateOf(false) }
-    var showAddDialog by remember { mutableStateOf(false) }
+    var showAddDialog by rememberSaveable { mutableStateOf(false) }
     var deleteRequest by remember { mutableStateOf<BrowserDownloadDeleteRequest?>(null) }
     var cancelRequest by remember { mutableStateOf<List<BrowserDownloadItem>?>(null) }
     var actionItem by remember { mutableStateOf<BrowserDownloadItem?>(null) }
@@ -500,16 +494,19 @@ internal fun WebSessionDownloadSheet(
 
     if (showAddDialog) {
         AddBrowserDownloadDialog(
-            initialEngine = settings.defaultEngine,
+            settings = settings,
             onDismiss = { showAddDialog = false },
             onConfirm = { fileName, url, suffix, engine ->
                 val accepted = onStartManualDownload(fileName, url, suffix, engine)
                 if (accepted) {
                     showAddDialog = false
-                    scope.launch {
-                        pagerState.animateScrollToPage(
-                            tabs.indexOf(BrowserDownloadDrawerTab.DOWNLOADING),
-                        )
+                    // 系统任务由 Android 管理，跳到内置列表会误导用户以为创建失败。
+                    if (engine == BrowserDownloadEngine.INTERNAL) {
+                        scope.launch {
+                            pagerState.animateScrollToPage(
+                                tabs.indexOf(BrowserDownloadDrawerTab.DOWNLOADING),
+                            )
+                        }
                     }
                 }
                 accepted
@@ -1177,254 +1174,6 @@ private fun DownloadSortDialog(
                     if (index != BrowserDownloadSortMode.entries.lastIndex) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AddBrowserDownloadDialog(
-    initialEngine: BrowserDownloadEngine,
-    onDismiss: () -> Unit,
-    onConfirm: (String, String, String, BrowserDownloadEngine) -> Boolean,
-) {
-    val context = LocalContext.current
-    var fileName by remember { mutableStateOf("") }
-    var url by remember { mutableStateOf("") }
-    var suffix by remember { mutableStateOf("") }
-    var engine by remember(initialEngine) { mutableStateOf(initialEngine) }
-    var errorText by remember { mutableStateOf<String?>(null) }
-    var showFullLinkDialog by remember { mutableStateOf(false) }
-    WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
-        WebSessionBrowserDialogSurface(
-            icon = Icons.Outlined.Download,
-            tone = WebSessionBrowserMenuTone.DOWNLOADS,
-            title = "添加文件下载",
-            modifier = Modifier.fillMaxWidth(0.86f),
-        ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp)) {
-                DownloadDialogField(value = fileName, label = "文件名称", onValueChange = { fileName = it })
-                Spacer(modifier = Modifier.height(8.dp))
-                DownloadDialogField(
-                    value = url,
-                    label = "文件所在网址，支持 M3U8",
-                    onValueChange = {
-                        url = it
-                        errorText = null
-                    },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                DownloadDialogField(
-                    value = suffix,
-                    label = "文件后缀，留空自动识别",
-                    onValueChange = { suffix = it },
-                    trailingIcon = {
-                        Icon(
-                            imageVector = Icons.Outlined.AutoFixHigh,
-                            contentDescription = "提取文件后缀",
-                            tint = WebSessionBrowserMenuTone.DOWNLOADS.resolveColors().icon,
-                                modifier =
-                                    Modifier
-                                        .size(40.dp)
-                                        .clickable {
-                                        val extracted = extractBrowserDownloadSuffix(fileName, url)
-                                        if (extracted == null) {
-                                            Toast.makeText(context, "没有可提取的文件后缀", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            suffix = extracted
-                                        }
-                                    },
-                        )
-                    },
-                )
-                errorText?.let { message ->
-                    Text(
-                        text = message,
-                        color = MaterialTheme.colorScheme.error,
-                        fontSize = 11.sp,
-                        modifier = Modifier.padding(top = 7.dp),
-                    )
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    DownloadEngineToggle(
-                        title = "内置下载器",
-                        selected = engine == BrowserDownloadEngine.INTERNAL,
-                        onClick = { engine = BrowserDownloadEngine.INTERNAL },
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    DownloadEngineToggle(
-                        title = "系统下载器",
-                        selected = engine == BrowserDownloadEngine.SYSTEM,
-                        onClick = { engine = BrowserDownloadEngine.SYSTEM },
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    Icon(
-                        imageVector = Icons.Outlined.Edit,
-                        contentDescription = "编辑完整链接",
-                        tint = WebSessionBrowserMenuTone.NETWORK_LOG.resolveColors().icon,
-                        modifier = Modifier.size(40.dp).clickable { showFullLinkDialog = true },
-                    )
-                }
-                Spacer(modifier = Modifier.height(22.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) {
-                        Text("取消", color = DownloadAccentColor, fontSize = 16.sp)
-                    }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    TextButton(
-                        onClick = {
-                            val normalizedUrl = url.trim()
-                            if (!isBrowserDownloadNetworkUrl(normalizedUrl)) {
-                                errorText = "请输入 http 或 https 下载地址"
-                            } else {
-                                onConfirm(fileName, normalizedUrl, suffix, engine)
-                            }
-                        },
-                    ) {
-                        Text("下载", color = DownloadAccentColor, fontSize = 16.sp)
-                    }
-                }
-            }
-        }
-    }
-    if (showFullLinkDialog) {
-        DownloadFullLinkDialog(
-            initialValue = url,
-            onDismiss = { showFullLinkDialog = false },
-            onConfirm = { fullLink ->
-                url = fullLink
-                errorText = null
-                showFullLinkDialog = false
-            },
-        )
-    }
-}
-
-@Composable
-private fun DownloadDialogField(
-    value: String,
-    label: String,
-    onValueChange: (String) -> Unit,
-    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
-    trailingIcon: @Composable (() -> Unit)? = null,
-) {
-    var focused by remember { mutableStateOf(false) }
-    val active = focused || value.isNotBlank()
-    val lineColor = if (focused) DownloadAccentColor else MaterialTheme.colorScheme.outline
-    val labelColor = if (focused) DownloadAccentColor else MaterialTheme.colorScheme.onSurfaceVariant
-    val trailingPadding = if (trailingIcon == null) 0.dp else 30.dp
-    Box(modifier = Modifier.fillMaxWidth().height(54.dp)) {
-        if (active) {
-            Text(
-                text = label,
-                color = labelColor,
-                fontSize = 11.5.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.align(Alignment.TopStart).padding(top = 4.dp, end = trailingPadding),
-            )
-        }
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            singleLine = true,
-            keyboardOptions = keyboardOptions,
-            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp),
-            cursorBrush = SolidColor(DownloadAccentColor),
-            modifier =
-                Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .height(26.dp)
-                    .padding(end = trailingPadding, bottom = 6.dp)
-                    .onFocusChanged { state -> focused = state.isFocused },
-        )
-        if (!active) {
-            Text(
-                text = label,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 16.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.align(Alignment.BottomStart).padding(end = trailingPadding, bottom = 4.dp),
-            )
-        }
-        trailingIcon?.let { content ->
-            Box(
-                modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = 8.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                content()
-            }
-        }
-        Box(
-            modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth().height(1.dp).background(lineColor),
-        )
-    }
-}
-
-@Composable
-private fun DownloadEngineToggle(
-    title: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    Button(
-        onClick = onClick,
-        shape = KiyoriUiShapes.control,
-        colors =
-            ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-            ),
-        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp, pressedElevation = 2.dp),
-        border = BorderStroke(1.dp, if (selected) DownloadAccentColor else MaterialTheme.colorScheme.outlineVariant),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
-        modifier = Modifier.defaultMinSize(minWidth = 0.dp).heightIn(min = 40.dp),
-    ) {
-        Text(title, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-    }
-}
-
-@Composable
-private fun DownloadFullLinkDialog(
-    initialValue: String,
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit,
-) {
-    var fullLink by remember(initialValue) { mutableStateOf(initialValue) }
-    WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
-        WebSessionBrowserDialogSurface(
-            icon = Icons.Outlined.Download,
-            tone = WebSessionBrowserMenuTone.DOWNLOADS,
-            title = "完整链接",
-            modifier = Modifier.fillMaxWidth(0.86f),
-        ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
-                    TextField(
-                        value = fullLink,
-                        onValueChange = { fullLink = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                        colors =
-                            TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedIndicatorColor = DownloadAccentColor,
-                                unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
-                            ),
-                    )
-                }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Row(modifier = Modifier.fillMaxWidth().height(50.dp)) {
-                    DialogActionCell("取消", MaterialTheme.colorScheme.onSurfaceVariant, onDismiss, Modifier.weight(1f))
-                    Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(MaterialTheme.colorScheme.outlineVariant))
-                    DialogActionCell("确定", MaterialTheme.colorScheme.onSurface, { onConfirm(fullLink.trim()) }, Modifier.weight(1f))
                 }
             }
         }

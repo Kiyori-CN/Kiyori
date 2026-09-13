@@ -175,6 +175,50 @@ class BrowserDownloadDrawerPolicyTest {
     }
 
     @Test
+    fun `manual names use decoded path rather than authority or signed query`() {
+        assertEquals("download", resolveManualBrowserDownloadFileName("", "https://example.com", ""))
+        assertEquals("download", resolveManualBrowserDownloadFileName("", "https://example.com/?name=video.mp4", ""))
+        assertEquals("中文+资料.zip", resolveManualBrowserDownloadFileName("", "https://example.com/%E4%B8%AD%E6%96%87+%E8%B5%84%E6%96%99.zip?sig=a%2Fb#preview", ""))
+        assertEquals("a_b_.zip", resolveManualBrowserDownloadFileName("", "https://example.com/a%2Fb%00.zip", ""))
+        assertEquals("ARCHIVE.TAR.GZ", resolveManualBrowserDownloadFileName("ARCHIVE.TAR.GZ", "https://example.com/a", ".tar.gz"))
+    }
+
+    @Test
+    fun `manual validation rejects incomplete hosts and damaged links before dispatch`() {
+        listOf("", "https:", "https://", "https:///file", "https://?file=a", "https://host:99999/a", "ftp://host/a", "https://host/a\nb", "https://host/a b", "https://host\\a").forEach { url ->
+            assertTrue("Expected invalid URL: $url", validateBrowserManualDownload(url, "", "").urlError != null)
+        }
+    }
+
+    @Test
+    fun `manual validation accepts signed unicode and ipv6 links without requiring a suffix`() {
+        listOf("https://example.com/中文.zip?sig=a%2Fb+c&x=1&x=2", "HTTP://example.com/file", "https://[::1]:8443/file", "  https://example.com  ").forEach { url ->
+            assertTrue(validateBrowserManualDownload(url, "", "").isValid)
+        }
+        assertTrue(validateBrowserManualDownload("https://example.com/a", "压缩文件", ".tar.gz").isValid)
+    }
+
+    @Test
+    fun `manual validation reports the field that contains an invalid filename or extension`() {
+        listOf("../file", "a\\b", ".", "..", "a:b", "a\u0000b").forEach { name ->
+            val result = validateBrowserManualDownload("https://example.com/a", name, "")
+            assertTrue(result.fileNameError != null)
+            assertEquals(null, result.urlError)
+        }
+        listOf("mp4/other", "m p4", "..zip", "mp4?x=1").forEach { suffix ->
+            assertTrue(validateBrowserManualDownload("https://example.com/a", "file", suffix).suffixError != null)
+        }
+    }
+
+    @Test
+    fun `manual validation bounds the final utf8 filename including its extension`() {
+        assertTrue(validateBrowserManualDownload("https://example.com/a", "文".repeat(83), "zip").isValid)
+        assertTrue(validateBrowserManualDownload("https://example.com/a", "文".repeat(84), "zip").fileNameError != null)
+        assertTrue(validateBrowserManualDownload("https://example.com/${"a".repeat(256)}", "", "").fileNameError != null)
+        assertTrue(validateBrowserManualDownload("https://example.com/a", "ok", "x".repeat(254)).fileNameError != null)
+    }
+
+    @Test
     fun `batch cancel selects only cancelable tasks while batch delete keeps record targets`() {
         val active = item(id = "active", status = "downloading", canCancel = true)
         val failed = item(id = "failed", status = "failed", canRetry = true)

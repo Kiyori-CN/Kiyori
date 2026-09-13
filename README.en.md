@@ -15,7 +15,7 @@
   <p>
     <img src="https://img.shields.io/badge/Android-8.0%2B-3DDC84" alt="Android 8.0 or later">
     <img src="https://img.shields.io/badge/ABI-arm64--v8a-1E88E5" alt="ARM64 architecture">
-    <img src="https://img.shields.io/badge/status-in_development-D97706" alt="In development, no public release">
+    <img src="https://img.shields.io/badge/status-in_development-D97706" alt="In development, no stable release">
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-555555" alt="GPL v3 or later"></a>
   </p>
 </div>
@@ -27,7 +27,7 @@ We want you to be able to set a goal on your phone, investigate and plan with AI
 **AGI describes the long-term research direction; "the world's most capable" is an ambition.** Today, Kiyori is an independent Android application evolving from Operit. It already has foundations for AI, browsing, terminal execution, files, and media, while integration across these areas and the device experience continue to develop.
 
 > [!IMPORTANT]
-> **There is no public release yet.** Build a development APK from this repository; no public official APK download channel is available. Implementation, automated checks, physical-device behavior, and release readiness are evaluated separately. See the [development plans](docs/TODO/README.md) for the status of each workstream.
+> **There is no stable release yet.** Download a Debug APK from this repository's [internal pre-release](https://github.com/Kiyori-CN/Kiyori/releases/tag/v0.1.0-internal), or build from source. The testing asset may be replaced over time; read the release notes and verify its download date and SHA-256. Internal testing carries no stability guarantee. Implementation, automated checks, physical-device behavior, and release readiness are evaluated separately. See the [development plans](docs/TODO/README.md) for the status of each workstream.
 
 ## Contents
 
@@ -175,6 +175,7 @@ Media capabilities span discovery, saving, playback, and tool-based processing.
 
 - **Resource discovery:** The browser catalogs video, audio, images, scripts, and other page resources, deriving media candidates from actual page and request evidence.
 - **Download management:** An internal engine and an Android system-download entry point, task state, filtering, sorting, concurrency configuration, and batch actions. Removing a record and deleting its file are different operations.
+- **New downloads:** Tap Add in the download drawer, paste a complete link, optionally customize its filename and extension, then choose a download engine. System tasks are managed in Android's download manager.
 - **mpv player:** Local and network media, queues, subtitles, playback speed, gestures, rotation, floating/fullscreen presentation, and Anime4K shader settings.
 - **Cache policies:** Data Saver, Smart Balanced, Smooth Priority, and Full Cache. Full Cache applies only to eligible media and is a session cache.
 - **Media tools:** Use the FFmpeg extension for supported metadata, transcoding, and processing operations, then inspect the result with the player or file manager.
@@ -237,7 +238,7 @@ A mini-app entry does not mean a complete mini-app platform has shipped. Collabo
 | Application ID | `com.kiyori` |
 | Version snapshot | `0.1.0`, `versionCode 45`, checked on 2026-09-06; the [build configuration](app/build.gradle.kts) and actual APK are authoritative |
 | Storage | Reserve space for the APK, terminal environment, models, workspaces, and downloads; requirements vary with usage |
-| Acquisition | Build a Debug APK from source as described below |
+| Acquisition | Download the Debug APK from this repository's [internal pre-release](https://github.com/Kiyori-CN/Kiyori/releases/tag/v0.1.0-internal), or build from source as described below |
 
 The current APK does not target devices or emulators that support only 32-bit ARM or x86/x86_64. Kiyori and Operit have different application IDs and can be installed as independent apps. Data migration requires explicit import.
 
@@ -400,7 +401,7 @@ See [privacy, data, and migration](docs/user-guide/privacy_and_data.md). The ful
 | Question | Answer |
 | --- | --- |
 | Has Kiyori achieved AGI or fully autonomous phone operation? | AGI is a research direction. Execution depends on implemented tools, models, permissions, and device conditions. |
-| Is there an official APK? | No public release is available yet. Build a development APK from source. |
+| Is there an official APK? | This repository provides an [internal Debug APK](https://github.com/Kiyori-CN/Kiyori/releases/tag/v0.1.0-internal), with no stable release yet. Verify the release notes and SHA-256; third-party APKs are not official distributions. |
 | Are an API key, Root, or Shizuku required? | Ordinary browsing needs none of them. Configure model authentication, local models, and privileges only for the features you use. |
 | Can I work offline or connect to a desktop model? | Configure local inference and remote services separately. `localhost` on the phone refers to the phone; online tools still need a network. |
 | Are Chrome extensions and all Playwright APIs supported? | Kiyori provides its own extension format, userscripts, and an implemented subset of browser APIs. |

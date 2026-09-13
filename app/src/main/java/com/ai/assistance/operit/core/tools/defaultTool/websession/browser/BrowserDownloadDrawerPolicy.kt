@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 
 import java.util.Locale
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 internal enum class BrowserDownloadDrawerTab {
     DOWNLOADED,
@@ -271,8 +272,7 @@ internal fun resolveManualBrowserDownloadFileName(
     if (normalizedSuffix.isBlank()) {
         return baseName
     }
-    val currentSuffix = baseName.substringAfterLast('.', "")
-    return if (currentSuffix.equals(normalizedSuffix, ignoreCase = true)) {
+    return if (baseName.endsWith(".$normalizedSuffix", ignoreCase = true)) {
         baseName
     } else {
         "${baseName.substringBeforeLast('.', baseName)}.$normalizedSuffix"
@@ -303,12 +303,57 @@ internal fun browserDownloadBatchSelectionEligible(
         BrowserDownloadBatchAction.CANCEL -> item.canCancel
     }
 
-private fun browserDownloadUrlFileName(url: String): String =
-    url.trim()
-        .substringBefore('#')
-        .substringBefore('?')
-        .substringAfterLast('/')
-        .trim()
+private fun browserDownloadUrlFileName(url: String): String {
+    // 只取解析后的末段路径；主机名不是文件名，百分号编码也不应直接展示给用户。
+    val name = url.trim().toHttpUrlOrNull()?.pathSegments?.lastOrNull().orEmpty()
+        .replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]"), "_").trim()
+    return name.takeUnless { it == "." || it == ".." }.orEmpty()
+}
+
+internal data class BrowserManualDownloadValidation(
+    val urlError: String? = null,
+    val fileNameError: String? = null,
+    val suffixError: String? = null,
+) {
+    val isValid: Boolean get() = urlError == null && fileNameError == null && suffixError == null
+}
+
+internal fun validateBrowserManualDownload(
+    url: String,
+    fileName: String,
+    suffix: String,
+): BrowserManualDownloadValidation {
+    val link = url.trim()
+    val name = fileName.trim()
+    val extension = suffix.trim().removePrefix(".")
+    val urlError = when {
+        link.isEmpty() -> "请先输入下载链接"
+        !link.startsWith("https://", ignoreCase = true) && !link.startsWith("http://", ignoreCase = true) ->
+            "请输入以 https:// 或 http:// 开头的完整链接"
+        link.any { it.isWhitespace() || it.isISOControl() } || '\\' in link ->
+            "链接中含有空格、换行或反斜杠，请检查后重试"
+        link.substringAfter("://").substringBefore('/').substringBefore('?').substringBefore('#').isEmpty() ||
+            link.toHttpUrlOrNull() == null -> "链接地址不完整，请检查域名和端口"
+        else -> null
+    }
+    val fileNameError = when {
+        name == "." || name == ".." || name.any { it.isISOControl() || it in "\\/:*?\"<>|" } ->
+            "文件名不能是路径，也不能包含 \\ / : * ? \" < > | 或控制字符"
+        else -> null
+    }
+    val suffixError = if (extension.isNotEmpty() && !Regex("[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*").matches(extension)) {
+        "请输入有效扩展名，例如 mp4、zip 或 tar.gz"
+    } else null
+    // 在创建任务前检查实际组合名称，避免长中文文件名直到磁盘写入时才失败。
+    val resolvedName = resolveManualBrowserDownloadFileName(name, link, extension)
+    return BrowserManualDownloadValidation(
+        urlError = urlError,
+        fileNameError = fileNameError ?: if (resolvedName.toByteArray(Charsets.UTF_8).size > 255) {
+            "文件名过长，请缩短文件名或扩展名"
+        } else null,
+        suffixError = suffixError,
+    )
+}
 
 private val VIDEO_EXTENSIONS =
     setOf("mp4", "mkv", "webm", "avi", "mov", "flv", "m4v", "ts", "m3u8")

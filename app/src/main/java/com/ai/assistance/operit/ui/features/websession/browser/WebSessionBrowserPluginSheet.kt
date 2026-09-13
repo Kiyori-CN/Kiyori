@@ -219,7 +219,6 @@ private fun BrowserPluginCenterOverview(
     val userscriptSubtitle = stringResource(R.string.web_session_userscript_plugin_subtitle)
     val cookieTitle = stringResource(R.string.web_session_cookie_reader_title)
     val cookieSubtitle = stringResource(R.string.web_session_cookie_reader_subtitle)
-    val installedScriptCount = snapshot.installedPlugins.sumOf(BrowserPluginSummary::installedItemCount)
     val currentPageProviders =
         remember(snapshot, normalizedQuery) {
             BrowserPluginCenterFacade.projectCurrentPageOverview(snapshot, normalizedQuery)
@@ -260,12 +259,7 @@ private fun BrowserPluginCenterOverview(
             title = stringResource(R.string.web_session_plugins),
             leadingIcon = Icons.Filled.Extension,
             tone = WebSessionBrowserMenuTone.PLUGINS,
-            countText =
-                pluralStringResource(
-                    R.plurals.web_session_plugins_script_count,
-                    installedScriptCount,
-                    installedScriptCount,
-                ),
+            keepActionsWithTitle = true,
             actions = {
                 BrowserPluginAddMenu(
                     onOpenNewUserscript = onOpenNewUserscriptEditor,

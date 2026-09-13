@@ -15,7 +15,7 @@
   <p>
     <img src="https://img.shields.io/badge/Android-8.0%2B-3DDC84" alt="Android 8.0 及以上">
     <img src="https://img.shields.io/badge/ABI-arm64--v8a-1E88E5" alt="ARM64 架构">
-    <img src="https://img.shields.io/badge/status-in_development-D97706" alt="开发中，尚未公开发行">
+    <img src="https://img.shields.io/badge/status-in_development-D97706" alt="开发中，尚未正式发行">
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-555555" alt="GPL v3 或更高版本"></a>
   </p>
 </div>
@@ -27,7 +27,7 @@
 这里的 **AGI 是长期研发方向，“全球最强”是项目追求的目标**。当前 Kiyori 是基于 Operit 演进的独立 Android 应用，已经具备 AI、浏览器、终端、文件与媒体等能力底座，正在持续完善跨模块协作与设备体验。
 
 > [!IMPORTANT]
-> **项目尚未公开发行。** 当前通过本仓库构建开发版，没有公开的官方 APK 下载渠道。功能实现、自动检查、真机体验和正式发行分别验收；各专项的实际状态见 [开发任务索引](docs/TODO/README.md)。
+> **项目尚未正式发行。** 可从本仓库的 [内测预发布](https://github.com/Kiyori-CN/Kiyori/releases/tag/v0.1.0-internal) 获取 Debug APK，或自行从源码构建。内测附件可能持续替换，请阅读发布说明并核对下载日期与 SHA-256；内测不代表稳定性承诺。功能实现、自动检查、真机体验和正式发行分别验收；各专项的实际状态见 [开发任务索引](docs/TODO/README.md)。
 
 ## 目录
 
@@ -203,6 +203,7 @@ SAF 与网络目录的支持范围不同，操作前按页面实际能力确认�
 
 - **资源发现**：浏览器按当前页面整理视频、音频、图片、脚本等资源，并根据实际页面与请求证据形成媒体候选。
 - **下载管理**：内部下载引擎与 Android 系统下载入口，支持任务状态、筛选、排序、并发配置及批量操作；删除记录与删除文件有不同语义。
+- **新建下载**：在下载抽屉点击“新增”，粘贴完整链接，可选调整文件名与扩展名，再选择下载方式；系统任务在 Android 下载管理中查看。
 - **mpv 播放器**：本地与网络媒体、队列、字幕、速度、手势、旋转、悬浮/全屏切换，以及 Anime4K 着色器设置。
 - **缓存策略**：省流、智能均衡、流畅优先和完整缓存四种模式；“完整缓存”只适用于符合条件的媒体，属于会话缓存。
 - **媒体工具**：通过 FFmpeg 扩展执行已支持的信息读取、转码及媒体处理，再使用播放器或文件管理检查结果。
@@ -271,7 +272,7 @@ SAF 与网络目录的支持范围不同，操作前按页面实际能力确认�
 | 应用标识 | `com.kiyori` |
 | 版本快照 | `0.1.0`，`versionCode 45`，核对于 2026-09-06；以 [构建配置](app/build.gradle.kts) 与实际 APK 为准 |
 | 存储 | 为 APK、终端环境、模型、工作区与下载分别预留空间；需求随使用方式变化 |
-| 获取方式 | 按下文从源码构建 Debug APK |
+| 获取方式 | 下载本仓库 [内测预发布](https://github.com/Kiyori-CN/Kiyori/releases/tag/v0.1.0-internal) 的 Debug APK，或按下文从源码构建 |
 
 当前 APK 不适用于仅支持 32 位 ARM 或 x86/x86_64 的设备与模拟器。旧 Operit 与 Kiyori 使用不同 application ID，可以作为独立应用安装，数据迁移需显式导入。
 
@@ -436,7 +437,7 @@ Android 系统权限、工具是否允许调用、具体操作风险是不同层
 | 问题 | 说明与下一步 |
 | --- | --- |
 | 已经实现 AGI 或完全自主操作手机了吗？ | AGI 是长期研发方向。当前执行范围取决于工具实现、模型、权限与设备条件。 |
-| 有官方 APK 吗？ | 尚未公开发行；从源码构建开发 APK，不把第三方 APK 当作官方发行。 |
+| 有官方 APK 吗？ | 本仓库提供 [内测 Debug APK](https://github.com/Kiyori-CN/Kiyori/releases/tag/v0.1.0-internal)，尚未正式发行；请核对发布说明和 SHA-256，不把第三方 APK 当作官方发行。 |
 | 必须有 API Key、Root 或 Shizuku 吗？ | 普通浏览不需要；云模型需认证，端侧推理需模型，特权按功能启用。 |
 | 能离线或连接电脑上的模型吗？ | 端侧推理与远程服务分别配置；手机上的 `localhost` 指手机本身。联网工具仍需网络。 |
 | 支持 Chrome 扩展与完整 Playwright 吗？ | 当前提供 Kiyori 扩展格式、用户脚本与项目实现的浏览器 API 子集。 |

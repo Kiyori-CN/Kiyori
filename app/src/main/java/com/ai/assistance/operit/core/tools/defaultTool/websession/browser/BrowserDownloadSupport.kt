@@ -3044,15 +3044,16 @@ internal fun StandardBrowserSessionTools.startManualBrowserDownload(
     requestedSuffix: String,
     engine: BrowserDownloadEngine,
 ): Boolean {
-    require(isBrowserDownloadNetworkUrl(url)) {
-        "Manual browser downloads require an http or https URL: $url"
+    val normalizedUrl = url.trim()
+    require(validateBrowserManualDownload(normalizedUrl, requestedFileName, requestedSuffix).isValid) {
+        "Invalid manual browser download URL or file name"
     }
     val session = getActiveSessionOnMain()
     val fileName =
         sanitizeFileName(
             resolveManualBrowserDownloadFileName(
                 requestedFileName = requestedFileName,
-                url = url,
+                url = normalizedUrl,
                 requestedSuffix = requestedSuffix,
             ),
         )
@@ -3066,7 +3067,7 @@ internal fun StandardBrowserSessionTools.startManualBrowserDownload(
             ?.takeIf { value -> value.isNotBlank() }
             ?.let { value -> headers["User-Agent"] = value }
         profileManager.cookieManagerFor(activeSession.webView, activeSession.profile)
-            .getCookie(url)
+            .getCookie(normalizedUrl)
             ?.takeIf { value -> value.isNotBlank() }
             ?.let { value -> headers["Cookie"] = value }
         activeSession.currentUrl.takeIf { value -> value.isNotBlank() }
@@ -3081,7 +3082,7 @@ internal fun StandardBrowserSessionTools.startManualBrowserDownload(
         PendingBrowserDownloadRequest(
             requestId = UUID.randomUUID().toString(),
             sessionId = requestSessionId,
-            url = url.trim(),
+            url = normalizedUrl,
             fileName = fileName,
             mimeType = mimeType,
             contentLength = -1L,
