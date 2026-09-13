@@ -5,7 +5,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -21,10 +21,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
-import androidx.compose.material3.FilterChipDefaults
 
 @Composable
 fun MarketBrowseControls(
@@ -44,37 +42,31 @@ fun MarketBrowseControls(
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 4.dp)
                 .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = stringResource(R.string.character_card_sort),
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
         sortOptions.forEach { option ->
             FilterChip(
                 selected = sortOption == option,
                 onClick = { onSortOptionChanged(option) },
-                modifier = Modifier.height(48.dp),
-                label = { Text(stringResource(option.labelRes)) }
+                modifier = Modifier.heightIn(min = 32.dp),
+                label = { Text(stringResource(option.labelRes), style = MaterialTheme.typography.labelSmall) }
             )
         }
         FilterChip(
             selected = featuredOnly,
             onClick = { onFeaturedOnlyChanged(!featuredOnly) },
-            modifier = Modifier.height(48.dp),
+            modifier = Modifier.heightIn(min = 32.dp),
             leadingIcon = {
                 if (featuredOnly) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = null,
-                        modifier = Modifier.size(FilterChipDefaults.IconSize)
+                        modifier = Modifier.size(14.dp)
                     )
                 }
             },
-            label = { Text(stringResource(R.string.market_filter_featured_only)) }
+            label = { Text(stringResource(R.string.market_filter_featured_only), style = MaterialTheme.typography.labelSmall) }
         )
     }
 }

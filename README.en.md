@@ -197,6 +197,8 @@ Extensions allow capabilities to be combined for a task without putting every fe
 
 Bundled tools cover search, academic retrieval, code, files, media, system operations, and remote connections. See the [production package list](tools/example_packages/packages_whitelist.txt) and [extension examples](examples/README.md). Bundled does not mean enabled by default or that every external service has already been configured.
 
+In Extensions → Scripts, scroll the category strip horizontally to select All or a category, and combine it with search to find tools. The Environment Variables drawer uses the same category strip.
+
 For example, OpenAI Search, Brave Search, and academic tools use their own configuration. The Bilibili toolkit provides read-only retrieval, content export, and media processing. Configure packages that require environment variables before explicitly enabling them.
 
 Workflow scheduling uses Android background execution mechanisms. Battery optimization, background restrictions, and device state affect execution; it should not be relied on for precise real-time timing.

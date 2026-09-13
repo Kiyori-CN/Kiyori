@@ -2534,7 +2534,11 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             "app/src/main/java/com/ai/assistance/operit/ui/features/"
             "websession/browser/WebSessionDownloadDrawer.kt"
         )
-        legacy_production_consumer_count = M05A2_PRODUCTION_CONSUMER_COUNT - 5 - len(file_manager_paths)
+        category_filter_path = (
+            "app/src/main/java/com/ai/assistance/operit/ui/features/"
+            "packages/screens/PackageCategoryFilterRow.kt"
+        )
+        legacy_production_consumer_count = M05A2_PRODUCTION_CONSUMER_COUNT - 6 - len(file_manager_paths)
         assistant_experience_path = (
             "app/src/main/java/com/ai/assistance/operit/ui/features/"
             "semantic/AssistantExperienceSettingsPages.kt"
@@ -2560,7 +2564,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             permission_presentation_path,
             network_proxy_path,
             more_features_path,
-        ] + file_manager_paths + [download_drawer_path]
+        ] + file_manager_paths + [download_drawer_path, category_filter_path]
         test_paths = [
             "app/src/test/java/com/ai/assistance/operit/ui/semantic/"
             f"SemanticConsumer{index}.kt"
@@ -2584,13 +2588,14 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             if relative_path in {
                 *file_manager_paths,
                 download_drawer_path,
+                category_filter_path,
                 assistant_experience_path,
                 permission_presentation_path,
                 network_proxy_path,
                 more_features_path,
             }:
                 imports_by_path[relative_path] = ["KiyoriSemanticTone"]
-                if Path(relative_path).name in {"FileManagerChrome.kt", "FileManagerStorageManagement.kt"}:
+                if Path(relative_path).name in {"FileManagerChrome.kt", "FileManagerStorageManagement.kt", "PackageCategoryFilterRow.kt"}:
                     imports_by_path[relative_path].append("resolveColors")
                 continue
             if index < stable_id_consumer_indices[0] or index == page_source_consumer_index:

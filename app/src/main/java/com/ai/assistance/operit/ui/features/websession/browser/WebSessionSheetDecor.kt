@@ -61,6 +61,7 @@ internal const val WEB_SESSION_DRAWER_HEADER_END_PADDING_DP = 8
 internal const val WEB_SESSION_DRAWER_HEADER_ICON_SIZE_DP = 34
 internal const val WEB_SESSION_DRAWER_HEADER_TITLE_GAP_DP = 8
 internal const val WEB_SESSION_DRAWER_TITLE_ACTION_SIZE_DP = 40
+internal const val WEB_SESSION_DRAWER_ACTION_MIN_HEIGHT_DP = 32
 internal val WebSessionDrawerTitleActionShape = KiyoriUiShapes.control
 internal val WebSessionDrawerTitleActionContentAlignment = Alignment.Center
 
@@ -71,12 +72,14 @@ internal fun WebSessionDrawerHeader(
     tone: WebSessionBrowserMenuTone,
     modifier: Modifier = Modifier,
     countText: String? = null,
+    keepActionsWithTitle: Boolean = false,
     navigationIcon: (@Composable () -> Unit)? = null,
     titleActions: @Composable RowScope.() -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
-        val compact = maxWidth < 380.dp * LocalDensity.current.fontScale
+        val compact = !keepActionsWithTitle && maxWidth < 380.dp * LocalDensity.current.fontScale
+        val actionsMaxWidth = maxWidth * 0.55f
         val titleContent: @Composable RowScope.() -> Unit = {
             navigationIcon?.invoke()
             WebSessionBrowserMenuIconBadge(
@@ -87,16 +90,19 @@ internal fun WebSessionDrawerHeader(
                 iconSize = 18.dp,
                 shape = KiyoriUiShapes.control,
             )
-            Text(
-                text = title,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = WEB_SESSION_DRAWER_HEADER_TITLE_GAP_DP.dp).weight(1f),
-            )
-            titleActions()
+            Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = title,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(start = WEB_SESSION_DRAWER_HEADER_TITLE_GAP_DP.dp)
+                        .weight(1f, fill = false),
+                )
+                titleActions()
+            }
         }
         val controls: @Composable RowScope.() -> Unit = {
             if (!countText.isNullOrBlank()) {
@@ -118,7 +124,14 @@ internal fun WebSessionDrawerHeader(
         Column {
             Row(modifier = rowModifier, verticalAlignment = Alignment.CenterVertically) {
                 titleContent()
-                if (!compact) controls()
+                if (keepActionsWithTitle) {
+                    // 标题可省略，但操作不能移到第二行；极窄窗口仍可横向触达全部操作。
+                    Row(
+                        modifier = Modifier.widthIn(max = actionsMaxWidth)
+                            .horizontalScroll(rememberScrollState()),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) { controls() }
+                } else if (!compact) controls()
             }
             if (compact) {
                 // 窄屏/大字时让标题独占首行，计数和操作始终成组同一行且可横向到达。
@@ -165,8 +178,9 @@ internal fun WebSessionHeaderOutlinedActionButton(
                 disabledContainerColor = MaterialTheme.colorScheme.surface,
                 disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
             ),
-        contentPadding = PaddingValues(horizontal = 14.dp),
-        modifier = modifier.defaultMinSize(minWidth = 48.dp).heightIn(min = 48.dp),
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+        // 只缩窄可见描边，不关闭 Material 的最小交互面积；大字体允许内容自然增高。
+        modifier = modifier.defaultMinSize(minWidth = 48.dp, minHeight = WEB_SESSION_DRAWER_ACTION_MIN_HEIGHT_DP.dp),
     ) {
         Text(text = title, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }

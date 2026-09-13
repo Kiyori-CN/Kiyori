@@ -1355,6 +1355,13 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             refreshSessionUiOnMain(session.id)
         }
 
+        override fun onClearMediaCandidates() {
+            val session = getActiveSessionOnMain() ?: return
+            // 仅清除当前页已捕获候选，后续嗅探仍由同一会话继续记录。
+            clearMediaCandidates(session)
+            refreshSessionUiOnMain(session.id)
+        }
+
         override fun onClearDiagnosticLog(scope: BrowserDiagnosticScope) {
             browserDiagnosticLog.clear(scope, StandardBrowserSessionTools.activeSessionId)
             refreshSessionUiOnMain()

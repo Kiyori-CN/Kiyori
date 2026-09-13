@@ -63,7 +63,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
@@ -183,12 +182,7 @@ internal fun WebSessionBrowserNetworkLog(
             title = stringResource(R.string.web_session_network_log),
             leadingIcon = Icons.Filled.Info,
             tone = WebSessionBrowserMenuTone.NETWORK_LOG,
-            countText =
-                pluralStringResource(
-                    R.plurals.web_session_network_log_count,
-                    entries.size,
-                    entries.size,
-                ),
+            keepActionsWithTitle = true,
             actions = {
                 WebSessionHeaderOutlinedActionButton(
                     title = stringResource(R.string.web_session_network_log_clear),

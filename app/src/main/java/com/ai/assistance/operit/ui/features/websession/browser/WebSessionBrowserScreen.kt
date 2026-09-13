@@ -174,6 +174,7 @@ internal fun WebSessionBrowserScreen(
     onDeleteHistory: (WebSessionHistoryCategory?, Long?) -> Unit,
     onDeleteHistoryEntries: (Set<WebSessionHistoryEntryKey>) -> Unit,
     onClearNetworkLog: () -> Unit,
+    onClearMediaCandidates: () -> Unit,
     onClearDiagnosticLog: (BrowserDiagnosticScope) -> Unit,
     onAddNetworkBlockRule: (String) -> Unit,
     onSelectUserAgentMode: (WebSessionUserAgentMode) -> Unit,
@@ -1097,6 +1098,7 @@ internal fun WebSessionBrowserScreen(
                             onDeleteHistory = onDeleteHistory,
                             onDeleteHistoryEntries = onDeleteHistoryEntries,
                             onClearNetworkLog = onClearNetworkLog,
+                            onClearMediaCandidates = onClearMediaCandidates,
                             onClearDiagnosticLog = onClearDiagnosticLog,
                             onAddNetworkBlockRule = onAddNetworkBlockRule,
                             onHostStateChange = onHostStateChange,
@@ -1551,6 +1553,7 @@ private fun WebSessionBrowserDrawerContent(
     onDeleteHistory: (WebSessionHistoryCategory?, Long?) -> Unit,
     onDeleteHistoryEntries: (Set<WebSessionHistoryEntryKey>) -> Unit,
     onClearNetworkLog: () -> Unit,
+    onClearMediaCandidates: () -> Unit,
     onClearDiagnosticLog: (BrowserDiagnosticScope) -> Unit,
     onAddNetworkBlockRule: (String) -> Unit,
     onHostStateChange: ((WebSessionBrowserHostState) -> WebSessionBrowserHostState) -> Unit,
@@ -1753,6 +1756,7 @@ private fun WebSessionBrowserDrawerContent(
         WebSessionBrowserSheetRoute.MEDIA_CANDIDATES ->
             WebSessionMediaCandidateSheet(
                 candidates = browserState.mediaCandidates,
+                onClear = onClearMediaCandidates,
                 onPlay = { candidateId ->
                     onPlayMediaCandidate(candidateId).also { accepted ->
                         if (accepted) onDismiss()
@@ -1763,7 +1767,6 @@ private fun WebSessionBrowserDrawerContent(
                         if (accepted) onDismiss()
                     }
                 },
-                onDismiss = onDismiss,
             )
 
         WebSessionBrowserSheetRoute.SITE_CONFIG ->

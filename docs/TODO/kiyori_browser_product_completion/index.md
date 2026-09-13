@@ -10,6 +10,28 @@ hikerview_reference: 5de8809049e4710471f9f42642e54550ecf5dbe3
 
 # 浏览器产品能力连续完善
 
+## 2026-09-14 抽屉标题与扩展选项条
+
+- 状态：`verification_pending`；本轮实现、本地测试与 Debug APK 已完成，设备视觉与触控尚未验收。起始基线 `main / f4ad98a5a183366f314e904f637bd351c1ec2030`，父仓和 terminal 原本干净，本轮授权审计后全部提交推送。
+- 目标：六类抽屉的操作固定在标题同一行；下载菜单紧邻标题；移除指定总数，统一紧凑文字按钮。脚本新增分类横向条，市场排序缩小，环境变量标题简化。
+- 方案：复用公共抽屉标题、Material 按钮、现有脚本分类和环境变量分类视觉；资源清空经 Host 回到当前 WebSession，不创建第二份列表状态。
+- 阶段：① 源码与调用链核对；② 公共布局和六类接入；③ 扩展筛选及边界修复；④ 定向验证、串行 Debug APK、候选树审计和提交推送。
+- 风险：窄窗口、大字体、长分类名称及异步列表变化；验证覆盖空列表、筛选失效、搜索与分类组合、清空作用域。设备触控与视觉保持 `verification_pending`。
+- 非目标：不重构浏览器/下载/播放器运行时、不改安装协议、不操作设备。回滚按本轮提交撤回，无持久化迁移。
+
+本轮实现与验证：
+
+- 六类抽屉显式使用同行标题：书签更多、历史删除、下载新增/清理、嗅探清空、网络清空、诊断三个图标靠右。下载管理菜单紧邻标题；历史/嗅探/网络/诊断总数移除，批量选择和筛选计数保留。
+- 公共文字操作视觉最小高度 32 dp、统一内边距，保留 Material 最小交互面积及大字体增高；极窄窗口标题省略、操作可横向到达。市场移除排序前缀，四个选项缩小文字、图标和间距。
+- 脚本分类条与环境变量共用 `PackageCategoryFilterRow`，完整目录分类与搜索取交集；选中语义、首次加载恢复、分类消失和搜索空结果已处理。环境变量标题简化。
+- 嗅探清空复用当前会话 `clearMediaCandidates`；网络记录由原投影重新计算关联，播放、下载和诊断所有者不变。修复音频资源消失后仍选中音频的空列表问题，清理失效候选弹窗。
+- JVM：`:app:testDebugUnitTest` 定向 `PackageCategoryFilterPolicyTest`、`PackageCategoryUiPolicyTest`、`PackageEnvironmentVariablesPolicyTest`、`BrowserMediaFormatFilterTest`、`BrowserMediaCandidatePolicyTest`、`BrowserNetworkLogPolicyTest`、`WebSessionBrowserVisualPolicyTest`，7 套件 69 项通过，零失败/错误/跳过（4m24s）。首轮发现 Compose 接收者作用域编译错误，修正后本组全部通过。
+- 语义色边界正反例 2 项、完整 `check_architecture_boundaries.py --repository . --require-main`、formal readiness 和文档检查通过。分类条提取仅新增两条已有主题 import，精确快照同步，未降低断言。
+- 串行 `:app:assembleDebug --no-daemon --console=plain` 通过（1m25s，238 tasks），单 launcher、脚本代理与播放器打包验证通过。APK：`app/build/outputs/apk/debug/app-debug.apk`，2026-09-14 05:28:26 +08:00，488291558 bytes；`com.kiyori / 45 / 0.1.0 / arm64-v8a`，minSdk 26、targetSdk 34，V2 单 signer 与 16 KiB ZIP 对齐通过。
+- APK SHA-256：`0A1D778E9EDA60BDCABFAF67C97C474262D25FB585F310A7ED2573A3C5C2DFEF`。未执行 Lint、Release、设备安装或真实站点验收；现场需覆盖常规/窄窗口、大字体、书签菜单、历史删除、下载批量操作、嗅探清空后继续采集和分类搜索。
+- 同日中断恢复：复核全部 26 个交付文件，69 项 JVM XML 结果仍为零失败/错误/跳过；重新通过文档检查（521 文件、0 问题）、formal readiness 和串行 Debug 增量构建（1m15s，238 tasks）。APK 内容与上述哈希一致，V2 签名和 16 KiB ZIP 对齐再次通过；terminal 固定 `bc4aeed3e791f0a6157496f3859f70357766f90f`，工作区干净。
+- 暂存检查修正新分类组件文件的 EOF 多余空行后，最终串行 Debug 构建通过（2m20s，238 tasks）；最终 APK 生成于 `2026-09-14 05:38:27 +08:00`，488291558 bytes，SHA-256 `CECF0DD0FD5D8F7A09D688F2F882417A850787D29F2D901AEAB0656E18B47129`，V2 单 signer 和 16 KiB ZIP 对齐通过。上述较早哈希仅为历史构建证据，最终交付以本条为准。
+
 ## 2026-09-13 浏览器与文件首页补丁整合
 
 状态：本地实现、自动验证与 Debug APK 已完成；设备 `verification_pending`。

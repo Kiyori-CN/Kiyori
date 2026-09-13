@@ -55,6 +55,10 @@ AI 抽屉精确 import 表同时新增共用标题组件和三个原值不变的
 
 ## 验证
 
+2026-09-14 抽屉与扩展紧凑布局：环境变量分类行提取为共用 `PackageCategoryFilterRow`，
+脚本分类复用同一语义色和 resolver；生产消费者 `64 → 65`、精确 import `115 → 117`。
+已审查为展示组件复用，语义颜色、主题、registry 与浏览器会话所有者不变，精确快照和正反例同步。
+
 2026-09-13 浏览器补丁整合：审阅本地 HTML 导航链路后，Manifest 精确新增
 `application/xhtml+xml`，M-03 语义树 `82026D3A → CCFB6CBC`；Shell 仅增加原浏览器 URL
 队列接线，归一化哈希 `B924EA30 → 280CA894`；Intent decoder 增加本地 HTML VIEW 分流，

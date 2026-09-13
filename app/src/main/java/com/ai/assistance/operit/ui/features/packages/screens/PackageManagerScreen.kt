@@ -170,6 +170,18 @@ fun PackageManagerScreen(
 
     // Tab selection state
     var selectedTab by rememberSaveable { mutableStateOf(PackageTab.PACKAGES) }
+    var selectedScriptCategoryKey by rememberSaveable { mutableStateOf<String?>(null) }
+    // 分类来自完整目录，搜索无结果时仍保留选项，避免筛选状态来回跳变。
+    val scriptCategories = remember(availablePackages.value) {
+        buildScriptPackageCategories(availablePackages.value)
+    }
+    val effectiveScriptCategoryKey = selectedScriptCategoryKey?.takeIf { key ->
+        scriptCategories.any { it.key == key }
+    }
+    LaunchedEffect(scriptCategories, isLoading) {
+        // 首次异步加载期间保留 rememberSaveable 恢复的分类。
+        if (!isLoading) selectedScriptCategoryKey = effectiveScriptCategoryKey
+    }
     var pluginSearchInput by rememberSaveable { mutableStateOf("") }
     var pluginSearchQuery by rememberSaveable { mutableStateOf("") }
     var filteredPluginContainers by remember {
@@ -780,6 +792,15 @@ fun PackageManagerScreen(
                 }
             }
 
+            if (selectedTab == PackageTab.PACKAGES) {
+                PackageCategoryFilterRow(
+                    allPackageCount = availablePackages.value.size,
+                    categories = scriptCategories,
+                    selectedCategoryKey = effectiveScriptCategoryKey,
+                    onCategorySelected = { selectedScriptCategoryKey = it },
+                )
+            }
+
             if (
                 (selectedTab == PackageTab.PLUGINS || selectedTab == PackageTab.PACKAGES) &&
                     packageLoadErrorInfos.value.isNotEmpty()
@@ -878,10 +899,12 @@ fun PackageManagerScreen(
 
                     PackageTab.PACKAGES -> {
                         PackageTabContent(
-                            packages = filteredAvailablePackages,
+                            packages = remember(filteredAvailablePackages, effectiveScriptCategoryKey) {
+                                filterScriptPackagesByCategory(filteredAvailablePackages, effectiveScriptCategoryKey)
+                            },
                             enabledPackageNames = visibleImportedPackages.value,
                             isLoading = isLoading,
-                            isSearchActive = packageSearchQuery.isNotBlank(),
+                            isSearchActive = packageSearchQuery.isNotBlank() || effectiveScriptCategoryKey != null,
                             onPackageClick = { packageName ->
                                 selectedPackage = packageName
                                 showDetails = true
@@ -1226,4 +1249,3 @@ private fun PackageManagerTabLabel(
         )
     }
 }
-

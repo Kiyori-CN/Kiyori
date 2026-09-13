@@ -191,16 +191,7 @@ internal fun WebSessionHistorySheet(
                 },
             leadingIcon = Icons.Filled.History,
             tone = WebSessionBrowserMenuTone.HISTORY,
-            countText =
-                if (batchMode) {
-                    null
-                } else {
-                    pluralStringResource(
-                        R.plurals.web_session_history_count,
-                        entries.size,
-                        entries.size,
-                    )
-                },
+            keepActionsWithTitle = true,
             navigationIcon =
                 if (batchMode) {
                     {

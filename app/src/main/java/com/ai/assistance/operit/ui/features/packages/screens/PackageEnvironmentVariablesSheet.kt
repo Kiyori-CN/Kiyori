@@ -35,7 +35,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.outlined.Close
@@ -352,9 +351,9 @@ private fun PackageEnvironmentVariablesSheetContent(
             onClear = onClearQuery,
             modifier = Modifier.padding(horizontal = 14.dp),
         )
-        PackageEnvironmentCategoryRow(
+        PackageCategoryFilterRow(
             allPackageCount = groups.size,
-            categories = categories,
+            categories = categories.map { PackageCategoryFilterOption(it.key, it.label, it.packageCount) },
             selectedCategoryKey = selectedCategoryKey,
             onCategorySelected = onCategorySelected,
         )
@@ -471,7 +470,7 @@ private fun PackageEnvironmentVariablesHeader(
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             Text(
-                text = stringResource(R.string.pkg_config_env_vars),
+                text = stringResource(R.string.mcp_env_variables),
                 color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -557,89 +556,6 @@ private fun PackageEnvironmentSearchField(
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun PackageEnvironmentCategoryRow(
-    allPackageCount: Int,
-    categories: List<PackageEnvironmentVariableCategory>,
-    selectedCategoryKey: String?,
-    onCategorySelected: (String?) -> Unit,
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 14.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(7.dp),
-    ) {
-        PackageEnvironmentCategoryChip(
-            label = stringResource(R.string.pkg_env_category_all),
-            packageCount = allPackageCount,
-            visual = null,
-            selected = selectedCategoryKey == null,
-            onClick = { onCategorySelected(null) },
-        )
-        categories.forEach { category ->
-            PackageEnvironmentCategoryChip(
-                label = category.label,
-                packageCount = category.packageCount,
-                visual = resolvePackageCategoryVisual(category.label),
-                selected = selectedCategoryKey == category.key,
-                onClick = { onCategorySelected(category.key) },
-            )
-        }
-    }
-}
-
-@Composable
-private fun PackageEnvironmentCategoryChip(
-    label: String,
-    packageCount: Int,
-    visual: PackageCategoryVisual?,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    val allColors = KiyoriSemanticTone.CYAN.resolveColors()
-    val categoryColors = visual?.resolveColors()
-    val accentColor = categoryColors?.icon ?: allColors.icon
-    val selectedContainer = categoryColors?.container ?: allColors.container
-    Surface(
-        modifier = Modifier.height(34.dp).clickable(role = Role.Button, onClick = onClick),
-        shape = RoundedCornerShape(8.dp),
-        color = if (selected) selectedContainer else MaterialTheme.colorScheme.surface,
-        border =
-            BorderStroke(
-                width = 1.dp,
-                color =
-                    if (selected) {
-                        accentColor
-                    } else {
-                        accentColor.copy(alpha = 0.34f)
-                    },
-            ),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            Icon(
-                imageVector = visual?.icon?.toImageVector() ?: Icons.Filled.Apps,
-                contentDescription = null,
-                tint = accentColor,
-                modifier = Modifier.size(14.dp),
-            )
-            Text(
-                text = stringResource(R.string.pkg_env_category_count, label, packageCount),
-                color = accentColor,
-                fontSize = 11.5.sp,
-                lineHeight = 14.sp,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            )
         }
     }
 }

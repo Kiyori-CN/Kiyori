@@ -32,7 +32,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
@@ -40,7 +39,6 @@ import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -74,12 +72,23 @@ import java.util.Locale
 private const val ALL_MEDIA_FORMATS = "ALL"
 private const val AUDIO_MEDIA_FORMAT = "AUDIO"
 
+internal fun resolveBrowserMediaFormatFilter(
+    selectedFormat: String,
+    availableFormats: List<BrowserMediaCandidateVideoFormat>,
+    hasAudio: Boolean,
+): String = when {
+    selectedFormat == ALL_MEDIA_FORMATS -> ALL_MEDIA_FORMATS
+    selectedFormat == AUDIO_MEDIA_FORMAT && hasAudio -> AUDIO_MEDIA_FORMAT
+    availableFormats.any { it.name == selectedFormat } -> selectedFormat
+    else -> ALL_MEDIA_FORMATS
+}
+
 @Composable
 internal fun WebSessionMediaCandidateSheet(
     candidates: List<WebSessionBrowserMediaCandidate>,
     onPlay: (String) -> Boolean,
     onDownload: (String) -> Boolean,
-    onDismiss: () -> Unit,
+    onClear: () -> Unit,
 ) {
     val context = LocalContext.current
     var selectedFormat by rememberSaveable { mutableStateOf(ALL_MEDIA_FORMATS) }
@@ -95,28 +104,29 @@ internal fun WebSessionMediaCandidateSheet(
                 .map(WebSessionBrowserMediaCandidate::videoFormat)
                 .distinct()
         }
-    LaunchedEffect(availableFormats) {
+    val hasAudio = candidates.any { it.mediaKind == BrowserMediaKind.AUDIO }
+    val effectiveSelectedFormat = resolveBrowserMediaFormatFilter(selectedFormat, availableFormats, hasAudio)
+    LaunchedEffect(availableFormats, effectiveSelectedFormat) {
         orderedFormats =
             orderedFormats.filter { it in availableFormats } +
                 availableFormats.filterNot { it in orderedFormats }
-        if (
-            selectedFormat != ALL_MEDIA_FORMATS &&
-                selectedFormat != AUDIO_MEDIA_FORMAT &&
-                availableFormats.none { it.name == selectedFormat }
-        ) {
-            selectedFormat = ALL_MEDIA_FORMATS
-        }
+        selectedFormat = effectiveSelectedFormat
+    }
+    LaunchedEffect(candidates) {
+        // 清空或导航后不能继续操作旧候选的快照。
+        actionCandidate = actionCandidate?.let { previous -> candidates.find { it.id == previous.id } }
+        linkCandidate = linkCandidate?.let { previous -> candidates.find { it.id == previous.id } }
     }
     val visibleCandidates =
-        remember(candidates, selectedFormat) {
-            when (selectedFormat) {
+        remember(candidates, effectiveSelectedFormat) {
+            when (effectiveSelectedFormat) {
                 ALL_MEDIA_FORMATS -> candidates
                 AUDIO_MEDIA_FORMAT ->
                     candidates.filter { it.mediaKind == BrowserMediaKind.AUDIO }
                 else ->
                     candidates.filter {
                         it.mediaKind == BrowserMediaKind.VIDEO &&
-                            it.videoFormat.name == selectedFormat
+                            it.videoFormat.name == effectiveSelectedFormat
                     }
             }
         }
@@ -124,12 +134,12 @@ internal fun WebSessionMediaCandidateSheet(
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         BrowserMediaCandidateHeader(
             candidateCount = candidates.size,
-            onDismiss = onDismiss,
+            onClear = onClear,
         )
         BrowserMediaFormatFilters(
             candidates = candidates,
             orderedFormats = orderedFormats,
-            selectedFormat = selectedFormat,
+            selectedFormat = effectiveSelectedFormat,
             onSelect = { selectedFormat = it },
         )
 
@@ -197,21 +207,20 @@ internal fun WebSessionMediaCandidateSheet(
 @Composable
 private fun BrowserMediaCandidateHeader(
     candidateCount: Int,
-    onDismiss: () -> Unit,
+    onClear: () -> Unit,
 ) {
     WebSessionDrawerHeader(
         title = "资源嗅探",
         leadingIcon = Icons.Filled.VideoLibrary,
         tone = WebSessionBrowserMenuTone.FLOATING_SNIFFER,
-        countText = "$candidateCount 个资源",
+        keepActionsWithTitle = true,
         actions = {
-            IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
-                Icon(
-                    imageVector = Icons.Outlined.Close,
-                    contentDescription = "关闭",
-                    modifier = Modifier.size(19.dp),
-                )
-            }
+            WebSessionHeaderOutlinedActionButton(
+                title = "清空",
+                enabled = candidateCount > 0,
+                tone = KiyoriSemanticTone.RED,
+                onClick = onClear,
+            )
         },
     )
 }

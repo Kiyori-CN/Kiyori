@@ -131,7 +131,7 @@ internal fun WebSessionBrowserDiagnosticSheet(
             title = stringResource(R.string.web_session_diagnostics),
             leadingIcon = Icons.Filled.Info,
             tone = WebSessionBrowserMenuTone.DIAGNOSTICS,
-            countText = scopeEntries.size.toString(),
+            keepActionsWithTitle = true,
             actions = {
                 IconButton(
                     enabled = filteredEntries.isNotEmpty(),

@@ -233,6 +233,7 @@ internal fun WebSessionBookmarkSheet(
                 title = currentFolder?.title ?: "我的书签",
                 leadingIcon = Icons.Filled.Bookmark,
                 tone = WebSessionBrowserMenuTone.BOOKMARKS,
+                keepActionsWithTitle = true,
                 actions = {
                     Box {
                         IconButton(onClick = { topMenuExpanded = true }) {

@@ -21,6 +21,8 @@ app/src/main/java/com/ai/assistance/operit/ui/features/packages/market/MarketBro
 app/src/main/java/com/ai/assistance/operit/ui/features/packages/market/MarketBrowseList.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/features/packages/screens/MCPConfigScreen.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/packages/screens/MCPConfigScreen.kt	com.kiyori.design.theme.resolveColors
+app/src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageCategoryFilterRow.kt	com.kiyori.design.theme.KiyoriSemanticTone
+app/src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageCategoryFilterRow.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageEnvironmentVariablesSheet.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageEnvironmentVariablesSheet.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt	com.kiyori.design.theme.KiyoriSemanticTone

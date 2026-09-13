@@ -282,6 +282,7 @@ internal fun WebSessionDownloadSheet(
                 title = if (batchMode) "已选 ${selectedVisibleItems.size} 项" else "我的下载",
                 leadingIcon = Icons.Outlined.Download,
                 tone = WebSessionBrowserMenuTone.DOWNLOADS,
+                keepActionsWithTitle = true,
                 titleActions = {
                     Box(
                         modifier =

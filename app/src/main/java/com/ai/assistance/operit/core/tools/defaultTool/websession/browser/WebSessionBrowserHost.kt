@@ -89,6 +89,7 @@ internal class WebSessionBrowserHost(
         fun onDeleteHistory(category: WebSessionHistoryCategory?, cutoffTimeMillis: Long?)
         fun onDeleteHistoryEntries(entryKeys: Set<WebSessionHistoryEntryKey>)
         fun onClearNetworkLog()
+        fun onClearMediaCandidates()
         fun onClearDiagnosticLog(scope: BrowserDiagnosticScope)
         fun onAddNetworkBlockRule(url: String)
         fun onAddElementBlockRule(domain: String, selector: String)
@@ -333,6 +334,7 @@ internal class WebSessionBrowserHost(
             onDeleteHistory = callbacks::onDeleteHistory,
             onDeleteHistoryEntries = callbacks::onDeleteHistoryEntries,
              onClearNetworkLog = callbacks::onClearNetworkLog,
+             onClearMediaCandidates = callbacks::onClearMediaCandidates,
              onClearDiagnosticLog = callbacks::onClearDiagnosticLog,
              onAddNetworkBlockRule = callbacks::onAddNetworkBlockRule,
              onSelectUserAgentMode = callbacks::onSelectUserAgentMode,
